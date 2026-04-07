@@ -5141,6 +5141,30 @@ local g_lookupSymbols = {
 			return false
 		end
 	end,
+
+	powerrollusesmight = function(c)
+		for _,behavior in ipairs(c.behaviors) do
+			if behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
+				local roll = string.lower(behavior:try_get("roll", ""))
+				if string.find(roll, "might") then
+					return true
+				end
+			end
+		end
+		return false
+	end,
+
+	powerrollusesagility = function(c)
+		for _,behavior in ipairs(c.behaviors) do
+			if behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
+				local roll = string.lower(behavior:try_get("roll", ""))
+				if string.find(roll, "agility") then
+					return true
+				end
+			end
+		end
+		return false
+	end,
 }
 
 local g_helpCasting = {
@@ -5278,7 +5302,21 @@ local g_helpSymbols = {
 		type = "function",
 		desc = "Returns whether this ability inflicts the provided condition",
 		examples = {'Ability.Inflicts("Frightened")'},
-	}
+	},
+
+	powerrollusesmight = {
+		name = "Power Roll Uses Might",
+		type = "boolean",
+		desc = "True if this ability has a power roll whose formula includes the Might characteristic.",
+		examples = {"Used Ability.Power Roll Uses Might"},
+	},
+
+	powerrollusesagility = {
+		name = "Power Roll Uses Agility",
+		type = "boolean",
+		desc = "True if this ability has a power roll whose formula includes the Agility characteristic.",
+		examples = {"Used Ability.Power Roll Uses Agility"},
+	},
 }
 
 ActivatedAbility.lookupSymbols = g_lookupSymbols

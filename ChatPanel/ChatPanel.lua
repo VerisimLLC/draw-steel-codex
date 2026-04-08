@@ -802,6 +802,25 @@ CreateChatPanel = function()
 				macroName = string.sub(macroName, 2)
 			end
 			local macroInfo = Commands.GetMacroInfo(macroName)
+			if macroInfo == nil and dmhub.HasSetting(macroName) then
+				local settingInfo = dmhub.GetSettingInfo(macroName)
+				if settingInfo ~= nil then
+					local parts = {}
+					if settingInfo.description ~= nil and settingInfo.description ~= "" then
+						local desc = settingInfo.description
+						if string.len(desc) > 30 then
+							desc = string.sub(desc, 1, 27) .. "..."
+						end
+						parts[#parts+1] = desc
+					end
+					if settingInfo.value ~= nil and settingInfo.value ~= "" and string.len(settingInfo.value) <= 20 then
+						parts[#parts+1] = "= " .. settingInfo.value
+					end
+					if #parts > 0 then
+						macroInfo = {summary = table.concat(parts, " ")}
+					end
+				end
+			end
 			local row = BuildCompletionRow(commandName, macroInfo)
 			completionChildren[#completionChildren + 1] = row
 			allChildren[#allChildren + 1] = row

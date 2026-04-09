@@ -1166,7 +1166,7 @@ local CreateInventorySlot = function(dmhud, options)
 									dmhub.SetAndUploadTableItem(equipment.tableName, imbueTarget)
 									token:BeginChanges()
 									token.properties:GiveItem(imbueTarget.id, 1)
-									token.properties:SetItemQuantity(imbueItem.id, 0, slotPanel.data.inventoryIndex)
+									token.properties:SetItemQuantity(imbueItem.id, token.properties:GetItemQuantity(imbueItem.id) - 1, slotPanel.data.inventoryIndex)
 									token:CompleteChanges("Imbue mundane item")
 								end
 								return message
@@ -1184,7 +1184,7 @@ local CreateInventorySlot = function(dmhud, options)
 								if imbueTarget then
 									dmhub.SetAndUploadTableItem(equipment.tableName, imbueTarget)
 									token:BeginChanges()
-									token.properties:SetItemQuantity(imbueItem.id, 0, slotPanel.data.inventoryIndex)
+									token.properties:SetItemQuantity(imbueItem.id, token.properties:GetItemQuantity(imbueItem.id) - 1, slotPanel.data.inventoryIndex)
 									token:CompleteChanges('Imbue Item')
 								end
 							end

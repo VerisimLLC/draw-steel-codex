@@ -89,6 +89,33 @@ function DSImbuement.CanImbue(imbueItem, targetItem)
     return imbuements[prereq] == true
 end
 
+function DSImbuement.AddStaminaToArmor(imbueItem)
+    local itemLevel = imbueItem:try_get("imbueLevel", 1)
+    local staminaByLevel = { [1] = 6, [5] = 12, [9] = 21 }
+    local stamina = staminaByLevel[itemLevel] or staminaByLevel[1]
+    local sourceGuid = dmhub.GenerateGuid()
+    local f = CharacterFeature.new{
+        addText = "Add Magical Property",
+        itemAttached = true,
+        description = "",
+        name = "Item Feature",
+        guid = sourceGuid,
+        source = "Item",
+        modifiers = {},
+    }
+    f.modifiers[#f.modifiers+1] = CharacterModifier.new{
+        value = stamina,
+        sourceguid = sourceGuid,
+        source = "Item",
+        name = "itemFeature",
+        description = "",
+        behavior = "attribute",
+        guid = dmhub.GenerateGuid(),
+        attribute = "hitpoints"
+    }
+    imbueItem.features[#imbueItem.features+1] = f
+end
+
 --- Imbue an item
 --- @param imbueItem equipment
 --- @param targetItem equipment
@@ -149,6 +176,11 @@ function DSImbuement.ImbueItem(imbueItem, targetItem)
             _removeImbuementFromItem(targetItem, chainId, imbuements)
         end
         removeChain(prereq)
+    end
+
+    -- Add stamina bonus when imbuing armor
+    if imbueItem:try_get("imbueTargetType") == "armor" then
+        DSImbuement.AddStaminaToArmor(imbueItem)
     end
 
     -- Apply the imbuement's features

@@ -5233,6 +5233,11 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
                     moveFlags[#moveFlags + 1] = "IgnoreMovementType"
                 end
 
+                m_allowedAltitudeCalculator = g_currentAbility:TargetLocMaxElevationChangeFunction(g_token, g_currentSymbols)
+                m_altitudeController:SetClass("collapsed", m_allowedAltitudeCalculator == nil)
+                print("ALT:: CALC ALT:", m_allowedAltitudeCalculator)
+
+
                 local filterTargetPredicate = g_currentAbility:TargetLocPassesFilterPredicate(g_token, g_currentSymbols)
 
                 print("MARK:: MovementRadius:: MARK", range)
@@ -5271,8 +5276,7 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
                     print("MovementRadius:: MARK", range)
                     AddRadiusMarker(loc, range, 'white', filterTargetPredicate)
 
-                    m_allowedAltitudeCalculator = g_currentAbility:TargetLocMaxElevationChangeFunction(g_token,
-                        g_currentSymbols)
+                    m_allowedAltitudeCalculator = g_currentAbility:TargetLocMaxElevationChangeFunction(g_token, g_currentSymbols)
                     m_altitudeController:SetClass("collapsed", m_allowedAltitudeCalculator == nil)
                 else
                     AddCustomAreaMarker(customLocs, 'white')

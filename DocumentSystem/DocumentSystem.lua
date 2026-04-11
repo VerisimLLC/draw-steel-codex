@@ -942,6 +942,9 @@ function CustomDocument:CreateInterface(args)
                     resultPanel.data.watcherContent = self:GetTextContent()
                     resultPanel.data.watcher = dmhub.OpenTextFileInConnectedEditor(self.description, self:GetTextContent(),
                         function(contents)
+                            if resultPanel.data == nil then
+                                return
+                            end
                             if #contents > self.MaxLength then
                                 contents = contents:sub(1, self.MaxLength)
                                 gui.ModalMessage {

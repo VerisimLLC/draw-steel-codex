@@ -3444,6 +3444,7 @@ function creature:ShowCharacteristicRollDialog(attrid)
 
     local displaying = false
     if token ~= nil then
+        CharacterPanel.UnlockDisplayAbility()
         displaying = CharacterPanel.DisplayAbility(token, syntheticAbility, nil, {lock = true, renderAsAbility = true})
     end
 

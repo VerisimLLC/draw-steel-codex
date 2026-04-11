@@ -171,6 +171,22 @@ local function EditHero(element, character)
         dmhub.DeregisterEventHandler(handler)
         print("TITLESCREEN:: SHOW")
         handler = nil
+
+        -- Track character_create after the builder closes so ancestry/class/kit
+        -- reflect the player's actual choices, not the defaults.
+        local c = character
+        if c ~= nil and c.valid then
+            local classInfo = c.properties:GetClass()
+            local kitTable = dmhub.GetTable("kits")
+            local kitId = c.properties:try_get("kitid")
+            track("character_create", {
+                ancestry = c.properties:RaceOrMonsterType() or "",
+                class = classInfo and classInfo.name or "",
+                kit = (kitId and kitTable[kitId]) and kitTable[kitId].name or "",
+                method = "titlescreen",
+                dailyLimit = 5,
+            })
+        end
     end)
 end
 
@@ -212,16 +228,6 @@ local function CreateHero(element)
                                 c.properties.creatorid = dmhub.userid
                             end,
                         }
-                        local classInfo = c.properties:GetClass()
-                        local kitTable = dmhub.GetTable("kits")
-                        local kitId = c.properties:try_get("kitid")
-                        track("character_create", {
-                            ancestry = c.properties:RaceOrMonsterType() or "",
-                            class = classInfo and classInfo.name or "",
-                            kit = (kitId and kitTable[kitId]) and kitTable[kitId].name or "",
-                            method = "titlescreen",
-                            dailyLimit = 5,
-                        })
                         EditHero(element, c)
                     end
                     return

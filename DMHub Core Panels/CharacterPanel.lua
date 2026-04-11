@@ -3145,13 +3145,6 @@ local CreateBestiaryAndPartyPanel = function(noBestiary)
                             element.data.newcharTime = dmhub.Time()
                             element.monitorGame = string.format("/characters/%s", charid)
                             mod.shared.CompleteTutorial("Create a Character")
-                            track("character_create", {
-                                ancestry = "",
-                                class = "",
-                                kit = "",
-                                method = "panel",
-                                dailyLimit = 5,
-                            })
                         end
 
                         local menuItems = {}
@@ -3185,6 +3178,28 @@ local CreateBestiaryAndPartyPanel = function(noBestiary)
                             local tok = dmhub.GetCharacterById(element.data.newchar)
                             if tok ~= nil then
                                 tok:ShowSheet("Appearance")
+
+                                -- Track character_create after the sheet closes so
+                                -- ancestry/class/kit reflect actual player choices.
+                                local trackToken = tok
+                                local handler
+                                handler = dmhub.RegisterEventHandler("characterSheetClosed", function()
+                                    dmhub.DeregisterEventHandler(handler)
+                                    handler = nil
+                                    local c = trackToken
+                                    if c ~= nil and c.valid then
+                                        local classInfo = c.properties:GetClass()
+                                        local kitTable = dmhub.GetTable("kits")
+                                        local kitId = c.properties:try_get("kitid")
+                                        track("character_create", {
+                                            ancestry = c.properties:RaceOrMonsterType() or "",
+                                            class = classInfo and classInfo.name or "",
+                                            kit = (kitId and kitTable[kitId]) and kitTable[kitId].name or "",
+                                            method = "panel",
+                                            dailyLimit = 5,
+                                        })
+                                    end
+                                end)
                             end
                         end
 

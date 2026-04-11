@@ -471,15 +471,9 @@ RegisterGoblinScriptSymbol(ActivatedAbility, {
             if behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
                 local tiers = behavior.tiers
                 for _, entry in ipairs(tiers) do
-                    local damageMatch = regex.MatchGroups(entry, "(?<damage>[0-9 maripd+-]+) +(?<type>[a-z]+)? ?damage")
-                    print("Checking damage match for entry: " .. damageMatch)
-                    if damageMatch ~= nil and not dmhub.IsRollDeterministic(damageMatch.damage) then
+                    if regex.MatchGroups(entry, " damage") ~= nil then
                         return true
                     end
-                end
-            elseif behavior.typeName == "ActivatedAbilityDamageBehavior" then
-                if not dmhub.IsRollDeterministic(behavior.roll) then
-                    return true
                 end
             end
         end

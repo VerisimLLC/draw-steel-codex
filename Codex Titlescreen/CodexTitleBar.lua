@@ -184,6 +184,8 @@ end
 
 local g_showStatusBarSetting = setting{
     id = "showstatusbar",
+    description = "Show status bar",
+    editor = "check",
     default = true,
     storage = "preference",
     section = "General",

@@ -3628,51 +3628,6 @@ mod.shared.ShowDownloadShareDialog = function()
 
 			end,
 		}
-	
-	local bandwidthLabel = gui.Label{
-		width = "auto",
-		height = "auto",
-		halign = "left",
-		valign = "bottom",
-		fontSize = 14,
-
-		thinkTime = 0.5,
-
-		think = function(element)
-			element:FireEvent("newModule")
-		end,
-
-		newModule = function(element)
-			local mod = moduleDetailedDisplay.data.moduleInfo
-			local operation = cond(mod.installedVersion ~= nil, "update", "install")
-			if mod.installedVersion == mod.latestVersion or mod.publishedFromThisGame then
-				element.text = ""
-			elseif mod.installationBandwidthInKBytes == 0 then
-				element.text = string.format("This module requires no bandwidth to %s", operation)
-			else
-				element.text = string.format("Bandwidth required to %s module: %.1fMB\nBandwidth remaining this month: %.1fMB", operation, mod.installationBandwidthInKBytes/1024, dmhub.uploadQuotaRemaining/(1024*1024))
-
-			end
-		end,
-	}
-
-	local bandwidthPanel = gui.Panel{
-		floating = true,
-		width = "auto",
-		height = "auto",
-		flow = "vertical",
-		halign = "left",
-		valign = "bottom",
-		bandwidthLabel,
-		gui.Label{
-			text = "Support us on Patreon for more bandwidth",
-			classes = {"link"},
-			fontSize = 14,
-			click = function(element)
-				dmhub.OpenRegisteredURL("Patreon")
-			end,
-		}
-	}
 
 	local installPanel = gui.Panel{
 		height = "auto",
@@ -3832,7 +3787,6 @@ mod.shared.ShowDownloadShareDialog = function()
 		},
 
 		installPanel,
-		bandwidthPanel,
 
 		gui.CloseButton{
 			halign = "right",

@@ -416,7 +416,16 @@ function ActivatedAbilityDamageChatMessage:Render(message)
         damageTypeText = " " .. damageTypeText
     end
 
-    local messageText = string.format("%d%s damage", self.amount, damageTypeText)
+    local displayAmount = self.amount
+    if self.chatMessage == "Falling Damage" then
+        local targetTokens = self:GetTargetTokens()
+        if #targetTokens > 0 and targetTokens[1].valid then
+            local reduction = targetTokens[1].properties:CalculateNamedCustomAttribute("Fall Damage Reduction", 0)
+            displayAmount = math.max(0, displayAmount - reduction)
+        end
+    end
+
+    local messageText = string.format("%d%s damage", displayAmount, damageTypeText)
 
     local detailLabel = gui.Label{
         classes = {"action-log-detail"},

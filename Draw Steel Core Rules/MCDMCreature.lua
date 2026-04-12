@@ -3614,6 +3614,10 @@ function creature.TakeDamage(self, amount, note, info)
         return
     end
 
+    if info.ability ~= nil and info.ability.name == "Fall Damage" then
+        amount = math.max(0, amount - self:CalculateNamedCustomAttribute("Fall Damage Reduction", 0))
+    end
+
     if amount <= 0 and note == nil then
         return
     end

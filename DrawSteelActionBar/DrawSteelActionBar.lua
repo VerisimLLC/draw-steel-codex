@@ -1670,7 +1670,7 @@ local function ActionSubMenu(args)
             classes = { "submenuHeading" },
             abilities = function(element, abilities, grouping)
                 if g_token.properties.typeName == "monster" and grouping == "Heroic Abilities" then
-                    grouping = "Villain Actions"
+                    grouping = "Malice Abilities"
                 elseif grouping == "Triggers" then
                     grouping = "Manual Use Triggers"
                 end

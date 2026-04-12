@@ -4613,6 +4613,8 @@ function creature:RefreshToken(token)
                     end
 
 					--Skip local-only triggers since they already fired on the originating machine.
+                    info = info or {}
+                    info.remote = true
 					self:TriggerEvent(eventInfo.eventName, info, true, "skipLocal")
 				end
 			end

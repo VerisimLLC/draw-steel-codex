@@ -41,7 +41,11 @@ TriggeredAbility.mandatoryTriggerSettings = {
     },
     {
         id = "local",
-        text = "Automatic/Locally",
+        text = "Automatic and Local",
+    },
+    {
+        id = "prompt_remote",
+        text = "Prompt Remote, Auto Local",
     },
     {
         id = false,
@@ -55,10 +59,11 @@ TriggeredAbility.mandatoryTriggerSettings = {
 
 --- Returns true if this triggered ability should fire automatically without prompting the player.
 --- @return boolean
-function TriggeredAbility:IsMandatory()
-    if self.mandatory == true or self.mandatory == "local" then
+function TriggeredAbility:IsMandatory(token)
+    print("MANDATORY:: IS =", self.mandatory, json(token ~= nil and token.charid), json(token ~= nil and token.activeControllerId == nil))
+    if self.mandatory == true or self.mandatory == "local" or (self.mandatory == "prompt_remote" and token ~= nil and token.activeControllerId == nil) then
         return true
-    elseif self.mandatory == false then
+    elseif self.mandatory == "prompt_remote" or self.mandatory == false then
         return false
     end
 
@@ -1045,7 +1050,8 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 		g_triggerDepth = g_triggerDepth - 1
 	end
 
-	if self:IsMandatory() or (self:try_get("mandatoryDifferentPlayer", false) and casterToken.activeControllerId == nil) then
+    print("MANDATORY::", json(symbols.remote), "mandatory =", self:IsMandatory(cond(symbols.remote, nil, casterToken)))
+	if self:IsMandatory(cond(symbols.remote, nil, casterToken)) then
 		-- For mandatory triggers with a usage limit, pay the full cost upfront
 		-- before entering the coroutine. This prevents the same trigger from
 		-- firing multiple times in a single movement loop.

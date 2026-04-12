@@ -3523,7 +3523,7 @@ function CharacterModifier:TriggerEvent(creature, eventName, info, modContext, d
 			return false
 		end
 
-        if  ((not self.triggeredAbility:IsMandatory()) and (not creature:TriggeredAbilityEnabled(self.triggeredAbility))) then
+        if  ((not self.triggeredAbility:IsMandatory(creatureToken)) and (not creature:TriggeredAbilityEnabled(self.triggeredAbility))) then
             if debugLog ~= nil then
                 debugLog[#debugLog+1] = {
                     name = self.triggeredAbility.name,
@@ -3541,7 +3541,7 @@ function CharacterModifier:TriggerEvent(creature, eventName, info, modContext, d
 				info[k] = v
 			end
 		end
-		self.triggeredAbility:Trigger(self, creature, info, nil, modContext, {debugLog = debugLog})
+		self.triggeredAbility:Trigger(self, creature, info, nil, modContext, {debugLog = debugLog, remote = (localFilter == "skipLocal")})
 		return true
 	end
 

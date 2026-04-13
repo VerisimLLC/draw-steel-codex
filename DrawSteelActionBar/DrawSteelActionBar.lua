@@ -1669,9 +1669,7 @@ local function ActionSubMenu(args)
         gui.Label {
             classes = { "submenuHeading" },
             abilities = function(element, abilities, grouping)
-                if g_token.properties.typeName == "monster" and grouping == "Heroic Abilities" then
-                    grouping = "Villain Actions"
-                elseif grouping == "Triggers" then
+                if grouping == "Triggers" then
                     grouping = "Manual Use Triggers"
                 end
                 element.text = grouping
@@ -1938,6 +1936,9 @@ ActionMenu = function()
 
             for _, ability in ipairs(abilities) do
                 local grouping = GameSystem.GetAbilityCategoryInfo(ability.categorization).grouping or "Abilities"
+                if g_token.properties.typeName == "monster" and grouping == "Heroic Abilities" then
+                    grouping = "Abilities"
+                end
                 if grouping == "Common Abilities" and ability.actionResourceId == CharacterResource.freeManeuverResourceId then
                     grouping = "Free Maneuvers"
                 end

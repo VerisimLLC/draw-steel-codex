@@ -635,12 +635,14 @@ CreateUserSessionPanel = function(userid)
 					nameLabel.text = sessionInfo.displayName
 
                     local status = sessionInfo.richStatus;
-                    if status == nil then
-                        if sessionInfo.loggedOut or sessionInfo.timeSinceLastContact >= 140 then
-                            status = "Offline"
-                        elseif sessionInfo.timeSinceLastContact >= 100 then
-                            status = "Away"
-                        elseif sessionInfo.dm then
+                    if sessionInfo.loggedOut or sessionInfo.timeSinceLastContact >= 140 then
+                        status = "Offline"
+                    elseif sessionInfo.timeSinceLastContact >= 100 then
+                        status = "Away"
+                    elseif sessionInfo.dm and dmhub.GetSettingValue("redactdirectorlocation") then
+                        status = "Online"
+                    elseif status == nil then
+                        if sessionInfo.dm then
                             status = "Online"
                         else
                             local charid = sessionInfo.primaryCharacter

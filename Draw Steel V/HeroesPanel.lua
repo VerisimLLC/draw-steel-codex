@@ -529,6 +529,8 @@ local CreateDirectorPanel = function(userid)
             update = function(element, info)
                 if info.loggedOut or info.timeSinceLastContact > 140 then
                     element.text = "Offline"
+                elseif info.dm and dmhub.GetSettingValue("redactdirectorlocation") then
+                    element.text = "Online"
                 elseif info.richStatus == nil then
                     element.text = "Online"
 --[[

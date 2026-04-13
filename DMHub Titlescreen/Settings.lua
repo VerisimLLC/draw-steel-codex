@@ -33,6 +33,16 @@ setting{
 }
 
 setting{
+    id = "redactdirectorlocation",
+    description = "Redact Director Location",
+    help = "When on, directors' rich-status/location is hidden in the Heroes and User Status panels for everyone in the game; only Online/Away/Offline is shown for director users.",
+    storage = "game",
+    section = "General",
+    editor = "check",
+    default = true,
+}
+
+setting{
 	id = "sensitivity",
 	description = "Scroll Sensitivity",
 	help = "Controls the speed which the screen moves when panning.",

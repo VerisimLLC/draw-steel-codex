@@ -1599,15 +1599,30 @@ function GameHud.CreateEmbeddedRollDialog()
                 return
             end
 
-            local maintarget = multitargets[GetCurrentMultiTarget()]
-            if maintarget == nil or #maintarget.triggers == 0 then
-                element:SetClass("collapsed", false)
-                return
+            -- Show triggers from every multi-target, not just the currently
+            -- selected one. "all"-multitarget triggers are deduped by modifier
+            -- guid; single-target triggers are keyed by guid+token so the same
+            -- modifier can appear once per target.
+            local allTriggers = {}
+            local seen = {}
+            for _, target in ipairs(multitargets) do
+                for _, trigger in ipairs(target.triggers or {}) do
+                    local targetAll = (trigger.modifier:try_get("multitarget", "one") == "all")
+                    local key = trigger.modifier.guid
+                    if not targetAll then
+                        key = key .. target.token.charid
+                    end
+                    if not seen[key] then
+                        seen[key] = true
+                        allTriggers[#allTriggers + 1] = trigger
+                    end
+                end
             end
 
             element:SetClass("collapsed", false)
+
             local children = element.children
-            for i, trigger in ipairs(maintarget.triggers) do
+            for i, trigger in ipairs(allTriggers) do
                 local panel = children[i] or CreateTriggerPanel(trigger)
                 panel:FireEvent("refreshTriggerInfo", trigger)
                 children[i] = panel
@@ -1615,8 +1630,8 @@ function GameHud.CreateEmbeddedRollDialog()
 
             local visibleCount = 0
             for i = 1, #children do
-                local hidden = i > #maintarget.triggers
-                if not hidden and maintarget.triggers[i] and maintarget.triggers[i].failsRequirement then
+                local hidden = i > #allTriggers
+                if not hidden and allTriggers[i] and allTriggers[i].failsRequirement then
                     hidden = true
                 end
                 children[i]:SetClass("collapsed", hidden)

@@ -1926,13 +1926,16 @@ function creature.InflictDamageInstance(self, amount, damageType, keywords, sour
 
 
     local ignoreImmunity = false
+    -- ignoreTypeSpecificOnly: set when the attacker has a type-specific "Ignore X Immunity"
+    -- custom attribute. Bypasses DR from the specific damage type but NOT from "all"-type immunity.
+    local ignoreTypeSpecificOnly = false
 
     if symbols ~= nil and symbols.cannotBeReduced then
 		ignoreImmunity = true
 	end
-	
+
 	if symbols.attacker ~= nil and (symbols.attacker:CalculateNamedCustomAttribute(string.format("Ignore %s Immunity", damageType)) or 0) > 0 then
-        ignoreImmunity = true
+        ignoreTypeSpecificOnly = true
     end
 
     if symbols ~= nil and symbols.cast ~= nil and #symbols.cast:GetParamModifications("ability_ignore_immunity") > 0 then
@@ -1954,15 +1957,40 @@ function creature.InflictDamageInstance(self, amount, damageType, keywords, sour
 		end
 	end
 
-    if resistanceEntry.dr and (ignoreImmunity == false or resistanceEntry.dr <= 0) then
-        amount = amount - resistanceEntry.dr
-        if amount < 0 then
-            amount = 0
-        end
-        if resistanceEntry.dr > 0 then
-            note = string.format('%s; Damage Immunity reduced by %d to %d', note, resistanceEntry.dr, amount)
-        else
+    if ignoreImmunity then
+        -- Full bypass (cannotBeReduced or ability_ignore_immunity): skip positive DR but
+        -- still apply negative DR (vulnerability).
+        if resistanceEntry.dr and resistanceEntry.dr <= 0 then
+            amount = amount - resistanceEntry.dr
             note = string.format('%s; Damage Vulnerability increased by %d to %d', note, -resistanceEntry.dr, amount)
+        end
+    elseif ignoreTypeSpecificOnly then
+        -- Type-specific bypass (e.g. "Ignore Fire Immunity"): skip the fire-specific portion
+        -- of DR but still apply any "all"-type immunity DR.
+        local allDr = resistanceEntry.allTypeDr
+        if allDr and allDr ~= 0 then
+            amount = amount - allDr
+            if amount < 0 then
+                amount = 0
+            end
+            if allDr > 0 then
+                note = string.format('%s; Damage Immunity reduced by %d to %d', note, allDr, amount)
+            else
+                note = string.format('%s; Damage Vulnerability increased by %d to %d', note, -allDr, amount)
+            end
+        end
+    else
+        -- No bypass: apply full DR.
+        if resistanceEntry.dr and resistanceEntry.dr ~= 0 then
+            amount = amount - resistanceEntry.dr
+            if amount < 0 then
+                amount = 0
+            end
+            if resistanceEntry.dr > 0 then
+                note = string.format('%s; Damage Immunity reduced by %d to %d', note, resistanceEntry.dr, amount)
+            else
+                note = string.format('%s; Damage Vulnerability increased by %d to %d', note, -resistanceEntry.dr, amount)
+            end
         end
     end
 
@@ -3153,6 +3181,17 @@ function creature.DamageResistance(self, damageType, keywords)
                     else
                         result.weakness = math.min((result.weakness or 0), dr)
                     end
+                    -- track "all"-type DR separately so type-specific immunity bypass
+                    -- does not accidentally skip immunity-to-all-damage entries
+                    if entry.damageType == "all" then
+                        if entry.stacks then
+                            result.all_stacking_result = (result.all_stacking_result or 0) + dr
+                        elseif dr > 0 then
+                            result.allTypeDr = math.max((result.allTypeDr or 0), dr)
+                        else
+                            result.all_weakness = math.min((result.all_weakness or 0), dr)
+                        end
+                    end
 				elseif entry.apply == 'Percent Reduction' then
 					if result.percent == nil then
 						result.percent = 1
@@ -3179,6 +3218,14 @@ function creature.DamageResistance(self, damageType, keywords)
     result.stacking_result = nil
     if result.dr == 0 then
         result.dr = nil
+    end
+
+    result.allTypeDr = (result.allTypeDr or 0) + (result.all_weakness or 0)
+    result.allTypeDr = result.allTypeDr + (result.all_stacking_result or 0)
+    result.all_weakness = nil
+    result.all_stacking_result = nil
+    if result.allTypeDr == 0 then
+        result.allTypeDr = nil
     end
 
 	return result

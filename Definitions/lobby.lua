@@ -22,9 +22,29 @@ function lobby:MigrateGameToDurableObjects(gameid, options)
 	-- dummy implementation for documentation purposes only
 end
 
+--- MigrateGameToStagingDurableObjects: Migrate an existing Firebase-backed game to the staging Cloudflare Durable Object. Same semantics as MigrateGameToDurableObjects, but targets the staging Worker rather than release. Options table can contain 'progress' (function called with status and progress 0-1) and 'complete' (function called with success bool and optional error string).
+--- @param gameid string The id of the game to migrate.
+--- @param options table Options with optional 'progress' and 'complete' callback fields.
+function lobby:MigrateGameToStagingDurableObjects(gameid, options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- CloneFirebaseGameToStagingDO: Clone a Firebase-backed game into a new game backed by the staging Durable Object. The source game is left untouched. Options table can contain 'progress' (function called with status and progress 0-1) and 'complete' (function called with success bool, new gameid string, and optional error string).
+--- @param gameid string The id of the source Firebase game to clone.
+--- @param options table Options with optional 'progress' and 'complete' callback fields.
+function lobby:CloneFirebaseGameToStagingDO(gameid, options)
+	-- dummy implementation for documentation purposes only
+end
+
 --- CreateGame: Creates a new game with the given options table. The options table may contain 'create' and 'error' callback functions. Rate-limited to one creation every 3 seconds.
 --- @param options table Options with optional 'create' and 'error' callback fields.
 function lobby:CreateGame(options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- PromoteLocalGame: Promote a local game to Durable Objects. Generates a new game id, copies all data to the cloud, verifies it, and then deletes the local copy. Options: 'gameid' (string, required - the local game's id), 'staging' (bool, optional - target the staging DO server instead of release), 'progress' (function(status, pct)), 'complete' (function(success, newGameid, error)).
+--- @param options table Options table with 'gameid', optional 'staging', 'progress', and 'complete' fields.
+function lobby:PromoteLocalGame(options)
 	-- dummy implementation for documentation purposes only
 end
 

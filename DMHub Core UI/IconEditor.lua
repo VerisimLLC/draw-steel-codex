@@ -996,6 +996,7 @@ function gui.IconEditor(args)
 	end
 
 	args.SetValue = function(element, val, firechange)
+		local changed = (val ~= value)
         value = val
 		if val == nil or val == '' then
 			if noneImage ~= nil then
@@ -1014,7 +1015,7 @@ function gui.IconEditor(args)
 			noneLabel:SetClass("hidden", true)
 		end
 
-		if firechange ~= false then
+		if changed and firechange ~= false then
 			element:FireEvent('change')
 		end
         

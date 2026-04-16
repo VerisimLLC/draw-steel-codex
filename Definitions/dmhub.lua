@@ -1019,7 +1019,7 @@ function dmhub.Redo()
 	-- dummy implementation for documentation purposes only
 end
 
---- GetDurableObjectSeqHistory: Returns a Lua array of the last ~20 inbound Durable Object messages that carried a seq field, oldest first. Each entry is a pre-formatted string like '42 put game/characters/abc' or '42 ack ok w-001'.
+--- GetDurableObjectSeqHistory: Returns a Lua array of the last ~20 Durable Object messages, oldest first. Inbound entries carry a seq prefix (e.g. '42 put game/characters/abc' or '42 ack ok w-001 (123ms)'); outbound entries to the game store are prefixed with '>>' (e.g. '>> put game/characters/abc [w-001]').
 --- @return string[]
 function dmhub:GetDurableObjectSeqHistory()
 	-- dummy implementation for documentation purposes only

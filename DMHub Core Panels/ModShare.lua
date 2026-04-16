@@ -4864,7 +4864,7 @@ Commands.Register{
 
 Commands.sharecontent = mod.shared.ShowShareDialog
 Commands.Register{
-	name = "Publish Module...",
+	name = "Create Module...",
 	group = "share",
 	command = "sharecontent",
 	ord = 2,

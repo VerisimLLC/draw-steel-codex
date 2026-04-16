@@ -170,6 +170,15 @@ Commands.RegisterMacro{
 }
 
 Commands.RegisterMacro{
+    name = "toggleparallax",
+    summary = "Toggle Disable Parallax",
+    doc = "Toggles the disable parallax state.",
+    command = function()
+        dmhub.SetSettingValue("disableparallax", not dmhub.GetSettingValue("disableparallax"))
+    end,
+}
+
+Commands.RegisterMacro{
     name = "next",
     summary = "cycle between tokens",
     doc = "Cycles between controllable tokens. Prioritizes tokens whose turn it is in initiative.",

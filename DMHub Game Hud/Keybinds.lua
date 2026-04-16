@@ -232,6 +232,12 @@ Keybinds.Register{
 }
 
 Keybinds.Register{
+    command = "toggleparallax",
+    name = tr("Toggle parallax"),
+    section = "camera",
+}
+
+Keybinds.Register{
     command = "randobj; resetobj; randrot; randscale",
     name = tr("Randomize Object"),
     section = "editor",

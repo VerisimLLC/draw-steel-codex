@@ -10163,7 +10163,7 @@ function creature:IsValid()
         return false
     end
 
-    if getmetatable(self.culture) == nil and rawget(self, "culture") ~= nil then
+    if getmetatable(self.culture) == nil and self:try_get("culture") ~= nil then
         printf("Creature validation: culture is invalid")
         return false
     end
@@ -10274,10 +10274,13 @@ function creature:Repair(localOnly)
         printf("Creature validation: characterDescription missing %s, resetting. localOnly = %s new type = %s", charid, tostring(localOnly), self.characterDescription.typeName)
     end
 
-    --reset culture.
-    if getmetatable(self.culture) == nil then
-        printf("Creature validation: culture is invalid, resetting.")
-        self.culture = nil
+    --repair culture that is just a data table.
+    if self:try_get("culture") ~= nil and getmetatable(self.culture) == nil then
+        printf("Creature validation: culture is data only, repairing.")
+        self.culture = culture.new{
+            aspects = dmhub.DeepCopy(self.culture.aspects or {}),
+            aggregate = ""
+        }
     end
 
     --check there are attributes

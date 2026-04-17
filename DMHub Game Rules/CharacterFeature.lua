@@ -359,6 +359,41 @@ function CharacterFeature:EditorPanel(editorPanelOptions)
 
 	editorPanelOptions.collapseDescription = nil
 
+	-- Themed vs. classic path. Gated on the same classicAbilityEditor opt-out
+	-- toggle used by the sectioned Ability Editor so both editors feel
+	-- cohesive. rawget guards against load order where CharacterFeature
+	-- might be touched before AbilityEditor is present.
+	local abilityEditor = rawget(_G, "AbilityEditor")
+	local themed = abilityEditor ~= nil
+		and dmhub.GetSettingValue("classicAbilityEditor") ~= true
+	local themeColors = themed and abilityEditor.COLORS or nil
+
+	-- Stacked-label form row helper (label above, control below). In classic
+	-- mode we defer to the existing formPanel/formLabel markup so unchanged
+	-- styles render the same as before.
+	local function makeFormRow(labelText, inputElement, extraRowClass)
+		if themed then
+			return gui.Panel{
+				classes = {"ds-field-row", extraRowClass, optionsCollapseDescription},
+				children = {
+					gui.Label{
+						classes = {"ds-field-label"},
+						text = labelText,
+					},
+					inputElement,
+				},
+			}
+		end
+		return gui.Panel{
+			classes = {"formPanel", extraRowClass, optionsCollapseDescription},
+			gui.Label{
+				text = labelText,
+				classes = {"formLabel"},
+			},
+			inputElement,
+		}
+	end
+
 	modifiersPanel = gui.Panel{
 		classes = "modifiers-panel",
 
@@ -433,104 +468,122 @@ function CharacterFeature:EditorPanel(editorPanelOptions)
 				}
 			end
 
-			local options = DeepCopy(CharacterModifier.Types)
-			options[1].text = 'Add Modifier...'
-			table.sort(options, function(a, b)
-				if a.id == "none" then
-					return true
-				end
-				if b.id == "none" then
-					return false
-				end
-				return a.text < b.text
-			end)
+			-- Dispatcher for a chosen modifier type id. Used by both the classic
+			-- dropdown (change) and the themed picker (onAdd). The special
+			-- "CLIPBOARD" id pastes the internal clipboard entry.
+			local function addModifierById(typeId)
+				if typeId == nil or typeId == 'none' then return end
 
-            options[#options+1] = {
-                hidden = function()
-			        local clipboardItem = dmhub.GetInternalClipboard()
-                    return clipboardItem == nil or (clipboardItem.typeName ~= 'CharacterModifier' and clipboardItem.typeName ~= "ActivatedAbility")
-                end,
-                id = 'CLIPBOARD',
-                text = function()
-			        local clipboardItem = dmhub.GetInternalClipboard()
-                    if clipboardItem ~= nil and (clipboardItem.typeName == 'CharacterModifier' or clipboardItem.typeName == "ActivatedAbility") then
-                        return string.format("Paste %s", clipboardItem.name)
-                    end
-
-                    return 'PASTE'
-                end,
-            }
-
-
-			children[#children+1] = gui.Dropdown{
-				selfStyle = {
-					height = 30,
-					width = 260,
-					fontSize = 16,
-					halign = "left",
-				},
-
-				dropdownHeight = 240,
-
-				options = options,
-				idChosen = 'none',
-                hasSearch = true,
-
-				change = function(element)
-                    if element.idChosen == 'CLIPBOARD' then
-                        local clipboardItem = dmhub.GetInternalClipboard()
-                        if clipboardItem ~= nil and clipboardItem.typeName == 'CharacterModifier' then
-                            local modifier = DeepCopy(clipboardItem)
-                            DeepReplaceGuids(modifier)
-
-                            local modifiers = self:get_or_add("modifiers", {})
-                            modifiers[#modifiers+1] = modifier
-
-                            modifiersPanel:FireEvent('refreshModifiers')
-                        elseif clipboardItem ~= nil and clipboardItem.typeName == "ActivatedAbility" then
-                            local ability = DeepCopy(clipboardItem)
-                            DeepReplaceGuids(ability)
-                            local modifier = CharacterModifier.new{
-                                guid = dmhub.GenerateGuid(),
-                                name = ability.name,
-                                description = "",
-                                behavior = "activated",
-                                activatedAbility = ability,
-                            }
-
-                            local modifiers = self:get_or_add("modifiers", {})
-                            modifiers[#modifiers+1] = modifier
-
-                            modifiersPanel:FireEvent('refreshModifiers')
-                        end
-					elseif element.idChosen ~= 'none' then
-						local domains = nil
-						if self:has_key("domains") then
-							domains = DeepCopy(self.domains)
-						end
-						local modifier = CharacterModifier.new{
-							guid = dmhub.GenerateGuid(),
-							sourceguid = self.guid,
-							name = self.name,
-							source = self.source,
-							description = self.description,
-							behavior = element.idChosen,
-							domains = domains,
-						}
-						local typeInfo = CharacterModifier.TypeInfo[modifier.behavior] or {}
-						if typeInfo.init then
-							--initialize our new behavior type.
-							typeInfo.init(modifier)
-						end
-
+				if typeId == 'CLIPBOARD' then
+					local clipboardItem = dmhub.GetInternalClipboard()
+					if clipboardItem ~= nil and clipboardItem.typeName == 'CharacterModifier' then
+						local modifier = DeepCopy(clipboardItem)
+						DeepReplaceGuids(modifier)
 						local modifiers = self:get_or_add("modifiers", {})
 						modifiers[#modifiers+1] = modifier
-
+						modifiersPanel:FireEvent('refreshModifiers')
+					elseif clipboardItem ~= nil and clipboardItem.typeName == "ActivatedAbility" then
+						local ability = DeepCopy(clipboardItem)
+						DeepReplaceGuids(ability)
+						local modifier = CharacterModifier.new{
+							guid = dmhub.GenerateGuid(),
+							name = ability.name,
+							description = "",
+							behavior = "activated",
+							activatedAbility = ability,
+						}
+						local modifiers = self:get_or_add("modifiers", {})
+						modifiers[#modifiers+1] = modifier
 						modifiersPanel:FireEvent('refreshModifiers')
 					end
+					return
 				end
-				
-			}
+
+				local domains = nil
+				if self:has_key("domains") then
+					domains = DeepCopy(self.domains)
+				end
+				local modifier = CharacterModifier.new{
+					guid = dmhub.GenerateGuid(),
+					sourceguid = self.guid,
+					name = self.name,
+					source = self.source,
+					description = self.description,
+					behavior = typeId,
+					domains = domains,
+				}
+				local typeInfo = CharacterModifier.TypeInfo[modifier.behavior] or {}
+				if typeInfo.init then
+					typeInfo.init(modifier)
+				end
+
+				local modifiers = self:get_or_add("modifiers", {})
+				modifiers[#modifiers+1] = modifier
+
+				modifiersPanel:FireEvent('refreshModifiers')
+			end
+
+			if themed and type(abilityEditor.OpenModifierPicker) == "function" then
+				children[#children+1] = gui.Button{
+					text = "+ Add Modifier",
+					fontSize = 16,
+					width = 180,
+					height = 34,
+					halign = "left",
+					vmargin = 8,
+					click = function(element)
+						abilityEditor.OpenModifierPicker(self, addModifierById)
+					end,
+				}
+			else
+				local options = DeepCopy(CharacterModifier.Types)
+				options[1].text = 'Add Modifier...'
+				table.sort(options, function(a, b)
+					if a.id == "none" then
+						return true
+					end
+					if b.id == "none" then
+						return false
+					end
+					return a.text < b.text
+				end)
+
+				options[#options+1] = {
+					hidden = function()
+						local clipboardItem = dmhub.GetInternalClipboard()
+						return clipboardItem == nil or (clipboardItem.typeName ~= 'CharacterModifier' and clipboardItem.typeName ~= "ActivatedAbility")
+					end,
+					id = 'CLIPBOARD',
+					text = function()
+						local clipboardItem = dmhub.GetInternalClipboard()
+						if clipboardItem ~= nil and (clipboardItem.typeName == 'CharacterModifier' or clipboardItem.typeName == "ActivatedAbility") then
+							return string.format("Paste %s", clipboardItem.name)
+						end
+						return 'PASTE'
+					end,
+				}
+
+				children[#children+1] = gui.Dropdown{
+					selfStyle = {
+						height = 30,
+						width = 260,
+						fontSize = 16,
+						halign = "left",
+					},
+
+					dropdownHeight = 240,
+
+					options = options,
+					idChosen = 'none',
+					hasSearch = true,
+
+					change = function(element)
+						local chosen = element.idChosen
+						if chosen == 'none' then return end
+						addModifierById(chosen)
+					end
+				}
+			end
 
 			element.children = children
 		end,
@@ -591,6 +644,125 @@ function CharacterFeature:EditorPanel(editorPanelOptions)
 
 	local baselineValue = DeepCopy(self)
 
+	-- Build the effective styles list: themed editors splice the shared DS
+	-- widget + form-row pattern on top of the base ModifierStyles so
+	-- formPanel/formLabel/formInput descendants inside per-modifier editors
+	-- still render; classic editors leave ModifierStyles untouched.
+	local effectiveStyles = CharacterFeature.ModifierStyles
+	if themed then
+		effectiveStyles = {}
+		for _, rule in ipairs(CharacterFeature.ModifierStyles) do
+			effectiveStyles[#effectiveStyles+1] = rule
+		end
+		-- Make any surviving classic formPanel rows render with the
+		-- stacked pattern too (per-modifier sub-editors still emit them).
+		effectiveStyles[#effectiveStyles+1] = gui.Style{
+			selectors = {"formPanel"},
+			priority = 6,
+			width = "100%",
+			halign = "left",
+			flow = "vertical",
+		}
+		effectiveStyles[#effectiveStyles+1] = gui.Style{
+			selectors = {"formLabel"},
+			priority = 6,
+			halign = "left",
+			width = "100%",
+			minWidth = 0,
+			fontSize = 14,
+			bold = true,
+			color = themeColors.CREAM_BRIGHT,
+			textAlignment = "left",
+			bmargin = 4,
+		}
+		-- Dark themed background on the feature panel itself.
+		effectiveStyles[#effectiveStyles+1] = gui.Style{
+			selectors = {"content-panel"},
+			priority = 6,
+			bgcolor = themeColors.BG,
+			bgimage = "panels/square.png",
+			hpad = 16,
+			vpad = 12,
+			borderBox = true,
+		}
+		effectiveStyles[#effectiveStyles+1] = gui.Style{
+			selectors = {"modifierEditorPanel"},
+			priority = 6,
+			bgcolor = themeColors.PANEL_BG,
+			borderColor = themeColors.GOLD,
+			borderWidth = 1,
+		}
+		effectiveStyles[#effectiveStyles+1] = gui.Style{
+			selectors = {"modifierHeadingLabel"},
+			priority = 6,
+			color = themeColors.GOLD_BRIGHT,
+		}
+		-- Splice in shared widget + form-row pattern.
+		for _, rule in ipairs(abilityEditor.GetSharedWidgetStyles(themeColors)) do
+			effectiveStyles[#effectiveStyles+1] = rule
+		end
+		for _, rule in ipairs(abilityEditor.GetSharedFormStyles(themeColors)) do
+			effectiveStyles[#effectiveStyles+1] = rule
+		end
+	end
+
+	local nameInput = gui.Input{
+		text = self.name,
+		classes = {"input", "form-input"},
+		events = {
+			change = function(element)
+				self.name = element.text
+				for i,mod in ipairs(self.modifiers) do
+					mod.name = self.name
+				end
+			end,
+		},
+	}
+
+	local sourceInput = gui.Input{
+		text = self.source,
+		classes = {"input", "form-input"},
+		events = {
+			change = function(element)
+				self.source = element.text
+				for i,mod in ipairs(self.modifiers) do
+					mod.source = self.source
+				end
+			end,
+		},
+	}
+
+	local implementationWidget = gui.ImplementationStatusPanel{
+		value = self:try_get("implementation", 1),
+		change = function(element)
+			self.implementation = element.value
+		end,
+	}
+
+	local descriptionInput = gui.Input{
+		text = self:GetDescription(),
+		multiline = true,
+		classes = {"input", "form-input"},
+		characterLimit = 8192,
+		selfStyle = {
+			textAlignment = "topleft",
+			height = "auto",
+			minHeight = 40,
+			width = themed and nil or 600,
+		},
+		events = {
+			change = function(element)
+				self.description = element.text
+				for i,mod in ipairs(self.modifiers) do
+					mod.description = self.description
+				end
+			end,
+			modifiersChanged = function(element)
+				element.text = self:GetDescription()
+			end,
+		},
+	}
+
 	local args = {
 		id = "featureScroll",
 		classes = 'content-panel',
@@ -600,7 +772,7 @@ function CharacterFeature:EditorPanel(editorPanelOptions)
         height = cond(noscroll, "auto", "90%"),
 
 
-		styles = CharacterFeature.ModifierStyles,
+		styles = effectiveStyles,
 
 		thinkTime = 0.2,
 
@@ -610,96 +782,11 @@ function CharacterFeature:EditorPanel(editorPanelOptions)
 				element:FireEvent("modifierRefreshed")
 			end
 		end,
-		
-		gui.Panel{
-			classes = {'formPanel','namePanel', optionsCollapseDescription},
-			gui.Label{
-				text = 'Name:',
-				classes = {'formLabel'},
-			},
-			gui.Input{
-				text = self.name,
-				classes = {'input', 'form-input'},
-				events = {
-					change = function(element)
-						self.name = element.text
-						for i,mod in ipairs(self.modifiers) do
-							mod.name = self.name
-						end
-					end,
-				},
-			},
-		},
 
-		gui.Panel{
-			classes = {'formPanel','sourcePanel', optionsCollapseDescription},
-			children = {
-				gui.Label{
-					text = 'Source:',
-					classes = {'formLabel'},
-				},
-				gui.Input{
-					text = self.source,
-					classes = {'input', 'form-input'},
-					events = {
-						change = function(element)
-							self.source = element.text
-							for i,mod in ipairs(self.modifiers) do
-								mod.source = self.source
-							end
-						end,
-					},
-				},
-			}
-		},
-
-		gui.Panel{
-			classes = {"formPanel"},
-			gui.Label{
-				classes = "formLabel",
-				text = "Implementation:",
-                width = 140,
-			},
-			gui.ImplementationStatusPanel{
-				value = self:try_get("implementation", 1),
-				change = function(element)
-					self.implementation = element.value
-				end,
-			},
-		},
-
-		gui.Panel{
-			classes = {'formPanel','descriptionPanel', optionsCollapseDescription},
-			children = {
-				gui.Label{
-					text = 'Description:',
-					classes = {'formLabel'},
-				},
-				gui.Input{
-					text = self:GetDescription(),
-					multiline = true,
-					classes = {'input', 'form-input'},
-                    characterLimit = 8192,
-					selfStyle = {
-						textAlignment = "topleft",
-						height = 'auto',
-						minHeight = 40,
-						width = 600,
-					},
-					events = {
-						change = function(element)
-							self.description = element.text
-							for i,mod in ipairs(self.modifiers) do
-								mod.description = self.description
-							end
-						end,
-						modifiersChanged = function(element)
-							element.text = self:GetDescription()
-						end,
-					},
-				},
-			}
-		},
+		makeFormRow("Name:", nameInput, "namePanel"),
+		makeFormRow("Source:", sourceInput, "sourcePanel"),
+		makeFormRow("Implementation:", implementationWidget),
+		makeFormRow("Description:", descriptionInput, "descriptionPanel"),
 
 		prerequisitesPanel,
 		modifiersPanel,
@@ -731,6 +818,14 @@ function CharacterFeature:PopupEditor()
 
 	local resultPanel
 
+	-- Match the feature panel's themed/classic split so the outer frame is
+	-- visually cohesive with the inner editor. Gated on the same
+	-- classicAbilityEditor opt-out as the sectioned Ability Editor.
+	local abilityEditor = rawget(_G, "AbilityEditor")
+	local themed = abilityEditor ~= nil
+		and dmhub.GetSettingValue("classicAbilityEditor") ~= true
+	local c = themed and abilityEditor.COLORS or nil
+
 	local contentPanel = self:EditorPanel{
 		modifierRefreshed = function(element)
 			if resultPanel.data.notifyElement ~= nil then
@@ -738,6 +833,60 @@ function CharacterFeature:PopupEditor()
 			end
 		end
 	}
+
+	local popupStyles = {
+		Styles.Panel,
+		Styles.Default,
+		Styles.Form,
+		{
+			selectors = {'popup-editor'},
+			width = 1000,
+			height = 800,
+			bgcolor = themed and c.BG or 'white',
+			halign = 'center',
+			valign = 'center',
+		},
+	}
+
+	if themed then
+		popupStyles[#popupStyles+1] = gui.Style{
+			selectors = {"framedPanel"},
+			priority = 3,
+			bgcolor = c.BG,
+			borderColor = c.GOLD,
+			gradient = nil,
+		}
+		popupStyles[#popupStyles+1] = gui.Style{
+			selectors = {"label", "button", "prettyButton"},
+			priority = 3,
+			bgcolor = c.PANEL_BG,
+			bgimage = "panels/square.png",
+			color = c.CREAM_BRIGHT,
+			borderColor = c.GOLD,
+			borderWidth = 2,
+			cornerRadius = 4,
+			fontFace = "Berling",
+			fontSize = 20,
+			fontWeight = "bold",
+			hmargin = 8,
+			vmargin = 8,
+			textAlignment = "center",
+		}
+		popupStyles[#popupStyles+1] = gui.Style{
+			selectors = {"label", "button", "prettyButton", "hover"},
+			priority = 3,
+			bgcolor = c.GOLD_DIM,
+			color = c.BG,
+			borderColor = c.CREAM_BRIGHT,
+		}
+		popupStyles[#popupStyles+1] = gui.Style{
+			selectors = {"label", "button", "prettyButton", "press"},
+			priority = 3,
+			bgcolor = c.GOLD,
+			color = c.BG,
+			brightness = 0.85,
+		}
+	end
 
 	resultPanel = gui.Panel{
 		id = "CharacterFeaturePopupEditor",
@@ -799,25 +948,12 @@ function CharacterFeature:PopupEditor()
 
 		},
 
-		styles = {
-			Styles.Panel,
-			Styles.Default,
-			Styles.Form,
-			{
-				selectors = {'popup-editor'},
-				width = 1000,
-				height = 800,
-				bgcolor = 'white',
-				halign = 'center',
-				valign = 'center',
-			},
-
-		},
+		styles = popupStyles,
 		data = {
 			--notifies this element of 'refreshModifier' on change.
 			notifyElement = nil,
 		},
-		
+
 	}
 
 	return resultPanel

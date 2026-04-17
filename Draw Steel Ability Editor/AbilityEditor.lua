@@ -14,9 +14,19 @@ setting{
 -- Use rawget because the DMHub Lua env errors on reads of uninitialized globals.
 AbilityEditor = rawget(_G, "AbilityEditor") or {}
 AbilityEditor._recentBehaviors = AbilityEditor._recentBehaviors or {}
+AbilityEditor._recentModifiers = AbilityEditor._recentModifiers or {}
 
 function AbilityEditor._trackRecentBehavior(typeId)
     local list = AbilityEditor._recentBehaviors
+    for i = #list, 1, -1 do
+        if list[i] == typeId then table.remove(list, i) end
+    end
+    table.insert(list, 1, typeId)
+    while #list > 5 do table.remove(list) end
+end
+
+function AbilityEditor._trackRecentModifier(typeId)
+    local list = AbilityEditor._recentModifiers
     for i = #list, 1, -1 do
         if list[i] == typeId then table.remove(list, i) end
     end
@@ -1243,6 +1253,83 @@ local function _sharedWidgetStyles(colors)
 end
 
 AbilityEditor.GetSharedWidgetStyles = _sharedWidgetStyles
+
+--[[
+    ============================================================================
+    Shared form styles (exported)
+    ============================================================================
+    Mirrors _sharedWidgetStyles() but carries the stacked-label form row
+    pattern (label above, control below) plus the field-label typography. Call
+    this alongside GetSharedWidgetStyles in any editor that wants the DS
+    form standard in one helper.
+
+    Adopters use `classes = {"ds-field-row"}` for a row and
+    `classes = {"ds-field-label"}` for its label. The inline variant
+    ("ds-field-row-inline" + "ds-field-label-inline") reserves for compact
+    fields like 3-digit numbers where stacking wastes vertical space.
+
+    The "ds-" prefix is deliberate: we want a DS-wide name that's unambiguous
+    in contexts (like the feature panel) where older "formPanel"/"formLabel"
+    classes may still be in play.
+]]
+local function _sharedFormStyles(colors)
+    local c = colors or COLORS
+    return {
+        gui.Style{
+            selectors = {"ds-field-row"},
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            halign = "left",
+            valign = "top",
+            vmargin = 8,
+            bgcolor = "clear",
+        },
+        gui.Style{
+            selectors = {"ds-field-label"},
+            width = "100%",
+            height = "auto",
+            fontSize = 14,
+            bold = true,
+            color = c.CREAM_BRIGHT,
+            textAlignment = "left",
+            bmargin = 4,
+        },
+        gui.Style{
+            selectors = {"ds-field-row-inline"},
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            halign = "left",
+            valign = "center",
+            vmargin = 8,
+            bgcolor = "clear",
+        },
+        gui.Style{
+            selectors = {"ds-field-label-inline"},
+            width = "auto",
+            height = "auto",
+            fontSize = 14,
+            bold = true,
+            color = c.CREAM_BRIGHT,
+            textAlignment = "left",
+            valign = "center",
+            rmargin = 10,
+        },
+        gui.Style{
+            selectors = {"ds-field-hint"},
+            width = "100%",
+            height = "auto",
+            fontSize = 12,
+            italics = true,
+            color = c.GRAY,
+            textAlignment = "left",
+            tmargin = 2,
+        },
+    }
+end
+
+AbilityEditor.GetSharedFormStyles = _sharedFormStyles
 
 --[[
     ============================================================================

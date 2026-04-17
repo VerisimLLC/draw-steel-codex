@@ -430,6 +430,7 @@ function CharacterFeature:EditorPanel(editorPanelOptions)
 		refreshModifiers = function(element)
 			local children = {}
 
+			local totalCount = #self.modifiers
 			for j,mod in ipairs(self.modifiers) do
 
 				local behaviorPanel = gui.Panel{
@@ -457,41 +458,135 @@ function CharacterFeature:EditorPanel(editorPanelOptions)
 					behaviorText = string.format("Unknown Behavior Type: %s", mod.behavior)
 				end
 
-
-				children[#children+1] = gui.Panel{
-					classes = {'modifierEditorPanel'},
-					gui.Label{
-						classes = {'modifierHeadingLabel'},
+				if themed then
+					-- Behavior-card chrome: summary label on the left, copy /
+					-- up / down / delete controls on the right, content below.
+					-- Mirrors the ability editor's _makeBehaviorPanel.
+					local modIndex = j
+					local summaryLabel = gui.Label{
+						classes = {"nae-behavior-summary"},
 						text = behaviorText,
-						rightClick = function(element)
-							element.popup = gui.ContextMenu{
-								entries = {
-									{
-										text = "Copy",
-										click = function()
-											dmhub.CopyToInternalClipboard(mod)
-											element.popup = nil
-										end,
+					}
+					local copyBtn = gui.Label{
+						classes = {"nae-behavior-copy-btn"},
+						text = "Copy",
+						press = function()
+							dmhub.CopyToInternalClipboard(mod)
+						end,
+					}
+					local upArrow = gui.Panel{
+						classes = {"nae-behavior-arrow", "nae-up",
+							cond(modIndex <= 1, "disabled")},
+						press = function()
+							if modIndex > 1 then
+								local tmp = self.modifiers[modIndex - 1]
+								self.modifiers[modIndex - 1] = self.modifiers[modIndex]
+								self.modifiers[modIndex] = tmp
+								modifiersPanel:FireEvent('refreshModifiers')
+							end
+						end,
+					}
+					local downArrow = gui.Panel{
+						classes = {"nae-behavior-arrow",
+							cond(modIndex >= totalCount, "disabled")},
+						press = function()
+							if modIndex < totalCount then
+								local tmp = self.modifiers[modIndex + 1]
+								self.modifiers[modIndex + 1] = self.modifiers[modIndex]
+								self.modifiers[modIndex] = tmp
+								modifiersPanel:FireEvent('refreshModifiers')
+							end
+						end,
+					}
+					-- Capture locals for the themed confirm closure below.
+					local deleteModIndex = modIndex
+					local deleteModName = behaviorText or "this modifier"
+					local function performDelete()
+						table.remove(self.modifiers, deleteModIndex)
+						modifiersPanel:FireEvent('refreshModifiers')
+					end
+					-- Skip the built-in requireConfirm path (which uses the
+					-- engine-wide gui.ModalMessage, unthemed) and instead
+					-- route through AbilityEditor.ShowThemedConfirm so the
+					-- delete prompt matches the surrounding feature panel.
+					local deleteBtn = gui.DeleteItemButton{
+						classes = {cond(mod:try_get("deletable") == false, "hidden")},
+						width = 14,
+						height = 14,
+						valign = "center",
+						lmargin = 8,
+						click = function(element)
+							abilityEditor.ShowThemedConfirm{
+								title = "Delete Modifier?",
+								message = string.format(
+									"Are you sure you want to delete the %s modifier? This cannot be undone.",
+									deleteModName),
+								confirmText = "Delete",
+								cancelText = "Cancel",
+								onConfirm = performDelete,
+							}
+						end,
+					}
+					local header = gui.Panel{
+						classes = {"nae-behavior-header"},
+						children = {
+							summaryLabel,
+							gui.Panel{
+								classes = {"nae-behavior-controls"},
+								floating = true,
+								children = {copyBtn, upArrow, downArrow, deleteBtn},
+							},
+						},
+					}
+					local contentWrapper = gui.Panel{
+						classes = {"nae-behavior-content"},
+						children = {behaviorPanel},
+					}
+					children[#children+1] = gui.Panel{
+						classes = {"nae-behavior-item"},
+						children = {header, contentWrapper},
+					}
+					if modIndex < totalCount then
+						children[#children+1] = gui.Panel{
+							classes = {"nae-behavior-divider"},
+						}
+					end
+				else
+					children[#children+1] = gui.Panel{
+						classes = {'modifierEditorPanel'},
+						gui.Label{
+							classes = {'modifierHeadingLabel'},
+							text = behaviorText,
+							rightClick = function(element)
+								element.popup = gui.ContextMenu{
+									entries = {
+										{
+											text = "Copy",
+											click = function()
+												dmhub.CopyToInternalClipboard(mod)
+												element.popup = nil
+											end,
+										}
 									}
 								}
-							}
 
-						end,
-						gui.DeleteItemButton{
-							classes = {cond(mod:try_get("deletable") == false, "hidden")},
-							floating = true,
-							halign = 'right',
-							valign = 'center',
-                            requireConfirm = true,
-							click = function(element)
-								table.remove(self.modifiers, j)
-								modifiersPanel:FireEvent('refreshModifiers')
 							end,
-						}
-					},
+							gui.DeleteItemButton{
+								classes = {cond(mod:try_get("deletable") == false, "hidden")},
+								floating = true,
+								halign = 'right',
+								valign = 'center',
+								requireConfirm = true,
+								click = function(element)
+									table.remove(self.modifiers, j)
+									modifiersPanel:FireEvent('refreshModifiers')
+								end,
+							}
+						},
 
-					behaviorPanel,
-				}
+						behaviorPanel,
+					}
+				end
 			end
 
 			-- Dispatcher for a chosen modifier type id. Used by both the classic
@@ -709,69 +804,28 @@ function CharacterFeature:EditorPanel(editorPanelOptions)
 
 	local baselineValue = DeepCopy(self)
 
-	-- Build the effective styles list: themed editors splice the shared DS
-	-- widget + form-row pattern on top of the base ModifierStyles so
-	-- formPanel/formLabel/formInput descendants inside per-modifier editors
-	-- still render; classic editors leave ModifierStyles untouched.
+	-- Build the effective styles list: themed editors splice the shared
+	-- themed-dialog pack on top of the base ModifierStyles. When
+	-- EditorPanel is rendered standalone (no themed parent), this gives
+	-- us the full chrome. When embedded in a themed parent (e.g.
+	-- PopupEditor which already splices the same pack), the duplicate
+	-- rules are idempotent -- the engine takes the winning rule by
+	-- priority, and our rules collide on themselves.
 	local effectiveStyles = CharacterFeature.ModifierStyles
 	if themed then
 		effectiveStyles = {}
 		for _, rule in ipairs(CharacterFeature.ModifierStyles) do
 			effectiveStyles[#effectiveStyles+1] = rule
 		end
-		-- Make any surviving classic formPanel rows render with the
-		-- stacked pattern too (per-modifier sub-editors still emit them).
-		effectiveStyles[#effectiveStyles+1] = gui.Style{
-			selectors = {"formPanel"},
-			priority = 6,
-			width = "100%",
-			halign = "left",
-			flow = "vertical",
-		}
-		effectiveStyles[#effectiveStyles+1] = gui.Style{
-			selectors = {"formLabel"},
-			priority = 6,
-			halign = "left",
-			width = "100%",
-			minWidth = 0,
-			fontSize = 14,
-			bold = true,
-			color = themeColors.CREAM_BRIGHT,
-			textAlignment = "left",
-			bmargin = 4,
-		}
-		-- Dark themed background on the feature panel itself.
-		effectiveStyles[#effectiveStyles+1] = gui.Style{
-			selectors = {"content-panel"},
-			priority = 6,
-			bgcolor = themeColors.BG,
-			bgimage = "panels/square.png",
-			hpad = 16,
-			vpad = 12,
-			borderBox = true,
-		}
-		effectiveStyles[#effectiveStyles+1] = gui.Style{
-			selectors = {"modifierEditorPanel"},
-			priority = 6,
-			bgcolor = themeColors.PANEL_BG,
-			borderColor = themeColors.GOLD,
-			borderWidth = 1,
-		}
-		effectiveStyles[#effectiveStyles+1] = gui.Style{
-			selectors = {"modifierHeadingLabel"},
-			priority = 6,
-			color = themeColors.GOLD_BRIGHT,
-		}
-		-- Splice in shared widget + form-row pattern.
-		for _, rule in ipairs(abilityEditor.GetSharedWidgetStyles(themeColors)) do
-			effectiveStyles[#effectiveStyles+1] = rule
-		end
-		for _, rule in ipairs(abilityEditor.GetSharedFormStyles(themeColors)) do
+		for _, rule in ipairs(abilityEditor.GetThemedDialogStyles(themeColors)) do
 			effectiveStyles[#effectiveStyles+1] = rule
 		end
 	end
 
-	local inputClasses = themed and {"input", "ds-field-input"} or {"input", "form-input"}
+	-- Narrower class for compact single-line fields like Name / Source so
+	-- they don't stretch across the whole popup (feedback was Name and
+	-- Source were way too wide relative to Description).
+	local inputClasses = themed and {"input", "ds-field-input", "ds-field-input-compact"} or {"input", "form-input"}
 	local textareaClasses = themed and {"input", "ds-field-textarea"} or {"input", "form-input"}
 
 	local nameInput = gui.Input{
@@ -801,10 +855,37 @@ function CharacterFeature:EditorPanel(editorPanelOptions)
 	}
 
 	local implementationWidget = gui.ImplementationStatusPanel{
+		halign = "left",
+		valign = "center",
+		-- Shrink the widget to a tighter footprint so the label and
+		-- chevrons sit together. Default is 148 which leaves padding
+		-- inside between the arrows and the center text.
+		width = themed and 120 or nil,
 		value = self:try_get("implementation", 1),
 		change = function(element)
 			self.implementation = element.value
 		end,
+		-- Walk the widget's children on create to (a) fix the base
+		-- widget's mismatched arrow heights (left=24, right=32 -- see
+		-- AbilityEditor.lua:1809) and (b) apply themed gold/cream
+		-- coloring to the chevrons and center label so it matches the
+		-- rest of the DS chrome.
+		create = themed and function(element)
+			local tc = themeColors
+			for _, child in ipairs(element.children) do
+				if child.height == 32 then
+					child.height = 24
+				end
+				-- The arrows have bgimage = "panels/InventoryArrow.png"
+				-- and no class; identify them by that bgimage. The text
+				-- label has no bgimage.
+				if child.bgimage == "panels/InventoryArrow.png" then
+					child.bgcolor = tc.GOLD_BRIGHT
+				else
+					child.color = tc.CREAM_BRIGHT
+				end
+			end
+		end or nil,
 	}
 
 	local descriptionInput = gui.Input{
@@ -831,6 +912,30 @@ function CharacterFeature:EditorPanel(editorPanelOptions)
 		},
 	}
 
+	-- Wrap the rows + modifiersPanel in an inner height=auto panel. Without
+	-- this the outer content-panel takes 90% of the popup and distributes
+	-- children across that height (~700px), producing large gaps between
+	-- rows and before the + Add Modifier button. The Create New Ability
+	-- modal uses the same pattern at AbilityEditorTemplates.lua:1436-1453.
+	local innerRows = {
+		makeFormRow("Name:", nameInput, "namePanel"),
+		makeFormRow("Source:", sourceInput, "sourcePanel"),
+		makeInlineRow("Implementation:", implementationWidget),
+		makeFormRow("Description:", descriptionInput, "descriptionPanel"),
+		prerequisitesPanel,
+		modifiersPanel,
+	}
+
+	local innerPanel = gui.Panel{
+		width = "100%",
+		height = "auto",
+		flow = "vertical",
+		halign = "left",
+		valign = "top",
+		bgcolor = "clear",
+		children = innerRows,
+	}
+
 	local args = {
 		id = "featureScroll",
 		classes = 'content-panel',
@@ -851,13 +956,7 @@ function CharacterFeature:EditorPanel(editorPanelOptions)
 			end
 		end,
 
-		makeFormRow("Name:", nameInput, "namePanel"),
-		makeFormRow("Source:", sourceInput, "sourcePanel"),
-		makeInlineRow("Implementation:", implementationWidget),
-		makeFormRow("Description:", descriptionInput, "descriptionPanel"),
-
-		prerequisitesPanel,
-		modifiersPanel,
+		innerPanel,
 	}
 
 	if noscroll then
@@ -917,50 +1016,43 @@ function CharacterFeature:PopupEditor()
 	}
 
 	if themed then
-		popupStyles[#popupStyles+1] = gui.Style{
-			selectors = {"framedPanel"},
-			priority = 3,
-			bgcolor = c.BG,
-			borderColor = c.GOLD,
-			gradient = nil,
-		}
-		popupStyles[#popupStyles+1] = gui.Style{
-			selectors = {"label", "button", "prettyButton"},
-			priority = 3,
-			bgcolor = c.PANEL_BG,
-			bgimage = "panels/square.png",
-			color = c.CREAM_BRIGHT,
-			borderColor = c.GOLD,
-			borderWidth = 2,
-			cornerRadius = 4,
-			fontFace = "Berling",
-			fontSize = 20,
-			fontWeight = "bold",
-			hmargin = 8,
-			vmargin = 8,
-			textAlignment = "center",
-		}
-		popupStyles[#popupStyles+1] = gui.Style{
-			selectors = {"label", "button", "prettyButton", "hover"},
-			priority = 3,
-			bgcolor = c.GOLD_DIM,
-			color = c.BG,
-			borderColor = c.CREAM_BRIGHT,
-		}
-		popupStyles[#popupStyles+1] = gui.Style{
-			selectors = {"label", "button", "prettyButton", "press"},
-			priority = 3,
-			bgcolor = c.GOLD,
-			color = c.BG,
-			brightness = 0.85,
-		}
+		-- Splice the shared themed-dialog pack. The helper owns the
+		-- framedPanel gradient fix, prettyButton chrome, content-panel
+		-- transparency, and nested-editor compact chrome.
+		for _, rule in ipairs(abilityEditor.GetThemedDialogStyles()) do
+			popupStyles[#popupStyles+1] = rule
+		end
 	end
+
+	-- The engine MULTIPLIES bgcolor with the gradient's color at each
+	-- pixel. Base Styles.Panel's framedPanel rule sets gradient to
+	-- dialogGradient (near-black #000000 -> #060606), which multiplied
+	-- with any bgcolor produces near-black. To let our bgcolor paint
+	-- as-is, supply a flat white gradient -- white multiplied with
+	-- bgcolor is just bgcolor.
+	local flatWhiteGradient = themed and gui.Gradient{
+		point_a = {x = 0, y = 0},
+		point_b = {x = 1, y = 1},
+		stops = {
+			{position = 0, color = "#ffffff"},
+			{position = 1, color = "#ffffff"},
+		},
+	} or nil
 
 	resultPanel = gui.Panel{
 		id = "CharacterFeaturePopupEditor",
 		classes = {'popup-editor', "framedPanel"},
 		floating = true,
 		flow = "vertical",
+		-- Top-level bg keys match the ability editor's abilityEditorRoot
+		-- (AbilityEditor.lua:4630). Class-based framedPanel styles alone
+		-- don't reliably paint against Styles.Panel's dialogGradient base.
+		bgimage = themed and "panels/square.png" or nil,
+		bgcolor = themed and c.BG or nil,
+		gradient = flatWhiteGradient,
+		borderWidth = themed and 2 or nil,
+		borderColor = themed and c.GOLD or nil,
+		cornerRadius = themed and 6 or nil,
 
 		contentPanel,
 

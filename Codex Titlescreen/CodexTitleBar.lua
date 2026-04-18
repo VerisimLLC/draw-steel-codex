@@ -852,6 +852,7 @@ local function CreateTopBar()
 
     g_adventureDocumentsBar = m_adventureDocumentsBar
 
+    local g_bugReportLink = "https://discord.gg/x2yEdNFmUB"
 
     local menuBar = gui.Panel{
         id = "menuBarPanel",
@@ -899,6 +900,24 @@ local function CreateTopBar()
                         icon = "panels/hud/gear.png",
                         click = function()
                             dmhub.ShowPlayerSettings()
+                        end,
+                    },
+                    {
+                        text = "Shop",
+                        icon = "icons/icon_shopping/shopping-cart.png",
+                        click = function()
+                            if CodexTitlescreenRoot ~= nil then
+                                CodexTitlescreenRoot:AddChild(CreateShopScreen{ titlescreen = CodexTitlescreenRoot })
+                            end
+                        end,
+                    },
+                    {
+                        text = "Inventory",
+                        icon = "ui-icons/gift-icon.png",
+                        click = function()
+                            if CodexTitlescreenRoot ~= nil then
+                                CodexTitlescreenRoot:AddChild(CreateShopScreen{ titlescreen = CodexTitlescreenRoot, inventory = true })
+                            end
                         end,
                     },
                     {
@@ -1148,13 +1167,13 @@ local function CreateTopBar()
                                     {
                                         text = "Proceed",
                                         click = function()
-                                            dmhub.OpenURL("https://discord.com/channels/751501320640528396/1294537710702301194")
+                                            dmhub.OpenURL(g_bugReportLink)
                                         end,
                                     },
                                     {
                                         text = "Copy Link",
                                         click = function()
-                                            dmhub.CopyToClipboard("https://discord.com/channels/751501320640528396/1294537710702301194")
+                                            dmhub.CopyToClipboard(g_bugReportLink)
                                         end,
                                     },
                                     {

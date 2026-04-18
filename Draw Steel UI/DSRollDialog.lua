@@ -1103,7 +1103,7 @@ function GameHud.CreateRollDialog(self)
                         m_openedTriggers = {}
                     end
 
-                    local key = trigger.modifier.guid
+                    local key = trigger.modifier.guid .. (trigger.charid or "")
                     if not targetAll then
                         key = key .. target.token.charid
                     end

@@ -1601,14 +1601,14 @@ function GameHud.CreateEmbeddedRollDialog()
 
             -- Show triggers from every multi-target, not just the currently
             -- selected one. "all"-multitarget triggers are deduped by modifier
-            -- guid; single-target triggers are keyed by guid+token so the same
-            -- modifier can appear once per target.
+            -- guid+caster; single-target triggers are keyed by guid+caster+token
+            -- so the same modifier can appear once per (caster, target) pair.
             local allTriggers = {}
             local seen = {}
             for _, target in ipairs(multitargets) do
                 for _, trigger in ipairs(target.triggers or {}) do
                     local targetAll = (trigger.modifier:try_get("multitarget", "one") == "all")
-                    local key = trigger.modifier.guid
+                    local key = trigger.modifier.guid .. (trigger.charid or "")
                     if not targetAll then
                         key = key .. target.token.charid
                     end
@@ -1674,7 +1674,7 @@ function GameHud.CreateEmbeddedRollDialog()
                         m_openedTriggers = {}
                     end
 
-                    local key = trigger.modifier.guid
+                    local key = trigger.modifier.guid .. (trigger.charid or "")
                     if not targetAll then
                         key = key .. target.token.charid
                     end

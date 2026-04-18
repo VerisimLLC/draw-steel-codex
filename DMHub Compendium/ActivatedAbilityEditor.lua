@@ -64,6 +64,15 @@ end
 
 function ActivatedAbility:GenerateEditor()
 
+	-- Route to the sectioned Draw Steel ability editor unless the user has
+	-- opted back into the classic editor via the "Use classic ability editor"
+	-- setting. AbilityEditor is defined in Draw Steel Ability Editor/AbilityEditor.lua
+	-- which loads after this module, so we use rawget for the lookup.
+	local abilityEditor = rawget(_G, "AbilityEditor")
+	if abilityEditor ~= nil and dmhub.GetSettingValue("classicAbilityEditor") ~= true then
+		return abilityEditor.GenerateEditor(self)
+	end
+
 	local resourceOptions = {}
 	local resultPanel
 
@@ -4765,9 +4774,18 @@ function ActivatedAbility:ShowEditActivatedAbilityDialog(options)
 
 	local resultPanel = nil
 
+	-- When the sectioned ability editor is active (the default), theme the
+	-- outer dialog chrome -- frame background, title, Create/Cancel/Delete/
+	-- Close buttons -- to match the gold/cream palette of the inner editor.
+	-- Opting into the classic editor keeps the plain white frame so classic
+	-- controls that assume a white background still read correctly.
+	local abilityEditor = rawget(_G, "AbilityEditor")
+	local themed = abilityEditor ~= nil and dmhub.GetSettingValue("classicAbilityEditor") ~= true
+	local c = themed and abilityEditor.COLORS or nil
+
 	local styles = {
 		{
-			bgcolor = 'white',
+			bgcolor = themed and c.BG or 'white',
 			pad = 0,
 			margin = 0,
 			width = 1100,
@@ -4876,13 +4894,64 @@ function ActivatedAbility:ShowEditActivatedAbilityDialog(options)
 		halign = 'center',
 		width = 'auto',
 		height = 'auto',
-		color = 'white',
+		color = themed and c.GOLD_BRIGHT or 'white',
+		fontFace = themed and "Berling" or nil,
 		fontSize = 28,
 	}
 
+	-- Themed overrides that beat the base Styles.Panel and prettyButton
+	-- defaults. Applied only when the sectioned editor is active.
+	local themeStyles = Styles.Panel
+	if themed then
+		themeStyles = {}
+		for _, rule in ipairs(Styles.Panel) do
+			themeStyles[#themeStyles+1] = rule
+		end
+		-- Outer frame: dark background + gold border, beating framedPanel defaults.
+		themeStyles[#themeStyles+1] = gui.Style{
+			selectors = {"framedPanel"},
+			priority = 3,
+			bgcolor = c.BG,
+			borderColor = c.GOLD,
+			gradient = nil,
+		}
+		-- prettyButton: gold-on-dark. Priority 3 beats the base `label button`
+		-- and `label button prettyButton` rules in DMHub Titlescreen/Styles.lua.
+		themeStyles[#themeStyles+1] = gui.Style{
+			selectors = {"label", "button", "prettyButton"},
+			priority = 3,
+			bgcolor = c.PANEL_BG,
+			bgimage = "panels/square.png",
+			color = c.CREAM_BRIGHT,
+			borderColor = c.GOLD,
+			borderWidth = 2,
+			cornerRadius = 4,
+			fontFace = "Berling",
+			fontSize = 20,
+			fontWeight = "bold",
+			hmargin = 8,
+			vmargin = 8,
+			textAlignment = "center",
+		}
+		themeStyles[#themeStyles+1] = gui.Style{
+			selectors = {"label", "button", "prettyButton", "hover"},
+			priority = 3,
+			bgcolor = c.GOLD_DIM,
+			color = c.BG,
+			borderColor = c.CREAM_BRIGHT,
+		}
+		themeStyles[#themeStyles+1] = gui.Style{
+			selectors = {"label", "button", "prettyButton", "press"},
+			priority = 3,
+			bgcolor = c.GOLD,
+			color = c.BG,
+			brightness = 0.85,
+		}
+	end
+
 	local args = {
 		style = {
-			bgcolor = 'white',
+			bgcolor = themed and c.BG or 'white',
 			width = dialogWidth,
 			height = dialogHeight,
 			halign = 'center',
@@ -4890,7 +4959,7 @@ function ActivatedAbility:ShowEditActivatedAbilityDialog(options)
 		},
 
 		classes = {"framedPanel"},
-		styles = Styles.Panel,
+		styles = themeStyles,
 
 		floating = true,
 

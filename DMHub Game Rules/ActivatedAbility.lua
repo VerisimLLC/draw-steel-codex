@@ -774,7 +774,13 @@ function ActivatedAbility.Create(options)
 		end
 	end
 
-	return ActivatedAbility.new(args)
+	local ability = ActivatedAbility.new(args)
+	-- Signals to AbilityEditor that this ability was freshly created so the
+	-- entry modal (Template / Duplicate / Blank) fires on first edit. The
+	-- _tmp_ prefix keeps it out of serialization, so the flag lives only in
+	-- the session the ability was created.
+	ability._tmp_isNewAbility = true
+	return ability
 end
 
 --- Returns the unique id of this ability (uses guid or id field).

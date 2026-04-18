@@ -29,10 +29,12 @@ end
 
 local g_tagCache = {}
 local g_optCache = {}
+local g_languageVersion = 0
 
 dmhub.RegisterEventHandler("refreshTables", function(keys)
 	g_tagCache = {}
     g_optCache = {}
+    g_languageVersion = g_languageVersion + 1
 end)
 
 function CharacterLanguageChoice:_cache()
@@ -90,11 +92,18 @@ function CharacterLanguageChoice:CanRepeat()
 end
 
 function CharacterLanguageChoice:GetLanguageFeatures()
-    if self:try_get("_tmp_languageFeatures") ~= nil and (dmhub.DeepEqual(self:try_get("_tmp_languageFeaturesKey"), self.categories)) then
+    local cachedKey = self:try_get("_tmp_languageFeaturesKey")
+    if self:try_get("_tmp_languageFeatures") ~= nil
+        and cachedKey ~= nil
+        and cachedKey.version == g_languageVersion
+        and dmhub.DeepEqual(cachedKey.categories, self.categories) then
         return self._tmp_languageFeatures
     end
 
-    self._tmp_languageFeaturesKey = DeepCopy(self.categories)
+    self._tmp_languageFeaturesKey = {
+        version = g_languageVersion,
+        categories = DeepCopy(self.categories),
+    }
 
     self._tmp_languageFeatures = {}
 

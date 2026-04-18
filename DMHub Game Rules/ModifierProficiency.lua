@@ -152,8 +152,11 @@ CharacterModifier.TypeInfo.proficiency = {
 
 	languageProficiency = function(modifier, creature, proficiencyTable)
 		if modifier.subtype == 'language' then
+			local dataTable = dmhub.GetTable("languages") or {}
 			for k,_ in pairs(modifier.skills) do
-				proficiencyTable[k] = true
+				if k == "all" or dataTable[k] ~= nil then
+					proficiencyTable[k] = true
+				end
 			end
 		end
 	end,

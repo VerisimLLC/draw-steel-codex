@@ -4823,6 +4823,13 @@ CreateAbilityController = function()
                         end
 
                         local filterTargetPredicate = g_currentAbility:TargetLocPassesFilterPredicate(g_token, g_currentSymbols)
+                        if not forcedMovement then
+                            local restrictionFilter = g_token.properties:GetMovementRestrictionFilter(g_token)
+                            if restrictionFilter ~= nil then
+                                local baseFilter = filterTargetPredicate
+                                filterTargetPredicate = function(loc) return baseFilter(loc) and restrictionFilter(loc) end
+                            end
+                        end
                         local radiusMarker = g_token:MarkMovementRadius(g_range,
                             { moveFlags = moveFlags, waypoints = waypoints, mask = mask, filter = filterTargetPredicate})
 
@@ -5262,6 +5269,13 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
 
 
                 local filterTargetPredicate = g_currentAbility:TargetLocPassesFilterPredicate(g_token, g_currentSymbols)
+                if g_currentAbility:try_get("targeting", "direct") ~= "straightline" then
+                    local restrictionFilter = g_token.properties:GetMovementRestrictionFilter(g_token)
+                    if restrictionFilter ~= nil then
+                        local baseFilter = filterTargetPredicate
+                        filterTargetPredicate = function(loc) return baseFilter(loc) and restrictionFilter(loc) end
+                    end
+                end
 
                 print("MARK:: MovementRadius:: MARK", range)
                 g_radiusMarkers[#g_radiusMarkers + 1] = g_token:MarkMovementRadius(range,

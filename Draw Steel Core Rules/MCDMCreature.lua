@@ -5118,10 +5118,26 @@ function creature:Titles()
     return results
 end
 
-  function creature:MoveToLocPermitted(loc)
-      -- loc is a Loc userdata; return false to forbid stepping onto it
-      return true
-  end
+function creature:MoveToLocPermitted(loc)
+    local token = dmhub.LookupToken(self)
+    if token == nil or (not token.valid) then
+        return true
+    end
+
+    local startLoc = token.loc
+
+    local modifiers = self:GetActiveModifiers()
+    for _, modContext in ipairs(modifiers) do
+        local typeInfo = CharacterModifier.TypeInfo[modContext.mod.behavior] or {}
+        if typeInfo.MoveToLocPermitted ~= nil then
+            if not typeInfo.MoveToLocPermitted(modContext.mod, modContext, self, startLoc, loc) then
+                return false
+            end
+        end
+    end
+
+    return true
+end
 
 dmhub.RegisterEventHandler("ClearTemporaryState", function()
     print("CLEARSTATE:: CLEARING STATE", #dmhub.allTokens)

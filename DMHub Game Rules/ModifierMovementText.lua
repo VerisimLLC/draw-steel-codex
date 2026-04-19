@@ -177,6 +177,114 @@ CharacterModifier.TypeInfo.movementtext = {
     end,
 }
 
+CharacterModifier.RegisterType('movementrestriction', "Movement Restriction")
+
+CharacterModifier.TypeInfo.movementrestriction = {
+    init = function(modifier)
+        modifier.targetFormula = ""
+    end,
+
+    -- Returns false if stepping onto loc would bring the creature closer to the
+    -- target than its starting position.
+    MoveToLocPermitted = function(modifier, modContext, creature, startLoc, loc)
+        local formula = modifier:try_get("targetFormula", "")
+        if formula == "" then return true end
+
+        -- Cache the resolved charid per frame so EvalGoblinScriptToObject only runs
+        -- once across all tile checks in a single movement overlay calculation.
+        local currentFrame = dmhub.FrameCount()
+        local targetCharid = modifier:try_get("_tmp_targetCharid")
+        if modifier:try_get("_tmp_targetFrame") ~= currentFrame then
+            targetCharid = nil
+            local result = dmhub.EvalGoblinScriptToObject(formula, creature:LookupSymbol(), "Movement restriction target")
+            if type(result) == "string" and result ~= "" then
+                targetCharid = result
+            elseif type(result) == "number" then
+                targetCharid = tostring(math.floor(result))
+            elseif result ~= nil and type(result) == "table" then
+                local tid = dmhub.LookupTokenId(result)
+                if tid ~= nil and tid ~= "" then
+                    targetCharid = tid
+                end
+            end
+            modifier._tmp_targetFrame = currentFrame
+            modifier._tmp_targetCharid = targetCharid
+        end
+
+        if targetCharid == nil or targetCharid == "" then return true end
+
+        local targetToken = dmhub.GetTokenById(targetCharid)
+        if targetToken == nil or (not targetToken.valid) then return true end
+
+        local targetLocs = targetToken.locsOccupying
+        if targetLocs == nil or #targetLocs == 0 then return true end
+
+        local startDist = math.huge
+        for _, tl in ipairs(targetLocs) do
+            local d = startLoc:DistanceInTiles(tl)
+            if d < startDist then startDist = d end
+        end
+
+        local locDist = math.huge
+        for _, tl in ipairs(targetLocs) do
+            local d = loc:DistanceInTiles(tl)
+            if d < locDist then locDist = d end
+        end
+
+        return locDist >= startDist
+    end,
+
+    createEditor = function(modifier, element)
+        local Refresh
+        local firstRefresh = true
+
+        Refresh = function()
+            if firstRefresh then
+                firstRefresh = false
+            else
+                element:FireEvent("refreshModifier")
+            end
+
+            local children = {}
+            children[#children+1] = modifier:FilterConditionEditor()
+
+            children[#children+1] = gui.Panel{
+                classes = {"formPanel"},
+                gui.Label{
+                    classes = {"formLabel"},
+                    text = "Target:",
+                },
+                gui.GoblinScriptInput{
+                    value = modifier:try_get("targetFormula", ""),
+                    change = function(self)
+                        local v = trim(self.value)
+                        if v == "" then
+                            modifier.targetFormula = nil
+                        else
+                            modifier.targetFormula = v
+                        end
+                        Refresh()
+                    end,
+                    documentation = {
+                        help = "A GoblinScript expression that evaluates to the creature the restricted creature cannot approach. Can be a raw token ID number, or a GoblinScript expression such as ConditionCaster(\"Frightened\").",
+                        output = "creature",
+                        examples = {
+                            {
+                                script = "ConditionCaster(\"Frightened\")",
+                                text = "Cannot approach the creature that inflicted Frightened on this creature.",
+                            },
+                        },
+                    },
+                },
+            }
+
+            element.children = children
+        end
+
+        Refresh()
+    end,
+}
+
 function CharacterModifier:MovementAdvisoryText(creature, path, text)
 	local typeInfo = CharacterModifier.TypeInfo[self.behavior] or {}
 	if typeInfo.MovementAdvisoryText ~= nil then

@@ -35,12 +35,26 @@ local g_powerRollTypes = {
     },
 }
 
-local function RollTypeMatches(modifier, rollType)
+local function RollTypeMatches(modifier, rollType, options)
     if modifier.rollType == "all" and rollType ~= "enemy_ability_power_roll" then
         return true
     end
 
-    return rollType == modifier.rollType
+    if rollType ~= modifier.rollType then
+        return false
+    end
+
+    --Only apply "Enemy Ability Rolls vs Us" to harmful abilities:
+    --the caster must not be a friend of the target.
+    if rollType == "enemy_ability_power_roll" and options ~= nil and options.caster ~= nil and options.target ~= nil then
+        local casterToken = dmhub.LookupToken(options.caster)
+        local targetToken = dmhub.LookupToken(options.target)
+        if casterToken ~= nil and targetToken ~= nil and casterToken:IsFriend(targetToken) then
+            return false
+        end
+    end
+
+    return true
 end
 
 
@@ -233,7 +247,7 @@ CharacterModifier.TypeInfo.power = {
         end
 
 
-        if (self.activationCondition == false) or (not RollTypeMatches(self, rollType)) then
+        if (self.activationCondition == false) or (not RollTypeMatches(self, rollType, options)) then
             return {
                 result = false,
                 justification = {}
@@ -355,14 +369,14 @@ CharacterModifier.TypeInfo.power = {
             end
         end
 
-        if not RollTypeMatches(self, rollType) then
+        if not RollTypeMatches(self, rollType, options) then
             return false
         end
 
         if not self:PassesFilter(creature) then
             return false
         end
-            
+
         if self.displayCondition ~= "" then
             local lookupFunction = creature:LookupSymbol(self:AppendSymbols{
                 ability = GenerateSymbols(options.ability),
@@ -384,7 +398,7 @@ CharacterModifier.TypeInfo.power = {
         if type(self:try_get("activationAfterRoll", false)) ~= "string" then
             return false
         end
-        if not RollTypeMatches(self, rollType) then
+        if not RollTypeMatches(self, rollType, options) then
             return false
         end
         if not self:PassesFilter(creature) then
@@ -396,7 +410,7 @@ CharacterModifier.TypeInfo.power = {
     hintPowerRollAfter = function(self, creature, rollType, options)
         options = options or {}
 
-        if not RollTypeMatches(self, rollType) then
+        if not RollTypeMatches(self, rollType, options) then
             return { result = false, justification = {} }
         end
 

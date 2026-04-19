@@ -1879,7 +1879,7 @@ local function MakeGamePanel(gameIndex)
                     y = -24,
                     hmargin = 4,
                     refreshGames = function(element)
-                        element:SetClass("hidden", m_game == nil or m_game.storage ~= 3)
+                        element:SetClass("collapsed", m_game == nil or m_game.storage ~= 3)
                     end,
                     click = function(element)
                         ShowPromoteLocalGameDialog(m_game, element.root)
@@ -2404,7 +2404,7 @@ function CreateGameDialog()
                 fontSize = 20,
                 options = g_moduleOptions,
                 idChosen = m_moduleid,
-                change = function(g_bugReportLink)
+                change = function(element)
                     m_moduleid = element.idChosen
                     resultPanel:FireEventTree("refreshModule")
                 end,

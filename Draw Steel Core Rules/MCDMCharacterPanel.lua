@@ -4787,6 +4787,230 @@ function TacPanel.HeroicResources()
     }
 end
 
+--- Display Epic and other custom resources
+--- @param token any token
+--- @param resource any CharacterResource
+--- @param quantity number max quantity of the resource
+--- @param styleCache table<string, any> cache keyed by resource id
+--- @return Panel
+function TacPanel.OtherResourceRow(token, resource, quantity, styleCache)
+    local creature = token.properties
+    local styles = styleCache[resource.id] or resource:CreateStyles()
+    styleCache[resource.id] = styles
+
+    local numExpended = creature:GetResourceUsage(resource.id, resource.usageLimit) or 0
+    local remaining = math.max(0, (quantity or 0) - numExpended)
+
+    local displayName = resource.name
+    if resource.id == CharacterResource.epicResourceId then
+        displayName = creature:GetEpicResourceName() or resource.name
+    end
+
+    return gui.Panel{
+        classes = {"other-resource-row"},
+        width = "100%",
+        height = 24,
+        flow = "horizontal",
+        halign = "left",
+        valign = "top",
+        vmargin = 2,
+        data = {
+            token = token,
+            resourceId = resource.id,
+            usageLimit = resource.usageLimit,
+            maxQuantity = quantity or 0,
+        },
+
+        -- icon
+        gui.Panel{
+            width = 20,
+            height = 20,
+            halign = "left",
+            valign = "center",
+            hmargin = 4,
+            bgcolor = "white",
+            bgimage = resource:GetImage("normal") or "",
+            styles = styles,
+            classes = {"normal"},
+        },
+
+        -- name label
+        gui.Label{
+            width = "100%-116",
+            height = "auto",
+            halign = "left",
+            valign = "center",
+            hmargin = 6,
+            fontFace = "Berling",
+            fontSize = 14,
+            color = CREAM,
+            text = displayName,
+        },
+
+        -- remaining / max input
+        gui.Input{
+            width = 70,
+            height = 22,
+            halign = "right",
+            valign = "center",
+            hmargin = 6,
+            characterLimit = 9,
+            selectAllOnFocus = true,
+            placeholderText = "--",
+            fontFace = "Newzald",
+            fontSize = 16,
+            textAlignment = "center",
+            color = CREAM,
+            bgcolor = "clear",
+            border = 0,
+            text = string.format("%d/%d", remaining, quantity or 0),
+            change = function(element)
+                local rowData = element.parent.data
+                local tok = rowData.token
+                if tok == nil or not tok.valid then return end
+                local maxQuantity = rowData.maxQuantity or 0
+                local resourceId = rowData.resourceId
+                local usageLimit = rowData.usageLimit
+                local creatureRef = tok.properties
+                local currentExpended = creatureRef:GetResourceUsage(resourceId, usageLimit) or 0
+                local currentRemaining = math.max(0, maxQuantity - currentExpended)
+
+                local textValue = element.text
+                local n
+                local slash = string.find(textValue, "/", 1, true)
+                if slash ~= nil then
+                    n = tonum(string.sub(textValue, 1, slash - 1), nil)
+                else
+                    n = tonum(textValue, nil)
+                end
+
+                if n == nil then
+                    element.textNoNotify = string.format("%d/%d", currentRemaining, maxQuantity)
+                    return
+                end
+
+                n = math.max(0, math.min(n, maxQuantity))
+                local diff = n - currentRemaining
+                if diff ~= 0 then
+                    tok:ModifyProperties{
+                        description = string.format("Change %s", displayName),
+                        execute = function()
+                            if diff > 0 then
+                                tok.properties:RefreshResource(resourceId, usageLimit, diff)
+                            else
+                                tok.properties:ConsumeResource(resourceId, usageLimit, -diff)
+                            end
+                        end,
+                    }
+                end
+                local newExpended = tok.properties:GetResourceUsage(resourceId, usageLimit) or 0
+                local newRemaining = math.max(0, maxQuantity - newExpended)
+                element.textNoNotify = string.format("%d/%d", newRemaining, maxQuantity)
+            end,
+        },
+    }
+end
+
+--- Display custom/epic resources that have no dedicated tactical panel box.
+--- Hidden entirely when the creature has none.
+--- @return Panel
+function TacPanel.OtherResources()
+    local resourceStyles = {}
+
+    -- Resource ids that already have dedicated displays elsewhere in the
+    -- tactical panel / summary and should not be duplicated here.
+    local excludedIds = {
+        [CharacterResource.heroicResourceId] = true,
+        [CharacterResource.maliceResourceId] = true,
+        [CharacterResource.surgeResourceId] = true,
+        [CharacterResource.heroTokenId] = true,
+        [CharacterResource.recoveryResourceId] = true,
+        [CharacterResource.actionResourceId] = true,
+        [CharacterResource.maneuverResourceId] = true,
+        [CharacterResource.freeManeuverResourceId] = true,
+        [CharacterResource.triggerResourceId] = true,
+    }
+
+    return TacPanel.CollapsiblePanel{
+        sectionId = "otherresources",
+        classes = {"collapsed"},
+        altBg = false,
+        title = "RESOURCES",
+        data = { token = nil },
+
+        refreshCharacter = function(element, token)
+            if token == nil or not token.valid or token.properties == nil then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            element.data.token = token
+            local creature = token.properties
+            local resourceTable = dmhub.GetTable(CharacterResource.tableName) or {}
+            local resources = creature:GetResources()
+
+            local entries = {}
+            for resourceid, quantity in pairs(resources) do
+                if (quantity or 0) > 0 and not excludedIds[resourceid] then
+                    local resource = resourceTable[resourceid]
+                    if resource ~= nil
+                        and not resource:try_get("hidden", false)
+                        and resource.grouping ~= "Hidden"
+                        and resource.grouping ~= "Actions" then
+                        entries[#entries+1] = {
+                            resource = resource,
+                            id = resourceid,
+                            quantity = quantity,
+                        }
+                    end
+                end
+            end
+
+            if #entries == 0 then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            -- Epic resource first when present, otherwise alphabetical.
+            table.sort(entries, function(a, b)
+                local aEpic = a.id == CharacterResource.epicResourceId
+                local bEpic = b.id == CharacterResource.epicResourceId
+                if aEpic ~= bEpic then return aEpic end
+                return a.resource.name < b.resource.name
+            end)
+
+            element:SetClass("collapsed", false)
+            element:FireEventTree("setEntries", {
+                token = token,
+                entries = entries,
+            })
+        end,
+        refreshToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        setToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+
+        gui.Panel{
+            classes = {"container"},
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            hpad = 4,
+            vpad = 4,
+            setEntries = function(element, info)
+                local children = {}
+                for _, entry in ipairs(info.entries) do
+                    children[#children+1] = TacPanel.OtherResourceRow(
+                        info.token, entry.resource, entry.quantity, resourceStyles)
+                end
+                element.children = children
+            end,
+        },
+    }
+end
+
 --- Display the Skills & Languages panel
 --- @return Panel
 function TacPanel.SkillLanguages()
@@ -8615,6 +8839,7 @@ local TACPANEL_DEFAULT_ORDER = {
     "aurasemitting",
     "persistentabilities",
     "heroicresources",
+    "otherresources",
     "conditions",
     "skilllanguages",
     "features",
@@ -8628,6 +8853,7 @@ local TACPANEL_FACTORIES = {
     aurasemitting = TacPanel.AurasEmitting,
     persistentabilities = TacPanel.PersistentAbilities,
     heroicresources = TacPanel.HeroicResources,
+    otherresources = TacPanel.OtherResources,
     conditions = TacPanel.Conditions,
     skilllanguages = TacPanel.SkillLanguages,
     features = TacPanel.Features,

@@ -1103,7 +1103,7 @@ function GameHud.CreateRollDialog(self)
                         m_openedTriggers = {}
                     end
 
-                    local key = trigger.modifier.guid
+                    local key = trigger.modifier.guid .. (trigger.charid or "")
                     if not targetAll then
                         key = key .. target.token.charid
                     end
@@ -1702,7 +1702,6 @@ function GameHud.CreateRollDialog(self)
 
             prepare = function(element, options)
                 element:SetClass("collapsed", not GameSystem.AllowBoonsForRoll(options))
-                m_boons = 0
 
                 if GetCurrentMultiTarget() ~= nil then
                     local index = GetCurrentMultiTarget()
@@ -2776,6 +2775,8 @@ function GameHud.CreateRollDialog(self)
                 beginRoll = options.beginRoll
                 completeRoll = options.completeRoll
                 cancelRoll = options.cancelRoll
+
+                m_boons = 0
 
                 resultPanel:FireEventTree('prepare', options)
 

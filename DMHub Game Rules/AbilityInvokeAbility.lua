@@ -415,27 +415,44 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
 	local OnBeginCast = abilityClone:try_get("OnBeginCast")
 	local OnFinishCast = abilityClone:try_get("OnFinishCast")
 
-	abilityClone.OnBeginCast = function()
+    local finishedCasting = false
+
+    --The finish-side signaling must live on options.OnFinishCastHandlers rather than
+    --ability.OnFinishCast: the engine's cast-time serialization strips function-valued
+    --fields from the ability during long casts (e.g. a power roll dialog). Handlers
+    --on the options table are not touched by that pass.
+    local finishHandler = function(ability, _, finishOptions)
+        if finishedCasting then return end
+        if OnFinishCast then
+            OnFinishCast(ability, finishOptions)
+        end
+        casting = false
+        finishedCasting = true
+        if finishOptions.pay then
+            --if the ability we invoked had to be paid for, we have to pay for the invoke.
+            ability:CommitToPaying(casterToken, finishOptions)
+            haveToPay = true --we'll return that we 'did work' and have to pay.
+        end
+    end
+
+    local installFinishHandler = function(castOptions)
+        if castOptions == nil then return end
+        castOptions.OnFinishCastHandlers = castOptions.OnFinishCastHandlers or {}
+        castOptions.OnFinishCastHandlers[#castOptions.OnFinishCastHandlers + 1] = finishHandler
+    end
+
+	abilityClone.OnBeginCast = function(_ability, castOptions)
 		if OnBeginCast then
 			OnBeginCast()
 		end
 		casting = true
+        installFinishHandler(castOptions)
 	end
 
-    local finishedCasting = false
-
-	abilityClone.OnFinishCast = function(ability, options)
-		if OnFinishCast then
-			OnFinishCast(ability, options)
-		end
-		casting = false
-        finishedCasting = true
-        print("INVOKE:: FINISHED CASTING", ability.name, "with abort =", json(options.abort), "pay =", options.pay)
-        if options.pay then
-            --if the ability we invoked had to be paid for, we have to pay for the invoke.
-            ability:CommitToPaying(casterToken, options)
-            haveToPay = true --we'll return that we 'did work' and have to pay.
-        end
+    --Defense-in-depth: keep OnFinishCast as a fallback in case this path somehow runs
+    --through a Cast that skips OnBeginCast. The finishHandler is idempotent via finishedCasting.
+	abilityClone.OnFinishCast = function(ability, finishOptions)
+        finishHandler(ability, casterToken, finishOptions)
 	end
 
     local canceled = false
@@ -499,29 +516,39 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
                 end
             end
 
-            print("INVOKE:: Requires prompt =", abilityClone:RequiresPromptWhenCast(), "for", abilityClone.name, coroutine.running())
             if abilityClone:RequiresPromptWhenCast() then
                 local synth = abilityClone:SynthesizeAbilities(casterToken.properties)
-                print("INVOKE:: SYNTHESIZED ABILITIES =", synth ~= nil and #synth or 0, "for", abilityClone.name, coroutine.running())
                 if synth ~= nil and #synth == 1 then
                     --if exactly one synthesized ability then just auto-cast it?
                     abilityClone = synth[1]
+                    --The synth is a brand-new ability; re-install our wrappers so we still get
+                    --notified when it begins/finishes. Preserve any wrappers the synth came with.
+                    local synthOnBegin = abilityClone:try_get("OnBeginCast")
+                    local synthOnFinish = abilityClone:try_get("OnFinishCast")
+                    abilityClone.OnBeginCast = function(_ability, castOptions)
+                        if synthOnBegin then synthOnBegin() end
+                        casting = true
+                        installFinishHandler(castOptions)
+                    end
+                    abilityClone.OnFinishCast = function(ability, finishOptions)
+                        if synthOnFinish then synthOnFinish(ability, finishOptions) end
+                        finishHandler(ability, casterToken, finishOptions)
+                    end
                 end
             end
 
             if abilityClone:RequiresPromptWhenCast() then
-                print("INVOKE:: REQUIRING PROMPT")
                 abilityClone.skippable = true
                 gamehud.actionBarPanel:FireEventTree("invokeAbility", casterToken, abilityClone, symbols, invokerCallback, {instantCast = true, targets = targets})
             else
-                print("INVOKE:: IMMEDIATE CAST")
+                --Immediate cast: we control the options table so just pre-install the finish handler.
                 abilityClone:Cast(casterToken, targets, {
                     symbols = symbols,
+                    OnFinishCastHandlers = { finishHandler },
                 })
             end
         end
 
-        print("INVOKE:: Waiting for cast to finish", abilityClone.name, coroutine.running())
         coroutine.safe_sleep_while(function()
 
             local isCasting = casting
@@ -530,11 +557,8 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
             end
             local isPreparing = gamehud.actionBarPanel.data.IsCastingSpell()
 
-            local result = isCasting or isPreparing
-
-            return result
+            return isCasting or isPreparing
         end)
-        print("INVOKE:: CAST FINISHED FOR", abilityClone.name, coroutine.running())
 
         if castCount <= 1 then
             --this looks like a direct cancel out of casting so we just break out.

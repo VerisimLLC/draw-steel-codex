@@ -3828,6 +3828,11 @@ CreateAbilityController = function()
             if g_actionBar == nil then return end
             ClearRadiusMarkers()
 
+            if options.sourceToken ~= nil and options.sourceToken.properties._tmp_aicontrol then
+                options.choose(options.targets[1])
+                return
+            end
+
             if options.sourceToken ~= nil and options.radius ~= nil then
                 print("MovementRadius:: MARK", options.radius)
                 AddRadiusMarker(options.sourceToken.locsOccupying, options.radius)

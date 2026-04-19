@@ -7,18 +7,18 @@ local mod = dmhub.GetModLoading()
 --- @field name string Display name of the modifier.
 --- @field description string Human-readable description of what this modifier does.
 --- @field guid string Unique identifier for this modifier instance.
---- @field sourceguid string GUID of the source object (e.g. a feature) that created this modifier.
---- @field source string Human-readable source name (e.g. "Fighter", "Magic Item").
+--- @field sourceguid string|nil GUID of the source object (e.g. a feature) that created this modifier.
+--- @field source string|nil Human-readable source name (e.g. "Fighter", "Magic Item").
 --- @field behavior string The type of modifier behavior (registered via RegisterType).
---- @field numCharges string GoblinScript formula for the number of charges/uses.
---- @field resourceRefreshType string When resources provided by this modifier refresh ("none", "shortrest", "longrest", etc.).
---- @field resourceCostId string The resource id used for tracking charges; defaults to guid.
+--- @field numCharges string|nil|number|table GoblinScript formula for the number of charges/uses.
+--- @field resourceRefreshType string|nil When resources provided by this modifier refresh ("none", "shortrest", "longrest", etc.).
+--- @field resourceCostId string|nil The resource id used for tracking charges; defaults to guid.
 --- @field resourceCost string The resource cost string for activating this modifier ("none" or a resource id).
---- @field deletable boolean If true the modifier can be deleted by the user in the UI.
---- @field domains table<string, boolean> Domain strings this modifier belongs to.
+--- @field deletable boolean|nil If true the modifier can be deleted by the user in the UI.
+--- @field domains table<string, boolean>|nil Domain strings this modifier belongs to.
 --- @field activatedAbility nil|ActivatedAbility For "activated" behavior modifiers, the ability to cast.
---- @field resourceCostUpcastable boolean If true the resource cost can be upcasted.
---- @field StandardModifiers CharacterModifier[] Class-level default modifiers applied to all creatures.
+--- @field resourceCostUpcastable boolean|nil If true the resource cost can be upcasted.
+--- @field StandardModifiers table<string, CharacterModifier> Class-level default modifiers applied to all creatures.
 --- @field valueTypes {id: string, text: string, get: fun(c: creature): number}[] Available value type descriptors.
 --- @field Types {id: string, text: string}[] Ordered list of all registered modifier types.
 --- @field TypesById table<string, {id: string, text: string}> Registered modifier types keyed by id.

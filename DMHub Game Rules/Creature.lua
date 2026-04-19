@@ -6,9 +6,9 @@ local mod = dmhub.GetModLoading()
 GameSystem = RegisterGameType("GameSystem")
 
 --- @class StatHistoryEntry
---- @field note string
---- @field disposition string
---- @field set number
+--- @field note nil|string
+--- @field disposition nil|string
+--- @field set nil|number|string
 --- @field timestamp number
 --- @field userid string
 --- @field attackerid nil|string
@@ -111,9 +111,9 @@ function StatHistory:MostRecentTimestamp(attackerid, disposition)
 end
 
 --- @class CharacterAttribute
---- @field baseValue number Base (unmodified) value of this attribute.
---- @field id string Attribute id (e.g. "str", "dex", "int").
---- @field name string Display name (e.g. "Strength").
+--- @field baseValue nil|number Base (unmodified) value of this attribute.
+--- @field id nil|string Attribute id (e.g. "str", "dex", "int").
+--- @field name nil|string Display name (e.g. "Strength").
 CharacterAttribute = RegisterGameType("CharacterAttribute")
 
 
@@ -156,8 +156,8 @@ end
 
 --- @class creature
 --- @field max_hitpoints number The creature's maximum hitpoints (stamina in Draw Steel).
---- @field temporary_hitpoints number Current temporary hitpoints.
---- @field damage_taken number Total damage taken so far.
+--- @field temporary_hitpoints nil|number Current temporary hitpoints.
+--- @field damage_taken nil|number Total damage taken so far.
 --- @field currentMoveType string The creature's active movement mode (e.g. "walk", "fly", "swim").
 --- @field creatureSize nil|string The creature's size override, or nil to use default.
 --- @field selectedLoadout integer The currently active loadout index.
@@ -10275,11 +10275,11 @@ function creature:Repair(localOnly)
     end
 
     --repair culture that is just a data table.
-    if self:try_get("culture") ~= nil and getmetatable(self.culture) == nil then
+    if rawget(self, "culture") ~= nil and getmetatable(self.culture) == nil then
         printf("Creature validation: culture is data only, repairing.")
-        self.culture = culture.new{
+        self.culture = Culture.new{
             aspects = dmhub.DeepCopy(self.culture.aspects or {}),
-            aggregate = ""
+            aggregate = self.culture.aggregate or "",
         }
     end
 

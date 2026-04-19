@@ -4,7 +4,7 @@ local mod = dmhub.GetModLoading()
 --- @field name string Display name ("Language").
 --- @field description string Prompt shown to the player.
 --- @field categories string[] Language category ids to filter available languages (currently unused).
---- @field numChoices number Number of languages the player may choose.
+--- @field numChoices number|string|table Number of languages the player may choose.
 CharacterLanguageChoice = RegisterGameType("CharacterLanguageChoice", "CharacterChoice")
 
 CharacterLanguageChoice.name = "Language"

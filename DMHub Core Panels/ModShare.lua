@@ -3330,6 +3330,7 @@ mod.shared.ShowDownloadShareDialog = function()
 	}
 	local detailedDisplayBody = gui.Label{
 		classes = {"bodyLabel"},
+        markdown = true,
 	}
 
 	local detailedDisplayImage = gui.Panel{

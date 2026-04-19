@@ -6,6 +6,7 @@
 --- @field whiteLabel WhiteLabel The current 'white label' version of the engine this is. May be 'dmhub' or 'mcdm'
 --- @field whiteLabelEntityName string The name of the publisher of the product the engine is running as.
 --- @field whiteLabelAppName string The name of the app the engine is running as, suitable for showing to users.
+--- @field cloudFunctionsBaseUrl string Base URL for Firebase cloud functions for the current whitelabel project (e.g. https://us-central1-mcdm-385cf.cloudfunctions.net). Append the function name with a leading slash.
 --- @field platform string The platform the engine is running on. Returns 'windows', 'macOS', or 'linux'.
 --- @field nodiagonals boolean If true, the game rules are set up to have no pythagorean theorem when calculating diagonals.
 --- @field betaBranch nil|string Which branch the app is opted-in to updating from. This is not relevant if the app is being updated from Steam, Itch, or similar.
@@ -953,11 +954,12 @@ function dmhub.RegisterRemoteEvent(eventid, callback)
 	-- dummy implementation for documentation purposes only
 end
 
---- BroadcastRemoteEvent: This broadcasts an event to connected computers using the peer-to-peer mechanism. Because it uses peer-to-peer there is no guarantee the messages will arrive. They should be used to communicate transient information that will go out of date quickly, such as the user's mouse position, what they are highlighting, etc. If multiple messages using the same sessionid arrive out of order, the old messages will be discarded and not processed. 
+--- BroadcastRemoteEvent: This broadcasts an event to connected computers using the peer-to-peer mechanism. By default delivery is best-effort UDP -- good for transient information like mouse positions or highlights where a dropped packet doesn't matter. If multiple messages using the same sessionid arrive out of order, the old messages will be discarded and not processed. Pass reliable = true to route via the game server's WebSocket when the event drives a state change that must not be lost.
 --- @param eventid string A unique eventid identifying the event.
 --- @param sessionid A unique id identifying a 'session' which can receive multiple messages. If you want to broadcast multiple events concerning the same topic, use the same sessionid.
 --- @param args any
-function dmhub.BroadcastRemoteEvent(eventid, sessionid, args)
+--- @param reliable? boolean Optional. If true, route the message through the game server (TCP) so it can't be dropped by UDP. Requires a Durable Objects or Local game; silently ignored on Firebase-backed games (falls back to UDP). Defaults to false.
+function dmhub.BroadcastRemoteEvent(eventid, sessionid, args, reliable)
 	-- dummy implementation for documentation purposes only
 end
 
@@ -1058,6 +1060,14 @@ function dmhub.OpenTutorialVideo(id)
 	-- dummy implementation for documentation purposes only
 end
 
+--- OpenDebugConsole: Open the live data debug console for the current game, optionally focused on a given data path and store (e.g. '/characters/abc', 'game'). Admin/dev only. URL resolution matches the DO debug URL (with Firebase-JWT fragment for auth) for WebSocket backends, and falls through to the Firebase console for legacy Firebase-backed games.
+--- @param path string?
+--- @param store string?
+--- @return nil
+function dmhub.OpenDebugConsole(path, store)
+	-- dummy implementation for documentation purposes only
+end
+
 --- OpenArtistPage: Open the page for the given content creator's web page.
 --- @param artist string
 --- @return nil
@@ -1083,14 +1093,6 @@ end
 --- @param url string
 --- @return nil
 function dmhub.OpenURL(url)
-	-- dummy implementation for documentation purposes only
-end
-
---- OpenDebugConsole: Open the live data debug console for the current game, optionally focused on a given data path and store. Admin/dev only; silently no-ops for non-admin users. For WebSocket backends (DO release/staging, Local) this opens /debug/{gameid}?path=...&store=...#token=JWT. For legacy Firebase-backed games it opens the Firebase console URL.
---- @param path string|nil Optional path to focus on (e.g. "/characters/abc").
---- @param store string|nil Optional store name (defaults to "game" when omitted).
---- @return nil
-function dmhub.OpenDebugConsole(path, store)
 	-- dummy implementation for documentation purposes only
 end
 

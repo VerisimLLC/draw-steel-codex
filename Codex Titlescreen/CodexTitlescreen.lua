@@ -170,6 +170,18 @@ end
 
 
 local function EditHero(element, character)
+    -- Lobby characters never have a token on a map, so creature:RefreshToken
+    -- (the usual ValidateAndRepair trigger) never fires for them. Heal any
+    -- invalid state here so the character sheet doesn't open on corrupt data.
+    if character.properties ~= nil and not character.properties:IsValid() then
+        character:ModifyProperties{
+            description = "Repair character",
+            execute = function()
+                character.properties:ValidateAndRepair(true)
+            end,
+        }
+    end
+
     character:ShowSheet()
 
     g_titlescreen:SetClass("titlescreenHidden", true)
@@ -1415,6 +1427,154 @@ function RunMigrateToStagingModal(root, game)
     })
 end
 
+-- Show a modal dialog that runs CloneGameToLocal for the given game,
+-- producing a new offline (Local) game. Source may be Firebase, DO, or
+-- DO Staging. Used by the dev/admin context menu.
+function RunCloneToLocalModal(root, game)
+    local statusLabel
+    local modal
+    modal = gui.Panel {
+        classes = { "framedPanel" },
+        floating = true,
+        width = 600,
+        height = 240,
+        halign = "center",
+        valign = "center",
+        bgimage = true,
+        flow = "vertical",
+        styles = { Styles.Default, Styles.Panel },
+
+        gui.Label {
+            text = "Cloning to Offline Game",
+            width = "auto", height = "auto",
+            halign = "center", valign = "top",
+            fontSize = 24, vmargin = 12,
+        },
+
+        gui.Label {
+            id = "cloneStatus",
+            text = "Starting...",
+            width = "auto", height = "auto",
+            halign = "center", valign = "center",
+            fontSize = 16,
+            create = function(element) statusLabel = element end,
+        },
+
+        gui.Panel {
+            halign = "center", valign = "bottom", vmargin = 16,
+            width = "auto", height = "auto",
+            gui.Button {
+                id = "closeCloneBtn",
+                text = "Close",
+                fontSize = 16, width = 120, height = 32,
+                halign = "center", interactable = false,
+                click = function(element) modal:DestroySelf() end,
+            },
+        },
+    }
+    root:AddChild(modal)
+
+    lobby:CloneGameToLocal(game.gameid, {
+        progress = function(status, pct)
+            if statusLabel ~= nil and statusLabel.valid then
+                statusLabel.text = string.format("%s (%d%%)", status, math.floor(pct * 100))
+            end
+        end,
+        complete = function(success, newGameid, err)
+            if statusLabel ~= nil and statusLabel.valid then
+                if success then
+                    statusLabel.text = string.format("Clone complete! New game: %s", newGameid or "?")
+                    statusLabel.color = "#88ff88"
+                else
+                    statusLabel.text = string.format("Clone failed: %s", err or "unknown")
+                    statusLabel.color = "#ff8888"
+                end
+            end
+            local closeBtn = modal:Get("closeCloneBtn")
+            if closeBtn ~= nil then closeBtn.interactable = true end
+        end,
+    })
+end
+
+-- Show a modal dialog that runs CloneDOGameToOtherEnvironment for the given
+-- DO-backed game. The clone goes to the OTHER DO environment (release ->
+-- staging, or staging -> release). Used by the dev/admin context menu.
+function RunCloneDOToOtherEnvModal(root, game)
+    -- storage: 1 = DurableObjects, 2 = DurableObjectsStaging
+    local targetLabel
+    if game.storage == 1 then
+        targetLabel = "Staging DO"
+    elseif game.storage == 2 then
+        targetLabel = "Durable Objects"
+    else
+        targetLabel = "other DO env"
+    end
+
+    local statusLabel
+    local modal
+    modal = gui.Panel {
+        classes = { "framedPanel" },
+        floating = true,
+        width = 600,
+        height = 240,
+        halign = "center",
+        valign = "center",
+        bgimage = true,
+        flow = "vertical",
+        styles = { Styles.Default, Styles.Panel },
+
+        gui.Label {
+            text = "Cloning to " .. targetLabel,
+            width = "auto", height = "auto",
+            halign = "center", valign = "top",
+            fontSize = 24, vmargin = 12,
+        },
+
+        gui.Label {
+            id = "cloneStatus",
+            text = "Starting...",
+            width = "auto", height = "auto",
+            halign = "center", valign = "center",
+            fontSize = 16,
+            create = function(element) statusLabel = element end,
+        },
+
+        gui.Panel {
+            halign = "center", valign = "bottom", vmargin = 16,
+            width = "auto", height = "auto",
+            gui.Button {
+                id = "closeCloneBtn",
+                text = "Close",
+                fontSize = 16, width = 120, height = 32,
+                halign = "center", interactable = false,
+                click = function(element) modal:DestroySelf() end,
+            },
+        },
+    }
+    root:AddChild(modal)
+
+    lobby:CloneDOGameToOtherEnvironment(game.gameid, {
+        progress = function(status, pct)
+            if statusLabel ~= nil and statusLabel.valid then
+                statusLabel.text = string.format("%s (%d%%)", status, math.floor(pct * 100))
+            end
+        end,
+        complete = function(success, newGameid, err)
+            if statusLabel ~= nil and statusLabel.valid then
+                if success then
+                    statusLabel.text = string.format("Clone complete! New game: %s", newGameid or "?")
+                    statusLabel.color = "#88ff88"
+                else
+                    statusLabel.text = string.format("Clone failed: %s", err or "unknown")
+                    statusLabel.color = "#ff8888"
+                end
+            end
+            local closeBtn = modal:Get("closeCloneBtn")
+            if closeBtn ~= nil then closeBtn.interactable = true end
+        end,
+    })
+end
+
 -- Show a modal dialog that runs CloneFirebaseGameToStagingDO for the given
 -- game and reports progress. Used by both the game-details panel button
 -- and the dev/admin context menu on the game card.
@@ -1575,6 +1735,33 @@ local function MakeGamePanel(gameIndex)
                     text = "Migrate to Durable Objects",
                     click = function()
                         RunMigrateToDOModal(element.root, m_game)
+                    end,
+                })
+            elseif m_game.storage == 1 then
+                -- Release DO: offer cloning a copy to Staging DO
+                table.insert(entries, {
+                    text = "Clone to Staging DO",
+                    click = function()
+                        RunCloneDOToOtherEnvModal(element.root, m_game)
+                    end,
+                })
+            elseif m_game.storage == 2 then
+                -- Staging DO: offer cloning a copy to release Durable Objects
+                table.insert(entries, {
+                    text = "Clone to Durable Objects",
+                    click = function()
+                        RunCloneDOToOtherEnvModal(element.root, m_game)
+                    end,
+                })
+            end
+
+            -- Clone to an offline (Local) game is available from any online
+            -- backend: Firebase, DO, or DO Staging.
+            if m_game.storage == 0 or m_game.storage == 1 or m_game.storage == 2 then
+                table.insert(entries, {
+                    text = "Clone to Offline Game",
+                    click = function()
+                        RunCloneToLocalModal(element.root, m_game)
                     end,
                 })
             end
@@ -1777,7 +1964,7 @@ local function MakeGamePanel(gameIndex)
                         elseif storage == 2 then
                             backend = "Durable Objects (Staging)"
                         elseif storage == 3 then
-                            backend = "Local"
+                            backend = "Offline"
                         else
                             backend = "Firebase"
                         end
@@ -2464,7 +2651,7 @@ function CreateGameDialog()
                     height = 28,
                     fontSize = 16,
                     valign = "center",
-                    options = { { id = "local", text = "Local" }, { id = "durableobjects", text = "Durable Objects" }, { id = "durableobjects-staging", text = "Durable Objects (Staging)" }, { id = "firebase", text = "Firebase" } },
+                    options = { { id = "local", text = "Offline" }, { id = "durableobjects", text = "Durable Objects" }, { id = "durableobjects-staging", text = "Durable Objects (Staging)" }, { id = "firebase", text = "Firebase" } },
                     idChosen = "local",
                     create = function(element)
                         if dmhub.GetSettingValue("dev") then

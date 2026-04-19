@@ -4,7 +4,7 @@ local mod = dmhub.GetModLoading()
 --- @field tableName string Data table name ("complications").
 --- @field name string Display name.
 --- @field description string Overview text.
---- @field prerequisite string GoblinScript prerequisite expression.
+--- @field prerequisite string|number|table GoblinScript prerequisite expression.
 --- @field tag string Comma-separated tags (e.g. "complication").
 --- @field benefit string Benefit rules text.
 --- @field drawback string Drawback rules text.

@@ -9,10 +9,10 @@ local mod = dmhub.GetModLoading()
 --- @field override_hitpoints_note string Note explaining the hitpoints override.
 --- @field skillProficiencies table<string, boolean|string> Map of skill id to proficiency level (true, false, or a proficiency key string).
 --- @field savingThrowProficiencies table<string, boolean|string> Map of saving throw id to proficiency level.
---- @field inventory table<string, {quantity: number}> Map of item id to quantity info.
+--- @field inventory table<string, {quantity: number, slots: nil|{slot: number, quantity: nil|number}[], price: nil|number}> Map of item id to quantity info (optional slots/price for equipped or priced items).
 --- @field equipment table<string, string> Map of equipment slot id to item id.
 --- @field classes {classid: string, level: number}[] List of class assignments with levels.
---- @field levelChoices table<string, string> Map of choice guid to the player's selected option for that choice.
+--- @field levelChoices table<string, string|string[]|table> Map of choice guid to the player's selected option. Values may be a single string (simple choice), an array of strings (multi-select), or a nested table (e.g. kitBonusChoices).
 --- @field characterFeatures CharacterFeature[] Custom features added directly to this character.
 --- @field darkvision nil|number Darkvision range override in feet, or nil to derive from ancestry.
 --- @field extraLevelInfo table Additional level-specific data keyed by class feature id.

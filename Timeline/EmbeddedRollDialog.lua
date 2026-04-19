@@ -526,12 +526,6 @@ function GameHud.CreateEmbeddedRollDialog()
             brightness = 3.0,
             transitionTime = 0.2,
         },
-        {
-            selectors = {"ai"},
-            --hidden = 1,
-            y = -10000,
-            priority = 1000,
-        },
     }
 
     local ShowTargetHints
@@ -3895,8 +3889,6 @@ function GameHud.CreateEmbeddedRollDialog()
 
                 RecalculateMultiTargets()
 
-                resultPanel:SetClass("ai", (creature ~= nil and creature._tmp_aicontrol > 0) or false)
-
                 if options.skipDeterministic and dmhub.IsRollDeterministic(rollInput.text) and dmhub.IsRollDeterministic(options.roll) then
                     rollIsSilent = true
                     if options.delayInstant ~= nil then
@@ -3911,7 +3903,11 @@ function GameHud.CreateEmbeddedRollDialog()
                     end
 
                     --TODO: Work out why this small delay seems necessary. The dice rolls are really funky/physics is weird if we don't have it.
-                    dmhub.Schedule(0.1, function()
+                    local delay = 0.1
+                    if options.creature ~= nil and options.creature._tmp_aicontrol > 0 then
+                        --delay = 3.0
+                    end
+                    dmhub.Schedule(delay, function()
                         rollDiceButton:FireEventTree("press")
                     end)
                 elseif options.autoroll == "cancel" then

@@ -2627,6 +2627,7 @@ function TacPanel.TempStamBox()
         gui.Input{
             classes = {"stambox-input", "temp"},
             text = "",
+            hoverCursor = "text",
             characterLimit = 8,
             placeholderText = TEMP_PLACEHOLDER,
             selectAllOnFocus = true,
@@ -2691,6 +2692,7 @@ function TacPanel.StaminaBox()
             halign = "center",
             gui.Input{
                 classes = {"stambox-stam", "current"},
+                hoverCursor = "text",
                 text = "0",
                 characterLimit = 4,
                 selectAllOnFocus = true,
@@ -2954,6 +2956,8 @@ function TacPanel.RecoveriesBox()
                     flow = "horizontal",
                     gui.Input{
                         classes = {"recovery-count"},
+                        hoverCursor = "text",
+                        numeric = true,
                         text = "0",
                         characterLimit = 2,
                         selectAllOnFocus = true,
@@ -2972,6 +2976,7 @@ function TacPanel.RecoveriesBox()
                             if token == nil then return end
                             local n = tonum(element.text, -1)
                             if n < 0 then
+                                element.textNoNotify = "0"
                                 element:FireEvent("refreshCharacter", token)
                                 return
                             end
@@ -2980,6 +2985,7 @@ function TacPanel.RecoveriesBox()
                             local usage = token.properties:GetResourceUsage(recoveryid, recoveryInfo.usageLimit) or 0
                             local current = nresources - usage
                             local delta = n - current
+                            element.textNoNotify = string.format("%d", current)
                             if delta == 0 then return end
                             token:ModifyProperties{
                                 description = "Set Recoveries",

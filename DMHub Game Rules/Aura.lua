@@ -11,7 +11,7 @@ local mod = dmhub.GetModLoading()
 --- @field source string Source description string.
 --- @field description string Rules text.
 --- @field applyto string Target filter id: "all", "allother", "selfandfriends", "friends", "enemies", "sametype", "othertype".
---- @field creatureFilter string GoblinScript filter evaluated against each creature to determine whether it is affected.
+--- @field creatureFilter nil|string|number|table GoblinScript filter evaluated against each creature to determine whether it is affected.
 --- @field modifiers CharacterModifier[] Modifiers applied to creatures inside the aura.
 Aura = RegisterGameType("Aura", "CharacterFeature")
 

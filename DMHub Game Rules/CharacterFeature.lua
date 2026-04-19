@@ -6,17 +6,17 @@ local mod = dmhub.GetModLoading()
 --to contain just one modifier.
 
 --- @class CharacterFeature
---- @field guid string Unique identifier for this feature instance.
---- @field name string Display name of the feature.
---- @field source string Human-readable source description (e.g. "Fighter", "Race Trait").
---- @field description string Flavor/rules description shown to the player.
---- @field modifiers CharacterModifier[] The modifiers that this feature applies to the creature.
---- @field domains table<string, boolean> Set of domain strings this feature belongs to (e.g. "Class:Ranger").
+--- @field guid nil|string Unique identifier for this feature instance.
+--- @field name nil|string Display name of the feature.
+--- @field source nil|string Human-readable source description (e.g. "Fighter", "Race Trait").
+--- @field description nil|string Flavor/rules description shown to the player.
+--- @field modifiers nil|CharacterModifier[] The modifiers that this feature applies to the creature.
+--- @field domains nil|table<string, boolean> Set of domain strings this feature belongs to (e.g. "Class:Ranger").
 --- @field canHavePrerequisites boolean If true, the feature UI allows adding prerequisites.
 --- @field prerequisites nil|table[] Optional list of CharacterPrerequisite objects.
---- @field implementation number Choice implementation index (1-based enum).
+--- @field implementation nil|number Choice implementation index (1-based enum).
 --- @field options nil|table[] Optional list of sub-options for multi-option features.
---- @field costsPoints boolean If true, selecting this feature costs character build points.
+--- @field costsPoints nil|boolean If true, selecting this feature costs character build points.
 CharacterFeature = RegisterGameType("CharacterFeature")
 
 CharacterFeature.canHavePrerequisites = false

@@ -2,7 +2,7 @@ local mod = dmhub.GetModLoading()
 
 --- @class ActivatedAbilityRememberBehavior:ActivatedAbilityBehavior
 --- @field memoryName string
---- @field calculation string
+--- @field calculation string|number|table
 ActivatedAbilityRememberBehavior = RegisterGameType("ActivatedAbilityRememberBehavior", "ActivatedAbilityBehavior")
 
 ActivatedAbility.RegisterType

@@ -4,7 +4,7 @@ local mod = dmhub.GetModLoading()
 --- @field name string Display name of the feat.
 --- @field description string Rules text.
 --- @field tableName string Data table name ("feats").
---- @field prerequisite string Text description of prerequisites.
+--- @field prerequisite string|number|table Text description of prerequisites.
 --- @field tag string Comma-separated tags (e.g. "feat", "general").
 CharacterFeat = RegisterGameType("CharacterFeat")
 

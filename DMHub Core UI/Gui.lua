@@ -2834,7 +2834,7 @@ function gui.ProgressBar(args)
 
 	local fillPanel = gui.Panel{
 		bgimage = true,
-		bgcolor = Styles.Cream01,
+		bgcolor = Styles.Gold03,
 		flow = "horizontal",
 		halign = "left",
 		height = "100%",
@@ -2864,7 +2864,7 @@ function gui.ProgressBar(args)
                 width = "30%",
                 height = "auto",
                 textAlignment = "center",
-                color = Styles.Cream01,
+                color = Styles.Gold03,
                 fontSize = args.fontSize or 30,
                 text = "TEST",
 
@@ -2923,7 +2923,7 @@ function gui.ProgressBar(args)
 		idprefix = "ProgressBar",
         bgimage = true,
         borderWidth = 2,
-        borderColor = Styles.Cream01,
+        borderColor = Styles.Gold03,
         bgcolor = "clear",
 
 		create = function(element)

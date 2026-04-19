@@ -7,7 +7,7 @@ local mod = dmhub.GetModLoading()
 --- @field attributeType string Value type: "number", "string", or "creatureSet".
 --- @field category string UI category label (e.g. "Custom").
 --- @field classid string Restriction to a class id, or "global" for all classes.
---- @field baseValue string GoblinScript formula for the base value.
+--- @field baseValue string|number|table GoblinScript formula for the base value.
 --- @field attributeInfoByLookupSymbol table<string, CustomAttribute> Lookup map by normalized symbol name.
 CustomAttribute = RegisterGameType("CustomAttribute")
 

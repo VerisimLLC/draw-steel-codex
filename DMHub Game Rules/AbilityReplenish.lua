@@ -2,7 +2,7 @@ local mod = dmhub.GetModLoading()
 
 --- @class ActivatedAbilityReplenishBehavior:ActivatedAbilityBehavior
 --- @field resourceid string Id of the CharacterResource to replenish.
---- @field quantity nil|number Amount to restore; nil means restore to full.
+--- @field quantity nil|number|string|table Amount to restore; nil means restore to full.
 --- Behavior that replenishes a resource (such as hit points, spell slots, or action points) on the target.
 ActivatedAbilityReplenishBehavior = RegisterGameType("ActivatedAbilityReplenishBehavior", "ActivatedAbilityBehavior")
 

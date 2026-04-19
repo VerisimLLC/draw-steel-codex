@@ -21,15 +21,15 @@ end
 --- @class ActivatedAbility
 --- @field description string Rules text shown to players.
 --- @field flavor string Flavor/lore text shown in the ability tooltip.
---- @field range number Targeting range in world units.
---- @field lineDistance number Length for line-area targeting.
---- @field rangeDisadvantage string GoblinScript: if truthy, ranged attacks have disadvantage.
+--- @field range number|string|table Targeting range in world units.
+--- @field lineDistance number|string|table Length for line-area targeting.
+--- @field rangeDisadvantage string|number|table GoblinScript: if truthy, ranged attacks have disadvantage.
 --- @field selfTarget boolean If true, the ability always targets the caster.
 --- @field castImmediately boolean If true, auto-casts when there are no targeting choices.
 --- @field recharge boolean|number Recharge roll threshold (false = no recharge mechanic).
 --- @field legendary boolean If true, this is a legendary action.
 --- @field categorization string Ability category string (e.g. "none", "action", "maneuver").
---- @field multipleModes boolean If true, the ability has multiple selectable modes.
+--- @field multipleModes boolean|string If true, the ability has multiple selectable modes.
 --- @field domains table<string, boolean> Domain set this ability belongs to.
 --- @field isSpell boolean If true, this ability is treated as a spell.
 --- @field abilityModification boolean If true, this is a modification of another ability rather than a standalone ability.
@@ -40,27 +40,27 @@ end
 --- @field concentration boolean If true, maintaining this effect requires concentration.
 --- @field silent boolean If true, the ability is triggered by the system and does not show a dialog.
 --- @field castingTime string DEPRECATED. Use actionResourceId instead.
---- @field actionResourceId string The resource id consumed to cast (e.g. the action resource guid).
---- @field actionNumber number Number of action resources consumed.
---- @field resourceCost string Secondary resource id cost ("none" if free).
---- @field resourceNumber number Amount of the secondary resource cost.
---- @field targetFilter string GoblinScript formula to filter valid targets.
---- @field channeledResource string Resource id that can be channeled into this ability for variable power ("none" if unused).
+--- @field actionResourceId string|nil The resource id consumed to cast (e.g. the action resource guid).
+--- @field actionNumber number|string|table Number of action resources consumed.
+--- @field resourceCost string|nil Secondary resource id cost ("none" if free).
+--- @field resourceNumber number|string|table Amount of the secondary resource cost.
+--- @field targetFilter string|number|table GoblinScript formula to filter valid targets.
+--- @field channeledResource string|nil Resource id that can be channeled into this ability for variable power ("none" if unused).
 --- @field channelDescription string Description shown when channeling resource into the ability.
 --- @field channelIncrement number|string Minimum channel increment (number or GoblinScript formula).
 --- @field proximityTargeting boolean If true, targeting uses proximity range instead of ability range.
---- @field proximityRange string Range in world units for proximity targeting.
+--- @field proximityRange string|number|table Range in world units for proximity targeting.
 --- @field behaviors ActivatedAbilityBehavior[] The list of behaviors that execute when the ability is cast.
 ActivatedAbility = RegisterGameType("ActivatedAbility")
 
 --- @class ActivatedAbilityBehavior
 --- @field instant boolean If true, executes immediately (not in a coroutine).
 --- @field customOngoingEffect boolean If true, uses a custom ongoing effect rather than the default.
---- @field duration string Duration type for the effect ("none" by default).
---- @field filterTarget string GoblinScript: if falsy for a target, skip it.
+--- @field duration string|number|nil Duration type for the effect ("none" by default).
+--- @field filterTarget string|number|table GoblinScript: if falsy for a target, skip it.
 --- @field summary string Short display name shown in the ability editor.
 --- @field applyto string Which targets receive this behavior ("targets" or other filter).
---- @field stacks boolean|string Whether the behavior stacks ("1" or false).
+--- @field stacks boolean|string|number|table Whether the behavior stacks ("1" or false).
 --- @field damageType string Default damage type for behaviors that deal damage.
 --- @field durationUntilEndOfTurn boolean If true, the effect lasts until end of caster's turn.
 --- @field mono boolean If true, only one of these behaviors can be in an ability's list at a time.
@@ -2436,7 +2436,6 @@ function ActivatedAbility:Cast(casterToken, targets, options)
 	options.symbols = options.symbols or {}
     options.symbols.castid = dmhub.GenerateGuid()
 
-
     local targetTokenIds = {}
     for i,target in ipairs(targets) do
         if target.token ~= nil then
@@ -2484,7 +2483,9 @@ function ActivatedAbility:Cast(casterToken, targets, options)
 	end
 
 	if self:has_key("OnBeginCast") then
-		self.OnBeginCast(self)
+		--Pass options so OnBeginCast wrappers can install OnFinishCastHandlers that
+		--survive engine serialization stripping function fields off the ability mid-cast.
+		self.OnBeginCast(self, options)
 	end
 
 	if self:has_key("castingLevel") and type(self.castingLevel) == "number" and self.castingLevel >= self:try_get("level", 1) then

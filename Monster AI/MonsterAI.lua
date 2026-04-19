@@ -588,6 +588,11 @@ function MonsterAI:FindAndExecuteMove()
         return false
     end
 
+    if not token.properties:has_key("monster_type") then
+        print("AI:: Not a monster")
+        return false
+    end
+
     local abilities = self.abilities
     local bestScore = {score = 0}
     local bestMove = nil

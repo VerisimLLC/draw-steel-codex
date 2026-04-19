@@ -6,23 +6,29 @@ CBStyles = RegisterGameType("CBStyles")
 --- Set this to true to draw layout helper borders around panels that have none
 local DEBUG_PANEL_BG = false
 
+-- Recolored from gold to cream tones. The GOLD* keys are kept (to avoid
+-- touching every call site) but now point at the shared Cream palette from
+-- Styles.lua:
+--   Cream01 = #F3EDE7 (lightest)
+--   Cream02 = #DFCFC0 (mid)
+--   Cream03 = #BC9B7B (darkest / tan)
 CBStyles.COLORS = {
     BLACK = "#000000",
     BLACK02 = "#10110F",
     BLACK03 = "#191A18",
     BLACK04 = "#040807",
-    CREAM = "#BC9B7B",
-    CREAM03 = "#DFCFC0",
-    GOLD = "#966D4B",
-    GOLD03 = "#F1D3A5",
-    GOLD04 = "#E9B86F",
+    CREAM = "srgb:#BC9B7B",
+    CREAM03 = "srgb:#DFCFC0",
+    GOLD = "srgb:#DFCFC0",     -- was #966D4B (dark gold)  -> Cream02 (mid cream)
+    GOLD03 = "srgb:#F3EDE7",   -- was #F1D3A5 (light gold) -> Cream01 (lightest)
+    GOLD04 = "srgb:#BC9B7B",   -- was #E9B86F (mid gold)   -> Cream03 (darker, used on hover bg)
     GRAY02 = "#666663",
     PANEL_BG = "#080B09",
     GRAY_TRANSPARENT = "#10110FF3",
 
     -- For selections like skills etc.
-    FILLED_ITEM_BG = "#E9B86F0F",
-    FILLED_ITEM_BORDER = "#E9B86F",
+    FILLED_ITEM_BG = "srgb:#DFCFC01A",
+    FILLED_ITEM_BORDER = "srgb:#DFCFC0",
 
     DESTRUCTIVE_BG = "#2A1414",
     DESTRUCTIVE_BORDER = "#B94A30",

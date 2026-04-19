@@ -5122,6 +5122,7 @@ end
 function creature:GetMovementRestrictionFilter(token)
     if token == nil then
         return false
+        return nil
     end
 
     local startLoc = token.loc
@@ -5143,7 +5144,7 @@ function creature:GetMovementRestrictionFilter(token)
     end
 
     if calculation == nil then
-        return false
+        return nil
     end
 
     return function(loc)

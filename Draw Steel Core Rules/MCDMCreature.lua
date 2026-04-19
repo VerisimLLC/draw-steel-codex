@@ -54,6 +54,7 @@ function creature:Invalidate()
         return
     end
 
+    self._tmp_movementRestrictionCalculation = nil
     self._tmp_calculatedAttributes = nil
     self._tmp_adjacentLocs = nil
     self._tmp_occupiedLocs = nil
@@ -5118,25 +5119,61 @@ function creature:Titles()
     return results
 end
 
-function creature:MoveToLocPermitted(loc)
-    local token = dmhub.LookupToken(self)
-    if token == nil or (not token.valid) then
-        return true
+function creature:GetMovementRestrictionFilter(token)
+    if token == nil then
+        return false
     end
 
     local startLoc = token.loc
 
+    local calculation = nil
     local modifiers = self:GetActiveModifiers()
     for _, modContext in ipairs(modifiers) do
         local typeInfo = CharacterModifier.TypeInfo[modContext.mod.behavior] or {}
         if typeInfo.MoveToLocPermitted ~= nil then
-            if not typeInfo.MoveToLocPermitted(modContext.mod, modContext, self, startLoc, loc) then
-                return false
+            calculation = calculation or {}
+            calculation[#calculation+1] = function(loc)
+                if not typeInfo.MoveToLocPermitted(modContext.mod, modContext, self, startLoc, loc) then
+                    return false
+                end
+
+                return true
             end
         end
     end
 
-    return true
+    if calculation == nil then
+        return false
+    end
+
+    return function(loc)
+        for _,calc in ipairs(calculation) do
+            if not calc(loc) then
+                return false
+            end
+        end
+
+        return true
+    end
+end
+
+function creature:MoveToLocPermitted(loc)
+
+    local calculation = rawget(self, "_tmp_movementRestrictionCalculation")
+    if calculation == nil then
+        calculation = self:GetMovementRestrictionFilter(dmhub.LookupToken(self))
+        if calculation == nil then
+            calculation = false
+        end
+
+        self._tmp_movementRestrictionCalculation = calculation
+    end
+
+    if calculation then
+        return calculation(loc)
+    end
+
+    return false
 end
 
 dmhub.RegisterEventHandler("ClearTemporaryState", function()

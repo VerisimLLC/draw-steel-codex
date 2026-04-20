@@ -50,4 +50,32 @@ creature.RegisterSymbol{
     end
 }
 
+creature.RegisterSymbol{
+    symbol = "complications",
+    help = {
+        name = "Complications",
+        type = "set",
+        desc = "The names of complications this hero has. Empty for monsters and heroes with no complication.",
+        seealso = {},
+        examples = {
+            'Complications has "Primordial Sickness"',
+        },
+    },
+
+    lookup = function(c)
+        local result = {}
+        local complicationIds = c:try_get("complications", {})
+        local complicationsTable = dmhub.GetTable(CharacterComplication.tableName) or {}
+        for id, _ in pairs(complicationIds) do
+            local complication = complicationsTable[id]
+            if complication ~= nil then
+                result[#result+1] = complication.name
+            end
+        end
+        return StringSet.new{
+            strings = result,
+        }
+    end,
+}
+
 --symbols

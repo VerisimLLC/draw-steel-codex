@@ -5,6 +5,7 @@ local mod = dmhub.GetModLoading()
 --- @field dropsLoot boolean If true, the removed creature drops its loot.
 --- @field leavesCorpse boolean If true, a corpse object is left behind.
 --- @field waitForAbilitiesToFinish boolean If true, waits for other ability animations to complete before removing.
+--- @field waitForTriggers boolean If true, waits for any pending triggered abilities on the target (both UI trigger prompts and executing trigger-ability coroutines) to finish before removing.
 ActivatedAbilityRemoveCreatureBehavior = RegisterGameType("ActivatedAbilityRemoveCreatureBehavior", "ActivatedAbilityBehavior")
 
 ActivatedAbility.RegisterType
@@ -21,6 +22,7 @@ ActivatedAbilityRemoveCreatureBehavior.summary = 'Remove Creatures'
 ActivatedAbilityRemoveCreatureBehavior.dropsLoot = false
 ActivatedAbilityRemoveCreatureBehavior.leavesCorpse = false
 ActivatedAbilityRemoveCreatureBehavior.waitForAbilitiesToFinish = true
+ActivatedAbilityRemoveCreatureBehavior.waitForTriggers = false
 
 function ActivatedAbilityRemoveCreatureBehavior:SummarizeBehavior(ability, creatureLookup)
 	return "Remove Creatures"
@@ -257,6 +259,40 @@ function ActivatedAbilityRemoveCreatureBehavior:Cast(ability, casterToken, targe
             end
         end
 
+        --Wait for any pending triggered abilities on the target to finish
+        --Signals:
+        --  hasPrompt = target has entries in availableTriggers (UI prompt
+        --              queue for non-mandatory TriggeredAbilities).
+        --  hasCast   = target has a CastCoroutine running (ability is
+        --              actively executing on/by the target).
+        if targetPasses and self.waitForTriggers and target.token.valid and target.token.properties ~= nil then
+            local idleRequired = 0.3
+            local waitStart = dmhub.Time()
+            local waitDeadline = waitStart + 45
+            local idleSince = nil
+            while dmhub.Time() < waitDeadline do
+                if not target.token.valid or target.token.properties == nil then
+                    break
+                end
+                local hasPrompt = target.token.properties:GetAvailableTriggers() ~= nil
+                local hasCast = ActivatedAbility.TokenHasOtherActiveCasts(target.token)
+                if (not hasPrompt) and (not hasCast) then
+                    idleSince = idleSince or dmhub.Time()
+                    if dmhub.Time() - idleSince >= idleRequired then
+                        break
+                    end
+                else
+                    idleSince = nil
+                end
+                coroutine.yield(0.1)
+            end
+
+            --re-validate after the wait.
+            if not target.token.valid or target.token.properties == nil then
+                targetPasses = false
+            end
+        end
+
         if targetPasses then
             local corpse = nil
             if self.leavesCorpse then
@@ -312,8 +348,16 @@ function ActivatedAbilityRemoveCreatureBehavior:EditorItems(parentPanel)
     result[#result+1] = gui.Check{
         text = "Wait for Abilities to Finish",
         value = self.waitForAbilitiesToFinish,
-        change = function(element) 
+        change = function(element)
             self.waitForAbilitiesToFinish = element.value
+        end,
+    }
+
+    result[#result+1] = gui.Check{
+        text = "Wait for Triggers",
+        value = self.waitForTriggers,
+        change = function(element)
+            self.waitForTriggers = element.value
         end,
     }
 

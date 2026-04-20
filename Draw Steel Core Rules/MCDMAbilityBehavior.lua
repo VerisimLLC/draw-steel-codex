@@ -1030,10 +1030,17 @@ ActivatedAbility.RegisterPowerTableRule{
     --- @param match table
     execute = function(behavior, ability, casterToken, targetToken, options, match)
         local quantity = StringToNumber(match.quantity)
-        targetToken:ModifyProperties{
+
+        local recipientToken = targetToken
+        local summonerToken = targetToken.properties:GetSurgeSharingSummonerToken()
+        if summonerToken ~= nil then
+            recipientToken = summonerToken
+        end
+
+        recipientToken:ModifyProperties{
             description = "Gain Surges",
             execute = function()
-                targetToken.properties:RefreshResource(CharacterResource.surgeResourceId, "unbounded", quantity, string.format("%s used %s", casterToken.name, ability.name))
+                recipientToken.properties:RefreshResource(CharacterResource.surgeResourceId, "unbounded", quantity, string.format("%s used %s", casterToken.name, ability.name))
             end,
         }
     end,

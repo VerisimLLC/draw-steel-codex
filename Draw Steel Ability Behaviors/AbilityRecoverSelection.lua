@@ -603,7 +603,7 @@ function ActivatedAbilityRecoverySelectionBehavior:Cast(ability, casterToken, ta
         if token.valid then
             local numRecoveries = recoveryTargets[token.id] or 0
             if numRecoveries > 0 then
-                local maySpendRecovery = DeepCopy(MCDMUtils.GetStandardAbility("May Spend Recovery"))
+                local maySpendRecovery = DeepCopy(MCDMUtils.GetStandardAbility("Prompt Spend Recovery"))
                 AbilityUtils.DeepReplaceAbility(maySpendRecovery, "<<numrecoveries>>", string.format("%d", numRecoveries))
                 ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(token, maySpendRecovery, token, "self", options.symbols, options)
             end

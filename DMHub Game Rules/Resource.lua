@@ -634,6 +634,10 @@ function creature:ConsumeResource(key, refreshType, quantity, note)
 		if self:IsRetainer() then
 			return self:GetMentor():ConsumeResource(key, refreshType, quantity, note)
 		end
+		local summonerToken = self.GetSurgeSharingSummonerToken and self:GetSurgeSharingSummonerToken()
+		if summonerToken ~= nil then
+			return summonerToken.properties:ConsumeResource(key, refreshType, quantity, note)
+		end
 	end
 
 	local resourceTable = self:GetResourceTable(refreshType)
@@ -800,6 +804,10 @@ function creature:RefreshResource(key, refreshType, quantity, note)
 		if self:IsRetainer() then
 			return self:GetMentor():RefreshResource(key, refreshType, quantity, note)
 		end
+		local summonerToken = self.GetSurgeSharingSummonerToken and self:GetSurgeSharingSummonerToken()
+		if summonerToken ~= nil then
+			return summonerToken.properties:RefreshResource(key, refreshType, quantity, note)
+		end
 	end
 
 	local animQuantity = 0
@@ -923,6 +931,10 @@ function creature:AddUnboundedResource(key, quantity, note)
 	if surgeid == key then
 		if self:IsRetainer() then
 			return self:GetMentor():AddUnboundedResource(key, quantity, note)
+		end
+		local summonerToken = self.GetSurgeSharingSummonerToken and self:GetSurgeSharingSummonerToken()
+		if summonerToken ~= nil then
+			return summonerToken.properties:AddUnboundedResource(key, quantity, note)
 		end
 	end
 

@@ -273,21 +273,53 @@ TokenHud.RegisterPanel{
                                 click = function(element)
                                     local attacker = token.properties:try_get("_tmp_lastattacker")
                                     local victim = token.properties
+                                    local charid = token.charid
+                                    local playerControlled = token.playerControlled
+                                    local tokenRef = token
 
-                                    token.properties:TriggerEvent("creaturedeath", {}) --this triggers the 'monster death' global event which will remove the minion.
-                                    token.properties:MinionDeath()
+                                    dmhub.Coroutine(function()
+                                        if attacker ~= nil then
+                                            attacker:TriggerEvent("kill", {
+                                                victim = victim,
+                                                hasattacker = true,
+                                                attacker = attacker,
+                                            })
+                                        end
 
-                                    if attacker ~= nil then
-                                        attacker:TriggerEvent("kill", {
-                                            victim = victim,
-                                            hasattacker = true,
-                                            attacker = attacker,
-                                        })
-                                    end
+                                        token.properties:TriggerEvent("creaturedeath", {}) --fires the 'Monster Death' trigger (which can despawn/remove via RemoveCreatureBehavior) plus any user-defined creaturedeath triggers.
+                                        token.properties:MinionDeath()
 
-                                    if token.playerControlled then
-                                        game.DeleteCharacters{token.charid}
-                                    end
+                                        local idleRequired = 0.3
+                                        local waitDeadline = dmhub.Time() + 45
+                                        local idleSince = nil
+                                        while dmhub.Time() < waitDeadline do
+                                            if mod.unloaded then return end
+                                            if not tokenRef.valid then return end
+
+                                            local props = tokenRef.properties
+                                            if props == nil then break end
+
+                                            local hasPrompt = props:GetAvailableTriggers() ~= nil
+                                            local hasCast = ActivatedAbility.TokenHasOtherActiveCasts(tokenRef)
+
+                                            if (not hasPrompt) and (not hasCast) then
+                                                idleSince = idleSince or dmhub.Time()
+                                                if dmhub.Time() - idleSince >= idleRequired then
+                                                    break
+                                                end
+                                            else
+                                                idleSince = nil
+                                            end
+
+                                            coroutine.yield(0.1)
+                                        end
+
+                                        --Fallback-delete the character record
+                                        if mod.unloaded then return end
+                                        if playerControlled and tokenRef.valid then
+                                            game.DeleteCharacters{charid}
+                                        end
+                                    end)
                                 end,
 
                                 thinkTime = g_deadMinionPulseSpeed,

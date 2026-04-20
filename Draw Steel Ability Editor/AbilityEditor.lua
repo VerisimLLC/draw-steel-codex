@@ -4403,8 +4403,15 @@ end
 
     The preview column is always visible; the editor runs as a full-screen
     modal so the detail column has enough room even with the preview mounted.
+
+    Polling: behaviors' EditorItems are shared base code and have no hook
+    into the editor's fireChange helper, so typing in fields like a power-
+    roll tier text updates the ability's data but never triggers a preview
+    rebuild. We use a thinkTime-based poll on previewSlot to schedule a
+    refresh every 250ms. The existing debounce in _schedulePreviewRefresh
+    coalesces this with keystroke-driven refreshes so we don't double-run.
 ]]
-local function _makePreview(ability)
+local function _makePreview(ability, schedulePreviewRefresh)
     local previewSlot
     previewSlot = gui.Panel{
         id = "previewSlot",
@@ -4414,6 +4421,13 @@ local function _makePreview(ability)
         valign = "top",
         flow = "vertical",
         bgcolor = "clear",
+
+        thinkTime = 0.25,
+        think = function(element)
+            if schedulePreviewRefresh ~= nil then
+                schedulePreviewRefresh()
+            end
+        end,
 
         refreshPreview = function(element)
             -- Wrap the tooltip card in a width-constrained container so the
@@ -4739,7 +4753,7 @@ function AbilityEditor.GenerateEditor(ability)
         children = {detailScroll, effectsBottomBar},
     }
 
-    previewCol, previewSlot = _makePreview(ability)
+    previewCol, previewSlot = _makePreview(ability, _schedulePreviewRefresh)
 
     local bodyRow = gui.Panel{
         id = "bodyRow",

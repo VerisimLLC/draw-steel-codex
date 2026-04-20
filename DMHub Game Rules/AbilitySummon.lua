@@ -87,15 +87,25 @@ function ActivatedAbilitySummonBehavior.ShowSquadChoiceDialog(casterToken, monst
 
     local currentMinionCount = #liveEntries
 
+    -- If no same-type squad exists the caster has no choice but to open a new squad,
+    -- so we skip the dialog entirely and auto-assign a fresh squad name.
+    local hasExistingSameTypeSquad = #existingSquadNames > 0
+    if not hasExistingSameTypeSquad then
+        local autoSquadName = monster.FindFreshSquadName(monsterType)
+        local exceededMinions = (maxMinions > 0 and currentMinionCount + numSummons > maxMinions)
+        return {
+            squadName = autoSquadName,
+            isNew = true,
+            exceededMinions = exceededMinions,
+            exceededSquads = false,
+        }
+    end
+
     local chosenSquadName = nil
     local chosenIsNew = false
     local canceled = false
     local finished = false
     local optionPanels = {}
-
-    -- If no same-type squad exists the caster has no choice but to open a new squad,
-    -- so we don't flag the squad-limit warning in that case.
-    local hasExistingSameTypeSquad = #existingSquadNames > 0
 
     local function ComputeWarnings()
         local exceededMinions = false

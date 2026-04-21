@@ -1696,7 +1696,6 @@ function ActivatedAbilityPowerRollBehavior:EditorItems(parentPanel)
         },
 
         gui.GoblinScriptInput{
-            halign = "right",
             value = self.roll,
             events = {
                 change = function(element)
@@ -1865,7 +1864,6 @@ function ActivatedAbilityPowerRollBehavior:EditorItems(parentPanel)
                     },
 
                     gui.GoblinScriptInput{
-                        halign = "right",
                         width = 300,
                         value = modifier.condition,
                         events = {
@@ -1986,7 +1984,7 @@ function ActivatedAbilityPowerRollBehavior:EditorItems(parentPanel)
             gui.Input{
                 text = self.tiers[i],
                 characterLimit = 350,
-                halign = "right",
+                halign = "left",
                 change = function(element)
                     self.tiers[i] = element.text
                 end

@@ -81,7 +81,7 @@ CharacterModifier.TypeInfo.modifyresourcechecklist = {
                     flow = "vertical",
 
                     gui.Panel{
-                        classes = {"formPanel"},
+                        classes = {"formPanel", "formPanel-inline"},
                         gui.Label{
                             classes = {"formLabel"},
                             text = "Name:",

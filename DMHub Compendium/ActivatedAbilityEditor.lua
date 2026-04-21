@@ -3584,7 +3584,7 @@ function ActivatedAbilityBehavior:OngoingEffectEditor(parentPanel, list, options
 		editEffectButton = gui.Button{
 			width = 120,
 			height = 28,
-			halign = "right",
+			halign = "left",
 			text = "Edit Effect",
 			fontSize = 16,
 			click = function(element)
@@ -3613,7 +3613,7 @@ function ActivatedAbilityBehavior:OngoingEffectEditor(parentPanel, list, options
 	end
 
 	list[#list+1] = gui.Panel{
-		classes = "formPanel",
+		classes = {"formPanel", "formPanel-inline"},
 		gui.Label{
 			classes = "formLabel",
 			text = "Ongoing Effect:",

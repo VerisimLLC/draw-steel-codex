@@ -128,7 +128,7 @@ CharacterModifier.TypeInfo.grantSpells = {
                 local spellInfo = spellsTable[spellid]
                 if spellInfo ~= nil then
                     children[#children+1] = gui.Panel{
-                        classes = {"formPanel"},
+                        classes = {"formPanel", "formPanel-inline"},
                         gui.Label{
                             classes = {"formLabel"},
                             text = spellInfo.name,

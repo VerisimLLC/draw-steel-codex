@@ -667,7 +667,7 @@ CharacterModifier.TypeInfo.modifyability = {
 				local info = abilityModifierOptionsById[attr.id]
 				if info ~= nil then
 					children[#children+1] = gui.Panel{
-						classes = {"formPanel"},
+						classes = {"formPanel", "formPanel-inline"},
 						gui.Label{
 							classes = {"formLabel"},
 							width = 400,
@@ -847,7 +847,7 @@ CharacterModifier.TypeInfo.modifyability = {
 
 							for filterIndex,filter in ipairs(reasonedFilters) do
 								children[#children+1] = gui.Panel{
-									classes = {"formPanel"},
+									classes = {"formPanel", "formPanel-inline"},
 									gui.Label{
 										classes = "formLabel",
 										text = "Formula:",

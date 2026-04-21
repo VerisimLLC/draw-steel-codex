@@ -132,6 +132,7 @@ function gui.GoblinScriptInput(options)
 		if inputText == nil then
 			inputText = gui.Input {
 				id = "GoblinScriptInput",
+				classes = {"goblinscript-inner-input"},
 				width = "100%",
 				minHeight = 30,
 				height = "auto",
@@ -850,6 +851,21 @@ function gui.GoblinScriptInput(options)
 	-- by passing halign in options.
 	if args.halign == nil then
 		args.halign = "left"
+	end
+
+	-- Always tag the outer wrapper with `goblinscript-outer` so themed
+	-- styles can target it specifically (e.g. to strip the 6px hpad that
+	-- the formInput class brings with it -- callers often pass
+	-- classes = "formInput" which reserves 6px layout padding on the
+	-- outer, causing the visible inner Input to sit 6px to the right of
+	-- a plain gui.Input in the row above). Merge rather than overwrite
+	-- so caller-supplied classes are preserved.
+	if type(args.classes) == "table" then
+		args.classes[#args.classes+1] = "goblinscript-outer"
+	elseif type(args.classes) == "string" then
+		args.classes = {args.classes, "goblinscript-outer"}
+	else
+		args.classes = {"goblinscript-outer"}
 	end
 
 	resultPanel = gui.Panel(args)

@@ -1916,6 +1916,7 @@ CharacterModifier.TypeInfo.power = {
                 gui.Panel{
                     width = 300,
                     height = "auto",
+                    halign = "left",
                     flow = "vertical",
                     children = damageTypeChildren,
                 }
@@ -1999,8 +2000,9 @@ CharacterModifier.TypeInfo.power = {
                         for i,adjustment in ipairs(adjustments) do
                             local panel = gui.Panel{
                                 flow = "horizontal",
-                                width = "100%",
+                                width = "auto",
                                 height = 30,
+                                halign = "left",
                                 gui.Dropdown{
                                     width = 120,
                                     halign = "left",
@@ -2051,9 +2053,10 @@ CharacterModifier.TypeInfo.power = {
                                 },
 
                                 gui.DeleteItemButton{
-                                    halign = "right",
                                     width = 12,
                                     height = 12,
+                                    valign = "center",
+                                    lmargin = 8,
                                     click = function()
                                         table.remove(adjustments, i)
                                         Refresh()
@@ -2135,7 +2138,7 @@ CharacterModifier.TypeInfo.power = {
             }
 
             children[#children+1] = gui.Panel{
-                classes = {"formPanel", cond(modifier.rollType == "project_roll", "collapsed-anim")},
+                classes = {"formPanel", "formPanel-inline", cond(modifier.rollType == "project_roll", "collapsed-anim")},
                 gui.Label{
                     classes = {"formLabel"},
                     text = "Replace in Table:",

@@ -58,7 +58,7 @@ CharacterModifier.TypeInfo.castingorigin = {
 			for keyword, _ in pairs(modifier.keywordFilter) do
 				local kw = keyword
 				keywordEntries[#keywordEntries+1] = gui.Panel{
-					classes = {"formPanel"},
+					classes = {"formPanel", "formPanel-inline"},
 					data = {
 						ord = kw,
 					},

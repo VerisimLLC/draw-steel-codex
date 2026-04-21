@@ -216,8 +216,8 @@ function CharacterModifier:ResourceCostEditor(options)
 
 
 	local args = {
-		classes = "formPanel",
-	
+		classes = {"formPanel", "formPanel-inline"},
+
 		gui.Dropdown{
 			classes = "formDropdown",
 			idChosen = self:try_get("resourceCost", "none"),
@@ -260,7 +260,7 @@ function CharacterModifier:UsageLimitEditor(options)
 	options.perspell = nil
 
 	local args = {
-		classes = {'formPanel'},
+		classes = {'formPanel', 'formPanel-inline'},
 		children = {
 			gui.Dropdown{
 				selfStyle = {
@@ -952,7 +952,7 @@ CharacterModifier.TypeInfo.resistance = {
 
 			children[#children+1] = gui.Panel{
 				id = 'resistance-apply-container',
-				classes = {'formPanel', cond(#ResistanceEntry.types <= 1, "collapsed")},
+				classes = {'formPanel', 'formPanel-inline', cond(#ResistanceEntry.types <= 1, "collapsed")},
 				children = {
 					gui.Dropdown{
 						id = 'resistance-apply-dropdown',
@@ -1080,7 +1080,7 @@ CharacterModifier.TypeInfo.resistance = {
                     if val == true then
                         keywordsFound[keyword] = true
                         children[#children+1] = gui.Panel{
-                            classes = {"formPanel"},
+                            classes = {"formPanel", "formPanel-inline"},
                             data = {ord = keyword},
                             width = 200,
                             height = 14,

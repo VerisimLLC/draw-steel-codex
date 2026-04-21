@@ -184,7 +184,7 @@ CharacterModifier.RegisterTriggerModifier{
 
         -- Variation ability support (like ActivatedAbilityEditor variations).
         children[#children+1] = gui.Panel{
-            classes = {"formPanel"},
+            classes = {"formPanel", "formPanel-inline"},
             flow = "horizontal",
             width = "auto",
             height = "auto",
@@ -607,7 +607,7 @@ CharacterModifier.TypeInfo.modifytrigger = {
                 local info = triggerModifierOptionsById[entry.id]
                 if info ~= nil then
                     children[#children+1] = gui.Panel{
-                        classes = {"formPanel"},
+                        classes = {"formPanel", "formPanel-inline"},
                         gui.Label{
                             classes = {"formLabel"},
                             width = 400,

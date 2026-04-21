@@ -420,6 +420,65 @@ function CharacterFeature:EditorPanel(editorPanelOptions)
 		}
 	end
 
+	-- Dispatcher for a chosen modifier type id. Used by both the classic
+	-- dropdown (change) and the themed picker (onAdd). The special
+	-- "CLIPBOARD" id pastes the internal clipboard entry.
+	--
+	-- Defined in outer EditorPanel scope (not inside refreshModifiers) so
+	-- the persistent themed bottom bar below can reference it -- the bar
+	-- lives outside the scroll area and is built once, not per refresh.
+	local function addModifierById(typeId)
+		if typeId == nil or typeId == 'none' then return end
+
+		if typeId == 'CLIPBOARD' then
+			local clipboardItem = dmhub.GetInternalClipboard()
+			if clipboardItem ~= nil and clipboardItem.typeName == 'CharacterModifier' then
+				local modifier = DeepCopy(clipboardItem)
+				DeepReplaceGuids(modifier)
+				local modifiers = self:get_or_add("modifiers", {})
+				modifiers[#modifiers+1] = modifier
+				modifiersPanel:FireEvent('refreshModifiers')
+			elseif clipboardItem ~= nil and clipboardItem.typeName == "ActivatedAbility" then
+				local ability = DeepCopy(clipboardItem)
+				DeepReplaceGuids(ability)
+				local modifier = CharacterModifier.new{
+					guid = dmhub.GenerateGuid(),
+					name = ability.name,
+					description = "",
+					behavior = "activated",
+					activatedAbility = ability,
+				}
+				local modifiers = self:get_or_add("modifiers", {})
+				modifiers[#modifiers+1] = modifier
+				modifiersPanel:FireEvent('refreshModifiers')
+			end
+			return
+		end
+
+		local domains = nil
+		if self:has_key("domains") then
+			domains = DeepCopy(self.domains)
+		end
+		local modifier = CharacterModifier.new{
+			guid = dmhub.GenerateGuid(),
+			sourceguid = self.guid,
+			name = self.name,
+			source = self.source,
+			description = self.description,
+			behavior = typeId,
+			domains = domains,
+		}
+		local typeInfo = CharacterModifier.TypeInfo[modifier.behavior] or {}
+		if typeInfo.init then
+			typeInfo.init(modifier)
+		end
+
+		local modifiers = self:get_or_add("modifiers", {})
+		modifiers[#modifiers+1] = modifier
+
+		modifiersPanel:FireEvent('refreshModifiers')
+	end
+
 	modifiersPanel = gui.Panel{
 		classes = "modifiers-panel",
 
@@ -589,112 +648,7 @@ function CharacterFeature:EditorPanel(editorPanelOptions)
 				end
 			end
 
-			-- Dispatcher for a chosen modifier type id. Used by both the classic
-			-- dropdown (change) and the themed picker (onAdd). The special
-			-- "CLIPBOARD" id pastes the internal clipboard entry.
-			local function addModifierById(typeId)
-				if typeId == nil or typeId == 'none' then return end
-
-				if typeId == 'CLIPBOARD' then
-					local clipboardItem = dmhub.GetInternalClipboard()
-					if clipboardItem ~= nil and clipboardItem.typeName == 'CharacterModifier' then
-						local modifier = DeepCopy(clipboardItem)
-						DeepReplaceGuids(modifier)
-						local modifiers = self:get_or_add("modifiers", {})
-						modifiers[#modifiers+1] = modifier
-						modifiersPanel:FireEvent('refreshModifiers')
-					elseif clipboardItem ~= nil and clipboardItem.typeName == "ActivatedAbility" then
-						local ability = DeepCopy(clipboardItem)
-						DeepReplaceGuids(ability)
-						local modifier = CharacterModifier.new{
-							guid = dmhub.GenerateGuid(),
-							name = ability.name,
-							description = "",
-							behavior = "activated",
-							activatedAbility = ability,
-						}
-						local modifiers = self:get_or_add("modifiers", {})
-						modifiers[#modifiers+1] = modifier
-						modifiersPanel:FireEvent('refreshModifiers')
-					end
-					return
-				end
-
-				local domains = nil
-				if self:has_key("domains") then
-					domains = DeepCopy(self.domains)
-				end
-				local modifier = CharacterModifier.new{
-					guid = dmhub.GenerateGuid(),
-					sourceguid = self.guid,
-					name = self.name,
-					source = self.source,
-					description = self.description,
-					behavior = typeId,
-					domains = domains,
-				}
-				local typeInfo = CharacterModifier.TypeInfo[modifier.behavior] or {}
-				if typeInfo.init then
-					typeInfo.init(modifier)
-				end
-
-				local modifiers = self:get_or_add("modifiers", {})
-				modifiers[#modifiers+1] = modifier
-
-				modifiersPanel:FireEvent('refreshModifiers')
-			end
-
-			if themed and type(abilityEditor.OpenModifierPicker) == "function" then
-				-- Mirror the ability editor's bottom-bar layout: Add next to
-				-- Paste, with Paste collapsed-anim'd in only when the
-				-- internal clipboard holds a pasteable modifier/ability.
-				local function clipboardHasPasteable()
-					local item = dmhub.GetInternalClipboard()
-					if item == nil then return false end
-					return item.typeName == "CharacterModifier"
-						or item.typeName == "ActivatedAbility"
-					end
-
-				local pasteButton
-				pasteButton = gui.Button{
-					text = "Paste Modifier",
-					fontSize = 16,
-					width = 180,
-					height = 34,
-					halign = "left",
-					classes = {cond(not clipboardHasPasteable(), "collapsed-anim")},
-					click = function(element)
-						addModifierById("CLIPBOARD")
-					end,
-                    internalClipboardChanged = function(element)
-                        element:SetClass("collapsed-anim", not clipboardHasPasteable())
-                    end,
-				}
-
-				children[#children+1] = gui.Panel{
-					width = "auto",
-					height = "auto",
-					flow = "horizontal",
-					halign = "left",
-					valign = "center",
-					vmargin = 8,
-					bgcolor = "clear",
-					children = {
-						gui.Button{
-							text = "+ Add Modifier",
-							fontSize = 16,
-							width = 180,
-							height = 34,
-							halign = "left",
-							rmargin = 8,
-							click = function(element)
-								abilityEditor.OpenModifierPicker(self, addModifierById)
-							end,
-						},
-						pasteButton,
-					},
-				}
-			else
+			if not themed then
 				local options = DeepCopy(CharacterModifier.Types)
 				options[1].text = 'Add Modifier...'
 				table.sort(options, function(a, b)
@@ -935,14 +889,82 @@ function CharacterFeature:EditorPanel(editorPanelOptions)
 		children = innerRows,
 	}
 
-	local args = {
+	-- Themed mode builds a persistent Add / Paste Modifier bottom bar that
+	-- sits outside the scroll area (sticky at the bottom of the popup)
+	-- rather than scrolling with the modifier list. Mirrors the ability
+	-- editor's effectsBottomBar (AbilityEditor.lua:4813) so the feature
+	-- panel feels consistent with the sectioned ability editor.
+	local modifierBottomBar = nil
+	if themed and type(abilityEditor.OpenModifierPicker) == "function" then
+		local function clipboardHasPasteable()
+			local item = dmhub.GetInternalClipboard()
+			if item == nil then return false end
+			return item.typeName == "CharacterModifier"
+				or item.typeName == "ActivatedAbility"
+		end
+
+		local pasteButton
+		pasteButton = gui.Button{
+			text = "Paste Modifier",
+			fontSize = 16,
+			width = 180,
+			height = 34,
+			halign = "left",
+			classes = {cond(not clipboardHasPasteable(), "collapsed-anim")},
+			click = function(element)
+				addModifierById("CLIPBOARD")
+			end,
+			internalClipboardChanged = function(element)
+				element:SetClass("collapsed-anim", not clipboardHasPasteable())
+			end,
+		}
+
+		modifierBottomBar = gui.Panel{
+			classes = {"feature-modifier-bottom-bar"},
+			width = "100%",
+			height = "auto",
+			flow = "horizontal",
+			halign = "left",
+			valign = "center",
+			vmargin = 4,
+			hpad = 16,
+			bgcolor = "clear",
+			borderBox = true,
+			children = {
+				gui.Button{
+					text = "+ Add Modifier",
+					fontSize = 16,
+					width = 180,
+					height = 34,
+					halign = "left",
+					rmargin = 8,
+					click = function(element)
+						abilityEditor.OpenModifierPicker(self, addModifierById)
+					end,
+				},
+				pasteButton,
+			},
+		}
+	end
+
+	-- Scroll panel: holds the form rows + modifier cards (everything that
+	-- should scroll). In themed mode we wrap this in an outer vertical
+	-- container with the sticky bottom bar as a sibling; in classic mode
+	-- this IS the contentPanel (no bottom bar, dropdown lives inside the
+	-- scrolling modifiersPanel as before).
+	-- Scroll panel size depends on whether we're wrapping in an outer
+	-- themed container. With the bottom bar: the outer wrapper is 90%,
+	-- scroll is 100% of wrapper minus ~60px for the bar. Without the bar
+	-- (classic or noscroll): scroll is the returned panel, keep the old
+	-- 90% width and 90%/auto height.
+	local hasBottomBar = modifierBottomBar ~= nil and not noscroll
+	local scrollArgs = {
 		id = "featureScroll",
 		classes = 'content-panel',
 		vscroll = not noscroll,
 
-		width = "90%",
-        height = cond(noscroll, "auto", "90%"),
-
+		width = hasBottomBar and "100%" or "90%",
+		height = hasBottomBar and "100%-60" or cond(noscroll, "auto", "90%"),
 
 		styles = effectiveStyles,
 
@@ -959,15 +981,39 @@ function CharacterFeature:EditorPanel(editorPanelOptions)
 	}
 
 	if noscroll then
-		args.styles = DeepCopy(args.styles)
-		args.styles[1].height = "auto"
+		scrollArgs.styles = DeepCopy(scrollArgs.styles)
+		scrollArgs.styles[1].height = "auto"
 	end
 
+	-- Apply caller-supplied editorPanelOptions to the scroll panel so
+	-- things like modifierRefreshed event handlers still land where the
+	-- caller expects them (the element whose think callback fires them).
 	for k,v in pairs(editorPanelOptions) do
-		args[k] = v
+		scrollArgs[k] = v
 	end
 
-	contentPanel = gui.Panel(args)
+	local scrollPanel = gui.Panel(scrollArgs)
+
+	if not hasBottomBar then
+		-- Classic path (or themed without picker, or noscroll embedding):
+		-- scroll panel IS the returned contentPanel, same as before this
+		-- refactor.
+		contentPanel = scrollPanel
+	else
+		-- Themed path: outer vertical container holds the scroll + sticky
+		-- bottom bar. Width/height/halign mirror the original scroll
+		-- args so PopupEditor's frame sizing is unchanged.
+		contentPanel = gui.Panel{
+			classes = {'feature-content-wrapper'},
+			width = "90%",
+			height = cond(noscroll, "auto", "90%"),
+			halign = "center",
+			valign = "top",
+			flow = "vertical",
+			bgcolor = "clear",
+			children = { scrollPanel, modifierBottomBar },
+		}
+	end
 
 	return contentPanel
 

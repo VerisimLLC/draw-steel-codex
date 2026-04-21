@@ -31,7 +31,6 @@ function ActivatedAbilityMacroBehavior:EditorItems(parentPanel)
 
     result[#result+1] = gui.Panel{
         classes = {"formPanel"},
-        flow = "horizontal",
         gui.Label{
             classes = {"formLabel"},
             text = "Macro:",

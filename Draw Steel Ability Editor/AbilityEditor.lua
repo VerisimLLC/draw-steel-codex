@@ -1047,6 +1047,7 @@ local function _sharedWidgetStyles(colors)
             hpad = 6,
             vpad = 2,
             borderBox = true,
+            fontFace = "Berling",
             fontSize = 14,
             color = c.CREAM_BRIGHT,
             textAlignment = "left",
@@ -1086,6 +1087,7 @@ local function _sharedWidgetStyles(colors)
             priority = 3,
             bgcolor = "clear",
             color = c.CREAM_BRIGHT,
+            fontFace = "Berling",
             fontSize = 14,
             hpad = 6,
             vpad = 2,
@@ -1107,6 +1109,7 @@ local function _sharedWidgetStyles(colors)
             hpad = 6,
             vpad = 2,
             borderBox = true,
+            fontFace = "Berling",
             fontSize = 14,
             color = c.CREAM_BRIGHT,
             textAlignment = "left",
@@ -1578,35 +1581,58 @@ local function _themedDialogStyles(colors)
         vmargin = 4,
     }
 
-    -- Tighten formPanel/formLabel descendants so modifier sub-editor rows
-    -- match the behavior editor's density. Horizontal flow is preserved --
-    -- some modifier editors (Modify Power Roll's "Replace in Table" row)
-    -- emit multiple inputs in one formPanel expecting them side-by-side.
-    -- width = "auto" shrinks the row to fit its content, so combined with
-    -- halign = "left" everything anchors to the left edge instead of
-    -- centering within a 100%-wide row.
+    -- Stacked-label form pattern for modifier sub-editor rows: label on
+    -- its own line above the control, matching the outer feature panel's
+    -- Name / Source / Description fields. Rows that want multiple inputs
+    -- side-by-side (Modify Power Roll's "Replace in Table" / "New Text"
+    -- pair, damage-type swaps, etc.) opt in with the `formPanel-inline`
+    -- class, which restores the legacy horizontal layout + a fixed-width
+    -- label column. Parent-class selectors target the label and widgets
+    -- inside inline rows so the opt-in is a single class flip on the
+    -- parent -- children don't need to know.
     styles[#styles+1] = gui.Style{
         selectors = {"formPanel"},
         priority = 7,
-        flow = "horizontal",
-        width = "auto",
+        flow = "vertical",
+        width = "100%",
         height = "auto",
         minHeight = 0,
         halign = "left",
-        valign = "center",
+        valign = "top",
         pad = 0,
+        vmargin = 8,
+    }
+    styles[#styles+1] = gui.Style{
+        selectors = {"formPanel-inline"},
+        priority = 8,
+        flow = "horizontal",
+        width = "auto",
+        halign = "left",
+        valign = "center",
         vmargin = 4,
     }
     styles[#styles+1] = gui.Style{
         selectors = {"formLabel"},
         priority = 7,
-        width = 140,
+        width = "100%",
         halign = "left",
-        valign = "center",
+        valign = "top",
         fontSize = 14,
         bold = true,
         color = c.CREAM_BRIGHT,
         textAlignment = "left",
+        hmargin = 0,   -- base Styles.Form sets hmargin = 8, which indents
+                        -- the stacked-mode label text 8px to the right of
+                        -- the input frame below. Zero it so the label
+                        -- lines up with the input's visible left edge.
+        bmargin = 4,
+    }
+    styles[#styles+1] = gui.Style{
+        selectors = {"formLabel", "parent:formPanel-inline"},
+        priority = 8,
+        width = 140,
+        valign = "center",
+        bmargin = 0,
     }
     -- formInput is the classic class most modifier sub-editors attach to
     -- their gui.Input. Themed version gets DS chrome + left halign so the
@@ -1626,6 +1652,85 @@ local function _themedDialogStyles(colors)
         vpad = 2,
         borderBox = true,
         textAlignment = "left",
+    }
+
+    -- Alignment fix 1: callers of gui.GoblinScriptInput typically pass
+    -- `classes = "formInput"`, which brings a 6px hpad on the outer
+    -- wrapper Panel. That hpad reserves layout space on the left, so
+    -- the inner (visible) Input's frame sits 6px to the right of a
+    -- plain gui.Input's frame in the row above, AND the condition-box
+    -- edge doesn't line up with the Macro-input-box edge in the same
+    -- column. The outer wrapper has no bgimage so its border doesn't
+    -- render anyway -- only the hpad has visible effect on layout.
+    --
+    -- Fix: zero hpad on the outer wrapper (tagged `goblinscript-outer`
+    -- from the widget itself in DMHub Core Panels/GoblinScriptEditor.lua)
+    -- so the inner Input sits flush-left with plain Inputs. Leave the
+    -- inner `goblinscript-inner-input` alone so it keeps its default
+    -- 6px hpad -- that's the gap between the visible box border and
+    -- the editable text, matching what plain Inputs show.
+    styles[#styles+1] = gui.Style{
+        selectors = {"goblinscript-outer"},
+        priority = 8,
+        hpad = 0,
+    }
+
+    -- Alignment fix 2: the engine base pack gives dropdownLabel a
+    -- built-in 6px hmargin + fontSize 18 (DMHub Titlescreen/Styles.lua:284).
+    -- Inside a themed dialog the dropdown's chosen-text then sits 6px
+    -- right of the input text below it, and renders visibly larger.
+    -- Align with input body by zeroing the hmargin and dropping the
+    -- fontSize to match formInput's 14.
+    styles[#styles+1] = gui.Style{
+        selectors = {"dropdownLabel"},
+        priority = 8,
+        hmargin = 0,
+        fontSize = 14,
+        fontFace = "Berling",
+        color = c.CREAM_BRIGHT,
+    }
+
+    -- gui.Table theming. The engine's Styles.Table pack paints rows in
+    -- neutral grays (#222 / #444) and white labels -- jarring inside the
+    -- DS gold/cream frame. Override at priority 8 so the theme wins
+    -- wherever `Styles.Table` is spliced alongside these styles. Applies
+    -- to every gui.Table rendered under a themed dialog (power roll tier
+    -- table, rollable tables, etc.). Row bg alternates between PANEL_BG
+    -- and a slightly-lighter offset to keep the stripe subtle; a thin
+    -- gold hairline separates rows. Labels pick up CREAM_BRIGHT; inputs
+    -- nested in rows still use the formInput theming.
+    styles[#styles+1] = gui.Style{
+        selectors = {"row"},
+        priority = 8,
+        width = "auto",
+        height = "auto",
+        bgimage = "panels/square.png",
+        border = {y1 = 0, y2 = 1, x1 = 0, x2 = 0},
+        borderColor = c.GOLD .. "55",
+    }
+    styles[#styles+1] = gui.Style{
+        selectors = {"row", "oddRow"},
+        priority = 8,
+        bgcolor = c.PANEL_BG,
+    }
+    styles[#styles+1] = gui.Style{
+        selectors = {"row", "evenRow"},
+        priority = 8,
+        bgcolor = c.BG,
+    }
+    styles[#styles+1] = gui.Style{
+        selectors = {"row", "highlight"},
+        priority = 8,
+        bgcolor = c.GOLD_DIM,
+    }
+    styles[#styles+1] = gui.Style{
+        selectors = {"row", "label"},
+        priority = 8,
+        pad = 8,
+        fontSize = 16,
+        color = c.CREAM_BRIGHT,
+        width = "auto",
+        height = "auto",
     }
 
     return styles

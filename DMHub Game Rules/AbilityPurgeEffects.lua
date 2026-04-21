@@ -2204,6 +2204,7 @@ function ActivatedAbilityPurgeEffectsBehavior:EditorItems(parentPanel)
                 flow = "vertical",
                 width = 300,
                 height = "auto",
+                halign = "left",
 
                 gui.Panel{
                     flow = "vertical",

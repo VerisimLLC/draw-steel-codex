@@ -3707,6 +3707,12 @@ end
 
 creature.minionDamageTime = 0
 
+--Module-local map tracking the largest damage instance any single strike has applied to a given
+--minion squad's shared Stamina pool. Outer key is the ActivatedAbilityCast object (weak key so it is
+--collected when the strike finishes); inner key is the squad name, value is the largest damage amount
+--applied to that squad's pool this cast.
+local g_summonerSquadCastDamage = setmetatable({}, {__mode = "k"})
+
 function creature.TakeDamage(self, amount, note, info)
     info = info or {}
     if type(amount) == 'string' then
@@ -3769,6 +3775,42 @@ function creature.TakeDamage(self, amount, note, info)
     end
 
     if self.minion then
+        if info ~= nil and info.cast ~= nil and info.keywords ~= nil and info.keywords:Has("Strike")
+            and (self:CalculateNamedCustomAttribute("Minion Multi Target") or 0) > 0 then
+            --"Strikes with Multiple Targets" rule: when a single Strike damages multiple minions in this squad,
+            --the shared Stamina pool only takes the largest single instance.
+            local squadName = self:MinionSquad()
+            if squadName ~= nil then
+                local castMap = g_summonerSquadCastDamage[info.cast]
+                if castMap == nil then
+                    castMap = {}
+                    g_summonerSquadCastDamage[info.cast] = castMap
+                end
+                local prev = castMap[squadName] or 0
+                local preClampAmount = amount
+                if amount <= prev then
+                    amount = 0
+                else
+                    castMap[squadName] = amount
+                    amount = amount - prev
+                end
+                if amount < preClampAmount then
+                    --Record the rule firing in this minion's stamina stat history so the player can see why the pool did not take the full damage.
+                    local attackerid = nil
+                    if info.attacker ~= nil then
+                        attackerid = dmhub.LookupTokenId(info.attacker)
+                    end
+                    local sourceName = (info.ability ~= nil and info.ability.name) or "strike"
+                    self:GetStatHistory("stamina"):Append{
+                        attackerid = attackerid,
+                        note = string.format("Squad pool ignored %d damage from %s (Strikes with Multiple Targets)", preClampAmount - amount, sourceName),
+                        set = self:CurrentHitpoints(),
+                        disposition = "good",
+                    }
+                end
+            end
+        end
+
         if info.keywords ~= nil and info.keywords:Has("area") then
             --area damage can't do more than a single minion's max hitpoints.
             amount = math.min(self:SingleMinionMaxStamina(), amount)

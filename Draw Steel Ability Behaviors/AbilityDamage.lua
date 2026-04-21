@@ -328,7 +328,7 @@ function ActivatedAbilityDamageBehavior:Cast(ability, casterToken, targets, opti
 						description = "Damaged",
 						execute = function()
 							for _,entry in ipairs(damageEntries) do
-								local res = targetCreature:InflictDamageInstance(entry.amount, entry.catName, ability.keywords, entry.desc, {attacker = casterToken.properties, ability = ability, hasability = true, pusher = options.symbols.pusher, cannotBeReduced = self:try_get("cannotBeReduced"), doesNotTrigger = self:try_get("doesNotTrigger"), hasrolleddamage = isRolledDamage})
+								local res = targetCreature:InflictDamageInstance(entry.amount, entry.catName, ability.keywords, entry.desc, {attacker = casterToken.properties, ability = ability, hasability = true, pusher = options.symbols.pusher, cannotBeReduced = self:try_get("cannotBeReduced"), doesNotTrigger = self:try_get("doesNotTrigger"), hasrolleddamage = isRolledDamage, cast = options.symbols.cast})
 								options.symbols.cast:CountDamage(target.token, res.damageDealt, entry.amount, isRolledDamage)
                                 print("DAMAGE:: COUNT", res.damageDealt)
 							end

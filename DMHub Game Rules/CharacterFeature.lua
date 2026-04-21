@@ -894,8 +894,12 @@ function CharacterFeature:EditorPanel(editorPanelOptions)
 	-- rather than scrolling with the modifier list. Mirrors the ability
 	-- editor's effectsBottomBar (AbilityEditor.lua:4813) so the feature
 	-- panel feels consistent with the sectioned ability editor.
+	--
+	-- Skip the bar entirely in noscroll embeddings (e.g. OngoingEffectEditor
+	-- embeds EditorPanel with noscroll = true). Creating the Panel and
+	-- then not using it would orphan the panel and emit an engine warning.
 	local modifierBottomBar = nil
-	if themed and type(abilityEditor.OpenModifierPicker) == "function" then
+	if themed and not noscroll and type(abilityEditor.OpenModifierPicker) == "function" then
 		local function clipboardHasPasteable()
 			local item = dmhub.GetInternalClipboard()
 			if item == nil then return false end

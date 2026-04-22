@@ -33,18 +33,12 @@ function ActivatedAbilityRecoverySelectionBehavior:Cast(ability, casterToken, ta
 
     local effectTargets = {}
     local recoveryTargets = {}
-    local firstTargetId = nil
 
     for _, tok in pairs(targetTokenids) do
         local token = dmhub.GetTokenById(tok)
         if token.valid then
             effectTargets[token.id] = {}
-            if firstTargetId == nil then
-                firstTargetId = token.id
-                recoveryTargets[token.id] = 1
-            else
-                recoveryTargets[token.id] = 0
-            end
+            recoveryTargets[token.id] = 1
         end
     end
 
@@ -65,7 +59,7 @@ function ActivatedAbilityRecoverySelectionBehavior:Cast(ability, casterToken, ta
             end
         end
 
-        return max(0, numEffects + numRecovery - 1) + max(0, numTargets - 1)
+        return max(0, numTargets - 1) + max(0, numRecovery - numTargets) + numEffects
     end
 
     local recoveryid = nil
@@ -89,8 +83,8 @@ function ActivatedAbilityRecoverySelectionBehavior:Cast(ability, casterToken, ta
             return
         end
         local cost = calcCost()
-        costLabelElement.text = string.format("%s Cost: %s", casterToken.properties:GetHeroicResourceName(), cost)
-        costLabelElement:SetClass("recovery-cannot-afford", cost > casterToken.properties:GetHeroicOrMaliceResourcesAvailableToSpend())
+        costLabelElement.text = string.format("%s Cost: %s", casterToken.properties:GetHeroicResourceName(), cost + 1)
+        costLabelElement:SetClass("recovery-cannot-afford", (cost + 1) > casterToken.properties:GetHeroicOrMaliceResourcesAvailableToSpend())
     end
 
     --- @param token CharacterToken
@@ -190,7 +184,7 @@ function ActivatedAbilityRecoverySelectionBehavior:Cast(ability, casterToken, ta
                 flow = "horizontal",
 
                 press = function(element)
-                    local minRecoveries = cond(token.id == firstTargetId, 1, 0)
+                    local minRecoveries = 1
                     -- Clicking the currently highest selected chip deselects to minimum.
                     if recoveryTargets[token.id] == num then
                         recoveryTargets[token.id] = minRecoveries

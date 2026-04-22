@@ -879,27 +879,19 @@ function CharacterFeature:EditorPanel(editorPanelOptions)
 		modifiersPanel,
 	}
 
-	local innerPanel = gui.Panel{
-		width = "100%",
-		height = "auto",
-		flow = "vertical",
-		halign = "left",
-		valign = "top",
-		bgcolor = "clear",
-		children = innerRows,
-	}
-
-	-- Themed mode builds a persistent Add / Paste Modifier bottom bar that
-	-- sits outside the scroll area (sticky at the bottom of the popup)
-	-- rather than scrolling with the modifier list. Mirrors the ability
-	-- editor's effectsBottomBar (AbilityEditor.lua:4813) so the feature
-	-- panel feels consistent with the sectioned ability editor.
+	-- Themed mode builds a persistent Add / Paste Modifier bottom bar. In
+	-- normal (scrolling) editors the bar is kept outside the scroll area so
+	-- it stays sticky at the bottom of the popup -- mirrors the ability
+	-- editor's effectsBottomBar (AbilityEditor.lua:4813).
 	--
-	-- Skip the bar entirely in noscroll embeddings (e.g. OngoingEffectEditor
-	-- embeds EditorPanel with noscroll = true). Creating the Panel and
-	-- then not using it would orphan the panel and emit an engine warning.
+	-- In noscroll embeddings (OngoingEffectEditor, Condition, Aura, the
+	-- momentary effect sub-editor, the importer preview) there is no
+	-- separate scroll viewport, so "sticky" is meaningless; we instead
+	-- append the bar as the last child of the inner content below, so the
+	-- buttons are still reachable. Either way the bar is always parented,
+	-- so no orphan-panel warning.
 	local modifierBottomBar = nil
-	if themed and not noscroll and type(abilityEditor.OpenModifierPicker) == "function" then
+	if themed and type(abilityEditor.OpenModifierPicker) == "function" then
 		local function clipboardHasPasteable()
 			local item = dmhub.GetInternalClipboard()
 			if item == nil then return false end
@@ -950,6 +942,23 @@ function CharacterFeature:EditorPanel(editorPanelOptions)
 			},
 		}
 	end
+
+	-- In noscroll embeddings, append the bar to the inner content so the
+	-- buttons render below the modifier list (no scroll viewport exists
+	-- for a sticky sibling to live outside of).
+	if noscroll and modifierBottomBar ~= nil then
+		innerRows[#innerRows+1] = modifierBottomBar
+	end
+
+	local innerPanel = gui.Panel{
+		width = "100%",
+		height = "auto",
+		flow = "vertical",
+		halign = "left",
+		valign = "top",
+		bgcolor = "clear",
+		children = innerRows,
+	}
 
 	-- Scroll panel: holds the form rows + modifier cards (everything that
 	-- should scroll). In themed mode we wrap this in an outer vertical

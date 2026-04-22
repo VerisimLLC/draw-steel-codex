@@ -942,7 +942,7 @@ local function CreateGameEditor(options)
                     progressLabel = gui.Label {
                         classes = { "hidden" },
                         text = "Preparing...",
-                        fontSize = 14,
+                        fontSize = 12,
                         halign = "center",
                         textAlignment = "center",
                         width = 360,
@@ -2222,11 +2222,14 @@ local function MakeGamePanel(gameIndex)
 end
 
 --- Shows the "Deploy Game Online" confirmation dialog and, on confirm,
---- kicks off the local-to-DO promotion flow.
---- Shows the "Deploy Game Online" confirmation dialog and, on confirm,
 --- kicks off the local-to-DO promotion flow. Uses the framed-panel modal
 --- pattern from the titlescreen (same as the "Leave Game?" dialog), because
 --- gui.ShowModal() doesn't show up in the titlescreen's own modal stack.
+---
+--- The modal morphs in place between two phases -- confirm (title + body +
+--- Deploy/Cancel) and progress (title + status + progress bar + Close) --
+--- rather than destroying itself and spawning a separate loading screen,
+--- which would flicker and briefly leave nothing on screen.
 function ShowPromoteLocalGameDialog(game, root)
     if game == nil or game.storage ~= 3 then
         return
@@ -2235,19 +2238,70 @@ function ShowPromoteLocalGameDialog(game, root)
     local gameid = game.gameid
 
     local modal
-    modal = gui.Panel {
-        classes = { "framedPanel" },
-        floating = true,
-        width = 640,
-        height = 360,
+    local confirmPhase
+    local progressPhase
+    local statusLabel
+    local progressBar
+    local closeButton
+
+    local function startDeploy()
+        confirmPhase:SetClass("hidden", true)
+        progressPhase:SetClass("hidden", false)
+
+        lobby:PromoteLocalGame {
+            gameid = gameid,
+            progress = function(status, pct)
+                if modal == nil or not modal.valid then return end
+                if statusLabel ~= nil and statusLabel.valid then
+                    statusLabel.text = status
+                end
+                if progressBar ~= nil and progressBar.valid then
+                    progressBar:SetValue(pct or 0)
+                end
+            end,
+            complete = function(success, newGameid, err)
+                if modal == nil or not modal.valid then return end
+                if success then
+                    if statusLabel ~= nil and statusLabel.valid then
+                        statusLabel.text = "Done! Opening new game..."
+                    end
+                    if progressBar ~= nil and progressBar.valid then
+                        progressBar:SetValue(1)
+                    end
+                    dmhub.Schedule(0.5, function()
+                        if modal == nil or not modal.valid then return end
+                        local parent = modal.root
+                        local games = lobby.games or {}
+                        for _, g in ipairs(games) do
+                            if g.gameid == newGameid then
+                                parent:AddChild(CreateGameEditor { game = g })
+                                break
+                            end
+                        end
+                        modal:DestroySelf()
+                    end)
+                else
+                    if statusLabel ~= nil and statusLabel.valid then
+                        statusLabel.text = "Deployment failed: " .. (err or "unknown error")
+                        statusLabel.selfStyle.color = "red"
+                    end
+                    if progressBar ~= nil and progressBar.valid then
+                        progressBar:SetClass("hidden", true)
+                    end
+                    if closeButton ~= nil and closeButton.valid then
+                        closeButton:SetClass("hidden", false)
+                    end
+                end
+            end,
+        }
+    end
+
+    confirmPhase = gui.Panel {
+        width = "100%",
+        height = "100%",
         halign = "center",
         valign = "center",
-        bgimage = true,
-        flow = "none",
-        styles = {
-            Styles.Default,
-            Styles.Panel,
-        },
+        flow = "vertical",
 
         gui.Label {
             text = "Deploy Game Online?",
@@ -2288,11 +2342,7 @@ function ShowPromoteLocalGameDialog(game, root)
                 text = "Deploy Online",
                 halign = "center",
                 hmargin = 12,
-                click = function(element)
-                    modal:DestroySelf()
-                    local loadingScreen = CreatePromoteLoadingScreen(gameid)
-                    root:AddChild(loadingScreen)
-                end,
+                click = function(element) startDeploy() end,
             },
 
             gui.Button {
@@ -2312,114 +2362,82 @@ function ShowPromoteLocalGameDialog(game, root)
         },
     }
 
-    root:AddChild(modal)
-end
-
---- Loading/progress screen shown while a local game is being promoted to
---- Durable Objects. Mirrors CreateGameLoadingScreen's pattern: a full-size
---- panel with a centered status label that updates via progress callbacks.
-function CreatePromoteLoadingScreen(oldGameid)
-    local resultPanel
-
-    local statusLabel
-    local progressPct = 0
-
-    resultPanel = gui.Panel {
+    progressPhase = gui.Panel {
+        classes = { "hidden" },
         width = "100%",
         height = "100%",
-        bgimage = true,
-        bgcolor = "clear",
         halign = "center",
         valign = "center",
+        flow = "vertical",
+
+        gui.Label {
+            text = "Deploying Game Online",
+            textAlignment = "center",
+            fontSize = 24,
+            bold = true,
+            width = "auto",
+            height = "auto",
+            halign = "center",
+            vmargin = 16,
+        },
+
+        gui.Label {
+            text = "Preparing...",
+            textAlignment = "center",
+            fontSize = 12,
+            width = "80%",
+            height = 40,
+            halign = "center",
+            valign = "center",
+            create = function(element) statusLabel = element end,
+        },
+
+        gui.ProgressBar {
+            width = 480,
+            height = 24,
+            value = 0,
+            halign = "center",
+            vmargin = 8,
+            create = function(element) progressBar = element end,
+        },
+
+        gui.Button {
+            classes = { "hidden" },
+            width = "auto",
+            height = "auto",
+            fontSize = 18,
+            vpad = 6,
+            hpad = 12,
+            text = "Close",
+            halign = "center",
+            valign = "bottom",
+            vmargin = 12,
+            create = function(element) closeButton = element end,
+            click = function(element)
+                modal:DestroySelf()
+            end,
+        },
+    }
+
+    modal = gui.Panel {
+        classes = { "framedPanel" },
+        floating = true,
+        width = 640,
+        height = 360,
+        halign = "center",
+        valign = "center",
+        bgimage = true,
+        flow = "none",
         styles = {
             Styles.Default,
             Styles.Panel,
         },
 
-        gui.Panel {
-            classes = { "framedPanel" },
-            floating = true,
-            width = 600,
-            height = 200,
-            halign = "center",
-            valign = "center",
-            bgimage = true,
-            flow = "vertical",
-
-            gui.Label {
-                text = "Deploying Game Online",
-                textAlignment = "center",
-                fontSize = 24,
-                bold = true,
-                width = "auto",
-                height = "auto",
-                halign = "center",
-                vmargin = 16,
-            },
-
-            gui.Label {
-                id = "status",
-                text = "Preparing...",
-                textAlignment = "center",
-                fontSize = 16,
-                width = "80%",
-                height = 40,
-                halign = "center",
-                valign = "center",
-                create = function(element) statusLabel = element end,
-                setStatus = function(element, status)
-                    element.text = status
-                end,
-                error = function(element, message)
-                    element.text = message
-                    element.selfStyle.color = "red"
-                end,
-                success = function(element, newGameid)
-                    element.text = "Done! Opening new game..."
-                    -- Small delay then navigate to the new game's edit panel.
-                    dmhub.Schedule(0.5, function()
-                        if resultPanel == nil or not resultPanel.valid then return end
-                        local games = lobby.games or {}
-                        for i, g in ipairs(games) do
-                            if g.gameid == newGameid then
-                                local editor = CreateGameEditor { game = g }
-                                resultPanel.root:AddChild(editor)
-                                break
-                            end
-                        end
-                        resultPanel:DestroySelf()
-                    end)
-                end,
-            },
-
-            gui.CloseButton {
-                floating = true,
-                halign = "right",
-                valign = "top",
-                press = function(element)
-                    resultPanel:DestroySelf()
-                end,
-            },
-        },
+        confirmPhase,
+        progressPhase,
     }
 
-    lobby:PromoteLocalGame {
-        gameid = oldGameid,
-        progress = function(status, pct)
-            if resultPanel == nil or not resultPanel.valid then return end
-            resultPanel:FireEventTree("setStatus", status)
-        end,
-        complete = function(success, newGameid, err)
-            if resultPanel == nil or not resultPanel.valid then return end
-            if success then
-                resultPanel:FireEventTree("success", newGameid)
-            else
-                resultPanel:FireEventTree("error", err or "Unknown error")
-            end
-        end,
-    }
-
-    return resultPanel
+    root:AddChild(modal)
 end
 
 function CreateGameLoadingScreen(moduleInfo, backend)

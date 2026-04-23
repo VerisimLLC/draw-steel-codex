@@ -6226,7 +6226,7 @@ function creature:Moved(path)
             execute = function()
                 if dmhub.GetSettingValue("truediagonals") then self.moveDiag = diagonals + newDiagonals end
                 self.moveDistance = self:DistanceMovedThisTurn() + cost
-                self.moveDistanceRoundId = dmhub.initiativeQueue:GetRoundId()
+                self.moveDistanceRoundId = dmhub.initiativeQueue:GetTurnId()
             end,
         }
     end
@@ -6239,7 +6239,7 @@ function creature:SpendMovementInFeet(moveCost)
 
     local cost = moveCost/dmhub.FeetPerTile
 	self.moveDistance = self:DistanceMovedThisTurn() + cost
-	self.moveDistanceRoundId = dmhub.initiativeQueue:GetRoundId()
+	self.moveDistanceRoundId = dmhub.initiativeQueue:GetTurnId()
     return cost
 end
 
@@ -6257,7 +6257,7 @@ function creature:DistanceMovedThisTurn()
         return 0
     end
 
-	if dmhub.initiativeQueue:GetRoundId() ~= self:try_get("moveDistanceRoundId", "") then
+	if dmhub.initiativeQueue:GetTurnId() ~= self:try_get("moveDistanceRoundId", "") then
 		return 0
 	end
 
@@ -6269,7 +6269,7 @@ function creature:DiagonalsMovedThisTurn()
 		return 0
 	end
 
-	if dmhub.initiativeQueue:GetRoundId() ~= self:try_get("moveDistanceRoundId", "") then
+	if dmhub.initiativeQueue:GetTurnId() ~= self:try_get("moveDistanceRoundId", "") then
 		return 0
 	end
 

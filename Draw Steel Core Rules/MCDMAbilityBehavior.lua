@@ -591,7 +591,7 @@ local g_rulePatterns = {
                             return
                         end
                         casterToken.properties.moveDistance = casterToken.properties:DistanceMovedThisTurn() + jumpDistance
-                        casterToken.properties.moveDistanceRoundId = dmhub.initiativeQueue:GetRoundId()
+                        casterToken.properties.moveDistanceRoundId = dmhub.initiativeQueue:GetTurnId()
                     end,
                 }
             end

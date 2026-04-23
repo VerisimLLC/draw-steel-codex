@@ -145,7 +145,28 @@ function creature:SingleMinionMaxStamina()
 end
 
 function creature:Potency()
+    local summonerToken = self:GetPotencySummonerToken()
+    if summonerToken ~= nil then
+        return summonerToken.properties:Potency()
+    end
     return self:HighestCharacteristic()
+end
+
+--- If this creature is a minion flagged to use its summoner's potency, returns the summoner token.
+--- Otherwise returns nil (the creature uses its own potency).
+--- @return CharacterToken|nil
+function creature:GetPotencySummonerToken()
+    if not self.minion then return nil end
+    if (self:CalculateNamedCustomAttribute("Minion Summoner Potency") or 0) <= 0 then
+        return nil
+    end
+    local selfToken = dmhub.LookupToken(self)
+    if selfToken == nil or not selfToken.summonerid then return nil end
+    local summonerToken = dmhub.GetTokenById(selfToken.summonerid)
+    if summonerToken ~= nil and summonerToken.valid then
+        return summonerToken
+    end
+    return nil
 end
 
 function creature:BaseNamedCustomAttribute(id)
@@ -1274,6 +1295,16 @@ function creature:CalcuatePotencyValue(potency)
 end
 
 function creature:CalculatePotencyValue(potency)
+    --When this minion redirects potency to its summoner, forward the entire calculation
+    --(including the "Potency Bonus" custom attribute) to the summoner's creature.
+    local summonerToken = self:GetPotencySummonerToken()
+    if summonerToken ~= nil then
+        return summonerToken.properties:CalculatePotencyValueSelf(potency)
+    end
+    return self:CalculatePotencyValueSelf(potency)
+end
+
+function creature:CalculatePotencyValueSelf(potency)
     local potencyBonus = self:CalculateNamedCustomAttribute("Potency Bonus")
     if tonumber(potency) ~= nil then
         return tonumber(potency) + potencyBonus
@@ -2677,6 +2708,48 @@ function creature:RollOngoingEffectSave(id, abilityOptions)
     ability:Cast(token, { { token = token } }, abilityOptions)
 end
 
+--Local cache for pooled squad saves. Tracks the state of the first save roll
+--a squad made for a given (squad, condition) pair during a given initiative round.
+--Key format: squadName .. "|" .. condid .. "|" .. roundId.
+--Values:
+--  "pending" - a save is in-flight (dialog open / coroutine running); additional
+--              squad-mate save calls should bail out without opening a second dialog.
+--  "purged"  - the in-flight save succeeded; the condition was propagated to
+--              squad mates, subsequent calls just early-return.
+--  "held"    - the in-flight save failed; subsequent calls early-return without
+--              rolling again this round.
+--Per the "Minion Squad Saves" rule: once any squad mate rolls a save, subsequent
+--squad mates read the cached outcome instead of rolling their own.
+local g_squadSaveOutcomes = {}
+
+local function squadSaveCacheKey(squadName, condid, roundId)
+    return string.format("%s|%s|%s", squadName, condid, tostring(roundId))
+end
+
+--Returns the active initiative round id, or nil if combat isn't running.
+local function activeRoundId()
+    local q = dmhub.initiativeQueue
+    if q == nil or q.hidden then return nil end
+    return q:GetRoundId()
+end
+
+--Purges a save-ends condition on a minion without rolling (used when the squad's
+--pooled save already succeeded this round and the result is being propagated).
+local function purgeSaveEndsCondition(creatureSelf, condid, description)
+    local entry = creatureSelf:try_get("inflictedConditions", {})[condid]
+    if entry == nil or entry.duration == "eoe" or entry.duration == "eot" then
+        return
+    end
+    local token = dmhub.LookupToken(creatureSelf)
+    if token == nil then return end
+    token:ModifyProperties{
+        description = description,
+        execute = function()
+            creatureSelf:InflictCondition(condid, { purge = true })
+        end,
+    }
+end
+
 function creature:RollConditionSave(condid, abilityOptions)
     abilityOptions = abilityOptions or {}
     abilityOptions.symbols = abilityOptions.symbols or {}
@@ -2701,6 +2774,29 @@ function creature:RollConditionSave(condid, abilityOptions)
         return
     end
 
+    --"Minion Squad Saves" rule: pool save rolls across the squad so only the first save
+    --per (squad, condition) per round is actually rolled.
+    local squadSaveKey = nil
+    if self.minion and (self:CalculateNamedCustomAttribute("Minion Squad Saves") or 0) > 0 then
+        local squadName = self:MinionSquad()
+        local roundId = activeRoundId()
+        if squadName ~= nil and roundId ~= nil then
+            squadSaveKey = squadSaveCacheKey(squadName, condid, roundId)
+            local outcome = g_squadSaveOutcomes[squadSaveKey]
+            if outcome == "pending" then
+                --Another squad mate's save is already in pending this round; do not open
+                --a second roll dialog.
+            elseif outcome == "purged" then
+                --Squad already saved successfully this round, now purge.
+                purgeSaveEndsCondition(self, condid, "Squad save purge")
+                return
+            elseif outcome == "held" then
+                --Squad already failed this round; no further rolls.
+                return
+            end
+        end
+    end
+
     local conditionTable = dmhub.GetTable(CharacterCondition.tableName)
     local conditionInfo = conditionTable[condid]
     local abilityTemplate = MCDMUtils.GetStandardAbility("Save")
@@ -2709,6 +2805,40 @@ function creature:RollConditionSave(condid, abilityOptions)
 
     --this is from when saves could be associated with an ability.
     --MCDMUtils.DeepReplace(ability, "<<attribute>>", entry.duration)
+
+    if squadSaveKey ~= nil then
+        g_squadSaveOutcomes[squadSaveKey] = "pending"
+
+        --After the save resolves, transition "pending" to "purged" or "held". 
+        abilityOptions.OnFinishCastHandlers = abilityOptions.OnFinishCastHandlers or {}
+        local savingSelf = self
+        local cacheKey = squadSaveKey
+        local savedSquadName = savingSelf:MinionSquad()
+        local savedCondid = condid
+        abilityOptions.OnFinishCastHandlers[#abilityOptions.OnFinishCastHandlers + 1] = function(_, _, finishOptions)
+            if finishOptions ~= nil and (finishOptions.abort or finishOptions.atexit) then
+                --Cast didn't complete a real resolution; don't lock the squad out.
+                g_squadSaveOutcomes[cacheKey] = nil
+                return
+            end
+            local entryAfter = savingSelf:try_get("inflictedConditions", {})[savedCondid]
+            if entryAfter == nil then
+                g_squadSaveOutcomes[cacheKey] = "purged"
+                local squadInfo = savedSquadName ~= nil
+                    and creature.GetMinionSquadInfoForNamedSquad(savedSquadName)
+                    or nil
+                if squadInfo ~= nil and squadInfo.tokens ~= nil then
+                    for _, tok in ipairs(squadInfo.tokens) do
+                        if tok ~= nil and tok.valid and tok.properties ~= nil and tok.properties ~= savingSelf then
+                            purgeSaveEndsCondition(tok.properties, savedCondid, "Squad save propagate purge")
+                        end
+                    end
+                end
+            else
+                g_squadSaveOutcomes[cacheKey] = "held"
+            end
+        end
+    end
 
     ability:Cast(token, { { token = token } }, abilityOptions)
 end

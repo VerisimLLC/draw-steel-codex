@@ -2914,6 +2914,50 @@ local function _buildCostAndActionSection(ability, fireChange)
         },
     }
 
+    -- 8. Special Properties. Boolean flags registered via
+    -- ActivatedAbility.RegisterProperty (MCDMActivatedAbility.lua:3119).
+    -- The classic editor exposes these through a "Add Special Property..."
+    -- SetEditor; we render them as stacked nae-toggle-check rows so they
+    -- match the section's styling. Iterating registeredProperties means any
+    -- future RegisterProperty call shows up automatically without touching
+    -- this editor. At time of writing the list is Use as Free Strike,
+    -- Use as Signature Ability, and Remain Hidden.
+    local propertyChecks = {}
+    for _, prop in ipairs(ActivatedAbility.registeredProperties or {}) do
+        local propId = prop.id
+        propertyChecks[#propertyChecks + 1] = gui.Check{
+            classes = {"nae-toggle-check"},
+            text = prop.name,
+            value = ability:HasProperty(propId),
+            change = function(element)
+                local props = ability:get_or_add("properties", {})
+                if element.value then
+                    props[propId] = true
+                else
+                    props[propId] = nil
+                end
+                fireChange()
+            end,
+        }
+    end
+
+    if #propertyChecks > 0 then
+        children[#children + 1] = gui.Panel{
+            classes = {"nae-field-row"},
+            flow = "vertical",
+            children = {
+                gui.Label{
+                    classes = {"nae-field-label"},
+                    text = "Special Properties",
+                },
+                gui.Panel{
+                    classes = {"nae-field-subgroup"},
+                    children = propertyChecks,
+                },
+            },
+        }
+    end
+
     return children
 end
 

@@ -804,10 +804,14 @@ function creature:DispatchAvailableTrigger(triggerInfo)
             g_injectedTriggerIds[triggerInfo.id] = true
             local casterSymbols = self:LookupSymbol{}
             local mods = self:GetActiveModifiers()
+            local seenMods = {}
             for _, modContext in ipairs(mods) do
-                local typeInfo = CharacterModifier.TypeInfo[modContext.mod.behavior]
-                if typeInfo ~= nil and typeInfo.fillTriggerModes ~= nil then
-                    typeInfo.fillTriggerModes(modContext.mod, triggerInfo, self, casterSymbols)
+                if not seenMods[modContext.mod] then
+                    seenMods[modContext.mod] = true
+                    local typeInfo = CharacterModifier.TypeInfo[modContext.mod.behavior]
+                    if typeInfo ~= nil and typeInfo.fillTriggerModes ~= nil then
+                        typeInfo.fillTriggerModes(modContext.mod, triggerInfo, self, casterSymbols)
+                    end
                 end
             end
         end

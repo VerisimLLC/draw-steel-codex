@@ -30,17 +30,17 @@ local g_triggerLookupSymbols = {
 local g_triggerHelpSymbols = {
     {
         name = "Name",
-        type = "text",
+        type = "string",
         desc = "The name of the trigger.",
     },
     {
         name = "Text",
-        type = "text",
+        type = "string",
         desc = "The display text of the trigger (may include cost).",
     },
     {
         name = "Rules",
-        type = "text",
+        type = "string",
         desc = "The rules text of the trigger.",
     },
     {

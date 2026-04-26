@@ -3830,6 +3830,14 @@ local function _makeBehaviorPillPanel(ability, behavior, fireChange)
         classes = {"nae-behavior-pills", "collapsed"},
         data = {cacheKey = nil},
 
+        -- Self-initialize on create. On re-open of the editor, the behavior
+        -- list is built via behaviorList.create's FireEvent (single element),
+        -- which does not cascade to children, so pills would stay collapsed
+        -- until the next tree-wide fireChange. Fire our own refreshAbility
+        -- here so pills populate immediately. Matches the pattern used by
+        -- the behavior contentPanel below.
+        create = function(element) element:FireEvent("refreshAbility") end,
+
         refreshAbility = function(element)
             local shown = ability.multipleModes == true
             element:SetClass("collapsed", not shown)
@@ -3889,6 +3897,8 @@ local function _makeBehaviorPillPanel(ability, behavior, fireChange)
     local tierPanel = gui.Panel{
         classes = {"nae-behavior-pills", "collapsed"},
         data = {cacheKey = nil},
+
+        create = function(element) element:FireEvent("refreshAbility") end,
 
         refreshAbility = function(element)
             local hasPowerRollBefore = false
@@ -3954,6 +3964,8 @@ local function _makeBehaviorPillPanel(ability, behavior, fireChange)
     local strainPanel = gui.Panel{
         classes = {"nae-behavior-pills", "collapsed"},
         data = {cacheKey = nil},
+
+        create = function(element) element:FireEvent("refreshAbility") end,
 
         refreshAbility = function(element)
             local hasStrain = ability:IsStrain()

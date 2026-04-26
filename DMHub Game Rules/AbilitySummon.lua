@@ -26,6 +26,8 @@ ActivatedAbilitySummonBehavior.casterControls = true
 ActivatedAbilitySummonBehavior.casterChoosesCreatures = true
 ActivatedAbilitySummonBehavior.groupInitiativeWithCaster = true
 ActivatedAbilitySummonBehavior.shareSurgesWithSummoner = false
+ActivatedAbilitySummonBehavior.choosePlacement = false
+ActivatedAbilitySummonBehavior.summonRange = "1"
 
 --duplicate mode fields
 ActivatedAbilitySummonBehavior.duplicateMode = false
@@ -808,6 +810,106 @@ function ActivatedAbilitySummonBehavior:CastDuplicate(ability, casterToken, targ
     ability:CommitToPaying(casterToken, args)
 end
 
+--- Prompts the user to place summons
+--- @param casterToken CharacterToken
+--- @param rangeTiles number max distance in tiles from casterToken.loc.
+--- @param index number which summon
+--- @param total number total summons being placed.
+--- @param isMinion boolean true if the creature being placed is a minion.
+--- @return Loc|nil  picked loc, or nil if cancelled.
+function ActivatedAbilitySummonBehavior.PromptPlacementLoc(casterToken, rangeTiles, index, total, isMinion)
+    local origin = casterToken.loc
+    local validLocs = origin:LocsInRadius(rangeTiles)
+
+    local pickedLoc = nil
+    local cancelled = false
+
+    local rangeMarker = dmhub.MarkLocs{
+        locs = validLocs,
+        color = "#22cc66",
+    }
+    local hoverMarker = nil
+
+    local function destroyHoverMarker()
+        if hoverMarker ~= nil then
+            hoverMarker:Destroy()
+            hoverMarker = nil
+        end
+    end
+
+    local function isInRange(loc)
+        return loc ~= nil and origin:DistanceInTiles(loc) <= rangeTiles
+    end
+
+    local picker
+    picker = gui.Panel{
+        floating = true,
+        width = "100%",
+        height = "100%",
+        halign = "left",
+        valign = "top",
+        bgcolor = "clear",
+        interactable = true,
+        mapfocus = true,
+        captureEscape = true,
+        escapePriority = EscapePriority.EXIT_DIALOG,
+
+        gui.Label{
+            halign = "center",
+            valign = "top",
+            vmargin = 80,
+            width = "auto",
+            height = "auto",
+            fontSize = 22,
+            color = "white",
+            bgcolor = "#000000a0",
+            pad = 8,
+            borderBox = true,
+            text = string.format("Place %s %d of %d (Esc to cancel)", isMinion and "minion" or "creature", index, total),
+        },
+
+        mappress = function(element, loc, point)
+            if not isInRange(loc) then
+                return
+            end
+            pickedLoc = loc
+        end,
+
+        maphover = function(element, loc, point)
+            destroyHoverMarker()
+            if loc == nil then
+                return
+            end
+            hoverMarker = dmhub.MarkLocs{
+                locs = { loc },
+                color = isInRange(loc) and "#ffffffcc" or "#cc2222cc",
+            }
+        end,
+
+        escape = function(element)
+            cancelled = true
+        end,
+
+        destroy = function(element)
+            destroyHoverMarker()
+            if rangeMarker ~= nil then
+                rangeMarker:Destroy()
+                rangeMarker = nil
+            end
+        end,
+    }
+
+    gamehud.popupPanel:AddChild(picker)
+
+    while pickedLoc == nil and not cancelled do
+        coroutine.yield(0.1)
+    end
+
+    picker:DestroySelf()
+
+    return pickedLoc
+end
+
 function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args)
     if self.duplicateMode then
         self:CastDuplicate(ability, casterToken, targets, args)
@@ -875,6 +977,16 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
 
         table.sort(choices, function(a,b) return a.properties.monster_type < b.properties.monster_type end)
 
+        local manualPlacement = self.choosePlacement and (not self.replaceCaster)
+        local rangeTiles = 0
+        if manualPlacement then
+            rangeTiles = dmhub.EvalGoblinScript(self.summonRange, GenerateSymbols(casterToken.properties, args.symbols), 0, string.format("Summon placement range for %s", ability.name)) or 0
+            rangeTiles = math.max(0, math.floor(rangeTiles))
+            if rangeTiles <= 0 then
+                manualPlacement = false
+            end
+        end
+
         local summonedTokens = {}
         local summonerEntries = {}
 
@@ -935,9 +1047,18 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
                 squadNameForSpawn = squadResult.squadName
             end
 
-            local loc = target.loc
+            local loc
             if self.replaceCaster then
                 loc = casterToken.loc
+            elseif manualPlacement then
+                local isMinion = chosenOption ~= nil and chosenOption.properties ~= nil and chosenOption.properties:try_get("minion", false)
+                loc = ActivatedAbilitySummonBehavior.PromptPlacementLoc(casterToken, rangeTiles, j, numSummons, isMinion)
+                if loc == nil then
+                    --user cancelled; stop placing further summons but keep what's already there.
+                    break
+                end
+            else
+                loc = target.loc
             end
 
             local token = game.SpawnTokenFromBestiaryLocally(chosenOption.id, loc.withGroundAltitude, {
@@ -995,42 +1116,44 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
             print("TOKEN:: ASSIGN", tok)
         end
 
-        if ability:RequiresConcentration() and casterToken.properties:HasConcentration() then
-            casterToken:ModifyProperties{
-                description = "Concentrate on summons",
-                execute = function()
-                    local concentration = casterToken.properties:MostRecentConcentration()
-                    local summonid = concentration:get_or_add("summonid", {})
-                    for _,token in ipairs(summonedTokens) do
-                        summonid[#summonid+1] = token.charid
-                    end
-                end,
-            }
-        end
+        if #summonedTokens > 0 then
+            if ability:RequiresConcentration() and casterToken.properties:HasConcentration() then
+                casterToken:ModifyProperties{
+                    description = "Concentrate on summons",
+                    execute = function()
+                        local concentration = casterToken.properties:MostRecentConcentration()
+                        local summonid = concentration:get_or_add("summonid", {})
+                        for _,token in ipairs(summonedTokens) do
+                            summonid[#summonid+1] = token.charid
+                        end
+                    end,
+                }
+            end
 
-        if isSummoner and #summonerEntries > 0 then
-            casterToken:ModifyProperties{
-                description = "Register summons",
-                execute = function()
-                    for _,entry in ipairs(summonerEntries) do
-                        casterToken.properties:RegisterSummonedMinion(entry.charid, entry.squad, entry.monsterType)
-                    end
-                end,
-            }
-        end
+            if isSummoner and #summonerEntries > 0 then
+                casterToken:ModifyProperties{
+                    description = "Register summons",
+                    execute = function()
+                        for _,entry in ipairs(summonerEntries) do
+                            casterToken.properties:RegisterSummonedMinion(entry.charid, entry.squad, entry.monsterType)
+                        end
+                    end,
+                }
+            end
 
-        if warningExceededMinions then
-            chat.Send(string.format("%s exceeded their MaximumMinions limit of %d.", casterToken.description, summonerMaxMinions))
-        end
-        if warningExceededSquads then
-            chat.Send(string.format("%s exceeded their MaxMinionSquads limit of %d.", casterToken.description, summonerMaxSquads))
-        end
+            if warningExceededMinions then
+                chat.Send(string.format("%s exceeded their MaximumMinions limit of %d.", casterToken.description, summonerMaxMinions))
+            end
+            if warningExceededSquads then
+                chat.Send(string.format("%s exceeded their MaxMinionSquads limit of %d.", casterToken.description, summonerMaxSquads))
+            end
 
-        dmhub.Debug(string.format("SUMMON:: DONE"))
-        game.UpdateCharacterTokens()
+            dmhub.Debug(string.format("SUMMON:: DONE"))
+            game.UpdateCharacterTokens()
 
-        --we summoned, so consume resources.
-        ability:CommitToPaying(casterToken, args)
+            --we summoned, so consume resources.
+            ability:CommitToPaying(casterToken, args)
+        end
     end
 end
 
@@ -1195,6 +1318,52 @@ function ActivatedAbilityBehavior:SummonEditor(parentPanel, list, options)
 					symbols = ActivatedAbility.helpCasting,
 				},
 
+			},
+		}
+
+		list[#list+1] = gui.Check{
+			text = "Choose placement for each creature",
+			value = self.choosePlacement,
+			minWidth = 300,
+			change = function(element)
+				self.choosePlacement = element.value
+				element.parent:FireEventTree("refreshChoosePlacement")
+			end,
+		}
+
+		list[#list+1] = gui.Panel{
+			classes = {"formPanel", cond(not self.choosePlacement, "hidden")},
+			refreshChoosePlacement = function(element)
+				element:SetClass("hidden", not self.choosePlacement)
+			end,
+			gui.Label{
+				classes = "formLabel",
+				text = "Range:",
+			},
+			gui.GoblinScriptInput{
+				value = self.summonRange,
+				change = function(element)
+					self.summonRange = element.value
+				end,
+
+				documentation = {
+					domains = parentPanel.data.parentAbility.domains,
+					help = string.format("This GoblinScript is used to determine the maximum distance, in squares, from the caster within which the player may place each summoned creature."),
+					output = "number",
+					examples = {
+						{
+							script = "3",
+							text = "The player chooses placement for each creature within 3 squares of the caster.",
+						},
+						{
+							script = "1 + Charges",
+							text = "The play can place 1 creature + the number of channeled resources used.",
+						},
+					},
+					subject = creature.helpSymbols,
+					subjectDescription = "The creature using the ability",
+					symbols = ActivatedAbility.helpCasting,
+				},
 			},
 		}
 	end

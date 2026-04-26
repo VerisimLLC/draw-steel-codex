@@ -26,6 +26,7 @@ ActivatedAbilitySummonBehavior.casterControls = true
 ActivatedAbilitySummonBehavior.casterChoosesCreatures = true
 ActivatedAbilitySummonBehavior.groupInitiativeWithCaster = true
 ActivatedAbilitySummonBehavior.shareSurgesWithSummoner = false
+ActivatedAbilitySummonBehavior.shareHeroicResourceWithSummoner = false
 ActivatedAbilitySummonBehavior.choosePlacement = false
 ActivatedAbilitySummonBehavior.summonRange = "1"
 
@@ -1072,6 +1073,10 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
                 token.properties.sharesSurgesWithSummoner = true
             end
 
+            if self.shareHeroicResourceWithSummoner then
+                token.properties.sharesHeroicResourceWithSummoner = true
+            end
+
             if squadNameForSpawn ~= nil then
                 token.properties.minionSquad = squadNameForSpawn
                 summonerEntries[#summonerEntries+1] = {
@@ -1514,6 +1519,15 @@ function ActivatedAbilityBehavior:SummonEditor(parentPanel, list, options)
         value = self.shareSurgesWithSummoner,
         change = function(element)
             self.shareSurgesWithSummoner = element.value
+        end,
+    }
+
+    list[#list+1] = gui.Check{
+        text = "Summons Share Heroic Resource",
+        minWidth = 300,
+        value = self.shareHeroicResourceWithSummoner,
+        change = function(element)
+            self.shareHeroicResourceWithSummoner = element.value
         end,
     }
 

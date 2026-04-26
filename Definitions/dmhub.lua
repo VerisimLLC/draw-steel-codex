@@ -6,6 +6,8 @@
 --- @field whiteLabel WhiteLabel The current 'white label' version of the engine this is. May be 'dmhub' or 'mcdm'
 --- @field whiteLabelEntityName string The name of the publisher of the product the engine is running as.
 --- @field whiteLabelAppName string The name of the app the engine is running as, suitable for showing to users.
+--- @field cloudFunctionsBaseUrl string Base URL for Firebase cloud functions for the current whitelabel project (e.g. https://us-central1-mcdm-385cf.cloudfunctions.net). Append the function name with a leading slash.
+--- @field platform string The platform the engine is running on. Returns 'windows', 'macOS', or 'linux'.
 --- @field nodiagonals boolean If true, the game rules are set up to have no pythagorean theorem when calculating diagonals.
 --- @field betaBranch nil|string Which branch the app is opted-in to updating from. This is not relevant if the app is being updated from Steam, Itch, or similar.
 --- @field GetSelectedCharacters fun(): string[]|nil A function that can be set to tell the engine which characters are currently selected. Returns a list of token ids.
@@ -94,6 +96,7 @@
 --- @field connectionErrorStatus any The current connection error status, if any. Used to display connection issues to the user.
 --- @field writeErrors any A list of failed and unconfirmed write receipts that haven't been acknowledged. Each entry is a WriteReceipt with path, method, failureReason, isFailed, isUnconfirmed, and acknowledged fields.
 --- @field pendingWriteCount number The number of writes currently pending (in-flight to the cloud).
+--- @field durableObjectSeq number Latest sequence number stamped by the Durable Object game server on inbound messages. The DO resets this counter to 0 on every cold start/hibernation wake. Returns 0 if the current game is not DO-backed or no seq has been received yet.
 --- @field patronTier number The Patreon tier level of the current user. 0 means not a patron.
 --- @field subscriptionTier number The subscription tier level of the current user. 0 means no subscription.
 --- @field isAdminAccount boolean True if the current user has admin privileges on their account.
@@ -117,8 +120,8 @@
 --- @field screenDimensionsBelowTitlebar Vector2 (Read-only) The screen dimensions in pixels below the title bar as a Vector2 (width, height).
 --- @field cameraPosition Vector2 (Read-only) The camera's center position in world coordinates as a Vector2 (x, y). This is the point in the game world that the camera is looking at.
 --- @field cameraZoom number (Read-only) The camera's orthographic size (half the visible height in world units). Smaller values mean more zoomed in. The full visible height is cameraZoom * 2.
---- @field cameraBounds {x1: number, y1: number, x2: number, y2: number} (Read-only) The visible area of the screen in world coordinates. (x1,y1) is bottom-left, (x2,y2) is top-right.
---- @field cameraUsableBounds {x1: number, y1: number, x2: number, y2: number} (Read-only) The usable visible area (excluding HUD docks) in world coordinates. This is the 'world' area between the left and right docks.
+--- @field cameraBounds {x1: number, y1: number, x2: number, y2: number} (Read-only) The visible area of the screen in world coordinates as a table {x1, y1, x2, y2} where (x1,y1) is the bottom-left corner and (x2,y2) is the top-right corner.
+--- @field cameraUsableBounds {x1: number, y1: number, x2: number, y2: number} (Read-only) The usable visible area (excluding HUD docks) in world coordinates as a table {x1, y1, x2, y2}. This is the 'world' area between the left and right docks.
 --- @field uiVerticalScale number (Read-only) The vertical scale factor of the UI compared to a reference 1920x1080 resolution.
 --- @field uiVerticalScaleBelowTitleBar number (Read-only) The vertical scale factor of the UI below the title bar compared to a reference 1920x1080 resolution.
 --- @field uiscale number (Read-only) the amount the ui is being scaled by horizontally.
@@ -523,7 +526,7 @@ function dmhub.MarkLocs(args)
 end
 
 --- CalculateShape: Create an object describing a shape on the map.
---- @param args {shape: SpellShapes, token: CharacterToken, objectTemplate: nil|string, targetPoint: Vector3, range: nil|number, radius: nil|number, locOverride: nil|Loc, requireEmpty: nil|boolean, checklos: nil|boolean }
+--- @param args {shape: SpellShapes, token: CharacterToken, objectTemplate: nil|string, targetPoint: Vector3, range: nil|number, radius: nil|number, locOverride: nil|Loc, requireEmpty: nil|boolean, checklos: nil|boolean, altitude: nil|number }
 --- @return LuaShape
 function dmhub.CalculateShape(args)
 	-- dummy implementation for documentation purposes only
@@ -621,6 +624,23 @@ end
 --- @param callbackFunction any
 --- @return nil
 function dmhub.RegisterGoblinScriptDebugger(callbackFunction)
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetGoblinScriptDebug: Enables or disables per-expression debug instrumentation for a specific GoblinScript formula. The caller must flush any cached compilation of the formula for the change to take effect.
+--- @param formula string
+--- @param enabled boolean
+--- @return nil
+function dmhub.SetGoblinScriptDebug(formula, enabled)
+	-- dummy implementation for documentation purposes only
+end
+
+--- OpenModFileAtLine: Opens a Lua file from a mod in the user's default editor at the specified line. Returns true on success.
+--- @param modName string
+--- @param fileName string
+--- @param lineNumber number
+--- @return boolean
+function dmhub.OpenModFileAtLine(modName, fileName, lineNumber)
 	-- dummy implementation for documentation purposes only
 end
 
@@ -951,11 +971,12 @@ function dmhub.RegisterRemoteEvent(eventid, callback)
 	-- dummy implementation for documentation purposes only
 end
 
---- BroadcastRemoteEvent: This broadcasts an event to connected computers using the peer-to-peer mechanism. Because it uses peer-to-peer there is no guarantee the messages will arrive. They should be used to communicate transient information that will go out of date quickly, such as the user's mouse position, what they are highlighting, etc. If multiple messages using the same sessionid arrive out of order, the old messages will be discarded and not processed. 
+--- BroadcastRemoteEvent: This broadcasts an event to connected computers using the peer-to-peer mechanism. By default delivery is best-effort UDP -- good for transient information like mouse positions or highlights where a dropped packet doesn't matter. If multiple messages using the same sessionid arrive out of order, the old messages will be discarded and not processed. Pass reliable = true to route via the game server's WebSocket when the event drives a state change that must not be lost.
 --- @param eventid string A unique eventid identifying the event.
 --- @param sessionid A unique id identifying a 'session' which can receive multiple messages. If you want to broadcast multiple events concerning the same topic, use the same sessionid.
 --- @param args any
-function dmhub.BroadcastRemoteEvent(eventid, sessionid, args)
+--- @param reliable? boolean Optional. If true, route the message through the game server (TCP) so it can't be dropped by UDP. Requires a Durable Objects or Local game; silently ignored on Firebase-backed games (falls back to UDP). Defaults to false.
+function dmhub.BroadcastRemoteEvent(eventid, sessionid, args, reliable)
 	-- dummy implementation for documentation purposes only
 end
 
@@ -1017,9 +1038,28 @@ function dmhub.Redo()
 	-- dummy implementation for documentation purposes only
 end
 
+--- GetDurableObjectSeqHistory: Returns a Lua array of the last ~20 Durable Object messages, oldest first. Inbound entries carry a seq prefix (e.g. '42 put game/characters/abc' or '42 ack ok w-001 (123ms)'); outbound entries to the game store are prefixed with '>>' (e.g. '>> put game/characters/abc [w-001]').
+--- @return string[]
+function dmhub:GetDurableObjectSeqHistory()
+	-- dummy implementation for documentation purposes only
+end
+
 --- AcknowledgeAllWriteErrors: Acknowledges all current write errors so they are no longer returned by writeErrors.
 --- @return nil
 function dmhub:AcknowledgeAllWriteErrors()
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetRichPresenceActivity: Sets a short-lived rich-presence activity string (e.g. 'Building Orc Fury') that is pushed to both Steam and Discord. Pass nil or an empty string to clear. The activity auto-expires a few seconds after the last call, so panels should re-push from a think handler while open.
+--- @param status string
+--- @return nil
+function dmhub:SetRichPresenceActivity(status)
+	-- dummy implementation for documentation purposes only
+end
+
+--- DumpSteamRichPresence: Logs what Steam currently has stored for the local user's rich presence, for debugging. Echoes back each key we sent plus the full server-side key list.
+--- @return nil
+function dmhub:DumpSteamRichPresence()
 	-- dummy implementation for documentation purposes only
 end
 
@@ -1034,6 +1074,14 @@ end
 --- @param id string
 --- @return nil
 function dmhub.OpenTutorialVideo(id)
+	-- dummy implementation for documentation purposes only
+end
+
+--- OpenDebugConsole: Open the live data debug console for the current game, optionally focused on a given data path and store (e.g. '/characters/abc', 'game'). Admin/dev only. URL resolution matches the DO debug URL (with Firebase-JWT fragment for auth) for WebSocket backends, and falls through to the Firebase console for legacy Firebase-backed games.
+--- @param path string?
+--- @param store string?
+--- @return nil
+function dmhub.OpenDebugConsole(path, store)
 	-- dummy implementation for documentation purposes only
 end
 
@@ -1171,6 +1219,13 @@ end
 --- @param settingid string
 --- @return boolean
 function dmhub.HasSetting(settingid)
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetSettingInfo: Returns a table with 'description' and 'value' fields for the given setting, or nil if the setting does not exist.
+--- @param settingid string
+--- @return {description: string, value: string}|nil
+function dmhub.GetSettingInfo(settingid)
 	-- dummy implementation for documentation purposes only
 end
 
@@ -1328,7 +1383,7 @@ function dmhub.CopyToClipboard(text)
 	-- dummy implementation for documentation purposes only
 end
 
---- CopyToInternalClipboard: Sets the contents of the internal clipboard.
+--- CopyToInternalClipboard: Sets the contents of the internal clipboard. Fires the 'internalClipboardChanged' event globally and recursively on all top-level SheetPanels.
 --- @param obj any
 --- @return nil
 function dmhub.CopyToInternalClipboard(obj)
@@ -1478,13 +1533,14 @@ function dmhub.HighlightLine(options)
 	-- dummy implementation for documentation purposes only
 end
 
---- MarkLineOfSight: Mark the line of sight between the attacker and target on the map. Call Destroy() on the returned reference to clear the marker. Optionally pass pierceSurfaces to ignore thin walls. arrowColor sets the arrow color: 'red' (enemies), 'green' (allies), 'black' (mixed).
+--- MarkLineOfSight: Mark the line of sight between the attacker and target on the map. Call Destroy() on the returned reference to clear the marker. Optionally pass pierceSurfaces to ignore thin walls. arrowColor sets the arrow color: 'red' (enemies), 'green' (allies), 'black' (mixed). maxRange greys out the portion of the arrow past the range boundary (in tile units).
 --- @param attacker CharacterToken
 --- @param target CharacterToken
 --- @param pierceSurfaces number? Optional number of thin wall surfaces (thickness <= 1 square) to ignore.
 --- @param arrowColor string? Arrow color: 'red' (default), 'green', or 'black'.
+--- @param maxRange number? Optional max range in tile units. If the target is beyond this distance, the portion of the arrow past the range boundary is greyed out.
 --- @return LuaTargetingMarkers
-function dmhub.MarkLineOfSight(attacker, target, pierceSurfacesArg, arrowColorArg)
+function dmhub.MarkLineOfSight(attacker, target, pierceSurfacesArg, arrowColorArg, maxRangeArg)
 	-- dummy implementation for documentation purposes only
 end
 

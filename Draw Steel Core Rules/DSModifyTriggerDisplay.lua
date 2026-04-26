@@ -31,6 +31,7 @@ TriggeredAbilityDisplay.distance = "Ranged 10"
 TriggeredAbilityDisplay.target = "One creature"
 TriggeredAbilityDisplay.trigger = ""
 TriggeredAbilityDisplay.effect = ""
+TriggeredAbilityDisplay.implementationNotes = ""
 
 local g_triggeredAbilityTypes = {
     {
@@ -255,6 +256,28 @@ CharacterModifier.TypeInfo.triggerdisplay = {
                 },
             }
 
+            children[#children+1] = gui.Panel{
+                classes = {"formPanel"},
+                gui.Label{
+                    classes = {"formLabel"},
+                    text = "Implementation Notes:",
+                },
+                gui.Input{
+                    characterLimit = 640,
+                    classes = {"formInput"},
+                    text = modifier.ability.implementationNotes,
+                    multiline = true,
+                    width = 320,
+                    height = "auto",
+                    minHeight = 14,
+                    maxHeight = 100,
+                    change = function(element)
+                        modifier.ability.implementationNotes = element.text
+                        Refresh()
+                    end,
+                },
+            }
+
             element.children = children
         print("EDITOR:: SET...", #children)
         end
@@ -375,6 +398,11 @@ function TriggeredAbilityDisplay:Render(args)
                 text = StringInterpolateGoblinScript(self.effect, caster),
                 vmargin = 2,
             },
+            (self.implementationNotes ~= "") and gui.Label{
+                markdown = true,
+                text = string.format("<b>Implementation Notes:</b> %s", StringInterpolateGoblinScript(self.implementationNotes, caster)),
+                vmargin = 2,
+            } or nil,
             suppressPanel,
         }
 
@@ -450,6 +478,12 @@ function TriggeredAbilityDisplay:Render(args)
             text = string.format("<b>Effect:</b> %s", StringInterpolateGoblinScript(self.effect, caster)),
             vmargin = 2,
         },
+
+        (self.implementationNotes ~= "") and gui.Label{
+            markdown = true,
+            text = string.format("<b>Implementation Notes:</b> %s", StringInterpolateGoblinScript(self.implementationNotes, caster)),
+            vmargin = 2,
+        } or nil,
 
         suppressPanel,
     }

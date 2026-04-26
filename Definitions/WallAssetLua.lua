@@ -10,6 +10,7 @@
 --- @field contrast any 
 --- @field invisible any 
 --- @field visionOneWay any 
+--- @field visionWidth any 
 --- @field movementOneWay any 
 --- @field occludesVision any 
 --- @field occludesLight any 

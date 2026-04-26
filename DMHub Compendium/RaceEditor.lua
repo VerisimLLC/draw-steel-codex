@@ -116,6 +116,7 @@ local SetRace = function(tableName, racePanel, raceid)
 			multiline = true,
 			minHeight = 50,
 			maxHeight = 300,
+            characterLimit = 8096,
 			vscroll = true,
 			height = 'auto',
 			width = 400,
@@ -144,7 +145,9 @@ local SetRace = function(tableName, racePanel, raceid)
 			vscroll = true,
 			height = 'auto',
 			width = 700,
+            characterLimit = 8096,
 			textAlignment = "topleft",
+			characterLimit = 8192,
 			change = function(element)
 				race.lore = element.text
 				UploadRace()

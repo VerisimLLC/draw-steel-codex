@@ -2042,6 +2042,50 @@ mod.shared.EditWallAssetDialog = function(tileid, startingValues)
 				end,
 			},
 
+			gui.Panel{
+				classes = {"formPanel", cond((not asset.occludesVision) and (not asset.occludesLight), "collapsed-anim")},
+				refreshAssets = function(element)
+					element:SetClass('collapsed-anim', (not asset.occludesVision) and (not asset.occludesLight))
+				end,
+
+				children = {
+					gui.Label{
+						text = 'Vision Width:',
+						style = {
+							margin = 4,
+							valign = 'center',
+							width = 140,
+							height = 'auto',
+						},
+						hover = gui.Tooltip("Width of the wall for vision/lighting calculations. When greater than zero, the vision line is expanded outward so the full wall is visible instead of being hard-cut at the centerline."),
+					},
+
+					gui.Slider{
+						value = asset.visionWidth or 0,
+						minValue = 0,
+						maxValue = 2,
+						sliderWidth = 300,
+						labelWidth = 60,
+
+						events = {
+							change = function(element)
+								asset.visionWidth = element.value
+								RefreshAssets()
+							end,
+						},
+
+						style = {
+							fontSize = '80%',
+							valign = 'center',
+							halign = 'right',
+							height = '50%',
+							width = '100%',
+							borderWidth = 0,
+						},
+					},
+				},
+			},
+
 
 			gui.Check{
 				id = "blocksMovementCheck",

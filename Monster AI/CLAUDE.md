@@ -98,7 +98,7 @@ GenerateStandardStrikeExecuteFunction()
 
 ### Step 1: Identify the Monster's Abilities
 
-Open the monster's YAML file in `userdata/bestiary/`. The key field is `monster_type` (e.g., `"Goblin Warrior"`) -- this is what you match against in the `monsters` array. Look at `innateActivatedAbilities` for the ability names, keywords, ranges, and targeting.
+Open the monster's YAML file in `compendium/bestiary/`. The key field is `monster_type` (e.g., `"Goblin Warrior"`) -- this is what you match against in the `monsters` array. Look at `innateActivatedAbilities` for the ability names, keywords, ranges, and targeting.
 
 ### Step 2: Register Moves in `MonsterAIMonsters.lua`
 

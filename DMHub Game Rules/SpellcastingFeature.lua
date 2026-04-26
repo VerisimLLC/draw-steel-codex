@@ -7,14 +7,14 @@ local mod = dmhub.GetModLoading()
 --- @field level number Minimum character level to access this feature.
 --- @field refreshType string How spells refresh: "prepared" or "known".
 --- @field spellbook boolean If true, this class uses a spellbook.
---- @field spellbookSize number Number of spells the spellbook can hold.
+--- @field spellbookSize number|string|table Number of spells the spellbook can hold.
 --- @field spellbookSpells table[] List of spells in the spellbook.
 --- @field spellLists table[] Spell lists available to this feature.
 --- @field dc number Spell save DC base value.
 --- @field attackBonus number Spell attack bonus base value.
 --- @field maxSpellLevel number Maximum spell slot level available.
---- @field numKnownCantrips number Number of cantrips known.
---- @field numKnownSpells number Number of spells known.
+--- @field numKnownCantrips number|string|table Number of cantrips known.
+--- @field numKnownSpells number|string|table Number of spells known.
 --- @field knownCantrips string[] Ids of known cantrips.
 --- @field knownSpells string[] Ids of known spells.
 --- @field memorizedSpells string[] Ids of memorized (prepared) spells.

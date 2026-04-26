@@ -878,7 +878,8 @@ function equipment:RenderToMarkdown(options)
         annotations = {
             ["image:main"] = RichImage.new{
                 image = iconid,
-                maxWidth = 200,
+                maxWidth = 100,
+				maxHeight = 100,
             }
         },
     }

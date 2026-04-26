@@ -80,6 +80,13 @@ gui.KeywordSelector = function(args)
         params[k] = v
     end
 
+    -- Default halign to "left" so the selector doesn't center in wider
+    -- vertical-flow parents (like the themed feature panel). Callers can
+    -- still override by passing halign in args.
+    if params.halign == nil then
+        params.halign = "left"
+    end
+
     resultPanel = gui.Panel(params)
 
     return resultPanel

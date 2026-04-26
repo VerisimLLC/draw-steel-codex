@@ -411,7 +411,7 @@ function StringInterpolateGoblinScript(str, symbols, depth)
         value = match.alt or match.formula
         value = string.gsub(value, "|", "")
     else
-        value = dmhub.EvalGoblinScript(match.formula, symbols, "formula substitution")
+        value = ExecuteGoblinScript(match.formula, symbols, value, "formula substitution")
     end
 
     return string.format("%s%s%s", match.prefix, tostring(value), StringInterpolateGoblinScript(match.postfix, symbols, depth+1))
@@ -468,7 +468,7 @@ function CountLoggedInUsers()
     local count = 0
     for i,userid in ipairs(dmhub.users) do
         local info = dmhub.GetSessionInfo(userid)
-        if (not info.loggedOut) and info.timeSinceLastContact < 30 then
+        if (not info.loggedOut) and info.timeSinceLastContact < 120 then
             count = count + 1
         end
     end
@@ -875,4 +875,89 @@ function DebugCheckTableSelfReference(t)
     end
 
     return check(t, "root")
+end
+
+-- Traceback helpers: parse a string returned by debug.traceback() into numbered frame
+-- descriptors and produce a decorated version of the trace suitable for tooltips.
+-- Mirrors the parsing in Assets/StyleDebuggerInterface.cs (the F7 panel inspector) so that
+-- debug UIs can offer the same "hover to see the trace, press 1..9 to jump to that frame"
+-- affordance, via dmhub.OpenModFileAtLine.
+--
+-- DMHub Lua chunks are loaded with a chunkname of "ModName : FileName", so tracebacks look
+-- like:
+--     [string "Draw Steel V : HeroesPanel"]:1304: in function ...
+-- where the mod/file segment lives between the quotes and the line number is the integer
+-- after the closing quote+bracket. Spaces around the inner colon are tolerated (and stripped).
+--
+-- Input:  any string, typically debug.traceback() output.
+-- Output: a table with:
+--           .decorated : the trace with each `[string "` rewritten to `[N string "` so the
+--                        user can visually associate each frame with a number key.
+--           .frames    : array (1-based) of { mod = string, file = string, line = number }
+--                        up to 9 entries. Index is the number the user presses.
+function FormatTracebackForDebug(trace)
+    local result = { decorated = trace, frames = {} }
+    if type(trace) ~= "string" or trace == "" then
+        return result
+    end
+
+    local function trim(s) return (s:match("^%s*(.-)%s*$")) end
+
+    local decoratedParts = {}
+    local cursor = 1
+    local n = 1
+
+    while true do
+        -- Find the next `[string "IDENT"]:LINE` header. IDENT is everything up to the
+        -- next closing quote; LINE is the digits after `]:`.
+        local headStart, quoteEnd, ident, line = string.find(trace, '%[string "([^"]*)"%]:(%d+)', cursor)
+        if headStart == nil then
+            decoratedParts[#decoratedParts + 1] = string.sub(trace, cursor)
+            break
+        end
+
+        -- Emit everything up to the match verbatim.
+        decoratedParts[#decoratedParts + 1] = string.sub(trace, cursor, headStart - 1)
+
+        local colonPos = string.find(ident, ":", 1, true)
+        local modName = colonPos and trim(string.sub(ident, 1, colonPos - 1)) or nil
+        local fileName = colonPos and trim(string.sub(ident, colonPos + 1)) or nil
+        local lineNum = tonumber(line)
+
+        if modName and fileName and lineNum and modName ~= "" and fileName ~= "" and n <= 9 then
+            result.frames[n] = { mod = modName, file = fileName, line = lineNum }
+            -- Rewrite: `[string "IDENT"]:LINE` -> `[N] [string "IDENT"]:LINE`
+            decoratedParts[#decoratedParts + 1] = string.format('[%d] [string "%s"]:%d', n, ident, lineNum)
+            n = n + 1
+        else
+            -- Couldn't parse cleanly; leave verbatim.
+            decoratedParts[#decoratedParts + 1] = string.sub(trace, headStart, quoteEnd)
+        end
+
+        cursor = quoteEnd + 1
+    end
+
+    result.decorated = table.concat(decoratedParts)
+    return result
+end
+
+-- Given a parsed traceback (output of FormatTracebackForDebug), open frame N (1-based) in
+-- the user's default editor. Returns true if the open request was issued.
+-- Tolerant of older DMHub builds that don't yet have dmhub.OpenModFileAtLine: prints a
+-- helpful message and returns false instead of raising a nil-call error.
+function OpenTracebackFrame(parsed, n)
+    if type(parsed) ~= "table" or type(parsed.frames) ~= "table" then return false end
+    local f = parsed.frames[n]
+    if f == nil then
+        print(string.format("OpenTracebackFrame: no frame #%d (have %d)", n, #parsed.frames))
+        return false
+    end
+    if type(dmhub.OpenModFileAtLine) ~= "function" then
+        print("OpenTracebackFrame: dmhub.OpenModFileAtLine is missing -- requires a C# rebuild.")
+        return false
+    end
+    local ok = dmhub.OpenModFileAtLine(f.mod, f.file, f.line)
+    print(string.format("OpenTracebackFrame: #%d %s/%s:%d -> %s",
+        n, tostring(f.mod), tostring(f.file), f.line, tostring(ok)))
+    return ok == true
 end

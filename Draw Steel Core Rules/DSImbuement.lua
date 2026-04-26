@@ -11,6 +11,22 @@
 --- Represents an imbuement: a magical enhancement that can be applied to a mundane item.
 DSImbuement = RegisterGameType("DSImbuement")
 
+DSImbuement.ArmorGuids = {
+    [1] = "8670dc44-3c60-4c40-9e23-ebbbe378fea2",
+    [5] = "5e404a72-9492-4d84-b5d0-bf4e4653e94c",
+    [9] = "f27d7287-7ce2-49e8-a5f4-0c35c8899199",
+}
+DSImbuement.ImplementGuids = {
+    [1] = "d05c3df7-756e-40af-bd63-d69b4bfac4b8",
+    [5] = "c070e277-c31b-45b1-8c8c-d2338a953195",
+    [9] = "0937e1d1-094e-4576-95d7-d987f16b6943",
+}
+DSImbuement.WeaponGuids = {
+    [1] = "ceb20ee5-1a3f-4c9f-8f17-648554caceeb",
+    [5] = "afed5ebd-ac56-47fe-9707-3628d4cfa442",
+    [9] = "60cdc48d-3ffc-4922-b3f9-a9afbbc2d1db",
+}
+
 DSImbuement.imbueReplacesPrereq = false
 
 --- Create a unique mundane item to be imbued
@@ -89,6 +105,128 @@ function DSImbuement.CanImbue(imbueItem, targetItem)
     return imbuements[prereq] == true
 end
 
+--- Add the core damage bonus by level to a weapon imbuement
+--- @param imbueItem equipment
+--- @return nil
+function DSImbuement.AddDamageToWeapon(imbueItem)
+    local itemLevel = imbueItem:try_get("imbueLevel", 1)
+    local damageByLevel = { [1] = 1, [5] = 2, [9] = 3 }
+    local damage = damageByLevel[itemLevel] or damageByLevel[1]
+    local sourceGuid = DSImbuement.WeaponGuids[itemLevel]
+    if sourceGuid == nil then return end
+    for _,existing in ipairs(imbueItem:try_get("features", {})) do
+        if existing.guid == sourceGuid then
+            return
+        end
+    end
+    local f = CharacterFeature.new{
+        addText = "Add Magical Property",
+        description = "",
+        guid = sourceGuid,
+        source = "Item",
+        itemAttached = true,
+        modifiers = {},
+        name = "Imbued Weapon",
+    }
+    f.modifiers[#f.modifiers+1] = CharacterModifier.new{
+        activationAfterRoll = false,
+        activationCondition = "1",
+        displayCondition = "Ability.Has Rolled Damage",
+        behavior = "power",
+        damageModifier = damage,
+        description = "A weapon imbued with an enhancement grants you special benefits while it is wielded. Additionally, when a weapon receives its 1st-level enhancement, it grants your weapon abilities that deal rolled damage a +1 damage bonus. A 5th-level enhancement increases the damage bonus to +2, and a 9th-level enhancement increases it to +3.",
+        guid = dmhub.GenerateGuid(),
+        keywords = {
+            Weapon = true,
+        },
+        modtype = "none",
+        name = "Imbued Weapon",
+        rollType = "ability_power_roll",
+        source = "Item",
+        sourceguid = sourceGuid,
+    }
+    imbueItem.features[#imbueItem.features+1] = f
+end
+
+--- Add the core damage bonus by level to an implement imbuement
+--- @param imbueItem equipment
+--- @return nil
+function DSImbuement.AddDamageToImplement(imbueItem)
+    local itemLevel = imbueItem:try_get("imbueLevel", 1)
+    local damageByLevel = { [1] = 1, [5] = 2, [9] = 3 }
+    local damage = damageByLevel[itemLevel] or damageByLevel[1]
+    local sourceGuid = DSImbuement.ImplementGuids[itemLevel]
+    if sourceGuid == nil then return end
+    for _,existing in ipairs(imbueItem:try_get("features", {})) do
+        if existing.guid == sourceGuid then
+            return
+        end
+    end
+    local f = CharacterFeature.new{
+        addText = "Add Magical Property",
+        description = "",
+        guid = sourceGuid,
+        source = "Item",
+        itemAttached = true,
+        modifiers = {},
+        name = "Imbued Implement",
+    }
+    f.modifiers[#f.modifiers+1] = CharacterModifier.new{
+        activationAfterRoll = false,
+        activationCondition = "1",
+        displayCondition = "Ability.Has Rolled Damage",
+        behavior = "power",
+        damageModifier = damage,
+        description = "An implement imbued with an enhancement grants you special benefits while it is wielded. Additionally, when an implement receives its 1st-level enhancement, it grants your magic or psionic abilities that deal rolled damage a +1 damage bonus. A 5th-level enhancement increases the bonus to +2, and a 9th-level enhancement increases it to +3. Censors, conduits, elementalists, nulls, talents, and troubadours benefit from using implements more than the other classes in this book.",
+        filterCondition = '',
+        guid = dmhub.GenerateGuid(),
+        keywords = {Magic = true, Psionic = true},
+        matchAnyKeywords = true,
+        modtype = "none",
+        name = "Imbued Implement",
+        rollType = "ability_power_roll",
+        source = "Item",
+        sourceguid = sourceGuid,
+    }
+    imbueItem.features[#imbueItem.features+1] = f
+end
+
+--- Add the core stamina bonus by level to an armor imbuement
+--- @param imbueItem equipment
+--- @return nil
+function DSImbuement.AddStaminaToArmor(imbueItem)
+    local itemLevel = imbueItem:try_get("imbueLevel", 1)
+    local staminaByLevel = { [1] = 6, [5] = 12, [9] = 21 }
+    local stamina = staminaByLevel[itemLevel] or staminaByLevel[1]
+    local sourceGuid = DSImbuement.ArmorGuids[itemLevel]
+    if sourceGuid == nil then return end
+    for _,existing in ipairs(imbueItem:try_get("features", {})) do
+        if existing.guid == sourceGuid then
+            return
+        end
+    end
+    local f = CharacterFeature.new{
+        addText = "Add Magical Property",
+        itemAttached = true,
+        description = "",
+        name = "Imbued Armor",
+        guid = sourceGuid,
+        source = "Item",
+        modifiers = {},
+    }
+    f.modifiers[#f.modifiers+1] = CharacterModifier.new{
+        value = stamina,
+        sourceguid = sourceGuid,
+        source = "Item",
+        name = "Imbued Armor",
+        description = "",
+        behavior = "attribute",
+        guid = dmhub.GenerateGuid(),
+        attribute = "hitpoints"
+    }
+    imbueItem.features[#imbueItem.features+1] = f
+end
+
 --- Imbue an item
 --- @param imbueItem equipment
 --- @param targetItem equipment
@@ -149,6 +287,36 @@ function DSImbuement.ImbueItem(imbueItem, targetItem)
             _removeImbuementFromItem(targetItem, chainId, imbuements)
         end
         removeChain(prereq)
+    end
+
+    -- Strip any lower-tier core feature (identified by the target-type guid
+    -- table) from the target, then add the tier-appropriate core feature to
+    -- the imbueItem so it gets copied over in the features loop below.
+    local targetType = imbueItem:try_get("imbueTargetType")
+    local coreGuidTable = ({
+        armor = DSImbuement.ArmorGuids,
+        implement = DSImbuement.ImplementGuids,
+        weapon = DSImbuement.WeaponGuids,
+    })[targetType]
+    if coreGuidTable then
+        local targetFeatures = targetItem:try_get("features", {})
+        for lowerLevel, lowerGuid in pairs(coreGuidTable) do
+            if lowerLevel < imbueLevel then
+                for i = #targetFeatures, 1, -1 do
+                    if targetFeatures[i].guid == lowerGuid then
+                        table.remove(targetFeatures, i)
+                    end
+                end
+            end
+        end
+    end
+
+    if targetType == "armor" then
+        DSImbuement.AddStaminaToArmor(imbueItem)
+    elseif targetType == "implement" then
+        DSImbuement.AddDamageToImplement(imbueItem)
+    elseif targetType == "weapon" then
+        DSImbuement.AddDamageToWeapon(imbueItem)
     end
 
     -- Apply the imbuement's features

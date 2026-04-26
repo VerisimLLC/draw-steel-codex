@@ -1,5 +1,11 @@
 local mod = dmhub.GetModLoading()
 
+local g_devInventorySetting = setting{
+    id = "devinventory",
+    default = false,
+    storage = "preference",
+}
+
 local function CreateCodexMenuItem(args)
     local iconPanel
 
@@ -182,6 +188,15 @@ local function CreatePresentationBar()
     return resultPanel
 end
 
+local g_showStatusBarSetting = setting{
+    id = "showstatusbar",
+    description = "Show status bar",
+    editor = "check",
+    default = true,
+    storage = "preference",
+    section = "General",
+}
+
 local function CreateStatusBar()
     local resultPanel
 
@@ -191,14 +206,36 @@ local function CreateStatusBar()
         width = 600,
         halign = "right",
 
+        rightClick = function(element)
+            local menuItems = {
+                {
+                    text = "Show Status Bar",
+                    check = g_showStatusBarSetting:Get(),
+                    click = function()
+                        g_showStatusBarSetting:Set(not g_showStatusBarSetting:Get())
+                        element.popup = nil
+                    end,
+                },
+            }
+
+            element.popup = gui.ContextMenu{
+                entries = menuItems,
+            }
+        end,
+
         gui.Label{
             fontSize = 14,
             minFontSize = 10,
-            width = 100,
+            width = 160,
             height = "100%",
             color = "#aaaaaa",
             text = "Ready",
-            thinkTime = 0.01,
+            multimonitor = {"showstatusbar"},
+            monitor = function(element)
+                element.thinkTime = cond(g_showStatusBarSetting:Get(), 0.01, nil)
+                element.text = ""
+            end,
+            thinkTime = cond(g_showStatusBarSetting:Get(), 0.01, nil),
             think = function(element)
                 if (not dmhub.inGame) or dmhub.isLobbyGame then
                     element.text = ""
@@ -214,10 +251,73 @@ local function CreateStatusBar()
                 end
 
                 if writeCount > 0 then
-                    element.text = string.format("%s (%d)", text, writeCount)
+                    text = string.format("%s (%d)", text, writeCount)
+                end
+
+                local seq = dmhub.durableObjectSeq
+                if seq and seq > 0 then
+                    element.text = string.format("%s  seq:%d", text, seq)
                 else
                     element.text = text
                 end
+            end,
+            click = function(element)
+                local history = dmhub:GetDurableObjectSeqHistory() or {}
+                local lines = {}
+                if #history == 0 then
+                    lines[1] = "(no seq-tagged messages received yet)"
+                else
+                    for i = #history, 1, -1 do
+                        lines[#lines+1] = history[i]
+                    end
+                end
+
+                gamehud:ModalDialog{
+                    title = string.format("DO Message History (latest seq: %d)", dmhub.durableObjectSeq or 0),
+                    width = 600,
+                    height = 500,
+                    flow = "vertical",
+                    halign = "center",
+                    valign = "top",
+                    gui.Label{
+                        width = "95%",
+                        height = "auto",
+                        halign = "center",
+                        valign = "top",
+                        fontSize = 14,
+                        color = "white",
+                        text = "Most recent at top. Inbound lines start with a seq number;\noutbound lines to the game store start with '>>'. Acks include\nthe round-trip time in milliseconds.",
+                        vmargin = 4,
+                    },
+                    gui.Panel{
+                        width = "95%",
+                        height = "100%-80",
+                        halign = "center",
+                        flow = "vertical",
+                        vscroll = true,
+                        styles = {
+                            {
+                                selectors = {"label"},
+                                width = "100%",
+                                height = "auto",
+                                fontSize = 14,
+                                color = "#dddddd",
+                                halign = "left",
+                                vmargin = 1,
+                            },
+                        },
+                        children = (function()
+                            local result = {}
+                            for _, line in ipairs(lines) do
+                                result[#result+1] = gui.Label{ text = line }
+                            end
+                            return result
+                        end)(),
+                    },
+                    buttons = {
+                        { text = "Close", escapeActivates = true },
+                    },
+                }
             end,
         },
 
@@ -228,7 +328,12 @@ local function CreateStatusBar()
             height = "100%",
             color = "#aaaaaa",
             text = "",
-            thinkTime = 0.1,
+            multimonitor = {"showstatusbar"},
+            monitor = function(element)
+                element.thinkTime = cond(g_showStatusBarSetting:Get(), 0.1, nil)
+                element.text = ""
+            end,
+            thinkTime = cond(g_showStatusBarSetting:Get(), 0.1, nil),
             think = function(element)
                 if (not dmhub.inGame) or dmhub.isLobbyGame then
                     element.text = ""
@@ -753,6 +858,7 @@ local function CreateTopBar()
 
     g_adventureDocumentsBar = m_adventureDocumentsBar
 
+    local g_bugReportLink = "https://discord.gg/x2yEdNFmUB"
 
     local menuBar = gui.Panel{
         id = "menuBarPanel",
@@ -794,7 +900,7 @@ local function CreateTopBar()
             icon = "ui-icons/codex-logo.png",
             mainmenu = true,
             menuItems = function()
-			    return {
+                local items = {
                     {
                         text = "Settings",
                         icon = "panels/hud/gear.png",
@@ -802,14 +908,38 @@ local function CreateTopBar()
                             dmhub.ShowPlayerSettings()
                         end,
                     },
-                    {
-                        text = "Quit to Desktop",
-                        icon = "game-icons/power-button.png",
-                        click = function()
-                            dmhub.QuitApplication()
-                        end,
-                    },
                 }
+
+                if g_devInventorySetting:Get() then
+                    items[#items+1] = {
+                        text = "Shop",
+                        icon = "icons/icon_shopping/shopping-cart.png",
+                        click = function()
+                            if CodexTitlescreenRoot ~= nil then
+                                CodexTitlescreenRoot:AddChild(CreateShopScreen{ titlescreen = CodexTitlescreenRoot })
+                            end
+                        end,
+                    }
+                    items[#items+1] = {
+                        text = "Inventory",
+                        icon = "ui-icons/gift-icon.png",
+                        click = function()
+                            if CodexTitlescreenRoot ~= nil then
+                                CodexTitlescreenRoot:AddChild(CreateShopScreen{ titlescreen = CodexTitlescreenRoot, inventory = true })
+                            end
+                        end,
+                    }
+                end
+
+                items[#items+1] = {
+                    text = "Quit to Desktop",
+                    icon = "game-icons/power-button.png",
+                    click = function()
+                        dmhub.QuitApplication()
+                    end,
+                }
+
+                return items
             end,
         },
 
@@ -917,6 +1047,156 @@ local function CreateTopBar()
                     end
                 end
                 return menuItems
+            end,
+        },
+
+        CreateCodexMenuItem{
+            name = "Bug Reports",
+            menuItems = function()
+                return {
+                    {
+                        text = "How to Report a Bug",
+                        click = function()
+                            gamehud:ModalDialog{
+                                title = "Reporting Bugs",
+                                gui.Panel{
+                                    width = 900,
+                                    height = 500,
+                                    vscroll = true,
+                                    flow = "vertical",
+
+                                    gui.Label{
+                                        width = 860,
+                                        height = "auto",
+                                        fontSize = 20,
+                                        bold = true,
+                                        color = Styles.textColor,
+                                        textWrap = true,
+                                        text = "<b>You will be sent to the Draw Steel Codex Discord where you can report bugs.</b>",
+                                        vmargin = 10,
+                                    },
+
+                                    gui.Label{
+                                        width = 860,
+                                        height = "auto",
+                                        fontSize = 15,
+                                        color = Styles.textColor,
+                                        textWrap = true,
+                                        text = "When you encounter a bug, please follow these steps to make your report as helpful as possible:",
+                                        tmargin = 4,
+                                        bmargin = 8,
+                                    },
+
+                                    gui.Label{
+                                        width = 840,
+                                        height = "auto",
+                                        fontSize = 15,
+                                        color = Styles.textColor,
+                                        textWrap = true,
+                                        lmargin = 16,
+                                        vmargin = 4,
+                                        text = "- Post each bug as a <b>separate post</b> in the #bug-reports channel (click Proceed to go there). This allows us to triage bugs and ensures they are tracked until fixed.",
+                                    },
+
+                                    gui.Label{
+                                        width = 840,
+                                        height = "auto",
+                                        fontSize = 15,
+                                        color = Styles.textColor,
+                                        textWrap = true,
+                                        lmargin = 16,
+                                        vmargin = 4,
+                                        text = "- Check if you can <b>consistently reproduce</b> the bug. If so, post an exact set of steps to reproduce it.",
+                                    },
+
+                                    gui.Label{
+                                        width = 840,
+                                        height = "auto",
+                                        fontSize = 15,
+                                        color = Styles.textColor,
+                                        textWrap = true,
+                                        lmargin = 16,
+                                        vmargin = 4,
+                                        text = "- Consider posting a video demonstrating the bug for added clarity.",
+                                    },
+
+                                    gui.Label{
+                                        width = 840,
+                                        height = "auto",
+                                        fontSize = 15,
+                                        color = Styles.textColor,
+                                        textWrap = true,
+                                        lmargin = 16,
+                                        vmargin = 4,
+                                        text = "- If a bug occurs, immediately press <b>~</b> (tilde) to open the Codex error log. Include any error message with your report -- a screenshot is usually sufficient and makes the full log file unnecessary.",
+                                    },
+
+                                    gui.Label{
+                                        width = 840,
+                                        height = "auto",
+                                        fontSize = 15,
+                                        color = Styles.textColor,
+                                        textWrap = true,
+                                        lmargin = 16,
+                                        vmargin = 4,
+                                        text = "- The Codex log file is at <b>C:\\Users\\(your username)\\AppData\\LocalLow\\MCDM\\Codex</b> on Windows (press <b>F1</b> in the Codex to open it in Notepad). On Mac it is at <b>Library/Logs/MCDM/Codex/Player.log</b>. The log can be zipped to reduce size. Note it contains a small amount of personal data, so you may prefer to send it privately to a developer.",
+                                    },
+
+                                    gui.Label{
+                                        width = 840,
+                                        height = "auto",
+                                        fontSize = 15,
+                                        color = Styles.textColor,
+                                        textWrap = true,
+                                        lmargin = 16,
+                                        vmargin = 4,
+                                        text = "- If a bug seems specific to one game, post the <b>game invite code</b>. Doing so implicitly gives permission for Codex developers to enter your game to investigate.",
+                                    },
+
+                                    gui.Label{
+                                        width = 840,
+                                        height = "auto",
+                                        fontSize = 15,
+                                        color = Styles.textColor,
+                                        textWrap = true,
+                                        lmargin = 16,
+                                        vmargin = 4,
+                                        text = "- Please check back on your bug reports in case a developer asks for additional information.",
+                                    },
+
+                                    gui.Label{
+                                        width = 840,
+                                        height = "auto",
+                                        fontSize = 15,
+                                        color = Styles.textColor,
+                                        textWrap = true,
+                                        lmargin = 16,
+                                        vmargin = 4,
+                                        text = "- After a bug is resolved, please re-test and reply to confirm whether it is fixed. If not, include the version number you tested with so we can confirm you received the update.",
+                                    },
+                                },
+                                buttons = {
+                                    {
+                                        text = "Proceed",
+                                        click = function()
+                                            dmhub.OpenURL(g_bugReportLink)
+                                        end,
+                                    },
+                                    {
+                                        text = "Copy Link",
+                                        click = function()
+                                            dmhub.CopyToClipboard(g_bugReportLink)
+                                        end,
+                                    },
+                                    {
+                                        text = "Close",
+                                        escapeActivates = true,
+                                    },
+                                },
+                            }
+                        end,
+                    },
+                }
             end,
         },
 

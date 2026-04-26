@@ -871,7 +871,7 @@ local function CreateReadOnlyRollInfo(shareData)
             height = 166 * 0.8,
             width = 33 * 0.8,
             bgimage = ActivatedAbility.TabBGImage(),
-            bgcolor = "white",
+            bgcolor = Styles.Gold03,
             rollDiceSettled = function(element)
                 element:SetClass("results", true)
             end,
@@ -1107,7 +1107,7 @@ function GameHud:InitAbilityDisplayPanel(abilityDisplayPanel)
         flow = "vertical",
         interactable = false,
 
-        showAbility = function(element, token, ability, symbols)
+        showAbility = function(element, token, ability, symbols, displayOptions)
             g_displayedAbility = ability
 
             -- Hide the remote display while a local ability is shown.
@@ -1122,36 +1122,47 @@ function GameHud:InitAbilityDisplayPanel(abilityDisplayPanel)
             -- that the ability is being actively used (targeting has
             -- begun) rather than just previewed on hover.
 
+            displayOptions = displayOptions or {}
+
             local panel
 
             local needParent = true
 
-            if ability.typeName == "ActiveTrigger" then
-                local triggerInfo = token.properties:GetTriggeredActionInfo(ability:GetText())
-                if triggerInfo ~= nil then
-                    panel = triggerInfo:Render { width = 340, valign = "center" }
-                    panel:SetClass("hidden", false)
-                    panel:SetClass("collapsed", false)
-                end
-            elseif ability.typeName == "TriggeredAbilityDisplay" then
-                panel = ability:Render { width = 340, valign = "center" }
-            else
-
-                if ability.categorization == "Trigger" then
+            if not displayOptions.renderAsAbility then
+                if ability.typeName == "ActiveTrigger" then
+                    local triggerInfo = token.properties:GetTriggeredActionInfo(ability:GetText())
+                    if triggerInfo ~= nil then
+                        panel = triggerInfo:Render { width = 340, valign = "center" }
+                        panel:SetClass("hidden", false)
+                        panel:SetClass("collapsed", false)
+                    else
+                        --cannot render an active trigger without a display.
+                        return
+                    end
+                elseif ability.typeName == "TriggeredAbilityDisplay" then
+                    panel = ability:Render { width = 340, valign = "center" }
+                elseif ability.categorization == "Trigger" then
                     local triggerInfo = token.properties:GetTriggeredActionInfo(ability.name)
                     if triggerInfo ~= nil then
                         panel = triggerInfo:Render { width = 340, valign = "center", token = token, ability = ability, symbols = symbols }
                     end
                 end
+            end
 
+            if panel == nil and ability.typeName ~= "ActiveTrigger" then
+                needParent = false
+                panel = CreateAbilityTooltip(ability:GetActiveVariation(token),
+                    { token = token, symbols = symbols, width = 346, bgcolor = "#222222e9", })
                 if panel == nil then
-                    needParent = false
-                    panel = CreateAbilityTooltip(ability:GetActiveVariation(token),
-                        { token = token, symbols = symbols, width = 346, bgcolor = "#222222e9", })
-                    --Shwayguy: Entire panel cannot be made non-interactive
-                    --Implementation chip hover requires it                    
-                    panel:MakeNonInteractiveRecursive()
+                    return
                 end
+                --Shwayguy: Entire panel cannot be made non-interactive
+                --Implementation chip hover requires it
+                panel:MakeNonInteractiveRecursive()
+            end
+
+            if panel == nil then
+                return
             end
 
             if needParent then
@@ -1304,7 +1315,11 @@ function CharacterPanel.DisplayAbility(token, ability, symbols, options)
         panel.children = {}
     end
 
-    panel:FireEventTree("showAbility", token, ability, symbols)
+    local displayOptions = {}
+    if options.renderAsAbility then
+        displayOptions.renderAsAbility = true
+    end
+    panel:FireEventTree("showAbility", token, ability, symbols, displayOptions)
 
     if options.lock then
         g_abilityLocked = true

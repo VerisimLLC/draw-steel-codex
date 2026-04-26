@@ -5048,8 +5048,8 @@ function CharSheet.ActionsPanel()
 										gui.Panel{
 											classes = {"abilityIconIcon"},
 											refreshToken = function(element, info)
-												element.bgimage = attackAbilities[i].iconid
-												element.selfStyle = attackAbilities[i].display
+												element.bgimage = attackAbilities[i]:GetIcon()
+												element.selfStyle = attackAbilities[i]:GetIconDisplay()
 											end,
 										},
 										gui.PrettyBorder{ width = 9 },

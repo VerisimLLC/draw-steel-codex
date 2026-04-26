@@ -10,10 +10,6 @@ function character:KitID()
 end
 
 function character:Kit()
-	if not self:CanHaveKits() then
-		return nil
-	end
-
 	local table = GetTableCached(Kit.tableName)
 	local kit = table[self:KitID()]
 	if kit ~= nil then
@@ -65,11 +61,6 @@ function character:GetClassFeatures(options)
         culture:FillClassFeatures(self:GetLevelChoices(), result)
     end
 
-	local kit = self:Kit()
-	if kit ~= nil then
-		kit:FillClassFeatures(self, levelChoices, result)
-	end
-
 	for i,entry in ipairs(self:GetClassesAndSubClasses()) do
 		if i == 1 then
 			result[#result+1] = entry.class:GetPrimaryFeature()
@@ -94,6 +85,26 @@ function character:GetClassFeatures(options)
 		local featInfo = featTable[featid]
 		if featInfo ~= nil then
 			featInfo:FillClassFeatures(levelChoices, result)
+		end
+	end
+
+	-- Kit features are gathered last so we can check whether any prior feature
+	-- grants kit access.
+	local hasKitAccess = false
+	for _,feature in ipairs(result) do
+		for _,m in ipairs(feature.modifiers) do
+			if m.behavior == "kitaccess" and m.kitType ~= "none" then
+				hasKitAccess = true
+				break
+			end
+		end
+		if hasKitAccess then break end
+	end
+
+	if hasKitAccess then
+		local kit = self:Kit()
+		if kit ~= nil then
+			kit:FillClassFeatures(self, levelChoices, result)
 		end
 	end
 

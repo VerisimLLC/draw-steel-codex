@@ -746,7 +746,7 @@ function monster:Render(args, options)
                     if feature.description ~= "" then
                         children[#children+1] = gui.Label{
                             vmargin = 10,
-                            text = string.format("<b>%s:</b> <i>%s</i>", feature.name, feature.description)
+                            text = string.format("<b>%s:</b> <i>%s</i>", feature.name, StringInterpolateGoblinScript(feature.description, self))
                         }
                     end
                 end
@@ -755,7 +755,7 @@ function monster:Render(args, options)
                     if feature.description ~= "" then
                         children[#children+1] = gui.Label{
                             vmargin = 10,
-                            text = string.format("<b>%s:</b> <i>%s</i>", feature.name, feature.description)
+                            text = string.format("<b>%s:</b> <i>%s</i>", feature.name, StringInterpolateGoblinScript(feature.description, self))
                         }
                     end
                 end
@@ -763,7 +763,7 @@ function monster:Render(args, options)
 				for _,note in ipairs(self:try_get("notes", {})) do
 					children[#children+1] = gui.Label{
 						vmargin = 10,
-						text = string.format("<b>%s:</b> <i>%s</i>", note.title, note.text)
+						text = string.format("<b>%s:</b> <i>%s</i>", note.title, StringInterpolateGoblinScript(note.text, self))
 					}
 				end
 

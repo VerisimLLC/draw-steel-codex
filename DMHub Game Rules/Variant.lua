@@ -752,6 +752,7 @@ local ShowChoiceDialog = function(argOptions)
 								end,
 								hover = option.hover,
 								search = function(element, terms)
+									if option == nil then return end
 									if terms == nil then
 										element:SetClass("collapsed", false)
 										return

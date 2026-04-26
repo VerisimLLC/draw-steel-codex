@@ -1,19 +1,19 @@
 local mod = dmhub.GetModLoading()
 
 --- @class CharacterCondition:CharacterFeature
---- @field name string Display name of the condition.
---- @field description string Rules text shown to players.
---- @field tableName string Name of the data table this condition is stored in ("charConditions").
---- @field ridersTableName string Name of the table for condition riders ("conditionRiders").
---- @field emoji string Emoji id shown in the UI ("none" if unused).
---- @field immunityPossible boolean If true, creatures can be immune to this condition.
---- @field trackCaster boolean If true, the caster who applied this condition is tracked.
---- @field source string Source label (e.g. "Condition").
---- @field stackable boolean If true, multiple stacks of this condition can be applied.
---- @field powertable boolean If true, the condition stores a power table for tiered effects.
---- @field indefiniteDuration boolean If true, the condition persists until manually removed.
---- @field showInMenus boolean If true, this condition appears in UI menus.
---- @field sustainFormula string GoblinScript formula evaluated each turn to sustain the condition.
+--- @field name nil|string Display name of the condition. Class default "New Condition" applies when absent.
+--- @field description nil|string Rules text shown to players. Class default "" applies when absent.
+--- @field tableName nil|string Name of the data table this condition is stored in ("charConditions"). Class-level default; often absent on serialized instances.
+--- @field ridersTableName nil|string Name of the table for condition riders ("conditionRiders"). Class-level default; often absent on serialized instances.
+--- @field emoji nil|string Emoji id shown in the UI ("none" if unused). Class default "none" applies when absent.
+--- @field immunityPossible nil|boolean If true, creatures can be immune to this condition. Often absent (defaults to false).
+--- @field trackCaster nil|boolean If true, the caster who applied this condition is tracked. Often absent (defaults to false).
+--- @field source nil|string Source label (e.g. "Condition"). Class-level default; often absent on serialized instances.
+--- @field stackable nil|boolean If true, multiple stacks of this condition can be applied. Often absent (defaults to false).
+--- @field powertable nil|boolean If true, the condition stores a power table for tiered effects. Often absent (defaults to false).
+--- @field indefiniteDuration nil|boolean If true, the condition persists until manually removed. Often absent (defaults to false).
+--- @field showInMenus nil|boolean If true, this condition appears in UI menus. Often absent (defaults to true).
+--- @field sustainFormula nil|string|number|table GoblinScript formula evaluated each turn to sustain the condition. Often absent (defaults to "").
 CharacterCondition = RegisterGameType("CharacterCondition", "CharacterFeature")
 
 CharacterCondition.name = "New Condition"

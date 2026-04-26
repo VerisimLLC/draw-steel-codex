@@ -933,6 +933,7 @@ local function CreateEditAbilityEffectsPanel(tableName)
             setdata = function(element, item)
                 element.children = {
                     item:GenerateEditor{
+                        embedded = true,
                     }
                 }
             end,

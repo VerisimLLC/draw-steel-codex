@@ -2,7 +2,7 @@ local mod = dmhub.GetModLoading()
 
 --- @class ActivatedAbilityReplenishBehavior:ActivatedAbilityBehavior
 --- @field resourceid string Id of the CharacterResource to replenish.
---- @field quantity nil|number Amount to restore; nil means restore to full.
+--- @field quantity nil|number|string|table Amount to restore; nil means restore to full.
 --- Behavior that replenishes a resource (such as hit points, spell slots, or action points) on the target.
 ActivatedAbilityReplenishBehavior = RegisterGameType("ActivatedAbilityReplenishBehavior", "ActivatedAbilityBehavior")
 
@@ -187,7 +187,7 @@ function ActivatedAbilityReplenishBehavior:Cast(ability, casterToken, targets, o
         if existingEmbedded ~= nil then
             dialog = existingEmbedded
         else
-            local displayed = CharacterPanel.DisplayAbility(casterToken, ability, options.symbols, {lock = true})
+            local displayed = CharacterPanel.DisplayAbility(casterToken, ability, options.symbols, {lock = true, renderAsAbility = true})
             if displayed then
                 options.OnFinishCastHandlers = options.OnFinishCastHandlers or {}
                 options.OnFinishCastHandlers[#options.OnFinishCastHandlers+1] = function()
@@ -567,6 +567,11 @@ function ActivatedAbilityReplenishBehavior:Cast(ability, casterToken, targets, o
 
                         for resourceid,quantity in pairs(resourceidToQuantity) do
                             local resourceInfo = resourceTable[resourceid]
+                            if resourceInfo == nil then
+                                dmhub.CloudError(string.format("AbilityReplenish: no resourceInfo for resourceid=%s ability=%s mode=%s quantity=%s",
+                                    tostring(resourceid), tostring(ability and ability.name), tostring(self.mode), tostring(quantity)))
+                                goto continue
+                            end
                             if self.mode == "replenish" then
 
                                 if not self:try_get("chatonly", false) then
@@ -589,6 +594,7 @@ function ActivatedAbilityReplenishBehavior:Cast(ability, casterToken, targets, o
                                 end
 
                             end
+                            ::continue::
                         end
 
                     end,

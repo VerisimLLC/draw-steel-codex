@@ -54,8 +54,9 @@ end
 
 function CharacterTitleChoice:GetStatus()
     return {
-        numChoices = math.max(self.numSelected, 1),
+        numChoices = self.numSelected,
         selected = self.numSelected,
+        excludeFromTotals = true,
     }
 end
 

@@ -21,7 +21,7 @@ end
 local g_activeRoll = nil
 local g_activeRollArgs = nil
 
-local g_timelineHighlightColor = "#6666ff"
+local g_timelineHighlightColor = Styles.Gold03
 
 local g_settingTriggerDelay = setting{
     id = "rolltriggerdelay",
@@ -50,6 +50,10 @@ setting {
         {
             value = "dm",
             text = cond(dmhub.isDM, "Visible to GM only", "Visible to you and GM"),
+        },
+        {
+            value = "dicetower",
+            text = "Dice Tower (Result visible to GM only)",
         }
     }
 }
@@ -71,6 +75,10 @@ local g_rollOptionsDM = {
         id = "dm",
         text = "Visible to GM only",
     },
+    {
+        id = "dicetower",
+        text = "Dice Tower",
+    },
 }
 
 local g_rollOptionsPlayer = {
@@ -81,6 +89,10 @@ local g_rollOptionsPlayer = {
     {
         id = "dm",
         text = "Visible to you and GM",
+    },
+    {
+        id = "dicetower",
+        text = "Dice Tower",
     },
 }
 
@@ -514,12 +526,6 @@ function GameHud.CreateEmbeddedRollDialog()
             brightness = 3.0,
             transitionTime = 0.2,
         },
-        {
-            selectors = {"ai"},
-            --hidden = 1,
-            y = -10000,
-            priority = 1000,
-        },
     }
 
     local ShowTargetHints
@@ -613,7 +619,7 @@ function GameHud.CreateEmbeddedRollDialog()
         height = 166*0.8,
         width = 33*0.8,
         bgimage = ActivatedAbility.TabBGImage(),
-        bgcolor = 'white',
+        bgcolor = Styles.Gold03,
 
         gui.Label{
             color = "black",
@@ -659,6 +665,33 @@ function GameHud.CreateEmbeddedRollDialog()
     end
 
 
+    -- Find the line-of-sight marker for a given target token. For normal
+    -- abilities the key is "casterId-targetId". For minion squad abilities
+    -- the source of each ray is a different squad member, so we fall back
+    -- to scanning all keys for one ending with the target's charid.
+    local function FindMarkerForTarget(casterToken, targetToken)
+        if m_options == nil or m_options.markLineOfSight == nil then
+            return nil
+        end
+
+        -- Fast path: direct caster -> target key.
+        local key = string.format("%s-%s", casterToken.charid, targetToken.charid)
+        local markers = m_options.markLineOfSight[key]
+        if markers ~= nil then
+            return markers
+        end
+
+        -- Slow path: squad targeting -- scan for any ray ending at target.
+        local suffix = "-" .. targetToken.charid
+        for k, m in pairs(m_options.markLineOfSight) do
+            if string.ends_with(k, suffix) then
+                return m
+            end
+        end
+
+        return nil
+    end
+
     -- Update the targeting arrow labels for the current target based on enabled modifiers.
     local function UpdateArrowLabelsForCurrentTarget()
         if m_options == nil or m_options.markLineOfSight == nil then
@@ -676,8 +709,7 @@ function GameHud.CreateEmbeddedRollDialog()
             return
         end
 
-        local key = string.format("%s-%s", casterToken.charid, targetToken.charid)
-        local markers = m_options.markLineOfSight[key]
+        local markers = FindMarkerForTarget(casterToken, targetToken)
         if markers == nil then
             return
         end
@@ -727,8 +759,7 @@ function GameHud.CreateEmbeddedRollDialog()
             return
         end
 
-        local key = string.format("%s-%s", casterToken.charid, target.token.charid)
-        local markers = m_options.markLineOfSight[key]
+        local markers = FindMarkerForTarget(casterToken, target.token)
         if markers == nil then
             return
         end
@@ -758,7 +789,8 @@ function GameHud.CreateEmbeddedRollDialog()
             nottierone = m_rollInfo.nottierone,
             nottierthree = m_rollInfo.nottierthree,
         }
-        local tier = (targetRollProps and targetRollProps:try_get("overrideTier"))
+        local tier = (rollProperties and rollProperties:try_get("overrideTier"))
+                     or (targetRollProps and targetRollProps:try_get("overrideTier"))
                      or RollUtils.DiceResultToTier(tierRollInfo)
 
         -- Get the power table text from this target's rollProperties.
@@ -799,6 +831,8 @@ function GameHud.CreateEmbeddedRollDialog()
 
     -- After the roll is made, replace all arrow labels with tier results.
     -- Uses each target's saved rollProperties so per-target modifiers are reflected.
+    -- For squad targeting where multiple minions attack the same target, only the
+    -- first minion's arrow gets the tier label to avoid duplicate labels.
     local function UpdateArrowLabelsWithTierResults()
         if m_options == nil or m_options.markLineOfSight == nil then
             return
@@ -812,9 +846,13 @@ function GameHud.CreateEmbeddedRollDialog()
             return
         end
 
+        local labeledTargets = {}
         for _, target in ipairs(m_multitargets) do
-            local targetRollProps = target.rollProperties or rollProperties
-            UpdateArrowLabelForTarget(casterToken, target, targetRollProps)
+            if target.token ~= nil and not labeledTargets[target.token.charid] then
+                labeledTargets[target.token.charid] = true
+                local targetRollProps = target.rollProperties or rollProperties
+                UpdateArrowLabelForTarget(casterToken, target, targetRollProps)
+            end
         end
     end
 
@@ -1301,7 +1339,7 @@ function GameHud.CreateEmbeddedRollDialog()
 
         triggerPanel = gui.Panel {
             classes = { "hideWhenMinimized", "triggerPanel", cond(dmhub.LookupTokenId(creature) == info.charid, "selftrigger", "othertrigger") },
-            width = 160,
+            width = 80,
             height = 90,
             bgimage = true,
             flow = "vertical",
@@ -1471,7 +1509,7 @@ function GameHud.CreateEmbeddedRollDialog()
         height = 166*0.8,
         width = 33*0.8,
         bgimage = ActivatedAbility.TabBGImage(),
-        bgcolor = 'white',
+        bgcolor = Styles.Gold03,
 
         gui.Label{
             color = "black",
@@ -1508,7 +1546,7 @@ function GameHud.CreateEmbeddedRollDialog()
             },
             {
                 selectors = { "triggerPanel" },
-                bgcolor = "#00000000",
+                bgcolor = Styles.RichBlack02,
             },
             {
                 selectors = { "triggerPanel", "selftrigger" },
@@ -1555,15 +1593,30 @@ function GameHud.CreateEmbeddedRollDialog()
                 return
             end
 
-            local maintarget = multitargets[GetCurrentMultiTarget()]
-            if maintarget == nil or #maintarget.triggers == 0 then
-                element:SetClass("collapsed", false)
-                return
+            -- Show triggers from every multi-target, not just the currently
+            -- selected one. "all"-multitarget triggers are deduped by modifier
+            -- guid+caster; single-target triggers are keyed by guid+caster+token
+            -- so the same modifier can appear once per (caster, target) pair.
+            local allTriggers = {}
+            local seen = {}
+            for _, target in ipairs(multitargets) do
+                for _, trigger in ipairs(target.triggers or {}) do
+                    local targetAll = (trigger.modifier:try_get("multitarget", "one") == "all")
+                    local key = trigger.modifier.guid .. (trigger.charid or "")
+                    if not targetAll then
+                        key = key .. target.token.charid
+                    end
+                    if not seen[key] then
+                        seen[key] = true
+                        allTriggers[#allTriggers + 1] = trigger
+                    end
+                end
             end
 
             element:SetClass("collapsed", false)
+
             local children = element.children
-            for i, trigger in ipairs(maintarget.triggers) do
+            for i, trigger in ipairs(allTriggers) do
                 local panel = children[i] or CreateTriggerPanel(trigger)
                 panel:FireEvent("refreshTriggerInfo", trigger)
                 children[i] = panel
@@ -1571,8 +1624,8 @@ function GameHud.CreateEmbeddedRollDialog()
 
             local visibleCount = 0
             for i = 1, #children do
-                local hidden = i > #maintarget.triggers
-                if not hidden and maintarget.triggers[i] and maintarget.triggers[i].failsRequirement then
+                local hidden = i > #allTriggers
+                if not hidden and allTriggers[i] and allTriggers[i].failsRequirement then
                     hidden = true
                 end
                 children[i]:SetClass("collapsed", hidden)
@@ -1615,7 +1668,7 @@ function GameHud.CreateEmbeddedRollDialog()
                         m_openedTriggers = {}
                     end
 
-                    local key = trigger.modifier.guid
+                    local key = trigger.modifier.guid .. (trigger.charid or "")
                     if not targetAll then
                         key = key .. target.token.charid
                     end
@@ -2006,12 +2059,13 @@ function GameHud.CreateEmbeddedRollDialog()
             {
                 selectors = { "tokenContainer" },
                 bgimage = "panels/square.png",
-                bgcolor = "#00000000",
+                bgcolor = "clear",
             },
             {
                 selectors = { "tokenContainer", "selected" },
                 bgimage = "panels/square.png",
-                bgcolor = "#ffffff18",
+                borderWidth = 1,
+                borderColor = "black",
             },
             {
                 selectors = { "tokenContainer", "hover" },
@@ -2029,6 +2083,22 @@ function GameHud.CreateEmbeddedRollDialog()
                 selectors = { "icon", "activated" },
                 bgcolor = "white",
             },
+
+            {
+                selectors = {"label"},
+                priority = 5,
+                color = "black",
+            },
+            {
+                selectors = {"label","rolling"},
+                priority = 5,
+                color = Styles.textColor,
+            },
+            {
+                selectors = {"label","finishedRolling"},
+                priority = 5,
+                color = Styles.textColor,
+            },
         },
         width = "auto",
         height = "auto",
@@ -2037,6 +2107,7 @@ function GameHud.CreateEmbeddedRollDialog()
         vscroll = true,
         halign = "center",
         valign = "top",
+        bmargin = 4,
         flow = "horizontal",
         wrap = true,
         prepare = function(element, options)
@@ -2054,7 +2125,6 @@ function GameHud.CreateEmbeddedRollDialog()
                     fontSize = 12,
                     minFontSize = 8,
                     bold = true,
-                    color = Styles.textColor,
                     width = "95%",
                     height = "auto",
                     maxHeight = 30,
@@ -2065,7 +2135,6 @@ function GameHud.CreateEmbeddedRollDialog()
                 }
                 local boonLabel = gui.Label {
                     fontSize = 10,
-                    color = cond(target.text == nil, Styles.textColor, "#9999ffff"),
                     width = "95%",
                     height = "auto",
                     halign = "center",
@@ -2140,7 +2209,7 @@ function GameHud.CreateEmbeddedRollDialog()
 
                         for k, _ in pairs(maintargetModifiers) do
                             if multitargetModifiers[k] == nil then
-                                text = text .. " <s><color=#BBBBBB>" .. k .. "</color></s>"
+                                text = text .. " <s>" .. k .. "</s>"
                             end
                         end
 
@@ -2155,7 +2224,7 @@ function GameHud.CreateEmbeddedRollDialog()
                 }
 
                 local surges = {}
-                for surgeNum = 3, 1, -1 do
+                for surgeNum = ((creature ~= nil) and creature:GetMaxSurgeCount() or 3), 1, -1 do
                     surges[#surges + 1] = gui.Panel {
                         classes = { "icon", "hideWhenMinimized" },
                         textCalculated = function(element, calculationOptions)
@@ -2189,7 +2258,9 @@ function GameHud.CreateEmbeddedRollDialog()
                 local tokenPanel = gui.Panel {
                     classes = { "tokenContainer", "hideWhenMinimized", cond(targetCreature == target.token.properties, "selected") },
                     width = 80,
-                    height = 80,
+                    minHeight = 80,
+                    maxHeight = 120,
+                    height = "auto",
                     flow = "vertical",
                     halign = "center",
 
@@ -2217,6 +2288,7 @@ function GameHud.CreateEmbeddedRollDialog()
                         gui.CreateTokenImage(target.token, {
                             halign = "center",
                             valign = "top",
+                            tmargin = 4,
                             width = 48,
                             height = 48,
                             bgcolor = "white",
@@ -2348,7 +2420,6 @@ function GameHud.CreateEmbeddedRollDialog()
 
             prepare = function(element, options)
                 element:SetClass("collapsed", not GameSystem.AllowBoonsForRoll(options))
-                m_boons = 0
 
                 if GetCurrentMultiTarget() ~= nil then
                     local index = GetCurrentMultiTarget()
@@ -2434,8 +2505,9 @@ function GameHud.CreateEmbeddedRollDialog()
                     surgesOverride = surgesOverride - 1
                 end
 
-                if surgesOverride > 3 then
-                    surgesOverride = 3
+                local maxSurges = (creature ~= nil) and creature:GetMaxSurgeCount() or 3
+                if surgesOverride > maxSurges then
+                    surgesOverride = maxSurges
                 end
 
                 local options = m_lastCalculationOptions or {}
@@ -3143,7 +3215,7 @@ function GameHud.CreateEmbeddedRollDialog()
                     height = 176*0.8,
                     width = 33*0.8,
                     bgimage = ActivatedAbility.TabBGImage(),
-                    bgcolor = 'white',
+                    bgcolor = Styles.Gold03,
 
                     gui.Label{
                         color = "black",
@@ -3525,6 +3597,16 @@ function GameHud.CreateEmbeddedRollDialog()
 
         resultPanel:FireEventTree("recalculatedMultiTargets", m_multitargets, rollProperties)
 
+        -- Now that every target's rollProperties/boons/banes have been updated
+        -- for the current modifier set, refresh all targeting-ray labels using
+        -- the fresh per-target data. Individual UpdateCurrentTargetArrowLabel
+        -- calls made during the loop above read target.boons/banes that are
+        -- written only at the end of each iteration, so the labels would
+        -- otherwise lag one modifier-toggle behind.
+        if resultPanel.valid and resultPanel:HasClass("finishedRolling") then
+            UpdateArrowLabelsWithTierResults()
+        end
+
         if needReroll then
             rollAgainButton:FireEvent("press")
             return true
@@ -3798,14 +3880,14 @@ function GameHud.CreateEmbeddedRollDialog()
                 completeRoll = options.completeRoll
                 cancelRoll = options.cancelRoll
 
+                m_boons = 0
+
                 resultPanel:FireEventTree('prepare', options)
 
                 baseRoll = options.roll
                 CalculateRollText()
 
                 RecalculateMultiTargets()
-
-                resultPanel:SetClass("ai", (creature ~= nil and creature._tmp_aicontrol > 0) or false)
 
                 if options.skipDeterministic and dmhub.IsRollDeterministic(rollInput.text) and dmhub.IsRollDeterministic(options.roll) then
                     rollIsSilent = true
@@ -3821,7 +3903,11 @@ function GameHud.CreateEmbeddedRollDialog()
                     end
 
                     --TODO: Work out why this small delay seems necessary. The dice rolls are really funky/physics is weird if we don't have it.
-                    dmhub.Schedule(0.1, function()
+                    local delay = 0.1
+                    if options.creature ~= nil and options.creature._tmp_aicontrol > 0 then
+                        --delay = 3.0
+                    end
+                    dmhub.Schedule(delay, function()
                         rollDiceButton:FireEventTree("press")
                     end)
                 elseif options.autoroll == "cancel" then
@@ -3977,7 +4063,9 @@ function GameHud.CreateEmbeddedRollDialog()
 
                 OnHide()
 
-                local dmonly = dmhub.GetSettingValue("privaterolls") == "dm"
+                local rollVisibility = dmhub.GetSettingValue("privaterolls")
+                local dmonly = rollVisibility == "dm"
+                local dicetower = rollVisibility == "dicetower"
                 local instant = false
 
                 --we must save off anything from the surrounding scope since this dialog might be reused after this.
@@ -4105,13 +4193,14 @@ function GameHud.CreateEmbeddedRollDialog()
                                 if c ~= nil then
                                     local tokenUsed = dmhub.LookupToken(c)
                                     if tokenUsed ~= nil then
+                                        local targetProperties = target.token ~= nil and target.token.properties or nil
                                         local rollSymbols
-                                        if rollProperties ~= nil then
-                                            rollSymbols = rollProperties:GetSymbols(m_rollInfo, target.token.properties)
+                                        if rollProperties ~= nil and targetProperties ~= nil then
+                                            rollSymbols = rollProperties:GetSymbols(m_rollInfo, targetProperties)
                                         end
                                         modifier:InstallSymbolsFromContext {
                                             triggerer = c:LookupSymbol {},
-                                            abilitytarget = target.token.properties:LookupSymbol {},
+                                            abilitytarget = targetProperties ~= nil and targetProperties:LookupSymbol {} or nil,
                                             abilitycaster = creatureUsed:LookupSymbol {},
                                             tier = rollSymbols,
                                         }
@@ -4218,6 +4307,7 @@ function GameHud.CreateEmbeddedRollDialog()
                     silent = rollIsSilent,
                     delay = delayRoll,
                     dmonly = dmonly,
+                    dicetower = dicetower,
                     instant = instant,
                     roll = rollInput.text,
                     creature = creature,
@@ -4379,7 +4469,7 @@ function GameHud.CreateEmbeddedRollDialog()
                             end
 
                             print("AI:: ROLL COMPLETE...")
-                            if creature ~= nil and creature._tmp_aicontrol > 0 then
+                            if (creature ~= nil and creature._tmp_aicontrol > 0) or (dicetower and not dmhub.isDM) then
                             print("AI:: ROLL PRESS PROCEED...")
                                 proceedAfterRollButton:FireEvent("press")
                             end
@@ -4410,6 +4500,7 @@ function GameHud.CreateEmbeddedRollDialog()
                         tokenid = rollArgs.tokenid,
                         properties = rollArgs.properties,
                         dmonly = rollArgs.dmonly,
+                        dicetower = rollArgs.dicetower,
                         instant = rollArgs.instant,
                         silent = rollArgs.silent,
                         delay = rollArgs.delay,

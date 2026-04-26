@@ -871,7 +871,7 @@ MCDMImporter.ParseMonsterAbility = function(bestiaryEntry, lines, knownAbilities
             import:Log(FormatImpl("Effect: Could not find implementation.", "impl"))
             hasErrors = true
 
-            newAbility.effectImplemented = false
+            newAbility.implementation = 0
         else
             --any keys we copy from the effect if they differ from the default values.
             local substituteKeys = {"targetType", "range", "numTargets"}
@@ -1518,7 +1518,7 @@ MCDMImporter.ParseCreatureAbilities = function(bestiaryEntry, inputLines, knownA
                 abilityErrors[#abilityErrors+1] = FormatStatus(effectAttr .. ": Could not find implementation for " .. effectAttr .. ".", "impl")
                 MarkAttributeError(effectAttr, "impl")
 
-                newAbility.effectImplemented = false
+                newAbility.implementation = 0
             else
                 if abilityTemplate:try_get("invokeSurroundingAbility") then
                     --we embed the newAbility within the template behavior.

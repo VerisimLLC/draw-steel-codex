@@ -3197,6 +3197,18 @@ local ShowEquipmentCategoriesPanel = function(parentPanel)
 			end,
 		}
 
+		--whether items in this category are artifacts (equip in leveled treasure slots, no project fields).
+		children[#children+1] = gui.Check{
+			text = "Is Artifact",
+			halign = "left",
+			fontSize = 22,
+			value = data:try_get("isArtifact", false),
+			change = function(element)
+				data.isArtifact = element.value
+				UploadData()
+			end,
+		}
+
 		--whether items in this category are packs of items.
 		children[#children+1] = gui.Check{
 			text = "Equipment Packs",

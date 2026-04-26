@@ -1,6 +1,7 @@
 --[[
     Ancestry detail / selectors
 ]]
+
 CBAncestryDetail = RegisterGameType("CBAncestryDetail")
 
 local mod = dmhub.GetModLoading()

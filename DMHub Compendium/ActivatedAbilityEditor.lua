@@ -62,7 +62,16 @@ ActivatedAbility.CatHelpSymbols = function(a,b)
 	return res
 end
 
-function ActivatedAbility:GenerateEditor()
+function ActivatedAbility:GenerateEditor(opts)
+
+	-- Route to the sectioned Draw Steel ability editor unless the user has
+	-- opted back into the classic editor via the "Use classic ability editor"
+	-- setting. AbilityEditor is defined in Draw Steel Ability Editor/AbilityEditor.lua
+	-- which loads after this module, so we use rawget for the lookup.
+	local abilityEditor = rawget(_G, "AbilityEditor")
+	if abilityEditor ~= nil and dmhub.GetSettingValue("classicAbilityEditor") ~= true then
+		return abilityEditor.GenerateEditor(self, opts)
+	end
 
 	local resourceOptions = {}
 	local resultPanel
@@ -877,6 +886,7 @@ function ActivatedAbility:GenerateEditor()
 					minHeight = 20,
 					textAlignment = "topleft",
 					text = self.flavor,
+                    characterLimit = 512,
 					change = function(element)
 						self.flavor = element.text
 					end,
@@ -1180,31 +1190,51 @@ function ActivatedAbility:IconEditorPanel()
 		iconColorPicker,
 	}
 
-	local appearancePanel = gui.Panel{
+    local appearancePanel
+    local customIconCheck = gui.Check{
+        value = self.hasCustomIcon,
+        text = "Custom Icon",
+        change = function(element)
+            self.hasCustomIcon = element.value
+            appearancePanel:FireEventTree("updateCustomIcon")
+        end,
+    }
+
+	appearancePanel = gui.Panel{
 		classes = {"appearance"},
 		width = "auto",
 		height = "auto",
 		flow = "vertical",
-		iconPanel,
+        customIconCheck,
         gui.Panel{
-            classes = {"formPanel"},
-            gui.Label{
-                classes = {"formLabel"},
-                text = "Gradient:",
+            classes = {cond(not self.hasCustomIcon, "collapsed-anim")},
+            flow = "vertical",
+            height = "auto",
+            width = "auto",
+            updateCustomIcon = function(element)
+                element:SetClass("collapsed-anim", not self.hasCustomIcon)
+            end,
+            iconPanel,
+            gui.Panel{
+                classes = {"formPanel"},
+                gui.Label{
+                    classes = {"formLabel"},
+                    text = "Gradient:",
+                },
+                gui.Dropdown{
+                    classes = {"formDropdown"},
+                    options = DisplayGradients.GetOptions(),
+                    idChosen = self:try_get("iconGradient", "none"),
+                    change = function(element)
+                        self.iconGradient = element.idChosen
+                        iconEditor:FireEvent('create')
+                    end,
+                }
             },
-            gui.Dropdown{
-                classes = {"formDropdown"},
-                options = DisplayGradients.GetOptions(),
-                idChosen = self:try_get("iconGradient", "none"),
-                change = function(element)
-                    self.iconGradient = element.idChosen
-					iconEditor:FireEvent('create')
-                end,
-            }
+            CreateDisplaySlider{ label = "Hue:", attr = 'hueshift', minValue = 0, maxValue = 1, },
+            CreateDisplaySlider{ label = "Saturation:", attr = 'saturation', minValue = 0, maxValue = 2, },
+            CreateDisplaySlider{ label = "Brightness:", attr = 'brightness', minValue = 0, maxValue = 2, },
         },
-		CreateDisplaySlider{ label = "Hue:", attr = 'hueshift', minValue = 0, maxValue = 1, },
-		CreateDisplaySlider{ label = "Saturation:", attr = 'saturation', minValue = 0, maxValue = 2, },
-		CreateDisplaySlider{ label = "Brightness:", attr = 'brightness', minValue = 0, maxValue = 2, },
 	}
 	
 	return appearancePanel
@@ -1683,6 +1713,13 @@ function ActivatedAbility:TargetTypeEditor()
 									},
 									subject = creature.helpSymbols,
 									subjectDescription = "The creature using the ability.",
+									symbols = {
+										subject = {
+											name = "Subject",
+											type = "creature",
+											desc = "The creature that the event occurred on. For triggered abilities this is the creature that triggered the event; for self-only triggers this is the same as Self.",
+										},
+									},
 								},
 							},
 
@@ -2147,6 +2184,17 @@ function ActivatedAbility:TargetTypeEditor()
 			end,
 		},
 
+		gui.Check{
+			classes = {cond(self:try_get("targeting") ~= "straightline", "collapsed")},
+			text = "Through Creatures",
+			value = self:try_get("forcedMovementThroughCreatures", false),
+			change = function(element)
+				self.forcedMovementThroughCreatures = element.value
+			end,
+			refreshAbility = function(element)
+				element:SetClass("collapsed", self:try_get("targeting") ~= "straightline")
+			end,
+		},
 
         gui.Panel{
             classes = {"formPanel"},
@@ -2341,10 +2389,10 @@ function ActivatedAbility:TargetTypeEditor()
 					element:FireEvent("refreshAbility")
 				end,
 				refreshAbility = function(element)
-					if self.targetType == 'line' then
+                    if self.targetType == 'cube' then
+						element.text = 'Size:'
+					elseif self.targetType == 'line' then
 						element.text = 'Width:'
-					elseif self.targetType == 'cube' then
-						element.text = 'Edge:'
 					else
 						element.text = 'Radius:'
 					end
@@ -3536,7 +3584,7 @@ function ActivatedAbilityBehavior:OngoingEffectEditor(parentPanel, list, options
 		editEffectButton = gui.Button{
 			width = 120,
 			height = 28,
-			halign = "right",
+			halign = "left",
 			text = "Edit Effect",
 			fontSize = 16,
 			click = function(element)
@@ -3565,7 +3613,7 @@ function ActivatedAbilityBehavior:OngoingEffectEditor(parentPanel, list, options
 	end
 
 	list[#list+1] = gui.Panel{
-		classes = "formPanel",
+		classes = {"formPanel", "formPanel-inline"},
 		gui.Label{
 			classes = "formLabel",
 			text = "Ongoing Effect:",
@@ -4721,18 +4769,34 @@ function ActivatedAbility:ShowEditActivatedAbilityDialog(options)
 
 	local activatedAbility = self
 
-	local dialogWidth = 1200
-	local dialogHeight = 980
-
 	local resultPanel = nil
 
+	-- When the sectioned ability editor is active (the default), theme the
+	-- outer dialog chrome -- frame background, title, Create/Cancel/Delete/
+	-- Close buttons -- to match the gold/cream palette of the inner editor.
+	-- Opting into the classic editor keeps the plain white frame so classic
+	-- controls that assume a white background still read correctly.
+	local abilityEditor = rawget(_G, "AbilityEditor")
+	local themed = abilityEditor ~= nil and dmhub.GetSettingValue("classicAbilityEditor") ~= true
+	local c = themed and abilityEditor.COLORS or nil
+
+	-- The sectioned editor renders as a full-screen modal; the classic
+	-- editor keeps its original compact dialog dimensions.
+	local dialogWidth = themed and "100%" or 1200
+	local dialogHeight = themed and "100%" or 980
+
+	-- mainFormPanel hosts the editor body (classic or sectioned). When the
+	-- sectioned editor is active it fills the full-screen dialog minus
+	-- room for the title strip (~40px) and the Create/Close button row
+	-- (60px height + margins). The classic editor keeps its original
+	-- 1100x840 canvas.
 	local styles = {
 		{
-			bgcolor = 'white',
+			bgcolor = themed and c.BG or 'white',
 			pad = 0,
 			margin = 0,
-			width = 1100,
-			height = 840,
+			width = themed and "100%" or 1100,
+			height = themed and "100%-120" or 840,
 		},
 	}
 
@@ -4837,13 +4901,47 @@ function ActivatedAbility:ShowEditActivatedAbilityDialog(options)
 		halign = 'center',
 		width = 'auto',
 		height = 'auto',
-		color = 'white',
+		color = themed and c.GOLD_BRIGHT or 'white',
+		fontFace = themed and "Berling" or nil,
 		fontSize = 28,
 	}
 
+	-- Themed overrides that beat the base Styles.Panel and prettyButton
+	-- defaults. Applied only when the sectioned editor is active.
+	-- Splice in the shared themed-dialog pack (framedPanel + prettyButton
+	-- chrome, widget skins, form pattern, modifier/behavior chrome). The
+	-- previous inlined overrides lived here before the pack existed; the
+	-- pack owns them now so future editors get the same chrome with one
+	-- helper call.
+	local themeStyles = Styles.Panel
+	if themed then
+		themeStyles = {}
+		for _, rule in ipairs(Styles.Panel) do
+			themeStyles[#themeStyles+1] = rule
+		end
+		for _, rule in ipairs(abilityEditor.GetThemedDialogStyles(c)) do
+			themeStyles[#themeStyles+1] = rule
+		end
+	end
+
+	-- Flat white gradient: Styles.Panel's framedPanel rule sets
+	-- gradient = dialogGradient (near-black #000000 -> #060606), and the
+	-- engine MULTIPLIES bgcolor with the gradient's color at each pixel.
+	-- Our themed bgcolor multiplied with dialogGradient produces near-
+	-- black rather than c.BG. Supplying a flat-white gradient lets
+	-- bgcolor paint as-is (bgcolor * white = bgcolor).
+	local flatWhiteGradient = themed and gui.Gradient{
+		point_a = {x = 0, y = 0},
+		point_b = {x = 1, y = 1},
+		stops = {
+			{position = 0, color = "#ffffff"},
+			{position = 1, color = "#ffffff"},
+		},
+	} or nil
+
 	local args = {
 		style = {
-			bgcolor = 'white',
+			bgcolor = themed and c.BG or 'white',
 			width = dialogWidth,
 			height = dialogHeight,
 			halign = 'center',
@@ -4851,7 +4949,13 @@ function ActivatedAbility:ShowEditActivatedAbilityDialog(options)
 		},
 
 		classes = {"framedPanel"},
-		styles = Styles.Panel,
+		styles = themeStyles,
+		bgimage = themed and "panels/square.png" or nil,
+		bgcolor = themed and c.BG or nil,
+		gradient = flatWhiteGradient,
+		borderWidth = themed and 2 or nil,
+		borderColor = themed and c.GOLD or nil,
+		cornerRadius = themed and 6 or nil,
 
 		floating = true,
 

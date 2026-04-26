@@ -6,9 +6,9 @@ local mod = dmhub.GetModLoading()
 GameSystem = RegisterGameType("GameSystem")
 
 --- @class StatHistoryEntry
---- @field note string
---- @field disposition string
---- @field set number
+--- @field note nil|string
+--- @field disposition nil|string
+--- @field set nil|number|string
 --- @field timestamp number
 --- @field userid string
 --- @field attackerid nil|string
@@ -111,9 +111,9 @@ function StatHistory:MostRecentTimestamp(attackerid, disposition)
 end
 
 --- @class CharacterAttribute
---- @field baseValue number Base (unmodified) value of this attribute.
---- @field id string Attribute id (e.g. "str", "dex", "int").
---- @field name string Display name (e.g. "Strength").
+--- @field baseValue nil|number Base (unmodified) value of this attribute.
+--- @field id nil|string Attribute id (e.g. "str", "dex", "int").
+--- @field name nil|string Display name (e.g. "Strength").
 CharacterAttribute = RegisterGameType("CharacterAttribute")
 
 
@@ -156,8 +156,8 @@ end
 
 --- @class creature
 --- @field max_hitpoints number The creature's maximum hitpoints (stamina in Draw Steel).
---- @field temporary_hitpoints number Current temporary hitpoints.
---- @field damage_taken number Total damage taken so far.
+--- @field temporary_hitpoints nil|number Current temporary hitpoints.
+--- @field damage_taken nil|number Total damage taken so far.
 --- @field currentMoveType string The creature's active movement mode (e.g. "walk", "fly", "swim").
 --- @field creatureSize nil|string The creature's size override, or nil to use default.
 --- @field selectedLoadout integer The currently active loadout index.
@@ -471,6 +471,33 @@ end
 --- @return boolean
 function creature:CanClimb()
     return not self:try_get("_tmp_prone")
+end
+
+--- Determines the fall animation type for this creature at a given height.
+--- The engine calls this when a fall begins to decide the animation style.
+--- @param height number The fall distance in game units
+--- @return string "clumsy" (tumble + impact) or "onfeet" (flip + clean landing)
+function creature:GetFallType(height)
+    print("FALL::", height)
+    if height - self:CalculateNamedCustomAttribute("Fall Reduction", 0) < 2 then
+        return "onfeet"
+    end
+
+    return "clumsy"
+end
+
+--- Plays a single footstep sound matching the landing surface type.
+--- Called by the engine for on-feet landings on solid ground.
+--- @param surfaceType number The surface type ID from TileGameRules
+function creature:PlayLandingFootstep(surfaceType)
+    local soundName = "Foot.Generic_Generic"
+    if AudioSurfaceTypes ~= nil then
+        local entry = AudioSurfaceTypes.surfaces[surfaceType]
+        if entry ~= nil and entry.sound ~= nil then
+            soundName = entry.sound
+        end
+    end
+    audio.FireSoundEvent(soundName, { volume = 0.4 })
 end
 
 --- Whether this creature is a natural climber (climb speed >= walk speed).
@@ -993,6 +1020,13 @@ function creature:InflictCondition(conditionid, args)
 	self.inflictedConditions = inflictedConditions
 
     audio.DispatchSoundEvent(conditionInfo:SoundEvent())
+
+    self:DispatchEvent("inflictcondition", {
+        condition = conditionInfo.name,
+        hasattacker = false,
+        attacker = nil,
+    })
+
 end
 
 function creature:FillCalculatedStatusIcons(result)
@@ -1044,11 +1078,14 @@ function creature:FillCalculatedStatusIcons(result)
 			local conditionInfo = conditionsTable[k]
             if conditionInfo ~= nil then
                 local sourceDescription = v.sourceDescription or ""
+                if sourceDescription ~= "" then
+                    sourceDescription = sourceDescription .. " -- "
+                end
                 local hoverText
                 if conditionInfo.stackable then
-                    hoverText = string.format("%s (%d): %s", conditionInfo.name, v.stacks, sourceDescription)
+                    hoverText = string.format("<b>%s</b> (%d): %s%s", conditionInfo.name, v.stacks, sourceDescription, conditionInfo.description)
                 else
-                    hoverText = string.format("%s: %s", conditionInfo.name, sourceDescription)
+                    hoverText = string.format("<b>%s</b>: %s%s", conditionInfo.name, sourceDescription, conditionInfo.description)
                 end
                 result[#result+1] = {
                     id = k,
@@ -1889,13 +1926,16 @@ function creature.InflictDamageInstance(self, amount, damageType, keywords, sour
 
 
     local ignoreImmunity = false
+    -- ignoreTypeSpecificOnly: set when the attacker has a type-specific "Ignore X Immunity"
+    -- custom attribute. Bypasses DR from the specific damage type but NOT from "all"-type immunity.
+    local ignoreTypeSpecificOnly = false
 
     if symbols ~= nil and symbols.cannotBeReduced then
 		ignoreImmunity = true
 	end
-	
+
 	if symbols.attacker ~= nil and (symbols.attacker:CalculateNamedCustomAttribute(string.format("Ignore %s Immunity", damageType)) or 0) > 0 then
-        ignoreImmunity = true
+        ignoreTypeSpecificOnly = true
     end
 
     if symbols ~= nil and symbols.cast ~= nil and #symbols.cast:GetParamModifications("ability_ignore_immunity") > 0 then
@@ -1917,15 +1957,40 @@ function creature.InflictDamageInstance(self, amount, damageType, keywords, sour
 		end
 	end
 
-    if resistanceEntry.dr and (ignoreImmunity == false or resistanceEntry.dr <= 0) then
-        amount = amount - resistanceEntry.dr
-        if amount < 0 then
-            amount = 0
-        end
-        if resistanceEntry.dr > 0 then
-            note = string.format('%s; Damage Immunity reduced by %d to %d', note, resistanceEntry.dr, amount)
-        else
+    if ignoreImmunity then
+        -- Full bypass (cannotBeReduced or ability_ignore_immunity): skip positive DR but
+        -- still apply negative DR (vulnerability).
+        if resistanceEntry.dr and resistanceEntry.dr <= 0 then
+            amount = amount - resistanceEntry.dr
             note = string.format('%s; Damage Vulnerability increased by %d to %d', note, -resistanceEntry.dr, amount)
+        end
+    elseif ignoreTypeSpecificOnly then
+        -- Type-specific bypass (e.g. "Ignore Fire Immunity"): skip the fire-specific portion
+        -- of DR but still apply any "all"-type immunity DR.
+        local allDr = resistanceEntry.allTypeDr
+        if allDr and allDr ~= 0 then
+            amount = amount - allDr
+            if amount < 0 then
+                amount = 0
+            end
+            if allDr > 0 then
+                note = string.format('%s; Damage Immunity reduced by %d to %d', note, allDr, amount)
+            else
+                note = string.format('%s; Damage Vulnerability increased by %d to %d', note, -allDr, amount)
+            end
+        end
+    else
+        -- No bypass: apply full DR.
+        if resistanceEntry.dr and resistanceEntry.dr ~= 0 then
+            amount = amount - resistanceEntry.dr
+            if amount < 0 then
+                amount = 0
+            end
+            if resistanceEntry.dr > 0 then
+                note = string.format('%s; Damage Immunity reduced by %d to %d', note, resistanceEntry.dr, amount)
+            else
+                note = string.format('%s; Damage Vulnerability increased by %d to %d', note, -resistanceEntry.dr, amount)
+            end
         end
     end
 
@@ -3116,6 +3181,17 @@ function creature.DamageResistance(self, damageType, keywords)
                     else
                         result.weakness = math.min((result.weakness or 0), dr)
                     end
+                    -- track "all"-type DR separately so type-specific immunity bypass
+                    -- does not accidentally skip immunity-to-all-damage entries
+                    if entry.damageType == "all" then
+                        if entry.stacks then
+                            result.all_stacking_result = (result.all_stacking_result or 0) + dr
+                        elseif dr > 0 then
+                            result.allTypeDr = math.max((result.allTypeDr or 0), dr)
+                        else
+                            result.all_weakness = math.min((result.all_weakness or 0), dr)
+                        end
+                    end
 				elseif entry.apply == 'Percent Reduction' then
 					if result.percent == nil then
 						result.percent = 1
@@ -3142,6 +3218,14 @@ function creature.DamageResistance(self, damageType, keywords)
     result.stacking_result = nil
     if result.dr == 0 then
         result.dr = nil
+    end
+
+    result.allTypeDr = (result.allTypeDr or 0) + (result.all_weakness or 0)
+    result.allTypeDr = result.allTypeDr + (result.all_stacking_result or 0)
+    result.all_weakness = nil
+    result.all_stacking_result = nil
+    if result.allTypeDr == 0 then
+        result.allTypeDr = nil
     end
 
 	return result
@@ -4576,6 +4660,8 @@ function creature:RefreshToken(token)
                     end
 
 					--Skip local-only triggers since they already fired on the originating machine.
+                    info = info or {}
+                    info.remote = true
 					self:TriggerEvent(eventInfo.eventName, info, true, "skipLocal")
 				end
 			end
@@ -4968,7 +5054,7 @@ end
 function creature:FillBaseActiveModifiers(result)
 	local modTable = GetTableCached(GlobalRuleMod.TableName) or {}
 	local globalFeatures = {}
-    local isretainer = self:try_get("_tmp_retainer") or false
+    local isretainer = self:IsRetainer()
 	local ismonster = (not isretainer) and self:IsMonster()
 	local ischaracter = self.typeName == "character"
     local iscompanion = self.typeName == "AnimalCompanion"
@@ -5326,6 +5412,8 @@ function creature:CalculateAttribute(attributeName, baseValue, mods)
 		mods = self:GetActiveModifiers()
 	end
 
+	mods = CharacterModifier.FilterAttributeModifiersByKeyword(self, mods, attributeName)
+
 	for i,mod in ipairs(mods) do
 		result = mod.mod:Modify(mod, self, attributeName, result)
 		attributesCalculating[attributeName] = result
@@ -5363,6 +5451,7 @@ function creature:DescribeModifications(attributeName, baseValue)
 
 	local currentValue = baseValue
 	local mods = self:GetActiveModifiers()
+	mods = CharacterModifier.FilterAttributeModifiersByKeyword(self, mods, attributeName)
 	for i,mod in ipairs(mods) do
 		local item = mod.mod:DescribeModification(self, attributeName, currentValue)
 
@@ -5723,7 +5812,7 @@ function creature:GetResources()
                     ignore = true
                 end
             end
-
+            
             if not ignore then
 			    result[key] = (result[key] or 0) + resource.unbounded
             end
@@ -5770,6 +5859,9 @@ end
 
 --called by dmhub when a creature teleports.
 function creature:OnTeleport()
+	if self:try_get("_tmp_suppressTeleportEvent") then
+		return
+	end
 	self:DispatchEvent("teleport")
 end
 
@@ -6137,7 +6229,7 @@ function creature:Moved(path)
             execute = function()
                 if dmhub.GetSettingValue("truediagonals") then self.moveDiag = diagonals + newDiagonals end
                 self.moveDistance = self:DistanceMovedThisTurn() + cost
-                self.moveDistanceRoundId = dmhub.initiativeQueue:GetRoundId()
+                self.moveDistanceRoundId = dmhub.initiativeQueue:GetTurnId()
             end,
         }
     end
@@ -6150,7 +6242,7 @@ function creature:SpendMovementInFeet(moveCost)
 
     local cost = moveCost/dmhub.FeetPerTile
 	self.moveDistance = self:DistanceMovedThisTurn() + cost
-	self.moveDistanceRoundId = dmhub.initiativeQueue:GetRoundId()
+	self.moveDistanceRoundId = dmhub.initiativeQueue:GetTurnId()
     return cost
 end
 
@@ -6168,7 +6260,7 @@ function creature:DistanceMovedThisTurn()
         return 0
     end
 
-	if dmhub.initiativeQueue:GetRoundId() ~= self:try_get("moveDistanceRoundId", "") then
+	if dmhub.initiativeQueue:GetTurnId() ~= self:try_get("moveDistanceRoundId", "") then
 		return 0
 	end
 
@@ -6180,7 +6272,7 @@ function creature:DiagonalsMovedThisTurn()
 		return 0
 	end
 
-	if dmhub.initiativeQueue:GetRoundId() ~= self:try_get("moveDistanceRoundId", "") then
+	if dmhub.initiativeQueue:GetTurnId() ~= self:try_get("moveDistanceRoundId", "") then
 		return 0
 	end
 
@@ -6802,6 +6894,13 @@ creature.helpSymbols = {
         type = "number",
         desc = "The altitude of the creature measured in tiles high. This is the distance above ground zero of the bottom floor of the map the creature is on. This means that creatures on different floors can have their altitudes compared.",
         seealso = {"AltitudeInDeciTiles"},
+    },
+
+    flooraltitude = {
+        name = "Floor Altitude",
+        type = "number",
+        desc = "The altitude of the creature relative to the ground level of the floor they are on. 0 if the creature is on the ground. Useful for checking if a creature is airborne.",
+        seealso = {"Altitude", "AltitudeInDeciTiles"},
     },
 
     distancebelowground = {
@@ -7467,6 +7566,15 @@ creature.lookupSymbols = {
         return 0
     end,
 
+    flooraltitude = function(c)
+		local token = dmhub.LookupToken(c)
+		if token ~= nil then
+			return token.floorAltitude
+		end
+
+        return 0
+    end,
+
     distancebelowground = function(c)
         local token = dmhub.LookupToken(c)
         if token ~= nil then
@@ -7627,14 +7735,7 @@ creature.lookupSymbols = {
 	end,
 
 	size = function(c)
-		local token = dmhub.LookupToken(c)
-		if token ~= nil and token.valid then
-            return token.creatureSizeNumber
-		end
-
-		local num = creature:GetBaseCreatureSizeNumber()
-
-		return num or 1
+		return c:GetCalculatedCreatureSizeAsNumber()
 	end,
 
 	tilesize = function(c)
@@ -7643,7 +7744,7 @@ creature.lookupSymbols = {
             return token.tileSize
 		end
 
-		local num = creature:GetBaseCreatureSizeNumber()
+		local num = c:GetBaseCreatureSizeNumber()
 		if num ~= nil then
 			return math.max(1, num - 3)
 		end
@@ -9512,6 +9613,8 @@ function creature:EventDropImage(path)
 		portraitZoom = token.portraitZoom,
 	}
 
+	local snapshot = token:PrepareUploadAppearance()
+
 	assets:UploadImageAsset{
 		path = path,
 		imageType = "Avatar",
@@ -9534,7 +9637,7 @@ function creature:EventDropImage(path)
 			token.portrait = imageid
 			token.portraitOffset = {x = 0, y = 0}
 			token.portraitZoom = 1
-			token:UploadAppearance()
+			token:UploadAppearance(snapshot)
 			dmhub.Debug("COMPLETED PASTE")
 		end,
 		addlocal = function(imageid)
@@ -9568,6 +9671,8 @@ function creature:EventPaste()
 
 	dmhub.Debug("PASTING CREATURE...")
 
+	local snapshot = token:PrepareUploadAppearance()
+
 	assets:UploadImageAsset{
 		path = "CLIPBOARD",
 		imageType = "Avatar",
@@ -9590,7 +9695,7 @@ function creature:EventPaste()
 			token.portrait = imageid
 			token.portraitOffset = {x = 0, y = 0}
 			token.portraitZoom = 1
-			token:UploadAppearance()
+			token:UploadAppearance(snapshot)
 			dmhub.Debug("COMPLETED PASTE")
 		end,
 		addlocal = function(imageid)
@@ -10061,7 +10166,7 @@ function creature:IsValid()
         return false
     end
 
-    if getmetatable(self.culture) == nil then
+    if getmetatable(self.culture) == nil and self:try_get("culture") ~= nil then
         printf("Creature validation: culture is invalid")
         return false
     end
@@ -10086,7 +10191,10 @@ function creature:IsValid()
 
 	local ongoingEffectsTable = GetTableCached("characterOngoingEffects")
 	for i,ongoingEffectInstance in ipairs(self:try_get("ongoingEffects", {})) do
-		if getmetatable(ongoingEffectInstance) == nil or ongoingEffectsTable[ongoingEffectInstance.ongoingEffectid] == nil then
+		if getmetatable(ongoingEffectInstance) == nil or ongoingEffectInstance.typeName ~= "CharacterOngoingEffectInstance" then
+			return false
+		end
+		if ongoingEffectsTable[ongoingEffectInstance.ongoingEffectid] == nil then
 			return false
 		end
 	end
@@ -10169,13 +10277,16 @@ function creature:Repair(localOnly)
 
     if self.typeName == "character" and (rawget(self, "characterDescription") == nil or self.characterDescription.typeName == nil) then
         self.characterDescription = CharacterDescription.new{}
-        printf("Creature validation: characterDescription missing %s, resetting. localOnly = %s new type =", charid, tostring(localOnly), self.characterDescription.typeName)
+        printf("Creature validation: characterDescription missing %s, resetting. localOnly = %s new type = %s", charid, tostring(localOnly), self.characterDescription.typeName)
     end
 
-    --reset culture.
-    if getmetatable(self.culture) == nil then
-        printf("Creature validation: culture is invalid, resetting.")
-        self.culture = nil
+    --repair culture that is just a data table.
+    if rawget(self, "culture") ~= nil and getmetatable(self.culture) == nil then
+        printf("Creature validation: culture is data only, repairing.")
+        self.culture = Culture.new{
+            aspects = dmhub.DeepCopy(self.culture.aspects or {}),
+            aggregate = self.culture.aggregate or "",
+        }
     end
 
     --check there are attributes
@@ -10194,7 +10305,7 @@ function creature:Repair(localOnly)
         table.remove(remoteInvokes, 1)
         if #remoteInvokes == 0 then
             remoteInvokes = nil
-            self.removeInvokes = nil
+            self.remoteInvokes = nil
         end
     end
 
@@ -10214,7 +10325,9 @@ function creature:Repair(localOnly)
 	deleteList = {}
 	local ongoingEffectsTable = GetTableCached("characterOngoingEffects")
 	for i,ongoingEffectInstance in ipairs(self:try_get("ongoingEffects", {})) do
-		if getmetatable(ongoingEffectInstance) == nil or ongoingEffectsTable[ongoingEffectInstance.ongoingEffectid] == nil then
+		if getmetatable(ongoingEffectInstance) == nil or ongoingEffectInstance.typeName ~= "CharacterOngoingEffectInstance" then
+			deleteList[#deleteList+1] = i
+		elseif ongoingEffectsTable[ongoingEffectInstance.ongoingEffectid] == nil then
 			deleteList[#deleteList+1] = i
 		end
 	end
@@ -10226,15 +10339,16 @@ function creature:Repair(localOnly)
 
 	deleteList = {}
 
-	for i,resistanceEntry in ipairs(self:try_get("resistances", {})) do
+	for i,resistanceEntry in ipairs(table.shallow_copy(self:try_get("resistances", {}))) do
 		if getmetatable(resistanceEntry) == nil then
 			if type(resistanceEntry) == "table" then
 				printf("Creature validation: repair resistance for %s by adding ResistanceEntry for character %s", json(resistanceEntry), charid)
 				self.resistances[i] = ResistanceEntry.new(resistanceEntry)
 			else
 				--unrecognized resistances, just dump them.
-				printf("Creature validation: invalid resistances for %s, puring them.", charid)
+				printf("Creature validation: invalid resistances for %s, purging them.", charid)
 				self.resistances = {}
+                break
 			end
 		end
 	end
@@ -10277,7 +10391,7 @@ function creature:Repair(localOnly)
 	end
 
 	for _,itemid in ipairs(deleteList) do
-		printf("Creature validation: remove character %s itemid %s due to corrupt entry.", charid, k)
+		printf("Creature validation: remove character %s itemid %s due to corrupt entry.", charid, itemid)
 		self.inventory[itemid] = nil
 	end
 

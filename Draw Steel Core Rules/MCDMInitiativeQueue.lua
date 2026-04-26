@@ -137,12 +137,12 @@ function InitiativeQueue.GetTokensForInitiativeId(initiativeid, allTokens)
     end
 
     local token = dmhub.GetTokenById(initiativeid)
-    if token ~= nil and token.properties.initiativeGrouping ~= initiativeid then
+    if token ~= nil and token.properties ~= nil and token.properties.initiativeGrouping ~= initiativeid then
         result[#result+1] = token
     end
 
     for k,tok in pairs(allTokens) do
-        if tok.properties.initiativeGrouping == initiativeid then
+        if tok.properties ~= nil and tok.properties.initiativeGrouping == initiativeid then
             result[#result+1] = tok
         end
     end
@@ -243,6 +243,10 @@ end
 --for a token give the initiative id. This is the token id if the token is a
 --unique character, or the monster type if the token is a monster.
 function InitiativeQueue.GetInitiativeId(token)
+    if token == nil or token.properties == nil then
+        return nil
+    end
+
     if token.properties.initiativeGrouping then
         return token.properties.initiativeGrouping
     end
@@ -575,7 +579,7 @@ function InitiativeQueue:GetTurnId()
 		return nil
 	end
 
-	return string.format("%s-%s", self:GetRoundId(), entry.initiativeid)
+	return string.format("%s-%s-%d", self:GetRoundId(), entry.initiativeid, entry.turnsTaken)
 end
 
 --called by DMHub to query the current combat round. zero-based result.

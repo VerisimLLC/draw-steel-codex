@@ -1911,13 +1911,21 @@ function GameHud.CreateRespiteBar(self, info)
 			valign = "Bottom",
 			fontSize = 22,
 			press = function(element)
+                local groupid = dmhub.GenerateGuid()
 				if not CanControlInitiative() then return end
 				if info.initiativeQueue ~= nil then
 					info.initiativeQueue.gameMode = "exploration"
 					info.UploadInitiative()
 					for _, token in pairs(dmhub.GetTokens({playerControlled = true})) do
 						local currentXp = token.properties:try_get("xp", 0)
-						token.properties:Rest("long")
+                        token:ModifyProperties{
+                            description = "Respite",
+                            combine = true,
+                            groupid = groupid,
+                            execute = function()
+						        token.properties:Rest("long")
+                            end,
+                        }
 						local newXp = token.properties:try_get("xp", 0)
 
 						token.properties:DispatchEvent("endrespite", {xpgained = newXp - currentXp})
@@ -2033,7 +2041,7 @@ function BeginRoundChatMessage.Render(self, message)
 
             gui.Label{
                 classes = {newStyle,"chat-message-text"},
-                text = cond(self.round == 1, "Draw Steel!", string.format("TURN %d", self.round)),
+                text = cond(self.round == 1, "Draw Steel!", string.format("ROUND %d", self.round)),
                 bold = true,
                 width = "auto",
                 height = "auto",
@@ -2294,6 +2302,8 @@ function GameHud.CreateInitiativeEntry(self, info, initiativeid, options)
 				element:SetClass("collapsed", true)
 				return
 			end
+
+			element:SetClass("collapsed", false)
 
             local charid = token.charid
 

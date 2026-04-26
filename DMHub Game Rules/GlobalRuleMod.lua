@@ -48,9 +48,12 @@ GlobalRuleMod.ApplyOptions = {
 }
 
 function GlobalRuleMod:OnDeserialize()
-    if cond(self.applyCharacters, 1, 0) + cond(self.applyMonsters, 1, 0) == 1 then
-        self.applyRetainers = false
-        self.applyCompanions = false
+    if not self:has_key("_migrated_apply") then
+        self._migrated_apply = true
+        if cond(self.applyCharacters, 1, 0) + cond(self.applyMonsters, 1, 0) == 1 then
+            self.applyRetainers = false
+            self.applyCompanions = false
+        end
     end
 end
 

@@ -3,11 +3,14 @@ local mod = dmhub.GetModLoading()
 local COLOR_BLACK = "#000000"
 local COLOR_BLACK02 = "#040807"
 local COLOR_BLACK03 = "#191A18"
-local COLOR_CREAM04 = "#BC9B7B"
-local COLOR_GOLD = "#966D4B"
-local COLOR_GOLD02 = "#49362C"
-local COLOR_GOLD03 = "#F1D3A5"
-local COLOR_GOLD04 = "#E9B86F"
+-- Cream palette shared with Styles.Cream01/02/03. The GOLD* names are kept
+-- (so the styles below don't need to be rewritten) but now resolve to cream
+-- shades so buttons read as cream instead of brassy gold.
+local COLOR_CREAM04 = "srgb:#BC9B7B"  -- Cream03 (darker tan)
+local COLOR_GOLD = "srgb:#DFCFC0"     -- was #966D4B -> Cream02 (mid cream, default borders/text)
+local COLOR_GOLD02 = "srgb:#191A18"   -- was #49362C -> near-black for text on cream hover bg
+local COLOR_GOLD03 = "srgb:#F3EDE7"   -- was #F1D3A5 -> Cream01 (selected state, brightest)
+local COLOR_GOLD04 = "srgb:#BC9B7B"   -- was #E9B86F -> Cream03 (hover bg)
 local COLOR_GREY02 = "#666663"
 
 local ACTION_BUTTON_WIDTH = 225
@@ -75,12 +78,24 @@ local actionButtonStyles = {
         bgcolor = COLOR_CREAM04,
     },
     {
-        selectors = {"v-line", "parent:selected"},
+        selectors = {"v-line", "selected"},
         bgcolor = COLOR_GOLD03,
     },
     {
-        selectors = {"v-line", "parent:hover"},
-        bgcolor = COLOR_GOLD04,
+        selectors = {"v-line", "hovered"},
+        bgcolor = COLOR_GOLD02,
+    },
+    {
+        selectors = {"button-diamond"},
+        bgcolor = COLOR_CREAM04,
+    },
+    {
+        selectors = {"button-diamond", "selected"},
+        bgcolor = COLOR_GOLD03,
+    },
+    {
+        selectors = {"button-diamond", "hovered"},
+        bgcolor = COLOR_GOLD02,
     },
     {
         selectors = {"action-button-label"},
@@ -91,7 +106,7 @@ local actionButtonStyles = {
         color = COLOR_GOLD03,
     },
     {
-        selectors = {"action-button-label", "hover"},
+        selectors = {"action-button-label", "hovered"},
         color = COLOR_GOLD02,
     },
     {
@@ -218,6 +233,21 @@ function gui.ActionButton(options)
                 element:SetClass("selected", selected)
             end,
 
+            -- The engine only applies the "hover" class to the interactable
+            -- panel itself. Propagate a "hovered" class to the whole button
+            -- subtree (including the sibling overlay with diamond + v-line)
+            -- so those elements can react in styles.
+            hover = function(element)
+                if element.parent then
+                    element.parent:SetClassTree("hovered", true)
+                end
+            end,
+            dehover = function(element)
+                if element.parent then
+                    element.parent:SetClassTree("hovered", false)
+                end
+            end,
+
             gui.Panel{
                 width = "auto",
                 height = "auto",
@@ -259,21 +289,26 @@ function gui.ActionButton(options)
             end,
 
             gui.Panel{ -- Diamond
+                classes = {"button-diamond"},
                 width = AVAILABLE_DIAMOND_SIZE,
                 height = AVAILABLE_DIAMOND_SIZE,
                 rotate = 45,
                 valign = "top",
                 halign = "center",
                 bgimage = true,
-                bgcolor = COLOR_CREAM04,
                 interactable = false,
-
+                _setSelected = function(element, selected)
+                    element:SetClass("selected", selected)
+                end,
             },
 
             gui.Panel{ -- V-Line
                 classes = {"v-line"},
                 bgimage = mod.images.actionButtonVLine,
                 interactable = false,
+                _setSelected = function(element, selected)
+                    element:SetClass("selected", selected)
+                end,
             },
         },
     }
@@ -301,8 +336,17 @@ local selectorButtonStyles = {
         borderColor = COLOR_GOLD,
     },
     {
+        selectors = {"selector-button-base", "hovered"},
+        bgcolor = COLOR_GOLD04,
+        borderColor = COLOR_GOLD02,
+    },
+    {
         selectors = {"selector-button-label"},
         color = COLOR_GOLD,
+    },
+    {
+        selectors = {"selector-button-label", "hovered"},
+        color = COLOR_GOLD02,
     },
     {
         selectors = {"selected"},
@@ -434,6 +478,20 @@ function gui.SelectorButton(options)
             end,
             _setSelected = function(element, selected)
                 element:SetClass("selected", selected)
+            end,
+
+            -- Engine only sets "hover" on this interactable panel. Propagate
+            -- a "hovered" class up to the mainPanel and its whole subtree so
+            -- the child label can react to hover too.
+            hover = function(element)
+                if element.parent then
+                    element.parent:SetClassTree("hovered", true)
+                end
+            end,
+            dehover = function(element)
+                if element.parent then
+                    element.parent:SetClassTree("hovered", false)
+                end
             end,
 
             gui.Label{

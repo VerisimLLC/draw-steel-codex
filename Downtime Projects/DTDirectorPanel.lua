@@ -72,7 +72,7 @@ DTDirectorPanel.TabsStyles = {
         border = { y1 = 0, y2 = 0, x1 = 0, x2 = 0 },
         color = "#666666",
         textAlignment = "center",
-        fontSize = 12,
+        fontSize = 9.5,
         transitionTime = 0.2,
     },
     gui.Style{
@@ -92,7 +92,7 @@ DTDirectorPanel.TabsStyles = {
         border = { y1 = 1, y2 = 0, x1 = 0, x2 = 0 },
         borderColor = "#ffffff",
         bold = true,
-        fontSize = 12,
+        -- fontSize = 11,
         transitionTime = 0.2,
     },
 }
@@ -106,6 +106,7 @@ function DTDirectorPanel:Register()
         icon = mod.images.downtimeProjects,
         minHeight = 100,
         maxHeight = 600,
+        hideObjectsOutOfScroll = false,
         content = function()
             track("panel_open", {
                 panel = "Downtime Projects",
@@ -193,7 +194,7 @@ function DTDirectorPanel:_buildHeaderPanel()
                             gui.Label {
                                 text = pauseReason,
                                 classes = {"DTLabel", "DTBase", (not isPaused) and "collapsed" or nil},
-                                fontSize = 12,
+                                fontSize = 11,
                                 width = "auto",
                                 height = "auto",
                                 halign = "left",
@@ -623,7 +624,7 @@ function DTDirectorPanel:_buildProjectDetail(projectEntry, tabType)
                 height = "100%",
                 valign = "center",
                 hmargin = 20,
-                fontSize = 12,
+                fontSize = 11,
                 wrap = true
             }
         }

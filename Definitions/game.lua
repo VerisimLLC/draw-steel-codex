@@ -75,7 +75,7 @@ end
 --- @param chartype nil|string The character type, e.g. 'character'.
 --- @param subtype nil|string The character subtype.
 --- @return string
-function game.CreateCharacter(chartype, subtype)
+function game.CreateCharacter(chartype, subtype, locValue)
 	-- dummy implementation for documentation purposes only
 end
 

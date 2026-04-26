@@ -193,9 +193,9 @@ function Spell:Render(options)
 
 			gui.Panel{
 				halign = "right",
-				bgimage = self.iconid,
+				bgimage = self:GetIcon(),
 				classes = "icon",
-				selfStyle = self.display,
+				selfStyle = self:GetIconDisplay(),
 				loadingImage = function(element)
 					element:AddChild(gui.LoadingIndicator{})
 				end,
@@ -288,8 +288,8 @@ local CreateSpellPanel = function(dmhud, options)
 		refreshSpell = function(element, s)
 			spell = s
 			iconPanel:SetClass('hidden', false)
-			iconPanel.bgimage = spell.iconid
-			iconPanel.selfStyle = spell.display
+			iconPanel.bgimage = spell:GetIcon()
+			iconPanel.selfStyle = spell:GetIconDisplay()
 		end,
 
 		clearSpell = function(element)
@@ -1959,8 +1959,8 @@ local CreateSpellRow = function(options)
 			classes = {"spellIcon", "icon"},
 			halign = "left",
 			refreshSpell = function(element)
-				element.bgimage = m_spell.iconid
-				element.selfStyle = m_spell.display
+				element.bgimage = m_spell:GetIcon()
+				element.selfStyle = m_spell:GetIconDisplay()
 			end,
 		},
 

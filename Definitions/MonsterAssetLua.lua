@@ -1,4 +1,5 @@
 --- @class MonsterAssetLua 
+--- @field ctime number 
 --- @field hidden boolean 
 --- @field info any 
 --- @field canRotate any 

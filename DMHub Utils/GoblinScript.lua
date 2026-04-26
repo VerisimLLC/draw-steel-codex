@@ -62,8 +62,70 @@ GoblinScriptDebug = {
     OverrideFormula = function(formula, fn, lua)
         GoblinScriptDebug.formulaOverrides[formula] = lua
         g_compiled[formula] = fn
+        print("GoblinScript:: Override:", formula, "with", lua, type(fn))
+    end,
+
+    -- Map of formula -> dialog panel currently listening for per-expression debug info.
+    -- Populated by gui.GoblinScriptDebugDialog via EnableDebug/DisableDebug.
+    activeDialogs = {},
+
+    -- Monotonic batch counter. Every formula invocation compiled in debug mode calls
+    -- NewBatch() once to tag all of its GoblinScriptDebugInfo events with a shared id so
+    -- the dialog can group them.
+    nextBatch = 0,
+
+    -- Called once per invocation of a debugged formula from the compiler-emitted preamble.
+    -- Bumps the global batch counter, then pushes batch metadata (frame number, Lua
+    -- traceback) to the dialog listening on this formula. Returns the fresh batch id so
+    -- every GoblinScriptDebugInfo call in the same invocation can tag itself.
+    --
+    -- Uses FireEvent (not FireEventTree) since the handler lives on the dialog root --
+    -- tree-walking for every event was a major source of slowdown when formulas fire
+    -- hundreds of times per frame.
+    NewBatch = function(formula, frame, trace)
+        GoblinScriptDebug.nextBatch = GoblinScriptDebug.nextBatch + 1
+        local id = GoblinScriptDebug.nextBatch
+        local dialog = GoblinScriptDebug.activeDialogs[formula]
+        if dialog ~= nil and dialog.valid then
+            dialog:FireEvent("debugBatchStart", {
+                batchId = id,
+                formula = formula,
+                frame = frame,
+                trace = trace,
+            })
+        end
+        return id
+    end,
+
+    EnableDebug = function(formula, dialog)
+        GoblinScriptDebug.activeDialogs[formula] = dialog
+        dmhub.SetGoblinScriptDebug(formula, true)
+        -- Force recompile with instrumentation on the next evaluation.
+        g_compiled[formula] = nil
+        g_errors[formula] = nil
+    end,
+
+    DisableDebug = function(formula)
+        GoblinScriptDebug.activeDialogs[formula] = nil
+        dmhub.SetGoblinScriptDebug(formula, false)
+        -- Force recompile without instrumentation.
+        g_compiled[formula] = nil
+        g_errors[formula] = nil
     end,
 }
+
+-- Global entry point called from instrumented Lua emitted by the GoblinScript compiler.
+-- Must stay cheap: runs inside every sub-expression evaluation when a formula is being
+-- debugged. Missing dialog / stale dialog is treated as a no-op (debug flag not yet cleared).
+-- Uses FireEvent (handler is on the dialog root) to avoid FireEventTree's descendants walk,
+-- which dominated cost when formulas fire hundreds of times per frame.
+function GoblinScriptDebugInfo(info)
+    if info == nil then return end
+    local dialog = GoblinScriptDebug.activeDialogs[info.formula]
+    if dialog ~= nil and dialog.valid then
+        dialog:FireEvent("debugInfo", info)
+    end
+end
 
 local g_profileGoblinScript = dmhub.ProfileMarker("ExecuteGoblinScript")
 

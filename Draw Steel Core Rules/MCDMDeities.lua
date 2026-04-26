@@ -487,7 +487,7 @@ CharacterChoice.RegisterChoice{
 
 --- @class CharacterDomainChoice:CharacterChoice
 --- @field name string Display name ("Domain").
---- @field numChoices number Number of domains the player may choose.
+--- @field numChoices number|string|table Number of domains the player may choose.
 --- @field description string Prompt shown to the player.
 --- @field deityId string Id of the deity whose domains are offered, or "" for all.
 --- @field options table[] Explicit list of domain options to present (overrides deityId if non-empty).

@@ -26,6 +26,7 @@ function CBKitDetail._navPanel()
                 for i = #element.children, 1, -1 do
                     element.children[i]:DestroySelf()
                 end
+                element.data.classId = classId
             end
 
             if #element.children == 0 then

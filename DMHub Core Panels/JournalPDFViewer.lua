@@ -17,6 +17,7 @@ setting {
 }
 
 local function CopyToClipboard(text)
+    if text == nil then return end
     dmhub.CopyToClipboard(text:gsub(" +", " "))
 end
 

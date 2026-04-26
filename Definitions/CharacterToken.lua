@@ -6,6 +6,7 @@
 --- @field isObject boolean If this token is an object, not a creature
 --- @field isAttackableObject boolean If this token is an attackable object, as opposed to e.g. a corpse.
 --- @field objectComponent any 
+--- @field hasTokenOnThisMap boolean If this token is deployed on the current map.
 --- @field hasTokenOnAnyMap boolean If this token is deployed on a map somewhere.
 --- @field summonerid nil|string (Read-only) the tokenid of the token that summoned this token, if there is one.
 --- @field mountObject nil|LuaObjectComponent The object that this token is mounted on. e.g. sitting on a chair.
@@ -149,9 +150,15 @@ function CharacterToken:SerializeAppearanceFromString(s)
 	-- dummy implementation for documentation purposes only
 end
 
---- UploadAppearance: Upload the @see appearance section of the token.
---- @return nil
-function CharacterToken:UploadAppearance()
+--- PrepareUploadAppearance: Capture the current appearance and size of the token as a snapshot that can be passed to @see UploadAppearance to make the change undoable.
+--- @return any
+function CharacterToken:PrepareUploadAppearance()
+	-- dummy implementation for documentation purposes only
+end
+
+--- UploadAppearance: Upload the @see appearance section of the token. If a snapshot from @see PrepareUploadAppearance is provided, the change will be undoable.
+--- @param snapshot? string A snapshot from @see PrepareUploadAppearance representing the previous appearance to restore on undo.
+function CharacterToken:UploadAppearance(snapshot)
 	-- dummy implementation for documentation purposes only
 end
 
@@ -354,11 +361,12 @@ function CharacterToken:ShowSheet(tabid)
 	-- dummy implementation for documentation purposes only
 end
 
---- GetLineOfSight: The vision of the other token you have. 1 = full vision. 0 = complete occlusion. 0.5 = half visible. Optionally pass pierceSurfaces to ignore thin walls.
+--- GetLineOfSight: The vision of the other token you have. 1 = full vision. 0 = complete occlusion. 0.5 = half visible, 0.25 = three-quarters cover. Optionally pass pierceSurfaces to ignore thin walls. The mode argument is "full" (default) to use the full token-aware targeting calculation that samples multiple rays across token footprints, or "basic" to cast a single center-to-center ray (faster but less accurate for large tokens or intervening creatures).
 --- @param otherToken any
 --- @param pierceSurfacesArg any?
+--- @param modeArg any?
 --- @return number
-function CharacterToken:GetLineOfSight(otherToken, pierceSurfacesArg)
+function CharacterToken:GetLineOfSight(otherToken, pierceSurfacesArg, modeArg)
 	-- dummy implementation for documentation purposes only
 end
 
@@ -427,7 +435,7 @@ end
 
 --- MarkMovementRadius: Renders a movement radius marker showing how far the token can move. Returns a reference controlling it. Remember to call Destroy on it when you want the radius to disappear!
 --- @param movementAllowance movement allowance in decitiles.
---- @param args nil|{waypoints: nil|Loc[], mask: nil|Loc[], filter: nil|function, moveFlags: nil|('IgnoreMovementType'|'CannotMoveThroughFriends'|'CanFly'|'IgnoreOtherCreatures'|'Shifting')[] }
+--- @param args nil|{waypoints: nil|Loc[], mask: nil|Loc[], filter: nil|function, moveFlags: nil|('IgnoreMovementType'|'CannotMoveThroughFriends'|'CanFly'|'IgnoreOtherCreatures'|'Shifting'|'IgnoreWalls')[] }
 --- @return LuaMultiObjectReference
 function CharacterToken:MarkMovementRadius(movementAllowance, args)
 	-- dummy implementation for documentation purposes only

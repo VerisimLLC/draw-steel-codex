@@ -107,8 +107,10 @@ function CBCharPanel._statusItem(selector)
             local available = 0
             local selected = 0
             for _,entry in pairs(element.data.statusEntries) do
-                available = available + entry.available
-                selected = selected + entry.selected
+                if not entry.excludeFromTotals then
+                    available = available + entry.available
+                    selected = selected + entry.selected
+                end
             end
             local parent = element:FindParentWithClass("panelStatusController")
             if parent then

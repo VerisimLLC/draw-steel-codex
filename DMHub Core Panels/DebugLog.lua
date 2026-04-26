@@ -87,9 +87,19 @@ local function ParseEntry(raw)
     }
 end
 
+-- Gate trace decoration + frame-open keybinds on devmode + the "debug" preference, so we
+-- don't steal number keys for users who aren't debugging.
+local function ShouldShowDebugAffordances()
+    return devmode() and dmhub.GetSettingValue("debug") == true
+end
+
 CreateDebugLogPanel = function()
 
     local m_filterString = dmhub.GetSettingValue("log:filter")
+
+    -- Most recently hovered row's parsed trace. The panel-level 1-9 keybinds read this so
+    -- the user can hover a row and then press a number to open that frame in the editor.
+    local m_hoveredParsedTrace = nil
 
     -- (B) All parsed entries as plain data, no GUI objects
     local m_allEntries = {}
@@ -276,8 +286,20 @@ CreateDebugLogPanel = function()
             bgimage = "panels/square.png",
             bgcolor = "#222222",
             linger = function(element)
-                if element.data.trace ~= nil then
-                    gui.Tooltip{text = element.data.trace, fontSize = 12, width = 800}(element)
+                local trace = element.data.trace
+                if trace == nil or trace == "" then return end
+                if ShouldShowDebugAffordances() then
+                    -- Parse each hover so the cache always reflects the row's current
+                    -- trace (pool slots rebind as the user scrolls).
+                    local parsed = FormatTracebackForDebug(trace)
+                    m_hoveredParsedTrace = parsed
+                    local text = parsed.decorated
+                    if #parsed.frames > 0 then
+                        text = text .. "\n\n(Press 1-9 to open that frame in your editor.)"
+                    end
+                    gui.Tooltip{text = text, fontSize = 12, width = 800}(element)
+                else
+                    gui.Tooltip{text = trace, fontSize = 12, width = 800}(element)
                 end
             end,
 
@@ -361,6 +383,29 @@ CreateDebugLogPanel = function()
         width = "100%",
         height = "100%",
         flow = "vertical",
+
+        -- When the Debug Log is visible and the user hovers a row with a trace, pressing
+        -- a number opens the corresponding stack frame in the editor. Mirrors the F7
+        -- style-inspector affordance (Assets/StyleDebuggerInterface.cs).
+        keybinds = {
+            {id = "dbglog_frame1", defaultBind = "1"},
+            {id = "dbglog_frame2", defaultBind = "2"},
+            {id = "dbglog_frame3", defaultBind = "3"},
+            {id = "dbglog_frame4", defaultBind = "4"},
+            {id = "dbglog_frame5", defaultBind = "5"},
+            {id = "dbglog_frame6", defaultBind = "6"},
+            {id = "dbglog_frame7", defaultBind = "7"},
+            {id = "dbglog_frame8", defaultBind = "8"},
+            {id = "dbglog_frame9", defaultBind = "9"},
+        },
+        keybind = function(element, id)
+            if not ShouldShowDebugAffordances() then return end
+            if m_hoveredParsedTrace == nil then return end
+            local n = tonumber(string.sub(id, -1))
+            if n == nil then return end
+            OpenTracebackFrame(m_hoveredParsedTrace, n)
+        end,
+
         gui.Panel{
             flow = "horizontal",
             height = "auto",

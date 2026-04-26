@@ -47,6 +47,7 @@ EquipmentCategory.isQuantity = false
 EquipmentCategory.isTreasure = false
 EquipmentCategory.isPacks = false
 EquipmentCategory.isLightSource = false
+EquipmentCategory.isArtifact = false
 
 EquipmentCategory.martialWeaponCategories = {}
 EquipmentCategory.meleeWeaponCategories = {}
@@ -279,7 +280,9 @@ end
 
 function EquipmentCategory.IsEquippable(item)
     local cat = item:try_get("equipmentCategory", "")
-    return cat == EquipmentCategory.LeveledTreasureId or cat == EquipmentCategory.TrinketId
+    return cat == EquipmentCategory.LeveledTreasureId
+        or cat == EquipmentCategory.TrinketId
+        or EquipmentCategory.IsArtifact(item)
 end
 
 function EquipmentCategory.IsLeveledTreasure(item)
@@ -290,6 +293,14 @@ end
 function EquipmentCategory.IsTrinket(item)
     local cat = item:try_get("equipmentCategory", "")
     return cat == EquipmentCategory.TrinketId
+end
+
+function EquipmentCategory.IsArtifact(item)
+    local catId = item:try_get("equipmentCategory", "")
+    if catId == "" then return false end
+    local cats = dmhub.GetTable("equipmentCategories") or {}
+    local cat = cats[catId]
+    return cat ~= nil and cat:try_get("isArtifact", false)
 end
 
 function EquipmentCategory.IsTreasure(item)

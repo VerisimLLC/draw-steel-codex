@@ -337,9 +337,9 @@ local function CreateAbilityPanel()
             classes = { "abilityIconPanel" },
             gradientMapping = true,
             ability = function(element, ability, c)
-                element.bgimage = ability.iconid
-                element.selfStyle = ability.display
-                element.selfStyle.gradient = DisplayGradients.GetGradient(rawget(ability, "iconGradient"))
+                element.bgimage = ability:GetIcon()
+                element.selfStyle = ability:GetIconDisplay()
+                element.selfStyle.gradient = ability:GetIconGradient()
             end,
         },
 
@@ -1958,6 +1958,8 @@ local EditResistanceEntry = function(creature, resistanceEntry, params)
             gui.Dropdown({
                 options = damageTypeOptions,
                 optionChosen = resistanceEntry.damageType,
+                hasSearch = true,
+                sort = true,
                 halign = 'left',
                 valign = 'center',
                 height = 24,

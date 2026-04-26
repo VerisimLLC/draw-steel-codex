@@ -283,6 +283,8 @@ function CreateItemTooltip(item, options, token)
 	options = options or {}
 
     options.noninteractive = true
+	options.maxHeight = "50%"
+	options.vscroll = true
 
 	local tooltipResult = gui.TooltipFrame(gui.Panel{
 		id = 'inventory-item-tooltip',
@@ -291,7 +293,7 @@ function CreateItemTooltip(item, options, token)
 				textWrap = true,
 				halign = options.tooltipAlign or 'left',
 				valign = 'top',
-				height = 'auto',
+				height = "auto",
 				width = options.width or 400,
 				bgcolor = 'black',
 				flow = 'vertical',
@@ -301,7 +303,7 @@ function CreateItemTooltip(item, options, token)
 		},
 
 		valign = "center",
-		maxHeight = 1080,
+		maxHeight = "80%", --1080,
 
 		item:Render(options, token),
 
@@ -376,7 +378,7 @@ local CreateInventorySlot = function(dmhud, options)
 
                 if slotInfo.type == "trinket" and EquipmentCategory.IsTrinket(item) then
                     return true
-                elseif slotInfo.type == "leveled" and EquipmentCategory.IsLeveledTreasure(item) then
+                elseif slotInfo.type == "leveled" and (EquipmentCategory.IsLeveledTreasure(item) or EquipmentCategory.IsArtifact(item)) then
                     return true
                 end
 
@@ -555,7 +557,7 @@ local CreateInventorySlot = function(dmhud, options)
 
 
 				local quantity = tonumber(element.text)
-				if quantity ~= nil and token ~= nil and token.valid then
+				if quantity ~= nil and item ~= nil and token ~= nil and token.valid then
 					quantity = round(quantity)
 
 					--work out the new total quantity of this item
@@ -1166,7 +1168,7 @@ local CreateInventorySlot = function(dmhud, options)
 									dmhub.SetAndUploadTableItem(equipment.tableName, imbueTarget)
 									token:BeginChanges()
 									token.properties:GiveItem(imbueTarget.id, 1)
-									token.properties:SetItemQuantity(imbueItem.id, 0, slotPanel.data.inventoryIndex)
+									token.properties:SetItemQuantity(imbueItem.id, token.properties:GetItemQuantity(imbueItem.id) - 1, slotPanel.data.inventoryIndex)
 									token:CompleteChanges("Imbue mundane item")
 								end
 								return message
@@ -1184,7 +1186,7 @@ local CreateInventorySlot = function(dmhud, options)
 								if imbueTarget then
 									dmhub.SetAndUploadTableItem(equipment.tableName, imbueTarget)
 									token:BeginChanges()
-									token.properties:SetItemQuantity(imbueItem.id, 0, slotPanel.data.inventoryIndex)
+									token.properties:SetItemQuantity(imbueItem.id, token.properties:GetItemQuantity(imbueItem.id) - 1, slotPanel.data.inventoryIndex)
 									token:CompleteChanges('Imbue Item')
 								end
 							end

@@ -150,6 +150,7 @@ end
 local function ExecuteDamage(behavior, ability, casterToken, targetToken, options, match)
     local damageType = match.type or "untyped"
     local damage = tonumber(match.damage)
+    local isRolledDamage = damage == nil
     
     -- Count how many times (half) appears in the modifiers
     local halfCount = 0
@@ -246,8 +247,8 @@ local function ExecuteDamage(behavior, ability, casterToken, targetToken, option
                 description = "Inflict Damage",
                 undoable = false,
                 execute = function()
-                    result = targetToken.properties:InflictDamageInstance(damage, damageType, ability.keywords, string.format("%s's %s", selfName, ability.name), { criticalhit = false, attacker = attacker, surges = options.surges, ability = ability, hasability = true, cast = options.symbols.cast})
-                    options.symbols.cast:CountDamage(targetToken, result.damageDealt, damage)
+                    result = targetToken.properties:InflictDamageInstance(damage, damageType, ability.keywords, string.format("%s's %s", selfName, ability.name), { criticalhit = false, attacker = attacker, surges = options.surges, ability = ability, hasability = true, cast = options.symbols.cast, hasrolleddamage = isRolledDamage})
+                    options.symbols.cast:CountDamage(targetToken, result.damageDealt, damage, isRolledDamage)
                 end,
             }
         end
@@ -332,9 +333,9 @@ local g_rulePatterns = {
     },
     --]]
     {
-        pattern = {"^(?<damage>[0-9 d+-]+)\\s*(?<type>[a-z]+)?\\s?damage(?<mods>(\\s*\\(half\\))*)",
-            "^(?<damage>[0-9]+)\\s+(?<type>[a-z]+)\\s+damage(?<mods>(\\s*\\(half\\))*)",
-            "^(?<damage>[0-9]+)\\s*\\+\\s*(?<bonus>[a-z, ]+ or [a-z]+ )(?<type>[a-z]+)\\s*damage(?<mods>(\\s*\\(half\\))*)",
+        pattern = {"^(?<damage>[0-9 d+-]+)\\s*(?<type>[a-z]+)?\\s?damage(?<mods>(\\s*\\((?:half|no damage)\\))*)",
+            "^(?<damage>[0-9]+)\\s+(?<type>[a-z]+)\\s+damage(?<mods>(\\s*\\((?:half|no damage)\\))*)",
+            "^(?<damage>[0-9]+)\\s*\\+\\s*(?<bonus>[a-z, ]+ or [a-z]+ )(?<type>[a-z]+)\\s*damage(?<mods>(\\s*\\((?:half|no damage)\\))*)",
         },
         execute = ExecuteDamage,
         isdamage = true,
@@ -454,6 +455,7 @@ local g_rulePatterns = {
                 description = description,
                 invoker = casterToken.properties,
                 promptOverride = description,
+                forcedMovementThroughCreatures = ability:try_get("forcedMovementThroughCreatures", false),
             }
 
             if stability > 0 then
@@ -589,7 +591,7 @@ local g_rulePatterns = {
                             return
                         end
                         casterToken.properties.moveDistance = casterToken.properties:DistanceMovedThisTurn() + jumpDistance
-                        casterToken.properties.moveDistanceRoundId = dmhub.initiativeQueue:GetRoundId()
+                        casterToken.properties.moveDistanceRoundId = dmhub.initiativeQueue:GetTurnId()
                     end,
                 }
             end
@@ -1028,10 +1030,17 @@ ActivatedAbility.RegisterPowerTableRule{
     --- @param match table
     execute = function(behavior, ability, casterToken, targetToken, options, match)
         local quantity = StringToNumber(match.quantity)
-        targetToken:ModifyProperties{
+
+        local recipientToken = targetToken
+        local summonerToken = targetToken.properties:GetSurgeSharingSummonerToken()
+        if summonerToken ~= nil then
+            recipientToken = summonerToken
+        end
+
+        recipientToken:ModifyProperties{
             description = "Gain Surges",
             execute = function()
-                targetToken.properties:RefreshResource(CharacterResource.surgeResourceId, "unbounded", quantity, string.format("%s used %s", casterToken.name, ability.name))
+                recipientToken.properties:RefreshResource(CharacterResource.surgeResourceId, "unbounded", quantity, string.format("%s used %s", casterToken.name, ability.name))
             end,
         }
     end,

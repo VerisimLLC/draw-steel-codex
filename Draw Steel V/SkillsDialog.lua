@@ -140,6 +140,20 @@ local function aggregateSkillChoicesHero(selectedFeatures, customFeatures, level
         features = {},
     }
 
+    -- Collect skill choice guids so we can skip generated features
+    -- that duplicate them (CharacterSkillChoice:FillFeaturesRecursive
+    -- emits both the choice node and a CharacterFeature whose
+    -- sourceguid points back at the choice).
+    local skillChoiceGuids = {}
+    for _,item in ipairs(selectedFeatures) do
+        if item.feature and item.feature.typeName == "CharacterSkillChoice" then
+            local guid = item.feature:try_get("guid")
+            if guid then
+                skillChoiceGuids[guid] = true
+            end
+        end
+    end
+
     for _,item in ipairs(selectedFeatures) do
         if item.feature then
             local typeName = item.feature.typeName
@@ -148,6 +162,17 @@ local function aggregateSkillChoicesHero(selectedFeatures, customFeatures, level
                 local skillInfo
                 if typeName == "CharacterFeature" then
                     skillInfo = processCharacterFeature(item.feature)
+                    -- Filter out static entries whose source is a skill
+                    -- choice we already handle as a choice node.
+                    if skillInfo then
+                        local filtered = {}
+                        for _,si in ipairs(skillInfo) do
+                            if not (si.sourceGuid and skillChoiceGuids[si.sourceGuid]) then
+                                filtered[#filtered+1] = si
+                            end
+                        end
+                        skillInfo = #filtered > 0 and filtered or nil
+                    end
                 elseif typeName == "CharacterSkillChoice" then
                     skillInfo = processCharacterSkillChoice(item.feature, levelChoices)
                 end

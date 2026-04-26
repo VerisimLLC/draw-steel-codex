@@ -30,6 +30,10 @@ setting {
         {
             value = "dm",
             text = cond(dmhub.isDM, "Visible to Director only", "Visible to you and Director"),
+        },
+        {
+            value = "dicetower",
+            text = "Dice Tower (Result visible to Director only)",
         }
     }
 }
@@ -51,6 +55,10 @@ local g_rollOptionsDM = {
         id = "dm",
         text = "Visible to Director only",
     },
+    {
+        id = "dicetower",
+        text = "Dice Tower",
+    },
 }
 
 local g_rollOptionsPlayer = {
@@ -61,6 +69,10 @@ local g_rollOptionsPlayer = {
     {
         id = "dm",
         text = "Visible to you and GM",
+    },
+    {
+        id = "dicetower",
+        text = "Dice Tower",
     },
 }
 
@@ -416,6 +428,8 @@ function GameHud.CreateRollDialog(self)
         end,
     }
 
+    local m_forceDiceTower = false
+
     local updateRollVisibility
     local hideRollDropdown = gui.Dropdown {
         classes = { "hiddenWhenRolling", "hideWhenMinimized" },
@@ -427,7 +441,13 @@ function GameHud.CreateRollDialog(self)
         options = cond(dmhub.isDM, g_rollOptionsDM, g_rollOptionsPlayer),
         valign = "bottom",
         prepare = function(element)
-            element.idChosen = dmhub.GetSettingValue("privaterolls")
+            if m_forceDiceTower then
+                element.idChosen = "dicetower"
+                element:SetClass("hidden", true)
+            else
+                element.idChosen = dmhub.GetSettingValue("privaterolls")
+                element:SetClass("hidden", false)
+            end
         end,
 
         change = function(element)
@@ -441,11 +461,15 @@ function GameHud.CreateRollDialog(self)
         valign = "bottom",
         value = dmhub.GetSettingValue("privaterolls:save"),
         prepare = function(element)
-            updateRollVisibility:SetClass("hidden", hideRollDropdown.idChosen == dmhub.GetSettingValue("privaterolls"))
+            if m_forceDiceTower then
+                element:SetClass("hidden", true)
+            else
+                element:SetClass("hidden", hideRollDropdown.idChosen == dmhub.GetSettingValue("privaterolls"))
+            end
         end,
     }
 
-    local m_options
+    local m_options = nil
 
     --a selectors which allows alternate roll options to be selected, e.g. choosing between an Athletics and Acrobatics check.
     local alternateRollsBar
@@ -1079,7 +1103,7 @@ function GameHud.CreateRollDialog(self)
                         m_openedTriggers = {}
                     end
 
-                    local key = trigger.modifier.guid
+                    local key = trigger.modifier.guid .. (trigger.charid or "")
                     if not targetAll then
                         key = key .. target.token.charid
                     end
@@ -1515,7 +1539,7 @@ function GameHud.CreateRollDialog(self)
                 }
 
                 local surges = {}
-                for surgeNum = 3, 1, -1 do
+                for surgeNum = ((creature ~= nil) and creature:GetMaxSurgeCount() or 3), 1, -1 do
                     surges[#surges + 1] = gui.Panel {
                         classes = { "icon", "hideWhenMinimized" },
                         textCalculated = function(element, calculationOptions)
@@ -1678,7 +1702,6 @@ function GameHud.CreateRollDialog(self)
 
             prepare = function(element, options)
                 element:SetClass("collapsed", not GameSystem.AllowBoonsForRoll(options))
-                m_boons = 0
 
                 if GetCurrentMultiTarget() ~= nil then
                     local index = GetCurrentMultiTarget()
@@ -1762,8 +1785,9 @@ function GameHud.CreateRollDialog(self)
                     surgesOverride = surgesOverride - 1
                 end
 
-                if surgesOverride > 3 then
-                    surgesOverride = 3
+                local maxSurges = (creature ~= nil) and creature:GetMaxSurgeCount() or 3
+                if surgesOverride > maxSurges then
+                    surgesOverride = maxSurges
                 end
 
                 local options = m_lastCalculationOptions or {}
@@ -2728,6 +2752,7 @@ function GameHud.CreateRollDialog(self)
                 end
 
                 m_options = options
+                m_forceDiceTower = options.dicetower or false
 
                 targetHints = options.targetHints
 
@@ -2750,6 +2775,8 @@ function GameHud.CreateRollDialog(self)
                 beginRoll = options.beginRoll
                 completeRoll = options.completeRoll
                 cancelRoll = options.cancelRoll
+
+                m_boons = 0
 
                 resultPanel:FireEventTree('prepare', options)
 
@@ -2944,6 +2971,7 @@ function GameHud.CreateRollDialog(self)
                 OnHide()
 
                 local dmonly = false
+                local dicetower = false
                 local instant = false
 
                 if autoRollId ~= nil then
@@ -2957,14 +2985,18 @@ function GameHud.CreateRollDialog(self)
 
                 if hideRollDropdown.idChosen == "dm" then
                     dmonly = true
+                elseif hideRollDropdown.idChosen == "dicetower" then
+                    dicetower = true
                 end
 
-                if hideRollDropdown.idChosen ~= dmhub.GetSettingValue("privaterolls") and updateRollVisibility.value then
-                    --update the setting for private rolls from now on.
-                    dmhub.SetSettingValue("privaterolls", hideRollDropdown.idChosen)
-                end
+                if not m_forceDiceTower then
+                    if hideRollDropdown.idChosen ~= dmhub.GetSettingValue("privaterolls") and updateRollVisibility.value then
+                        --update the setting for private rolls from now on.
+                        dmhub.SetSettingValue("privaterolls", hideRollDropdown.idChosen)
+                    end
 
-                dmhub.SetSettingValue("privaterolls:save", updateRollVisibility.value)
+                    dmhub.SetSettingValue("privaterolls:save", updateRollVisibility.value)
+                end
 
                 if rollAllPrompts ~= nil and rollAllPromptsCheck.value then
                     rollAllPrompts()
@@ -3200,6 +3232,7 @@ function GameHud.CreateRollDialog(self)
                     silent = rollIsSilent,
                     delay = delayRoll,
                     dmonly = dmonly,
+                    dicetower = dicetower,
                     instant = instant,
                     roll = rollInput.text,
                     creature = creature,
@@ -3231,7 +3264,7 @@ function GameHud.CreateRollDialog(self)
                             end
 
                             print("AI:: Dialog ROLL COMPLETE...")
-                            if creature ~= nil and creature._tmp_aicontrol > 0 then
+                            if (creature ~= nil and creature._tmp_aicontrol > 0) or (dicetower and not dmhub.isDM) then
                             print("AI:: Dialog ROLL PRESS PROCEED...")
                                 proceedAfterRollButton:FireEvent("press")
                             end
@@ -3262,6 +3295,7 @@ function GameHud.CreateRollDialog(self)
                         tokenid = rollArgs.tokenid,
                         properties = rollArgs.properties,
                         dmonly = rollArgs.dmonly,
+                        dicetower = rollArgs.dicetower,
                         instant = rollArgs.instant,
                         silent = rollArgs.silent,
                         delay = rollArgs.delay,

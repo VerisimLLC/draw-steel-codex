@@ -398,7 +398,7 @@ mod.shared.CreateTriggerPanel = function()
                                         end
 
                                         local sourceToken = g_token
-                                        local range = tonumber(trigger.powerRollModifier.range)
+                                        local range = tonumber(ExecuteGoblinScript(trigger.powerRollModifier.range, g_token.properties:LookupSymbol(symbols), 10))
                                         local rangeType = trigger.powerRollModifier.powerRollModifier:try_get("changeTargetRange", "none")
                                         if rangeType == "ability" then
                                             sourceToken = dmhub.GetTokenById(trigger.casterid)
@@ -555,7 +555,7 @@ mod.shared.CreateTriggerPanel = function()
                                             end
 
                                             local sourceToken = g_token
-                                            local range = tonumber(trigger.powerRollModifier.range)
+                                            local range = tonumber(ExecuteGoblinScript(trigger.powerRollModifier.range, g_token.properties:LookupSymbol(symbols), 10))
                                             local rangeType = trigger.powerRollModifier.powerRollModifier:try_get("changeTargetRange", "none")
                                             if rangeType == "ability" then
                                                 sourceToken = dmhub.GetTokenById(trigger.casterid)
@@ -722,7 +722,7 @@ mod.shared.CreateTriggerPanel = function()
                                         end
 
                                         local sourceToken = g_token
-                                        local range = tonumber(trigger.powerRollModifier.range)
+                                        local range = tonumber(ExecuteGoblinScript(trigger.powerRollModifier.range, g_token.properties:LookupSymbol(symbols), 10))
                                         local rangeType = trigger.powerRollModifier.powerRollModifier:try_get("changeTargetRange", "none")
                                         if rangeType == "ability" then
                                             sourceToken = dmhub.GetTokenById(trigger.casterid)
@@ -838,10 +838,13 @@ mod.shared.CreateTriggerPanel = function()
 										end,
 									}
 
-                                    print("TRIGGER:: DISMISS =", dismiss)
                                     if dismiss then
                                         triggerPanel:SetClass("collapsed", true)
-                                        print("TRIGGER:: COLLAPSE")
+                                    end
+
+                                    local menu = element:FindParentWithClass("customActionBar")
+                                    if menu ~= nil then
+                                        menu:FireEventTree("hideability", trigger)
                                     end
                                 end,
 
@@ -1106,7 +1109,7 @@ mod.shared.CreateTriggerPanel = function()
                                             end
 
                                             local sourceToken = g_token
-                                            local range = tonumber(trigger.powerRollModifier.range)
+                                            local range = tonumber(ExecuteGoblinScript(trigger.powerRollModifier.range, g_token.properties:LookupSymbol(symbols), 10))
                                             local rangeType = trigger.powerRollModifier.powerRollModifier:try_get("changeTargetRange", "none")
                                             if rangeType == "ability" then
                                                 sourceToken = dmhub.GetTokenById(trigger.casterid)

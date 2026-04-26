@@ -187,6 +187,24 @@ function ActivatedAbilityPowerRollBehavior:SummarizeBehavior(ability, creatureLo
     return "Ability Power Roll"
 end
 
+-- Scan each tier's text for "<word> damage" patterns (e.g. "2 fire damage",
+-- "6 fire damage; push 2") and add the preceding word as a damage-type
+-- candidate. Entries that do not match a real damage type are harmless --
+-- callers resolve against a known set (e.g. g_damageTypeIconDisplay).
+function ActivatedAbilityPowerRollBehavior:AccumulateDamageTypes(ability, result)
+    local tiers = self:try_get("tiers")
+    if tiers == nil then
+        return
+    end
+    for _,tierText in ipairs(tiers) do
+        if type(tierText) == "string" then
+            for word in string.gmatch(tierText, "(%w+)%s+damage") do
+                result[#result+1] = string.lower(word)
+            end
+        end
+    end
+end
+
 --if we have targets, the actual tier should be equal to one of the tiers found among the targets.
 --- @param tier number
 --- @param multitargets nil|({token: CharacterToken, tier: number}[])
@@ -283,7 +301,13 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
             width = "100%",
             height = "auto",
             flow = "vertical",
+            bgcolor = Styles.RichBlack02,
+            bgimage = true,
             styles = {
+                {
+                    selectors = {"row"},
+                    bgcolor = Styles.RichBlack02,
+                },
                 {
                     selectors = {"row", "highlight"},
                     bgcolor = Styles.textColor,
@@ -472,6 +496,7 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
             end
 
             local row = gui.TableRow{
+                bgimage = true,
                 width = "100%",
                 height = "auto",
                 press = function(element)
@@ -869,6 +894,33 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
         end
     end
 
+    --For minion squad signature abilities, extra minions from the squad may be
+    --attacking specific targets (assigned via options.symbols.targetPairs). The
+    --consolidated power roll should pick up any power-roll modifiers those
+    --other minions would grant against their assigned target (e.g. a Flanking
+    --edge when a different minion in the pair is the one actually flanking).
+    --Build a lookup from each non-instigator attacker's charid to its active
+    --modifier list so CalculateMultitargets can evaluate them per-target.
+    local attackerModifierInfo = nil
+    if rollType == "ability_power_roll"
+        and caster.minion
+        and ability.categorization == "Signature Ability"
+        and caster:has_key("_tmp_minionSquad")
+        and options.symbols ~= nil
+        and options.symbols.targetPairs ~= nil then
+        attackerModifierInfo = {}
+        local squad = caster._tmp_minionSquad
+        for _, tok in ipairs(squad.tokens or {}) do
+            if tok ~= nil and tok.valid and tok.charid ~= casterToken.charid then
+                attackerModifierInfo[tok.charid] = {
+                    token = tok,
+                    creature = tok.properties,
+                    modifiers = tok.properties:GetActiveModifiers(),
+                }
+            end
+        end
+    end
+
     local multitargetsByTokenId = {}
 
     local multitargets = {}
@@ -914,22 +966,67 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
 
             local candidateModifiers = {}
 
-            --the attacker's modifiers.
-            for _,mod in ipairs(modifiersOnCaster) do
-                local m = mod.mod:DescribeModifyPowerRoll(mod, caster, rollType, {ability = ability, caster = caster, target = targetCreature, symbols = options.symbols, attribute = self:try_get("attrid"), skills = {self:try_get("skillid")}})
-                if m ~= nil then
-                    if options.symbols ~= nil then
-                        m.modifier:InstallSymbolsFromContext(options.symbols)
+            --Attackers whose modifiers should be evaluated against this target.
+            --The instigating caster is always first (and carries the ability-
+            --inherent modifiers added to modifiersOnCaster above). For minion
+            --squad signatures with targetPairs, any other squad minion assigned
+            --to this target also contributes its own power-roll modifiers so
+            --things like Flanking apply when a non-instigator is the one
+            --actually flanking.
+            local attackerEvalList = {
+                {creature = caster, modifiers = modifiersOnCaster},
+            }
+            if attackerModifierInfo ~= nil then
+                for _, pair in ipairs(options.symbols.targetPairs) do
+                    if pair.b == target.token.charid and pair.a ~= casterToken.charid then
+                        local info = attackerModifierInfo[pair.a]
+                        if info ~= nil then
+                            attackerEvalList[#attackerEvalList+1] = {
+                                creature = info.creature,
+                                modifiers = info.modifiers,
+                            }
+                        end
                     end
+                end
+            end
 
-                    m.hint = m.modifier:HintModifyPowerRolls(mod, caster, rollType, {
-                        ability = ability,
-                        target = targetCreature,
-                        attribute = self:try_get("attrid"),
-                        skills = {self:try_get("skillid")}
-                    })
-                    if m.hint ~= nil then
-                        candidateModifiers[#candidateModifiers+1] = m
+            --Dedupe by source modifier guid so global rule mods present on
+            --every squad minion (e.g. the Flanking global rule) only show up
+            --once in the dialog even though each attacker carries a copy. If
+            --an earlier attacker's copy evaluated to hint.result == false but
+            --a later attacker's copy evaluates to true (because that attacker
+            --is the one actually flanking), replace the entry so the edge
+            --applies.
+            local indexByGuid = {}
+            for _, attackerCtx in ipairs(attackerEvalList) do
+                local attackerCreature = attackerCtx.creature
+                for _,mod in ipairs(attackerCtx.modifiers) do
+                    local m = mod.mod:DescribeModifyPowerRoll(mod, attackerCreature, rollType, {ability = ability, caster = attackerCreature, target = targetCreature, symbols = options.symbols, attribute = self:try_get("attrid"), skills = {self:try_get("skillid")}})
+                    if m ~= nil then
+                        if options.symbols ~= nil then
+                            m.modifier:InstallSymbolsFromContext(options.symbols)
+                        end
+
+                        m.hint = m.modifier:HintModifyPowerRolls(mod, attackerCreature, rollType, {
+                            ability = ability,
+                            target = targetCreature,
+                            attribute = self:try_get("attrid"),
+                            skills = {self:try_get("skillid")}
+                        })
+                        if m.hint ~= nil then
+                            local guid = m.modifier:try_get("guid")
+                            if guid == nil then
+                                candidateModifiers[#candidateModifiers+1] = m
+                            elseif indexByGuid[guid] == nil then
+                                candidateModifiers[#candidateModifiers+1] = m
+                                indexByGuid[guid] = #candidateModifiers
+                            else
+                                local existing = candidateModifiers[indexByGuid[guid]]
+                                if (existing.hint == nil or not existing.hint.result) and m.hint.result then
+                                    candidateModifiers[indexByGuid[guid]] = m
+                                end
+                            end
+                        end
                     end
                 end
             end
@@ -1082,7 +1179,7 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
     local m_canceled = false
 
     local tiers = DeepCopy(self.tiers)
-    if ability.description ~= "" and ability.effectImplemented == false and ActivatedAbilityDrawSteelCommandBehavior.ValidateRule(ability.description) == true then
+    if ability.description ~= "" and ability:try_get("implementation", 3) ~= 3 and ActivatedAbilityDrawSteelCommandBehavior.ValidateRule(ability.description) == true then
         --append the rule to the tiers if it is a valid rule that could
         --appear on a power roll.
         for i=1,#tiers do
@@ -1124,7 +1221,7 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
 
 
     --timeline roll dialog
-    local displaying = CharacterPanel.DisplayAbility(casterToken, ability, options.symbols, {lock = true})
+    local displaying = CharacterPanel.DisplayAbility(casterToken, ability, options.symbols, {lock = true, renderAsAbility = true})
     print("Timeline:: Displaying:", displaying)
 
     if displaying then
@@ -1599,7 +1696,6 @@ function ActivatedAbilityPowerRollBehavior:EditorItems(parentPanel)
         },
 
         gui.GoblinScriptInput{
-            halign = "right",
             value = self.roll,
             events = {
                 change = function(element)
@@ -1768,7 +1864,6 @@ function ActivatedAbilityPowerRollBehavior:EditorItems(parentPanel)
                     },
 
                     gui.GoblinScriptInput{
-                        halign = "right",
                         width = 300,
                         value = modifier.condition,
                         events = {
@@ -1885,11 +1980,11 @@ function ActivatedAbilityPowerRollBehavior:EditorItems(parentPanel)
     for i=1,#g_TierNames do
         local tier = g_TierNames[i]
         rows[#rows+1] = gui.TableRow{
-            gui.Label{ text = tier, fontFace = "DrawSteelGlyphs" },
+            gui.Label{ fontSize = 24, text = tier, fontFace = "DrawSteelGlyphs" },
             gui.Input{
                 text = self.tiers[i],
-                characterLimit = 256,
-                halign = "right",
+                characterLimit = 350,
+                halign = "left",
                 change = function(element)
                     self.tiers[i] = element.text
                 end
@@ -2140,6 +2235,10 @@ local g_tableStyles = {
         selectors = {"label"},
         color = "#cccccc",
         valign = "center",
+    },
+    gui.Style{
+        selectors = {"row"},
+        bgcolor = Styles.RichBlackGradient,
     },
     gui.Style{
         selectors = {"row", "highlighted"},

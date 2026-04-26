@@ -805,9 +805,9 @@ RollInitiativeChatMessage.monsterTokenIds = {}
 function RollInitiativeChatMessage.Render(selfInput, message)
     local winnerText
     if selfInput.winner == "players" then
-        winnerText = "Heroes win initiative!"
+        winnerText = "Heroes win turn order!"
     else
-        winnerText = "Monsters win initiative!"
+        winnerText = "Monsters win turn order!"
     end
 
     -- Collect all tokens and sort by playerControlled
@@ -1843,9 +1843,9 @@ local function ShowCombatSetupDialog(selectedTokens)
             gui.EnumeratedSliderControl{
                 width = 600,
                 options = {
-                    { id = "heroes", text = "Heroes Win Initiative"},
-                    { id = "roll", text = "Roll for Initiative"},
-                    { id = "monsters", text = "Monsters Win Initiative"},
+                    { id = "heroes", text = "Heroes Win Turn Order"},
+                    { id = "roll", text = "Roll for Turn Order"},
+                    { id = "monsters", text = "Monsters Win Turn Order"},
                 },
 
                 refreshSurprise = function(element)

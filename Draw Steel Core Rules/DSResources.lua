@@ -41,6 +41,11 @@ function character:GetHeroicOrMaliceResources()
     if resources ~= nil then
         local heroicResource = resources[CharacterResource.heroicResourceId]
         if heroicResource ~= nil then
+            local q = dmhub.initiativeQueue
+            if q == nil or q.hidden or q.guid ~= heroicResource.combatid then
+                return 0
+            end
+
             return heroicResource.unbounded or 0
         end
     end

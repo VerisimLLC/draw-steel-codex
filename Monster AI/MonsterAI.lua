@@ -588,6 +588,11 @@ function MonsterAI:FindAndExecuteMove()
         return false
     end
 
+    if not token.properties:has_key("monster_type") then
+        print("AI:: Not a monster")
+        return false
+    end
+
     local abilities = self.abilities
     local bestScore = {score = 0}
     local bestMove = nil
@@ -851,7 +856,7 @@ function MonsterAI:Analysis()
         for _,tok in ipairs(tokens) do
             local monsterType = tok.properties:try_get("monster_type", nil)
             local initiativeid = InitiativeQueue.GetInitiativeId(tok)
-            if initiativeid ~= nil and queue.entries[initiativeid] ~= nil and (not queue:IsEntryPlayer(initiativeid)) and (not monstersSeen[monsterType]) then
+            if monsterType ~= nil and initiativeid ~= nil and queue.entries[initiativeid] ~= nil and (not queue:IsEntryPlayer(initiativeid)) and (not monstersSeen[monsterType]) then
                 monstersSeen[monsterType] = true
 
                 local languageid = tok.properties:CurrentlySpokenLanguage()

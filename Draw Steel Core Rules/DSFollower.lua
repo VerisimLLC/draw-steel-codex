@@ -33,9 +33,11 @@ Commands.RegisterMacro{
                         description = "Convert to follower",
                         execute = function()
                             local creature = token.properties
+                            local monsterRole = creature:try_get("role", "") or ""
+                            local isRetainer = string.find(string.lower(monsterRole), "retainer") ~= nil
                             creature.__typeName = "follower"
-                            creature.role = creature.role or "follower"
-                            creature.followerType = cond(creature.retainer, "retainer", "artisan")
+                            creature.followerType = cond(isRetainer, "retainer", "artisan")
+                            creature.role = "follower"
                             creature.availableRolls = 0
                         end,
                     }

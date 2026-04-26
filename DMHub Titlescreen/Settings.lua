@@ -33,6 +33,16 @@ setting{
 }
 
 setting{
+    id = "redactdirectorlocation",
+    description = "Redact Director Location",
+    help = "When on, directors' rich-status/location is hidden in the Heroes and User Status panels for everyone in the game; only Online/Away/Offline is shown for director users.",
+    storage = "game",
+    section = "General",
+    editor = "check",
+    default = true,
+}
+
+setting{
 	id = "sensitivity",
 	description = "Scroll Sensitivity",
 	help = "Controls the speed which the screen moves when panning.",
@@ -800,9 +810,14 @@ setting{
 	default = true,
 }
 
+local hidefText = "High Definition"
+if dmhub.platform == "macOS" then
+    hidefText = "Retina Display"
+end
+
 setting{
 	id = "hidef",
-	description = "High Definition",
+	description = hidefText,
 	storage = "preference",
 	editor = "check",
 
@@ -1021,6 +1036,16 @@ setting{
 	description = "Show Invisible Tokens",
 	storage = "preference",
 
+	editor = "check",
+	default = true,
+}
+
+setting{
+	id = "analytics:enabled",
+	description = "Send Anonymous Analytics",
+	help = "When enabled, DMHub sends anonymized gameplay analytics and crash reports to the server to help improve the application. When disabled, no analytics events are transmitted.",
+	storage = "account",
+	section = "General",
 	editor = "check",
 	default = true,
 }
@@ -1416,6 +1441,19 @@ setting{
 	description = "Time required to hold down mouse to classify as a long click",
 	default = 0.35,
 	storage = "preference",
+}
+
+setting{
+	id = "macos:cmdAsCtrl",
+	description = "Use Cmd for keyboard shortcuts",
+	help = "When enabled, the Cmd key acts as Ctrl for all keyboard shortcuts (e.g. Cmd+Z for undo). This matches standard macOS behavior. Disable if you want Cmd and Ctrl to be separate modifier keys.",
+	storage = "preference",
+	section = "game",
+	editor = "check",
+	default = true,
+	visible = function()
+		return dmhub.platform == "macOS"
+	end,
 }
 
 setting{
@@ -2342,6 +2380,17 @@ setting{
 	classes = {"dmonly"},
 	section = "Game",
 	default = 1,
+	storage = "game",
+	editor = "check",
+}
+
+setting{
+	id = "walls:indestructible",
+	description = "Indestructible Walls",
+	help = "When enabled, forced movement cannot break through walls, regardless of their solidity.",
+	classes = {"dmonly"},
+	section = "Game",
+	default = false,
 	storage = "game",
 	editor = "check",
 }

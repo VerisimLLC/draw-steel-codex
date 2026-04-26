@@ -87,3 +87,15 @@ GameSystem.RegisterGoblinScriptField{
         return c:try_get("purgedOngoingEffectsChosen", {})
     end,
 }
+
+GameSystem.RegisterGoblinScriptField{
+    target = ActivatedAbilityCast,
+    name = "Has Rolled Damage",
+    type = "boolean",
+    desc = "True if this ability cast dealt damage from a dice roll rather than flat damage.",
+    seealso = {},
+    examples = {"Cast.Has Rolled Damage"},
+    calculate = function(c)
+        return c.hasRolledDamage
+    end,
+}

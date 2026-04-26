@@ -11,7 +11,7 @@ local mod = dmhub.GetModLoading()
 --- @field source string Source description string.
 --- @field description string Rules text.
 --- @field applyto string Target filter id: "all", "allother", "selfandfriends", "friends", "enemies", "sametype", "othertype".
---- @field creatureFilter string GoblinScript filter evaluated against each creature to determine whether it is affected.
+--- @field creatureFilter nil|string|number|table GoblinScript filter evaluated against each creature to determine whether it is affected.
 --- @field modifiers CharacterModifier[] Modifiers applied to creatures inside the aura.
 Aura = RegisterGameType("Aura", "CharacterFeature")
 
@@ -67,7 +67,8 @@ for i, cond in ipairs(Aura.TriggerConditions) do
 end
 
 Aura.objectid = "none"
-Aura.iconid = "ui-icons/skills/1.png"
+Aura.iconid = "drawsteel/ability/aura_burst_icon.png"
+Aura.hasCustomIcon = true
 Aura.canrelocate = false
 Aura.relocateResource = "standardAction"
 Aura.relocateRange = 30
@@ -76,6 +77,7 @@ Aura.name = "Aura"
 Aura.source = "Aura"
 Aura.description = ""
 Aura.applyto = "all"
+Aura.hasCustomIcon = false
 
 function Aura.OnDeserialize(self)
     --we had to change id -> guid to match CharacterFeature.
@@ -1155,11 +1157,13 @@ function ActivatedAbilityAuraBehavior:CastOnArea(ability, casterToken, targets, 
                 local persistence = ability:Persistence()
                 if persistence ~= nil and persistence.enabled and obj ~= nil then
                     local persistenceInfo = casterToken.properties:MostRecentPersistentAbility()
-                    local objects = persistenceInfo:get_or_add("objects", {})
-                    objects[#objects + 1] = {
-                        floorid = obj.floorid,
-                        objid = obj.objid,
-                    }
+                    if persistenceInfo ~= nil then
+                        local objects = persistenceInfo:get_or_add("objects", {})
+                        objects[#objects + 1] = {
+                            floorid = obj.floorid,
+                            objid = obj.objid,
+                        }
+                    end
                 end
 
                 casterToken.properties:AddAura(auraInstance)

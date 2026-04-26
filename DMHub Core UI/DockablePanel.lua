@@ -80,6 +80,7 @@ local DockablePanelTheme = {
 		transitionTime = 0.2,
 	},
 
+
 	{
 		selectors = {"dockFrame"},
 		--bgimage = 'panels/hud/button_09_frame_custom.png',
@@ -100,6 +101,23 @@ local DockablePanelTheme = {
         collapsed = 1,
 	},
 
+	-- Hide minimize arrow on the last non-minimized panel.
+	{
+		selectors = {"minimizeArrow", "lastExpanded"},
+		collapsed = 1,
+	},
+
+	-- Hide maximize arrow on minimized panels.
+	{
+		selectors = {"collapseArrow", "~minimizeArrow", "minimizeSet"},
+		collapsed = 1,
+	},
+
+	-- Hide minimize arrow on maximized panels.
+	{
+		selectors = {"minimizeArrow", "maximized"},
+		collapsed = 1,
+	},
 
 	{
 		selectors = {"dockablePanel"},
@@ -412,10 +430,19 @@ function GameHud:CreateSingleDock(params)
 		layoutChanged = function(element)
             local children = element.data.GetChildren()
             if not floating then
+                local expandedCount = 0
+                for _,child in ipairs(children) do
+                    if not child.data.minimized then
+                        expandedCount = expandedCount + 1
+                    end
+                end
+
+                local isSingle = #children == 1 and element.data.maximizedChild == nil
+
                 for i,child in ipairs(children) do
                     child:FireEventTree("draggable", i > 1)
-
-                    child:SetClassTree("single", #children == 1)
+                    child:SetClassTree("single", isSingle)
+                    child:SetClassTree("lastExpanded", expandedCount <= 1 and not child.data.minimized)
                 end
             end
 
@@ -540,9 +567,11 @@ function GameHud:CreateSingleDock(params)
 
 			element:FireEvent("fitChildren")
 
+			container:SetClassTree("maximized", false)
 			container:FireEventTree("minimize")
 
 			element.data.maximizedChild = nil
+			element:FireEvent("layoutChanged")
 		end,
 
 		maximizeChild = function(element, child)
@@ -550,6 +579,19 @@ function GameHud:CreateSingleDock(params)
 			local container = child:FindParentWithClass("dockablePanelContainer")
 			if container == nil then
 				return
+			end
+
+			-- Undo any minimized panels first.
+			for _,ch in ipairs(element.data.GetChildren()) do
+				if ch.data.minimized then
+					ch.data.minimized = false
+					ch.data.minHeight = ch.data.savedMinHeight or 40
+					ch.data.maxHeight = ch.data.savedMaxHeight or 1080
+					ch.data.locked = false
+					ch.data.savedMinHeight = nil
+					ch.data.savedMaxHeight = nil
+					ch:SetClassTree("minimizeSet", false)
+				end
 			end
 
 			container.data.maximized = true
@@ -567,9 +609,71 @@ function GameHud:CreateSingleDock(params)
 
 			element:FireEvent("fitChildren")
 
+			container:SetClassTree("maximized", true)
 			container:FireEventTree("maximize")
 
 			element.data.maximizedChild = child
+			element:FireEvent("layoutChanged")
+		end,
+
+		shrinkChild = function(element, child)
+			local container = child:FindParentWithClass("dockablePanelContainer")
+			if container == nil then
+				return
+			end
+
+			if floating then
+				return
+			end
+
+			-- Undo any maximize first.
+			if element.data.maximizedChild ~= nil and element.data.maximizedChild.valid then
+				element:SetClassTree("collapseSet", true)
+				element.data.maximizedChild:FireEventOnParents("minimizeChild", element.data.maximizedChild)
+			end
+
+			container.data.minimized = true
+			container.data.savedMinHeight = container.data.minHeight
+			container.data.savedMaxHeight = container.data.maxHeight
+			container.data.savedHeight = container.selfStyle.height
+			container:SetClassTree("minimizeSet", true)
+
+			local shrunkHeight = 33
+			container.data.minHeight = shrunkHeight
+			container.data.maxHeight = shrunkHeight
+			container.data.locked = true
+			container.selfStyle.height = shrunkHeight
+
+			element:FireEvent("fitChildren")
+			element:FireEvent("layoutChanged")
+			DockablePanel.Serialize()
+		end,
+
+		unshrinkChild = function(element, child)
+			local container = child:FindParentWithClass("dockablePanelContainer")
+			if container == nil or not container.data.minimized then
+				return
+			end
+
+			if floating then
+				return
+			end
+
+			container.data.minimized = false
+			container.data.minHeight = container.data.savedMinHeight or 40
+			container.data.maxHeight = container.data.savedMaxHeight or 1080
+			container.data.locked = false
+			if container.data.savedHeight then
+				container.selfStyle.height = container.data.savedHeight
+			end
+			container.data.savedMinHeight = nil
+			container.data.savedMaxHeight = nil
+			container.data.savedHeight = nil
+			container:SetClassTree("minimizeSet", false)
+
+			element:FireEvent("fitChildren")
+			element:FireEvent("layoutChanged")
+			DockablePanel.Serialize()
 		end,
 
 		ensureNoMaximize = function(element)
@@ -577,6 +681,7 @@ function GameHud:CreateSingleDock(params)
 				element.data.maximizedChild:FireEventOnParents("minimizeChild", element.data.maximizedChild)
 			end
 		end,
+
 
 		fitChildren = function(element)
             if floating then
@@ -817,10 +922,10 @@ CreateDockablePanelTabbedContainer = function(options)
                 index = cond(forceResult, #children+1, #children),
                 tab = false,
             }
-            
+
         end
 
-		local y = beginDragY + yoffset + resultPanel.data.startDragHeight/2
+		local y = beginDragY + yoffset + math.min(resultPanel.data.startDragHeight*0.5, 16)
 
 		local items = {}
 		for i,child in ipairs(children) do
@@ -829,49 +934,42 @@ CreateDockablePanelTabbedContainer = function(options)
 			end
 		end
 
-		local bestIndex = nil
-		local bestDelta = nil
-		local jointab = false
+		-- Zone-based approach: each panel's vertical region is divided into
+		-- three zones that scale with the panel's height:
+		--   Top 25%:    swap above (insert before this panel)
+		--   Middle 50%: tab (merge with this panel)
+		--   Bottom 25%: swap below (insert after this panel)
+		-- The area above all panels and below all panels is swap-only.
 
 		local ypos = 0
-		for i=1,#items+2 do
-			local delta = math.abs(y - ypos)
+		for i, item in ipairs(items) do
+			local itemTop = ypos
+			local itemBottom = ypos + item.data.startDragHeight
+			local tabTop = itemTop + item.data.startDragHeight * 0.25
+			local tabBottom = itemBottom - item.data.startDragHeight * 0.25
 
-			if delta < resultPanel.data.startDragHeight or forceResult then --only consider anything which we are actually overlapping.
-				if bestDelta == nil or delta < bestDelta then
-					bestIndex = i
-					bestDelta = delta
-					jointab = false
-				end
+			if y >= itemTop and y < tabTop then
+				-- Top zone: insert before this panel.
+				return { index = i, tab = false }
+			elseif y >= tabTop and y < tabBottom then
+				-- Middle zone: tab with this panel.
+				return { index = i, tab = true }
+			elseif y >= tabBottom and y < itemBottom then
+				-- Bottom zone: insert after this panel.
+				return { index = i + 1, tab = false }
 			end
 
-			local item = items[i] or items[i-1]
-
-			if item ~= nil then
-				--consider dragging onto this item instead of between items, to make tabs.
-				ypos = ypos + item.data.startDragHeight/2
-				local delta = math.abs(y - ypos)
-				if delta < resultPanel.data.startDragHeight or forceResult then --only consider anything which we are actually overlapping.
-					if bestDelta == nil or delta < bestDelta then
-						bestIndex = i
-						bestDelta = delta
-						jointab = true
-					end
-				end
-
-
-				ypos = ypos + item.data.startDragHeight/2
-			end
+			ypos = itemBottom
 		end
 
-		if bestIndex == nil then
-			return nil
-		else
-			return {
-				index = bestIndex,
-				tab = jointab,
-			}
+		-- Past all panels or before all panels.
+		if y < 0 then
+			return { index = 1, tab = false }
+		elseif forceResult or y < ypos + resultPanel.data.startDragHeight then
+			return { index = #items + 1, tab = false }
 		end
+
+		return nil
 
 	end
 
@@ -1019,8 +1117,17 @@ CreateDockablePanelTabbedContainer = function(options)
 					end
 
 					if bestDrag.tab then
-						if dock ~= nil and (not dock.data.floating) and dock.data.childrenAtDragStart[bestDrag.index] ~= nil then
-							dock.data.childrenAtDragStart[bestDrag.index]:FireEvent("merge", resultPanel)
+						-- Build the same items list as CalculateBestDragPosition
+						-- (childrenAtDragStart minus the panel being dragged).
+						local items = {}
+						for _,child in ipairs(dock.data.childrenAtDragStart) do
+							if child ~= resultPanel then
+								items[#items+1] = child
+							end
+						end
+						local tabTarget = items[bestDrag.index] or items[bestDrag.index - 1]
+						if dock ~= nil and (not dock.data.floating) and tabTarget ~= nil then
+							tabTarget:FireEvent("merge", resultPanel)
 						end
 					else
 
@@ -1376,7 +1483,38 @@ CreateDockablePanelTabbedContainer = function(options)
 		return buttonContainer
 	end
 
+    local minimizeArrow = gui.CollapseArrow{
+        classes = {"minimizeArrow"},
+        styles = {
+            gui.Style{
+                selectors = {"single"},
+                collapsed = 1,
+            },
+            gui.Style{
+                selectors = {"minimizeArrow", "minimizeSet"},
+                scale = {x = 1, y = -1},
+                transitionTime = 0.2,
+            },
+        },
+        width = 18,
+        height = 12,
+        halign = "right",
+        valign = "top",
+        hmargin = 28,
+        vmargin = 12,
+        floating = true,
+        press = function(element)
+            element:SetClass("minimizeSet", not element:HasClass("minimizeSet"))
+            if element:HasClass("minimizeSet") then
+                element:FireEventOnParents("shrinkChild", element)
+            else
+                element:FireEventOnParents("unshrinkChild", element)
+            end
+        end,
+    }
+
     local collapseArrow = gui.CollapseArrow{
+        classes = {"collapseSet"},
         styles = {
             gui.Style{
                 selectors = {"single"},
@@ -1392,7 +1530,7 @@ CreateDockablePanelTabbedContainer = function(options)
         floating = true,
         press = function(element)
             element:SetClass("collapseSet", not element:HasClass("collapseSet"))
-            if element:HasClass("collapseSet") then
+            if not element:HasClass("collapseSet") then
                 element:FireEventOnParents("maximizeChild", element)
             else
                 element:FireEventOnParents("minimizeChild", element)
@@ -1442,6 +1580,9 @@ CreateDockablePanelTabbedContainer = function(options)
 		updatetabs = function(element)
 			element.selfStyle.height = "100%-32"
 		end,
+		layoutChanged = function(element)
+			element:SetClass("collapsed", resultPanel.data.minimized == true)
+		end,
 	}
 
     local m_baseWidth = 0
@@ -1488,6 +1629,7 @@ CreateDockablePanelTabbedContainer = function(options)
 
 		data = {
 			maximized = false,
+			minimized = false,
 			minHeight = metrics.minHeight,
 			maxHeight = metrics.maxHeight,
 			locked = false,
@@ -1728,6 +1870,7 @@ CreateDockablePanelTabbedContainer = function(options)
             verticalDragHandle,
             verticalDragDivider,
             tabPanel,
+            minimizeArrow,
             collapseArrow,
             contentPanel,
         },
@@ -1781,7 +1924,7 @@ local CreateDockablePanelInstance = function(panelOptions)
 					gui.Panel{
 						idprefix = "dockablePanelScrollParent",
 						interactable = false,
-						width = "100%",
+						width = "100%-4",
 						height = "100%",
 						pad = 2,
 						vscroll = true,
@@ -2002,14 +2145,16 @@ DockablePanel = {
 
 
 	FindInstance = function(identifier)
-        if rawget(gamehud,"leftDock") == nil then
+        if gamehud == nil or rawget(gamehud,"leftDock") == nil then
             return nil
         end
 		for _,dock in ipairs({gamehud.leftDock, gamehud.rightDock, gamehud.floatingDock}) do
-			for _,child in ipairs(dock.data.GetChildren()) do
-				for _,instance in ipairs(child.data.GetPanelInstances()) do
-					if instance.data.identifier == identifier then
-						return instance
+			if dock ~= nil then
+				for _,child in ipairs(dock.data.GetChildren()) do
+					for _,instance in ipairs(child.data.GetPanelInstances()) do
+						if instance.data.identifier == identifier then
+							return instance
+						end
 					end
 				end
 			end
@@ -2044,7 +2189,12 @@ DockablePanel = {
 					height = child.selfStyle.height,
 					tabs = {},
 					selected = child.data.GetSelectedTabIndex(),
+					minimized = child.data.minimized or nil,
 				}
+
+				if child.data.minimized and child.data.savedHeight then
+					panel.height = child.data.savedHeight
+				end
 
                 if dock == gamehud.floatingDock then
                     panel.x = child.x
@@ -2121,6 +2271,27 @@ DockablePanel = {
 
 				--make sure we do fit after deserialize
 				dock:FireEvent("fitChildren")
+
+				-- Restore minimized panels after fit.
+				for i,child in ipairs(dock.data.GetChildren()) do
+					if panelsAdded[i].minimized then
+						child:SetClassTree("minimizeSet", true)
+						child.data.minimized = true
+						child.data.savedMinHeight = child.data.minHeight
+						child.data.savedMaxHeight = child.data.maxHeight
+						child.data.savedHeight = child.selfStyle.height
+						local shrunkHeight = 33
+						child.data.minHeight = shrunkHeight
+						child.data.maxHeight = shrunkHeight
+						child.data.locked = true
+						child.selfStyle.height = shrunkHeight
+						child:FireEventTree("layoutChanged")
+					end
+				end
+				if dock.data.GetChildren()[1] then
+					dock:FireEvent("fitChildren")
+				end
+
 				dock:FireEventTree("layoutChanged")
 			end
 		end

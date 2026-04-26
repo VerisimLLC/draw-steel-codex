@@ -92,7 +92,7 @@ CharacterModifier.TypeInfo.forcedmovement = {
             }
 
             children[#children+1] = gui.Panel{
-                classes = {"formPanel"},
+                classes = {"formPanel", "formPanel-inline"},
                 fromDropdown,
                 gui.Label{
                     text = "->",

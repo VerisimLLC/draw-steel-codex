@@ -12,7 +12,7 @@ MCDMUtils = {
                 return ability
             end
         end
-    
+
         return nil
     end
 }

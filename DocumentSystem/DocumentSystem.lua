@@ -94,6 +94,21 @@ local JournalTabStyles = {
         borderColor = TAB_GOLD,
     },
     {
+        selectors = {"label", "journalTabBubbleIcon"},
+        width = TAB_HEIGHT - 4,
+        height = TAB_HEIGHT - 4,
+        bgimage = "panels/square.png",
+        bgcolor = "black",
+        borderWidth = 1,
+        borderColor = TAB_CREAM,
+        cornerRadius = "50% height",
+        textAlignment = "center",
+        fontSize = TAB_FONT_SIZE - 2,
+        color = TAB_CREAM,
+        valign = "center",
+        rmargin = 4,
+    },
+    {
         selectors = {"label", "journalTabLabel"},
         width = "auto",
         height = "auto",
@@ -626,31 +641,97 @@ function CustomDocument:CreateInterface(args)
     local m_presentButton
     local m_playerPreviewButton
 
+    local m_bubbleIconInput = nil
+    if args.bubbleIcon then
+        m_bubbleIconInput = gui.Input {
+            text = args.bubbleIcon,
+            bgimage = "panels/square.png",
+            bgcolor = "black",
+            color = "white",
+            cornerRadius = "50% height",
+            borderColor = "white",
+            borderWidth = 1,
+            width = 25,
+            height = 25,
+            fontSize = 13,
+            valign = "center",
+            textAlignment = "center",
+            characterLimit = 3,
+            placeholderText = "",
+            editable = true,
+            lmargin = 12,
+            edit = function(element)
+                for _, bubble in pairs(dmhub.infoBubbles) do
+                    if bubble.document ~= nil and bubble.document.docid == self.id then
+                        bubble:BeginChanges()
+                        bubble.icon = element.text
+                        bubble:CompleteChanges("Update bubble icon")
+                        local dialog = element:FindParentWithClass("journalTabbedViewer")
+                        if dialog then
+                            dialog:FireEventTree("refreshTabBubbleIcon", self.id, element.text)
+                        end
+                        break
+                    end
+                end
+            end,
+        }
+    end
+
+    local m_bubbleLockIcon = nil
+    if args.bubbleIcon then
+        m_bubbleLockIcon = gui.Panel {
+            width = 16,
+            height = 16,
+            bgcolor = "white",
+            bgimage = "panels/square.png",
+            valign = "center",
+            lmargin = 8,
+            linger = gui.Tooltip("Unlock to allow dragging on the map"),
+            refreshLockIcon = function(element)
+                for _, bubble in pairs(dmhub.infoBubbles) do
+                    if bubble.document ~= nil and bubble.document.docid == self.id then
+                        element.selfStyle.bgimage = cond(bubble.locked,
+                            "icons/icon_tool/icon_tool_30.png",
+                            "icons/icon_tool/icon_tool_30_unlocked.png")
+                        return
+                    end
+                end
+            end,
+            create = function(element)
+                element:FireEvent("refreshLockIcon")
+            end,
+            press = function(element)
+                for _, bubble in pairs(dmhub.infoBubbles) do
+                    if bubble.document ~= nil and bubble.document.docid == self.id then
+                        bubble:BeginChanges()
+                        bubble.locked = not bubble.locked
+                        bubble:CompleteChanges(cond(bubble.locked,
+                            "Lock info bubble", "Unlock info bubble"))
+                        element:FireEvent("refreshLockIcon")
+                        return
+                    end
+                end
+            end,
+        }
+    end
+
     local m_titlePanel = args.titlePanel or gui.Panel {
-        classes = {cond(self:HaveEditPermissions(), "", "collapsed")},
-        halign = "right",
+        classes = {"collapsed"},
+        halign = "left",
         valign = "center",
         width = "auto",
         height = "auto",
         flow = "horizontal",
         rmargin = 4,
-        gui.Label {
-            text = "Document Name:",
-            fontSize = 16,
-            fontFace = "Berling",
-            color = "#999999",
-            width = "auto",
-            height = "auto",
-            valign = "center",
-            rmargin = 12,
-            lmargin = 12,
-        },
+        m_bubbleIconInput,
+        m_bubbleLockIcon,
         gui.Input {
             text = self.description,
             fontSize = 14,
             width = 200,
             height = 18,
             valign = "center",
+            lmargin = 12,
             characterLimit = 48,
             editable = self:HaveEditPermissions(),
             editlag = 1.0,
@@ -688,6 +769,7 @@ function CustomDocument:CreateInterface(args)
             escapeActivates = false,
             width = buttonSize,
             height = buttonSize,
+            halign = "left",
             bgimage = "icons/icon_app/icon_app_34.png",
             thinkTime = 0.2,
             think = function(element)
@@ -726,6 +808,7 @@ function CustomDocument:CreateInterface(args)
             escapeActivates = false,
             width = buttonSize,
             height = buttonSize,
+            halign = "left",
             bgimage = "icons/icon_game/icon_game_193.png",
             press = function(element)
                 if m_editingButton ~= nil and m_editingButton:HasClass("active") then
@@ -748,6 +831,7 @@ function CustomDocument:CreateInterface(args)
             escapeActivates = false,
             width = buttonSize,
             height = buttonSize,
+            halign = "left",
             hmargin = 0,
             bgimage = "icons/icon_tool/icon_tool_79.png",
             press = function(element)
@@ -762,6 +846,7 @@ function CustomDocument:CreateInterface(args)
                 writePanel:SetClass("collapsed", not writePanel:HasClass("collapsed"))
                 readPanel:SetClass("collapsed", not readPanel:HasClass("collapsed"))
                 element:SetClass("active", not writePanel:HasClass("collapsed"))
+                m_titlePanel:SetClass("collapsed", writePanel:HasClass("collapsed"))
 
                 element.thinkTime = cond(element:HasClass("active"), 1)
             end,
@@ -788,6 +873,7 @@ function CustomDocument:CreateInterface(args)
         escapeActivates = false,
         width = buttonSize,
         height = buttonSize,
+        halign = "left",
         bgimage = "icons/icon_arrow/icon_arrow_28.png",
         rotate = 180,
         bgcolor = "#666666",
@@ -815,6 +901,7 @@ function CustomDocument:CreateInterface(args)
         escapeActivates = false,
         width = buttonSize,
         height = buttonSize,
+        halign = "left",
         bgimage = "icons/icon_arrow/icon_arrow_28.png",
         bgcolor = "#666666",
         linger = function(element)
@@ -840,6 +927,7 @@ function CustomDocument:CreateInterface(args)
         escapeActivates = false,
         width = buttonSize,
         height = buttonSize,
+        halign = "left",
         bgimage = "icons/icon_tool/icon_tool_41.png",
         linger = function(element)
             gui.Tooltip(string.format("Decrease Font Size (Currently %d%%)", round(dmhub.GetSettingValue("journal:fontsize"))))(element)
@@ -856,6 +944,7 @@ function CustomDocument:CreateInterface(args)
         escapeActivates = false,
         width = buttonSize,
         height = buttonSize,
+        halign = "left",
         bgimage = "icons/icon_tool/icon_tool_40.png",
         linger = function(element)
             gui.Tooltip(string.format("Increase Font Size (Currently %d%%)", round(dmhub.GetSettingValue("journal:fontsize"))))(element)
@@ -880,6 +969,7 @@ function CustomDocument:CreateInterface(args)
                 escapeActivates = false,
                 width = buttonSize,
                 height = buttonSize,
+                halign = "left",
                 bgimage = "ui-icons/icon-scale.png",
                 press = function(element)
                     if resultPanel.data.watcher ~= nil then
@@ -891,6 +981,9 @@ function CustomDocument:CreateInterface(args)
                     resultPanel.data.watcherContent = self:GetTextContent()
                     resultPanel.data.watcher = dmhub.OpenTextFileInConnectedEditor(self.description, self:GetTextContent(),
                         function(contents)
+                            if resultPanel.data == nil then
+                                return
+                            end
                             if #contents > self.MaxLength then
                                 contents = contents:sub(1, self.MaxLength)
                                 gui.ModalMessage {
@@ -1093,12 +1186,13 @@ function CustomDocument:CreateInterface(args)
 
         -- Row 2: tool buttons + document name
         gui.Panel {
-            width = "auto",
-            height = 28,
+            width = "98%",
+            height = "auto",
             flow = "horizontal",
             halign = "left",
-            valign = "center",
+            valign = "top",
             hmargin = 2,
+            wrap = true,
             children = m_controlMenuButtons,
         },
     }
@@ -1392,35 +1486,51 @@ local function DialogResizePanel(self, dialogWidth, dialogHeight)
 
 end
 
-local function CreateTabButton(doc, tabbedViewer, tabId)
+local function CreateTabButton(doc, tabbedViewer, tabId, bubbleIcon)
     local tabButton
+    local children = {}
+
+    if bubbleIcon then
+        children[#children + 1] = gui.Label {
+            classes = {"label", "journalTabLabel"},
+            text = "(" .. bubbleIcon .. ")",
+            rmargin = 2,
+            refreshTabBubbleIcon = function(element, docId, newIcon)
+                if docId == tabButton.data.docId then
+                    element.text = "(" .. newIcon .. ")"
+                end
+            end,
+        }
+    end
+
+    children[#children + 1] = gui.Label {
+        classes = {"label", "journalTabLabel"},
+        text = doc.description or "Untitled",
+        refreshTabTitle = function(element, docId, newTitle)
+            if docId == tabButton.data.docId then
+                element.text = newTitle
+            end
+        end,
+    }
+
+    children[#children + 1] = gui.Panel {
+        classes = {"panel", "journalTabClose"},
+        press = function(element)
+            tabbedViewer:FireEvent("closeTab", tabButton.data.tabId)
+        end,
+        gui.Label {
+            classes = {"label", "journalTabCloseLabel"},
+            text = "X",
+        },
+    }
+
     tabButton = gui.Panel {
         classes = {"panel", "journalTab"},
         data = { tabId = tabId, docId = doc.id },
         press = function(element)
             tabbedViewer:FireEvent("switchToTab", element.data.tabId)
         end,
-
-        gui.Label {
-            classes = {"label", "journalTabLabel"},
-            text = doc.description or "Untitled",
-            refreshTabTitle = function(element, docId, newTitle)
-                if docId == tabButton.data.docId then
-                    element.text = newTitle
-                end
-            end,
-        },
-
-        gui.Panel {
-            classes = {"panel", "journalTabClose"},
-            press = function(element)
-                tabbedViewer:FireEvent("closeTab", tabButton.data.tabId)
-            end,
-            gui.Label {
-                classes = {"label", "journalTabCloseLabel"},
-                text = "X",
-            },
-        },
+        children = children,
     }
     return tabButton
 end
@@ -1441,11 +1551,18 @@ function CustomDocument.GetOrCreateTabbedViewer()
 
     local refreshTabVisibility
 
+    local tabArrowDisabledStyle = gui.Style {
+        classes = {"tabArrowDisabled"},
+        opacity = 0.3,
+        -- interactable = false,
+    }
+
     local tabScrollLeft = gui.PagingArrow {
         facing = -1,
         height = TAB_BAR_HEIGHT / 2,
         valign = "center",
         halign = "right",
+        styles = {tabArrowDisabledStyle},
         press = function(element)
             local v = element:FindParentWithClass("journalTabbedViewer")
             local tabs = v.data.tabs
@@ -1464,6 +1581,7 @@ function CustomDocument.GetOrCreateTabbedViewer()
         valign = "center",
         halign = "right",
         hmargin = 8,
+        styles = {tabArrowDisabledStyle},
         press = function(element)
             local v = element:FindParentWithClass("journalTabbedViewer")
             local tabs = v.data.tabs
@@ -1476,17 +1594,35 @@ function CustomDocument.GetOrCreateTabbedViewer()
         end,
     }
 
+    local closeAllButton = gui.CloseButton {
+        valign = "center",
+        halign = "right",
+        height = 16,
+        width = 16,
+        rmargin = 16,
+        escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+        click = function(element)
+            local v = element:FindParentWithClass("journalTabbedViewer")
+            v:FireEvent("closeAllTabs")
+        end,
+        linger = function(element)
+            gui.Tooltip("Close all tabs")(element)
+        end,
+    }
+
     local tabButtonsPanel = gui.Panel {
         classes = {"panel", "journalTabBar"},
+        clip = true,
     }
 
     local tabArrowsPanel = gui.Panel {
-        width = 60,
+        width = 85,
         height = TAB_BAR_HEIGHT,
         halign = "right",
         flow = "horizontal",
         tabScrollLeft,
         tabScrollRight,
+        closeAllButton,
     }
 
     local tabBar = gui.Panel {
@@ -1504,7 +1640,8 @@ function CustomDocument.GetOrCreateTabbedViewer()
     refreshTabVisibility = function(element)
         local tabs = element.data.tabs
         local offset = element.data.scrollOffset
-        local panelWidth = tabButtonsPanel.renderedWidth or (dialogWidth - 60)
+        local rw = tabButtonsPanel.renderedWidth
+        local panelWidth = (rw ~= nil and rw >= dialogWidth - 60) and rw or (dialogWidth - 60)
 
         -- Find active tab index
         local activeIdx = 0
@@ -1558,8 +1695,10 @@ function CustomDocument.GetOrCreateTabbedViewer()
             tab.tabButton:SetClass("collapsed", i - 1 < offset or i - 1 >= offset + visibleCount)
         end
 
-        tabScrollLeft:SetClass("hidden", activeIdx <= 1)
-        tabScrollRight:SetClass("hidden", activeIdx >= #tabs or #tabs <= 1)
+        tabScrollLeft:SetClass("tabArrowDisabled", activeIdx <= 1)
+        tabScrollLeft.interactable = activeIdx > 1
+        tabScrollRight:SetClass("tabArrowDisabled", activeIdx >= #tabs or #tabs <= 1)
+        tabScrollRight.interactable = (#tabs > 1 and activeIdx < #tabs)
 
         element.data.visibleCount = visibleCount
     end
@@ -1712,13 +1851,17 @@ function CustomDocument.GetOrCreateTabbedViewer()
                 else
                     refreshTabVisibility(element)
                 end
+
+                if element.data.closeAllPending and #element.data.tabs > 0 then
+                    element:FireEvent("closeAllTabs")
+                end
             end
             tabData.close = tabArgs.close
 
             local contentPanel = doc:CreateInterface(tabArgs)
             contentPanel:SetClass("collapsed", true)
 
-            local tabButton = CreateTabButton(doc, viewer, tabData.tabId)
+            local tabButton = CreateTabButton(doc, viewer, tabData.tabId, args and args.bubbleIcon)
 
             tabData.tabButton = tabButton
             tabData.contentPanel = contentPanel
@@ -1727,8 +1870,12 @@ function CustomDocument.GetOrCreateTabbedViewer()
             tabButtonsPanel:AddChild(tabButton)
             contentArea:AddChild(contentPanel)
 
-            refreshTabVisibility(element)
-            element:FireEvent("switchToTab", tabData.tabId)
+            if args and args.skipRefresh then
+                -- Batch mode: skip per-tab refresh, caller will trigger final refresh
+            else
+                refreshTabVisibility(element)
+                element:FireEvent("switchToTab", tabData.tabId)
+            end
         end,
 
         switchToTab = function(element, tabId)
@@ -1748,6 +1895,13 @@ function CustomDocument.GetOrCreateTabbedViewer()
                     tab.contentPanel:FireEvent("closetab")
                     return
                 end
+            end
+        end,
+
+        closeAllTabs = function(element)
+            element.data.closeAllPending = true
+            if element.data.activeTabId then
+                element:FireEvent("closeTab", element.data.activeTabId)
             end
         end,
 
@@ -1836,7 +1990,7 @@ function CustomDocument.GetOrCreateTabbedViewer()
             element:FireEventTree("refreshNavButtons")
         end,
 
-        DialogResizePanel(nil, dialogWidth, dialogHeight),
+        gui.DialogResizePanel({}, dialogWidth, dialogHeight),
 
         innerPanel,
     }

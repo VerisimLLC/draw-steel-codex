@@ -807,22 +807,51 @@ end
 local loadid = dmhub.GenerateGuid()
 
 function GameHud:DisplayDocument(info)
-    local documentDialog = self:try_get('documentDialog')
-    if documentDialog == nil or loadid ~= self:try_get("documentDialogLoadID") then
-        if documentDialog ~= nil then
-            documentDialog:DestroySelf()
+    if info.document.docid then
+        -- Open all docid-bearing bubbles as top-bar tabs in the journal viewer
+        local docs = dmhub.GetTable(CustomDocument.tableName) or {}
+
+        local bubblesSorted = {}
+        for k, bubble in pairs(dmhub.infoBubbles) do
+            if bubble.document ~= nil and bubble.document.docid then
+                bubblesSorted[#bubblesSorted + 1] = bubble
+            end
+        end
+        table.sort(bubblesSorted, function(a, b)
+            return a.document.ord < b.document.ord
+        end)
+
+        for _, bubble in ipairs(bubblesSorted) do
+            local doc = docs[bubble.document.docid]
+            if doc ~= nil then
+                doc:ShowDocument({bubbleIcon = bubble.icon, skipRefresh = true})
+            end
         end
 
-        documentDialog = self:CreateDocumentDialog()
-        self.documentDialogLoadID = loadid
-        self.documentDialog = documentDialog
-        self.documentsPanel.children = { documentDialog }
+        -- Switch to the clicked bubble's tab (addTab detects duplicate and switches)
+        local clickedDoc = docs[info.document.docid]
+        if clickedDoc ~= nil then
+            clickedDoc:ShowDocument({bubbleIcon = info.icon})
+        end
     else
-        documentDialog:SetClass('hidden', not documentDialog:HasClass('hidden'))
-    end
+        -- Sections-based bubbles use the existing dialog
+        local documentDialog = self:try_get('documentDialog')
+        if documentDialog == nil or loadid ~= self:try_get("documentDialogLoadID") then
+            if documentDialog ~= nil then
+                documentDialog:DestroySelf()
+            end
 
-    if not documentDialog:HasClass('hidden') then
-        documentDialog:FireEvent("refreshBubbleDocument", info)
+            documentDialog = self:CreateDocumentDialog()
+            self.documentDialogLoadID = loadid
+            self.documentDialog = documentDialog
+            self.documentsPanel.children = { documentDialog }
+        else
+            documentDialog:SetClass('hidden', not documentDialog:HasClass('hidden'))
+        end
+
+        if not documentDialog:HasClass('hidden') then
+            documentDialog:FireEvent("refreshBubbleDocument", info)
+        end
     end
 end
 
@@ -841,15 +870,15 @@ function GameHud:ShowInfoBubbleTip(info)
     local markdownDoc = info.document:GetMarkdownDocument()
     if markdownDoc ~= nil then
         gamehud.popupPanel.popup = gui.TooltipFrame(
-            markdownDoc:DisplayPanel {
-                width = "100%",
+            gui.Label{
+                fontSize = 18,
+                text = string.format("<b><size=140%%>%s</size></b>\n<i>Journal Document</i>\nClick to Open", markdownDoc.name),
+                markdown = true,
+                width = "auto",
                 height = "auto",
-                halign = "right",
-                maxHeight = 1000,
-                vscroll = false,
             },
             {
-                width = 800,
+                width = "auto",
                 interactable = false,
             }
         )

@@ -157,7 +157,7 @@ CharacterModifier.TypeInfo.powertabletrigger = {
             end
         end
 
-        if not selfIsTarget then
+        if not selfIsTarget and self.range ~= "" then
             --range check.
             local distance = token:Distance(triggerTarget)
             if tonumber(distance) > ExecuteGoblinScript(self.range, token.properties:LookupSymbol{}, 0) then
@@ -295,7 +295,7 @@ CharacterModifier.TypeInfo.powertabletrigger = {
             end
         end
 
-        if not selfIsTarget then
+        if not selfIsTarget and self.range ~= "" then
             --range check.
             local distance = token:Distance(triggerTarget)
             if tonumber(distance) > ExecuteGoblinScript(self.range, token.properties:LookupSymbol{}, 0) then
@@ -855,9 +855,13 @@ CharacterModifier.TypeInfo.powertabletrigger = {
             end
 
             children[#children+1] = gui.Button{
-                width = 260,
-                height = 26,
-                fontSize = 18,
+                width = "auto",
+                height = "auto",
+                minWidth = 260,
+                hpad = 16,
+                vpad = 6,
+                borderBox = true,
+                fontSize = 16,
                 text = "Add Additional Cost Modifier",
                 click = function(element)
 

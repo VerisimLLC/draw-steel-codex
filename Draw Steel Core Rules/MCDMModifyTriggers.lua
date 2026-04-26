@@ -30,17 +30,17 @@ local g_triggerLookupSymbols = {
 local g_triggerHelpSymbols = {
     {
         name = "Name",
-        type = "text",
+        type = "string",
         desc = "The name of the trigger.",
     },
     {
         name = "Text",
-        type = "text",
+        type = "string",
         desc = "The display text of the trigger (may include cost).",
     },
     {
         name = "Rules",
-        type = "text",
+        type = "string",
         desc = "The rules text of the trigger.",
     },
     {
@@ -49,6 +49,8 @@ local g_triggerHelpSymbols = {
         desc = "Whether the trigger is a free triggered action.",
     },
 }
+
+RegisterGoblinScriptTypeInfo("trigger", g_triggerHelpSymbols)
 
 --- Creates a symbol-lookup object for an ActiveTrigger so it can be used in GoblinScript.
 --- @param triggerInfo ActiveTrigger
@@ -63,6 +65,12 @@ local function MakeTriggerSymbolObject(triggerInfo)
     }
 end
 
+
+local function ReplaceBehaviorToEnum(mode)
+    if mode == false then return "after" end
+    if mode == true then return "before" end
+    return mode
+end
 
 
 --Register new trigger modifier types
@@ -178,7 +186,7 @@ CharacterModifier.RegisterTriggerModifier{
 
         -- Variation ability support (like ActivatedAbilityEditor variations).
         children[#children+1] = gui.Panel{
-            classes = {"formPanel"},
+            classes = {"formPanel", "formPanel-inline"},
             flow = "horizontal",
             width = "auto",
             height = "auto",
@@ -601,7 +609,7 @@ CharacterModifier.TypeInfo.modifytrigger = {
                 local info = triggerModifierOptionsById[entry.id]
                 if info ~= nil then
                     children[#children+1] = gui.Panel{
-                        classes = {"formPanel"},
+                        classes = {"formPanel", "formPanel-inline"},
                         gui.Label{
                             classes = {"formLabel"},
                             width = 400,
@@ -796,10 +804,14 @@ function creature:DispatchAvailableTrigger(triggerInfo)
             g_injectedTriggerIds[triggerInfo.id] = true
             local casterSymbols = self:LookupSymbol{}
             local mods = self:GetActiveModifiers()
+            local seenMods = {}
             for _, modContext in ipairs(mods) do
-                local typeInfo = CharacterModifier.TypeInfo[modContext.mod.behavior]
-                if typeInfo ~= nil and typeInfo.fillTriggerModes ~= nil then
-                    typeInfo.fillTriggerModes(modContext.mod, triggerInfo, self, casterSymbols)
+                if not seenMods[modContext.mod] then
+                    seenMods[modContext.mod] = true
+                    local typeInfo = CharacterModifier.TypeInfo[modContext.mod.behavior]
+                    if typeInfo ~= nil and typeInfo.fillTriggerModes ~= nil then
+                        typeInfo.fillTriggerModes(modContext.mod, triggerInfo, self, casterSymbols)
+                    end
                 end
             end
         end
@@ -848,4 +860,94 @@ function creature:ClearAvailableTrigger(triggerInfo)
         end
     end
     g_baseClearAvailableTrigger(self, triggerInfo)
+end
+
+-- Hook TriggeredAbility:Trigger to apply behavior replacements from
+-- active modifytrigger modifiers before the trigger executes.
+local g_baseTriggerAbilityTrigger = TriggeredAbility.Trigger
+function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraControllerToken, modContext, argOptions)
+    local triggerSelf = self
+    if creature ~= nil then
+        local mods = creature:GetActiveModifiers()
+        for _, modEntry in ipairs(mods) do
+            local modifier = modEntry.mod
+            if modifier.behavior == "modifytrigger" and modifier:has_key("ability") and #modifier.ability.behaviors > 0 then
+                if modifier:PassesFilter(creature) then
+                    -- Evaluate trigger condition if present.
+                    local shouldApply = true
+                    local condition = modifier:try_get("triggerCondition", "")
+                    if condition ~= "" then
+                        local triggerObj = {
+                            lookupSymbols = g_triggerLookupSymbols,
+                            _name = self.name or "",
+                            _text = self.name or "",
+                            _rules = self:try_get("description", ""),
+                            _free = self:ActionResource() ~= CharacterResource.triggerResourceId,
+                        }
+                        local symTable = {
+                            trigger = GenerateSymbols(triggerObj),
+                        }
+                        local result = ExecuteGoblinScript(condition, creature:LookupSymbol(symTable), 0, "Modify Trigger behavior condition")
+                        if not GoblinScriptTrue(result) then
+                            shouldApply = false
+                        end
+                    end
+
+                    if shouldApply then
+                        -- Clone only once so we don't mutate the original.
+                        if triggerSelf == self then
+                            triggerSelf = self:MakeTemporaryClone()
+                        end
+
+                        local replacementMode = ReplaceBehaviorToEnum(modifier:try_get("replaceBehaviors", "after"))
+
+                        -- Collect modifier behaviors into a plain list first,
+                        -- since the ability may come from a data table entry.
+                        local modBehaviors = {}
+                        for i, behavior in ipairs(modifier.ability.behaviors) do
+                            modBehaviors[#modBehaviors + 1] = behavior
+                        end
+
+                        printf("MODIFY TRIGGER: mode=%s, modifier behaviors=%d, trigger behaviors=%d, trigger=%s", replacementMode, #modBehaviors, #triggerSelf.behaviors, self.name or "?")
+
+                        local atend = {}
+                        if replacementMode == "before" then
+                            for i, b in ipairs(triggerSelf.behaviors) do
+                                atend[#atend + 1] = b
+                            end
+                            triggerSelf.behaviors = {}
+                        elseif replacementMode == "replaceAll" then
+                            triggerSelf.behaviors = {}
+                        end
+
+                        local nstarting = #triggerSelf.behaviors
+                        for _, behavior in ipairs(modBehaviors) do
+                            local replaced = false
+                            if replacementMode == "replace" then
+                                for j = 1, nstarting do
+                                    if triggerSelf.behaviors[j].typeName == behavior.typeName then
+                                        triggerSelf.behaviors[j] = DeepCopy(behavior)
+                                        replaced = true
+                                        break
+                                    end
+                                end
+                            end
+
+                            if not replaced then
+                                triggerSelf.behaviors[#triggerSelf.behaviors + 1] = DeepCopy(behavior)
+                            end
+                        end
+
+                        for _, b in ipairs(atend) do
+                            triggerSelf.behaviors[#triggerSelf.behaviors + 1] = b
+                        end
+
+                        printf("MODIFY TRIGGER: final behaviors=%d", #triggerSelf.behaviors)
+                    end
+                end
+            end
+        end
+    end
+
+    return g_baseTriggerAbilityTrigger(triggerSelf, characterModifier, creature, symbols, auraControllerToken, modContext, argOptions)
 end

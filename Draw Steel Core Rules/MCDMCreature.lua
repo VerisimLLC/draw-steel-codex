@@ -34,6 +34,12 @@ creature.skipTurnTurnsTaken = 0
 
 --- @field creature._tmp_minionSquad SquadInfo
 
+--- @field creature.summonedMinions table List of { charid, squad, monsterType } entries tracking this creature's active summons.
+creature.summonedMinions = {}
+
+--- @field creature.sharesSurgesWithSummoner boolean If true, surges granted to this summoned creature are redirected to its summoner.
+creature.sharesSurgesWithSummoner = false
+
 function creature:MinionSquad()
     if self:has_key("minionSquad") then
         return self.minionSquad
@@ -46,6 +52,62 @@ function creature:MinionSquad()
     return nil
 end
 
+--- Returns the subset of summonedMinions entries whose tokens still exist and whose creatures are alive.
+--- Does not mutate the stored list; callers wanting to prune should compare the returned list to the stored one.
+--- @return table[] entries Array of { charid, squad, monsterType } entries.
+function creature:GetLiveSummonedEntries()
+    local entries = self:try_get("summonedMinions") or {}
+    local live = {}
+    for _,entry in ipairs(entries) do
+        if entry ~= nil and entry.charid ~= nil then
+            local token = dmhub.GetTokenById(entry.charid)
+            if token ~= nil and token.properties ~= nil and not token.properties:IsDeadOrDying() then
+                live[#live+1] = entry
+            end
+        end
+    end
+    return live
+end
+
+--- Groups this creature's live summoned minions by squad name, optionally filtered to a single monster type.
+--- @param monsterType string|nil If provided, only squads whose monsterType matches are returned.
+--- @return table squads Map of squadName -> { monsterType, count, charids }
+function creature:GetSummonedSquadsByType(monsterType)
+    local squads = {}
+    for _,entry in ipairs(self:GetLiveSummonedEntries()) do
+        if monsterType == nil or entry.monsterType == monsterType then
+            local squad = squads[entry.squad]
+            if squad == nil then
+                squad = { monsterType = entry.monsterType, count = 0, charids = {} }
+                squads[entry.squad] = squad
+            end
+            squad.count = squad.count + 1
+            squad.charids[#squad.charids+1] = entry.charid
+        end
+    end
+    return squads
+end
+
+--- Appends a summoned minion to this creature's roster. Caller must be inside a ModifyProperties block.
+--- @param charid string
+--- @param squadName string
+--- @param monsterType string
+function creature:RegisterSummonedMinion(charid, squadName, monsterType)
+    local entries = self:get_or_add("summonedMinions", {})
+    -- Prune stale entries opportunistically to keep the list from growing unbounded.
+    local pruned = {}
+    for _,entry in ipairs(entries) do
+        if entry ~= nil and entry.charid ~= nil and entry.charid ~= charid then
+            local token = dmhub.GetTokenById(entry.charid)
+            if token ~= nil and token.properties ~= nil and not token.properties:IsDeadOrDying() then
+                pruned[#pruned+1] = entry
+            end
+        end
+    end
+    pruned[#pruned+1] = { charid = charid, squad = squadName, monsterType = monsterType }
+    self.summonedMinions = pruned
+end
+
 local g_baseInvalidate = creature.Invalidate
 function creature:Invalidate()
     g_baseInvalidate(self)
@@ -54,6 +116,7 @@ function creature:Invalidate()
         return
     end
 
+    self._tmp_movementRestrictionCalculation = nil
     self._tmp_calculatedAttributes = nil
     self._tmp_adjacentLocs = nil
     self._tmp_occupiedLocs = nil
@@ -61,6 +124,7 @@ function creature:Invalidate()
     self._tmp_grantsFlanking = nil
     self._tmp_highestCharacteristic = nil
     self._tmp_maxSurgeCount = nil
+    self._tmp_creaturesize = nil
 end
 
 local g_creatureSingleMaxHitpoints = creature.MaxHitpoints
@@ -81,7 +145,28 @@ function creature:SingleMinionMaxStamina()
 end
 
 function creature:Potency()
+    local summonerToken = self:GetPotencySummonerToken()
+    if summonerToken ~= nil then
+        return summonerToken.properties:Potency()
+    end
     return self:HighestCharacteristic()
+end
+
+--- If this creature is a minion flagged to use its summoner's potency, returns the summoner token.
+--- Otherwise returns nil (the creature uses its own potency).
+--- @return CharacterToken|nil
+function creature:GetPotencySummonerToken()
+    if not self.minion then return nil end
+    if (self:CalculateNamedCustomAttribute("Minion Summoner Potency") or 0) <= 0 then
+        return nil
+    end
+    local selfToken = dmhub.LookupToken(self)
+    if selfToken == nil or not selfToken.summonerid then return nil end
+    local summonerToken = dmhub.GetTokenById(selfToken.summonerid)
+    if summonerToken ~= nil and summonerToken.valid then
+        return summonerToken
+    end
+    return nil
 end
 
 function creature:BaseNamedCustomAttribute(id)
@@ -129,6 +214,20 @@ function creature:CalculateNamedCustomAttribute(id)
     local result = self:GetCustomAttribute(customAttr)
     cache[cacheKey] = result
     return result
+end
+
+function creature:IsPassthrough()
+    return self:CalculateNamedCustomAttribute("Passthrough") > 0
+end
+
+function creature:GetForcedPushOptions()
+    local options = {}
+    local rebound = self:CalculateNamedCustomAttribute("Rebound")
+    if rebound > 0 then
+        options.rebound = true
+        options.maxBounces = math.max(1, rebound)
+    end
+    return options
 end
 
 function creature:AllowNegativeResources()
@@ -228,9 +327,39 @@ function creature:HighestCharacteristic()
     return self._tmp_highestCharacteristic
 end
 
+--- @return CharacterToken|nil summoner token if this creature shares surges with its summoner, else nil.
+function creature:GetSurgeSharingSummonerToken()
+    if not self.sharesSurgesWithSummoner then
+        return nil
+    end
+
+    local selfToken = dmhub.LookupToken(self)
+    if selfToken == nil or not selfToken.summonerid then
+        return nil
+    end
+
+    local summonerToken = dmhub.GetTokenById(selfToken.summonerid)
+    if summonerToken ~= nil and summonerToken.valid then
+        return summonerToken
+    end
+
+    return nil
+end
+
 function creature:ConsumeSurges(ncount, note)
     local surgeid = CharacterResource.nameToId["Surges"]
     if surgeid == nil then
+        return
+    end
+
+    local summonerToken = self:GetSurgeSharingSummonerToken()
+    if summonerToken ~= nil then
+        summonerToken:ModifyProperties{
+            description = "Consume Surges",
+            execute = function()
+                summonerToken.properties:AddUnboundedResource(surgeid, -ncount, note or "Consumed Surges")
+            end,
+        }
         return
     end
 
@@ -243,11 +372,21 @@ function creature:GetAvailableSurges()
         return 0
     end
 
+    local summonerToken = self:GetSurgeSharingSummonerToken()
+    if summonerToken ~= nil then
+        return summonerToken.properties:GetUnboundedResourceQuantity(surgeid)
+    end
+
     local result = self:GetUnboundedResourceQuantity(surgeid)
     return result
 end
 
 function creature:GetMaxSurgeCount()
+    local summonerToken = self:GetSurgeSharingSummonerToken()
+    if summonerToken ~= nil then
+        return summonerToken.properties:GetMaxSurgeCount()
+    end
+
     if not self:has_key("_tmp_maxSurgeCount") then
         local customAttr = CustomAttribute.attributeInfoByLookupSymbol["maximumsurges"]
         if customAttr == nil then
@@ -358,7 +497,7 @@ function monster:GetMentor()
 
     --Check other allied parties
     local partyInfo = GetParty(token.partyid)
-    for id, _ in pairs(partyInfo.allyParties) do
+    for id, _ in pairs(rawget(partyInfo, "allyParties") or {}) do
         partyMembers = dmhub.GetCharacterIdsInParty(id) or {}
         for _, charid in ipairs(partyMembers) do
             local charToken = dmhub.GetTokenById(charid)
@@ -1156,6 +1295,16 @@ function creature:CalcuatePotencyValue(potency)
 end
 
 function creature:CalculatePotencyValue(potency)
+    --When this minion redirects potency to its summoner, forward the entire calculation
+    --(including the "Potency Bonus" custom attribute) to the summoner's creature.
+    local summonerToken = self:GetPotencySummonerToken()
+    if summonerToken ~= nil then
+        return summonerToken.properties:CalculatePotencyValueSelf(potency)
+    end
+    return self:CalculatePotencyValueSelf(potency)
+end
+
+function creature:CalculatePotencyValueSelf(potency)
     local potencyBonus = self:CalculateNamedCustomAttribute("Potency Bonus")
     if tonumber(potency) ~= nil then
         return tonumber(potency) + potencyBonus
@@ -1184,6 +1333,19 @@ creature.RegisterSymbol {
         type = "number",
         desc = "The number of recoveries this creature has available to spend. It accounts for things like Bloodbound Band allowing use of other hero's recoveries.",
         seealso = { "Resources" },
+    }
+}
+
+creature.RegisterSymbol {
+    symbol = "maximumrecoveries",
+    lookup = function(c)
+        return c:GetResources()[CharacterResource.recoveryResourceId] or 0
+    end,
+    help = {
+        name = "Maximum Recoveries",
+        type = "number",
+        desc = "The maximum number of recoveries this creature has.",
+        seealso = { "Recoveries Available to Spend" },
     }
 }
 
@@ -1385,6 +1547,33 @@ creature.RegisterSymbol {
 }
 
 creature.RegisterSymbol {
+    symbol = "eoteffects",
+    lookup = function(c)
+        if c:has_key("inflictedConditions") then
+            local conditions = c.inflictedConditions
+            for _, cond in pairs(conditions) do
+                if cond.duration == "eot" then
+                    return true
+                end
+            end
+        end
+
+        for _, effectInstance in ipairs(c:ActiveOngoingEffects()) do
+            if effectInstance.removeAtNextTurnEnd then
+                return true
+            end
+        end
+
+        return false
+    end,
+    help = {
+        name = "EoT Effects",
+        type = "boolean",
+        desc = "Does this creature have any end of turn effects?",
+    }
+}
+
+creature.RegisterSymbol {
     symbol = "leader",
     lookup = function(c)
         return string.find(string.lower(c:try_get("role", "")), "leader") ~= nil
@@ -1480,7 +1669,7 @@ local function GetEnemyCreaturesAtLoc(token, allowedTokenIds, loc, result)
     local tokensAtLoc = dmhub.GetTokensAtLoc(loc)
     if tokensAtLoc ~= nil then
         for _, otherTok in ipairs(tokensAtLoc) do
-            if token.charid ~= otherTok.charid and (allowedTokenIds == nil or allowedTokenIds[otherTok.charid]) and token:IsFriend(otherTok) == false and otherTok:GetLineOfSight(token, otherTok.properties:GetPierceWalls()) > 0 and (not otherTok.properties:IsDead()) then
+            if token.charid ~= otherTok.charid and (allowedTokenIds == nil or allowedTokenIds[otherTok.charid]) and token:IsFriend(otherTok) == false and otherTok:GetLineOfSight(token, otherTok.properties:GetPierceWalls(), "basic") > 0 and (not otherTok.properties:IsDead()) then
                 local alreadyFound = false
                 for _, existing in ipairs(result) do
                     if existing.charid == otherTok.charid then
@@ -1626,7 +1815,7 @@ function creature:GetFlankingTokens(tokensOverride)
 
     --remove any enemies that we don't have line of sight to or that can't grant flanking.
     for i = #adjacentEnemies, 1, -1 do
-        local los = adjacentEnemies[i]:GetLineOfSight(token, adjacentEnemies[i].properties:GetPierceWalls())
+        local los = adjacentEnemies[i]:GetLineOfSight(token, adjacentEnemies[i].properties:GetPierceWalls(), "basic")
         if los <= 0 or not adjacentEnemies[i].properties:CanGrantFlanking() then
             table.remove(adjacentEnemies, i)
         end
@@ -2519,6 +2708,48 @@ function creature:RollOngoingEffectSave(id, abilityOptions)
     ability:Cast(token, { { token = token } }, abilityOptions)
 end
 
+--Local cache for pooled squad saves. Tracks the state of the first save roll
+--a squad made for a given (squad, condition) pair during a given initiative round.
+--Key format: squadName .. "|" .. condid .. "|" .. roundId.
+--Values:
+--  "pending" - a save is in-flight (dialog open / coroutine running); additional
+--              squad-mate save calls should bail out without opening a second dialog.
+--  "purged"  - the in-flight save succeeded; the condition was propagated to
+--              squad mates, subsequent calls just early-return.
+--  "held"    - the in-flight save failed; subsequent calls early-return without
+--              rolling again this round.
+--Per the "Minion Squad Saves" rule: once any squad mate rolls a save, subsequent
+--squad mates read the cached outcome instead of rolling their own.
+local g_squadSaveOutcomes = {}
+
+local function squadSaveCacheKey(squadName, condid, roundId)
+    return string.format("%s|%s|%s", squadName, condid, tostring(roundId))
+end
+
+--Returns the active initiative round id, or nil if combat isn't running.
+local function activeRoundId()
+    local q = dmhub.initiativeQueue
+    if q == nil or q.hidden then return nil end
+    return q:GetRoundId()
+end
+
+--Purges a save-ends condition on a minion without rolling (used when the squad's
+--pooled save already succeeded this round and the result is being propagated).
+local function purgeSaveEndsCondition(creatureSelf, condid, description)
+    local entry = creatureSelf:try_get("inflictedConditions", {})[condid]
+    if entry == nil or entry.duration == "eoe" or entry.duration == "eot" then
+        return
+    end
+    local token = dmhub.LookupToken(creatureSelf)
+    if token == nil then return end
+    token:ModifyProperties{
+        description = description,
+        execute = function()
+            creatureSelf:InflictCondition(condid, { purge = true })
+        end,
+    }
+end
+
 function creature:RollConditionSave(condid, abilityOptions)
     abilityOptions = abilityOptions or {}
     abilityOptions.symbols = abilityOptions.symbols or {}
@@ -2543,6 +2774,29 @@ function creature:RollConditionSave(condid, abilityOptions)
         return
     end
 
+    --"Minion Squad Saves" rule: pool save rolls across the squad so only the first save
+    --per (squad, condition) per round is actually rolled.
+    local squadSaveKey = nil
+    if self.minion and (self:CalculateNamedCustomAttribute("Minion Squad Saves") or 0) > 0 then
+        local squadName = self:MinionSquad()
+        local roundId = activeRoundId()
+        if squadName ~= nil and roundId ~= nil then
+            squadSaveKey = squadSaveCacheKey(squadName, condid, roundId)
+            local outcome = g_squadSaveOutcomes[squadSaveKey]
+            if outcome == "pending" then
+                --Another squad mate's save is already in pending this round; do not open
+                --a second roll dialog.
+            elseif outcome == "purged" then
+                --Squad already saved successfully this round, now purge.
+                purgeSaveEndsCondition(self, condid, "Squad save purge")
+                return
+            elseif outcome == "held" then
+                --Squad already failed this round; no further rolls.
+                return
+            end
+        end
+    end
+
     local conditionTable = dmhub.GetTable(CharacterCondition.tableName)
     local conditionInfo = conditionTable[condid]
     local abilityTemplate = MCDMUtils.GetStandardAbility("Save")
@@ -2551,6 +2805,40 @@ function creature:RollConditionSave(condid, abilityOptions)
 
     --this is from when saves could be associated with an ability.
     --MCDMUtils.DeepReplace(ability, "<<attribute>>", entry.duration)
+
+    if squadSaveKey ~= nil then
+        g_squadSaveOutcomes[squadSaveKey] = "pending"
+
+        --After the save resolves, transition "pending" to "purged" or "held". 
+        abilityOptions.OnFinishCastHandlers = abilityOptions.OnFinishCastHandlers or {}
+        local savingSelf = self
+        local cacheKey = squadSaveKey
+        local savedSquadName = savingSelf:MinionSquad()
+        local savedCondid = condid
+        abilityOptions.OnFinishCastHandlers[#abilityOptions.OnFinishCastHandlers + 1] = function(_, _, finishOptions)
+            if finishOptions ~= nil and (finishOptions.abort or finishOptions.atexit) then
+                --Cast didn't complete a real resolution; don't lock the squad out.
+                g_squadSaveOutcomes[cacheKey] = nil
+                return
+            end
+            local entryAfter = savingSelf:try_get("inflictedConditions", {})[savedCondid]
+            if entryAfter == nil then
+                g_squadSaveOutcomes[cacheKey] = "purged"
+                local squadInfo = savedSquadName ~= nil
+                    and creature.GetMinionSquadInfoForNamedSquad(savedSquadName)
+                    or nil
+                if squadInfo ~= nil and squadInfo.tokens ~= nil then
+                    for _, tok in ipairs(squadInfo.tokens) do
+                        if tok ~= nil and tok.valid and tok.properties ~= nil and tok.properties ~= savingSelf then
+                            purgeSaveEndsCondition(tok.properties, savedCondid, "Squad save propagate purge")
+                        end
+                    end
+                end
+            else
+                g_squadSaveOutcomes[cacheKey] = "held"
+            end
+        end
+    end
 
     ability:Cast(token, { { token = token } }, abilityOptions)
 end
@@ -2759,7 +3047,6 @@ creature.RegisterSymbol {
 function creature:InflictCondition(conditionid, args)
     local immunities = self:GetConditionImmunities()
 
-    print("INFLICT:: CONDITION", conditionid, "VS IMMUNITIES", immunities)
     --this creature is immune to the condition.
     if immunities[conditionid] and (not args.purge) then
         return
@@ -2907,6 +3194,13 @@ function creature:GetConditionCasterTime(conditionid, casterid)
     end
     if type(b) == "string" then
         return math.huge
+    end
+
+    if a ~= nil and type(a) ~= "number" then
+        a = 0
+    end
+    if b ~= nil and type(b) ~= "number" then
+        b = 0
     end
 
     return math.max(a or 0, b or 0)
@@ -3383,7 +3677,8 @@ function creature:ShowCharacteristicRollDialog(attrid)
 
     local displaying = false
     if token ~= nil then
-        displaying = CharacterPanel.DisplayAbility(token, syntheticAbility, nil, {lock = true})
+        CharacterPanel.UnlockDisplayAbility()
+        displaying = CharacterPanel.DisplayAbility(token, syntheticAbility, nil, {lock = true, renderAsAbility = true})
     end
 
     local function ShowRollDialog(dialog)
@@ -3542,6 +3837,12 @@ end
 
 creature.minionDamageTime = 0
 
+--Module-local map tracking the largest damage instance any single strike has applied to a given
+--minion squad's shared Stamina pool. Outer key is the ActivatedAbilityCast object (weak key so it is
+--collected when the strike finishes); inner key is the squad name, value is the largest damage amount
+--applied to that squad's pool this cast.
+local g_summonerSquadCastDamage = setmetatable({}, {__mode = "k"})
+
 function creature.TakeDamage(self, amount, note, info)
     info = info or {}
     if type(amount) == 'string' then
@@ -3599,11 +3900,47 @@ function creature.TakeDamage(self, amount, note, info)
     if info.damagetype == "collide" then
         local forcedMovementCast = self:try_get("_tmp_forcedMovementCast")
         if forcedMovementCast ~= nil then
-            forcedMovementCast:CountForcedMovementDamage(amount)
+            forcedMovementCast:CountForcedMovementDamage(amount, self)
         end
     end
 
     if self.minion then
+        if info ~= nil and info.cast ~= nil and info.keywords ~= nil and info.keywords:Has("Strike")
+            and (self:CalculateNamedCustomAttribute("Minion Multi Target") or 0) > 0 then
+            --"Strikes with Multiple Targets" rule: when a single Strike damages multiple minions in this squad,
+            --the shared Stamina pool only takes the largest single instance.
+            local squadName = self:MinionSquad()
+            if squadName ~= nil then
+                local castMap = g_summonerSquadCastDamage[info.cast]
+                if castMap == nil then
+                    castMap = {}
+                    g_summonerSquadCastDamage[info.cast] = castMap
+                end
+                local prev = castMap[squadName] or 0
+                local preClampAmount = amount
+                if amount <= prev then
+                    amount = 0
+                else
+                    castMap[squadName] = amount
+                    amount = amount - prev
+                end
+                if amount < preClampAmount then
+                    --Record the rule firing in this minion's stamina stat history so the player can see why the pool did not take the full damage.
+                    local attackerid = nil
+                    if info.attacker ~= nil then
+                        attackerid = dmhub.LookupTokenId(info.attacker)
+                    end
+                    local sourceName = (info.ability ~= nil and info.ability.name) or "strike"
+                    self:GetStatHistory("stamina"):Append{
+                        attackerid = attackerid,
+                        note = string.format("Squad pool ignored %d damage from %s (Strikes with Multiple Targets)", preClampAmount - amount, sourceName),
+                        set = self:CurrentHitpoints(),
+                        disposition = "good",
+                    }
+                end
+            end
+        end
+
         if info.keywords ~= nil and info.keywords:Has("area") then
             --area damage can't do more than a single minion's max hitpoints.
             amount = math.min(self:SingleMinionMaxStamina(), amount)
@@ -3657,6 +3994,7 @@ function creature.TakeDamage(self, amount, note, info)
                 hasability = eventArg.hasability,
                 ability = eventArg.ability,
                 usedability = eventArg.ability,
+                hasrolleddamage = eventArg.hasrolleddamage,
             }
             attacker:DispatchEvent("dealdamage", args)
         end
@@ -3847,6 +4185,7 @@ function creature.TakeDamage(self, amount, note, info)
             hasability = eventArg.hasability,
             ability = eventArg.ability,
             usedability = eventArg.ability,
+            hasrolleddamage = eventArg.hasrolleddamage,
         }
         attacker:DispatchEvent("dealdamage", args)
     end
@@ -4103,7 +4442,7 @@ function creature:DispatchEventAndWait(eventName, info)
     local modName
     for i, mod in ipairs(mods) do
         if mod.mod:HasTriggeredEvent(self, eventName) then
-            modName = mod.mod.name
+            modName = mod.mod.triggeredAbility.name
             hasTrigger = true
             break
         end
@@ -4651,6 +4990,53 @@ creature.RegisterSymbol {
     }
 }
 
+creature.RegisterSymbol {
+    symbol = "shortname",
+    lookup = function(c)
+        local name = c:GetMonsterType()
+        if name == nil or name == "" then
+            return ""
+        end
+
+        -- Collect prefixes to try stripping: keywords and band name.
+        local prefixes = {}
+
+        local keywords = c:Keywords()
+        if keywords ~= nil then
+            for k, _ in pairs(keywords) do
+                if k ~= nil and k ~= "" then
+                    prefixes[#prefixes+1] = k
+                end
+            end
+        end
+
+        local group = c:MonsterGroup()
+        if group ~= nil and group.name ~= nil and group.name ~= "" then
+            prefixes[#prefixes+1] = group.name
+        end
+
+        -- Sort longest first so we strip the longest matching prefix.
+        table.sort(prefixes, function(a, b) return #a > #b end)
+
+        local lowerName = string.lower(name)
+        for _, prefix in ipairs(prefixes) do
+            local lowerPrefix = string.lower(prefix)
+            -- Check if name starts with this prefix followed by a space.
+            if string.sub(lowerName, 1, #lowerPrefix + 1) == lowerPrefix .. " " then
+                return string.sub(name, #lowerPrefix + 2)
+            end
+        end
+
+        return name
+    end,
+    help = {
+        name = "Short Name",
+        type = "string",
+        desc = "The creature's name with its band or keyword prefix removed. For example, 'Goblin Warrior' becomes 'Warrior' if 'Goblin' is a keyword or the band name.",
+        seealso = { "keywords" },
+    }
+}
+
 function creature:StartOnDying()
     self:RemoveMatchingOngoingEffects(function(ongoingEffect)
         return ongoingEffect.removeOnEoEOrDying
@@ -5005,6 +5391,63 @@ function creature:Titles()
         end
     end
     return results
+end
+
+function creature:GetMovementRestrictionFilter(token)
+    if token == nil then
+        return nil
+    end
+
+    local startLoc = token.loc
+
+    local calculation = nil
+    local modifiers = self:GetActiveModifiers()
+    for _, modContext in ipairs(modifiers) do
+        local typeInfo = CharacterModifier.TypeInfo[modContext.mod.behavior] or {}
+        if typeInfo.MoveToLocPermitted ~= nil then
+            calculation = calculation or {}
+            calculation[#calculation+1] = function(loc)
+                if not typeInfo.MoveToLocPermitted(modContext.mod, modContext, self, startLoc, loc) then
+                    return false
+                end
+
+                return true
+            end
+        end
+    end
+
+    if calculation == nil then
+        return nil
+    end
+
+    return function(loc)
+        for _,calc in ipairs(calculation) do
+            if not calc(loc) then
+                return false
+            end
+        end
+
+        return true
+    end
+end
+
+function creature:MoveToLocPermitted(loc)
+
+    local calculation = rawget(self, "_tmp_movementRestrictionCalculation")
+    if calculation == nil then
+        calculation = self:GetMovementRestrictionFilter(dmhub.LookupToken(self))
+        if calculation == nil then
+            calculation = false
+        end
+
+        self._tmp_movementRestrictionCalculation = calculation
+    end
+
+    if calculation then
+        return calculation(loc)
+    end
+
+    return true
 end
 
 dmhub.RegisterEventHandler("ClearTemporaryState", function()

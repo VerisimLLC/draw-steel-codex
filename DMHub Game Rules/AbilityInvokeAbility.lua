@@ -299,6 +299,61 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                             abilityClone.promptOverride = StringInterpolateGoblinScript(self.promptText, casterToken.properties:LookupSymbol{})
                         end
 
+                        -- Apply forced movement bonuses if this is a forced movement ability
+                        local forcedMovementType = abilityClone:try_get("forcedMovement")
+                        if forcedMovementType ~= nil then
+                            local baseMoveType = string.gsub(forcedMovementType, "^vertical_", "")
+                            local baseRange = abilityClone:GetRange(casterToken.properties) / dmhub.unitsPerSquare
+
+                            local adjustments = {}
+                            local sizeDifferenceBonus = 0
+                            local parentKeywords = ability.keywords or {}
+                            if parentKeywords["Weapon"] and parentKeywords["Melee"] then
+                                local casterSize = casterToken.creatureSizeNumber
+                                local targetSize = target.token.properties:CreatureSizeWhenBeingForceMoved()
+                                if casterSize > targetSize then
+                                    sizeDifferenceBonus = 1
+                                    adjustments[#adjustments+1] = "Big Versus Little: +1"
+                                end
+                            end
+
+                            local stability = target.token.properties:Stability()
+                            if stability ~= 0 and casterToken.properties:CalculateNamedCustomAttribute("Ignore Stability") > 0 then
+                                stability = 0
+                                adjustments[#adjustments+1] = "Ignoring Stability"
+                            end
+
+                            local forcedMovementIncrease = target.token.properties:CalculateNamedCustomAttribute("Forced Movement Increase")
+                            if forcedMovementIncrease > 0 then
+                                adjustments[#adjustments+1] = string.format("Forced Movement Increase: +%d", forcedMovementIncrease)
+                            end
+
+                            local forcedMovementBonus = casterToken.properties:ForcedMovementBonus(baseMoveType)
+                            if forcedMovementBonus > 0 then
+                                local describe = casterToken.properties:DescribeForcedMovementBonus(baseMoveType)
+                                local textItems = {}
+                                for _,entry in ipairs(describe) do
+                                    textItems[#textItems+1] = entry.key
+                                end
+                                if #textItems > 0 then
+                                    adjustments[#adjustments+1] = string.format("Forced Movement Bonus (%s): +%d", table.concat(textItems, ", "), forcedMovementBonus)
+                                end
+                            end
+
+                            local adjustedRange = math.max(0, baseRange - stability + sizeDifferenceBonus + forcedMovementIncrease + forcedMovementBonus)
+
+                            if stability > 0 then
+                                adjustments[#adjustments+1] = string.format("Stability: -%d", stability)
+                            end
+
+                            abilityClone.range = adjustedRange * dmhub.unitsPerSquare
+                            local description = string.format("You may %s the target %d square%s", baseMoveType, adjustedRange, adjustedRange > 1 and "s" or "")
+                            if #adjustments > 0 then
+                                description = description .. " (" .. table.concat(adjustments, ", ") .. ")"
+                            end
+                            abilityClone.promptOverride = description
+                        end
+
                         local autoTarget = self:try_get("autoTarget", true)
                         if autoTarget and not abilityClone:RequiresPromptWhenCast() then
                             abilityClone.castImmediately = true
@@ -360,27 +415,44 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
 	local OnBeginCast = abilityClone:try_get("OnBeginCast")
 	local OnFinishCast = abilityClone:try_get("OnFinishCast")
 
-	abilityClone.OnBeginCast = function()
+    local finishedCasting = false
+
+    --The finish-side signaling must live on options.OnFinishCastHandlers rather than
+    --ability.OnFinishCast: the engine's cast-time serialization strips function-valued
+    --fields from the ability during long casts (e.g. a power roll dialog). Handlers
+    --on the options table are not touched by that pass.
+    local finishHandler = function(ability, _, finishOptions)
+        if finishedCasting then return end
+        if OnFinishCast then
+            OnFinishCast(ability, finishOptions)
+        end
+        casting = false
+        finishedCasting = true
+        if finishOptions.pay then
+            --if the ability we invoked had to be paid for, we have to pay for the invoke.
+            ability:CommitToPaying(casterToken, finishOptions)
+            haveToPay = true --we'll return that we 'did work' and have to pay.
+        end
+    end
+
+    local installFinishHandler = function(castOptions)
+        if castOptions == nil then return end
+        castOptions.OnFinishCastHandlers = castOptions.OnFinishCastHandlers or {}
+        castOptions.OnFinishCastHandlers[#castOptions.OnFinishCastHandlers + 1] = finishHandler
+    end
+
+	abilityClone.OnBeginCast = function(_ability, castOptions)
 		if OnBeginCast then
 			OnBeginCast()
 		end
 		casting = true
+        installFinishHandler(castOptions)
 	end
 
-    local finishedCasting = false
-
-	abilityClone.OnFinishCast = function(ability, options)
-		if OnFinishCast then
-			OnFinishCast(ability, options)
-		end
-		casting = false
-        finishedCasting = true
-        print("INVOKE:: FINISHED CASTING", ability.name, "with abort =", json(options.abort), "pay =", options.pay)
-        if options.pay then
-            --if the ability we invoked had to be paid for, we have to pay for the invoke.
-            ability:CommitToPaying(casterToken, options)
-            haveToPay = true --we'll return that we 'did work' and have to pay.
-        end
+    --Defense-in-depth: keep OnFinishCast as a fallback in case this path somehow runs
+    --through a Cast that skips OnBeginCast. The finishHandler is idempotent via finishedCasting.
+	abilityClone.OnFinishCast = function(ability, finishOptions)
+        finishHandler(ability, casterToken, finishOptions)
 	end
 
     local canceled = false
@@ -444,29 +516,39 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
                 end
             end
 
-            print("INVOKE:: Requires prompt =", abilityClone:RequiresPromptWhenCast(), "for", abilityClone.name, coroutine.running())
             if abilityClone:RequiresPromptWhenCast() then
                 local synth = abilityClone:SynthesizeAbilities(casterToken.properties)
-                print("INVOKE:: SYNTHESIZED ABILITIES =", synth ~= nil and #synth or 0, "for", abilityClone.name, coroutine.running())
                 if synth ~= nil and #synth == 1 then
                     --if exactly one synthesized ability then just auto-cast it?
                     abilityClone = synth[1]
+                    --The synth is a brand-new ability; re-install our wrappers so we still get
+                    --notified when it begins/finishes. Preserve any wrappers the synth came with.
+                    local synthOnBegin = abilityClone:try_get("OnBeginCast")
+                    local synthOnFinish = abilityClone:try_get("OnFinishCast")
+                    abilityClone.OnBeginCast = function(_ability, castOptions)
+                        if synthOnBegin then synthOnBegin() end
+                        casting = true
+                        installFinishHandler(castOptions)
+                    end
+                    abilityClone.OnFinishCast = function(ability, finishOptions)
+                        if synthOnFinish then synthOnFinish(ability, finishOptions) end
+                        finishHandler(ability, casterToken, finishOptions)
+                    end
                 end
             end
 
             if abilityClone:RequiresPromptWhenCast() then
-                print("INVOKE:: REQUIRING PROMPT")
                 abilityClone.skippable = true
                 gamehud.actionBarPanel:FireEventTree("invokeAbility", casterToken, abilityClone, symbols, invokerCallback, {instantCast = true, targets = targets})
             else
-                print("INVOKE:: IMMEDIATE CAST")
+                --Immediate cast: we control the options table so just pre-install the finish handler.
                 abilityClone:Cast(casterToken, targets, {
                     symbols = symbols,
+                    OnFinishCastHandlers = { finishHandler },
                 })
             end
         end
 
-        print("INVOKE:: Waiting for cast to finish", abilityClone.name, coroutine.running())
         coroutine.safe_sleep_while(function()
 
             local isCasting = casting
@@ -475,11 +557,8 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
             end
             local isPreparing = gamehud.actionBarPanel.data.IsCastingSpell()
 
-            local result = isCasting or isPreparing
-
-            return result
+            return isCasting or isPreparing
         end)
-        print("INVOKE:: CAST FINISHED FOR", abilityClone.name, coroutine.running())
 
         if castCount <= 1 then
             --this looks like a direct cancel out of casting so we just break out.
@@ -552,24 +631,53 @@ function ActivatedAbilityInvokeAbilityBehavior:EditorItems(parentPanel)
 		}
 	}
 
+	-- Type row uses the stacked-label default (label above, controls
+	-- below) like the other form rows. The dropdown + Edit Ability
+	-- button share a horizontal sub-panel on the second line so the
+	-- button sits immediately next to the dropdown (only visible when
+	-- "Custom Ability" is selected). Same pattern as the Apply Ongoing
+	-- Effect behavior's Edit Effect button.
 	result[#result+1] = gui.Panel{
 		classes = {"formPanel"},
 		gui.Label{
 			classes = {"formLabel"},
 			text = "Type:",
 		},
-		gui.Dropdown{
-			options = {
-				{ text = "Custom Ability", id = "custom" },
-				{ text = "Named Ability", id = "named" },
-				cond(dmhub.GetTable("standardAbilities") ~= nil, { text = "Standard Ability", id = "standard" } ),
+		gui.Panel{
+			width = "auto",
+			height = "auto",
+			flow = "horizontal",
+			halign = "left",
+			valign = "center",
+			gui.Dropdown{
+				options = {
+					{ text = "Custom Ability", id = "custom" },
+					{ text = "Named Ability", id = "named" },
+					cond(dmhub.GetTable("standardAbilities") ~= nil, { text = "Standard Ability", id = "standard" } ),
+				},
+				idChosen = self.abilityType,
+				change = function(element)
+					self.abilityType = element.idChosen
+					parentPanel:FireEventTree("refreshInvoke")
+				end,
 			},
-			idChosen = self.abilityType,
-			change = function(element)
-				self.abilityType = element.idChosen
-				parentPanel:FireEventTree("refreshInvoke")
-			end,
-		}
+
+			gui.Button{
+				classes = {cond(self.abilityType ~= "custom", "collapsed-anim")},
+				width = "auto",
+				height = 28,
+				halign = "left",
+				lmargin = 8,
+				fontSize = 16,
+				text = "Edit Ability",
+				refreshInvoke = function(element)
+					element:SetClass("collapsed-anim", self.abilityType ~= "custom")
+				end,
+				click = function(element)
+					element.root:AddChild(self.customAbility:ShowEditActivatedAbilityDialog())
+				end,
+			},
+		},
 	}
 
 	result[#result+1] = gui.Check{
@@ -579,7 +687,7 @@ function ActivatedAbilityInvokeAbilityBehavior:EditorItems(parentPanel)
 			self.invokeOnCaster = element.value
 		end,
 	}
-	
+
 	result[#result+1] = gui.Check{
 		classes = {cond(self.abilityType == "custom", "collapsed-anim")},
 		text = "Target Player Casts",
@@ -589,21 +697,6 @@ function ActivatedAbilityInvokeAbilityBehavior:EditorItems(parentPanel)
 		end,
 		refreshInvoke = function(element)
 			element:SetClass("collapsed-anim", self.abilityType == "custom")
-		end,
-	}
-
-	result[#result+1] = gui.PrettyButton{
-		width = 200,
-		height = 50,
-		text = "Edit Ability",
-		create = function(element)
-			element:SetClass("collapsed", self.abilityType ~= "custom")
-		end,
-		refreshInvoke = function(element)
-			element:FireEventTree("create")
-		end,
-		click = function(element)
-			element.root:AddChild(self.customAbility:ShowEditActivatedAbilityDialog())
 		end,
 	}
 
@@ -877,6 +970,57 @@ function AbilityInvocation:Invoke()
 
 	for k,v in pairs(self:try_get("abilityAttr", {})) do
 		abilityClone[k] = v
+	end
+
+	-- Apply forced movement bonuses if this is a forced movement ability
+	local forcedMovementType = abilityClone:try_get("forcedMovement")
+	if forcedMovementType ~= nil then
+		-- In remote invocations, invokerToken is the pusher and casterToken is the target being moved
+		local pusherToken = invokerToken
+		local targetToken = casterToken
+
+		local baseMoveType = string.gsub(forcedMovementType, "^vertical_", "")
+		local baseRange = abilityClone:GetRange(pusherToken.properties) / dmhub.unitsPerSquare
+
+		local adjustments = {}
+		local sizeDifferenceBonus = 0
+		-- Big Versus Little check
+
+		local stability = targetToken.properties:Stability()
+		if stability ~= 0 and pusherToken.properties:CalculateNamedCustomAttribute("Ignore Stability") > 0 then
+			stability = 0
+			adjustments[#adjustments+1] = "Ignoring Stability"
+		end
+
+		local forcedMovementIncrease = targetToken.properties:CalculateNamedCustomAttribute("Forced Movement Increase")
+		if forcedMovementIncrease > 0 then
+			adjustments[#adjustments+1] = string.format("Forced Movement Increase: +%d", forcedMovementIncrease)
+		end
+
+		local forcedMovementBonus = pusherToken.properties:ForcedMovementBonus(baseMoveType)
+		if forcedMovementBonus > 0 then
+			local describe = pusherToken.properties:DescribeForcedMovementBonus(baseMoveType)
+			local textItems = {}
+			for _,entry in ipairs(describe) do
+				textItems[#textItems+1] = entry.key
+			end
+			if #textItems > 0 then
+				adjustments[#adjustments+1] = string.format("Forced Movement Bonus (%s): +%d", table.concat(textItems, ", "), forcedMovementBonus)
+			end
+		end
+
+		local adjustedRange = math.max(0, baseRange - stability + sizeDifferenceBonus + forcedMovementIncrease + forcedMovementBonus)
+
+		if stability > 0 then
+			adjustments[#adjustments+1] = string.format("Stability: -%d", stability)
+		end
+
+		abilityClone.range = adjustedRange * dmhub.unitsPerSquare
+		local description = string.format("You may %s the target %d square%s", baseMoveType, adjustedRange, adjustedRange > 1 and "s" or "")
+		if #adjustments > 0 then
+			description = description .. " (" .. table.concat(adjustments, ", ") .. ")"
+		end
+		abilityClone.promptOverride = description
 	end
 
 	local options = {

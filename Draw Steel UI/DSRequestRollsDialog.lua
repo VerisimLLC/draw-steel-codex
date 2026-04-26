@@ -29,6 +29,7 @@ RollCheck.consequences = ''
 RollCheck.explanation = ''
 
 RollRequest.contest = false
+RollRequest.dicetower = false
 
 RollCheck.customChecks = {}
 
@@ -515,6 +516,7 @@ function GameHud:RequireRollListenerPanel()
 										type = rollType,
 										subtype = check.type,
 										nofadein = nofadein,
+										dicetower = request.info.dicetower,
 
                                         PopulateCustom = PopulateCustom,
 
@@ -590,7 +592,6 @@ function GameHud:RequireRollListenerPanel()
 										end,
 									}
 
-                                    print("SHOWDIALOG:: PARAMS", json(dialogParams))
 
 									if check:CustomInfo() ~= nil and check:CustomInfo().ShowDialog ~= nil then
 										showingRollId = check:CustomInfo().ShowDialog(check, dialogParams)
@@ -875,6 +876,7 @@ function ShowRequireRollDialog(args)
 	local checkTypeIndexes = {checkTypeIndex} --the actual multi-selection of which items we have selected.
 
     local m_skills = args.skills
+    local m_dicetower = false
 
     local m_tierInputs = nil
 	local specializationChecks = {}
@@ -923,6 +925,7 @@ function ShowRequireRollDialog(args)
 
 	g_requireRollDialog = gui.Panel{
 		id = 'require-roll-dialog',
+        classes = {"framedPanel"},
 
 		destroy = function(element)
 			if g_requireRollDialog == element then
@@ -1413,6 +1416,21 @@ function ShowRequireRollDialog(args)
 			},
 		},
 
+		gui.Check{
+			text = 'Dice Tower (hide result from players)',
+			floating = true,
+			halign = 'left',
+			valign = 'bottom',
+			margin = 18,
+            lmargin = 44,
+			value = false,
+			fontSize = 14,
+			color = 'white',
+			change = function(element)
+				m_dicetower = element.value
+			end,
+		},
+
 		gui.PrettyButton{
 			text = 'Submit',
 			floating = true,
@@ -1487,6 +1505,7 @@ function ShowRequireRollDialog(args)
                     title = args.title,
 					checks = checks,
 					tokens = tokensSelected,
+					dicetower = m_dicetower,
 				})
 
 				gamehud:ShowRollSummaryDialog(actionid)

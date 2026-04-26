@@ -547,6 +547,54 @@ Commands.RegisterMacro{
 }
 
 Commands.RegisterMacro{
+    name = "lockobjects",
+    summary = "lock or unlock map objects",
+    doc = "Usage: /lockobjects <keyword> [lock|unlock|toggle]\nLocks, unlocks, or toggles the locked state of map objects matching the keyword.",
+    completions = function(args, argIndex)
+        if argIndex == 1 then
+            local result = {}
+            local seen = {}
+            local objects = game.currentFloor.objects
+            for _, obj in pairs(objects) do
+                if obj.keywords then
+                    for kw, _ in pairs(obj.keywords) do
+                        if not seen[kw] then
+                            seen[kw] = true
+                            result[#result+1] = kw
+                        end
+                    end
+                end
+            end
+            table.sort(result)
+            return result
+        elseif argIndex == 2 then
+            return {{text = "lock", summary = "lock objects"}, {text = "unlock", summary = "unlock objects"}, {text = "toggle", summary = "toggle objects"}}
+        end
+        return {}
+    end,
+    command = function(str)
+        local args = string.split(str, " ")
+        if not args[1] then
+            return
+        end
+
+        local search = args[1]
+        local mode = args[2] or "lock"
+        local objects = game.currentFloor.objects
+        for key, obj in pairs(objects) do
+            local keywords = obj.keywords
+            if keywords and keywords[search] then
+                local newValue = cond(mode == "toggle", not obj.locked, cond(mode == "unlock", false, true))
+                if newValue ~= obj.locked then
+                    obj.locked = newValue
+                    obj:Upload()
+                end
+            end
+        end
+    end,
+}
+
+Commands.RegisterMacro{
     name = "openurl",
     summary = "open a URL",
     doc = "Usage: /openurl <url>\nOpens a URL in the system web browser.",
@@ -947,16 +995,20 @@ Commands.RegisterMacro{
     end,
     command = function(str)
         local args = Commands.SplitArgs(str)
-        local tokens = args[1]
-        local emote = args[2]
+        if #args < 1 then
+            return
+        end
 
-        if #args < 2 then
+        if #args == 1 then
+            local emote = args[1]
             for i, tok in ipairs(dmhub.selectedOrPrimaryTokens) do
                 if tok.properties ~= nil then
                     tok.properties:Emote(emote, { deleteOthers = true })
                 end
             end
         else
+            local tokens = args[1]
+            local emote = args[2]
             local allTokens = tokenSearch(tokens)
             for _, token in ipairs(allTokens) do
                 if token.properties ~= nil then
@@ -1053,20 +1105,27 @@ Commands.RegisterMacro{
 Commands.RegisterMacro{
     name = "spawn",
     summary = "spawn a character",
-    doc = "Usage: /spawn <token name> <x> <y>\nSpawns any character(s) to given location.",
+    doc = "Usage: /spawn <token name> <x> <y> [floor]\nSpawns any character(s) to given location. Floor defaults to the current floor if omitted.",
     completions = tokenSearchCompletions,
     command = function(str)
         local args = Commands.SplitArgs(str)
         local tokenName = args[1]
         local x = tonum(args[2])
         local y = tonum(args[3])
+        local floorIndex = tonum(args[4])
 
         local characters = game.GetGameGlobalCharacters()
 
         local tokens = tokenSearch(tokenName, table.values(characters))
 
         for _, token in pairs(tokens) do
-            token:ChangeLocation(core.Loc { x = x, y = y })
+            local loc
+            if floorIndex ~= nil then
+                loc = core.Loc { x = x, y = y, floorIndex = floorIndex }
+            else
+                loc = core.Loc { x = x, y = y }
+            end
+            token:ChangeLocation(loc)
         end
     end,
 }
@@ -1333,6 +1392,21 @@ Commands.RegisterMacro{
         bestobj:SetAndUploadZOrder(highestzorder + 1)
     end
 
+    local collide = true
+    while collide do
+        collide = false
+        --make sure the target location is unoccupied.
+        for _, token in ipairs(dmhub.allTokens) do
+            local locs = token.locsOccupying
+            for i,loc in ipairs(locs) do
+                if loc.x == targetLoc.x and loc.y == targetLoc.y then
+                    targetLoc.x = targetLoc.x + 1
+                    collide = true
+                    break
+                end
+            end
+        end
+    end
 
 
     if heroType ~= nil then

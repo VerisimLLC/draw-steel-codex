@@ -21,15 +21,15 @@ end
 --- @class ActivatedAbility
 --- @field description string Rules text shown to players.
 --- @field flavor string Flavor/lore text shown in the ability tooltip.
---- @field range number Targeting range in world units.
---- @field lineDistance number Length for line-area targeting.
---- @field rangeDisadvantage string GoblinScript: if truthy, ranged attacks have disadvantage.
+--- @field range number|string|table Targeting range in world units.
+--- @field lineDistance number|string|table Length for line-area targeting.
+--- @field rangeDisadvantage string|number|table GoblinScript: if truthy, ranged attacks have disadvantage.
 --- @field selfTarget boolean If true, the ability always targets the caster.
 --- @field castImmediately boolean If true, auto-casts when there are no targeting choices.
 --- @field recharge boolean|number Recharge roll threshold (false = no recharge mechanic).
 --- @field legendary boolean If true, this is a legendary action.
 --- @field categorization string Ability category string (e.g. "none", "action", "maneuver").
---- @field multipleModes boolean If true, the ability has multiple selectable modes.
+--- @field multipleModes boolean|string If true, the ability has multiple selectable modes.
 --- @field domains table<string, boolean> Domain set this ability belongs to.
 --- @field isSpell boolean If true, this ability is treated as a spell.
 --- @field abilityModification boolean If true, this is a modification of another ability rather than a standalone ability.
@@ -40,27 +40,27 @@ end
 --- @field concentration boolean If true, maintaining this effect requires concentration.
 --- @field silent boolean If true, the ability is triggered by the system and does not show a dialog.
 --- @field castingTime string DEPRECATED. Use actionResourceId instead.
---- @field actionResourceId string The resource id consumed to cast (e.g. the action resource guid).
---- @field actionNumber number Number of action resources consumed.
---- @field resourceCost string Secondary resource id cost ("none" if free).
---- @field resourceNumber number Amount of the secondary resource cost.
---- @field targetFilter string GoblinScript formula to filter valid targets.
---- @field channeledResource string Resource id that can be channeled into this ability for variable power ("none" if unused).
+--- @field actionResourceId string|nil The resource id consumed to cast (e.g. the action resource guid).
+--- @field actionNumber number|string|table Number of action resources consumed.
+--- @field resourceCost string|nil Secondary resource id cost ("none" if free).
+--- @field resourceNumber number|string|table Amount of the secondary resource cost.
+--- @field targetFilter string|number|table GoblinScript formula to filter valid targets.
+--- @field channeledResource string|nil Resource id that can be channeled into this ability for variable power ("none" if unused).
 --- @field channelDescription string Description shown when channeling resource into the ability.
 --- @field channelIncrement number|string Minimum channel increment (number or GoblinScript formula).
 --- @field proximityTargeting boolean If true, targeting uses proximity range instead of ability range.
---- @field proximityRange string Range in world units for proximity targeting.
+--- @field proximityRange string|number|table Range in world units for proximity targeting.
 --- @field behaviors ActivatedAbilityBehavior[] The list of behaviors that execute when the ability is cast.
 ActivatedAbility = RegisterGameType("ActivatedAbility")
 
 --- @class ActivatedAbilityBehavior
 --- @field instant boolean If true, executes immediately (not in a coroutine).
 --- @field customOngoingEffect boolean If true, uses a custom ongoing effect rather than the default.
---- @field duration string Duration type for the effect ("none" by default).
---- @field filterTarget string GoblinScript: if falsy for a target, skip it.
+--- @field duration string|number|nil Duration type for the effect ("none" by default).
+--- @field filterTarget string|number|table GoblinScript: if falsy for a target, skip it.
 --- @field summary string Short display name shown in the ability editor.
 --- @field applyto string Which targets receive this behavior ("targets" or other filter).
---- @field stacks boolean|string Whether the behavior stacks ("1" or false).
+--- @field stacks boolean|string|number|table Whether the behavior stacks ("1" or false).
 --- @field damageType string Default damage type for behaviors that deal damage.
 --- @field durationUntilEndOfTurn boolean If true, the effect lasts until end of caster's turn.
 --- @field mono boolean If true, only one of these behaviors can be in an ability's list at a time.
@@ -112,6 +112,7 @@ ActivatedAbilityModifiersBehavior = RegisterGameType("ActivatedAbilityModifiersB
 ActivatedAbilityApplyMomentaryEffectBehavior = RegisterGameType("ActivatedAbilityApplyMomentaryEffectBehavior", "ActivatedAbilityBehavior")
 
 ActivatedAbility.description = ""
+ActivatedAbility.hasCustomIcon = false
 
 ActivatedAbility.flavor = ""
 
@@ -267,6 +268,9 @@ ActivatedAbility.sequentialTargeting = false
 --for emptyspace targetType, this is the type of targeting used.
 ActivatedAbility.targeting = "direct"
 
+--when true, forced movement continues through creatures instead of stopping on collision.
+ActivatedAbility.forcedMovementThroughCreatures = false
+
 --for line type targeting.
 ActivatedAbility.canChooseLowerRange = false
 
@@ -319,6 +323,102 @@ function ActivatedAbility:RequiresConcentration()
 end
 
 function ActivatedAbility:GetTypeIconForActionBar()
+    return nil
+end
+
+function ActivatedAbility:GetIcon()
+    if self.hasCustomIcon then
+        return self.iconid
+    end
+    if self:has_key("villainAction") then
+        return "drawsteel/ability/villain_action_icon.png"
+    end
+
+    if self.targetType == "emptyspace" or self.targetType == "emptyspacefriend" or self.targetType == "anyspace" then
+        for _,behavior in ipairs(self.behaviors or {}) do
+            if behavior.typeName == "ActivatedAbilityRelocateCreatureBehavior" then
+                local movementType = behavior.movementType or "teleport"
+                if movementType == "shift" then
+                    return "drawsteel/ability/move_shift.png"
+                else
+                    return "drawsteel/ability/move.png"
+                end
+            end
+        end
+    end
+
+    if self:HasKeyword("Strike") then
+        if self:HasKeyword("Melee") then
+            if self:HasKeyword("Ranged") then
+                return "drawsteel/ability/versatile_icon.png"
+            else
+                return "drawsteel/ability/melee_icon.png"
+            end
+        elseif self:HasKeyword("Ranged") then
+            return "drawsteel/ability/ranged_icon.png"
+        end
+    end
+
+    if self:HasKeyword("Area") then
+        return "drawsteel/ability/area_icon.png"
+    elseif self.targetType == "self" then
+        return "drawsteel/ability/self_icon.png"
+    end
+
+    return "drawsteel/ability/special_icon.png"
+end
+
+function TriggeredAbility:GetIcon()
+    if not self.hasCustomIcon then
+		return "drawsteel/ability/trigger_icon.png"
+    end
+
+    return self.iconid
+end
+
+-- Cached default display table used when an ability has no custom icon and no
+-- recognized damage type. Returned by reference -- never mutate.
+local g_defaultIconDisplay = {
+    bgcolor = '#ffffffff',
+    hueshift = 0,
+    saturation = 1,
+    brightness = 1,
+}
+
+-- Cached per-damage-type display tables. Lookup is by lowercase damage type
+-- name (matching ActivatedAbility:GetDamageTypesSet() output). Returned by
+-- reference -- never mutate.
+local g_damageTypeIconDisplay = {
+    acid      = { bgcolor = '#89a25eff', hueshift = 0, saturation = 1, brightness = 1 },
+    cold      = { bgcolor = '#2ab6e1ff', hueshift = 0, saturation = 1, brightness = 1 },
+    corruption = { bgcolor = '#f7009cff', hueshift = 0, saturation = 1, brightness = 1 },
+    fire      = { bgcolor = '#fc9300ff', hueshift = 0, saturation = 1, brightness = 1 },
+    holy      = { bgcolor = '#fcfa8bff', hueshift = 0, saturation = 1, brightness = 1 },
+    lightning = { bgcolor = '#71bdffff', hueshift = 0, saturation = 1, brightness = 1 },
+    poison    = { bgcolor = '#72ff01ff', hueshift = 0, saturation = 1, brightness = 1 },
+    psychic   = { bgcolor = '#f8c3d9ff', hueshift = 0, saturation = 1, brightness = 1 },
+    sonic     = { bgcolor = '#1cd1dcff', hueshift = 0, saturation = 1, brightness = 1 },
+}
+
+function ActivatedAbility:GetIconDisplay()
+    if not self.hasCustomIcon then
+        local damageTypes = self:GetDamageTypesSet()
+        for _,dtype in ipairs(damageTypes.strings) do
+            local display = g_damageTypeIconDisplay[dtype]
+            if display ~= nil then
+                return display
+            end
+        end
+        return g_defaultIconDisplay
+    end
+    return self.display
+end
+
+function ActivatedAbility:GetIconGradient()
+    if self.hasCustomIcon then
+        return DisplayGradients.GetGradient(rawget(self, "iconGradient"))
+    end
+
     return nil
 end
 
@@ -674,7 +774,13 @@ function ActivatedAbility.Create(options)
 		end
 	end
 
-	return ActivatedAbility.new(args)
+	local ability = ActivatedAbility.new(args)
+	-- Signals to AbilityEditor that this ability was freshly created so the
+	-- entry modal (Template / Duplicate / Blank) fires on first edit. The
+	-- _tmp_ prefix keeps it out of serialization, so the flag lives only in
+	-- the session the ability was created.
+	ability._tmp_isNewAbility = true
+	return ability
 end
 
 --- Returns the unique id of this ability (uses guid or id field).
@@ -935,6 +1041,9 @@ function ActivatedAbility:GetNumTargets(casterToken, symbols)
 
         return 1
     end
+	if casterToken.properties == nil then
+		return 1
+	end
 	local targets = ExecuteGoblinScript(self.numTargets, casterToken.properties:LookupSymbol(symbols))
 	return targets
 end
@@ -1275,10 +1384,12 @@ end
 --- @return boolean
 function ActivatedAbility:CanSelectMoreTargets(casterToken, targets, symbols)
 	local numTargets = self:GetNumTargets(casterToken, symbols)
+	if type(numTargets) ~= "number" then
+		return false
+	end
 	if self.sequentialTargeting and #targets == 1 then
 		return false
 	end
-    print("ABILITY::", self.name, "MORE TARGETS =", numTargets, ">", #targets)
 	return numTargets > #targets
 end
 
@@ -1508,6 +1619,7 @@ function ActivatedAbility:CommitToPaying(casterToken, options)
 end
 
 function ActivatedAbility:FireUseAbility(casterToken, options)
+	if casterToken == nil then return end
 	if (not options.firedUseAbility) and self:CountsAsRegularAbilityCast() then
 		options.firedUseAbility = true
 
@@ -1784,13 +1896,6 @@ function ActivatedAbility.ExpectedResourceConsumptionFromCurrentCast()
         end
     end
 
-    local improvCosts = info.options.improvementCosts
-    if improvCosts ~= nil then
-        for _, ic in ipairs(improvCosts) do
-            result[ic.resourceId] = (result[ic.resourceId] or 0) + ic.costAmt
-        end
-    end
-
     return result
 end
 
@@ -1838,7 +1943,6 @@ function ActivatedAbility:ConsumeResources(casterToken, options)
 
             execute = function()
                 local cost = options.costOverride or self:GetCost(tok)
-                print("COST:: CONSUME", cost)
 
                 local resourceTable = dmhub.GetTable("characterResources")
 
@@ -1893,7 +1997,7 @@ function ActivatedAbility:CastInstantPortion(casterToken, targets, options)
 		if behavior.instant then
             --I don't think we should filter this just because we're already in a coroutine?
 			--if (not options.alreadyInCoroutine) and (not behavior:IsFiltered(self, casterToken, options)) then
-			if (not behavior:IsFiltered(self, casterToken, options)) then
+			if behavior.hasCast and (not behavior:IsFiltered(self, casterToken, options)) then
 				behavior:Cast(self, casterToken, behavior:ApplyToTargets(self, casterToken, targets, options), options)
 			end
 		else
@@ -2105,6 +2209,10 @@ function ActivatedAbility:FinishCast(casterToken, options)
 	end
 
 	GameSystem.OnEndCastActivatedAbility(casterToken, self, options)
+
+	if self:CountsAsRegularAbilityCast() then
+        casterToken.properties:DispatchEvent("finishability", {usedability = self, cast = options.symbols and options.symbols.cast})
+    end
 end
 
 
@@ -2328,7 +2436,6 @@ function ActivatedAbility:Cast(casterToken, targets, options)
 	options.symbols = options.symbols or {}
     options.symbols.castid = dmhub.GenerateGuid()
 
-
     local targetTokenIds = {}
     for i,target in ipairs(targets) do
         if target.token ~= nil then
@@ -2376,7 +2483,9 @@ function ActivatedAbility:Cast(casterToken, targets, options)
 	end
 
 	if self:has_key("OnBeginCast") then
-		self.OnBeginCast(self)
+		--Pass options so OnBeginCast wrappers can install OnFinishCastHandlers that
+		--survive engine serialization stripping function fields off the ability mid-cast.
+		self.OnBeginCast(self, options)
 	end
 
 	if self:has_key("castingLevel") and type(self.castingLevel) == "number" and self.castingLevel >= self:try_get("level", 1) then
@@ -2618,7 +2727,7 @@ function ActivatedAbility.CastCoroutine(self, casterToken, targets, options)
 
 	for i,behavior in ipairs(self.behaviors) do
 		print("CastCoroutine::", self.name, "behavior " .. i .. "/" .. #self.behaviors .. " type=" .. tostring(behavior.typeName) .. " instant=" .. tostring(behavior.instant) .. " filtered=" .. tostring(behavior:IsFiltered(self, casterToken, options)) .. " abort=" .. tostring(options.abort) .. " stopProcessing=" .. tostring(options.stopProcessing))
-		if not behavior.instant and (not behavior:IsFiltered(self, casterToken, options)) then
+		if not behavior.instant and behavior.hasCast and (not behavior:IsFiltered(self, casterToken, options)) then
             if behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
                 CharacterPanel.HighlightAbilitySection{
                     ability = self,
@@ -2649,18 +2758,6 @@ function ActivatedAbility.CastCoroutine(self, casterToken, targets, options)
 
 	if (options.pay or (options.payIfNotAborted and (not options.abort))) and not options.alreadyPaid then
 		self:ConsumeResources(casterToken, options)
-		if options.improvementCosts ~= nil and #options.improvementCosts > 0 then
-			local costs = options.improvementCosts
-			casterToken:ModifyProperties{
-				description = "Ability Improvement Cost",
-				undoable = false,
-				execute = function()
-					for _, ic in ipairs(costs) do
-						casterToken.properties:ConsumeResource(ic.resourceId, ic.refreshType, ic.costAmt, ic.name)
-					end
-				end,
-			}
-		end
 		options.alreadyPaid = true
 	end
 
@@ -2710,10 +2807,24 @@ function ActivatedAbility.CastCoroutine(self, casterToken, targets, options)
                     if castInfo:has_key("tokenToTier") and type(castInfo.tokenToTier) == "table" then
                         tier = castInfo.tokenToTier[targetToken.charid] or 0
                     end
+                    -- For minion squad attacks, use the specific minion assigned to this target
+                    local attackerProperties = casterToken.properties
+                    if options.symbols.targetPairs ~= nil then
+                        for _, pair in ipairs(options.symbols.targetPairs) do
+                            if pair.b == targetToken.charid then
+                                local attackerToken = dmhub.GetTokenById(pair.a)
+                                if attackerToken ~= nil and attackerToken.valid then
+                                    attackerProperties = attackerToken.properties
+                                end
+                                break
+                            end
+                        end
+                    end
+
                     targetToken.properties:TriggerEvent("attacked", {
                         outcome = tier,
                         roll = castInfo:try_get("total", 0),
-                        attacker = GenerateSymbols(casterToken.properties),
+                        attacker = GenerateSymbols(attackerProperties),
                     })
                 end
 			end
@@ -4562,7 +4673,102 @@ function ActivatedAbilityForcedMovementBehavior:Cast(ability, casterToken, targe
 	for i,target in ipairs(targetsSorted) do
 		symbols.target = GenerateSymbols(target.properties)
 		local distance = ExecuteGoblinScript(self.distance, casterToken.properties:LookupSymbol(symbols), 0, string.format("Calculate %s distance: %s", self.moveType, ability.name))
-		target:ForcedPush(casterToken, distance*sign)
+
+		-- Convert to squares for modifier math
+		local distanceInSquares = distance / dmhub.unitsPerSquare
+
+		-- Big Versus Little: +1 square if Weapon+Melee and caster larger
+		local adjustments = {}
+		local sizeDifferenceBonus = 0
+		if ability.keywords["Weapon"] and ability.keywords["Melee"] then
+			local casterSize = casterToken.creatureSizeNumber
+			local targetSize = target.properties:CreatureSizeWhenBeingForceMoved()
+			if casterSize > targetSize then
+				sizeDifferenceBonus = 1
+				adjustments[#adjustments+1] = "Big Versus Little: +1"
+			end
+		end
+
+		-- Stability
+		local stability = target.properties:Stability()
+		if stability ~= 0 and casterToken.properties:CalculateNamedCustomAttribute("Ignore Stability") > 0 then
+			stability = 0
+			adjustments[#adjustments+1] = "Ignoring Stability"
+		end
+
+		-- Forced Movement Increase (on target)
+		local forcedMovementIncrease = target.properties:CalculateNamedCustomAttribute("Forced Movement Increase")
+		if forcedMovementIncrease > 0 then
+			adjustments[#adjustments+1] = string.format("Forced Movement Increase: +%d", forcedMovementIncrease)
+		end
+
+		-- Forced Movement Bonus (on caster)
+		local forcedMovementBonus = casterToken.properties:ForcedMovementBonus(self.moveType)
+		if forcedMovementBonus > 0 then
+			local describe = casterToken.properties:DescribeForcedMovementBonus(self.moveType)
+			local textItems = {}
+			for _,entry in ipairs(describe) do
+				textItems[#textItems+1] = entry.key
+			end
+			if #textItems > 0 then
+				adjustments[#adjustments+1] = string.format("Forced Movement Bonus (%s): +%d", table.concat(textItems, ", "), forcedMovementBonus)
+			end
+		end
+
+		local range = math.max(0, distanceInSquares - stability + sizeDifferenceBonus + forcedMovementIncrease + forcedMovementBonus)
+
+		if range <= 0 then
+			if stability > 0 then
+				local abilityBase = MCDMUtils.GetStandardAbility("Too Much Stability")
+				if abilityBase then
+					local abilityClone = DeepCopy(abilityBase)
+					abilityClone.recordTargets = true
+					abilityClone.keywords = ability.keywords
+					abilityClone.notooltip = true
+					abilityClone.skippable = true
+					local invokeSymbols = { invoker = GenerateSymbols(casterToken.properties), cast = symbols.cast, forcedMovementOrigin = symbols.forcedMovementOrigin }
+					ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(casterToken, abilityClone, target, "prompt", invokeSymbols, options)
+				end
+			end
+		else
+			if stability > 0 then
+				adjustments[#adjustments+1] = string.format("Stability: -%d", stability)
+			end
+
+			local abilityName = "Forced Movement: " .. self.moveType
+			local description = string.format("You may %s the target %d square%s", self.moveType, range, range > 1 and "s" or "")
+
+			local abilityAttr = {
+				name = string.gsub(self.moveType, "^%l", string.upper) .. "!",
+				range = range,
+				description = description,
+				invoker = casterToken.properties,
+				promptOverride = description,
+			}
+
+			if #adjustments > 0 then
+				abilityAttr.promptOverride = abilityAttr.promptOverride .. " (" .. table.concat(adjustments, ", ") .. ")"
+			end
+
+			local abilityClone = DeepCopy(MCDMUtils.GetStandardAbility(abilityName))
+			if abilityClone ~= nil then
+				MCDMUtils.DeepReplace(abilityClone, "<<range>>", string.format("%d", range))
+				for k,v in pairs(abilityAttr) do
+					abilityClone[k] = v
+				end
+
+				abilityClone.recordTargets = true
+				abilityClone.keywords = ability.keywords
+				abilityClone.notooltip = true
+				abilityClone.skippable = true
+
+				local invokeSymbols = { invoker = GenerateSymbols(casterToken.properties), cast = symbols.cast, forcedMovementOrigin = symbols.forcedMovementOrigin }
+				ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(casterToken, abilityClone, target, "prompt", invokeSymbols, options)
+			else
+				-- Fallback if standard ability template not found
+				target:ForcedPush(casterToken, range * dmhub.unitsPerSquare * sign)
+			end
+		end
 	end
 end
 
@@ -4716,9 +4922,12 @@ function ActivatedAbility:Render(options, params)
 
 			gui.Panel{
 				halign = "right",
-				bgimage = self.iconid,
+				bgimage = self:GetIcon(),
 				classes = "icon",
-				selfStyle = self.display,
+				selfStyle = self:GetIconDisplay(),
+				create = function(element)
+					element.selfStyle.gradient = self:GetIconGradient()
+				end,
 			},
 		},
 
@@ -4923,6 +5132,28 @@ local g_lookupSymbols = {
 			return false
 		end
 	end,
+
+    powerrollusesmight = function(c)
+        for _,behavior in ipairs(c.behaviors) do
+            if behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
+                local roll = string.lower(behavior:try_get("roll", ""))
+                if string.find(roll, "might") then
+                    return true
+                end
+            end
+        end
+    end,
+
+    powerrollusesagility = function(c)
+        for _,behavior in ipairs(c.behaviors) do
+            if behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
+                local roll = string.lower(behavior:try_get("roll", ""))
+                if string.find(roll, "agility") then
+                    return true
+                end
+            end
+        end
+    end,
 }
 
 local g_helpCasting = {
@@ -5060,7 +5291,19 @@ local g_helpSymbols = {
 		type = "function",
 		desc = "Returns whether this ability inflicts the provided condition",
 		examples = {'Ability.Inflicts("Frightened")'},
-	}
+	},
+
+    powerrollusesmight = {
+        name = "Power Roll Uses Might",
+        type = "boolean",
+        desc = "Whether the power roll for this ability uses might. Only valid for abilities with a power roll behavior.",
+    },
+
+    powerrollusesagility = {
+        name = "Power Roll Uses Agility",
+        type = "boolean",
+        desc = "Whether the power roll for this ability uses agility. Only valid for abilities with a power roll behavior.",
+    },
 }
 
 ActivatedAbility.lookupSymbols = g_lookupSymbols

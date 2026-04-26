@@ -32,13 +32,10 @@ function ResourceChatMessage.Render(selfInput, message)
         text = string.format("%s: %s %d", token.properties:GetResourceName(resource.id), cond(self.mode == "replenish", tr("gain"), tr("consume")), self.quantity),
     }
 
-    local reasonLabel = nil
-    if self.reason ~= "" then
-        reasonLabel = gui.Label{
-            classes = {"action-log-subtext"},
-            text = self.reason,
-        }
-    end
+    local reasonLabel = gui.Label{
+        classes = {"action-log-subtext"},
+        text = self.reason,
+    }
 
     local undoButton = gui.Panel{
         bgimage = "panels/hud/anticlockwise-rotation.png",

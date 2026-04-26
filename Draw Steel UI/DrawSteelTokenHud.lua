@@ -33,11 +33,34 @@ local g_deadMinionIconStyles = {
 --the wounded icon configuration.
 TokenUI.RegisterIcon{
     id = "wounded",
-    icon = "ui-icons/wounded-border.png",
+    icon = "drawsteel/Icon_STA_Winded.png",
     Filter = function(creature)
         --this controls if the icon should display.
-	    return (not creature.minion) and creature.damage_taken >= creature:MaxHitpoints()/2 and dmhub.GetSettingValue("showwoundedicon")
+        local maxhp = creature:MaxHitpoints()
+	    return (not creature.minion) and creature.damage_taken >= maxhp/2 and creature.damage_taken < maxhp and dmhub.GetSettingValue("showwoundedicon")
     end,
+
+    hoverText = "Winded",
+
+    --Only show to those who can't see the health bar.
+    showToAll = true,
+    showToGM = true,
+    showToController = true,
+    showToFriends = true,
+    showToEnemies = true,
+}
+
+--the dying icon configuration.
+TokenUI.RegisterIcon{
+    id = "dying",
+    icon = "drawsteel/Icon_STA_Dying.png",
+    Filter = function(creature)
+        --this controls if the icon should display.
+        local maxhp = creature:MaxHitpoints()
+	    return (not creature.minion) and creature.damage_taken >= maxhp and dmhub.GetSettingValue("showwoundedicon")
+    end,
+
+    hoverText = "Winded",
 
     --Only show to those who can't see the health bar.
     showToAll = true,
@@ -248,9 +271,55 @@ TokenHud.RegisterPanel{
                             m_minionDeathPanel = gui.Panel{
                                 styles = g_deadMinionIconStyles,
                                 click = function(element)
-                                    token.properties:TriggerEvent("creaturedeath", {}) --this triggers the 'monster death' global event which will remove the minion.
-                                    token.properties:MinionDeath()
-                                    --game.DeleteCharacters{token.charid}
+                                    local attacker = token.properties:try_get("_tmp_lastattacker")
+                                    local victim = token.properties
+                                    local charid = token.charid
+                                    local playerControlled = token.playerControlled
+                                    local tokenRef = token
+
+                                    dmhub.Coroutine(function()
+                                        if attacker ~= nil then
+                                            attacker:TriggerEvent("kill", {
+                                                victim = victim,
+                                                hasattacker = true,
+                                                attacker = attacker,
+                                            })
+                                        end
+
+                                        token.properties:TriggerEvent("creaturedeath", {}) --fires the 'Monster Death' trigger (which can despawn/remove via RemoveCreatureBehavior) plus any user-defined creaturedeath triggers.
+                                        token.properties:MinionDeath()
+
+                                        local idleRequired = 0.3
+                                        local waitDeadline = dmhub.Time() + 45
+                                        local idleSince = nil
+                                        while dmhub.Time() < waitDeadline do
+                                            if mod.unloaded then return end
+                                            if not tokenRef.valid then return end
+
+                                            local props = tokenRef.properties
+                                            if props == nil then break end
+
+                                            local hasPrompt = props:GetAvailableTriggers() ~= nil
+                                            local hasCast = ActivatedAbility.TokenHasOtherActiveCasts(tokenRef)
+
+                                            if (not hasPrompt) and (not hasCast) then
+                                                idleSince = idleSince or dmhub.Time()
+                                                if dmhub.Time() - idleSince >= idleRequired then
+                                                    break
+                                                end
+                                            else
+                                                idleSince = nil
+                                            end
+
+                                            coroutine.yield(0.1)
+                                        end
+
+                                        --Fallback-delete the character record
+                                        if mod.unloaded then return end
+                                        if playerControlled and tokenRef.valid then
+                                            game.DeleteCharacters{charid}
+                                        end
+                                    end)
                                 end,
 
                                 thinkTime = g_deadMinionPulseSpeed,

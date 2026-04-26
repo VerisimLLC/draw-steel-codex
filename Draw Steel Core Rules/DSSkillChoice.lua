@@ -5,7 +5,7 @@ local mod = dmhub.GetModLoading()
 --- @field description string Prompt shown to the player.
 --- @field categories string[] Skill category ids to filter available skills; empty means all categories.
 --- @field individualSkills string[] Specific skill ids available for selection (overrides categories if non-empty).
---- @field numChoices number Number of skills the player may choose.
+--- @field numChoices number|string|table Number of skills the player may choose.
 CharacterSkillChoice = RegisterGameType("CharacterSkillChoice", "CharacterChoice")
 
 CharacterSkillChoice.name = "Skill"
@@ -174,9 +174,10 @@ function CharacterSkillChoice:GetSkillFeatures()
         self._tmp_skillFeatures = {}
     end
 
+    local hasFilters = self:HasFilters()
     local skillsTable = dmhub.GetTable(Skill.tableName)
     for k,skill in pairs(skillsTable) do
-        if (not skill:try_get("hidden", false)) and (self.categories[skill.category] or self.individualSkills[k]) then
+        if (not skill:try_get("hidden", false)) and (not hasFilters or self.categories[skill.category] or self.individualSkills[k]) then
             local feature = self._tmp_skillFeatures[skillFeatureIndex] or DeepCopy(MCDMImporter.GetStandardFeature("Skill"))
             skillFeatureIndex = skillFeatureIndex + 1
             feature.id = k

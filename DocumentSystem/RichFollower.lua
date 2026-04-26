@@ -253,7 +253,7 @@ function RichFollower.CreateDisplay(self)
                             text = "calculating...",
                             refreshTag = function(element)
                                 local parent = element:FindParentWithClass("assign-button")
-                                if parent then
+                                if parent and token ~= nil and token.valid then
                                     local label = parent.data.revokeMode and "Revoke from " or "Assign to "
                                     element.text = label .. (token.name or "Unnamed Hero")
                                     element:SetClass("revoke", parent.data.revokeMode)

@@ -532,6 +532,53 @@ LaunchablePanel.Register {
                 },
 
                 ControlEntry {
+                    name = "Progress Bar",
+                    snippet = [[gui.ProgressBar{
+    width = 320,
+    height = 48,
+    value = 0.4,  -- 0.0 to 1.0
+}
+
+-- Update later:
+--   progressBar:SetValue(0.75)
+-- or:
+--   progressBar.value = 0.75]],
+                    control = gui.Panel{
+                        height = "auto",
+                        vpad = 10,
+                        halign = "center",
+                        flow = "vertical",
+                        gui.ProgressBar{
+                            id = "test-progress-bar",
+                            halign = "center",
+                            width = 320,
+                            height = 48,
+                            value = 0.4,
+                            thinkTime = 0.01,
+                            think = function(element)
+                                element.value = math.sin(dmhub.Time() * 0.5) * 0.5 + 0.5
+                            end,
+                        },
+                        gui.Slider{
+                            tmargin = 8,
+                            halign = "center",
+                            minValue = 0,
+                            maxValue = 100,
+                            value = 40,
+                            height = 20,
+                            width = 180,
+                            change = function(element)
+                                local bar = element.parent:Get("test-progress-bar")
+                                if bar then
+                                    bar.value = element.value / 100
+                                end
+                                outputLabel.text = string.format("Progress: %d%%", math.floor(element.value))
+                            end,
+                        },
+                    },
+                },
+
+                ControlEntry {
                     name = "Divider (layout=line)",
                     snippet = [[gui.Divider{layout = "line", width = "50%"}]],
                     control = gui.Divider{

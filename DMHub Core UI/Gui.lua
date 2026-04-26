@@ -2825,19 +2825,19 @@ end
 --- @param args PanelArgs
 --- @return Panel
 function gui.ProgressBar(args)
+    local m_resultPanel
+
 	args = DeepCopy(args)
 
 	local value = args.value or 0
 	args.value = nil
 
 	local fillPanel = gui.Panel{
-		bgimage = "panels/progressbar/endcap.png",
-		bgcolor = "white",
+		bgimage = true,
+		bgcolor = Styles.Gold03,
 		flow = "horizontal",
 		halign = "left",
 		height = "100%",
-		bgslice = {x1 = 0, x2 = 128, y1 = 0, y2 = 0},
-		border = {x1 = 0, x2 = 32, y1 = 0, y2 = 0},
 
 		refresh = function(element)
 			element.selfStyle.width = string.format("%f%%", value*100)
@@ -2845,8 +2845,8 @@ function gui.ProgressBar(args)
 	}
 
 	local innerPanel = gui.Panel{
-		width = "100%-60",
-		height = "100%-16",
+		width = "100%-4",
+		height = "100%-4",
 		halign = "center",
 		valign = "center",
 		flow = "none",
@@ -2855,30 +2855,76 @@ function gui.ProgressBar(args)
 			height = "100%",
 			width = "100%",
 			halign = "left",
-			flow = "horizontal",
+			flow = "none",
 			fillPanel,
-		},
 
-		gui.Label{
-			fontFace = "SupernaturalKnight",
-			halign = "center",
-			valign = "center",
-			width = "30%",
-			height = "auto",
-			textAlignment = "center",
-			color = "#ffedcf",
-			fontSize = args.fontSize or 30,
-			text = "TEST",
+            gui.Label{
+                halign = "center",
+                valign = "center",
+                width = "30%",
+                height = "auto",
+                textAlignment = "center",
+                color = Styles.Gold03,
+                fontSize = args.fontSize or 30,
+                text = "TEST",
 
-			refresh = function(element)
-				element.text = string.format("%d%%", math.floor(value*100))
-			end,
+                thinkTime = 0.001,
+                think = function(element)
+                    element.selfStyle.halign = "left"
+                    local w = m_resultPanel.renderedWidth - 4
+                    element.selfStyle.x = w/2 - w*0.15
+                    element.selfStyle.width = w/3
+                end,
+
+                refresh = function(element)
+                    element.text = string.format("%d%%", math.floor(value*100.5))
+                end,
+            },
+
+            gui.Panel{
+                bgimage = true,
+                clip = true,
+                clipHidden = true,
+                height = "100%",
+                halign = "left",
+
+                refresh = function(element)
+                    element.selfStyle.width = string.format("%f%%", value*100)
+                end,
+
+                gui.Label{
+                    halign = "left",
+                    valign = "center",
+                    width = 100,
+                    height = "auto",
+                    textAlignment = "center",
+                    color = "black",
+                    fontSize = args.fontSize or 30,
+                    text = "TEST",
+
+                    thinkTime = 0.001,
+                    think = function(element)
+                        local w = m_resultPanel.renderedWidth - 4
+                        element.selfStyle.x = w/2 - w*0.15
+                        element.selfStyle.width = w/3
+                    end,
+
+                    refresh = function(element)
+                        element.text = string.format("%d%%", math.floor(value*100.5))
+                        element:FireEvent("think")
+                    end,
+                },
+            }
 		},
 	}
 
 	local params = {
 		flow = "none",
 		idprefix = "ProgressBar",
+        bgimage = true,
+        borderWidth = 2,
+        borderColor = Styles.Gold03,
+        bgcolor = "clear",
 
 		create = function(element)
 			element:FireEventTree("refresh")
@@ -2895,22 +2941,14 @@ function gui.ProgressBar(args)
 		end,
 
 		innerPanel,
-		gui.Panel{
-			classes = {"progressBarFrame"},
-			bgimage = "panels/progressbar/frame.png",
-			bgcolor = "white",
-			width = "100%",
-			height = "100%",
-			bgslice = {x1 = 200, x2 = 200, y1 = 32, y2 = 32},
-			border = {x1 = 50, x2 = 50, y1 = 8, y2 = 8},
-		},
 	}
 
 	for k,v in pairs(args) do
 		params[k] = v
 	end
 
-	return gui.Panel(params)
+	m_resultPanel = gui.Panel(params)
+    return m_resultPanel
 end
 
 --- @return Panel
@@ -3543,7 +3581,7 @@ function gui.AudioEditor(args)
 					{
 						flow = 'vertical',
 						halign = 'left',
-						valign = 'center',
+						valign = 'top',
 						width = 600,
 						height = 820,
 						borderWidth = 0,

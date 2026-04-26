@@ -165,7 +165,7 @@ CharacterModifier.TypeInfo.abilityimprovement = {
                 local info = CharacterModifier.ImprovementParamsById[param.id]
                 if info ~= nil then
                     children[#children+1] = gui.Panel{
-                        classes = {"formPanel"},
+                        classes = {"formPanel", "formPanel-inline"},
                         gui.Label{
                             classes = {"formLabel"},
                             width = 400,

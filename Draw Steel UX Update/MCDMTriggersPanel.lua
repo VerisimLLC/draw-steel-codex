@@ -261,6 +261,20 @@ local function RenderTriggerCard(triggerDisplay, caster, collapsedSet, manualAbi
 				text = StringInterpolateGoblinScript(effect, caster),
 			}
 		end
+
+		local implNotes = triggerDisplay:try_get("implementationNotes")
+		if implNotes ~= nil and implNotes ~= "" then
+			bodyChildren[#bodyChildren+1] = gui.Label{
+				width = "100%-12",
+				height = "auto",
+				hmargin = 6,
+				vpad = 2,
+				fontSize = 13,
+				color = "#FFFEF8",
+				markdown = true,
+				text = string.format("<b>Implementation Notes:</b> %s", StringInterpolateGoblinScript(implNotes, caster)),
+			}
+		end
 	else
 		local keywords = triggerDisplay:try_get("keywords") or {}
 		local keywordKeys = table.keys(keywords)
@@ -351,6 +365,20 @@ local function RenderTriggerCard(triggerDisplay, caster, collapsedSet, manualAbi
 				color = "#FFFEF8",
 				markdown = true,
 				text = string.format("<b>Effect:</b> %s", StringInterpolateGoblinScript(effect, caster)),
+			}
+		end
+
+		local implNotesActive = triggerDisplay:try_get("implementationNotes")
+		if implNotesActive ~= nil and implNotesActive ~= "" then
+			bodyChildren[#bodyChildren+1] = gui.Label{
+				width = "100%-12",
+				height = "auto",
+				hmargin = 6,
+				vpad = 2,
+				fontSize = 13,
+				color = "#FFFEF8",
+				markdown = true,
+				text = string.format("<b>Implementation Notes:</b> %s", StringInterpolateGoblinScript(implNotesActive, caster)),
 			}
 		end
 	end

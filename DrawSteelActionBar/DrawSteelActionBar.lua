@@ -103,6 +103,12 @@ local function ClearPointTargeting()
         g_pointTargeting.radius:Destroy()
     end
 
+    if g_pointTargeting.labelsAtThroughCreatures ~= nil then
+        for _, marker in ipairs(g_pointTargeting.labelsAtThroughCreatures) do
+            marker:Destroy()
+        end
+    end
+
     g_pointTargeting = {}
 end
 
@@ -809,8 +815,8 @@ local function ActionBarDrawer(args)
                                 if ability.guid == abilityid then
                                     text = string.format("Used on <b>%s</b>", ability.name)
 
-                                    m_usedAbilityIcon.bgimage = ability.iconid
-                                    m_usedAbilityIcon.selfStyle = ability.display
+                                    m_usedAbilityIcon.bgimage = ability:GetIcon()
+                                    m_usedAbilityIcon.selfStyle = ability:GetIconDisplay()
                                     setIcon = true
                                     break
                                 end
@@ -1388,9 +1394,9 @@ local function AbilityHeading(args)
                     element.selfStyle.brightness = 1
                 else
                     element.text = ""
-                    element.bgimage = ability.iconid
-                    element.selfStyle = ability.display
-                    element.selfStyle.gradient = DisplayGradients.GetGradient(rawget(ability, "iconGradient"))
+                    element.bgimage = ability:GetIcon()
+                    element.selfStyle = ability:GetIconDisplay()
+                    element.selfStyle.gradient = ability:GetIconGradient()
                     element.selfStyle.gradientMapping = true
                 end
             end,
@@ -1663,9 +1669,7 @@ local function ActionSubMenu(args)
         gui.Label {
             classes = { "submenuHeading" },
             abilities = function(element, abilities, grouping)
-                if g_token.properties.typeName == "monster" and grouping == "Heroic Abilities" then
-                    grouping = "Villain Actions"
-                elseif grouping == "Triggers" then
+                if grouping == "Triggers" then
                     grouping = "Manual Use Triggers"
                 end
                 element.text = grouping
@@ -1679,6 +1683,7 @@ local function ActionSubMenu(args)
 
         vpad = -4,
 
+        children = m_children,
         classes = { "abilitySubMenu" },
         blurBackground = true,
         abilities = function(element, abilities)
@@ -1728,6 +1733,8 @@ local function ActionSubMenu(args)
                 element.children = m_children
             end
         end,
+
+        children = m_children,
     }
 
     return resultPanel
@@ -1744,6 +1751,9 @@ ActionMenu = function()
     local m_args
     local resultPanel
     local m_showingAbility = false
+    local m_abilitiesSubmenu = nil
+    local m_signatureSubmenu = nil
+    local m_spacer = nil
     local m_commonSignatureWrapper = nil
 
     local g_manualSetResourcePanel = gui.Label {
@@ -1808,7 +1818,7 @@ ActionMenu = function()
         end,
 
         hideability = function(element, ability)
-            if m_showingAbility == ability then
+            if m_showingAbility == ability or (m_showingAbility and ability and m_showingAbility.typeName == "ActiveTrigger" and ability.typeName == "ActiveTrigger" and m_showingAbility.id == ability.id) then
                 CharacterPanel.HideAbility(m_showingAbility)
                 m_showingAbility = false
             end
@@ -1926,6 +1936,9 @@ ActionMenu = function()
 
             for _, ability in ipairs(abilities) do
                 local grouping = GameSystem.GetAbilityCategoryInfo(ability.categorization).grouping or "Abilities"
+                if g_token.properties.typeName == "monster" and grouping == "Heroic Abilities" then
+                    grouping = "Abilities"
+                end
                 if grouping == "Common Abilities" and ability.actionResourceId == CharacterResource.freeManeuverResourceId then
                     grouping = "Free Maneuvers"
                 end
@@ -1940,7 +1953,9 @@ ActionMenu = function()
             end
 
             for catid, abilities in pairs(abilitiesByGrouping) do
-                m_submenus[catid] = m_submenus[catid] or ActionSubMenu {}
+                if catid ~= "Abilities" and catid ~= "Signature Abilities" then
+                    m_submenus[catid] = m_submenus[catid] or ActionSubMenu {}
+                end
             end
 
             local children = {}
@@ -1954,49 +1969,42 @@ ActionMenu = function()
                 return a.data.ord < b.data.ord
             end)
 
-            -- Stack Common Abilities on top of Signature Abilities in one column
-            local commonSub = m_submenus["Abilities"]
-            local sigSub = m_submenus["Signature Abilities"]
-            if commonSub and sigSub then
-                if m_commonSignatureWrapper == nil then
-                    m_commonSignatureWrapper = gui.Panel {
-                        flow = "vertical",
-                        width = "auto",
-                        height = "auto",
-                        valign = "bottom",
-                    }
-                    m_commonSignatureWrapper.data.spacer = gui.Panel {
-                        width = 205,
-                        height = 16,
-                        bgimage = true,
-                        bgcolor = "clear",
-                    }
-                end
-                m_commonSignatureWrapper.children = { commonSub, m_commonSignatureWrapper.data.spacer, sigSub }
-                m_commonSignatureWrapper.data.ord = sigSub.data.ord
-
-                local merged = {}
-                for _, child in ipairs(children) do
-                    if child ~= commonSub and child ~= sigSub then
-                        merged[#merged + 1] = child
-                    end
-                end
-
-                -- Insert wrapper at sorted position
-                local inserted = false
-                local result = {}
-                for _, child in ipairs(merged) do
-                    if not inserted and m_commonSignatureWrapper.data.ord < child.data.ord then
-                        result[#result + 1] = m_commonSignatureWrapper
-                        inserted = true
-                    end
-                    result[#result + 1] = child
-                end
-                if not inserted then
-                    result[#result + 1] = m_commonSignatureWrapper
-                end
-                children = result
+            -- Stack Abilities on top of Signature Abilities in one column
+            if m_commonSignatureWrapper == nil then
+                m_abilitiesSubmenu = ActionSubMenu {}
+                m_signatureSubmenu = ActionSubMenu {}
+                m_spacer = gui.Panel {
+                    width = 205,
+                    height = 16,
+                    bgimage = true,
+                    bgcolor = "clear",
+                }
+                m_commonSignatureWrapper = gui.Panel {
+                    flow = "vertical",
+                    width = "auto",
+                    height = "auto",
+                    valign = "bottom",
+                }
+                m_commonSignatureWrapper.children = { m_abilitiesSubmenu, m_spacer, m_signatureSubmenu }
             end
+            m_abilitiesSubmenu:FireEventTree("abilities", abilitiesByGrouping["Abilities"], "Abilities")
+            m_signatureSubmenu:FireEventTree("abilities", abilitiesByGrouping["Signature Abilities"], "Signature Abilities")
+            m_spacer:SetClass("collapsed", abilitiesByGrouping["Signature Abilities"] == nil)
+
+            local wrapperOrd = GameSystem.ActionBarGroupings["Signature Abilities"] or 1000
+            local inserted = false
+            local result = {}
+            for _, child in ipairs(children) do
+                if not inserted and wrapperOrd < child.data.ord then
+                    result[#result + 1] = m_commonSignatureWrapper
+                    inserted = true
+                end
+                result[#result + 1] = child
+            end
+            if not inserted then
+                result[#result + 1] = m_commonSignatureWrapper
+            end
+            children = result
 
             if element.data.triggerPanel == nil then
                 element.data.triggerPanel = PowerRollTriggersSubmenu()
@@ -2069,8 +2077,19 @@ local function GetArrowColor(ability, sourceToken, targetToken)
     return "black"
 end
 
-local function AddModifierLabelsToMarker(markers, sourceToken, targetToken, ability)
+local function AddModifierLabelsToMarker(markers, sourceToken, targetToken, ability, range)
     if markers == nil or ability == nil or sourceToken == nil or targetToken == nil then
+        return
+    end
+
+    local pierceWalls = sourceToken.properties:GetPierceWalls()
+    if sourceToken:GetLineOfSight(targetToken, pierceWalls) == 0 then
+        markers:AddLabel("No Line of Sight", "forbidden")
+        return
+    end
+
+    if range ~= nil and targetToken:Distance(sourceToken) > range + dmhub.unitsPerSquare then
+        markers:AddLabel("Out of Range", "forbidden")
         return
     end
 
@@ -2109,15 +2128,16 @@ end
 
 ---@param rays table<{a: Token, b: Token}>[]
 ---@param ability ActivatedAbility|nil
-local function ReplaceTargetLineOfSightRays(rays, ability)
+---@param range number|nil
+local function ReplaceTargetLineOfSightRays(rays, ability, range)
     local t = {}
     for i, ray in ipairs(rays) do
         local key = string.format("%s-%s", ray.a.id, ray.b.id)
         if m_targetLineOfSightRays[key] ~= nil then
             t[key] = m_targetLineOfSightRays[key]
         else
-            t[key] = dmhub.MarkLineOfSight(ray.a, ray.b, ray.a.properties:GetPierceWalls(), GetArrowColor(ability, ray.a, ray.b))
-            AddModifierLabelsToMarker(t[key], ray.a, ray.b, ability)
+            t[key] = dmhub.MarkLineOfSight(ray.a, ray.b, ray.a.properties:GetPierceWalls(), GetArrowColor(ability, ray.a, ray.b), range)
+            AddModifierLabelsToMarker(t[key], ray.a, ray.b, ability, range)
         end
         m_targetLineOfSightRays[key] = nil
     end
@@ -2180,14 +2200,57 @@ local m_castingTriggers = nil
 local m_castingTriggersOwnerPanel = nil
 
 
---- Applies checked improvement params, re-runs CalculateSpellTargeting, then restores.
+--- Applies checked improvement params, re-runs CalculateSpellTargeting
 --- Rebuilds g_currentCostProposal from scratch so improvement resource costs are included.
---- Each param's registered apply() temporarily patches the ability and returns a restore fn.
+--- Each param's registered apply() temporarily patches the ability
+local function AppendImprovementCosts(costProposal)
+    if g_token == nil or costProposal == nil then return end
+    local resourceTable = dmhub.GetTable("characterResources")
+    for _, entry in ipairs(m_activeImprovements) do
+        if entry.checked then
+            local costType = entry.mod:try_get("resourceCostType", "none")
+            if costType ~= "none" then
+                local looksym = g_token.properties:LookupSymbol{ability = g_currentAbility}
+                local costAmt = tonumber(ExecuteGoblinScript(
+                    entry.mod:try_get("resourceCostAmount", "1"),
+                    looksym, 1)) or 1
+                if costAmt > 0 then
+                    local resourceId = cond(costType == "epic",
+                        CharacterResource.epicResourceId,
+                        g_token.properties.resourceid)
+                    local resourceInfo = resourceTable[resourceId]
+                    if resourceInfo ~= nil then
+                        local creature = g_token.properties
+                        local max = (resourceInfo.usageLimit == "global")
+                            and CharacterResource.GetGlobalResource(resourceId)
+                            or (creature:GetResources()[resourceId] or 0)
+                        local usage = creature:GetResourceUsage(resourceId, resourceInfo.usageLimit)
+                        local available = (max - usage) + resourceInfo:AllowResourceBelowZero(creature)
+                        local canAfford = available >= costAmt
+                        costProposal.canAfford = costProposal.canAfford and canAfford
+                        costProposal.details[#costProposal.details + 1] = {
+                            cost = resourceId,
+                            quantity = costAmt,
+                            canAfford = canAfford,
+                            refreshType = resourceInfo.usageLimit,
+                            paymentOptions = cond(canAfford,
+                                {{resourceid = resourceId, quantity = costAmt}}, {}),
+                            expendedOptions = cond(not canAfford,
+                                {{resourceid = resourceId, quantity = costAmt}}, {}),
+                        }
+                    end
+                end
+            end
+        end
+    end
+end
+
 local ApplyImprovements = function()
     if g_token == nil or g_currentAbility == nil then return end
 
     -- Rebuild the base cost proposal, then append costs for each checked improvement.
     g_currentCostProposal = g_currentAbility:GetCost(g_token, g_currentSymbols)
+    AppendImprovementCosts(g_currentCostProposal)
 
     -- Reset all improvement bonus fields so each call starts fresh.
     g_currentSymbols.abilityRangeBonus = nil
@@ -2254,10 +2317,10 @@ local function CreateTargetInfo(spell)
         type = string.lower(spell.typeName),
         guid = dmhub.GenerateGuid(),
         action = spell,
-        execute = function(targetToken, info) --info has {targetEffects = {list of effect panels}}
+        execute = function(targetToken, info) --info has {targetEffect = {list of effect panels}}
             local exists = list_contains(g_targetsChosen, targetToken.id)
 
-            for i, effect in ipairs(info.targetEffect) do
+            for i, effect in ipairs(info.targetEffect or {}) do
                 effect:SetClass('target-selected', true)
                 effect:SetClass('two', false)
                 effect:SetClass('three', false)
@@ -2279,7 +2342,7 @@ local function CreateTargetInfo(spell)
                         end
                     end
 
-                    for i, effect in ipairs(info.targetEffect) do
+                    for i, effect in ipairs(info.targetEffect or {}) do
                         effect:SetClass('two', ntargets >= 2)
                         effect:SetClass('three', ntargets >= 3)
                     end
@@ -2296,7 +2359,7 @@ local function CreateTargetInfo(spell)
                     if g_firstTarget == targetToken.id then
                         g_firstTarget = g_targetsChosen[1]
                     end
-                    for i, effect in ipairs(info.targetEffect) do
+                    for i, effect in ipairs(info.targetEffect or {}) do
                         effect:SetClass('target-selected', false)
                     end
                 end
@@ -2416,6 +2479,16 @@ local g_castChargesInput = nil
 local g_shifting = true
 
 local function CreateShiftController()
+
+
+    local m_label = gui.Label {
+        fontSize = 14,
+        width = "auto",
+        height = "auto",
+        text = "You are shifting. You can choose to move normally instead.",
+        vmargin = 2,
+    }
+
     local resultPanel
     local slider = gui.EnumeratedSliderControl {
         halign = "center",
@@ -2427,6 +2500,15 @@ local function CreateShiftController()
         },
         value = g_shifting,
         beginCasting = function(element)
+
+            if g_token ~= nil and (g_token.properties:CalculateNamedCustomAttribute("Shift Disabled") or 0) > 0 then
+                g_currentSymbols.shiftingOverride = false
+                element.value = false
+                m_label.text = "<color=#ff0000><b>You cannot shift.</b></color> You may move normally instead."
+                return
+            end
+
+            m_label.text = "You are shifting. You can choose to move normally instead."
             element.value = true
         end,
         change = function(element)
@@ -2446,13 +2528,8 @@ local function CreateShiftController()
         blurBackground = true,
         pad = 4,
 
-        gui.Label {
-            fontSize = 14,
-            width = "auto",
-            height = "auto",
-            text = "You are shifting. You can choose to move normally instead.",
-            vmargin = 2,
-        },
+        m_label,
+
         slider,
     }
     return resultPanel
@@ -2882,7 +2959,9 @@ local function CreateTokenSelectionContainer()
                         end
                     end,
                     linger = function(element)
-                        gui.Tooltip(creature.GetTokenDescription(tok))(element)
+                        if tok.valid then
+                            gui.Tooltip(creature.GetTokenDescription(tok))(element)
+                        end
                     end,
                 }
 
@@ -3030,6 +3109,7 @@ CreateAbilityController = function()
 
 
                             g_currentCostProposal = g_currentAbility:GetCost(g_token, g_currentSymbols)
+                            AppendImprovementCosts(g_currentCostProposal)
                             CalculateSpellTargeting()
                             --TODO: resourcesBar
                             --resourcesBar:FireEventTree("cost", g_currentCostProposal)
@@ -3315,6 +3395,7 @@ CreateAbilityController = function()
 
             --recalculate with the new cost proposal.
             g_currentCostProposal = g_currentAbility:GetCost(g_token, { charges = charges, mode = g_currentSymbols.mode })
+            AppendImprovementCosts(g_currentCostProposal)
             g_currentSymbols.charges = charges
 
             CalculateSpellTargeting()
@@ -3543,6 +3624,7 @@ CreateAbilityController = function()
             end
 
             g_currentCostProposal = ability:GetCost(g_token, g_currentSymbols)
+            AppendImprovementCosts(g_currentCostProposal)
 
             g_targetInfo = CreateTargetInfo(g_currentAbility)
 
@@ -3748,6 +3830,11 @@ CreateAbilityController = function()
             if g_actionBar == nil then return end
             ClearRadiusMarkers()
 
+            if options.sourceToken ~= nil and options.sourceToken.properties._tmp_aicontrol then
+                options.choose(options.targets[1])
+                return
+            end
+
             if options.sourceToken ~= nil and options.radius ~= nil then
                 print("MovementRadius:: MARK", options.radius)
                 AddRadiusMarker(options.sourceToken.locsOccupying, options.radius)
@@ -3843,6 +3930,12 @@ CreateAbilityController = function()
             g_actionBar:SetClassTree("invokingAbility", true)
 
             ability = DeepCopy(ability)
+            CharacterPanel.DisplayAbility(casterToken, ability)
+            CharacterPanel.HighlightAbilitySection{
+                ability = ability,
+                caster = casterToken,
+                section = "target",
+            }
             element:FireEvent("beginCasting", ability, { symbols = symbols })
 
             --[[
@@ -3878,8 +3971,8 @@ CreateAbilityController = function()
                 --new one to highlight and maintain any existing ones.
                 for _, ray in ipairs(rays) do
                     if ray.b.id == targetToken.id and m_targetLineOfSightRays[string.format("%s-%s", ray.a.id, ray.b.id)] == nil then
-                        m_markLineOfSight = dmhub.MarkLineOfSight(ray.a, ray.b, ray.a.properties:GetPierceWalls(), GetArrowColor(g_currentAbility, ray.a, ray.b))
-                        AddModifierLabelsToMarker(m_markLineOfSight, ray.a, ray.b, g_currentAbility)
+                        m_markLineOfSight = dmhub.MarkLineOfSight(ray.a, ray.b, ray.a.properties:GetPierceWalls(), GetArrowColor(g_currentAbility, ray.a, ray.b), range)
+                        AddModifierLabelsToMarker(m_markLineOfSight, ray.a, ray.b, g_currentAbility, range)
                         m_markLineOfSightToken = targetToken
                         m_markLineOfSightSourceToken = g_token
                         break
@@ -3887,9 +3980,9 @@ CreateAbilityController = function()
                 end
             else
                 --we just target from the source to the target.
-                m_markLineOfSight = dmhub.MarkLineOfSight(g_token, targetToken, g_token.properties:GetPierceWalls(), GetArrowColor(g_currentAbility, g_token, targetToken))
+                m_markLineOfSight = dmhub.MarkLineOfSight(g_token, targetToken, g_token.properties:GetPierceWalls(), GetArrowColor(g_currentAbility, g_token, targetToken), range)
                 if m_markLineOfSight ~= nil then
-                    AddModifierLabelsToMarker(m_markLineOfSight, g_token, targetToken, g_currentAbility)
+                    AddModifierLabelsToMarker(m_markLineOfSight, g_token, targetToken, g_currentAbility, range)
                     m_markLineOfSightToken = targetToken
                     m_markLineOfSightSourceToken = g_token
                 end
@@ -3948,6 +4041,7 @@ CreateAbilityController = function()
                 g_pointTargeting.fallingShape = nil
             end
             local destroyLabelsBeforeReturning = g_pointTargeting.labelsAtPathEnd ~= nil
+            local destroyThroughCreatureLabels = g_pointTargeting.labelsAtThroughCreatures ~= nil
             local pathfinding = false
             if point ~= nil and g_currentAbility.targetType ~= "areatemplate" then
                 local radius = g_currentAbility:GetRadius(g_token.properties, g_currentSymbols)
@@ -4013,9 +4107,13 @@ CreateAbilityController = function()
 
                     g_currentSymbols.waypoints = waypoints
 
+                    local throughCreatures = g_currentAbility:try_get("forcedMovementThroughCreatures", false)
+                    local reboundOptions = g_token.properties:GetForcedPushOptions()
                     local movementInfo = g_token:MarkMovementArrow(loc, {
                         straightline = true,
-                        ignorecreatures = (targetingType == "straightpathignorecreatures"),
+                        ignorecreatures = (targetingType == "straightpathignorecreatures" or throughCreatures),
+                        rebound = reboundOptions.rebound,
+                        maxBounces = reboundOptions.maxBounces,
                     })
                     
                     if movementInfo ~= nil then
@@ -4036,9 +4134,15 @@ CreateAbilityController = function()
                         local requestDist = math.min(loc:DistanceInTiles(path.origin), abilityDist)
                         local pathDist = path.destination:DistanceInTiles(path.origin)
 
+                        -- If the path is actually blocked (collision with wall/creature),
+                        -- use full ability distance so collision force preview reflects max available force.
+                        if path.hasCollision and requestDist < abilityDist then
+                            requestDist = abilityDist
+                        end
+
                         if pathDist < requestDist and (g_currentAbility:try_get("targeting", "direct") == "straightline") and g_token.properties:CalculateNamedCustomAttribute("No Damage From Forced Movement") == 0 then
                             local prevOvershoot = g_pointTargeting.pathEndOvershoot
-                            g_pointTargeting.pathEndOvershoot = abilityDist - pathDist
+                            g_pointTargeting.pathEndOvershoot = requestDist - pathDist
 
                             local prevPathEnd = g_pointTargeting.shapePathEnd
                             destroyLabelsBeforeReturning = false
@@ -4131,6 +4235,144 @@ CreateAbilityController = function()
 
                                 for i, info in ipairs(textLabels) do
                                     g_pointTargeting.labelsAtPathEnd[#g_pointTargeting.labelsAtPathEnd + 1] = dmhub
+                                        .CreateCanvasOnMap {
+                                            point = info.point,
+                                            sheet = gui.Label {
+                                                interactable = false,
+                                                halign = "center",
+                                                valign = "center",
+                                                color = "red",
+                                                width = "auto",
+                                                height = "auto",
+                                                fontSize = 0.5,
+                                                text = info.text,
+                                            }
+                                        }
+                                end
+                            end
+                        end
+
+                        --show damage indicators at each rebound bounce point.
+                        if movementInfo.bounceCollisions ~= nil and #movementInfo.bounceCollisions > 0 and (g_currentAbility:try_get("targeting", "direct") == "straightline") and g_token.properties:CalculateNamedCustomAttribute("No Damage From Forced Movement") == 0 then
+                            local prevPathEnd = g_pointTargeting.shapePathEnd
+                            destroyLabelsBeforeReturning = false
+                            g_pointTargeting.shapePathEnd = g_pointTargeting.shapePathEnd or {}
+                            local bounceTextLabels = {}
+
+                            for _, collision in ipairs(movementInfo.bounceCollisions) do
+                                local bounceCollideWith = collision.collideWith or {}
+                                local bounceDamage = collision.speed
+                                local bounceIsObject = #bounceCollideWith == 0
+                                if bounceIsObject then
+                                    bounceDamage = bounceDamage + 2
+                                end
+
+                                local bounceDestPoint = collision.destination.point3
+                                if g_token.creatureDimensions.x % 2 == 0 then
+                                    local offset = (g_token.creatureDimensions.x - 1) * 0.5
+                                    bounceDestPoint = core.Vector3(bounceDestPoint.x + offset, bounceDestPoint.y + offset, bounceDestPoint.z)
+                                end
+
+                                g_pointTargeting.shapePathEnd[#g_pointTargeting.shapePathEnd + 1] = dmhub.CalculateShape {
+                                    shape = cond(g_token.creatureDimensions.x % 2 == 1, "radius", "cylinder"),
+                                    token = g_currentAbility:GetRangeSource(g_token),
+                                    targetPoint = bounceDestPoint,
+                                    range = g_currentAbility:GetRange(g_token.properties, g_currentSymbols),
+                                    radius = g_token.creatureDimensions.x * dmhub.unitsPerSquare * 0.5,
+                                }
+
+                                bounceTextLabels[#bounceTextLabels + 1] = {
+                                    point = bounceDestPoint,
+                                    text = string.format("-%d<color=#00000000>-</color>", bounceDamage),
+                                }
+
+                                for _, collideToken in ipairs(bounceCollideWith) do
+                                    g_pointTargeting.shapePathEnd[#g_pointTargeting.shapePathEnd + 1] = dmhub.CalculateShape {
+                                        shape = cond(collideToken.creatureDimensions.x % 2 == 1, "radius", "radiusfromintersection"),
+                                        token = collideToken,
+                                        targetPoint = collideToken:PosAtLoc(),
+                                        range = 0,
+                                        radius = collideToken.creatureDimensions.x * dmhub.unitsPerSquare * 0.5,
+                                    }
+                                    bounceTextLabels[#bounceTextLabels + 1] = {
+                                        point = collideToken:PosAtLoc(),
+                                        text = string.format("-%d<color=#00000000>-</color>", bounceDamage),
+                                    }
+                                end
+                            end
+
+                            local needRedraw = prevPathEnd == nil or #prevPathEnd ~= #g_pointTargeting.shapePathEnd
+                            if needRedraw then
+                                if g_pointTargeting.labelsAtPathEnd ~= nil then
+                                    for _, marker in ipairs(g_pointTargeting.labelsAtPathEnd) do
+                                        marker:Destroy()
+                                    end
+                                    destroyLabelsBeforeReturning = false
+                                end
+
+                                g_pointTargeting.labelsAtPathEnd = g_pointTargeting.labelsAtPathEnd or {}
+                                for i, shape in ipairs(g_pointTargeting.shapePathEnd) do
+                                    g_pointTargeting.labelsAtPathEnd[#g_pointTargeting.labelsAtPathEnd + 1] =
+                                        shape:Mark { color = "red", video = "divinationline.webm", showLocs = false }
+                                end
+                                for i, info in ipairs(bounceTextLabels) do
+                                    g_pointTargeting.labelsAtPathEnd[#g_pointTargeting.labelsAtPathEnd + 1] = dmhub
+                                        .CreateCanvasOnMap {
+                                            point = info.point,
+                                            sheet = gui.Label {
+                                                interactable = false,
+                                                halign = "center",
+                                                valign = "center",
+                                                color = "red",
+                                                width = "auto",
+                                                height = "auto",
+                                                fontSize = 0.5,
+                                                text = info.text,
+                                            }
+                                        }
+                                end
+                            end
+                        end
+
+                        --show damage indicators on creatures passed through.
+                        if throughCreatures and path.steps ~= nil then
+                            local throughTextLabels = {}
+                            local throughShapes = {}
+                            local hitIds = {}
+                            for _, step in ipairs(path.steps) do
+                                local tokensAtLoc = game.GetTokensAtLoc(step)
+                                for _, tok in ipairs(tokensAtLoc or {}) do
+                                    if tok.id ~= g_token.id and hitIds[tok.id] == nil then
+                                        hitIds[tok.id] = true
+                                        throughShapes[#throughShapes + 1] = dmhub.CalculateShape {
+                                            shape = cond(tok.creatureDimensions.x % 2 == 1, "radius", "radiusfromintersection"),
+                                            token = tok,
+                                            targetPoint = tok:PosAtLoc(),
+                                            range = 0,
+                                            radius = tok.creatureDimensions.x * dmhub.unitsPerSquare * 0.5,
+                                        }
+                                        throughTextLabels[#throughTextLabels + 1] = {
+                                            point = tok:PosAtLoc(),
+                                            text = string.format("-%d<color=#00000000>-</color>", 1),
+                                        }
+                                    end
+                                end
+                            end
+
+                            if #throughShapes > 0 then
+                                destroyThroughCreatureLabels = false
+                                if g_pointTargeting.labelsAtThroughCreatures ~= nil then
+                                    for _, marker in ipairs(g_pointTargeting.labelsAtThroughCreatures) do
+                                        marker:Destroy()
+                                    end
+                                end
+                                g_pointTargeting.labelsAtThroughCreatures = {}
+                                for i, shape in ipairs(throughShapes) do
+                                    g_pointTargeting.labelsAtThroughCreatures[#g_pointTargeting.labelsAtThroughCreatures + 1] =
+                                        shape:Mark { color = "red", video = "divinationline.webm", showLocs = false }
+                                end
+                                for i, info in ipairs(throughTextLabels) do
+                                    g_pointTargeting.labelsAtThroughCreatures[#g_pointTargeting.labelsAtThroughCreatures + 1] = dmhub
                                         .CreateCanvasOnMap {
                                             point = info.point,
                                             sheet = gui.Label {
@@ -4268,14 +4510,19 @@ CreateAbilityController = function()
             local selfTarget = g_currentAbility.selfTarget
             local targetTokens = dmhub.tokenInfo.TokensInShape(g_pointTargeting.shape)
 
-            --if we target the entire map, do not target creatures not in initiative.
-            if g_currentAbility.targetType == "map" and dmhub.initiativeQueue ~= nil and (not dmhub.initiativeQueue.hidden) then
+            --if we target the entire map or burst, do not target creatures on other floors unless they are in initiative.
+            if (g_currentAbility.targetType == "map" or g_currentAbility.targetType == "all") and dmhub.initiativeQueue ~= nil and (not dmhub.initiativeQueue.hidden) then
+                local casterFloorIndex = g_token.floorIndex
                 for tokenid,targetToken in pairs(targetTokens) do
                     if not targetToken.isObject then
+                        local isOtherFloor = targetToken.floorIndex ~= casterFloorIndex
+                        local requireInitiative = g_currentAbility.targetType == "map" or isOtherFloor
 
-                        local initiativeid = InitiativeQueue.GetInitiativeId(targetToken)
-                        if not dmhub.initiativeQueue:HasInitiative(initiativeid) then
-                            targetTokens[tokenid] = nil
+                        if requireInitiative then
+                            local initiativeid = InitiativeQueue.GetInitiativeId(targetToken)
+                            if not dmhub.initiativeQueue:HasInitiative(initiativeid) then
+                                targetTokens[tokenid] = nil
+                            end
                         end
                     end
                 end
@@ -4304,8 +4551,8 @@ CreateAbilityController = function()
                 g_pointTargeting.label = nil
             end
 
-            --draw the shape, disabled for 'all creatures on map' or 'all'
-            if g_pointTargeting.shape ~= nil and g_currentAbility.targetType ~= "map" and g_currentAbility.targetType ~= "all" then
+            --draw the shape, disabled for 'all creatures on map'
+            if g_pointTargeting.shape ~= nil and g_currentAbility.targetType ~= "map" then
                 local video = "divinationline.webm"
                 local school = string.lower(g_currentAbility:try_get("school", ""))
                 if school == "Evocation" then
@@ -4342,6 +4589,9 @@ CreateAbilityController = function()
                     end
 
                     local locs = g_pointTargeting.shape.locations
+                    if locs == nil or #locs == 0 then
+                        locs = { { withGroundAltitude = { point3 = point } } }
+                    end
                     local point = locs[1].withGroundAltitude.point3
                     local minx = point.x
                     local miny = point.y
@@ -4420,6 +4670,13 @@ CreateAbilityController = function()
                 g_pointTargeting.fallingShape = nil
                 g_pointTargeting.labelsAtPathEnd = nil
                 g_pointTargeting.shapePathEnd = nil
+            end
+
+            if destroyThroughCreatureLabels and g_pointTargeting ~= nil and g_pointTargeting.labelsAtThroughCreatures ~= nil then
+                for _, marker in ipairs(g_pointTargeting.labelsAtThroughCreatures) do
+                    marker:Destroy()
+                end
+                g_pointTargeting.labelsAtThroughCreatures = nil
             end
         end,
 
@@ -4567,7 +4824,19 @@ CreateAbilityController = function()
                             moveFlags[#moveFlags + 1] = "shifting"
                         end
 
+                        local forcedMovement = g_currentAbility:try_get("targeting", "direct") == "straightline"
+                        if forcedMovement then
+                            moveFlags[#moveFlags+1] = "IgnoreMovementType"
+                        end
+
                         local filterTargetPredicate = g_currentAbility:TargetLocPassesFilterPredicate(g_token, g_currentSymbols)
+                        if not forcedMovement then
+                            local restrictionFilter = g_token.properties:GetMovementRestrictionFilter(g_token)
+                            if restrictionFilter ~= nil then
+                                local baseFilter = filterTargetPredicate
+                                filterTargetPredicate = function(loc) return baseFilter(loc) and restrictionFilter(loc) end
+                            end
+                        end
                         local radiusMarker = g_token:MarkMovementRadius(g_range,
                             { moveFlags = moveFlags, waypoints = waypoints, mask = mask, filter = filterTargetPredicate})
 
@@ -4611,6 +4880,8 @@ CreateAbilityController = function()
                     caster = g_token,
                     section = "main",
                 }
+
+                AppendImprovementCosts(g_currentCostProposal)
 
                 local clearAbility = g_currentAbility
                 g_currentAbility:Cast(g_token, targets, {
@@ -4814,7 +5085,12 @@ local function CalculateSpellTargetFocusing(symbols)
                         end
 
                         targetToken.sheet.data.targetInfo = g_targetInfo
-                        targetToken.sheet:FireEvent('target', { valid = valid, classes = classes, reason = failReason })
+                        --out-of-range is shown as an arrow label instead of a token tooltip.
+                        local tooltipReason = failReason
+                        if tooltipReason ~= nil and string.starts_with(tooltipReason, "Out of range") then
+                            tooltipReason = nil
+                        end
+                        targetToken.sheet:FireEvent('target', { valid = valid, classes = classes, reason = tooltipReason })
 
                         potentialTargetTokens[#potentialTargetTokens + 1] = targetToken
                     end
@@ -4849,7 +5125,7 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
         --if this spell dictates specific targeting rays to use.
         local rays = g_currentAbility:GetTargetingRays(g_token, range, g_currentSymbols, targets)
         if rays ~= nil then
-            ReplaceTargetLineOfSightRays(rays, g_currentAbility)
+            ReplaceTargetLineOfSightRays(rays, g_currentAbility, range)
 
             --record the targeting as symbols.
             local targetPairs = {}
@@ -4906,38 +5182,12 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
                 section = "main",
             }
 
-            -- Build improvement costs to pass into Cast so they are consumed
-            -- at the same time as the ability's own cost (inside AbilityPayCost).
-            local improvCosts = {}
-            do
-                local resourceTable = dmhub.GetTable("characterResources")
-                for _, entry in ipairs(m_activeImprovements) do
-                    if entry.checked then
-                        local costType = entry.mod:try_get("resourceCostType", "none")
-                        if costType ~= "none" then
-                            local costAmt = tonumber(ExecuteGoblinScript(entry.mod:try_get("resourceCostAmount", "1"), g_token.properties:LookupSymbol{}, 1)) or 1
-                            if costAmt > 0 then
-                                local resourceId = cond(costType == "epic", CharacterResource.epicResourceId, g_token.properties.resourceid)
-                                local resourceInfo = resourceTable[resourceId]
-                                if resourceInfo ~= nil then
-                                    improvCosts[#improvCosts+1] = {
-                                        resourceId = resourceId,
-                                        costAmt = costAmt,
-                                        refreshType = resourceInfo.usageLimit,
-                                        name = entry.mod:try_get("name", "Improvement"),
-                                    }
-                                end
-                            end
-                        end
-                    end
-                end
-            end
+            AppendImprovementCosts(g_currentCostProposal)
 
             local clearAbility = g_currentAbility
             g_currentAbility:Cast(g_token, targets, {
                 attachedTriggers = attachedTriggers,
                 costOverride = g_currentCostProposal,
-                improvementCosts = improvCosts,
                 symbols = g_currentSymbols,
                 markLineOfSight = m_targetLineOfSightRays,
                 OnFinishCastHandlers = {
@@ -5013,8 +5263,26 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
                 if shifting then
                     moveFlags[#moveFlags + 1] = "shifting"
                 end
+                -- For forced movement (straightline targeting), show all tiles in range
+                -- regardless of walls so the player can target "into" a wall.
+                if g_currentAbility:try_get("targeting", "direct") == "straightline" then
+                    moveFlags[#moveFlags + 1] = "IgnoreWalls"
+                    moveFlags[#moveFlags + 1] = "IgnoreMovementType"
+                end
+
+                m_allowedAltitudeCalculator = g_currentAbility:TargetLocMaxElevationChangeFunction(g_token, g_currentSymbols)
+                m_altitudeController:SetClass("collapsed", m_allowedAltitudeCalculator == nil)
+                print("ALT:: CALC ALT:", m_allowedAltitudeCalculator)
+
 
                 local filterTargetPredicate = g_currentAbility:TargetLocPassesFilterPredicate(g_token, g_currentSymbols)
+                if g_currentAbility:try_get("targeting", "direct") ~= "straightline" then
+                    local restrictionFilter = g_token.properties:GetMovementRestrictionFilter(g_token)
+                    if restrictionFilter ~= nil then
+                        local baseFilter = filterTargetPredicate
+                        filterTargetPredicate = function(loc) return baseFilter(loc) and restrictionFilter(loc) end
+                    end
+                end
 
                 print("MARK:: MovementRadius:: MARK", range)
                 g_radiusMarkers[#g_radiusMarkers + 1] = g_token:MarkMovementRadius(range,
@@ -5052,8 +5320,7 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
                     print("MovementRadius:: MARK", range)
                     AddRadiusMarker(loc, range, 'white', filterTargetPredicate)
 
-                    m_allowedAltitudeCalculator = g_currentAbility:TargetLocMaxElevationChangeFunction(g_token,
-                        g_currentSymbols)
+                    m_allowedAltitudeCalculator = g_currentAbility:TargetLocMaxElevationChangeFunction(g_token, g_currentSymbols)
                     m_altitudeController:SetClass("collapsed", m_allowedAltitudeCalculator == nil)
                 else
                     AddCustomAreaMarker(customLocs, 'white')

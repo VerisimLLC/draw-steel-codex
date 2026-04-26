@@ -107,3 +107,26 @@ Commands.RegisterMacro{
         end
     end,
 }
+
+Commands.RegisterMacro{
+    name = "corrupttest",
+    summary = "schema-guard smoke test",
+    doc = "Usage: /corrupttest\nOverwrites the selected token's `attributes` field with a scalar string, which is a STRUCTURAL schema violation (attributes is annotated table<string, CharacterAttribute>). The DO staging server's schema guard should reject this write outright. Primitive-type mismatches are only warnings in v1, so this macro deliberately triggers a shape mismatch to exercise the reject path. Watch `wrangler tail --env staging` for [SCHEMA-GUARD] lines. Game must be hosted on DO staging.",
+    command = function(str)
+        local token = dmhub.selectedOrPrimaryTokens[1]
+        if token == nil or token.properties == nil then
+            chat.Send("corrupttest: no selected token with properties")
+            return
+        end
+        chat.Send("corrupttest: overwriting attributes with a string (structural violation, should be rejected)...")
+        token:ModifyProperties{
+            description = "schema-guard test: bad attributes shape",
+            undoable = false,
+            execute = function()
+                token.properties.attributes = "this-should-be-rejected"
+            end,
+        }
+        chat.Send("corrupttest: uploaded. expected server log: [SCHEMA-GUARD] patch rejected ... attributes: expected map, got string")
+        chat.Send("corrupttest: local cache may briefly show the bad value; reload the sheet to confirm the server kept the good one.")
+    end,
+}

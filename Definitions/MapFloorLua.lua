@@ -113,6 +113,33 @@ function MapFloorLua:GetAltitudeAtLoc(loc)
 	-- dummy implementation for documentation purposes only
 end
 
+--- SampleHeightmapAt
+--- @param xv any
+--- @param yv any
+--- @return number
+function MapFloorLua:SampleHeightmapAt(xv, yv)
+	-- dummy implementation for documentation purposes only
+end
+
+--- DumpHeightmap
+--- @return any
+function MapFloorLua:DumpHeightmap()
+	-- dummy implementation for documentation purposes only
+end
+
+--- ClearHeightmapPreviousSamples
+--- @return nil
+function MapFloorLua:ClearHeightmapPreviousSamples()
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetHeightmapZoneSkipDisabled
+--- @param disabledVal any
+--- @return nil
+function MapFloorLua:SetHeightmapZoneSkipDisabled(disabledVal)
+	-- dummy implementation for documentation purposes only
+end
+
 --- ExecutePolygonOperation
 --- @param options any
 --- @return nil

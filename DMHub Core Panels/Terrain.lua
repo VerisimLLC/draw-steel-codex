@@ -1080,11 +1080,20 @@ CreateBuildingEditor = function()
                 floorItems = newFloorItems
                 element.children = children
 
+                --Drop any reference to a floor tile that no longer exists (e.g. the selected floor was deleted).
+                --Without this, element.children = children above can destroy the underlying panel, leaving a
+                --stale LuaSheetPanel whose AddClass call NREs on a null C# panel.
+                if selectedFloorPanel ~= nil and (selectedFloorPanel.data == nil or floorItems[selectedFloorPanel.data.floorid] == nil) then
+                    selectedFloorPanel = nil
+                end
+
                 if selectedFloorPanel == nil then
                     selectedFloorPanel = children[1]
                 end
 
-                selectedFloorPanel:AddClass('selected')
+                if selectedFloorPanel ~= nil then
+                    selectedFloorPanel:AddClass('selected')
+                end
 
                 --If there is exactly one new item, and we added it this session, then force select and edit it.
                 if #firstTimeItems == 1 and mod.shared.assetsCreated[firstTimeItems[1].data.tileid] then

@@ -5412,6 +5412,8 @@ function creature:CalculateAttribute(attributeName, baseValue, mods)
 		mods = self:GetActiveModifiers()
 	end
 
+	mods = CharacterModifier.FilterAttributeModifiersByKeyword(self, mods, attributeName)
+
 	for i,mod in ipairs(mods) do
 		result = mod.mod:Modify(mod, self, attributeName, result)
 		attributesCalculating[attributeName] = result
@@ -5449,6 +5451,7 @@ function creature:DescribeModifications(attributeName, baseValue)
 
 	local currentValue = baseValue
 	local mods = self:GetActiveModifiers()
+	mods = CharacterModifier.FilterAttributeModifiersByKeyword(self, mods, attributeName)
 	for i,mod in ipairs(mods) do
 		local item = mod.mod:DescribeModification(self, attributeName, currentValue)
 

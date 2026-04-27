@@ -577,6 +577,17 @@ mod.shared.FinishMapImport = function(mapName, info)
 
         printf("DIMENSIONS:: %s / %s", json(info.width), json(info.height))
 
+        -- Final safety net: the import dialog clamps user input, but if any
+        -- code path slips a huge value through, refuse to write it. See
+        -- MAX_MAP_TILES_PER_AXIS in MapImport.lua for the full rationale.
+        local MAX_DIM = 2000
+        if w > MAX_DIM or h > MAX_DIM then
+            dmhub.Debug(string.format("CreateMap: clamping dimensions %dx%d -> %dx%d (import-path safety net)",
+                w, h, math.min(w, MAX_DIM), math.min(h, MAX_DIM)))
+            w = math.min(w, MAX_DIM)
+            h = math.min(h, MAX_DIM)
+        end
+
         local map = game.GetMap(guid)
         map.description = mapName
         map.dimensions = {

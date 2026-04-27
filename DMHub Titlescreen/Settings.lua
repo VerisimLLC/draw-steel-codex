@@ -1918,7 +1918,7 @@ setting{
 	description = "Map Tiling",
 	storage = "map",
 	default = "squares",
-	onchange = function() dmhub.RefreshMapLayout(); game.Refresh() end,
+	onchange = function() dmhub.RefreshMapLayout() end,
 	editor = "iconbuttons",
 	enum = {
 		{
@@ -1967,7 +1967,7 @@ setting{
 	visible = function()
 		return dmhub.GetSettingValue('maplayout:tiletype') == 'custom'
 	end,
-	onchange = function() dmhub.RefreshMapLayout(); game.Refresh() end,
+	onchange = function() dmhub.RefreshMapLayout() end,
 	editor = "dropdown",
 
 
@@ -1996,7 +1996,7 @@ setting{
 	min = 0.5,
 	max = 2,
 	monitorVisible = {'maplayout:tiletype'},
-	onchange = function() dmhub.RefreshMapLayout(); game.Refresh() end,
+	onchange = function() dmhub.RefreshMapLayout() end,
 	visible = function()
 		return dmhub.GetSettingValue('maplayout:tiletype') == 'custom'
 	end,
@@ -2011,7 +2011,7 @@ setting{
 	min = 0.5,
 	max = 2,
 	monitorVisible = {'maplayout:tiletype'},
-	onchange = function() dmhub.RefreshMapLayout(); game.Refresh() end,
+	onchange = function() dmhub.RefreshMapLayout() end,
 	visible = function()
 		return dmhub.GetSettingValue('maplayout:tiletype') == 'custom'
 	end,
@@ -2026,7 +2026,7 @@ setting{
 	min = 0,
 	max = 0.5,
 	monitorVisible = {'maplayout:tiletype'},
-	onchange = function() dmhub.RefreshMapLayout(); game.Refresh() end,
+	onchange = function() dmhub.RefreshMapLayout() end,
 	visible = function()
 		return dmhub.GetSettingValue('maplayout:tiletype') == 'custom'
 	end,

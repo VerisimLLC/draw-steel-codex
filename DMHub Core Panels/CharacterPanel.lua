@@ -1786,7 +1786,8 @@ local CreateMonsterEntry = function(nodeid)
                 gui.NewContentAlertConditional("monsters", nodeid),
                 refreshAssets = function(element)
                     local desc = creature.GetTokenDescription(monster)
-                    if devmode() then
+                    local showImportStatus = false --disabled for now.
+                    if showImportStatus and devmode() then
                         if monster.properties:has_key("import") then
                             local postfix = " <size=60%><color=#bbbbff>(imported)"
                             if monster.properties.import.override then
@@ -2402,7 +2403,7 @@ CharacterPanel.CreateCharacterEntry = function(charid, party)
         bgimage = 'panels/square.png',
         draggable = true,
         canDragOnto = function(element, target)
-            return false --target:HasClass('monster-drag-target') and not IsMonsterNodeSelfOrChildOf(element.data.nodeid, target.data.nodeid)
+            return target:HasClass('party-drag-target')
         end,
         styles = {
             {
@@ -2450,6 +2451,30 @@ CharacterPanel.CreateCharacterEntry = function(charid, party)
                 element.dragging = false
                 dmhub.SetDraggingMonster()
                 dmhub.Debug("DRAG:: DRAGGING MONSTER")
+            end,
+
+            drag = function(element, target)
+                if target == nil or not target:HasClass('party-drag-target') then
+                    return
+                end
+                local newPartyId = target.data.partyid
+                if newPartyId == nil then
+                    return
+                end
+
+                local charids = { element.data.charid }
+                for _, c in ipairs(characterPanelsSelected) do
+                    if c.data.charid and c.data.charid ~= element.data.charid then
+                        charids[#charids + 1] = c.data.charid
+                    end
+                end
+
+                for _, cid in ipairs(charids) do
+                    local tok = dmhub.GetCharacterById(cid)
+                    if tok ~= nil then
+                        tok.partyId = newPartyId
+                    end
+                end
             end,
 
             --render a tooltip of the character.
@@ -2868,8 +2893,12 @@ CharacterPanel.CreatePartyCharacters = function(partyid)
     local headerPanel = gui.Panel {
 
         bgimage = 'panels/square.png',
-        classes = { 'monster-drag-target', 'headerPanel' },
+        classes = { 'monster-drag-target', cond(party ~= nil, 'party-drag-target'), 'headerPanel' },
         dragTarget = true,
+
+        data = {
+            partyid = party and party.id,
+        },
 
         draggable = false,
         canDragOnto = function(element, target)
@@ -2955,7 +2984,7 @@ CharacterPanel.CreatePartyCharacters = function(partyid)
                                             corpse.objectInstance:Destroy()
                                         end
 
-                                        local classInfo = tok.properties:GetClass()
+                                        local classInfo = tok.properties:IsHero() and tok.properties:GetClass() or nil
                                         track("character_delete", {
                                             class = classInfo and classInfo.name or "",
                                             ancestry = tok.properties:RaceOrMonsterType() or "",

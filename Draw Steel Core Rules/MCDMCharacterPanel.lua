@@ -1360,7 +1360,7 @@ TacPanelStyles.Conditions = {
         halign = "left",
         valign = "top",
         hpad = 6,
-        vpad = 3,
+        vpad = 1.5,
         margin = 2,
         flow = "horizontal",
         bgimage = true,
@@ -1494,22 +1494,6 @@ TacPanelStyles.Conditions = {
         color = DIM,
         bold = false,
         italics = true,
-    },
-    {   -- Custom condition input
-        selectors = {"input", "cond-custom-input"},
-        width = "94%",
-        height = "auto",
-        halign = "left",
-        lmargin = 6,
-        tmargin = 6,
-        fontFace = "Berling",
-        fontSize = TacPanelSizes.Fonts.condInput,
-        color = CREAM,
-        border = 1,
-        borderColor = DIM,
-        cornerRadius = 4,
-        hpad = 6,
-        vpad = 4,
     },
 }
 TacPanelStyles.AddConditionMenu = {
@@ -1767,7 +1751,7 @@ function TacPanel.Portrait()
                 local portrait = token.offTokenPortrait
                 element.bgimage = portrait
 
-                if portrait ~= token.portrait and not token.popoutPortrait then
+                if portrait.hasSpineAnimation or (portrait ~= token.portrait and not token.popoutPortrait) then
                     element.selfStyle.imageRect = nil
                 else
                     element.selfStyle.imageRect = token:GetPortraitRectForAspect(Styles.portraitWidthPercentOfHeight*0.01, portrait)
@@ -4197,7 +4181,7 @@ function TacPanel.GrowingHRTable()
             end
 
             for i = index, #rows do
-                if rows[i] then rows[i]:SetClass("collapsed", true) end
+                if rows[i] and rows[i].valid then rows[i]:SetClass("collapsed", true) end
             end
 
             element.data.rows = rows
@@ -4598,53 +4582,44 @@ function TacPanel.Routines()
                                     end,
                                 },
                             },
-                            gui.PercentSlider{
+                            gui.ColorPicker{
                                 valign = "center",
                                 halign = "right",
                                 hmargin = 6,
-                                selfStyle = {borderColor = GOLD_LIGHT},
-                                styles = {
-                                    {selectors = {"percentSlider"},
-                                     borderWidth = 1, borderColor = GOLD_LIGHT,
-                                     cornerRadius = 2, bgimage = "panels/square.png",
-                                     bgcolor = "black", height = 14, flow = "none"},
-                                    {selectors = {"percentSliderLabel"},
-                                     color = GOLD_LIGHT, bold = true, fontSize = 10,
-                                     halign = "left", valign = "center",
-                                     width = 40, textAlignment = "center", height = "auto"},
-                                    {selectors = {"percentSliderLabel", "fill"},
-                                     color = "black"},
-                                    {selectors = {"percentFill"},
-                                     bgcolor = GOLD_LIGHT, height = "100%",
-                                     width = "0%", halign = "left", cornerRadius = 2},
-                                },
-                                value = token.properties:GetAuraDisplaySetting(routine.name).opacity,
-                                refresh = function(element)
-                                    if token == nil or not token.valid then
-                                        return
-                                    end
-
-                                    element.value = token.properties:GetAuraDisplaySetting(routine.name).opacity
-                                end,
-                                preview = function(element)
+                                width = 20,
+                                height = 20,
+                                cornerRadius = 4,
+                                borderWidth = 1,
+                                borderColor = GOLD_LIGHT,
+                                hasAlpha = true,
+                                value = token.properties:GetAuraDisplaySetting(routine.name).bgcolor
+                                    or (token.playerControlled and token.playerColor.tostring or "#AA0000"),
+                                change = function(element)
+                                    --Live preview during drag (gui.ColorPicker
+                                    --fires `change` per-frame while dragging).
+                                    --Mutate in place; confirm handles upload.
                                     local settings = DeepCopy(token.properties:GetAuraDisplaySetting(routine.name))
-                                    settings.opacity = element.value
+                                    settings.bgcolor = element.value.tostring
                                     token.properties:SetAuraDisplaySetting(routine.name, settings)
                                     token:UpdateAuras()
                                 end,
                                 confirm = function(element)
-                                    --set it to off to force upload.
+                                    --Snapshot final state, clear, and re-apply
+                                    --inside ModifyProperties so the diff actually
+                                    --uploads (without the clear, the live-preview
+                                    --already-set value would make ModifyProperties
+                                    --see no diff).
+                                    local preserved = DeepCopy(token.properties:GetAuraDisplaySetting(routine.name))
+                                    preserved.bgcolor = element.value.tostring
                                     token.properties:SetAuraDisplaySetting(routine.name, nil)
-
                                     token:ModifyProperties{
-                                        description = tr("Set Aura Display Settings"),
+                                        description = tr("Set Aura Color"),
                                         undoable = false,
                                         execute = function()
-                                            local settings = DeepCopy(token.properties:GetAuraDisplaySetting(routine.name))
-                                            settings.opacity = element.value
-                                            token.properties:SetAuraDisplaySetting(routine.name, settings)
+                                            token.properties:SetAuraDisplaySetting(routine.name, preserved)
                                         end,
                                     }
+                                    token:UpdateAuras()
                                 end,
                             }
                         }
@@ -6310,329 +6285,294 @@ function TacPanel.AuraChip(auraInstance, token)
     }
 end
 
---- Display the Auras we're emitting panel
---- @return Panel
-function TacPanel.AurasEmitting()
-    return TacPanel.CollapsiblePanel{
-        sectionId = "aurasemitting",
-        styles = {TacPanelStyles.Conditions},
-        classes = {"collapsed"},
-        altBg = false,
-        title = "AURAS EMITTING",
-        data = { token = nil },
-        refreshCharacter = function(element, token)
-            element.data.token = token
-            if token == nil or not token.valid or token.properties == nil then
-                element:SetClass("collapsed", true)
-                return
-            end
+local function FillAurasEmittingPanels(token, chips)
+    if token == nil or not token.valid or token.properties == nil then
+        return
+    end
 
-            local creature = token.properties
-            local chips = {}
+    local creature = token.properties
 
-            -- Source 1: direct auras
-            local auras = creature:try_get("auras", {})
-            for _, auraInstance in ipairs(auras) do
-                local aura = auraInstance.aura
-                local display = aura.display or {}
-                local auraid = auraInstance.guid
-                local iconid = aura.iconid or ""
-                local iconbg = display.bgcolor or "white"
-                local iconhue = display.hueshift or 0
+    -- Source 1: direct auras
+    local auras = creature:try_get("auras", {})
+    for _, auraInstance in ipairs(auras) do
+        print("AURA::", json(auraInstance))
+        local aura = auraInstance.aura
+        local display = aura.display or {}
+        local auraid = auraInstance.guid
+        local iconid = aura.iconid or ""
+        local iconbg = display.bgcolor or "white"
+        local iconhue = display.hueshift or 0
 
-                local chipChildren = {}
-                if iconid ~= "" then
-                    chipChildren[#chipChildren+1] = gui.Panel{
-                        classes = {"panel", "cond-icon"},
-                        bgimage = iconid,
-                        bgcolor = iconbg,
-                        hueshift = iconhue,
+        local chipChildren = {}
+        if iconid ~= "" then
+            chipChildren[#chipChildren+1] = gui.Panel{
+                classes = {"panel", "cond-icon"},
+                bgimage = iconid,
+                bgcolor = iconbg,
+                hueshift = iconhue,
+            }
+        end
+        chipChildren[#chipChildren+1] = gui.Label{
+            classes = {"label", "cond-name"},
+            text = aura.name,
+        }
+        chipChildren[#chipChildren+1] = gui.Panel{
+            valign = "center",
+            halign = "right",
+            width = "auto", height = "auto",
+            bgimage = "panels/square.png",
+            bgcolor = "clear",
+            border = 1,
+            borderColor = GOLD_LIGHT,
+            cornerRadius = 3,
+            pad = 3, lmargin = 4,
+            gui.VisibilityPanel{
+                opacity = 1,
+                visible = not token.properties:GetAuraDisplaySetting(aura.name).hide,
+                bgcolor = GOLD_LIGHT,
+                width = 12,
+                height = 12,
+                press = function(element)
+                    local settings = DeepCopy(token.properties:GetAuraDisplaySetting(aura.name))
+                    settings.hide = not settings.hide
+                    token:ModifyProperties{
+                        description = tr("Set Aura Display Settings"),
+                        undoable = false,
+                        execute = function()
+                            token.properties:SetAuraDisplaySetting(aura.name, settings)
+                        end,
                     }
+                end,
+                refresh = function(element)
+                    if token == nil or not token.valid then return end
+                    element:FireEvent("visible", not token.properties:GetAuraDisplaySetting(aura.name).hide)
+                end,
+            },
+        }
+        chipChildren[#chipChildren+1] = gui.ColorPicker{
+            valign = "center",
+            halign = "right",
+            hmargin = 6,
+            width = 20,
+            height = 20,
+            cornerRadius = 4,
+            borderWidth = 1,
+            borderColor = GOLD_LIGHT,
+            hasAlpha = true,
+            value = ((auraInstance:try_get("display") or {}).bgcolor) or "#ffffffff",
+            change = function(element)
+                -- Live preview: mutate the in-memory display and refresh the
+                -- aura visual without going through ModifyProperties. Matches
+                -- how the old PercentSlider's preview event worked.
+                local liveDisplay = auraInstance:try_get("display")
+                if liveDisplay == nil then
+                    return
                 end
-                chipChildren[#chipChildren+1] = gui.Label{
-                    classes = {"label", "cond-name"},
-                    text = aura.name,
+                liveDisplay.bgcolor = element.value.tostring
+                token:UpdateAuras()
+            end,
+            confirm = function(element)
+                local newColor = element.value.tostring
+                token:ModifyProperties{
+                    description = tr("Set Aura Color"),
+                    undoable = false,
+                    execute = function()
+                        local settings = auraInstance:get_or_add("display", {
+                            hueshift = 0, saturation = 1, brightness = 1, bgcolor = "#ffffffff",
+                        })
+                        settings.bgcolor = newColor
+                    end,
                 }
-                chipChildren[#chipChildren+1] = gui.Panel{
-                    valign = "center",
-                    halign = "right",
-                    width = "auto", height = "auto",
-                    bgimage = "panels/square.png",
-                    bgcolor = "clear",
-                    border = 1,
-                    borderColor = GOLD_LIGHT,
-                    cornerRadius = 3,
-                    pad = 3, lmargin = 4,
-                    gui.VisibilityPanel{
-                        opacity = 1,
-                        visible = not token.properties:GetAuraDisplaySetting(aura.name).hide,
-                        bgcolor = GOLD_LIGHT,
-                        width = 12,
-                        height = 12,
-                        press = function(element)
-                            local settings = DeepCopy(token.properties:GetAuraDisplaySetting(aura.name))
-                            settings.hide = not settings.hide
+                token:UpdateAuras()
+            end,
+        }
+        chipChildren[#chipChildren+1] = gui.Panel{
+            classes = {"panel", "cond-remove"},
+            press = function(element)
+                token:ModifyProperties{
+                    description = "Remove Aura",
+                    execute = function()
+                        token.properties:RemoveAura(auraid)
+                    end,
+                }
+            end,
+            linger = function(element)
+                gui.Tooltip("End Aura")(element)
+            end,
+            gui.Label{
+                classes = {"label", "cond-remove"},
+                text = "X",
+            },
+        }
+        local chipArgs = {
+            classes = {"panel", "cond-chip"},
+            data = { targetingMarkers = {} },
+            popupPositioning = "panel",
+            linger = function(el)
+                el:FireEvent("clearMarkers")
+                el.tooltip = gui.TooltipFrame(
+                    TacPanel.Tooltip(string.format('<b>%s</b>: %s', aura.name, aura:GetDescription())),
+                    { halign = "left", valign = "top" }
+                )
+                local area = auraInstance:GetArea()
+                if area ~= nil then
+                    local marks = area:Mark{ color = "white", video = "divinationline.webm" }
+                    el.data.targetingMarkers[#el.data.targetingMarkers+1] = marks
+                end
+            end,
+            dehover = function(el)
+                el:FireEvent("clearMarkers")
+            end,
+            clearMarkers = function(el)
+                for _, m in ipairs(el.data.targetingMarkers) do m:Destroy() end
+                el.data.targetingMarkers = {}
+            end,
+        }
+        for i, child in ipairs(chipChildren) do
+            chipArgs[i] = child
+        end
+        chips[#chips+1] = gui.Panel(chipArgs)
+    end
+
+    -- Source 2: ongoing effect modifier auras
+    local ongoingEffectsTable = dmhub.GetTable(CharacterOngoingEffect.tableName)
+    local ongoingEffects = creature:try_get("ongoingEffects", {})
+    for _, effect in ipairs(ongoingEffects) do
+        local effectInfo = ongoingEffectsTable[effect.ongoingEffectid]
+        if effectInfo ~= nil then
+            for _, effmod in ipairs(effectInfo.modifiers) do
+                local cond = effmod:try_get("conditionFormula", "")
+                local passes = cond == "" or GoblinScriptTrue(ExecuteGoblinScript(cond, GenerateSymbols(creature), 0, "Aura condition"))
+                if effmod:has_key("aura") and passes then
+                    local aura = effmod.aura
+                    local display = aura.display or {}
+                    local auraid = aura.guid
+                    local iconid = aura.iconid or ""
+                    local iconbg = display.bgcolor or "white"
+                    local iconhue = display.hueshift or 0
+
+                    local effChildren = {}
+                    if iconid ~= "" then
+                        effChildren[#effChildren+1] = gui.Panel{
+                            classes = {"panel", "cond-icon"},
+                            bgimage = iconid,
+                            bgcolor = iconbg,
+                            hueshift = iconhue,
+                        }
+                    end
+                    effChildren[#effChildren+1] = gui.Label{
+                        classes = {"label", "cond-name"},
+                        text = aura.name,
+                    }
+                    effChildren[#effChildren+1] = gui.Panel{
+                        valign = "center",
+                        halign = "right",
+                        width = "auto", height = "auto",
+                        bgimage = "panels/square.png",
+                        bgcolor = "clear",
+                        border = 1,
+                        borderColor = GOLD_LIGHT,
+                        cornerRadius = 3,
+                        pad = 3, lmargin = 4,
+                        gui.VisibilityPanel{
+                            opacity = 1,
+                            visible = not token.properties:GetAuraDisplaySetting(aura.name).hide,
+                            bgcolor = GOLD_LIGHT,
+                            width = 12,
+                            height = 12,
+                            press = function(element)
+                                local settings = DeepCopy(token.properties:GetAuraDisplaySetting(aura.name))
+                                settings.hide = not settings.hide
+                                token:ModifyProperties{
+                                    description = tr("Set Aura Display Settings"),
+                                    undoable = false,
+                                    execute = function()
+                                        token.properties:SetAuraDisplaySetting(aura.name, settings)
+                                    end,
+                                }
+                            end,
+                            refresh = function(element)
+                                if token == nil or not token.valid then return end
+                                element:FireEvent("visible", not token.properties:GetAuraDisplaySetting(aura.name).hide)
+                            end,
+                        },
+                    }
+                    -- Per-token color override stored in auraDisplaySettings
+                    -- keyed by aura name -- persists to server (same
+                    -- persistent table opacity/hide use), survives the aura
+                    -- being removed and re-added, and is scoped to this
+                    -- token (doesn't touch the shared ongoing-effect
+                    -- definition).
+                    local capturedAuraName = aura.name
+                    effChildren[#effChildren+1] = gui.ColorPicker{
+                        valign = "center",
+                        halign = "right",
+                        hmargin = 6,
+                        width = 20,
+                        height = 20,
+                        cornerRadius = 4,
+                        borderWidth = 1,
+                        borderColor = GOLD_LIGHT,
+                        hasAlpha = true,
+                        value = token.properties:GetAuraDisplaySetting(capturedAuraName).bgcolor
+                            or (token.playerControlled and token.playerColor.tostring or "#AA0000"),
+                        change = function(element)
+                            -- Live preview: mutate in place for immediate
+                            -- visual feedback. Not uploaded here; confirm
+                            -- handles the persistent write.
+                            local settings = DeepCopy(token.properties:GetAuraDisplaySetting(capturedAuraName))
+                            settings.bgcolor = element.value.tostring
+                            token.properties:SetAuraDisplaySetting(capturedAuraName, settings)
+                            token:UpdateAuras()
+                        end,
+                        confirm = function(element)
+                            -- Snapshot the final state (including preview
+                            -- mutations), then clear the live setting and
+                            -- re-apply inside ModifyProperties. This mirrors
+                            -- the old opacity slider's pattern: without the
+                            -- clear step, the "before" state already has the
+                            -- previewed value so ModifyProperties sees no
+                            -- diff and skips the upload.
+                            local preserved = DeepCopy(token.properties:GetAuraDisplaySetting(capturedAuraName))
+                            preserved.bgcolor = element.value.tostring
+                            token.properties:SetAuraDisplaySetting(capturedAuraName, nil)
                             token:ModifyProperties{
-                                description = tr("Set Aura Display Settings"),
+                                description = tr("Set Aura Color"),
                                 undoable = false,
                                 execute = function()
-                                    token.properties:SetAuraDisplaySetting(aura.name, settings)
+                                    token.properties:SetAuraDisplaySetting(capturedAuraName, preserved)
                                 end,
                             }
+                            token:UpdateAuras()
                         end,
-                        refresh = function(element)
-                            if token == nil or not token.valid then return end
-                            element:FireEvent("visible", not token.properties:GetAuraDisplaySetting(aura.name).hide)
+                    }
+                    local effChipArgs = {
+                        classes = {"panel", "cond-chip"},
+                        data = { targetingMarkers = {} },
+                        popupPositioning = "panel",
+                        linger = function(el)
+                            el:FireEvent("clearMarkers")
+                            el.tooltip = gui.TooltipFrame(
+                                TacPanel.Tooltip(string.format('<b>%s</b>: %s', aura.name, aura:GetDescription())),
+                                { halign = "left", valign = "top" }
+                            )
                         end,
-                    },
-                }
-                chipChildren[#chipChildren+1] = gui.PercentSlider{
-                    valign = "center",
-                    halign = "right",
-                    hmargin = 6,
-                    selfStyle = {borderColor = GOLD_LIGHT},
-                    styles = {
-                        {selectors = {"percentSlider"},
-                         borderWidth = 1, borderColor = GOLD_LIGHT,
-                         cornerRadius = 2, bgimage = "panels/square.png",
-                         bgcolor = "black", height = 14, flow = "none"},
-                        {selectors = {"percentSliderLabel"},
-                         color = GOLD_LIGHT, bold = true, fontSize = 10,
-                         halign = "left", valign = "center",
-                         width = 40, textAlignment = "center", height = "auto"},
-                        {selectors = {"percentSliderLabel", "fill"},
-                         color = "black"},
-                        {selectors = {"percentFill"},
-                         bgcolor = GOLD_LIGHT, height = "100%",
-                         width = "0%", halign = "left", cornerRadius = 2},
-                    },
-                    value = token.properties:GetAuraDisplaySetting(aura.name).opacity,
-                    refresh = function(element)
-                        if token == nil or not token.valid then return end
-                        element.value = token.properties:GetAuraDisplaySetting(aura.name).opacity
-                    end,
-                    preview = function(element)
-                        local settings = DeepCopy(token.properties:GetAuraDisplaySetting(aura.name))
-                        settings.opacity = element.value
-                        token.properties:SetAuraDisplaySetting(aura.name, settings)
-                        token:UpdateAuras()
-                    end,
-                    confirm = function(element)
-                        token.properties:SetAuraDisplaySetting(aura.name, nil)
-                        token:ModifyProperties{
-                            description = tr("Set Aura Display Settings"),
-                            undoable = false,
-                            execute = function()
-                                local settings = DeepCopy(token.properties:GetAuraDisplaySetting(aura.name))
-                                settings.opacity = element.value
-                                token.properties:SetAuraDisplaySetting(aura.name, settings)
-                            end,
-                        }
-                    end,
-                }
-                chipChildren[#chipChildren+1] = gui.Panel{
-                    classes = {"panel", "cond-remove"},
-                    press = function(element)
-                        token:ModifyProperties{
-                            description = "Remove Aura",
-                            execute = function()
-                                token.properties:RemoveAura(auraid)
-                            end,
-                        }
-                    end,
-                    linger = function(element)
-                        gui.Tooltip("End Aura")(element)
-                    end,
-                    gui.Label{
-                        classes = {"label", "cond-remove"},
-                        text = "X",
-                    },
-                }
-                local chipArgs = {
-                    classes = {"panel", "cond-chip"},
-                    data = { targetingMarkers = {} },
-                    popupPositioning = "panel",
-                    linger = function(el)
-                        el:FireEvent("clearMarkers")
-                        el.tooltip = gui.TooltipFrame(
-                            TacPanel.Tooltip(string.format('<b>%s</b>: %s', aura.name, aura:GetDescription())),
-                            { halign = "left", valign = "top" }
-                        )
-                        local area = auraInstance:GetArea()
-                        if area ~= nil then
-                            local marks = area:Mark{ color = "white", video = "divinationline.webm" }
-                            el.data.targetingMarkers[#el.data.targetingMarkers+1] = marks
-                        end
-                    end,
-                    dehover = function(el)
-                        el:FireEvent("clearMarkers")
-                    end,
-                    clearMarkers = function(el)
-                        for _, m in ipairs(el.data.targetingMarkers) do m:Destroy() end
-                        el.data.targetingMarkers = {}
-                    end,
-                }
-                for i, child in ipairs(chipChildren) do
-                    chipArgs[i] = child
-                end
-                chips[#chips+1] = gui.Panel(chipArgs)
-            end
-
-            -- Source 2: ongoing effect modifier auras
-            local ongoingEffectsTable = dmhub.GetTable(CharacterOngoingEffect.tableName)
-            local ongoingEffects = creature:try_get("ongoingEffects", {})
-            for _, effect in ipairs(ongoingEffects) do
-                local effectInfo = ongoingEffectsTable[effect.ongoingEffectid]
-                if effectInfo ~= nil then
-                    for _, effmod in ipairs(effectInfo.modifiers) do
-                        if effmod:has_key("aura") then
-                            local aura = effmod.aura
-                            local display = aura.display or {}
-                            local auraid = aura.guid
-                            local iconid = aura.iconid or ""
-                            local iconbg = display.bgcolor or "white"
-                            local iconhue = display.hueshift or 0
-
-                            local effChildren = {}
-                            if iconid ~= "" then
-                                effChildren[#effChildren+1] = gui.Panel{
-                                    classes = {"panel", "cond-icon"},
-                                    bgimage = iconid,
-                                    bgcolor = iconbg,
-                                    hueshift = iconhue,
-                                }
-                            end
-                            effChildren[#effChildren+1] = gui.Label{
-                                classes = {"label", "cond-name"},
-                                text = aura.name,
-                            }
-                            effChildren[#effChildren+1] = gui.Panel{
-                                valign = "center",
-                                halign = "right",
-                                width = "auto", height = "auto",
-                                bgimage = "panels/square.png",
-                                bgcolor = "clear",
-                                border = 1,
-                                borderColor = GOLD_LIGHT,
-                                cornerRadius = 3,
-                                pad = 3, lmargin = 4,
-                                gui.VisibilityPanel{
-                                    opacity = 1,
-                                    visible = not token.properties:GetAuraDisplaySetting(aura.name).hide,
-                                    bgcolor = GOLD_LIGHT,
-                                    width = 12,
-                                    height = 12,
-                                    press = function(element)
-                                        local settings = DeepCopy(token.properties:GetAuraDisplaySetting(aura.name))
-                                        settings.hide = not settings.hide
-                                        token:ModifyProperties{
-                                            description = tr("Set Aura Display Settings"),
-                                            undoable = false,
-                                            execute = function()
-                                                token.properties:SetAuraDisplaySetting(aura.name, settings)
-                                            end,
-                                        }
-                                    end,
-                                    refresh = function(element)
-                                        if token == nil or not token.valid then return end
-                                        element:FireEvent("visible", not token.properties:GetAuraDisplaySetting(aura.name).hide)
-                                    end,
-                                },
-                            }
-                            effChildren[#effChildren+1] = gui.PercentSlider{
-                                valign = "center",
-                                halign = "right",
-                                hmargin = 6,
-                                selfStyle = {borderColor = GOLD_LIGHT},
-                                styles = {
-                                    {selectors = {"percentSlider"},
-                                     borderWidth = 1, borderColor = GOLD_LIGHT,
-                                     cornerRadius = 2, bgimage = "panels/square.png",
-                                     bgcolor = "black", height = 14, flow = "none"},
-                                    {selectors = {"percentSliderLabel"},
-                                     color = GOLD_LIGHT, bold = true, fontSize = 10,
-                                     halign = "left", valign = "center",
-                                     width = 40, textAlignment = "center", height = "auto"},
-                                    {selectors = {"percentSliderLabel", "fill"},
-                                     color = "black"},
-                                    {selectors = {"percentFill"},
-                                     bgcolor = GOLD_LIGHT, height = "100%",
-                                     width = "0%", halign = "left", cornerRadius = 2},
-                                },
-                                value = token.properties:GetAuraDisplaySetting(aura.name).opacity,
-                                refresh = function(element)
-                                    if token == nil or not token.valid then return end
-                                    element.value = token.properties:GetAuraDisplaySetting(aura.name).opacity
-                                end,
-                                preview = function(element)
-                                    local settings = DeepCopy(token.properties:GetAuraDisplaySetting(aura.name))
-                                    settings.opacity = element.value
-                                    token.properties:SetAuraDisplaySetting(aura.name, settings)
-                                    token:UpdateAuras()
-                                end,
-                                confirm = function(element)
-                                    token.properties:SetAuraDisplaySetting(aura.name, nil)
-                                    token:ModifyProperties{
-                                        description = tr("Set Aura Display Settings"),
-                                        undoable = false,
-                                        execute = function()
-                                            local settings = DeepCopy(token.properties:GetAuraDisplaySetting(aura.name))
-                                            settings.opacity = element.value
-                                            token.properties:SetAuraDisplaySetting(aura.name, settings)
-                                        end,
-                                    }
-                                end,
-                            }
-                            local effChipArgs = {
-                                classes = {"panel", "cond-chip"},
-                                data = { targetingMarkers = {} },
-                                popupPositioning = "panel",
-                                linger = function(el)
-                                    el:FireEvent("clearMarkers")
-                                    el.tooltip = gui.TooltipFrame(
-                                        TacPanel.Tooltip(string.format('<b>%s</b>: %s', aura.name, aura:GetDescription())),
-                                        { halign = "left", valign = "top" }
-                                    )
-                                end,
-                                dehover = function(el)
-                                    el:FireEvent("clearMarkers")
-                                end,
-                                clearMarkers = function(el)
-                                    for _, m in ipairs(el.data.targetingMarkers) do m:Destroy() end
-                                    el.data.targetingMarkers = {}
-                                end,
-                            }
-                            for i, child in ipairs(effChildren) do
-                                effChipArgs[i] = child
-                            end
-                            chips[#chips+1] = gui.Panel(effChipArgs)
-                        end
+                        dehover = function(el)
+                            el:FireEvent("clearMarkers")
+                        end,
+                        clearMarkers = function(el)
+                            for _, m in ipairs(el.data.targetingMarkers) do m:Destroy() end
+                            el.data.targetingMarkers = {}
+                        end,
+                    }
+                    for i, child in ipairs(effChildren) do
+                        effChipArgs[i] = child
                     end
+                    chips[#chips+1] = gui.Panel(effChipArgs)
                 end
             end
-
-            if #chips == 0 then
-                element:SetClass("collapsed", true)
-                return
-            end
-
-            element:SetClass("collapsed", false)
-            element:FireEventTree("setContent", chips)
-        end,
-        refreshToken = function(element, token)
-            element:FireEvent("refreshCharacter", token)
-        end,
-        setToken = function(element, token)
-            element:FireEvent("refreshCharacter", token)
-        end,
-        gui.Panel{
-            classes = {"panel", "cond-chips"},
-            wrap = true,
-            setContent = function(element, newChildren)
-                element.children = newChildren
-            end,
-        },
-    }
+        end
+    end
 end
 
 function TacPanel.AddConditionMenu(args)
@@ -6765,7 +6705,7 @@ function TacPanel.AddConditionMenu(args)
         }
     end
 
-    local initialCount = math.min(10, #statusEffectData)
+    local initialCount = math.min(5, #statusEffectData)
     local initialLabels = {}
     for i = 1, initialCount do
         local d = statusEffectData[i]
@@ -6802,6 +6742,284 @@ function TacPanel.AddConditionMenu(args)
     end
 
     statusContent.children = initialLabels
+
+    -- CUSTOM AURAS section: lets the user attach ad-hoc auras directly to the token
+    -- (stored in creature.auras with custom=true so they survive a reload).
+    local primaryToken = m_tokens[1]
+
+    local customAurasContent = gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        halign = "center",
+    }
+
+    local rebuildCustomAuras
+    rebuildCustomAuras = function()
+        if primaryToken == nil or not primaryToken.valid or primaryToken.properties == nil then
+            customAurasContent.children = {}
+            return
+        end
+
+        local creature = primaryToken.properties
+        local auras = creature:try_get("auras", {})
+        local items = {}
+
+        for index, auraInstance in ipairs(auras) do
+            if rawget(auraInstance, "custom") == true then
+                local capturedIndex = index
+                local capturedAura = auraInstance
+                items[#items + 1] = gui.Panel{
+                    width = "95%",
+                    height = "auto",
+                    flow = "horizontal",
+                    halign = "center",
+                    valign = "top",
+                    vmargin = 2,
+
+                    gui.Input{
+                        width = 110,
+                        height = 22,
+                        fontFace = "Berling",
+                        fontSize = 12,
+                        color = CREAM,
+                        bgimage = "panels/square.png",
+                        bgcolor = "clear",
+                        border = 1,
+                        borderColor = DIM,
+                        cornerRadius = 3,
+                        hpad = 4,
+                        halign = "left",
+                        valign = "center",
+                        characterLimit = 40,
+                        text = capturedAura.name,
+                        change = function(element)
+                            local auras = primaryToken.properties:try_get("auras", {})
+                            capturedAura = auras[capturedIndex] or capturedAura
+                            local newName = element.text
+                            if newName == nil or newName == "" then
+                                newName = "Custom Aura"
+                                element.text = newName
+                            end
+                            primaryToken:ModifyProperties{
+                                description = "Rename Custom Aura",
+                                execute = function()
+                                    capturedAura.name = newName
+                                    if capturedAura.aura ~= nil then
+                                        capturedAura.aura.name = newName
+                                    end
+                                end,
+                            }
+                            primaryToken:UpdateAuras()
+                        end,
+                    },
+
+                    gui.Label{
+                        text = "Radius:",
+                        width = "auto",
+                        height = "auto",
+                        halign = "left",
+                        valign = "center",
+                        lmargin = 8,
+                        rmargin = 4,
+                        fontFace = "Berling",
+                        fontSize = 12,
+                        color = DIM,
+                    },
+
+                    gui.Input{
+                        width = 36,
+                        height = 22,
+                        fontFace = "Berling",
+                        fontSize = 12,
+                        color = CREAM,
+                        bgimage = "panels/square.png",
+                        bgcolor = "clear",
+                        border = 1,
+                        borderColor = DIM,
+                        cornerRadius = 3,
+                        hpad = 4,
+                        halign = "left",
+                        valign = "center",
+                        characterLimit = 4,
+                        text = tostring((capturedAura.area and capturedAura.area.radius) or 1),
+                        change = function(element)
+                            local auras = primaryToken.properties:try_get("auras", {})
+                            capturedAura = auras[capturedIndex] or capturedAura
+                            local r = tonumber(element.text)
+                            if r == nil or r < 0 then
+                                element.text = tostring((capturedAura.area and capturedAura.area.radius) or 1)
+                                return
+                            end
+                            primaryToken:ModifyProperties{
+                                description = "Set Custom Aura Radius",
+                                execute = function()
+                                    capturedAura.area = dmhub.CalculateShape{
+                                        shape = "radiusfromcreature",
+                                        token = primaryToken,
+                                        range = 100,
+                                        radius = r,
+                                    }
+                                end,
+                            }
+                            primaryToken:UpdateAuras()
+                        end,
+                    },
+
+                    gui.Panel{
+                        width = 20,
+                        height = 20,
+                        halign = "left",
+                        valign = "center",
+                        hmargin = 4,
+                        bgimage = "panels/character-sheet/gear.png",
+                        bgcolor = GOLD_LIGHT,
+                        linger = function(el)
+                            gui.Tooltip("Edit aura settings")(el)
+                        end,
+                        press = function(element)
+                            -- element.root is the popup's own root (popups
+                            -- are their own hierarchy -- see Panel.root doc).
+                            -- Use m_button.root instead so the edit dialog
+                            -- lives in the main UI hierarchy and survives us
+                            -- dismissing the popup. Result: popup closes,
+                            -- large centered modal appears on top.
+                            local mainRoot = m_button.root
+                            m_button.popup = nil
+                            local editable = DeepCopy(capturedAura.aura)
+                            mainRoot:AddChild(editable:ShowEditDialog{
+                                norelocate = true,
+                                close = function()
+                                    primaryToken:ModifyProperties{
+                                        description = "Edit Custom Aura",
+                                        execute = function()
+                                            capturedAura.aura = editable
+                                            capturedAura.name = editable.name
+                                            capturedAura.iconid = editable.iconid
+                                            if editable:has_key("display") then
+                                                capturedAura.display = editable.display
+                                            end
+                                        end,
+                                    }
+                                    primaryToken:UpdateAuras()
+                                end,
+                            })
+                        end,
+                    },
+
+                    gui.Panel{
+                        width = 20,
+                        height = 20,
+                        halign = "left",
+                        valign = "center",
+                        hmargin = 2,
+                        bgimage = "panels/square.png",
+                        bgcolor = "clear",
+                        border = 1,
+                        borderColor = RED,
+                        cornerRadius = 3,
+                        linger = function(el)
+                            gui.Tooltip("Remove custom aura")(el)
+                        end,
+                        press = function(element)
+                            local guid = capturedAura.guid
+                            primaryToken:ModifyProperties{
+                                description = "Remove Custom Aura",
+                                execute = function()
+                                    primaryToken.properties:RemoveAura(guid)
+                                end,
+                            }
+                            primaryToken:UpdateAuras()
+                            rebuildCustomAuras()
+                        end,
+                        gui.Label{
+                            text = "X",
+                            width = "100%",
+                            height = "100%",
+                            halign = "center",
+                            valign = "center",
+                            textAlignment = "center",
+                            fontFace = "Berling",
+                            fontSize = 12,
+                            color = RED,
+                        },
+                    },
+                }
+            end
+        end
+
+        items[#items + 1] = gui.Panel{
+            classes = {"panel", "cond-add"},
+            halign = "left",
+            lmargin = 8,
+            tmargin = 4,
+            width = "auto",
+            height = 24,
+            linger = function(el)
+                gui.Tooltip("Add a custom aura")(el)
+            end,
+            press = function(element)
+                if primaryToken == nil or not primaryToken.valid or primaryToken.properties == nil then return end
+                -- Standard Draw Steel aura visual. Without a real objectid
+                -- the engine has no visual to render, even with
+                -- tokenAttached = true.
+                local defaultObjectId = "b7cbb1bf-6ed4-40b8-b1c9-ce091f24f651"
+                -- If the current user is a player (not the DM), seed the
+                -- aura's color with their display color so their auras are
+                -- visually distinct. DM gets the plain white default.
+                local defaultBgcolor = "#ffffffff"
+                if not dmhub.isDM then
+                    local sessionInfo = dmhub.GetSessionInfo(dmhub.loginUserid)
+                    if sessionInfo ~= nil and sessionInfo.displayColor ~= nil then
+                        defaultBgcolor = sessionInfo.displayColor.tostring
+                    end
+                end
+                local auraDef = Aura.Create{
+                    name = "Custom Aura",
+                    applyto = "all",
+                    modifiers = {},
+                    objectid = defaultObjectId,
+                }
+                local auraInstance = AuraInstance.new{
+                    guid = dmhub.GenerateGuid(),
+                    casterid = primaryToken.id,
+                    name = "Custom Aura",
+                    iconid = auraDef.iconid,
+                    display = {hueshift = 0, saturation = 1, brightness = 1, bgcolor = defaultBgcolor},
+                    custom = true,
+                    tokenAttached = true,
+                    symbols = {
+                        caster = GenerateSymbols(primaryToken.properties),
+                    },
+                    area = dmhub.CalculateShape{
+                        shape = "radiusfromcreature",
+                        token = primaryToken,
+                        range = 100,
+                        radius = 1,
+                    },
+                    time = TimePoint.Create(),
+                    aura = auraDef,
+                }
+                primaryToken:ModifyProperties{
+                    description = "Add Custom Aura",
+                    execute = function()
+                        primaryToken.properties:AddAura(auraInstance)
+                    end,
+                }
+                primaryToken:UpdateAuras()
+                rebuildCustomAuras()
+            end,
+            gui.Label{
+                classes = {"label", "cond-add"},
+                text = "+",
+                width = "auto",
+                height = 16,
+                valign = "center",
+            },
+        }
+
+        customAurasContent.children = items
+    end
 
     m_button.popup = gui.Panel{
         styles = {Styles.Default, TacPanelStyles.AddConditionMenu},
@@ -6873,12 +7091,59 @@ function TacPanel.AddConditionMenu(args)
             children = options,
         },
 
+        gui.Input{
+            classes = {"input", "cond-custom-input"},
+            characterLimit = 60,
+            placeholderText = "Add Custom Condition...",
+            width = "94%",
+            height = "auto",
+            halign = "left",
+            lmargin = 6,
+            tmargin = 6,
+            fontFace = "Berling",
+            fontSize = TacPanelSizes.Fonts.condInput,
+            color = CREAM,
+            border = 1,
+            borderColor = DIM,
+            cornerRadius = 4,
+            hpad = 6,
+            vpad = 4,
+
+            change = function(element)
+                local text = trim(element.text)
+                if text ~= "" then
+                    for _, tok in ipairs(m_tokens) do
+                        tok:ModifyProperties{
+                            description = "Add Custom Condition",
+                            execute = function()
+                                local cc = tok.properties:get_or_add("customConditions", {})
+                                cc[dmhub.GenerateGuid()] = {
+                                    text = text,
+                                    timestamp = dmhub.serverTimeMilliseconds,
+                                }
+                            end,
+                        }
+                    end
+                end
+                element.text = ""
+                m_button.popup = nil
+            end,
+        },
+
         gui.Label{
             classes = {"menu-heading"},
             text = "STATUS EFFECTS",
         },
         statusContent,
+
+        gui.Label{
+            classes = {"menu-heading"},
+            text = "CUSTOM AURAS",
+        },
+        customAurasContent,
     }
+
+    rebuildCustomAuras()
 end
 
 --- Display the Persistent Abilities panel
@@ -7027,6 +7292,27 @@ end
 --- Display the Conditions panel
 --- @return Panel
 function TacPanel.Conditions()
+    local m_token = nil
+
+    -- Add button first
+    local m_addButton = gui.Panel{
+            classes = {"panel", "cond-add"},
+            press = function(element)
+                TacPanel.AddConditionMenu{
+                    tokens = {m_token},
+                    button = element,
+                }
+            end,
+            linger = function(el)
+                gui.Tooltip("Add a condition or effect")(el)
+            end,
+            gui.Label{
+                classes = {"label", "cond-add"},
+                text = "+",
+            },
+        }
+
+
     return TacPanel.CollapsiblePanel{
         sectionId = "conditions",
         styles = {TacPanelStyles.Conditions},
@@ -7034,6 +7320,7 @@ function TacPanel.Conditions()
         title = "AURAS, CONDITIONS, & EFFECTS",
         data = { token = nil },
         refreshCharacter = function(element, token)
+            m_token = token
             element.data.token = token
             if token == nil or not token.valid then
                 element:FireEventTree("setContent", {})
@@ -7055,25 +7342,7 @@ function TacPanel.Conditions()
             end
 
             -- Rebuild chips each refresh (lists are small)
-            local children = {}
-
-            -- Add button first
-            children[#children + 1] = gui.Panel{
-                    classes = {"panel", "cond-add"},
-                    press = function(el)
-                        TacPanel.AddConditionMenu{
-                            tokens = {element.data.token},
-                            button = el,
-                        }
-                    end,
-                    linger = function(el)
-                        gui.Tooltip("Add a condition or effect")(el)
-                    end,
-                    gui.Label{
-                        classes = {"label", "cond-add"},
-                        text = "+",
-                    },
-                }
+            local children = {m_addButton}
 
             -- Condition chips
             for condid, cond in pairs(conditions) do
@@ -7094,8 +7363,13 @@ function TacPanel.Conditions()
             -- Aura chips (DISABLED FOR DIAGNOSTIC)
             local aurasTouching = creature:GetAurasAffecting(token) or {}
             for _, auraInfo in ipairs(aurasTouching) do
-               children[#children + 1] = TacPanel.AuraChip(auraInfo.auraInstance, token)
+                if auraInfo.auraInstance.casterid ~= token.charid then --we'll see our own auras because we emit them.
+                    children[#children + 1] = TacPanel.AuraChip(auraInfo.auraInstance, token)
+                end
             end
+
+            --auras emitting.
+            FillAurasEmittingPanels(token, children)
 
             -- "No conditions" placeholder when nothing to show
             if #children == 1 then
@@ -7119,34 +7393,10 @@ function TacPanel.Conditions()
             setContent = function(element, newChildren)
                 element.children = newChildren
             end,
+
+            m_addButton,
         },
-        gui.Input{
-            classes = {"input", "cond-custom-input"},
-            characterLimit = 60,
-            placeholderText = "Add Custom Condition...",
-            data = { token = nil },
-            refreshCharacter = function(element, token)
-                element.data.token = token
-            end,
-            refreshToken = function(element, token) element:FireEvent("refreshCharacter", token) end,
-            setToken = function(element, token) element:FireEvent("refreshCharacter", token) end,
-            change = function(element)
-                local text = trim(element.text)
-                if text ~= "" and element.data.token ~= nil then
-                    element.data.token:ModifyProperties{
-                        description = "Add Custom Condition",
-                        execute = function()
-                            local cc = element.data.token.properties:get_or_add("customConditions", {})
-                            cc[dmhub.GenerateGuid()] = {
-                                text = text,
-                                timestamp = dmhub.serverTimeMilliseconds,
-                            }
-                        end,
-                    }
-                end
-                element.text = ""
-            end,
-        },
+
     }
 end
 
@@ -8847,7 +9097,6 @@ end
 local TACPANEL_DEFAULT_ORDER = {
     "statistics",
     "routines",
-    "aurasemitting",
     "persistentabilities",
     "heroicresources",
     "otherresources",
@@ -8861,7 +9110,6 @@ local TACPANEL_DEFAULT_ORDER = {
 local TACPANEL_FACTORIES = {
     statistics = TacPanel.Statistics,
     routines = TacPanel.Routines,
-    aurasemitting = TacPanel.AurasEmitting,
     persistentabilities = TacPanel.PersistentAbilities,
     heroicresources = TacPanel.HeroicResources,
     otherresources = TacPanel.OtherResources,

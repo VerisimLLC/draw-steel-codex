@@ -1,5 +1,13 @@
 local mod = dmhub.GetModLoading()
 
+-- Upper bound on per-axis tile count the import dialog will accept.
+-- MapGridController.BuildMesh (C# engine) iterates O(width * height^2) on its
+-- point-cull path, so a pathological manifest (one imported map in the wild
+-- was 48358 x 19199) pegs a CPU core for hours before the map finishes
+-- loading. MapGridController has its own 4M-cell bailout as a last resort;
+-- this is the user-facing cap so the dialog refuses to ever produce one.
+local MAX_MAP_TILES_PER_AXIS = 2000
+
 local g_modalDialog = nil
 
 local function ProgressPanel()
@@ -461,6 +469,16 @@ mod.shared.ImportMapDialog = function(paths, options)
             return
         end
 
+        -- Cap per-axis tile count. See MAX_MAP_TILES_PER_AXIS above for why.
+        if val > MAX_MAP_TILES_PER_AXIS then
+            val = MAX_MAP_TILES_PER_AXIS
+            if source == "width" then
+                mapDimWidth.textNoNotify = tostring(val)
+            else
+                mapDimHeight.textNoNotify = tostring(val)
+            end
+        end
+
         local imgW, imgH = getImageDim()
         if imgW == nil then
             return
@@ -471,11 +489,16 @@ mod.shared.ImportMapDialog = function(paths, options)
             if not mapHeightTouched then
                 local inferredH = math.floor(val * (imgH / imgW) + 0.5)
                 if inferredH < 1 then inferredH = 1 end
+                if inferredH > MAX_MAP_TILES_PER_AXIS then inferredH = MAX_MAP_TILES_PER_AXIS end
                 mapDimHeight.textNoNotify = tostring(inferredH)
                 importPanel:SetMapDimensions(val, inferredH)
             else
                 local hVal = tonumber(mapDimHeight.text)
                 if hVal ~= nil and hVal >= 1 and hVal == math.floor(hVal) then
+                    if hVal > MAX_MAP_TILES_PER_AXIS then
+                        hVal = MAX_MAP_TILES_PER_AXIS
+                        mapDimHeight.textNoNotify = tostring(hVal)
+                    end
                     importPanel:SetMapDimensions(val, hVal)
                 end
             end
@@ -484,11 +507,16 @@ mod.shared.ImportMapDialog = function(paths, options)
             if not mapWidthTouched then
                 local inferredW = math.floor(val * (imgW / imgH) + 0.5)
                 if inferredW < 1 then inferredW = 1 end
+                if inferredW > MAX_MAP_TILES_PER_AXIS then inferredW = MAX_MAP_TILES_PER_AXIS end
                 mapDimWidth.textNoNotify = tostring(inferredW)
                 importPanel:SetMapDimensions(inferredW, val)
             else
                 local wVal = tonumber(mapDimWidth.text)
                 if wVal ~= nil and wVal >= 1 and wVal == math.floor(wVal) then
+                    if wVal > MAX_MAP_TILES_PER_AXIS then
+                        wVal = MAX_MAP_TILES_PER_AXIS
+                        mapDimWidth.textNoNotify = tostring(wVal)
+                    end
                     importPanel:SetMapDimensions(wVal, val)
                 end
             end
@@ -537,7 +565,11 @@ mod.shared.ImportMapDialog = function(paths, options)
             if wVal and hVal and wVal >= 1 and hVal >= 1 and imgW then
                 local tileW = imgW / wVal
                 local tileH = imgH / hVal
-                element.text = string.format("Tile size: %.1f x %.1f px", tileW, tileH)
+                local txt = string.format("Tile size: %.1f x %.1f px", tileW, tileH)
+                if wVal >= MAX_MAP_TILES_PER_AXIS or hVal >= MAX_MAP_TILES_PER_AXIS then
+                    txt = txt .. string.format("\n<color=#ffaa55>Clamped at %d tiles per axis.</color>", MAX_MAP_TILES_PER_AXIS)
+                end
+                element.text = txt
             else
                 element.text = ""
             end
@@ -826,7 +858,9 @@ mod.shared.ImportMapDialog = function(paths, options)
                     if rW < 0.01 and rH < 0.01 then
                         tilesW = math.floor(tilesW + 0.5)
                         tilesH = math.floor(tilesH + 0.5)
-                        if tilesW >= 1 and tilesH >= 1 then
+                        if tilesW >= 1 and tilesH >= 1
+                           and tilesW <= MAX_MAP_TILES_PER_AXIS
+                           and tilesH <= MAX_MAP_TILES_PER_AXIS then
                             perfectFitActive = true
 
                             -- Configure the grid preview at detected dimensions.

@@ -2162,11 +2162,15 @@ mod.shared.EditWallAssetDialog = function(tileid, startingValues)
 					},
 					{
 						id = "Half",
-						text = "Cover",
+						text = "Cover (50%)",
+					},
+					{
+						id = "Three Quarters",
+						text = "Cover (75%)",
 					},
 					{
 						id = "Full",
-						text = "Obstruction",
+						text = "Blocks Line of Effect",
 					},
 				},
 				change = function(element)

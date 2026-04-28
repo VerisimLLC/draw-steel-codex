@@ -4392,6 +4392,15 @@ function TacPanel.CollapsibleEntry(args)
                 dmhub.SetPref(element.data.prefKey, "open")
             end
         end,
+        -- Refresh title/body in place without rebuilding the panel; preserves
+        -- collapse state so the arrow does not replay its scale animation.
+        update = function(element, spec)
+            local d = element.data
+            d.title = spec.title
+            d.body  = spec.body
+            if spec.color ~= nil then d.color = spec.color end
+            element:FireEventTree("setCollapse", d.collapsed)
+        end,
         rightClick = function(element)
             local d = element.data
             local fullText = d:formatText(false)
@@ -4437,6 +4446,50 @@ function TacPanel.CollapsibleEntry(args)
 
     entry:FireEventTree("setCollapse", collapsed)
     return entry
+end
+
+--- Build a vertical container that diffs CollapsibleEntry children across refreshes.
+--- Fire `setEntries` with a list of {entryKey, entryId, charid, title, body, color?, classes?}
+--- spec tables. Existing panels are reused (preserving collapse state and avoiding the
+--- arrow's scale animation), missing ones drop out, new ones are built. Cache key is
+--- charid+entryKey+entryId so per-character prefKeys are not reused across tokens.
+--- @return Panel
+function TacPanel.CollapsibleEntryContainer()
+    return gui.Panel{
+        classes = {"container"},
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        data = { entries = {} },
+        setEntries = function(element, specs)
+            local oldCache = element.data.entries
+            local newCache = {}
+            local children = {}
+            for _, spec in ipairs(specs) do
+                local key = string.format("%s:%s:%s",
+                    tostring(spec.charid or ""),
+                    tostring(spec.entryKey or ""),
+                    tostring(spec.entryId or ""))
+                local entry
+                if newCache[key] == nil then
+                    entry = oldCache[key]
+                    if entry ~= nil then
+                        entry:FireEvent("update", spec)
+                    else
+                        entry = TacPanel.CollapsibleEntry(spec)
+                    end
+                    newCache[key] = entry
+                else
+                    -- Defensive: duplicate spec key in a single refresh.
+                    -- Build standalone so the children list stays valid; not cached.
+                    entry = TacPanel.CollapsibleEntry(spec)
+                end
+                children[#children+1] = entry
+            end
+            element.data.entries = newCache
+            element.children = children
+        end,
+    }
 end
 
 --- Display the Routines panel
@@ -5094,14 +5147,14 @@ function TacPanel.Features()
                 end
             end
 
-            local labels = {}
+            local specs = {}
 
             -- With Captain entry (minions only)
             if creature.withCaptain and creature.minion then
                 local implemented = DrawSteelMinion.GetWithCaptainEffect(creature.withCaptain) ~= nil
                 local implementedColor = cond(implemented, "#ff", "#55")
 
-                labels[#labels+1] = TacPanel.CollapsibleEntry{
+                specs[#specs+1] = {
                     entryKey = "features",
                     entryId  = "withCaptain",
                     charid   = token.charid,
@@ -5114,7 +5167,7 @@ function TacPanel.Features()
             if features ~= nil then
                 for _, feature in ipairs(features) do
                     if feature.description ~= "" then
-                        labels[#labels+1] = TacPanel.CollapsibleEntry{
+                        specs[#specs+1] = {
                             entryKey = "features",
                             entryId  = feature.name,
                             charid   = token.charid,
@@ -5125,13 +5178,13 @@ function TacPanel.Features()
                 end
             end
 
-            if #labels == 0 then
+            if #specs == 0 then
                 element:SetClass("collapsed", true)
                 return
             end
 
             element:SetClass("collapsed", false)
-            element:FireEventTree("setContent", labels)
+            element:FireEventTree("setEntries", specs)
         end,
         refreshToken = function(element, token)
             element:FireEvent("refreshCharacter", token)
@@ -5140,15 +5193,7 @@ function TacPanel.Features()
             element:FireEvent("refreshCharacter", token)
         end,
 
-        gui.Panel{
-            classes = {"container"},
-            width = "100%",
-            height = "auto",
-            flow = "vertical",
-            setContent = function(element, newChildren)
-                element.children = newChildren
-            end,
-        },
+        TacPanel.CollapsibleEntryContainer(),
     }
 end
 
@@ -5194,10 +5239,10 @@ function TacPanel.Notes()
 
             -- Rebuild note entries (collapsible) into the content container
             local charid = token.charid
-            local noteEntries = {}
+            local specs = {}
             for _, note in ipairs(notes) do
                 if note.text ~= nil and note.text ~= "" then
-                    noteEntries[#noteEntries+1] = TacPanel.CollapsibleEntry{
+                    specs[#specs+1] = {
                         entryKey = "notes",
                         entryId  = note.title,
                         charid   = charid,
@@ -5206,7 +5251,7 @@ function TacPanel.Notes()
                     }
                 end
             end
-            element:FireEventTree("setContent", noteEntries)
+            element:FireEventTree("setEntries", specs)
         end,
         refreshToken = function(element, token)
             element:FireEvent("refreshCharacter", token)
@@ -5215,15 +5260,7 @@ function TacPanel.Notes()
             element:FireEvent("refreshCharacter", token)
         end,
 
-        gui.Panel{
-            classes = {"container"},
-            width = "100%",
-            height = "auto",
-            flow = "vertical",
-            setContent = function(element, newChildren)
-                element.children = newChildren
-            end,
-        },
+        TacPanel.CollapsibleEntryContainer(),
     }
 end
 
@@ -5252,7 +5289,7 @@ function TacPanel.Perks()
             end
 
             local charid = token.charid
-            local entries = {}
+            local specs = {}
             local seen = {}
             local levelChoices = creature:GetLevelChoices() or {}
             local featTable = dmhub.GetTableVisible(CharacterFeat.tableName)
@@ -5262,7 +5299,7 @@ function TacPanel.Perks()
                         seen[guid] = true
                         local featItem = featTable[guid]
                         if featItem then
-                            entries[#entries+1] = TacPanel.CollapsibleEntry{
+                            specs[#specs+1] = {
                                 entryKey = "perks",
                                 entryId  = guid,
                                 charid   = charid,
@@ -5274,13 +5311,13 @@ function TacPanel.Perks()
                 end
             end
 
-            if #entries == 0 then
+            if #specs == 0 then
                 element:SetClass("collapsed", true)
                 return
             end
 
             element:SetClass("collapsed", false)
-            element:FireEventTree("setContent", entries)
+            element:FireEventTree("setEntries", specs)
         end,
         refreshToken = function(element, token)
             element:FireEvent("refreshCharacter", token)
@@ -5289,15 +5326,7 @@ function TacPanel.Perks()
             element:FireEvent("refreshCharacter", token)
         end,
 
-        gui.Panel{
-            classes = {"container"},
-            width = "100%",
-            height = "auto",
-            flow = "vertical",
-            setContent = function(element, newChildren)
-                element.children = newChildren
-            end,
-        },
+        TacPanel.CollapsibleEntryContainer(),
     }
 end
 
@@ -7363,7 +7392,7 @@ function TacPanel.Conditions()
             -- Aura chips (DISABLED FOR DIAGNOSTIC)
             local aurasTouching = creature:GetAurasAffecting(token) or {}
             for _, auraInfo in ipairs(aurasTouching) do
-                if auraInfo.auraInstance.casterid ~= token.charid then --we'll see our own auras because we emit them.
+                if rawget(auraInfo.auraInstance, "casterid") ~= token.charid then --we'll see our own auras because we emit them.
                     children[#children + 1] = TacPanel.AuraChip(auraInfo.auraInstance, token)
                 end
             end

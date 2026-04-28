@@ -284,7 +284,7 @@ TriggeredAbility.triggers = {
 			},
 			hasattacker = {
 				name = "Has Attacker",
-				type = "creature",
+				type = "boolean",
 				desc = "True if a creature is the one pushing/pulling/sliding",
 			},
 			attacker = {

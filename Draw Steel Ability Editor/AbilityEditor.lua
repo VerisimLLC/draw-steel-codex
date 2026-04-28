@@ -3862,7 +3862,15 @@ AbilityEditor.BuildModesSection = _buildModesBlock
 local function _behaviorListKey(ability)
     local parts = {}
     for _, b in ipairs(ability.behaviors or {}) do
-        parts[#parts + 1] = b:try_get("guid", b.typeName or "?")
+        local id = b:try_get("guid")
+        if id == nil then
+            id = b:try_get("_tmp_keyId")
+            if id == nil then
+                id = dmhub.GenerateGuid()
+                b._tmp_keyId = id
+            end
+        end
+        parts[#parts + 1] = id
     end
     return #parts .. ":" .. table.concat(parts, ",")
 end

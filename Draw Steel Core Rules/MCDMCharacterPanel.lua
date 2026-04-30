@@ -6401,6 +6401,12 @@ local function FillAurasEmittingPanels(token, chips)
                 token:UpdateAuras()
             end,
             confirm = function(element)
+                local liveDisplay = auraInstance:try_get("display")
+                if liveDisplay ~= nil then
+                    --make sure that when we do modify properties this gets picked up as a change.
+                    liveDisplay.bgcolor = "none"
+                end
+
                 local newColor = element.value.tostring
                 token:ModifyProperties{
                     description = tr("Set Aura Color"),

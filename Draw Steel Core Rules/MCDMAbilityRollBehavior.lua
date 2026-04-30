@@ -1700,6 +1700,12 @@ function ActivatedAbilityPowerRollBehavior:EditorItems(parentPanel)
             events = {
                 change = function(element)
                     self.roll = element.value
+                    -- Notify the Draw Steel ability editor to rebuild the
+                    -- preview card. Bubbles harmlessly into the void in
+                    -- editors that don't subscribe (classic editor, etc.).
+                    -- See AbilityEditor.lua's rootPanel refreshAbilityPreview
+                    -- handler.
+                    element:FireEventOnParents("refreshAbilityPreview")
                 end,
             },
 
@@ -1745,6 +1751,9 @@ function ActivatedAbilityPowerRollBehavior:EditorItems(parentPanel)
             rollPanel:SetClass("collapsed", self:try_get("resistanceRoll", false))
             resistanceTypePanel:SetClass("collapsed", not self:try_get("resistanceRoll", false))
             testPanel:SetClass("collapsed", not self:try_get("isTest", false))
+            -- resistanceRoll flips the preview header between roll text
+            -- and "Target makes a X resistance roll" -- notify the editor.
+            element:FireEventOnParents("refreshAbilityPreview")
         end,
     }
 
@@ -1832,6 +1841,8 @@ function ActivatedAbilityPowerRollBehavior:EditorItems(parentPanel)
             options = creature.attributeDropdownOptions,
             change = function(element)
                 self.resistanceAttr = element.idChosen
+                -- Preview shows the resistance attribute name in its header.
+                element:FireEventOnParents("refreshAbilityPreview")
             end,
         },
     }
@@ -1869,6 +1880,9 @@ function ActivatedAbilityPowerRollBehavior:EditorItems(parentPanel)
                         events = {
                             change = function(element)
                                 modifier.condition = element.value
+                                -- Edge/bane condition feeds DescribeRoll,
+                                -- which the preview header consumes.
+                                element:FireEventOnParents("refreshAbilityPreview")
                             end,
                         },
 
@@ -1896,6 +1910,8 @@ function ActivatedAbilityPowerRollBehavior:EditorItems(parentPanel)
                             local modifiers = self:try_get("modifiers", {})
                             table.remove(modifiers, i)
                             parentPanel:FireEvent("refreshBehavior")
+                            -- Modifier removal can change DescribeRoll output.
+                            parentPanel:FireEventOnParents("refreshAbilityPreview")
                         end,
                     },
                 }
@@ -1970,6 +1986,8 @@ function ActivatedAbilityPowerRollBehavior:EditorItems(parentPanel)
                     }
 
                     parentPanel:FireEvent("refreshBehavior")
+                    -- Modifier addition can change DescribeRoll output.
+                    parentPanel:FireEventOnParents("refreshAbilityPreview")
                 end,
             }
         },
@@ -1987,6 +2005,11 @@ function ActivatedAbilityPowerRollBehavior:EditorItems(parentPanel)
                 halign = "left",
                 change = function(element)
                     self.tiers[i] = element.text
+                    -- Tier text appears verbatim on the preview card. This
+                    -- is the field the original "preview won't update"
+                    -- bug was about. See AbilityEditor.lua's
+                    -- refreshAbilityPreview handler on rootPanel.
+                    element:FireEventOnParents("refreshAbilityPreview")
                 end
             },
         }

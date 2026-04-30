@@ -65,10 +65,32 @@ AttributeTypeStringSet = RegisterGameType("AttributeTypeStringSet", "AttributeTy
 --- @class AttributeTypeCreatureSet:AttributeType
 AttributeTypeCreatureSet = RegisterGameType("AttributeTypeCreatureSet", "AttributeType")
 
+--bestiary filter expression instead of picking a category/subtype/race."
+AttributeTypeCreatureSet.FilterSentinelId = "__filter__"
+
+--A modifier value of the form "filter:<goblinscript>" represents a bestiary filter expression.
+--Bare strings represent lowercased monster categories, subtypes, or race names.
+function AttributeTypeCreatureSet.IsFilterValue(v)
+	return type(v) == "string" and string.sub(v, 1, 7) == "filter:"
+end
+
+function AttributeTypeCreatureSet.GetFilterExpression(v)
+	if AttributeTypeCreatureSet.IsFilterValue(v) then
+		return string.sub(v, 8)
+	end
+	return ""
+end
+
+function AttributeTypeCreatureSet.MakeFilterValue(expr)
+	return "filter:" .. (expr or "")
+end
+
 --- @class CreatureSet
---- @field creatures string[] List of token ids in this set.
+--- @field creatures string[] Token ids of live creatures explicitly added at runtime (e.g. by AbilityCreatureSet).
+--- @field bestiaryids string[] Bestiary GUIDs (keys in `assets.monsters`) resolved from modifier values at modify time.
 CreatureSet = RegisterGameType("CreatureSet")
 CreatureSet.creatures = {}
+CreatureSet.bestiaryids = {}
 CreatureSet.helpSymbols = {}
 
 --- Removes all creatures from the set.
@@ -118,29 +140,71 @@ function CreatureSet:Has(creature)
     return false
 end
 
+--- Returns true if the given value is in this set:
+---  * a string is matched (case-insensitively) against the display names of bestiary entries in the set;
+---  * a token id matches if it is in `creatures`;
+---  * a creature matches if its source `bestiaryId` is in `bestiaryids`, or if its properties
+--- @param other any
+--- @return boolean
+function CreatureSet:Contains(other)
+    if type(other) == "function" then
+        other = other("self")
+    end
+
+    if type(other) == "string" then
+        local needle = string.lower(other)
+        for _,id in ipairs(self.bestiaryids) do
+            local entry = assets.monsters[id]
+            if entry ~= nil and entry.properties ~= nil then
+                local nm = entry.properties:try_get("monster_type")
+                if nm ~= nil and string.lower(nm) == needle then
+                    return true
+                end
+            end
+        end
+        return false
+    end
+
+    if type(other) ~= "table" then
+        return false
+    end
+
+    --live token id check
+    local tokenid = dmhub.LookupTokenId(other)
+    if tokenid ~= nil and self:Has(tokenid) then
+        return true
+    end
+
+    --bestiary id check via the token's source bestiary id (for instantiated/summoned creatures)
+    local bid = other:try_get("bestiaryId")
+    if bid ~= nil and table.contains(self.bestiaryids, bid) then
+        return true
+    end
+
+    --identity check: is `other` the properties table of one of our bestiary entries?
+    for _,id in ipairs(self.bestiaryids) do
+        local entry = assets.monsters[id]
+        if entry ~= nil and entry.properties == other then
+            return true
+        end
+    end
+
+    return false
+end
+
 CreatureSet.lookupSymbols = {
 	debuginfo = function(c)
-		return string.format("{%d creatures}", #c.creatures)
+		return string.format("{creatures=%d, bestiary=%d}", #c.creatures, #c.bestiaryids)
 	end,
     size = function(c)
         return #c.creatures
     end,
+    bestiarycount = function(c)
+        return #c.bestiaryids
+    end,
     __is__ = function(c)
         return function(other)
-            if type(other) == "function" then
-                other = other("self")
-            end
-
-            if type(other) == "table" then
-                local tokenid = dmhub.LookupTokenId(other)
-                if tokenid == nil then
-                    return false
-                end
-
-                return c:Has(tokenid)
-            end
-
-            return false
+            return c:Contains(other)
         end
     end,
 }
@@ -165,6 +229,18 @@ RegisterGoblinScriptSymbol(CreatureSet, {
             end
 
             return result or 0
+        end
+    end,
+})
+
+RegisterGoblinScriptSymbol(CreatureSet, {
+    name = "Matches",
+    type = "boolean",
+    desc = "Returns true if the given creature is in this set (matched by live token id, source bestiary id, or bestiary entry identity). Use this in bestiary filters where `is`/`has` does not dispatch (i.e. when comparing two creatures).",
+    examples = {"SignatureSummons.Matches(Beast)"},
+    calculate = function(c)
+        return function(other)
+            return c:Contains(other)
         end
     end,
 })
@@ -270,8 +346,82 @@ function AttributeType:ApplyOperation(currentValue, mod, op)
 	end
 end
 
+--Resolves a modifier value (a category name, subtype, race name, or "filter:<goblinscript>"
+--expression) to a list of bestiary GUIDs by walking `assets.monsters` once.
+--- @param value string
+--- @return string[]
+function AttributeTypeCreatureSet.ResolveValueToBestiaryIds(value)
+	local result = {}
+	if type(value) ~= "string" or value == "" then
+		return result
+	end
+
+	if AttributeTypeCreatureSet.IsFilterValue(value) then
+		local expr = AttributeTypeCreatureSet.GetFilterExpression(value)
+		if expr == "" then
+			return result
+		end
+		for k,monster in pairs(assets.monsters) do
+			if not assets:GetMonsterNode(k).hidden and monster.properties ~= nil then
+				local symbols = GenerateSymbols(monster.properties, { beast = GenerateSymbols(monster.properties) })
+				local r = ExecuteGoblinScript(expr, symbols, 0, "CreatureSet:ResolveValueToBestiaryIds")
+				if r ~= nil and r ~= 0 and r ~= false then
+					result[#result+1] = k
+				end
+			end
+		end
+		return result
+	end
+
+	--bare-string value: monster category, subtype, or race name (lowercased).
+	local needle = string.lower(value)
+	for k,monster in pairs(assets.monsters) do
+		if not assets:GetMonsterNode(k).hidden and monster.properties ~= nil then
+			local props = monster.properties
+			local matched = false
+
+			for _,cat in ipairs(props:GetMonsterCategoryList(true)) do
+				if string.lower(cat) == needle then
+					matched = true
+					break
+				end
+			end
+
+			if not matched then
+				local sub = props:try_get("monster_subtype")
+				if sub ~= nil and string.lower(sub) == needle then
+					matched = true
+				end
+			end
+
+			if matched then
+				result[#result+1] = k
+			end
+		end
+	end
+	return result
+end
+
 function AttributeTypeCreatureSet:ApplyOperation(currentValue, mod, op)
-	currentValue[mod] = true
+	if type(mod) ~= "string" or mod == "" then
+		return currentValue
+	end
+
+	local resolvedIds = AttributeTypeCreatureSet.ResolveValueToBestiaryIds(mod)
+	if #resolvedIds == 0 then
+		return currentValue
+	end
+
+	if #currentValue.bestiaryids == 0 then
+		currentValue.bestiaryids = {}
+	end
+
+	for _,id in ipairs(resolvedIds) do
+		if not table.contains(currentValue.bestiaryids, id) then
+			currentValue.bestiaryids[#currentValue.bestiaryids+1] = id
+		end
+	end
+
 	return currentValue
 end
 
@@ -833,7 +983,7 @@ dmhub.RegisterEventHandler("refreshTables", function(keys)
 	end
 
 	local racesTable = dmhub.GetTable(Race.tableName)
-	for k,race in pairs(racesTable) do
+	for k,race in unhidden_pairs(racesTable) do
 		local raceName = string.lower(race.name)
 		AttributeTypeCreatureSet.races[raceName] = {
 			text = race.name,
@@ -856,14 +1006,19 @@ dmhub.RegisterEventHandler("refreshTables", function(keys)
 		}
 	end
 
-	for k,race in pairs(racesTable) do
+	for _,race in pairs(racesTable) do
 		AttributeTypeCreatureSet.dropdownOptions[#AttributeTypeCreatureSet.dropdownOptions+1] = {
-			id = k,
+			id = string.lower(race.name),
 			text = race.name,
 		}
 	end
 
 	table.sort(AttributeTypeCreatureSet.dropdownOptions, function(a,b) return a.text < b.text end)
+
+	AttributeTypeCreatureSet.dropdownOptions[#AttributeTypeCreatureSet.dropdownOptions+1] = {
+		id = AttributeTypeCreatureSet.FilterSentinelId,
+		text = "Bestiary Filter...",
+	}
 
 
 

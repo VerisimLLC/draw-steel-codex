@@ -6781,8 +6781,15 @@ function creature:MatchesString(viewingToken, token, str)
         return true
     end
 
-    if self:has_key("keywords") and self.keywords[str] then
-        return true
+    if self:has_key("keywords") then
+        if self.keywords[str] then
+            return true
+        end
+        for keyword,_ in pairs(self.keywords) do
+            if string.lower(keyword) == str then
+                return true
+            end
+        end
     end
 
     if str == string.lower(self:RaceOrMonsterType()) then

@@ -606,6 +606,7 @@ CharacterModifier.TypeInfo.modifyability = {
 					minHeight = 22,
 					maxHeight = 60,
 					multiline = true,
+					characterLimit = 2000,
 					placeholderText = "Enter text to add to ability...",
 					text = modifier:try_get("modifyDescription"),
 					change = function(element)

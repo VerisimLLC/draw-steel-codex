@@ -773,7 +773,8 @@ function Spell.GetCost(self, casterToken, options)
 	local actionResource = self:ActionResource()
 	if actionResource ~= nil and actionResource ~= "none" then
 		local max = resourcesAvailable[actionResource] or 0
-		local usage = creature:GetResourceUsage(actionResource, "round")
+		local actionResourceInfo = resourcesTable[actionResource]
+		local usage = creature:GetResourceUsage(actionResource, actionResourceInfo and actionResourceInfo.usageLimit or "round")
 		local available = max - usage
 
 		local numberOfActionsCost = self:GetNumberOfActionsCost(creature, { mode = (options or {}).mode or 1 })

@@ -65,6 +65,10 @@ function monster:FillMonsterActivatedAbilities(options, result)
         return
     end
 
+    if self:IsHeroSummon() then
+        return
+    end
+
     local group = self:MonsterGroup()
     local foundDefaultMalice = false
     local monsterLevel = self:Level()

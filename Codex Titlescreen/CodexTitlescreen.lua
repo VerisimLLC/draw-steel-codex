@@ -606,6 +606,86 @@ local function CreateJoinGameModal(tokenToImport)
                 end,
             },
 
+            gui.Button {
+                text = "Add Character to Game",
+                classes = { "hidden" },
+                fontSize = 22,
+                width = "auto",
+                height = "auto",
+                hpad = 12,
+                vpad = 8,
+                halign = "center",
+                valign = "bottom",
+                lookupGame = function(element, gameInfo)
+                    element:SetClass("hidden",
+                        tokenToImport == nil or
+                        gameInfo == nil or gameInfo.deleted or
+                        (not AlreadyInGame(gameInfo.gameid)))
+                    element.data.gameInfo = gameInfo
+                end,
+                searchingForGame = function(element)
+                    element:SetClass("hidden", true)
+                end,
+                clearLookup = function(element)
+                    element:SetClass("hidden", true)
+                end,
+                press = function(element)
+                    local gameInfo = element.data.gameInfo
+                    if gameInfo == nil or tokenToImport == nil then
+                        return
+                    end
+
+                    local gameid = gameInfo.gameid
+                    -- Treat any DM (owner or co-DM) as adding "for the party" since
+                    -- they have no player slot of their own to own the token.
+                    local addingAsDM = gameInfo:IsDM()
+
+                    tokenToImport:ModifyProperties {
+                        description = "Joining Game",
+                        execute = function()
+                            tokenToImport.properties.mtime = ServerTimestamp()
+                            tokenToImport.properties.joinedCampaign = gameid
+                        end,
+                    }
+
+                    dmhub.CopyTokenToClipboard(tokenToImport)
+                    local root = element.root
+                    local callback = function()
+                        local newCharId = dmhub.PasteTokenFromClipboard(core.Loc { x = 0, y = 0 })
+                        print("AddCharacterToGame:: pasted charid =", tostring(newCharId), "addingAsDM =", tostring(addingAsDM))
+                        if not addingAsDM or newCharId == nil then
+                            return
+                        end
+                        -- The C# paste path clears partyid+ownerId on cross-game pastes
+                        -- and only re-sets ownerId for non-DMs. For a DM-added lobby
+                        -- character we route it to the player party so it isn't
+                        -- orphaned as an unowned NPC. Retry briefly because the patch
+                        -- and parties table can settle a tick after the load callback.
+                        dmhub.Coroutine(function()
+                            for i = 1, 50 do
+                                local newToken = dmhub.GetCharacterById(newCharId)
+                                local partyid = GetDefaultPartyID()
+                                if newToken ~= nil and partyid ~= nil and partyid ~= "players" then
+                                    newToken.partyId = partyid
+                                    newToken:UploadToken("Add Character to Game")
+                                    print("AddCharacterToGame:: assigned to player party", partyid)
+                                    return
+                                end
+                                coroutine.yield(0.1)
+                            end
+                            print("AddCharacterToGame:: gave up waiting for token/party to settle")
+                        end)
+                    end
+
+                    if root ~= nil and root.valid then
+                        root:FireEventTree("overrideLoadingScreenArt", gameInfo.coverart, gameid)
+                    end
+                    lobby:EnterGame(gameid, callback)
+
+                    resultPanel:DestroySelf()
+                end,
+            },
+
             gui.CloseButton {
                 floating = true,
                 halign = "right",
@@ -741,16 +821,13 @@ local function CreateGameEditor(options)
             --cover art
             gui.Panel {
                 id = "coverart",
-                bgimage = m_game.coverart,
-                bgcolor = "white",
+                bgimage = true,
+                bgcolor = "clear",
                 width = "80%",
                 height = "56.25% width", --16:9 aspect ratio
                 halign = "center",
                 valign = "top",
                 hmargin = 32,
-                refreshGames = function(element)
-                    element.bgimage = m_game.coverart
-                end,
 
                 press = function(element)
                     dmhub.OpenFileDialog {
@@ -817,6 +894,17 @@ local function CreateGameEditor(options)
                         selectors = { "hover" },
                         brightness = 0.5,
                     },
+                },
+
+                gui.Panel{
+                    interactable = false,
+                    width = "100%",
+                    height = "100%",
+                    bgcolor = "white",
+                    bgimage = m_game.coverart or "panels/backgrounds/delian-tomb-bg.png",
+                    refreshGames = function(element)
+                        element.bgimage = m_game.coverart or "panels/backgrounds/delian-tomb-bg.png"
+                    end,
                 },
 
                 gui.Label {

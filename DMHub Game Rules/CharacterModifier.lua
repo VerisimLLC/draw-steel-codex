@@ -750,6 +750,13 @@ CharacterModifier.TypeInfo.attribute = {
 			}
 
 			if attributeType.enum then
+				local isCreatureSetFilter = AttributeTypeCreatureSet.IsFilterValue(modifier.value)
+
+				local dropdownIdChosen = modifier.value
+				if isCreatureSetFilter then
+					dropdownIdChosen = AttributeTypeCreatureSet.FilterSentinelId
+				end
+
 				children[#children+1] = gui.Panel{
 					classes = {'formPanel'},
 					children = {
@@ -762,14 +769,58 @@ CharacterModifier.TypeInfo.attribute = {
 							width = 240,
 							fontSize = 16,
 							options = attributeType:GetDropdownOptions(attrInfo),
-							idChosen = modifier.value,
+							idChosen = dropdownIdChosen,
 							change = function(element)
-								modifier.value = element.idChosen
+								if element.idChosen == AttributeTypeCreatureSet.FilterSentinelId then
+									if not AttributeTypeCreatureSet.IsFilterValue(modifier.value) then
+										modifier.value = AttributeTypeCreatureSet.MakeFilterValue("")
+									end
+								else
+									modifier.value = element.idChosen
+								end
 								Refresh()
 							end,
 						},
 					}
 				}
+
+				if isCreatureSetFilter then
+					children[#children+1] = gui.Panel{
+						classes = {'formPanel'},
+						children = {
+							gui.Label{
+								text = 'Filter:',
+								classes = {'formLabel'},
+							},
+							gui.GoblinScriptInput{
+								value = AttributeTypeCreatureSet.GetFilterExpression(modifier.value),
+								change = function(element)
+									modifier.value = AttributeTypeCreatureSet.MakeFilterValue(element.value)
+								end,
+								documentation = {
+									help = "This GoblinScript is evaluated against each monster in the bestiary. Monsters for which the script returns true are considered part of this creature set.",
+									output = "boolean",
+									examples = {
+										{
+											script = "Beast.Keywords has \"Signature\" and Beast.name = \"Elemental Mote\"",
+											text = "Match the Elemental Mote bestiary entry tagged with the Signature keyword.",
+										},
+									},
+									subject = creature.helpSymbols,
+									subjectDescription = "The monster from the Bestiary that is being examined is found as the additional field, Beast.",
+									symbols = {
+										{
+											name = "Beast",
+											type = "creature",
+											desc = "The monster from the Bestiary being examined for membership in this creature set.",
+											examples = {"Beast.Keywords has \"Signature\""},
+										},
+									},
+								},
+							},
+						}
+					}
+				end
 			else
 
 				children[#children+1] = gui.Panel{

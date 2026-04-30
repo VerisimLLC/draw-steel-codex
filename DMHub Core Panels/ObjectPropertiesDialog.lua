@@ -2,10 +2,128 @@ local mod = dmhub.GetModLoading()
 
 mod.shared.objectDragAcceptors = {}
 
+-- External-text-editor watchers tied to object lifetime (not panel lifetime).
+-- Keyed by "objid/componentid/fieldName". Each entry holds the watcher plus
+-- the floorid/objid needed to detect deletion. Survives property-sheet close;
+-- a periodic poll (below) cleans up entries whose object no longer exists.
+local g_externalEditorWatchers = {}
+local g_externalEditorPollScheduled = false
+
+local function externalEditorPoll()
+    if mod.unloaded then
+        g_externalEditorPollScheduled = false
+        return
+    end
+
+    local toRemove = nil
+    for key, entry in pairs(g_externalEditorWatchers) do
+        local floor = game.GetFloor(entry.floorid)
+        local alive = floor ~= nil and floor:HasObject(entry.objid)
+        if not alive then
+            entry.watcher:Destroy()
+            toRemove = toRemove or {}
+            toRemove[#toRemove + 1] = key
+        end
+    end
+
+    if toRemove ~= nil then
+        for _, k in ipairs(toRemove) do
+            g_externalEditorWatchers[k] = nil
+        end
+    end
+
+    if next(g_externalEditorWatchers) == nil then
+        g_externalEditorPollScheduled = false
+        return
+    end
+
+    dmhub.Schedule(2, externalEditorPoll)
+end
+
+local function startExternalEditorPoll()
+    if g_externalEditorPollScheduled then return end
+    g_externalEditorPollScheduled = true
+    dmhub.Schedule(2, externalEditorPoll)
+end
+
 local CreateEditorPanel = function(fieldInfo, displayInfo, options, valueIndex, resultOptions)
 
     print("EDITOR::", fieldInfo.type)
-    if fieldInfo.type == "document" then
+    if fieldInfo.type == "externaltexteditor" then
+        local extension = fieldInfo.fieldList[1].arguments[1] or ".txt"
+        local objid = tostring(fieldInfo.component.objid or "obj")
+        local componentid = tostring(fieldInfo.component.componentid or "comp")
+        local floorid = fieldInfo.component.floorid
+        local objidShort = string.sub(objid, 1, 8)
+        local filename = string.format("%s_%s%s", fieldInfo.id, objidShort, extension)
+        local watcherKey = string.format("%s/%s/%s", objid, componentid, fieldInfo.id)
+
+        local labelIdle = "Edit Externally"
+        local labelActive = "Editing... (click to close)"
+
+        editorPanel = gui.Button{
+            width = 160,
+            height = 24,
+            fontSize = 14,
+            text = (g_externalEditorWatchers[watcherKey] ~= nil) and labelActive or labelIdle,
+            halign = "right",
+            valign = "center",
+
+            click = function(element)
+                local existing = g_externalEditorWatchers[watcherKey]
+                if existing ~= nil then
+                    existing.watcher:Destroy()
+                    g_externalEditorWatchers[watcherKey] = nil
+                    element.text = labelIdle
+                    return
+                end
+
+                local currentValue = tostring(fieldInfo.fieldList[1]:GetValue(valueIndex) or "")
+
+                local watcher = dmhub.OpenTextFileInConnectedEditor(filename, currentValue,
+                    function(contents)
+                        -- If the object went away (deleted) and the poll
+                        -- hasn't caught it yet, drop the watcher and bail
+                        -- rather than re-creating the deleted component.
+                        local liveFloor = game.GetFloor(floorid)
+                        if liveFloor == nil or liveFloor:HasObject(objid) == false then
+                            local entry = g_externalEditorWatchers[watcherKey]
+                            if entry ~= nil then
+                                entry.watcher:Destroy()
+                                g_externalEditorWatchers[watcherKey] = nil
+                            end
+                            return
+                        end
+
+                        local groupid = dmhub.GenerateGuid()
+                        for i, fieldInstance in ipairs(fieldInfo.fieldList) do
+                            fieldInstance:SetValue(contents, valueIndex)
+                            if options.objectInstances then
+                                fieldInstance:Upload(groupid)
+                            end
+                        end
+                        if options.onchange ~= nil then
+                            options.onchange()
+                        end
+                    end)
+
+                if watcher == nil then
+                    gui.ModalMessage{
+                        title = "Could not open editor",
+                        message = "Could not spawn an external text editor for this field.",
+                    }
+                else
+                    g_externalEditorWatchers[watcherKey] = {
+                        watcher = watcher,
+                        objid = objid,
+                        floorid = floorid,
+                    }
+                    startExternalEditorPoll()
+                    element.text = labelActive
+                end
+            end,
+        }
+    elseif fieldInfo.type == "document" then
         editorPanel = gui.Button{
             width = 96,
             height = 24,

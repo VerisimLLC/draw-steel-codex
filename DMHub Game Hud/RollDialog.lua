@@ -1314,7 +1314,7 @@ function GameHud.CreateRollDialog(self)
 
 					if dmhub.inCoroutine then
 						local t = dmhub.Time()
-						while dmhub.Time() < t + delay do
+						while dmhub.Time() < t + options.delay do
 							coroutine.yield(0.02)
 						end
 					else

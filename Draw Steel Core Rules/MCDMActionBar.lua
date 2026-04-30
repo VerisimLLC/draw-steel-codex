@@ -109,7 +109,7 @@ ActionBar.bars = {
         drawer = true,
         drawerText = "M",
         calculateVisible = function(token)
-            return token.properties:IsMonster()
+            return token.properties:IsMonster() and not token.properties:IsHeroSummon()
         end,
     },
 

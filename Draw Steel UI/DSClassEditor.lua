@@ -1156,6 +1156,7 @@ local SetClass = function(tableName, classPanel, classid)
 			minHeight = 50,
 			height = 'auto',
 			width = 400,
+			characterLimit = 4000,
 			textAlignment = "topleft",
 			change = function(element)
 				class.details = element.text

@@ -640,6 +640,11 @@ function creature:ConsumeResource(key, refreshType, quantity, note)
 		end
 	end
 
+	local heroicSharingSummoner = self.GetHeroicResourceSharingSummonerToken and self:GetHeroicResourceSharingSummonerToken()
+	if heroicSharingSummoner ~= nil and (key == CharacterResource.heroicResourceId or key == self:GetHeroicOrMaliceId()) then
+		return heroicSharingSummoner.properties:ConsumeResource(CharacterResource.heroicResourceId, "unbounded", quantity, note)
+	end
+
 	local resourceTable = self:GetResourceTable(refreshType)
 
     if key == CharacterResource.recoveryResourceId then
@@ -810,6 +815,11 @@ function creature:RefreshResource(key, refreshType, quantity, note)
 		end
 	end
 
+	local heroicSharingSummoner = self.GetHeroicResourceSharingSummonerToken and self:GetHeroicResourceSharingSummonerToken()
+	if heroicSharingSummoner ~= nil and (key == CharacterResource.heroicResourceId or key == self:GetHeroicOrMaliceId()) then
+		return heroicSharingSummoner.properties:RefreshResource(CharacterResource.heroicResourceId, "unbounded", quantity, note)
+	end
+
 	local animQuantity = 0
 
 	local resourceTable, globalDoc = self:GetResourceTable(refreshType)
@@ -936,6 +946,11 @@ function creature:AddUnboundedResource(key, quantity, note)
 		if summonerToken ~= nil then
 			return summonerToken.properties:AddUnboundedResource(key, quantity, note)
 		end
+	end
+
+	local heroicSharingSummoner = self.GetHeroicResourceSharingSummonerToken and self:GetHeroicResourceSharingSummonerToken()
+	if heroicSharingSummoner ~= nil and (key == CharacterResource.heroicResourceId or key == self:GetHeroicOrMaliceId()) then
+		return heroicSharingSummoner.properties:AddUnboundedResource(CharacterResource.heroicResourceId, quantity, note)
 	end
 
 	local resourceTable = self:get_or_add('resources', {})

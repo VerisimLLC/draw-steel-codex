@@ -4789,7 +4789,7 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
                                         end
 
                                         local sourceToken = token
-                                        local range = tonumber(trigger.powerRollModifier.range)
+                                        local range = tonumber(ExecuteGoblinScript(trigger.powerRollModifier.range, token.properties:LookupSymbol(symbols), 10))
                                         local rangeType = trigger.powerRollModifier.powerRollModifier:try_get("changeTargetRange", "none")
                                         if rangeType == "ability" then
                                             sourceToken = dmhub.GetTokenById(trigger.casterid)
@@ -4944,7 +4944,7 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
                                             end
 
                                             local sourceToken = token
-                                            local range = tonumber(trigger.powerRollModifier.range)
+                                            local range = tonumber(ExecuteGoblinScript(trigger.powerRollModifier.range, token.properties:LookupSymbol(symbols), 10))
                                             local rangeType = trigger.powerRollModifier.powerRollModifier:try_get("changeTargetRange", "none")
                                             if rangeType == "ability" then
                                                 sourceToken = dmhub.GetTokenById(trigger.casterid)

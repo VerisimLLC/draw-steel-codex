@@ -316,6 +316,11 @@ function ActivatedAbilityReplenishBehavior:Cast(ability, casterToken, targets, o
 
                 for i,resourceid in ipairs(self:try_get("resourceOptions", {})) do
                     local resourceInfo = resourceTable[resourceid]
+                    if resourceInfo == nil then
+                        dmhub.CloudError(string.format("AbilityReplenish: no resourceInfo for resourceid=%s ability=%s (resourceOptions dialog)",
+                            tostring(resourceid), tostring(ability and ability.name)))
+                        goto continue_opts
+                    end
 
                     local iconid = resourceInfo.iconid
                     if resourceInfo.hasLargeDisplay then
@@ -408,6 +413,7 @@ function ActivatedAbilityReplenishBehavior:Cast(ability, casterToken, targets, o
                             end,
                         },
                     }
+                    ::continue_opts::
                 end
 
                 dialogPanel = gui.Panel{

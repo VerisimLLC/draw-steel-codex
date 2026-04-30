@@ -26,6 +26,9 @@ ActivatedAbilitySummonBehavior.casterControls = true
 ActivatedAbilitySummonBehavior.casterChoosesCreatures = true
 ActivatedAbilitySummonBehavior.groupInitiativeWithCaster = true
 ActivatedAbilitySummonBehavior.shareSurgesWithSummoner = false
+ActivatedAbilitySummonBehavior.shareHeroicResourceWithSummoner = false
+ActivatedAbilitySummonBehavior.choosePlacement = false
+ActivatedAbilitySummonBehavior.summonRange = "1"
 
 --duplicate mode fields
 ActivatedAbilitySummonBehavior.duplicateMode = false
@@ -808,6 +811,106 @@ function ActivatedAbilitySummonBehavior:CastDuplicate(ability, casterToken, targ
     ability:CommitToPaying(casterToken, args)
 end
 
+--- Prompts the user to place summons
+--- @param casterToken CharacterToken
+--- @param rangeTiles number max distance in tiles from casterToken.loc.
+--- @param index number which summon
+--- @param total number total summons being placed.
+--- @param isMinion boolean true if the creature being placed is a minion.
+--- @return Loc|nil  picked loc, or nil if cancelled.
+function ActivatedAbilitySummonBehavior.PromptPlacementLoc(casterToken, rangeTiles, index, total, isMinion)
+    local origin = casterToken.loc
+    local validLocs = origin:LocsInRadius(rangeTiles)
+
+    local pickedLoc = nil
+    local cancelled = false
+
+    local rangeMarker = dmhub.MarkLocs{
+        locs = validLocs,
+        color = "#22cc66",
+    }
+    local hoverMarker = nil
+
+    local function destroyHoverMarker()
+        if hoverMarker ~= nil then
+            hoverMarker:Destroy()
+            hoverMarker = nil
+        end
+    end
+
+    local function isInRange(loc)
+        return loc ~= nil and origin:DistanceInTiles(loc) <= rangeTiles
+    end
+
+    local picker
+    picker = gui.Panel{
+        floating = true,
+        width = "100%",
+        height = "100%",
+        halign = "left",
+        valign = "top",
+        bgcolor = "clear",
+        interactable = true,
+        mapfocus = true,
+        captureEscape = true,
+        escapePriority = EscapePriority.EXIT_DIALOG,
+
+        gui.Label{
+            halign = "center",
+            valign = "top",
+            vmargin = 80,
+            width = "auto",
+            height = "auto",
+            fontSize = 22,
+            color = "white",
+            bgcolor = "#000000a0",
+            pad = 8,
+            borderBox = true,
+            text = string.format("Place %s %d of %d (Esc to cancel)", isMinion and "minion" or "creature", index, total),
+        },
+
+        mappress = function(element, loc, point)
+            if not isInRange(loc) then
+                return
+            end
+            pickedLoc = loc
+        end,
+
+        maphover = function(element, loc, point)
+            destroyHoverMarker()
+            if loc == nil then
+                return
+            end
+            hoverMarker = dmhub.MarkLocs{
+                locs = { loc },
+                color = isInRange(loc) and "#ffffffcc" or "#cc2222cc",
+            }
+        end,
+
+        escape = function(element)
+            cancelled = true
+        end,
+
+        destroy = function(element)
+            destroyHoverMarker()
+            if rangeMarker ~= nil then
+                rangeMarker:Destroy()
+                rangeMarker = nil
+            end
+        end,
+    }
+
+    gamehud.popupPanel:AddChild(picker)
+
+    while pickedLoc == nil and not cancelled do
+        coroutine.yield(0.1)
+    end
+
+    picker:DestroySelf()
+
+    return pickedLoc
+end
+
 function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args)
     if self.duplicateMode then
         self:CastDuplicate(ability, casterToken, targets, args)
@@ -819,6 +922,53 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
         if self.casterControls then
             newOwner = casterToken.ownerId
         end
+
+        --build the candidate creature list first, before rolling numSummons or
+        --asking for placement, so we can expose the chosen creature as a symbol
+        local choices = {}
+        if self.monsterType == "custom" then
+            for k,monster in pairs(assets.monsters) do
+                if not assets:GetMonsterNode(k).hidden then
+                    args.symbols.beast = GenerateSymbols(monster.properties)
+                    if monster.properties:has_key("monster_type") and ExecuteGoblinScript(self.bestiaryFilter, GenerateSymbols(casterToken.properties, args.symbols), 0, string.format("Bestiary filter for %s summons filter %s", ability.name, monster.properties.monster_type)) ~= 0 then
+                        choices[#choices+1] = monster
+                    end
+                end
+            end
+        else
+            local monster = assets.monsters[self.monsterType]
+            if monster ~= nil then
+                choices[#choices+1] = monster
+            end
+        end
+
+        args.symbols.beast = nil
+
+        dmhub.Debug(string.format("SUMMON:: CHOICES: %d", #choices))
+        if #choices == 0 then
+            return
+        end
+
+        table.sort(choices, function(a,b) return a.properties.monster_type < b.properties.monster_type end)
+
+        --pre-pick the chosen creature so its symbols are available to numSummons
+        --and to subsequent behaviors
+        local chosenOption
+        if #choices == 1 then
+            chosenOption = choices[1]
+        elseif self.casterChoosesCreatures then
+            local dialogOptions = { index = 1, numSummons = 1, allCreaturesTheSame = self.allCreaturesTheSame }
+            chosenOption = ActivatedAbilitySummonBehavior.ShowCreatureChoiceDialog(choices, dialogOptions)
+            if chosenOption == nil then
+                return
+            end
+        else
+            chosenOption = choices[math.random(#choices)]
+        end
+
+        --expose the chosen creature on the shared symbol table so numSummons
+        --and subsequent behaviors can reference Summon.<attribute>.
+        args.symbols.summon = GenerateSymbols(chosenOption.properties)
 
         local finishedRoll = false
         local numSummons = nil
@@ -848,32 +998,15 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
             return
         end
 
-
-        local choices = {}
-        if self.monsterType == "custom" then
-            for k,monster in pairs(assets.monsters) do
-                if not assets:GetMonsterNode(k).hidden then
-                    args.symbols.beast = GenerateSymbols(monster.properties)
-                    if monster.properties:has_key("monster_type") and ExecuteGoblinScript(self.bestiaryFilter, GenerateSymbols(casterToken.properties, args.symbols), 0, string.format("Bestiary filter for %s summons filter %s", ability.name, monster.properties.monster_type)) ~= 0 then
-                        choices[#choices+1] = monster
-                    end
-                end
-            end
-        else
-            local monster = assets.monsters[self.monsterType]
-            if monster ~= nil then
-                choices[#choices+1] = monster
+        local manualPlacement = self.choosePlacement and (not self.replaceCaster)
+        local rangeTiles = 0
+        if manualPlacement then
+            rangeTiles = dmhub.EvalGoblinScript(self.summonRange, GenerateSymbols(casterToken.properties, args.symbols), 0, string.format("Summon placement range for %s", ability.name)) or 0
+            rangeTiles = math.max(0, math.floor(rangeTiles))
+            if rangeTiles <= 0 then
+                manualPlacement = false
             end
         end
-
-        args.symbols.beast = nil
-
-        dmhub.Debug(string.format("SUMMON:: CHOICES: %d", #choices))
-        if #choices == 0 then
-            return
-        end
-
-        table.sort(choices, function(a,b) return a.properties.monster_type < b.properties.monster_type end)
 
         local summonedTokens = {}
         local summonerEntries = {}
@@ -885,8 +1018,6 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
         local warningExceededMinions = false
         local warningExceededSquads = false
 
-        local chosenOption = choices[1]
-
         local allSame = false
 
         local initiativeGrouping = nil
@@ -896,7 +1027,10 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
 
         for j=1,numSummons do
 
-            if j ~= 1 and (self.allCreaturesTheSame or allSame) then
+            if j == 1 then
+                --use the pre-picked chosenOption from before the numSummons roll.
+
+            elseif self.allCreaturesTheSame or allSame then
                 --all creatures are the same so just maintain the chosen option.
 
             elseif #choices > 1 and not self.casterChoosesCreatures then
@@ -935,9 +1069,18 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
                 squadNameForSpawn = squadResult.squadName
             end
 
-            local loc = target.loc
+            local loc
             if self.replaceCaster then
                 loc = casterToken.loc
+            elseif manualPlacement then
+                local isMinion = chosenOption ~= nil and chosenOption.properties ~= nil and chosenOption.properties:try_get("minion", false)
+                loc = ActivatedAbilitySummonBehavior.PromptPlacementLoc(casterToken, rangeTiles, j, numSummons, isMinion)
+                if loc == nil then
+                    --user cancelled; stop placing further summons but keep what's already there.
+                    break
+                end
+            else
+                loc = target.loc
             end
 
             local token = game.SpawnTokenFromBestiaryLocally(chosenOption.id, loc.withGroundAltitude, {
@@ -949,6 +1092,10 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
 
             if self.shareSurgesWithSummoner then
                 token.properties.sharesSurgesWithSummoner = true
+            end
+
+            if self.shareHeroicResourceWithSummoner then
+                token.properties.sharesHeroicResourceWithSummoner = true
             end
 
             if squadNameForSpawn ~= nil then
@@ -995,42 +1142,44 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
             print("TOKEN:: ASSIGN", tok)
         end
 
-        if ability:RequiresConcentration() and casterToken.properties:HasConcentration() then
-            casterToken:ModifyProperties{
-                description = "Concentrate on summons",
-                execute = function()
-                    local concentration = casterToken.properties:MostRecentConcentration()
-                    local summonid = concentration:get_or_add("summonid", {})
-                    for _,token in ipairs(summonedTokens) do
-                        summonid[#summonid+1] = token.charid
-                    end
-                end,
-            }
-        end
+        if #summonedTokens > 0 then
+            if ability:RequiresConcentration() and casterToken.properties:HasConcentration() then
+                casterToken:ModifyProperties{
+                    description = "Concentrate on summons",
+                    execute = function()
+                        local concentration = casterToken.properties:MostRecentConcentration()
+                        local summonid = concentration:get_or_add("summonid", {})
+                        for _,token in ipairs(summonedTokens) do
+                            summonid[#summonid+1] = token.charid
+                        end
+                    end,
+                }
+            end
 
-        if isSummoner and #summonerEntries > 0 then
-            casterToken:ModifyProperties{
-                description = "Register summons",
-                execute = function()
-                    for _,entry in ipairs(summonerEntries) do
-                        casterToken.properties:RegisterSummonedMinion(entry.charid, entry.squad, entry.monsterType)
-                    end
-                end,
-            }
-        end
+            if isSummoner and #summonerEntries > 0 then
+                casterToken:ModifyProperties{
+                    description = "Register summons",
+                    execute = function()
+                        for _,entry in ipairs(summonerEntries) do
+                            casterToken.properties:RegisterSummonedMinion(entry.charid, entry.squad, entry.monsterType)
+                        end
+                    end,
+                }
+            end
 
-        if warningExceededMinions then
-            chat.Send(string.format("%s exceeded their MaximumMinions limit of %d.", casterToken.description, summonerMaxMinions))
-        end
-        if warningExceededSquads then
-            chat.Send(string.format("%s exceeded their MaxMinionSquads limit of %d.", casterToken.description, summonerMaxSquads))
-        end
+            if warningExceededMinions then
+                chat.Send(string.format("%s exceeded their MaximumMinions limit of %d.", casterToken.description, summonerMaxMinions))
+            end
+            if warningExceededSquads then
+                chat.Send(string.format("%s exceeded their MaxMinionSquads limit of %d.", casterToken.description, summonerMaxSquads))
+            end
 
-        dmhub.Debug(string.format("SUMMON:: DONE"))
-        game.UpdateCharacterTokens()
+            dmhub.Debug(string.format("SUMMON:: DONE"))
+            game.UpdateCharacterTokens()
 
-        --we summoned, so consume resources.
-        ability:CommitToPaying(casterToken, args)
+            --we summoned, so consume resources.
+            ability:CommitToPaying(casterToken, args)
+        end
     end
 end
 
@@ -1164,6 +1313,14 @@ function ActivatedAbilityBehavior:SummonEditor(parentPanel, list, options)
 	options = options or {}
 
 	if options.numSummons then
+		local numSummonsHelpSymbols = DeepCopy(ActivatedAbility.helpCasting)
+		numSummonsHelpSymbols.summon = {
+			name = "Summon",
+			type = "creature",
+			desc = "The creature being summoned. Resolved from the player's selection (or random pick) before this script runs, so its custom attributes (e.g. Summon.SummonNum, Summon.SummonCost) are available here.",
+			examples = {"Summon.SummonNum", "Summon.SummonCost + 1"},
+		}
+
 		list[#list+1] = gui.Panel{
 			classes = "formPanel",
 			gui.Label{
@@ -1189,12 +1346,62 @@ function ActivatedAbilityBehavior:SummonEditor(parentPanel, list, options)
 							script = "3 + upcast",
 							text = "3 creatures will be summoned with an additional creature for every level the spell slot used for this spell is above the spell's level.",
 						},
+						{
+							script = "Summon.SummonNum",
+							text = "Number of summons is read from the chosen creature's 'Summon Num' custom attribute. Useful for Heroic summons where each stat block defines its own party size.",
+						},
+					},
+					subject = creature.helpSymbols,
+					subjectDescription = "The creature using the ability",
+					symbols = numSummonsHelpSymbols,
+				},
+
+			},
+		}
+
+		list[#list+1] = gui.Check{
+			text = "Choose placement for each creature",
+			value = self.choosePlacement,
+			minWidth = 300,
+			change = function(element)
+				self.choosePlacement = element.value
+				element.parent:FireEventTree("refreshChoosePlacement")
+			end,
+		}
+
+		list[#list+1] = gui.Panel{
+			classes = {"formPanel", cond(not self.choosePlacement, "hidden")},
+			refreshChoosePlacement = function(element)
+				element:SetClass("hidden", not self.choosePlacement)
+			end,
+			gui.Label{
+				classes = "formLabel",
+				text = "Range:",
+			},
+			gui.GoblinScriptInput{
+				value = self.summonRange,
+				change = function(element)
+					self.summonRange = element.value
+				end,
+
+				documentation = {
+					domains = parentPanel.data.parentAbility.domains,
+					help = string.format("This GoblinScript is used to determine the maximum distance, in squares, from the caster within which the player may place each summoned creature."),
+					output = "number",
+					examples = {
+						{
+							script = "3",
+							text = "The player chooses placement for each creature within 3 squares of the caster.",
+						},
+						{
+							script = "1 + Charges",
+							text = "The play can place 1 creature + the number of channeled resources used.",
+						},
 					},
 					subject = creature.helpSymbols,
 					subjectDescription = "The creature using the ability",
 					symbols = ActivatedAbility.helpCasting,
 				},
-
 			},
 		}
 	end
@@ -1345,6 +1552,15 @@ function ActivatedAbilityBehavior:SummonEditor(parentPanel, list, options)
         value = self.shareSurgesWithSummoner,
         change = function(element)
             self.shareSurgesWithSummoner = element.value
+        end,
+    }
+
+    list[#list+1] = gui.Check{
+        text = "Summons Share Heroic Resource",
+        minWidth = 300,
+        value = self.shareHeroicResourceWithSummoner,
+        change = function(element)
+            self.shareHeroicResourceWithSummoner = element.value
         end,
     }
 

@@ -503,10 +503,20 @@ CharacterModifier.TypeInfo.icon = {
 
 CharacterModifier.RegisterType('attribute', 'Modify Attribute')
 
+--Keyword options for 'add' attribute modifiers. When two add modifiers share a non-nil
+--keyword and target the same attribute, only the highest positive value and the most
+--negative value contribute (per keyword, per attribute). New keywords can be appended here.
+CharacterModifier.attributeAddKeywords = {
+	{ id = "none", text = "None" },
+	{ id = "Treasure", text = "Treasure" },
+}
+
 --an 'attribute' modifier has the following properties:
 --  - operation (default = 'add') -- 'add', 'set', 'max', 'min'
 --  - attribute (default = 'armorClass') -- the attribute to modify.
 --  - value (default = 1) -- a number or GoblinScript string describing the modification.
+--  - keyword (optional, only meaningful when operation == 'add') -- groups stacking adds; see
+--    CharacterModifier.FilterAttributeModifiersByKeyword.
 CharacterModifier.TypeInfo.attribute = {
 	init = function(modifier)
 		modifier.attribute = "armorClass"
@@ -740,6 +750,13 @@ CharacterModifier.TypeInfo.attribute = {
 			}
 
 			if attributeType.enum then
+				local isCreatureSetFilter = AttributeTypeCreatureSet.IsFilterValue(modifier.value)
+
+				local dropdownIdChosen = modifier.value
+				if isCreatureSetFilter then
+					dropdownIdChosen = AttributeTypeCreatureSet.FilterSentinelId
+				end
+
 				children[#children+1] = gui.Panel{
 					classes = {'formPanel'},
 					children = {
@@ -752,14 +769,58 @@ CharacterModifier.TypeInfo.attribute = {
 							width = 240,
 							fontSize = 16,
 							options = attributeType:GetDropdownOptions(attrInfo),
-							idChosen = modifier.value,
+							idChosen = dropdownIdChosen,
 							change = function(element)
-								modifier.value = element.idChosen
+								if element.idChosen == AttributeTypeCreatureSet.FilterSentinelId then
+									if not AttributeTypeCreatureSet.IsFilterValue(modifier.value) then
+										modifier.value = AttributeTypeCreatureSet.MakeFilterValue("")
+									end
+								else
+									modifier.value = element.idChosen
+								end
 								Refresh()
 							end,
 						},
 					}
 				}
+
+				if isCreatureSetFilter then
+					children[#children+1] = gui.Panel{
+						classes = {'formPanel'},
+						children = {
+							gui.Label{
+								text = 'Filter:',
+								classes = {'formLabel'},
+							},
+							gui.GoblinScriptInput{
+								value = AttributeTypeCreatureSet.GetFilterExpression(modifier.value),
+								change = function(element)
+									modifier.value = AttributeTypeCreatureSet.MakeFilterValue(element.value)
+								end,
+								documentation = {
+									help = "This GoblinScript is evaluated against each monster in the bestiary. Monsters for which the script returns true are considered part of this creature set.",
+									output = "boolean",
+									examples = {
+										{
+											script = "Beast.Keywords has \"Signature\" and Beast.name = \"Elemental Mote\"",
+											text = "Match the Elemental Mote bestiary entry tagged with the Signature keyword.",
+										},
+									},
+									subject = creature.helpSymbols,
+									subjectDescription = "The monster from the Bestiary that is being examined is found as the additional field, Beast.",
+									symbols = {
+										{
+											name = "Beast",
+											type = "creature",
+											desc = "The monster from the Bestiary being examined for membership in this creature set.",
+											examples = {"Beast.Keywords has \"Signature\""},
+										},
+									},
+								},
+							},
+						}
+					}
+				end
 			else
 
 				children[#children+1] = gui.Panel{
@@ -796,6 +857,40 @@ CharacterModifier.TypeInfo.attribute = {
 								subject = creature.helpSymbols,
 								subjectDescription = "The creature affected by this modifier.",
 								symbols = modifier:HelpAdditionalSymbols(),
+							},
+						},
+					}
+				}
+			end
+
+			if modifier:try_get('operation', 'add') == 'add' then
+				children[#children+1] = gui.Panel{
+					classes = {'formPanel'},
+					children = {
+						gui.Label{
+							text = 'Keyword:',
+							classes = {'formLabel'},
+						},
+						gui.Dropdown{
+							selfStyle = {
+								height = 30,
+								width = 300,
+								fontSize = 16,
+							},
+							options = CharacterModifier.attributeAddKeywords,
+							idChosen = modifier:try_get('keyword') or 'none',
+							events = {
+								change = function(element)
+									if element.idChosen == 'none' then
+										modifier.keyword = nil
+									else
+										modifier.keyword = element.idChosen
+									end
+									Refresh()
+								end,
+								linger = function(element)
+									gui.Tooltip("If multiple modifiers share a keyword, only the highest positive and the most negative values apply (per attribute).")(element)
+								end,
 							},
 						},
 					}
@@ -2940,6 +3035,87 @@ end
 --Below here we have functions that can be called on any modifier to see
 --how it behaves in various circumstances.
 
+
+--- Filters a list of active modifiers for a single attribute, applying keyword grouping.
+--- For "attribute"-behavior add modifiers that target this attribute and have a non-nil
+--- keyword, only the entry with the highest positive value and the entry with the most
+--- negative value (per keyword) are kept. Other modifiers (different behavior, different
+--- attribute, different operation, or no keyword) are passed through unchanged. The mods
+--- list is not mutated; a new list is returned.
+--- @param creature creature
+--- @param mods table The mods list (entries shaped like creature:GetActiveModifiers()).
+--- @param attributeName string The attribute being calculated.
+--- @return table The filtered mods list.
+function CharacterModifier.FilterAttributeModifiersByKeyword(creature, mods, attributeName)
+	local best = nil
+
+	for i, modContext in ipairs(mods) do
+		local m = modContext.mod
+		if m.behavior == "attribute"
+			and m:try_get("attribute", "armorClass") == attributeName
+			and m:try_get("operation", "add") == "add" then
+			local keyword = m:try_get("keyword")
+			if keyword ~= nil and keyword ~= "" and keyword ~= "none" then
+				local attributeType = CustomAttribute.GetAttributeType(m.attribute)
+				if attributeType ~= nil and not attributeType.enum then
+					m:InstallSymbolsFromContext(modContext)
+					local value = ExecuteGoblinScript(m.value, GenerateSymbols(creature, m:try_get("_tmp_symbols")), 0,
+						string.format("Keyword filter %s on %s", m.name, attributeName))
+					if type(value) == "number" and value ~= 0 then
+						best = best or {}
+						local entry = best[keyword]
+						if entry == nil then
+							entry = {}
+							best[keyword] = entry
+						end
+						if value > 0 then
+							if entry.positive == nil or value > entry.positive.value then
+								entry.positive = { idx = i, value = value }
+							end
+						else
+							if entry.negative == nil or value < entry.negative.value then
+								entry.negative = { idx = i, value = value }
+							end
+						end
+					end
+				end
+			end
+		end
+	end
+
+	if best == nil then
+		return mods
+	end
+
+	local kept = {}
+	for _, group in pairs(best) do
+		if group.positive ~= nil then
+			kept[group.positive.idx] = true
+		end
+		if group.negative ~= nil then
+			kept[group.negative.idx] = true
+		end
+	end
+
+	local result = {}
+	for i, modContext in ipairs(mods) do
+		local m = modContext.mod
+		local skip = false
+		if m.behavior == "attribute"
+			and m:try_get("attribute", "armorClass") == attributeName
+			and m:try_get("operation", "add") == "add" then
+			local keyword = m:try_get("keyword")
+			if keyword ~= nil and keyword ~= "" and keyword ~= "none" and not kept[i] then
+				skip = true
+			end
+		end
+		if not skip then
+			result[#result+1] = modContext
+		end
+	end
+
+	return result
+end
 
 --- Applies this modifier to the given attribute on the creature, returning the new value.
 --- @param modContext table The modifier context (includes bound symbol values).

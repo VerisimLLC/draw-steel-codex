@@ -4193,13 +4193,14 @@ function GameHud.CreateEmbeddedRollDialog()
                                 if c ~= nil then
                                     local tokenUsed = dmhub.LookupToken(c)
                                     if tokenUsed ~= nil then
+                                        local targetProperties = target.token ~= nil and target.token.properties or nil
                                         local rollSymbols
-                                        if rollProperties ~= nil then
-                                            rollSymbols = rollProperties:GetSymbols(m_rollInfo, target.token.properties)
+                                        if rollProperties ~= nil and targetProperties ~= nil then
+                                            rollSymbols = rollProperties:GetSymbols(m_rollInfo, targetProperties)
                                         end
                                         modifier:InstallSymbolsFromContext {
                                             triggerer = c:LookupSymbol {},
-                                            abilitytarget = target.token.properties:LookupSymbol {},
+                                            abilitytarget = targetProperties ~= nil and targetProperties:LookupSymbol {} or nil,
                                             abilitycaster = creatureUsed:LookupSymbol {},
                                             tier = rollSymbols,
                                         }

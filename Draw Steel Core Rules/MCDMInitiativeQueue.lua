@@ -579,7 +579,7 @@ function InitiativeQueue:GetTurnId()
 		return nil
 	end
 
-	return string.format("%s-%s", self:GetRoundId(), entry.initiativeid)
+	return string.format("%s-%s-%d", self:GetRoundId(), entry.initiativeid, entry.turnsTaken)
 end
 
 --called by DMHub to query the current combat round. zero-based result.

@@ -30,17 +30,17 @@ local g_triggerLookupSymbols = {
 local g_triggerHelpSymbols = {
     {
         name = "Name",
-        type = "text",
+        type = "string",
         desc = "The name of the trigger.",
     },
     {
         name = "Text",
-        type = "text",
+        type = "string",
         desc = "The display text of the trigger (may include cost).",
     },
     {
         name = "Rules",
-        type = "text",
+        type = "string",
         desc = "The rules text of the trigger.",
     },
     {
@@ -49,6 +49,8 @@ local g_triggerHelpSymbols = {
         desc = "Whether the trigger is a free triggered action.",
     },
 }
+
+RegisterGoblinScriptTypeInfo("trigger", g_triggerHelpSymbols)
 
 --- Creates a symbol-lookup object for an ActiveTrigger so it can be used in GoblinScript.
 --- @param triggerInfo ActiveTrigger
@@ -802,10 +804,14 @@ function creature:DispatchAvailableTrigger(triggerInfo)
             g_injectedTriggerIds[triggerInfo.id] = true
             local casterSymbols = self:LookupSymbol{}
             local mods = self:GetActiveModifiers()
+            local seenMods = {}
             for _, modContext in ipairs(mods) do
-                local typeInfo = CharacterModifier.TypeInfo[modContext.mod.behavior]
-                if typeInfo ~= nil and typeInfo.fillTriggerModes ~= nil then
-                    typeInfo.fillTriggerModes(modContext.mod, triggerInfo, self, casterSymbols)
+                if not seenMods[modContext.mod] then
+                    seenMods[modContext.mod] = true
+                    local typeInfo = CharacterModifier.TypeInfo[modContext.mod.behavior]
+                    if typeInfo ~= nil and typeInfo.fillTriggerModes ~= nil then
+                        typeInfo.fillTriggerModes(modContext.mod, triggerInfo, self, casterSymbols)
+                    end
                 end
             end
         end

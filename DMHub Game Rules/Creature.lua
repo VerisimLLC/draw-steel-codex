@@ -5412,6 +5412,8 @@ function creature:CalculateAttribute(attributeName, baseValue, mods)
 		mods = self:GetActiveModifiers()
 	end
 
+	mods = CharacterModifier.FilterAttributeModifiersByKeyword(self, mods, attributeName)
+
 	for i,mod in ipairs(mods) do
 		result = mod.mod:Modify(mod, self, attributeName, result)
 		attributesCalculating[attributeName] = result
@@ -5449,6 +5451,7 @@ function creature:DescribeModifications(attributeName, baseValue)
 
 	local currentValue = baseValue
 	local mods = self:GetActiveModifiers()
+	mods = CharacterModifier.FilterAttributeModifiersByKeyword(self, mods, attributeName)
 	for i,mod in ipairs(mods) do
 		local item = mod.mod:DescribeModification(self, attributeName, currentValue)
 
@@ -6226,7 +6229,7 @@ function creature:Moved(path)
             execute = function()
                 if dmhub.GetSettingValue("truediagonals") then self.moveDiag = diagonals + newDiagonals end
                 self.moveDistance = self:DistanceMovedThisTurn() + cost
-                self.moveDistanceRoundId = dmhub.initiativeQueue:GetRoundId()
+                self.moveDistanceRoundId = dmhub.initiativeQueue:GetTurnId()
             end,
         }
     end
@@ -6239,7 +6242,7 @@ function creature:SpendMovementInFeet(moveCost)
 
     local cost = moveCost/dmhub.FeetPerTile
 	self.moveDistance = self:DistanceMovedThisTurn() + cost
-	self.moveDistanceRoundId = dmhub.initiativeQueue:GetRoundId()
+	self.moveDistanceRoundId = dmhub.initiativeQueue:GetTurnId()
     return cost
 end
 
@@ -6257,7 +6260,7 @@ function creature:DistanceMovedThisTurn()
         return 0
     end
 
-	if dmhub.initiativeQueue:GetRoundId() ~= self:try_get("moveDistanceRoundId", "") then
+	if dmhub.initiativeQueue:GetTurnId() ~= self:try_get("moveDistanceRoundId", "") then
 		return 0
 	end
 
@@ -6269,7 +6272,7 @@ function creature:DiagonalsMovedThisTurn()
 		return 0
 	end
 
-	if dmhub.initiativeQueue:GetRoundId() ~= self:try_get("moveDistanceRoundId", "") then
+	if dmhub.initiativeQueue:GetTurnId() ~= self:try_get("moveDistanceRoundId", "") then
 		return 0
 	end
 
@@ -6778,8 +6781,15 @@ function creature:MatchesString(viewingToken, token, str)
         return true
     end
 
-    if self:has_key("keywords") and self.keywords[str] then
-        return true
+    if self:has_key("keywords") then
+        if self.keywords[str] then
+            return true
+        end
+        for keyword,_ in pairs(self.keywords) do
+            if string.lower(keyword) == str then
+                return true
+            end
+        end
     end
 
     if str == string.lower(self:RaceOrMonsterType()) then

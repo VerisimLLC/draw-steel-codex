@@ -329,7 +329,8 @@ function CharacterBuilder.CreatePanel()
         end,
 
         notifyChangeSound = function(element)
-            audio.FireSoundEvent("Notify.TempStamina_Gain")
+	    --remove until we can get a less overbearing sound.
+            --audio.FireSoundEvent("Notify.LockIn")
         end,
 
         refreshBuilderState = function(element, state)

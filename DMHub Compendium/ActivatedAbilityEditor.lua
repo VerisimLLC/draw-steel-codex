@@ -62,7 +62,7 @@ ActivatedAbility.CatHelpSymbols = function(a,b)
 	return res
 end
 
-function ActivatedAbility:GenerateEditor()
+function ActivatedAbility:GenerateEditor(opts)
 
 	-- Route to the sectioned Draw Steel ability editor unless the user has
 	-- opted back into the classic editor via the "Use classic ability editor"
@@ -70,7 +70,7 @@ function ActivatedAbility:GenerateEditor()
 	-- which loads after this module, so we use rawget for the lookup.
 	local abilityEditor = rawget(_G, "AbilityEditor")
 	if abilityEditor ~= nil and dmhub.GetSettingValue("classicAbilityEditor") ~= true then
-		return abilityEditor.GenerateEditor(self)
+		return abilityEditor.GenerateEditor(self, opts)
 	end
 
 	local resourceOptions = {}

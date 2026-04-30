@@ -855,9 +855,13 @@ CharacterModifier.TypeInfo.powertabletrigger = {
             end
 
             children[#children+1] = gui.Button{
-                width = 260,
-                height = 26,
-                fontSize = 18,
+                width = "auto",
+                height = "auto",
+                minWidth = 260,
+                hpad = 16,
+                vpad = 6,
+                borderBox = true,
+                fontSize = 16,
                 text = "Add Additional Cost Modifier",
                 click = function(element)
 

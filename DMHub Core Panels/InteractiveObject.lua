@@ -28,7 +28,7 @@ dmhub.GetObjectInteractives = function()
         }
     end
 
-    table.sort(result, function(a,b) return a.name < b.name end)
+    table.sort(result, function(a,b) return a.text < b.text end)
     return result
 end
 
@@ -101,7 +101,7 @@ dmhub.ShowObjectInteractive = function(objid, interactiveid)
 
     local parentPanel = gui.Panel{
         width = "100%",
-        height = "!00%",
+        height = "100%",
         bgimage = "panels/square.png",
         bgcolor = "#000000f2",
         styles = {

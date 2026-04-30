@@ -40,6 +40,9 @@ creature.summonedMinions = {}
 --- @field creature.sharesSurgesWithSummoner boolean If true, surges granted to this summoned creature are redirected to its summoner.
 creature.sharesSurgesWithSummoner = false
 
+--- @field creature.sharesHeroicResourceWithSummoner boolean If true, heroic resource consumed/granted on this summoned creature is redirected to its summoner.
+creature.sharesHeroicResourceWithSummoner = false
+
 function creature:MinionSquad()
     if self:has_key("minionSquad") then
         return self.minionSquad
@@ -397,6 +400,57 @@ function creature:GetMaxSurgeCount()
     end
 
     return self._tmp_maxSurgeCount
+end
+
+--- @return CharacterToken|nil summoner token if this creature shares its heroic resource with its summoner, else nil.
+function creature:GetHeroicResourceSharingSummonerToken()
+    if not self.sharesHeroicResourceWithSummoner then
+        return nil
+    end
+
+    local selfToken = dmhub.LookupToken(self)
+    if selfToken == nil or not selfToken.summonerid then
+        return nil
+    end
+
+    local summonerToken = dmhub.GetTokenById(selfToken.summonerid)
+    if summonerToken ~= nil and summonerToken.valid then
+        return summonerToken
+    end
+
+    return nil
+end
+
+local g_baseMonsterGetHeroicOrMaliceResources = monster.GetHeroicOrMaliceResources
+function monster:GetHeroicOrMaliceResources()
+    local summonerToken = self:GetHeroicResourceSharingSummonerToken()
+    if summonerToken ~= nil then
+        return summonerToken.properties:GetHeroicOrMaliceResources()
+    end
+    return g_baseMonsterGetHeroicOrMaliceResources(self)
+end
+
+local g_baseCharacterGetHeroicOrMaliceResources = character.GetHeroicOrMaliceResources
+function character:GetHeroicOrMaliceResources()
+    local summonerToken = self:GetHeroicResourceSharingSummonerToken()
+    if summonerToken ~= nil then
+        return summonerToken.properties:GetHeroicOrMaliceResources()
+    end
+    return g_baseCharacterGetHeroicOrMaliceResources(self)
+end
+
+--- Returns true if this creature is a summon owned by a hero. Hero-summoned monsters
+--- should not surface villain/malice-cost abilities (malice is a GM resource).
+function creature:IsHeroSummon()
+    local selfToken = dmhub.LookupToken(self)
+    if selfToken == nil or not selfToken.summonerid then
+        return false
+    end
+    local summonerToken = dmhub.GetTokenById(selfToken.summonerid)
+    if summonerToken == nil or not summonerToken.valid then
+        return false
+    end
+    return summonerToken.properties:IsHero()
 end
 
 local g_minionSquadTables = {}

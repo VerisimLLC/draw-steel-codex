@@ -642,8 +642,9 @@ local function ActionBarDrawer(args)
             if args.type == "malice" then
                 local isMonster = g_creature:IsMonster()
                 local isFollower = g_creature:IsFollower()
-                resultPanel:SetClass("collapsed", not isMonster or isFollower)
-                if not isMonster or isFollower then
+                local isHeroSummon = g_creature:IsHeroSummon()
+                resultPanel:SetClass("collapsed", not isMonster or isFollower or isHeroSummon)
+                if not isMonster or isFollower or isHeroSummon then
                     return
                 end
             end
@@ -4109,11 +4110,19 @@ CreateAbilityController = function()
 
                     local throughCreatures = g_currentAbility:try_get("forcedMovementThroughCreatures", false)
                     local reboundOptions = g_token.properties:GetForcedPushOptions()
+                    --pass forcedMovementDistance so the preview cost function treats "blocks forced movement"
+                    --walls as blocking (same flag the real cast sets in AbilityRelocateCreature.lua).
+                    --only applies to the straightline (forced-movement) targeting variant.
+                    local previewForcedDist = 0
+                    if targetingType == "straightline" then
+                        previewForcedDist = g_currentAbility:GetRange(g_token.properties, g_currentSymbols) / dmhub.unitsPerSquare
+                    end
                     local movementInfo = g_token:MarkMovementArrow(loc, {
                         straightline = true,
                         ignorecreatures = (targetingType == "straightpathignorecreatures" or throughCreatures),
                         rebound = reboundOptions.rebound,
                         maxBounces = reboundOptions.maxBounces,
+                        forcedMovementDistance = previewForcedDist,
                     })
                     
                     if movementInfo ~= nil then

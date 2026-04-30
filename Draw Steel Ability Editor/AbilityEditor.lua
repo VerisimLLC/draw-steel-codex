@@ -46,11 +46,17 @@ local LAYOUT = {
     TITLE_HEIGHT = 44,
 
     NAV_WIDTH = 220,
+    -- Narrower nav rail in embedded hosts (Standard Abilities compendium) so
+    -- the detail column keeps plenty of room for wide behavior forms.
+    NAV_WIDTH_EMBEDDED = 180,
     -- Ability tooltip cards render at ~400px native (see CreateAbilityTooltip
     -- in DMHub Compendium/ActivatedAbilityEditor.lua:34). Give the preview
     -- enough room for that plus padding, so description text wraps to the
     -- card's natural width rather than being squeezed.
     PREVIEW_WIDTH = 440,
+    -- In embedded mode the preview column collapses into a thin tab pinned
+    -- to the right edge; clicking it toggles the full-width preview overlay.
+    PREVIEW_TAB_WIDTH = 28,
     -- Detail column fills whatever remains between nav and preview.
 
     NAV_BUTTON_HEIGHT = 42,
@@ -95,10 +101,6 @@ AbilityEditor.SECTIONS = SECTIONS
     CBStyles.GetStyles(), which wires character-builder-specific width math.
     Colors and fonts match Character Builder so the editor feels consistent.
 ]]
--- Exposed below as AbilityEditor.GetEditorStyles so the Triggered Ability
--- Editor (and other in-module editors) can reuse the full style pack rather
--- than reimplementing a subset. Keeps label alignment, button skins, and
--- checkbox rendering consistent across editors in the mod.
 local function _editorStyles()
     return {
         -- SourceReference:Editor (DMHub Utils/SourceReference.lua) relies on
@@ -4628,14 +4630,20 @@ end
     The preview column is always visible; the editor runs as a full-screen
     modal so the detail column has enough room even with the preview mounted.
 
-    Polling: behaviors' EditorItems are shared base code and have no hook
-    into the editor's fireChange helper, so typing in fields like a power-
-    roll tier text updates the ability's data but never triggers a preview
-    rebuild. We use a thinkTime-based poll on previewSlot to schedule a
-    refresh every 250ms. The existing debounce in _schedulePreviewRefresh
-    coalesces this with keystroke-driven refreshes so we don't double-run.
+    Behaviour-driven invalidation: most preview content comes from top-level
+    ability fields edited in the form, which already route through fireChange.
+    The exception is the Power Roll behaviour (and the legacy Attack
+    behaviour), whose EditorItem inputs mutate fields visible on the preview
+    card -- tiers, roll formula, resistance attribute, modifiers. Those
+    handlers call element:FireEventOnParents("refreshAbilityPreview"), which
+    rootPanel handles by calling _schedulePreviewRefresh. The poll-every-250ms
+    pattern that previously lived here was removed because rebuilding the
+    entire preview subtree on a timer is expensive (especially with multiple
+    nested editors open). If you add a new behaviour type whose fields surface
+    on the preview tooltip, instrument its EditorItems change handlers the
+    same way -- see ActivatedAbilityPowerRollBehavior:EditorItems.
 ]]
-local function _makePreview(ability, schedulePreviewRefresh)
+local function _makePreview(ability)
     local previewSlot
     previewSlot = gui.Panel{
         id = "previewSlot",
@@ -4645,13 +4653,6 @@ local function _makePreview(ability, schedulePreviewRefresh)
         valign = "top",
         flow = "vertical",
         bgcolor = "clear",
-
-        thinkTime = 0.25,
-        think = function(element)
-            if schedulePreviewRefresh ~= nil then
-                schedulePreviewRefresh()
-            end
-        end,
 
         refreshPreview = function(element)
             -- Wrap the tooltip card in a width-constrained container so the
@@ -4758,13 +4759,22 @@ end
     Root editor
     ============================================================================
 ]]
-function AbilityEditor.GenerateEditor(ability)
+function AbilityEditor.GenerateEditor(ability, opts)
+    opts = opts or {}
+    -- Embedded mode: host container is narrow (e.g. the Standard Abilities
+    -- compendium inlines the editor at ~1000px) so the preview column is
+    -- replaced with a floating overlay that is collapsed by default and
+    -- toggled via a 28px tab pinned to the right edge of the body row.
+    local embedded = opts.embedded == true
     local sectionContents = {}
     local navButtons = {}
 
     -- Forward-declare so nav button click handlers can close over it.
     local rootPanel
     local previewCol
+    local previewHost
+    local previewTab
+    local previewTabLabel
     local detailCol
     local detailScroll = nil
     local effectsBottomBar = nil
@@ -4848,10 +4858,12 @@ function AbilityEditor.GenerateEditor(ability)
         sectionContents[#sectionContents + 1] = _makeSectionContent(sectionDef, ability, fireChange)
     end
 
+    local navWidth = embedded and LAYOUT.NAV_WIDTH_EMBEDDED or LAYOUT.NAV_WIDTH
+
     local navCol = gui.Panel{
         classes = {"nae-nav-col"},
         id = "navCol",
-        width = LAYOUT.NAV_WIDTH,
+        width = navWidth,
         height = "100%",
         flow = "vertical",
         halign = "left",
@@ -4961,12 +4973,17 @@ function AbilityEditor.GenerateEditor(ability)
         end,
     }
 
+    -- Embedded mode reserves only the tab width in the flex row; the full
+    -- preview column floats as an overlay above the detail column when
+    -- toggled. Fullscreen mode reserves the full preview column width.
+    local previewReserve = embedded and LAYOUT.PREVIEW_TAB_WIDTH or LAYOUT.PREVIEW_WIDTH
+
     detailCol = gui.Panel{
         classes = {"nae-detail-col"},
         id = "detailCol",
         -- Fills the remaining width between nav (fixed) and preview (fixed).
         -- 8px border budget matches the nav + preview + border allowance.
-        width = string.format("100%%-%d", LAYOUT.NAV_WIDTH + LAYOUT.PREVIEW_WIDTH + 8),
+        width = string.format("100%%-%d", navWidth + previewReserve + 8),
         height = "100%",
         flow = "vertical",
         halign = "left",
@@ -4977,7 +4994,102 @@ function AbilityEditor.GenerateEditor(ability)
         children = {detailScroll, effectsBottomBar},
     }
 
-    previewCol, previewSlot = _makePreview(ability, _schedulePreviewRefresh)
+    previewCol, previewSlot = _makePreview(ability)
+
+    -- In embedded mode the preview column is rehomed inside a floating overlay
+    -- that sits pinned to the right edge of the body row. A thin tab lives
+    -- inside the overlay at its left edge; clicking the tab grows or shrinks
+    -- the overlay width between PREVIEW_TAB_WIDTH (collapsed) and PREVIEW_WIDTH
+    -- (open). `clip = true` hides the preview column when the overlay is
+    -- collapsed so it doesn't bleed past the tab. In fullscreen mode the
+    -- preview column sits in the flex row directly (original behavior).
+    local bodyChildren
+    if embedded then
+        -- Hover lives on the chevron label (not the full-height tab) so the
+        -- tooltip anchors to the small centered label rather than the tall
+        -- tab strip. The default tooltip position (valign="bottom",
+        -- halign="center") then sits just below the chevron, at cursor
+        -- height, instead of at the screen bottom.
+        previewTabLabel = gui.Label{
+            text = "<",
+            fontSize = 32,
+            bold = true,
+            color = COLORS.GOLD_BRIGHT,
+            width = "auto",
+            height = "auto",
+            halign = "center",
+            valign = "center",
+            hover = function(element)
+                if previewHost == nil then return end
+                local open = previewHost.data.previewOpen == true
+                element.tooltip = gui.Tooltip(open and "Hide Preview" or "Show Preview")(element)
+            end,
+        }
+
+        previewTab = gui.Panel{
+            classes = {"nae-preview-tab"},
+            id = "previewTab",
+            width = LAYOUT.PREVIEW_TAB_WIDTH,
+            height = "100%",
+            flow = "vertical",
+            halign = "left",
+            valign = "top",
+            bgcolor = COLORS.PANEL_BG,
+            hpad = 0,
+            vpad = 8,
+            borderBox = true,
+            click = function(element)
+                if previewHost == nil then return end
+                local open = not (previewHost.data.previewOpen == true)
+                previewHost.data.previewOpen = open
+                local previewW = open and LAYOUT.PREVIEW_WIDTH or LAYOUT.PREVIEW_TAB_WIDTH
+                previewHost.width = previewW
+                -- Shrink the detail column by the same amount so the form
+                -- reflows instead of being covered by the expanding preview.
+                if detailCol ~= nil then
+                    detailCol.width = string.format("100%%-%d", navWidth + previewW + 8)
+                end
+                if previewTabLabel ~= nil then
+                    previewTabLabel.text = open and ">" or "<"
+                end
+                -- Refresh preview content on open so it reflects edits made
+                -- while the overlay was collapsed.
+                if open and previewSlot ~= nil then
+                    previewSlot:FireEvent("refreshPreview")
+                end
+            end,
+            children = { previewTabLabel },
+        }
+
+        -- In embedded mode the preview host is a flex sibling of detailCol
+        -- (not floating) so growing its width physically reflows the detail
+        -- column. `clip = true` hides the 440px-wide previewCol child when
+        -- the host is collapsed to PREVIEW_TAB_WIDTH.
+        previewHost = gui.Panel{
+            classes = {"nae-preview-overlay"},
+            id = "previewOverlay",
+            halign = "left",
+            valign = "top",
+            width = LAYOUT.PREVIEW_TAB_WIDTH,
+            height = "100%",
+            flow = "horizontal",
+            bgcolor = COLORS.BG,
+            -- bgimage is required for `clip` to take effect; the engine uses
+            -- the bgimage as the clip mask. Without it, previewCol (440 wide)
+            -- bleeds past the host's collapsed 28px footprint and the edge of
+            -- "Preview" / the ability card peeks through next to the tab.
+            bgimage = "panels/square.png",
+            clipHidden = true,
+            borderBox = true,
+            clip = true,
+            data = { previewOpen = false },
+            children = { previewTab, previewCol },
+        }
+
+        bodyChildren = { navCol, detailCol, previewHost }
+    else
+        bodyChildren = { navCol, detailCol, previewCol }
+    end
 
     local bodyRow = gui.Panel{
         id = "bodyRow",
@@ -4988,11 +5100,7 @@ function AbilityEditor.GenerateEditor(ability)
         valign = "top",
         bgcolor = "clear",
         borderBox = true,
-        children = {
-            navCol,
-            detailCol,
-            previewCol,
-        },
+        children = bodyChildren,
     }
 
     local titleStrip = gui.Panel{
@@ -5036,6 +5144,16 @@ function AbilityEditor.GenerateEditor(ability)
             ability = ability,
             selectedSectionId = SECTIONS[1].id,
         },
+        -- Behaviour-driven preview invalidation. EditorItem change handlers
+        -- on behaviours that surface fields on the preview card (currently
+        -- ActivatedAbilityPowerRollBehavior) call
+        -- element:FireEventOnParents("refreshAbilityPreview"), which bubbles
+        -- up to here. We feed it through the existing 150ms debounce so
+        -- multiple rapid events (e.g. a structural change that touches
+        -- several fields) coalesce into a single rebuild.
+        refreshAbilityPreview = function(element)
+            _schedulePreviewRefresh()
+        end,
         children = {
             titleStrip,
             gui.MCDMDivider{
@@ -5067,7 +5185,7 @@ function AbilityEditor.GenerateEditor(ability)
             local parent = rootPanel.parent
             if parent ~= nil then
                 parent.children = {
-                    AbilityEditor.GenerateEditor(ability),
+                    AbilityEditor.GenerateEditor(ability, opts),
                 }
             end
         end

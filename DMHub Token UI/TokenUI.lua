@@ -2856,6 +2856,18 @@ function creature:RefreshAnimations(token)
 		self:RefreshReactionAlerts(token)
 	end
 
+	--Eager refresh path: the periodic think on token.sheet only fires every 12s
+	--(or 1s with looping emotes) and uses FireEvent which doesn't reach descendant
+	--panels like StatusPanel. RefreshToken is called by the engine on actual state
+	--changes (not every frame), so firing FireEventTree here ensures sub-tree
+	--state - damage flash, stamina bar, status icons - reflects the change
+	--immediately. Descendant refresh handlers short-circuit when their data hasn't
+	--changed (e.g. StatusPanel's DeepEqual check on bar values), so the cost is
+	--bounded by what actually needs redrawing.
+	if token.sheet ~= nil then
+		token.sheet:FireEventTree("refresh")
+	end
+
 	local animations = self:try_get("animations")
 	if animations == nil then
 		self._tmp_anim = ""

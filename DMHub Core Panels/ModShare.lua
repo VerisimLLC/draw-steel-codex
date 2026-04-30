@@ -1468,7 +1468,8 @@ local showShareModuleDialog = function(options)
 
 	local isNewModule = options.moduleInfo == nil
 	local versionNotesInput
-	
+	local minEngineVersionInput
+
 	local conditionsAgreed = false
 
 	local npage = 1
@@ -1606,6 +1607,11 @@ local showShareModuleDialog = function(options)
 						notes = versionNotesInput.text
 					end
 
+					local minEngineVersion = nil
+					if minEngineVersionInput ~= nil then
+						minEngineVersion = minEngineVersionInput.text
+					end
+
 					local contentSummary = {}
 					dialogPanel:FireEventTree("collectManifest", contentSummary)
 
@@ -1615,6 +1621,7 @@ local showShareModuleDialog = function(options)
 						includedAssets = assetsIncludingDependencies,
 
 						notes = notes,
+						minEngineVersion = minEngineVersion,
 
 						success = function(guid)
 							dmhub.Debug(string.format("Module:: Uploaded to %s", guid))
@@ -1798,6 +1805,11 @@ local showShareModuleDialog = function(options)
 			classes = {'description-input'},
 		}
 	end
+
+	minEngineVersionInput = gui.Input{
+		text = dmhub.version,
+		characterLimit = 32,
+	}
 
 	local previewImage = gui.Panel{
 		classes = {"hidden"},
@@ -2168,6 +2180,17 @@ local showShareModuleDialog = function(options)
 					end
 				}
 			}
+		},
+
+		gui.Panel{
+			classes = {'form-entry'},
+
+			gui.Label{
+				classes = {'formLabel'},
+				text = 'Minimum Engine Version:',
+			},
+
+			minEngineVersionInput,
 		},
 
 

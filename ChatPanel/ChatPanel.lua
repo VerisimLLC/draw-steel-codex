@@ -359,9 +359,18 @@ CreateChatPanel = function()
 				local newMessagePanels = {}
 				local children = {}
 				local newMessage = false
+				local freshNewMessage = false
+				-- Only chime for messages whose server timestamp is recent. This
+				-- suppresses replayed history -- panel mount, dock reopen, and any
+				-- batched/late snapshot delivery on (re)connect.
+				local nowMs = os.time() * 1000
 				for i,message in ipairs(chat.messages) do
                     if message.messageType == "chat" or message.messageType == "data" or message.messageType == "object" or (message.messageType == "custom" and rawget(message.properties, "channel") == "chat") then
-                        newMessage = (messagePanels[message.key] == nil)
+                        local isNew = (messagePanels[message.key] == nil)
+                        newMessage = isNew
+                        if isNew and message.timestamp ~= nil and (nowMs - message.timestamp) < 10000 then
+                            freshNewMessage = true
+                        end
                         local child = messagePanels[message.key]
                         
                         if child == nil and (not g_errorPanels[message.key]) then
@@ -399,6 +408,10 @@ CreateChatPanel = function()
 				if newMessage then
 					element.vscrollPosition = 0
 					element:ScheduleEvent("moveToBottom", 0.05)
+				end
+
+				if freshNewMessage then
+					audio.FireSoundEvent("UI.ChatMsgRegular")
 				end
 			end,
 

@@ -1,14 +1,30 @@
 local mod = dmhub.GetModLoading()
 
---- ThemeEngine — UI theming engine for Draw Steel Codex.
---- Registries for color schemes and themes, a resolver with sigil-based substitution,
---- a cache keyed by the resolved (theme, scheme) pair, and an OnThemeChanged event.
---- Default content (default theme, default color scheme) and settings-UI wiring
---- are handled elsewhere; this file is the engine only.
+--- ThemeEngine -- UI theming engine for Draw Steel Codex.
+--- Registries for color schemes and themes, a resolver with sigil-based
+--- substitution, a cache keyed by the resolved (theme, scheme) pair, and an
+--- OnThemeChanged event. Default content (default theme, default color scheme)
+--- and settings-UI wiring are handled elsewhere; this file is the engine only.
 ---
---- Color and font properties in style rules may reference named values via the
---- @name sigil. The engine resolves these at GetStyles() time using property-typed
---- resolution: color/bgcolor/borderColor -> colors table; fontFace -> fonts table.
+--- Color, font, and gradient properties in style rules may reference named
+--- values via the `@name` sigil. The engine resolves these at GetStyles() time
+--- using property-typed resolution:
+---   color / bgcolor / borderColor  -> colors table
+---   fontFace                       -> fonts table
+---   gradient                       -> gradients table
+---
+--- Naming conventions used by the registered content (see DefaultStyles.lua):
+--- a single rule with no exceptions -- camelCase everywhere.
+---   Tokens (color and gradient names): `bg`, `bgAlt`, `accentHover`,
+---     `surfaceRadial`, `barTrack`. Referenced as `@bgAlt` etc.
+---   Selectors (CSS class names): `enumSlider`, `formRow`, `iconButton`,
+---     `multiselectChip`, etc. The engine binary already emits camelCase
+---     state classes (`hover`, `press`, `selected`, `expandedTop`, ...)
+---     and the gui-wrapper layer (`Gui.lua`) names its emitted classes
+---     camelCase too, so picking camelCase as the single convention
+---     means zero exceptions to maintain.
+---   `parent:*` / `~classname` are selector grammar (parent-state and
+---     negation), not class names; they're untouched by the rule.
 --- @class ThemeEngine
 ThemeEngine = {} --RegisterGameType("ThemeEngine")
 
@@ -21,6 +37,21 @@ local _themes = {}               -- themeId -> stored theme spec
 
 local _activeThemeId = nil
 local _activeSchemeId = nil
+
+-- Persistent storage for the user's active theme and color scheme
+-- selections. No section/editor/description, so they don't appear in
+-- the settings UI. storage = "preference" -- per-user, persists across
+-- games on this machine.
+local _activeThemeSetting = setting{
+    id = "themeengine.activetheme",
+    storage = "preference",
+    default = "default",
+}
+local _activeSchemeSetting = setting{
+    id = "themeengine.activecolorscheme",
+    storage = "preference",
+    default = "default",
+}
 
 local _cache = {}                -- "themeId|schemeId" -> resolved styles array
 local _loggedUnresolved = {}     -- set of "domain:name" keys already logged
@@ -42,7 +73,7 @@ local DEFAULT_SCHEME_ID = "default"
 local THEME_CHANGED_EVENT = "ThemeEngine.ThemeChanged"
 
 -- =============================================================================
--- Font catalog (hardcoded — DMHub owns which font files exist)
+-- Font catalog (hardcoded -- DMHub owns which font files exist)
 -- =============================================================================
 -- Kept in alphabetical order by `name`. Add new entries in the right slot so
 -- ListFontFaces returns them sorted without runtime sorting.
@@ -293,7 +324,7 @@ local function _resolveValue(value, domain, tables)
 end
 
 --- Walk a raw styles array, cloning each rule and substituting @name references.
---- The `selectors` array is treated as literal — never substituted.
+--- The `selectors` array is treated as literal -- never substituted.
 --- @param rawStyles table[]
 --- @param tables table { colors, fonts, gradients }
 --- @return table[]
@@ -440,7 +471,10 @@ local function _cacheKey(themeId, schemeId)
 end
 
 local function _fireThemeChanged()
-    EventUtils.FireGlobalEvent(THEME_CHANGED_EVENT)
+    local eu = rawget(_G, "EventUtils")
+    if eu then
+        eu.FireGlobalEvent(THEME_CHANGED_EVENT)
+    end
 end
 
 --- Return true if the given color scheme id is currently referenced by active state:
@@ -498,7 +532,7 @@ local function _cloneFontEntry(entry)
 end
 
 -- =============================================================================
--- Public API — Registration
+-- Public API -- Registration
 -- =============================================================================
 
 --- Register a color scheme. Returns false if the id is already registered; the
@@ -507,7 +541,7 @@ end
 --- `gradients` is an optional map of gradient specs keyed by name. Each spec is a
 --- plain table (not a `gui.Gradient`); the engine wraps it with `gui.Gradient` at
 --- resolve time. Stops inside the spec may use `@name` refs to colors in the same
---- scheme — those resolve during style resolution against the merged color table.
+--- scheme -- those resolve during style resolution against the merged color table.
 --- @param spec table { id, name, description, colors = { name = hex, ... }, gradients? = { name = spec, ... } }
 --- @return boolean registered
 function ThemeEngine.RegisterColorScheme(spec)
@@ -543,8 +577,8 @@ end
 --- Deregister a color scheme by id. Silent no-op if the id isn't registered.
 ---
 --- Refuses (with a log) to remove:
----   * the default color scheme — it's the ultimate fallback and must remain present;
----   * any scheme currently in use — the user's active override or the scheme
+---   * the default color scheme -- it's the ultimate fallback and must remain present;
+---   * any scheme currently in use -- the user's active override or the scheme
 ---     referenced by the active theme's `colorScheme` field.
 ---
 --- Because removal can only affect entries that aren't on-screen, nothing visible
@@ -573,7 +607,7 @@ end
 --- registration is left untouched.
 ---
 --- Font values in the `fonts` map are validated against the hardcoded font catalog.
---- Unknown names are logged once per unique name but do not prevent registration —
+--- Unknown names are logged once per unique name but do not prevent registration --
 --- this matches the engine's "loud but non-fatal" policy for missing references.
 --- @param spec table { id, name, description, inherit?, colorScheme, fonts?, styles }
 --- @return boolean registered
@@ -605,8 +639,8 @@ end
 --- Deregister a theme by id. Silent no-op if the id isn't registered.
 ---
 --- Refuses (with a log) to remove:
----   * the default theme — it's the ultimate fallback and must remain present;
----   * the active theme or any theme in its inherit chain — removing a link in
+---   * the default theme -- it's the ultimate fallback and must remain present;
+---   * the active theme or any theme in its inherit chain -- removing a link in
 ---     the chain that's currently rendering would visibly break the UI.
 ---
 --- Because removal can only affect entries that aren't on-screen, nothing visible
@@ -632,7 +666,7 @@ function ThemeEngine.DeregisterTheme(id)
 end
 
 -- =============================================================================
--- Public API — Activation & inspection
+-- Public API -- Activation & inspection
 -- =============================================================================
 
 --- Set the active theme. Unknown ids are accepted silently; the resolver handles
@@ -641,6 +675,7 @@ end
 function ThemeEngine.SetActiveTheme(themeId)
     if _activeThemeId == themeId then return end
     _activeThemeId = themeId
+    _activeThemeSetting:Set(themeId or "default")
     _fireThemeChanged()
 end
 
@@ -650,6 +685,7 @@ end
 function ThemeEngine.SetActiveColorScheme(schemeId)
     if _activeSchemeId == schemeId then return end
     _activeSchemeId = schemeId
+    _activeSchemeSetting:Set(schemeId or "default")
     _fireThemeChanged()
 end
 
@@ -661,6 +697,25 @@ end
 --- @return string|nil
 function ThemeEngine.GetActiveColorScheme()
     return _activeSchemeId
+end
+
+--- Restore the active theme + color scheme from persistent settings.
+--- Call once after all themes/schemes are registered so subsequent
+--- GetStyles() reflects the user's saved selection. Validates the
+--- saved ids against the registry; silently ignores ids that no longer
+--- correspond to a registered theme/scheme.
+function ThemeEngine.RestoreActiveSelection()
+    local savedTheme = _activeThemeSetting:Get()
+    local savedScheme = _activeSchemeSetting:Get()
+
+    if savedTheme and _themes[savedTheme] then
+        _activeThemeId = savedTheme
+    end
+    if savedScheme and _colorSchemes[savedScheme] then
+        _activeSchemeId = savedScheme
+    end
+
+    _fireThemeChanged()
 end
 
 --- Register a callback to run whenever the active theme or active color scheme changes.
@@ -703,7 +758,7 @@ function ThemeEngine.ListColorSchemes()
 end
 
 -- =============================================================================
--- Public API — Font catalog (read-only)
+-- Public API -- Font catalog (read-only)
 -- =============================================================================
 
 --- Check whether a font face is in the hardcoded DMHub catalog. Case-insensitive.
@@ -719,8 +774,8 @@ end
 --- The catalog itself is kept alphabetical, so results are already sorted by name.
 ---
 --- Filter fields (all optional):
----   style — scalar; match when entry.style == style.
----   use   — scalar; match when use is present in entry.uses.
+---   style -- scalar; match when entry.style == style.
+---   use   -- scalar; match when use is present in entry.uses.
 ---   Both, when supplied, apply together (AND).
 --- @param filter table|nil { style?, use? }
 --- @return table[]
@@ -756,7 +811,7 @@ function ThemeEngine.ListFontFaces(filter)
 end
 
 -- =============================================================================
--- Public API — Resolution
+-- Public API -- Resolution
 -- =============================================================================
 
 --- Get the resolved styles array for the current (or overridden) theme/scheme pair.
@@ -804,14 +859,11 @@ function ThemeEngine.GetStyles(themeIdOverride, schemeIdOverride)
     return resolved
 end
 
-local _mergeCallCount = 0
-local _mergeCallsByCaller = {}
-
 --- Merge a caller-supplied styles array on top of the active theme's resolved styles.
 ---
 --- The custom rules are run through the same @name resolver the engine uses for
---- registered theme rules, so they can reference @text / @success / @accentHover /
---- @panelRadial / etc. and follow scheme switches when the caller re-invokes
+--- registered theme rules, so they can reference @fg / @success / @accentHover /
+--- @surfaceRadial / etc. and follow scheme switches when the caller re-invokes
 --- MergeStyles after an OnThemeChanged event.
 ---
 --- The base (theme) styles come first, custom rules are appended last, so on
@@ -819,7 +871,7 @@ local _mergeCallsByCaller = {}
 --- callers can still set `priority = N` on individual custom rules.
 ---
 --- The base styles array is the same memoized array returned by GetStyles().
---- The custom resolution is recomputed each call (uncached) — typical custom
+--- The custom resolution is recomputed each call (uncached) -- typical custom
 --- arrays are small and the @name resolver is cheap.
 ---
 --- Always uses the active theme/scheme pair; no overrides. Callers needing
@@ -828,22 +880,6 @@ local _mergeCallsByCaller = {}
 --- @param customStyles table[]|nil Array of rule tables (selectors + properties).
 --- @return table[] styles
 function ThemeEngine.MergeStyles(customStyles)
-    _mergeCallCount = _mergeCallCount + 1
-    -- DEBUG: log call count per source so we can find the spam.
-    -- traceback(2) = the caller's frame.
-    local info = debug.getinfo(2, "Sl")
-    local key = info and (info.short_src .. ":" .. tostring(info.currentline)) or "unknown"
-    _mergeCallsByCaller[key] = (_mergeCallsByCaller[key] or 0) + 1
-    if _mergeCallCount % 50 == 0 then
-        printf("THC:: MergeStyles total=%d", _mergeCallCount)
-        local rows = {}
-        for k,v in pairs(_mergeCallsByCaller) do rows[#rows+1] = {k=k, v=v} end
-        table.sort(rows, function(a,b) return a.v > b.v end)
-        for i = 1, math.min(8, #rows) do
-            printf("THC::   %dx %s", rows[i].v, rows[i].k)
-        end
-    end
-
     local base = ThemeEngine.GetStyles()
     if customStyles == nil or #customStyles == 0 then
         return base
@@ -867,4 +903,34 @@ function ThemeEngine.MergeStyles(customStyles)
         merged[#merged + 1] = r
     end
     return merged
+end
+
+--- Resolve `@`-token references in a caller-supplied styles array against the
+--- active scheme, without bundling the base theme. Use this when a panel just
+--- needs its own local rules to follow the active scheme, and the panel sits
+--- downstream of an ancestor that already owns the full theme cascade via
+--- `ThemeEngine.MergeStyles`.
+---
+--- Difference vs. MergeStyles:
+---   * MergeStyles   -> base theme + resolved custom (for cascade roots)
+---   * ResolveStyles -> resolved custom only (for downstream extras)
+---
+--- Callers that need scheme switches to recolor live should subscribe to
+--- OnThemeChanged and reassign their panel.styles after re-resolving.
+--- @param customStyles table[]|nil Array of rule tables (selectors + properties).
+--- @return table[]|nil resolved
+function ThemeEngine.ResolveStyles(customStyles)
+    if customStyles == nil or #customStyles == 0 then
+        return customStyles
+    end
+
+    local themeId, schemeId = _resolveEffectivePair(nil, nil)
+    local chain = _buildChain(themeId)
+    local tables = {
+        colors = _buildColorTable(schemeId),
+        gradients = _buildGradientTable(schemeId),
+        fonts = _buildFontsTable(chain),
+    }
+
+    return _buildResolvedStyles(customStyles, tables)
 end

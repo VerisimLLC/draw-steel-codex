@@ -6,7 +6,7 @@
 --- @field chipPos? "top"|"bottom"|"left"|"right" Position of chips relative to dropdown. For vertical flow: "top" or "bottom" (default "top"). For horizontal flow: "left" or "right" (default "right").
 
 -- Multiselect is a first-class widget — its internal selectors
--- (multiselect-chip, multiselect-chip-text, multiselect-chip-remove) live in
+-- (multiselectChip, multiselectChipText, multiselectChipRemove) live in
 -- DefaultStyles.lua alongside other widget vocabulary like dropdownLabel /
 -- dropdownTriangle / hudIconButton. This file never sets `styles =` on the
 -- controller or chips: theme reach comes from the ancestor cascade through
@@ -160,7 +160,7 @@ local function _multiselect(args)
         chipPanelOpts.wrap = true
         chipPanelOpts.children = {}
         chipPanelOpts.addSelected = function(element, item)
-            local baseClasses = { item.id, "multiselect-chip" }
+            local baseClasses = { item.id, "multiselectChip" }
             local chipClasses = table.move(chipsClasses, 1, #chipsClasses, #baseClasses + 1, baseClasses)
 
             local chipPanelArgs = {
@@ -169,11 +169,11 @@ local function _multiselect(args)
                 data = { item = item },
                 children = {
                     gui.Label{
-                        classes = {"label", "multiselect-chip-text"},
+                        classes = {"label", "multiselectChipText"},
                         text = item.text,
                     },
                     gui.Panel{
-                        classes = {"panel", "multiselect-chip-remove"},
+                        classes = {"panel", "multiselectChipRemove"},
                         press = function(el)
                             local controller = el:FindParentWithClass("multiselectController")
                             if controller then
@@ -191,7 +191,7 @@ local function _multiselect(args)
                         end,
                         children = {
                             gui.Label{
-                                classes = {"label", "multiselect-chip-remove"},
+                                classes = {"label", "multiselectChipRemove"},
                                 text = "X",
                             },
                         },

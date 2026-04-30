@@ -18,15 +18,11 @@ local SetRace = function(tableName, racePanel, raceid)
 		halign = "right",
 		valign = "top",
 		gui.IconEditor{
-			classes = {"imagePanel"},
+			classes = {"portraitImage"},
 			value = race.portraitid,
 			library = "Avatar",
-			width = 196,
-			height = "150% width",
 			autosizeimage = true,
 			allowPaste = true,
-			borderColor = Styles.textColor,
-			borderWidth = 2,
 			change = function(element)
 				race.portraitid = element.value
 				UploadRace()
@@ -37,7 +33,6 @@ local SetRace = function(tableName, racePanel, raceid)
 			width = "auto",
 			height = "auto",
 			halign = "center",
-			color = Styles.textColor,
 			fontSize = 12,
 		},
 	}

@@ -528,8 +528,9 @@ local SetData = function(tableName, rolltablePanel, key, options)
 		local rollValue = nil
 		if options.showValue then
 			rollValue = gui.Label{
+				markdown = true,
 				width = 400,
-				height = 22,
+				height = "auto",
 				fontSize = 16,
 				refreshTable = function(element)
 					local val = data:CalculateValue()
@@ -548,19 +549,22 @@ local SetData = function(tableName, rolltablePanel, key, options)
 		local valueLabel = nil
 		if options.showValue then
 			valueLabel = gui.Label{
-				bold = true,
+				markdown = true,
 				text = "Value",
 				minWidth = 80,
+				height = "auto",
 				textAlignment = "left",
 			}
 		end
 
 
 		local headerRow = gui.TableRow{
+				classes = {"headerRow"},
 				gui.Label{
-					bold = true,
+					markdown = true,
 					text = "Roll",
 					minWidth = 120,
+					height = "auto",
 					textAlignment = "center",
 					refreshRoll = function(element)
 						if choice then
@@ -578,15 +582,17 @@ local SetData = function(tableName, rolltablePanel, key, options)
 				},
 				gui.Label{
 					classes = {cond(choice, "collapsed")},
-					bold = true,
+					markdown = true,
 					text = "Weight",
 					minWidth = 80,
+					height = "auto",
 					textAlignment = "center",
 				},
 				gui.Label{
-					bold = true,
+					markdown = true,
 					text = "Result",
 					minWidth = 400,
+					height = "auto",
 					textAlignment = "left",
 				},
 				--add heading.
@@ -607,14 +613,18 @@ local SetData = function(tableName, rolltablePanel, key, options)
 		local newItem = RollTableRow.Create()
 		local newItemRow = gui.TableRow{
 			gui.Label{
+				markdown = true,
 				text = "",
 				minWidth = 120,
+				height = "auto",
 				textAlignment = "center",
 			},
 			gui.Label{
 				classes = {cond(choice, "collapsed")},
+				markdown = true,
 				text = "",
 				minWidth = 80,
+				height = "auto",
 				textAlignment = "center",
 			},
 			gui.VariantCollectionEditor{
@@ -680,8 +690,6 @@ local SetData = function(tableName, rolltablePanel, key, options)
 			width = "auto",
 			height = "auto",
 			styles = {
-				Styles.Table,
-                Styles.Form,
                 {
                     selectors = {"formPanel"},
                     flow = "horizontal",
@@ -764,8 +772,10 @@ local SetData = function(tableName, rolltablePanel, key, options)
 					local valueItem = nil
 					if options.showValue and rowPanels[i] == nil then
 						valueItem = gui.Label{
+							markdown = true,
 							text = "",
 							minWidth = 60,
+							height = "auto",
 							halign = "left",
 							refreshRoll = function(element)
 								local val = row.value:Value()
@@ -809,8 +819,10 @@ local SetData = function(tableName, rolltablePanel, key, options)
 							row = newRow
 						end,
 						gui.Label{
+							markdown = true,
 							text = "",
 							minWidth = 120,
+							height = "auto",
 							textAlignment = "center",
 							editable = data.rollType == "namedChoice",
 							change = function(element)
@@ -860,8 +872,10 @@ local SetData = function(tableName, rolltablePanel, key, options)
 						},
 						gui.Label{
 							classes = {cond(choice, "collapsed")},
+							markdown = true,
 							text = "",
 							minWidth = 80,
+							height = "auto",
 							textAlignment = "center",
 							editable = true,
 							update = function(element, row)
@@ -966,8 +980,6 @@ function RollTable.CreateEditor(args)
 		},
 
 		styles = {
-            Styles.Form,
-
 			{
 				classes = {'class-panel'},
 				width = "100%",
@@ -976,23 +988,6 @@ function RollTable.CreateEditor(args)
 				flow = 'vertical',
 				pad = 20,
 			},
-			{
-				classes = {'label'},
-				color = 'white',
-				fontSize = 16,
-				width = 'auto',
-				height = 'auto',
-				maxWidth = 500,
-			},
-			{
-				classes = {'input'},
-				width = 200,
-				height = 26,
-				fontSize = 18,
-				color = 'white',
-                halign = "left",
-			},
-
 		},
 	}
 

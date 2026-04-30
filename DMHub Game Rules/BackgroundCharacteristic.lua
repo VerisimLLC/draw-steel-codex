@@ -41,8 +41,7 @@ function BackgroundCharacteristic:CreateEditor(args)
     local tableEditor = RollTable.CreateEditor{
         styles = {
             {
-                selectors = {"plus-button"},
-                priority = 5,
+                selectors = {"plusButton"},
                 hidden = 1,
             },
             {
@@ -104,10 +103,7 @@ function BackgroundCharacteristic.EmbedEditor(parentFeature, children, onchange)
 				floating = true,
 				halign = "left",
 				valign = "center",
-				x = 4,
-				height = "30%",
-				width = "100% height",
-				hmargin = 4,
+				x = 2,
 				styles = {
 					{
 						selectors = {"triangle"},

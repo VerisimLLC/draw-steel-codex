@@ -1,22 +1,5 @@
 local mod = dmhub.GetModLoading()
 
--- Component-local override for descendant labels. The `label` selector is
--- generic theme vocabulary; this override is scoped to the ParticleValue
--- subtree because the rules are attached to the ParticleValue panel's own
--- `styles` array, not propagated upward.
-local g_styles = {
-    {
-        selectors = {"label"},
-        fontSize = 12,
-        width = 40,
-        height = 20,
-        textAlignment = "center",
-        color = "@text",
-        bgimage = "panels/square.png",
-        bgcolor = "clear",
-    },
-}
-
 function gui.FloatInput(args)
 
     local m_dragAnchorValue = nil
@@ -38,11 +21,11 @@ function gui.FloatInput(args)
 
 
     local m_label = gui.Label{
+        classes = {"tinyLabel"},
         halign = "center",
         valign = "center",
         width = "100%",
         height = "100%",
-        fontSize = 11,
         refreshValue = function(element)
             local magnitude = math.abs(m_value)
             if magnitude < 1 then
@@ -271,18 +254,8 @@ function gui.ParticleValue(args)
     local callerStyles = (args and args.styles) or nil
     if args then args.styles = nil end
 
-    local function buildMergedStyles()
-        local merged = ThemeEngine.MergeStyles(g_styles)
-        if callerStyles then
-            for _, s in ipairs(callerStyles) do
-                merged[#merged + 1] = s
-            end
-        end
-        return merged
-    end
-
     local panelParams = {
-        styles = buildMergedStyles(),
+        styles = callerStyles,
         width = 140,
         height = 20,
         flow = "horizontal",
@@ -329,13 +302,6 @@ function gui.ParticleValue(args)
 	resultPanel.SetValue = resultPanel.data.setValue
 
     resultPanel.data.setValue(resultPanel, m_value, false)
-
-    -- Refresh styles on theme/scheme changes so existing instances follow the active scheme.
-    ThemeEngine.OnThemeChanged(mod, function()
-        if resultPanel and resultPanel.valid then
-            resultPanel.styles = buildMergedStyles()
-        end
-    end)
 
     return resultPanel
 end

@@ -279,10 +279,7 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
 		floating = true,
 		halign = "left",
 		valign = "center",
-		x = 4,
-		height = "30%",
-		width = "100% height",
-		hmargin = 4,
+		x = 2,
 		styles = {
 			{
 				selectors = {"triangle"},
@@ -746,21 +743,31 @@ function ClassLevel:CreateEditor(classOrRace, levelNum, params)
 		height = "auto",
 		flow = "vertical",
 
-		styles = {
+		styles = ThemeEngine.ResolveStyles({
 			Styles.ImplementationIcon,
             {
                 selectors = {"imported"},
-                color = "#999999",
+                color = "@fgMuted",
             },
             {
                 selectors = {"imported", "hover"},
-                color = "#bbbbbb",
+                color = "@fg",
             },
             {
                 selectors = {"override"},
-                color = "#77bb77",
+                color = "@success",
             },
-		},
+            -- Header strip on each level row (folded in from the local
+            -- inline `styles =` that used to live on the header panel).
+            {
+                selectors = {"header"},
+                bgcolor = "@bg",
+            },
+            {
+                selectors = {"header", "hover"},
+                bgcolor = "@bgAlt",
+            },
+		}),
 
 		paste = function(element, item, index)
 			item = DeepCopy(item)
@@ -974,14 +981,11 @@ local SetClass = function(tableName, classPanel, classid)
 		halign = "right",
 		valign = "top",
 		gui.IconEditor{
+		classes = {"portraitImage"},
 		value = class.portraitid,
 		library = "Avatar",
-		width = 196,
-		height = "150% width",
 		autosizeimage = true,
 		allowPaste = true,
-		borderColor = Styles.textColor,
-		borderWidth = 2,
 		change = function(element)
 			class.portraitid = element.value
 			UploadClass()
@@ -993,20 +997,19 @@ local SetClass = function(tableName, classPanel, classid)
 			width = "auto",
 			height = "auto",
 			halign = "center",
-			color = Styles.textColor,
 			fontSize = 12,
 		},
 	}
 
 	--the name of the class.
 	children[#children+1] = gui.Panel{
-		classes = {'formPanel'},
+		classes = {"formStackedRow"},
 		gui.Label{
-			text = 'Name:',
-			classes = {"formLabel"},
-			minWidth = 160,
+			classes = {"formStackedLabel"},
+			text = "Name:",
 		},
 		gui.Input{
+			classes = {"formStackedControl"},
 			text = class.name,
 			change = function(element)
 				class.name = string.gsub(element.text, "[-+%d]", "")
@@ -1085,21 +1088,21 @@ local SetClass = function(tableName, classPanel, classid)
 
 	--class details.
 	children[#children+1] = gui.Panel{
-		classes = {'formPanel'},
-		height = 'auto',
+		classes = {"formStackedRow"},
 		gui.Label{
+			classes = {"formStackedLabel"},
 			text = "Description:",
-			valign = "center",
-			minWidth = 240,
 		},
 		gui.Input{
-			text = class.details,
+			classes = {"formStackedControl"},
 			multiline = true,
-			minHeight = 50,
-			height = 'auto',
-			width = 400,
-			characterLimit = 4000,
+			height = "auto",
+			minHeight = 30,
+			maxHeight = 300,
+			vscroll = true,
 			textAlignment = "topleft",
+			characterLimit = 4000,
+			text = class.details,
 			change = function(element)
 				class.details = element.text
 				UploadClass()
@@ -1152,7 +1155,6 @@ function Class.CreateLevelEditor(children, class, UploadClass, startLevel, finis
 			classes = {"triangle"},
 			height = "30%",
 			width = "100% height",
-			styles = Styles.triangleStyles,
 		}
 
 		local classLevel = class:GetLevel(i, subkey)
@@ -1186,16 +1188,6 @@ function Class.CreateLevelEditor(children, class, UploadClass, startLevel, finis
 			width = "100%",
 			flow = "horizontal",
 			bgimage = "panels/square.png",
-			styles = {
-				{
-					selectors = {"header"},
-					bgcolor = "black",
-				},
-				{
-					selectors = {"header","hover"},
-					bgcolor = "#664444ff",
-				},
-			},
 			tri,
 			gui.Label{
                 classes = {"searchableLabel"},
@@ -1280,9 +1272,6 @@ function Class.CreateEditor()
 		classes = 'class-panel',
 		styles = {
 			{
-				halign = "left",
-			},
-			{
 				classes = {'class-panel'},
 				width = "100%-160",
 				height = '90%',
@@ -1291,29 +1280,6 @@ function Class.CreateEditor()
 				flow = 'vertical',
 				pad = 20,
 			},
-			{
-				classes = {'label'},
-				color = 'white',
-				fontSize = 22,
-				width = 'auto',
-				height = 'auto',
-			},
-			{
-				classes = {'input'},
-				width = 200,
-				height = 26,
-				fontSize = 18,
-				color = 'white',
-			},
-			{
-				classes = {'formPanel'},
-				flow = 'horizontal',
-				width = 'auto',
-				height = 'auto',
-				halign = 'left',
-				vmargin = 2,
-			},
-
 			Styles.ImplementationIcon,
 		},
 	}

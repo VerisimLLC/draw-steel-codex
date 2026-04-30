@@ -192,10 +192,11 @@ function gui.Button(options)
 	end
 
 	if options.icon ~= nil then
+		args.classes[#args.classes+1] = "hasIcon"
+
 		args[#args+1] = gui.Panel{
-			width = "100%",
-			height = "100%",
-			bgcolor = options.color or "white",
+			classes = {"buttonIcon"},
+			bgcolor = options.color,
 			bgimage = options.icon,
 		}
 
@@ -218,16 +219,15 @@ function gui.DiamondButton(options)
 	options.icon = nil
 
 	local iconPanel = gui.Panel{
-			width = "70%",
-			height = "70%",
-			bgimage = icon,
-			bgcolor = options.color or "white",
-			halign = "center",
-			valign = "center",
-		}
-	
-	options.color = nil
+		width = "70%",
+		height = "70%",
+		bgimage = icon,
+		bgcolor = options.color or "white",
+		halign = "center",
+		valign = "center",
+	}
 
+	options.color = nil
 
 	local params = {
 		flow = "none",
@@ -288,7 +288,7 @@ end
 function gui.AddButton(options)
 
 	local args = {
-		classes = {'plus-button', "addButton"},
+		classes = {'plusButton', "addButton"},
 		bgimage = 'ui-icons/Plus.png',
 		bgcolor = "white",
 	}
@@ -995,7 +995,7 @@ function gui.Check(args)
 	options.value = nil
 
 	local checkMark = gui.Panel{
-		classes = {'check-mark'},
+		classes = {'checkMark'},
 		hmargin = 0,
 		vmargin = 0,
         floating = true,
@@ -1019,7 +1019,7 @@ function gui.Check(args)
 	checkMark:SetClass('hidden', not checked)
 
 	local checkPanel = gui.Panel{
-		classes = {'check-background'},
+		classes = {'checkBackground'},
 
 		children = {
 			checkMark
@@ -1030,7 +1030,7 @@ function gui.Check(args)
 	options.text = nil
 
 	local label = gui.Label{
-		classes = {'checkbox-label', cond(placement == "right", "rightAlign")},
+		classes = {'checkboxLabel', cond(placement == "right", "rightAlign")},
 		text = text .. colon,
 		fontSize = fontSize,
 	}

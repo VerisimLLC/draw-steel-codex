@@ -1,48 +1,7 @@
 local mod = dmhub.GetModLoading()
 
---- Component-private styles for the enumerated slider. Uses @-refs that get
---- resolved against the active theme via ThemeEngine.MergeStyles. Caller-passed
---- `styles` (if any) are appended after these, preserving caller-override semantics.
-local function getEnumSliderStyles()
-    return {
-        {
-            selectors = {"enumSlider"},
-            width = "100%",
-            height = 24,
-            flow = "horizontal",
-        },
-        {
-            selectors = {"enumSliderOption"},
-            bgimage = "panels/square.png",
-            bgcolor = "@background",
-            color = "@text",
-            fontSize = 12,
-            bold = true,
-            halign = "center",
-            valign = "center",
-            borderWidth = 2,
-            borderColor = "@text",
-            textAlignment = "center",
-            height = "100%",
-        },
-        {
-            selectors = {"enumSliderOption", "selected"},
-            bgcolor = "@text",
-            color = "@background",
-            transitionTime = 0.2,
-        },
-        {
-            selectors = {"enumSliderOption", "hover"},
-            bgcolor = "@text",
-            color = "@background",
-            brightness = 1.5,
-            transitionTime = 0.2,
-        },
-    }
-end
-
+--- gui.EnumeratedSliderControl -- a horizontal row of selectable options.
 function gui.EnumeratedSliderControl(args)
-
     local m_resultPanel = nil
 
     local options = args.options
@@ -57,72 +16,48 @@ function gui.EnumeratedSliderControl(args)
     local callerStyles = args.styles
     args.styles = nil
 
-    local function buildMergedStyles()
-        local merged = ThemeEngine.MergeStyles(getEnumSliderStyles())
-        if callerStyles then
-            for _, s in ipairs(callerStyles) do
-                merged[#merged + 1] = s
-            end
-        end
-        return merged
-    end
-
     local children = {}
 
     local SetValue = function(value, suppressEvent)
         m_value = value
-        for _,child in ipairs(children) do
+        for _, child in ipairs(children) do
             child.SetClass(child, "selected", child.data.id == value)
         end
-
         if not suppressEvent then
             m_resultPanel:FireEvent("change")
         end
     end
 
-    for _,option in ipairs(options) do
-        local optionPanel = gui.Label{
+    for _, option in ipairs(options) do
+        children[#children+1] = gui.Label{
             classes = {"enumSliderOption", cond(m_value == option.id, "selected")},
-            data = {
-                id = option.id,
-            },
+            data = { id = option.id },
             text = option.text,
             width = optionWidth,
-            press = function(element)
+            press = function()
                 SetValue(option.id)
             end,
         }
-
-        children[#children+1] = optionPanel
     end
 
     local params = {
-        styles = buildMergedStyles(),
+        styles = callerStyles,
         classes = {"enumSlider"},
-
         children = children,
     }
 
-    params.GetValue = function(element, val)
+    params.GetValue = function()
         return m_value
-	end
+    end
 
-	params.SetValue = function(element, val, firechange)
+    params.SetValue = function(_, val, firechange)
         SetValue(val, not firechange)
-	end
+    end
 
-    for k,v in pairs(args) do
+    for k, v in pairs(args) do
         params[k] = v
     end
 
     m_resultPanel = gui.Panel(params)
-
-    -- Refresh styles on theme/scheme changes so existing sliders follow the active scheme.
-    ThemeEngine.OnThemeChanged(mod, function()
-        if m_resultPanel and m_resultPanel.valid then
-            m_resultPanel.styles = buildMergedStyles()
-        end
-    end)
-
     return m_resultPanel
 end

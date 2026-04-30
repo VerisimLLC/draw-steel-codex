@@ -1,97 +1,10 @@
 local mod = dmhub.GetModLoading()
 
---- DefaultStyles — registers ThemeEngine's default color scheme and default theme.
+--- DefaultStyles -- registers ThemeEngine's default color scheme and default theme.
 ---
---- ============================================================================
---- WHAT BELONGS IN THIS FILE
---- ============================================================================
----
---- This file holds **first-class widget vocabulary** — the selectors used by
---- reusable widgets that ship as part of the codebase (label, button, input,
---- dropdown, multiselect chips, hudIconButton, etc.). Both the generic shared
---- selectors AND each widget's internal/private namespace belong here:
----
----   * Generic:  label, button, input, dropdown, panel, framedPanel, tab, row,
----               imagePanel (opt-in for image-displaying panels), ...
----   * Widget internals:  dropdownLabel, dropdownTriangle, dropdownBorder,
----                        dropdownMenuSub, dropdownOption, multiselect-chip,
----                        multiselect-chip-text, multiselect-chip-remove, ...
----
---- Even though some of those names are "private" to one widget, the widget
---- itself is generic and reusable, so its vocabulary belongs in the default
---- theme. That lets the active scheme reach descendants through the ordinary
---- ancestor cascade — no control-level MergeStyles tricks, no ancestor
---- coupling.
----
---- ============================================================================
---- WHAT DOES NOT BELONG
---- ============================================================================
----
---- Surface-specific or ad-hoc rules. Examples:
----
----   * A selector used in one specific dialog or feature (DTHelpHover,
----     weaponHighlight, my-special-banner, etc.).
----   * "I want this one button red" overrides.
----
---- Those live in the *caller's* `ThemeEngine.MergeStyles({extras})` call, where
---- the extras get folded into the resolved theme for that caller's panel only.
----
---- ============================================================================
---- HOW THIS FILE IS ORGANIZED
---- ============================================================================
----
---- 1. Default color scheme registration — semantic color names and gradients,
----    grouped by purpose (surfaces, borders, text, accents, statuses, etc.).
----
---- 2. Loud test color scheme — bright neon override scheme used by the Theme
----    Test panel to verify scheme switching reaches every themed widget.
----    Gated behind `if devmode() then ... end` so only registered when the
----    game is running in dev mode; production users never see it.
----
---- 3. Default theme registration — fonts and the styles array. Within the
----    styles array, rules are grouped by widget. Each group has a comment
----    header naming the widget and the selectors it owns. Rules within a
----    group typically appear in order: base rule first, then state modifiers
----    (hover, press, selected, disabled), then variants (size variants,
----    semantic variants, etc.).
----
---- 4. Style rule conventions:
----    * Use @-name refs (@text, @background, @accent, @danger, etc.) for
----      properties that should follow the active scheme. Literal hex is
----      reserved for cases where the engine can't help (alpha-composites,
----      bespoke one-off colors that don't have a scheme name).
----    * `selectors = {...}` is the matching identity — never substituted.
----      Multi-selector rules are AND-matched (all must be classes on the widget).
----      Negation (`~classname`) and parent state (`parent:hover`) supported.
----    * Order properties for readability: structure (width/height/halign/valign)
----      → spacing (margin/pad) → visual (bg/border/cornerRadius/gradient)
----      → text (color/fontFace/fontSize) → state (brightness/saturation)
----      → interaction (transitionTime).
----
---- 5. Theme Test launchable panel — visible smoke test for the registered
----    theme. Exercises representative widgets and lets the user toggle between
----    the Default and Loud schemes to confirm theme reach. Gated behind
----    `if devmode() then ... end` so the launchable only appears in the
----    tools menu when the game is running in dev mode.
----
---- ============================================================================
---- ADDING A NEW WIDGET'S VOCABULARY
---- ============================================================================
----
---- 1. Decide the widget's selector names. Use a clear prefix that identifies
----    the widget (e.g. `dropdown*`, `multiselect-chip*`, `hudIconButton*`).
---- 2. Add a comment header in the styles array: `--[[ MyWidget ]]` with one
----    line about what the widget does and the selectors it owns.
---- 3. Add the rules in the order described above (base, states, variants).
---- 4. Use @-refs for theme-tracking properties; document any literal you keep
----    intentionally with a brief inline comment about why.
---- 5. In the widget's own .lua file, do NOT set a `styles =` array on the
----    widget's panel — that would cut the ancestor cascade. Just apply
----    classes; the cascade will reach them via the ancestor that owns
----    `ThemeEngine.MergeStyles(...)`.
 
 -- =============================================================================
--- Default color scheme — canonical color name set
+-- Default color scheme -- usage-named colors and gradients
 -- =============================================================================
 
 ThemeEngine.RegisterColorScheme{
@@ -99,73 +12,59 @@ ThemeEngine.RegisterColorScheme{
     name        = "Default",
     description = "The Draw Steel default color palette.",
     colors = {
-        -- surfaces
-        background    = "#080B09",
-        backgroundAlt = "#191A18",
-        backgroundInv = "#BC9B7B",
+        -- Surfaces
+        bg            = "#080B09",
+        bgAlt         = "#191A18",
+        bgInverse     = "#9C9C9C",
 
-        -- borders
+        -- Foreground / text
+        fg            = "#CECECE",
+        fgStrong      = "#EFEFEF",
+        fgMuted       = "#9F9F9B",
+        fgPending     = "#999999",
+        fgInverse     = "#040404",
+
+        -- Borders
         border        = "#DFDFDF",
-        borderInv     = "#666666",
+        borderInverse = "#666666",
 
-        -- text
-        text          = "#CECECE",
-        textLabel     = "#EFEFEF",
-        textMuted     = "#666666",
-        textPending   = "#999999",
-        textInverse   = "#040404",
+        -- Accent + interactive
+        accent        = "#999999",
+        accentHover   = "#DDDDDD",
 
-        -- accent family
-        accent        = "#966D4B",
-        accentStrong  = "#F1D3A5",
-        accentHover   = "#E9B86F",
-
-        disabled      = "#343432",
-
-        -- rich black ramp (mirrors Styles.lua RichBlack02-04)
-        richBlack02   = "#10110F",
-        richBlack03   = "#191A18",
-        richBlack04   = "#343432",
-
-        -- grey ramp
-        grey01        = "#9F9F9B",
-        grey02        = "#666666",
-
-        -- cream ramp
-        cream01       = "#F3EDE7",
-        cream02       = "#DFCFC0",
-        cream03       = "#BC9B7B",
-
-        -- gold ramp
-        gold02        = "#49362C",
-        gold03        = "#F1D3A5",
-        gold04        = "#E9B86F",
-
-        -- semantic statuses
+        -- Status
         success       = "#6BA84F",
         info          = "#E9C868",
         warning       = "#E08A2E",
         danger        = "#C73131",
-        modifierBuff  = "#2A4DFF",
-        modifierDebuff= "#FF0000",
 
-        -- trigger family
+        -- Disabled
+        disabled      = "#343434",
+
+        -- ---------------------------------------------------------------------
+        -- QUARANTINE: feature-specific colors awaiting relocation into their
+        -- consumers' MergeStyles extras. Inside a Lua block comment so they
+        -- are inert -- visible for reference, not registered.
+        -- ---------------------------------------------------------------------
+        --[==[
         triggerColor              = "#CCCC00",
         freeColor                 = "#9999FF",
         passiveColor              = "#006300",
         triggerColorAgainstText   = "#AAAA00",
         freeColorAgainstText      = "#7777EE",
         passiveColorAgainstText   = "#006300",
-
-        -- implementation status (pink/red/bronze/silver/gold)
-        implStatus0   = "#F82FCD",
-        implStatus1   = "#FF0000",
-        implStatus2   = "#CD7F32",
-        implStatus3   = "#C0C0C0",
-        implStatus4   = "#FFD700",
+        modifierBuff              = "#2A4DFF",
+        modifierDebuff            = "#FF0000",
+        implStatus0               = "#F82FCD",
+        implStatus1               = "#FF0000",
+        implStatus2               = "#CD7F32",
+        implStatus3               = "#C0C0C0",
+        implStatus4               = "#FFD700",
+        ]==]
     },
     gradients = {
-        panelRadial = {
+        -- Surfaces
+        surfaceRadial = {
             type = "radial",
             point_a = {x = 0.5, y = 0.5},
             point_b = {x = 0.5, y = 1.0},
@@ -183,7 +82,7 @@ ThemeEngine.RegisterColorScheme{
             },
         },
 
-        dialogGradient = {
+        surfaceLinear = {
             point_a = {x = 0, y = 0},
             point_b = {x = 1, y = 1},
             stops = {
@@ -192,79 +91,18 @@ ThemeEngine.RegisterColorScheme{
             },
         },
 
-        barGradient = {
+        -- Bars
+        barTrack = {
             point_a = {x = -0.02, y = 0},
             point_b = {x = 1.02,  y = 0},
             stops = {
                 {position = 0, color = "#060605"},
-                {position = 1, color = "@richBlack03"},
+                {position = 1, color = "@bgAlt"},
             },
         },
 
-        tempGradient = {
-            point_a = {x = 0, y = 0},
-            point_b = {x = 1, y = 0},
-            stops = {
-                {position = 0, color = "#6666AA"},
-                {position = 1, color = "#6666FF"},
-            },
-        },
-
-        grayscaleGradient = {
-            point_a = {x = 0, y = 0},
-            point_b = {x = 1, y = 0},
-            stops = {
-                {position = 0, color = "#484848"},
-                {position = 1, color = "#C1C1C1"},
-            },
-        },
-
-        healthGradient = {
-            point_a = {x = 0, y = 0},
-            point_b = {x = 1, y = 0},
-            stops = {
-                {position = 0, color = "#004D52"},
-                {position = 1, color = "#00B8C4"},
-            },
-        },
-
-        bloodiedGradient = {
-            point_a = {x = 0, y = 0},
-            point_b = {x = 1, y = 0},
-            stops = {
-                {position = 0, color = "#A15102"},
-                {position = 1, color = "#FA9A00"},
-            },
-        },
-
-        damagedGradient = {
-            point_a = {x = 0, y = 0},
-            point_b = {x = 1, y = 0},
-            stops = {
-                {position = 0, color = "#440000"},
-                {position = 1, color = "#BB0000"},
-            },
-        },
-
-        conditionGradient = {
-            point_a = {x = 0, y = 0},
-            point_b = {x = 1, y = 0},
-            stops = {
-                {position = 0, color = "#000000"},
-                {position = 1, color = "@text"},
-            },
-        },
-
-        advantageSelectedGradient = {
-            point_a = {x = 0, y = 0},
-            point_b = {x = 1, y = 1},
-            stops = {
-                {position = 0, color = "#111111"},
-                {position = 1, color = "#222222"},
-            },
-        },
-
-        horizontalGradient = {
+        -- Alpha-fade masks (utility)
+        maskHorizontal = {
             point_a = {x = 0, y = 0},
             point_b = {x = 1, y = 0},
             stops = {
@@ -275,7 +113,7 @@ ThemeEngine.RegisterColorScheme{
             },
         },
 
-        verticalGradient = {
+        maskVertical = {
             point_a = {x = 0, y = 0},
             point_b = {x = 0, y = 1},
             stops = {
@@ -285,58 +123,116 @@ ThemeEngine.RegisterColorScheme{
                 {position = 1,   color = "#FFFFFF00"},
             },
         },
+
+        -- ---------------------------------------------------------------------
+        -- QUARANTINE: feature-specific gradients awaiting relocation. Inside
+        -- a Lua block comment so they are inert.
+        -- ---------------------------------------------------------------------
+        --[==[
+        tempGradient = {
+            point_a = {x = 0, y = 0},
+            point_b = {x = 1, y = 0},
+            stops = {
+                {position = 0, color = "#6666AA"},
+                {position = 1, color = "#6666FF"},
+            },
+        },
+        grayscaleGradient = {
+            point_a = {x = 0, y = 0},
+            point_b = {x = 1, y = 0},
+            stops = {
+                {position = 0, color = "#484848"},
+                {position = 1, color = "#C1C1C1"},
+            },
+        },
+        healthGradient = {
+            point_a = {x = 0, y = 0},
+            point_b = {x = 1, y = 0},
+            stops = {
+                {position = 0, color = "#004D52"},
+                {position = 1, color = "#00B8C4"},
+            },
+        },
+        bloodiedGradient = {
+            point_a = {x = 0, y = 0},
+            point_b = {x = 1, y = 0},
+            stops = {
+                {position = 0, color = "#A15102"},
+                {position = 1, color = "#FA9A00"},
+            },
+        },
+        damagedGradient = {
+            point_a = {x = 0, y = 0},
+            point_b = {x = 1, y = 0},
+            stops = {
+                {position = 0, color = "#440000"},
+                {position = 1, color = "#BB0000"},
+            },
+        },
+        conditionGradient = {
+            point_a = {x = 0, y = 0},
+            point_b = {x = 1, y = 0},
+            stops = {
+                {position = 0, color = "#000000"},
+                {position = 1, color = "@fg"},
+            },
+        },
+        advantageSelectedGradient = {
+            point_a = {x = 0, y = 0},
+            point_b = {x = 1, y = 1},
+            stops = {
+                {position = 0, color = "#111111"},
+                {position = 1, color = "#222222"},
+            },
+        },
+        ]==]
     },
 }
 
-if devmode() then
 -- =============================================================================
--- Loud test color scheme — sparse override for visual diff testing.
--- Registers under id "loud". The engine falls back to the default scheme for
--- any color name this scheme doesn't define, so we only override the most
--- visible slots. Used by the Theme Test panel's scheme picker; not intended
--- for production use.
+-- Warm Gold color scheme -- warm dark surfaces, cream foreground, gold accents.
+-- The engine falls back to the default scheme for any color name this scheme
+-- doesn't define.
 -- =============================================================================
 
 ThemeEngine.RegisterColorScheme{
-    id          = "loud",
-    name        = "Loud (Test)",
-    description = "Bright neon palette for verifying ThemeEngine recolors live.",
+    id          = "warm-gold",
+    name        = "Warm Gold",
+    description = "Warm dark surfaces with bright cream text and gold accents.",
     colors = {
-        -- surfaces
-        background    = "#330066",
-        backgroundAlt = "#5500AA",
-        backgroundInv = "#00FFFF",
+        -- Surfaces
+        bg            = "#1B1310",
+        bgAlt         = "#2A1E15",
+        bgInverse     = "#E9B86F",
 
-        -- borders
-        border        = "#FFFF00",
-        borderInv     = "#00FF00",
+        -- Foreground / text
+        fg            = "#F5E9D3",
+        fgStrong      = "#FFF5DD",
+        fgMuted       = "#A89377",
+        fgPending     = "#8B7960",
+        fgInverse     = "#1B1310",
 
-        -- text
-        text          = "#00FF66",
-        textLabel     = "#008833",
-        textMuted     = "#FFAA00",
-        textPending   = "#FF66CC",
-        textInverse   = "#220033",
+        -- Borders
+        border        = "#C49562",
+        borderInverse = "#5A4128",
 
-        -- accent family
-        accent        = "#FF0088",
-        accentStrong  = "#FFFF00",
-        accentHover   = "#00FFFF",
+        -- Accent + interactive
+        accent        = "#B8884C",
+        accentHover   = "#F1D3A5",
 
-        disabled      = "#444444",
+        -- Status (kept semantic so they read consistently across schemes)
+        success       = "#6BA84F",
+        info          = "#E9C868",
+        warning       = "#E08A2E",
+        danger        = "#C73131",
 
-        -- semantic accents (clearly different from default green/yellow/orange/red
-        -- so the iconButton withX hover swaps are obvious when toggling schemes)
-        success       = "#FF00CC",
-        info          = "#00FFFF",
-        warning       = "#AA00FF",
-        danger        = "#88FF00",
+        -- Disabled
+        disabled      = "#3A2D22",
     },
 }
-end -- devmode
 
 -- =============================================================================
--- Default theme — canonical font slots + base widget rules
+-- Default theme -- canonical font slots + base widget rules
 -- =============================================================================
 
 ThemeEngine.RegisterTheme{
@@ -353,39 +249,67 @@ ThemeEngine.RegisterTheme{
     },
 
     styles = {
-        -- Base widget rules. Variants and utilities follow.
 
-        --[[ Panels ]]
+        -- =====================================================================
+        -- 1. BASICS -- generic widget vocabulary
+        -- =====================================================================
+
+        --[[ Panel ]]
         {
             selectors = {"panel"},
-            bgcolor = "@background",
+            bgcolor = "@bg",
         },
         {
-            selectors = {"panel", "radial-gradient"},
+            selectors = {"panel", "panelRadial"},
             bgimage = true,
-            gradient = "@panelRadial",
+            gradient = "@surfaceRadial",
         },
         {
-            selectors = {"panel", "border"},
+            selectors = {"panel", "bordered"},
             bgimage = true,
             border = 1,
             borderColor = "@border",
         },
-        -- Image-displaying panels: opt out of the inherited @background tint
-        -- so a bgimage asset paints with natural colors. bgcolor stays white
-        -- (image-tint-neutral). Borders are intentionally NOT set here —
+        -- Image-displaying panels: opt out of the inherited @bg tint so a
+        -- bgimage asset paints with natural colors. bgcolor stays white
+        -- (image-tint-neutral). Borders are intentionally NOT set here --
         -- callers manage borderWidth / borderColor per their needs.
         {
-            selectors = {"panel", "imagePanel"},
+            selectors = {"panel", "image"},
             bgcolor = "white",
         },
+        -- Portrait image editor (compendium sidebars on Race / Class /
+        -- Career / etc.). 196x294 with a 2px @border frame; bgcolor =
+        -- "white" is image-tint-neutral so the avatar paints in its
+        -- natural colors (same convention as {panel, image}).
+        {
+            selectors = {"portraitImage"},
+            bgcolor = "white",
+            borderColor = "@border",
+            borderWidth = 2,
+            width = 196,
+            height = "150% width",
+        },
+        -- The icon child gui.Button auto-creates when called with `icon = ...`.
+        -- Tints the bgimage to @fg so the glyph reads against the surrounding
+        -- button surface and follows the active scheme.
+        {
+            selectors = {"panel", "buttonIcon"},
+            bgcolor = "@fg",
+            width = "100%",
+            height = "100%",
+        },
+        {
+            selectors = {"panel", "buttonIcon", "hover"},
+            bgcolor = "@fgStrong",
+        },
 
-        --[[ Labels ]]
+        --[[ Label ]]
         {
             selectors = {"label"},
             fontFace = "@label",
             fontSize = 14,
-            color = "@textLabel",
+            color = "@fgStrong",
             bold = false,
         },
         {
@@ -394,43 +318,36 @@ ThemeEngine.RegisterTheme{
         },
         {
             selectors = {"label", "pending"},
-            color = "@textPending",
+            color = "@fgPending",
         },
         {
-            selectors = {"label", "dialogTitle"},
-            fontSize = 24,
-            halign = "center",
-            width = "auto",
-            height = "auto",
-            valign = "top",
-            tmargin = 12,
-            bmargin = 0,
+            selectors = {"label", "tinyLabel"},
+            fontSize = 12,
+            color = "@fg",
+            textAlignment = "center",
         },
         {
             selectors = {"label", "link"},
-            priority = 5,
-            color = "#C49562",
+            color = "@accent",
         },
         {
             selectors = {"label", "link", "hover"},
-            priority = 5,
-            color = "#FF99FFFF",
+            color = "@accentHover",
         },
         {
             selectors = {"label", "link", "press"},
-            priority = 5,
-            color = "#99FFFFFF",
+            brightness = 0.8,
         },
 
-        --[[ Buttons ]]
+        --[[ Button (sizes + states + variants) ]]
         {
             selectors = {"label", "button"},
             height = 31,
             width = 129,
             fontFace = "@label",
             fontSize = 16,
-            color = "@text",
-            bgcolor = "@background",
+            color = "@fg",
+            bgcolor = "@bg",
             borderColor = "@border",
             border = 1,
             borderWidth = 1,
@@ -439,44 +356,20 @@ ThemeEngine.RegisterTheme{
             bold = false,
         },
         {
-            selectors = {"button", "btn-sm"},
+            selectors = {"button", "btnSm"},
             height = 31,
             width = 57,
         },
         {
-            selectors = {"button", "btn-md"},
+            selectors = {"button", "btnMd"},
             height = 31,
             width = 129,
         },
         {
-            selectors = {"button", "btn-lg"},
+            selectors = {"button", "btnLg"},
             height = 35,
             width = 175,
             beveledcorners = true,
-        },
-        {
-            selectors = {"button", "disabled"},
-            bgcolor = "@disabled",
-        },
-        {
-            selectors = {"label", "button", "~disabled", "hover"},
-            bgcolor = "@backgroundInv",
-            color = "@textInverse",
-            borderColor = "@borderInv",
-            fontWeight = "light",
-        },
-        {
-            selectors = {"label", "button", "press"},
-            transitionTime = 0.1,
-            brightness = 0.7,
-            soundEvent = "Mouse.Click",
-        },
-        {
-            selectors = {"label", "button", "selected"},
-            color = "@textInverse",
-            bgcolor = "@backgroundInv",
-            textAlignment = "center",
-            fontWeight = "bold",
         },
         {
             selectors = {"label", "button", "tiny"},
@@ -487,62 +380,62 @@ ThemeEngine.RegisterTheme{
             vmargin = 2,
         },
         {
-            selectors = {"label", "button", "prettyButton"},
-            fontSize = 24,
-            hmargin = 16,
-            vmargin = 16,
-            width = "130% auto",
-            height = "130% auto",
-            borderWidth = 3,
+            selectors = {"button", "hasIcon"},
+            border = 0,
+            borderWidth = 0,
+        },
+        {
+            selectors = {"button", "disabled"},
+            bgcolor = "@disabled",
+        },
+        {
+            selectors = {"label", "button", "~disabled", "hasIcon", "hover"},
+            bgcolor = "@bg"
+        },
+        {
+            selectors = {"label", "button", "~disabled", "hover"},
+            bgcolor = "@bgInverse",
+            color = "@fgInverse",
+            borderColor = "@borderInverse",
+            fontWeight = "light",
+        },
+        {
+            selectors = {"label", "button", "press"},
+            transitionTime = 0.1,
+            brightness = 0.7,
+            soundEvent = "Mouse.Click",
+        },
+        {
+            selectors = {"label", "button", "selected"},
+            color = "@fgInverse",
+            bgcolor = "@bgInverse",
+            textAlignment = "center",
+            fontWeight = "bold",
         },
         {
             selectors = {"label", "button", "focus"},
-            borderColor = "@text",
+            borderColor = "@fg",
         },
 
-        --[[ Rollable text styles ]]
-        {
-            selectors = {"rollable"},
-            color = "#FFAAAA",
-            textAlignment = "center",
-            borderWidth = 0,
-            priority = 10,
-        },
-        {
-            selectors = {"rollable", "hover"},
-            bgcolor = "@background",
-            borderWidth = 2,
-            color = "#FFCCCC",
-            borderColor = "#FFCCCC",
-            priority = 10,
-        },
-        {
-            selectors = {"rollable", "hover", "press"},
-            borderWidth = 4,
-            color = "#FFDDDD",
-            borderColor = "#FFDDDD",
-            priority = 10,
-        },
-
-        --[[ Inputs ]]
+        --[[ Input ]]
         {
             selectors = {"input"},
             fontFace = "@input",
             fontSize = 14,
-            color = "@text",
-            bgcolor = "@background",
+            color = "@fg",
+            bgcolor = "@bg",
             borderColor = "@border",
         },
         {
             selectors = {"input", "focus"},
-            borderColor = "@text",
+            borderColor = "@fg",
         },
         {
             selectors = {"inputFaded"},
-            borderColor = "@background",
+            borderColor = "@bg",
             borderWidth = 3,
             borderFade = true,
-            bgcolor = "@background",
+            bgcolor = "@bg",
         },
         -- Default search input has no border. Surfaces that want a bordered
         -- search input add it via their own MergeStyles extras.
@@ -552,18 +445,27 @@ ThemeEngine.RegisterTheme{
             fontSize = 16,
             bold = true,
             borderFade = false,
-            color = "@text",
-            bgcolor = "@background",
+            color = "@fg",
+            bgcolor = "@bg",
             borderWidth = 0,
         },
 
-        --[[ Dropdowns ]]
+        --[[ Dropdown -- closed control + open popup machinery ]]
+        --
+        -- The dropdown's internal sub-element classes (dropdownLabel,
+        -- dropdownTriangle, dropdownBorder, dropdownMenuSub, dropdownOption,
+        -- submenuArrow) are emitted by the DMHub engine itself, so theme
+        -- rules must match those names verbatim.
+        --
+        -- Open state composition: a dropdownBorder container holds a
+        -- dropdownMenuSub (or inline option list) full of dropdownOption
+        -- rows. submenuArrow is the indicator on options that open a sub-popup.
         {
             selectors = {"dropdown"},
             fontFace = "@input",
             fontSize = 14,
-            color = "@text",
-            bgcolor = "@backgroundAlt",
+            color = "@fg",
+            bgcolor = "@bgAlt",
             borderColor = "@border",
         },
         {
@@ -576,62 +478,46 @@ ThemeEngine.RegisterTheme{
         },
         {
             selectors = {"dropdown", "hover", "~search"},
-            bgcolor = "@text",
+            bgcolor = "@fg",
         },
         {
             selectors = {"label", "dropdownLabel"},
-            -- priority = 10 to beat DMHub's engine-level dropdownLabel
-            -- defaults. Layout-related properties (width / height / margins)
-            -- on this 2-selector rule appear to take effect at priority 3,
-            -- but fontFace specifically required a higher priority to win
-            -- against the engine's 1-selector {dropdownLabel} rule. See
-            -- DS_EDITOR_STYLING.md and AbilityEditor.lua:1690 for context.
-            priority = 10,
             fontFace = "@input",
             fontSize = 18,
             minFontSize = 10,
-            color = "@text",
+            color = "@fg",
             halign = "left",
             valign = "center",
             width = "100%-40",
             height = "100%",
             hmargin = 6,
         },
-        -- Engine targets {dropdownLabel} (single selector) directly. Mirror
-        -- that selector at priority 10 so our fontFace wins regardless of
-        -- whether the engine merges by-selector or by-classes.
         {
             selectors = {"dropdownLabel"},
-            priority = 10,
             fontFace = "@input",
         },
         {
             selectors = {"label", "dropdownLabel", "parent:hover"},
-            color = "@textInverse",
+            color = "@fgInverse",
         },
         {
             selectors = {"dropdownTriangle"},
             height = "30%",
             width = "160% height",
-            bgcolor = "@text",
+            bgcolor = "@fg",
             halign = "right",
             valign = "center",
             hmargin = 6,
         },
         {
             selectors = {"dropdownTriangle", "parent:hover"},
-            bgcolor = "@textInverse",
+            bgcolor = "@fgInverse",
         },
-
-        --[[ Dropdown popup (open state) ]]
-        -- The popup panel that appears when a dropdown is opened. Composed of
-        -- a dropdownBorder container holding a dropdownMenu (or dropdownMenuSub
-        -- for submenus) full of dropdownOption rows.
         {
             selectors = {"dropdownBorder"},
-            bgcolor = "@background",
+            bgcolor = "@bg",
             border = {x1 = 2, x2 = 2, y1 = 2, y2 = 0},
-            borderColor = "@text",
+            borderColor = "@border",
         },
         {
             selectors = {"dropdownBorder", "vcenter"},
@@ -649,9 +535,9 @@ ThemeEngine.RegisterTheme{
         {
             selectors = {"dropdownMenuSub"},
             bgimage = "panels/square.png",
-            bgcolor = "@background",
+            bgcolor = "@bg",
             border = {x1 = 2, x2 = 2, y1 = 2, y2 = 2},
-            borderColor = "@text",
+            borderColor = "@border",
             flow = "vertical",
             width = "auto",
             height = "auto",
@@ -670,63 +556,57 @@ ThemeEngine.RegisterTheme{
             halign = "center",
             hpad = 6,
             fontSize = 18,
-            color = "@text",
+            color = "@fg",
         },
         {
             selectors = {"dropdownOption", "hover"},
-            color = "@background",
-            bgcolor = "@text",
+            color = "@bg",
+            bgcolor = "@fg",
         },
         {
             selectors = {"dropdownOption", "searchfocus"},
-            color = "@background",
-            bgcolor = "@text",
+            color = "@bg",
+            bgcolor = "@fg",
         },
         {
             selectors = {"dropdownOption", "disabled"},
-            color = "@grey02",
+            color = "@fgMuted",
         },
-        -- Submenu-indicator triangle inside dropdown options that have a submenu.
         {
             selectors = {"submenuArrow"},
-            bgcolor = "@text",
+            bgcolor = "@fg",
         },
         {
             selectors = {"submenuArrow", "parent:hover"},
-            bgcolor = "@background",
+            bgcolor = "@bg",
         },
 
-        --[[ Multiselect chips ]]
+        --[[ Multiselect chip ]]
         --
         -- gui.Multiselect renders selected items as removable chips next to
-        -- a Dropdown for adding new ones. Each chip is a {panel,
-        -- multiselect-chip} container holding a {label, multiselect-chip-text}
-        -- text label and a {panel, multiselect-chip-remove} delete button
-        -- (with its own X label inside) that's hidden until the parent chip
-        -- is hovered.
-
-        -- Chip container.
+        -- a Dropdown. Each chip is a {panel, multiselectChip} container
+        -- holding a {label, multiselectChipText} text label and a
+        -- {panel, multiselectChipRemove} delete button (with an X label
+        -- inside) that's hidden until the parent chip is hovered.
         {
-            selectors = {"panel", "multiselect-chip"},
+            selectors = {"panel", "multiselectChip"},
             flow = "horizontal",
             width = "auto",
             height = "auto",
             pad = 4,
             margin = 4,
             bgimage = "panels/square.png",
-            bgcolor = "@background",
+            bgcolor = "@bg",
             border = 1,
-            borderColor = "@text",
+            borderColor = "@border",
             cornerRadius = 2,
         },
         {
-            selectors = {"panel", "multiselect-chip", "hover"},
+            selectors = {"panel", "multiselectChip", "hover"},
             brightness = 1.2,
         },
-
-        -- Chip text label.
         {
-            selectors = {"label", "multiselect-chip-text"},
+            selectors = {"label", "multiselectChipText"},
             width = "auto",
             height = "auto",
             valign = "center",
@@ -735,21 +615,17 @@ ThemeEngine.RegisterTheme{
             fontFace = "@input",
             fontSize = 14,
         },
-
-        -- Remove button (X). Hidden until the parent chip is hovered.
-        -- bgcolor stays a literal alpha-composite (#D530310F = faint red wash);
-        -- the engine doesn't compose alphas, and a solid @danger here would be
-        -- too heavy for a hover-only hint. Border + X-text use @danger so they
-        -- recolor with the theme.
+        -- No fill on the remove button -- it sits on top of the chip's `@bg`
+        -- via the cascade. The red `@danger` border + X glyph carry the
+        -- "danger zone" signal without an alpha wash.
         {
-            selectors = {"panel", "multiselect-chip-remove"},
+            selectors = {"panel", "multiselectChipRemove"},
             width = 14,
             height = 14,
             halign = "right",
             valign = "center",
             lmargin = 4,
             bgimage = true,
-            bgcolor = "#D530310F",
             border = 1,
             borderColor = "@danger",
             cornerRadius = 2,
@@ -757,20 +633,19 @@ ThemeEngine.RegisterTheme{
             hidden = 1,
         },
         {
-            selectors = {"panel", "multiselect-chip-remove", "parent:hover"},
+            selectors = {"panel", "multiselectChipRemove", "parent:hover"},
             hidden = 0,
         },
         {
-            selectors = {"panel", "multiselect-chip-remove", "hover"},
+            selectors = {"panel", "multiselectChipRemove", "hover"},
             brightness = 1.5,
         },
-
-        -- The "X" label inside the remove button. Color is @text (not @danger)
+        -- The "X" label inside the remove button. Color is @fg (not @danger)
         -- so the letter contrasts against its own red-bordered red-wash
         -- container; the parent's border + faint bg already carry the
         -- "danger zone" signal so the X just needs to be readable.
         {
-            selectors = {"label", "multiselect-chip-remove"},
+            selectors = {"label", "multiselectChipRemove"},
             width = "100%",
             height = "100%",
             halign = "center",
@@ -778,21 +653,29 @@ ThemeEngine.RegisterTheme{
             margin = 0,
             pad = 0,
             textAlignment = "center",
-            color = "@text",
+            color = "@fg",
             fontFace = "@input",
             fontSize = 8,
         },
         {
-            selectors = {"label", "multiselect-chip-remove", "parent:hover"},
+            selectors = {"label", "multiselectChipRemove", "parent:hover"},
             brightness = 1.5,
         },
 
-        --[[ Sliders ]]
+        --[[ Slider ]]
+        --
+        -- gui.Slider (Gui.lua wrapper) -- emits sliderHandleBorder /
+        -- sliderHandleInner on its internal handle parts.
+        --
+        -- gui.EnumeratedSliderControl (core widget) -- composed of an
+        -- enumSlider container with a row of enumSliderOption labels.
+        -- The widget's .lua only applies classes; all styling lives here
+        -- so themes/schemes own it.
         {
             selectors = {"sliderHandleBorder"},
             borderWidth = 2,
-            borderColor = "@text",
-            bgcolor = "@background",
+            borderColor = "@border",
+            bgcolor = "@bg",
             bgimage = "panels/square.png",
             width = "60%",
             height = "60%",
@@ -802,87 +685,186 @@ ThemeEngine.RegisterTheme{
         {
             selectors = {"sliderHandleInner"},
             bgimage = "panels/square.png",
-            bgcolor = "@text",
+            bgcolor = "@fg",
             width = "30%",
             height = "30%",
             halign = "center",
             valign = "center",
         },
-
-        --[[ Utility classes ]]
         {
-            scrollHandleColor = "@grey02",
+            selectors = {"enumSlider"},
+            width = "100%",
+            height = 24,
+            flow = "horizontal",
         },
         {
-            selectors = {"hidden"},
-            hidden = 1,
-        },
-        {
-            selectors = {"collapsed"},
-            collapsed = 1,
-        },
-        {
-            selectors = {"hideForPlayers", "player"},
-            hidden = 1,
-        },
-        {
-            selectors = {"collapsedForPlayers", "player"},
-            collapsed = 1,
-        },
-        {
-            priority = 100,
-            selectors = {"collapsed-anim"},
-            collapsed = 1,
-            transitionTime = 0.2,
-            uiscale = {x = 1, y = 0.001},
-        },
-        {
-            selectors = {"hidden-unless-parent-hover"},
-            hidden = 1,
-        },
-        {
-            selectors = {"hidden-unless-parent-hover", "parent:hover"},
-            hidden = 0,
-        },
-        {
-            selectors = {"dockablePanel"},
+            selectors = {"enumSliderOption"},
             bgimage = "panels/square.png",
-        },
-
-        --[[ Highlight bars (good/bad) ]]
-        {
-            selectors = {"highlight_good"},
-            priority = 5,
-            transitionTime = 1,
-            bgcolor = "green",
-        },
-        {
-            selectors = {"highlight_bad"},
-            priority = 5,
-            transitionTime = 1,
-            bgcolor = "red",
-        },
-
-        --[[ Clickable icons ]]
-        {
-            selectors = {"clickableIcon"},
-            bgcolor = "@text",
-            width = 16,
-            height = 16,
+            bgcolor = "@bg",
+            color = "@fg",
+            borderColor = "@border",
+            borderWidth = 2,
+            fontSize = 12,
+            bold = true,
+            halign = "center",
+            valign = "center",
+            textAlignment = "center",
+            height = "100%",
         },
         {
-            selectors = {"clickableIcon", "hover"},
+            selectors = {"enumSliderOption", "selected"},
+            bgcolor = "@fg",
+            color = "@bg",
+            transitionTime = 0.2,
+        },
+        {
+            selectors = {"enumSliderOption", "hover"},
+            bgcolor = "@fg",
+            color = "@bg",
             brightness = 1.5,
-        },
-        {
-            selectors = {"dice", "parent:clickableIcon", "parent:hover"},
-            brightness = 1.5,
+            transitionTime = 0.2,
         },
 
-        --[[ Generic icon buttons ]]
+        --[[ Checkbox ]]
+        -- Transparent fill on the checkbox container -- the checkmark and
+        -- check-background panels below paint the visual; the container
+        -- itself just lays out the row.
+        {
+            selectors = {"checkbox"},
+            bgimage = "panels/square.png",
+            flow = "horizontal",
+            bgcolor = "clear",
+            height = 30,
+            width = "auto",
+            minWidth = 200,
+            hpad = 4,
+        },
+        {
+            selectors = {"checkbox", "hover", "~disabled"},
+            borderWidth = 1,
+            borderColor = "@fg",
+        },
+        {
+            selectors = {"checkBackground"},
+            bgimage = "panels/square.png",
+            bgcolor = "@bg",
+            halign = "left",
+            valign = "center",
+            height = "70%",
+            width = "100% height",
+            rmargin = 6,
+            borderColor = "@border",
+            borderWidth = 2,
+        },
+        {
+            selectors = {"checkBackground", "disabled"},
+            saturation = 0,
+        },
+        {
+            selectors = {"checkMark"},
+            bgimage = "panels/square.png",
+            bgcolor = "@fg",
+            halign = "center",
+            valign = "center",
+            width = "50%",
+            height = "50%",
+        },
+        {
+            selectors = {"checkMark", "disabled"},
+            saturation = 0,
+        },
+        {
+            selectors = {"checkboxLabel"},
+            halign = "left",
+            valign = "center",
+            textAlignment = "left",
+            borderWidth = 0,
+            width = "auto",
+            height = "auto",
+            fontSize = 18,
+        },
+        {
+            selectors = {"checkboxLabel", "rightAlign"},
+            rmargin = 8,
+        },
+        {
+            selectors = {"checkboxLabel", "disabled"},
+            color = "@fgMuted",
+        },
+
+        --[[ Tab ]]
+        {
+            selectors = {"tab"},
+            bgimage = true,
+            borderWidth = 1,
+            borderColor = "@border",
+            width = 100,
+            height = 40,
+            fontSize = 18,
+            bgcolor = "@bg",
+            color = "@fgMuted",
+            hpad = 6,
+        },
+        {
+            selectors = {"tab", "hover"},
+            brightness = 1.2,
+        },
+        {
+            selectors = {"tab", "selected"},
+            bold = true,
+            color = "@fgStrong",
+            borderColor = "@fg",
+            borderWidth = 2,
+        },
+
+        --[[ Tooltip ]]
+        --
+        -- tooltipLabel / tooltipIcon / hasTooltip are engine-emitted on
+        -- gui.Tooltip elements; theme rules match those names verbatim.
+        {
+            selectors = {"label", "tooltipLabel"},
+            color = "@fg",
+            fontSize = 16,
+            width = "auto",
+            height = "auto",
+            halign = "left",
+        },
+        {
+            selectors = {"label", "tooltipLabel", "title"},
+            bold = true,
+            width = "100%",
+            fontSize = 24,
+        },
+        -- Image-tint-neutral on the tooltip icon's bgimage -- "white" opts
+        -- out of the cascade's @bg tint so the icon paints in natural color.
+        {
+            selectors = {"icon", "tooltipIcon"},
+            halign = "right",
+            valign = "top",
+            width = 32,
+            height = 32,
+            bgcolor = "white",
+        },
+        {
+            selectors = {"hasTooltip"},
+            color = "@accent",
+        },
+        {
+            selectors = {"hasTooltip", "hover"},
+            color = "@accentHover",
+        },
+
+        --[[ Icon button (generic + HUD) ]]
+        --
+        -- iconButton: small accent-able click target (24x24 by default).
+        -- Add a withSuccess / withInfo / withWarning / withDanger class
+        -- to recolor the hover state.
+        --
+        -- hudIconButton: larger HUD-bar button with selected/disabled
+        -- states and a child hudIconButtonIcon that scales on hover.
         {
             selectors = {"iconButton"},
-            bgcolor = "@text",
+            bgcolor = "@fg",
             width = 24,
             height = 24,
         },
@@ -894,13 +876,6 @@ ThemeEngine.RegisterTheme{
             selectors = {"iconButton", "press"},
             brightness = 0.8,
         },
-        {
-            selectors = {"iconButton", "settingsButton"},
-            blend = "add",
-        },
-        -- Semantic accent variants for icon buttons. Caller adds e.g. `withSuccess`
-        -- as a class on top of `iconButton`; the default state stays @text, only
-        -- hover recolors. Press inherits the generic brightness=0.8 dim.
         {
             selectors = {"iconButton", "withSuccess", "hover"},
             bgcolor = "@success",
@@ -917,216 +892,13 @@ ThemeEngine.RegisterTheme{
             selectors = {"iconButton", "withDanger", "hover"},
             bgcolor = "@danger",
         },
-
-        --[[ Close / delete / plus buttons ]]
-        {
-            priority = 5,
-            selectors = {"close-button"},
-            width = 24,
-            height = 24,
-            margin = 6,
-            halign = "right",
-            valign = "top",
-            bgcolor = "@text",
-        },
-        {
-            priority = 5,
-            selectors = {"close-button", "hover"},
-            brightness = 2,
-        },
-        {
-            priority = 5,
-            selectors = {"close-button", "press"},
-            brightness = 0.5,
-        },
-        {
-            priority = 5,
-            selectors = {"delete-item-button"},
-            width = 24,
-            height = 24,
-        },
-        {
-            priority = 5,
-            selectors = {"plus-button"},
-            width = 24,
-            height = 24,
-            bgcolor = "white",
-        },
-        {
-            priority = 5,
-            selectors = {"plus-button", "hover"},
-            brightness = 1.4,
-        },
-        {
-            priority = 5,
-            selectors = {"plus-button", "press"},
-            brightness = 0.8,
-        },
-
-        --[[ Dialogs ]]
-        {
-            selectors = {"panel", "dialog"},
-            -- bgimage = true,
-            -- gradient = "@panelRadial",
-        },
-        {
-            selectors = {"label", "dlg-title"},
-            width = "96%",
-            height = "auto",
-            valign = "top",
-            halign = "center",
-            textAlignment = "center",
-            fontSize = 24,
-        },
-        {
-            priority = 5,
-            selectors = {"dialog-panel"},
-            bgimage = "panels/InventorySlot_Background.png",
-            bgcolor = "white",
-            bgslice = 20,
-            border = 10,
-        },
-        {
-            priority = 5,
-            selectors = {"dialog-panel", "fadein"},
-            opacity = 0,
-            uiscale = {x = 0.01, y = 0.01},
-            transitionTime = 0.2,
-        },
-        {
-            priority = 20,
-            selectors = {"dialog-border"},
-            hidden = 1,
-        },
-
-        --[[ Modal dialogs ]]
-        {
-            selectors = {"modal-dialog"},
-            priority = 10,
-            bgimage = "panels/square.png",
-            bgcolor = "#888888FF",
-            borderWidth = 2,
-            borderColor = "@background",
-            cornerRadius = 8,
-        },
-        {
-            selectors = {"modal-button-panel"},
-            priority = 10,
-            width = "100%-50",
-            height = 100,
-            valign = "bottom",
-            halign = "center",
-            flow = "horizontal",
-        },
-        {
-            selectors = {"pretty-button"},
-            priority = 10,
-            width = 140,
-            height = 60,
-        },
-        {
-            selectors = {"pretty-button-label"},
-            priority = 2,
-            fontSize = 20,
-            bold = true,
-            textAlignment = "center",
-            width = "auto",
-            height = "auto",
-        },
-
-        --[[ Tokens ]]
-        {
-            selectors = {"token-image"},
-            halign = "center",
-            valign = "center",
-            width = 60,
-            height = 60,
-        },
-        {
-            selectors = {"token-image-portrait"},
-            bgcolor = "white",
-            width = "100%",
-            height = "100%",
-        },
-        {
-            selectors = {"token-image-frame"},
-            width = "100%",
-            height = "100%",
-        },
-
-        --[[ Checkboxes ]]
-        {
-            selectors = {"check-mark"},
-            bgimage = "panels/square.png",
-            bgcolor = "@text",
-            halign = "center",
-            valign = "center",
-            width = "50%",
-            height = "50%",
-        },
-        {
-            selectors = {"check-background"},
-            bgimage = "panels/square.png",
-            bgcolor = "@background",
-            halign = "left",
-            valign = "center",
-            height = "70%",
-            width = "100% height",
-            rmargin = 6,
-            borderColor = "@text",
-            borderWidth = 2,
-        },
-        {
-            selectors = {"checkbox-label"},
-            halign = "left",
-            valign = "center",
-            textAlignment = "left",
-            borderWidth = 0,
-            fontSize = 18,
-            width = "auto",
-            height = "auto",
-        },
-        {
-            selectors = {"checkbox-label", "rightAlign"},
-            rmargin = 8,
-        },
-        {
-            selectors = {"checkbox"},
-            bgimage = "panels/square.png",
-            flow = "horizontal",
-            bgcolor = "clear",
-            height = 30,
-            width = "auto",
-            minWidth = 200,
-            hpad = 4,
-        },
-        {
-            selectors = {"checkbox", "hover", "~disabled"},
-            bgcolor = "#FFFFFF44",
-            borderWidth = 1,
-            borderColor = "white",
-        },
-        {
-            selectors = {"check-background", "disabled"},
-            saturation = 0,
-        },
-        {
-            selectors = {"check-mark", "disabled"},
-            saturation = 0,
-        },
-        {
-            selectors = {"checkbox-label", "disabled"},
-            color = "#777777FF",
-        },
-
-        --[[ HUD icon buttons ]]
         {
             selectors = {"hudIconButton"},
             width = 58,
             height = 58,
             bgimage = "panels/square.png",
-            bgcolor = "@background",
-            borderColor = "@text",
+            bgcolor = "@bg",
+            borderColor = "@fg",
             borderWidth = 1,
         },
         {
@@ -1153,7 +925,7 @@ ThemeEngine.RegisterTheme{
             selectors = {"hudIconButton", "selected", "tab"},
             brightness = 1,
             saturation = 1,
-            bgcolor = "#0D0D0D",
+            bgcolor = "@bg",
             border = {x1 = 1, x2 = 1, y1 = 0, y2 = 1},
         },
         {
@@ -1162,7 +934,7 @@ ThemeEngine.RegisterTheme{
             height = "75%",
             halign = "center",
             valign = "center",
-            bgcolor = "@text",
+            bgcolor = "@fg",
         },
         {
             selectors = {"hudIconButtonIcon", "parent:hover"},
@@ -1192,91 +964,115 @@ ThemeEngine.RegisterTheme{
             brightness = 1.5,
         },
 
-        --[[ Tabs ]]
+        --[[ Iconographic buttons (close / plus / delete) ]]
         {
-            selectors = {"tab"},
-            bgimage = true,
-            borderWidth = 1,
-            borderColor = "#CCCCCC",
-            width = 100,
-            height = 40,
-            fontSize = 18,
-            bgcolor = "@background",
-            color = "@grey02",
-            hpad = 6,
-        },
-        {
-            selectors = {"tab", "selected"},
-            bold = true,
-            color = "white",
-            borderColor = "white",
-            borderWidth = 2,
-        },
-        {
-            selectors = {"tab", "hover"},
-            brightness = 1.2,
-        },
-
-        --[[ Item tooltip ]]
-        {
-            selectors = {"label", "tooltipLabel"},
-            color = "white",
-            fontSize = 16,
-            width = "auto",
-            height = "auto",
-            halign = "left",
-        },
-        {
-            selectors = {"label", "tooltipLabel", "title"},
-            bold = true,
-            width = "100%",
-            fontSize = 24,
-        },
-        {
-            selectors = {"icon", "tooltipIcon"},
+            selectors = {"closeButton"},
+            width = 24,
+            height = 24,
+            margin = 6,
             halign = "right",
             valign = "top",
-            width = 32,
-            height = 32,
-            bgcolor = "white",
+            bgcolor = "@fg",
         },
         {
-            selectors = {"hasTooltip"},
-            color = "#AAAAFF",
+            selectors = {"closeButton", "hover"},
+            brightness = 2,
         },
         {
-            selectors = {"hasTooltip", "hover"},
-            color = "#FFAAFF",
+            selectors = {"closeButton", "press"},
+            brightness = 0.5,
+        },
+        {
+            selectors = {"plusButton"},
+            width = 24,
+            height = 24,
+            bgcolor = "@fg",
+        },
+        {
+            selectors = {"plusButton", "hover"},
+            brightness = 1.4,
+        },
+        {
+            selectors = {"plusButton", "press"},
+            brightness = 0.8,
+        },
+        {
+            selectors = {"deleteItemButton"},
+            width = 24,
+            height = 24,
         },
 
-        --[[ Framed panel ]]
+        --[[ Triangle (expand/collapse arrow) ]]
+        --
+        -- Defaults to "closed" (rotate = 90, pointing right). Toggling the
+        -- "expanded" class rotates to point down with a short transition.
         {
-            selectors = {"framedPanel"},
-            bgimage = "panels/square.png",
-            bgcolor = "white",
-            cornerRadius = 4,
-            gradient = "@dialogGradient",
-            borderWidth = 2.2,
-            borderColor = "@text",
+            selectors = {"triangle"},
+            bgimage = "panels/triangle.png",
+            bgcolor = "@fg",
+            width = 12,
+            height = 12,
+            hmargin = 4,
+            valign = "center",
+            halign = "left",
+            -- transitionTime = 0.2,
+            -- rotate = 90,
         },
+        -- {
+        --     selectors = {"triangle", "expanded"},
+        --     rotate = 0,
+        --     transitionTime = 0.2,
+        -- },
         {
-            selectors = {"framedPanel", "toplevel"},
-            borderWidth = 0,
-            opacity = 0.98,
-        },
-        {
-            selectors = {"framedPanel", "create", "~hidden", "~collapsed"},
-            soundEvent = "UI.WindowOpen",
+            selectors = {"triangle", "hover"},
+            brightness = 1.5,
         },
 
-        --[[ Tables ]]
+        --[[ Context menu ]]
+        {
+            selectors = {"contextMenuLabel"},
+            fontSize = 20,
+            color = "@fg",
+        },
+        {
+            selectors = {"contextMenuLabel", "disabled"},
+            fontSize = 20,
+            color = "@fgMuted",
+        },
+        {
+            selectors = {"contextMenuItem"},
+            fontSize = 20,
+            color = "@fg",
+            height = "auto",
+            width = "100%",
+            bgcolor = "@bgAlt",
+            borderColor = "@bg",
+            borderWidth = 1,
+        },
+        {
+            selectors = {"contextMenuItem", "hover"},
+            borderColor = "@fg",
+            borderWidth = 1,
+            transitionTime = 0.2,
+        },
+        {
+            selectors = {"contextMenuItem", "press"},
+            brightness = 1.2,
+            transitionTime = 0.2,
+        },
+
+        --[[ Table primitives ]]
+        --
+        -- oddRow / evenRow / highlight are emitted by the engine's table
+        -- striping. headerRow is applied by callers on the first row of a
+        -- gui.Table so the theme can style it (bold, darker bg).
         {
             selectors = {"label", "tableLabel"},
             pad = 6,
             fontSize = 16,
             width = "auto",
             height = "auto",
-            color = "white",
+            color = "@fg",
         },
         {
             selectors = {"row"},
@@ -1285,179 +1081,52 @@ ThemeEngine.RegisterTheme{
             bgimage = "panels/square.png",
         },
         {
-            selectors = {"row", "oddRow"},
-            bgcolor = "#222222FF",
+            selectors = {"row", "headerRow"},
+            bgcolor = "@bg",
+        },
+        {
+            selectors = {"label", "parent:headerRow"},
+            bold = true,
         },
         {
             selectors = {"row", "evenRow"},
-            bgcolor = "#444444FF",
+            bgcolor = "@bg",
+        },
+        {
+            selectors = {"row", "oddRow"},
+            bgcolor = "@bgAlt",
         },
         {
             selectors = {"row", "highlight"},
-            bgcolor = "#999944FF",
+            bgcolor = "@info",
         },
 
-        --[[ Context menu ]]
-        {
-            selectors = {"context-menu-label"},
-            fontSize = 20,
-            color = "@text",
-        },
-        {
-            selectors = {"context-menu-label", "disabled"},
-            fontSize = 20,
-            color = "@grey02",
-        },
-        {
-            selectors = {"context-menu-item"},
-            fontSize = 20,
-            color = "@text",
-            height = "auto",
-            width = "100%",
-            bgcolor = "#994444",
-            borderColor = "@background",
-            borderWidth = 1,
-        },
-        {
-            selectors = {"context-menu-item", "hover"},
-            borderColor = "@text",
-            borderWidth = 1,
-            transitionTime = 0.2,
-        },
-        {
-            selectors = {"context-menu-item", "press"},
-            brightness = 1.2,
-            transitionTime = 0.2,
-        },
+        -- =====================================================================
+        -- 2. FORMS -- label/control layouts
+        -- =====================================================================
 
-        --[[ Inventory slot ]]
+        --[[ Inline form (label-left + control-right) ]]
         {
-            selectors = {"inventory-slot-highlight"},
-            bgimage = "panels/InventorySlot_Focus.png",
-            bgcolor = "white",
-            width = 90,
-            height = 90,
-            halign = "center",
-            valign = "center",
-            opacity = 0,
-        },
-        {
-            selectors = {"inventory-slot-highlight", "hover"},
-            opacity = 1,
-        },
-        {
-            selectors = {"inventory-slot-highlight", "press"},
-            bgcolor = "red",
-        },
-        {
-            selectors = {"inventory-slot-background"},
-            bgimage = "panels/InventorySlot_Background.png",
-            bgcolor = "white",
-            width = 72,
-            height = 72,
-            margin = 0,
-            pad = 0,
-        },
-        {
-            selectors = {"inventory-slot-icon"},
-            bgcolor = "white",
-            halign = "center",
-            valign = "center",
-            width = "100%",
-            height = "100%",
-            hmargin = 0,
-        },
-
-        --[[ Advantage bar ]]
-        {
-            selectors = {"advantage-bar"},
-            halign = "center",
-            height = 30,
-            width = 340,
-            flow = "horizontal",
-        },
-        {
-            selectors = {"advantage-element-lock-icon"},
-            hidden = 1,
-        },
-        {
-            selectors = {"advantage-element-lock-icon", "parent:locked"},
-            hidden = 0,
-            margin = 2,
-            bgcolor = "white",
-            width = 16,
-            height = 16,
-            halign = "right",
-            valign = "center",
-        },
-        {
-            selectors = {"advantage-element"},
-            bgimage = "panels/square.png",
-            bgcolor = "#FFFFFF00",
-            color = "white",
-            width = 140,
-            height = 22,
-            fontSize = 14,
-            textAlignment = "center",
-            halign = "center",
-        },
-        {
-            selectors = {"advantage-element", "hover", "~selected"},
-            bgcolor = "#FFFFFF66",
-        },
-        {
-            selectors = {"advantage-element", "selected", "~press"},
-            borderWidth = 2,
-            borderColor = "white",
-            bgcolor = "white",
-            gradient = "@advantageSelectedGradient",
-        },
-        {
-            selectors = {"advantage-element", "locked"},
-            bgcolor = "#FF7777FF",
-        },
-        {
-            selectors = {"advantage-element", "press"},
-            bgcolor = "white",
-            color = "@background",
-        },
-        {
-            selectors = {"advantage-rules-panel"},
-            bgcolor = "#000000AA",
-            width = "auto",
-            height = "auto",
-            pad = 8,
-            flow = "vertical",
-        },
-        {
-            selectors = {"advantage-rules-label"},
-            color = "white",
-            width = "auto",
-            height = "auto",
-            fontSize = 14,
-        },
-        {
-            selectors = {"advantage"},
-            color = "#AAFFAA",
-        },
-        {
-            selectors = {"disadvantage"},
-            color = "#FFAAAA",
-        },
-
-        --[[ Forms ]]
-        {
-            selectors = {"formPanel"},
+            selectors = {"formRow"},
             flow = "horizontal",
             width = "100%",
             height = "auto",
             valign = "top",
             vmargin = 4,
         },
+        --[[ Compact horizontal row (used by compendium feature editors) ]]
+        {
+            selectors = {"formPanel"},
+            flow = "horizontal",
+            width = "auto",
+            height = "auto",
+            halign = "left",
+            vmargin = 2,
+        },
         {
             selectors = {"formLabel"},
             fontSize = 18,
-            color = "white",
+            color = "@fgStrong",
             width = "auto",
             height = "auto",
             minWidth = 140,
@@ -1470,7 +1139,7 @@ ThemeEngine.RegisterTheme{
             fontSize = 16,
             width = 180,
             height = 26,
-            color = "white",
+            color = "@fg",
             halign = "right",
             valign = "center",
             textAlignment = "left",
@@ -1495,18 +1164,13 @@ ThemeEngine.RegisterTheme{
             fontSize = 14,
         },
 
-        --[[ Stacked forms ]]
+        --[[ Stacked form (label-above-control) ]]
         --
-        -- Vertical "label-above-control" form layout. Each row is a panel with
-        -- class formStackedRow, holding a label (formStackedLabel) directly
-        -- above its control (formStackedControl). Use this in place of the
-        -- horizontal {formPanel}/{formLabel}/{formInput} vocabulary when a
-        -- compendium-style stacked layout is desired.
-        --
-        -- Compound selectors are used for control width so the rule beats any
-        -- surface-specific {input}/{dropdown} size rules in caller MergeStyles
-        -- extras. The bare {formStackedControl} rule covers anything else
-        -- (multiselects, etc.).
+        -- Vertical layout. Each row is {formStackedRow}, holding a
+        -- {label, formStackedLabel} directly above its control
+        -- ({formStackedControl}). Compound selectors on the control rules
+        -- so the size beats any surface-specific {input}/{dropdown} sizes
+        -- in caller MergeStyles extras.
         {
             selectors = {"formStackedRow"},
             flow = "vertical",
@@ -1525,10 +1189,9 @@ ThemeEngine.RegisterTheme{
             bmargin = 4,
             bold = true,
         },
-        -- Generic formStackedControl rule (catch-all for multiselect/etc.).
+        -- Catch-all for any formStackedControl (multiselect, etc.).
         {
             selectors = {"formStackedControl"},
-            priority = 3,
             width = "98%",
         },
         -- Inputs in stacked forms: 98% width, height 30 with internal padding
@@ -1537,60 +1200,49 @@ ThemeEngine.RegisterTheme{
         -- controls in the same form.
         {
             selectors = {"input", "formStackedControl"},
-            priority = 3,
             width = "98%",
             height = 30,
             hpad = 6,
             vpad = 4,
             fontSize = 18,
         },
-        -- Dropdowns in stacked forms: 98% width and height matching inputs
-        -- so the two control types render at consistent dimensions.
+        -- Dropdowns in stacked forms: 98% width and height matching inputs.
         {
             selectors = {"dropdown", "formStackedControl"},
-            priority = 3,
             width = "98%",
             height = 30,
         },
 
-        --[[ Feature cards ]]
+        -- =====================================================================
+        -- 3. CARDS -- collapsible feature-card layouts
+        -- =====================================================================
         --
-        -- Collapsible "card" wrapping a single feature inside a class / race /
-        -- background / kit / etc. editor. The card is the visual unit; the
-        -- outer features-list container (built by ClassLevel:CreateEditor) is
-        -- transparent so cards stack cleanly without nested fills.
+        -- A featureCard is an outer frame holding a featureCardHeader (top
+        -- strip with expand triangle, name display, delete button) and a
+        -- featureCardBody (the body that the card's @bgAlt shows through).
+        -- featureCardNested adjusts width and bottom margin for cards
+        -- rendered inside another card's option list.
         --
-        -- Structure:
-        --   featureCard          outer frame: @backgroundAlt fill, 1px border,
-        --                        70% width to match formStackedRow.
-        --   featureCardHeader    top strip: expando triangle, name display,
-        --                        delete button. Separated from the body by a
-        --                        borderBottom line.
-        --   featureCardBody      transparent (no bgimage), holds the form
-        --                        rows. Card's @backgroundAlt shows through.
+        -- Used by class / race / background / kit feature editors in the
+        -- compendium UI.
         {
             selectors = {"featureCard"},
             bgimage = "panels/square.png",
-            bgcolor = "@backgroundAlt",
+            bgcolor = "@bgAlt",
             width = "70%",
             height = "auto",
             halign = "left",
             flow = "vertical",
             bmargin = 12,
         },
-        -- Nested card: a feature card rendered as an option inside another
-        -- CharacterFeatureChoice. Fills its immediate parent's content area
-        -- so card-in-card stacking does not progressively shrink each level.
         {
             selectors = {"featureCardNested"},
             width = "70%+8",
             bmargin = 0,
         },
-        -- Header: border on all four sides so the card's outer frame is drawn
-        -- here on the top + sides, and its bottom edge serves as the separator
-        -- between header and body. Fill is transparent so the card's bg shows
-        -- through unmodified. hpad = 0 so the leading edge of the name label
-        -- aligns with the leading edge of option rows below.
+        -- Header: full border drawn here so the card's outer frame sits on
+        -- the top + sides; the bottom edge separates header from body.
+        -- Transparent fill so the card's bgAlt shows through.
         {
             selectors = {"featureCardHeader"},
             bgimage = "panels/square.png",
@@ -1603,13 +1255,13 @@ ThemeEngine.RegisterTheme{
             flow = "horizontal",
             hpad = 0,
         },
-        -- Body: border on left, right, bottom (y1 = bottom). Top edge is the
-        -- header's bottom border, already drawn. Same fill as the card so the
-        -- inside reads as one continuous @backgroundAlt surface.
+        -- Body: border on left/right/bottom; top edge is the header's bottom
+        -- border. Same fill as the card so the inside reads as one continuous
+        -- bgAlt surface.
         {
             selectors = {"featureCardBody"},
             bgimage = "panels/square.png",
-            bgcolor = "@backgroundAlt",
+            bgcolor = "@bgAlt",
             border = { x1 = 1, x2 = 1, y1 = 1, y2 = 0 },
             borderColor = "@border",
             borderBox = true,
@@ -1619,33 +1271,363 @@ ThemeEngine.RegisterTheme{
             pad = 12,
         },
 
-        --[[ Triangle (general) ]]
+        -- =====================================================================
+        -- 4. DIALOGS -- modal / framed surfaces
+        -- =====================================================================
+
+        --[[ Plain dialog ]]
         --
-        -- Expand/collapse arrow. Defaults to "closed" (rotate = 90, pointing
-        -- right). Toggling the "expanded" class rotates to point down with a
-        -- short transition. Call sites should use this cascade rather than
-        -- attaching their own `styles = ...triangleStyles` override.
+        -- dialogTitle / dialogPanel / dialogBorder are emitted by the
+        -- engine's gui.Dialog construction; theme rules must match those
+        -- names verbatim.
         {
-            selectors = {"triangle"},
-            bgimage = "panels/triangle.png",
-            bgcolor = "@text",
-            width = 12,
-            height = 12,
-            hmargin = 4,
-            valign = "center",
-            halign = "left",
-            rotate = 90,
+            selectors = {"panel", "dialog"},
+            -- bgimage = true,
+            -- gradient = "@surfaceRadial",
+        },
+        {
+            selectors = {"label", "dialogTitle"},
+            width = "96%",
+            height = "auto",
+            valign = "top",
+            halign = "center",
+            textAlignment = "center",
+            fontSize = 24,
+        },
+        -- Image-tint-neutral on the InventorySlot bgimage -- "white" opts
+        -- out of the cascade's @bg tint so the asset paints in natural color.
+        {
+            selectors = {"dialogPanel"},
+            bgimage = "panels/InventorySlot_Background.png",
+            bgcolor = "white",
+            bgslice = 20,
+            border = 10,
+        },
+        {
+            selectors = {"dialogPanel", "fadein"},
+            opacity = 0,
+            uiscale = {x = 0.01, y = 0.01},
             transitionTime = 0.2,
         },
         {
-            selectors = {"triangle", "expanded"},
-            priority = 5,
-            rotate = 0,
-            transitionTime = 0.2,
+            selectors = {"dialogBorder"},
+            hidden = 1,
+        },
+
+        --[[ Modal dialog ]]
+        {
+            selectors = {"modalDialog"},
+            bgimage = "panels/square.png",
+            bgcolor = "@bgInverse",
+            borderWidth = 2,
+            borderColor = "@bg",
+            cornerRadius = 8,
         },
         {
-            selectors = {"triangle", "hover"},
+            selectors = {"modalButtonPanel"},
+            width = "100%-50",
+            height = 100,
+            valign = "bottom",
+            halign = "center",
+            flow = "horizontal",
+        },
+        {
+            selectors = {"prettyButton"},
+            width = 140,
+            height = 60,
+        },
+        {
+            selectors = {"prettyButtonLabel"},
+            fontSize = 20,
+            bold = true,
+            textAlignment = "center",
+            width = "auto",
+            height = "auto",
+        },
+
+        --[[ Framed panel ]]
+        -- Image-tint-neutral on the square bgimage -- the @surfaceLinear
+        -- gradient paints the visible color; "white" lets it through
+        -- without being multiplied by the cascade's @bg.
+        {
+            selectors = {"framedPanel"},
+            bgimage = "panels/square.png",
+            bgcolor = "white",
+            cornerRadius = 4,
+            gradient = "@surfaceLinear",
+            borderWidth = 2.2,
+            borderColor = "@fg",
+        },
+        {
+            selectors = {"framedPanel", "toplevel"},
+            borderWidth = 0,
+            opacity = 0.98,
+        },
+        {
+            selectors = {"framedPanel", "create", "~hidden", "~collapsed"},
+            soundEvent = "UI.WindowOpen",
+        },
+
+        -- =====================================================================
+        -- 5. UTILITIES -- visibility, animation, scroll
+        -- =====================================================================
+
+        {
+            scrollHandleColor = "@fgMuted",
+        },
+        {
+            selectors = {"hidden"},
+            hidden = 1,
+        },
+        {
+            selectors = {"collapsed"},
+            collapsed = 1,
+        },
+        {
+            selectors = {"collapseAnim"},
+            collapsed = 1,
+            transitionTime = 0.2,
+            uiscale = {x = 1, y = 0.001},
+        },
+        {
+            selectors = {"hideForPlayers", "player"},
+            hidden = 1,
+        },
+        {
+            selectors = {"collapseForPlayers", "player"},
+            collapsed = 1,
+        },
+        {
+            selectors = {"hideUnlessParentHover"},
+            hidden = 1,
+        },
+        {
+            selectors = {"hideUnlessParentHover", "parent:hover"},
+            hidden = 0,
+        },
+
+        -- =====================================================================
+        -- 6. QUARANTINE -- feature-specific rules awaiting relocation
+        -- =====================================================================
+        --
+        -- These rules don't belong in DefaultStyles per the file header
+        -- doctrine -- they live here only because their consumers haven't
+        -- been migrated yet. They are wrapped in a Lua block comment so
+        -- they are inert (visible to readers, easy to relocate, not
+        -- registered with the engine).
+        --
+        -- Re-enable an entry only as a short-term measure while a consumer
+        -- is being migrated. The goal is to drain this block over time.
+
+        --[==[
+        --[[ rollable -- text styles for clickable rollable values ]]
+        {
+            selectors = {"rollable"},
+            color = "#FFAAAA",
+            textAlignment = "center",
+            borderWidth = 0,
+        },
+        {
+            selectors = {"rollable", "hover"},
+            bgcolor = "@bg",
+            borderWidth = 2,
+            color = "#FFCCCC",
+            borderColor = "#FFCCCC",
+        },
+        {
+            selectors = {"rollable", "hover", "press"},
+            borderWidth = 4,
+            color = "#FFDDDD",
+            borderColor = "#FFDDDD",
+        },
+
+        --[[ Pretty button (label-button decorative variant) ]]
+        --
+        -- NOTE: shares the kebab name with the modal prettyButton rule
+        -- above. If reactivated, rename to disambiguate (e.g. button-pretty).
+        {
+            selectors = {"label", "button", "prettyButton"},
+            fontSize = 24,
+            hmargin = 16,
+            vmargin = 16,
+            width = "130% auto",
+            height = "130% auto",
+            borderWidth = 3,
+        },
+
+        --[[ Highlight bars ]]
+        {
+            selectors = {"highlightGood"},
+            transitionTime = 1,
+            bgcolor = "green",
+        },
+        {
+            selectors = {"highlightBad"},
+            transitionTime = 1,
+            bgcolor = "red",
+        },
+
+        --[[ Clickable icon (generic hover-brightening icon) ]]
+        {
+            selectors = {"clickableIcon"},
+            bgcolor = "@fg",
+            width = 16,
+            height = 16,
+        },
+        {
+            selectors = {"clickableIcon", "hover"},
             brightness = 1.5,
+        },
+        {
+            selectors = {"dice", "parent:clickableIcon", "parent:hover"},
+            brightness = 1.5,
+        },
+
+        --[[ Settings button -- additive blend variant of iconButton ]]
+        {
+            selectors = {"iconButton", "settingsButton"},
+            blend = "add",
+        },
+
+        --[[ Dockable panel ]]
+        {
+            selectors = {"dockablePanel"},
+            bgimage = "panels/square.png",
+        },
+
+        --[[ Token image ]]
+        {
+            selectors = {"tokenImage"},
+            halign = "center",
+            valign = "center",
+            width = 60,
+            height = 60,
+        },
+        {
+            selectors = {"tokenImagePortrait"},
+            bgcolor = "white",
+            width = "100%",
+            height = "100%",
+        },
+        {
+            selectors = {"tokenImageFrame"},
+            width = "100%",
+            height = "100%",
+        },
+
+        --[[ Inventory slot ]]
+        {
+            selectors = {"inventorySlotHighlight"},
+            bgimage = "panels/InventorySlot_Focus.png",
+            bgcolor = "white",
+            width = 90,
+            height = 90,
+            halign = "center",
+            valign = "center",
+            opacity = 0,
+        },
+        {
+            selectors = {"inventorySlotHighlight", "hover"},
+            opacity = 1,
+        },
+        {
+            selectors = {"inventorySlotHighlight", "press"},
+            bgcolor = "red",
+        },
+        {
+            selectors = {"inventorySlotBackground"},
+            bgimage = "panels/InventorySlot_Background.png",
+            bgcolor = "white",
+            width = 72,
+            height = 72,
+            margin = 0,
+            pad = 0,
+        },
+        {
+            selectors = {"inventorySlotIcon"},
+            bgcolor = "white",
+            halign = "center",
+            valign = "center",
+            width = "100%",
+            height = "100%",
+            hmargin = 0,
+        },
+
+        --[[ Advantage bar ]]
+        {
+            selectors = {"advantageBar"},
+            halign = "center",
+            height = 30,
+            width = 340,
+            flow = "horizontal",
+        },
+        {
+            selectors = {"advantageElementLockIcon"},
+            hidden = 1,
+        },
+        {
+            selectors = {"advantageElementLockIcon", "parent:locked"},
+            hidden = 0,
+            margin = 2,
+            bgcolor = "white",
+            width = 16,
+            height = 16,
+            halign = "right",
+            valign = "center",
+        },
+        {
+            selectors = {"advantageElement"},
+            bgimage = "panels/square.png",
+            bgcolor = "#FFFFFF00",
+            color = "white",
+            width = 140,
+            height = 22,
+            fontSize = 14,
+            textAlignment = "center",
+            halign = "center",
+        },
+        {
+            selectors = {"advantageElement", "hover", "~selected"},
+            bgcolor = "#FFFFFF66",
+        },
+        {
+            selectors = {"advantageElement", "selected", "~press"},
+            borderWidth = 2,
+            borderColor = "white",
+            bgcolor = "white",
+            gradient = "@advantageSelectedGradient",
+        },
+        {
+            selectors = {"advantageElement", "locked"},
+            bgcolor = "#FF7777FF",
+        },
+        {
+            selectors = {"advantageElement", "press"},
+            bgcolor = "white",
+            color = "@bg",
+        },
+        {
+            selectors = {"advantageRulesPanel"},
+            bgcolor = "#000000AA",
+            width = "auto",
+            height = "auto",
+            pad = 8,
+            flow = "vertical",
+        },
+        {
+            selectors = {"advantageRulesLabel"},
+            color = "white",
+            width = "auto",
+            height = "auto",
+            fontSize = 14,
+        },
+        {
+            selectors = {"advantage"},
+            color = "#AAFFAA",
+        },
+        {
+            selectors = {"disadvantage"},
+            color = "#FFAAAA",
         },
 
         --[[ Folder library ]]
@@ -1662,7 +1644,7 @@ ThemeEngine.RegisterTheme{
             flow = "horizontal",
             height = 24,
             bgimage = "panels/square.png",
-            bgcolor = "@text",
+            bgcolor = "@fg",
         },
         {
             selectors = {"folderHeader", "hover"},
@@ -1679,7 +1661,7 @@ ThemeEngine.RegisterTheme{
         {
             selectors = {"triangle", "folderTriangle"},
             bgimage = "panels/triangle.png",
-            bgcolor = "@background",
+            bgcolor = "@bg",
             width = 16,
             height = 12,
             hmargin = 4,
@@ -1693,7 +1675,7 @@ ThemeEngine.RegisterTheme{
         },
         {
             selectors = {"folderLabel"},
-            color = "@background",
+            color = "@bg",
             fontSize = 18,
             width = "80%",
             height = "100%",
@@ -1756,14 +1738,20 @@ ThemeEngine.RegisterTheme{
             selectors = {"triggeredActionPanel", "expended"},
             saturation = 0.3,
             brightness = 0.3,
-            color = "@background",
+            color = "@bg",
         },
+        ]==]
     },
 }
 
+-- After both schemes and the default theme are registered, restore the
+-- user's saved selections (defaults to "default" / "default" if they
+-- haven't picked anything yet).
+ThemeEngine.RestoreActiveSelection()
+
 if devmode() then
 -- =============================================================================
--- Theme Test panel — visual smoke test for the registered default theme.
+-- Theme Test panel -- visual smoke test for the registered default theme.
 -- Exercises the categories the engine currently covers so a glance at this
 -- panel surfaces regressions when DefaultStyles changes.
 -- =============================================================================
@@ -1780,37 +1768,57 @@ local function _themeTest()
     end
 
     -- Custom rules to validate ThemeEngine.MergeStyles end-to-end.
-    -- The label class `merge-test` should resolve via @danger and follow scheme switches.
+    -- The label class `mergeTest` should resolve via @danger and follow
+    -- scheme switches.
     local mergeTestExtras = {
-        { selectors = {"label", "merge-test"}, color = "@danger", bold = true },
+        { selectors = {"label", "mergeTest"}, color = "@danger", bold = true },
     }
+
+    -- Fixed-size rebuild: every panel and every child uses an explicit
+    -- width and height. Rows stack vertically inside a fixed-size root
+    -- with a known total height. No "auto", no percentages, no overlap.
+
+    local DIALOG_W   = 1100
+    local DIALOG_H   = 720
+    local ROW_W      = 1080
+    local ROW_H      = 36
+    local PAD        = 8
+    local LABEL_W    = 160
+    local LABEL_H    = 28
+    local CTL_H      = 28
 
     rootPanel = gui.Panel{
         styles = ThemeEngine.MergeStyles(mergeTestExtras),
         classes = {"dialog"},
-        width = 1110,
-        height = 640,
+        width = DIALOG_W,
+        height = DIALOG_H,
         flow = "vertical",
+        pad = PAD,
+        vscroll = true,
+
         gui.Label{
-            classes = {"dlg-title"},
+            classes = {"dialogTitle"},
+            width = ROW_W,
+            height = 32,
             text = "Theme Test",
         },
 
-        -- Color scheme picker — switches active scheme and refreshes the panel
+        -- Color scheme picker row
         gui.Panel{
-            width = "96%",
-            height = "auto",
+            width = ROW_W,
+            height = ROW_H,
             halign = "left",
             flow = "horizontal",
             vmargin = 4,
             gui.Label{
-                width = 160, height = 28,
+                width = LABEL_W,
+                height = LABEL_H,
                 valign = "center",
                 text = "Color Scheme:",
             },
             gui.Dropdown{
                 width = 220,
-                height = 28,
+                height = CTL_H,
                 valign = "center",
                 idChosen = ThemeEngine.GetActiveColorScheme() or "default",
                 options = buildSchemeOptions(),
@@ -1820,7 +1828,9 @@ local function _themeTest()
                 end,
             },
             gui.Button{
-                classes = {"btn-sm"},
+                classes = {"btnSm"},
+                width = 80,
+                height = 32,
                 valign = "center",
                 hmargin = 8,
                 text = "Reset",
@@ -1831,105 +1841,128 @@ local function _themeTest()
             },
         },
 
-        -- MergeStyles validation: this label's color comes from a custom rule
-        -- merged in via ThemeEngine.MergeStyles, with @danger as a @-ref.
-        -- Should be red on default, acid-green on Loud.
+        -- MergeStyles validation row
         gui.Panel{
-            width = "96%",
-            height = "auto",
+            width = ROW_W,
+            height = ROW_H,
             halign = "left",
             flow = "horizontal",
             vmargin = 4,
             gui.Label{
-                classes = {"merge-test"},
-                width = 400, height = "auto",
+                classes = {"mergeTest"},
+                width = 600,
+                height = LABEL_H,
+                valign = "center",
                 text = "MergeStyles test (custom class -> @danger)",
             },
         },
 
         -- Buttons row
         gui.Panel{
-            width = "96%",
-            height = "auto",
-            valign = "top",
+            width = ROW_W,
+            height = 44,
             halign = "left",
             flow = "horizontal",
             vmargin = 8,
             gui.Button{
-                classes = {"btn-sm"},
+                classes = {"btnSm"},
+                width = 57, height = 31,
                 valign = "center",
                 text = "small",
             },
             gui.Button{
-                classes = {"btn-md"},
-                valign = "center",
+                classes = {"btnMd"},
+                width = 129, height = 31,
+                valign = "center", hmargin = 8,
                 text = "medium",
             },
             gui.Button{
-                classes = {"btn-lg"},
-                valign = "center",
+                classes = {"btnLg"},
+                width = 175, height = 35,
+                valign = "center", hmargin = 8,
                 text = "large",
             },
             gui.Button{
                 classes = {"disabled"},
-                valign = "center",
+                width = 129, height = 31,
+                valign = "center", hmargin = 8,
                 text = "disabled",
+            },
+            gui.Button{
+                width = 36, height = 36,
+                valign = "center", hmargin = 8,
+                icon = "game-icons/griffin-symbol.png",
             },
         },
 
         -- Labels row (base, number, pending, link)
         gui.Panel{
-            width = "96%",
-            height = "auto",
+            width = ROW_W,
+            height = ROW_H,
             halign = "left",
             flow = "horizontal",
             vmargin = 4,
             gui.Label{
-                width = 200, height = "auto",
+                width = 200, height = LABEL_H,
+                valign = "center",
                 text = "Base label",
             },
             gui.Label{
                 classes = {"number"},
-                width = 200, height = "auto",
+                width = 200, height = LABEL_H,
+                valign = "center",
                 text = "Number 12345",
             },
             gui.Label{
                 classes = {"pending"},
-                width = 200, height = "auto",
+                width = 200, height = LABEL_H,
+                valign = "center",
                 text = "Pending text",
             },
             gui.Label{
                 classes = {"link"},
-                width = 200, height = "auto",
+                width = 200, height = LABEL_H,
+                valign = "center",
                 text = "Link label",
             },
         },
 
-        -- Input
+        -- Input row
         gui.Panel{
-            width = "96%",
-            height = "auto",
+            width = ROW_W,
+            height = ROW_H,
             halign = "left",
             flow = "horizontal",
             vmargin = 4,
+            gui.Label{
+                width = LABEL_W, height = LABEL_H,
+                valign = "center",
+                text = "Input:",
+            },
             gui.Input{
                 classes = {"input"},
-                width = 320, height = 28,
+                width = 320, height = CTL_H,
+                valign = "center",
                 placeholderText = "type something...",
                 text = "",
             },
         },
 
-        -- Dropdown
+        -- Dropdown row
         gui.Panel{
-            width = "96%",
-            height = "auto",
+            width = ROW_W,
+            height = ROW_H,
             halign = "left",
             flow = "horizontal",
             vmargin = 4,
+            gui.Label{
+                width = LABEL_W, height = LABEL_H,
+                valign = "center",
+                text = "Dropdown:",
+            },
             gui.Dropdown{
-                width = 260,
-                height = 28,
+                width = 260, height = CTL_H,
+                valign = "center",
                 idChosen = "a",
                 options = {
                     {id = "a", text = "Option A"},
@@ -1939,23 +1972,20 @@ local function _themeTest()
             },
         },
 
-        -- Enumerated slider — exercises gui.EnumeratedSliderControl theming.
-        -- Each option recolors live on scheme switch via the control's own
-        -- OnThemeChanged subscription.
+        -- Slider row
         gui.Panel{
-            width = "96%",
-            height = "auto",
+            width = ROW_W,
+            height = ROW_H,
             halign = "left",
             flow = "horizontal",
             vmargin = 4,
             gui.Label{
-                width = 160, height = 24,
+                width = LABEL_W, height = LABEL_H,
                 valign = "center",
                 text = "Slider:",
             },
             gui.Panel{
-                width = 320,
-                height = 28,
+                width = 320, height = CTL_H,
                 valign = "center",
                 gui.EnumeratedSliderControl{
                     value = "two",
@@ -1968,66 +1998,58 @@ local function _themeTest()
             },
         },
 
-        -- Progress dice — intentionally theme-blind (renders the codex logo
-        -- at natural color regardless of active scheme; bgcolor="white" is
-        -- image tint, not panel background).
+        -- Progress dice row
         gui.Panel{
-            width = "96%",
-            height = "auto",
+            width = ROW_W,
+            height = 72,
             halign = "left",
             flow = "horizontal",
             vmargin = 4,
             gui.Label{
-                width = 160, height = 64,
+                width = LABEL_W, height = 64,
                 valign = "center",
                 text = "Progress dice:",
             },
             gui.ProgressDice{
-                width = 64,
-                height = 64,
-                progress = 0.4,
-                halign = "left",
+                width = 64, height = 64,
                 valign = "center",
+                progress = 0.4,
             },
         },
 
-        -- Particle value — exercises gui.ParticleValue which overrides the
-        -- generic `label` selector inside its own subtree via MergeStyles.
-        -- The internal labels recolor live on scheme switch.
+        -- Particle value row
         gui.Panel{
-            width = "96%",
-            height = "auto",
+            width = ROW_W,
+            height = ROW_H,
             halign = "left",
             flow = "horizontal",
             vmargin = 4,
             gui.Label{
-                width = 160, height = 24,
+                width = LABEL_W, height = LABEL_H,
                 valign = "center",
                 text = "Particle value:",
             },
             gui.ParticleValue{
-                value = 10,
-                halign = "left",
+                width = 140, height = 20,
                 valign = "center",
+                value = 10,
             },
         },
 
-        -- Multiselect — chips + dropdown, all themed via the controller's
-        -- merged styles. Hover a chip to reveal the @danger remove button.
+        -- Multiselect row (taller -- chips can wrap)
         gui.Panel{
-            width = "96%",
-            height = "auto",
+            width = ROW_W,
+            height = 100,
             halign = "left",
             flow = "horizontal",
             vmargin = 4,
             gui.Label{
-                width = 160, height = 24,
+                width = LABEL_W, height = LABEL_H,
                 valign = "top",
                 text = "Multiselect:",
             },
             gui.Multiselect{
-                width = 320,
-                halign = "left",
+                width = 320, height = 100,
                 valign = "top",
                 value = { red = true, blue = true },
                 options = {
@@ -2040,51 +2062,67 @@ local function _themeTest()
             },
         },
 
-        -- Checkbox
+        -- Checkbox row
         gui.Panel{
-            width = "96%",
-            height = "auto",
+            width = ROW_W,
+            height = 40,
             halign = "left",
             flow = "horizontal",
             vmargin = 4,
             gui.Check{
+                width = 240, height = 30,
                 text = "Enable example",
                 value = true,
             },
         },
 
-        -- Tabs
+        -- Tabs row
         gui.Panel{
-            width = "96%",
-            height = "auto",
+            width = ROW_W,
+            height = 44,
             halign = "left",
             flow = "horizontal",
             vmargin = 8,
             gui.Panel{
                 classes = {"tab", "selected"},
-                gui.Label{ text = "Tab 1", halign = "center", valign = "center" },
+                width = 100, height = 40,
+                gui.Label{
+                    width = 100, height = 40,
+                    halign = "center", valign = "center",
+                    text = "Tab 1",
+                },
             },
             gui.Panel{
                 classes = {"tab"},
-                gui.Label{ text = "Tab 2", halign = "center", valign = "center" },
+                width = 100, height = 40,
+                gui.Label{
+                    width = 100, height = 40,
+                    halign = "center", valign = "center",
+                    text = "Tab 2",
+                },
             },
             gui.Panel{
                 classes = {"tab"},
-                gui.Label{ text = "Tab 3", halign = "center", valign = "center" },
+                width = 100, height = 40,
+                gui.Label{
+                    width = 100, height = 40,
+                    halign = "center", valign = "center",
+                    text = "Tab 3",
+                },
             },
         },
 
-        -- Framed panel (for radial gradient + framed look)
+        -- panelRadial row
         gui.Panel{
-            classes = {"panel", "radial-gradient"},
-            width = "96%",
+            classes = {"panel", "panelRadial"},
+            width = ROW_W,
             height = 80,
             halign = "left",
             vmargin = 8,
             gui.Label{
-                halign = "center",
-                valign = "center",
-                text = "Radial-gradient panel",
+                width = ROW_W, height = 80,
+                halign = "center", valign = "center",
+                text = "panelRadial",
             },
         },
     }

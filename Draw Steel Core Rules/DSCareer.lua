@@ -109,14 +109,11 @@ local SetBackground = function(tableName, backgroundPanel, backgroundid)
 		halign = "right",
 		valign = "top",
 		gui.IconEditor{
+		classes = {"portraitImage"},
 		value = background.portraitid,
 		library = "Avatar",
-			width = "100%",
-		height = "150% width",
 		autosizeimage = true,
 		allowPaste = true,
-		borderColor = Styles.textColor,
-		borderWidth = 2,
 		change = function(element)
 			background.portraitid = element.value
 			UploadBackground()
@@ -128,7 +125,6 @@ local SetBackground = function(tableName, backgroundPanel, backgroundid)
 			width = "auto",
 			height = "auto",
 			halign = "center",
-			color = Styles.textColor,
 			fontSize = 12,
 		}
 	}
@@ -200,9 +196,6 @@ function Background.CreateEditor()
 		classes = 'class-panel',
 		styles = {
 			{
-				halign = "left",
-			},
-			{
 				classes = {'class-panel'},
 				width = 1200,
 				height = '90%',
@@ -210,29 +203,6 @@ function Background.CreateEditor()
 				flow = 'vertical',
 				pad = 20,
 			},
-			{
-				classes = {'label'},
-				color = 'white',
-				fontSize = 22,
-				width = 'auto',
-				height = 'auto',
-			},
-			{
-				classes = {'input'},
-				width = 200,
-				height = 26,
-				fontSize = 18,
-				color = 'white',
-			},
-			{
-				classes = {'formPanel'},
-				flow = 'horizontal',
-				width = 'auto',
-				height = 'auto',
-				halign = 'left',
-				vmargin = 2,
-			},
-
 		},
 	}
 

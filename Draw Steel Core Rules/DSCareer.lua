@@ -136,13 +136,13 @@ local SetBackground = function(tableName, backgroundPanel, backgroundid)
 
 	--the name of the background.
 	children[#children+1] = gui.Panel{
-		classes = {'formPanel'},
+		classes = {"formStackedRow"},
 		gui.Label{
-			text = 'Name:',
-			valign = 'center',
-			minWidth = 240,
+			classes = {"formStackedLabel"},
+			text = "Name:",
 		},
 		gui.Input{
+			classes = {"formStackedControl"},
 			text = background.name,
 			change = function(element)
 				background.name = element.text
@@ -151,19 +151,26 @@ local SetBackground = function(tableName, backgroundPanel, backgroundid)
 		},
 	}
 
-	children[#children+1] = gui.Input{
-		fontSize = 14,
-		vmargin = 4,
-		width = 600,
-		minHeight = 30,
-		height = 'auto',
-		multiline = true,
-		text = background.description,
-		textAlignment = "topleft",
-		placeholderText = "Enter career description...",
-		change = function(element)
-			background.description = element.text
-		end,
+	children[#children+1] = gui.Panel{
+		classes = {"formStackedRow"},
+		gui.Label{
+			classes = {"formStackedLabel"},
+			text = "Description:",
+		},
+		gui.Input{
+			classes = {"formStackedControl"},
+			multiline = true,
+			height = "auto",
+			minHeight = 30,
+			maxHeight = 300,
+			vscroll = true,
+			textAlignment = "topleft",
+			placeholderText = "Enter career description...",
+			text = background.description,
+			change = function(element)
+				background.description = element.text
+			end,
+		},
 	}
 
 	BackgroundCharacteristic.EmbedEditor(background, children, function()

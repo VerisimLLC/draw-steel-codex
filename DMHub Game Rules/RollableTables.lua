@@ -391,13 +391,13 @@ local SetData = function(tableName, rolltablePanel, key, options)
 
 		--the name of the table.
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {"formStackedRow"},
 			gui.Label{
-				text = 'Name:',
-				valign = 'center',
-				minWidth = 240,
+				classes = {"formStackedLabel"},
+				text = "Name:",
 			},
 			gui.Input{
+				classes = {"formStackedControl"},
 				text = data.name,
 				change = function(element)
 					data.name = element.text
@@ -415,18 +415,19 @@ local SetData = function(tableName, rolltablePanel, key, options)
 
 		if options.hasDetails then
 			children[#children+1] = gui.Panel{
-				classes = {'formPanel'},
+				classes = {"formStackedRow"},
 				gui.Label{
+					classes = {"formStackedLabel"},
 					text = "Details:",
-					valign = "center",
-					minWidth = 240,
 				},
-
 				gui.Input{
+					classes = {"formStackedControl"},
 					multiline = true,
-					width = 600,
 					height = "auto",
-					minHeight = 24,
+					minHeight = 30,
+					maxHeight = 300,
+					vscroll = true,
+					textAlignment = "topleft",
 					text = data.details,
 					change = function(element)
 						data.details = element.text
@@ -442,16 +443,13 @@ local SetData = function(tableName, rolltablePanel, key, options)
 		end
 
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {"formStackedRow"},
 			gui.Label{
-				text = 'Roll:',
-				valign = 'center',
-				minWidth = 240,
+				classes = {"formStackedLabel"},
+				text = "Roll:",
 			},
 			gui.Dropdown{
-				width = 260,
-				height = 36,
-				fontSize = 20,
+				classes = {"formStackedControl"},
 				options = rollTypes,
 				idChosen = data.rollType,
 				change = function(element)
@@ -463,16 +461,16 @@ local SetData = function(tableName, rolltablePanel, key, options)
 		}
 
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel', cond(data.rollType ~= 'custom', 'hidden')},
+			classes = {"formStackedRow", cond(data.rollType ~= "custom", "collapsed")},
 			refreshData = function(element)
-				element:SetClass("hidden", data.rollType ~= 'custom')
+				element:SetClass("collapsed", data.rollType ~= "custom")
 			end,
 			gui.Label{
-				text = 'Custom Roll:',
-				valign = 'center',
-				minWidth = 240,
+				classes = {"formStackedLabel"},
+				text = "Custom Roll:",
 			},
 			gui.Input{
+				classes = {"formStackedControl"},
 				text = data.customRoll,
 				change = function(element)
 					data.customRoll = element.text
@@ -483,14 +481,13 @@ local SetData = function(tableName, rolltablePanel, key, options)
 		}
 
 		children[#children+1] = gui.Panel{
-			classes = {"formPanel"},
+			classes = {"formStackedRow"},
 			gui.Label{
+				classes = {"formStackedLabel"},
 				text = "Player Visibility:",
-				minWidth = 240,
 			},
-
 			gui.Dropdown{
-				width = 260,
+				classes = {"formStackedControl"},
 				idChosen = data.visibility,
 				options = {
 					{

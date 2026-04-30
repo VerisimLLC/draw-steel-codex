@@ -71,7 +71,7 @@ local CreateFeatureSummary = function(feature, featuresList, index, parentPanel,
 	local featurePanel
 	featurePanel =  gui.Panel{
 		classes = {"formPanel", "hideOnSearchMismatch"},
-		width = 600,
+		width = "70%",
 		refreshModifier = function(element)
 			element:FireEventTree("refreshFeatures")
 			parentPanel:FireEvent("change")
@@ -240,9 +240,11 @@ end
 local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, classOrRace, options)
 
 	local pointsCostPanel = nil
-	
+
     local points = options.points
     options.points = nil
+    local nested = options.nested
+    options.nested = nil
 	if points then
 		pointsCostPanel = gui.Input{
 			width = 60,
@@ -274,6 +276,10 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
 
 	local tri = gui.Panel{
 		classes = {"triangle"},
+		floating = true,
+		halign = "left",
+		valign = "center",
+		x = 4,
 		height = "30%",
 		width = "100% height",
 		hmargin = 4,
@@ -297,9 +303,12 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
             classes = {cond(feature:try_get("imported", false), cond(feature:try_get("importOverride", false), "override", "imported"))},
 			fontSize = 18,
 			bold = true,
-			width = "auto",
+			width = 320,
+			lmargin = 20,
 			height = "auto",
+			halign = "left",
 			valign = "center",
+			textWrap = true,
             textAlignment = "left",
 			text = feature:Describe(),
 		}
@@ -328,6 +337,7 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
 		gui.DeleteItemButton{
 			halign = "right",
 			valign = "center",
+			hmargin = 8,
 			width = 16,
 			height = 16,
             requireConfirm = true,
@@ -436,115 +446,55 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
 	local tagEditor = nil
 	if feature.typeName == "CharacterFeatChoice" then
 
-        tagEditor = gui.Panel{
-            width = "auto",
-            height = "auto",
-            flow = "vertical",
-        }
-
-
-        local RefreshTags
-
-        RefreshTags = function()
-            local tags = {
-                feat = true,
-            }
-
+        local tagOptions = (function()
+            local tags = { feat = true }
             local featsTable = dmhub.GetTable(CharacterFeat.tableName) or {}
-
-            for k,feat in pairs(featsTable) do
+            for _,feat in pairs(featsTable) do
                 if not feat:try_get("hidden", false) then
                     for _,tag in ipairs(feat:Tags()) do
                         tags[string.lower(tag)] = true
                     end
                 end
             end
-
-            local options = {}
+            local result = {}
             for k,_ in pairs(tags) do
-                options[#options+1] = {
-                    id = k,
-                    text = k,
-                }
+                result[#result+1] = { id = k, text = k }
             end
+            table.sort(result, function(a,b) return a.text < b.text end)
+            return result
+        end)()
 
-            table.sort(options, function(a,b) return a.text < b.text end)
-
-            local element = tagEditor
-            element.children = {}
-
-            local currentTags = feature:Tags()
-                    print("TAGS:: REFRESH", feature.tag, "is", currentTags)
-            for _,tag in ipairs(currentTags) do
-                local tagPanel = gui.Panel{
-                    classes = {"formPanel"},
-                    gui.Label{
-                        text = "Tag:",
-                        classes = {"formLabel"},
-                        minWidth = 160,
-                    },
-                    gui.Dropdown{
-                        width = 240,
-                        options = options,
-                        idChosen = tag,
-                        change = function(element)
-                            local newTags = {}
-                            for _,tag in ipairs(currentTags) do
-                                if tag ~= element.idChosen then
-                                    newTags[#newTags+1] = tag
-                                else
-                                    newTags[#newTags+1] = element.idChosen
-                                end
-                            end
-                            feature.tag = string.join(newTags,",")
-                            resultPanel:FireEvent("change")
-                            RefreshTags()
-                        end,
-                    },
-
-                    gui.DeleteItemButton{
-                        classes = cond(#currentTags == 1, {"hidden"}),
-                        floating = true,
-                        halign = "right",
-                        valign = "center",
-                        x = 16,
-                        width = 12,
-                        height = 12,
-                        requireConfirm = true,
-                        click = function(element)
-                            local newTags = {}
-                            for _,t in ipairs(currentTags) do
-                                if t ~= tag then
-                                    newTags[#newTags+1] = t
-                                end
-                            end
-                            feature.tag = string.join(newTags,",")
-                            resultPanel:FireEvent("change")
-                            RefreshTags()
-                        end,
-                    }
-                }
-                element:AddChild(tagPanel)
+        local tagValue = (function()
+            local v = {}
+            for _,tag in ipairs(feature:Tags()) do
+                v[string.lower(tag)] = true
             end
+            return v
+        end)()
 
-            element:AddChild(gui.Dropdown{
-                width = 240,
-                halign = "right",
-                textOverride = "Add Tag...",
-                options = options,
-                change = function(element)
-                    local newTags = DeepCopy(currentTags)
-                    newTags[#newTags+1] = element.idChosen
-                    feature.tag = string.join(newTags,",")
-                    print("TAGS:: SET", feature.tag, "HAVE", feature:Tags())
+        tagEditor = gui.Panel{
+            classes = {"formStackedRow"},
+            gui.Label{
+                classes = {"formStackedLabel"},
+                text = "Tags:",
+            },
+            gui.Multiselect{
+                classes = {"formStackedControl"},
+                addItemText = "Add Tag...",
+                options = tagOptions,
+                value = tagValue,
+                change = function(element, value)
+                    local newTags = {}
+                    for tag,_ in pairs(value) do
+                        newTags[#newTags+1] = tag
+                    end
+                    table.sort(newTags)
+                    feature.tag = string.join(newTags, ",")
                     resultPanel:FireEvent("change")
-                    RefreshTags()
                 end,
-            })
-        end --end of RefreshTags function.
+            },
+        }
 
-        RefreshTags()
-       
 	elseif feature.typeName == "CharacterSingleFeat" then
 
 		local options = {
@@ -732,7 +682,7 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
 	children[#children+1] = body
 
 	local args = {
-        classes = {"featureCard", "hideOnSearchMismatch"},
+        classes = nested and {"featureCard", "featureCardNested", "hideOnSearchMismatch"} or {"featureCard", "hideOnSearchMismatch"},
 		height = "auto",
 		children = children,
 
@@ -1408,6 +1358,7 @@ function CharacterFeatureChoice:CreateEditor(classOrRace, params)
 				gui.GoblinScriptInput{
 					classes = {"formStackedControl"},
 					value = self.numChoices,
+					multiline = false,
 					change = function(element)
 						self.numChoices = element.value
 						resultPanel:FireEvent('create')
@@ -1437,7 +1388,7 @@ function CharacterFeatureChoice:CreateEditor(classOrRace, params)
 
 			children[#children+1] = gui.Check{
 				text = "Allow Duplicate Choices",
-				classes = {cond(tonumber(self.numChoices) ~= 1, nil, "hidden")},
+				classes = {cond(tonumber(self.numChoices) ~= 1, nil, "collapsed")},
 				value = self.allowDuplicateChoices,
 				change = function(element)
 					self.allowDuplicateChoices = element.value
@@ -1559,6 +1510,7 @@ function CharacterFeatureChoice:CreateEditor(classOrRace, params)
 				else
 					children[#children+1] = CreateChoiceEditor(feature, self.options, index, resultPanel, classOrRace, {
                         points = self.costsPoints,
+                        nested = true,
 						change = function(element)
 							resultPanel:FireEvent("change")
 						end,

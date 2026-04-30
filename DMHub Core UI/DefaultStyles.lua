@@ -109,8 +109,8 @@ ThemeEngine.RegisterColorScheme{
         borderInv     = "#666666",
 
         -- text
-        text          = "#EFEFEF",
-        textLabel     = "#AEAEAE",
+        text          = "#CECECE",
+        textLabel     = "#EFEFEF",
         textMuted     = "#666666",
         textPending   = "#999999",
         textInverse   = "#040404",
@@ -1578,21 +1578,30 @@ ThemeEngine.RegisterTheme{
             flow = "vertical",
             bmargin = 12,
         },
+        -- Nested card: a feature card rendered as an option inside another
+        -- CharacterFeatureChoice. Fills its immediate parent's content area
+        -- so card-in-card stacking does not progressively shrink each level.
+        {
+            selectors = {"featureCardNested"},
+            width = "70%+8",
+            bmargin = 0,
+        },
         -- Header: border on all four sides so the card's outer frame is drawn
         -- here on the top + sides, and its bottom edge serves as the separator
         -- between header and body. Fill is transparent so the card's bg shows
-        -- through unmodified.
+        -- through unmodified. hpad = 0 so the leading edge of the name label
+        -- aligns with the leading edge of option rows below.
         {
             selectors = {"featureCardHeader"},
             bgimage = "panels/square.png",
             bgcolor = "clear",
-            border = 1,
+            border = { x1 = 1, x2 = 1, y1 = 1, y2 = 1 },
             borderColor = "@border",
             borderBox = true,
             width = "100%",
             height = 30,
             flow = "horizontal",
-            hpad = 8,
+            hpad = 0,
         },
         -- Body: border on left, right, bottom (y1 = bottom). Top edge is the
         -- header's bottom border, already drawn. Same fill as the card so the

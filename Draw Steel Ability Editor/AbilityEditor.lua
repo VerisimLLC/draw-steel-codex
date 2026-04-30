@@ -4579,14 +4579,20 @@ end
     The preview column is always visible; the editor runs as a full-screen
     modal so the detail column has enough room even with the preview mounted.
 
-    Polling: behaviors' EditorItems are shared base code and have no hook
-    into the editor's fireChange helper, so typing in fields like a power-
-    roll tier text updates the ability's data but never triggers a preview
-    rebuild. We use a thinkTime-based poll on previewSlot to schedule a
-    refresh every 250ms. The existing debounce in _schedulePreviewRefresh
-    coalesces this with keystroke-driven refreshes so we don't double-run.
+    Behaviour-driven invalidation: most preview content comes from top-level
+    ability fields edited in the form, which already route through fireChange.
+    The exception is the Power Roll behaviour (and the legacy Attack
+    behaviour), whose EditorItem inputs mutate fields visible on the preview
+    card -- tiers, roll formula, resistance attribute, modifiers. Those
+    handlers call element:FireEventOnParents("refreshAbilityPreview"), which
+    rootPanel handles by calling _schedulePreviewRefresh. The poll-every-250ms
+    pattern that previously lived here was removed because rebuilding the
+    entire preview subtree on a timer is expensive (especially with multiple
+    nested editors open). If you add a new behaviour type whose fields surface
+    on the preview tooltip, instrument its EditorItems change handlers the
+    same way -- see ActivatedAbilityPowerRollBehavior:EditorItems.
 ]]
-local function _makePreview(ability, schedulePreviewRefresh)
+local function _makePreview(ability)
     local previewSlot
     previewSlot = gui.Panel{
         id = "previewSlot",
@@ -4596,13 +4602,6 @@ local function _makePreview(ability, schedulePreviewRefresh)
         valign = "top",
         flow = "vertical",
         bgcolor = "clear",
-
-        thinkTime = 0.25,
-        think = function(element)
-            if schedulePreviewRefresh ~= nil then
-                schedulePreviewRefresh()
-            end
-        end,
 
         refreshPreview = function(element)
             -- Wrap the tooltip card in a width-constrained container so the
@@ -4944,7 +4943,7 @@ function AbilityEditor.GenerateEditor(ability, opts)
         children = {detailScroll, effectsBottomBar},
     }
 
-    previewCol, previewSlot = _makePreview(ability, _schedulePreviewRefresh)
+    previewCol, previewSlot = _makePreview(ability)
 
     -- In embedded mode the preview column is rehomed inside a floating overlay
     -- that sits pinned to the right edge of the body row. A thin tab lives
@@ -5094,6 +5093,16 @@ function AbilityEditor.GenerateEditor(ability, opts)
             ability = ability,
             selectedSectionId = SECTIONS[1].id,
         },
+        -- Behaviour-driven preview invalidation. EditorItem change handlers
+        -- on behaviours that surface fields on the preview card (currently
+        -- ActivatedAbilityPowerRollBehavior) call
+        -- element:FireEventOnParents("refreshAbilityPreview"), which bubbles
+        -- up to here. We feed it through the existing 150ms debounce so
+        -- multiple rapid events (e.g. a structural change that touches
+        -- several fields) coalesce into a single rebuild.
+        refreshAbilityPreview = function(element)
+            _schedulePreviewRefresh()
+        end,
         children = {
             titleStrip,
             gui.MCDMDivider{

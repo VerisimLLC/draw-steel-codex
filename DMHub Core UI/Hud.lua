@@ -135,11 +135,12 @@ function Hud:ModalMessage(args)
 	if args.title ~= nil then
 		titleText = gui.Label({
 			id = 'modal-title',
+			classes = {"modalTitle"},
 			text = args.title,
 			selfStyle = {
 				margin = 16,
-				fontSize = '80%',
-				color = 'white',
+				fontSize = 28,
+				-- color comes from the {label, modalTitle} rule so it follows the theme.
 				valign = 'top',
 				halign = 'center',
 				textAlignment = 'center',
@@ -153,12 +154,13 @@ function Hud:ModalMessage(args)
 	if args.message ~= nil then
 		messageText = gui.Label({
 			id = 'modal-message',
+			classes = {"modalMessage"},
 			text = args.message,
 			selfStyle = {
 				width = '80%',
 				height = 'auto',
-				color = 'white',
-				fontSize = '60%',
+				-- color comes from the {label, modalMessage} rule so it follows the theme.
+				fontSize = 18,
 				valign = 'center',
 				halign = 'center',
 				textAlignment = 'left',
@@ -212,16 +214,25 @@ function Hud:ModalMessage(args)
 			id = 'modal-dialog',
 			classes = {"framedPanel"},
 
-			styles = {
-				Styles.Panel,
+			-- Theme provides framedPanel styling. Local extras: layout sizing
+			-- plus themed colors for the title/message labels (Tier B).
+			styles = ThemeEngine.MergeStyles({
 				{
 					halign = 'center',
 					valign = 'center',
 					width = '60%',
 					height = '60%',
 					flow = 'vertical',
-				}
-			},
+				},
+				{
+					selectors = {"label", "modalTitle"},
+					color = "@text",
+				},
+				{
+					selectors = {"label", "modalMessage"},
+					color = "@text",
+				},
+			}),
 			children = {
 				titleText,
 				messageText,
@@ -256,10 +267,11 @@ function Hud:ModalChoice(args)
 	local dialog
 	dialog = gui.Panel{
 		classes = {"framedPanel"},
-		styles = {
-			Styles.Default,
-			Styles.Panel,
-			Styles.Table,
+		-- Theme provides framedPanel + row/oddRow/evenRow + base label rules.
+		-- Local extras: option-specific size/font and bespoke red hover/press
+		-- colors. Hover/press literals stay (component-specific dark-red wash;
+		-- could map to @danger family later if you want them theme-driven).
+		styles = ThemeEngine.MergeStyles({
 			{
 				selectors = {"option"},
 				height = 24,
@@ -275,7 +287,7 @@ function Hud:ModalChoice(args)
 				selectors = {"option", "press"},
 				bgcolor = "#550000ff",
 			},
-		},
+		}),
 
 		width = 1024,
 		height = 800,
@@ -283,6 +295,8 @@ function Hud:ModalChoice(args)
 		gui.Label{
 			classes = {"title"},
 			valign = "top",
+			fontSize = 28,
+			bold = true,
 			text = args.title,
 		},
 
@@ -372,20 +386,22 @@ function Hud:UploadDialog(options)
 
 	local label = gui.Label{
 		bgimage = 'panels/square.png',
+		classes = {"uploadDialogLabel"},
 		text = options.text,
 
+		-- Color, bgcolor, borderColor come from the {label, uploadDialogLabel}
+		-- theme rule on the parent dialog so this label follows scheme switches.
+		-- Layout/typography stays inline. Dropped a stray duplicate `height` key
+		-- (was `'center'` then `'auto'`); converted '80%' fontSize to absolute
+		-- 28 since the theme's {label} rule sets a 14px cascade base.
 		style = {
 			valign = 'center',
-			height = 'center',
 			width = 'auto',
 			height = 'auto',
 			pad = 100,
 			cornerRadius = 16,
 			borderWidth = 2,
-			borderColor = 'black',
-			bgcolor = '#777777ff',
-			color = 'white',
-			fontSize = '80%',
+			fontSize = 28,
 			textAlignment = 'center',
 		},
 		monitorAssets = true,
@@ -428,12 +444,20 @@ function Hud:UploadDialog(options)
 			height = 400,
 			flow = 'none',
 		},
+		styles = ThemeEngine.MergeStyles({
+			{
+				selectors = {"label", "uploadDialogLabel"},
+				color = "@text",
+				bgcolor = "@grey02",
+				borderColor = "@text",
+			},
+		}),
 		children = {
 			label,
 			closeButton,
 		},
 	}
-	
+
 	self:ShowModal(dialog)
 	return dialog
 end

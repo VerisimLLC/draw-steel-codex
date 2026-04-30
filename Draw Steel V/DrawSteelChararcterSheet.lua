@@ -1296,7 +1296,7 @@ function CharSheet.CharacterSheetAndAvatarPanel()
                                                 text = "Keywords:",
                                             },
 
-                                            gui.SetEditor {
+                                            gui.Multiselect {
                                                 value = rawget(token.properties, "keywords") or {},
                                                 addItemText = "Add Keyword...",
                                                 options = monsterKeywords,

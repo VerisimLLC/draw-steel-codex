@@ -11,7 +11,7 @@ function DTGrantRollsDialog:ShowDialog()
         classes = {"dtGrantRollsController", "DTDialog"},
         width = 350,
         height = 450,
-        styles = DTHelpers.GetDialogStyles(),
+        styles = ThemeEngine.MergeStyles(DTHelpers.GetDialogStyles()),
         data = {
             heroRollCount = 1,
             followerRollCount = 1,

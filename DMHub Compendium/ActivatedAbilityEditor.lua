@@ -476,7 +476,7 @@ function ActivatedAbility:GenerateEditor(opts)
 	end
 
     print("PROPERTIES: ", ActivatedAbility.registeredProperties)
-    local propertyEditorPanel = gui.SetEditor{
+    local propertyEditorPanel = gui.Multiselect{
         value = self:try_get("properties"),
         addItemText = "Add Special Property...",
         options = ActivatedAbility.registeredProperties,

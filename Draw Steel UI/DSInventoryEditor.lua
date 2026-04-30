@@ -628,7 +628,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                 },
             },
 
-            gui.SetEditor {
+            gui.Multiselect {
                 value = document:try_get("keywords", {}),
                 addItemText = "Add Keyword...",
                 options = GameSystem.KeywordsSetToDropdownList{GameSystem.abilityKeywords, GameSystem.itemKeywords},
@@ -769,7 +769,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                     return (not EquipmentCategory.IsTreasure(document))
                 end,
 
-                child = gui.SetEditor {
+                child = gui.Multiselect {
                     value = document:try_get("projectRollCharacteristic", {}),
                     addItemText = "Add Characteristic...",
                     options = creature.attributeDropdownOptions,

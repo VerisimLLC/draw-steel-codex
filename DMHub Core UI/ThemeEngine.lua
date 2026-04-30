@@ -803,3 +803,68 @@ function ThemeEngine.GetStyles(themeIdOverride, schemeIdOverride)
     _cache[key] = resolved
     return resolved
 end
+
+local _mergeCallCount = 0
+local _mergeCallsByCaller = {}
+
+--- Merge a caller-supplied styles array on top of the active theme's resolved styles.
+---
+--- The custom rules are run through the same @name resolver the engine uses for
+--- registered theme rules, so they can reference @text / @success / @accentHover /
+--- @panelRadial / etc. and follow scheme switches when the caller re-invokes
+--- MergeStyles after an OnThemeChanged event.
+---
+--- The base (theme) styles come first, custom rules are appended last, so on
+--- equal-specificity selector matches the custom rule wins. For finer control,
+--- callers can still set `priority = N` on individual custom rules.
+---
+--- The base styles array is the same memoized array returned by GetStyles().
+--- The custom resolution is recomputed each call (uncached) — typical custom
+--- arrays are small and the @name resolver is cheap.
+---
+--- Always uses the active theme/scheme pair; no overrides. Callers needing
+--- override semantics can compose manually via GetStyles(theme, scheme) plus
+--- their own resolution loop, but no caller has needed that yet.
+--- @param customStyles table[]|nil Array of rule tables (selectors + properties).
+--- @return table[] styles
+function ThemeEngine.MergeStyles(customStyles)
+    _mergeCallCount = _mergeCallCount + 1
+    -- DEBUG: log call count per source so we can find the spam.
+    -- traceback(2) = the caller's frame.
+    local info = debug.getinfo(2, "Sl")
+    local key = info and (info.short_src .. ":" .. tostring(info.currentline)) or "unknown"
+    _mergeCallsByCaller[key] = (_mergeCallsByCaller[key] or 0) + 1
+    if _mergeCallCount % 50 == 0 then
+        printf("THC:: MergeStyles total=%d", _mergeCallCount)
+        local rows = {}
+        for k,v in pairs(_mergeCallsByCaller) do rows[#rows+1] = {k=k, v=v} end
+        table.sort(rows, function(a,b) return a.v > b.v end)
+        for i = 1, math.min(8, #rows) do
+            printf("THC::   %dx %s", rows[i].v, rows[i].k)
+        end
+    end
+
+    local base = ThemeEngine.GetStyles()
+    if customStyles == nil or #customStyles == 0 then
+        return base
+    end
+
+    local themeId, schemeId = _resolveEffectivePair(nil, nil)
+    local chain = _buildChain(themeId)
+    local tables = {
+        colors = _buildColorTable(schemeId),
+        gradients = _buildGradientTable(schemeId),
+        fonts = _buildFontsTable(chain),
+    }
+
+    local resolvedCustom = _buildResolvedStyles(customStyles, tables)
+
+    local merged = {}
+    for _, r in ipairs(base) do
+        merged[#merged + 1] = r
+    end
+    for _, r in ipairs(resolvedCustom) do
+        merged[#merged + 1] = r
+    end
+    return merged
+end

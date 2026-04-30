@@ -76,7 +76,7 @@ function DTSelectItemDialog._createPanel(callbacks)
         classes = {"selectItemDialogController", "DTDialog"},
         width = 400,
         height = 200,
-        styles = DTHelpers.GetDialogStyles(),
+        styles = ThemeEngine.MergeStyles(DTHelpers.GetDialogStyles()),
         floating = true,
         escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
         captureEscape = true,

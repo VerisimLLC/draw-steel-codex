@@ -43,3 +43,6 @@ status.json
 *.hex
 
 Definitions/version.txt
+
+# Compendium content — local-only, not part of the mod source.
+compendium/

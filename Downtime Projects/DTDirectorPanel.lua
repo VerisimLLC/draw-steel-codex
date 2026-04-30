@@ -146,13 +146,14 @@ function DTDirectorPanel:_buildHeaderPanel()
 
     local statusText = string.format("Rolling: %s", isPaused and "Paused" or "Enabled")
 
-    return gui.Panel {
+    local headerPanel
+    headerPanel = gui.Panel {
         width = "100%",
         height = "40",
         flow = "horizontal",
         halign = "left",
         valign = "center",
-        styles = DTHelpers.GetDialogStyles(),
+        styles = ThemeEngine.MergeStyles(DTHelpers.GetDialogStyles()),
         children = {
             -- Settings panel - edit button & state
             gui.Panel {
@@ -213,6 +214,7 @@ function DTDirectorPanel:_buildHeaderPanel()
                 valign = "center",
                 children = {
                     gui.EnhIconButton {
+                        classes = {"withInfo"},
                         bgimage = "panels/initiative/initiative-dice.png",
                         width = "30",
                         height = "30",
@@ -220,8 +222,6 @@ function DTDirectorPanel:_buildHeaderPanel()
                         valign = "center",
                         hmargin = 5,
                         borderWidth = 0,
-                        hoverColor = "#00cccc",
-                        pressColor = "#00aaaa",
                         linger = function(element)
                             gui.Tooltip("Grant rolls")(element)
                         end,
@@ -233,6 +233,16 @@ function DTDirectorPanel:_buildHeaderPanel()
             },
         }
     }
+
+    -- The director panel is persistent across the session, so subscribe to
+    -- theme changes and refresh the styles array when the active scheme switches.
+    ThemeEngine.OnThemeChanged(mod, function()
+        if headerPanel and headerPanel.valid then
+            headerPanel.styles = ThemeEngine.MergeStyles(DTHelpers.GetDialogStyles())
+        end
+    end)
+
+    return headerPanel
 end
 
 --- Shows the settings edit dialog for downtime configuration
@@ -245,7 +255,7 @@ function DTDirectorPanel:_showSettingsDialog()
         classes = {"dtSettingsController", "DTDialog"},
         width = 500,
         height = 300,
-        styles = DTHelpers.GetDialogStyles(),
+        styles = ThemeEngine.MergeStyles(DTHelpers.GetDialogStyles()),
 
         saveAndClose = function(element)
             local chkPause = element:Get("chkPauseRolls")

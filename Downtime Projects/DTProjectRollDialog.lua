@@ -41,7 +41,7 @@ function DTProjectRollDialog._createPanel(options)
     end
 
     resultPanel = gui.Panel {
-        styles = DTHelpers.GetDialogStyles(),
+        styles = ThemeEngine.MergeStyles(DTHelpers.GetDialogStyles()),
         classes = {"rollController", "DTDialog"},
         width = 860,
         height = 500,

@@ -55,7 +55,7 @@ function DTConfirmationDialog._createPanel(title, message, confirmButtonText, ca
 
     local resultPanel = nil
     resultPanel = gui.Panel {
-        styles = DTHelpers.GetDialogStyles(),
+        styles = ThemeEngine.MergeStyles(DTHelpers.GetDialogStyles()),
         classes = {"confirmDialogController", "DTDialog"}, --"DTPanel", "DTBase"},
         width = 400,
         height = 200,

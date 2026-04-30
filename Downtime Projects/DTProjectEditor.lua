@@ -67,13 +67,11 @@ function DTProjectEditor:_createProjectForm()
 
     -- Select Item button (only if no progress)
     local selectItem = progress == 0 and gui.EnhIconButton {
-        classes = {"DTSelectItemBtn"},
+        classes = {"DTSelectItemBtn", "withSuccess"},
         width = 32,
         height = 32,
         halign = "center",
         valign = "center",
-        hoverColor = "#00cc00",
-        pressColor = "#008000",
         hoverCursor = "pressbutton",
         bgimage = mod.images.downtimeProjects,
         data = {
@@ -1517,14 +1515,13 @@ function DTProjectEditor:_createRollButton(options)
     local vmargin = options.vmargin or nil
 
     return gui.EnhIconButton {
+        classes = {"withInfo"},
         width = width,
         height = height,
         margin = margin,
         halign = halign,
         hmargin = hmargin,
         vmargin = vmargin,
-        hoverColor = "#00cccc",
-        pressColor = "#008080",
         bgimage = 'panels/initiative/initiative-dice.png',
         data = {
             enabled = false,
@@ -1742,14 +1739,13 @@ function DTProjectEditor:_createOwnedProjectButtons()
     }
 
     local shareButton = gui.EnhIconButton {
+        classes = {"withWarning"},
         width = 20,
         height = 20,
         halign = "left",
         hmargin = 5,
         vmargin = 5,
         bgimage = mod.images.share,
-        hoverColor = "#fcae1e",
-        pressColor = "#dc8e00",
         data = {
             getProject = function(element)
                 local projectController = element:FindParentWithClass("projectController")

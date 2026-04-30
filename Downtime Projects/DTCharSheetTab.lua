@@ -4,6 +4,8 @@
 --- @field _instance DTCharSheetTab The singleton instance of this class
 DTCharSheetTab = RegisterGameType("DTCharSheetTab")
 
+local mod = dmhub.GetModLoading()
+
 local playersEditProjectRols = setting{
 	id = "permission:playersprojectrolls",
 	description = "Players Edit Project Rolls",
@@ -54,7 +56,7 @@ function DTCharSheetTab.CreateDowntimePanel()
         valign = "top",
         halign = "center",
         borderColor = "purple",
-        styles = DTHelpers.GetDialogStyles(),
+        styles = ThemeEngine.MergeStyles(DTHelpers.GetDialogStyles()),
         data = {
             getDowntimeFollowers = function()
                 local token = getToken()
@@ -135,6 +137,15 @@ function DTCharSheetTab.CreateDowntimePanel()
             DTCharSheetTab._createBodyPanel(),
         }
     }
+
+    -- The CharSheet system caches this panel for the session, so its `styles`
+    -- array would be frozen at construction. Subscribe to ThemeEngine so the
+    -- styles refresh whenever the active theme or scheme changes.
+    ThemeEngine.OnThemeChanged(mod, function()
+        if downtimePanel and downtimePanel.valid then
+            downtimePanel.styles = ThemeEngine.MergeStyles(DTHelpers.GetDialogStyles())
+        end
+    end)
 
     return downtimePanel
 end
@@ -527,7 +538,6 @@ function DTCharSheetTab._createBodyPanel()
                 height = "100%",
                 valign = "top",
                 vscroll = true,
-                styles = DTHelpers.GetDialogStyles(),
                 children = {
                     -- Inner auto-height container that pins content to top
                     gui.Panel{

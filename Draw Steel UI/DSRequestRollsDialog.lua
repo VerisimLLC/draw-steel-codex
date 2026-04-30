@@ -1238,7 +1238,7 @@ function ShowRequireRollDialog(args)
 					end,
 				},
 
-                gui.SetEditor{
+                gui.Multiselect{
                     options = Skill.skillsDropdownOptions,
                     value = table.list_to_set(m_skills),
                     addItemText = "Choose Skill...",

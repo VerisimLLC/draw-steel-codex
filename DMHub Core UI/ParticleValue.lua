@@ -1,5 +1,9 @@
 local mod = dmhub.GetModLoading()
 
+-- Component-local override for descendant labels. The `label` selector is
+-- generic theme vocabulary; this override is scoped to the ParticleValue
+-- subtree because the rules are attached to the ParticleValue panel's own
+-- `styles` array, not propagated upward.
 local g_styles = {
     {
         selectors = {"label"},
@@ -7,7 +11,7 @@ local g_styles = {
         width = 40,
         height = 20,
         textAlignment = "center",
-        color = Styles.textColor,
+        color = "@text",
         bgimage = "panels/square.png",
         bgcolor = "clear",
     },
@@ -264,8 +268,21 @@ function gui.ParticleValue(args)
         return val
     end
 
+    local callerStyles = (args and args.styles) or nil
+    if args then args.styles = nil end
+
+    local function buildMergedStyles()
+        local merged = ThemeEngine.MergeStyles(g_styles)
+        if callerStyles then
+            for _, s in ipairs(callerStyles) do
+                merged[#merged + 1] = s
+            end
+        end
+        return merged
+    end
+
     local panelParams = {
-        styles = g_styles,
+        styles = buildMergedStyles(),
         width = 140,
         height = 20,
         flow = "horizontal",
@@ -303,18 +320,7 @@ function gui.ParticleValue(args)
     }
 
     for k,v in pairs(args or {}) do
-        if k == "styles" then
-            local styles = {}
-            for _,style in ipairs(panelParams.styles) do
-                styles[#styles+1] = style
-            end
-            for _,style in ipairs(v) do
-                styles[#styles+1] = style
-            end
-            panelParams.styles = styles
-        else
-            panelParams[k] = v
-        end
+        panelParams[k] = v
     end
 
     resultPanel = gui.Panel(panelParams)
@@ -323,6 +329,13 @@ function gui.ParticleValue(args)
 	resultPanel.SetValue = resultPanel.data.setValue
 
     resultPanel.data.setValue(resultPanel, m_value, false)
+
+    -- Refresh styles on theme/scheme changes so existing instances follow the active scheme.
+    ThemeEngine.OnThemeChanged(mod, function()
+        if resultPanel and resultPanel.valid then
+            resultPanel.styles = buildMergedStyles()
+        end
+    end)
 
     return resultPanel
 end

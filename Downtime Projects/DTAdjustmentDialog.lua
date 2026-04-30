@@ -34,7 +34,7 @@ function DTAdjustmentDialog._createPanel(adjustment, confirmHandler, cancelHandl
         classes = {"adjustmentDialogController", "DTDialog"},
         width = 500,
         height = 350,
-        styles = DTHelpers.GetDialogStyles(),
+        styles = ThemeEngine.MergeStyles(DTHelpers.GetDialogStyles()),
         floating = true,
         escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
         captureEscape = true,

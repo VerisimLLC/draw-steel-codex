@@ -1,40 +1,45 @@
 local mod = dmhub.GetModLoading()
 
-local enumSliderStyles = {
-    {
-        selectors = {"enumSlider"},
-        width = "100%",
-        height = 24,
-        flow = "horizontal",
-    },
-    {
-        selectors = {"enumSliderOption"},
-        bgimage = "panels/square.png",
-        bgcolor = "black",
-        color = Styles.textColor,
-        fontSize = 12,
-        bold = true,
-        halign = "center",
-        valign = "center",
-        borderWidth = 2,
-        borderColor = Styles.textColor,
-        textAlignment = "center",
-        height = "100%",
-    },
-    {
-        selectors = {"enumSliderOption", "selected"},
-        bgcolor = Styles.textColor,
-        color = "black",
-        transitionTime = 0.2,
-    },
-    {
-        selectors = {"enumSliderOption", "hover"},
-        bgcolor = Styles.textColor,
-        color = "black",
-        brightness = 1.5,
-        transitionTime = 0.2,
-    },
-}
+--- Component-private styles for the enumerated slider. Uses @-refs that get
+--- resolved against the active theme via ThemeEngine.MergeStyles. Caller-passed
+--- `styles` (if any) are appended after these, preserving caller-override semantics.
+local function getEnumSliderStyles()
+    return {
+        {
+            selectors = {"enumSlider"},
+            width = "100%",
+            height = 24,
+            flow = "horizontal",
+        },
+        {
+            selectors = {"enumSliderOption"},
+            bgimage = "panels/square.png",
+            bgcolor = "@background",
+            color = "@text",
+            fontSize = 12,
+            bold = true,
+            halign = "center",
+            valign = "center",
+            borderWidth = 2,
+            borderColor = "@text",
+            textAlignment = "center",
+            height = "100%",
+        },
+        {
+            selectors = {"enumSliderOption", "selected"},
+            bgcolor = "@text",
+            color = "@background",
+            transitionTime = 0.2,
+        },
+        {
+            selectors = {"enumSliderOption", "hover"},
+            bgcolor = "@text",
+            color = "@background",
+            brightness = 1.5,
+            transitionTime = 0.2,
+        },
+    }
+end
 
 function gui.EnumeratedSliderControl(args)
 
@@ -48,6 +53,19 @@ function gui.EnumeratedSliderControl(args)
 
     local optionWidth = args.optionWidth or (100/#options .. "%")
     args.optionWidth = nil
+
+    local callerStyles = args.styles
+    args.styles = nil
+
+    local function buildMergedStyles()
+        local merged = ThemeEngine.MergeStyles(getEnumSliderStyles())
+        if callerStyles then
+            for _, s in ipairs(callerStyles) do
+                merged[#merged + 1] = s
+            end
+        end
+        return merged
+    end
 
     local children = {}
 
@@ -79,7 +97,7 @@ function gui.EnumeratedSliderControl(args)
     end
 
     local params = {
-        styles = enumSliderStyles,
+        styles = buildMergedStyles(),
         classes = {"enumSlider"},
 
         children = children,
@@ -94,17 +112,17 @@ function gui.EnumeratedSliderControl(args)
 	end
 
     for k,v in pairs(args) do
-        if k == "styles" then
-            params.styles = table.shallow_copy(params.styles)
-            for _,style in ipairs(v) do
-                params.styles[#params.styles+1] = style
-            end
-        else
-            params[k] = v
-        end
-
+        params[k] = v
     end
 
     m_resultPanel = gui.Panel(params)
+
+    -- Refresh styles on theme/scheme changes so existing sliders follow the active scheme.
+    ThemeEngine.OnThemeChanged(mod, function()
+        if m_resultPanel and m_resultPanel.valid then
+            m_resultPanel.styles = buildMergedStyles()
+        end
+    end)
+
     return m_resultPanel
 end

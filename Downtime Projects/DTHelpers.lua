@@ -82,28 +82,36 @@ function DTHelpers.FormatNameWithUserColor(displayName, userId)
     return displayName
 end
 
---- Gets the standardized styling configuration for Quest Manager dialogs
---- Provides consistent styling across all Quest Manager UI components
---- @return table styles Array of GUI styles using DTBase inheritance pattern
+--- Gets the standardized styling configuration for Quest Manager dialogs.
+--- Provides consistent styling across all Quest Manager UI components.
+--- Returned rules use @-name refs (e.g. `@text`, `@success`, `@warning`) and are
+--- intended to be passed through `ThemeEngine.MergeStyles(...)` so the engine
+--- resolves them against the active scheme. Consumers that don't go through
+--- MergeStyles will see magenta-fallback for any @-ref color.
+--- @return table styles Array of GUI style rule tables
 function DTHelpers.GetDialogStyles()
     return {
-        -- DTBase: Foundation style for all Quest Manager controls
-        gui.Style{
+        -- DTBase: Foundation style for all Quest Manager controls.
+        -- Note: fontFace is intentionally NOT set here. gui.Input widgets in
+        -- DMHub appear to sticky-snap to a runtime-resolved fontFace on the
+        -- first styles= reassignment, and never revert. By keeping fontFace
+        -- on the more-specific DTLabel selector, inputs are unaffected by
+        -- scheme switches while labels still get themed Berling explicitly.
+        {
             selectors = {"DTBase"},
             fontSize = 18,
-            fontFace = "Berling",
-            color = Styles.textColor,
+            color = "@text",
             height = 24,
         },
 
         -- DT Dialog Windows
-        gui.Style{
+        {
             selectors = {"DTDialog"},
             halign = "center",
             valign = "center",
-            bgcolor = "#111111ff",
+            bgcolor = "@background",
             borderWidth = 2,
-            borderColor = Styles.textColor,
+            borderColor = "@text",
             bgimage = "panels/square.png",
             flow = "vertical",
             hpad = 20,
@@ -111,7 +119,7 @@ function DTHelpers.GetDialogStyles()
         },
 
         -- Panels
-        gui.Style{
+        {
             selectors = {"DTPanel", "DTBase"},
             height = "auto",
             hmargin = 2,
@@ -122,14 +130,14 @@ function DTHelpers.GetDialogStyles()
             bgimage = DEBUG_PANEL_BG,
             border = DEBUG_PANEL_BG and 1 or 0,
         },
-        gui.Style{
+        {
             selectors = {"DTPanelRow", "DTPanel", "DTBase"},
             vmargin = 4,
             height = 60,
             width = "100%-4",
             valign = "top",
         },
-        gui.Style{
+        {
             selectors = {"DTPanelReadRow", "DTPanel", "DTBase"},
             vmargin = 2,
             height = 30,
@@ -138,37 +146,38 @@ function DTHelpers.GetDialogStyles()
         },
 
         -- DT Control Types: Inherit from DTBase, add specific properties
-        gui.Style{
+        {
             selectors = {"DTLabel", "DTBase"},
+            fontFace = "@label",
             bold = true,
             textAlignment = "left",
             cornerRadius = 4,
         },
-        gui.Style{
+        {
             selectors = {"DTInput", "DTBase"},
-            bgcolor = Styles.backgroundColor,
+            bgcolor = "@background",
             borderWidth = 1,
-            borderColor = Styles.textColor,
+            borderColor = "@text",
             bold = false,
             cornerRadius = 4,
         },
-        gui.Style{
+        {
             selectors = {"DTDropdown", "DTBase"},
-            bgcolor = Styles.backgroundColor,
+            bgcolor = "@background",
             borderWidth = 1,
-            borderColor = Styles.textColor,
+            borderColor = "@text",
             height = 30,
             bold = false,
             cornerRadius = 4,
         },
-        gui.Style{
+        {
             selectors = {"DTCheck", "DTBase"},
             halign = "left",
             cornerRadius = 4,
         },
 
         -- Buttons
-        gui.Style{
+        {
             selectors = {"DTButton", "DTBase"},
             fontSize = 22,
             textAlignment = "center",
@@ -176,24 +185,24 @@ function DTHelpers.GetDialogStyles()
             height = 35,
             cornerRadius = 4,
         },
-        gui.Style{
+        {
             selectors = {"DTDanger", "DTButton", "DTBase"},
-            bgcolor = "#220000",
-            borderColor = "#440000",
+            bgcolor = "@danger",
+            borderColor = "@danger",
         },
-        gui.Style{
+        {
             selectors = {"DTDisabled", "DTButton", "DTBase"},
-            bgcolor = "#222222",
-            borderColor = "#444444",
+            bgcolor = "@disabled",
+            borderColor = "@grey02",
         },
-        gui.Style{
+        {
             selectors = {"downtime-edit-button"},
             width = 20,
             height = 20
         },
 
         -- Help hover targets
-        gui.Style{
+        {
             selectors = {"DTLabel", "DTBase", "DTHelpHover"},
             height = 20,
             width = 20,
@@ -202,53 +211,55 @@ function DTHelpers.GetDialogStyles()
             valign = "center",
             hmargin = 4,
             bgimage = true,
-            borderColor = "#FF9800",
-            color = "#FF9800",
+            borderColor = "@warning",
+            color = "@warning",
             border = 1,
             textAlignment = "center",
         },
 
         -- Rolling status color classes
-        gui.Style{
+        {
             selectors = {"DTStatusAvailable"},
-            color = "#4CAF50"  -- Green for available/enabled
+            color = "@success",
         },
-        gui.Style{
+        {
             selectors = {"DTStatusPaused"},
-            color = "#FF9800"  -- Orange for paused
+            color = "@warning",
         },
 
-        -- Objective drag handle styles
-        gui.Style{
+        -- Objective drag handle styles. Base uses @disabled; hover/dragging
+        -- shift via brightness so we don't need extra scheme colors for the
+        -- intermediate states. Drag-target hits @success.
+        {
             selectors = {"objective-drag-handle"},
             width = 24,
             height = 24,
-            bgcolor = "#444444aa",
+            bgcolor = "@disabled",
             bgimage = "panels/square.png",
-            transitionTime = 0.2
+            transitionTime = 0.2,
         },
-        gui.Style{
+        {
             selectors = {"objective-drag-handle", "hover"},
-            bgcolor = "#666666cc"
+            brightness = 1.6,
         },
-        gui.Style{
+        {
             selectors = {"objective-drag-handle", "dragging"},
-            bgcolor = "#888888ff",
-            opacity = 0.8
+            brightness = 2.2,
+            opacity = 0.8,
         },
-        gui.Style{
+        {
             selectors = {"objective-drag-handle", "drag-target"},
-            bgcolor = "#4CAF50aa"
+            bgcolor = "@success",
         },
 
         -- Compact List Styles for efficient list views
-        gui.Style {
+        {
             selectors = {"DTListBase"},
             fontSize = 12,
             bgimage = DEBUG_PANEL_BG,
             border = DEBUG_PANEL_BG and 1 or 0,
         },
-        gui.Style {
+        {
             selectors = {"DTListRow", "DTListBase"},
             width = "98%",
             height = 45,
@@ -258,16 +269,16 @@ function DTHelpers.GetDialogStyles()
             halign = "right",
             bgimage = "panels/square.png",
             border = { y1 = 1, y2 = 0, x1 = 0, x2 = 0 },
-            borderColor = "#666666",
+            borderColor = "@grey02",
         },
-        gui.Style {
+        {
             selectors = {"DTListDetail", "DTListBase"},
             width = 100,
             height = 45,
             valign = "top",
             flow = "vertical",
         },
-        gui.Style {
+        {
             selectors = {"DTListHeader", "DTListBase"},
             width = "98%",
             margin = 2,
@@ -276,25 +287,25 @@ function DTHelpers.GetDialogStyles()
             valign = "top",
             fontSize = 14,
         },
-        gui.Style {
+        {
             selectors = {"DTListTimestamp"},
             width = 120,
             hmargin = 2,
         },
-        gui.Style {
+        {
             selectors = {"DTListAmount"},
             width = 25,
             hmargin = 2,
         },
-        gui.Style {
+        {
             selectors = {"DTListAmountPositive"},
-            color = "#4CAF50",
+            color = "@success",
         },
-        gui.Style {
+        {
             selectors = {"DTListAmountNegative"},
-            color = "#F44336",
+            color = "@danger",
         },
-        gui.Style {
+        {
             selectors = {"DTListDetail", "DTListBase"},
             width = "100%",
             valign = "top",
@@ -304,10 +315,10 @@ function DTHelpers.GetDialogStyles()
         },
 
         -- Multiselect chips
-        gui.Style{
+        {
             selectors = {"DTChip", "hover"},
-            bgcolor = "#330000",
-            borderColor = "#990000",
+            bgcolor = "@danger",
+            borderColor = "@danger",
         },
     }
 end

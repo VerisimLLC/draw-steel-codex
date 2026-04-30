@@ -726,31 +726,41 @@ function gui.IconEditor(args)
 							}
 
 							popupPanel.children = {
-								gui.Label{
-									text = 'Uploading Image...',
-									thinkTime = 0.1,
-									events = {
-										think = function(element)
-											if assets.imagesTable[assetid] ~= nil then
-												resultPanel.value = assetid
-												resultPanel.popup = nil
-											end
-										end,
-									},
+								gui.Panel{
+									width = "100%",
+									height = "100%",
+									styles = ThemeEngine.MergeStyles({
+										{
+											selectors = {"label", "uploadingImageLabel"},
+											color = "@text",
+										},
+									}),
+									gui.Label{
+										classes = {"uploadingImageLabel"},
+										text = 'Uploading Image...',
+										thinkTime = 0.1,
+										events = {
+											think = function(element)
+												if assets.imagesTable[assetid] ~= nil then
+													resultPanel.value = assetid
+													resultPanel.popup = nil
+												end
+											end,
+										},
 
-									style = {
-										fontSize = '70%',
-										width = 'auto',
-										height = 'auto',
-										textAlignment = 'center',
-										color = 'white',
-										halign = 'center',
-										valign = 'center',
+										style = {
+											fontSize = 24,
+											width = 'auto',
+											height = 'auto',
+											textAlignment = 'center',
+											halign = 'center',
+											valign = 'center',
+										},
 									},
 								}
 							}
 						end,
-						
+
 					}
 				end,
 			},
@@ -802,26 +812,36 @@ function gui.IconEditor(args)
 						}
 
 						popupPanel.children = {
-							gui.Label{
-								text = 'Uploading Image...',
-								thinkTime = 0.1,
-								events = {
-									think = function(element)
-										if assets.imagesTable[assetid] ~= nil then
-											resultPanel.value = assetid
-											resultPanel.popup = nil
-										end
-									end,
-								},
+							gui.Panel{
+								width = "100%",
+								height = "100%",
+								styles = ThemeEngine.MergeStyles({
+									{
+										selectors = {"label", "uploadingImageLabel"},
+										color = "@text",
+									},
+								}),
+								gui.Label{
+									classes = {"uploadingImageLabel"},
+									text = 'Uploading Image...',
+									thinkTime = 0.1,
+									events = {
+										think = function(element)
+											if assets.imagesTable[assetid] ~= nil then
+												resultPanel.value = assetid
+												resultPanel.popup = nil
+											end
+										end,
+									},
 
-								style = {
-									fontSize = '70%',
-									width = 'auto',
-									height = 'auto',
-									textAlignment = 'center',
-									color = 'white',
-									halign = 'center',
-									valign = 'center',
+									style = {
+										fontSize = 24,
+										width = 'auto',
+										height = 'auto',
+										textAlignment = 'center',
+										halign = 'center',
+										valign = 'center',
+									},
 								},
 							}
 						}

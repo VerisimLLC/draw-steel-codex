@@ -1227,7 +1227,11 @@ local function buildSetupSection(ability, refreshSection, fireChange)
         children[#children + 1] = fieldRow("Prompt Text",
             gui.Input{
                 classes = {"formInput"},
-                width = 360,
+                -- Fill the row so all 300 characters are visible without
+                -- scrolling. The detail column is wider than the original
+                -- 360px, and the prompt is content the author needs to
+                -- proofread in full -- truncation hid mid-prompt errors.
+                width = "100%",
                 characterLimit = 300,
                 placeholderText = "Prompt shown to the player...",
                 text = ability:try_get("triggerPrompt", ""),
@@ -2110,15 +2114,40 @@ end
 
 -- Compile the condition formula. Returns (ok, errorMessage). Empty formula
 -- is considered valid -- the condition is optional, many triggers omit it.
+--
+-- PERFORMANCE: results are cached by formula string to avoid recompiling
+-- on every preview rebuild. dmhub.CompileGoblinScriptDeterministic
+-- allocates a fresh Lua function every call (per dmhub.lua:664 it returns
+-- "a reusable Lua function for efficient repeated evaluation" -- callers
+-- are expected to cache the return value), so without this cache every
+-- Mechanical View rebuild paid the full compile cost. The cache is
+-- module-local and bounded in practice -- formulas are short strings and
+-- the cardinality of distinct formulas across an editing session is
+-- small. Cache eviction is implicit via Lua's GC reaching the module
+-- table only on module unload, which is fine for the use case.
+local _conditionCompileCache = {}
 local function compileCondition(formula)
     if formula == nil or formula == "" then return true, nil end
+    local cached = _conditionCompileCache[formula]
+    if cached ~= nil then
+        return cached.ok, cached.err
+    end
     local out = {}
     local ok = pcall(function()
         dmhub.CompileGoblinScriptDeterministic(formula, out)
     end)
-    if not ok then return false, "compile error" end
-    if out.error then return false, tostring(out.error) end
-    return true, nil
+    local err
+    if not ok then
+        err = "compile error"
+        ok = false
+    elseif out.error then
+        err = tostring(out.error)
+        ok = false
+    else
+        ok = true
+    end
+    _conditionCompileCache[formula] = { ok = ok, err = err }
+    return ok, err
 end
 
 -- Normalise a symbol name for matching against allowed-reference sets:
@@ -3018,15 +3047,45 @@ local function discoverTestInputs(ability)
     -- Trigger symbol declarations come in two forms:
     --   keyed map:    `damagetype = { name = "Damage Type", type = "text" }`
     --   bare array:   `{ name = "Damage Type", type = "text" }`
-    -- The runtime injects values under a normalised key (lowercase, no
-    -- spaces) e.g. `symbols.damagetype = damageType` (Creature.lua:1999).
-    -- For keyed maps the key already matches; for bare arrays we must
-    -- derive the normalised key from .name so our scenario.symbolValues
-    -- write lands at the same slot GoblinScript looks up.
+    -- The runtime always injects under a key that's lowercase + space-stripped
+    -- of the symbol's natural NAME -- e.g. `symbols.damagetype = damageType`
+    -- (Creature.lua:1999) or `symbols.usedability = self` (ActivatedAbility.lua:1669).
+    -- The keyed-map declaration's key is INTENDED to match this convention but
+    -- isn't enforced -- e.g. `targetwithability` declares `ability = { name =
+    -- "Used Ability", ... }` where the runtime key is actually `usedability`.
+    -- Always derive from `def.name` so our id agrees with the runtime injection
+    -- identity AND with how the formula references the symbol (`Used Ability`
+    -- normalises to `usedability` regardless of which declaration form was used).
+    -- Falls back to the raw key only if `def.name` is missing.
     local function evalKey(rawKey, def)
+        local nm = def and def.name
+        if nm and nm ~= "" then
+            return string.lower((string.gsub(nm, "%s+", "")))
+        end
         if type(rawKey) == "string" then return rawKey end
-        local nm = (def and def.name) or ""
-        return string.lower((string.gsub(nm, "%s+", "")))
+        return tostring(rawKey)
+    end
+
+    -- C4: dotted-access discovery. For symbols whose type is itself a
+    -- nested object (ability, spellcast, path, loc), the formula can only
+    -- reach into the object via dotted access (e.g. `Used Ability.Keywords
+    -- has "Melee"`, `Path.Forced`, `Cast.tierfortarget`). The bare head is
+    -- not a leaf-comparable value -- there's nothing to type into a text
+    -- input. Instead we surface one row per (head, tail) pair the formula
+    -- actually references, with the input widget chosen by operator hint
+    -- (has -> set, =/is -> text, >/>= -> number, bare -> boolean).
+    local dottedAccesses = GoblinScriptProse.ListReferencedDottedAccesses(condition)
+    local function dottedTailsForLookupKey(lookupKey)
+        for _, entry in pairs(dottedAccesses) do
+            if entry.lookupKey == lookupKey then return entry end
+        end
+        return nil
+    end
+    local function kindFromOpHint(opHint)
+        if opHint == "has" then return "set" end
+        if opHint == "compare-num" then return "number" end
+        if opHint == "bool" then return "boolean" end
+        return "text"  -- compare-str, default
     end
 
     for symKey, symDef in pairs(trigger.symbols) do
@@ -3053,12 +3112,47 @@ local function discoverTestInputs(ability)
                         desc = symDef.desc,
                     }
                 end
+            elseif symType == "ability" or symType == "spellcast"
+                    or symType == "path" or symType == "loc" then
+                -- Object-typed symbols: surface one input row per dotted
+                -- tail referenced. No bare-head row (nothing meaningful
+                -- to type at the head level).
+                local entry = dottedTailsForLookupKey(id)
+                if entry ~= nil then
+                    for tailKey, tailInfo in pairs(entry.tails) do
+                        local leafKind = kindFromOpHint(tailInfo.opHint)
+                        -- C4 followup: if the tail is a known bounded-set
+                        -- field, attach a valueOptionsSource so the panel
+                        -- renders a dropdown instead of a free-text input.
+                        -- Today's only entry: ability keyword sets
+                        -- (Used Ability.Keywords / Ability.Keywords / Cast.Keywords).
+                        -- Add more here when the runtime exposes other
+                        -- bounded-vocabulary set fields on object symbols.
+                        local tailValueSource = nil
+                        if tailKey == "keywords" and leafKind == "set"
+                                and (symType == "ability" or symType == "spellcast") then
+                            tailValueSource = "abilityKeywords"
+                        end
+                        symbolInputs[#symbolInputs + 1] = {
+                            id = id .. "." .. tailKey,
+                            name = symName .. "." .. tailInfo.displayTail,
+                            kind = leafKind,
+                            desc = symDef.desc,
+                            displayType = symType .. "." .. tailInfo.displayTail,
+                            valueOptionsSource = tailValueSource,
+                            -- Mark for buildEvalContext so it knows to bundle
+                            -- this leaf under a stub object keyed by `id`.
+                            dottedHead = id,
+                            dottedTail = tailKey,
+                        }
+                    end
+                end
             elseif referenced then
                 local kind = "text"
                 if symType == "number" then kind = "number"
                 elseif symType == "boolean" then kind = "boolean"
                 elseif symType == "set" then kind = "set"
-                elseif symType == "creaturelist" or symType == "path" or symType == "loc" then
+                elseif symType == "creaturelist" then
                     kind = "unsupported"
                 end
                 symbolInputs[#symbolInputs + 1] = {
@@ -3134,6 +3228,23 @@ local TEST_OPTION_BUILDERS = {
         table.sort(options, function(a, b) return a.text < b.text end)
         return options
     end,
+    -- C4: Ability keyword set. ~25 keywords registered via
+    -- GameSystem.RegisterAbilityKeyword (Air, Magic, Melee, Ranged, ...).
+    -- Single-select dropdown -- the formula `Used Ability.Keywords has "X"`
+    -- only references one literal at a time, so picking one keyword
+    -- simulates a stub ability whose keyword set contains exactly that
+    -- entry. Multi-keyword stubs aren't needed for any current bestiary
+    -- formula; if real authoring patterns demand it, swap to a multi-pick
+    -- widget later. Id is lowercased to match GoblinScript's case-insensitive
+    -- string comparison and the StringSet wrapping in buildEvalContext.
+    abilityKeywords = function()
+        local options = {}
+        for keyword, _ in pairs(GameSystem.abilityKeywords or {}) do
+            options[#options + 1] = { id = string.lower(keyword), text = keyword }
+        end
+        table.sort(options, function(a, b) return a.text < b.text end)
+        return options
+    end,
 }
 
 -- Convert a per-symbol typed input into the value GoblinScript will see at
@@ -3184,13 +3295,141 @@ end
 -- ExecuteGoblinScript. casterToken provides the LookupSymbol receiver;
 -- subjectToken (if separate) populates symbols.subject; per-symbol inputs
 -- + role tokens populate the rest.
+-- Path C: build the augmented StringSet for a given (head, set) override.
+-- Returns a fresh StringSet that contains the real creature's set entries
+-- plus any overridden values the author has ticked. The original creature
+-- properties are NEVER mutated -- we copy `realSet.strings` then add.
+-- realFn is the lookupSymbols entry (e.g. props.lookupSymbols["conditions"]);
+-- props is passed to it as the receiver.
+--
+-- Defined ABOVE buildEvalContext because Lua locals must be in lexical
+-- scope at the point a function references them -- declaring helpers
+-- after their consumer treats the reference as a global lookup, which
+-- is nil at runtime.
+local function buildAugmentedSet(realFn, props, overrideValues)
+    local merged = {}
+    if realFn ~= nil and props ~= nil then
+        local ok, realSet = pcall(realFn, props)
+        if ok and type(realSet) == "table" and type(realSet.strings) == "table" then
+            for _, s in ipairs(realSet.strings) do merged[#merged + 1] = s end
+        end
+    end
+    local newSet = StringSet.new{ strings = merged }
+    for _, value in ipairs(overrideValues) do
+        if not newSet:Has(value) then newSet:Add(value) end
+    end
+    return newSet
+end
+
+-- Path C: collect a list of override values currently ticked for the given
+-- (head, set). Walks state.formulaOverrides keyed by "<head>:<set>:<value>".
+-- Defined above buildEvalContext for the same lexical-scope reason as
+-- buildAugmentedSet.
+local function collectOverrideValues(formulaOverrides, head, setName)
+    local out = {}
+    local prefix = head .. ":" .. setName .. ":"
+    for key, on in pairs(formulaOverrides or {}) do
+        if on and string.sub(key, 1, #prefix) == prefix then
+            out[#out + 1] = string.sub(key, #prefix + 1)
+        end
+    end
+    return out
+end
+
 local function buildEvalContext(ability, scenario)
     local symbols = {}
     symbols.mode = 1
 
+    -- Path C: in-formula state overrides. When the author has ticked
+    -- "Pretend X has condition Y" in the test panel, we inject the
+    -- augmented StringSet via GenerateSymbols(props, overrideTable).
+    -- The compiled GoblinScript at dot-access checks
+    -- `if type(symbols) == 'table' then symbols = GenerateSymbols(symbols)`
+    -- -- providing a callable already short-circuits that wrap and our
+    -- override table takes precedence over the real lookupSymbols entry.
+    -- See discoverInFormulaOverrides + buildAugmentedSet.
+    -- Normalise a condition/effect name to the lookupSymbols key shape
+    -- the runtime uses: lowercase + strip spaces. e.g. "Spell Resistance"
+    -- -> "spellresistance". Keeps the override compatible with the bare
+    -- boolean access form (`Subject.SpellResistance`).
+    local function normaliseSymbolKey(name)
+        if type(name) ~= "string" then return "" end
+        return string.lower((string.gsub(name, "%s+", "")))
+    end
+
+    local function buildOverrideSymbolTable(headKey, props)
+        local fo = scenario.formulaOverrides
+        if fo == nil or props == nil then return nil end
+        local condValues = collectOverrideValues(fo, headKey, "Conditions")
+        local oeValues   = collectOverrideValues(fo, headKey, "OngoingEffects")
+        if #condValues == 0 and #oeValues == 0 then return nil end
+        local tbl = {}
+        if #condValues > 0 then
+            -- Set-membership form: Subject.Conditions has "Flanked"
+            tbl.conditions = buildAugmentedSet(
+                props.lookupSymbols and props.lookupSymbols["conditions"],
+                props, condValues)
+            -- Bare-boolean form: Subject.Flanked. Inject a per-value
+            -- override that returns true so the dot access resolves to a
+            -- truthy value via GenerateSymbols' symbolTable check (it
+            -- returns the value as-is, no call). Same condition can be
+            -- written either way; this covers both.
+            for _, value in ipairs(condValues) do
+                local key = normaliseSymbolKey(value)
+                if key ~= "" then tbl[key] = true end
+            end
+        end
+        if #oeValues > 0 then
+            tbl.ongoingeffects = buildAugmentedSet(
+                props.lookupSymbols and props.lookupSymbols["ongoingeffects"],
+                props, oeValues)
+            for _, value in ipairs(oeValues) do
+                local key = normaliseSymbolKey(value)
+                if key ~= "" then tbl[key] = true end
+            end
+        end
+        return tbl
+    end
+
     if scenario.subjectToken ~= nil and scenario.casterToken ~= nil
             and scenario.subjectToken.id ~= scenario.casterToken.id then
-        symbols.subject = scenario.subjectToken.properties
+        local props = scenario.subjectToken.properties
+        local overrideTable = buildOverrideSymbolTable("subject", props)
+        if overrideTable ~= nil then
+            symbols.subject = GenerateSymbols(props, overrideTable)
+        else
+            symbols.subject = props
+        end
+    end
+
+    -- Self overrides: "Self" resolves against the caster (the receiver of
+    -- LookupSymbol). We can override by setting symbols.self -- the lookup
+    -- callable checks symbolTable first. If no Self overrides are set, we
+    -- leave symbols.self nil so the runtime falls through to caster props.
+    --
+    -- ALSO copy ALL override values into the OUTER symbols table so bare
+    -- references resolve through the top-level lookup callable. The
+    -- runtime treats bare refs (`Flanked`, `Conditions has "X"`,
+    -- `Ongoing Effects has "X"`) as implicit Self.X access, which means
+    -- the bare ident is looked up against the OUTER symbols table, not
+    -- against the wrapped Self callable's internal symbolTable. So:
+    --   - per-value booleans (tbl.flanked = true) cover bare-boolean
+    --     refs like `Flanked`
+    --   - augmented StringSets (tbl.conditions / tbl.ongoingeffects)
+    --     cover bare set-membership refs like `Conditions has "X"` or
+    --     `Ongoing Effects has "X"`
+    -- All keys from the override table are copied wholesale -- the
+    -- runtime semantics for outer-symbol lookup match what GenerateSymbols
+    -- returns for the wrapped form (return the value as-is, no fn call).
+    if scenario.casterToken ~= nil then
+        local casterProps = scenario.casterToken.properties
+        local selfOverrideTable = buildOverrideSymbolTable("self", casterProps)
+        if selfOverrideTable ~= nil then
+            symbols.self = GenerateSymbols(casterProps, selfOverrideTable)
+            for k, v in pairs(selfOverrideTable) do
+                symbols[k] = v
+            end
+        end
     end
 
     for symKey, tok in pairs(scenario.roleTokens or {}) do
@@ -3205,19 +3444,139 @@ local function buildEvalContext(ability, scenario)
         end
     end
 
+    -- C4: dotted-access leaves are stored under composite keys like
+    -- "usedability.keywords". Group them by head, build a stub table
+    -- per head, and wrap with GenerateSymbols(nil, stub) so GoblinScript
+    -- treats it as a callable on dot access. Set-typed leaves must use
+    -- StringSet (not a plain table) for the `has` operator to work --
+    -- that's the dispatch shape ActivatedAbility's keywords symbol uses
+    -- (see ActivatedAbility.lua:4997).
+    local stubTables = {}
     for symKey, info in pairs(scenario.symbolValues or {}) do
-        symbols[symKey] = info.value
+        local dot = string.find(symKey, ".", 1, true)
+        if dot ~= nil then
+            local head = string.sub(symKey, 1, dot - 1)
+            local tail = string.sub(symKey, dot + 1)
+            stubTables[head] = stubTables[head] or {}
+            local v = info.value
+            if info.kind == "set" then
+                if type(v) == "table" then
+                    local s = StringSet.new()
+                    for k, _ in pairs(v) do
+                        s:Add(string.lower(tostring(k)))
+                    end
+                    v = s
+                end
+            end
+            stubTables[head][tail] = v
+        else
+            symbols[symKey] = info.value
+        end
+    end
+    for head, fields in pairs(stubTables) do
+        symbols[head] = GenerateSymbols(nil, fields)
     end
 
     return symbols
 end
 
+-- Evaluate the Required Condition gate against the chosen subject token.
+-- Mirrors `TriggeredAbility:subjectHasRequiredCondition` semantics. Returns:
+--   { kind = "no-gate" | "pass-auto" | "pass-override" | "fail-auto",
+--     conditionId, conditionName,
+--     requireInflictedBy = bool,
+--     inflicterTokenName = string?,   -- name of who actually inflicted, if known
+--     autoState = "no-condition" | "wrong-inflicter" | nil }
+-- "no-gate"        : ability has no Required Condition set; gate is a no-op.
+-- "pass-auto"      : the subject token actually has the condition (and the
+--                    inflicter matches if requireInflictedBy is true).
+-- "pass-override"  : auto-derived would have failed, but the user ticked the
+--                    "Pretend subject has X" override.
+-- "fail-auto"      : auto-derived fail, override not set.
+local function evaluateRequiredConditionGate(ability, subjectToken, casterToken, override)
+    local conditionId = ability:try_get("characterConditionRequired", "none")
+    if conditionId == "none" or conditionId == nil then
+        return { kind = "no-gate" }
+    end
+
+    local conditionsTable = dmhub.GetTable(CharacterCondition.tableName) or {}
+    local conditionInfo = conditionsTable[conditionId]
+    local conditionName = conditionInfo and conditionInfo.name or conditionId
+    local requireInflictedBy = ability:try_get("characterConditionInflictedBySelf", false) and true or false
+
+    local result = {
+        conditionId = conditionId,
+        conditionName = conditionName,
+        requireInflictedBy = requireInflictedBy,
+    }
+
+    -- No subject token resolved -> nothing to evaluate. Treat as auto-fail
+    -- so the user sees the gate exists; the override still works.
+    if subjectToken == nil or subjectToken.properties == nil then
+        if override then
+            result.kind = "pass-override"
+        else
+            result.kind = "fail-auto"
+            result.autoState = "no-condition"
+        end
+        return result
+    end
+
+    local conditionCaster = subjectToken.properties:HasCondition(conditionId)
+    if conditionCaster == false or conditionCaster == nil then
+        if override then
+            result.kind = "pass-override"
+        else
+            result.kind = "fail-auto"
+            result.autoState = "no-condition"
+        end
+        return result
+    end
+
+    -- Subject has the condition. Inflicter check if required.
+    if requireInflictedBy then
+        local casterId = casterToken and dmhub.LookupTokenId(casterToken) or nil
+        if conditionCaster ~= casterId then
+            -- Try to resolve the actual inflicter's display name for the
+            -- detail line. conditionCaster is a token id (or `true` for
+            -- legacy entries with no casterInfo).
+            local inflicterName = nil
+            if type(conditionCaster) == "string" then
+                local tokens = dmhub.allTokens or {}
+                for _, t in ipairs(tokens) do
+                    if t.id == conditionCaster then
+                        inflicterName = tokenDisplayName(t)
+                        break
+                    end
+                end
+            end
+            result.inflicterTokenName = inflicterName
+            if override then
+                result.kind = "pass-override"
+            else
+                result.kind = "fail-auto"
+                result.autoState = "wrong-inflicter"
+            end
+            return result
+        end
+    end
+
+    result.kind = "pass-auto"
+    return result
+end
+
 -- Run the test against the supplied scenario. Returns a result struct:
---   { kind = "pass"|"fail"|"error"|"empty"|"no-caster",
---     value, errorMsg, attribution, symbols, casterToken, subjectToken }
+--   { kind = "pass"|"fail"|"error"|"empty"|"no-caster"|"gate-fail",
+--     value, errorMsg, attribution, symbols, casterToken, subjectToken,
+--     gate = <evaluateRequiredConditionGate result> | nil }
 -- "empty" = condition formula is blank (always fires).
 -- "no-caster" = could not resolve a caster token (no scene / no tokens).
+-- "gate-fail" = the Required Condition gate auto-failed and the user has
+--               not enabled the manual override.
 -- attribution is the GoblinScriptProse.AttributeFailure result, may be nil.
+-- gate is the result of evaluateRequiredConditionGate; populated for any
+-- ability that has a Required Condition set, regardless of whether the
+-- gate passed (so the result block / resolved-values grid can surface it).
 local function runTriggerTest(ability, scenario)
     local result = {
         casterToken = scenario.casterToken,
@@ -3229,7 +3588,34 @@ local function runTriggerTest(ability, scenario)
         return result
     end
 
+    -- Path C: structural failure when the trigger requires a non-self
+    -- Subject but no token on the map matches the subject filter. Today
+    -- the test panel runs anyway against whatever fallback the engine
+    -- resolves (often the caster itself), producing confusing results.
+    -- Surface this as a top-level "you can't run this test yet" message
+    -- the same way no-caster does, with the exact filter named so the
+    -- author knows what kind of token they need to add.
+    local subjectId = ability:try_get("subject") or "self"
+    if subjectId ~= "self" and scenario.subjectToken == nil then
+        result.kind = "no-subject"
+        result.subjectFilter = subjectId
+        return result
+    end
+
+    -- Evaluate Required Condition gate first, mirroring the runtime order
+    -- at TriggeredAbility.lua:767 (gate runs before conditionFormula).
+    local gate = evaluateRequiredConditionGate(
+        ability, scenario.subjectToken, scenario.casterToken, scenario.gateOverride)
+    result.gate = gate
+    if gate.kind == "fail-auto" then
+        result.kind = "gate-fail"
+        return result
+    end
+
     local condition = ability:try_get("conditionFormula") or ""
+    -- Path C: stash the formula on the result so buildResultBlock can
+    -- detect creature-state references for the hint-text fallback.
+    result.formula = condition
     if condition == "" then
         result.kind = "empty"
         return result
@@ -3273,6 +3659,214 @@ local function runTriggerTest(ability, scenario)
     return result
 end
 
+-- Path C: discover in-formula state-override opportunities.
+--
+-- Returns the set of (head, set, value) tuples that the test panel can
+-- offer the author as "Pretend ... has ..." overrides. Detects three
+-- formula shapes:
+--   1. `<head>.Conditions has "X"` / `<head>.OngoingEffects has "X"` --
+--      set-membership form; X is the literal RHS.
+--   2. `<head>.<X>` -- bare-boolean dotted form, where X matches a
+--      condition or ongoing-effect name registered in DMHub.
+--      e.g. `Subject.Flanked` resolves to the subject's flanked state.
+--   3. `<X>` -- bare ident with no head prefix. GoblinScript resolves
+--      bare references against the lookup receiver, which is the caster
+--      (Self) for trigger conditions. So `Flanked` is shorthand for
+--      `Self.Flanked`. Discovered as a "self" override.
+--
+-- All three shapes unify into the same {head, set, value} result so the
+-- override section displays a single checkbox per condition/effect
+-- regardless of which shape the author used. The eval-time injection
+-- (buildEvalContext / buildOverrideSymbolTable) covers all forms:
+--   - Augmented StringSet for `<head>.Conditions has "X"`
+--   - Per-value boolean inside the wrapped Self/Subject for `<head>.<X>`
+--   - Per-value boolean copied to OUTER symbols for bare `<X>`
+--
+-- Returns:
+--   { subject = { Conditions = {"Flanked", "Grabbed"},
+--                 OngoingEffects = {"Bleeding"} },
+--     self    = { Conditions = {...} } }
+-- Empty groups are omitted; an empty result table means "nothing to offer".
+--
+-- Other patterns (`.Stamina < 5`, custom attributes, generic creature
+-- properties that aren't conditions/effects) fall to the "apply on the
+-- map" hint text -- per-property override widgets are out of scope.
+local function discoverInFormulaOverrides(ability)
+    local condition = ability:try_get("conditionFormula") or ""
+    if condition == "" then return {} end
+
+    local result = {}
+
+    -- Shared helper: append a value under (head, set) with case-insensitive
+    -- de-duplication so the same condition referenced via both forms only
+    -- gets one checkbox.
+    local function addOverride(headLower, setName, value)
+        result[headLower] = result[headLower] or {}
+        result[headLower][setName] = result[headLower][setName] or {}
+        local list = result[headLower][setName]
+        for _, existing in ipairs(list) do
+            if string.lower(existing) == string.lower(value) then return end
+        end
+        list[#list + 1] = value
+    end
+
+    -- Shape 1: <head>.Conditions has "X" / <head>.OngoingEffects has "X"
+    --
+    -- WalkLiteralComparisons callbacks pass `info.lhs` as an AST atom
+    -- ({kind = "ident"|"dotted"|"call", parts = {...} | name = ...}),
+    -- NOT as a string. See GoblinScriptProse.lua:1175-1180 for the schema
+    -- and resolveLiteralSource (this file, ~l.2290) for the existing
+    -- consumer pattern.
+    --
+    -- Tail normalisation: GoblinScript identifiers may include spaces
+    -- (e.g. "Ongoing Effects" parses as a single tail token with a space),
+    -- and the runtime injection key is always lowercase + space-stripped.
+    -- So compare against the normalised form, not just lowercase -- the
+    -- earlier `string.lower("Ongoing Effects")` produced "ongoing effects"
+    -- which didn't match "ongoingeffects" and silently dropped the
+    -- override surface for spaced authoring.
+    local function normaliseTail(s)
+        if type(s) ~= "string" then return "" end
+        return string.lower((string.gsub(s, "%s+", "")))
+    end
+
+    pcall(function()
+        GoblinScriptProse.WalkLiteralComparisons(condition, function(info)
+            if info == nil or info.op ~= "has" then return end
+            if type(info.rhs) ~= "string" then return end
+            local lhs = info.lhs
+            if type(lhs) ~= "table" then return end
+
+            -- LHS can be either dotted (`Subject.Conditions`) or bare
+            -- ident (`Conditions`, `Ongoing Effects`). Bare LHS is
+            -- shorthand for the implicit Self head -- GoblinScript
+            -- resolves bare refs against the LookupSymbol receiver,
+            -- which is the caster (Self) for trigger conditions.
+            local headNorm, setName
+            if lhs.kind == "dotted" then
+                local parts = lhs.parts
+                if type(parts) ~= "table" or #parts < 2 then return end
+                local head = parts[1]
+                setName = parts[#parts]
+                if type(head) ~= "string" or type(setName) ~= "string" then return end
+                headNorm = normaliseTail(head)
+                if headNorm ~= "subject" and headNorm ~= "self" then return end
+            elseif lhs.kind == "ident" then
+                -- Bare ident LHS: implicit Self.
+                setName = lhs.name or (lhs.parts and lhs.parts[1])
+                if type(setName) ~= "string" then return end
+                headNorm = "self"
+            else
+                return
+            end
+
+            local setNorm = normaliseTail(setName)
+            if setNorm ~= "conditions" and setNorm ~= "ongoingeffects" then return end
+
+            local canonicalSet = (setNorm == "conditions") and "Conditions" or "OngoingEffects"
+            addOverride(headNorm, canonicalSet, info.rhs)
+        end)
+    end)
+
+    -- Build canonical-name lookup tables once for shapes 2 and 3.
+    -- Conditions take precedence over effects when a name appears in both
+    -- (rare but possible) -- conditions are the more common authoring
+    -- pattern. Both lookups are case-insensitive AND space-insensitive
+    -- so `SpellResistance` and `Spell Resistance` both match a condition
+    -- named "Spell Resistance".
+    local conditionByLowerName = {}
+    local effectByLowerName = {}
+    pcall(function()
+        local conditionsTable = dmhub.GetTable(CharacterCondition.tableName) or {}
+        for _, cond in pairs(conditionsTable) do
+            if cond and cond.name then
+                conditionByLowerName[string.lower(cond.name)] = cond.name
+                local stripped = string.lower(string.gsub(cond.name, "%s+", ""))
+                if stripped ~= string.lower(cond.name) then
+                    conditionByLowerName[stripped] = cond.name
+                end
+            end
+        end
+        local effectsTable = dmhub.GetTable("characterOngoingEffects") or {}
+        for _, eff in pairs(effectsTable) do
+            if eff and eff.name then
+                effectByLowerName[string.lower(eff.name)] = eff.name
+                local stripped = string.lower(string.gsub(eff.name, "%s+", ""))
+                if stripped ~= string.lower(eff.name) then
+                    effectByLowerName[stripped] = eff.name
+                end
+            end
+        end
+    end)
+
+    -- Resolver: given a (head, identifier) pair, look up the canonical
+    -- name across both tables and add the override under the matching
+    -- set. Used by both shape 2 (dotted) and shape 3 (bare).
+    local function tryAddByCanonicalName(headLower, identLower)
+        local condName = conditionByLowerName[identLower]
+        if condName then
+            addOverride(headLower, "Conditions", condName)
+            return
+        end
+        local effName = effectByLowerName[identLower]
+        if effName then
+            addOverride(headLower, "OngoingEffects", effName)
+        end
+    end
+
+    -- Shape 2: <head>.<X> bare-boolean dotted access where X matches a
+    -- known condition or ongoing-effect name.
+    pcall(function()
+        local accesses = GoblinScriptProse.ListReferencedDottedAccesses(condition)
+        for headKey, entry in pairs(accesses or {}) do
+            local headLower = string.lower(headKey)
+            if headLower == "subject" or headLower == "self" then
+                for tailKey, _ in pairs(entry.tails or {}) do
+                    local tailLower = string.lower(tailKey)
+                    -- Skip the set-form LHS tails -- shape 1 already
+                    -- handles those (and offering them as boolean
+                    -- overrides would be nonsense, since they're sets).
+                    if tailLower ~= "conditions" and tailLower ~= "ongoingeffects" then
+                        tryAddByCanonicalName(headLower, tailLower)
+                    end
+                end
+            end
+        end
+    end)
+
+    -- Shape 3: bare ident references with no head prefix. GoblinScript
+    -- resolves bare refs via the LookupSymbol receiver, which is the
+    -- caster (Self) for trigger condition formulas. So `Flanked` is
+    -- shorthand for `Self.Flanked` -- treat as a self override.
+    --
+    -- ListReferencedSymbols already filters out dotted-tail idents
+    -- (so the "Conditions" in "Subject.Conditions" doesn't surface here)
+    -- and function-call idents (so "Distance" in "Distance(...)" is
+    -- skipped). We further filter to identifiers whose normalised form
+    -- matches a known condition/effect name -- preserves authoring
+    -- intent when a creature property happens to share a name (vanishingly
+    -- rare, but the canonical-name match is the discriminator).
+    pcall(function()
+        local list = GoblinScriptProse.ListReferencedSymbols(condition)
+        for _, ident in ipairs(list or {}) do
+            local identLower = string.lower(ident)
+            -- Skip head reserved words. They wouldn't match a condition
+            -- table anyway, but explicit skip keeps the intent clear.
+            if identLower ~= "self" and identLower ~= "subject" and identLower ~= "caster" then
+                tryAddByCanonicalName("self", identLower)
+                -- Also try the space-stripped form so `SpellResistance`
+                -- bare matches a condition named "Spell Resistance".
+                local stripped = string.lower(string.gsub(ident, "%s+", ""))
+                if stripped ~= identLower then
+                    tryAddByCanonicalName("self", stripped)
+                end
+            end
+        end
+    end)
+
+    return result
+end
+
 -- Stringify a runtime value for display in the resolved-values grid.
 local function describeValueForDisplay(v)
     if v == nil then return "nil" end
@@ -3309,6 +3903,14 @@ local function buildTestTriggerCard(ability)
         roleSelections = {},   -- [roleId] = tokenId
         symbolValues = {},      -- [symKey] = { raw = ..., kind = ... }
         lastPrefillKey = nil,
+        gateOverride = false,  -- C5: "Pretend subject has the required condition"
+        -- Path C: in-formula state overrides. Keyed by "<head>:<set>:<value>"
+        -- e.g. "subject:Conditions:Flanked" -> true means "pretend the
+        -- Subject has the Flanked condition for this test only".
+        -- Discovered from the conditionFormula via WalkLiteralComparisons;
+        -- injected at eval time via GenerateSymbols(props, overrideTable)
+        -- in buildEvalContext. See buildOverridesSection / buildEvalContext.
+        formulaOverrides = {},
     }
 
     local cardPanel
@@ -3432,8 +4034,16 @@ local function buildTestTriggerCard(ability)
             scenario.symbolValues[sym.id] = {
                 value = coerceSymbolInputValue(sym.kind, v.raw),
                 raw = v.raw,
+                kind = sym.kind,  -- C4: needed by buildEvalContext to know
+                                  -- whether to wrap a "set" leaf as StringSet.
             }
         end
+
+        scenario.gateOverride = state.gateOverride
+        -- Path C: thread the in-formula override map through to
+        -- buildEvalContext so it can wrap subject/self in
+        -- GenerateSymbols(props, overrideTable).
+        scenario.formulaOverrides = state.formulaOverrides
 
         return scenario
     end
@@ -3533,9 +4143,55 @@ local function buildTestTriggerCard(ability)
             return lines
         end
 
-        if result.kind == "empty" then
+        -- Path C: no-subject early exit. Mirrors the no-caster path -- a
+        -- structural failure that prevents the test from being meaningful.
+        -- Filter wording matches the SUBJECT_OPTIONS dropdown so the author
+        -- can map the message back to the value they chose.
+        if result.kind == "no-subject" then
+            local filterPhrase = result.subjectFilter or "a non-self"
             lines[#lines + 1] = gui.Label{
-                text = "<b>Passes</b> -- this trigger has no condition, so it fires whenever the event occurs.",
+                text = string.format(
+                    "<b>Cannot test</b> -- this trigger requires a Subject (filter: %s) but no token on the map matches.",
+                    filterPhrase),
+                markdown = true,
+                color = "#a14b3a",
+                fontSize = 13,
+                width = "100%",
+                height = "auto",
+                wrap = true,
+            }
+            lines[#lines + 1] = gui.Label{
+                text = "Add a token of that type to the map and re-run the test.",
+                color = COLORS.GRAY,
+                fontSize = 13,
+                width = "100%",
+                height = "auto",
+                wrap = true,
+                tmargin = 2,
+            }
+            return lines
+        end
+
+        if result.kind == "empty" then
+            -- The Required Condition gate is itself a precondition. When set,
+            -- "no condition" is wrong -- the trigger only fires when the
+            -- subject has the required condition. Phrase accordingly so the
+            -- author isn't told their gate has no effect.
+            local g = result.gate
+            local headline
+            if g and g.kind == "pass-auto" then
+                headline = string.format(
+                    "<b>Passes</b> -- the required condition (%s) is present on the subject; this trigger has no other condition formula.",
+                    g.conditionName or "?")
+            elseif g and g.kind == "pass-override" then
+                headline = string.format(
+                    "<b>Passes</b> -- simulating the required condition (%s) via override; this trigger has no other condition formula.",
+                    g.conditionName or "?")
+            else
+                headline = "<b>Passes</b> -- this trigger has no condition, so it fires whenever the event occurs."
+            end
+            lines[#lines + 1] = gui.Label{
+                text = headline,
                 markdown = true,
                 color = "#5e8c4a",
                 fontSize = 13,
@@ -3555,6 +4211,56 @@ local function buildTestTriggerCard(ability)
                 width = "100%",
                 height = "auto",
                 wrap = true,
+            }
+            return lines
+        end
+
+        -- C5: Required Condition gate auto-failed (subject doesn't have the
+        -- required condition, or wrong inflicter). Headline mirrors the
+        -- runtime's gate check; detail names the subject + condition + (if
+        -- relevant) the actual inflicter, so the author sees exactly which
+        -- precondition tripped before the conditionFormula even ran. The
+        -- override checkbox in the body explains how to bypass for testing.
+        if result.kind == "gate-fail" then
+            local g = result.gate or {}
+            local subjectName = (result.subjectToken and tokenDisplayName(result.subjectToken)) or "the subject"
+            local condName = g.conditionName or "the required condition"
+            local headline
+            local detail
+            if g.autoState == "wrong-inflicter" then
+                headline = string.format(
+                    "<b>Blocked</b> -- needed %s on %s, inflicted by the trigger owner.",
+                    condName, subjectName)
+                if g.inflicterTokenName then
+                    detail = string.format("%s has %s, but it was inflicted by %s.",
+                        subjectName, condName, g.inflicterTokenName)
+                else
+                    detail = string.format("%s has %s, but not from the trigger owner.",
+                        subjectName, condName)
+                end
+            else
+                headline = string.format("<b>Blocked</b> -- needed %s on %s.",
+                    condName, subjectName)
+                detail = string.format("%s does not currently have %s.",
+                    subjectName, condName)
+            end
+            lines[#lines + 1] = gui.Label{
+                text = headline,
+                markdown = true,
+                color = "#a14b3a",
+                fontSize = 13,
+                width = "100%",
+                height = "auto",
+                wrap = true,
+            }
+            lines[#lines + 1] = gui.Label{
+                text = detail .. " Tick \"Pretend subject has condition\" above to bypass for this test.",
+                color = COLORS.GRAY,
+                fontSize = 13,
+                width = "100%",
+                height = "auto",
+                wrap = true,
+                tmargin = 2,
             }
             return lines
         end
@@ -3651,12 +4357,50 @@ local function buildTestTriggerCard(ability)
                 text = detail,
                 markdown = true,
                 color = COLORS.GRAY,
-                fontSize = 12,
+                fontSize = 13,
                 width = "100%",
                 height = "auto",
                 wrap = true,
                 tmargin = 2,
             }
+        end
+
+        -- Path C hint-text fallback. When the formula references creature
+        -- state we can't offer overrides for (e.g. `.Stamina < 5`,
+        -- `.IsHero`, custom attributes), append a helpful nudge. We detect
+        -- dotted accesses via ListReferencedDottedAccesses and skip the
+        -- ones that DO have override toggles (Conditions / OngoingEffects).
+        -- The hint is suppressed when every dotted access is already
+        -- override-eligible -- the override section above already gives
+        -- the author the right tools.
+        local condition = (result.formula) or ""
+        if condition ~= "" and GoblinScriptProse and GoblinScriptProse.ListReferencedDottedAccesses then
+            local ok, accesses = pcall(GoblinScriptProse.ListReferencedDottedAccesses, condition)
+            if ok and type(accesses) == "table" then
+                local hasUnsupported = false
+                for _, entry in pairs(accesses) do
+                    for tailKey, _ in pairs(entry.tails or {}) do
+                        local t = string.lower(tailKey)
+                        if t ~= "conditions" and t ~= "ongoingeffects" then
+                            hasUnsupported = true
+                            break
+                        end
+                    end
+                    if hasUnsupported then break end
+                end
+                if hasUnsupported then
+                    lines[#lines + 1] = gui.Label{
+                        text = "Tip: if the failure is because the subject lacks a particular state (a stat threshold, a custom attribute, etc.), apply that state to the token on the map and re-run the test.",
+                        color = COLORS.GRAY,
+                        italics = true,
+                        fontSize = 13,
+                        width = "100%",
+                        height = "auto",
+                        wrap = true,
+                        tmargin = 6,
+                    }
+                end
+            end
         end
         return lines
     end
@@ -3664,12 +4408,28 @@ local function buildTestTriggerCard(ability)
     -- Resolved-values grid. Shows symbol id + concrete value in a tight
     -- two-column layout. Helps the author cross-reference which input
     -- caused the result without re-reading every form row.
-    local function buildResolvedValues(scenario, inputs)
-        if #inputs.symbolInputs == 0 and #inputs.roleSlots == 0 then return nil end
+    local function buildResolvedValues(scenario, inputs, gate)
+        local hasGate = gate ~= nil and gate.kind ~= "no-gate"
+        if #inputs.symbolInputs == 0 and #inputs.roleSlots == 0 and not hasGate then
+            return nil
+        end
         local rows = {}
         for _, slot in ipairs(inputs.roleSlots) do
             local tok = scenario.roleTokens[slot.id]
             rows[#rows + 1] = { label = slot.name, value = tok and tok.name or "(none)" }
+        end
+        if hasGate then
+            local gateValue
+            if gate.kind == "pass-auto" then
+                gateValue = (gate.conditionName or "?") .. " present (auto)"
+            elseif gate.kind == "pass-override" then
+                gateValue = (gate.conditionName or "?") .. " (overridden)"
+            elseif gate.autoState == "wrong-inflicter" then
+                gateValue = (gate.conditionName or "?") .. " present, wrong inflicter"
+            else
+                gateValue = (gate.conditionName or "?") .. " missing"
+            end
+            rows[#rows + 1] = { label = "Required Condition", value = gateValue }
         end
         for _, sym in ipairs(inputs.symbolInputs) do
             local v = scenario.symbolValues[sym.id]
@@ -3692,7 +4452,7 @@ local function buildTestTriggerCard(ability)
                     gui.Label{
                         text = r.label,
                         color = COLORS.GOLD_DIM,
-                        fontSize = 11,
+                        fontSize = 12,
                         width = 100,
                         height = "auto",
                         halign = "left",
@@ -3700,7 +4460,7 @@ local function buildTestTriggerCard(ability)
                     gui.Label{
                         text = r.value,
                         color = COLORS.CREAM_BRIGHT,
-                        fontSize = 11,
+                        fontSize = 12,
                         width = "100%-100",
                         height = "auto",
                         halign = "left",
@@ -3721,7 +4481,7 @@ local function buildTestTriggerCard(ability)
                     text = "Resolved values",
                     color = COLORS.GOLD_DIM,
                     bold = true,
-                    fontSize = 12,
+                    fontSize = 13,
                     width = "auto",
                     height = "auto",
                     bmargin = 2,
@@ -3752,7 +4512,7 @@ local function buildTestTriggerCard(ability)
                 gui.Label{
                     text = labelText,
                     color = COLORS.GOLD_DIM,
-                    fontSize = 12,
+                    fontSize = 13,
                     width = 100,
                     height = "auto",
                     halign = "left",
@@ -3778,6 +4538,14 @@ local function buildTestTriggerCard(ability)
     end
 
     local function buildCasterSlotRow()
+        -- Single-token scenes auto-fill the Trigger Owner silently -- no
+        -- visible row, no picker. Bail out before constructing the wrapper
+        -- panels so we don't leak orphaned panels (the caller's gate that
+        -- used to live here -- `#(dmhub.allTokens or {}) > 1` -- discarded
+        -- the built row, leaking every gui.Panel/Label inside it and
+        -- triggering "Panel ID-XXX was created but not attached to a
+        -- parent" warnings on every test panel expansion).
+        if #(dmhub.allTokens or {}) <= 1 then return nil end
         local preferred, secondary = categoriseSceneTokens(ability, nil, nil)
         if #preferred == 0 and #secondary == 0 then return nil end
         local control = buildTokenPickerButton(
@@ -3787,9 +4555,227 @@ local function buildTestTriggerCard(ability)
                 state.roleSelections.__caster = tokenId
                 refreshTest()
             end,
-            "Choose Caster"
+            "Choose Trigger Owner"
         )
-        return fieldRow("Caster", control)
+        return fieldRow("Trigger Owner", control)
+    end
+
+    -- C5: Required Condition gate row. Renders only when the ability has a
+    -- Required Condition set (gate.kind != "no-gate"). Hybrid behaviour:
+    -- when the chosen Subject token actually has the condition, the gate
+    -- auto-passes and we show the green status without any control. When
+    -- it doesn't, we show the red status + a "Pretend subject has X"
+    -- override checkbox so the author can still exercise the rest of the
+    -- trigger (formula + behaviours) without manually applying the
+    -- condition to a real token first.
+    local function buildGateRow(gate)
+        if gate == nil or gate.kind == "no-gate" then return nil end
+
+        local condName = gate.conditionName or "(unknown)"
+        local labelText = "Required Condition"
+
+        local statusText
+        local statusColor
+        if gate.kind == "pass-auto" then
+            statusText = condName .. " (auto)"
+            statusColor = "#5e8c4a"
+        elseif gate.kind == "pass-override" then
+            statusText = condName .. " (overridden)"
+            statusColor = "#cca350"
+        else
+            -- fail-auto. Add a hint about whether the wrong-inflicter case
+            -- is what's blocking, so the override label below makes sense.
+            if gate.autoState == "wrong-inflicter" then
+                statusText = condName .. " (needs Trigger Owner as inflicter)"
+            else
+                statusText = condName .. " (subject doesn't have it)"
+            end
+            statusColor = "#a14b3a"
+        end
+
+        local statusRow = gui.Label{
+            text = statusText,
+            color = statusColor,
+            fontSize = 13,
+            width = "100%",
+            height = "auto",
+            halign = "left",
+            valign = "center",
+            textWrap = true,
+        }
+
+        -- Only show the override checkbox when auto-derived state would
+        -- block the gate. Once auto-pass, the toggle is irrelevant noise.
+        -- Match the existing gui.Check pattern (e.g. lines 923, 1280) --
+        -- no explicit width/height; the widget self-sizes from its text.
+        -- Setting width = "100%" stretches the check box graphic to fill
+        -- the row, which is how the original revision blew the panel up.
+        local children = { statusRow }
+        if gate.kind == "fail-auto" or gate.kind == "pass-override" then
+            local toggle = gui.Check{
+                text = "Pretend subject has " .. condName,
+                value = state.gateOverride == true,
+                vmargin = 4,
+                change = function(element)
+                    state.gateOverride = element.value
+                    refreshTest()
+                end,
+            }
+            children[#children + 1] = toggle
+        end
+
+        return fieldRow(labelText, gui.Panel{
+            width = "100%-100",
+            height = "auto",
+            flow = "vertical",
+            halign = "left",
+            valign = "center",
+            bgcolor = "clear",
+            children = children,
+        })
+    end
+
+    -- Path C: in-formula state-override section. Renders one group per
+    -- head (Subject / Trigger Owner) containing a "Pretend X has Y"
+    -- checkbox per overrideable value -- conditions and ongoing effects
+    -- merged into a single list. The internal Conditions vs
+    -- OngoingEffects split is implementation detail (the engine derives
+    -- conditions from ongoing effects in many cases per Creature.lua:7892);
+    -- surfacing it as separate UI groups confused authors who think of
+    -- "Flanked" as a state, not a tagged effect category.
+    --
+    -- State lives in state.formulaOverrides keyed by "<head>:<set>:<value>";
+    -- eval-time injection via buildEvalContext + buildOverrideSymbolTable
+    -- still uses the (head, set) split because Conditions and
+    -- OngoingEffects inject into different lookupSymbols entries.
+    --
+    -- Returns nil when no overrides are available so the caller can skip
+    -- the whole section (matching buildGateRow's "no-gate -> nil" pattern).
+    local function buildOverridesSection(overrideOpts)
+        if overrideOpts == nil or next(overrideOpts) == nil then return nil end
+
+        -- Stable iteration order: subject before self.
+        local headOrder = { "subject", "self" }
+        local headLabels = { subject = "Subject", self = "Trigger Owner" }
+
+        local groups = {}
+        for _, head in ipairs(headOrder) do
+            local headOpts = overrideOpts[head]
+            if headOpts ~= nil then
+                -- Merge Conditions + OngoingEffects into a single sorted
+                -- display list, deduped by lowercased value. A single
+                -- formula may reference the same state via both shapes
+                -- (`Subject.Flanked` AND `Subject.Conditions has "Flanked"`)
+                -- which would otherwise produce two checkboxes labelled
+                -- the same. Each entry tracks every setName the value
+                -- appeared under so toggling the checkbox sets ALL the
+                -- related state.formulaOverrides keys -- the eval-time
+                -- injection then covers whichever form the formula used.
+                local entriesByKey = {}
+                local entryOrder = {}
+                for _, setName in ipairs({"Conditions", "OngoingEffects"}) do
+                    local values = headOpts[setName]
+                    if values ~= nil then
+                        for _, value in ipairs(values) do
+                            local dedupKey = string.lower(value)
+                            local entry = entriesByKey[dedupKey]
+                            if entry == nil then
+                                entry = { value = value, setNames = {} }
+                                entriesByKey[dedupKey] = entry
+                                entryOrder[#entryOrder + 1] = entry
+                            end
+                            -- Track each origin set; if same setName
+                            -- appears twice (shouldn't happen but be safe),
+                            -- we still only store it once at storage time.
+                            local already = false
+                            for _, existing in ipairs(entry.setNames) do
+                                if existing == setName then
+                                    already = true
+                                    break
+                                end
+                            end
+                            if not already then
+                                entry.setNames[#entry.setNames + 1] = setName
+                            end
+                        end
+                    end
+                end
+                if #entryOrder > 0 then
+                    -- Sort case-insensitively for stable visual order.
+                    table.sort(entryOrder, function(a, b)
+                        return string.lower(a.value) < string.lower(b.value)
+                    end)
+
+                    local heading = string.format("Pretend %s has:", headLabels[head])
+                    local checks = {
+                        gui.Label{
+                            text = heading,
+                            color = COLORS.GOLD_DIM,
+                            fontSize = 13,
+                            bold = true,
+                            width = "100%",
+                            height = "auto",
+                            halign = "left",
+                            bmargin = 2,
+                        },
+                    }
+                    for _, entry in ipairs(entryOrder) do
+                        -- Initial state: on if ANY of the related override
+                        -- keys is on. Avoids the checkbox appearing
+                        -- "off" when the user previously toggled it via
+                        -- a different form's storage slot.
+                        local initialOn = false
+                        for _, setName in ipairs(entry.setNames) do
+                            local key = head .. ":" .. setName .. ":" .. entry.value
+                            if state.formulaOverrides[key] == true then
+                                initialOn = true
+                                break
+                            end
+                        end
+                        local entryRef = entry  -- capture for closure stability
+                        checks[#checks + 1] = gui.Check{
+                            text = entry.value,
+                            value = initialOn,
+                            vmargin = 2,
+                            lmargin = 12,
+                            change = function(element)
+                                -- Set every related override key so the
+                                -- eval-time injection covers all formula
+                                -- forms (set-membership AND bare-boolean,
+                                -- across Conditions AND OngoingEffects).
+                                for _, setName in ipairs(entryRef.setNames) do
+                                    local key = head .. ":" .. setName .. ":" .. entryRef.value
+                                    state.formulaOverrides[key] = element.value
+                                end
+                                refreshTest()
+                            end,
+                        }
+                    end
+                    groups[#groups + 1] = gui.Panel{
+                        width = "100%",
+                        height = "auto",
+                        flow = "vertical",
+                        halign = "left",
+                        bgcolor = "clear",
+                        tmargin = 6,
+                        children = checks,
+                    }
+                end
+            end
+        end
+
+        if #groups == 0 then return nil end
+
+        local section = gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            halign = "left",
+            bgcolor = "clear",
+            tmargin = 8,
+            children = groups,
+        }
+        return section
     end
 
     local function buildSymbolInputRow(sym)
@@ -3818,7 +4804,7 @@ local function buildTestTriggerCard(ability)
                 text = "(" .. (sym.displayType or "complex") .. " input not yet supported in test panel)",
                 color = COLORS.GRAY,
                 italics = true,
-                fontSize = 11,
+                fontSize = 12,
                 width = "100%-100",
                 height = "auto",
                 halign = "left",
@@ -3832,6 +4818,11 @@ local function buildTestTriggerCard(ability)
         -- hasSearch only when the option count justifies it (currently just
         -- nothing -- 33 conditions and 12 damage types and ~30 resources are
         -- all comfortable in a flat dropdown).
+        -- Single-select bounded-value dropdown for kind == "text" only:
+        -- the trigger.symbols declaration carries a valueOptionsSource hint,
+        -- so render a dropdown over the canonical table for that category
+        -- instead of a free-text input. (Set-typed bounded inputs use the
+        -- multi-select picker further below.)
         if sym.kind == "text" and sym.valueOptionsSource and TEST_OPTION_BUILDERS[sym.valueOptionsSource] then
             local options = TEST_OPTION_BUILDERS[sym.valueOptionsSource]()
             local current = tostring(v.raw or "")
@@ -3875,6 +4866,150 @@ local function buildTestTriggerCard(ability)
             return fieldRow(sym.name, dropdown)
         end
 
+        -- Multi-select bounded-value picker for kind == "set" with a
+        -- valueOptionsSource (currently: ability keywords). Real-world
+        -- formulas like `Used Ability.Keywords has "magic" or Used Ability.
+        -- Keywords has "psionic"` test multiple alternative keywords -- a
+        -- single-select dropdown can't represent the case where an author
+        -- wants to verify a stub ability bearing both. Pattern mirrors
+        -- buildKeywordsPicker (chip rows + Add dropdown).
+        --
+        -- Storage: v.raw is the comma-separated lowercase string the
+        -- existing coerceSymbolInputValue("set", ...) parses. Prefill
+        -- comes through satisfyingValueToRaw which joins {Melee=true,
+        -- Magic=true} as "Magic, Melee" -- we lowercase + canonicalise
+        -- on read so subsequent UI ticks compare cleanly against the
+        -- options table's lowercase ids.
+        if sym.kind == "set" and sym.valueOptionsSource and TEST_OPTION_BUILDERS[sym.valueOptionsSource] then
+            local options = TEST_OPTION_BUILDERS[sym.valueOptionsSource]()
+            local optionById = {}
+            for _, opt in ipairs(options) do
+                optionById[string.lower(opt.id)] = opt
+            end
+
+            -- Parse current raw into a chosen-set keyed by lowercase id.
+            local function parseChosen(raw)
+                local chosen = {}
+                if type(raw) ~= "string" then return chosen end
+                for piece in string.gmatch(raw, "([^,]+)") do
+                    local trimmed = piece:gsub("^%s+", ""):gsub("%s+$", "")
+                    if trimmed ~= "" then
+                        chosen[string.lower(trimmed)] = true
+                    end
+                end
+                return chosen
+            end
+            local function joinChosen(chosen)
+                local parts = {}
+                for id, on in pairs(chosen) do
+                    if on then parts[#parts + 1] = id end
+                end
+                table.sort(parts)
+                return table.concat(parts, ", ")
+            end
+
+            -- Wrapping panel rebuilds in place when chosen set changes.
+            local picker
+            local function rebuild()
+                local chosen = parseChosen(v.raw)
+                local children = {}
+
+                -- Chip rows for each selected keyword, sorted alphabetically
+                -- by display label so the order stays stable across rebuilds.
+                local chipItems = {}
+                for id, on in pairs(chosen) do
+                    if on then
+                        local opt = optionById[id]
+                        chipItems[#chipItems + 1] = {
+                            id = id,
+                            text = opt and opt.text or id,
+                        }
+                    end
+                end
+                table.sort(chipItems, function(a, b) return a.text < b.text end)
+
+                for _, item in ipairs(chipItems) do
+                    local itemId = item.id
+                    children[#children + 1] = gui.Panel{
+                        halign = "left",
+                        width = "auto",
+                        height = "auto",
+                        flow = "horizontal",
+                        valign = "center",
+                        vmargin = 2,
+                        bgcolor = "clear",
+                        gui.Label{
+                            text = item.text,
+                            fontSize = 13,
+                            bold = true,
+                            halign = "left",
+                            valign = "center",
+                            width = "auto",
+                            height = "auto",
+                            rmargin = 4,
+                        },
+                        gui.DeleteItemButton{
+                            halign = "left",
+                            valign = "center",
+                            width = 14,
+                            height = 14,
+                            click = function()
+                                local cur = parseChosen(v.raw)
+                                cur[itemId] = nil
+                                v.raw = joinChosen(cur)
+                                rebuild()
+                                refreshTest()
+                            end,
+                        },
+                    }
+                end
+
+                -- "Add keyword..." dropdown lists only the unchosen options.
+                -- Hidden once everything's been picked (matches the existing
+                -- buildKeywordsPicker UX so the row collapses cleanly).
+                local addOptions = {}
+                for _, opt in ipairs(options) do
+                    if not chosen[string.lower(opt.id)] then
+                        addOptions[#addOptions + 1] = opt
+                    end
+                end
+
+                if #addOptions > 0 then
+                    children[#children + 1] = gui.Dropdown{
+                        classes = {"formDropdown"},
+                        sort = false,
+                        textOverride = "Add keyword...",
+                        hasSearch = true,
+                        idChosen = "none",
+                        options = addOptions,
+                        halign = "left",
+                        width = 200,
+                        change = function(element)
+                            if element.idChosen and element.idChosen ~= "none" then
+                                local cur = parseChosen(v.raw)
+                                cur[string.lower(element.idChosen)] = true
+                                v.raw = joinChosen(cur)
+                                rebuild()
+                                refreshTest()
+                            end
+                        end,
+                    }
+                end
+
+                picker.children = children
+            end
+
+            picker = gui.Panel{
+                flow = "vertical",
+                width = "100%-100",
+                height = "auto",
+                halign = "left",
+                bgcolor = "clear",
+            }
+            rebuild()
+            return fieldRow(sym.name, picker)
+        end
+
         local placeholder = ""
         if sym.kind == "number" then placeholder = "0"
         elseif sym.kind == "set" then placeholder = "comma,separated,values"
@@ -3907,7 +5042,7 @@ local function buildTestTriggerCard(ability)
                     text = "If it fires, then:",
                     color = COLORS.GOLD_DIM,
                     bold = true,
-                    fontSize = 12,
+                    fontSize = 13,
                     width = "auto",
                     height = "auto",
                     bmargin = 2,
@@ -3915,7 +5050,7 @@ local function buildTestTriggerCard(ability)
                 gui.Label{
                     text = text,
                     color = COLORS.CREAM_BRIGHT,
-                    fontSize = 12,
+                    fontSize = 13,
                     italics = true,
                     width = "100%",
                     height = "auto",
@@ -3962,7 +5097,7 @@ local function buildTestTriggerCard(ability)
                     width = 60,
                     height = 24,
                     halign = "right",
-                    fontSize = 11,
+                    fontSize = 12,
                     press = function()
                         state.expanded = false
                         refreshTest()
@@ -3971,7 +5106,23 @@ local function buildTestTriggerCard(ability)
             },
         }
 
-        if result.kind == "no-caster" then
+        -- Path C: scope note. Single sentence, sized to be legible
+        -- alongside the Mech View body text (13pt). The earlier longer
+        -- copy ("Apply the condition or use the override below...") was
+        -- redundant once the override section is visible -- it self-
+        -- documents through the "Pretend X has Y" checkbox labels.
+        children[#children + 1] = gui.Label{
+            text = "Tests the trigger condition only, not its effects.",
+            color = COLORS.GRAY,
+            italics = true,
+            fontSize = 12,
+            width = "100%",
+            height = "auto",
+            wrap = true,
+            bmargin = 8,
+        }
+
+        if result.kind == "no-caster" or result.kind == "no-subject" then
             for _, line in ipairs(buildResultBlock(result)) do
                 children[#children + 1] = line
             end
@@ -3980,13 +5131,36 @@ local function buildTestTriggerCard(ability)
 
         -- Caster slot only renders when there's something to choose between
         -- (more than one scene token); single-token scenes auto-fill silently.
+        -- The token-count gate now lives inside buildCasterSlotRow so the
+        -- row's panels aren't constructed at all in the single-token case
+        -- (avoids orphaning them when the gate trips).
         local casterRow = buildCasterSlotRow()
-        if casterRow ~= nil and #(dmhub.allTokens or {}) > 1 then
+        if casterRow ~= nil then
             children[#children + 1] = casterRow
         end
 
         for _, slot in ipairs(inputs.roleSlots) do
             children[#children + 1] = buildRoleSlotRow(slot, scenario.casterToken)
+        end
+
+        -- C5: Required Condition gate row. Sits between role slots and
+        -- per-symbol inputs because the gate is conceptually about which
+        -- token has which condition (role-adjacent), not about formula
+        -- inputs. Renders nil for abilities with no Required Condition.
+        local gateRow = buildGateRow(result.gate)
+        if gateRow ~= nil then
+            children[#children + 1] = gateRow
+        end
+
+        -- Path C: in-formula state-override section. Sits below the gate
+        -- row (both are "pretend the world were like X" controls) and
+        -- above the per-symbol inputs (formula values). Renders nil when
+        -- the conditionFormula has no Conditions/OngoingEffects literals
+        -- we can offer overrides for.
+        local overrideOpts = discoverInFormulaOverrides(ability)
+        local overrideSection = buildOverridesSection(overrideOpts)
+        if overrideSection ~= nil then
+            children[#children + 1] = overrideSection
         end
 
         if #inputs.symbolInputs > 0 then
@@ -4010,7 +5184,7 @@ local function buildTestTriggerCard(ability)
             children[#children + 1] = line
         end
 
-        local resolved = buildResolvedValues(scenario, inputs)
+        local resolved = buildResolvedValues(scenario, inputs, result.gate)
         if resolved ~= nil then children[#children + 1] = resolved end
 
         children[#children + 1] = buildBehaviourPreview()
@@ -4028,7 +5202,7 @@ local function buildTestTriggerCard(ability)
                     text = "Run Test",
                     width = 100,
                     height = 28,
-                    fontSize = 12,
+                    fontSize = 13,
                     halign = "left",
                     press = function()
                         refreshTest()
@@ -4110,14 +5284,53 @@ end
 
 -- Preview column + slot factory. Returns (colPanel, previewSlot). The slot
 -- listens for refreshPreview and rebuilds its single child on demand.
--- `schedulePreviewRefresh` is called from the slot's think event so live
--- edits propagate into the preview without tight per-frame coupling.
+--
+-- PERFORMANCE-CRITICAL: read this before changing the think handler.
+-- See [PERFORMANCE_PREVIEW_REBUILD] in TRIGGERED_ABILITY_EDITOR_DESIGN.md.
+--
+-- The slot polls every 0.25s but uses a *fingerprint check* to gate the
+-- actual rebuild. The previous implementation called schedulePreviewRefresh
+-- unconditionally on every tick, which caused the entire preview subtree --
+-- including condition compile, AST walks, prose rendering, and dozens of
+-- panel allocations -- to be reconstructed every ~0.4s regardless of
+-- whether anything had changed. With multiple editors open this stacked
+-- noticeably and degraded responsiveness across long sessions.
+--
+-- The fingerprint is dmhub.ToJson(ability) -- the same change-detection
+-- idiom used elsewhere in the codebase (see DamageTypes.lua:95,
+-- Condition.lua:144). Cheap relative to the full preview rebuild and
+-- catches edits that bypass fireChange (notably per-field edits inside
+-- behaviour cards, plus a number of top-level handlers in
+-- buildTriggerSection that don't call fireChange today).
+--
+-- DO NOT replace the think gate with an unconditional schedule call. If
+-- you need a new preview-affecting field, either:
+--   (a) wire its change handler to call fireChange() (preferred for
+--       top-level fields), or
+--   (b) ensure dmhub.ToJson serialises it -- transient _tmp_ fields are
+--       skipped, so anything that the engine considers persistent state
+--       will be picked up automatically.
 local function makePreviewColumn(ability, schedulePreviewRefresh)
     local COLORS = getColors()
     -- Heading rows (subHeading below) need to match the cards' width so the
     -- right-aligned rollup chip aligns with the card's right border instead
     -- of bleeding into the scroll gutter.
     local CARD_WIDTH = LAYOUT.PREVIEW_WIDTH - 2 * LAYOUT.COL_HPAD - LAYOUT.SCROLL_GUTTER
+
+    -- Fingerprint of the last-rendered ability state. Initialised here so
+    -- the first think tick after construction never spuriously fires a
+    -- rebuild -- the explicit FireEvent("refreshPreview") at editor
+    -- construction time (generateSectionedEditor) seeds this via the
+    -- refreshPreview handler.
+    local lastFingerprint = ""
+    local function fingerprintAbility()
+        local ok, json = pcall(dmhub.ToJson, ability)
+        if ok and type(json) == "string" then return json end
+        -- Fail-open: on any serialisation error, return a sentinel that
+        -- forces a rebuild. We'd rather waste one rebuild than freeze the
+        -- preview on a malformed ability.
+        return "__fingerprint_error__" .. tostring(dmhub.GetTime and dmhub.GetTime() or 0)
+    end
 
     local previewSlot
     previewSlot = gui.Panel{
@@ -4130,11 +5343,31 @@ local function makePreviewColumn(ability, schedulePreviewRefresh)
         bgcolor = "clear",
         thinkTime = 0.25,
         think = function(element)
+            -- Fingerprint-gated polling. Only schedules a rebuild when the
+            -- ability's serialised state has actually changed. See block
+            -- comment at the top of makePreviewColumn for rationale.
+            local fp = fingerprintAbility()
+            if fp == lastFingerprint then return end
+            lastFingerprint = fp
             if schedulePreviewRefresh ~= nil then
                 schedulePreviewRefresh()
             end
         end,
+        -- Defensive: explicit teardown of closure-captured state. Engine
+        -- auto-destroys orphaned panels (Panel.lua:15) and stops firing
+        -- scheduled events on destroyed panels (Panel.lua:141), so this
+        -- is belt-and-braces -- it ensures the closures held by `think`
+        -- and `refreshPreview` release their references promptly even if
+        -- something exotic in a future refactor delays GC.
+        destroy = function(element)
+            schedulePreviewRefresh = nil
+            lastFingerprint = nil
+        end,
         refreshPreview = function(element)
+            -- Sync the fingerprint so an upstream fireChange-driven refresh
+            -- doesn't also trigger a redundant think-poll rebuild on the
+            -- next tick.
+            lastFingerprint = fingerprintAbility()
             local children = {}
 
             -- Sub-heading helper. Each preview pane gets a bold gold label

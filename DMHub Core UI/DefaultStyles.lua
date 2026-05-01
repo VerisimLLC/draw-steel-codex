@@ -405,6 +405,7 @@ ThemeEngine.RegisterTheme{
             selectors = {"button", "hasIcon"},
             border = 0,
             borderWidth = 0,
+            bgcolor = "clear",
         },
         {
             selectors = {"button", "disabled"},

@@ -19,12 +19,11 @@ mod.shared.ShowCreateMapDialog = function()
 		classes = {'framedPanel'},
 		width = 1400,
 		height = 940,
-		styles = {
-			Styles.Panel,
+		styles = ThemeEngine.MergeStyles({
             {
                 selectors = {"mapItem"},
-                bgimage = "panels/square.png",
-                bgcolor = "black",
+                bgimage = true,
+                bgcolor = "@bg",
                 cornerRadius = 12,
                 width = 1920*0.1,
                 height = 1080*0.1,
@@ -34,22 +33,21 @@ mod.shared.ShowCreateMapDialog = function()
             {
                 selectors = {"mapItem", "hover"},
                 borderWidth = 2,
-                borderColor = "#ffffff44",
+                borderColor = "@accent",
             },
             {
                 selectors = {"mapItem", "selected"},
                 borderWidth = 2,
-                borderColor = "white",
+                borderColor = "@fg",
             },
             {
                 selectors = {"mapText"},
-                color = "white",
                 fontSize = 14,
                 width = "auto",
                 height = "auto",
                 textAlignment = "center",
             },
-		},
+		}),
 
         gui.Panel{
             width = "100%-24",
@@ -110,7 +108,6 @@ mod.shared.ShowCreateMapDialog = function()
                 vmargin = 16,
 
                 styles = {
-                    Styles.Form,
                     {
                         selectors = {"formPanel"},
                         width = 600,
@@ -193,10 +190,10 @@ mod.shared.ShowCreateMapDialog = function()
                 halign = "center",
                 valign = "bottom",
 
-                gui.PrettyButton{
+                gui.Button{
+                    classes = {"btnLg"},
                     halign = "left",
                     text = "Create Map",
-                    width = 160,
                     click = function(element)
                         local mapType = selectedMap.data.type
 
@@ -247,10 +244,10 @@ mod.shared.ShowCreateMapDialog = function()
                     end,
                 },
 
-                gui.PrettyButton{
+                gui.Button{
+                    classes = {"btnLg"},
                     halign = "right",
                     text = "Cancel",
-                    width = 160,
                     escapeActivates = true,
                     escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
                     click = function(element)
@@ -1152,11 +1149,9 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
                 opacitySlider,
             },
 
-            gui.PrettyButton{
+            gui.Button{
+                classes = {"btnSm"},
                 text = "Reset View",
-                width = 100,
-                height = 28,
-                fontSize = 14,
                 halign = "right",
                 click = function()
                     resetView()
@@ -1168,7 +1163,6 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
             width = "auto",
             height = "auto",
             fontSize = 12,
-            color = "#888888",
             text = "Drag the new floor to position it. Scroll to zoom. Middle-click drag or drag background to pan.",
         },
     }
@@ -1180,10 +1174,7 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
         height = 900,
         pad = 16,
         flow = "vertical",
-        styles = {
-            Styles.Default,
-            Styles.Panel,
-        },
+        styles = ThemeEngine.GetStyles(),
 
         gui.Label{
             classes = {"dialogTitle"},
@@ -1216,10 +1207,9 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
             halign = "center",
             vmargin = 8,
 
-            gui.PrettyButton{
+            gui.Button{
+                classes = {"btnLg"},
                 text = "Confirm",
-                width = 160,
-                height = 50,
                 click = function()
                     printf("FLOOR_ALIGN:: Confirm clicked: offsetX=%d offsetY=%d", offsetX, offsetY)
                     gui.CloseModal()
@@ -1227,10 +1217,9 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
                 end,
             },
 
-            gui.PrettyButton{
+            gui.Button{
+                classes = {"btnLg"},
                 text = "Cancel",
-                width = 160,
-                height = 50,
                 escapeActivates = true,
                 escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
                 click = function()
@@ -1289,11 +1278,9 @@ mod.shared.ReimportMapSizing = function(floor, mapObj)
     local importPanel
     local gridlessInitApplied = false
 
-    local confirmButton = gui.PrettyButton{
-        classes = {"hidden"},
+    local confirmButton = gui.Button{
+        classes = {"btnLg", "hidden"},
         text = "Apply",
-        height = 50,
-        width = 180,
         valign = "center",
         halign = "center",
         click = function()
@@ -1375,11 +1362,9 @@ mod.shared.ReimportMapSizing = function(floor, mapObj)
         end,
     }
 
-    local continueButton = gui.PrettyButton{
-        classes = {"hidden"},
+    local continueButton = gui.Button{
+        classes = {"btnLg", "hidden"},
         text = "Continue>>",
-        height = 50,
-        width = 180,
         valign = "center",
         halign = "center",
         click = function()
@@ -1387,11 +1372,9 @@ mod.shared.ReimportMapSizing = function(floor, mapObj)
         end,
     }
 
-    local previousButton = gui.PrettyButton{
-        classes = {"hidden"},
+    local previousButton = gui.Button{
+        classes = {"btnLg", "hidden"},
         text = "Back",
-        height = 50,
-        width = 180,
         valign = "center",
         halign = "left",
         click = function()
@@ -1566,7 +1549,7 @@ mod.shared.ReimportMapSizing = function(floor, mapObj)
                     gui.Label{
                         halign = "center", valign = "center",
                         width = "auto", height = "auto",
-                        fontSize = 18, color = "white",
+                        fontSize = 18,
                         text = string.format("Error: %s", element.error),
                     }
                 }
@@ -1592,10 +1575,7 @@ mod.shared.ReimportMapSizing = function(floor, mapObj)
         height = 940,
         pad = 8,
         flow = "vertical",
-        styles = {
-            Styles.Default,
-            Styles.Panel,
-        },
+        styles = ThemeEngine.GetStyles(),
 
         gui.Label{
             classes = {"dialogTitle"},

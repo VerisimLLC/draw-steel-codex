@@ -1251,7 +1251,6 @@ local function ShowCombatSetupDialog(selectedTokens)
                 halign = "center",
                 maxWidth = 300,
                 fontSize = 14,
-                color = Styles.textColor,
                 refreshSurprise = function(element)
                     local encounterStrength = 0
                     local children = args.pool.children
@@ -1342,7 +1341,6 @@ local function ShowCombatSetupDialog(selectedTokens)
                 halign = "center",
                 maxWidth = 300,
                 fontSize = 14,
-                color = Styles.textColor,
                 refreshSurprise = function(element)
                     local ev = 0
                     local evvalid = true
@@ -1607,7 +1605,6 @@ local function ShowCombatSetupDialog(selectedTokens)
                     textOverflow = "ellipsis",
                     textWrap = false,
                     margin = 2,
-                    color = Styles.textColor,
                     text = name,
                 },
                 gui.Label{
@@ -1631,23 +1628,10 @@ local function ShowCombatSetupDialog(selectedTokens)
                     halign = "left",
                     valign = "top",
                     margin = 2,
-                    bgimage = true,
-                    bgcolor = "clear",
                     styles = {
                         {
-                            color = Styles.textColor,
-                        },
-                        {
                             selectors = {"surprised"},
-                            color = "#ffaaaa",
-                        },
-                        {
-                            selectors = {"hover"},
-                            color = "#ffaaff",
-                        },
-                        {
-                            selectors = {"press"},
-                            color = "#ccaacc",
+                            color = "@warning",
                         },
                         {
                             selectors = {"sideline"},
@@ -1750,37 +1734,49 @@ local function ShowCombatSetupDialog(selectedTokens)
     local dialog
     dialog = gui.Panel{
         classes = {"framedPanel"},
-        styles = {
-            Styles.Panel,
-            Styles.Default,
+        styles = ThemeEngine.MergeStyles({
             {
-                classes = {"tokenPool"},
+                selectors = {"tokenPool"},
                 bgimage = true,
-                bgcolor = "black",
+                bgcolor = "@bg",
                 borderWidth = 2,
-                borderColor = "#888888",
+                borderColor = "@border",
                 pad = 4,
                 width = 340,
                 height = 360,
             },
             {
-                classes = {"tokenPool", "drag-target"},
-                borderColor = "#bbbbbb",
+                selectors = {"tokenPool", "drag-target"},
+                borderColor = "@accent",
             },
             {
-                classes = {"tokenPool", "drag-target-hover"},
-                borderColor = "#ffffff",
+                selectors = {"tokenPool", "drag-target-hover"},
+                borderColor = "@accentHover",
             },
             {
-                classes = {"tokenGroup"},
+                selectors = {"tokenGroup", "hover"},
                 bgimage = true,
-                bgcolor = "black",
+                bgcolor = "@accent",
             },
             {
-                classes = {"tokenGroup", "hover"},
-                bgcolor = "#444444",
+                selectors = {"token-image"},
+                halign = "center",
+                valign = "center",
+                width = 60,
+                height = 60,
             },
-        },
+            {
+                selectors = {"token-image-portrait"},
+                bgcolor = "white",
+                width = "100%",
+                height = "100%",
+            },
+            {
+                selectors = {"token-image-frame"},
+                width = "100%",
+                height = "100%",
+            },
+        }),
 
         width = 1024,
         height = 968,
@@ -1808,7 +1804,6 @@ local function ShowCombatSetupDialog(selectedTokens)
                     bold = true,
                     valign = "center",
                     halign = "center",
-                    color = Styles.textColor,
                     text = "vs",
                 },
                 CreateTokenPoolContainer{
@@ -1892,8 +1887,8 @@ local function ShowCombatSetupDialog(selectedTokens)
             halign = "center",
             flow = "horizontal",
             gui.Button{
+                classes = {"btnLg"},
                 text = "Draw Steel!",
-                fontSize = 24,
                 halign = "center",
                 valign = "bottom",
                 vmargin = 12,

@@ -697,10 +697,9 @@ CreateMapDialog = function()
 		treeInnerPanel,
 	}
 
-	local filterInput = gui.Input{
+	local filterInput = gui.SearchInput{
 		width = "80%",
 		height = 24,
-		fontSize = 18,
 		halign = "left",
 		valign = "top",
 		vmargin = 8,
@@ -769,66 +768,70 @@ CreateMapDialog = function()
 			
 		end,
 
-		styles = {
+		styles = ThemeEngine.MergeStyles({
+			-- Row layout (sizing + flow only -- no colors).
 			{
-				classes = {"row"},
+				selectors = {"row"},
 				height = 24,
 				width = "100%",
 				halign = "left",
 				valign = "top",
 				flow = "horizontal",
-				bgcolor = "#00000044",
+				bgcolor = "clear",
 			},
 			{
-				classes = {"row", "map"},
+				selectors = {"row", "map"},
 				height = "auto",
 				minHeight = 24,
 			},
+
+			-- Label sizing (color comes from theme {label} rule).
 			{
-				classes = {"row", "hover"},
-				transitionTime = 0.1,
-				bgcolor = "#88000077",
-			},
-			{
-				classes = {"row", "dragging"},
-				bgcolor = "#88000077",
-			},
-			{
-				classes = {"label"},
+				selectors = {"label"},
 				halign = "left",
 				width = "auto",
 				height = "auto",
-				fontSize = 16,
 				margin = 4,
-				color = "#aaaaaa",
 			},
 			{
-				classes = {"label", "selected"},
-				color = "#ffffff",
+				selectors = {"label", "deleting"},
+				color = "@danger",
+			},
+
+			-- Token image (reused from Prepare Combat dialog).
+			{
+				selectors = {"token-image"},
+				halign = "center",
+				valign = "center",
 			},
 			{
-				classes = {"label", "deleting"},
-				color = "#ff0000",
+				selectors = {"token-image-portrait"},
+				bgcolor = "white",
+				width = "100%",
+				height = "100%",
 			},
 			{
-				classes = {"dragPanel"},
+				selectors = {"token-image-frame"},
+				width = "100%",
+				height = "100%",
+			},
+
+			-- Drag-and-drop drop zones: invisible at rest, expand and
+			-- highlight only when the dragged item is over them.
+			{
+				selectors = {"dragPanel"},
+				bgimage = true,
+				bgcolor = "clear",
 				width = "100%",
 				height = 2,
-				bgcolor = "#ffffff00",
-				bgimage = "panels/square.png",
 				vmargin = 2,
 			},
 			{
-				classes = {"drag-target"},
-				bgcolor = "#ffffff55",
+				selectors = {"drag-target-hover"},
+				height = 10,
+				bgcolor = "@accent",
 			},
-			{
-				classes = {"drag-target-hover"},
-				bgcolor = "#ffffff88",
-				bgimage = "panels/square.png",
-			}
-
-		},
+		}),
 
 		filterInput,
 		treeScrollPanel,
@@ -842,18 +845,25 @@ CreateMapDialog = function()
 			valign = 'bottom',
 			width = "auto",
 			height = "auto",
-			gui.AddButton{
+			gui.Button{
 				id = "map-dialog-button-open-folder",
+				width = 36,
+				height = 36,
+				valign = "center",
 				hmargin = 4,
-				bgimage = "game-icons/open-folder.png",
+				icon = "game-icons/open-folder.png",
 				click = function(element)
 					game.CreateMapFolder()
 				end,
 				hover = gui.Tooltip("Create a Folder"),
 			},
-			gui.AddButton{
+			gui.Button{
 				id = "map-dialog-button-create-map",
+				width = 36,
+				height = 36,
+				valign = "center",
 				hmargin = 2,
+				icon = "game-icons/treasure-map.png",
 				click = function(element)
 					mod.shared.CompleteTutorial("Create a Map")
                     mod.shared.ShowCreateMapDialog()

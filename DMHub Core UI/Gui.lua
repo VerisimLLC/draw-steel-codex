@@ -2501,7 +2501,7 @@ function gui.ContextMenuItem(args, params)
 			end)
 		end
 		arrow = gui.Panel{
-			classes = {'arrow'},
+			classes = {'contextMenuArrow'},
 			bgimage = 'panels/triangle.png',
 			selfStyle = { rotate = 90 },
 		}
@@ -2513,10 +2513,10 @@ function gui.ContextMenuItem(args, params)
 	local checkPanel = nil
 	local iconPanel = nil
 	if args.check ~= nil then
-		labelClass = "have-check"
+		labelClass = "hasCheck"
 
 		checkPanel = gui.Panel{
-			classes = {"context-menu-check", cond(args.check, "checked"), cond(args.check == "partial", "partial")},
+			classes = {"contextMenuCheck", cond(args.check, "checked"), cond(args.check == "partial", "partial")},
 			halign = "left",
 			bgimage = "icons/icon_common/icon_common_29.png",
 			width = 16,
@@ -2527,9 +2527,9 @@ function gui.ContextMenuItem(args, params)
 	end
 
 	if args.icon ~= nil then
-		labelClass = "have-icon"
+		labelClass = "hasIcon"
 		iconPanel = gui.Panel{
-			classes = {"context-menu-icon", cond(args.check == false, "context-menu-icon-unchecked")},
+			classes = {"contextMenuIcon", cond(args.check == false, "contextMenuIconUnchecked")},
 			bgimage = args.icon,
 		}
 	end
@@ -2537,7 +2537,7 @@ function gui.ContextMenuItem(args, params)
 	local bindLabel = nil
 	if args.bind ~= nil then
 		bindLabel = gui.Label{
-			classes = {"context-menu-bind", cond(args.disabled, "disabled")},
+			classes = {"contextMenuBind", cond(args.disabled, "disabled")},
 			text = args.bind,
 		}
 	end
@@ -2549,8 +2549,7 @@ function gui.ContextMenuItem(args, params)
 
 	return gui.Panel{
 		id = args.id,
-		bgimage = 'panels/square.png',
-		classes = {'context-menu-item', cond(args.hidden, "collapsed")},
+		classes = {'contextMenuItem', cond(args.hidden, "collapsed")},
 		swallowPress = true,
 
 		events = {
@@ -2579,7 +2578,7 @@ function gui.ContextMenuItem(args, params)
 			hover = function(element)
 				if not args.disabled then
 					element.parent:FireEvent('hoverChild')
-					element:SetClass('hover-linger', true)
+					element:SetClass('hoverLinger', true)
 
 					if args.tooltip ~= nil then
 						gui.Tooltip(args.tooltip)(element)
@@ -2592,7 +2591,7 @@ function gui.ContextMenuItem(args, params)
 			checkPanel,
 			iconPanel,
 			gui.Label{
-				classes = {"context-menu-label", labelClass, cond(args.disabled, "disabled")},
+				classes = {"contextMenuLabel", labelClass, cond(args.disabled, "disabled")},
 				text = args.text,
 				newContentMarker,
 			},
@@ -2616,7 +2615,7 @@ function gui.ContextMenu(args)
 			--add a divider if we are going to a different group
 			if i > 1 and i < #args.entries and args.entries[i+1] ~= nil and entry.group ~= args.entries[i+1].group then
 				items[#items+1] = gui.Panel{
-					classes = {'context-menu-div'},
+					classes = {'contextMenuDiv'},
 				}
 			end
 		end
@@ -2633,22 +2632,10 @@ function gui.ContextMenu(args)
 	end
 
 	return gui.Panel{
-		x = args.x or 0,
-		floating = args.floating or false,
-		classes = {'context-menu', cond(args.submenu, 'context-menu-sub', 'context-menu-parent')},
-		vscroll = cond(args.submenu, true),
-		halign = halign,
-        valign = args.valign,
-		styles = {
+		styles = ThemeEngine.MergeStyles({
 			{
-				selectors = {'context-menu'},
-				bgimage = 'panels/square.png',
-				bgcolor = "white",
-				gradient = Styles.dialogGradient,
-				borderColor = Styles.textColor,
-				border = 2,
+				selectors = {'contextMenu'},
 				pad = 8,
-
 				margin = 4,
 				width = "auto",
 				height = 'auto',
@@ -2657,47 +2644,24 @@ function gui.ContextMenu(args)
 				valign = 'bottom',
 			},
 			{
-				selectors = {'context-menu-sub'},
+				selectors = {'contextMenuSub'},
 				valign = 'top',
 				hidden = 1,
 				maxHeight = 400,
 			},
 			{
-				selectors = {'context-menu-sub','parent:hover-linger'},
+				selectors = {'contextMenuSub','parent:hoverLinger'},
 				hidden = 0,
 			},
-
 			{
-				selectors = {'context-menu-label'},
-				color = Styles.textColor,
-				fontFace = "dubai",
-				fontSize = 18,
+				selectors = {'contextMenuLabel'},
 				textAlignment = 'left',
 				hmargin = 2,
 				height = "auto",
 				width = "auto",
 			},
 			{
-				selectors = {'context-menu-label', 'disabled'},
-				color = "#777777",
-			},
-			{
-				selectors = {'context-menu-label', 'have-check'},
-				--hmargin = 20,
-			},
-			{
-				selectors = {'context-menu-label', 'have-icon'},
-				--hmargin = 20,
-			},
-			{
-				selectors = {'context-menu-label', 'parent:hover'},
-				color = "black",
-			},
-			{
-				selectors = {'context-menu-bind'},
-				color = Styles.textColor,
-				fontFace = "dubai",
-				fontSize = 16,
+				selectors = {'contextMenuBind'},
 				textAlignment = 'right',
 				hmargin = 2,
 				height = "auto",
@@ -2705,108 +2669,77 @@ function gui.ContextMenu(args)
 				halign = "right",
 			},
 			{
-				selectors = {'context-menu-bind', 'disabled'},
-				color = "#777777",
-			},
-			{
-				selectors = {'context-menu-bind', 'parent:hover'},
-				color = "black",
-			},
-			{
-				selectors = {'context-menu-icon'},
+				selectors = {'contextMenuIcon'},
 				width = 16,
 				height = 16,
 				valign = "center",
 				halign = "left",
 				hmargin = 2,
-				bgcolor = Styles.textColor,
 			},
-
 			{
-				selectors = {'context-menu-icon-unchecked'},
-				opacity = 0.1,
-			},
-
-			{
-				selectors = {'context-menu-check'},
-				bgcolor = Styles.textColor,
+				selectors = {'contextMenuIconUnchecked'},
 				opacity = 0.1,
 			},
 			{
-				selectors = {'context-menu-check', 'checked'},
+				selectors = {'contextMenuCheck'},
+				opacity = 0.1,
+			},
+			{
+				selectors = {'contextMenuCheck', 'checked'},
 				opacity = 1,
 			},
 			{
-				selectors = {'context-menu-check', 'partial'},
+				selectors = {'contextMenuCheck', 'partial'},
 				opacity = 0.4,
 			},
 			{
-				selectors = {'context-menu-check', '~checked', '~partial', 'parent:hover'},
+				selectors = {'contextMenuCheck', '~checked', '~partial', 'parent:hover'},
 				opacity = 0.4,
 			},
-
 			{
-				selectors = {'context-menu-icon', 'parent:hover'},
-				bgcolor = "black",
+				selectors = {'contextMenuIcon', 'parent:hover'},
 				opacity = 1,
 			},
-
 			{
-				selectors = {'context-menu-check', 'parent:hover'},
-				bgcolor = "black",
-			},
-
-			{
-				selectors = {'context-menu-item'},
-				bgimage = 'panels/context-menu-background.png',
+				selectors = {'contextMenuItem'},
 				height = 'auto',
 				minWidth = args.width or 200,
 				width = "auto",
 				halign = 'left',
 				valign = 'top',
-				borderWidth = 0,
-				borderColor = 'white',
-				bgcolor = '#ffffff00',
-				color = 'white',
 				vmargin = 0,
 				hmargin = 0,
 				pad = 2,
 				flow = 'horizontal',
 			},
 			{
-				selectors = {'context-menu-item','hover'},
-				bgimage = 'panels/square.png',
-				bgcolor = 'white',
-				color = "black",
-			},
-			{
-				selectors = {'context-menu-item','press'},
-				bgcolor = '#aaaaaa66',
-			},
-			{
-				selectors = {'context-menu-div'},
-				bgimage = "panels/square.png",
+				selectors = {'contextMenuDiv'},
 				hmargin = 0,
 				width = args.width or 200,
 				halign = "center",
 				height = 1,
 				opacity = 1,
-				bgcolor = Styles.textColor,
 			},
 			{
-				selectors = {'arrow'},
+				selectors = {'contextMenuArrow'},
 				halign = 'right',
 				valign = 'center',
 				width = 10,
 				height = 10,
-				bgcolor = Styles.textColor,
 			},
-		},
+		}),
+		x = args.x or 0,
+		floating = args.floating or false,
+		classes = {'contextMenu', cond(args.submenu, 'contextMenuSub', 'contextMenuParent')},
+		vscroll = cond(args.submenu, true),
+		halign = halign,
+        valign = args.valign,
+		flow = "vertical",
 
 		events = {
 			hoverChild = function(element)
 				for i,child in ipairs(element.children) do
-					child:SetClass('hover-linger', false)
+					child:SetClass('hoverLinger', false)
 				end
 			end,
 		},

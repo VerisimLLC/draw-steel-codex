@@ -92,6 +92,7 @@ ThemeEngine.RegisterColorScheme{
         },
 
         -- Bars
+        -- Important: This is used in the title bar
         barTrack = {
             point_a = {x = -0.02, y = 0},
             point_b = {x = 1.02,  y = 0},
@@ -1109,37 +1110,135 @@ ThemeEngine.RegisterTheme{
             brightness = 1.5,
         },
 
-        --[[ Context menu ]]
+        --[[ Menu (horizontal menu strip, e.g. title bar dropdowns) ]]
         {
-            selectors = {"contextMenuLabel"},
-            fontSize = 20,
+            selectors = {"menuItem"},
+            bgimage = true,
+            bgcolor = "clear",
+            hpad = 8,
+        },
+        {
+            selectors = {"menuItem", "hover"},
+            bgcolor = "@fg",
+        },
+        {
+            selectors = {"menuLabel"},
+            fontSize = 16,
+            width = "auto",
+            height = "auto",
+            valign = "center",
+            hmargin = 4,
             color = "@fg",
         },
         {
-            selectors = {"contextMenuLabel", "disabled"},
-            fontSize = 20,
-            color = "@fgMuted",
+            selectors = {"menuLabel", "parent:hover"},
+            color = "@bg",
         },
+        {
+            selectors = {"menuItemIcon"},
+            bgcolor = "@fg",
+        },
+        {
+            selectors = {"menuItemIcon", "parent:hover"},
+            bgcolor = "@bg",
+        },
+
+        --[[ Context menu ]]
+
+        -- The popup panel itself
+        {
+            selectors = {"contextMenu"},
+            bgimage = true,
+            bgcolor = "white",
+            gradient = "@surfaceLinear",
+            borderColor = "@fg",
+            borderWidth = 2,
+            flow = "vertical",
+        },
+
+        -- Rows: transparent at rest so the panel surface paints through;
+        -- hover/press states give them distinct backgrounds.
         {
             selectors = {"contextMenuItem"},
-            fontSize = 20,
+            bgimage = true,
+            bgcolor = "clear",
             color = "@fg",
-            height = "auto",
-            width = "100%",
-            bgcolor = "@bgAlt",
-            borderColor = "@bg",
-            borderWidth = 1,
+            borderWidth = 0,
         },
         {
             selectors = {"contextMenuItem", "hover"},
-            borderColor = "@fg",
-            borderWidth = 1,
+            bgcolor = "@fg",
+            color = "@bg",
             transitionTime = 0.2,
         },
         {
             selectors = {"contextMenuItem", "press"},
             brightness = 1.2,
             transitionTime = 0.2,
+        },
+
+        -- Row label
+        {
+            selectors = {"label", "contextMenuLabel"},
+            color = "@fg",
+            fontSize = 16,
+        },
+        {
+            selectors = {"contextMenuLabel", "disabled"},
+            color = "@fgMuted",
+        },
+        {
+            selectors = {"contextMenuLabel", "parent:hover"},
+            color = "@bg",
+        },
+
+        -- Bind label (keyboard shortcut hint)
+        {
+            selectors = {"contextMenuBind"},
+            color = "@fg",
+            fontSize = 16,
+        },
+        {
+            selectors = {"contextMenuBind", "disabled"},
+            color = "@fgMuted",
+        },
+        {
+            selectors = {"contextMenuBind", "parent:hover"},
+            color = "@bg",
+        },
+
+        -- Icon glyph (image-tint to text color)
+        {
+            selectors = {"contextMenuIcon"},
+            bgcolor = "@fg",
+        },
+        {
+            selectors = {"contextMenuIcon", "parent:hover"},
+            bgcolor = "@bg",
+        },
+
+        -- Checkmark glyph
+        {
+            selectors = {"contextMenuCheck"},
+            bgcolor = "@fg",
+        },
+        {
+            selectors = {"contextMenuCheck", "parent:hover"},
+            bgcolor = "@bg",
+        },
+
+        -- Divider
+        {
+            selectors = {"contextMenuDiv"},
+            bgimage = true,
+            bgcolor = "@fg",
+            vmargin = 2,
+        },
+
+        -- Submenu arrow (bgimage is the triangle, set inline at construction)
+        {
+            selectors = {"contextMenuArrow"},
+            bgcolor = "@fg",
         },
 
         --[[ Table primitives ]]

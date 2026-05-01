@@ -200,69 +200,61 @@ local function _logUnresolved(domain, name)
     _log("unresolved " .. domain .. " reference: " .. tostring(name))
 end
 
+--- Coerce a theme id to a registered one. Nil and unknown ids both
+--- become DEFAULT_THEME_ID. Unknown ids are logged once.
+--- @param id string|nil
+--- @return string
+local function _normalizeThemeId(id)
+    if id == nil then return DEFAULT_THEME_ID end
+    if _themes[id] then return id end
+    if id ~= DEFAULT_THEME_ID then
+        _logUnresolved("theme", id)
+    end
+    return DEFAULT_THEME_ID
+end
+
+--- Coerce a color scheme id to a registered one. Nil and unknown ids
+--- both become DEFAULT_SCHEME_ID. Unknown ids are logged once.
+--- @param id string|nil
+--- @return string
+local function _normalizeSchemeId(id)
+    if id == nil then return DEFAULT_SCHEME_ID end
+    if _colorSchemes[id] then return id end
+    if id ~= DEFAULT_SCHEME_ID then
+        _logUnresolved("colorScheme", id)
+    end
+    return DEFAULT_SCHEME_ID
+end
+
 -- =============================================================================
 -- Resolver helpers
 -- =============================================================================
 
---- Build the effective theme inheritance chain for resolution.
---- Chain order: default theme (if registered), ancestors top-down, effective theme.
---- Guards against cycles and handles missing ids silently.
+--- Build the effective theme chain for resolution.
+--- Every non-default theme inherits only from default, so the chain is
+--- at most two entries: [default] (if effective IS default or no
+--- effective was given) or [default, effective] otherwise.
 --- @param themeId string|nil
 --- @return table[] chain
 local function _buildChain(themeId)
     local chain = {}
-    local seen = {}
 
     local default = _themes[DEFAULT_THEME_ID]
     if default then
         chain[#chain + 1] = default
-        seen[DEFAULT_THEME_ID] = true
     end
 
-    if themeId == nil then
+    if themeId == nil or themeId == DEFAULT_THEME_ID then
         return chain
     end
 
     local effective = _themes[themeId]
     if not effective then
-        if themeId ~= DEFAULT_THEME_ID then
-            _logUnresolved("theme", themeId)
-        end
+        _logUnresolved("theme", themeId)
         return chain
     end
 
-    -- Walk inherit chain bottom-up, stopping on cycles or missing parents.
-    local ancestors = {}
-    local current = nil
-    if effective.inherit then
-        current = _themes[effective.inherit]
-        if not current then
-            _logUnresolved("theme", effective.inherit)
-        end
-    end
-    while current and not seen[current.id] do
-        seen[current.id] = true
-        ancestors[#ancestors + 1] = current
-        if current.inherit then
-            local parent = _themes[current.inherit]
-            if not parent then
-                _logUnresolved("theme", current.inherit)
-            end
-            current = parent
-        else
-            current = nil
-        end
-    end
-
-    -- Append ancestors top-down.
-    for i = #ancestors, 1, -1 do
-        chain[#chain + 1] = ancestors[i]
-    end
-
-    if not seen[effective.id] then
-        chain[#chain + 1] = effective
-    end
-
+    chain[#chain + 1] = effective
     return chain
 end
 
@@ -421,7 +413,9 @@ local function _buildGradientTable(schemeId)
     return out
 end
 
---- Merge fonts tables across the theme inheritance chain.
+--- Merge fonts tables: default theme's fonts first, then effective theme's
+--- fonts overlaid on top. The chain passed in is always [default, effective]
+--- (or just [default] if effective IS default).
 --- @param chain table[]
 --- @return table
 local function _buildFontsTable(chain)
@@ -468,7 +462,7 @@ local function _resolveEffectivePair(themeIdArg, schemeIdArg)
         end
     end
 
-    return themeId or DEFAULT_THEME_ID, schemeId or DEFAULT_SCHEME_ID
+    return _normalizeThemeId(themeId), _normalizeSchemeId(schemeId)
 end
 
 local function _cacheKey(themeId, schemeId)
@@ -499,24 +493,13 @@ local function _isColorSchemeInUse(id)
     return false
 end
 
---- Return true if the given theme id appears anywhere in the active theme's
---- inherit chain (the chain that would be walked for rendering right now).
+--- Return true if the given theme id is the currently-active theme.
+--- (After flattening, the "active chain" is just [default, active]; the
+--- default theme is handled separately in DeregisterTheme.)
 --- @param id string
 --- @return boolean
 local function _isThemeInActiveChain(id)
-    if _activeThemeId == nil then
-        return false
-    end
-    local seen = {}
-    local current = _themes[_activeThemeId]
-    while current and not seen[current.id] do
-        if current.id == id then
-            return true
-        end
-        seen[current.id] = true
-        current = current.inherit and _themes[current.inherit] or nil
-    end
-    return false
+    return _activeThemeId ~= nil and id == _activeThemeId
 end
 
 --- Shallow-clone a font catalog entry so callers can't mutate the hardcoded data.
@@ -611,10 +594,13 @@ end
 --- Register a theme. Returns false if the id is already registered; the existing
 --- registration is left untouched.
 ---
+--- Every non-default theme inherits implicitly from the default theme. There is
+--- no `inherit` chain -- the resolution chain is always [default, effective].
+---
 --- Font values in the `fonts` map are validated against the hardcoded font catalog.
 --- Unknown names are logged once per unique name but do not prevent registration --
 --- this matches the engine's "loud but non-fatal" policy for missing references.
---- @param spec table { id, name, description, inherit?, colorScheme, fonts?, styles }
+--- @param spec table { id, name, description, colorScheme, fonts?, styles }
 --- @return boolean registered
 function ThemeEngine.RegisterTheme(spec)
     if _themes[spec.id] then
@@ -633,7 +619,6 @@ function ThemeEngine.RegisterTheme(spec)
         id = spec.id,
         name = spec.name,
         description = spec.description,
-        inherit = spec.inherit,
         colorScheme = spec.colorScheme,
         fonts = spec.fonts or {},
         styles = spec.styles or {},
@@ -645,8 +630,8 @@ end
 ---
 --- Refuses (with a log) to remove:
 ---   * the default theme -- it's the ultimate fallback and must remain present;
----   * the active theme or any theme in its inherit chain -- removing a link in
----     the chain that's currently rendering would visibly break the UI.
+---   * the currently active theme -- removing it while it's rendering would
+---     visibly break the UI.
 ---
 --- Because removal can only affect entries that aren't on-screen, nothing visible
 --- changes and OnThemeChanged is not fired. The resolved-styles cache is still
@@ -674,8 +659,9 @@ end
 -- Public API -- Activation & inspection
 -- =============================================================================
 
---- Set the active theme. Unknown ids are accepted silently; the resolver handles
---- missing-id fallback. Fires OnThemeChanged if the value actually changed.
+--- Set the active theme. Stores the id as given without validation; resolution
+--- happens at read time (GetActiveTheme / GetStyles fall back to default for
+--- unknown or nil ids). Fires OnThemeChanged if the stored value actually changed.
 --- @param themeId string|nil
 function ThemeEngine.SetActiveTheme(themeId)
     if _activeThemeId == themeId then return end
@@ -684,8 +670,10 @@ function ThemeEngine.SetActiveTheme(themeId)
     _fireThemeChanged()
 end
 
---- Set the active color scheme override. Pass nil to clear the override (use the
---- theme's default colorScheme). Fires OnThemeChanged if the value actually changed.
+--- Set the active color scheme. Stores the id as given without validation;
+--- resolution happens at read time (GetActiveColorScheme / GetStyles fall back
+--- to default for unknown or nil ids). Fires OnThemeChanged if the stored value
+--- actually changed.
 --- @param schemeId string|nil
 function ThemeEngine.SetActiveColorScheme(schemeId)
     if _activeSchemeId == schemeId then return end
@@ -694,32 +682,25 @@ function ThemeEngine.SetActiveColorScheme(schemeId)
     _fireThemeChanged()
 end
 
---- @return string|nil
+--- Returns the active theme id, guaranteed to be a registered id.
+--- @return string
 function ThemeEngine.GetActiveTheme()
-    return _activeThemeId
+    return _normalizeThemeId(_activeThemeId)
 end
 
---- @return string|nil
+--- Returns the active color scheme id, guaranteed to be a registered id.
+--- @return string
 function ThemeEngine.GetActiveColorScheme()
-    return _activeSchemeId
+    return _normalizeSchemeId(_activeSchemeId)
 end
 
---- Restore the active theme + color scheme from persistent settings.
---- Call once after all themes/schemes are registered so subsequent
---- GetStyles() reflects the user's saved selection. Validates the
---- saved ids against the registry; silently ignores ids that no longer
---- correspond to a registered theme/scheme.
+--- Restore the persisted active theme / scheme ids verbatim. Unknown ids are
+--- preserved here -- the read path coerces them to default at resolution time,
+--- which means the user's stored preference survives even when the registering
+--- mod isn't loaded yet (or at all in the current session).
 function ThemeEngine.RestoreActiveSelection()
-    local savedTheme = _activeThemeSetting:Get()
-    local savedScheme = _activeSchemeSetting:Get()
-
-    if savedTheme and _themes[savedTheme] then
-        _activeThemeId = savedTheme
-    end
-    if savedScheme and _colorSchemes[savedScheme] then
-        _activeSchemeId = savedScheme
-    end
-
+    _activeThemeId = _activeThemeSetting:Get()
+    _activeSchemeId = _activeSchemeSetting:Get()
     _fireThemeChanged()
 end
 

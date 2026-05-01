@@ -96,15 +96,16 @@ local SetCultureAspect = function(cultureAspectPanel, cultureAspectid)
 	end
 
 	local children = {}
+
 	--the name of the culture aspect.
 	children[#children+1] = gui.Panel{
-		classes = {'formPanel'},
+		classes = {"formStackedRow"},
 		gui.Label{
-			text = 'Name:',
-			valign = 'center',
-			minWidth = 240,
+			classes = {"formStackedLabel"},
+			text = "Name:",
 		},
 		gui.Input{
+			classes = {"formStackedControl"},
 			text = cultureAspect.name,
 			change = function(element)
 				cultureAspect.name = element.text
@@ -113,38 +114,44 @@ local SetCultureAspect = function(cultureAspectPanel, cultureAspectid)
 		},
 	}
 
-    children[#children+1] = gui.Panel{
-        classes = {'formPanel'},
-        gui.Label{
-            text = "Category:",
-            valign = "center",
-            minWidth = 240,
-        },
-        gui.Dropdown{
-            width = 340,
-            options = CultureAspect.categories,
-            idChosen = cultureAspect.category,
-            change = function(element)
-                cultureAspect.category = element.idChosen
-                UploadCultureAspect()
-            end,
-        }
-    }
+	children[#children+1] = gui.Panel{
+		classes = {"formStackedRow"},
+		gui.Label{
+			classes = {"formStackedLabel"},
+			text = "Category:",
+		},
+		gui.Dropdown{
+			classes = {"formStackedControl"},
+			options = CultureAspect.categories,
+			idChosen = cultureAspect.category,
+			change = function(element)
+				cultureAspect.category = element.idChosen
+				UploadCultureAspect()
+			end,
+		},
+	}
 
-	children[#children+1] = gui.Input{
-		fontSize = 14,
-		vmargin = 4,
-		width = 600,
-		minHeight = 30,
-		height = 'auto',
-		multiline = true,
-		text = cultureAspect.description,
-		textAlignment = "topleft",
-		placeholderText = string.format("Enter %s description...", cultureAspect.category),
-		change = function(element)
-			cultureAspect.description = element.text
-            UploadCultureAspect()
-		end,
+	children[#children+1] = gui.Panel{
+		classes = {"formStackedRow"},
+		gui.Label{
+			classes = {"formStackedLabel"},
+			text = "Description:",
+		},
+		gui.Input{
+			classes = {"formStackedControl"},
+			multiline = true,
+			height = "auto",
+			minHeight = 30,
+			maxHeight = 300,
+			vscroll = true,
+			textAlignment = "topleft",
+			placeholderText = string.format("Enter %s description...", cultureAspect.category),
+			text = cultureAspect.description,
+			change = function(element)
+				cultureAspect.description = element.text
+				UploadCultureAspect()
+			end,
+		},
 	}
 
 	children[#children+1] = cultureAspect:GetClassLevel():CreateEditor(cultureAspect, 0, {
@@ -169,39 +176,13 @@ function CultureAspect.CreateEditor()
 		classes = 'class-panel',
 		styles = {
 			{
-				halign = "left",
-			},
-			{
-				classes = {'class-panel'},
+				classes = {"class-panel"},
 				width = 1200,
-				height = '90%',
-				halign = 'left',
-				flow = 'vertical',
+				height = "90%",
+				halign = "left",
+				flow = "vertical",
 				pad = 20,
 			},
-			{
-				classes = {'label'},
-				color = 'white',
-				fontSize = 22,
-				width = 'auto',
-				height = 'auto',
-			},
-			{
-				classes = {'input'},
-				width = 200,
-				height = 26,
-				fontSize = 18,
-				color = 'white',
-			},
-			{
-				classes = {'formPanel'},
-				flow = 'horizontal',
-				width = 'auto',
-				height = 'auto',
-				halign = 'left',
-				vmargin = 2,
-			},
-
 		},
 	}
 
@@ -236,13 +217,11 @@ local ShowCultureAspectPanel = function(parentPanel)
 
 				--heading for culture aspect section.
 				children[#children+1] = m_cultureAspectPanels[i] or gui.Label{
-					fontSize = 18,
-					bold = true,
+					classes = {"listSectionHeading"},
 					width = "auto",
 					height = "auto",
 					hmargin = 4,
 					text = v.text,
-					color = "white",
 					data = {
 						ord = string.format("%d", i),
 					},

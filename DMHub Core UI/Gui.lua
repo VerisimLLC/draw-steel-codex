@@ -1239,7 +1239,7 @@ function gui.Slider(args)
 	local notchHeight = args.notchHeight or 2
 	args.notchHeight = nil
 
-	local notchColor = args.notchColor or 'grey'
+	local notchColor = args.notchColor
 	args.notchColor = nil
 
 	local fillColor = args.fillColor or '#880000'
@@ -1459,14 +1459,10 @@ function gui.Slider(args)
 	mainPanel.data.handle = handleItem
 
 	sliderFill = gui.Panel{
+		classes = {"sliderFill"},
 		id = 'slider-fill',
-		bgimage = 'panels/square.png',
 		selfStyle = {
 			width = 1,
-			height = 2,
-			borderWidth = 0,
-			bgcolor = "white",
-			halign = 'left',
 			valign = notchAlign,
 		},
 		events = {
@@ -1492,15 +1488,12 @@ function gui.Slider(args)
 		children = {
 			--the slider notch.
 			gui.Panel{
+				classes = {"sliderNotch"},
 				id = 'slider-notch',
-				bgimage = 'panels/square.png',
 				style = {
-					width = '100%',
 					height = notchHeight,
-					borderWidth = 0,
 					bgcolor = notchColor,
 					valign = notchAlign,
-					halign = 'center',
 				}
 			},
 
@@ -1635,8 +1628,6 @@ function gui.ColorPicker(args)
 
 	local color = core.Color(options.value)
 	options.value = nil
-
-	options.className = 'color-picker'
 
 	if options.data == nil then
 		options.data = {}
@@ -2024,6 +2015,9 @@ function gui.ColorPicker(args)
 	end
 
 	options.styles = styles
+
+	options.classes = options.classes or {}
+	options.classes[#options.classes + 1] = "colorPicker"
 
 	if options.selfStyle == nil then
 		options.selfStyle = {}
@@ -3872,8 +3866,9 @@ function gui.SearchInput(options)
 
 	local args = {
 		classes = {"searchInput"},
+		styles = ThemeEngine.GetStyles(),
 		placeholderText = "Search...",
-        hpad = 24,
+		hpad = 24,
 		editlag = 0.25,
 
 		edit = function(element)
@@ -3884,15 +3879,10 @@ function gui.SearchInput(options)
 		end,
 
 		gui.Panel{
+			classes = {"searchInputIcon"},
 			bgimage = "icons/icon_tool/icon_tool_42.png",
 			floating = true,
-            x = -20,
-			vmargin = 0,
-			halign = "left",
-			valign = "center",
-			height = "90%",
-			width = "100% height",
-            bgcolor = cond(dmhub.whiteLabel == "mcdm", "white", "black"),
+			x = -20,
 		},
 	}
 

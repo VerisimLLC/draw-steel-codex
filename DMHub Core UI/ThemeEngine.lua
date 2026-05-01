@@ -60,7 +60,12 @@ local _loggedUnresolved = {}     -- set of "domain:name" keys already logged
 -- Constants
 -- =============================================================================
 
-local COLOR_PROPS = { color = true, bgcolor = true, borderColor = true }
+local COLOR_PROPS = {
+    color = true,
+    bgcolor = true,
+    borderColor = true,
+    scrollHandleColor = true
+}
 local FONT_PROPS = { fontFace = true }
 local GRADIENT_PROPS = { gradient = true }
 

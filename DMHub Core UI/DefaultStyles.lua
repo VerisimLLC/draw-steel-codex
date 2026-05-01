@@ -258,6 +258,7 @@ ThemeEngine.RegisterTheme{
         {
             selectors = {"panel"},
             bgcolor = "@bg",
+            scrollHandleColor = "@fgMuted",
         },
         {
             selectors = {"panel", "panelRadial"},
@@ -289,6 +290,19 @@ ThemeEngine.RegisterTheme{
             borderWidth = 2,
             width = 196,
             height = "150% width",
+        },
+        -- Live dice preview surface marker class. The render-texture
+        -- hookup itself (`bgimage = "#DicePreview"`) and the
+        -- image-tint-neutral `bgcolor = "white"` MUST live inline on
+        -- the call site -- the engine's "#" render-target rendering
+        -- doesn't honor cascade-derived properties, and any visual
+        -- chrome we'd add here (border, cornerRadius, bgcolor tint)
+        -- gets fully covered by the render texture anyway. The class
+        -- is kept as a marker so future theme-able properties (e.g.,
+        -- a scheme-driven scene bgcolor set via a runtime hook) have
+        -- a place to land.
+        {
+            selectors = {"panel", "dicePreview"},
         },
         -- The icon child gui.Button auto-creates when called with `icon = ...`.
         -- Tints the bgimage to @fg so the glyph reads against the surrounding
@@ -327,6 +341,11 @@ ThemeEngine.RegisterTheme{
             textAlignment = "center",
         },
         {
+            selectors = {"label", "listSectionHeading"},
+            fontSize = 18,
+            bold = true,
+        },
+        {
             selectors = {"label", "link"},
             color = "@accent",
         },
@@ -344,8 +363,10 @@ ThemeEngine.RegisterTheme{
             selectors = {"label", "button"},
             height = 31,
             width = 129,
+            bgimage = true,
             fontFace = "@label",
             fontSize = 16,
+            textAlignment = "center",
             color = "@fg",
             bgcolor = "@bg",
             borderColor = "@border",
@@ -420,11 +441,13 @@ ThemeEngine.RegisterTheme{
         --[[ Input ]]
         {
             selectors = {"input"},
+            bgimage = true,
             fontFace = "@input",
             fontSize = 14,
             color = "@fg",
             bgcolor = "@bg",
             borderColor = "@border",
+            border = 2,
         },
         {
             selectors = {"input", "focus"},
@@ -441,6 +464,7 @@ ThemeEngine.RegisterTheme{
         -- search input add it via their own MergeStyles extras.
         {
             selectors = {"searchInput"},
+            bgimage = true,
             hpad = 6,
             fontSize = 16,
             bold = true,
@@ -448,6 +472,39 @@ ThemeEngine.RegisterTheme{
             color = "@fg",
             bgcolor = "@bg",
             borderWidth = 0,
+        },
+        -- Magnifying-glass icon child auto-created by gui.SearchInput.
+        -- Tinted to @fg so the glyph follows the active scheme. The
+        -- `floating = true` and `x = -20` positioning stay inline at
+        -- the call site -- floating is a structural property (controls
+        -- layout participation) that the engine doesn't honor through
+        -- the style cascade.
+        {
+            selectors = {"searchInputIcon"},
+            bgcolor = "@fg",
+            vmargin = 0,
+            halign = "left",
+            valign = "center",
+            height = "90%",
+            width = "100% height",
+        },
+        -- Color picker main button (gui.ColorPicker mainPanel).
+        -- The button shows the currently-selected color via
+        -- selfStyle.bgcolor (set at runtime by the widget); the theme
+        -- owns the border frame.
+        {
+            selectors = {"colorPicker"},
+            bgimage = true,
+            borderColor = "@border",
+            borderWidth = 2,
+        },
+        {
+            selectors = {"colorPicker", "hover"},
+            borderColor = "@accentHover",
+        },
+        {
+            selectors = {"colorPicker", "press"},
+            borderColor = "@fg",
         },
 
         --[[ Dropdown -- closed control + open popup machinery ]]
@@ -467,6 +524,7 @@ ThemeEngine.RegisterTheme{
             color = "@fg",
             bgcolor = "@bgAlt",
             borderColor = "@border",
+            border = 2,
         },
         {
             selectors = {"dropdown", "expandedTop"},
@@ -534,7 +592,7 @@ ThemeEngine.RegisterTheme{
         },
         {
             selectors = {"dropdownMenuSub"},
-            bgimage = "panels/square.png",
+            bgimage = true,
             bgcolor = "@bg",
             border = {x1 = 2, x2 = 2, y1 = 2, y2 = 2},
             borderColor = "@border",
@@ -550,7 +608,7 @@ ThemeEngine.RegisterTheme{
         },
         {
             selectors = {"dropdownOption"},
-            bgimage = "panels/square.png",
+            bgimage = true,
             width = "100%-2",
             height = "auto",
             halign = "center",
@@ -595,7 +653,7 @@ ThemeEngine.RegisterTheme{
             height = "auto",
             pad = 4,
             margin = 4,
-            bgimage = "panels/square.png",
+            bgimage = true,
             bgcolor = "@bg",
             border = 1,
             borderColor = "@border",
@@ -676,7 +734,7 @@ ThemeEngine.RegisterTheme{
             borderWidth = 2,
             borderColor = "@border",
             bgcolor = "@bg",
-            bgimage = "panels/square.png",
+            bgimage = true,
             width = "60%",
             height = "60%",
             halign = "center",
@@ -684,12 +742,28 @@ ThemeEngine.RegisterTheme{
         },
         {
             selectors = {"sliderHandleInner"},
-            bgimage = "panels/square.png",
+            bgimage = true,
             bgcolor = "@fg",
             width = "30%",
             height = "30%",
             halign = "center",
             valign = "center",
+        },
+        {
+            selectors = {"sliderNotch"},
+            bgimage = true,
+            bgcolor = "@borderInverse",
+            width = "100%",
+            halign = "center",
+            borderWidth = 0,
+        },
+        {
+            selectors = {"sliderFill"},
+            bgimage = true,
+            bgcolor = "@fg",
+            height = 2,
+            halign = "left",
+            borderWidth = 0,
         },
         {
             selectors = {"enumSlider"},
@@ -699,7 +773,7 @@ ThemeEngine.RegisterTheme{
         },
         {
             selectors = {"enumSliderOption"},
-            bgimage = "panels/square.png",
+            bgimage = true,
             bgcolor = "@bg",
             color = "@fg",
             borderColor = "@border",
@@ -731,7 +805,7 @@ ThemeEngine.RegisterTheme{
         -- itself just lays out the row.
         {
             selectors = {"checkbox"},
-            bgimage = "panels/square.png",
+            bgimage = true,
             flow = "horizontal",
             bgcolor = "clear",
             height = 30,
@@ -746,7 +820,7 @@ ThemeEngine.RegisterTheme{
         },
         {
             selectors = {"checkBackground"},
-            bgimage = "panels/square.png",
+            bgimage = true,
             bgcolor = "@bg",
             halign = "left",
             valign = "center",
@@ -762,7 +836,7 @@ ThemeEngine.RegisterTheme{
         },
         {
             selectors = {"checkMark"},
-            bgimage = "panels/square.png",
+            bgimage = true,
             bgcolor = "@fg",
             halign = "center",
             valign = "center",
@@ -798,7 +872,7 @@ ThemeEngine.RegisterTheme{
             bgimage = true,
             borderWidth = 1,
             borderColor = "@border",
-            width = 100,
+            width = 130,
             height = 40,
             fontSize = 18,
             bgcolor = "@bg",
@@ -815,6 +889,13 @@ ThemeEngine.RegisterTheme{
             color = "@fgStrong",
             borderColor = "@fg",
             borderWidth = 2,
+        },
+        {
+            selectors = {"tabBar"},
+            flow = "horizontal",
+            width = "auto",
+            height = "auto",
+            halign = "center",
         },
 
         --[[ Tooltip ]]
@@ -896,7 +977,7 @@ ThemeEngine.RegisterTheme{
             selectors = {"hudIconButton"},
             width = 58,
             height = 58,
-            bgimage = "panels/square.png",
+            bgimage = true,
             bgcolor = "@bg",
             borderColor = "@fg",
             borderWidth = 1,
@@ -1078,7 +1159,7 @@ ThemeEngine.RegisterTheme{
             selectors = {"row"},
             width = "auto",
             height = "auto",
-            bgimage = "panels/square.png",
+            bgimage = true,
         },
         {
             selectors = {"row", "headerRow"},
@@ -1213,6 +1294,51 @@ ThemeEngine.RegisterTheme{
             height = 30,
         },
 
+        -- Inline form vocabulary -- label-left, control-right, single row.
+        -- Use this when the label and control should sit side-by-side on the
+        -- same line (e.g. settings rows). Vertical-stacked forms use the
+        -- formStacked* family above.
+        {
+            selectors = {"formInlineRow"},
+            flow = "horizontal",
+            width = "90%",
+            height = 48,
+            halign = "center",
+            valign = "center",
+            bmargin = 4,
+        },
+        {
+            selectors = {"label", "formInlineLabel"},
+            fontSize = 18,
+            color = "@fgStrong",
+            width = "auto",
+            height = "auto",
+            halign = "left",
+            valign = "center",
+        },
+        -- Catch-all for any formInlineControl (dropdown, multiselect, etc.).
+        {
+            selectors = {"formInlineControl"},
+            halign = "right",
+            valign = "center",
+        },
+        -- Inputs in inline forms: numeric width matching the existing
+        -- settings-screen pattern, height matching the dropdown.
+        {
+            selectors = {"input", "formInlineControl"},
+            width = 200,
+            height = 30,
+            hpad = 6,
+            vpad = 4,
+            fontSize = 18,
+        },
+        -- Dropdowns in inline forms: width 200 to match inputs visually.
+        {
+            selectors = {"dropdown", "formInlineControl"},
+            width = 200,
+            height = 30,
+        },
+
         -- =====================================================================
         -- 3. CARDS -- collapsible feature-card layouts
         -- =====================================================================
@@ -1227,7 +1353,7 @@ ThemeEngine.RegisterTheme{
         -- compendium UI.
         {
             selectors = {"featureCard"},
-            bgimage = "panels/square.png",
+            bgimage = true,
             bgcolor = "@bgAlt",
             width = "70%",
             height = "auto",
@@ -1245,7 +1371,7 @@ ThemeEngine.RegisterTheme{
         -- Transparent fill so the card's bgAlt shows through.
         {
             selectors = {"featureCardHeader"},
-            bgimage = "panels/square.png",
+            bgimage = true,
             bgcolor = "clear",
             border = { x1 = 1, x2 = 1, y1 = 1, y2 = 1 },
             borderColor = "@border",
@@ -1260,7 +1386,7 @@ ThemeEngine.RegisterTheme{
         -- bgAlt surface.
         {
             selectors = {"featureCardBody"},
-            bgimage = "panels/square.png",
+            bgimage = true,
             bgcolor = "@bgAlt",
             border = { x1 = 1, x2 = 1, y1 = 1, y2 = 0 },
             borderColor = "@border",
@@ -1282,8 +1408,21 @@ ThemeEngine.RegisterTheme{
         -- names verbatim.
         {
             selectors = {"panel", "dialog"},
-            -- bgimage = true,
-            -- gradient = "@surfaceRadial",
+            bgimage = true,
+            bgcolor = "white",
+            cornerRadius = 4,
+            gradient = "@surfaceLinear",
+            borderWidth = 2.2,
+            borderColor = "@fg",
+        },
+        -- Launchable-hosted content. Use this class on the root panel
+        -- returned from `LaunchablePanel.Register{ content = ... }`.
+        -- The launchable host paints its own frame and chrome (close
+        -- button, drag handle, etc.) around our content, so this rule
+        -- stays transparent so we don't double-frame or overwrite the
+        -- host's UI.
+        {
+            selectors = {"panel", "launchablePanel"},
         },
         {
             selectors = {"label", "dialogTitle"},
@@ -1317,7 +1456,7 @@ ThemeEngine.RegisterTheme{
         --[[ Modal dialog ]]
         {
             selectors = {"modalDialog"},
-            bgimage = "panels/square.png",
+            bgimage = true,
             bgcolor = "@bgInverse",
             borderWidth = 2,
             borderColor = "@bg",
@@ -1351,7 +1490,7 @@ ThemeEngine.RegisterTheme{
         -- without being multiplied by the cascade's @bg.
         {
             selectors = {"framedPanel"},
-            bgimage = "panels/square.png",
+            bgimage = true,
             bgcolor = "white",
             cornerRadius = 4,
             gradient = "@surfaceLinear",
@@ -1372,9 +1511,6 @@ ThemeEngine.RegisterTheme{
         -- 5. UTILITIES -- visibility, animation, scroll
         -- =====================================================================
 
-        {
-            scrollHandleColor = "@fgMuted",
-        },
         {
             selectors = {"hidden"},
             hidden = 1,
@@ -1492,7 +1628,7 @@ ThemeEngine.RegisterTheme{
         --[[ Dockable panel ]]
         {
             selectors = {"dockablePanel"},
-            bgimage = "panels/square.png",
+            bgimage = true,
         },
 
         --[[ Token image ]]
@@ -1577,7 +1713,7 @@ ThemeEngine.RegisterTheme{
         },
         {
             selectors = {"advantageElement"},
-            bgimage = "panels/square.png",
+            bgimage = true,
             bgcolor = "#FFFFFF00",
             color = "white",
             width = 140,
@@ -1643,7 +1779,7 @@ ThemeEngine.RegisterTheme{
             width = "100%",
             flow = "horizontal",
             height = 24,
-            bgimage = "panels/square.png",
+            bgimage = true,
             bgcolor = "@fg",
         },
         {
@@ -1789,7 +1925,7 @@ local function _themeTest()
 
     rootPanel = gui.Panel{
         styles = ThemeEngine.MergeStyles(mergeTestExtras),
-        classes = {"dialog"},
+        classes = {"launchablePanel"},
         width = DIALOG_W,
         height = DIALOG_H,
         flow = "vertical",
@@ -2078,10 +2214,10 @@ local function _themeTest()
 
         -- Tabs row
         gui.Panel{
+            classes = {"tabBar"},
             width = ROW_W,
             height = 44,
             halign = "left",
-            flow = "horizontal",
             vmargin = 8,
             gui.Panel{
                 classes = {"tab", "selected"},

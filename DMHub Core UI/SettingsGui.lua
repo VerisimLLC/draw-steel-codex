@@ -14,15 +14,8 @@ local CreateEditorPanel = function(var, editor, changeFunction, args)
 	local label = nil
 	if not var.hidelabel then
 		label = gui.Label{
+			classes = {"formInlineLabel"},
 			text = string.format("%s:", var.description),
-			style = {
-				width = "auto",
-				height = "auto",
-				fontSize = '50%',
-				halign = 'left',
-				valign = 'center',
-				textAlignment = 'center',
-			},
 		}
 	end
 
@@ -57,14 +50,10 @@ local SettingsEditors = {
 
 	input = function(var)
 		local input = gui.Input{
+			classes = {"formInlineControl"},
 			text = dmhub.GetSettingValue(var.id),
 
 			characterLimit = var.characterLimit,
-
-			halign = 'right',
-			valign = "center",
-			height = 20,
-			width = 200,
 
 			events = {
 				change = function(element)
@@ -298,18 +287,9 @@ local SettingsEditors = {
 		end
 
 		local editor = gui.Dropdown{
+					classes = {"formInlineControl"},
 					options = options,
 					idChosen = value,
-					styles = {
-						{
-							fontSize = 18,
-							width = 160,
-							height = 48,
-							halign = 'right',
-							valign = 'center',
-						},
-						args.style,
-					},
 					monitor = var.id,
 					events = {
 						monitor = function(element)
@@ -526,18 +506,7 @@ local SettingsEditors = {
 							fontSize = '30%',
 							height = 24,
 							width = 24,
-							borderWidth = 2,
-							borderColor = '#ffffff77',
 						},
-						{
-							selectors = 'hover',
-							borderColor = '#ffffffbb',
-						},
-						{
-							selectors = 'press',
-							borderColor = '#ffffffdd',
-						},
-
 					}
 
 				}

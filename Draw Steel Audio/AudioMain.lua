@@ -99,9 +99,9 @@ audio.SoundEvent{
 audio.SoundEvent{
     name = "Notify.LockIn",
     mixgroup = "ui",
-    sounds = {"Notify_LockIn_v1_01.wav"},
-    volume = 0.3,
-    ignoreDuplicates = 1,
+    sounds = {"Notify_LockIn_v1_01.wav","Notify_LockIn_v1_02.wav","Notify_LockIn_v1_03.wav","Notify_LockIn_v1_04.wav","Notify_LockIn_v1_05.wav","Notify_LockIn_v1_06.wav"},
+    volume = 0.1,
+    ignoreDuplicates = 0.5,
 }
 
 --Rewind/Undo actions
@@ -124,7 +124,7 @@ audio.SoundEvent{
     name = "Notify.Diceroll",
     mixgroup = "ui",
     sounds = {"Notify_DiceRoll_v3_01.wav","Notify_DiceRoll_v3_02.wav","Notify_DiceRoll_v3_03.wav"},
-    volume = 0.75,
+    volume = 0.5,
     pitchRand = 0.2,
     ignoreDuplicates = 1,
 

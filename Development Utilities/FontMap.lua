@@ -1,6 +1,6 @@
 local mod = dmhub.GetModLoading()
 
-local fonts = {"Colvillain", "Gothville", "MetalLord", "Book", "Display", "Berling", "Newzald", "Tengwar", "DrawSteelGlyphs", "DrawSteelPotencies"}
+local fonts = gui.availableFonts
 local fontOptions = {}
 for _, font in ipairs(fonts) do
     table.insert(fontOptions, {text = font, id = font})
@@ -16,7 +16,7 @@ LaunchablePanel.Register{
 
 	content = function(args)
 
-        local m_font = "Colvillain"
+        local m_font = fonts[1]
 
         local resultPanel
         resultPanel = gui.Panel{

@@ -1,0 +1,1329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Triggered Ability Editor - Interactive Mockup</title>
+<style>
+:root {
+  --bg-body:    #0e0f0d;
+  --bg-panel:   #191a18;
+  --bg-raised:  #222220;
+  --bg-input:   #141512;
+  --bd-dark:    #343432;
+  --bd-gold:    #966D4B;
+  --gold-hi:    #E9B86F;
+  --gold-mid:   #F1D3A5;
+  --gold-dk:    #966D4B;
+  --cream:      #F3EDE7;
+  --cream-dim:  #DFCFC0;
+  --grey-mid:   #9F9F9B;
+  --grey-dk:    #555553;
+  --red:        #C73131;
+  --green:      #6DB173;
+  --amber:      #D89848;
+  --trigger-bar: #4b3a2a;
+  --free-bar:    #2a3b4b;
+  --passive-bar: #3a2a4b;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg-body); color: var(--cream); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 14px; min-height: 100vh; }
+
+/* ===== Page header + view toggle ===== */
+.page-header {
+  position: sticky; top: 0; z-index: 20;
+  background: var(--bg-body);
+  padding: 12px 20px 10px;
+  border-bottom: 1px solid var(--bd-dark);
+}
+.page-header h1 { font-size: 16px; color: var(--gold-hi); font-weight: 600; letter-spacing: 0.5px; }
+.page-header .subtitle { font-size: 11.5px; color: var(--grey-mid); margin-top: 2px; font-style: italic; }
+.view-tabs { display: flex; gap: 6px; margin-top: 10px; }
+.view-tabs button {
+  background: var(--bg-panel); border: 1px solid var(--bd-dark);
+  border-radius: 3px; color: var(--grey-mid); padding: 6px 14px;
+  cursor: pointer; font-size: 12px; font-family: inherit; letter-spacing: 0.5px;
+}
+.view-tabs button.active, .view-tabs button:hover { border-color: var(--bd-gold); color: var(--gold-hi); }
+
+.page-view { display: none; }
+.page-view.active { display: block; }
+
+/* ===== Viewport frames ===== */
+.viewport-section { padding: 24px 20px; }
+.viewport-label {
+  display: inline-block;
+  font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--gold-hi); margin-bottom: 10px; padding: 3px 10px;
+  background: rgba(150,109,75,0.1); border: 1px solid var(--bd-gold); border-radius: 3px;
+}
+.viewport-label .sub { color: var(--grey-mid); font-weight: 400; margin-left: 8px; text-transform: none; font-style: italic; letter-spacing: 0; }
+.viewport-frame {
+  border: 1px solid var(--bd-gold);
+  background: var(--bg-panel);
+  overflow: hidden;
+  position: relative;
+}
+.viewport-frame.laptop { width: 1366px; height: 768px; }
+.viewport-frame.desktop { width: 1920px; height: 1080px; }
+
+/* ===== Editor app (fills the viewport) ===== */
+.editor-app { width: 100%; height: 100%; display: grid; grid-template-columns: 180px 1fr 440px; position: relative; }
+
+.editor-nav {
+  background: #10110F; border-right: 1px solid var(--bd-dark);
+  padding: 14px 10px; display: flex; flex-direction: column; gap: 4px;
+}
+.nav-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--grey-dk); margin-bottom: 8px; padding-left: 8px; }
+.nav-item {
+  padding: 10px 12px; border-radius: 3px; color: var(--cream-dim);
+  cursor: pointer; font-size: 13px; letter-spacing: 0.5px; user-select: none;
+}
+.nav-item:hover { background: rgba(150,109,75,0.1); color: var(--gold-hi); }
+.nav-item.active { background: var(--bd-gold); color: var(--cream); }
+.nav-spacer { flex: 1; }
+.nav-footer { padding: 10px 12px; font-size: 10.5px; color: var(--grey-dk); border-top: 1px solid var(--bd-dark); margin-top: 8px; }
+
+/* ===== Editor detail column ===== */
+.editor-detail { padding: 18px 22px; border-right: 1px solid var(--bd-dark); overflow-y: auto; }
+.section-title { font-size: 16px; color: var(--gold-hi); letter-spacing: 1px; font-weight: 600; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid var(--bd-dark); }
+
+.detail-panel { display: none; }
+.detail-panel.active { display: block; }
+
+.field { margin-bottom: 14px; }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+.field-label { font-size: 13px; color: var(--gold-mid); font-weight: 600; margin-bottom: 4px; display: block; letter-spacing: 0.3px; }
+.field-help { font-size: 11.5px; color: var(--grey-mid); margin-top: 3px; font-style: italic; line-height: 1.4; }
+.inp {
+  background: var(--bg-input); border: 1px solid var(--bd-dark); border-radius: 3px;
+  color: var(--cream); padding: 6px 9px; font-size: 13px; width: 100%; font-family: inherit;
+}
+.inp:focus { outline: none; border-color: var(--bd-gold); }
+.inp.mono { font-family: 'Consolas', 'Courier New', monospace; font-size: 12.5px; }
+.inp.tall { min-height: 52px; resize: vertical; }
+.inp.placeholder-derived { color: var(--grey-mid); font-style: italic; }
+
+.fk-sel {
+  background: var(--bg-input);
+  border: 1px solid var(--bd-dark);
+  border-radius: 3px;
+  color: var(--cream);
+  padding: 6px 28px 6px 9px;
+  font-size: 13px;
+  width: 100%;
+  font-family: inherit;
+  cursor: pointer;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><polygon points='0,0 10,0 5,6' fill='%23966D4B'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+}
+.fk-sel:focus { outline: none; border-color: var(--bd-gold); }
+.fk-sel option { background: var(--bg-panel); color: var(--cream); padding: 4px 8px; }
+.fk-sel optgroup { background: var(--bg-body); color: var(--gold-dk); font-style: italic; font-size: 11px; }
+
+.seg-toggle { display: inline-flex; border: 1px solid var(--bd-dark); border-radius: 3px; overflow: hidden; }
+.seg-toggle span { padding: 6px 12px; font-size: 12px; color: var(--grey-mid); cursor: pointer; user-select: none; }
+.seg-toggle span.sel { background: var(--bd-gold); color: var(--cream); }
+
+.behaviour-card { background: var(--bg-raised); border: 1px solid var(--bd-dark); border-radius: 3px; margin-bottom: 10px; }
+.behaviour-hdr { padding: 8px 10px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--bd-dark); }
+.behaviour-hdr .btype { font-size: 12px; color: var(--gold-mid); font-weight: 600; letter-spacing: 0.5px; flex: 1; }
+.behaviour-hdr .btn-mini { background: transparent; border: 1px solid var(--bd-dark); color: var(--grey-mid); font-size: 10.5px; padding: 2px 9px; border-radius: 2px; cursor: pointer; font-family: inherit; letter-spacing: 0.5px; }
+.behaviour-hdr .btn-mini:hover { border-color: var(--bd-gold); color: var(--gold-hi); }
+.behaviour-body { padding: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.behaviour-body .field { margin-bottom: 0; }
+.behaviour-body .field-full { grid-column: 1 / -1; }
+
+.add-behaviour {
+  display: block; width: 100%;
+  background: transparent; border: 1px dashed var(--bd-gold);
+  color: var(--gold-dk); padding: 8px; border-radius: 3px;
+  font-size: 12px; font-family: inherit; cursor: pointer; letter-spacing: 0.5px;
+}
+.add-behaviour:hover { color: var(--gold-hi); border-color: var(--gold-hi); }
+
+.display-hint {
+  padding: 8px 11px; background: rgba(233,184,111,0.04);
+  border: 1px dashed rgba(233,184,111,0.25); border-radius: 3px;
+  font-size: 11.5px; color: var(--cream-dim); line-height: 1.45; margin-bottom: 14px;
+}
+
+/* ===== Preview column ===== */
+.editor-preview { background: #080B09; padding: 16px 18px; overflow-y: auto; }
+.preview-pane { margin-bottom: 12px; }
+.preview-pane:last-child { margin-bottom: 0; }
+.pane-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--gold-dk); margin-bottom: 6px; font-weight: 600; }
+.pane-label .sub { color: var(--grey-mid); font-weight: 400; letter-spacing: 1px; margin-left: 6px; text-transform: none; font-style: italic; }
+
+/* Card preview */
+.card { background: var(--bg-panel); border: 1px solid var(--bd-dark); border-radius: 4px; overflow: hidden; }
+.card-title-bar { background: var(--trigger-bar); padding: 8px 12px; font-size: 14px; font-weight: 600; color: var(--gold-mid); letter-spacing: 0.3px; display: flex; justify-content: space-between; align-items: baseline; }
+.card-title-bar .cost { font-size: 11.5px; color: var(--cream-dim); font-weight: 400; }
+.card-body { padding: 9px 12px 11px; }
+.card-flavor { font-size: 12px; color: var(--cream-dim); font-style: italic; margin-bottom: 7px; line-height: 1.4; }
+.card-row { display: flex; justify-content: space-between; font-size: 12px; padding: 2px 0; line-height: 1.5; }
+.card-row .k { color: var(--gold-dk); font-weight: 600; margin-right: 4px; }
+.card-row .v { color: var(--cream); }
+.card-row .v.derived-blank { color: var(--grey-mid); font-style: italic; }
+.card-row .v.override-written { color: var(--cream); }
+.card-row.full { display: block; }
+.card-row.full .v { display: block; margin-top: 2px; }
+.card-divider { border: none; border-top: 1px dashed var(--bd-dark); margin: 5px 0; }
+
+/* Mechanical view */
+.mech-card { background: #0f100e; border: 1px solid var(--bd-dark); border-radius: 4px; overflow: hidden; }
+.mech-header { display: flex; align-items: center; justify-content: space-between; padding: 7px 11px; background: #15160f; border-bottom: 1px solid var(--bd-dark); font-size: 10.5px; letter-spacing: 2px; text-transform: uppercase; color: var(--grey-mid); font-weight: 600; }
+.rollup { font-size: 10.5px; letter-spacing: 0.5px; text-transform: none; padding: 2px 9px; border-radius: 10px; font-weight: 600; }
+.rollup.ready { background: rgba(109,177,115,0.12); color: var(--green); border: 1px solid rgba(109,177,115,0.35); }
+.rollup.warn  { background: rgba(216,152,72,0.12); color: var(--amber); border: 1px solid rgba(216,152,72,0.35); }
+.rollup .ic { margin-right: 5px; font-weight: 700; }
+
+.mech-row { display: grid; grid-template-columns: 110px 1fr auto; gap: 8px; align-items: center; padding: 6px 11px; border-bottom: 1px solid rgba(52,52,50,0.6); font-size: 12px; }
+.mech-row:last-of-type { border-bottom: none; }
+.mech-row .mk { color: var(--gold-dk); font-weight: 600; letter-spacing: 0.3px; font-size: 11px; text-transform: uppercase; }
+.mech-row .mv { font-family: 'Consolas', 'Courier New', monospace; font-size: 12px; word-break: break-word; min-width: 0; }
+.mech-row .mv.ok { color: var(--cream); }
+.mech-row .mv.empty { color: var(--grey-dk); font-style: italic; font-family: 'Segoe UI', sans-serif; }
+
+.mech-diag { padding: 7px 11px; background: #0a0b09; border-top: 1px solid var(--bd-dark); font-size: 11.5px; color: var(--cream-dim); }
+.mech-diag .dryrun { font-style: italic; color: var(--grey-mid); }
+
+/* Test Trigger strip (collapsed) */
+.tt-strip {
+  background: #0c0d0a; border: 1px solid var(--bd-dark); border-radius: 4px;
+  display: flex; align-items: center; gap: 10px; padding: 7px 12px; cursor: default;
+}
+.tt-strip.has-result:hover { border-color: var(--bd-gold); }
+.tt-strip .tt-caret { color: var(--gold-dk); font-size: 10px; flex-shrink: 0; }
+.tt-strip .tt-strip-title { font-size: 10.5px; letter-spacing: 2px; text-transform: uppercase; color: var(--gold-mid); font-weight: 600; flex-shrink: 0; }
+.tt-strip .tt-strip-summary { flex: 1; font-size: 11.5px; color: var(--cream-dim); display: flex; align-items: center; gap: 6px; min-width: 0; }
+.tt-strip .tt-strip-summary.none { color: var(--grey-dk); font-style: italic; }
+.tt-strip .tt-strip-summary code { font-family: 'Consolas', monospace; background: var(--bg-input); padding: 0 5px; border-radius: 2px; color: var(--cream); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
+.tt-strip .tt-strip-summary .r-ic { font-weight: 700; font-size: 10.5px; padding: 1px 5px; border-radius: 2px; flex-shrink: 0; }
+.tt-strip .tt-strip-summary .r-ic.pass { color: var(--green); background: rgba(109,177,115,0.12); }
+.tt-strip .tt-strip-summary .r-ic.fail { color: var(--amber); background: rgba(216,152,72,0.14); }
+.tt-strip .tt-btn {
+  background: transparent; border: 1px solid var(--bd-gold); color: var(--gold-mid);
+  padding: 3px 11px; font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase;
+  cursor: pointer; border-radius: 3px; font-family: inherit; font-weight: 600; flex-shrink: 0;
+}
+.tt-strip .tt-btn:hover { background: var(--bd-gold); color: var(--cream); }
+
+/* Test Trigger expanded panel */
+.tt-panel { background: #0c0d0a; border: 1px solid var(--bd-gold); border-radius: 4px; overflow: hidden; }
+.tt-panel-hdr { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: #141510; border-bottom: 1px solid var(--bd-dark); }
+.tt-panel-title { font-size: 10.5px; letter-spacing: 2px; text-transform: uppercase; color: var(--gold-mid); font-weight: 600; }
+.tt-panel-title .sub { color: var(--grey-mid); font-weight: 400; letter-spacing: 1px; margin-left: 6px; text-transform: none; font-style: italic; }
+.tt-panel-actions { display: flex; gap: 6px; }
+.tt-panel-actions button {
+  background: transparent; border: 1px solid var(--bd-dark); color: var(--grey-mid);
+  padding: 3px 10px; font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase;
+  cursor: pointer; border-radius: 3px; font-family: inherit; font-weight: 600;
+}
+.tt-panel-actions .tt-run-btn { border-color: var(--bd-gold); color: var(--gold-mid); }
+.tt-panel-actions .tt-run-btn:hover { background: var(--bd-gold); color: var(--cream); }
+.tt-panel-actions .tt-close-btn:hover { border-color: var(--grey-mid); color: var(--cream); }
+
+.tt-body { padding: 10px 12px 12px; }
+.tt-section-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--gold-dk); font-weight: 600; margin: 0 0 6px; }
+
+.tt-input-row { display: grid; grid-template-columns: 140px 1fr; gap: 10px; align-items: center; padding: 4px 0; font-size: 11.5px; }
+.tt-input-row .tt-lbl { color: var(--cream-dim); font-weight: 500; }
+.tt-input-row .tt-lbl .tt-origin { display: block; color: var(--grey-mid); font-weight: 400; font-size: 10px; font-style: italic; margin-top: 1px; }
+.tt-input-row .tt-ctl { display: flex; align-items: center; gap: 8px; }
+
+.tt-slider { -webkit-appearance: none; appearance: none; flex: 1; height: 4px; background: var(--bg-input); border-radius: 2px; outline: none; }
+.tt-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 12px; height: 12px; background: var(--gold-hi); border-radius: 50%; cursor: pointer; border: 1px solid var(--bd-gold); }
+.tt-slider-val { min-width: 22px; text-align: right; color: var(--cream); font-family: 'Consolas', monospace; font-size: 11.5px; }
+
+.tt-result { margin-top: 10px; padding: 9px 11px; border-radius: 3px; }
+.tt-result.pass { background: rgba(109,177,115,0.08); border: 1px solid rgba(109,177,115,0.35); }
+.tt-result.fail { background: rgba(216,152,72,0.08); border: 1px solid rgba(216,152,72,0.4); }
+.tt-result .r-hdr { font-size: 11.5px; font-weight: 600; margin-bottom: 4px; letter-spacing: 0.3px; }
+.tt-result.pass .r-hdr { color: var(--green); }
+.tt-result.fail .r-hdr { color: var(--amber); }
+.tt-result .r-hdr .r-ic { font-weight: 700; margin-right: 6px; }
+.tt-result .r-line { font-size: 11.5px; color: var(--cream); padding: 1px 0; line-height: 1.5; }
+.tt-result .r-line .dim { color: var(--grey-mid); }
+.tt-result .r-line code { font-family: 'Consolas', monospace; background: var(--bg-input); padding: 0 5px; border-radius: 2px; color: var(--cream); font-size: 11px; }
+.tt-result .r-sublist { margin: 3px 0 0 16px; padding: 0; list-style: disc; color: var(--cream-dim); font-size: 11px; }
+.tt-result .r-disclaimer { margin-top: 7px; padding-top: 6px; border-top: 1px dashed rgba(255,255,255,0.08); font-size: 10px; color: var(--grey-mid); font-style: italic; line-height: 1.5; }
+
+/* ===== PROPOSED badge ===== */
+.proposed-badge {
+  display: inline-block; font-size: 9px; letter-spacing: 1.2px; text-transform: uppercase;
+  color: #1a1a17; background: var(--gold-hi);
+  padding: 1px 6px; border-radius: 2px; font-weight: 700; vertical-align: middle; margin-left: 6px;
+}
+.proposed-badge.subtle {
+  background: rgba(233,184,111,0.15); color: var(--gold-hi);
+  border: 1px solid rgba(233,184,111,0.45);
+}
+
+/* ===== Checkbox row ===== */
+.check-row { display: flex; gap: 9px; align-items: flex-start; margin-bottom: 12px; }
+.check-row input[type="checkbox"] { margin-top: 3px; flex-shrink: 0; accent-color: var(--gold-hi); }
+.check-row .chk-label { font-size: 13px; color: var(--cream); font-weight: 500; user-select: none; display: block; cursor: pointer; }
+.check-row .chk-help { font-size: 11.5px; color: var(--grey-mid); margin-top: 3px; font-style: italic; line-height: 1.4; }
+
+/* ===== Icon slot ===== */
+.icon-slot { display: flex; align-items: center; gap: 10px; padding: 8px; background: var(--bg-input); border: 1px dashed var(--bd-dark); border-radius: 3px; }
+.icon-slot .icon-preview { width: 42px; height: 42px; background: var(--bg-raised); border: 1px solid var(--bd-gold); border-radius: 3px; display: flex; align-items: center; justify-content: center; color: var(--gold-hi); font-size: 20px; flex-shrink: 0; }
+.icon-slot .icon-info { font-size: 11.5px; color: var(--cream-dim); flex: 1; line-height: 1.4; }
+.icon-slot .icon-info .dim { color: var(--grey-dk); font-size: 10.5px; }
+.icon-slot .icon-change { background: transparent; border: 1px solid var(--bd-dark); color: var(--gold-mid); padding: 4px 11px; font-size: 11px; border-radius: 2px; cursor: pointer; font-family: inherit; }
+.icon-slot .icon-change:hover { border-color: var(--bd-gold); color: var(--gold-hi); }
+
+/* ===== Conditional fields ===== */
+.conditional { display: none; }
+.conditional.shown { display: block; }
+
+/* ===== Trigger Event picker button in form ===== */
+.picker-btn { background: var(--bg-input); border: 1px solid var(--bd-dark); border-radius: 3px; color: var(--cream); padding: 7px 10px; font-size: 13px; font-family: inherit; cursor: pointer; width: 100%; display: flex; align-items: center; justify-content: space-between; }
+.picker-btn:hover { border-color: var(--bd-gold); }
+.picker-btn .chevron { color: var(--gold-dk); font-size: 10px; margin-left: 8px; }
+.picker-btn .selected { color: var(--cream); }
+.picker-btn .placeholder { color: var(--grey-mid); font-style: italic; }
+
+/* ===== Picker modal ===== */
+.picker-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.75); display: none; justify-content: center; align-items: center; z-index: 100; }
+.picker-backdrop.open { display: flex; }
+.picker-modal { background: var(--bg-panel); border: 1px solid var(--bd-gold); border-radius: 5px; width: 560px; max-height: 90%; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.6); }
+.picker-hdr { padding: 12px 18px; background: #15160f; border-bottom: 1px solid var(--bd-dark); display: flex; justify-content: space-between; align-items: center; }
+.picker-hdr .title { font-size: 14px; color: var(--gold-hi); font-weight: 600; letter-spacing: 0.5px; }
+.picker-close { background: transparent; border: none; color: var(--grey-mid); font-size: 20px; cursor: pointer; padding: 0 6px; line-height: 1; }
+.picker-close:hover { color: var(--cream); }
+.picker-search { padding: 10px 14px; border-bottom: 1px solid var(--bd-dark); }
+.picker-search input { background: var(--bg-input); border: 1px solid var(--bd-dark); color: var(--cream); padding: 7px 11px; width: 100%; border-radius: 3px; font-family: inherit; font-size: 12.5px; }
+.picker-search input:focus { outline: none; border-color: var(--bd-gold); }
+.picker-body { overflow-y: auto; padding: 6px 10px 10px; }
+.picker-band { margin-bottom: 12px; }
+.picker-band-title { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--gold-dk); font-weight: 600; padding: 6px 10px 4px; border-bottom: 1px solid var(--bd-dark); margin-bottom: 4px; }
+.picker-item { padding: 7px 10px; border-radius: 3px; cursor: pointer; display: block; border: 1px solid transparent; }
+.picker-item:hover { background: rgba(150,109,75,0.12); border-color: rgba(150,109,75,0.3); }
+.picker-item .name { font-size: 12.5px; color: var(--cream); font-weight: 600; margin-bottom: 1px; }
+.picker-item .desc { font-size: 11px; color: var(--grey-mid); font-style: italic; line-height: 1.4; }
+
+/* ===== Progressive disclosure (Trigger Mode) ===== */
+.mode-advanced { margin-top: 8px; }
+.mode-advanced-toggle { font-size: 11.5px; color: var(--gold-mid); cursor: pointer; user-select: none; padding: 5px 0; display: inline-block; }
+.mode-advanced-toggle:hover { color: var(--gold-hi); }
+.mode-advanced-options { display: none; padding: 10px 12px; margin-top: 4px; background: rgba(0,0,0,0.2); border: 1px dashed var(--bd-dark); border-radius: 3px; }
+.mode-advanced-options.open { display: block; }
+.mode-advanced-option { padding: 6px 0; display: flex; gap: 9px; align-items: flex-start; cursor: pointer; }
+.mode-advanced-option input[type="radio"] { margin-top: 3px; accent-color: var(--gold-hi); }
+.mode-advanced-option .opt-label { font-size: 12.5px; color: var(--cream); font-weight: 500; }
+.mode-advanced-option .opt-desc { font-size: 11px; color: var(--grey-mid); font-style: italic; margin-top: 2px; line-height: 1.4; }
+
+/* ===== Preview column Proposed banner ===== */
+.preview-proposed-banner { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--gold-hi); background: rgba(233,184,111,0.08); border: 1px solid rgba(233,184,111,0.35); border-radius: 3px; padding: 5px 10px; margin-bottom: 10px; text-align: center; font-weight: 600; }
+
+/* ===== Developer Notes view ===== */
+.devnotes {
+  max-width: 920px; margin: 0 auto; padding: 28px 24px 64px;
+  font-size: 13.5px; line-height: 1.65; color: var(--cream);
+}
+.devnotes h2 { font-size: 19px; color: var(--gold-hi); font-weight: 600; letter-spacing: 0.3px; margin: 28px 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--bd-dark); }
+.devnotes h2:first-child { margin-top: 0; }
+.devnotes h3 { font-size: 15px; color: var(--gold-mid); font-weight: 600; margin: 18px 0 6px; }
+.devnotes p { margin-bottom: 10px; }
+.devnotes ul, .devnotes ol { margin: 4px 0 12px 22px; padding: 0; }
+.devnotes li { margin-bottom: 5px; line-height: 1.55; }
+.devnotes li strong { color: var(--gold-mid); }
+.devnotes code { font-family: 'Consolas', 'Courier New', monospace; background: var(--bg-input); padding: 1px 5px; border-radius: 2px; color: var(--gold-hi); font-size: 12.5px; border: 1px solid var(--bd-dark); }
+.devnotes pre { background: var(--bg-input); border: 1px solid var(--bd-dark); border-radius: 3px; padding: 10px 12px; margin: 8px 0 14px; overflow-x: auto; font-size: 12px; line-height: 1.5; }
+.devnotes pre code { background: transparent; border: none; padding: 0; color: var(--cream); }
+.devnotes .badge { display: inline-block; font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase; padding: 1px 8px; border-radius: 10px; font-weight: 600; vertical-align: middle; margin-left: 6px; }
+.devnotes .badge.new  { background: rgba(109,177,115,0.14); color: var(--green); border: 1px solid rgba(109,177,115,0.35); }
+.devnotes .badge.opt  { background: rgba(216,152,72,0.14); color: var(--amber); border: 1px solid rgba(216,152,72,0.4); }
+.devnotes .badge.same { background: rgba(150,109,75,0.12); color: var(--gold-mid); border: 1px solid rgba(150,109,75,0.35); }
+.devnotes .callout {
+  background: rgba(150,109,75,0.07); border: 1px solid rgba(150,109,75,0.25);
+  border-radius: 3px; padding: 12px 16px; margin: 12px 0 16px;
+}
+.devnotes .callout strong { color: var(--gold-hi); }
+.devnotes .skip-table { border-collapse: collapse; width: 100%; margin: 6px 0 14px; font-size: 12.5px; }
+.devnotes .skip-table th, .devnotes .skip-table td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--bd-dark); vertical-align: top; }
+.devnotes .skip-table th { color: var(--gold-mid); font-weight: 600; letter-spacing: 0.5px; font-size: 11.5px; text-transform: uppercase; }
+.devnotes .skip-table td:first-child { width: 28%; color: var(--cream-dim); }
+.devnotes .skip-table td:nth-child(2) { width: 44%; }
+.devnotes .skip-table td:last-child { width: 28%; color: var(--grey-mid); font-style: italic; }
+</style>
+</head>
+<body>
+
+<!-- ====== PAGE HEADER ====== -->
+<div class="page-header">
+  <h1>Triggered Ability Editor - Interactive Mockup</h1>
+  <div class="subtitle">Single-view design (card + mechanical view + collapsible Test Trigger). Shown at two target resolutions. Left-nav swaps sections. Run Test expands tester and auto-runs.</div>
+  <div class="view-tabs">
+    <button class="active" onclick="showPage('editor', this)">Editor Mockup</button>
+    <button onclick="showPage('devnotes', this)">Developer Notes</button>
+  </div>
+</div>
+
+<!-- ====== EDITOR MOCKUP PAGE ====== -->
+<div id="page-editor" class="page-view active">
+
+  <div class="viewport-section">
+    <div class="viewport-label">1366 &times; 768 <span class="sub">laptop / small display</span></div>
+    <div class="viewport-frame laptop">
+      <div class="editor-app" data-instance="a"></div>
+    </div>
+  </div>
+
+  <div class="viewport-section">
+    <div class="viewport-label">1920 &times; 1080 <span class="sub">standard desktop</span></div>
+    <div class="viewport-frame desktop">
+      <div class="editor-app" data-instance="b"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ====== DEVELOPER NOTES PAGE ====== -->
+<div id="page-devnotes" class="page-view">
+  <div class="devnotes">
+
+    <h2>What's changing in the editor</h2>
+    <p>These are the visible differences between the classic Triggered Ability editor and the new design. Everything here is pure UI/UX; the data model and engine are unchanged.</p>
+    <ul>
+      <li><strong>Preview structure.</strong> Single flat description textarea on the right &rarr; three stacked panes (card preview, mechanical view, Test Trigger strip). <span class="badge new">new</span></li>
+      <li><strong>Navigation.</strong> Single long scrollable form &rarr; four sections in a left nav (Trigger, Response, Effects, Display). Sections never overlap; one active at a time. <span class="badge new">new</span></li>
+      <li><strong>Validation feedback.</strong> Classic: silent, author runs the ability in-game and checks. New: live chips on the mechanical view (valid / unknown symbol / empty / subject mismatch) plus a rollup header reading "Trigger ready" or "N issues". <span class="badge new">new</span></li>
+      <li><strong>Testing.</strong> Classic: leave editor &rarr; open runtime Trigger Debugger &rarr; select a token &rarr; perform action. New: collapsed Test Trigger strip below the mechanical view with a <code>Run Test</code> button that expands the tester and runs with defaults. Author tweaks inputs in the panel and re-runs. Runtime Trigger Debugger is unchanged and stays the right tool for live-scene bugs. <span class="badge new">new</span></li>
+      <li><strong>Card auto-derivation.</strong> Display card fields (Trigger prose, Effect prose, Distance, Target) are derived from the programmatic fields automatically. Authors can type into a Display override field to replace the derived text with custom prose; blank override falls back to derivation. <span class="badge new">new</span></li>
+      <li><strong>Plain-language field labels.</strong> "Triggers Only When" (form) / "Triggers When" (mechanical view short label) instead of "Filter" or "Condition Formula". <span class="badge new">new</span></li>
+    </ul>
+
+    <h2>What's not changing</h2>
+    <p>Keeping these stable means every existing triggered ability in the compendium keeps working with zero conversion.</p>
+    <ul>
+      <li><strong>Data model.</strong> <code>TriggeredAbility</code> object, <code>conditionFormula</code> field, <code>trigger</code> id, <code>subject</code>, behaviours list. No schema migration. <span class="badge same">unchanged</span></li>
+      <li><strong>Trigger event dispatch.</strong> The engine raises triggers the same way. The picker list, subject resolution, and behaviour execution are untouched. <span class="badge same">unchanged</span></li>
+      <li><strong>GoblinScript language.</strong> No new operators, no syntax changes. Every existing formula keeps parsing and evaluating identically. <span class="badge same">unchanged</span></li>
+      <li><strong>Runtime Trigger Debugger.</strong> Still available, still the authoritative tool for "a live scene did something unexpected". <span class="badge same">unchanged</span></li>
+    </ul>
+
+    <h2>Opt-in technical additions</h2>
+    <p>Four optional pieces make the new editor's affordances work well. None is a blocker: the editor loads and operates without any of them. Each one adds readability or static validation; skipping one degrades a specific feature but never breaks anything.</p>
+
+    <h3>1. Symbol prose templates <span class="badge opt">opt-in</span></h3>
+    <p><strong>What:</strong> add an optional <code>prose</code> field to each GoblinScript symbol declaration (on <code>RegisterTrigger</code> / <code>RegisterSymbol</code> / inline symbol tables).</p>
+<pre><code>damage = {
+    name = "Damage",
+    type = "number",
+    desc = "The amount of damage taken when triggering this event.",
+    prose = "the damage",   -- NEW, optional
+}</code></pre>
+    <p><strong>Why:</strong> powers the auto-derived card text and the mechanical view's "Triggers when: X" dry-run sentence. A condition like <code>damage &gt;= 3</code> renders as "the damage is at least 3" instead of raw formula.</p>
+    <p><strong>If skipped:</strong> the card's Trigger row and the dry-run sentence show the raw formula wrapped as <em>"Triggers when: <code>damage &gt;= 3</code> is true"</em>. Mechanical view chips still work. Test Trigger still works. Only the plain-language rendering degrades.</p>
+    <p><strong>Effort:</strong> ~1 day one-time backfill for the ~30-40 existing symbols. ~1 minute per new symbol going forward.</p>
+
+    <h3>2. Function prose templates <span class="badge opt">opt-in</span></h3>
+    <p><strong>What:</strong> same pattern for GoblinScript function registrations (<code>Distance</code>, <code>Count Nearby Enemies</code>, <code>Stacks</code>, <code>Line of Sight</code>, <code>Friends</code>, etc.). Template uses positional placeholders for arguments.</p>
+<pre><code>RegisterSymbol("Distance", {
+    fn = function(ctx, target) ... end,
+    type = "number",
+    prose = "the distance to {1}",   -- NEW, optional. {1} = first argument
+})</code></pre>
+    <p><strong>Why:</strong> function-call prose is what makes <code>Count Nearby Enemies(2) &gt;= 3</code> read as "at least 3 enemies are within 2 squares". Without this, the dry-run shows the raw call verbatim.</p>
+    <p><strong>If skipped:</strong> function calls inside conditions show raw. Same degradation profile as symbols.</p>
+    <p><strong>Effort:</strong> ~15-20 GoblinScript functions to cover. ~1 minute per new function.</p>
+
+    <h3>3. Subject-event compatibility metadata <span class="badge opt">opt-in</span></h3>
+    <div class="callout" style="margin:0 0 10px;">
+      <strong>Terminology note:</strong> this item refers to the <em>Triggered Ability Subject field</em> (the form dropdown - values like <code>self</code>, <code>attacker</code>, <code>any</code>). Not to be confused with the <em>GoblinScript <code>Subject</code> symbol</em> (a variable referenceable inside condition formulas). The codebase currently calls both "subject" - resolving the ambiguity in the UI is a separate open question.
+    </div>
+    <p><strong>What:</strong> a declarative table of which Subject field values are valid for each registered trigger event. Example: the <code>move</code> event has no <code>attacker</code> concept; setting Subject to <code>attacker</code> on a <code>move</code> trigger silently no-ops at runtime.</p>
+    <p><strong>Why:</strong> powers the "Subject does not match event" warning chip in the mechanical view. Surfaces the mismatch at authoring time instead of discovery-in-scene.</p>
+    <p><strong>If skipped:</strong> no chip. Author finds out at runtime when the trigger silently does nothing and the Trigger Debugger log shows <em>"attacker not available"</em> (<code>TriggeredAbility.lua</code> lines 947-959). Annoying, not broken.</p>
+    <p><strong>Effort:</strong> ~half day. The mapping already exists implicitly in the subject resolver code; it just needs to be extracted into a declarative lookup.</p>
+
+    <h3>4. Condition prose rendering engine <span class="badge opt">opt-in</span></h3>
+    <p><strong>What:</strong> a new Lua subsystem (probably <code>DMHub Utils/GoblinScriptProse.lua</code>) that takes a compiled GoblinScript formula and returns a plain-English sentence. Uses the symbol and function prose templates above, plus pattern matchers for operator shapes.</p>
+    <p><strong>Approach:</strong> regex/pattern-match the common ~15-20 condition shapes (simple comparisons, boolean chains, <code>has</code>/<code>is</code>, <code>Distance</code>, <code>Count Nearby Enemies</code>, <code>Stacks</code>). Fall back to raw formula for anything else. Covers ~75% of real conditions cleanly in the compendium; the remaining ~25% show raw formula as <em>"Triggers when: <code>[raw formula]</code>"</em>.</p>
+    <p><strong>If skipped:</strong> the card's auto-derived Trigger row and the mechanical view's dry-run line always show raw formulas. The mechanical view chips and the Test Trigger simulation still work - those don't depend on prose.</p>
+    <p><strong>Effort:</strong> ~3 days initial implementation. Per new condition shape going forward, optional (degrades gracefully if not added).</p>
+
+    <h2>What breaks if we adopt none of the opt-in items</h2>
+    <div class="callout">
+      <strong>Nothing breaks.</strong> The editor ships and is usable on day one with only the UI changes. Every opt-in item affects readability or static validation affordances; none affects runtime correctness or data fidelity. The trade-off table below summarises what each skip costs.
+    </div>
+    <table class="skip-table">
+      <thead>
+        <tr><th>If we skip</th><th>What the author sees</th><th>Severity</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Symbol prose templates</td>
+          <td>Card's Trigger row and dry-run sentence show raw formula (e.g. <code>damage &gt;= 3</code>) instead of prose.</td>
+          <td>Cosmetic</td>
+        </tr>
+        <tr>
+          <td>Function prose templates</td>
+          <td>Function calls inside conditions show raw (e.g. <code>Count Nearby Enemies(2)</code>) in dry-run.</td>
+          <td>Cosmetic</td>
+        </tr>
+        <tr>
+          <td>Subject-event compat metadata</td>
+          <td>No chip when subject doesn't match the event. Author finds out via runtime log.</td>
+          <td>Minor annoyance</td>
+        </tr>
+        <tr>
+          <td>Condition prose engine</td>
+          <td>Every dry-run and auto-derived Trigger row shows raw formula always. No prose anywhere.</td>
+          <td>Cosmetic but consistent across all abilities. Authors can use the Display Trigger prose override to write custom plain-language text instead.</td>
+        </tr>
+        <tr>
+          <td>Test Trigger panel</td>
+          <td>Author still uses the runtime Trigger Debugger as today. Tighter iteration loop lost but nothing is blocked.</td>
+          <td>Workflow regression</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>Authoring workflow summary</h2>
+    <p>Side-by-side of how a triggered ability gets made before and after the new editor.</p>
+    <h3>Classic</h3>
+    <ol>
+      <li>Open ability in compendium editor.</li>
+      <li>Scroll long form; fill fields (trigger event, subject, condition formula, behaviours, description).</li>
+      <li>Save, close, switch to game scene.</li>
+      <li>Select token, use Trigger Debugger to perform the action, scan handled/unhandled list.</li>
+      <li>If wrong: return to editor, re-scroll, fix, repeat from step 3.</li>
+    </ol>
+    <h3>New</h3>
+    <ol>
+      <li>Open ability in editor. Four sections in a left nav - start in Trigger.</li>
+      <li>Fill fields. Mechanical view to the right updates live: chips go from warn to valid as you fix things. Rollup reads "Trigger ready" when all green.</li>
+      <li>Click <code>Run Test</code> on the collapsed strip below the mechanical view. Panel expands, defaults run, result shows pass/fail with the concrete values.</li>
+      <li>Tweak inputs in the panel, re-run. Close the panel when satisfied; the strip remembers the last result.</li>
+      <li>Move to Display section if you want to polish the player-facing card; most fields auto-derive and don't need touching.</li>
+      <li>Save. Runtime Trigger Debugger is still available for anything that only reproduces in a live scene.</li>
+    </ol>
+
+    <h2>Definition-of-done gate for new GoblinScript content</h2>
+    <p>When adding a new GoblinScript symbol, function, or trigger event going forward, the team has a choice:</p>
+    <ul>
+      <li><strong>Zero-overhead path.</strong> Register the symbol/function as today. Skip the <code>prose</code> field. Editor falls back to raw formula rendering for any condition using that symbol. The content works.</li>
+      <li><strong>Polished path.</strong> Register the symbol/function, plus add a <code>prose</code> field with a short substitutable phrase. ~1 minute extra. Every condition using that symbol now renders as plain English in the card and dry-run.</li>
+    </ul>
+    <p>Recommendation: treat <code>prose</code> as a soft standard on PR review. Mergeable without it, but reviewer should ask "could you add a prose hint?" as a polite nudge. This keeps the backfill from accumulating while not blocking anyone's work.</p>
+
+    <h2>Open questions to resolve before Lua implementation</h2>
+    <ol>
+      <li><strong>"Pick a replacement" / "Open event picker" action links</strong> in the mechanical view's error diagnostics. UX and wire-up still to design (parked by user request).</li>
+      <li><strong>Pretend token templates</strong> for the Test Trigger's <code>attacker</code> / <code>target</code> creature inputs. Stock set (generic enemy / ally / minion / boss) vs. free-form author-defined. Stock is faster; free-form is more flexible.</li>
+      <li><strong>Test scenario persistence.</strong> Should "last run" state survive a close-and-reopen of the editor, or reset on every open? Simpler to reset; saved scenarios could come later if demand shows up.</li>
+      <li><strong>Deprecation story for <code>TriggeredAbilityDisplay</code> modifier.</strong> The classic modifier-based card display still exists in content. New editor derives the card from fields directly. Need a migration plan for content that uses the explicit modifier.</li>
+    </ol>
+
+  </div>
+</div>
+
+<!-- ====== SCRIPT ====== -->
+<script>
+// ===== Editor template (shared by both viewport instances) =====
+// All inputs are stubbed - this is a visual mockup, not a real backing store.
+// Template is a function so ${inst} can be substituted per-instance.
+const makeEditorHTML = (inst) => `
+  <div class="editor-nav">
+    <div class="nav-label">Sections</div>
+    <div class="nav-item active" data-section="trigger">Trigger</div>
+    <div class="nav-item" data-section="response">Response</div>
+    <div class="nav-item" data-section="effects">Effects</div>
+    <div class="nav-item" data-section="display">Display</div>
+    <div class="nav-spacer"></div>
+    <div class="nav-footer">Last Stand<br><span style="color:var(--gold-dk);">triggered ability</span></div>
+  </div>
+
+  <div class="editor-detail">
+
+    <!-- TRIGGER SECTION -->
+    <div class="detail-panel active" data-section="trigger">
+      <div class="section-title">Trigger</div>
+
+      <div class="field">
+        <label class="field-label">Name</label>
+        <input class="inp" value="Last Stand">
+      </div>
+
+      <div class="field">
+        <label class="field-label">Trigger Event <span class="proposed-badge">Picker Modal Proposed</span></label>
+        <button class="picker-btn" onclick="openTriggerPicker('${inst}')">
+          <span class="selected">Start of Turn</span>
+          <span class="chevron">&#x25B8;</span>
+        </button>
+        <div class="field-help">Pick when this ability should fire. Search by event name, intent, or game phase.</div>
+      </div>
+
+      <div class="field-row">
+        <div>
+          <label class="field-label">Subject</label>
+          <select class="fk-sel" onchange="onSubjectChange(this)">
+            <option selected>Self</option>
+            <option>Self or Any Creature</option>
+            <option>Self or a Hero</option>
+            <option>Any Hero (Not Self)</option>
+            <option>Self or an Ally</option>
+            <option>Any Ally (Not Self)</option>
+            <option>Any Enemy</option>
+            <option>Any Creature (Not Self)</option>
+          </select>
+        </div>
+        <div>
+          <label class="field-label">When Active</label>
+          <div class="seg-toggle">
+            <span onclick="segToggle(this)">Always Active</span>
+            <span class="sel" onclick="segToggle(this)">Only During Combat</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Requires Condition</label>
+        <select class="fk-sel" onchange="onRequiresConditionChange(this)">
+          <option value="" selected>(No requirement)</option>
+          <option>Bleeding</option>
+          <option>Dazed</option>
+          <option>Frightened</option>
+          <option>Grabbed</option>
+          <option>Prone</option>
+          <option>Restrained</option>
+          <option>Slowed</option>
+          <option>Taunted</option>
+          <option>Weakened</option>
+        </select>
+        <div class="field-help">Only trigger when the subject has the selected condition.</div>
+      </div>
+
+      <div class="check-row conditional condition-inflicted">
+        <input type="checkbox" id="inflicted-${inst}">
+        <div>
+          <label class="chk-label" for="inflicted-${inst}">Condition must be inflicted by this creature</label>
+          <div class="chk-help">Only trigger when this creature is the source of the required condition.</div>
+        </div>
+      </div>
+
+      <div class="field conditional trigger-range">
+        <label class="field-label">Trigger Range</label>
+        <input class="inp mono" placeholder="e.g. 3">
+        <div class="field-help">Maximum distance (squares) from this creature for the subject to qualify. GoblinScript formula.</div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Triggers Only When</label>
+        <input class="inp mono" value="Count Nearby Enemies(2) &gt;= 3">
+        <div class="field-help">Optional. Leave blank to trigger every time the event raises.</div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Icon</label>
+        <div class="icon-slot">
+          <div class="icon-preview">&#9876;</div>
+          <div class="icon-info">last-stand.png<br><span class="dim">44 &times; 44 &middot; ui-icons/triggers/</span></div>
+          <button class="icon-change">Change...</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Description</label>
+        <textarea class="inp tall">When surrounded by three or more enemies at the start of your turn, retaliate against all adjacent enemies.</textarea>
+      </div>
+    </div>
+
+    <!-- RESPONSE SECTION -->
+    <div class="detail-panel" data-section="response">
+      <div class="section-title">Response</div>
+
+      <div class="field">
+        <label class="field-label">Trigger Mode <span class="proposed-badge">Progressive Disclosure Proposed</span></label>
+        <div class="seg-toggle">
+          <span onclick="segToggle(this); onModePrimaryChange('${inst}', 'prompt')">Prompt the Player</span>
+          <span class="sel" onclick="segToggle(this); onModePrimaryChange('${inst}', 'automatic')">Occurs Automatically</span>
+        </div>
+        <div class="field-help">Most triggers use one of these. Prompt asks the player first; Automatic fires without asking.</div>
+
+        <div class="mode-advanced">
+          <span class="mode-advanced-toggle" onclick="toggleAdvancedModes(this)">&#x25B8; Advanced modes</span>
+          <div class="mode-advanced-options">
+            <label class="mode-advanced-option">
+              <input type="radio" name="mode-adv-${inst}" value="local" onchange="onModeAdvancedChange('${inst}')">
+              <div>
+                <div class="opt-label">Occurs Automatically (Local Only)</div>
+                <div class="opt-desc">Fires on the owning client only. Never dispatched to remote players.</div>
+              </div>
+            </label>
+            <label class="mode-advanced-option">
+              <input type="radio" name="mode-adv-${inst}" value="prompt_remote" onchange="onModeAdvancedChange('${inst}')">
+              <div>
+                <div class="opt-label">Prompt Remote Player, Auto for Local</div>
+                <div class="opt-desc">Owner's client fires automatically; remote players get prompted. Rare.</div>
+              </div>
+            </label>
+            <label class="mode-advanced-option">
+              <input type="radio" name="mode-adv-${inst}" value="hr_setting" onchange="onModeAdvancedChange('${inst}')">
+              <div>
+                <div class="opt-label">Automatic Heroic Resource Setting</div>
+                <div class="opt-desc">Defers to a game-wide setting. Use for Heroic Resource triggers only.</div>
+              </div>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="field conditional prompt-text">
+        <label class="field-label">Prompt Text</label>
+        <input class="inp" placeholder="Message shown when this trigger offers to fire. Blank = use the ability name.">
+        <div class="field-help">Max 300 characters. Only applies when the mode allows prompting.</div>
+      </div>
+
+      <div class="field-row">
+        <div>
+          <label class="field-label">Resource Cost</label>
+          <input class="inp mono" type="number" value="0" min="0">
+          <div class="field-help">Heroic Resources. Charged only when the player accepts a prompt.</div>
+        </div>
+        <div>
+          <label class="field-label">Action Used</label>
+          <select class="fk-sel">
+            <option selected>None</option>
+            <option>Maneuver</option>
+            <option>Free Maneuver</option>
+            <option>Main Action</option>
+            <option>Triggered Action</option>
+            <option>Free Triggered Action</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="check-row">
+        <input type="checkbox" id="manual-${inst}">
+        <div>
+          <label class="chk-label" for="manual-${inst}">Also show as a manual trigger</label>
+          <div class="chk-help">Adds a manually-invokable copy of this trigger to the owner's ability bar.</div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">When Target Despawns</label>
+        <select class="fk-sel">
+          <option selected>Skip Despawned Targets</option>
+          <option>Retarget to Corpse</option>
+        </select>
+        <div class="field-help">If a target of this trigger leaves the map before it resolves, skip them or retarget to their corpse. "Retarget to Corpse" falls back to skipping if no corpse exists.</div>
+      </div>
+    </div>
+
+    <!-- EFFECTS SECTION -->
+    <div class="detail-panel" data-section="effects">
+      <div class="section-title">Effects</div>
+
+      <div class="display-hint">
+        Behaviours execute in order when the trigger activates. Lifted from the Activated Ability editor - same card shape and picker. The <strong>+ Add behaviour</strong> button opens the behaviour picker modal (categorised, searchable - same pattern as the trigger picker).
+      </div>
+
+      <!-- Damage behaviour -->
+      <div class="behaviour-card">
+        <div class="behaviour-hdr">
+          <span class="btype">Damage</span>
+          <button class="btn-mini">Edit</button>
+          <button class="btn-mini">Remove</button>
+        </div>
+        <div class="behaviour-body">
+          <div class="field">
+            <label class="field-label">Amount</label>
+            <input class="inp mono" value="5">
+          </div>
+          <div class="field">
+            <label class="field-label">Damage Type</label>
+            <select class="fk-sel">
+              <option selected>physical</option>
+              <option>piercing</option>
+              <option>slashing</option>
+              <option>bludgeoning</option>
+              <option>fire</option>
+              <option>cold</option>
+              <option>lightning</option>
+              <option>acid</option>
+              <option>psychic</option>
+              <option>holy</option>
+              <option>corruption</option>
+              <option>sonic</option>
+              <option>poison</option>
+            </select>
+          </div>
+          <div class="field field-full">
+            <label class="field-label">Target</label>
+            <select class="fk-sel">
+              <option>Self</option>
+              <option>Target creature</option>
+              <option selected>Each adjacent enemy</option>
+              <option>Each adjacent ally</option>
+              <option>All nearby creatures</option>
+              <option>The attacker</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Invoke Ability behaviour -->
+      <div class="behaviour-card">
+        <div class="behaviour-hdr">
+          <span class="btype">Invoke Ability</span>
+          <button class="btn-mini">Edit</button>
+          <button class="btn-mini">Remove</button>
+        </div>
+        <div class="behaviour-body">
+          <div class="field">
+            <label class="field-label">Ability</label>
+            <select class="fk-sel">
+              <option selected>Defensive Stance</option>
+              <option>Battle Cry</option>
+              <option>Heal Self</option>
+              <option>Retreat</option>
+              <option>Intimidate</option>
+            </select>
+          </div>
+          <div class="field">
+            <label class="field-label">Caster</label>
+            <select class="fk-sel">
+              <option selected>Self</option>
+              <option>The attacker</option>
+              <option>Subject</option>
+            </select>
+          </div>
+          <div class="field field-full">
+            <div class="check-row" style="margin:0;">
+              <input type="checkbox" id="consume-${inst}" checked>
+              <div>
+                <label class="chk-label" for="consume-${inst}">Consume resources for invoked ability</label>
+                <div class="chk-help">If unchecked, the invoked ability runs without charging its resource cost.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Purge Ongoing Effect behaviour -->
+      <div class="behaviour-card">
+        <div class="behaviour-hdr">
+          <span class="btype">Purge Ongoing Effect</span>
+          <button class="btn-mini">Edit</button>
+          <button class="btn-mini">Remove</button>
+        </div>
+        <div class="behaviour-body">
+          <div class="field">
+            <label class="field-label">Effect to Remove</label>
+            <select class="fk-sel">
+              <option>Any ongoing effect</option>
+              <option selected>Slowed</option>
+              <option>Bleeding</option>
+              <option>Taunted</option>
+              <option>Weakened</option>
+              <option>Frightened</option>
+              <option>Restrained</option>
+            </select>
+          </div>
+          <div class="field">
+            <label class="field-label">Count</label>
+            <input class="inp mono" type="number" value="1" min="1">
+          </div>
+          <div class="field field-full">
+            <label class="field-label">Target</label>
+            <select class="fk-sel">
+              <option selected>Self</option>
+              <option>Each adjacent ally</option>
+              <option>All nearby allies</option>
+              <option>Subject</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <button class="add-behaviour">+ Add behaviour</button>
+    </div>
+
+    <!-- DISPLAY SECTION -->
+    <div class="detail-panel" data-section="display">
+      <div class="section-title">Display <span class="proposed-badge">Proposed</span></div>
+
+      <div class="display-hint">
+        <strong>Proposed new section.</strong> These fields override the card's auto-derived text. Leave blank to use the derived value - grey italic placeholders show what the derived text would look like. The Mechanical View below the card always shows the raw condition formula; Display overrides only affect the player-facing preview card.
+      </div>
+
+      <div class="field">
+        <label class="field-label">Display Name</label>
+        <input class="inp placeholder-derived" placeholder="(uses Name: Last Stand)">
+      </div>
+
+      <div class="field-row">
+        <div>
+          <label class="field-label">Card Type</label>
+          <select class="fk-sel">
+            <option selected>Triggered Action</option>
+            <option>Free Triggered Action</option>
+            <option>Passive</option>
+          </select>
+        </div>
+        <div>
+          <label class="field-label">Cost</label>
+          <input class="inp placeholder-derived" placeholder="(derived: Free)">
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div>
+          <label class="field-label">Distance</label>
+          <input class="inp placeholder-derived" placeholder="(derived: Burst 1)">
+        </div>
+        <div>
+          <label class="field-label">Target</label>
+          <input class="inp" value="Each adjacent enemy">
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Flavor</label>
+        <input class="inp" value="Cornered and outnumbered, they make the world pay for it.">
+      </div>
+
+      <div class="field">
+        <label class="field-label">Trigger (prose)</label>
+        <textarea class="inp tall placeholder-derived" placeholder="(derived: When this creature starts their turn and at least 3 enemies are within 2 squares.)"></textarea>
+        <div class="field-help">Updates the Trigger Preview card only. The Mechanical View below always shows the raw condition formula - "how it actually works" stays honest.</div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Effect (prose)</label>
+        <textarea class="inp tall">A storm of retaliation bursts outward, striking every adjacent foe.</textarea>
+        <div class="field-help">Overrides the derived "Deal 5 damage to each adjacent enemy" - prose reads more naturally than the mechanical phrasing.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="editor-preview">
+
+    <div class="preview-proposed-banner">&#9650; Proposed New Preview Column &#9650;</div>
+
+    <!-- Trigger Preview (card) -->
+    <div class="preview-pane">
+      <div class="pane-label">Trigger Preview <span class="sub">what players see</span></div>
+      <div class="card">
+        <div class="card-title-bar">
+          <span>Last Stand</span>
+          <span class="cost">Free</span>
+        </div>
+        <div class="card-body">
+          <div class="card-flavor">Cornered and outnumbered, they make the world pay for it.</div>
+          <div class="card-row">
+            <span><span class="k">Keywords:</span><span class="v derived-blank">-</span></span>
+            <span><span class="k">Type:</span><span class="v">Triggered Action</span></span>
+          </div>
+          <div class="card-row">
+            <span><span class="k">Distance:</span><span class="v">Burst 1</span></span>
+            <span><span class="k">Target:</span><span class="v override-written">Each adjacent enemy</span></span>
+          </div>
+          <hr class="card-divider">
+          <div class="card-row full">
+            <span class="k">Trigger:</span>
+            <span class="v">When this creature starts their turn and at least 3 enemies are within 2 squares.</span>
+          </div>
+          <div class="card-row full">
+            <span class="k">Effect:</span>
+            <span class="v override-written">A storm of retaliation bursts outward, striking every adjacent foe.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mechanical View -->
+    <div class="preview-pane">
+      <div class="pane-label">Mechanical View <span class="sub">will this trigger?</span></div>
+      <div class="mech-card">
+        <div class="mech-header">
+          <span>How This Triggers</span>
+          <span class="rollup ready"><span class="ic">OK</span>Trigger ready</span>
+        </div>
+        <div class="mech-row"><span class="mk">Event</span><span class="mv ok">beginturn</span><span></span></div>
+        <div class="mech-row"><span class="mk">Subject</span><span class="mv ok">self</span><span></span></div>
+        <div class="mech-row"><span class="mk">Triggers When</span><span class="mv ok">Count Nearby Enemies(2) &gt;= 3</span><span></span></div>
+        <div class="mech-row"><span class="mk">Behaviours</span><span class="mv ok">[Damage: 5]</span><span></span></div>
+        <div class="mech-row"><span class="mk">Mode</span><span class="mv ok">automatic</span><span></span></div>
+        <div class="mech-row"><span class="mk">When Active</span><span class="mv ok">combat only</span><span></span></div>
+        <div class="mech-diag">
+          <div class="dryrun">Triggers when: this creature starts their turn and at least 3 enemies are within 2 squares.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Test Trigger (starts collapsed) -->
+    <div class="preview-pane">
+      <div class="pane-label">Test Trigger <span class="sub">simulate the condition</span></div>
+      <div class="tt-container">
+        <!-- Populated dynamically -->
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ============================================================
+       Trigger Event Picker Modal (hidden by default)
+       Pattern lifted from Draw Steel Ability Editor / Behavior Picker
+       ============================================================ -->
+  <div class="picker-backdrop" onclick="if(event.target===this)closeTriggerPicker('${inst}')">
+    <div class="picker-modal">
+      <div class="picker-hdr">
+        <span class="title">Pick Trigger Event</span>
+        <button class="picker-close" onclick="closeTriggerPicker('${inst}')">&times;</button>
+      </div>
+      <div class="picker-search">
+        <input type="text" placeholder="Search by name, intent, or game phase...">
+      </div>
+      <div class="picker-body">
+
+        <div class="picker-band">
+          <div class="picker-band-title">Common</div>
+          <div class="picker-item" onclick="selectTrigger('${inst}', 'Take Damage')"><div class="name">Take Damage</div><div class="desc">Fires when the creature loses stamina from damage. Most common "when hit, retaliate" trigger.</div></div>
+          <div class="picker-item" onclick="selectTrigger('${inst}', 'Damage an Enemy')"><div class="name">Damage an Enemy</div><div class="desc">Fires when the creature deals damage. Use for on-hit riders.</div></div>
+          <div class="picker-item" onclick="selectTrigger('${inst}', 'Roll Power')"><div class="name">Roll Power</div><div class="desc">Fires on any power roll, with the 2d10 results available as symbols. Use for crit-on-natural-11+ effects or tier-specific riders.</div></div>
+          <div class="picker-item" onclick="selectTrigger('${inst}', 'Condition Applied')"><div class="name">Condition Applied</div><div class="desc">Fires when a condition is inflicted on the subject. Use for conditional reactions.</div></div>
+          <div class="picker-item" onclick="selectTrigger('${inst}', 'Use an Ability')"><div class="name">Use an Ability</div><div class="desc">Fires when the creature uses any ability. Use for ability-economy effects.</div></div>
+          <div class="picker-item" onclick="selectTrigger('${inst}', 'Start of Turn')"><div class="name">Start of Turn</div><div class="desc">Fires at the start of the creature's turn. Heavily used by ongoing effects and Begin-Turn auras.</div></div>
+        </div>
+
+        <div class="picker-band">
+          <div class="picker-band-title">Combat</div>
+          <div class="picker-item" onclick="selectTrigger('${inst}', 'Attack an Enemy')"><div class="name">Attack an Enemy</div><div class="desc">Fires when the creature makes an attack.</div></div>
+          <div class="picker-item" onclick="selectTrigger('${inst}', 'Attacked')"><div class="name">Attacked</div><div class="desc">Fires when the creature is targeted by an attack.</div></div>
+          <div class="picker-item" onclick="selectTrigger('${inst}', 'Become Dying (Heroes Only)')"><div class="name">Become Dying (Heroes Only)</div><div class="desc">Fires when a hero drops to 0 stamina and becomes dying.</div></div>
+          <div class="picker-item" onclick="selectTrigger('${inst}', 'Become Winded')"><div class="name">Become Winded</div><div class="desc">Fires when the creature's stamina drops to the winded threshold.</div></div>
+          <div class="picker-item" onclick="selectTrigger('${inst}', 'Creature Lands On You')"><div class="name">Creature Lands On You</div><div class="desc">Fires when a falling creature lands on this one. The falling creature and fall distance are available as symbols.</div></div>
+          <div class="picker-item" onclick="selectTrigger('${inst}', 'Death')"><div class="name">Death</div><div class="desc">Fires when the creature dies.</div></div>
+          <div class="picker-item" onclick="selectTrigger('${inst}', 'Drop to Zero Stamina')"><div class="name">Drop to Zero Stamina</div><div class="desc">Fires when the creature's stamina reaches 0. Distinct from Death.</div></div>
+          <div class="picker-item" onclick="selectTrigger('${inst}', 'Gain Temporary Stamina')"><div class="name">Gain Temporary Stamina</div><div class="desc">Fires when the creature gains temporary stamina.</div></div>
+          <div class="picker-item" onclick="selectTrigger('${inst}', 'Kill a Creature')"><div class="name">Kill a Creature</div><div class="desc">Fires when the creature kills another creature with damage or an effect.</div></div>
+          <div class="picker-item" onclick="selectTrigger('${inst}', 'Made Reactive Roll Against damage')"><div class="name">Made Reactive Roll Against damage</div><div class="desc">Fires after a resistance / reactive power roll against incoming damage.</div></div>
+          <div class="picker-item" onclick="selectTrigger('${inst}', 'Regain Stamina')"><div class="name">Regain Stamina</div><div class="desc">Fires when the creature regains stamina (healing).</div></div>
+        </div>
+
+        <div class="picker-band">
+          <div class="picker-band-title">Abilities & Power Rolls</div>
+          <div class="picker-item" onclick="selectTrigger('${inst}', 'Finish Using an Ability')"><div class="name">Finish Using an Ability</div><div class="desc">Fires after the creature finishes resolving an ability.</div></div>
+          <div class="picker-item" onclick="selectTrigger('${inst}', 'Targeted by an Ability')"><div class="name">Targeted by an Ability</div><div class="desc">Fires on a creature when it is targeted by another creature's ability.</div></div>
+          <div class="picker-item" onclick="selectTrigger('${inst}', 'Use Signature Attack or Area')"><div class="name">Use Signature Attack or Area</div><div class="desc">Fires when the creature uses a signature ability with the Strike or Area keyword.</div></div>
+        </div>
+
+        <div class="picker-band">
+          <div class="picker-band-title">Movement</div>
+          <div class="picker-item" onclick="selectTrigger('${inst}', 'Adjacent Creature Moves Away')"><div class="name">Adjacent Creature Moves Away</div><div class="desc">Fires when an adjacent creature moves away from this one.</div></div>
+          <div class="picker-item" onclick="selectTrigger('${inst}', 'Begin Movement')"><div class="name">Begin Movement</div><div class="desc">Fires when the creature starts moving along a path. The path is available as a symbol.</div></div>
+          <div class="picker-item" onclick="selectTrigger('${inst}', 'Break Through a Wall')"><div class="name">Break Through a Wall</div><div class="desc">Fires when the creature breaks a wall. Wall type, stamina cost, and location are available as symbols.</div></div>
+          <div class="picker-item" onclick="selectTrigger('${inst}', 'Collide with a Creature or Object')"><div class="name">Collide with a Creature or Object</div><div class="desc">Fires when the creature collides during forced movement. Speed, movement type, and pusher are available as symbols.</div></div>
+          <div class="picker-item" onclick="selectTrigger('${inst}', 'Complete Movement')"><div class="name">Complete Movement</div><div class="desc">Fires when the creature finishes a movement.</div></div>
+          <div class="picker-item" onclick="selectTrigger('${inst}', 'Force Moved')"><div class="name">Force Moved</div><div class="desc">Fires when the creature is pushed, pulled, or slid. Movement type and attacker are available as symbols.</div></div>
+          <div class="picker-item" onclick="selectTrigger('${inst}', 'Land From a Fall')"><div class="name">Land From a Fall</div><div class="desc">Fires when the creature lands after falling. Fall distance and any creatures landed on are available as symbols.</div></div>
+          <div class="picker-item" onclick="selectTrigger('${inst}', 'Move Through Creature')"><div class="name">Move Through Creature</div><div class="desc">Fires when this creature moves through another creature's square.</div></div>
+          <div class="picker-item" onclick="selectTrigger('${inst}', 'Stepped on a Pressure Plate')"><div class="name">Stepped on a Pressure Plate</div><div class="desc">Fires when the creature moves onto a pressure plate. The target creature is available as a symbol.</div></div>
+          <div class="picker-item" onclick="selectTrigger('${inst}', 'Teleport')"><div class="name">Teleport</div><div class="desc">Fires when the creature teleports.</div></div>
+        </div>
+
+        <div class="picker-band">
+          <div class="picker-band-title">Resources & Victory</div>
+          <div class="picker-item" onclick="selectTrigger('${inst}', 'Earn Victory')"><div class="name">Earn Victory</div><div class="desc">Fires when the creature earns one or more victories.</div></div>
+          <div class="picker-item" onclick="selectTrigger('${inst}', 'Gain Resource')"><div class="name">Gain Resource</div><div class="desc">Fires when the creature gains a tracked resource.</div></div>
+          <div class="picker-item" onclick="selectTrigger('${inst}', 'Use Resource')"><div class="name">Use Resource</div><div class="desc">Fires when the creature spends a tracked resource.</div></div>
+        </div>
+
+        <div class="picker-band">
+          <div class="picker-band-title">Turn & Game Mode</div>
+          <div class="picker-item" onclick="selectTrigger('${inst}', 'Before Start of Turn')"><div class="name">Before Start of Turn</div><div class="desc">Fires just before the creature's turn starts. Use for turn-economy setup effects.</div></div>
+          <div class="picker-item" onclick="selectTrigger('${inst}', 'Draw Steel')"><div class="name">Draw Steel</div><div class="desc">Fires when initiative is rolled.</div></div>
+          <div class="picker-item" onclick="selectTrigger('${inst}', 'End of Combat')"><div class="name">End of Combat</div><div class="desc">Fires when combat ends.</div></div>
+          <div class="picker-item" onclick="selectTrigger('${inst}', 'End Respite')"><div class="name">End Respite</div><div class="desc">Fires when a respite ends. XP gained is available as a symbol.</div></div>
+          <div class="picker-item" onclick="selectTrigger('${inst}', 'End Turn')"><div class="name">End Turn</div><div class="desc">Fires at the end of the creature's turn.</div></div>
+          <div class="picker-item" onclick="selectTrigger('${inst}', 'Start Downtime')"><div class="name">Start Downtime</div><div class="desc">Fires when downtime begins.</div></div>
+          <div class="picker-item" onclick="selectTrigger('${inst}', 'Start of Round')"><div class="name">Start of Round</div><div class="desc">Fires at the start of each combat round, before any turns.</div></div>
+          <div class="picker-item" onclick="selectTrigger('${inst}', 'Start Respite')"><div class="name">Start Respite</div><div class="desc">Fires when a respite begins.</div></div>
+        </div>
+
+        <div class="picker-band">
+          <div class="picker-band-title">Custom</div>
+          <div class="picker-item" onclick="selectTrigger('${inst}', 'Custom Trigger')"><div class="name">Custom Trigger</div><div class="desc">Fires when dispatched by Lua or a matching Custom Trigger event. Author supplies the Trigger Name and Trigger Value.</div></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+`;
+
+// ===== Per-instance state =====
+const instances = {};
+
+function getInstanceState(inst) {
+  if (!instances[inst]) {
+    instances[inst] = {
+      testerOpen: false,
+      lastResult: null, // null | {pass: bool, value: number}
+      currentInput: 3,  // pretend value for Count Nearby Enemies(2)
+    };
+  }
+  return instances[inst];
+}
+
+// ===== Rendering the Test Trigger area =====
+function renderTester(inst) {
+  const root = document.querySelector(`.editor-app[data-instance="${inst}"]`);
+  if (!root) return;
+  const container = root.querySelector('.tt-container');
+  if (!container) return;
+  const st = getInstanceState(inst);
+
+  if (!st.testerOpen) {
+    // Collapsed strip
+    let summary;
+    if (!st.lastResult) {
+      summary = `<span class="tt-strip-summary none">No test run yet.</span>`;
+    } else if (st.lastResult.pass) {
+      summary = `
+        <span class="tt-strip-summary">
+          <span class="r-ic pass">OK</span>
+          <span>Last run: <strong style="color:var(--green);">Pass</strong></span>
+          <code>Count Nearby Enemies(2) = ${st.lastResult.value}, required &ge; 3</code>
+        </span>`;
+    } else {
+      summary = `
+        <span class="tt-strip-summary">
+          <span class="r-ic fail">!</span>
+          <span>Last run: <strong style="color:var(--amber);">Fail</strong></span>
+          <code>Count Nearby Enemies(2) = ${st.lastResult.value}, required &ge; 3</code>
+        </span>`;
+    }
+    container.innerHTML = `
+      <div class="tt-strip ${st.lastResult ? 'has-result' : ''}">
+        <span class="tt-caret">&#x25B8;</span>
+        <span class="tt-strip-title">Test Trigger</span>
+        ${summary}
+        <button class="tt-btn" onclick="openTester('${inst}')">Run Test</button>
+      </div>
+    `;
+    return;
+  }
+
+  // Expanded panel - stable scaffolding; result block updates separately
+  container.innerHTML = `
+    <div class="tt-panel">
+      <div class="tt-panel-hdr">
+        <div class="tt-panel-title">Test Trigger <span class="sub">adjust inputs, release slider to re-evaluate</span></div>
+        <div class="tt-panel-actions">
+          <button class="tt-run-btn" onclick="runTest('${inst}')">Run</button>
+          <button class="tt-close-btn" onclick="closeTester('${inst}')">Close</button>
+        </div>
+      </div>
+      <div class="tt-body">
+        <div class="tt-section-label">Inputs</div>
+        <div class="tt-input-row">
+          <div class="tt-lbl">
+            Enemies within 2
+            <span class="tt-origin">pretend (used by: Count Nearby Enemies(2))</span>
+          </div>
+          <div class="tt-ctl">
+            <input type="range" class="tt-slider" min="0" max="10" value="${st.currentInput}"
+              oninput="setTestInput('${inst}', this.value)"
+              onchange="runTest('${inst}')">
+            <span class="tt-slider-val">${st.currentInput}</span>
+          </div>
+        </div>
+        <div class="tt-result-wrapper"></div>
+      </div>
+    </div>
+  `;
+  renderResult(inst);
+}
+
+// Updates only the result block; leaves slider and inputs in place.
+function renderResult(inst) {
+  const root = document.querySelector(`.editor-app[data-instance="${inst}"]`);
+  if (!root) return;
+  const wrapper = root.querySelector('.tt-result-wrapper');
+  if (!wrapper) return;
+  const st = getInstanceState(inst);
+  const passed = st.currentInput >= 3;
+  wrapper.innerHTML = passed ? `
+    <div class="tt-result pass">
+      <div class="r-hdr"><span class="r-ic">OK</span>Trigger would activate</div>
+      <div class="r-line">Triggers Only When: <code>Count Nearby Enemies(2) &gt;= 3</code></div>
+      <div class="r-line"><span class="dim">result:</span> <code>${st.currentInput} &gt;= 3</code> <span class="dim">=</span> <code>true</code> <span style="color:var(--green);">Pass</span></div>
+      <div class="r-line" style="margin-top:5px;">Behaviours that would run:</div>
+      <ul class="r-sublist">
+        <li>Deal <strong>5 damage</strong> to each adjacent enemy</li>
+      </ul>
+      <div class="r-disclaimer">Simulation only. No damage is applied, no state is changed, no resources are spent. For live-scene testing, use the runtime Trigger Debugger.</div>
+    </div>
+  ` : `
+    <div class="tt-result fail">
+      <div class="r-hdr"><span class="r-ic">!</span>Trigger would NOT activate</div>
+      <div class="r-line">Triggers Only When: <code>Count Nearby Enemies(2) &gt;= 3</code></div>
+      <div class="r-line"><span class="dim">result:</span> <code>${st.currentInput} &gt;= 3</code> <span class="dim">=</span> <code>false</code> <span style="color:var(--amber);">Fail</span></div>
+      <div class="r-line" style="margin-top:5px;">Condition not met: got ${st.currentInput}, required at least 3.</div>
+      <div class="r-disclaimer">Adjust the input slider to explore pass cases, or tweak the condition threshold in the Trigger section.</div>
+    </div>
+  `;
+}
+
+// ===== Test Trigger actions =====
+function openTester(inst) {
+  const st = getInstanceState(inst);
+  st.testerOpen = true;
+  // Record the result with current (last-used or default) input, then
+  // build the expanded panel. renderTester's open branch calls
+  // renderResult() after mounting, so the result block populates correctly.
+  st.lastResult = { pass: st.currentInput >= 3, value: st.currentInput };
+  renderTester(inst);
+}
+
+function closeTester(inst) {
+  const st = getInstanceState(inst);
+  st.testerOpen = false;
+  renderTester(inst);
+}
+
+function runTest(inst) {
+  const st = getInstanceState(inst);
+  st.lastResult = {
+    pass: st.currentInput >= 3,
+    value: st.currentInput,
+  };
+  if (st.testerOpen) {
+    // Only update the result block; leave slider/inputs intact.
+    renderResult(inst);
+  } else {
+    // Collapsed strip needs full rebuild to show the new summary.
+    renderTester(inst);
+  }
+}
+
+function setTestInput(inst, value) {
+  const st = getInstanceState(inst);
+  st.currentInput = parseInt(value, 10);
+  // Update only the slider value label; do NOT rebuild the panel
+  // (rebuild would destroy the slider thumb mid-drag).
+  // User clicks Run to re-evaluate with the new input.
+  const root = document.querySelector(`.editor-app[data-instance="${inst}"]`);
+  const valEl = root.querySelector('.tt-slider-val');
+  if (valEl) valEl.textContent = st.currentInput;
+}
+
+// ===== Section navigation =====
+function switchSection(inst, section) {
+  const root = document.querySelector(`.editor-app[data-instance="${inst}"]`);
+  root.querySelectorAll('.nav-item').forEach(n => {
+    n.classList.toggle('active', n.dataset.section === section);
+  });
+  root.querySelectorAll('.detail-panel').forEach(p => {
+    p.classList.toggle('active', p.dataset.section === section);
+  });
+}
+
+// ===== Segmented toggle helper (Activation Mode etc.) =====
+function segToggle(el) {
+  el.parentElement.querySelectorAll('span').forEach(s => s.classList.remove('sel'));
+  el.classList.add('sel');
+}
+
+// ===== Trigger Event picker modal =====
+function openTriggerPicker(inst) {
+  const root = document.querySelector(`.editor-app[data-instance="${inst}"]`);
+  const backdrop = root && root.querySelector('.picker-backdrop');
+  if (backdrop) backdrop.classList.add('open');
+}
+function closeTriggerPicker(inst) {
+  const root = document.querySelector(`.editor-app[data-instance="${inst}"]`);
+  const backdrop = root && root.querySelector('.picker-backdrop');
+  if (backdrop) backdrop.classList.remove('open');
+}
+function selectTrigger(inst, displayName) {
+  const root = document.querySelector(`.editor-app[data-instance="${inst}"]`);
+  const sel = root && root.querySelector('.picker-btn .selected');
+  if (sel) sel.textContent = displayName;
+  closeTriggerPicker(inst);
+}
+
+// ===== Conditional field toggles (Trigger section) =====
+function onSubjectChange(selectEl) {
+  const root = selectEl.closest('.editor-app');
+  if (!root) return;
+  const rangeBlock = root.querySelector('.conditional.trigger-range');
+  if (!rangeBlock) return;
+  const isSelf = (selectEl.options[selectEl.selectedIndex].textContent || '').trim() === 'Self';
+  rangeBlock.classList.toggle('shown', !isSelf);
+}
+
+function onRequiresConditionChange(selectEl) {
+  const root = selectEl.closest('.editor-app');
+  if (!root) return;
+  const chk = root.querySelector('.conditional.condition-inflicted');
+  if (!chk) return;
+  const hasCondition = selectEl.value !== '' && (selectEl.options[selectEl.selectedIndex].textContent || '').trim() !== '(No requirement)';
+  chk.classList.toggle('shown', hasCondition);
+}
+
+// ===== Trigger Mode: progressive disclosure + prompt-text visibility =====
+function toggleAdvancedModes(toggleEl) {
+  const options = toggleEl.nextElementSibling;
+  if (!options) return;
+  const isOpen = options.classList.toggle('open');
+  toggleEl.textContent = (isOpen ? '\u25BE' : '\u25B8') + ' Advanced modes';
+}
+
+function onModePrimaryChange(inst, mode) {
+  // Picking Prompt / Automatic clears any advanced radio selection.
+  const root = document.querySelector(`.editor-app[data-instance="${inst}"]`);
+  if (!root) return;
+  root.querySelectorAll(`input[name="mode-adv-${inst}"]`).forEach(r => r.checked = false);
+  // Show Prompt Text only when mode is Prompt.
+  const promptBlock = root.querySelector('.conditional.prompt-text');
+  if (promptBlock) promptBlock.classList.toggle('shown', mode === 'prompt');
+}
+
+function onModeAdvancedChange(inst) {
+  // Picking an advanced radio deselects the primary segmented toggle
+  // and decides Prompt Text visibility based on the advanced mode.
+  const root = document.querySelector(`.editor-app[data-instance="${inst}"]`);
+  if (!root) return;
+  const seg = root.querySelector('.field .seg-toggle');
+  if (seg) seg.querySelectorAll('span').forEach(s => s.classList.remove('sel'));
+  const checked = root.querySelector(`input[name="mode-adv-${inst}"]:checked`);
+  const mayPrompt = checked && checked.value === 'prompt_remote';
+  const promptBlock = root.querySelector('.conditional.prompt-text');
+  if (promptBlock) promptBlock.classList.toggle('shown', !!mayPrompt);
+}
+
+// ===== Page view toggle =====
+function showPage(id, btn) {
+  document.querySelectorAll('.page-view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.view-tabs button').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  if (btn) btn.classList.add('active');
+}
+
+// ===== Initial render: instantiate editor in both viewports =====
+document.querySelectorAll('.editor-app').forEach(el => {
+  const inst = el.dataset.instance;
+  el.innerHTML = makeEditorHTML(inst);
+  // Wire nav clicks
+  el.querySelectorAll('.nav-item').forEach(n => {
+    n.addEventListener('click', () => switchSection(inst, n.dataset.section));
+  });
+  // Initial tester render (collapsed, no result)
+  renderTester(inst);
+});
+</script>
+
+</body>
+</html>

@@ -1895,13 +1895,35 @@ CharacterModifier.TypeInfo.trigger = {
 				text = "Edit Ability",
 				click = function(element)
 					local fn = function(element, modifier, savefn)
-						element.root:AddChild(modifier.triggeredAbility:ShowEditActivatedAbilityDialog{
-                            destroy = savefn,
-                        })
+						-- C6b: `mount` is a re-entrant builder for the
+						-- editor dialog so the popout's "Open Editor"
+						-- button can re-invoke it. element.root is the
+						-- parent at first-click time; if the user
+						-- navigated away (modifier editor closed,
+						-- character sheet closed) element is destroyed
+						-- and element.root is unreachable. We fall back
+						-- to gamehud.parentPanel (always alive) so the
+						-- new editor still mounts -- mirrors the
+						-- top-level mount-target the original click
+						-- naturally resolves to since element.root
+						-- IS gamehud.parentPanel for elements inside
+						-- modal-mounted dialogs. Per-mount reopen=mount
+						-- so the cycle persists across many opens.
+						local mount
+						mount = function()
+							local root =
+								(element ~= nil and element.valid and element.root)
+								or gamehud.parentPanel
+							root:AddChild(modifier.triggeredAbility:ShowEditActivatedAbilityDialog{
+                                destroy = savefn,
+                                reopen = mount,
+                            })
+						end
+						mount()
 					end
-	
+
 					element.root:FireEventTree("editCompendiumFeature", modifier, fn)
-	
+
 					fn(element, modifier)
 				end,
 			}

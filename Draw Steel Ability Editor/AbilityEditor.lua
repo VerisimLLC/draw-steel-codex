@@ -1006,6 +1006,12 @@ local function _editorStyles()
     }
 end
 
+-- Public accessor so other editors in this mod (notably the Triggered Ability
+-- Editor) can inherit the full style pack instead of maintaining a parallel
+-- copy. The pack captures label alignment, widget skinning, and nav-column +
+-- section styling conventions shared across the editors.
+AbilityEditor.GetEditorStyles = _editorStyles
+
 --[[
     ============================================================================
     Shared widget styles (exported)
@@ -1917,6 +1923,11 @@ local function _makeFieldRow(labelText, childElement)
     }
 end
 
+-- Forward-declared so _buildOverviewSection can reference it before the
+-- assignment (the body below) runs. Lua resolves the name lexically at
+-- call time; without the forward local it would be treated as a global.
+local _buildModesBlock
+
 local function _buildOverviewSection(ability, fireChange)
     local children = {}
 
@@ -2245,8 +2256,27 @@ local function _buildOverviewSection(ability, fireChange)
     }
 
     --------------------------------------------------------------------------
-    -- Modes & Variations
+    -- Modes & Variations (extracted via _buildModesBlock below)
     --------------------------------------------------------------------------
+    for _, c in ipairs(_buildModesBlock(ability, fireChange)) do
+        children[#children + 1] = c
+    end
+
+    -- Bottom padding so the last field doesn't sit flush against the panel edge.
+    children[#children + 1] = gui.Panel{
+        width = "100%", height = 12, bgcolor = "clear",
+    }
+
+    return children
+end
+
+-- Modes + Variations block, extracted from _buildOverviewSection so the
+-- Triggered Ability Editor can inject it into its Trigger section.
+-- Returns a children array with the Modes dropdown + conditional mode list.
+-- The block writes to ability.multipleModes (false/true/"variations") and
+-- ability.modeList (array of {text, rules, condition, hasAbility, variation}).
+_buildModesBlock = function(ability, fireChange)
+    local children = {}
     local modesListPanel = nil
 
     children[#children + 1] = _makeFieldRow("Modes",
@@ -2481,11 +2511,6 @@ local function _buildOverviewSection(ability, fireChange)
         end,
     }
     children[#children + 1] = modesListPanel
-
-    -- Bottom padding so the last field doesn't sit flush against the panel edge.
-    children[#children + 1] = gui.Panel{
-        width = "100%", height = 12, bgcolor = "clear",
-    }
 
     return children
 end
@@ -3806,6 +3831,23 @@ local function _buildTargetingSection(ability, fireChange)
     return children
 end
 
+-- Public entry point for other editors (e.g. NewTriggeredAbilityEditor)
+-- that want the full Target Type / Range / numTargets / AOE / proximity /
+-- "More options" stack without spinning up the rest of the New Ability
+-- Editor shell. Returns the same children array the internal section
+-- consumes. Caller is responsible for wiring up a `fireChange` function
+-- that dispatches refreshAbility across the subtree so the conditional
+-- visibility classes (collapsed-anim) update when targetType / numTargets
+-- / proximityTargeting change.
+AbilityEditor.BuildTargetingSection = _buildTargetingSection
+
+-- Public entry point for the Modes & Variations block, extracted from
+-- _buildOverviewSection. Used by the Triggered Ability Editor's Trigger
+-- section to surface `multipleModes` + `modeList` authoring. Returns
+-- children array: Modes dropdown + conditional mode list panel. Caller
+-- wires a `fireChange` for preview + validation invalidation.
+AbilityEditor.BuildModesSection = _buildModesBlock
+
 --[[
     ============================================================================
     Effects section
@@ -4239,6 +4281,15 @@ local function _buildEffectsSection(ability, fireChange)
 
     return children
 end
+
+-- Public entry point for other editors (e.g. NewTriggeredAbilityEditor)
+-- that want the per-behaviour card list without the rest of the New
+-- Ability Editor shell. Returns the same {behaviorListPanel} children
+-- array the internal caller consumes. Caller is responsible for wiring
+-- up the Add Behavior button (opens AbilityEditor.OpenBehaviorPicker)
+-- and a fireChange function that dispatches refreshAbility across the
+-- subtree.
+AbilityEditor.BuildEffectsSection = _buildEffectsSection
 
 --[[
     ============================================================================

@@ -561,7 +561,7 @@ function CreateSettingsScreen(dialog, args)
 							},
 
 							gui.Label{
-								classes = {"listSectionHeading"},
+								classes = {"labelLg", "bold"},
 								width = "auto",
 								height = "auto",
 								text = "Bandwidth Usage",

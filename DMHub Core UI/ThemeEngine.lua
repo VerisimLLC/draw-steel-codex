@@ -78,108 +78,41 @@ local DEFAULT_SCHEME_ID = "default"
 local THEME_CHANGED_EVENT = "ThemeEngine.ThemeChanged"
 
 -- =============================================================================
--- Font catalog (hardcoded -- DMHub owns which font files exist)
+-- Available fonts (engine-supplied)
 -- =============================================================================
--- Kept in alphabetical order by `name`. Add new entries in the right slot so
--- ListFontFaces returns them sorted without runtime sorting.
 
-local FONT_CATALOG = {
-    {
-        name = "Berling",
-        style = "serif",
-        uses = { "body", "label", "input" },
-        description = "Codex default serif for long-form text, labels, and form inputs.",
-    },
-    {
-        name = "Book",
-        style = "serif",
-        uses = { "heading", "numeric" },
-        description = "Serif with strong numerals; used in dice panels and the initiative bar.",
-    },
-    {
-        name = "Cambria",
-        style = "serif",
-        uses = { "body" },
-        description = "Classic serif body face.",
-    },
-    {
-        name = "Colvillain",
-        style = "display",
-        uses = { "heading", "decorative" },
-        description = "Ornate display face for thematic headers in the game HUD.",
-    },
-    {
-        name = "Courier",
-        style = "mono",
-        uses = { "code" },
-        description = "Monospace face for code editors, debug logs, and regex matchers.",
-    },
-    {
-        name = "CrimsonText",
-        style = "serif",
-        uses = { "body" },
-        description = "Classic book-weight serif suitable for body text.",
-    },
-    {
-        name = "DrawSteelGlyphs",
-        style = "symbol",
-        uses = { "glyph" },
-        description = "Draw Steel ability-tier and system glyph set.",
-    },
-    {
-        name = "DrawSteelPotencies",
-        style = "symbol",
-        uses = { "glyph" },
-        description = "Draw Steel potency glyph set.",
-    },
-    {
-        name = "Dubai",
-        style = "sans",
-        uses = { "body", "label" },
-        description = "Humanist sans used in settings and character panels.",
-    },
-    {
-        name = "Inter",
-        style = "sans",
-        uses = { "body", "label", "input" },
-        description = "Modern UI sans-serif widely used across character sheets.",
-    },
-    {
-        name = "Newzald",
-        style = "serif",
-        uses = { "heading", "display", "numeric" },
-        description = "Serif with display weight and strong numerals; headings and titles.",
-    },
-    {
-        name = "SellYourSoul",
-        style = "display",
-        uses = { "decorative", "heading" },
-        description = "Stylized display face for dramatic headings and overlays.",
-    },
-    {
-        name = "SupernaturalKnight",
-        style = "display",
-        uses = { "decorative", "heading" },
-        description = "Decorative display face for the initiative bar and emotes.",
-    },
-    {
-        name = "Tengwar",
-        style = "symbol",
-        uses = { "obfuscated" },
-        description = "Fantasy alphabet face for obfuscating in-character chat.",
-    },
-    {
-        name = "Varta",
-        style = "sans",
-        uses = { "numeric", "label" },
-        description = "Clean sans with clear numerals; used in the initiative bar.",
-    },
-}
+-- Lazy-built case-insensitive set of font names from gui.availableFonts.
+-- Built on first access so we don't depend on engine load order at module init.
+local _availableFontsLower = nil
 
--- Case-insensitive lookup index built once at load time.
-local FONT_CATALOG_BY_LOWER = {}
-for _, entry in ipairs(FONT_CATALOG) do
-    FONT_CATALOG_BY_LOWER[string.lower(entry.name)] = entry
+local function _buildAvailableFontsSet()
+    local set = {}
+    local list = gui.availableFonts
+    if type(list) == "table" then
+        for _, name in ipairs(list) do
+            if type(name) == "string" then
+                set[string.lower(name)] = true
+            end
+        end
+    end
+    return set
+end
+
+--- Validate a font name against gui.availableFonts. Case-insensitive.
+--- Unknown names log once and return UNRESOLVED_FONT (Berling).
+--- Non-strings pass through unchanged.
+--- @param name any
+--- @return any
+local function _validateFontFace(name)
+    if type(name) ~= "string" then return name end
+    if _availableFontsLower == nil then
+        _availableFontsLower = _buildAvailableFontsSet()
+    end
+    if _availableFontsLower[string.lower(name)] then
+        return name
+    end
+    _logUnresolved("fontFace", name)
+    return UNRESOLVED_FONT
 end
 
 -- =============================================================================
@@ -282,7 +215,7 @@ local function _resolveValue(value, domain, tables)
                     _logUnresolved("font", name)
                     return UNRESOLVED_FONT
                 end
-                return v
+                return _validateFontFace(v)
             elseif domain == "gradients" then
                 local spec = tables.gradients[name]
                 if spec == nil then
@@ -296,6 +229,9 @@ local function _resolveValue(value, domain, tables)
                 -- Not a themable property; leave the literal in place.
                 return value
             end
+        end
+        if domain == "fonts" then
+            return _validateFontFace(value)
         end
         return value
     elseif type(value) == "table" then
@@ -502,23 +438,6 @@ local function _isThemeInActiveChain(id)
     return _activeThemeId ~= nil and id == _activeThemeId
 end
 
---- Shallow-clone a font catalog entry so callers can't mutate the hardcoded data.
---- @param entry table
---- @return table
-local function _cloneFontEntry(entry)
-    local usesCopy = {}
-    for i, u in ipairs(entry.uses) do
-        usesCopy[i] = u
-    end
-    return {
-        name        = entry.name,
-        displayName = entry.displayName or entry.name,
-        style       = entry.style,
-        uses        = usesCopy,
-        description = entry.description,
-    }
-end
-
 -- =============================================================================
 -- Public API -- Registration
 -- =============================================================================
@@ -605,14 +524,6 @@ end
 function ThemeEngine.RegisterTheme(spec)
     if _themes[spec.id] then
         return false
-    end
-
-    if spec.fonts then
-        for _, face in pairs(spec.fonts) do
-            if type(face) == "string" and not ThemeEngine.IsKnownFontFace(face) then
-                _logUnresolved("fontFace", face)
-            end
-        end
     end
 
     _themes[spec.id] = {
@@ -740,59 +651,6 @@ function ThemeEngine.ListColorSchemes()
             description = scheme.description,
         }
     end
-    return out
-end
-
--- =============================================================================
--- Public API -- Font catalog (read-only)
--- =============================================================================
-
---- Check whether a font face is in the hardcoded DMHub catalog. Case-insensitive.
---- @param name string
---- @return boolean
-function ThemeEngine.IsKnownFontFace(name)
-    if type(name) ~= "string" then return false end
-    return FONT_CATALOG_BY_LOWER[string.lower(name)] ~= nil
-end
-
---- List catalog entries, optionally filtered by style and/or use tag.
---- Returns a fresh array of entry copies; mutating the result does not affect the catalog.
---- The catalog itself is kept alphabetical, so results are already sorted by name.
----
---- Filter fields (all optional):
----   style -- scalar; match when entry.style == style.
----   use   -- scalar; match when use is present in entry.uses.
----   Both, when supplied, apply together (AND).
---- @param filter table|nil { style?, use? }
---- @return table[]
-function ThemeEngine.ListFontFaces(filter)
-    local wantStyle = filter and filter.style or nil
-    local wantUse   = filter and filter.use   or nil
-
-    local out = {}
-    for _, entry in ipairs(FONT_CATALOG) do
-        local keep = true
-
-        if wantStyle ~= nil and entry.style ~= wantStyle then
-            keep = false
-        end
-
-        if keep and wantUse ~= nil then
-            local found = false
-            for _, u in ipairs(entry.uses) do
-                if u == wantUse then
-                    found = true
-                    break
-                end
-            end
-            if not found then keep = false end
-        end
-
-        if keep then
-            out[#out + 1] = _cloneFontEntry(entry)
-        end
-    end
-
     return out
 end
 

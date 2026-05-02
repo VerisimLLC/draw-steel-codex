@@ -561,7 +561,7 @@ CreateKeybindsSettingsPanel = function()
         if #sectionChildren > 0 then
             table.sort(sectionChildren, function(a,b) return a.data.ord < b.data.ord end)
             table.insert(sectionChildren, 1, gui.Label{
-                classes = {"listSectionHeading"},
+                classes = {"labelLg", "bold"},
                 width = "auto",
                 height = "auto",
                 fontSize = 24,
@@ -583,13 +583,12 @@ CreateKeybindsSettingsPanel = function()
         end
     end
 
-    children[#children+1] = gui.PrettyButton{
+    children[#children+1] = gui.Button{
+        classes = {"btnLg"},
         halign = "right",
         valign = "bottom",
         margin = 8,
         width = 220,
-        height = 30,
-        fontSize = 22,
         text = "Reset to Defaults",
         click = function(element)
             dmhub.ResetKeybindings()
@@ -617,7 +616,7 @@ function Keybinds.ShowBindPopup(args)
     local resultPanel
 
     resultPanel = gui.Panel{
-        styles = {Styles.Panel, g_KeybindStyles},
+        styles = {ThemeEngine.GetStyles(), ThemeEngine.ResolveStyles(g_KeybindStyles)},
         classes = {"framedPanel"},
         width = 600,
         height = 300,
@@ -625,12 +624,11 @@ function Keybinds.ShowBindPopup(args)
         valign = "center",
         destroy = args.destroy,
         gui.Label{
+            classes = {"labelXl", "bold"},
             halign = "center",
             valign = "top",
             vmargin = 8,
-            fontSize = 24,
             minFontSize = 10,
-            bold = true,
             maxWidth = 500,
             width = "auto",
             height = "auto",

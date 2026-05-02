@@ -137,16 +137,6 @@ function Hud:ModalMessage(args)
 			id = 'modal-title',
 			classes = {"modalTitle"},
 			text = args.title,
-			selfStyle = {
-				margin = 16,
-				fontSize = 28,
-				-- color comes from the {label, modalTitle} rule so it follows the theme.
-				valign = 'top',
-				halign = 'center',
-				textAlignment = 'center',
-				width = 'auto',
-				height = 'auto',
-			},
 		})
 	end
 
@@ -156,15 +146,6 @@ function Hud:ModalMessage(args)
 			id = 'modal-message',
 			classes = {"modalMessage"},
 			text = args.message,
-			selfStyle = {
-				width = '80%',
-				height = 'auto',
-				-- color comes from the {label, modalMessage} rule so it follows the theme.
-				fontSize = 18,
-				valign = 'center',
-				halign = 'center',
-				textAlignment = 'left',
-			},
 		})
 	end
 
@@ -181,11 +162,10 @@ function Hud:ModalMessage(args)
 	local options = {}
 	for i,option in ipairs(argOptions) do
 		local optionInfo = option
-		options[#options+1] = gui.PrettyButton({
+		options[#options+1] = gui.Button({
 			id = 'modal-button-' .. optionInfo.text,
+			classes = {"btnLg"},
 			text = optionInfo.text,
-			width = 140,
-			height = 60,
 			events = {
 				click = function()
 					self:CloseModal()
@@ -199,13 +179,11 @@ function Hud:ModalMessage(args)
 
 	optionsPanel = gui.Panel({
 		id = 'modal-buttons-panel',
-		style = {
-			height = 'auto',
-			width = '80%',
-			valign = 'bottom',
-			vmargin = 20,
-			flow = 'horizontal',
-		},
+		height = 'auto',
+		width = '80%',
+		valign = 'bottom',
+		vmargin = 20,
+		flow = 'horizontal',
 		children = options,
 	})
 
@@ -213,26 +191,12 @@ function Hud:ModalMessage(args)
 		gui.Panel({
 			id = 'modal-dialog',
 			classes = {"framedPanel"},
-
-			-- Theme provides framedPanel styling. Local extras: layout sizing
-			-- plus themed colors for the title/message labels (Tier B).
-			styles = ThemeEngine.MergeStyles({
-				{
-					halign = 'center',
-					valign = 'center',
-					width = '60%',
-					height = '60%',
-					flow = 'vertical',
-				},
-				{
-					selectors = {"label", "modalTitle"},
-					color = "@text",
-				},
-				{
-					selectors = {"label", "modalMessage"},
-					color = "@text",
-				},
-			}),
+			styles = ThemeEngine.GetStyles(),
+			halign = 'center',
+			valign = 'center',
+			width = '60%',
+			height = '60%',
+			flow = 'vertical',
 			children = {
 				titleText,
 				messageText,

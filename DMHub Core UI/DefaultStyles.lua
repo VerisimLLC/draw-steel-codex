@@ -245,7 +245,7 @@ ThemeEngine.RegisterTheme{
     fonts = {
         heading = "Berling",
         label   = "Berling",
-        input   = "Inter",
+        input   = "LiberationSans",
         number  = "Newzald",
     },
 
@@ -328,23 +328,40 @@ ThemeEngine.RegisterTheme{
             bold = false,
         },
         {
+            selectors = {"label", "labelTiny"},
+            fontSize = 12,
+        },
+        {
+            selectors = {"label", "labelSm"},
+            fontSize = 14,
+        },
+        {
+            selectors = {"label", "labelMd"},
+            fontSize = 16,
+        },
+        {
+            selectors = {"label", "labelLg"},
+            fontSize = 18,
+        },
+        {
+            selectors = {"label", "labelXl"},
+            fontSize = 24,
+        },
+        {
+            selectors = {"label", "labelXxl"},
+            fontSize = 28,
+        },
+        {
+            selectors = {"bold"},
+            bold = true,
+        },
+        {
             selectors = {"label", "number"},
             fontFace = "@number",
         },
         {
             selectors = {"label", "pending"},
             color = "@fgPending",
-        },
-        {
-            selectors = {"label", "tinyLabel"},
-            fontSize = 12,
-            color = "@fg",
-            textAlignment = "center",
-        },
-        {
-            selectors = {"label", "listSectionHeading"},
-            fontSize = 18,
-            bold = true,
         },
         {
             selectors = {"label", "link"},
@@ -1570,18 +1587,40 @@ ThemeEngine.RegisterTheme{
             halign = "center",
             flow = "horizontal",
         },
+        -- {
+        --     selectors = {"prettyButton"},
+        --     width = 140,
+        --     height = 60,
+        -- },
+        -- {
+        --     selectors = {"prettyButtonLabel"},
+        --     fontSize = 20,
+        --     bold = true,
+        --     textAlignment = "center",
+        --     width = "auto",
+        --     height = "auto",
+        -- },
         {
-            selectors = {"prettyButton"},
-            width = 140,
-            height = 60,
-        },
-        {
-            selectors = {"prettyButtonLabel"},
-            fontSize = 20,
-            bold = true,
+            selectors = {"label", "modalTitle"},
+            halign = "center",
+            valign = "top",
             textAlignment = "center",
             width = "auto",
             height = "auto",
+            margin = 16,
+            fontSize = 28,
+            color = "@fgStrong",
+            bold = true,
+        },
+        {
+            selectors = {"label", "modalMessage"},
+            halign = "center",
+            valign = "center",
+            textAlignment = "left",
+            width = "80%",
+            height = "auto",
+            fontSize = 18,
+            color = "@fg",
         },
 
         --[[ Framed panel ]]

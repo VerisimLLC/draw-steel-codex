@@ -60,11 +60,9 @@ mod.shared.ImportMapDialog = function(paths, options)
     local perfectFitActive = false
 
 
-    local confirmButton = gui.PrettyButton{
-        classes = {"hidden"},
+    local confirmButton = gui.Button{
+        classes = {"btnLg", "hidden"},
         text = "Finish",
-        height = 50,
-        width = 180,
         valign = "center",
         halign = "center",
         click = function()
@@ -98,11 +96,9 @@ mod.shared.ImportMapDialog = function(paths, options)
     }
 
 
-    local continueButton = gui.PrettyButton{
-        classes = {"hidden"},
+    local continueButton = gui.Button{
+        classes = {"btnLg", "hidden"},
         text = "Continue>>",
-        height = 50,
-        width = 180,
         valign = "center",
         halign = "center",
         click = function()
@@ -111,11 +107,9 @@ mod.shared.ImportMapDialog = function(paths, options)
     }
 
 
-    local previousButton = gui.PrettyButton{
-        classes = {"hidden"},
+    local previousButton = gui.Button{
+        classes = {"btnLg", "hidden"},
         text = "Back",
-        height = 50,
-        width = 180,
         valign = "center",
         halign = "left",
         click = function()
@@ -182,7 +176,6 @@ mod.shared.ImportMapDialog = function(paths, options)
                 width = 380,
                 height = "auto",
                 fontSize = 14,
-                color = "#cccccc",
                 text = "",
                 wrap = true,
             }
@@ -215,13 +208,11 @@ mod.shared.ImportMapDialog = function(paths, options)
 
                 matchInfoLabel,
 
-                gui.PrettyButton{
+                gui.Button{
+                    classes = {"btnLg"},
                     text = "Match Existing Map",
-                    width = 200,
-                    height = 40,
                     halign = "left",
                     vmargin = 4,
-                    fontSize = 18,
                     click = function(element)
                         importPanel:CreateGridless()
                         gridlessChoice.value = false
@@ -259,7 +250,7 @@ mod.shared.ImportMapDialog = function(paths, options)
             height = "auto",
             fontSize = 28,
             bold = true,
-            color = "#66dd66",
+            color = "@success",
             text = "A Perfect Fit!",
             vmargin = 4,
         },
@@ -269,7 +260,6 @@ mod.shared.ImportMapDialog = function(paths, options)
             width = 380,
             height = "auto",
             fontSize = 16,
-            color = "#cccccc",
             wrap = true,
             text = "",
             vmargin = 8,
@@ -280,7 +270,6 @@ mod.shared.ImportMapDialog = function(paths, options)
             width = 380,
             height = "auto",
             fontSize = 20,
-            color = "white",
             text = "",
             vmargin = 4,
         },
@@ -290,13 +279,11 @@ mod.shared.ImportMapDialog = function(paths, options)
             height = 24,
         },
 
-        gui.PrettyButton{
+        gui.Button{
+            classes = {"btnLg"},
             id = "perfectFitAccept",
             text = "Accept",
-            width = 200,
-            height = 50,
             halign = "left",
-            fontSize = 22,
             click = function(element)
                 -- Trigger the same confirm flow as the Finish button.
                 resultPanel.children = {
@@ -321,12 +308,10 @@ mod.shared.ImportMapDialog = function(paths, options)
             end,
         },
 
-        gui.PrettyButton{
+        gui.Button{
+            classes = {"btnLg"},
             text = "Customize Grid...",
-            width = 200,
-            height = 40,
             halign = "left",
-            fontSize = 16,
             vmargin = 8,
             click = function(element)
                 perfectFitActive = false
@@ -555,7 +540,6 @@ mod.shared.ImportMapDialog = function(paths, options)
         width = 280,
         height = "auto",
         fontSize = 14,
-        color = "#cccccc",
         text = "",
 
         updateInfo = function(element)
@@ -992,7 +976,6 @@ mod.shared.ImportMapDialog = function(paths, options)
                 width = "auto",
                 height = "auto",
                 fontSize = 18,
-                color = "white",
                 text = importPanel.errorMessage
             }
         }
@@ -1079,26 +1062,25 @@ local function ImportMapWizard(options)
 				contentPanel:FireEvent("processFiles", paths)
 			end,
 
-			styles = {
+			styles = ThemeEngine.ResolveStyles({
 				{
 					width = "80%",
 					height = "60%",
 					valign = "center",
 					selectors = {"dropArea"},
-					bgcolor = "#ffffff33",
-					borderColor = "white",
+					bgcolor = "@bgAlt",
+					borderColor = "@border",
 					borderWidth = 6,
 					cornerRadius = 16,
 				},
 				{
 					selectors = {"dropArea","hover"},
-					bgcolor = "#ffffff99",
+					bgcolor = "@accent",
 				}
 
-			},
+			}),
 
 			gui.Label{
-				color = "white",
 				fontSize = 24,
 				width = "auto",
 				height = "auto",
@@ -1113,17 +1095,14 @@ local function ImportMapWizard(options)
 			valign = "center",
 			halign = "center",
 			fontSize = 16,
-			color = "white",
 			width = "auto",
 			height = "auto",
 			text = "-or-",
 		},
 
 		gui.Button{
+			classes = {"btnLg"},
 			text = "Choose Files",
-			width = 320,
-			height = 70,
-            fontSize = 36,
 			click = function(element)
 
 				dmhub.OpenFileDialog{
@@ -1150,10 +1129,7 @@ local function ImportMapWizard(options)
 		height = 940,
 		pad = 8,
 		flow = "vertical",
-		styles = {
-			Styles.Default,
-			Styles.Panel,
-		},
+		styles = ThemeEngine.GetStyles(),
 
 		destroy = function(element)
 			if g_modalDialog == element then

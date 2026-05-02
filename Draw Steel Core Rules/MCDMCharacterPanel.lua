@@ -1849,6 +1849,33 @@ function TacPanel.Portrait()
                 end,
             }),
             outlineButton(gui.Panel{
+                classes = {"toggle-btn"},
+                hoverCursor = "pressbutton",
+                bgimage = "ui-icons/codex-logo.png",
+                width = TacPanelSizes.VisionBtn.size,
+                height = TacPanelSizes.VisionBtn.size,
+                data = { token = nil },
+                refreshCharacter = function(element, token)
+                    element.data.token = token
+                end,
+                refreshToken = function(element, token)
+                    element:FireEvent("refreshCharacter", token)
+                end,
+                setToken = function(element, token)
+                    element:FireEvent("refreshCharacter", token)
+                end,
+                press = function(element)
+                    local token = element.data.token
+                    if token == nil then return end
+                    dmhub.OpenCharacterPopout(token.charid, nil, function(msg)
+                        gui.Tooltip("Couldn't open companion: " .. msg)(element)
+                    end)
+                end,
+                linger = function(element)
+                    gui.Tooltip("Open in companion (browser)")(element)
+                end,
+            }),
+            outlineButton(gui.Panel{
                 classes = {"toggle-btn", "collapsed"},
                 hoverCursor = "pressbutton",
                 bgimage = "ui-icons/eye.png",

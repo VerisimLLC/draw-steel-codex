@@ -15,6 +15,7 @@ local mod = dmhub.GetModLoading()
 --- @field allyParties nil|table<string, boolean> Set of party ids that are allied with this party.
 Party = RegisterGameType("Party")
 
+Party.id = ""
 Party.name = "New Party"
 Party.details = ""
 Party.tableName = "parties"

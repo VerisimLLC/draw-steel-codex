@@ -1020,6 +1020,7 @@ TriggeredAbility.RegisterTrigger{
             name = "Condition",
             type = "string",
             desc = "The name of the condition applied.",
+            valueOptionsSource = "charConditions",
         },
         attacker = {
             name = "Attacker",
@@ -1084,6 +1085,7 @@ TriggeredAbility.RegisterTrigger{
             name = "Resource",
             type = "string",
             desc = "The resource used.",
+            valueOptionsSource = "characterResources",
         },
         quantity = {
             name = "Quantity",
@@ -1101,6 +1103,7 @@ TriggeredAbility.RegisterTrigger{
             name = "Resource",
             type = "string",
             desc = "The resource used.",
+            valueOptionsSource = "characterResources",
         },
         quantity = {
             name = "Quantity",
@@ -1313,6 +1316,7 @@ TriggeredAbility.RegisterTrigger{
             name = "Damage Type",
             type = "text",
             desc = "The type of damage taken when triggering this event.",
+            valueOptionsSource = "damageTypes",
         },
         damageimmunity = {
             name = "Damage Immunity",
@@ -1387,6 +1391,7 @@ TriggeredAbility.RegisterTrigger{
             name = "Damage Type",
             type = "text",
             desc = "The type of damage dealt.",
+            valueOptionsSource = "damageTypes",
         },
         {
             name = "Keywords",

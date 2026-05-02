@@ -149,8 +149,12 @@ TriggeredAbility.TargetTypes = {
         end,
     },
     {
+        -- UI label is "The Trigger Subject" to match the trigger-level
+        -- "Trigger Subject" field in the new editor (design doc rev 4 +
+        -- gotcha 6). Data id stays `subject`; runtime token naming and
+        -- the GoblinScript Subject symbol are unchanged.
         id = 'subject',
-        text = 'Subject',
+        text = 'The Trigger Subject',
         condition = function(ability)
             return ability:try_get("subject", "self") ~= "self"
         end,
@@ -164,6 +168,46 @@ TriggeredAbility.TargetTypes = {
     }
 }
 
+-- TriggeredAbility.triggers
+--
+-- Each entry declares an event the engine can fire a triggered ability
+-- against. Schema (all fields optional unless marked):
+--   id      (string, required)  -- runtime trigger identifier
+--   text    (string, required)  -- editor-facing label
+--   hide    (function -> bool)  -- conditionally hides the trigger from pickers
+--   examples (list)             -- formula examples shown in the editor help
+--   symbols (table)             -- payload symbols available in the condition
+--                                  formula (and to GoblinScript at runtime)
+--
+-- Symbol entry schema (each value inside `symbols`):
+--   name             (string, required)  -- display name; also the runtime
+--                                            injection key after lowercasing
+--                                            and stripping whitespace
+--   type             (string, required)  -- one of: "number", "text",
+--                                            "boolean", "set", "creature",
+--                                            "path", "loc"
+--   desc             (string)            -- in-editor description
+--   valueOptionsSource (string)          -- compendium category id; surfaces
+--                                            a dropdown in the Test Trigger
+--                                            panel for "text" symbols
+--   prose            (string | table)    -- prose phrase used by the
+--                                            preview card, Mech View clause
+--                                            attribution, and Test Trigger
+--                                            result detail. String form for
+--                                            simple nouns ("the damage").
+--                                            Table {role, possessive} form
+--                                            for irregular pronouns
+--                                            (Self -> {role = "you",
+--                                            possessive = "your"}).
+--                                            New work should declare prose
+--                                            here rather than in
+--                                            GoblinScriptProse.lua's
+--                                            centralised registration block.
+--   prosePossessive  (string)            -- explicit possessive for dotted
+--                                            access ("Attacker.Stamina"),
+--                                            overriding the auto-derived
+--                                            "<prose>'s" form. Use only when
+--                                            "+'s" is wrong.
 TriggeredAbility.triggers = {
 
 	{
@@ -178,26 +222,32 @@ TriggeredAbility.triggers = {
 				name = "Damage",
 				type = "number",
 				desc = "The amount of damage taken when triggering this event.",
+				prose = "the damage",
 			},
 			damagetype = {
 				name = "Damage Type",
 				type = "text",
 				desc = "The type of damage taken when triggering this event.",
+				valueOptionsSource = "damageTypes",
+				prose = "the damage type",
 			},
             keywords = {
                 name = "Keywords",
                 type = "set",
                 desc = "The keywords used to apply the damage.",
+                prose = "the damage keywords",
             },
             attacker = {
                 name = "Attacker",
                 type = "creature",
                 desc = "The attacking creature. Only valid if Has Attacker is true.",
+                prose = "the attacker",
             },
             hasattacker = {
                 name = "Has Attacker",
                 type = "boolean",
                 desc = "True if the damage has an attacker.",
+                prose = "there is an attacker",
             }
         },
 
@@ -222,6 +272,7 @@ TriggeredAbility.triggers = {
 				name = "Damage Type",
 				type = "text",
 				desc = "The type of damage taken when triggering this event.",
+				valueOptionsSource = "damageTypes",
 			},
         },
 
@@ -280,7 +331,7 @@ TriggeredAbility.triggers = {
 			},
 			hasattacker = {
 				name = "Has Attacker",
-				type = "creature",
+				type = "boolean",
 				desc = "True if a creature is the one pushing/pulling/sliding",
 			},
 			attacker = {
@@ -539,6 +590,7 @@ TriggeredAbility.RegisterTrigger{
             name = "Damage Type",
             type = "text",
             desc = "The type of damage dealt.",
+            valueOptionsSource = "damageTypes",
         },
         {
             name = "Keywords",
@@ -566,6 +618,7 @@ TriggeredAbility.RegisterTrigger{
             name = "Damage Type",
             type = "text",
             desc = "The type of damage dealt.",
+            valueOptionsSource = "damageTypes",
         },
         {
             name = "Keywords",
@@ -593,6 +646,7 @@ TriggeredAbility.RegisterTrigger{
             name = "Damage Type",
             type = "text",
             desc = "The type of damage dealt.",
+            valueOptionsSource = "damageTypes",
         },
         {
             name = "Keywords",

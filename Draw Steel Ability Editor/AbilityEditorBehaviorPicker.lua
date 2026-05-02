@@ -513,12 +513,16 @@ end
 -- Public API
 -- ============================================================================
 function AbilityEditor.OpenBehaviorPicker(ability, onAdd)
-    -- Determine available types: exclude mono if ability already has behaviors.
-    local types
-    if #(ability.behaviors or {}) > 0 then
-        types = ActivatedAbility.GetTypesWithoutMono()
-    else
-        types = DeepCopy(ActivatedAbility.Types)
+    -- Read the type list via the instance so TriggeredAbility (which has its
+    -- own Types with the extra "momentary" entry; see TriggeredAbility.lua:90)
+    -- reaches the picker. ActivatedAbility callers still resolve to the base
+    -- list via inheritance.
+    local types = {}
+    local excludeMono = #(ability.behaviors or {}) > 0
+    for _, t in ipairs(ability.Types) do
+        if not excludeMono or not t.mono then
+            types[#types + 1] = DeepCopy(t)
+        end
     end
 
     -- Selection callback: close modal and pass the type ID back.
@@ -594,7 +598,7 @@ function AbilityEditor.OpenBehaviorPicker(ability, onAdd)
                     text = "Recently Used",
                 }
                 for _, recentId in ipairs(AbilityEditor._recentBehaviors) do
-                    local typeEntry = ActivatedAbility.TypesById[recentId]
+                    local typeEntry = ability.TypesById[recentId]
                     if typeEntry and not typeEntry.hidden then
                         local meta = BEHAVIOR_METADATA[recentId]
                             or {description = typeEntry.text, tags = {}, group = "scripting"}

@@ -4969,8 +4969,13 @@ function ActivatedAbility:ShowEditActivatedAbilityDialog(options)
 			show = function(editItem)
 				newItem = nil
 
+				-- C6b: forward options.reopen to the inner editor.
+				-- Triggered ability editor reads this to surface an
+				-- "Open Editor" button on its Test Trigger popout that
+				-- re-navigates the user to the original entry point.
+				-- Other GenerateEditor variants ignore the field.
 				mainFormPanel.children = {
-					editItem:GenerateEditor(),
+					editItem:GenerateEditor({reopen = options.reopen}),
 				}
 
 			end,

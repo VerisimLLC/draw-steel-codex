@@ -138,11 +138,13 @@ end
 ---@param followerid string
 function character:RemoveFollowerFromMentor(followerid)
     local token = dmhub.LookupToken(self)
+    local dti = self:GetDowntimeInfo()
     token:ModifyProperties{
         description = "Remove Follower",
         execute = function()
             local followers = self:EnsureFollowers()
             followers[followerid] = nil
+            dti:SetFollowerRolls(followerid, 0)
         end,
     }
 end

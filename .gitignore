@@ -43,3 +43,6 @@ status.json
 *.hex
 
 Definitions/version.txt
+
+# Compendium content -- ignored everything in this folder
+compendium/

@@ -120,6 +120,11 @@ local function buildPreviewBody()
                 classes = { "settingsButton" },
             },
             gui.Button{
+                classes = { "deleteButton" },
+                requireConfirm = true,
+                click = function() print("THC:: DELETEIT") end
+            },
+            gui.Button{
                 classes = { "closeButton" },
             },
         },

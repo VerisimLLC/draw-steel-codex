@@ -44,7 +44,7 @@ ThemeEngine.RegisterColorScheme{
         --[[
             Implementation status for abilities. Users will expect these to be
             consistent across color schemes so the best approach is to avoid
-            redefining these unless they would been difficult to see in your
+            redefining these unless they would be difficult to see in your
             color scheme.
         ]]--
         implStatus0   = "#F82FCD",
@@ -985,6 +985,14 @@ ThemeEngine.RegisterTheme{
         {
             selectors = {"iconButton", "copyButton"},
             bgimage = "icons/icon_app/icon_app_108.png",
+        },
+        {
+            selectors = {"iconButton", "deleteButton"},
+            bgimage = "icons/icon_tool/icon_tool_44.png",
+        },
+        {
+            selectors = {"iconButton", "deleteButton", "hover"},
+            bgcolor = "@danger",
         },
         {
             selectors = {"iconButton", "settingsButton"},

@@ -177,6 +177,10 @@ end
 ---   escapePriority  = string     -- resolved as EscapePriority[name] at call time
 ---   pressSoundEvent = string     -- when caller supplies `press`, wraps it to
 ---                                  fire this audio event before the user's press
+---   confirm         = table      -- when caller supplies `requireConfirm = true`
+---                                  AND a click/press handler, wraps it with a
+---                                  gui.ModalMessage. Fields: title, message,
+---                                  actionText.
 --- An empty table means "no kind-specific behavior" (just the icon path).
 --- Mods may add to this table.
 gui.iconButtonClasses = {
@@ -187,6 +191,13 @@ gui.iconButtonClasses = {
 		pressSoundEvent = "UI.WindowClose",
 	},
 	copyButton = {},
+	deleteButton = {
+		confirm = {
+			title      = "Confirm Delete",
+			message    = "Are you sure you want to delete this item?",
+			actionText = "Delete",
+		},
+	},
 	settingsButton = {},
 }
 
@@ -219,6 +230,12 @@ function gui.Button(options)
 	-- bgimage may come from `options.icon` (callsite) or from a kind-class
 	-- theme rule (e.g. `{iconButton, addButton}` -> `bgimage = "..."`).
 	if (options.icon ~= nil and options.text == nil) or kindConfig ~= nil then
+		-- Pre-extract `requireConfirm` so it doesn't leak into args via the
+		-- generic merge below. Used by kinds whose config has a `confirm` table
+		-- (e.g. deleteButton) to wrap click/press with a confirmation modal.
+		local requireConfirm = options.requireConfirm
+		options.requireConfirm = nil
+
 		local args = {
 			classes = {"iconButton"},
 			bgcolor = options.color or "@fg",
@@ -259,15 +276,47 @@ function gui.Button(options)
 			end
 		end
 
-		-- Press-sound wrap: only when the caller supplied a press handler.
-		-- This preserves opt-out: callers who don't want the default audio
-		-- feedback simply omit `press`.
-		if kindConfig and kindConfig.pressSoundEvent and args.press ~= nil then
-			local userPress = args.press
+		-- Confirmation wrap: when the caller supplied `requireConfirm = true`
+		-- AND the kind has a `confirm` config AND a click/press handler, wrap
+		-- it with a gui.ModalMessage. Replicates gui.DeleteItemButton's logic.
+		if kindConfig and kindConfig.confirm and requireConfirm then
+			local cfg = kindConfig.confirm
+			for _, clickid in ipairs({"click", "press"}) do
+				if args[clickid] then
+					local oldClick = args[clickid]
+					args[clickid] = function(element)
+						gui.ModalMessage{
+							title = cfg.title,
+							message = cfg.message,
+							options = {
+								{
+									text = "Cancel",
+									execute = function()
+										gui.CloseModal()
+									end,
+								},
+								{
+									text = cfg.actionText,
+									execute = function()
+										oldClick(element)
+										gui.CloseModal()
+									end,
+								},
+							},
+						}
+					end
+				end
+			end
+		end
+
+		-- Press-sound default: install a sound-firing press handler ONLY when
+		-- the caller did not provide their own. If the caller supplied `press`,
+		-- leave it untouched -- the caller has opted to handle the press fully
+		-- and own its audio behavior.
+		if kindConfig and kindConfig.pressSoundEvent and args.press == nil then
 			local soundEvent = kindConfig.pressSoundEvent
 			args.press = function(element)
 				audio.FireSoundEvent(soundEvent)
-				userPress(element)
 			end
 		end
 

@@ -472,11 +472,11 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
         tagEditor = gui.Panel{
             classes = {"formStackedRow"},
             gui.Label{
-                classes = {"formStackedLabel"},
+                classes = {"formStacked"},
                 text = "Tags:",
             },
             gui.Multiselect{
-                classes = {"formStackedControl"},
+                classes = {"formStacked"},
                 addItemText = "Add Tag...",
                 options = tagOptions,
                 value = tagValue,
@@ -524,7 +524,7 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
 				classes = {"formPanel"},
 				gui.Label{
 					text = "Feat:",
-					classes = {"formLabel"},
+					classes = {"form"},
 					minWidth = 160,
 				},
 				gui.Dropdown{
@@ -601,7 +601,7 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
 			classes = {"formPanel"},
 			gui.Label{
 				text = "Rules Text:",
-				classes = {"formLabel"},
+				classes = {"form"},
 				minWidth = 160,
 			},
 			gui.Input{
@@ -624,11 +624,11 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
 			gui.Panel{
 				classes = {"formStackedRow"},
 				gui.Label{
-					classes = {"formStackedLabel"},
+					classes = {"formStacked"},
 					text = "Name:",
 				},
 				gui.Input{
-					classes = {"formStackedControl"},
+					classes = {"formStacked"},
 					text = feature.name,
 					change = function(element)
 						feature.name = element.text
@@ -649,11 +649,11 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
 			gui.Panel{
 				classes = {"formStackedRow"},
 				gui.Label{
-					classes = {"formStackedLabel"},
+					classes = {"formStacked"},
 					text = "Description:",
 				},
 				gui.Input{
-					classes = {"formStackedControl"},
+					classes = {"formStacked"},
 					multiline = true,
 					height = 'auto',
 					minHeight = 30,
@@ -1005,11 +1005,11 @@ local SetClass = function(tableName, classPanel, classid)
 	children[#children+1] = gui.Panel{
 		classes = {"formStackedRow"},
 		gui.Label{
-			classes = {"formStackedLabel"},
+			classes = {"formStacked"},
 			text = "Name:",
 		},
 		gui.Input{
-			classes = {"formStackedControl"},
+			classes = {"formStacked"},
 			text = class.name,
 			change = function(element)
 				class.name = string.gsub(element.text, "[-+%d]", "")
@@ -1090,11 +1090,11 @@ local SetClass = function(tableName, classPanel, classid)
 	children[#children+1] = gui.Panel{
 		classes = {"formStackedRow"},
 		gui.Label{
-			classes = {"formStackedLabel"},
+			classes = {"formStacked"},
 			text = "Description:",
 		},
 		gui.Input{
-			classes = {"formStackedControl"},
+			classes = {"formStacked"},
 			multiline = true,
 			height = "auto",
 			minHeight = 30,
@@ -1318,11 +1318,11 @@ function CharacterFeatureChoice:CreateEditor(classOrRace, params)
 			children[#children+1] = gui.Panel{
 				classes = {"formStackedRow"},
 				gui.Label{
-					classes = {"formStackedLabel"},
+					classes = {"formStacked"},
 					text = "Choices:",
 				},
 				gui.GoblinScriptInput{
-					classes = {"formStackedControl"},
+					classes = {"formStacked"},
 					value = self.numChoices,
 					multiline = false,
 					change = function(element)
@@ -1454,11 +1454,11 @@ function CharacterFeatureChoice:CreateEditor(classOrRace, params)
 			children[#children+1] = gui.Panel{
 				classes = {"formStackedRow", cond(tonumber(self.numChoices) ~= 1 and self.costsPoints, nil, "collapsed")},
 				gui.Label{
-					classes = {"formStackedLabel"},
+					classes = {"formStacked"},
 					text = "Points name:",
 				},
 				gui.Input{
-					classes = {"formStackedControl"},
+					classes = {"formStacked"},
 					characterLimit = 32,
 					placeholderText = "Enter name of points...",
 					text = self.pointsName,
@@ -1538,7 +1538,7 @@ function CharacterFeatureChoice:CreateEditor(classOrRace, params)
 				classes = {"formStackedRow"},
 				tmargin = 12,
 				gui.Dropdown{
-					classes = {"formStackedControl"},
+					classes = {"formStacked"},
 
 					idChosen = 'none',
 					options = featureOptions,

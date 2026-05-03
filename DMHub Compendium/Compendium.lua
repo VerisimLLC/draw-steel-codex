@@ -13,19 +13,23 @@ end
 
 local AddButton = function(options)
 	local args = {
-		style = {
-			width = 32,
-			height = 32,
-			halign = 'right',
-			valign = 'top',
-		},
+		classes = {"addButton", "sizeL"},
+		halign = "right",
+		valign = "top",
 	}
+
+	if options.classes ~= nil then
+		for _,c in ipairs(options.classes) do
+			args.classes[#args.classes+1] = c
+		end
+		options.classes = nil
+	end
 
 	for k,v in pairs(options) do
 		args[k] = v
 	end
 
-	return gui.AddButton(args)
+	return gui.Button(args)
 end
 
 local function FindFeaturePathInObject(feature, obj, path)

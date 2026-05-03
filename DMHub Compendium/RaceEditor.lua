@@ -41,11 +41,11 @@ local SetRace = function(tableName, racePanel, raceid)
 	children[#children+1] = gui.Panel{
 		classes = {"formStackedRow"},
 		gui.Label{
-			classes = {"formStackedLabel"},
+			classes = {"formStacked"},
 			text = "Name:",
 		},
 		gui.Input{
-			classes = {"formStackedControl"},
+			classes = {"formStacked"},
 			text = race.name,
 			change = function(element)
 				race.name = element.text
@@ -75,11 +75,11 @@ local SetRace = function(tableName, racePanel, raceid)
 		children[#children+1] = gui.Panel{
 			classes = {"formStackedRow"},
 			gui.Label{
-				classes = {"formStackedLabel"},
+				classes = {"formStacked"},
 				text = "Subrace of:",
 			},
 			gui.Dropdown{
-				classes = {"formStackedControl"},
+				classes = {"formStacked"},
 				options = options,
 				idChosen = race:try_get("parentRace", "none"),
 				change = function(element)
@@ -99,11 +99,11 @@ local SetRace = function(tableName, racePanel, raceid)
 	children[#children+1] = gui.Panel{
 		classes = {"formStackedRow"},
 		gui.Label{
-			classes = {"formStackedLabel"},
+			classes = {"formStacked"},
 			text = "Description:",
 		},
 		gui.Input{
-			classes = {"formStackedControl"},
+			classes = {"formStacked"},
 			text = race.details,
 			multiline = true,
 			minHeight = 50,
@@ -123,11 +123,11 @@ local SetRace = function(tableName, racePanel, raceid)
 	children[#children+1] = gui.Panel{
 		classes = {"formStackedRow"},
 		gui.Label{
-			classes = {"formStackedLabel"},
+			classes = {"formStacked"},
 			text = "Lore:",
 		},
 		gui.Input{
-			classes = {"formStackedControl"},
+			classes = {"formStacked"},
 			text = race.lore,
 			multiline = true,
 			minHeight = 50,
@@ -172,11 +172,11 @@ local SetRace = function(tableName, racePanel, raceid)
 		children[#children+1] = gui.Panel{
 			classes = {"formStackedRow"},
 			gui.Label{
-				classes = {"formStackedLabel"},
+				classes = {"formStacked"},
 				text = "Name Generator:",
 			},
 			gui.Dropdown{
-				classes = {"formStackedControl"},
+				classes = {"formStacked"},
 				fontFace = "Inter",  -- THC:: test: force sans font inline on the dropdown panel
 				idChosen = race:try_get("nameGenerator", "none"),
 				options = nameGeneratorOptions,
@@ -192,11 +192,11 @@ local SetRace = function(tableName, racePanel, raceid)
 		children[#children+1] = gui.Panel{
 			classes = {"formStackedRow"},
 			gui.Label{
-				classes = {"formStackedLabel"},
+				classes = {"formStacked"},
 				text = "Creature Size:",
 			},
 			gui.Dropdown{
-				classes = {"formStackedControl"},
+				classes = {"formStacked"},
 				idChosen = race.size,
 				options = sizeOptions,
 				change = function(element)
@@ -210,11 +210,11 @@ local SetRace = function(tableName, racePanel, raceid)
 		children[#children+1] = gui.Panel{
 			classes = {"formStackedRow"},
 			gui.Label{
-				classes = {"formStackedLabel"},
+				classes = {"formStacked"},
 				text = "Height:",
 			},
 			gui.Input{
-				classes = {"formStackedControl"},
+				classes = {"formStacked"},
 				text = tostring(race.height),
 				change = function(element)
 					race.height = element.text
@@ -227,11 +227,11 @@ local SetRace = function(tableName, racePanel, raceid)
 		children[#children+1] = gui.Panel{
 			classes = {"formStackedRow"},
 			gui.Label{
-				classes = {"formStackedLabel"},
+				classes = {"formStacked"},
 				text = "Weight:",
 			},
 			gui.Input{
-				classes = {"formStackedControl"},
+				classes = {"formStacked"},
 				text = tostring(race.weight),
 				change = function(element)
 					race.weight = element.text
@@ -244,11 +244,11 @@ local SetRace = function(tableName, racePanel, raceid)
 		children[#children+1] = gui.Panel{
 			classes = {"formStackedRow"},
 			gui.Label{
-				classes = {"formStackedLabel"},
+				classes = {"formStacked"},
 				text = "Life Expectancy:",
 			},
 			gui.Input{
-				classes = {"formStackedControl"},
+				classes = {"formStacked"},
 				text = tostring(race.lifeSpan),
 				change = function(element)
 					race.lifeSpan = element.text
@@ -261,11 +261,11 @@ local SetRace = function(tableName, racePanel, raceid)
 		children[#children+1] = gui.Panel{
 			classes = {"formStackedRow"},
 			gui.Label{
-				classes = {"formStackedLabel"},
+				classes = {"formStacked"},
 				text = "Walking Speed:",
 			},
 			gui.Input{
-				classes = {"formStackedControl"},
+				classes = {"formStacked"},
 				text = tostring(race.moveSpeeds.walk),
 				change = function(element)
 					race.moveSpeeds = DeepCopy(race.moveSpeeds) --in case this isn"t init yet.

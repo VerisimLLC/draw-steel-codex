@@ -946,7 +946,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                     Styles.Form,
                     CharacterFeature.ModifierStyles,
                     {
-                        classes = { "formLabel" },
+                        classes = { "form" },
                         halign = "left",
                         width = 180,
                     },
@@ -1013,7 +1013,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                     Styles.Form,
                     CharacterFeature.ModifierStyles,
                     {
-                        classes = { "formLabel" },
+                        classes = { "form" },
                         halign = "left",
                         width = 180,
                     },

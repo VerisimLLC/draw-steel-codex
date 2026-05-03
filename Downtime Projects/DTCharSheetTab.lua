@@ -432,7 +432,8 @@ function DTCharSheetTab._createHeaderPanel()
         }
     }
 
-    local addButton = gui.AddButton {
+    local addButton = gui.Button {
+        classes = {"addButton"},
         halign = "right",
         vmargin = 5,
         hmargin = 20,

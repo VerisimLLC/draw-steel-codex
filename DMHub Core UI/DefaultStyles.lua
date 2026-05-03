@@ -33,34 +33,25 @@ ThemeEngine.RegisterColorScheme{
         accentHover   = "#DDDDDD",
 
         -- Status
-        success       = "#6BA84F",
+        success       = "#6BA84F", -- Also healthy, good, etc.
         info          = "#E9C868",
-        warning       = "#E08A2E",
-        danger        = "#C73131",
+        warning       = "#E08A2E", -- Also winded, etc.
+        danger        = "#C73131", -- Also dying, bad, etc.
 
         -- Disabled
         disabled      = "#343434",
 
-        -- ---------------------------------------------------------------------
-        -- QUARANTINE: feature-specific colors awaiting relocation into their
-        -- consumers' MergeStyles extras. Inside a Lua block comment so they
-        -- are inert -- visible for reference, not registered.
-        -- ---------------------------------------------------------------------
-        --[==[
-        triggerColor              = "#CCCC00",
-        freeColor                 = "#9999FF",
-        passiveColor              = "#006300",
-        triggerColorAgainstText   = "#AAAA00",
-        freeColorAgainstText      = "#7777EE",
-        passiveColorAgainstText   = "#006300",
-        modifierBuff              = "#2A4DFF",
-        modifierDebuff            = "#FF0000",
-        implStatus0               = "#F82FCD",
-        implStatus1               = "#FF0000",
-        implStatus2               = "#CD7F32",
-        implStatus3               = "#C0C0C0",
-        implStatus4               = "#FFD700",
-        ]==]
+        --[[
+            Implementation status for abilities. Users will expect these to be
+            consistent across color schemes so the best approach is to avoid
+            redefining these unless they would been difficult to see in your
+            color scheme.
+        ]]--
+        implStatus0   = "#F82FCD",
+        implStatus1   = "#FF0000",
+        implStatus2   = "#CD7F32",
+        implStatus3   = "#C0C0C0",
+        implStatus4   = "#FFD700",
     },
     gradients = {
         -- Surfaces
@@ -124,69 +115,6 @@ ThemeEngine.RegisterColorScheme{
                 {position = 1,   color = "#FFFFFF00"},
             },
         },
-
-        -- ---------------------------------------------------------------------
-        -- QUARANTINE: feature-specific gradients awaiting relocation. Inside
-        -- a Lua block comment so they are inert.
-        -- ---------------------------------------------------------------------
-        --[==[
-        tempGradient = {
-            point_a = {x = 0, y = 0},
-            point_b = {x = 1, y = 0},
-            stops = {
-                {position = 0, color = "#6666AA"},
-                {position = 1, color = "#6666FF"},
-            },
-        },
-        grayscaleGradient = {
-            point_a = {x = 0, y = 0},
-            point_b = {x = 1, y = 0},
-            stops = {
-                {position = 0, color = "#484848"},
-                {position = 1, color = "#C1C1C1"},
-            },
-        },
-        healthGradient = {
-            point_a = {x = 0, y = 0},
-            point_b = {x = 1, y = 0},
-            stops = {
-                {position = 0, color = "#004D52"},
-                {position = 1, color = "#00B8C4"},
-            },
-        },
-        bloodiedGradient = {
-            point_a = {x = 0, y = 0},
-            point_b = {x = 1, y = 0},
-            stops = {
-                {position = 0, color = "#A15102"},
-                {position = 1, color = "#FA9A00"},
-            },
-        },
-        damagedGradient = {
-            point_a = {x = 0, y = 0},
-            point_b = {x = 1, y = 0},
-            stops = {
-                {position = 0, color = "#440000"},
-                {position = 1, color = "#BB0000"},
-            },
-        },
-        conditionGradient = {
-            point_a = {x = 0, y = 0},
-            point_b = {x = 1, y = 0},
-            stops = {
-                {position = 0, color = "#000000"},
-                {position = 1, color = "@fg"},
-            },
-        },
-        advantageSelectedGradient = {
-            point_a = {x = 0, y = 0},
-            point_b = {x = 1, y = 1},
-            stops = {
-                {position = 0, color = "#111111"},
-                {position = 1, color = "#222222"},
-            },
-        },
-        ]==]
     },
 }
 
@@ -282,6 +210,12 @@ ThemeEngine.RegisterTheme{
         -- =====================================================================
         -- 1. BASICS -- generic widget vocabulary
         -- =====================================================================
+        --
+        -- Convention: bgcolor = "white" is image-tint-neutral. Setting it
+        -- on a bgimage-bearing rule opts that surface out of the cascade's
+        -- @bg tint so the asset paints in its natural colors. Used by
+        -- {panel, image}, portraitImage, tooltipIcon, dialogPanel,
+        -- framedPanel, tokenImagePortrait, and similar.
 
         --[[ Panel ]]
         {
@@ -290,28 +224,21 @@ ThemeEngine.RegisterTheme{
             scrollHandleColor = "@fgMuted",
         },
         {
-            selectors = {"panel", "panelRadial"},
-            bgimage = true,
-            gradient = "@surfaceRadial",
-        },
-        {
             selectors = {"panel", "bordered"},
             bgimage = true,
             border = 1,
             borderColor = "@border",
         },
-        -- Image-displaying panels: opt out of the inherited @bg tint so a
-        -- bgimage asset paints with natural colors. bgcolor stays white
-        -- (image-tint-neutral). Borders are intentionally NOT set here --
+        -- Image-displaying panels. bgcolor "white" is image-tint-neutral
+        -- (see top of section 1). Borders are intentionally NOT set here --
         -- callers manage borderWidth / borderColor per their needs.
         {
             selectors = {"panel", "image"},
             bgcolor = "white",
         },
         -- Portrait image editor (compendium sidebars on Race / Class /
-        -- Career / etc.). 196x294 with a 2px @border frame; bgcolor =
-        -- "white" is image-tint-neutral so the avatar paints in its
-        -- natural colors (same convention as {panel, image}).
+        -- Career / etc.). 196x294 with a 2px @border frame; bgcolor
+        -- "white" is image-tint-neutral (see top of section 1).
         {
             selectors = {"portraitImage"},
             bgcolor = "white",
@@ -339,8 +266,8 @@ ThemeEngine.RegisterTheme{
         {
             selectors = {"panel", "buttonIcon"},
             bgcolor = "@fg",
-            width = "100%",
             height = "100%",
+            width = "100%",
         },
         {
             selectors = {"panel", "buttonIcon", "hover"},
@@ -384,6 +311,10 @@ ThemeEngine.RegisterTheme{
         {
             selectors = {"bold"},
             bold = true,
+        },
+        {
+            selectors = {"noBold"},
+            bold = false,
         },
         {
             selectors = {"label", "number"},
@@ -461,6 +392,7 @@ ThemeEngine.RegisterTheme{
         },
         {
             selectors = {"button", "hasIcon"},
+            width = "100% height",
             border = 0,
             borderWidth = 0,
             bgcolor = "clear",
@@ -474,7 +406,7 @@ ThemeEngine.RegisterTheme{
             bgcolor = "@bg"
         },
         {
-            selectors = {"label", "button", "~disabled", "hover"},
+            selectors = {"label", "button", "~disabled", "~hasIcon", "hover"},
             bgcolor = "@bgInverse",
             color = "@fgInverse",
             borderColor = "@borderInverse",
@@ -609,10 +541,6 @@ ThemeEngine.RegisterTheme{
             width = "100%-40",
             height = "100%",
             hmargin = 6,
-        },
-        {
-            selectors = {"dropdownLabel"},
-            fontFace = "@input",
         },
         {
             selectors = {"label", "dropdownLabel", "parent:hover"},
@@ -976,8 +904,7 @@ ThemeEngine.RegisterTheme{
             width = "100%",
             fontSize = 24,
         },
-        -- Image-tint-neutral on the tooltip icon's bgimage -- "white" opts
-        -- out of the cascade's @bg tint so the icon paints in natural color.
+        -- bgcolor "white" is image-tint-neutral (see top of section 1).
         {
             selectors = {"icon", "tooltipIcon"},
             halign = "right",
@@ -997,9 +924,13 @@ ThemeEngine.RegisterTheme{
 
         --[[ Icon button (generic + HUD) ]]
         --
-        -- iconButton: small accent-able click target (24x24 by default).
-        -- Add a withSuccess / withInfo / withWarning / withDanger class
-        -- to recolor the hover state.
+        -- iconButton: small accent-able click target. Default size is sizeM
+        -- (24x24); pair with a size class (sizeXs..sizeXxl) to override.
+        -- Pair with a withSuccess / withInfo / withWarning / withDanger
+        -- class to recolor the hover state.
+        --
+        -- gui.Button{ icon = ... } (no `text`) returns a panel with this
+        -- class automatically; see Gui.lua's gui.Button.
         --
         -- hudIconButton: larger HUD-bar button with selected/disabled
         -- states and a child hudIconButtonIcon that scales on hover.
@@ -1008,14 +939,21 @@ ThemeEngine.RegisterTheme{
             bgcolor = "@fg",
             width = 24,
             height = 24,
+            valign = "center",
+        },
+        {
+            selectors = {"iconButton", "flipped"},
+	        scale = {x = -1, y = 1},
         },
         {
             selectors = {"iconButton", "hover"},
-            brightness = 2,
+            brightness = 1.5,
+            transitionTime = 0.1,
         },
         {
             selectors = {"iconButton", "press"},
-            brightness = 0.8,
+            brightness = 0.7,
+            transitionTime = 0.1,
         },
         {
             selectors = {"iconButton", "withSuccess", "hover"},
@@ -1033,115 +971,166 @@ ThemeEngine.RegisterTheme{
             selectors = {"iconButton", "withDanger", "hover"},
             bgcolor = "@danger",
         },
+        -- Kind variants. Each registered kind class (see gui.iconButtonClasses
+        -- in Gui.lua) supplies its own bgimage here; size/tint/hover/press
+        -- continue to inherit from the {iconButton} family above.
         {
-            selectors = {"hudIconButton"},
+            selectors = {"iconButton", "addButton"},
+            bgimage = "ui-icons/Plus.png",
+        },
+        {
+            selectors = {"iconButton", "closeButton"},
+            bgimage = "ui-icons/close.png",
+        },
+        {
+            selectors = {"iconButton", "copyButton"},
+            bgimage = "icons/icon_app/icon_app_108.png",
+        },
+        {
+            selectors = {"iconButton", "settingsButton"},
+            bgimage = "ui-icons/skills/98.png",
+        },
+        -- Size variants. Default is sizeM (24x24); the slot is defined
+        -- explicitly so all six size names are theme-vocabulary entries.
+        {
+            selectors = {"iconButton", "sizeXs"},
+            width = 16,
+            height = 16,
+        },
+        {
+            selectors = {"iconButton", "sizeS"},
+            width = 20,
+            height = 20,
+        },
+        {
+            selectors = {"iconButton", "sizeM"},
+            width = 24,
+            height = 24,
+        },
+        {
+            selectors = {"iconButton", "sizeL"},
+            width = 32,
+            height = 32,
+        },
+        {
+            selectors = {"iconButton", "sizeXl"},
+            width = 48,
+            height = 48,
+        },
+        {
+            selectors = {"iconButton", "sizeXxl"},
             width = 58,
             height = 58,
-            bgimage = true,
-            bgcolor = "@bg",
-            borderColor = "@fg",
-            borderWidth = 1,
         },
-        {
-            selectors = {"hudIconButton", "hover"},
-            brightness = 2.5,
-            transitionTime = 0.1,
-        },
-        {
-            selectors = {"hudIconButton", "press"},
-            brightness = 0.8,
-            transitionTime = 0.1,
-        },
-        {
-            selectors = {"hudIconButton", "disabled"},
-            brightness = 0.5,
-            saturation = 0.2,
-        },
-        {
-            selectors = {"hudIconButton", "selected"},
-            brightness = 3.0,
-            saturation = 1.4,
-        },
-        {
-            selectors = {"hudIconButton", "selected", "tab"},
-            brightness = 1,
-            saturation = 1,
-            bgcolor = "@bg",
-            border = {x1 = 1, x2 = 1, y1 = 0, y2 = 1},
-        },
-        {
-            selectors = {"hudIconButtonIcon"},
-            width = "75%",
-            height = "75%",
-            halign = "center",
-            valign = "center",
-            bgcolor = "@fg",
-        },
-        {
-            selectors = {"hudIconButtonIcon", "parent:hover"},
-            brightness = 1.5,
-            transitionTime = 0.1,
-            scale = 1.15,
-        },
-        {
-            selectors = {"hudIconButtonIcon", "parent:press"},
-            brightness = 0.8,
-            transitionTime = 0.1,
-        },
-        {
-            selectors = {"hudIconButtonIcon", "parent:deselected"},
-            saturation = 0.0,
-            brightness = 0.8,
-        },
-        {
-            selectors = {"hudIconButtonIcon", "parent:disabled"},
-            saturation = 0.2,
-            brightness = 0.5,
-            scale = 1,
-        },
-        {
-            selectors = {"hudIconButtonIcon", "parent:selected"},
-            saturation = 1.5,
-            brightness = 1.5,
-        },
+        -- {
+        --     selectors = {"hudIconButton"},
+        --     width = 58,
+        --     height = 58,
+        --     bgimage = true,
+        --     bgcolor = "@bg",
+        --     borderColor = "@fg",
+        --     borderWidth = 1,
+        -- },
+        -- {
+        --     selectors = {"hudIconButton", "hover"},
+        --     brightness = 2.5,
+        --     transitionTime = 0.1,
+        -- },
+        -- {
+        --     selectors = {"hudIconButton", "press"},
+        --     brightness = 0.8,
+        --     transitionTime = 0.1,
+        -- },
+        -- {
+        --     selectors = {"hudIconButton", "disabled"},
+        --     brightness = 0.5,
+        --     saturation = 0.2,
+        -- },
+        -- {
+        --     selectors = {"hudIconButton", "selected"},
+        --     brightness = 3.0,
+        --     saturation = 1.4,
+        -- },
+        -- {
+        --     selectors = {"hudIconButton", "selected", "tab"},
+        --     brightness = 1,
+        --     saturation = 1,
+        --     bgcolor = "@bg",
+        --     border = {x1 = 1, x2 = 1, y1 = 0, y2 = 1},
+        -- },
+        -- {
+        --     selectors = {"hudIconButtonIcon"},
+        --     width = "75%",
+        --     height = "75%",
+        --     halign = "center",
+        --     valign = "center",
+        --     bgcolor = "@fg",
+        -- },
+        -- {
+        --     selectors = {"hudIconButtonIcon", "parent:hover"},
+        --     brightness = 1.5,
+        --     transitionTime = 0.1,
+        --     scale = 1.15,
+        -- },
+        -- {
+        --     selectors = {"hudIconButtonIcon", "parent:press"},
+        --     brightness = 0.8,
+        --     transitionTime = 0.1,
+        -- },
+        -- {
+        --     selectors = {"hudIconButtonIcon", "parent:deselected"},
+        --     saturation = 0.0,
+        --     brightness = 0.8,
+        -- },
+        -- {
+        --     selectors = {"hudIconButtonIcon", "parent:disabled"},
+        --     saturation = 0.2,
+        --     brightness = 0.5,
+        --     scale = 1,
+        -- },
+        -- {
+        --     selectors = {"hudIconButtonIcon", "parent:selected"},
+        --     saturation = 1.5,
+        --     brightness = 1.5,
+        -- },
 
         --[[ Iconographic buttons (close / plus / delete) ]]
-        {
-            selectors = {"closeButton"},
-            width = 24,
-            height = 24,
-            margin = 6,
-            halign = "right",
-            valign = "top",
-            bgcolor = "@fg",
-        },
-        {
-            selectors = {"closeButton", "hover"},
-            brightness = 2,
-        },
-        {
-            selectors = {"closeButton", "press"},
-            brightness = 0.5,
-        },
-        {
-            selectors = {"plusButton"},
-            width = 24,
-            height = 24,
-            bgcolor = "@fg",
-        },
-        {
-            selectors = {"plusButton", "hover"},
-            brightness = 1.4,
-        },
-        {
-            selectors = {"plusButton", "press"},
-            brightness = 0.8,
-        },
-        {
-            selectors = {"deleteItemButton"},
-            width = 24,
-            height = 24,
-        },
+        -- {
+        --     selectors = {"closeButton"},
+        --     width = 24,
+        --     height = 24,
+        --     margin = 6,
+        --     halign = "right",
+        --     valign = "top",
+        --     bgcolor = "@fg",
+        -- },
+        -- {
+        --     selectors = {"closeButton", "hover"},
+        --     brightness = 2,
+        -- },
+        -- {
+        --     selectors = {"closeButton", "press"},
+        --     brightness = 0.5,
+        -- },
+        -- {
+        --     selectors = {"plusButton"},
+        --     width = 24,
+        --     height = 24,
+        --     bgcolor = "@fg",
+        -- },
+        -- {
+        --     selectors = {"plusButton", "hover"},
+        --     brightness = 1.4,
+        -- },
+        -- {
+        --     selectors = {"plusButton", "press"},
+        --     brightness = 0.8,
+        -- },
+        -- {
+        --     selectors = {"deleteItemButton"},
+        --     width = 24,
+        --     height = 24,
+        -- },
 
         --[[ Triangle (expand/collapse arrow) ]]
         --
@@ -1156,14 +1145,7 @@ ThemeEngine.RegisterTheme{
             hmargin = 4,
             valign = "center",
             halign = "left",
-            -- transitionTime = 0.2,
-            -- rotate = 90,
         },
-        -- {
-        --     selectors = {"triangle", "expanded"},
-        --     rotate = 0,
-        --     transitionTime = 0.2,
-        -- },
         {
             selectors = {"triangle", "hover"},
             brightness = 1.5,
@@ -1344,12 +1326,21 @@ ThemeEngine.RegisterTheme{
         -- 2. FORMS -- label/control layouts
         -- =====================================================================
 
-        --[[ Inline form (label-left + control-right) ]]
+        --[[ Default form (label-left + control-right) ]]
+        --
+        -- Authoring pattern: row containers take `formRow` (full-width) or
+        -- `formPanel` (compact, used by feature editors). Every child
+        -- (label, input, dropdown, multiselect, ...) takes the single
+        -- namespace class `form`. The cascade conjuncts `form` with each
+        -- child's primitive class to pick the right rule; controls without
+        -- a primitive-specific rule fall through to the `{form}` catch-all.
+        -- `formValue` is a separate read-only-display label class.
         {
             selectors = {"formRow"},
             flow = "horizontal",
-            width = "100%",
+            width = "98%",
             height = "auto",
+            halign = "left",
             valign = "top",
             vmargin = 4,
         },
@@ -1363,33 +1354,40 @@ ThemeEngine.RegisterTheme{
             vmargin = 2,
         },
         {
-            selectors = {"formLabel"},
+            selectors = {"label", "form"},
             fontSize = 18,
             color = "@fgStrong",
             width = "auto",
             height = "auto",
             minWidth = 140,
-            halign = "right",
+            halign = "left",
             valign = "center",
             hmargin = 8,
         },
+        -- Catch-all for any form child without a primitive-specific rule
+        -- below (multiselect, custom widgets, etc.).
         {
-            selectors = {"formInput"},
+            selectors = {"form"},
+            halign = "left",
+            valign = "center",
+        },
+        {
+            selectors = {"input", "form"},
             fontSize = 16,
             width = 180,
             height = 26,
             color = "@fg",
-            halign = "right",
+            halign = "left",
             valign = "center",
             textAlignment = "left",
         },
         {
-            selectors = {"formInput", "multiline"},
+            selectors = {"input", "form", "multiline"},
             textAlignment = "topleft",
         },
         {
-            selectors = {"formDropdown"},
-            halign = "right",
+            selectors = {"dropdown", "form"},
+            halign = "left",
             vmargin = 4,
             width = 240,
             height = 30,
@@ -1405,11 +1403,14 @@ ThemeEngine.RegisterTheme{
 
         --[[ Stacked form (label-above-control) ]]
         --
-        -- Vertical layout. Each row is {formStackedRow}, holding a
-        -- {label, formStackedLabel} directly above its control
-        -- ({formStackedControl}). Compound selectors on the control rules
-        -- so the size beats any surface-specific {input}/{dropdown} sizes
-        -- in caller MergeStyles extras.
+        -- Vertical layout. The row container takes `formStackedRow`; every
+        -- child (label, input, dropdown, multiselect, ...) takes the
+        -- single namespace class `formStacked`. The cascade conjuncts
+        -- `formStacked` with each child's primitive class to pick the
+        -- right rule; controls without a primitive-specific rule fall
+        -- through to the `{formStacked}` catch-all. Compound selectors on
+        -- the input/dropdown rules so the size beats any surface-specific
+        -- {input}/{dropdown} sizes in caller MergeStyles extras.
         {
             selectors = {"formStackedRow"},
             flow = "vertical",
@@ -1419,7 +1420,7 @@ ThemeEngine.RegisterTheme{
             bmargin = 8,
         },
         {
-            selectors = {"label", "formStackedLabel"},
+            selectors = {"label", "formStacked"},
             fontSize = 18,
             width = "98%",
             height = "auto",
@@ -1428,9 +1429,10 @@ ThemeEngine.RegisterTheme{
             bmargin = 4,
             bold = true,
         },
-        -- Catch-all for any formStackedControl (multiselect, etc.).
+        -- Catch-all for any formStacked child without a primitive-specific
+        -- rule below (multiselect, custom widgets, etc.).
         {
-            selectors = {"formStackedControl"},
+            selectors = {"formStacked"},
             width = "98%",
         },
         -- Inputs in stacked forms: 98% width, height 30 with internal padding
@@ -1438,7 +1440,7 @@ ThemeEngine.RegisterTheme{
         -- dropdown (18) for visual consistency between input and dropdown
         -- controls in the same form.
         {
-            selectors = {"input", "formStackedControl"},
+            selectors = {"input", "formStacked"},
             width = "98%",
             height = 30,
             hpad = 6,
@@ -1447,55 +1449,8 @@ ThemeEngine.RegisterTheme{
         },
         -- Dropdowns in stacked forms: 98% width and height matching inputs.
         {
-            selectors = {"dropdown", "formStackedControl"},
+            selectors = {"dropdown", "formStacked"},
             width = "98%",
-            height = 30,
-        },
-
-        -- Inline form vocabulary -- label-left, control-right, single row.
-        -- Use this when the label and control should sit side-by-side on the
-        -- same line (e.g. settings rows). Vertical-stacked forms use the
-        -- formStacked* family above.
-        {
-            selectors = {"formInlineRow"},
-            flow = "horizontal",
-            width = "98%",
-            height = 48,
-            halign = "left",
-            valign = "top",
-            bmargin = 4,
-        },
-        {
-            selectors = {"label", "formInlineLabel"},
-            fontSize = 18,
-            color = "@fgStrong",
-            width = "27%",
-            height = "auto",
-            halign = "left",
-            valign = "center",
-            rmargin = 6,
-        },
-        -- Catch-all for any formInlineControl (dropdown, multiselect, etc.).
-        {
-            selectors = {"formInlineControl"},
-            halign = "left",
-            valign = "center",
-            width = "100% available",
-        },
-        -- Inputs in inline forms: numeric width matching the existing
-        -- settings-screen pattern, height matching the dropdown.
-        {
-            selectors = {"input", "formInlineControl"},
-            width = 200,
-            height = 30,
-            hpad = 6,
-            vpad = 4,
-            fontSize = 18,
-        },
-        -- Dropdowns in inline forms: width 200 to match inputs visually.
-        {
-            selectors = {"dropdown", "formInlineControl"},
-            width = 200,
             height = 30,
         },
 
@@ -1593,8 +1548,7 @@ ThemeEngine.RegisterTheme{
             textAlignment = "center",
             fontSize = 24,
         },
-        -- Image-tint-neutral on the InventorySlot bgimage -- "white" opts
-        -- out of the cascade's @bg tint so the asset paints in natural color.
+        -- bgcolor "white" is image-tint-neutral (see top of section 1).
         {
             selectors = {"dialogPanel"},
             bgimage = "panels/InventorySlot_Background.png",
@@ -1621,14 +1575,6 @@ ThemeEngine.RegisterTheme{
             borderWidth = 2,
             borderColor = "@bg",
             cornerRadius = 8,
-        },
-        {
-            selectors = {"modalButtonPanel"},
-            width = "100%-50",
-            height = 100,
-            valign = "bottom",
-            halign = "center",
-            flow = "horizontal",
         },
         -- {
         --     selectors = {"prettyButton"},
@@ -1667,9 +1613,8 @@ ThemeEngine.RegisterTheme{
         },
 
         --[[ Framed panel ]]
-        -- Image-tint-neutral on the square bgimage -- the @surfaceLinear
-        -- gradient paints the visible color; "white" lets it through
-        -- without being multiplied by the cascade's @bg.
+        -- @surfaceLinear gradient paints the visible color; bgcolor "white"
+        -- is image-tint-neutral (see top of section 1).
         {
             selectors = {"framedPanel"},
             bgimage = true,
@@ -1711,27 +1656,13 @@ ThemeEngine.RegisterTheme{
             selectors = {"hideForPlayers", "player"},
             hidden = 1,
         },
-        {
-            selectors = {"collapseForPlayers", "player"},
-            collapsed = 1,
-        },
-        {
-            selectors = {"hideUnlessParentHover"},
-            hidden = 1,
-        },
-        {
-            selectors = {"hideUnlessParentHover", "parent:hover"},
-            hidden = 0,
-        },
 
         --[[ Token image ]]
         --
         -- gui.CreateTokenImage builds a 3-panel structure: outer (tokenImage)
         -- holds a portrait (tokenImagePortrait) with the token's portrait as
-        -- bgimage, and a frame (tokenImageFrame) overlay. The portrait MUST
-        -- have bgcolor = "white" (image-tint-neutral) so the portrait paints
-        -- in its natural colors -- without this rule, the portrait gets tinted
-        -- to whatever the surrounding cascade provides (typically @bg).
+        -- bgimage, and a frame (tokenImageFrame) overlay. The portrait's
+        -- bgcolor "white" is image-tint-neutral (see top of section 1).
         --
         -- The factory also emits the legacy kebab class names alongside these
         -- so existing non-themed consumers (Styles.lua) keep rendering.
@@ -1753,322 +1684,6 @@ ThemeEngine.RegisterTheme{
             width = "100%",
             height = "100%",
         },
-
-        -- =====================================================================
-        -- 6. QUARANTINE -- feature-specific rules awaiting relocation
-        -- =====================================================================
-        --
-        -- These rules don't belong in DefaultStyles per the file header
-        -- doctrine -- they live here only because their consumers haven't
-        -- been migrated yet. They are wrapped in a Lua block comment so
-        -- they are inert (visible to readers, easy to relocate, not
-        -- registered with the engine).
-        --
-        -- Re-enable an entry only as a short-term measure while a consumer
-        -- is being migrated. The goal is to drain this block over time.
-
-        --[==[
-        --[[ rollable -- text styles for clickable rollable values ]]
-        {
-            selectors = {"rollable"},
-            color = "#FFAAAA",
-            textAlignment = "center",
-            borderWidth = 0,
-        },
-        {
-            selectors = {"rollable", "hover"},
-            bgcolor = "@bg",
-            borderWidth = 2,
-            color = "#FFCCCC",
-            borderColor = "#FFCCCC",
-        },
-        {
-            selectors = {"rollable", "hover", "press"},
-            borderWidth = 4,
-            color = "#FFDDDD",
-            borderColor = "#FFDDDD",
-        },
-
-        --[[ Pretty button (label-button decorative variant) ]]
-        --
-        -- NOTE: shares the kebab name with the modal prettyButton rule
-        -- above. If reactivated, rename to disambiguate (e.g. button-pretty).
-        {
-            selectors = {"label", "button", "prettyButton"},
-            fontSize = 24,
-            hmargin = 16,
-            vmargin = 16,
-            width = "130% auto",
-            height = "130% auto",
-            borderWidth = 3,
-        },
-
-        --[[ Highlight bars ]]
-        {
-            selectors = {"highlightGood"},
-            transitionTime = 1,
-            bgcolor = "green",
-        },
-        {
-            selectors = {"highlightBad"},
-            transitionTime = 1,
-            bgcolor = "red",
-        },
-
-        --[[ Clickable icon (generic hover-brightening icon) ]]
-        {
-            selectors = {"clickableIcon"},
-            bgcolor = "@fg",
-            width = 16,
-            height = 16,
-        },
-        {
-            selectors = {"clickableIcon", "hover"},
-            brightness = 1.5,
-        },
-        {
-            selectors = {"dice", "parent:clickableIcon", "parent:hover"},
-            brightness = 1.5,
-        },
-
-        --[[ Settings button -- additive blend variant of iconButton ]]
-        {
-            selectors = {"iconButton", "settingsButton"},
-            blend = "add",
-        },
-
-        --[[ Dockable panel ]]
-        {
-            selectors = {"dockablePanel"},
-            bgimage = true,
-        },
-
-        --[[ Inventory slot ]]
-        {
-            selectors = {"inventorySlotHighlight"},
-            bgimage = "panels/InventorySlot_Focus.png",
-            bgcolor = "white",
-            width = 90,
-            height = 90,
-            halign = "center",
-            valign = "center",
-            opacity = 0,
-        },
-        {
-            selectors = {"inventorySlotHighlight", "hover"},
-            opacity = 1,
-        },
-        {
-            selectors = {"inventorySlotHighlight", "press"},
-            bgcolor = "red",
-        },
-        {
-            selectors = {"inventorySlotBackground"},
-            bgimage = "panels/InventorySlot_Background.png",
-            bgcolor = "white",
-            width = 72,
-            height = 72,
-            margin = 0,
-            pad = 0,
-        },
-        {
-            selectors = {"inventorySlotIcon"},
-            bgcolor = "white",
-            halign = "center",
-            valign = "center",
-            width = "100%",
-            height = "100%",
-            hmargin = 0,
-        },
-
-        --[[ Advantage bar ]]
-        {
-            selectors = {"advantageBar"},
-            halign = "center",
-            height = 30,
-            width = 340,
-            flow = "horizontal",
-        },
-        {
-            selectors = {"advantageElementLockIcon"},
-            hidden = 1,
-        },
-        {
-            selectors = {"advantageElementLockIcon", "parent:locked"},
-            hidden = 0,
-            margin = 2,
-            bgcolor = "white",
-            width = 16,
-            height = 16,
-            halign = "right",
-            valign = "center",
-        },
-        {
-            selectors = {"advantageElement"},
-            bgimage = true,
-            bgcolor = "#FFFFFF00",
-            color = "white",
-            width = 140,
-            height = 22,
-            fontSize = 14,
-            textAlignment = "center",
-            halign = "center",
-        },
-        {
-            selectors = {"advantageElement", "hover", "~selected"},
-            bgcolor = "#FFFFFF66",
-        },
-        {
-            selectors = {"advantageElement", "selected", "~press"},
-            borderWidth = 2,
-            borderColor = "white",
-            bgcolor = "white",
-            gradient = "@advantageSelectedGradient",
-        },
-        {
-            selectors = {"advantageElement", "locked"},
-            bgcolor = "#FF7777FF",
-        },
-        {
-            selectors = {"advantageElement", "press"},
-            bgcolor = "white",
-            color = "@bg",
-        },
-        {
-            selectors = {"advantageRulesPanel"},
-            bgcolor = "#000000AA",
-            width = "auto",
-            height = "auto",
-            pad = 8,
-            flow = "vertical",
-        },
-        {
-            selectors = {"advantageRulesLabel"},
-            color = "white",
-            width = "auto",
-            height = "auto",
-            fontSize = 14,
-        },
-        {
-            selectors = {"advantage"},
-            color = "#AAFFAA",
-        },
-        {
-            selectors = {"disadvantage"},
-            color = "#FFAAAA",
-        },
-
-        --[[ Folder library ]]
-        {
-            selectors = {"folderContainer"},
-            flow = "vertical",
-            width = "100%",
-            height = "auto",
-            valign = "top",
-        },
-        {
-            selectors = {"folderHeader"},
-            width = "100%",
-            flow = "horizontal",
-            height = 24,
-            bgimage = true,
-            bgcolor = "@fg",
-        },
-        {
-            selectors = {"folderHeader", "hover"},
-            brightness = 1.5,
-        },
-        {
-            selectors = {"folderHeader", "parent:drag-target"},
-            brightness = 1.5,
-        },
-        {
-            selectors = {"folderHeader", "parent:drag-target-hover"},
-            brightness = 3,
-        },
-        {
-            selectors = {"triangle", "folderTriangle"},
-            bgimage = "panels/triangle.png",
-            bgcolor = "@bg",
-            width = 16,
-            height = 12,
-            hmargin = 4,
-            valign = "center",
-            halign = "left",
-        },
-        {
-            selectors = {"triangle", "folderTriangle", "parent:expanded"},
-            scale = {x = 1, y = -1},
-            transitionTime = 0.1,
-        },
-        {
-            selectors = {"folderLabel"},
-            color = "@bg",
-            fontSize = 18,
-            width = "80%",
-            height = "100%",
-            halign = "left",
-            textAlignment = "left",
-        },
-
-        --[[ Spell implementation status icons ]]
-        {
-            selectors = {"spellImplementationIcon"},
-            width = 16,
-            height = 16,
-            hmargin = 4,
-        },
-        {
-            selectors = {"spellImplementationIcon", "wontimplement"},
-            bgimage = "icons/icon_common/icon_common_29.png",
-            bgcolor = "@implStatus0",
-        },
-        {
-            selectors = {"spellImplementationIcon", "unimplemented"},
-            bgimage = "icons/icon_common/icon_common_29.png",
-            bgcolor = "@implStatus1",
-        },
-        {
-            selectors = {"spellImplementationIcon", "bronze"},
-            bgimage = "icons/icon_common/icon_common_29.png",
-            bgcolor = "@implStatus2",
-        },
-        {
-            selectors = {"spellImplementationIcon", "silver"},
-            bgimage = "icons/icon_common/icon_common_29.png",
-            bgcolor = "@implStatus3",
-        },
-        {
-            selectors = {"spellImplementationIcon", "gold"},
-            bgimage = "icons/icon_common/icon_common_29.png",
-            bgcolor = "@implStatus4",
-        },
-
-        --[[ Triggered action panels ]]
-        {
-            selectors = {"triggeredActionPanel"},
-            bgcolor = "@triggerColor",
-            color = "white",
-            bold = true,
-            textAlignment = "center",
-        },
-        {
-            selectors = {"triggeredActionPanel", "free"},
-            bgcolor = "@freeColor",
-            color = "white",
-        },
-        {
-            selectors = {"triggeredActionPanel", "passive"},
-            bgcolor = "@passiveColor",
-            color = "white",
-        },
-        {
-            selectors = {"triggeredActionPanel", "expended"},
-            saturation = 0.3,
-            brightness = 0.3,
-            color = "@bg",
-        },
-        ]==]
     },
 }
 

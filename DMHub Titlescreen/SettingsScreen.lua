@@ -23,14 +23,16 @@ local CreateBetaBranchEditor = function()
 		halign = "center",
 		flow = "vertical",
 		gui.Panel{
-			classes = {"formInlineRow"},
+			classes = {"formRow"},
 			width = "100%",
 			gui.Label{
-				classes = {"formInlineLabel"},
+				classes = {"form"},
+				width = "66%",
 				text = "DMHub Version:",
 			},
 			gui.Dropdown{
-				classes = {"formInlineControl"},
+				classes = {"form"},
+				width = "33%",
 				idChosen = branch,
 				options = {
 					{
@@ -93,14 +95,16 @@ CreateLanguageEditor = function()
 		end,
 
 		gui.Panel{
-			classes = {"formInlineRow"},
+			classes = {"formRow"},
 			width = "100%",
 			gui.Label{
-				classes = {"formInlineLabel"},
+				classes = {"form"},
+				width = "66%",
 				text = "Language:",
 			},
 			gui.Dropdown{
-				classes = {"formInlineControl"},
+				classes = {"form"},
+				width = "33%",
 				idChosen = dmhub.GetSettingValue("lang"),
 				options = options,
 				change = function(element)

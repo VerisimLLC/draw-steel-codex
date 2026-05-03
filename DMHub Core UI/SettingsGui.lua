@@ -14,7 +14,8 @@ local CreateEditorPanel = function(var, editor, changeFunction, args)
 	local label = nil
 	if not var.hidelabel then
 		label = gui.Label{
-			classes = {"formInlineLabel"},
+			classes = {"form"},
+			width = "60%",
 			text = string.format("%s:", var.description),
 		}
 	end
@@ -50,7 +51,7 @@ local SettingsEditors = {
 
 	input = function(var)
 		local input = gui.Input{
-			classes = {"formInlineControl"},
+			classes = {"form"},
 			text = dmhub.GetSettingValue(var.id),
 
 			characterLimit = var.characterLimit,
@@ -287,28 +288,30 @@ local SettingsEditors = {
 		end
 
 		local editor = gui.Dropdown{
-					classes = {"formInlineControl"},
-					options = options,
-					idChosen = value,
-					monitor = var.id,
-					events = {
-						monitor = function(element)
-							value = dmhub.GetSettingValue(var.id)
-							element.idChosen = value
-						end,
-						change = function(element)
-							dmhub.SetSettingValue(var.id, element.idChosen)
-							if var.onchange then
-								var.onchange()
-							end
-						end,
-						refreshAssets = function(element)
-							if var.getOptions ~= nil then
-								element.options = var.getOptions()
-							end
-						end,
-					}
+				classes = {"form"},
+				width = "33%",
+				halign = "right",
+				options = options,
+				idChosen = value,
+				monitor = var.id,
+				events = {
+					monitor = function(element)
+						value = dmhub.GetSettingValue(var.id)
+						element.idChosen = value
+					end,
+					change = function(element)
+						dmhub.SetSettingValue(var.id, element.idChosen)
+						if var.onchange then
+							var.onchange()
+						end
+					end,
+					refreshAssets = function(element)
+						if var.getOptions ~= nil then
+							element.options = var.getOptions()
+						end
+					end,
 				}
+			}
 		
 		return CreateEditorPanel(var, editor, nil, args)
 

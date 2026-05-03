@@ -44,32 +44,32 @@ local function buildPreviewBody()
             text = "Sample Heading",
         },
         gui.Panel{
-            classes = {"formInlineRow"},
+            classes = {"formRow"},
             gui.Label{
-                classes = {"formInlineLabel"},
+                classes = {"form"},
                 text = "Sample Field:",
             },
             gui.Input{
-                classes = {"formInlineControl"},
+                classes = {"form"},
                 text = "type here...",
             },
         },
         gui.Panel{
-            classes = {"formInlineRow"},
+            classes = {"formRow"},
             gui.Check{
-                classes = {"formInlineControl"},
+                classes = {"form"},
                 text = "Enabled",
                 value = true,
             },
         },
         gui.Panel{
-            classes = {"formInlineRow"},
+            classes = {"formRow"},
             gui.Label{
-                classes = {"formInlineLabel"},
+                classes = {"form"},
                 text = "Sample Dropdown:",
             },
             gui.Dropdown{
-                classes = {"formInlineControl"},
+                classes = {"form"},
                 idChosen = "a",
                 options = {
                     { id = "a", text = "Option A" },
@@ -79,14 +79,14 @@ local function buildPreviewBody()
             },
         },
         gui.Panel{
-            classes = {"formInlineRow"},
+            classes = {"formRow"},
             gui.Label{
-                classes = {"formInlineLabel"},
+                classes = {"form"},
                 text = "Sample Tags:",
                 valign = "top",
             },
             gui.Multiselect{
-                classes = {"formInlineControl"},
+                classes = {"form"},
                 chipPos = "bottom",
                 value = { red = true, blue = true },
                 options = {
@@ -95,6 +95,32 @@ local function buildPreviewBody()
                     { id = "green",  text = "Green" },
                     { id = "yellow", text = "Yellow" },
                 },
+            },
+        },
+        gui.Panel{
+            classes = {"formRow"},
+            gui.Label{
+                classes = {"form"},
+                text = "Icon Buttons:",
+            },
+            gui.Button{
+                icon = "game-icons/griffin-symbol.png",
+            },
+            gui.Button{
+                classes = {"flipped"},
+                icon = "game-icons/griffin-symbol.png",
+            },
+            gui.Button {
+                classes = { "addButton" },
+            },
+            gui.Button{
+                classes = { "copyButton" },
+            },
+            gui.Button{
+                classes = { "settingsButton" },
+            },
+            gui.Button{
+                classes = { "closeButton" },
             },
         },
         gui.Button{
@@ -138,11 +164,11 @@ CreateThemeSettingsDialog = function()
             classes = {"formStackedRow"},
             width = "40%",
             gui.Label{
-                classes = {"formStackedLabel"},
+                classes = {"formStacked"},
                 text = "Theme:",
             },
             gui.Dropdown{
-                classes = {"formStackedControl"},
+                classes = {"formStacked"},
                 idChosen = selectedThemeId,
                 options = buildThemeOptions(),
                 change = function(element)
@@ -156,11 +182,11 @@ CreateThemeSettingsDialog = function()
             classes = {"formStackedRow"},
             width = "40%",
             gui.Label{
-                classes = {"formStackedLabel"},
+                classes = {"formStacked"},
                 text = "Color Scheme:",
             },
             gui.Dropdown{
-                classes = {"formStackedControl"},
+                classes = {"formStacked"},
                 idChosen = selectedSchemeId,
                 options = buildSchemeOptions(),
                 change = function(element)
@@ -173,7 +199,8 @@ CreateThemeSettingsDialog = function()
         gui.Button{
             classes = {"sizeM"},
             text = "Apply",
-            valign = "bottom",
+            valign = "top",
+            tmargin = 24,
             click = function()
                 ThemeEngine.SetActiveTheme(selectedThemeId)
                 ThemeEngine.SetActiveColorScheme(selectedSchemeId)
@@ -197,6 +224,7 @@ CreateThemeSettingsDialog = function()
             height = "auto",
             text = "Theme & Color Scheme",
         },
+        gui.MCDMDivider{ bmargin = 12 },
 
         pickerRow,
         previewPanel,

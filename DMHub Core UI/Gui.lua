@@ -169,10 +169,111 @@ end
 
 
 
---- Create a button.
+--- Classes that, when present in `options.classes`, signal that gui.Button
+--- should take the icon-only (panel-based) render path. The theme rule for
+--- the kind class (e.g. `{iconButton, addButton}`) supplies the bgimage.
+--- Each entry's value is a config table whose recognized fields are:
+---   escapeActivates = bool       -- sets args.escapeActivates
+---   escapePriority  = string     -- resolved as EscapePriority[name] at call time
+---   pressSoundEvent = string     -- when caller supplies `press`, wraps it to
+---                                  fire this audio event before the user's press
+--- An empty table means "no kind-specific behavior" (just the icon path).
+--- Mods may add to this table.
+gui.iconButtonClasses = {
+	addButton = {},
+	closeButton = {
+		escapeActivates = true,
+		escapePriority  = "EXIT_DIALOG",
+		pressSoundEvent = "UI.WindowClose",
+	},
+	copyButton = {},
+	settingsButton = {},
+}
+
+--- Create a button. Three render shapes:
+---  - text only, or text + icon -> a {label, button} (existing chrome).
+---  - icon-only via `icon = "path"` (no text) -> a panel themed by `iconButton`.
+---  - icon-only via a kind class registered in `gui.iconButtonClasses`
+---    (e.g. `classes = {"addButton"}`) -> a panel themed by `iconButton`,
+---    with the bgimage supplied by the kind's theme rule and any kind config
+---    (escape activation, press sound) applied from `gui.iconButtonClasses`.
+--- The icon-only paths bypass the {label, button} cascade entirely so the
+--- icon's bgimage/bgcolor don't fight chrome rules.
 --- @param options LabelArgs
---- @return Label
+--- @return Label|Panel
 function gui.Button(options)
+	-- Detect class-based icon-only mode: any class in options.classes that is
+	-- registered in gui.iconButtonClasses triggers the panel path.
+	local kindConfig = nil
+	if options.classes ~= nil then
+		for _,c in ipairs(options.classes) do
+			if gui.iconButtonClasses[c] then
+				kindConfig = gui.iconButtonClasses[c]
+				break
+			end
+		end
+	end
+
+	-- Icon-only path: return a panel themed via iconButton. The optional
+	-- `color` param overrides the @fg tint for status-accented icons. The
+	-- bgimage may come from `options.icon` (callsite) or from a kind-class
+	-- theme rule (e.g. `{iconButton, addButton}` -> `bgimage = "..."`).
+	if (options.icon ~= nil and options.text == nil) or kindConfig ~= nil then
+		local args = {
+			classes = {"iconButton"},
+			bgcolor = options.color or "@fg",
+		}
+		if options.icon ~= nil then
+			args.bgimage = options.icon
+		end
+
+		-- Apply kind-config defaults BEFORE merging options so callers can
+		-- still override (e.g. pass their own escapeActivates = false).
+		if kindConfig ~= nil then
+			if kindConfig.escapeActivates ~= nil then
+				args.escapeActivates = kindConfig.escapeActivates
+			end
+			if kindConfig.escapePriority and EscapePriority then
+				args.escapePriority = EscapePriority[kindConfig.escapePriority]
+			end
+		end
+
+		if options.tooltip ~= nil then
+			options.events = options.events or {}
+			options.events.hover = gui.Tooltip(options.tooltip)
+			options.tooltip = nil
+		end
+
+		if options.classes ~= nil then
+			for _,c in ipairs(options.classes) do
+				if c ~= "iconButton" then
+					args.classes[#args.classes+1] = c
+				end
+			end
+			options.classes = nil
+		end
+
+		for k,v in pairs(options) do
+			if k ~= "icon" and k ~= "color" then
+				args[k] = v
+			end
+		end
+
+		-- Press-sound wrap: only when the caller supplied a press handler.
+		-- This preserves opt-out: callers who don't want the default audio
+		-- feedback simply omit `press`.
+		if kindConfig and kindConfig.pressSoundEvent and args.press ~= nil then
+			local userPress = args.press
+			local soundEvent = kindConfig.pressSoundEvent
+			args.press = function(element)
+				audio.FireSoundEvent(soundEvent)
+				userPress(element)
+			end
+		end
+
+		return gui.Panel(args)
+	end
+
 	local args = {
 		classes = {'button'},
 	}

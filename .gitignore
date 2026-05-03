@@ -44,5 +44,5 @@ status.json
 
 Definitions/version.txt
 
-# Compendium content — local-only, not part of the mod source.
+# Compendium content -- ignored everything in this folder
 compendium/

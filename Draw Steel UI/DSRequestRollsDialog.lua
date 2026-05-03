@@ -1,5 +1,197 @@
 local mod = dmhub.GetModLoading()
 
+-- Style pack for `gamehud:CreatePartyTokenPoolSelector`. Applied via
+-- ThemeEngine.MergeTokens on the function's result panel so the selector
+-- looks the same regardless of which dialog calls it -- the function
+-- carries its own styling instead of leaning on the caller's cascade.
+local g_TokenPoolStyles = {
+	{
+		selectors = {"tokenPoolFrame"},
+		bgimage = true,
+		bgcolor = "@bg",
+		cornerRadius = 8,
+		border = 2,
+		borderColor = "@border",
+		width = 210,
+		height = 210,
+		pad = 4,
+	},
+	{
+		selectors = {"token-panel"},
+		bgcolor = "@bg",
+		cornerRadius = 8,
+		width = 64,
+		height = 64,
+		halign = "left",
+	},
+	{
+		selectors = {"token-panel", "hover"},
+		borderColor = "@border",
+		borderWidth = 2,
+		bgcolor = "@bgInverse",
+		color = "@fgInverse",
+		brightness = 0.5,
+	},
+	{
+		selectors = {"token-panel", "selected"},
+		borderColor = "@fgStrong",
+		borderWidth = 2,
+		bgcolor = "@bgInverse",
+		color = "@fgInverse",
+	},
+	{
+		selectors = {"token-pool-shortcut"},
+		color = "@fgMuted",
+		fontSize = 16,
+		width = "auto",
+		height = "auto",
+		valign = "center",
+		halign = "center",
+	},
+	{
+		selectors = {"token-pool-shortcut", "hover"},
+		color = "@fgStrong",
+	},
+	{
+		selectors = {"shortcut-divider"},
+		bgimage = true,
+		bgcolor = "@fgMuted",
+		halign = "center",
+		valign = "center",
+		margin = 4,
+		width = 2,
+		height = 16,
+	},
+}
+
+-- Dialog-specific class rules for ShowRequireRollDialog. Component-specific
+-- vocabulary that doesn't belong in DefaultStyles (roll-type-option,
+-- check-type-item, etc.) lives here. Applied at the dialog root via
+--   styles = { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(g_DialogStyles) }
+-- so all colors are scheme-following @-tokens, resolved at call time.
+local g_DialogStyles = {
+	-- Inputs (numeric tier inputs etc.) -- sizing override only.
+	{
+		selectors = {"input"},
+		width = 140,
+		height = 20,
+		fontSize = 18,
+	},
+
+	-- Big centered status text at the top of the result section.
+	{
+		selectors = {"check-summary"},
+		width = "100%",
+		height = 80,
+		valign = "top",
+		textAlignment = "center",
+		fontSize = 28,
+		color = "@fgStrong",
+	},
+
+	-- Result section layout.
+	{
+		selectors = {"result-panel"},
+		flow = "horizontal",
+		width = "100%",
+		height = 70,
+		valign = "top",
+	},
+	{
+		selectors = {"result-panel-scroll"},
+		width = "94%",
+		height = 340,
+		valign = "center",
+		flow = "vertical",
+	},
+	{
+		selectors = {"result-status-label"},
+		fontSize = 18,
+		color = "@fgStrong",
+		width = 80,
+		textAlignment = "left",
+		height = "auto",
+		halign = "left",
+		valign = "center",
+	},
+	{
+		selectors = {"result-outcome-label"},
+		fontSize = 14,
+		color = "@fgStrong",
+		width = 100,
+		textAlignment = "left",
+		height = "auto",
+		halign = "left",
+		valign = "center",
+	},
+	{
+		selectors = {"result-consequences-table"},
+		width = 140,
+		flow = "vertical",
+		height = "auto",
+		valign = "center",
+	},
+	{
+		selectors = {"consequenceLabel"},
+		width = 140,
+		fontSize = 14,
+		color = "@danger",
+		height = "auto",
+	},
+	{
+		selectors = {"consequenceLabel", "avoided"},
+		color = "@fgMuted",
+	},
+
+	-- Roll-type tabs (Test | Table at the top).
+	{
+		selectors = {"roll-type-option"},
+		fontSize = 24,
+		width = "auto",
+		height = "auto",
+		color = "@fgMuted",
+		bgcolor = "clear",
+	},
+	{
+		selectors = {"roll-type-option", "hover"},
+		color = "@fgStrong",
+		transitionTime = 0.1,
+	},
+	{
+		selectors = {"roll-type-option", "selected"},
+		color = "@fgStrong",
+		border = { x1 = 0, x2 = 0, y2 = 0, y1 = 2 },
+		borderColor = "@fgStrong",
+		transitionTime = 0.2,
+	},
+
+	-- Score list rows.
+	{
+		selectors = {"check-type-item"},
+		bgimage = true,
+		bgcolor = "clear",
+		fontSize = 16,
+		minFontSize = 12,
+		textAlignment = "left",
+		hpad = 3,
+		halign = "left",
+		valign = "top",
+		width = 200,
+		minHeight = 22,
+		height = "auto",
+	},
+	{
+		selectors = {"check-type-item", "selected"},
+		bgcolor = "@bgInverse",
+		color = "@fgInverse",
+	},
+	{
+		selectors = {"check-type-item", "hover"},
+		bgcolor = "@bgInverse",
+		color = "@fgInverse",
+	},
+}
+
 --A RollCheck instance has the following fields:
 -- type = "test_power_roll"/"resistance_power_roll"/"skill"/"initiative"/"flat"/"table"/"custom"
 -- id = the test_power_roll, resistance_power_roll, or skill being tested
@@ -640,6 +832,11 @@ function GameHud:CreatePartyTokenPoolSelector(args)
 	local selection = args.selection
 	args.selection = nil
 
+	local poolWidth = args.poolWidth
+	args.poolWidth = nil
+	local poolHeight = args.poolHeight
+	args.poolHeight = nil
+
 	local GetSelectedTokens = function()
 		local result = {}
 		for i,panel in ipairs(tokenPanels) do
@@ -708,42 +905,14 @@ function GameHud:CreatePartyTokenPoolSelector(args)
 	end
 
 	local tokenPool = gui.Panel{
-		bgimage = 'panels/square.png',
-		bgcolor = 'black',
-		cornerRadius = 8,
-		border = 2,
-		borderColor = '#888888',
-		width = 210,
-		height = 210,
-		pad = 4,
+		classes = {"tokenPoolFrame"},
+		halign = "center",
+		width = poolWidth,
+		height = poolHeight,
 		vscroll = true,
 		vmargin = 8,
 		flow = 'horizontal',
 		wrap = true,
-
-		styles = {
-			{
-				classes = {'token-panel'},
-				bgcolor = 'black',
-				cornerRadius = 8,
-				width = 64,
-				height = 64,
-				halign = 'left',
-			},
-			{
-				classes = {'token-panel', 'hover'},
-				borderColor = 'grey',
-				borderWidth = 2,
-				bgcolor = '#441111',
-			},
-			{
-				classes = {'token-panel', 'selected'},
-				borderColor = 'white',
-				borderWidth = 2,
-				bgcolor = '#882222',
-			},
-
-		},
 
 		children = tokenPanels
 	}
@@ -753,33 +922,6 @@ function GameHud:CreatePartyTokenPoolSelector(args)
 		halign = 'center',
 		width = 'auto',
 		height = 'auto',
-
-		styles = {
-			{
-				classes = {'token-pool-shortcut'},
-				color = '#aaaaaa',
-				fontSize = 16,
-				width = 'auto',
-				height = 'auto',
-				valign = 'center',
-				halign = 'center',
-			},
-			{
-				classes = {'token-pool-shortcut', 'hover'},
-				color = 'white',
-			},
-			{
-				classes = {'shortcut-divider'},
-				bgimage = 'panels/square.png',
-				halign = 'center',
-				valign = 'center',
-				margin = 4,
-				width = 2,
-				height = 16,
-				bgcolor = '#aaaaaa',
-			},
-
-		},
 
 		gui.Label{
 			classes = 'token-pool-shortcut',
@@ -838,9 +980,10 @@ function GameHud:CreatePartyTokenPoolSelector(args)
 	}
 
 	local options = {
-		width = 'auto',
+		width = 600,
 		height = 'auto',
 		flow = "vertical",
+		styles = ThemeEngine.MergeTokens(g_TokenPoolStyles),
 
 		tokenPool,
 		tokenPoolSelection,
@@ -908,13 +1051,8 @@ function ShowRequireRollDialog(args)
 			if #rollTypes ~= 0 then
 
 				rollTypes[#rollTypes+1] = gui.Panel{
-					bgimage = 'panels/square.png',
-					bgcolor = '#aaaaaa',
-					hmargin = 8,
-					width = 2,
+					classes = {"shortcut-divider"},
 					height = 20,
-					valign = 'center',
-					halign = 'center',
 				}
 			end
 			rollTypes[#rollTypes+1] = CreateRollTypeOption{ index = i, text = check.name, selected = (i == checkSelectedIndex) }
@@ -933,87 +1071,7 @@ function ShowRequireRollDialog(args)
 			end
 		end,
 
-		styles = {
-			{
-				classes = {'formLabel'},
-				fontSize = 18,
-				color = 'white',
-				width = 'auto',
-				height = 'auto',
-			},
-
-			{
-				classes = {'input'},
-				width = 140,
-				height = 20,
-				fontSize = 18,
-			},
-
-			{
-				classes = {'check-summary'},
-				width = '100%',
-				height = 80,
-				valign = 'top',
-				textAlignment = 'center',
-				fontSize = 28,
-				color = 'white',
-			},
-
-			{
-				classes = {'result-panel'},
-				flow = "horizontal",
-				width = "100%",
-				height = 70,
-				valign = 'top',
-			},
-
-			{
-				classes = {'result-panel-scroll'},
-				width = '94%',
-				height = 340,
-				valign = 'center',
-				flow = 'vertical',
-			},
-
-			{
-				classes = {'result-status-label'},
-				fontSize = 18,
-				color = 'white',
-				width = 80,
-				textAlignment = 'left',
-				height = 'auto',
-				halign = 'left',
-				valign = 'center',
-			},
-			{
-				classes = {'result-outcome-label'},
-				fontSize = 14,
-				color = 'white',
-				width = 100,
-				textAlignment = 'left',
-				height = 'auto',
-				halign = 'left',
-				valign = 'center',
-			},
-			{
-				classes = {'result-consequences-table'},
-				width = 140,
-				flow = "vertical",
-				height = "auto",
-				valign = "center",
-			},
-			{
-				classes = {'consequenceLabel'},
-				width = 140,
-				fontSize = 14,
-				color = 'red',
-				height = "auto",
-			},
-			{
-				classes = {'consequenceLabel', 'avoided'},
-				color = 'grey',
-			},
-		},
+		styles = {ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(g_DialogStyles)},
 
 		halign = 'center',
 		valign = 'center',
@@ -1024,10 +1082,10 @@ function ShowRequireRollDialog(args)
 		flow = 'vertical',
 
         gui.Label{
+            classes = {"sizeXl", "bold"},
             tmargin = 16,
             width = "auto",
             height = "auto",
-            fontSize = 24,
             text = args.title or "",
             halign = "center",
         },
@@ -1044,29 +1102,6 @@ function ShowRequireRollDialog(args)
             create = function(element)
                 element:SetClass("collapsed", args.powerRollTable ~= nil)
             end,
-
-			styles = {
-				{
-					classes = 'roll-type-option',
-					fontSize = 24,
-					width = 'auto',
-					height = 'auto',
-					color = '#aaaaaa',
-					bgcolor = 'clear',
-				},
-				{
-					classes = {'roll-type-option', 'hover'},
-					color = '#ffffff',
-					transitionTime = 0.1,
-				},
-				{
-					classes = {'roll-type-option', 'selected'},
-					color = '#ffffff',
-					border = { x1 = 0, x2 = 0, y2 = 0, y1 = 2 },
-					borderColor = '#ffffff',
-					transitionTime = 0.2,
-				},
-			},
 
 			children = rollTypes,
 		},
@@ -1137,31 +1172,8 @@ function ShowRequireRollDialog(args)
 					width = 210,
 					flow = 'vertical',
 					vscroll = true,
-					styles = {
-						{
-							classes = 'check-type-item',
-							bgimage = 'panels/square.png',
-							bgcolor = 'clear',
-							fontSize = 16,
-							minFontSize = 12,
-							textAlignment = 'left',
-							hpad = 3,
-							halign = 'left',
-							valign = 'top',
-							width = 200,
-							minHeight = 22,
-							height = "auto",
-						},
-						{
-							classes = {'check-type-item', 'selected'},
-							bgcolor = '#660000',
-						},
-						{
-							classes = {'check-type-item', 'hover'},
-							bgcolor = '#660000',
-						},
-					},
-					
+
+
 
 					refreshDiceCheck = function(element)
 						local children = {}
@@ -1425,13 +1437,12 @@ function ShowRequireRollDialog(args)
             lmargin = 44,
 			value = false,
 			fontSize = 14,
-			color = 'white',
 			change = function(element)
 				m_dicetower = element.value
 			end,
 		},
 
-		gui.PrettyButton{
+		gui.Button{
 			text = 'Submit',
 			floating = true,
 			halign = 'right',
@@ -1527,7 +1538,7 @@ function GameHud:ShowRollSummaryDialog(actionid, resultTable)
 
 	local iscomplete = false
 
-	local closeButton = gui.PrettyButton{
+	local closeButton = gui.Button{
 			text = 'Cancel',
 			floating = true,
 			halign = 'right',
@@ -1668,6 +1679,7 @@ function GameHud:ShowRollSummaryDialog(actionid, resultTable)
 
 				gui.Label{
 					classes = {'result-status-label'},
+					width = "auto",
 					create = function(element)
 						element:FireEvent('refreshAction')
 					end,

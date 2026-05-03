@@ -3575,7 +3575,7 @@ function gui.CreateTokenImage(tokenArg, options)
 
 	local portraitPanel = gui.Panel{
 		idprefix = "token-portrait",
-		classes = 'token-image-portrait',
+		classes = {'token-image-portrait', 'tokenImagePortrait'},
 		interactable = false,
 
 		bgimage = bgimage,
@@ -3609,7 +3609,7 @@ function gui.CreateTokenImage(tokenArg, options)
 	local framePanel = gui.Panel{
 		idprefix = "token-frame",
 		floating = true,
-		classes = 'token-image-frame',
+		classes = {'token-image-frame', 'tokenImageFrame'},
 		bgcolor = 'white',
 		interactable = options.interactable or false,
 
@@ -3622,7 +3622,7 @@ function gui.CreateTokenImage(tokenArg, options)
 	
 	local info = {
 		idprefix = "token-image",
-		classes = 'token-image',
+		classes = {'token-image', 'tokenImage'},
 		children = {portraitPanel, framePanel},
 		token = function(element, tok)
 			token = tok

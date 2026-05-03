@@ -1,5 +1,53 @@
 local mod = dmhub.GetModLoading()
 
+-- Local style pack passed to every gui.Check{} in this file via its
+-- `styles` property. Hardcoded values from the default scheme so the
+-- checkbox visuals paint regardless of what (legacy or theme) cascade
+-- the surrounding dialog uses.
+local g_CheckboxStyles = {
+	{
+		selectors = {"checkbox"},
+		bgimage = true,
+		flow = "horizontal",
+		bgcolor = "clear",
+		height = 30,
+		width = "auto",
+		minWidth = 200,
+		hpad = 4,
+	},
+	{
+		selectors = {"checkBackground"},
+		bgimage = true,
+		bgcolor = "#080B09",
+		halign = "left",
+		valign = "center",
+		height = "70%",
+		width = "100% height",
+		rmargin = 6,
+		borderColor = "#DFDFDF",
+		borderWidth = 2,
+	},
+	{
+		selectors = {"checkMark"},
+		bgimage = true,
+		bgcolor = "#CECECE",
+		halign = "center",
+		valign = "center",
+		width = "50%",
+		height = "50%",
+	},
+	{
+		selectors = {"checkboxLabel"},
+		halign = "left",
+		valign = "center",
+		textAlignment = "left",
+		borderWidth = 0,
+		width = "auto",
+		height = "auto",
+		fontSize = 18,
+	},
+}
+
 --This file implements the main roll prompt dialog that appears when you get a dice roll prompt.
 
 local g_holdingRollOpen = false
@@ -379,23 +427,23 @@ function GameHud.CreateRollDialog(self)
     }
 
 
-    local autoRollCheck = gui.Check {
+    local autoRollCheck = gui.Check {styles = g_CheckboxStyles,
         text = "Auto-roll",
         value = false,
         valign = "bottom",
     }
-    local autoHideCheck = gui.Check {
+    local autoHideCheck = gui.Check {styles = g_CheckboxStyles,
         text = "Auto-hide",
         value = false,
         valign = "bottom",
     }
-    local autoQuickCheck = gui.Check {
+    local autoQuickCheck = gui.Check {styles = g_CheckboxStyles,
         text = "Auto-quick",
         value = false,
         valign = "bottom",
     }
 
-    local rollAllPromptsCheck = gui.Check {
+    local rollAllPromptsCheck = gui.Check {styles = g_CheckboxStyles,
         text = "Roll all prompts",
         value = true,
         valign = "bottom",
@@ -413,7 +461,7 @@ function GameHud.CreateRollDialog(self)
         autoRollCheck,
     }
 
-    local prerollCheck = gui.Check {
+    local prerollCheck = gui.Check {styles = g_CheckboxStyles,
         text = "Pre-roll dice",
         classes = { "hiddenWhenRolling", "hideWhenMinimized" },
         value = dmhub.GetSettingValue("preroll"),
@@ -455,7 +503,7 @@ function GameHud.CreateRollDialog(self)
         end,
     }
 
-    updateRollVisibility = gui.Check {
+    updateRollVisibility = gui.Check {styles = g_CheckboxStyles,
         classes = { "hiddenWhenRolling", "hideWhenMinimized" },
         text = "Use roll visibility setting for all rolls",
         valign = "bottom",
@@ -2012,7 +2060,7 @@ function GameHud.CreateRollDialog(self)
                             classes = { "collapsed-anim" }
                         end
 
-                        check = gui.Check {
+                        check = gui.Check {styles = g_CheckboxStyles,
                             classes = classes,
                             text = text,
                             value = ischecked,
@@ -2079,7 +2127,7 @@ function GameHud.CreateRollDialog(self)
                     elseif mod.check then
                         --this is a checkbox that is passed in that we will pass the results of straight out.
 
-                        local check = gui.Check {
+                        local check = gui.Check {styles = g_CheckboxStyles,
                             text = mod.text,
                             value = mod.value,
                             data = {

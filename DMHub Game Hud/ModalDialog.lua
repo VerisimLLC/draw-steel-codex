@@ -35,7 +35,7 @@ function GameHud:ModalDialog(options)
 	for _,button in ipairs(buttons) do
 		buttonElements[#buttonElements+1] =
 			gui.Button{
-				classes = {"btnLg"},
+				classes = {"sizeL"},
 				text = button.text,
 				escapeActivates = button.escapeActivates,
 				escapePriority = EscapePriority.EXIT_MODAL_DIALOG,

@@ -164,7 +164,7 @@ function Hud:ModalMessage(args)
 		local optionInfo = option
 		options[#options+1] = gui.Button({
 			id = 'modal-button-' .. optionInfo.text,
-			classes = {"btnLg"},
+			classes = {"sizeL"},
 			text = optionInfo.text,
 			events = {
 				click = function()

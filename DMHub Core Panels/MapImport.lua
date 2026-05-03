@@ -61,7 +61,7 @@ mod.shared.ImportMapDialog = function(paths, options)
 
 
     local confirmButton = gui.Button{
-        classes = {"btnLg", "hidden"},
+        classes = {"sizeL", "hidden"},
         text = "Finish",
         valign = "center",
         halign = "center",
@@ -97,7 +97,7 @@ mod.shared.ImportMapDialog = function(paths, options)
 
 
     local continueButton = gui.Button{
-        classes = {"btnLg", "hidden"},
+        classes = {"sizeL", "hidden"},
         text = "Continue>>",
         valign = "center",
         halign = "center",
@@ -108,7 +108,7 @@ mod.shared.ImportMapDialog = function(paths, options)
 
 
     local previousButton = gui.Button{
-        classes = {"btnLg", "hidden"},
+        classes = {"sizeL", "hidden"},
         text = "Back",
         valign = "center",
         halign = "left",
@@ -209,7 +209,7 @@ mod.shared.ImportMapDialog = function(paths, options)
                 matchInfoLabel,
 
                 gui.Button{
-                    classes = {"btnLg"},
+                    classes = {"sizeL"},
                     text = "Match Existing Map",
                     halign = "left",
                     vmargin = 4,
@@ -280,7 +280,7 @@ mod.shared.ImportMapDialog = function(paths, options)
         },
 
         gui.Button{
-            classes = {"btnLg"},
+            classes = {"sizeL"},
             id = "perfectFitAccept",
             text = "Accept",
             halign = "left",
@@ -309,7 +309,7 @@ mod.shared.ImportMapDialog = function(paths, options)
         },
 
         gui.Button{
-            classes = {"btnLg"},
+            classes = {"sizeL"},
             text = "Customize Grid...",
             halign = "left",
             vmargin = 8,
@@ -1062,7 +1062,7 @@ local function ImportMapWizard(options)
 				contentPanel:FireEvent("processFiles", paths)
 			end,
 
-			styles = ThemeEngine.ResolveStyles({
+			styles = ThemeEngine.MergeTokens({
 				{
 					width = "80%",
 					height = "60%",
@@ -1101,7 +1101,7 @@ local function ImportMapWizard(options)
 		},
 
 		gui.Button{
-			classes = {"btnLg"},
+			classes = {"sizeL"},
 			text = "Choose Files",
 			click = function(element)
 

@@ -1887,7 +1887,7 @@ local function ShowCombatSetupDialog(selectedTokens)
             halign = "center",
             flow = "horizontal",
             gui.Button{
-                classes = {"btnLg"},
+                classes = {"sizeL"},
                 text = "Draw Steel!",
                 halign = "center",
                 valign = "bottom",

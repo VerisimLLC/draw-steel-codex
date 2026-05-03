@@ -217,7 +217,7 @@ local ShowCultureAspectPanel = function(parentPanel)
 
 				--heading for culture aspect section.
 				children[#children+1] = m_cultureAspectPanels[i] or gui.Label{
-					classes = {"labelLg", "bold"},
+					classes = {"sizeL", "bold"},
 					width = "auto",
 					height = "auto",
 					hmargin = 4,

@@ -757,13 +757,13 @@ end
 ---
 --- Difference vs. MergeStyles:
 ---   * MergeStyles   -> base theme + resolved custom (for cascade roots)
----   * ResolveStyles -> resolved custom only (for downstream extras)
+---   * MergeTokens -> resolved custom only (for downstream extras)
 ---
 --- Callers that need scheme switches to recolor live should subscribe to
 --- OnThemeChanged and reassign their panel.styles after re-resolving.
 --- @param customStyles table[]|nil Array of rule tables (selectors + properties).
 --- @return table[]|nil resolved
-function ThemeEngine.ResolveStyles(customStyles)
+function ThemeEngine.MergeTokens(customStyles)
     if customStyles == nil or #customStyles == 0 then
         return customStyles
     end

@@ -21,7 +21,7 @@ function gui.FloatInput(args)
 
 
     local m_label = gui.Label{
-        classes = {"labelTiny"},
+        classes = {"sizeXs"},
         halign = "center",
         valign = "center",
         width = "100%",

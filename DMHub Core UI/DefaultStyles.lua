@@ -86,8 +86,8 @@ ThemeEngine.RegisterColorScheme{
             point_a = {x = 0, y = 0},
             point_b = {x = 1, y = 1},
             stops = {
-                {position = 0, color = "#000000"},
-                {position = 1, color = "#060606"},
+                {position = 0, color = "#1A1B19"},
+                {position = 1, color = "#050605"},
             },
         },
 
@@ -230,6 +230,34 @@ ThemeEngine.RegisterColorScheme{
         -- Disabled
         disabled      = "#3A2D22",
     },
+    gradients = {
+        -- Surfaces -- warm-tinted to match the scheme's brown surface palette.
+        -- Tuned to be noticeable but not loud; mirrors the default scheme's
+        -- approach (top-left lighter, bottom-right darker; radial vignette
+        -- bright at center, darker at edge) but stays inside the warm family.
+        surfaceLinear = {
+            point_a = {x = 0, y = 0},
+            point_b = {x = 1, y = 1},
+            stops = {
+                {position = 0, color = "#1D110A"},
+                {position = 1, color = "#100A06"},
+            },
+        },
+
+        surfaceRadial = {
+            type = "radial",
+            point_a = {x = 0.5, y = 0.5},
+            point_b = {x = 0.5, y = 1.0},
+            stops = {
+                {position = -0.01, color = "#2D211A"},
+                {position = 0.00,  color = "#2D211A"},
+                {position = 0.25,  color = "#251A12"},
+                {position = 0.50,  color = "#1D140E"},
+                {position = 0.75,  color = "#160F0A"},
+                {position = 1.00,  color = "#100A06"},
+            },
+        },
+    },
 }
 
 -- =============================================================================
@@ -316,39 +344,41 @@ ThemeEngine.RegisterTheme{
         },
         {
             selectors = {"panel", "buttonIcon", "hover"},
-            bgcolor = "@fgStrong",
+            brightness = 2,
         },
 
         --[[ Label ]]
         {
             selectors = {"label"},
+            width = "auto",
+            height = "auto",
             fontFace = "@label",
             fontSize = 14,
             color = "@fgStrong",
             bold = false,
         },
         {
-            selectors = {"label", "labelTiny"},
+            selectors = {"label", "sizeXs"},
             fontSize = 12,
         },
         {
-            selectors = {"label", "labelSm"},
+            selectors = {"label", "sizeS"},
             fontSize = 14,
         },
         {
-            selectors = {"label", "labelMd"},
+            selectors = {"label", "sizeM"},
             fontSize = 16,
         },
         {
-            selectors = {"label", "labelLg"},
+            selectors = {"label", "sizeL"},
             fontSize = 18,
         },
         {
-            selectors = {"label", "labelXl"},
+            selectors = {"label", "sizeXl"},
             fontSize = 24,
         },
         {
-            selectors = {"label", "labelXxl"},
+            selectors = {"label", "sizeXxl"},
             fontSize = 28,
         },
         {
@@ -390,33 +420,44 @@ ThemeEngine.RegisterTheme{
             borderColor = "@border",
             border = 1,
             borderWidth = 1,
-            cornerRadius = 5,
             fontWeight = "light",
             bold = false,
         },
         {
-            selectors = {"button", "btnSm"},
-            height = 31,
-            width = 57,
-        },
-        {
-            selectors = {"button", "btnMd"},
-            height = 31,
-            width = 129,
-        },
-        {
-            selectors = {"button", "btnLg"},
-            height = 35,
-            width = 175,
-            beveledcorners = true,
-        },
-        {
-            selectors = {"label", "button", "tiny"},
+            selectors = {"button", "sizeXs"},
+            width = 31,
+            height = 20,
             fontSize = 12,
-            fontWeight = "thin",
-            borderWidth = 1,
-            hmargin = 2,
-            vmargin = 2,
+        },
+        {
+            selectors = {"button", "sizeS"},
+            width = 57,
+            height = 26,
+            fontSize = 14,
+        },
+        {
+            selectors = {"button", "sizeM"},
+            width = 129,
+            height = 31,
+            fontSize = 16,
+        },
+        {
+            selectors = {"button", "sizeL"},
+            width = 175,
+            height = 35,
+            fontSize = 18,
+        },
+        {
+            selectors = {"button", "sizeXl"},
+            width = 175,
+            height = 35,
+            fontSize = 18,
+        },
+        {
+            selectors = {"button", "sizeXxl"},
+            width = 175,
+            height = 35,
+            fontSize = 18,
         },
         {
             selectors = {"button", "hasIcon"},
@@ -1418,26 +1459,28 @@ ThemeEngine.RegisterTheme{
         {
             selectors = {"formInlineRow"},
             flow = "horizontal",
-            width = "90%",
+            width = "98%",
             height = 48,
-            halign = "center",
-            valign = "center",
+            halign = "left",
+            valign = "top",
             bmargin = 4,
         },
         {
             selectors = {"label", "formInlineLabel"},
             fontSize = 18,
             color = "@fgStrong",
-            width = "auto",
+            width = "27%",
             height = "auto",
             halign = "left",
             valign = "center",
+            rmargin = 6,
         },
         -- Catch-all for any formInlineControl (dropdown, multiselect, etc.).
         {
             selectors = {"formInlineControl"},
-            halign = "right",
+            halign = "left",
             valign = "center",
+            width = "100% available",
         },
         -- Inputs in inline forms: numeric width matching the existing
         -- settings-screen pattern, height matching the dropdown.
@@ -1681,6 +1724,36 @@ ThemeEngine.RegisterTheme{
             hidden = 0,
         },
 
+        --[[ Token image ]]
+        --
+        -- gui.CreateTokenImage builds a 3-panel structure: outer (tokenImage)
+        -- holds a portrait (tokenImagePortrait) with the token's portrait as
+        -- bgimage, and a frame (tokenImageFrame) overlay. The portrait MUST
+        -- have bgcolor = "white" (image-tint-neutral) so the portrait paints
+        -- in its natural colors -- without this rule, the portrait gets tinted
+        -- to whatever the surrounding cascade provides (typically @bg).
+        --
+        -- The factory also emits the legacy kebab class names alongside these
+        -- so existing non-themed consumers (Styles.lua) keep rendering.
+        {
+            selectors = {"tokenImage"},
+            halign = "center",
+            valign = "center",
+            width = 60,
+            height = 60,
+        },
+        {
+            selectors = {"tokenImagePortrait"},
+            bgcolor = "white",
+            width = "100%",
+            height = "100%",
+        },
+        {
+            selectors = {"tokenImageFrame"},
+            width = "100%",
+            height = "100%",
+        },
+
         -- =====================================================================
         -- 6. QUARANTINE -- feature-specific rules awaiting relocation
         -- =====================================================================
@@ -1768,26 +1841,6 @@ ThemeEngine.RegisterTheme{
         {
             selectors = {"dockablePanel"},
             bgimage = true,
-        },
-
-        --[[ Token image ]]
-        {
-            selectors = {"tokenImage"},
-            halign = "center",
-            valign = "center",
-            width = 60,
-            height = 60,
-        },
-        {
-            selectors = {"tokenImagePortrait"},
-            bgcolor = "white",
-            width = "100%",
-            height = "100%",
-        },
-        {
-            selectors = {"tokenImageFrame"},
-            width = "100%",
-            height = "100%",
         },
 
         --[[ Inventory slot ]]
@@ -2023,397 +2076,3 @@ ThemeEngine.RegisterTheme{
 -- user's saved selections (defaults to "default" / "default" if they
 -- haven't picked anything yet).
 ThemeEngine.RestoreActiveSelection()
-
-if devmode() then
--- =============================================================================
--- Theme Test panel -- visual smoke test for the registered default theme.
--- Exercises the categories the engine currently covers so a glance at this
--- panel surfaces regressions when DefaultStyles changes.
--- =============================================================================
-
-local function _themeTest()
-    local rootPanel
-
-    local function buildSchemeOptions()
-        local opts = {}
-        for _, s in ipairs(ThemeEngine.ListColorSchemes()) do
-            table.insert(opts, {id = s.id, text = s.name})
-        end
-        return opts
-    end
-
-    -- Custom rules to validate ThemeEngine.MergeStyles end-to-end.
-    -- The label class `mergeTest` should resolve via @danger and follow
-    -- scheme switches.
-    local mergeTestExtras = {
-        { selectors = {"label", "mergeTest"}, color = "@danger", bold = true },
-    }
-
-    -- Fixed-size rebuild: every panel and every child uses an explicit
-    -- width and height. Rows stack vertically inside a fixed-size root
-    -- with a known total height. No "auto", no percentages, no overlap.
-
-    local DIALOG_W   = 1100
-    local DIALOG_H   = 720
-    local ROW_W      = 1080
-    local ROW_H      = 36
-    local PAD        = 8
-    local LABEL_W    = 160
-    local LABEL_H    = 28
-    local CTL_H      = 28
-
-    rootPanel = gui.Panel{
-        styles = ThemeEngine.MergeStyles(mergeTestExtras),
-        classes = {"launchablePanel"},
-        width = DIALOG_W,
-        height = DIALOG_H,
-        flow = "vertical",
-        pad = PAD,
-        vscroll = true,
-
-        gui.Label{
-            classes = {"dialogTitle"},
-            width = ROW_W,
-            height = 32,
-            text = "Theme Test",
-        },
-
-        -- Color scheme picker row
-        gui.Panel{
-            width = ROW_W,
-            height = ROW_H,
-            halign = "left",
-            flow = "horizontal",
-            vmargin = 4,
-            gui.Label{
-                width = LABEL_W,
-                height = LABEL_H,
-                valign = "center",
-                text = "Color Scheme:",
-            },
-            gui.Dropdown{
-                width = 220,
-                height = CTL_H,
-                valign = "center",
-                idChosen = ThemeEngine.GetActiveColorScheme() or "default",
-                options = buildSchemeOptions(),
-                change = function(element)
-                    ThemeEngine.SetActiveColorScheme(element.idChosen)
-                    rootPanel.styles = ThemeEngine.MergeStyles(mergeTestExtras)
-                end,
-            },
-            gui.Button{
-                classes = {"btnSm"},
-                width = 80,
-                height = 32,
-                valign = "center",
-                hmargin = 8,
-                text = "Reset",
-                click = function()
-                    ThemeEngine.SetActiveColorScheme("default")
-                    rootPanel.styles = ThemeEngine.MergeStyles(mergeTestExtras)
-                end,
-            },
-        },
-
-        -- MergeStyles validation row
-        gui.Panel{
-            width = ROW_W,
-            height = ROW_H,
-            halign = "left",
-            flow = "horizontal",
-            vmargin = 4,
-            gui.Label{
-                classes = {"mergeTest"},
-                width = 600,
-                height = LABEL_H,
-                valign = "center",
-                text = "MergeStyles test (custom class -> @danger)",
-            },
-        },
-
-        -- Buttons row
-        gui.Panel{
-            width = ROW_W,
-            height = 44,
-            halign = "left",
-            flow = "horizontal",
-            vmargin = 8,
-            gui.Button{
-                classes = {"btnSm"},
-                width = 57, height = 31,
-                valign = "center",
-                text = "small",
-            },
-            gui.Button{
-                classes = {"btnMd"},
-                width = 129, height = 31,
-                valign = "center", hmargin = 8,
-                text = "medium",
-            },
-            gui.Button{
-                classes = {"btnLg"},
-                width = 175, height = 35,
-                valign = "center", hmargin = 8,
-                text = "large",
-            },
-            gui.Button{
-                classes = {"disabled"},
-                width = 129, height = 31,
-                valign = "center", hmargin = 8,
-                text = "disabled",
-            },
-            gui.Button{
-                width = 36, height = 36,
-                valign = "center", hmargin = 8,
-                icon = "game-icons/griffin-symbol.png",
-            },
-        },
-
-        -- Labels row (base, number, pending, link)
-        gui.Panel{
-            width = ROW_W,
-            height = ROW_H,
-            halign = "left",
-            flow = "horizontal",
-            vmargin = 4,
-            gui.Label{
-                width = 200, height = LABEL_H,
-                valign = "center",
-                text = "Base label",
-            },
-            gui.Label{
-                classes = {"number"},
-                width = 200, height = LABEL_H,
-                valign = "center",
-                text = "Number 12345",
-            },
-            gui.Label{
-                classes = {"pending"},
-                width = 200, height = LABEL_H,
-                valign = "center",
-                text = "Pending text",
-            },
-            gui.Label{
-                classes = {"link"},
-                width = 200, height = LABEL_H,
-                valign = "center",
-                text = "Link label",
-            },
-        },
-
-        -- Input row
-        gui.Panel{
-            width = ROW_W,
-            height = ROW_H,
-            halign = "left",
-            flow = "horizontal",
-            vmargin = 4,
-            gui.Label{
-                width = LABEL_W, height = LABEL_H,
-                valign = "center",
-                text = "Input:",
-            },
-            gui.Input{
-                classes = {"input"},
-                width = 320, height = CTL_H,
-                valign = "center",
-                placeholderText = "type something...",
-                text = "",
-            },
-        },
-
-        -- Dropdown row
-        gui.Panel{
-            width = ROW_W,
-            height = ROW_H,
-            halign = "left",
-            flow = "horizontal",
-            vmargin = 4,
-            gui.Label{
-                width = LABEL_W, height = LABEL_H,
-                valign = "center",
-                text = "Dropdown:",
-            },
-            gui.Dropdown{
-                width = 260, height = CTL_H,
-                valign = "center",
-                idChosen = "a",
-                options = {
-                    {id = "a", text = "Option A"},
-                    {id = "b", text = "Option B"},
-                    {id = "c", text = "Option C"},
-                },
-            },
-        },
-
-        -- Slider row
-        gui.Panel{
-            width = ROW_W,
-            height = ROW_H,
-            halign = "left",
-            flow = "horizontal",
-            vmargin = 4,
-            gui.Label{
-                width = LABEL_W, height = LABEL_H,
-                valign = "center",
-                text = "Slider:",
-            },
-            gui.Panel{
-                width = 320, height = CTL_H,
-                valign = "center",
-                gui.EnumeratedSliderControl{
-                    value = "two",
-                    options = {
-                        {id = "one",   text = "One"},
-                        {id = "two",   text = "Two"},
-                        {id = "three", text = "Three"},
-                    },
-                },
-            },
-        },
-
-        -- Progress dice row
-        gui.Panel{
-            width = ROW_W,
-            height = 72,
-            halign = "left",
-            flow = "horizontal",
-            vmargin = 4,
-            gui.Label{
-                width = LABEL_W, height = 64,
-                valign = "center",
-                text = "Progress dice:",
-            },
-            gui.ProgressDice{
-                width = 64, height = 64,
-                valign = "center",
-                progress = 0.4,
-            },
-        },
-
-        -- Particle value row
-        gui.Panel{
-            width = ROW_W,
-            height = ROW_H,
-            halign = "left",
-            flow = "horizontal",
-            vmargin = 4,
-            gui.Label{
-                width = LABEL_W, height = LABEL_H,
-                valign = "center",
-                text = "Particle value:",
-            },
-            gui.ParticleValue{
-                width = 140, height = 20,
-                valign = "center",
-                value = 10,
-            },
-        },
-
-        -- Multiselect row (taller -- chips can wrap)
-        gui.Panel{
-            width = ROW_W,
-            height = 100,
-            halign = "left",
-            flow = "horizontal",
-            vmargin = 4,
-            gui.Label{
-                width = LABEL_W, height = LABEL_H,
-                valign = "top",
-                text = "Multiselect:",
-            },
-            gui.Multiselect{
-                width = 320, height = 100,
-                valign = "top",
-                value = { red = true, blue = true },
-                options = {
-                    {id = "red",    text = "Red"},
-                    {id = "blue",   text = "Blue"},
-                    {id = "green",  text = "Green"},
-                    {id = "yellow", text = "Yellow"},
-                    {id = "purple", text = "Purple"},
-                },
-            },
-        },
-
-        -- Checkbox row
-        gui.Panel{
-            width = ROW_W,
-            height = 40,
-            halign = "left",
-            flow = "horizontal",
-            vmargin = 4,
-            gui.Check{
-                width = 240, height = 30,
-                text = "Enable example",
-                value = true,
-            },
-        },
-
-        -- Tabs row
-        gui.Panel{
-            classes = {"tabBar"},
-            width = ROW_W,
-            height = 44,
-            halign = "left",
-            vmargin = 8,
-            gui.Panel{
-                classes = {"tab", "selected"},
-                width = 100, height = 40,
-                gui.Label{
-                    width = 100, height = 40,
-                    halign = "center", valign = "center",
-                    text = "Tab 1",
-                },
-            },
-            gui.Panel{
-                classes = {"tab"},
-                width = 100, height = 40,
-                gui.Label{
-                    width = 100, height = 40,
-                    halign = "center", valign = "center",
-                    text = "Tab 2",
-                },
-            },
-            gui.Panel{
-                classes = {"tab"},
-                width = 100, height = 40,
-                gui.Label{
-                    width = 100, height = 40,
-                    halign = "center", valign = "center",
-                    text = "Tab 3",
-                },
-            },
-        },
-
-        -- panelRadial row
-        gui.Panel{
-            classes = {"panel", "panelRadial"},
-            width = ROW_W,
-            height = 80,
-            halign = "left",
-            vmargin = 8,
-            gui.Label{
-                width = ROW_W, height = 80,
-                halign = "center", valign = "center",
-                text = "panelRadial",
-            },
-        },
-    }
-
-    return rootPanel
-end
-
-LaunchablePanel.Register{
-    name = "Theme Test",
-    menu = "tools",
-    icon = "icons/icon_tool/icon_tool_79.png",
-    halign = "center",
-    valign = "center",
-    draggable = true,
-    content = function()
-        return _themeTest()
-    end,
-}
-end -- devmode

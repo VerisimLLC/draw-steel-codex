@@ -191,7 +191,7 @@ mod.shared.ShowCreateMapDialog = function()
                 valign = "bottom",
 
                 gui.Button{
-                    classes = {"btnLg"},
+                    classes = {"sizeL"},
                     halign = "left",
                     text = "Create Map",
                     click = function(element)
@@ -245,7 +245,7 @@ mod.shared.ShowCreateMapDialog = function()
                 },
 
                 gui.Button{
-                    classes = {"btnLg"},
+                    classes = {"sizeL"},
                     halign = "right",
                     text = "Cancel",
                     escapeActivates = true,
@@ -1150,7 +1150,7 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
             },
 
             gui.Button{
-                classes = {"btnSm"},
+                classes = {"sizeS"},
                 text = "Reset View",
                 halign = "right",
                 click = function()
@@ -1208,7 +1208,7 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
             vmargin = 8,
 
             gui.Button{
-                classes = {"btnLg"},
+                classes = {"sizeL"},
                 text = "Confirm",
                 click = function()
                     printf("FLOOR_ALIGN:: Confirm clicked: offsetX=%d offsetY=%d", offsetX, offsetY)
@@ -1218,7 +1218,7 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
             },
 
             gui.Button{
-                classes = {"btnLg"},
+                classes = {"sizeL"},
                 text = "Cancel",
                 escapeActivates = true,
                 escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
@@ -1279,7 +1279,7 @@ mod.shared.ReimportMapSizing = function(floor, mapObj)
     local gridlessInitApplied = false
 
     local confirmButton = gui.Button{
-        classes = {"btnLg", "hidden"},
+        classes = {"sizeL", "hidden"},
         text = "Apply",
         valign = "center",
         halign = "center",
@@ -1363,7 +1363,7 @@ mod.shared.ReimportMapSizing = function(floor, mapObj)
     }
 
     local continueButton = gui.Button{
-        classes = {"btnLg", "hidden"},
+        classes = {"sizeL", "hidden"},
         text = "Continue>>",
         valign = "center",
         halign = "center",
@@ -1373,7 +1373,7 @@ mod.shared.ReimportMapSizing = function(floor, mapObj)
     }
 
     local previousButton = gui.Button{
-        classes = {"btnLg", "hidden"},
+        classes = {"sizeL", "hidden"},
         text = "Back",
         valign = "center",
         halign = "left",

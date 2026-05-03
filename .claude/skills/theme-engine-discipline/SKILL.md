@@ -13,20 +13,20 @@ The core rule: **the default theme provides the vocabulary; inline styling only 
 
 ## Files that own the vocabulary
 
-- `draw-steel-codex/DMHub Core UI/ThemeEngine.lua` — engine itself: `@name` resolver, registries, `MergeStyles` / `ResolveStyles` / `GetStyles`, `OnThemeChanged`.
+- `draw-steel-codex/DMHub Core UI/ThemeEngine.lua` — engine itself: `@name` resolver, registries, `MergeStyles` / `MergeTokens` / `GetStyles`, `OnThemeChanged`.
 - `draw-steel-codex/DMHub Core UI/DefaultStyles.lua` — canonical color scheme + default theme. Holds **only** generic widget vocabulary (panel, label, button, input, dropdown, formRow, dialog, modalDialog, framedPanel, modalTitle, modalMessage, …). Component-specific selectors (e.g. `dt-icon-button`, `imbuement-foo`, `negotiation-something`) NEVER go here — stop and ask the user before adding anything that names a feature instead of a widget primitive.
 
 ## Decision flow when styling any element
 
 1. Find an existing selector in `DefaultStyles.lua` that fits → apply it via `classes = {...}` and add nothing else.
-2. Need a small theme-aware tweak local to one panel → `ThemeEngine.MergeStyles{ extras }` at the cascade root, or `ThemeEngine.ResolveStyles{ extras }` at a downstream panel that already has a themed ancestor. Use `@token` references, never raw hex.
+2. Need a small theme-aware tweak local to one panel → `ThemeEngine.MergeStyles{ extras }` at the cascade root, or `ThemeEngine.MergeTokens{ extras }` at a downstream panel that already has a themed ancestor. Use `@token` references, never raw hex.
 3. Genuinely unique one-off → inline `selfStyle`, but **stop and ask the user first** with a one-line justification of why it can't reuse a class. Do not assume the answer.
 
 Layout values (positions and sizes that are unique to a particular construction site — `halign`, `valign`, `width`, `height`, `flow`, `margin` between siblings) are fine inline as direct panel fields. Visual properties (colors, fonts, borders, hover/press states, button sizes from the size vocabulary) belong in the theme.
 
 ## Hard rules
 
-- **`gui.PrettyButton` is being removed.** Use `gui.Button` with a theme button-size class (`btnSm` / `btnMd` / `btnLg`) for every button, including modal Okay/Cancel buttons. When I encounter a `gui.PrettyButton` callsite in code I'm editing, migrate it. The `prettyButton` / `prettyButtonLabel` rules in `DefaultStyles.lua` are deprecated — do not add new dependencies on them.
+- **`gui.PrettyButton` is being removed.** Use `gui.Button` with a theme size class (`sizeXs` / `sizeS` / `sizeM` / `sizeL` / `sizeXl` / `sizeXxl`) for every button, including modal Okay/Cancel buttons. When I encounter a `gui.PrettyButton` callsite in code I'm editing, migrate it. The `prettyButton` / `prettyButtonLabel` rules in `DefaultStyles.lua` are deprecated — do not add new dependencies on them.
 - Use `bgimage = true` for paintable surfaces (signals "I just need a surface for color/border"). Inline `bgimage` without `bgcolor` renders invisible.
 - `floating = true` and its `x`/`y` partners are structural — must be inline, the cascade ignores them.
 - Don't put `ThemeEngine.MergeStyles`/`GetStyles` inside primitive `gui.*` widgets; the caller surface owns the cascade.
@@ -47,8 +47,8 @@ Layout values (positions and sizes that are unique to a particular construction 
 
 ## Reference patterns
 
-- Themed modal frame: `draw-steel-codex/DMHub Game Hud/ModalDialog.lua` — `classes = {"framedPanel"}` + `styles = ThemeEngine.GetStyles()` + `dialogTitle` label + `gui.Button{ classes = {"btnLg"} }` for buttons.
-- Themed message dialog: `Hud:ModalMessage` in `draw-steel-codex/DMHub Core UI/Hud.lua` — title gets `{"modalTitle"}`, message gets `{"modalMessage"}`, Okay button gets `gui.Button{ classes = {"btnLg"} }`. Zero inline styling on those three elements; only the outer dialog panel carries layout values.
+- Themed modal frame: `draw-steel-codex/DMHub Game Hud/ModalDialog.lua` — `classes = {"framedPanel"}` + `styles = ThemeEngine.GetStyles()` + `dialogTitle` label + `gui.Button{ classes = {"sizeL"} }` for buttons.
+- Themed message dialog: `Hud:ModalMessage` in `draw-steel-codex/DMHub Core UI/Hud.lua` — title gets `{"modalTitle"}`, message gets `{"modalMessage"}`, Okay button gets `gui.Button{ classes = {"sizeL"} }`. Zero inline styling on those three elements; only the outer dialog panel carries layout values.
 - Local theme extras with `MergeStyles`: the `mergeTestExtras` block at the bottom of `DefaultStyles.lua` (`devmode` Theme Test panel) shows the smallest valid pattern — one custom rule that resolves `@danger` and follows scheme switches.
 
 ## Workflow checklist before claiming a UI change is done

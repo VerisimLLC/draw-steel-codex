@@ -68,7 +68,7 @@ BackupsDialog = function()
                 flow = "vertical",
 
                 gui.Button{
-                    classes = {"btnLg"},
+                    classes = {"sizeL"},
                     data = {
                         fname = "",
                         type = "",
@@ -102,7 +102,7 @@ BackupsDialog = function()
                 },
 
                 gui.Button{
-                    classes = {"btnLg"},
+                    classes = {"sizeL"},
                     text = "Cancel",
                     halign = "center",
                     valign = "center",
@@ -208,7 +208,7 @@ BackupsDialog = function()
                                     },
 
                                     gui.Button{
-                                        classes = {"btnSm"},
+                                        classes = {"sizeS"},
                                         text = "Restore",
                                         halign = "right",
                                         valign = "center",
@@ -218,7 +218,7 @@ BackupsDialog = function()
                                     },
 
                                     gui.Button{
-                                        classes = {"btnSm"},
+                                        classes = {"sizeS"},
                                         text = "Delete",
                                         halign = "right",
                                         valign = "center",
@@ -296,7 +296,7 @@ BackupsDialog = function()
                     },
 
                     gui.Button{
-                        classes = {"btnMd"},
+                        classes = {"sizeM"},
                         valign = "bottom",
                         text = "Backup Game",
                         click = function(element)

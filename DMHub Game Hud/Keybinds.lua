@@ -482,7 +482,7 @@ CreateKeybindsSettingsPanel = function()
                                     create = function() return gui.Panel{
                                         width = "auto",
                                         height = "auto",
-                                        styles = ThemeEngine.ResolveStyles(g_KeybindStyles),
+                                        styles = ThemeEngine.MergeTokens(g_KeybindStyles),
                                         children = {createfn()},
                                     } end,
                                     shown = string.find(string.lower(bind.name), string.lower(text)),
@@ -561,7 +561,7 @@ CreateKeybindsSettingsPanel = function()
         if #sectionChildren > 0 then
             table.sort(sectionChildren, function(a,b) return a.data.ord < b.data.ord end)
             table.insert(sectionChildren, 1, gui.Label{
-                classes = {"labelLg", "bold"},
+                classes = {"sizeL", "bold"},
                 width = "auto",
                 height = "auto",
                 fontSize = 24,
@@ -584,7 +584,7 @@ CreateKeybindsSettingsPanel = function()
     end
 
     children[#children+1] = gui.Button{
-        classes = {"btnLg"},
+        classes = {"sizeL"},
         halign = "right",
         valign = "bottom",
         margin = 8,
@@ -600,7 +600,7 @@ CreateKeybindsSettingsPanel = function()
         flow = "vertical",
         width = "100%",
         height = "auto",
-        styles = ThemeEngine.ResolveStyles(g_KeybindStyles),
+        styles = ThemeEngine.MergeTokens(g_KeybindStyles),
 
         children = children,
     }
@@ -616,7 +616,7 @@ function Keybinds.ShowBindPopup(args)
     local resultPanel
 
     resultPanel = gui.Panel{
-        styles = {ThemeEngine.GetStyles(), ThemeEngine.ResolveStyles(g_KeybindStyles)},
+        styles = {ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(g_KeybindStyles)},
         classes = {"framedPanel"},
         width = 600,
         height = 300,
@@ -624,7 +624,7 @@ function Keybinds.ShowBindPopup(args)
         valign = "center",
         destroy = args.destroy,
         gui.Label{
-            classes = {"labelXl", "bold"},
+            classes = {"sizeXl", "bold"},
             halign = "center",
             valign = "top",
             vmargin = 8,

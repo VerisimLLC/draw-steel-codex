@@ -743,7 +743,7 @@ function ClassLevel:CreateEditor(classOrRace, levelNum, params)
 		height = "auto",
 		flow = "vertical",
 
-		styles = ThemeEngine.ResolveStyles({
+		styles = ThemeEngine.MergeTokens({
 			Styles.ImplementationIcon,
             {
                 selectors = {"imported"},

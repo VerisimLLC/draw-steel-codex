@@ -260,7 +260,7 @@ function CreateSettingsScreen(dialog, args)
 
 		children = {
 			gui.Button{
-				-- classes = {"btnSm"},
+				-- classes = {"sizeS"},
 				bgimage = true,
 				text = "Close",
 				floating = true,
@@ -561,7 +561,7 @@ function CreateSettingsScreen(dialog, args)
 							},
 
 							gui.Label{
-								classes = {"labelLg", "bold"},
+								classes = {"sizeL", "bold"},
 								width = "auto",
 								height = "auto",
 								text = "Bandwidth Usage",

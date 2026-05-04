@@ -16,7 +16,7 @@ The **best** path to theming your UI is:
 3. Never use a constant color for anything; always use a class.
 4. Generally use inline properties to control specific layout, etc.
 
-This path ensures that your UI will leverage any theme that the end-user chooses.
+This path ensures that your UI will leverage any theme and color scheme that the end-user chooses.
 
 Sometimes, you will need to add **custom behaviors** through styles instead of inlining properties or writing event handlers. When you do this:
 
@@ -69,7 +69,7 @@ Please try to avoid using the following controls, using the suggested alternativ
 | gui.SettingsButton | gui.Button{ classes = { settingsButton }} |
 | gui.SimpleIconButton | gui.Button { icon = iconName } |
 
-### Expand/collapse triangle: `gui.ExpandoArrow`
+### Expand/collapse triangle: gui.ExpandoArrow
 
 For expand/collapse rows, use `gui.ExpandoArrow` instead of hand-rolling a `gui.Panel{ classes = {"triangle"} }` with custom rotate styles. It packages the proven inline-`bgimage` + local-`styles` pattern (cascade rotate doesn't animate in DMHub UI) and inherits `bgcolor` / sizing / hover from the active theme.
 
@@ -99,6 +99,8 @@ Themes are relatively broad in scope. They consist of fonts and styles. They hav
 
 Please review the `default` theme in `DMHub Core UI / DefaultStyles.lua` to see the available fonts and class selectors. The file is sectioned for navigation: `1. BASICS` (panel/label/button/input/dropdown), `2. FORMS`, `3. CARDS`, `4. DIALOGS`, `5. UTILITIES`.
 
+A second built-in theme `default-rounded` (display name "Default Rounded") inherits everything from `default` and only overrides `cornerRadius` on bordered surfaces (10px on panel-class surfaces, 5px on interactive controls). Selectable via the devmode Theme Test panel; it's a useful demonstration of "themes only override what they need."
+
 When creating custom schemes, remember that, like Color Schemes, the Theme Engine will use the default entries if your theme excludes them.
 
 The styles are built to be composable, so if you want a large, bold label you could use `gui.Label{ classes = {"sizeL", "bold"}, ...}`.
@@ -109,14 +111,17 @@ Interesting classes:
 
 | Class / Selector | Applies To | When To Use |
 |--|--|--|
-|bordered|panel|When you want a border around your control.|
+|bordered|any|Adds a 1px border (themed `@border`) and a paintable surface to any element.|
 |image|panel|Ensure the bgcolor is white so the image shows properly.|
 |portraitImage|panel|Opinionated about sizing for portraits.|
-|sizeXs, sizeS, sizeM,<br>sizeL, sizeXl, sizeXxl|label, button|Default sizing.|
+|surfaceLinear, surfaceRadial, barTrack|panel|Paint the named scheme gradient on a panel. Use for header strips, framed surfaces, progress-bar tracks.|
+|sizeXxs, sizeXs, sizeS, sizeM,<br>sizeL, sizeXl, sizeXxl|label, button|Default sizing.|
 |bold, noBold|anything|Make text bold or not bold.|
 |number|label|The label holds only a number.|
 |disabled|button, checkbox, input|Appear disabled.|
 |flipped|iconButton|Flips the icon horizontally.|
+|addButton, closeButton, copyButton,<br>deleteButton, settingsButton|button (with `icon = …` or alone)|Iconographic button kinds. Each supplies its own glyph; pair with a size class.|
+|withSuccess, withInfo,<br>withWarning, withDanger|iconButton|Tint the icon's hover state with the matching scheme status color.|
 |tabBar|panel|Container for a row of tabs.|
 |tab|label, button|A single tab inside a tabBar.|
 |tableLabel|label|Header label in a table.|
@@ -129,9 +134,12 @@ Interesting classes:
 |formStacked|label, input, dropdown, etc.|Apply to items in formRow.|
 |featureCard*|panel,etc|Bordered, collapsible cards like the feature editors in Compendium.|
 |dialog|panel|Styling for a panel launched as a dialog.|
+|modalTitle|label|Title label inside a `dialog` / `modalDialog`. Center-aligned, bold, themed `@fgStrong`, default fontSize 28.|
+|modalMessage|label|Body message label inside a modal. Center-aligned, themed `@fg`, default fontSize 18, 80% width.|
 |launchablePanel|panel|Style a panel launched as a launchable panel.|
 |hidden|any|Hides the control but does not collapse the area it was in.|
 |collapsed|any|Hides the control and collapses the area it was in.|
 |collapseAnim|any|As collapsed, but with animation.|
-|success, error, warning, info|any|Apply the corresponding scheme color to the foreground of the control.|
-|bgSuccess, bgError, bgWarning, bgInfo|any|Apply the corresponding scheme color to the background of the control.|
+|success, info, warning, danger|any|Tint foreground to the matching scheme status color.|
+|bgSuccess, bgInfo, bgWarning, bgDanger|any|Tint background to the matching scheme status color.|
+|borderSuccess, borderInfo, borderWarning, borderDanger|any|Tint the border to the matching scheme status color (compose with `bordered` or another bordered class).|

@@ -224,10 +224,22 @@ ThemeEngine.RegisterTheme{
             scrollHandleColor = "@fgMuted",
         },
         {
-            selectors = {"bordered"},
+            selectors = {"panel", "surfaceLinear"},
             bgimage = true,
-            border = 1,
-            borderColor = "@border",
+            bgcolor = "white",
+            gradient = "@surfaceLinear",
+        },
+        {
+            selectors = {"panel", "surfaceRadial"},
+            bgimage = true,
+            bgcolor = "white",
+            gradient = "@surfaceRadial",
+        },
+        {
+            selectors = {"panel", "barTrack"},
+            bgimage = true,
+            bgcolor = "white",
+            gradient = "@barTrack",
         },
         -- Image-displaying panels. bgcolor "white" is image-tint-neutral
         -- (see top of section 1). Borders are intentionally NOT set here --
@@ -285,36 +297,39 @@ ThemeEngine.RegisterTheme{
             bold = false,
         },
         {
+            selectors = {"label", "sizeXxs"},
+            fontSize = 10,
+            priority = 5,
+        },
+        {
             selectors = {"label", "sizeXs"},
             fontSize = 12,
+            priority = 5,
         },
         {
             selectors = {"label", "sizeS"},
             fontSize = 14,
+            priority = 5,
         },
         {
             selectors = {"label", "sizeM"},
             fontSize = 16,
+            priority = 5,
         },
         {
             selectors = {"label", "sizeL"},
             fontSize = 18,
+            priority = 5,
         },
         {
             selectors = {"label", "sizeXl"},
             fontSize = 24,
+            priority = 5,
         },
         {
             selectors = {"label", "sizeXxl"},
             fontSize = 28,
-        },
-        {
-            selectors = {"bold"},
-            bold = true,
-        },
-        {
-            selectors = {"noBold"},
-            bold = false,
+            priority = 5,
         },
         {
             selectors = {"label", "number"},
@@ -355,40 +370,53 @@ ThemeEngine.RegisterTheme{
             bold = false,
         },
         {
+            selectors = {"button", "sizeXxs"},
+            width = 24,
+            height = 18,
+            fontSize = 10,
+            priority = 5,
+        },
+        {
             selectors = {"button", "sizeXs"},
             width = 31,
             height = 20,
             fontSize = 12,
+            priority = 5,
         },
         {
             selectors = {"button", "sizeS"},
             width = 57,
             height = 26,
             fontSize = 14,
+            priority = 5,
         },
         {
             selectors = {"button", "sizeM"},
             width = 129,
             height = 31,
             fontSize = 16,
+            priority = 5,
         },
         {
             selectors = {"button", "sizeL"},
             width = 175,
             height = 35,
             fontSize = 18,
+            priority = 5,
         },
         {
             selectors = {"button", "sizeXl"},
             width = 175,
             height = 35,
             fontSize = 18,
+            priority = 5,
         },
         {
             selectors = {"button", "sizeXxl"},
             width = 175,
             height = 35,
             fontSize = 18,
+            priority = 5,
         },
         {
             selectors = {"button", "hasIcon"},
@@ -440,6 +468,7 @@ ThemeEngine.RegisterTheme{
             bgcolor = "@bg",
             borderColor = "@border",
             border = 2,
+            bold = false,
         },
         {
             selectors = {"input", "focus"},
@@ -858,6 +887,7 @@ ThemeEngine.RegisterTheme{
         --[[ Tab ]]
         {
             selectors = {"tab"},
+            textAlignment = "center",
             bgimage = true,
             borderWidth = 1,
             borderColor = "@border",
@@ -876,6 +906,7 @@ ThemeEngine.RegisterTheme{
             selectors = {"tab", "selected"},
             bold = true,
             color = "@fgStrong",
+            bgcolor = "@bgAlt",
             borderColor = "@fg",
             borderWidth = 2,
         },
@@ -999,37 +1030,67 @@ ThemeEngine.RegisterTheme{
             selectors = {"iconButton", "settingsButton"},
             bgimage = "ui-icons/skills/98.png",
         },
-        -- Size variants. Default is sizeM (24x24); the slot is defined
-        -- explicitly so all six size names are theme-vocabulary entries.
+
+        --[[
+            Composable variants.
+        ]]
+        {
+            selectors = {"bordered"},
+            bgimage = true,
+            border = 1,
+            borderColor = "@border",
+        },
+        {
+            selectors = {"bold"},
+            bold = true,
+            priority = 5,
+        },
+        {
+            selectors = {"noBold"},
+            bold = false,
+            priority = 5,
+        },
+        {
+            selectors = {"iconButton", "sizeXxs"},
+            width = 12,
+            height = 12,
+            priority = 5,
+        },
         {
             selectors = {"iconButton", "sizeXs"},
             width = 16,
             height = 16,
+            priority = 5,
         },
         {
             selectors = {"iconButton", "sizeS"},
             width = 20,
             height = 20,
+            priority = 5,
         },
         {
             selectors = {"iconButton", "sizeM"},
             width = 24,
             height = 24,
+            priority = 5,
         },
         {
             selectors = {"iconButton", "sizeL"},
             width = 32,
             height = 32,
+            priority = 5,
         },
         {
             selectors = {"iconButton", "sizeXl"},
             width = 48,
             height = 48,
+            priority = 5,
         },
         {
             selectors = {"iconButton", "sizeXxl"},
             width = 58,
             height = 58,
+            priority = 5,
         },
         -- {
         --     selectors = {"hudIconButton"},
@@ -1541,7 +1602,7 @@ ThemeEngine.RegisterTheme{
             cornerRadius = 4,
             gradient = "@surfaceLinear",
             borderWidth = 2.2,
-            borderColor = "@fg",
+            borderColor = "@border",
         },
         -- Launchable-hosted content. Use this class on the root panel
         -- returned from `LaunchablePanel.Register{ content = ... }`.
@@ -1607,9 +1668,8 @@ ThemeEngine.RegisterTheme{
             halign = "center",
             valign = "top",
             textAlignment = "center",
-            width = "auto",
+            width = "80%",
             height = "auto",
-            margin = 16,
             fontSize = 28,
             color = "@fgStrong",
             bold = true,
@@ -1706,6 +1766,22 @@ ThemeEngine.RegisterTheme{
             selectors = {"bgDanger"},
             bgcolor = "@danger",
         },
+        {
+            selectors = {"borderSuccess"},
+            borderColor = "@success",
+        },
+        {
+            selectors = {"borderInfo"},
+            borderColor = "@info",
+        },
+        {
+            selectors = {"borderWarning"},
+            borderColor = "@warning",
+        },
+        {
+            selectors = {"borderDanger"},
+            borderColor = "@danger",
+        },
 
         --[[ Token image ]]
         --
@@ -1737,7 +1813,43 @@ ThemeEngine.RegisterTheme{
     },
 }
 
--- After both schemes and the default theme are registered, restore the
--- user's saved selections (defaults to "default" / "default" if they
+-- =============================================================================
+-- Default Rounded theme -- inherits everything from default and only overrides
+-- cornerRadius on bordered surfaces. 10px for panel-class surfaces, 5px for
+-- interactive controls (buttons, inputs, dropdowns, checkboxes, tabs, …).
+-- =============================================================================
+
+ThemeEngine.RegisterTheme{
+    id          = "default-rounded",
+    name        = "Default Rounded",
+    description = "Default theme with rounded corners on bordered surfaces.",
+    colorScheme = "default",
+
+    styles = {
+        -- Panel surfaces
+        { selectors = {"panel", "bordered"},   cornerRadius = 10 },
+        { selectors = {"panel", "dialog"},     cornerRadius = 10 },
+        { selectors = {"modalDialog"},         cornerRadius = 10 },
+        { selectors = {"framedPanel"},         cornerRadius = 10 },
+        { selectors = {"contextMenu"},         cornerRadius = 10 },
+        { selectors = {"featureCardHeader"},   cornerRadius = {x1 = 10, x2 = 0, y1 = 10, y2 = 0} },
+        { selectors = {"featureCardBody"},     cornerRadius = {x1 = 0, x2 = 10, y1 = 0, y2 = 10} },
+
+        -- Interactive controls
+        { selectors = {"label", "button"},        cornerRadius = 5 },
+        { selectors = {"input"},                  cornerRadius = 5 },
+        { selectors = {"searchInput"},            cornerRadius = 5 },
+        { selectors = {"dropdown"},               cornerRadius = 5 },
+        { selectors = {"colorPicker"},            cornerRadius = 5 },
+        { selectors = {"multiselectChip"},        cornerRadius = 5 },
+        { selectors = {"multiselectChipRemove"},  cornerRadius = 5 },
+        { selectors = {"enumSliderOption"},       cornerRadius = 5 },
+        { selectors = {"checkBackground"},        cornerRadius = 5 },
+        { selectors = {"tab"},                    cornerRadius = {x1 = 5, x2 = 0, y1 = 5, y2 = 0} },
+    },
+}
+
+-- After schemes and themes are registered, restore the user's
+-- saved selections (defaults to "default" / "default" if they
 -- haven't picked anything yet).
 ThemeEngine.RestoreActiveSelection()

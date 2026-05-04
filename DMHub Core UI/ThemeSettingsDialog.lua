@@ -202,10 +202,10 @@ CreateThemeSettingsDialog = function()
         },
 
         gui.Button{
-            classes = {"sizeM"},
+            classes = {"sizeS"},
             text = "Apply",
             valign = "top",
-            tmargin = 24,
+            tmargin = 28,
             click = function()
                 ThemeEngine.SetActiveTheme(selectedThemeId)
                 ThemeEngine.SetActiveColorScheme(selectedSchemeId)

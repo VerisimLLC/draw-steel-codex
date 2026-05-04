@@ -1604,6 +1604,7 @@ function CharSheet.CharacterSheetAndAvatarPanel()
 
             -- Titles
             gui.Multiselect {
+                styles = ThemeEngine.GetStyles("default", "default"),
                 options = Title.GetDropdownList(),
                 addItemText = "Grant title...",
                 refreshToken = function(element, info)
@@ -4989,6 +4990,8 @@ function CharSheet.NotesInnerPanel()
 
     local addNotesButton = gui.AddButton {
         hmargin = 15,
+        height = 24,
+        width = 24,
         halign = "right",
         linger = function(element)
             gui.Tooltip("Add a new section")(element)

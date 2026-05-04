@@ -31,10 +31,14 @@ function DTShareDialog._createPanel(options)
     local resultPanel = nil
 
     resultPanel = gui.Panel {
-        classes = {"shareController", "DTDialog"},
-        width = 450,
+        classes = {"shareController", "dialog"},
+        styles = ThemeEngine.GetStyles(),
+        width = 500,
         height = 300,
-        styles = ThemeEngine.MergeStyles(DTHelpers.GetDialogStyles()),
+        flow = "vertical",
+        halign = "center",
+        valign = "center",
+        pad = 4,
         floating = true,
         escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
         captureEscape = true,
@@ -59,18 +63,12 @@ function DTShareDialog._createPanel(options)
         children = {
             -- Header
             gui.Label{
-                classes = {"DTLabel", "DTBase"},
+                classes = {"modalTitle"},
                 text = "Share This Project With:",
-                fontSize = 24,
-                width = "100%",
-                height = 30,
-                textAlignment = "center",
             },
-            gui.Divider { width = "50%" },
 
             -- Content - Character selector
             gui.Panel{
-                classes = {"DTPanel", "DTBase"},
                 width = "100%",
                 height = "100%-110",
                 flow = "vertical",
@@ -90,7 +88,6 @@ function DTShareDialog._createPanel(options)
 
             -- Button panel
             gui.Panel{
-                classes = {"DTPanel", "DTBase"},
                 width = "100%",
                 height = 40,
                 vmargin = 10,
@@ -99,22 +96,21 @@ function DTShareDialog._createPanel(options)
                 flow = "horizontal",
                 children = {
                     gui.Button{
-                        classes = {"DTButton", "DTBase"},
+                        classes = {"sizeL"},
                         text = "Cancel",
-                        width = 120,
-                        halign = "center",
+                        valign = "bottom",
                         click = function(element)
                             local controller = element:FindParentWithClass("shareController")
                             if controller then
                                 controller:FireEvent("escape")
                             end
-                        end
+                        end,
                     },
                     gui.Button{
-                        classes = {"DTButton", "DTBase"},
+                        classes = {"sizeL"},
                         text = "Share",
-                        width = 120,
-                        halign = "center",
+                        halign = "right",
+                        valign = "bottom",
                         click = function(element)
                             local controller = element:FindParentWithClass("shareController")
                             if controller then
@@ -131,10 +127,10 @@ function DTShareDialog._createPanel(options)
                                 options.callbacks.confirmHandler(selectedTokenIds)
                                 controller:FireEvent("close")
                             end
-                        end
-                    }
-                }
-            }
+                        end,
+                    },
+                },
+            },
         },
     }
 

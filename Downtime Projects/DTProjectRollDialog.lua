@@ -41,10 +41,14 @@ function DTProjectRollDialog._createPanel(options)
     end
 
     resultPanel = gui.Panel {
-        styles = ThemeEngine.MergeStyles(DTHelpers.GetDialogStyles()),
-        classes = {"rollController", "DTDialog"},
+        classes = {"rollController", "dialog"},
+        styles = ThemeEngine.GetStyles(),
         width = 860,
         height = 500,
+        flow = "vertical",
+        halign = "center",
+        valign = "center",
+        pad = 4,
         floating = true,
         escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
         captureEscape = true,
@@ -197,12 +201,8 @@ function DTProjectRollDialog._createPanel(options)
         children = {
             -- Header
             gui.Label{
-                classes = {"DTLabel", "DTBase"},
+                classes = {"modalTitle"},
                 text = string.format("Roll on Project %s as %s", options.projectTitle or "unnamed", rollerName),
-                fontSize = 24,
-                width = "100%",
-                height = 30,
-                textAlignment = "center",
                 updateTitle = function(element, newText)
                     element.text = newText
                 end,
@@ -211,33 +211,28 @@ function DTProjectRollDialog._createPanel(options)
 
             -- Form content
             gui.Panel{
-                classes = {"DTPanel", "DTBase"},
                 width = "100%",
                 height = "100%-110",
                 flow = "vertical",
-                vmargin = 10,
-                borderColor = "red",
+                valign = "top",
                 children = {
                     -- Top row - Edges, Banes, Bonuses
                     gui.Panel {
-                        classes = {"DTPanel", "DTBase"},
                         width = "100%-10",
                         height = "60%-7",
                         valign = "top",
                         flow = "horizontal",
-                        borderColor = "blue",
                         children = {
                             -- Left Side - Edges
                             gui.Panel {
-                                classes = {"edgesController", "DTPanel", "DTBase"},
+                                classes = {"edgesController"},
                                 width = "33%-5",
                                 height = "100%-10",
                                 valign = "top",
                                 flow = "vertical",
-                                borderColor = "yellow",
                                 children = {
                                     gui.Label {
-                                        classes = {"DTLabel", "DTBase"},
+                                        classes = {"sizeM", "bold"},
                                         text = "Edges",
                                         width = "100%",
                                         textAlignment = "center",
@@ -252,11 +247,10 @@ function DTProjectRollDialog._createPanel(options)
                                     },
                                     gui.MCDMDivider { width = "50%", layout = "dot" },
                                     gui.Panel {
-                                        classes = {"DTPanel", "DTBase"},
                                         width = "100%-8",
                                         height = "auto",
                                         flow = "vertical",
-                                        borderColor = "cyan",
+                                        valign = "top",
                                         children = {
                                             DTProjectRollDialog._makeExtraAdjustmentCheckText("edges"),
                                             DTProjectRollDialog._makeExtraAdjustmentCheckText("edges"),
@@ -266,15 +260,14 @@ function DTProjectRollDialog._createPanel(options)
                             },
                             -- Center - Banes
                             gui.Panel {
-                                classes = {"banesController", "DTPanel", "DTBase"},
+                                classes = {"banesController"},
                                 width = "33%-5",
                                 height = "100%-10",
                                 valign = "top",
                                 flow = "vertical",
-                                borderColor = "yellow",
                                 children = {
                                     gui.Label {
-                                        classes = {"DTLabel", "DTBase"},
+                                        classes = {"sizeM", "bold"},
                                         text = "Banes",
                                         width = "100%",
                                         textAlignment = "center",
@@ -289,15 +282,15 @@ function DTProjectRollDialog._createPanel(options)
                                     },
                                     gui.MCDMDivider { width = "50%", layout = "dot" },
                                     gui.Panel {
-                                        classes = {"DTPanel", "DTBase"},
                                         width = "100%-8",
                                         height = "auto",
                                         flow = "vertical",
+                                        valign = "top",
                                         vpad = 7,
-                                        borderColor = "cyan",
                                         children = {
                                             gui.Check {
-                                                classes = {"DTCheck", "DTBase"},
+                                                width = "100%",
+                                                halign = "left",
                                                 value = false,
                                                 text = "Language Penalty",
                                                 data = {
@@ -353,15 +346,14 @@ function DTProjectRollDialog._createPanel(options)
                             },
                             -- Right - Bonuses
                             gui.Panel {
-                                classes = {"bonusesController", "DTPanel", "DTBase"},
+                                classes = {"bonusesController"},
                                 width = "33%-5",
                                 height = "100%-10",
                                 valign = "top",
                                 flow = "vertical",
-                                borderColor = "yellow",
                                 children = {
                                     gui.Label {
-                                        classes = {"DTLabel", "DTBase"},
+                                        classes = {"sizeM", "bold"},
                                         text = "Bonuses",
                                         width = "100%",
                                         textAlignment = "center",
@@ -376,16 +368,16 @@ function DTProjectRollDialog._createPanel(options)
                                     },
                                     gui.MCDMDivider { width = "50%", layout = "dot" },
                                     gui.Panel {
-                                        classes = {"skillListController", "DTPanel", "DTBase"},
+                                        classes = {"skillListController"},
                                         width = "100%-8",
                                         height = "auto",
                                         flow = "vertical",
-                                        borderColor = "cyan",
+                                        valign = "top",
                                         children = {
                                             gui.Label {
-                                                classes = {"DTLabel", "DTBase"},
+                                                classes = {"form"},
                                                 width = "100%-10",
-                                                height = "30",
+                                                height = 30,
                                                 textAlignment = "left",
                                                 hmargin = 2,
                                                 text = "+? (Attribute)",
@@ -467,7 +459,6 @@ function DTProjectRollDialog._createPanel(options)
                                                 end,
                                                 children = {
                                                     gui.Check {
-                                                        classes = {"DTCheck", "DTBase"},
                                                         width = "100%",
                                                         halign = "left",
                                                         value = false,
@@ -493,7 +484,7 @@ function DTProjectRollDialog._createPanel(options)
                                                             end
                                                         end,
                                                         gui.Label{
-                                                            classes = {"DTInput", "DTBase"},
+                                                            classes = {"number", "bordered"},
                                                             editable = true,
                                                             numeric = true,
                                                             characterLimit = 2,
@@ -504,7 +495,7 @@ function DTProjectRollDialog._createPanel(options)
                                                             height = 30,
                                                             cornerRadius = 4,
                                                             fontSize = 20,
-                                                            bgimage = "panels/square.png",
+                                                            bgimage = true,
                                                             border = 1,
                                                             textAlignment = "center",
                                                             valign = "center",
@@ -522,17 +513,12 @@ function DTProjectRollDialog._createPanel(options)
                                                             end,
                                                         },
                                                         gui.Input {
-                                                            classes = {"DTInput", "DTBase", "collapsed"},
+                                                            classes = {"collapsed"},
                                                             width = "90%-64",
                                                             halign="right",
                                                             hmargin = 4,
                                                             placeholderText = "Enter description...",
                                                             interactable = false,
-                                                            style = {
-                                                                selectors = {"collapsed"},
-                                                                height = 0,
-                                                                hidden = 1
-                                                            },
                                                             editlag = 0.5,
                                                             change = function(element)
                                                                 local fieldController = element:FindParentWithClass("extraBonusController")
@@ -555,13 +541,6 @@ function DTProjectRollDialog._createPanel(options)
                                             },
                                             gui.Multiselect{
                                                 options = skillList,
-                                                classes = {"DTPanel", "DTBase"},
-                                                dropdown = {
-                                                    classes = {"DTDropdown", "DTBase"},
-                                                },
-                                                chips = {
-                                                    classes = {"DTChip"}
-                                                },
                                                 width = "98%",
                                                 halign = "left",
                                                 vmargin = 4,
@@ -616,26 +595,22 @@ function DTProjectRollDialog._createPanel(options)
 
                     -- Bottom row - Summary
                     gui.Panel {
-                        classes = {"DTPanel", "DTBase"},
                         width = "100%-10",
                         height = "40%-7",
                         valign = "top",
                         flow = "vertical",
-                        borderColor = "blue",
                         children = {
                             DTProjectRollDialog._makeExtraAdjustmentLabel("edges"),
                             DTProjectRollDialog._makeExtraAdjustmentLabel("banes"),
                             DTProjectRollDialog._makeExtraAdjustmentLabel("bonuses"),
                             gui.Panel {
-                                classes = {"DTPanel", "DTBase"},
                                 width = "100%-10",
                                 height = "auto",
                                 valign = "top",
                                 flow = "horizontal",
-                                borderColor = "yellow",
                                 children = {
                                     gui.Label {
-                                        classes = {"DTLabel", "DTBase"},
+                                        classes = {"form"},
                                         width = 80,
                                         height = 30,
                                         valign = "center",
@@ -643,12 +618,11 @@ function DTProjectRollDialog._createPanel(options)
                                         text = "Roll:"
                                     },
                                     gui.Label {
-                                        classes = {"DTLabel", "DTBase"},
+                                        classes = {"form"},
                                         width = "100%-100",
                                         height = 30,
                                         valign = "center",
                                         textAlignment = "left",
-                                        bold = false,
                                         text = "Calculating...",
                                         updateFields = function(element)
                                             local controller = element:FindParentWithClass("rollController")
@@ -666,41 +640,38 @@ function DTProjectRollDialog._createPanel(options)
 
             -- Button panel
             gui.Panel{
-                classes = {"DTPanel", "DTBase"},
                 width = "100%",
                 height = 40,
                 vmargin = 10,
                 halign = "center",
                 valign = "bottom",
                 flow = "horizontal",
-                borderColor = "red",
                 children = {
                     gui.Button{
-                        classes = {"DTButton", "DTBase"},
+                        classes = {"sizeL"},
                         text = "Cancel",
-                        width = 120,
-                        halign = "center",
+                        valign = "bottom",
                         click = function(element)
                             local controller = element:FindParentWithClass("rollController")
                             if controller then
                                 controller:FireEvent("escape")
                             end
-                        end
+                        end,
                     },
                     gui.Button{
-                        classes = {"DTButton", "DTBase"},
+                        classes = {"sizeL"},
                         text = "Roll",
-                        width = 120,
-                        halign = "center",
+                        halign = "right",
+                        valign = "bottom",
                         click = function(element)
                             local controller = element:FindParentWithClass("rollController")
                             if controller then
                                 controller:FireEvent("executeRoll")
                             end
-                        end
-                    }
-                }
-            }
+                        end,
+                    },
+                },
+            },
         },
     }
 
@@ -716,12 +687,11 @@ function DTProjectRollDialog._makeExtraAdjustmentLabel(adjustType)
     local defaultLabel = string.format("No %s selected", proper)
 
     return gui.Panel {
-        classes = {"adjustDetail", "DTPanel", "DTBase"},
+        classes = {"adjustDetail"},
         width = "100%-10",
         height = "auto",
         valign = "top",
         flow = "horizontal",
-        borderColor = "yellow",
         data = {
             getTypeAndText = function(element)
                 local labelField = element:GetChildrenWithClass("adjustLabel")[1]
@@ -731,7 +701,7 @@ function DTProjectRollDialog._makeExtraAdjustmentLabel(adjustType)
         },
         children = {
             gui.Label {
-                classes = {"adjustLabel", "DTLabel", "DTBase"},
+                classes = {"adjustLabel", "form"},
                 width = 80,
                 height = 30,
                 valign = "center",
@@ -739,12 +709,11 @@ function DTProjectRollDialog._makeExtraAdjustmentLabel(adjustType)
                 text = proper .. ":"
             },
             gui.Label {
-                classes = {"adjustText", "DTLabel", "DTBase"},
+                classes = {"adjustText", "form"},
                 width = "100%-100",
                 height = 30,
                 valign = "center",
                 textAlignment = "left",
-                bold = false,
                 text = defaultLabel,
                 updateFields = function(element)
                     local controller = element:FindParentWithClass("rollController")
@@ -815,7 +784,6 @@ function DTProjectRollDialog._makeExtraAdjustmentCheckText(adjustType)
         end,
         children = {
             gui.Check {
-                classes = {"DTCheck", "DTBase"},
                 width = "100%",
                 halign = "left",
                 value = false,
@@ -829,16 +797,11 @@ function DTProjectRollDialog._makeExtraAdjustmentCheckText(adjustType)
                 end,
             },
                 gui.Input {
-                    classes = {"DTInput", "DTBase", "collapsed"},
+                    classes = {"collapsed"},
                     width = "80%",
                     halign="right",
                     placeholderText = "Enter description...",
                     interactable = false,
-                    style = {
-                        selectors = {"collapsed"},
-                        height = 0,
-                        hidden = 1
-                    },
                     editlag = 0.5,
                     change = function(element)
                         local fieldController = element:FindParentWithClass("extraBaneEdgeController")

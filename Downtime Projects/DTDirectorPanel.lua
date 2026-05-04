@@ -17,91 +17,6 @@ end
 --- @field downtimeSettings DTSettings The downtime settings for shared data management
 DTDirectorPanel = RegisterGameType("DTDirectorPanel")
 
---- Compact toggle-style tab styles. Plain rule tables (no gui.Style
---- wrapper) so ThemeEngine.MergeTokens can resolve the @-token references
---- against the active scheme at panel construction time.
-DTDirectorPanel.TabsStyles = {
-    {
-        selectors = {"dtTabContainer"},
-        height = 24,
-        width = "100%",
-        flow = "horizontal",
-        halign = "left",
-        valign = "center",
-        hmargin = 5,
-    },
-    {
-        selectors = {"dtTab"},
-        fontFace = "@label",
-        bold = false,
-        valign = "center",
-        halign = "center",
-        hpad = 6,
-        vpad = 4,
-        width = 75,
-        height = "100%",
-        hmargin = 8,
-        bgimage = true,
-        borderColor = "@border",
-        border = { y1 = 0, y2 = 0, x1 = 0, x2 = 0 },
-        color = "@fgMuted",
-        textAlignment = "center",
-        fontSize = 9.5,
-        transitionTime = 0.2,
-    },
-    {
-        selectors = {"dtTab", "hover"},
-        color = "@fg",
-        borderColor = "@fg",
-        border = { y1 = 1, y2 = 0, x1 = 0, x2 = 0 },
-        transitionTime = 0.2,
-    },
-    -- Specificity bridge: the global `{warning}` utility (spec 1) loses
-    -- to `{dtTab}` (spec 1, later in the merge), so on a tab label we
-    -- need this spec-2 alias to actually paint the warning tint.
-    {
-        selectors = {"dtTab", "warning"},
-        color = "@warning",
-    },
-    {
-        selectors = {"dtTab", "selected"},
-        color = "@fgStrong",
-        border = { y1 = 1, y2 = 0, x1 = 0, x2 = 0 },
-        borderColor = "@fgStrong",
-        bold = true,
-        transitionTime = 0.2,
-    },
-
-    -- Character section label classes. These live in the panel-local
-    -- cascade because the contentPanel doesn't carry the full theme
-    -- (it only carries this extras block), so generic {label, sizeS}
-    -- rules from DefaultStyles never reach these descendants.
-    {
-        selectors = {"label", "dtCharName"},
-        fontFace = "@label",
-        fontSize = 14,
-        color = "@fgStrong",
-        bold = true,
-        textAlignment = "left",
-    },
-    {
-        selectors = {"label", "dtProjectDetail"},
-        fontFace = "@label",
-        fontSize = 11,
-        color = "@fgStrong",
-        bold = true,
-        textAlignment = "left",
-    },
-    {
-        selectors = {"label", "dtEmptyState"},
-        fontFace = "@label",
-        fontSize = 14,
-        color = "@fgStrong",
-        bold = true,
-        textAlignment = "center",
-    },
-}
-
 --- Registers the dockable panel with the Codex UI system
 --- Creates and configures the main downtime director interface
 function DTDirectorPanel:Register()
@@ -249,8 +164,8 @@ function DTDirectorPanel:_showSettingsDialog()
     local pauseReason = self.downtimeSettings:GetPauseRollsReason()
 
     local settingsDialog = gui.Panel{
-        styles = ThemeEngine.GetStyles(), --MergeStyles(DTHelpers.GetDialogStyles()),
-        classes = {"dtSettingsController", "dialog"}, --"DTDialog"},
+        styles = ThemeEngine.GetStyles(),
+        classes = {"dtSettingsController", "dialog"},
         width = 500,
         height = 300,
         flow = "vertical",
@@ -504,19 +419,18 @@ function DTDirectorPanel:_buildCharacterHeader(characterInfo, contentPanel, tabT
 
     return gui.Panel{
         width = "98%",
-        height = 30,
+        height = 24,
+        tmargin = 6,
         flow = "horizontal",
-        classes = {"character-header"},
         children = {
             triangle,
             -- Character token
             gui.Panel {
+                classes = {"bordered"},
                 width = 20,
                 height = 20,
                 valign = "center",
                 hmargin = 4,
-                borderWidth = 1,
-                borderColor = Styles.textColor,
                 children = token and {
                     gui.CreateTokenImage(token, {
                         width = 24,
@@ -532,8 +446,8 @@ function DTDirectorPanel:_buildCharacterHeader(characterInfo, contentPanel, tabT
             },
             -- Character name + player name
             gui.Label{
+                classes = {"sizeS", "bold"},
                 text = characterName .. playerDisplay,
-                classes = {"dtCharName"},
                 width = "70%",
                 height = "100%",
                 valign = "center",
@@ -602,11 +516,10 @@ function DTDirectorPanel:_buildProjectDetail(projectEntry, tabType)
         width = "100%",
         height = 25,
         flow = "horizontal",
-        classes = {"project-detail"},
         children = {
             gui.Label{
+                classes = {"sizeXxs"},
                 text = displayText,
-                classes = {"dtProjectDetail"},
                 width = "100%",
                 height = "100%",
                 valign = "center",
@@ -638,18 +551,14 @@ function DTDirectorPanel:_buildCharacterSection(characterInfo, characterProjects
     local prefKey = string.format("dt_char_expanded:%s:%s:%s", tabType, characterId, dmhub.gameid or "default")
     local isExpanded = dmhub.GetPref(prefKey) or false
 
-    -- Build content panel with conditional collapsed class
-    local classes = {"character-content"}
-    if not isExpanded then
-        table.insert(classes, "collapsed")
-    end
-
+    -- Build content panel — `collapsed` is the theme primitive toggled
+    -- by the triangle's click handler.
     local contentPanel = gui.Panel{
+        classes = not isExpanded and {"collapsed"} or nil,
         width = "100%",
         height = "auto",
         flow = "vertical",
-        classes = classes,
-        children = projectChildren
+        children = projectChildren,
     }
 
     -- Build header with reference to content panel
@@ -659,11 +568,10 @@ function DTDirectorPanel:_buildCharacterSection(characterInfo, characterProjects
         width = "100%",
         height = "auto",
         flow = "vertical",
-        classes = {"character-section"},
         children = {
             headerPanel,
-            contentPanel
-        }
+            contentPanel,
+        },
     }
 end
 
@@ -676,8 +584,8 @@ function DTDirectorPanel:_buildTabContent(categorizedProjects, tabType)
 
     if #categorizedProjects == 0 then
         tabChildren[#tabChildren + 1] = gui.Label {
+            classes = {"sizeS", "bold"},
             text = "No projects in this category.",
-            classes = {"dtEmptyState"},
             width = "100%",
             height = "100%",
             halign = "center",
@@ -721,8 +629,7 @@ function DTDirectorPanel:_buildTabContent(categorizedProjects, tabType)
         width = "100%",
         height = "auto",
         flow = "vertical",
-        styles = self:_getTabContentStyles(),
-        children = tabChildren
+        children = tabChildren,
     }
 end
 
@@ -808,74 +715,78 @@ function DTDirectorPanel:_buildContentPanel()
 
     -- Use the same categorized data for counts (already calculated above)
 
-    -- Build the content cascade root: full default theme + the panel's
-    -- local extras (tab rules + character-section label rules). Using
-    -- MergeStyles (not MergeTokens) because outerPanel is the cascade
-    -- root for everything below the header — its descendants need the
-    -- {label}, {iconButton, settingsButton}, {triangle, ...} rules from
-    -- DefaultStyles, not just our local extras.
-    local resolvedContentStyles = ThemeEngine.MergeStyles(DTDirectorPanel.TabsStyles)
+    -- Compact tab sizing — inline overrides on each tab label preserve
+    -- the 75x24 / fontSize 9.5 look while everything else (themed bg,
+    -- hover, selected, warning) flows from the theme's {tab} cascade.
+    local function tabClasses(name, important)
+        return {
+            "tab",
+            selectedTab == name and "selected" or nil,
+            important and "warning" or nil,
+        }
+    end
 
     -- Create tabs panel
     tabsPanel = gui.Panel{
-        classes = {"dtTabContainer"},
-        styles = resolvedContentStyles,
+        classes = {"tabBar"},
+        width = "100%",
+        height = 24,
         children = {
             gui.Label{
-                classes = {
-                    "dtTab",
-                    selectedTab == "Attention" and "selected" or nil,
-                    #categorized.attention > 0 and "warning" or nil,
-                },
+                classes = tabClasses("Attention", #categorized.attention > 0),
                 text = string.format("Attention (%d)", #categorized.attention),
+                width = "25%",
+                height = "100%",
+                fontSize = 9.5,
                 data = {tabName = "Attention"},
                 press = function() selectTab("Attention") end,
             },
             gui.Label{
-                classes = {
-                    "dtTab",
-                    selectedTab == "Milestones" and "selected" or nil,
-                    #categorized.milestones > 0 and "warning" or nil},
+                classes = tabClasses("Milestones", #categorized.milestones > 0),
                 text = string.format("Milestones (%d)", #categorized.milestones),
+                width = "25%",
+                height = "100%",
+                fontSize = 9.5,
                 data = {tabName = "Milestones"},
                 press = function() selectTab("Milestones") end,
             },
             gui.Label{
-                classes = {"dtTab", selectedTab == "Active" and "selected" or nil},
+                classes = tabClasses("Active", false),
                 text = string.format("Active (%d)", #categorized.active),
+                width = "25%",
+                height = "100%",
+                fontSize = 9.5,
                 data = {tabName = "Active"},
                 press = function() selectTab("Active") end,
             },
             gui.Label{
-                classes = {"dtTab", selectedTab == "Completed" and "selected" or nil},
+                classes = tabClasses("Completed", false),
                 text = string.format("Completed (%d)", #categorized.completed),
+                width = "25%",
+                height = "100%",
+                fontSize = 9.5,
                 data = {tabName = "Completed"},
                 press = function() selectTab("Completed") end,
-            }
-        }
+            },
+        },
     }
 
     local outerPanel = gui.Panel {
         width = "100%",
         height = "auto",
         flow = "vertical",
-        styles = resolvedContentStyles,
+        styles = ThemeEngine.GetStyles(),
         children = {
             tabsPanel,
-            contentPanel
-        }
+            contentPanel,
+        },
     }
 
-    -- Re-resolve the cascade against the active scheme when it changes so
-    -- tabs and the character section track Default/Warm Gold/etc. without
-    -- rebuilding the whole panel.
+    -- Refresh the cascade when the active theme/scheme changes so the
+    -- panel and all descendants retint without rebuilding.
     ThemeEngine.OnThemeChanged(mod, function()
-        local refreshed = ThemeEngine.MergeStyles(DTDirectorPanel.TabsStyles)
-        if tabsPanel and tabsPanel.valid then
-            tabsPanel.styles = refreshed
-        end
         if outerPanel and outerPanel.valid then
-            outerPanel.styles = refreshed
+            outerPanel.styles = ThemeEngine.GetStyles()
         end
     end)
 
@@ -890,55 +801,3 @@ function DTDirectorPanel:_refreshPanelContent(element)
     element.children = {headerPanel, contentPanel}
 end
 
---- Gets styling for tab content elements
---- @return table styles Array of GUI styles for tab content
-function DTDirectorPanel:_getTabContentStyles()
-    return {
-        -- Character section styling
-        gui.Style {
-            selectors = {"character-section"},
-            width = "100%",
-            margin = 2
-        },
-        gui.Style {
-            selectors = {"character-header"},
-            bgcolor = Styles.backgroundColor,
-            borderWidth = 1,
-            borderColor = Styles.textColor,
-            height = 30,
-            margin = 1
-        },
-        gui.Style {
-            selectors = {"character-header", "hover"},
-            bgcolor = Styles.textColor,
-            color = Styles.backgroundColor,
-            brightness = 0.9
-        },
-        -- Character content styling
-        gui.Style {
-            selectors = {"character-content"},
-            width = "98%",
-            halign = "right",
-            transitionTime = 0.2
-        },
-        gui.Style {
-            selectors = {"character-content", "collapsed"},
-            height = 0,
-            hidden = 1
-        },
-        -- Project detail styling
-        gui.Style {
-            selectors = {"project-detail"},
-            bgcolor = Styles.backgroundColor,
-            borderWidth = 1,
-            borderColor = Styles.textColor,
-            margin = 1
-        },
-        gui.Style {
-            selectors = {"project-detail", "hover"},
-            bgcolor = Styles.textColor,
-            color = Styles.backgroundColor,
-            brightness = 0.9
-        }
-    }
-end

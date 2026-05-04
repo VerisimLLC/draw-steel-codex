@@ -50,33 +50,15 @@ function DTSelectItemDialog._createPanel(callbacks)
     end
     table.sort(craftableItems, function(a, b) return a.text < b.text end)
 
-    local itemSelector = DTUIComponents.CreateLabeledDropdown(
-        "Item to Craft",
-        {
-            id = "itemSelector",
-            options = craftableItems,
-            idChosen = nil,
-            sort = true,
-            hasSearch = true,
-            textDefault = "Select an item...",
-            change = function(element)
-                local controller = element:FindParentWithClass("selectItemDialogController")
-                if controller then
-                    controller:FireEvent("validateForm")
-                end
-            end
-        },
-        {
-            width = "100%",
-            halign = "center",
-        }
-    )
-
     resultPanel = gui.Panel {
-        classes = {"selectItemDialogController", "DTDialog"},
+        classes = {"selectItemDialogController", "dialog"},
+        styles = ThemeEngine.GetStyles(),
         width = 400,
         height = 200,
-        styles = ThemeEngine.MergeStyles(DTHelpers.GetDialogStyles()),
+        flow = "vertical",
+        halign = "center",
+        valign = "center",
+        pad = 4,
         floating = true,
         escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
         captureEscape = true,
@@ -108,47 +90,65 @@ function DTSelectItemDialog._createPanel(callbacks)
         children = {
             -- Header
             gui.Label{
-                classes = {"DTLabel", "DTBase"},
+                classes = {"modalTitle"},
                 text = "Select Crafting Item",
-                fontSize = 24,
-                width = "100%",
-                height = 30,
-                textAlignment = "center",
-                halign = "center"
             },
-            gui.Divider { width = "50%" },
 
             -- Content
-            itemSelector,
+            gui.Panel{
+                classes = {"formStackedRow"},
+                width = "100%",
+                halign = "center",
+                children = {
+                    gui.Label{
+                        classes = {"formStacked"},
+                        text = "Item to Craft",
+                    },
+                    gui.Dropdown{
+                        id = "itemSelector",
+                        classes = {"formStacked"},
+                        options = craftableItems,
+                        idChosen = nil,
+                        sort = true,
+                        hasSearch = true,
+                        textDefault = "Select an item...",
+                        change = function(element)
+                            local controller = element:FindParentWithClass("selectItemDialogController")
+                            if controller then
+                                controller:FireEvent("validateForm")
+                            end
+                        end,
+                    },
+                },
+            },
 
             -- Button panel
             gui.Panel{
-                classes = {"DTPanel", "DTBase"},
                 width = "100%",
                 height = 40,
                 halign = "center",
-                valign = "center",
+                valign = "bottom",
+                flow = "horizontal",
                 children = {
                     gui.Button{
-                        classes = {"DTButton", "DTBase"},
+                        classes = {"sizeL"},
                         text = "Cancel",
-                        width = 120,
-                        halign = "center",
+                        valign = "bottom",
                         click = function(element)
                             local controller = element:FindParentWithClass("selectItemDialogController")
                             if controller then
                                 controller:FireEvent("escape")
                             end
-                        end
+                        end,
                     },
                     gui.Button{
-                        classes = {"DTButton", "DTBase", "DTDisabled"},
+                        classes = {"sizeL", "disabled"},
                         text = "Confirm",
-                        width = 120,
-                        halign = "center",
+                        halign = "right",
+                        valign = "bottom",
                         interactable = false,
                         enableConfirm = function(element, enabled)
-                            element:SetClass("DTDisabled", not enabled)
+                            element:SetClass("disabled", not enabled)
                             element.interactable = enabled
                         end,
                         click = function(element)
@@ -160,10 +160,10 @@ function DTSelectItemDialog._createPanel(callbacks)
                                 callbacks.confirmHandler(selectedItemId)
                                 controller:FireEvent("close")
                             end
-                        end
-                    }
-                }
-            }
+                        end,
+                    },
+                },
+            },
         },
     }
 

@@ -5323,7 +5323,6 @@ function creature:FillTemporalActiveModifiers(result)
 	--inflicted conditions are attached directly to the creature, calculate them here.
 	if self:has_key("inflictedConditions") then
 		for k,v in pairs(self.inflictedConditions) do
-			conditions[k] = (conditions[k] or 0) + v.stacks
 			conditions[k] = (conditions[k] or 0) + (v.stacks or 1)
 
             if v.riders ~= nil then

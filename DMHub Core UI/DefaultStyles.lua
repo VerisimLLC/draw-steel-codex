@@ -224,7 +224,7 @@ ThemeEngine.RegisterTheme{
             scrollHandleColor = "@fgMuted",
         },
         {
-            selectors = {"panel", "bordered"},
+            selectors = {"bordered"},
             bgimage = true,
             border = 1,
             borderColor = "@border",
@@ -793,6 +793,7 @@ ThemeEngine.RegisterTheme{
         -- itself just lays out the row.
         {
             selectors = {"checkbox"},
+            halign = "left",
             bgimage = true,
             flow = "horizontal",
             bgcolor = "clear",
@@ -1425,6 +1426,8 @@ ThemeEngine.RegisterTheme{
             width = "70%",
             height = "auto",
             halign = "left",
+            valign = "top",
+            lmargin = 12,
             bmargin = 8,
         },
         {
@@ -1442,6 +1445,7 @@ ThemeEngine.RegisterTheme{
         {
             selectors = {"formStacked"},
             width = "98%",
+            halign = "left",
         },
         -- Inputs in stacked forms: 98% width, height 30 with internal padding
         -- so text isn't cramped against the borders. fontSize matches the
@@ -1451,6 +1455,7 @@ ThemeEngine.RegisterTheme{
             selectors = {"input", "formStacked"},
             width = "98%",
             height = 30,
+            halign = "left",
             hpad = 6,
             vpad = 4,
             fontSize = 18,
@@ -1663,6 +1668,43 @@ ThemeEngine.RegisterTheme{
         {
             selectors = {"hideForPlayers", "player"},
             hidden = 1,
+        },
+
+        --[[ Status color utilities ]]
+        -- Composable accents. The plain status names tint foreground;
+        -- the bg-prefixed names tint background. Use to highlight a
+        -- single label or panel without authoring a one-off rule.
+        {
+            selectors = {"success"},
+            color = "@success",
+        },
+        {
+            selectors = {"info"},
+            color = "@info",
+        },
+        {
+            selectors = {"warning"},
+            color = "@warning",
+        },
+        {
+            selectors = {"danger"},
+            color = "@danger",
+        },
+        {
+            selectors = {"bgSuccess"},
+            bgcolor = "@success",
+        },
+        {
+            selectors = {"bgInfo"},
+            bgcolor = "@info",
+        },
+        {
+            selectors = {"bgWarning"},
+            bgcolor = "@warning",
+        },
+        {
+            selectors = {"bgDanger"},
+            bgcolor = "@danger",
         },
 
         --[[ Token image ]]

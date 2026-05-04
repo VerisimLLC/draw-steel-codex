@@ -69,6 +69,22 @@ Please try to avoid using the following controls, using the suggested alternativ
 | gui.SettingsButton | gui.Button{ classes = { settingsButton }} |
 | gui.SimpleIconButton | gui.Button { icon = iconName } |
 
+### Expand/collapse triangle: `gui.ExpandoArrow`
+
+For expand/collapse rows, use `gui.ExpandoArrow` instead of hand-rolling a `gui.Panel{ classes = {"triangle"} }` with custom rotate styles. It packages the proven inline-`bgimage` + local-`styles` pattern (cascade rotate doesn't animate in DMHub UI) and inherits `bgcolor` / sizing / hover from the active theme.
+
+```lua
+local arrow = gui.ExpandoArrow{
+    click = function(element)
+        local nowExpanded = not element:HasClass("expanded")
+        element:SetClass("expanded", nowExpanded)
+        contentPanel:SetClass("collapsed", not nowExpanded)
+    end,
+}
+```
+
+Pass `classes = {"expanded"}` to load already-expanded; pass `nil` (or omit) to load collapsed.
+
 ## Color Scheme
 
 Color schemes are intentionally simple to ensure consistency and relationship between colors in the UI.
@@ -117,3 +133,5 @@ Interesting classes:
 |hidden|any|Hides the control but does not collapse the area it was in.|
 |collapsed|any|Hides the control and collapses the area it was in.|
 |collapseAnim|any|As collapsed, but with animation.|
+|success, error, warning, info|any|Apply the corresponding scheme color to the foreground of the control.|
+|bgSuccess, bgError, bgWarning, bgInfo|any|Apply the corresponding scheme color to the background of the control.|

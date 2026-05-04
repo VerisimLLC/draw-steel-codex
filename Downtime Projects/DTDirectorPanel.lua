@@ -11,43 +11,17 @@ local function track(eventType, fields)
     analytics.Event(fields)
 end
 
--- Triangle icon styles for character expand/collapse (based on QuestTrackerPanel pattern)
-local characterTriangleStyles = {
-    gui.Style{
-        selectors = {"character-triangle"},
-        bgimage = "panels/triangle.png",
-        bgcolor = "white",
-        hmargin = 4,
-        halign = "left",
-        valign = "center",
-        height = 12,
-        width = 12,
-        rotate = 90,
-    },
-    gui.Style{
-        selectors = {"character-triangle", "expanded"},
-        rotate = 0,
-        transitionTime = 0.2,
-    },
-    gui.Style{
-        selectors = {"character-triangle", "hover"},
-        bgcolor = "yellow",
-    },
-    gui.Style{
-        selectors = {"character-triangle", "press"},
-        bgcolor = "gray",
-    },
-}
-
 --- Downtime Director Panel - Main dockable panel for downtime project management
 --- Provides the primary interface for directors to manage downtime projects and settings
 --- @class DTDirectorPanel
 --- @field downtimeSettings DTSettings The downtime settings for shared data management
 DTDirectorPanel = RegisterGameType("DTDirectorPanel")
 
---- Clean toggle-style tab styles (no backgrounds, borders, or lines)
+--- Compact toggle-style tab styles. Plain rule tables (no gui.Style
+--- wrapper) so ThemeEngine.MergeTokens can resolve the @-token references
+--- against the active scheme at panel construction time.
 DTDirectorPanel.TabsStyles = {
-    gui.Style{
+    {
         selectors = {"dtTabContainer"},
         height = 24,
         width = "100%",
@@ -56,9 +30,9 @@ DTDirectorPanel.TabsStyles = {
         valign = "center",
         hmargin = 5,
     },
-    gui.Style{
+    {
         selectors = {"dtTab"},
-        fontFace = "Berling",
+        fontFace = "@label",
         bold = false,
         valign = "center",
         halign = "center",
@@ -67,33 +41,64 @@ DTDirectorPanel.TabsStyles = {
         width = 75,
         height = "100%",
         hmargin = 8,
-        bgimage = "panels/square.png",
-        borderColor = Styles.textColor,
+        bgimage = true,
+        borderColor = "@border",
         border = { y1 = 0, y2 = 0, x1 = 0, x2 = 0 },
-        color = "#666666",
+        color = "@fgMuted",
         textAlignment = "center",
         fontSize = 9.5,
         transitionTime = 0.2,
     },
-    gui.Style{
+    {
         selectors = {"dtTab", "hover"},
-        color = "#aaaaaa",
-        borderColor = "#aaaaaa",
+        color = "@fg",
+        borderColor = "@fg",
         border = { y1 = 1, y2 = 0, x1 = 0, x2 = 0 },
         transitionTime = 0.2,
     },
-    gui.Style{
-        selectors = {"dtTab", "important"},
-        color = "orange"
+    -- Specificity bridge: the global `{warning}` utility (spec 1) loses
+    -- to `{dtTab}` (spec 1, later in the merge), so on a tab label we
+    -- need this spec-2 alias to actually paint the warning tint.
+    {
+        selectors = {"dtTab", "warning"},
+        color = "@warning",
     },
-    gui.Style{
+    {
         selectors = {"dtTab", "selected"},
-        color = "#ffffff",
+        color = "@fgStrong",
         border = { y1 = 1, y2 = 0, x1 = 0, x2 = 0 },
-        borderColor = "#ffffff",
+        borderColor = "@fgStrong",
         bold = true,
-        -- fontSize = 11,
         transitionTime = 0.2,
+    },
+
+    -- Character section label classes. These live in the panel-local
+    -- cascade because the contentPanel doesn't carry the full theme
+    -- (it only carries this extras block), so generic {label, sizeS}
+    -- rules from DefaultStyles never reach these descendants.
+    {
+        selectors = {"label", "dtCharName"},
+        fontFace = "@label",
+        fontSize = 14,
+        color = "@fgStrong",
+        bold = true,
+        textAlignment = "left",
+    },
+    {
+        selectors = {"label", "dtProjectDetail"},
+        fontFace = "@label",
+        fontSize = 11,
+        color = "@fgStrong",
+        bold = true,
+        textAlignment = "left",
+    },
+    {
+        selectors = {"label", "dtEmptyState"},
+        fontFace = "@label",
+        fontSize = 14,
+        color = "@fgStrong",
+        bold = true,
+        textAlignment = "center",
     },
 }
 
@@ -153,7 +158,7 @@ function DTDirectorPanel:_buildHeaderPanel()
         flow = "horizontal",
         halign = "left",
         valign = "center",
-        styles = ThemeEngine.MergeStyles(DTHelpers.GetDialogStyles()),
+        styles = ThemeEngine.GetStyles(),
         children = {
             -- Settings panel - edit button & state
             gui.Panel {
@@ -163,13 +168,11 @@ function DTDirectorPanel:_buildHeaderPanel()
                 halign = "left",
                 valign = "center",
                 children = {
-                    gui.SettingsButton {
-                        width = 20,
-                        height = 20,
+                    gui.Button {
+                        classes = {"settingsButton", "sizeS"},
                         halign = "right",
                         valign = "center",
                         hmargin = 5,
-                        classes = {"downtime-edit-button"},
                         linger = function(element)
                             gui.Tooltip("Edit downtime settings")(element)
                         end,
@@ -186,7 +189,6 @@ function DTDirectorPanel:_buildHeaderPanel()
                         children = {
                             gui.Label {
                                 text = statusText,
-                                classes = {"DTLabel", "DTBase"},
                                 width = "auto",
                                 height = "auto",
                                 halign = "left",
@@ -194,8 +196,7 @@ function DTDirectorPanel:_buildHeaderPanel()
                             },
                             gui.Label {
                                 text = pauseReason,
-                                classes = {"DTLabel", "DTBase", (not isPaused) and "collapsed" or nil},
-                                fontSize = 11,
+                                classes = {"sizeXs", (not isPaused) and "collapsed" or nil},
                                 width = "auto",
                                 height = "auto",
                                 halign = "left",
@@ -209,19 +210,15 @@ function DTDirectorPanel:_buildHeaderPanel()
             gui.Panel{
                 width = "50%",
                 height = "100%",
-                -- flow = "horizontal",
                 halign = "right",
                 valign = "center",
                 children = {
-                    gui.EnhIconButton {
-                        classes = {"withInfo"},
-                        bgimage = "panels/initiative/initiative-dice.png",
-                        width = "30",
-                        height = "30",
+                    gui.Button {
+                        classes = {"sizeM", "withInfo"},
+                        icon = "panels/initiative/initiative-dice.png",
                         halign = "right",
                         valign = "center",
                         hmargin = 5,
-                        borderWidth = 0,
                         linger = function(element)
                             gui.Tooltip("Grant rolls")(element)
                         end,
@@ -238,7 +235,7 @@ function DTDirectorPanel:_buildHeaderPanel()
     -- theme changes and refresh the styles array when the active scheme switches.
     ThemeEngine.OnThemeChanged(mod, function()
         if headerPanel and headerPanel.valid then
-            headerPanel.styles = ThemeEngine.MergeStyles(DTHelpers.GetDialogStyles())
+            headerPanel.styles = ThemeEngine.GetStyles()
         end
     end)
 
@@ -252,10 +249,11 @@ function DTDirectorPanel:_showSettingsDialog()
     local pauseReason = self.downtimeSettings:GetPauseRollsReason()
 
     local settingsDialog = gui.Panel{
-        classes = {"dtSettingsController", "DTDialog"},
+        styles = ThemeEngine.GetStyles(), --MergeStyles(DTHelpers.GetDialogStyles()),
+        classes = {"dtSettingsController", "dialog"}, --"DTDialog"},
         width = 500,
         height = 300,
-        styles = ThemeEngine.MergeStyles(DTHelpers.GetDialogStyles()),
+        flow = "vertical",
 
         saveAndClose = function(element)
             local chkPause = element:Get("chkPauseRolls")
@@ -288,32 +286,21 @@ function DTDirectorPanel:_showSettingsDialog()
 
         children = {
             gui.Label{
+                classes = {"modalTitle"},
                 text = "Edit Downtime Settings",
-                width = "100%",
-                height = 30,
-                fontSize = "24",
-                classes = {"DTLabel", "DTBase"},
-                textAlignment = "center",
-                halign = "center",
-                valign = "top",
             },
-            gui.Divider { width = "50%" },
 
             -- Content
             gui.Panel {
-                classes = {"DTPanel", "DTBase"},
-                height = "100%-124",
                 width = "98%",
-                valign="top",
+                height = "100%-124",
+                valign = "top",
                 flow = "vertical",
-                borderColor = "red",
                 children = {
                     gui.Panel {
-                        classes = {"DTPanelRow", "DTPanel", "DTBase"},
-                        width = "98%",
-                        borderColor = "blue",
+                        classes = {"formStackedRow"},
                         children = {
-                            DTUIComponents.CreateLabeledCheckbox({
+                            gui.Check {
                                 id = "chkPauseRolls",
                                 text = "Pause Rolls",
                                 value = isPaused,
@@ -322,20 +309,20 @@ function DTDirectorPanel:_showSettingsDialog()
                                     if controller then
                                         controller:FireEvent("validateForm")
                                     end
-                                end
-                            }, {
-                                halign = "left",
-                                height = "auto",
-                            }),
-                        }
+                                end,
+                            },
+                        },
                     },
 
                     gui.Panel {
-                        classes = {"DTPanelRow", "DTPanel", "DTBase"},
-                        width = "98%",
-                        borderColor = "blue",
+                        classes = {"formStackedRow"},
                         children = {
-                            DTUIComponents.CreateLabeledInput("Pause Reason", {
+                            gui.Label {
+                                classes = {"formStacked"},
+                                text = "Pause Reason:",
+                            },
+                            gui.Input {
+                                classes = {"formStacked"},
                                 id = "txtPauseReason",
                                 text = pauseReason,
                                 placeholderText = "Enter reason for pausing rolls...",
@@ -350,42 +337,36 @@ function DTDirectorPanel:_showSettingsDialog()
                                         controller:FireEvent("validateForm")
                                     end
                                 end,
-                            }, {}),
-                        }
-                    }
-                }
+                            },
+                        },
+                    },
+                },
             },
 
             -- Footer
             gui.Panel{
-                classes = {"DTPanel", "DTBase"},
                 width = "100%",
                 height = 40,
                 vmargin = 10,
                 halign = "center",
                 valign = "bottom",
                 flow = "horizontal",
-                borderColor = "red",
                 children = {
-                    -- Cancel button
                     gui.Button{
+                        classes = {"sizeL"},
                         text = "Cancel",
-                        width = 120,
                         valign = "bottom",
-                        classes = {"DTButton", "DTBase"},
                         click = function(element)
                             gui.CloseModal()
-                        end
+                        end,
                     },
-                    -- Confirm button
                     gui.Button{
+                        classes = {"sizeL", "disabled"},
                         text = "Confirm",
-                        width = 120,
                         valign = "bottom",
-                        classes = {"DTButton", "DTBase", "DTDisabled"},
                         interactable = false,
                         enableConfirm = function(element, enabled)
-                            element:SetClass("DTDisabled", not enabled)
+                            element:SetClass("disabled", not enabled)
                             element.interactable = enabled
                         end,
                         click = function(element)
@@ -394,10 +375,10 @@ function DTDirectorPanel:_showSettingsDialog()
                             if controller then
                                 controller:FireEvent("saveAndClose")
                             end
-                        end
-                    }
-                }
-            }
+                        end,
+                    },
+                },
+            },
         },
     }
 
@@ -509,16 +490,15 @@ function DTDirectorPanel:_buildCharacterHeader(characterInfo, contentPanel, tabT
         playerDisplay = string.format(" (<color=%s>%s</color>) [Rolls: %d]", color, token.playerNameOrNil, characterInfo.rolls)
     end
 
-    local triangle = gui.Panel{
-        classes = {"character-triangle", isExpanded and "expanded" or nil},
-        styles = characterTriangleStyles,
+    local triangle = gui.ExpandoArrow{
+        classes = isExpanded and {"expanded"} or nil,
         click = function(element)
-            local isExpanded = not element:HasClass("expanded")
-            element:SetClass("expanded", isExpanded)
+            local nowExpanded = not element:HasClass("expanded")
+            element:SetClass("expanded", nowExpanded)
             if contentPanel then
-                contentPanel:SetClass("collapsed", not isExpanded)
+                contentPanel:SetClass("collapsed", not nowExpanded)
             end
-            dmhub.SetPref(prefKey, isExpanded)
+            dmhub.SetPref(prefKey, nowExpanded)
         end
     }
 
@@ -553,12 +533,11 @@ function DTDirectorPanel:_buildCharacterHeader(characterInfo, contentPanel, tabT
             -- Character name + player name
             gui.Label{
                 text = characterName .. playerDisplay,
-                classes = {"DTLabel", "DTBase"},
+                classes = {"dtCharName"},
                 width = "70%",
                 height = "100%",
                 valign = "center",
                 hmargin = 4,
-                fontSize = 14
             },
             -- Settings button (right-aligned)
             gui.Panel{
@@ -568,13 +547,11 @@ function DTDirectorPanel:_buildCharacterHeader(characterInfo, contentPanel, tabT
                 halign = "right",
                 valign = "center",
                 children = {
-                    gui.SettingsButton {
-                        width = 20,
-                        height = 20,
+                    gui.Button {
+                        classes = {"settingsButton", "sizeS"},
                         halign = "right",
                         valign = "center",
                         hmargin = 5,
-                        classes = {"character-edit-button"},
                         linger = function(element)
                             gui.Tooltip("Open character sheet")(element)
                         end,
@@ -629,13 +606,12 @@ function DTDirectorPanel:_buildProjectDetail(projectEntry, tabType)
         children = {
             gui.Label{
                 text = displayText,
-                classes = {"DTLabel", "DTBase"},
+                classes = {"dtProjectDetail"},
                 width = "100%",
                 height = "100%",
                 valign = "center",
                 hmargin = 20,
-                fontSize = 11,
-                wrap = true
+                wrap = true,
             }
         }
     }
@@ -652,7 +628,7 @@ function DTDirectorPanel:_buildCharacterSection(characterInfo, characterProjects
     for i, projectEntry in ipairs(characterProjects) do
         -- Add divider before project (except first one)
         if i > 1 then
-            projectChildren[#projectChildren + 1] = gui.Divider { width = "90%" }
+            projectChildren[#projectChildren + 1] = gui.MCDMDivider { width = "90%" }
         end
         projectChildren[#projectChildren + 1] = self:_buildProjectDetail(projectEntry, tabType)
     end
@@ -701,13 +677,11 @@ function DTDirectorPanel:_buildTabContent(categorizedProjects, tabType)
     if #categorizedProjects == 0 then
         tabChildren[#tabChildren + 1] = gui.Label {
             text = "No projects in this category.",
-            classes = {"DTLabel", "DTBase"},
+            classes = {"dtEmptyState"},
             width = "100%",
             height = "100%",
             halign = "center",
             valign = "top",
-            textAlignment = "center",
-            fontSize = 14
         }
     else
         -- Group projects by character
@@ -732,7 +706,7 @@ function DTDirectorPanel:_buildTabContent(categorizedProjects, tabType)
         for _, characterData in pairs(projectsByCharacter) do
             if hasCharacters then
                 -- Add spacing between characters
-                tabChildren[#tabChildren + 1] = gui.Divider { width = "95%" }
+                tabChildren[#tabChildren + 1] = gui.MCDMDivider { width = "95%" }
             end
             tabChildren[#tabChildren + 1] = self:_buildCharacterSection(
                 characterData.characterInfo,
@@ -834,16 +808,24 @@ function DTDirectorPanel:_buildContentPanel()
 
     -- Use the same categorized data for counts (already calculated above)
 
+    -- Build the content cascade root: full default theme + the panel's
+    -- local extras (tab rules + character-section label rules). Using
+    -- MergeStyles (not MergeTokens) because outerPanel is the cascade
+    -- root for everything below the header — its descendants need the
+    -- {label}, {iconButton, settingsButton}, {triangle, ...} rules from
+    -- DefaultStyles, not just our local extras.
+    local resolvedContentStyles = ThemeEngine.MergeStyles(DTDirectorPanel.TabsStyles)
+
     -- Create tabs panel
     tabsPanel = gui.Panel{
         classes = {"dtTabContainer"},
-        styles = {DTDirectorPanel.TabsStyles},
+        styles = resolvedContentStyles,
         children = {
             gui.Label{
                 classes = {
                     "dtTab",
                     selectedTab == "Attention" and "selected" or nil,
-                    #categorized.attention > 0 and "important" or nil,
+                    #categorized.attention > 0 and "warning" or nil,
                 },
                 text = string.format("Attention (%d)", #categorized.attention),
                 data = {tabName = "Attention"},
@@ -853,7 +835,7 @@ function DTDirectorPanel:_buildContentPanel()
                 classes = {
                     "dtTab",
                     selectedTab == "Milestones" and "selected" or nil,
-                    #categorized.milestones > 0 and "important" or nil},
+                    #categorized.milestones > 0 and "warning" or nil},
                 text = string.format("Milestones (%d)", #categorized.milestones),
                 data = {tabName = "Milestones"},
                 press = function() selectTab("Milestones") end,
@@ -873,16 +855,31 @@ function DTDirectorPanel:_buildContentPanel()
         }
     }
 
-    return gui.Panel {
+    local outerPanel = gui.Panel {
         width = "100%",
         height = "auto",
         flow = "vertical",
-        styles = {DTDirectorPanel.TabsStyles},
+        styles = resolvedContentStyles,
         children = {
             tabsPanel,
             contentPanel
         }
     }
+
+    -- Re-resolve the cascade against the active scheme when it changes so
+    -- tabs and the character section track Default/Warm Gold/etc. without
+    -- rebuilding the whole panel.
+    ThemeEngine.OnThemeChanged(mod, function()
+        local refreshed = ThemeEngine.MergeStyles(DTDirectorPanel.TabsStyles)
+        if tabsPanel and tabsPanel.valid then
+            tabsPanel.styles = refreshed
+        end
+        if outerPanel and outerPanel.valid then
+            outerPanel.styles = refreshed
+        end
+    end)
+
+    return outerPanel
 end
 
 --- Refreshes the panel content (used by both refreshGame and show events)

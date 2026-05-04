@@ -3898,6 +3898,41 @@ function gui.CollapseArrow(options)
 	return gui.Panel(args)
 end
 
+local g_expandoArrowStyles = {
+	{
+		selectors = {"expandoArrow"},
+		rotate = 90,
+	},
+	{
+		selectors = {"expandoArrow", "expanded"},
+		rotate = 0,
+		transitionTime = 0.2,
+	},
+}
+
+--- An expand/collapse triangle. Closed (right-pointing) by default.
+--- Toggle by setting the "expanded" class on the returned panel.
+---
+--- Carries the "triangle" theme class so bgcolor / sizing / hover come
+--- from the active ThemeEngine cascade. The rotate transition lives on
+--- the panel's own styles because cascade-level rotate doesn't animate
+--- in DMHub's UI.
+--- @param options PanelArgs
+--- @return Panel
+function gui.ExpandoArrow(options)
+	local args = {
+		classes = {"triangle", "expandoArrow"},
+		styles = g_expandoArrowStyles,
+		bgimage = "panels/triangle.png",
+	}
+
+	for k,v in pairs(options or {}) do
+		args[k] = gui.CombineFields(args[k], v)
+	end
+
+	return gui.Panel(args)
+end
+
 
 
 local g_pagingArrowStyles = {

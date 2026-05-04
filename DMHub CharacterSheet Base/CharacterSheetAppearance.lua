@@ -2178,7 +2178,15 @@ function CharSheet.AppearancePanel()
                 border = { y1 = 2, x1 = 0, x2 = 0, y2 = 0 },
                 borderColor = Styles.textColor,
 
-            }
+            },
+            {
+                selectors = { "sliderNotch" },
+                bgimage = true,
+                bgcolor = "#A0A0A0",
+                width = "100%",
+                halign = "center",
+                borderWidth = 0,
+            },
         },
 
         leftPanel,

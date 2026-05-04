@@ -1134,7 +1134,7 @@ mod.shared.EditTilesheetAssetDialog = function(tileid, startingValues)
 		id = 'CreateTerrainDialog',
 		classes = {"framedPanel"},
 		pad = 8,
-		styles = {
+		styles = ThemeEngine.MergeStyles{
 			Styles.Panel,
 			Styles.Form,
 			{
@@ -2467,7 +2467,7 @@ mod.shared.EditWallAssetDialog = function(tileid, startingValues)
 		width = 1200,
 		height = 900,
 		pad = 8,
-		styles = {
+		styles = ThemeEngine.MergeStyles{
 			Styles.Panel,
 		},
 		children = {

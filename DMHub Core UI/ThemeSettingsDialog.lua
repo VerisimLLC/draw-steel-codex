@@ -2,6 +2,7 @@ local mod = dmhub.GetModLoading()
 
 local CreateThemeSettingsDialog
 
+if devmode() then
 LaunchablePanel.Register{
     name = "Theme & Color Scheme...",
     icon = "panels/hud/paint-brush.png",
@@ -11,6 +12,7 @@ LaunchablePanel.Register{
         return CreateThemeSettingsDialog()
     end,
 }
+end
 
 -- Build dropdown options with "Default" pinned to the top, the rest
 -- sorted alphabetically (case-insensitive).

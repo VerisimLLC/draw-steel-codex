@@ -412,8 +412,8 @@ CreateDebugLogPanel = function()
             width = "auto",
             searchInput,
             gui.Button{
+                classes = {"sizeXs"},
                 valign = "center",
-                fontSize = 12,
                 text = "Clear",
                 click = function(element)
                     dmhub.debugLog = {}
@@ -426,8 +426,8 @@ CreateDebugLogPanel = function()
                 end,
             },
             gui.Button{
+                classes = {"sizeXs"},
                 valign = "center",
-                fontSize = 12,
                 text = "Copy",
                 click = function(element)
                     -- (E) Copy directly from data, no GUI traversal needed

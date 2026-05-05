@@ -167,8 +167,8 @@ ThemeEngine.RegisterColorScheme{
             point_a = {x = 0, y = 0},
             point_b = {x = 1, y = 1},
             stops = {
-                {position = 0, color = "#1D110A"},
-                {position = 1, color = "#100A06"},
+                {position = 0, color = "#3A2B1E"},
+                {position = 1, color = "#0F0A06"},
             },
         },
 
@@ -476,7 +476,7 @@ ThemeEngine.RegisterTheme{
         },
         {
             selectors = {"inputFaded"},
-            borderColor = "@bg",
+            borderColor = "@borderInverse",
             borderWidth = 3,
             borderFade = true,
             bgcolor = "@bg",
@@ -1730,6 +1730,52 @@ ThemeEngine.RegisterTheme{
             hidden = 1,
         },
 
+        --[[ Color composition utilities ]]
+        -- Composable color classes. Each scheme color exposes a class so
+        -- callers can opt panels/labels into a token via classes, without
+        -- authoring a one-off rule. Naming convention:
+        --   * Surface tokens (bg*)   -> set `bgcolor`.
+        --   * Foreground tokens (fg*) -> set `color`.
+        --   * Border tokens          -> set `borderColor`.
+        --   * Accent / status / implStatus -> set `color` by default;
+        --     `bg`-/`border`-prefixed variants set the alternate property.
+
+        -- Surfaces
+        { selectors = {"bg"},        bgcolor = "@bg" },
+        { selectors = {"bgAlt"},     bgcolor = "@bgAlt" },
+        { selectors = {"bgInverse"}, bgcolor = "@bgInverse" },
+
+        -- Foregrounds
+        { selectors = {"fg"},        color = "@fg" },
+        { selectors = {"fgStrong"},  color = "@fgStrong" },
+        { selectors = {"fgMuted"},   color = "@fgMuted" },
+        { selectors = {"fgPending"}, color = "@fgPending" },
+        { selectors = {"fgInverse"}, color = "@fgInverse" },
+
+        -- Borders
+        { selectors = {"border"},        borderColor = "@border" },
+        { selectors = {"borderInverse"}, borderColor = "@borderInverse" },
+
+        -- Accent + interactive (color default; bg/border variants)
+        { selectors = {"accent"},            color       = "@accent" },
+        { selectors = {"accentHover"},       color       = "@accentHover" },
+        { selectors = {"bgAccent"},          bgcolor     = "@accent" },
+        { selectors = {"bgAccentHover"},     bgcolor     = "@accentHover" },
+        { selectors = {"borderAccent"},      borderColor = "@accent" },
+        { selectors = {"borderAccentHover"}, borderColor = "@accentHover" },
+
+        -- Disabled (the state class lives elsewhere; these are explicit color picks)
+        { selectors = {"fgDisabled"},     color       = "@disabled" },
+        { selectors = {"bgDisabled"},     bgcolor     = "@disabled" },
+        { selectors = {"borderDisabled"}, borderColor = "@disabled" },
+
+        -- Implementation status (used by ability/feature impl indicators)
+        { selectors = {"implStatus0"}, color = "@implStatus0" },
+        { selectors = {"implStatus1"}, color = "@implStatus1" },
+        { selectors = {"implStatus2"}, color = "@implStatus2" },
+        { selectors = {"implStatus3"}, color = "@implStatus3" },
+        { selectors = {"implStatus4"}, color = "@implStatus4" },
+
         --[[ Status color utilities ]]
         -- Composable accents. The plain status names tint foreground;
         -- the bg-prefixed names tint background. Use to highlight a
@@ -1810,6 +1856,162 @@ ThemeEngine.RegisterTheme{
             width = "100%",
             height = "100%",
         },
+
+        -- =====================================================================
+        -- 6. DOCKABLE PANELS -- dock/tab chrome used by every dockable panel.
+        -- The dock framework (DockablePanel.lua) wires drag/resize/minimize
+        -- behavior in event handlers; this section provides the visual
+        -- cascade those handlers toggle classes on. Themers can re-tint
+        -- every dock surface here.
+        -- =====================================================================
+
+        -- Slide-in/out animation. 364 matches DockablePanel.DockWidth.
+        { selectors = {"dock", "offscreen", "left"},  x = -364, transitionTime = 0.2 },
+        { selectors = {"dock", "offscreen", "right"}, x =  364, transitionTime = 0.2 },
+
+        -- Dock frame surface beneath each dock column.
+        {
+            selectors = {"dockFrame"},
+            bgimage = true,
+            bgcolor = "clear",
+            width = "100%",
+            height = "100%",
+            valign = "bottom",
+        },
+        { selectors = {"dockFrame", "~uiblur"},      bgcolor = "@bg" },
+        { selectors = {"dockFrame", "parent:empty"}, collapsed = 1 },
+
+        -- Inner dockable-panel content area.
+        {
+            selectors = {"dockablePanel"},
+            width = "100%",
+            height = "100%",
+            halign = "center",
+            valign = "center",
+            vpad = 4,
+        },
+
+        -- Header gradient strip across the top of each panel/tab group.
+        {
+            selectors = {"tabContainer"},
+            bgimage = true,
+            gradient = "@surfaceLinear",
+            bgcolor = "white",
+            borderColor = "@border",
+            border = { x1 = 0, x2 = 0, y1 = 0, y2 = 1 },
+        },
+        { selectors = {"tabContainer", "~mono"}, border = { x1 = 0, x2 = 0, y1 = 1, y2 = 0 } },
+
+        -- Per-tab clickable container.
+        {
+            selectors = {"buttonContainer"},
+            bgimage = true,
+            bgcolor = "clear",
+            borderColor = "@border",
+            border = { y1 = 1, x1 = 0, x2 = 0, y2 = 0 },
+        },
+        {
+            selectors = {"buttonContainer", "selected"},
+            bgimage = true,
+            bgcolor = "@bgAlt",
+            border = { y1 = 0, x1 = 1, x2 = 1, y2 = 1 },
+        },
+        {
+            selectors = {"buttonContainer", "mono"},
+            bgcolor = "clear",
+            border = { y1 = 0, x1 = 0, x2 = 0, y2 = 0 },
+        },
+
+        -- Dock tab icon container. bgcolor "white" is image-tint-neutral so
+        -- the icon (set inline as bgimage = p.data.icon) renders at its true
+        -- colors. Class is `dockTab` (NOT `tab`) to avoid collision with the
+        -- form-style `{tab}` rule in section 1.
+        {
+            selectors = {"dockTab"},
+            width = 20,
+            height = 20,
+            bgcolor = "white",
+            halign = "center",
+            valign = "center",
+        },
+
+        -- Hide tab labels on non-selected tabs when the strip is crowded
+        -- (3+ tabs). The selected tab keeps its label visible.
+        { selectors = {"tabLabel", "crowded", "~selected"}, collapsed = 1 },
+
+        -- Drag preview shown while dragging a panel between docks.
+        { selectors = {"dragGhost"},                         opacity = 0,   bgcolor = "@info" },
+        { selectors = {"dragGhost", "dragging"},             opacity = 0.5 },
+        { selectors = {"dragGhost", "dragging", "deleting"}, bgcolor = "@danger" },
+        { selectors = {"dragGhost", "floatingTarget"},       opacity = 0 },
+
+        -- Vertical drag handles between stacked panels (top-of-panel resize).
+        {
+            selectors = {"verticalDragInvisibleHandle"},
+            width = "100%",
+            y = -4,
+            height = 8,
+            opacity = 0,
+            bgimage = "panels/square.png",
+            bgcolor = "white",
+            valign = "top",
+            halign = "center",
+        },
+        {
+            selectors = {"verticalDragDivider"},
+            width = "100%-8",
+            halign = "center",
+            valign = "top",
+            height = 2,
+        },
+
+        -- Side dock close handle (the icon you click to slide a dock off-screen).
+        -- bgcolor "white" is image-tint-neutral so the dock-handle PNG renders
+        -- at its true colors (then desaturated and brightened by the rule).
+        {
+            selectors = {"dockHandleImage"},
+            width = 32,
+            height = 64,
+            bgimage = "panels/dock-handle.png",
+            bgcolor = "white",
+            saturation = 0,
+            brightness = 2,
+            opacity = 0.8,
+            x = 8,
+        },
+        {
+            selectors = {"dockHandle"},
+            width = 32,
+            height = 64,
+            bgimage = "panels/square.png",
+            bgcolor = "clear",
+            valign = "bottom",
+            halign = "right",
+        },
+        {
+            selectors = {"dockHandle", "left"},
+            scale = {x = -1},
+            x = 32,
+            y = 8,
+        },
+        {
+            selectors = {"dockHandle", "right"},
+            halign = "left",
+            x = -32,
+            y = 8,
+        },
+        { selectors = {"dockHandle", "parent:empty"}, collapsed = 1 },
+        {
+            selectors = {"dockHandleImage", "hover"},
+            x = -8,
+            transitionTime = 0.1,
+            brightness = 2,
+        },
+
+        -- Chevron visibility (minimize/maximize per-panel arrows on the right).
+        { selectors = {"minimizeArrow", "lastExpanded"},                 collapsed = 1 },
+        { selectors = {"collapseArrow", "~minimizeArrow", "minimizeSet"}, collapsed = 1 },
+        { selectors = {"minimizeArrow", "maximized"},                    collapsed = 1 },
     },
 }
 

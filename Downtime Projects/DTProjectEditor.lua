@@ -50,7 +50,7 @@ function DTProjectEditor:_createProjectForm()
         classes = {"sizeM", "withSuccess"},
         halign = "left",
         rmargin = 6,
-        icon = mod.images.downtimeProjects,
+        icon = "icons/icon_tool/icon_tool_79.png", --mod.images.downtimeProjects,
         hoverCursor = "pressbutton",
         data = {
             getProject = function(element)

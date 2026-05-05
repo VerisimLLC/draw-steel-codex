@@ -2691,6 +2691,7 @@ function CreateGameDialog()
             },
 
             gui.Dropdown {
+                styles = ThemeEngine.GetStyles("default", "default"),
                 width = "80%",
                 height = 32,
                 halign = "center",
@@ -2753,6 +2754,7 @@ function CreateGameDialog()
                     rmargin = 8,
                 },
                 gui.Dropdown {
+                    styles = ThemeEngine.GetStyles("default", "default"),
                     width = 200,
                     height = 28,
                     fontSize = 16,

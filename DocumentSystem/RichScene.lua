@@ -21,7 +21,7 @@ function RichScene.CreateDisplay(self)
 	local doc = FullscreenDisplay.GetDocumentSnapshot()
     local m_image = nil
     return gui.Panel{
-        width = "auto",
+        width = 1920*0.15,
         height = "auto",
         valign = "center",
         flow = "vertical",
@@ -80,6 +80,7 @@ function RichScene.CreateDisplay(self)
             end,
         },
         gui.Check{
+            styles = ThemeEngine.GetStyles("default", "default"),
             text = "Show Below UI",
             value = doc.data.belowui,
             change = function(element)

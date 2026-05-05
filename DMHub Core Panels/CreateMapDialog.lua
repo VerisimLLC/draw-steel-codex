@@ -912,9 +912,9 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
     }
 
     previewLabel = gui.Label{
+        classes = {"form"},
         width = "100%",
         height = "auto",
-        fontSize = 14,
         color = "#cccccc",
         wrap = true,
         halign = "left",
@@ -1495,16 +1495,16 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
                 flow = "horizontal",
 
                 gui.Label{
+                    classes = {"sizeS"},
                     width = "auto",
                     height = "auto",
-                    fontSize = 16,
                     text = "Top-left at tile: ",
                 },
                 offsetXInput,
                 gui.Label{
+                    classes = {"sizeS"},
                     width = "auto",
                     height = "auto",
-                    fontSize = 16,
                     text = " , ",
                 },
                 offsetYInput,
@@ -1517,9 +1517,9 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
                 hmargin = 16,
 
                 gui.Label{
+                    classes = {"sizeS"},
                     width = "auto",
                     height = "auto",
-                    fontSize = 16,
                     text = "Opacity: ",
                 },
                 opacitySlider,
@@ -1535,30 +1535,13 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
                     classes = {"sizeS"},
                     width = "auto",
                     height = "auto",
-                    -- fontSize = 16,
-                    text = "Zoom: ",
-                },
-                zoomSlider,
-            },
-
-            gui.Panel{
-                width = "auto",
-                height = "auto",
-                flow = "horizontal",
-                hmargin = 16,
-
-                gui.Label{
-                    classes = {"sizeS"},
-                    width = "auto",
-                    height = "auto",
-                    -- fontSize = 16,
                     text = "Zoom: ",
                 },
                 zoomSlider,
             },
 
             gui.Button{
-                classes = {"sizeS"},
+                classes = {"sizeM"},
                 text = "Reset View",
                 halign = "right",
                 click = function()
@@ -1568,9 +1551,9 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
         },
 
         gui.Label{
+            classes = {"form", "sizeS"},
             width = "auto",
             height = "auto",
-            fontSize = 12,
             text = realignTarget ~= nil
                 and "Drag this floor to reposition it. Scroll or use the zoom slider. Middle-click drag or drag background to pan."
                 or "Drag the new floor to position it. Scroll or use the zoom slider. Middle-click drag or drag background to pan.",
@@ -1598,9 +1581,9 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
             vmargin = 4,
 
             gui.Label{
+                classes = {"sizeS"},
                 width = "auto",
                 height = "auto",
-                fontSize = 14,
                 text = realignTarget ~= nil
                     and string.format("Floor: %.2f x %.2f tiles  |  %d other map object(s) shown.", floorW, floorH, #references)
                     or string.format("Existing map: %dx%d tiles  |  New floor: %dx%d tiles", mapW, mapH, floorW, floorH),

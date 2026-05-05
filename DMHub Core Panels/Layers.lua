@@ -17,176 +17,150 @@ local CreateFloorPanel = function(index, floorInfo)
     }
 
 	local dialogPanelRoofLayerOptions = gui.Panel{
-				height = "auto",
-				flow = "vertical",
+		classes = cond(floorInfo.roof, nil, "collapsed"),
+		width = "auto",
+		height = "auto",
+		flow = "vertical",
 
-				classes = cond(floorInfo.roof, nil, 'collapsed'),
+		gui.Check{
+			text = "Hide roof when players are inside",
+			value = not floorInfo.roofShowWhenInside,
+			style = {
+				height = 20,
+				width = "40%",
+			},
+			events = {
+				change = function(element)
+					floorInfo.roofShowWhenInside = not element.value
+				end,
+				linger = gui.Tooltip("This layer will be hidden when players are inside."),
+			},
+		},
 
-                styles = {
-                    classes = {"formLabel"},
-                    fontSize = 14,
-                    width = "auto",
-                    minWidth = 150,
-                    height = "auto",
-                    hmargin = 8,
-                },
+		gui.Panel{
+			classes = {"formPanel"},
+			gui.Label{
+				classes = {"form"},
+				text = "Vision Multiplier:",
+				linger = gui.Tooltip("The vision multiplier allows players to see further on the roof layer than they can on other layers."),
+			},
 
-				gui.Check{
-					text = "Hide roof when players are inside",
-					value = not floorInfo.roofShowWhenInside,
-					style = {
-						height = 20,
-						width = '40%',
-						fontSize = 18,
-					},
-					events = {
-						change = function(element)
-							floorInfo.roofShowWhenInside = not element.value
-						end,
-						linger = gui.Tooltip("This layer will be hidden when players are inside."),
-					},
+			gui.Slider{
+				style = {
+					height = 20,
+					width = 160,
+					valign = "center",
 				},
-
-				gui.Panel{
-					classes = {"formPanel"},
-					flow = "horizontal",
-					width = "auto",
-					height = "auto",
-					gui.Label{
-						text = "Vision Multiplier:",
-                        classes = {"formLabel"},
-						linger = gui.Tooltip("The vision multiplier allows players to see further on the roof layer than they can on other layers."),
-					},
-
-					gui.Slider{
-						style = {
-							height = 20,
-							width = 160,
-							valign = "center",
-							fontSize = 14,
-						},
-						sliderWidth = 100,
-						minValue = 0.1,
-						maxValue = 8,
-						labelWidth = 60,
-						value = floorInfo.visionMultiplier,
-						labelFormat = "rawpercent",
-						events = {
-							change = function(element)
-								floorInfo.visionMultiplierNoUpload = element.value
-							end,
-							confirm = function(element)
-								floorInfo.visionMultiplier = element.value
-							end,
-						},
-					},
+				sliderWidth = 100,
+				minValue = 0.1,
+				maxValue = 8,
+				labelWidth = 60,
+				value = floorInfo.visionMultiplier,
+				labelFormat = "rawpercent",
+				events = {
+					change = function(element)
+						floorInfo.visionMultiplierNoUpload = element.value
+					end,
+					confirm = function(element)
+						floorInfo.visionMultiplier = element.value
+					end,
 				},
+			},
+		},
 
-				gui.Panel{
-					classes = {"formPanel"},
-					flow = "horizontal",
-					width = "auto",
-					height = "auto",
-					gui.Label{
-						text = "Cutaway Radius:",
-                        classes = {"formLabel"},
-						linger = gui.Tooltip("The cutaway radius is the distance to which we prefer to show the radius the player is on if they have vision of it instead of the roof layer. For roofs of buildings you most likely want this to be 100%, but for tree foliage you might want it lower than 100%. The lower it is the more elements on the roof layer will occlude vision."),
-					},
+		gui.Panel{
+			classes = {"formPanel"},
+			gui.Label{
+				classes = {"form"},
+				text = "Cutaway Radius:",
+				linger = gui.Tooltip("The cutaway radius is the distance to which we prefer to show the radius the player is on if they have vision of it instead of the roof layer. For roofs of buildings you most likely want this to be 100%, but for tree foliage you might want it lower than 100%. The lower it is the more elements on the roof layer will occlude vision."),
+			},
 
-					gui.Slider{
-						style = {
-							height = 20,
-							width = 160,
-							valign = "center",
-							fontSize = 14,
-						},
-						sliderWidth = 100,
-						minValue = 0.0,
-						maxValue = 1.0,
-						labelWidth = 60,
-						labelFormat = "rawpercent",
-						value = floorInfo.roofVisionExclusion,
-						events = {
-							change = function(element)
-								floorInfo.roofVisionExclusionNoUpload = element.value
-							end,
-							confirm = function(element)
-								floorInfo.roofVisionExclusion = element.value
-							end,
-						},
-					},
+			gui.Slider{
+				style = {
+					height = 20,
+					width = 160,
+					valign = "center",
 				},
-
-				gui.Panel{
-					classes = {"formPanel"},
-					flow = "horizontal",
-					width = "auto",
-					height = "auto",
-					gui.Label{
-						text = "Cutaway Fade:",
-                        classes = {"formLabel"},
-						linger = gui.Tooltip("The roof cutaway fade controls how quickly vision fades from showing the layer the player is on to the roof layer."),
-					},
-
-					gui.Slider{
-						style = {
-							height = 20,
-							width = 160,
-							valign = "center",
-							fontSize = 14,
-						},
-						sliderWidth = 100,
-						labelFormat = "rawpercent",
-						minValue = 0.0,
-						maxValue = 1.0,
-						labelWidth = 60,
-						value = floorInfo.roofVisionExclusionFade,
-						events = {
-							change = function(element)
-								floorInfo.roofVisionExclusionFadeNoUpload = element.value
-							end,
-							confirm = function(element)
-								floorInfo.roofVisionExclusionFade = element.value
-							end,
-						},
-					},
+				sliderWidth = 100,
+				minValue = 0.0,
+				maxValue = 1.0,
+				labelWidth = 60,
+				labelFormat = "rawpercent",
+				value = floorInfo.roofVisionExclusion,
+				events = {
+					change = function(element)
+						floorInfo.roofVisionExclusionNoUpload = element.value
+					end,
+					confirm = function(element)
+						floorInfo.roofVisionExclusion = element.value
+					end,
 				},
+			},
+		},
 
-				gui.Panel{
-					classes = {"formPanel"},
-					flow = "horizontal",
-					width = "auto",
-					height = "auto",
-					gui.Label{
-						text = "Minimum Opacity:",
-                        classes = {"formLabel"},
-						linger = gui.Tooltip("The minimum opacity that the roof layer will have when it is cut away to show the layer the player is on."),
-					},
+		gui.Panel{
+			classes = {"formPanel"},
+			gui.Label{
+				classes = {"form"},
+				text = "Cutaway Fade:",
+				linger = gui.Tooltip("The roof cutaway fade controls how quickly vision fades from showing the layer the player is on to the roof layer."),
+			},
 
-					gui.Slider{
-						style = {
-							height = 20,
-							width = 160,
-							valign = "center",
-							fontSize = 14,
-						},
-						sliderWidth = 100,
-						labelFormat = "rawpercent",
-						minValue = 0.0,
-						maxValue = 1.0,
-						labelWidth = 60,
-						value = floorInfo.roofMinimumOpacity,
-						events = {
-							change = function(element)
-								floorInfo.roofMinimumOpacityNoUpload = element.value
-							end,
-							confirm = function(element)
-								floorInfo.roofMinimumOpacity = element.value
-							end,
-						},
-					},
+			gui.Slider{
+				style = {
+					height = 20,
+					width = 160,
+					valign = "center",
 				},
-			}
+				sliderWidth = 100,
+				labelFormat = "rawpercent",
+				minValue = 0.0,
+				maxValue = 1.0,
+				labelWidth = 60,
+				value = floorInfo.roofVisionExclusionFade,
+				events = {
+					change = function(element)
+						floorInfo.roofVisionExclusionFadeNoUpload = element.value
+					end,
+					confirm = function(element)
+						floorInfo.roofVisionExclusionFade = element.value
+					end,
+				},
+			},
+		},
+
+		gui.Panel{
+			classes = {"formPanel"},
+			gui.Label{
+				classes = {"form"},
+				text = "Minimum Opacity:",
+				linger = gui.Tooltip("The minimum opacity that the roof layer will have when it is cut away to show the layer the player is on."),
+			},
+
+			gui.Slider{
+				style = {
+					height = 20,
+					width = 160,
+					valign = "center",
+				},
+				sliderWidth = 100,
+				labelFormat = "rawpercent",
+				minValue = 0.0,
+				maxValue = 1.0,
+				labelWidth = 60,
+				value = floorInfo.roofMinimumOpacity,
+				events = {
+					change = function(element)
+						floorInfo.roofMinimumOpacityNoUpload = element.value
+					end,
+					confirm = function(element)
+						floorInfo.roofMinimumOpacity = element.value
+					end,
+				},
+			},
+		},
+	}
 
     return gui.Panel{
         classes = {"floorPanel", "offscreen"},
@@ -226,8 +200,8 @@ local CreateFloorPanel = function(index, floorInfo)
                 value = floorInfo.roof,
 				style = {
 					height = 14,
-                    fontSize = 12,
-                    color = "#bbbbbbff",
+                    -- fontSize = 12,
+                    -- color = "#bbbbbbff",
 				},
 				events = {
 					change = function(element)
@@ -254,24 +228,20 @@ local LayerSettingsDisplay = function()
         width = 400,
         vscroll = true,
 
-        styles = {
+        styles = ThemeEngine.MergeStyles({
             {
                 selectors = {"floorPanel"},
+                bgimage = true,
+                bgcolor = "@bg",
                 width = "100%",
                 height = "auto",
-                bgimage = "panels/square.png",
-                bgcolor = "#00000099",
                 flow = "vertical",
+                vmargin = 2,
             },
-
             {
                 selectors = {"floorPanel", "hover"},
-                bgcolor = "#77000099",
+                bgcolor = "@bgAlt",
             },
-            {
-                selectors = {"floorPanel", "selected"},
-            },
-
             {
                 selectors = {"floorPanel", "offscreen"},
                 transitionTime = 0.3,
@@ -280,23 +250,17 @@ local LayerSettingsDisplay = function()
 
             {
                 selectors = {"floorLabel"},
-                fontSize = 16,
                 bold = true,
                 width = "auto",
                 height = "auto",
                 halign = "left",
                 valign = "left",
-                color = "#aaaaaaff",
                 hmargin = 4,
                 vmargin = 4,
             },
             {
                 selectors = {"floorLabel", "parent:hover"},
-                color = "white",
-            },
-            {
-                selectors = {"floorLabel", "parent:selected"},
-                color = "white",
+                color = "@fgStrong",
             },
 
             {
@@ -312,8 +276,8 @@ local LayerSettingsDisplay = function()
                 collapsed = 0,
                 uiscale = { x = 1, y = 1 },
                 transitionTime = 0.1,
-            }
-        },
+            },
+        }),
 
         gui.Panel{
             width = "95%",

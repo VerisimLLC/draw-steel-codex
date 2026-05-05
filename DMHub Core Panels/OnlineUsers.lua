@@ -34,7 +34,8 @@ CreateSessionsPanel = function()
 
 	local sessionPanels = {}
 
-	local addButton = gui.AddButton{
+	local addButton = gui.Button{
+		classes = {"sizeM", "addButton"},
 		halign = "right",
 		valign = "bottom",
 		margin = 0,
@@ -43,28 +44,23 @@ CreateSessionsPanel = function()
 
 			local inviteDialog
 			inviteDialog = gui.Panel{
-				classes = {'framedPanel'},
+				classes = {"framedPanel"},
 				width = 600,
 				height = 400,
-				styles = {
-					Styles.Panel,
-				},
+				styles = ThemeEngine.GetStyles(),
 
 				gui.Label{
-					fontSize = 24,
-					width = "auto",
-					height = "auto",
-					floating = true,
-					bold = true,
+					classes = {"modalTitle"},
 					text = "Invite Players",
-					halign = "center",
-					valign = "top",
-					vmargin = 8,
+					tmargin = 16,
 				},
 
-				gui.CloseButton{
+				gui.Button{
+					classes = {"closeButton"},
 					halign = "right",
 					valign = "top",
+					floating = true,
+					margin = 8,
 					escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
 					click = function(element)
 						gui.CloseModal()
@@ -79,7 +75,7 @@ CreateSessionsPanel = function()
 					height = "auto",
 
 					gui.Label{
-						fontSize = 14,
+						classes = {"sizeS"},
 						text = "Invite Code:",
 						width = 100,
 						textAlignment = "left",
@@ -97,8 +93,7 @@ CreateSessionsPanel = function()
 						end,
 
 						gui.Label{
-							fontFace = "cambria",
-							fontSize = 18,
+							classes = {"sizeM"},
 							width = "auto",
 							height = "auto",
 							halign = "center",
@@ -108,11 +103,11 @@ CreateSessionsPanel = function()
 						},
 
 						gui.Panel{
+							classes = {"image"},
 							bgimage = "icons/icon_app/icon_app_108.png",
-							bgcolor = Styles.textColor,
 							styles = {
 								{
-									classes = "parent:hover",
+									selectors = {"parent:hover"},
 									brightness = 1.8,
 								}
 							},
@@ -140,7 +135,7 @@ CreateSessionsPanel = function()
 			flow = 'vertical',
 		},
 
-        styles = {
+        styles = ThemeEngine.MergeStyles({
             {
                 selectors = {"statusIconDisplay"},
                 width = 20,
@@ -153,41 +148,43 @@ CreateSessionsPanel = function()
                     point_a = {x = 0, y = 0},
                     point_b = {x = 1, y = 0.5},
                     stops = {
-                        {
-                            position = 0,
-                            color = "#444444",
-                        },
-                        {
-                            position = 1,
-                            color = "#ffffff",
-                        },
+                        { position = 0, color = "#444444" },
+                        { position = 1, color = "#ffffff" },
                     },
-                }
+                },
             },
             {
                 selectors = {"statusIcon"},
                 width = 32,
                 height = 32,
-                valign = 'center',
+                valign = "center",
                 cornerRadius = 0,
-                bgimage = 'panels/square.png',
-                bgcolor = "black",
-                borderColor = Styles.textColor,
+                bgimage = "panels/square.png",
+                bgcolor = "@bg",
+                borderColor = "@border",
                 borderWidth = 1,
             },
+            { selectors = {"statusIconDisplay", "afk"},     bgcolor = "@warning" },
+            { selectors = {"statusIconDisplay", "online"},  bgcolor = "@success" },
+            { selectors = {"statusIconDisplay", "offline"}, bgcolor = "@fgMuted" },
             {
-                selectors = {"statusIconDisplay", "afk"},
-                bgcolor = "yellow",
+                selectors = {"label", "statusLabel"},
+                color = "@fg",
+                opacity = 0.9,
             },
             {
-                selectors = {"statusIconDisplay", "online"},
-                bgcolor = "green",
+                selectors = {"tokenAvatar", "dmcrown"},
+                bgcolor = "@fgStrong",
             },
             {
-                selectors = {"statusIconDisplay", "offline"},
-                bgcolor = "#555555",
+                selectors = {"userSessionRow"},
+                bgimage = true,
+                bgcolor = "@bg",
+                borderColor = "@border",
+                borderWidth = 1,
+                cornerRadius = 8,
             },
-        },
+        }),
 
 		addButton,
 
@@ -243,28 +240,25 @@ CreateUserSessionPanel = function(userid)
 	}
 
 	local tokenAvatar = gui.Panel{
+		classes = {"tokenAvatar", "image"},
 		interactable = false,
 		selfStyle = {
-			color = "white",
-			bgcolor = 'white',
 			width = 16,
 			height = 16,
-			valign = 'center',
+			valign = "center",
             hmargin = 4,
 			textWrap = false,
 		}
 	}
 
 	local nameLabel = gui.Label{
-		text = 'USER',
+		classes = {"sizeS", "bold"},
+		text = "USER",
 		interactable = false,
-        fontSize = 16,
-        bold = true,
-		height = 'auto',
-		width = 'auto',
-		color = 'white',
-		valign = 'top',
-		halign = 'left',
+		height = "auto",
+		width = "auto",
+		valign = "top",
+		halign = "left",
         tmargin = 0,
         bmargin = -2,
 	}
@@ -280,13 +274,11 @@ CreateUserSessionPanel = function(userid)
     }
 
     local statusLabel = gui.Label{
+        classes = {"sizeXs", "statusLabel"},
         text = "Offline",
 		interactable = false,
-        fontSize = 12,
         height = "auto",
         width = 200,
-        color = Styles.textColor,
-        opacity = 0.9,
         valign = "bottom",
         halign = "left",
         tmargin = -2,
@@ -424,12 +416,12 @@ CreateUserSessionPanel = function(userid)
 
 		children = pingPanels,
 
-		styles = {
+		styles = ThemeEngine.MergeTokens({
 			{
 				selectors = {"pingPanel"},
 				width = "60%",
 				height = "60%",
-				bgcolor = Styles.textColor,
+				bgcolor = "@fg",
 				valign = "center",
 				halign = "center",
 				hmargin = 0,
@@ -437,44 +429,21 @@ CreateUserSessionPanel = function(userid)
 				hpad = 0,
 				vpad = 0,
 			},
-			{
-				selectors = {"pingPanel", "off"},
-				bgcolor = "#666666ff",
-			},
-			{
-				selectors = {"pinging"},
-				bgcolor = "#666666ff",
-			},
-			{
-				selectors = {"pinging", "pingseq"},
-				bgcolor = "#ffffffff",
-			},
-			{
-				selectors = {"pingsuccess"},
-				transitionTime = 0.5,
-				brightness = 4,
-			},
-			{
-				selectors = {"pingfail"},
-				transitionTime = 0.5,
-				brightness = 2,
-				bgcolor = "red",
-			},
-		}
+			{ selectors = {"pingPanel", "off"},    bgcolor = "@fgMuted" },
+			{ selectors = {"pinging"},             bgcolor = "@fgMuted" },
+			{ selectors = {"pinging", "pingseq"},  bgcolor = "@fgStrong" },
+			{ selectors = {"pingsuccess"}, transitionTime = 0.5, brightness = 4 },
+			{ selectors = {"pingfail"},    transitionTime = 0.5, brightness = 2, bgcolor = "@danger" },
+		})
 	}
 
 	local userSessionPanel
 	userSessionPanel = gui.Panel{
-		bgimage = 'panels/square.png',
-
-        borderWidth = 1,
-        borderColor = Styles.textColor,
-		bgcolor = 'black',
-		cornerRadius = 8,
+		classes = {"userSessionRow"},
 		width = "100%-20",
         height = "auto",
 		minHeight = 30,
-		flow = 'horizontal',
+		flow = "horizontal",
         halign = "right",
 		vmargin = 6,
         beveledcorners = true,
@@ -616,8 +585,8 @@ CreateUserSessionPanel = function(userid)
 			dmstatus = function(element, id, status)
 				if id == userid then
 					if status then
-                        tokenAvatar.selfStyle.bgimage = "panels/hud/crown.png"
-                        tokenAvatar.selfStyle.bgcolor = Styles.textColor
+                        tokenAvatar.bgimage = "panels/hud/crown.png"
+                        tokenAvatar:SetClass("dmcrown", true)
                         tokenAvatar:SetClass("collapsed", false)
 					else
 						tokenAvatar:SetClass("collapsed", true)
@@ -689,7 +658,7 @@ CreateUserSessionPanel = function(userid)
 					if dmhub.IsUserDM(userid) then
 						--tokenAvatar.bgimage = 'ui-icons/DMHubLogo.png'
                         tokenAvatar.bgimage = "panels/hud/crown.png"
-                        tokenAvatar.selfStyle.bgcolor = Styles.textColor
+                        tokenAvatar:SetClass("dmcrown", true)
                         tokenAvatar:SetClass("collapsed", false)
 					else
 						local token = nil
@@ -698,7 +667,7 @@ CreateUserSessionPanel = function(userid)
 						end
 						if token ~= nil then
 							tokenAvatar.bgimage = token.portrait
-                            tokenAvatar.selfStyle.bgcolor = "white"
+                            tokenAvatar:SetClass("dmcrown", false)
 							tokenAvatar:SetClass("collapsed", false)
 						else
 							tokenAvatar:SetClass("collapsed", true)

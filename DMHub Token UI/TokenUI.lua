@@ -2504,9 +2504,18 @@ function CreateTokenHud(token)
 					},
 					events = {
 						click = function(element)
-                                  GameHud.instance:ViewJournalEntry{
-                                      image = token.offTokenPortrait,
-                                  }
+                            if token.hasSpineAnimation then
+                                GameHud.instance:ViewJournalEntry{
+                                    image = token.inspectPortrait,
+                                    height = 1024,
+                                    width = 1024*0.75,
+                                    autosizeimage = false,
+                                }
+                            else
+                                GameHud.instance:ViewJournalEntry{
+                                    image = token.offTokenPortrait,
+                                }
+                            end
 						end,
                         hover = function(element)
                             gui.Tooltip("View Portrait")(element)

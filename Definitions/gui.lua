@@ -1,4 +1,5 @@
 --- @class gui Factory class for creating GUI elements such as panels, labels, inputs, and tables in the sheet system.
+--- @field availableFonts string[] List of available font ids configured on GameConfig for the current white-label build. Each entry is a string id usable with gui.Style/gui.Label etc.
 gui = {}
 
 --- Style: Create a Style

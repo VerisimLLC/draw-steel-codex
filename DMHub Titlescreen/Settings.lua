@@ -33,6 +33,26 @@ setting{
 }
 
 setting{
+    id = "tileheight:overlay",
+    description = "Show Tile Height Overlay",
+    help = "Draws contour lines and integer labels showing the game-rules height of each tile on the current floor.",
+    storage = "preference",
+    section = "Map",
+    editor = "check",
+    default = false,
+}
+
+setting{
+    id = "usesystemcursor",
+    description = "Use System Cursor",
+    help = "When enabled, DMHub uses your operating system's default mouse cursor instead of custom themed cursors. Useful on macOS where the custom cursors can appear oversized on Retina displays.",
+    storage = "preference",
+    section = "General",
+    editor = "check",
+    default = false,
+}
+
+setting{
     id = "redactdirectorlocation",
     description = "Redact Director Location",
     help = "When on, directors' rich-status/location is hidden in the Heroes and User Status panels for everyone in the game; only Online/Away/Offline is shown for director users.",
@@ -2539,4 +2559,29 @@ setting{
 	section = "General",
 	editor = "check",
 	default = true,
+}
+
+
+setting{
+    id = "strict:movement",
+    description = "Strictly Enforce Movement Rules",
+    storage = "game",
+    editor = "check",
+    default = false,
+}
+
+setting{
+    id = "strict:targeting",
+    description = "Strictly Enforce Targeting Rules",
+    storage = "game",
+    editor = "check",
+    default = false,
+}
+
+setting{
+    id = "strict:resources",
+    description = "Strictly Enforce Action Economy and Resource Costs",
+    storage = "game",
+    editor = "check",
+    default = false,
 }

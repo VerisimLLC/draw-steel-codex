@@ -155,7 +155,7 @@ function assets:UploadClipboardAsset(options)
 	-- dummy implementation for documentation purposes only
 end
 
---- UploadImageAsset: Uploads a generic image asset. Options include path, description, parentFolder, imageType, ord, error, and upload callbacks.
+--- UploadImageAsset: Uploads a generic image asset. Options include path, description, parentFolder, imageType, ord, error, and upload callbacks. Pass core=true to force the upload into the global Core asset store regardless of the current game; ignored for non-admin users.
 --- @param options table Upload options.
 --- @return nil|string The GUID of the uploaded image, or nil on failure.
 function assets:UploadImageAsset(options)

@@ -31,6 +31,34 @@ function dataDiagnostics.ArchiveGame(callback)
 	-- dummy implementation for documentation purposes only
 end
 
+--- DumpRasterState: Diagnostic: Dump the raster state for the current floor (or specified floor) so we can investigate why intensity-zero terrain is still rendering.
+--- @param floorid nil|string Optional floor ID; defaults to current floor.
+--- @return string A human-readable summary of the raster state.
+function dataDiagnostics.DumpRasterState(floorid)
+	-- dummy implementation for documentation purposes only
+end
+
+--- DumpMipChain: Diagnostic: Sample mip levels 0..N of every MapRasterMesh's _MainTex at the flat-color-4 UV (13.5/w, 1.5/h). Reveals whether mip-map garbage is leaking into the sample.
+--- @return string Per-mesh per-mip pixel values.
+function dataDiagnostics.DumpMipChain()
+	-- dummy implementation for documentation purposes only
+end
+
+--- ToggleRasterMeshes: Diagnostic: Toggle the MeshRenderer of all MapRasterMesh objects in the scene to confirm whether they are drawing the visible water texture.
+--- @param enabled boolean Whether MapRasterMesh renderers should be enabled.
+--- @return number Count of renderers toggled.
+function dataDiagnostics.ToggleRasterMeshes(enabled)
+	-- dummy implementation for documentation purposes only
+end
+
+--- ToggleRenderersByName: Diagnostic: Toggle every visible MeshRenderer in the scene whose name matches a substring, to identify which game-object draws the surprising visual.
+--- @param substring string Substring of GameObject.name to match (case-sensitive).
+--- @param enabled boolean Whether matching renderers should be enabled.
+--- @return number Count of renderers toggled.
+function dataDiagnostics.ToggleRenderersByName(substring, enabled)
+	-- dummy implementation for documentation purposes only
+end
+
 --- ArchiveMap: Archives the current map data to a blob. Calls the callback on success.
 --- @param callback function Called with no arguments when archiving completes successfully.
 function dataDiagnostics.ArchiveMap(callback)

@@ -260,11 +260,10 @@ function GameHud:ViewJournalEntry(doc)
 		bgcolor = "white",
 		maxWidth = 1024,
 		maxHeight = 1024,
-		width = "auto",
-		height = "auto",
-		autosizeimage = true,
+		width = rawget(doc, "width") or "auto",
+		height = rawget(doc, "height") or "auto",
+		autosizeimage = cond(rawget(doc, "autosizeimage") ~= nil, doc.autosizeimage, true),
 		interactable = false,
-
 	}
 
 	local parentPanel = gui.Panel{

@@ -1,5 +1,16 @@
 local mod = dmhub.GetModLoading()
 
+local function track(eventType, fields)
+    if dmhub.GetSettingValue("telemetry_enabled") == false then
+        return
+    end
+    fields.type = eventType
+    fields.userid = dmhub.userid
+    fields.gameid = dmhub.gameid
+    fields.version = dmhub.version
+    analytics.Event(fields)
+end
+
 setting {
     id = "pdfbrightness",
     description = "Brightness",
@@ -2068,6 +2079,13 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
 
                             if searchResults == "toomany" then
                                 print("PDFSEARCH:: toomany")
+                                track("search_journal_pdf", {
+                                    query = element.text,
+                                    hasResults = true,
+                                    tooMany = true,
+                                    deduplicate = 0.5,
+                                    dailyLimit = 50,
+                                })
                                 return
                             end
 
@@ -2080,6 +2098,13 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                             print("PDFSEARCH:: execute!", searchResults)
                             m_searchLen = #element.text
                             dialogPanel:FireEventTree("executeSearch", searchResults)
+                            track("search_journal_pdf", {
+                                query = element.text,
+                                hasResults = #searchResults > 0,
+                                resultCount = #searchResults,
+                                deduplicate = 0.5,
+                                dailyLimit = 50,
+                            })
                         end,
 
                         repeatSearch = function(element, searchid)

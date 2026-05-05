@@ -1,5 +1,16 @@
 local mod = dmhub.GetModLoading()
 
+local function track(eventType, fields)
+    if dmhub.GetSettingValue("telemetry_enabled") == false then
+        return
+    end
+    fields.type = eventType
+    fields.userid = dmhub.userid
+    fields.gameid = dmhub.gameid
+    fields.version = dmhub.version
+    analytics.Event(fields)
+end
+
 local g_devInventorySetting = setting{
     id = "dev:storepreview",
     default = false,
@@ -590,6 +601,15 @@ local function CreateSearchBar()
             end
 
             resultPanel.popup:FireEventTree("settext", cond(status, "No Search Results", "Searching..."))
+            if status then
+                track("search_titlebar", {
+                    query = text,
+                    hasResults = false,
+                    resultCount = 0,
+                    deduplicate = 0.5,
+                    dailyLimit = 50,
+                })
+            end
             return status
         end
 
@@ -644,6 +664,16 @@ local function CreateSearchBar()
 			},
             searchingLabel,
 		}
+
+        if status then
+            track("search_titlebar", {
+                query = text,
+                hasResults = #results > 0,
+                resultCount = #results,
+                deduplicate = 0.5,
+                dailyLimit = 50,
+            })
+        end
 
         return status
     end

@@ -1256,7 +1256,7 @@ function creature:CheckAuraExpiration(eventname)
 
 
     for i = #auras, 1, -1 do
-        if auras[i].duration == eventname then
+        if rawget(auras[i], "duration") == eventname then
             local doremove = true
             if rawget(auras[i], "durationRound") ~= nil then
                 local q = dmhub.initiativeQueue

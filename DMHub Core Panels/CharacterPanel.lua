@@ -1827,6 +1827,23 @@ local CreateBestiaryFolder = function(nodeid)
         local updateSearch = function(element)
             clearSearchButton:SetClass('collapsed', element.text == '')
             folderPane.data.search(element.text)
+            if element.text ~= '' then
+                local ok, ids = pcall(function() return node:GetNodeIdsMatchingSearch(element.text) end)
+                local hasResults = nil
+                local resultCount = nil
+                if ok and type(ids) == 'table' then
+                    resultCount = 0
+                    for _ in pairs(ids) do resultCount = resultCount + 1 end
+                    hasResults = resultCount > 0
+                end
+                track('search_monsters', {
+                    query = element.text,
+                    hasResults = hasResults,
+                    resultCount = resultCount,
+                    deduplicate = 0.5,
+                    dailyLimit = 50,
+                })
+            end
         end
 
         local searchInput = gui.Input {
@@ -2403,7 +2420,11 @@ CharacterPanel.CreateCharacterEntry = function(charid, party)
         bgimage = 'panels/square.png',
         draggable = true,
         canDragOnto = function(element, target)
-            return target:HasClass('party-drag-target')
+            if target ~= nil and target:HasClass("partyPanel") then
+                target = target.data.header
+            end
+
+            return target ~= nil and target:HasClass('party-drag-target')
         end,
         styles = {
             {
@@ -2448,12 +2469,17 @@ CharacterPanel.CreateCharacterEntry = function(charid, party)
         events = {
 
             dragging = function(element, target)
-                element.dragging = false
-                dmhub.SetDraggingMonster()
-                dmhub.Debug("DRAG:: DRAGGING MONSTER")
+                if target == nil then
+                    element.dragging = false
+                    dmhub.SetDraggingMonster()
+                    dmhub.Debug("DRAG:: DRAGGING MONSTER")
+                end
             end,
 
             drag = function(element, target)
+                if target ~= nil and target:HasClass("partyPanel") then
+                    target = target.data.header
+                end
                 if target == nil or not target:HasClass('party-drag-target') then
                     return
                 end
@@ -2518,20 +2544,10 @@ CharacterPanel.CreateCharacterEntry = function(charid, party)
                 end
             end,
 
-            press = function(element)
-                if clickTime ~= nil and clickTime > dmhub.Time() - 0.4 then
-                    --double-click
-                    clickTime = nil
-                    dmhub.CenterOnToken(charid, function()
-                        dmhub.SelectToken(charid)
-                    end)
-                    gui.SetFocus(nil)
-                    return
-                end
+            select = function(element, click)
+                local forceAdd = not click
 
-                clickTime = dmhub.Time()
-
-                local addSelection = dmhub.modKeys['ctrl'] or dmhub.modKeys['shift']
+                local addSelection = forceAdd or dmhub.modKeys['ctrl'] or dmhub.modKeys['shift']
                 if addSelection and element:HasClass("selected") then
                     RemoveCharacterPanelSelection(element)
                 elseif gui.GetFocus() == element then
@@ -2566,6 +2582,24 @@ CharacterPanel.CreateCharacterEntry = function(charid, party)
                     gui.SetFocus(element)
                 end
                 element.popup = nil
+
+            end,
+
+            press = function(element)
+                if clickTime ~= nil and clickTime > dmhub.Time() - 0.4 then
+                    --double-click
+                    clickTime = nil
+                    dmhub.CenterOnToken(charid, function()
+                        dmhub.SelectToken(charid)
+                    end)
+                    gui.SetFocus(nil)
+                    return
+                end
+
+                clickTime = dmhub.Time()
+
+                element:FireEvent("select", true)
+
             end,
 
             rightClick = function(element)
@@ -2864,6 +2898,7 @@ CharacterPanel.CreatePartyCharacters = function(partyid)
                 element:SetClass('empty', #partyMembers < 1)
             end,
             press = function(element)
+                print("PRESS:: TRIANGLE PRESSED")
                 if element:HasClass("collapsed") then
                     --the triangle itself isn't usable.
                     return
@@ -2941,8 +2976,10 @@ CharacterPanel.CreatePartyCharacters = function(partyid)
             refreshAssets = function(element)
             end,
 
-            press = function(element)
-                triangle:FireEvent("press")
+            press = function(element, synthetic)
+                if not synthetic then
+                    element.parent:FireEventTree("select")
+                end
             end,
 
             rightClick = function(element)
@@ -3060,9 +3097,13 @@ CharacterPanel.CreatePartyCharacters = function(partyid)
 
 
     resultPanel = gui.Panel {
+        classes = {"partyPanel"},
         flow = "vertical",
         width = "auto",
         height = "auto",
+        dragTarget = true,
+        bgimage = true,
+        bgcolor = "clear",
 
         data = {
             parentCollapsed = false,
@@ -3072,6 +3113,7 @@ CharacterPanel.CreatePartyCharacters = function(partyid)
                 end
                 return party.ord
             end,
+            header = headerPanel,
         },
 
 

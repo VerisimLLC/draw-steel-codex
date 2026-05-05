@@ -653,6 +653,8 @@ function CustomDocument:CreateInterface(args)
             borderWidth = 1,
             width = 25,
             height = 25,
+            hpad = 0,
+            vpad = 0,
             fontSize = 13,
             valign = "center",
             textAlignment = "center",

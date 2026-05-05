@@ -149,7 +149,13 @@ CreateHeightmapEditor = function()
         height = "auto",
         width = "100%",
 
-        styles = Styles.formPanel,
+        styles = {
+            Styles.formPanel,
+            {
+                classes = {"label"},
+                fontSize = 14,
+            }
+        },
 
         showpanel = function(element)
             if not gui.ChildHasFocus(element) then
@@ -191,6 +197,29 @@ CreateHeightmapEditor = function()
         CreateSettingsEditor("heightmap:blend"),
         CreateSettingsEditor("heightmap:opacity"),
         CreateSettingsEditor("heightmap:gradient"),
+        (function()
+            local function slopeHintVisible()
+                local tool = dmhub.GetSettingValue("heightmaptool")
+                local toolUsesGradient = tool == "rectangle" or tool == "oval" or tool == "shape"
+                return toolUsesGradient and g_gradientSetting:Get() == "slope"
+            end
+            return gui.Label{
+                classes = {cond(not slopeHintVisible(), "collapsed")},
+                text = "Right-click while drawing to change direction",
+                width = "90%",
+                height = "auto",
+                halign = "left",
+                textAlignment = "center",
+                fontSize = 14,
+                italics = true,
+                color = "#dddddd",
+                vmargin = 0,
+                multimonitor = {"heightmap:gradient", "heightmaptool"},
+                monitor = function(element)
+                    element:SetClass("collapsed", not slopeHintVisible())
+                end,
+            }
+        end)(),
         CreateSettingsEditor("heightmap:overlaytype"),
         CreateSettingsEditor("heightmap:opacitysetting"),
 

@@ -26,6 +26,12 @@ function LuaTargetingMarkers:ClearLabels()
 	-- dummy implementation for documentation purposes only
 end
 
+--- FlashLabels: Briefly flash all label rows on the targeting arrow red, to draw attention. Useful as feedback when a player tries to click an invalid target.
+--- @return nil
+function LuaTargetingMarkers:FlashLabels()
+	-- dummy implementation for documentation purposes only
+end
+
 --- Destroy
 --- @return nil
 function LuaTargetingMarkers:Destroy()

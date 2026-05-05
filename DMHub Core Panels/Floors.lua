@@ -840,6 +840,13 @@ CreateLayersPanel = function()
 											mod.shared.ReimportMapSizing(mapLayer, mapObj)
 										end,
 									}
+									floorEntries[#floorEntries+1] = {
+										text = "Realign Floor...",
+										click = function()
+											element.popup = nil
+											mod.shared.ShowFloorRealignDialog(mapLayer, mapObj)
+										end,
+									}
 								end
 
 								if #currentMap.floorsWithoutLayers > 1 then

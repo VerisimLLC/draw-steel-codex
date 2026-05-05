@@ -78,6 +78,13 @@ function MapFloorLua:CreateLocalObjectFromBlueprint(options)
 	-- dummy implementation for documentation purposes only
 end
 
+--- SpawnEphemeralLevelObject
+--- @param options any
+--- @return any
+function MapFloorLua:SpawnEphemeralLevelObject(options)
+	-- dummy implementation for documentation purposes only
+end
+
 --- GetNumberOfProjectiles
 --- @param tokenid string
 --- @return number

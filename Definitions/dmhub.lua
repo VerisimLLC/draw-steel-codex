@@ -525,8 +525,8 @@ function dmhub.MarkLocs(args)
 	-- dummy implementation for documentation purposes only
 end
 
---- CalculateShape: Create an object describing a shape on the map.
---- @param args {shape: SpellShapes, token: CharacterToken, objectTemplate: nil|string, targetPoint: Vector3, range: nil|number, radius: nil|number, locOverride: nil|Loc, requireEmpty: nil|boolean, checklos: nil|boolean, altitude: nil|number }
+--- CalculateShape: Create an object describing a shape on the map. If targetFloorIndex is provided, the shape's locs and visual marker are placed on that floor instead of the caster's floor (used for cross-floor targeting).
+--- @param args {shape: SpellShapes, token: CharacterToken, objectTemplate: nil|string, targetPoint: Vector3, range: nil|number, radius: nil|number, locOverride: nil|Loc, requireEmpty: nil|boolean, checklos: nil|boolean, altitude: nil|number, targetFloorIndex: nil|number }
 --- @return LuaShape
 function dmhub.CalculateShape(args)
 	-- dummy implementation for documentation purposes only
@@ -1103,6 +1103,28 @@ end
 --- @param urlName string
 --- @return boolean
 function dmhub.OpenRegisteredURL(urlName)
+	-- dummy implementation for documentation purposes only
+end
+
+--- OpenCharacterPopout: Opens the given character's sheet in the Draw Steel companion (draw-steel-codex.com) as a chromeless popout window, authenticated as the player via a one-time Steam ticket handoff. Requires Steam to be initialized and the player to be in an active game; the game id is taken implicitly from the current game. The success path is silent (the browser just opens). Extra query params can be passed via the extraParams table; values are coerced to strings and URL-encoded. The reserved keys n, gameId, and characterId cannot be overridden and are silently dropped if present.
+--- @param characterId string The id of the character whose sheet should open.
+--- @param extraParams nil|{[string]: string|number|boolean} Optional extra query parameters appended to the popout URL.
+--- @param onError nil|function Optional callback invoked as onError(message:string) if the handoff fails.
+function dmhub.OpenCharacterPopout(characterId, extraParams, onError)
+	-- dummy implementation for documentation purposes only
+end
+
+--- RunSteamHandoffDiagnostic: DEV ONLY. Runs the Steam companion-popout handoff end-to-end against the live cloud function and reports every captured datapoint back to onComplete as a table. Use this to diagnose why drawSteelCompanion authentication might be failing on a particular machine. The variant argument selects the test scenario; pass 0 for the happy path or 1-5 to deliberately break a specific step (see SteamHandoffVariant in LoginController.cs).
+--- @param variant integer 0=HappyPath, 1=WrongIdentityCasing, 2=DashedHex, 3=Base64Ticket, 4=OldApiNoIdentity, 5=WrongAppId.
+--- @param onComplete function Called with a single result table containing variant, steamInitialized, steamLoggedOn, steamId, personaName, appId, identityRequested, identityRequestedLength, methodUsed, ticketHandle, callbackFired, callbackResult, callbackElapsedSeconds, ticketSize, ticketEncoding, ticketEncodedLength, ticketEncodedFirst16, appIdSent, mintUrl, httpStatus, httpElapsedSeconds, responseBody, nonce, consumeUrl, ok, error, errorStep.
+function dmhub.RunSteamHandoffDiagnostic(variant, onComplete)
+	-- dummy implementation for documentation purposes only
+end
+
+--- RunSteamHandoffConsume: DEV ONLY. POSTs the given nonce to steamHandoffConsume and reports the server response. Use this to verify the browser-side leg of the popout handoff (without actually opening a browser) after RunSteamHandoffDiagnostic returns a nonce.
+--- @param nonce string A nonce returned from a successful RunSteamHandoffDiagnostic call.
+--- @param onComplete function Called with a result table containing nonce, consumeUrl, httpStatus, httpElapsedSeconds, responseBody, ok, error, and on success also uid, steamid, tokenLength, tokenPrefix.
+function dmhub.RunSteamHandoffConsume(nonce, onComplete)
 	-- dummy implementation for documentation purposes only
 end
 

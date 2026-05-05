@@ -87,6 +87,12 @@ local function ClearAbilityShare()
         doc.data[k] = nil
     end
     doc:CompleteChange("Clear ability share", {undoable = false})
+
+    -- Drop the engine's "current casting" state so spine eye-IK on every token
+    -- decays back to no look-at.
+    if spine.clearCurrentCast ~= nil then
+        spine.clearCurrentCast()
+    end
 end
 
 -- Heartbeat: update the timestamp every 3 seconds while sharing.
@@ -116,6 +122,13 @@ local function BeginAbilitySharing(token, ability)
     }
 
     WriteAbilityShare()
+
+    -- Tell the engine which token is casting; spine tokens with eye IK will turn to
+    -- look at this token (and the caster itself will look at its first target once
+    -- targets are set via UpdateAbilitySharing -> spine.setCurrentCastingTargets).
+    if spine.setCurrentCastingToken ~= nil then
+        spine.setCurrentCastingToken(token)
+    end
 
     -- Start heartbeat loop.
     dmhub.Schedule(3, HeartbeatAbilityShare)
@@ -1365,6 +1378,12 @@ function CharacterPanel.UpdateAbilitySharing(data)
 
     for k, v in pairs(data) do
         g_sharingData[k] = v
+    end
+
+    -- Mirror the target list into the engine's "current casting" state so spine eye-IK
+    -- on the caster picks up the first target as its look-at point.
+    if data.targetTokenIds ~= nil and spine.setCurrentCastingTargets ~= nil then
+        spine.setCurrentCastingTargets(data.targetTokenIds)
     end
 
     WriteAbilityShare()

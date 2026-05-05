@@ -1161,6 +1161,7 @@ local function AbilityHeading(args)
     local m_ability = nil
     local m_cannotAfford = false
     local m_expended = false
+    local m_suppressed = false
 
     local resultPanel
 
@@ -1185,7 +1186,8 @@ local function AbilityHeading(args)
         ability = function(element, ability)
             local suppressMessage = ability:try_get("suppressExplanation") or
                 ability:AbilityFilterFailureMessage(g_token.properties)
-            element:SetClassTree("suppressed", suppressMessage ~= nil)
+            m_suppressed = suppressMessage ~= nil
+            element:SetClassTree("suppressed", m_suppressed)
         end,
 
         rightClick = function(element)
@@ -1298,6 +1300,17 @@ local function AbilityHeading(args)
         end,
 
         press = function(element)
+            -- Strict resource enforcement: if a player tries to use an ability
+            -- whose icon is greyed out (insufficient resources, action already
+            -- expended this round, or the ability filter suppresses it), the
+            -- click is silently ignored. Directors bypass this so they can
+            -- still demo or override the rules.
+            if (not dmhub.isDM) and dmhub.GetSettingValue("strict:resources") then
+                if m_cannotAfford or m_expended or m_suppressed then
+                    return
+                end
+            end
+
             audio.FireSoundEvent("Mouse.Click")
             --this will be adopted by the ability controller
             if g_abilityController == nil then return end
@@ -1852,10 +1865,16 @@ ActionMenu = function()
                 return
             end
 
-            if args.type ~= "trigger" then
-                g_manualSetResourcePanel:SetClass("collapsed", true)
+            -- Strict-resources hides the manual "Mark Trigger as Used/Unused"
+            -- override from players, since it's a way to bypass the action
+            -- economy. Directors keep it.
+            local strictResources = (not dmhub.isDM) and dmhub.GetSettingValue("strict:resources")
+            if args.type ~= "trigger" or strictResources then
+                g_manualSetResourcePanel:SetClass("collapsed", args.type ~= "trigger")
+                g_manualSetResourcePanel:SetClass("hidden", strictResources)
             else
                 g_manualSetResourcePanel:SetClass("collapsed", false)
+                g_manualSetResourcePanel:SetClass("hidden", false)
 
                 local resources = g_token.properties:GetResources()[CharacterResource.triggerResourceId] or 0
                 local resourcesAvailable = resources -
@@ -2089,7 +2108,12 @@ local function AddModifierLabelsToMarker(markers, sourceToken, targetToken, abil
         return
     end
 
-    if range ~= nil and targetToken:Distance(sourceToken) > range + dmhub.unitsPerSquare then
+    -- Match the validity check in CalculateSpellTargetFocusing: failReason
+    -- fires when distance >= range + unitsPerSquare (i.e. `not (range+1 > d)`).
+    -- Use the same boundary here so a "just out of range" target (distance
+    -- exactly range + 1 square, the common Chebyshev-grid case) still gets
+    -- the label.
+    if range ~= nil and targetToken:Distance(sourceToken) >= range + dmhub.unitsPerSquare then
         markers:AddLabel("Out of Range", "forbidden")
         return
     end
@@ -2319,6 +2343,26 @@ local function CreateTargetInfo(spell)
         guid = dmhub.GenerateGuid(),
         action = spell,
         execute = function(targetToken, info) --info has {targetEffect = {list of effect panels}}
+            -- Strict-targeting: players cannot select invalid targets (out of
+            -- range, forbidden, etc). The reticule still lights up with the
+            -- invalid styling so they get feedback on why, but the click is
+            -- ignored, and the arrow's reason label flashes red for emphasis.
+            -- Directors bypass this.
+            if (not dmhub.isDM) and dmhub.GetSettingValue("strict:targeting") then
+                if targetToken.sheet ~= nil and targetToken.sheet.data.targetValid == false then
+                    if m_markLineOfSight ~= nil and m_markLineOfSightToken == targetToken then
+                        m_markLineOfSight:FlashLabels()
+                    else
+                        local key = string.format("%s-%s", g_token.id, targetToken.id)
+                        local ray = m_targetLineOfSightRays[key]
+                        if ray ~= nil then
+                            ray:FlashLabels()
+                        end
+                    end
+                    return
+                end
+            end
+
             local exists = list_contains(g_targetsChosen, targetToken.id)
 
             for i, effect in ipairs(info.targetEffect or {}) do
@@ -4007,6 +4051,20 @@ CreateAbilityController = function()
             element.data.lastHoverLoc = loc
             element.data.lastHoverPoint = point
 
+            --diagnostic: cross-floor targeting trace. Throttled to changes only.
+            if g_currentAbility ~= nil and (g_currentAbility.targetType == "emptyspace" or g_currentAbility.targetType == "anyspace") then
+                local k = string.format("%s|%s", tostring(loc and loc.str or "nil"), tostring(loc and loc.floor or "nil"))
+                if element.data._lastXFloorKey ~= k then
+                    element.data._lastXFloorKey = k
+                    print(string.format("XFLOOR:: maphover loc=%s loc.floor=%s caster.floor=%s targetType=%s targeting=%s",
+                        tostring(loc and loc.str or "nil"),
+                        tostring(loc and loc.floor or "nil"),
+                        tostring(g_token and g_token.floorIndex or "nil"),
+                        tostring(g_currentAbility.targetType),
+                        tostring(g_currentAbility:try_get("targeting", "direct"))))
+                end
+            end
+
             if g_abilityController == nil then return end
             if g_token == nil or (not g_token.valid) then
                 g_abilityController:FireEvent("cancelCasting")
@@ -4097,9 +4155,15 @@ CreateAbilityController = function()
                     g_pointTargeting.showingMovementArrow = true
                     clearMovementArrow = false
                 elseif shape == "emptyspace" and targetingType == "direct" then
-                    g_token:MarkMovementArrow(loc, { teleport = true })
-                    g_pointTargeting.showingMovementArrow = true
-                    clearMovementArrow = false
+                    --Only draw the teleport arrow when the target is on the caster's floor.
+                    --For cross-floor teleport the arrow would render on the caster's floor pointing
+                    --at the wrong place; leave clearMovementArrow=true so any prior arrow is removed
+                    --and the radius shape preview (rendered on the target floor) is the indicator.
+                    if loc.floor == g_token.floorIndex then
+                        g_token:MarkMovementArrow(loc, { teleport = true })
+                        g_pointTargeting.showingMovementArrow = true
+                        clearMovementArrow = false
+                    end
                 elseif (shape == 'emptyspace' or shape == 'anyspace') and (targetingType == "straightline" or targetingType == "straightpath" or targetingType == "straightpathignorecreatures") then
                     local waypoints = {}
                     for _, pos in ipairs(m_positionTargetsChosen) do
@@ -4484,6 +4548,30 @@ CreateAbilityController = function()
                     locations[#locations+1] = loc
                 end
 
+                --For direct emptyspace/anyspace targeting (teleport-style), let the cursor rest on
+                --whichever floor it's hovering and render the radius preview there. Movement-style
+                --targeting (pathfind/vacated/straightline) stays floor-bound -- the engine's
+                --pathfinding doesn't traverse floors.
+                local targetFloorIndex = nil
+                if loc ~= nil and targetingType == "direct" and (g_currentAbility.targetType == "emptyspace" or g_currentAbility.targetType == "anyspace") then
+                    targetFloorIndex = loc.floor
+                end
+
+                --diagnostic: cross-floor targeting trace - throttled to floor changes only.
+                if g_currentAbility ~= nil and (g_currentAbility.targetType == "emptyspace" or g_currentAbility.targetType == "anyspace") then
+                    local k = string.format("%s|%s|%s", tostring(targetFloorIndex), tostring(point and point.z or "nil"), tostring(shape))
+                    if element.data._lastXFloorShapeKey ~= k then
+                        element.data._lastXFloorShapeKey = k
+                        print(string.format("XFLOOR:: pre-CalculateShape shape=%s targetPoint=(%s,%s,%s) targetFloorIndex=%s caster.floor=%s",
+                            tostring(shape),
+                            tostring(point and point.x or "nil"),
+                            tostring(point and point.y or "nil"),
+                            tostring(point and point.z or "nil"),
+                            tostring(targetFloorIndex),
+                            tostring(g_token and g_token.floorIndex or "nil")))
+                    end
+                end
+
                 g_pointTargeting.shape = dmhub.CalculateShape {
                     shape = shape,
                     targetPoint = point,
@@ -4495,6 +4583,7 @@ CreateAbilityController = function()
                     requireEmpty = requireEmpty,
                     emptyMayIncludeSelf = requireEmpty and (targetingType == "pathfind" or targetingType == "vacated" or targetingType == "straightline" or targetingType == "straightpath" or targetingType == "straightpathignorecreatures"),
                     locations = locations,
+                    targetFloorIndex = targetFloorIndex,
                 }
             elseif g_currentAbility.targetType == "map" then
                 g_pointTargeting.shapeRequiresConfirm = false
@@ -4624,8 +4713,11 @@ CreateAbilityController = function()
                     point.y = point.y / #locs
                     point.z = point.z / #locs
 
+                    --pass loc.floor so the canvas's z is offset by the target floor's base
+                    --altitude (cross-floor targeting renders the label on the right floor).
                     g_pointTargeting.label = dmhub.CreateCanvasOnMap {
                         point = point, --loc.point3,
+                        floorIndex = loc and loc.floor or nil,
                         sheet = gui.Panel {
                             interactable = false,
                             halign = "center",
@@ -4699,6 +4791,15 @@ CreateAbilityController = function()
 
             local shape = g_currentAbility.targetType
 
+            --diagnostic: cross-floor targeting trace.
+            print(string.format("XFLOOR:: mappress entry loc=%s loc.floor=%s caster.floor=%s shape=%s targeting=%s shapeRequiresConfirm=%s",
+                tostring(loc and loc.str or "nil"),
+                tostring(loc and loc.floor or "nil"),
+                tostring(g_token and g_token.floorIndex or "nil"),
+                tostring(shape),
+                tostring(g_currentAbility:try_get("targeting", "direct")),
+                tostring(g_pointTargeting.shapeRequiresConfirm)))
+
             --set the starting point of the line.
             if shape == "line" and #m_positionTargetsChosen == 0 then
                 m_positionTargetsChosen[#m_positionTargetsChosen + 1] = loc
@@ -4708,6 +4809,7 @@ CreateAbilityController = function()
             if loc ~= nil and (g_pointTargeting.shapeRequiresConfirm) and g_pointTargeting.shape ~= nil then
                 g_pointTargeting.shapeRequiresConfirm = false
                 g_pointTargeting.shapeConfirmedLoc = loc
+                print(string.format("XFLOOR:: mappress shape-confirm stored loc.floor=%s", tostring(loc.floor)))
                 return
             end
 
@@ -4715,6 +4817,7 @@ CreateAbilityController = function()
                 local info = { loc = loc, point = point, panel = element }
                 m_altitudeController:FireEventTree("loc", info)
                 loc = info.loc
+                print(string.format("XFLOOR:: mappress after altitude controller loc.floor=%s", tostring(loc and loc.floor or "nil")))
             end
 
             local locOverride = g_currentAbility:try_get("casterLocOverride")
@@ -4738,6 +4841,7 @@ CreateAbilityController = function()
                 end
 
                 if g_currentAbility.targetType == 'emptyspace' or g_currentAbility.targetType == 'emptyspacefriend' or g_currentAbility.targetType == 'anyspace' then
+                    print(string.format("XFLOOR:: mappress building emptyspace target loc.floor=%s", tostring(loc and loc.floor or "nil")))
                     targets[#targets + 1] = { loc = loc }
                 else
                     for k, target in pairs(g_pointForceTargets) do
@@ -4873,7 +4977,17 @@ CreateAbilityController = function()
 
                 g_token.lookAtMouse = false
 
+                for i,t in ipairs(targets) do
+                    print(string.format("XFLOOR:: mappress pre-PrepareTargets target[%d].loc.floor=%s",
+                        i, tostring(t.loc and t.loc.floor or "nil")))
+                end
+
                 targets = g_currentAbility:PrepareTargets(g_token, g_currentSymbols, targets)
+
+                for i,t in ipairs(targets) do
+                    print(string.format("XFLOOR:: mappress post-PrepareTargets target[%d].loc.floor=%s",
+                        i, tostring(t.loc and t.loc.floor or "nil")))
+                end
 
                 if m_markLineOfSight ~= nil then
                     SetTargetLineOfSightRayForKey(
@@ -5094,6 +5208,9 @@ local function CalculateSpellTargetFocusing(symbols)
                         end
 
                         targetToken.sheet.data.targetInfo = g_targetInfo
+                        --record validity so click handlers can reject invalid
+                        --targets when strict-targeting is enforced for players.
+                        targetToken.sheet.data.targetValid = valid
                         --out-of-range is shown as an arrow label instead of a token tooltip.
                         local tooltipReason = failReason
                         if tooltipReason ~= nil and string.starts_with(tooltipReason, "Out of range") then
@@ -5301,7 +5418,8 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
 
                 if g_currentAbility.proximityTargeting and g_firstTarget ~= nil then
                     local targetToken = nil
-                    if g_currentAbility.proximityChain and #g_targetsChosen > 0 then
+
+                    if g_currentAbility:try_get("proximityChain") and #g_targetsChosen > 0 then
                         -- For proximity chain, use the last target
                         targetToken = dmhub.GetTokenById(g_targetsChosen[#g_targetsChosen])
                     else

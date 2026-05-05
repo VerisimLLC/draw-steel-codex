@@ -2398,6 +2398,31 @@ local function unknownLiterals(formula, triggerId)
     return results
 end
 
+-- Detect bare-ident RHS literals on is/has comparisons that the engine
+-- silently MIS-handles. Single-word bare RHS (`Resource is Recovery`) is
+-- treated by the engine as an implicit string literal -- works correctly.
+-- Multi-word bare RHS (`Resource is Main Action`) is NOT treated as a
+-- string literal -- the engine returns 0 and the comparison silently
+-- fails. Authors writing this form think it works (it reads like the
+-- single-word form) but it's a content bug. Surfaces as a Mech View
+-- chip so the author sees the issue at edit time and can quote the RHS.
+--
+-- Returns a list of `{rhs, op}` entries for each broken comparison.
+-- Empty list means no issues. Detection is purely structural -- we don't
+-- need the trigger context here.
+local function multiWordBareRhsIssues(formula)
+    if formula == nil or formula == "" then return {} end
+    local results = {}
+    GoblinScriptProse.WalkLiteralComparisons(formula, function(info)
+        if info.rhsKind ~= "ident" then return end
+        if type(info.rhs) ~= "string" then return end
+        if string.find(info.rhs, "%s") then
+            results[#results + 1] = { rhs = info.rhs, op = info.op }
+        end
+    end)
+    return results
+end
+
 -- Collapse the behaviour list using the behaviour prose engine (opt-in #5;
 -- BEHAVIOUR_PROSE.md). Falls back to per-behaviour SummarizeBehavior +
 -- type-label comma join if the engine is unavailable. Returns (text, isEmpty).
@@ -2491,22 +2516,40 @@ local function buildMechanicalView(ability)
         if #unknown > 0 then
             condChip = "Unknown: " .. unknown[1]
         else
-            -- Edit-time canonical-table validation. Catches typos in string
-            -- literals on hasEq / isEq leaves where the LHS is a known
-            -- canonical-set field (Ongoing Effects, Conditions, Damage
-            -- Type, Resource). Chip uses a gold warning color to
-            -- distinguish from the red "Unknown: <ident>" chip; the latter
-            -- represents a structural problem (formula references a
-            -- symbol that doesn't exist on this trigger), the former a
-            -- typo-class issue (literal won't match anything at runtime).
-            local literals = unknownLiterals(condition, triggerId)
-            if #literals > 0 then
-                local first = literals[1]
-                local extra = #literals > 1 and string.format(" +%d more", #literals - 1) or ""
+            -- Multi-word bare-ident RHS check first -- this is a hard
+            -- runtime bug (engine returns 0; comparison silently fails),
+            -- so it outranks the typo-class literal chip. Author needs to
+            -- quote the RHS: `Resource is "Main Action"` instead of bare.
+            -- Chip text is plain-language and shows the fix directly --
+            -- earlier wording ("Quote multi-word RHS: is X") was correct
+            -- but unreadable for anyone who doesn't already know the
+            -- problem.
+            local broken = multiWordBareRhsIssues(condition)
+            if #broken > 0 then
+                local first = broken[1]
+                local extra = #broken > 1 and string.format(" +%d more", #broken - 1) or ""
                 condChip = {
-                    text = string.format('Unknown %s: "%s"%s', first.label, first.literal, extra),
-                    color = "#cca350",
+                    text = string.format('Add quotes: "%s"%s', first.rhs, extra),
+                    color = "#a14b3a",  -- red: this is a runtime bug, not just a typo
                 }
+            else
+                -- Edit-time canonical-table validation. Catches typos in string
+                -- literals on hasEq / isEq leaves where the LHS is a known
+                -- canonical-set field (Ongoing Effects, Conditions, Damage
+                -- Type, Resource). Chip uses a gold warning color to
+                -- distinguish from the red "Unknown: <ident>" chip; the latter
+                -- represents a structural problem (formula references a
+                -- symbol that doesn't exist on this trigger), the former a
+                -- typo-class issue (literal won't match anything at runtime).
+                local literals = unknownLiterals(condition, triggerId)
+                if #literals > 0 then
+                    local first = literals[1]
+                    local extra = #literals > 1 and string.format(" +%d more", #literals - 1) or ""
+                    condChip = {
+                        text = string.format('Unknown %s: "%s"%s', first.label, first.literal, extra),
+                        color = "#cca350",
+                    }
+                end
             end
         end
     end
@@ -3158,6 +3201,33 @@ local function discoverTestInputs(ability)
         return "text"  -- compare-str, default
     end
 
+    -- Look up the declared type of a dotted leaf on a typed object symbol.
+    -- Used to upgrade the opHint-derived widget kind when we have richer
+    -- type info -- e.g. `cast.PrimaryTarget` is creature-typed (per
+    -- ActivatedAbilityCast.helpSymbols), so the comparison `cast.PrimaryTarget = self`
+    -- needs a creature picker rather than a text input.
+    local OBJECT_LEAF_HELPSYMBOLS = {
+        ability = function() return rawget(_G, "ActivatedAbility") and ActivatedAbility.helpSymbols end,
+        spellcast = function() return rawget(_G, "ActivatedAbilityCast") and ActivatedAbilityCast.helpSymbols end,
+        path = function() return rawget(_G, "PathMoved") and PathMoved.helpSymbols end,
+    }
+    local function leafDeclaredType(symType, tailKey)
+        local source = OBJECT_LEAF_HELPSYMBOLS[symType]
+        if source == nil then return nil end
+        local syms = source()
+        if type(syms) ~= "table" then return nil end
+        -- Lookup keys in helpSymbols mirror the runtime injection identity
+        -- (lowercase + space-stripped). The dotted-walker passes tailKey as
+        -- lowercase (may contain space for multi-word). Try both forms.
+        local def = syms[tailKey]
+        if def == nil then
+            local stripped = string.gsub(tailKey, "%s+", "")
+            def = syms[stripped]
+        end
+        if type(def) ~= "table" then return nil end
+        return def.type
+    end
+
     for symKey, symDef in pairs(trigger.symbols) do
         if type(symDef) == "table" then
             local symName = symDef.name or tostring(symKey)
@@ -3190,7 +3260,25 @@ local function discoverTestInputs(ability)
                 local entry = dottedTailsForLookupKey(id)
                 if entry ~= nil then
                     for tailKey, tailInfo in pairs(entry.tails) do
-                        local leafKind = kindFromOpHint(tailInfo.opHint)
+                        -- Prefer the leaf's declared type from the object's
+                        -- helpSymbols when we recognise the field; fall back
+                        -- to the operator-hint heuristic. This upgrades
+                        -- compare-str on `cast.PrimaryTarget` to a creature
+                        -- picker (declared type "creature") instead of a
+                        -- bare text input.
+                        local declared = leafDeclaredType(symType, tailKey)
+                        local leafKind
+                        if declared == "creature" then
+                            leafKind = "creature-leaf"
+                        elseif declared == "number" then
+                            leafKind = "number"
+                        elseif declared == "boolean" then
+                            leafKind = "boolean"
+                        elseif declared == "set" then
+                            leafKind = "set"
+                        else
+                            leafKind = kindFromOpHint(tailInfo.opHint)
+                        end
                         -- C4 followup: if the tail is a known bounded-set
                         -- field, attach a valueOptionsSource so the panel
                         -- renders a dropdown instead of a free-text input.
@@ -3291,7 +3379,12 @@ local TEST_OPTION_BUILDERS = {
         local options = {}
         local t = dmhub.GetTable("characterResources") or {}
         for _, r in pairs(t) do
-            if r.grouping ~= "Actions" and not r:try_get("hidden", false) then
+            -- Include all groupings (incl. "Actions") -- the runtime
+            -- dispatches `useresource` events for action resources too,
+            -- so formulas like `Resource is Main Action`/`Resource is
+            -- Maneuver`/`Resource is Trigger` need the picker to surface
+            -- those names. Only filter row-hidden resources.
+            if not r:try_get("hidden", false) then
                 options[#options + 1] = { id = string.lower(r.name), text = r.name }
             end
         end
@@ -3432,7 +3525,45 @@ local function buildEvalContext(ability, scenario)
         if fo == nil or props == nil then return nil end
         local condValues = collectOverrideValues(fo, headKey, "Conditions")
         local oeValues   = collectOverrideValues(fo, headKey, "OngoingEffects")
-        if #condValues == 0 and #oeValues == 0 then return nil end
+        local boolValues = collectOverrideValues(fo, headKey, "Booleans")
+        -- Numeric overrides store the raw value alongside the key. Collect
+        -- separately so we preserve the typed value (number) instead of the
+        -- collected key form.
+        local numericOverrides = {}
+        local hasNumeric = false
+        local numericPrefix = headKey .. ":Numbers:"
+        for key, value in pairs(fo) do
+            if string.sub(key, 1, #numericPrefix) == numericPrefix then
+                local name = string.sub(key, #numericPrefix + 1)
+                local n = tonumber(value)
+                if n ~= nil then
+                    numericOverrides[name] = n
+                    hasNumeric = true
+                end
+            end
+        end
+        -- Resource overrides. Same shape as numeric: stored as raw text
+        -- under "<head>:Resources:<resourceName>"; parsed at injection time
+        -- and folded into a stub CharacterResourceCollection that mirrors
+        -- the real one but returns the override value for the named
+        -- resource(s). Empty/blank entries fall through to the real value.
+        local resourceOverrides = {}
+        local hasResource = false
+        local resourcePrefix = headKey .. ":Resources:"
+        for key, value in pairs(fo) do
+            if string.sub(key, 1, #resourcePrefix) == resourcePrefix then
+                local name = string.sub(key, #resourcePrefix + 1)
+                local n = tonumber(value)
+                if n ~= nil then
+                    resourceOverrides[name] = n
+                    hasResource = true
+                end
+            end
+        end
+        if #condValues == 0 and #oeValues == 0 and #boolValues == 0
+                and not hasNumeric and not hasResource then
+            return nil
+        end
         local tbl = {}
         if #condValues > 0 then
             -- Set-membership form: Subject.Conditions has "Flanked"
@@ -3457,6 +3588,53 @@ local function buildEvalContext(ability, scenario)
                 local key = normaliseSymbolKey(value)
                 if key ~= "" then tbl[key] = true end
             end
+        end
+        -- P2: bare-boolean creature-property overrides (Hero, Dying,
+        -- Captain, Your Turn, ...). Per-value boolean only -- there's no
+        -- StringSet to augment. The same key shape resolves both bare
+        -- (`Hero`) and dotted (`Self.Hero`) access at evaluation time.
+        for _, value in ipairs(boolValues) do
+            local key = normaliseSymbolKey(value)
+            if key ~= "" then tbl[key] = true end
+        end
+        -- P3: numeric creature-property overrides (Subject.Stamina,
+        -- Resources.Recovery, Combat Round, ...). Same per-key injection
+        -- but the value is the parsed number rather than `true`.
+        for name, n in pairs(numericOverrides) do
+            local key = normaliseSymbolKey(name)
+            if key ~= "" then tbl[key] = n end
+        end
+        -- Chained resource overrides (Subject.Resources.Recovery,
+        -- Resources.Surges, ...). Build a stub CharacterResourceCollection
+        -- whose lookupSymbols mirror the real collection's BUT shadow the
+        -- overridden resource quantities. The stub is set as tbl.resources;
+        -- when GoblinScript dot-accesses it via Subject.Resources.<X>, the
+        -- compiled access path wraps the stub with GenerateSymbols(stub),
+        -- which then calls stub.lookupSymbols[<x>](stub) -- our shadow
+        -- function ignores the receiver and returns the override.
+        if hasResource then
+            local realResourcesFn = props.lookupSymbols and props.lookupSymbols["resources"]
+            local realCollection = nil
+            if realResourcesFn ~= nil then
+                local ok, c = pcall(realResourcesFn, props)
+                if ok then realCollection = c end
+            end
+            local stub = { lookupSymbols = {} }
+            if realCollection ~= nil and type(realCollection.lookupSymbols) == "table" then
+                for k, fn in pairs(realCollection.lookupSymbols) do
+                    stub.lookupSymbols[k] = function(_) return fn(realCollection) end
+                end
+            end
+            for name, n in pairs(resourceOverrides) do
+                -- Match the runtime's resource-symbol normalisation:
+                -- lowercase + non-word stripped (matches Resource.lua:1104
+                -- `string.gsub(string.lower(resourceInfo.name), "%W", "")`).
+                local key = string.gsub(string.lower(name), "%W", "")
+                if key ~= "" then
+                    stub.lookupSymbols[key] = function(_) return n end
+                end
+            end
+            tbl.resources = stub
         end
         return tbl
     end
@@ -3527,6 +3705,16 @@ local function buildEvalContext(ability, scenario)
         if dot ~= nil then
             local head = string.sub(symKey, 1, dot - 1)
             local tail = string.sub(symKey, dot + 1)
+            -- Runtime injection identity for multi-word dotted access:
+            -- GoblinScript merges `Primary Target` into a single IDENT
+            -- "Primary Target" but the dot-access lookup normalises to
+            -- lowercase + space-stripped (`primarytarget`). Stored stub
+            -- keys must match that form -- otherwise a tail like
+            -- "primary target" (with embedded space, lowercased) won't be
+            -- found. Verified empirically: `obj.Primary Target` resolves
+            -- via `symbols("primarytarget")`. Head is already normalised
+            -- by ListReferencedDottedAccesses' lookupKey (no space).
+            tail = string.gsub(tail, "%s+", "")
             stubTables[head] = stubTables[head] or {}
             local v = info.value
             if info.kind == "set" then
@@ -3869,9 +4057,58 @@ local function discoverInFormulaOverrides(ability)
         end
     end)
 
+    -- P2: helpSymbol boolean lookup. Real bestiary content references
+    -- bare creature properties without `Self.` prefix (`Hero`, `Dying`,
+    -- `Captain`, `Taken Turn`, `Your Turn`, ...) and dotted (`Subject.Solo`,
+    -- `Subject.Leader`). These resolve at runtime via creature:LookupSymbol
+    -- against the receiver, but the test panel had no way to flip them on
+    -- without setting up actual game state. Now they get a "Pretend X is Y"
+    -- checkbox per referenced boolean.
+    --
+    -- P3: same idea, but for numeric-typed helpSymbols (`Subject.Stamina`,
+    -- `Subject.Maximum Stamina`, `Resources.Recovery`, `Combat Round`, ...).
+    -- Surfaces a numeric input row instead of a checkbox.
+    --
+    -- Lookup keyed by both the helpSymbol's lowercase name AND the
+    -- space-stripped form, so authors who write `YourTurn` or `Your Turn`
+    -- both match the canonical entry.
+    local helpSymbolBoolByLowerName = {}
+    local helpSymbolNumByLowerName = {}
+    pcall(function()
+        if creature == nil or type(creature.helpSymbols) ~= "table" then return end
+        for k, def in pairs(creature.helpSymbols) do
+            if type(k) == "string" and not k:find("^__") and type(def) == "table" then
+                local displayName = def.name or k
+                local target
+                if def.type == "boolean" then
+                    target = helpSymbolBoolByLowerName
+                elseif def.type == "number" then
+                    target = helpSymbolNumByLowerName
+                end
+                if target ~= nil then
+                    target[string.lower(displayName)] = displayName
+                    local stripped = string.lower(string.gsub(displayName, "%s+", ""))
+                    if stripped ~= string.lower(displayName) then
+                        target[stripped] = displayName
+                    end
+                    -- Also key by the lookup-table key itself so authors
+                    -- writing the lookup key form (e.g. `yourturn`) match.
+                    if string.lower(k) ~= string.lower(displayName) then
+                        target[string.lower(k)] = displayName
+                    end
+                end
+            end
+        end
+    end)
+
     -- Resolver: given a (head, identifier) pair, look up the canonical
-    -- name across both tables and add the override under the matching
-    -- set. Used by both shape 2 (dotted) and shape 3 (bare).
+    -- name across all four tables (conditions, ongoing effects, boolean
+    -- helpSymbols, numeric helpSymbols) and add the override under the
+    -- matching category. Used by both shape 2 (dotted) and shape 3 (bare).
+    -- Conditions/effects take precedence over helpSymbols when a name
+    -- appears in both -- the override mechanism for conditions has
+    -- richer semantics (set membership + bare boolean) and matches
+    -- author intent for compendium-defined state.
     local function tryAddByCanonicalName(headLower, identLower)
         local condName = conditionByLowerName[identLower]
         if condName then
@@ -3881,6 +4118,16 @@ local function discoverInFormulaOverrides(ability)
         local effName = effectByLowerName[identLower]
         if effName then
             addOverride(headLower, "OngoingEffects", effName)
+            return
+        end
+        local boolName = helpSymbolBoolByLowerName[identLower]
+        if boolName then
+            addOverride(headLower, "Booleans", boolName)
+            return
+        end
+        local numName = helpSymbolNumByLowerName[identLower]
+        if numName then
+            addOverride(headLower, "Numbers", numName)
         end
     end
 
@@ -3929,6 +4176,44 @@ local function discoverInFormulaOverrides(ability)
                 local stripped = string.lower(string.gsub(ident, "%s+", ""))
                 if stripped ~= identLower then
                     tryAddByCanonicalName("self", stripped)
+                end
+            end
+        end
+    end)
+
+    -- Shape 4: chained resource access. Real bestiary content uses
+    -- `Subject.Resources.Recovery > 0`, `Resources.Surges >= 5`, etc. --
+    -- the middle segment "Resources" returns a CharacterResourceCollection
+    -- whose lookupSymbols expose per-resource numeric quantities. The
+    -- 2-deep dotted walker doesn't surface these because the trailing
+    -- ".Recovery" is buried under the chain. Detect explicitly here.
+    --
+    -- Two head shapes:
+    --   <head>.Resources.<X>   -- head in {subject, self, caster}
+    --   Resources.<X>          -- bare; implicit Self
+    -- Resources.<X> already produces a 2-deep dotted access entry with
+    -- head="Resources", but that head isn't subject/self so shape 2 above
+    -- skipped it. Pick it up here and re-attribute to the implicit "self"
+    -- head so the eval-time injection (tbl.resources = stub) lands on the
+    -- caster side.
+    pcall(function()
+        local chains = GoblinScriptProse.ListReferencedChainedAccesses(condition)
+        for _, c in ipairs(chains or {}) do
+            local headLower = c.headLookup
+            local midLower = c.midLookup
+            if midLower == "resources"
+                    and (headLower == "subject" or headLower == "self" or headLower == "caster") then
+                addOverride(headLower, "Resources", c.tail)
+            end
+        end
+        -- Bare Resources.<X> -> 2-deep entry under head "resources". The
+        -- main shape-2 walk skipped it because head isn't subject/self.
+        -- Re-emit as a self-side resource override.
+        local accesses = GoblinScriptProse.ListReferencedDottedAccesses(condition)
+        for headKey, entry in pairs(accesses or {}) do
+            if string.lower(headKey) == "resources" then
+                for _, tailInfo in pairs(entry.tails or {}) do
+                    addOverride("self", "Resources", tailInfo.displayTail)
                 end
             end
         end
@@ -4142,8 +4427,22 @@ local function buildTestTriggerCard(ability, opts)
                 v = { raw = raw, kind = sym.kind }
                 state.symbolValues[sym.id] = v
             end
+            local effectiveValue
+            if sym.kind == "creature-leaf" then
+                -- Creature-typed dotted leaf (cast.PrimaryTarget = self,
+                -- ...) -- v.raw is a token id chosen via the picker; resolve
+                -- to the live token's properties for object-identity
+                -- comparison at eval time. Picker fills v.raw with the
+                -- first scene token by default; nil falls through to no
+                -- override (the leaf evaluates to nil, mirroring runtime
+                -- behaviour when the cast object lacks the field).
+                local pickedToken = tokenById(v.raw)
+                effectiveValue = pickedToken and pickedToken.properties or nil
+            else
+                effectiveValue = coerceSymbolInputValue(sym.kind, v.raw)
+            end
             scenario.symbolValues[sym.id] = {
-                value = coerceSymbolInputValue(sym.kind, v.raw),
+                value = effectiveValue,
                 raw = v.raw,
                 kind = sym.kind,  -- C4: needed by buildEvalContext to know
                                   -- whether to wrap a "set" leaf as StringSet.
@@ -4430,7 +4729,16 @@ local function buildTestTriggerCard(ability, opts)
             headline = "<b>Fails</b> -- needed at least one of: " .. table.concat(proseParts, "; ") .. "."
             local srcParts = {}
             for _, c in ipairs(attr.clauses or {}) do
-                if c.detail and c.detail ~= "" then
+                -- P6: if the clause is itself a compound (AND / nested OR /
+                -- not-compound), prefer the per-leaf attribution from its
+                -- subAttr -- it tells the user *which* sub-clause inside
+                -- that compound failed, not just "the AND was false".
+                if c.subAttr ~= nil and c.subAttr.kind == "and"
+                        and c.subAttr.failingProse ~= nil then
+                    srcParts[#srcParts + 1] = string.format(
+                        "<i>%s</i> failed at <i>%s</i>",
+                        c.src or "?", c.subAttr.failingSrc or c.subAttr.failingProse)
+                elseif c.detail and c.detail ~= "" then
                     srcParts[#srcParts + 1] = c.detail
                 elseif c.detail == nil then
                     srcParts[#srcParts + 1] = string.format("<i>%s</i> (%s)",
@@ -4449,6 +4757,27 @@ local function buildTestTriggerCard(ability, opts)
                     attr.src or "?", describeValueForDisplay(attr.value))
             elseif attr.detail ~= "" then
                 detail = attr.detail
+            end
+        elseif attr.kind == "not-compound" then
+            -- P6: not(or/and) failed because the inner expression was true.
+            -- List the clauses inside the inner that were truthy -- those
+            -- are what the user must flip off (or apply via override).
+            local proseParts = {}
+            local detailParts = {}
+            for _, c in ipairs(attr.trueClauses or {}) do
+                proseParts[#proseParts + 1] = c.prose or c.src or "?"
+                detailParts[#detailParts + 1] = string.format("<i>%s</i> (%s)",
+                    c.src or "?", describeValueForDisplay(c.value))
+            end
+            if #proseParts == 0 then
+                headline = "<b>Fails</b> -- the inner expression was true."
+            else
+                headline = "<b>Fails</b> -- needed " .. table.concat(proseParts, " and ")
+                    .. " to be false."
+            end
+            if #detailParts > 0 then
+                detail = "These clauses were true: " .. table.concat(detailParts, ", ")
+                if not detail:match("%.$") then detail = detail .. "." end
             end
         else
             headline = "<b>Fails</b> -- the condition was not met."
@@ -4748,19 +5077,21 @@ local function buildTestTriggerCard(ability, opts)
         })
     end
 
-    -- Path C: in-formula state-override section. Renders one group per
-    -- head (Subject / Trigger Owner) containing a "Pretend X has Y"
-    -- checkbox per overrideable value -- conditions and ongoing effects
-    -- merged into a single list. The internal Conditions vs
-    -- OngoingEffects split is implementation detail (the engine derives
-    -- conditions from ongoing effects in many cases per Creature.lua:7892);
-    -- surfacing it as separate UI groups confused authors who think of
-    -- "Flanked" as a state, not a tagged effect category.
+    -- Path C + P2 + P3: in-formula state-override section. Renders one
+    -- group per head (Subject / Trigger Owner) split into three subgroups:
+    --   * "Pretend X has:"  -- conditions + ongoing effects (existing)
+    --   * "Pretend X is:"   -- bare-boolean creature-property overrides (P2)
+    --   * "Pretend X stats:"-- numeric creature-property overrides (P3)
+    -- Conditions/OngoingEffects merge under one heading because the engine
+    -- derives many conditions from effects (Creature.lua:7892) and surfacing
+    -- the split confuses authors. Booleans and Numbers are physically
+    -- separate categories so each gets its own subgroup.
     --
-    -- State lives in state.formulaOverrides keyed by "<head>:<set>:<value>";
-    -- eval-time injection via buildEvalContext + buildOverrideSymbolTable
-    -- still uses the (head, set) split because Conditions and
-    -- OngoingEffects inject into different lookupSymbols entries.
+    -- State lives in state.formulaOverrides keyed by "<head>:<set>:<value>".
+    -- Boolean overrides store `true`; numeric overrides store the raw
+    -- string (parsed at injection time). Eval-time injection via
+    -- buildEvalContext + buildOverrideSymbolTable handles the storage shape
+    -- per category.
     --
     -- Returns nil when no overrides are available so the caller can skip
     -- the whole section (matching buildGateRow's "no-gate -> nil" pattern).
@@ -4771,109 +5102,340 @@ local function buildTestTriggerCard(ability, opts)
         local headOrder = { "subject", "self" }
         local headLabels = { subject = "Subject", self = "Trigger Owner" }
 
+        -- Helper: build a "Pretend <head> has:" subgroup for the merged
+        -- Conditions + OngoingEffects values (existing behaviour). Returns
+        -- nil if no values for either set.
+        local function buildHasGroup(head, headOpts)
+            local entriesByKey = {}
+            local entryOrder = {}
+            for _, setName in ipairs({"Conditions", "OngoingEffects"}) do
+                local values = headOpts[setName]
+                if values ~= nil then
+                    for _, value in ipairs(values) do
+                        local dedupKey = string.lower(value)
+                        local entry = entriesByKey[dedupKey]
+                        if entry == nil then
+                            entry = { value = value, setNames = {} }
+                            entriesByKey[dedupKey] = entry
+                            entryOrder[#entryOrder + 1] = entry
+                        end
+                        local already = false
+                        for _, existing in ipairs(entry.setNames) do
+                            if existing == setName then
+                                already = true
+                                break
+                            end
+                        end
+                        if not already then
+                            entry.setNames[#entry.setNames + 1] = setName
+                        end
+                    end
+                end
+            end
+            if #entryOrder == 0 then return nil end
+            table.sort(entryOrder, function(a, b)
+                return string.lower(a.value) < string.lower(b.value)
+            end)
+            local heading = string.format("Pretend %s has:", headLabels[head])
+            local checks = {
+                gui.Label{
+                    text = heading,
+                    color = COLORS.GOLD_DIM,
+                    fontSize = 13,
+                    bold = true,
+                    width = "100%",
+                    height = "auto",
+                    halign = "left",
+                    bmargin = 2,
+                },
+            }
+            for _, entry in ipairs(entryOrder) do
+                local initialOn = false
+                for _, setName in ipairs(entry.setNames) do
+                    local key = head .. ":" .. setName .. ":" .. entry.value
+                    if state.formulaOverrides[key] == true then
+                        initialOn = true
+                        break
+                    end
+                end
+                local entryRef = entry
+                checks[#checks + 1] = gui.Check{
+                    text = entry.value,
+                    value = initialOn,
+                    vmargin = 2,
+                    lmargin = 12,
+                    change = function(element)
+                        for _, setName in ipairs(entryRef.setNames) do
+                            local key = head .. ":" .. setName .. ":" .. entryRef.value
+                            state.formulaOverrides[key] = element.value
+                        end
+                        refreshTest()
+                    end,
+                }
+            end
+            return gui.Panel{
+                width = "100%",
+                height = "auto",
+                flow = "vertical",
+                halign = "left",
+                bgcolor = "clear",
+                tmargin = 6,
+                children = checks,
+            }
+        end
+
+        -- P2: build a "Pretend <head> is:" subgroup for bare-boolean
+        -- creature-property overrides (Hero, Dying, Captain, Your Turn,
+        -- Solo, Leader, ...). One checkbox per referenced helpSymbol.
+        local function buildIsGroup(head, headOpts)
+            local boolValues = headOpts.Booleans
+            if boolValues == nil or #boolValues == 0 then return nil end
+            -- Dedup case-insensitively in case the same name appeared via
+            -- both bare and dotted forms.
+            local seen = {}
+            local sorted = {}
+            for _, value in ipairs(boolValues) do
+                local k = string.lower(value)
+                if not seen[k] then
+                    seen[k] = true
+                    sorted[#sorted + 1] = value
+                end
+            end
+            table.sort(sorted, function(a, b) return string.lower(a) < string.lower(b) end)
+            local heading = string.format("Pretend %s is:", headLabels[head])
+            local checks = {
+                gui.Label{
+                    text = heading,
+                    color = COLORS.GOLD_DIM,
+                    fontSize = 13,
+                    bold = true,
+                    width = "100%",
+                    height = "auto",
+                    halign = "left",
+                    bmargin = 2,
+                },
+            }
+            for _, value in ipairs(sorted) do
+                local key = head .. ":Booleans:" .. value
+                local initialOn = state.formulaOverrides[key] == true
+                local valueRef = value
+                checks[#checks + 1] = gui.Check{
+                    text = value,
+                    value = initialOn,
+                    vmargin = 2,
+                    lmargin = 12,
+                    change = function(element)
+                        local k = head .. ":Booleans:" .. valueRef
+                        state.formulaOverrides[k] = element.value
+                        refreshTest()
+                    end,
+                }
+            end
+            return gui.Panel{
+                width = "100%",
+                height = "auto",
+                flow = "vertical",
+                halign = "left",
+                bgcolor = "clear",
+                tmargin = 6,
+                children = checks,
+            }
+        end
+
+        -- P3: build a "Pretend <head> stats:" subgroup for numeric
+        -- creature-property overrides (Stamina, Maximum Stamina, Combat
+        -- Round, Resources.Recovery, ...). One numeric input per referenced
+        -- numeric helpSymbol. Empty value falls through to the real token
+        -- value at evaluation time.
+        local function buildStatsGroup(head, headOpts)
+            local numValues = headOpts.Numbers
+            if numValues == nil or #numValues == 0 then return nil end
+            local seen = {}
+            local sorted = {}
+            for _, value in ipairs(numValues) do
+                local k = string.lower(value)
+                if not seen[k] then
+                    seen[k] = true
+                    sorted[#sorted + 1] = value
+                end
+            end
+            table.sort(sorted, function(a, b) return string.lower(a) < string.lower(b) end)
+            local heading = string.format("Pretend %s stats:", headLabels[head])
+            local rows = {
+                gui.Label{
+                    text = heading,
+                    color = COLORS.GOLD_DIM,
+                    fontSize = 13,
+                    bold = true,
+                    width = "100%",
+                    height = "auto",
+                    halign = "left",
+                    bmargin = 2,
+                },
+            }
+            for _, value in ipairs(sorted) do
+                local key = head .. ":Numbers:" .. value
+                local initialRaw = state.formulaOverrides[key]
+                if type(initialRaw) ~= "string" and type(initialRaw) ~= "number" then
+                    initialRaw = ""
+                end
+                local valueRef = value
+                local row = gui.Panel{
+                    width = "100%",
+                    height = "auto",
+                    flow = "horizontal",
+                    halign = "left",
+                    valign = "center",
+                    vmargin = 2,
+                    lmargin = 12,
+                    bgcolor = "clear",
+                    children = {
+                        gui.Label{
+                            text = value .. ":",
+                            color = COLORS.CREAM_BRIGHT,
+                            fontSize = 13,
+                            width = 200,
+                            height = "auto",
+                            halign = "left",
+                            valign = "center",
+                            rmargin = 6,
+                        },
+                        gui.Input{
+                            text = tostring(initialRaw or ""),
+                            placeholderText = "(use real value)",
+                            characterLimit = 12,
+                            width = 80,
+                            height = 22,
+                            fontSize = 13,
+                            change = function(element)
+                                local raw = element.text or ""
+                                local k = head .. ":Numbers:" .. valueRef
+                                if raw == "" then
+                                    state.formulaOverrides[k] = nil
+                                else
+                                    state.formulaOverrides[k] = raw
+                                end
+                                refreshTest()
+                            end,
+                        },
+                    },
+                }
+                rows[#rows + 1] = row
+            end
+            return gui.Panel{
+                width = "100%",
+                height = "auto",
+                flow = "vertical",
+                halign = "left",
+                bgcolor = "clear",
+                tmargin = 6,
+                children = rows,
+            }
+        end
+
+        -- Chained resource overrides (Subject.Resources.Recovery, ...).
+        -- Same widget shape as buildStatsGroup but the bucket is "Resources"
+        -- and the heading reads "Pretend X resources:". Shares the same
+        -- numeric-input semantics: blank value falls through to the real
+        -- token's resource quantity at evaluation time.
+        local function buildResourcesGroup(head, headOpts)
+            local resValues = headOpts.Resources
+            if resValues == nil or #resValues == 0 then return nil end
+            local seen = {}
+            local sorted = {}
+            for _, value in ipairs(resValues) do
+                local k = string.lower(value)
+                if not seen[k] then
+                    seen[k] = true
+                    sorted[#sorted + 1] = value
+                end
+            end
+            table.sort(sorted, function(a, b) return string.lower(a) < string.lower(b) end)
+            local heading = string.format("Pretend %s resources:", headLabels[head])
+            local rows = {
+                gui.Label{
+                    text = heading,
+                    color = COLORS.GOLD_DIM,
+                    fontSize = 13,
+                    bold = true,
+                    width = "100%",
+                    height = "auto",
+                    halign = "left",
+                    bmargin = 2,
+                },
+            }
+            for _, value in ipairs(sorted) do
+                local key = head .. ":Resources:" .. value
+                local initialRaw = state.formulaOverrides[key]
+                if type(initialRaw) ~= "string" and type(initialRaw) ~= "number" then
+                    initialRaw = ""
+                end
+                local valueRef = value
+                local row = gui.Panel{
+                    width = "100%",
+                    height = "auto",
+                    flow = "horizontal",
+                    halign = "left",
+                    valign = "center",
+                    vmargin = 2,
+                    lmargin = 12,
+                    bgcolor = "clear",
+                    children = {
+                        gui.Label{
+                            text = value .. ":",
+                            color = COLORS.CREAM_BRIGHT,
+                            fontSize = 13,
+                            width = 200,
+                            height = "auto",
+                            halign = "left",
+                            valign = "center",
+                            rmargin = 6,
+                        },
+                        gui.Input{
+                            text = tostring(initialRaw or ""),
+                            placeholderText = "(use real value)",
+                            characterLimit = 12,
+                            width = 80,
+                            height = 22,
+                            fontSize = 13,
+                            change = function(element)
+                                local raw = element.text or ""
+                                local k = head .. ":Resources:" .. valueRef
+                                if raw == "" then
+                                    state.formulaOverrides[k] = nil
+                                else
+                                    state.formulaOverrides[k] = raw
+                                end
+                                refreshTest()
+                            end,
+                        },
+                    },
+                }
+                rows[#rows + 1] = row
+            end
+            return gui.Panel{
+                width = "100%",
+                height = "auto",
+                flow = "vertical",
+                halign = "left",
+                bgcolor = "clear",
+                tmargin = 6,
+                children = rows,
+            }
+        end
+
         local groups = {}
         for _, head in ipairs(headOrder) do
             local headOpts = overrideOpts[head]
             if headOpts ~= nil then
-                -- Merge Conditions + OngoingEffects into a single sorted
-                -- display list, deduped by lowercased value. A single
-                -- formula may reference the same state via both shapes
-                -- (`Subject.Flanked` AND `Subject.Conditions has "Flanked"`)
-                -- which would otherwise produce two checkboxes labelled
-                -- the same. Each entry tracks every setName the value
-                -- appeared under so toggling the checkbox sets ALL the
-                -- related state.formulaOverrides keys -- the eval-time
-                -- injection then covers whichever form the formula used.
-                local entriesByKey = {}
-                local entryOrder = {}
-                for _, setName in ipairs({"Conditions", "OngoingEffects"}) do
-                    local values = headOpts[setName]
-                    if values ~= nil then
-                        for _, value in ipairs(values) do
-                            local dedupKey = string.lower(value)
-                            local entry = entriesByKey[dedupKey]
-                            if entry == nil then
-                                entry = { value = value, setNames = {} }
-                                entriesByKey[dedupKey] = entry
-                                entryOrder[#entryOrder + 1] = entry
-                            end
-                            -- Track each origin set; if same setName
-                            -- appears twice (shouldn't happen but be safe),
-                            -- we still only store it once at storage time.
-                            local already = false
-                            for _, existing in ipairs(entry.setNames) do
-                                if existing == setName then
-                                    already = true
-                                    break
-                                end
-                            end
-                            if not already then
-                                entry.setNames[#entry.setNames + 1] = setName
-                            end
-                        end
-                    end
-                end
-                if #entryOrder > 0 then
-                    -- Sort case-insensitively for stable visual order.
-                    table.sort(entryOrder, function(a, b)
-                        return string.lower(a.value) < string.lower(b.value)
-                    end)
-
-                    local heading = string.format("Pretend %s has:", headLabels[head])
-                    local checks = {
-                        gui.Label{
-                            text = heading,
-                            color = COLORS.GOLD_DIM,
-                            fontSize = 13,
-                            bold = true,
-                            width = "100%",
-                            height = "auto",
-                            halign = "left",
-                            bmargin = 2,
-                        },
-                    }
-                    for _, entry in ipairs(entryOrder) do
-                        -- Initial state: on if ANY of the related override
-                        -- keys is on. Avoids the checkbox appearing
-                        -- "off" when the user previously toggled it via
-                        -- a different form's storage slot.
-                        local initialOn = false
-                        for _, setName in ipairs(entry.setNames) do
-                            local key = head .. ":" .. setName .. ":" .. entry.value
-                            if state.formulaOverrides[key] == true then
-                                initialOn = true
-                                break
-                            end
-                        end
-                        local entryRef = entry  -- capture for closure stability
-                        checks[#checks + 1] = gui.Check{
-                            text = entry.value,
-                            value = initialOn,
-                            vmargin = 2,
-                            lmargin = 12,
-                            change = function(element)
-                                -- Set every related override key so the
-                                -- eval-time injection covers all formula
-                                -- forms (set-membership AND bare-boolean,
-                                -- across Conditions AND OngoingEffects).
-                                for _, setName in ipairs(entryRef.setNames) do
-                                    local key = head .. ":" .. setName .. ":" .. entryRef.value
-                                    state.formulaOverrides[key] = element.value
-                                end
-                                refreshTest()
-                            end,
-                        }
-                    end
-                    groups[#groups + 1] = gui.Panel{
-                        width = "100%",
-                        height = "auto",
-                        flow = "vertical",
-                        halign = "left",
-                        bgcolor = "clear",
-                        tmargin = 6,
-                        children = checks,
-                    }
-                end
+                local hasGroup = buildHasGroup(head, headOpts)
+                if hasGroup ~= nil then groups[#groups + 1] = hasGroup end
+                local isGroup = buildIsGroup(head, headOpts)
+                if isGroup ~= nil then groups[#groups + 1] = isGroup end
+                local statsGroup = buildStatsGroup(head, headOpts)
+                if statsGroup ~= nil then groups[#groups + 1] = statsGroup end
+                local resGroup = buildResourcesGroup(head, headOpts)
+                if resGroup ~= nil then groups[#groups + 1] = resGroup end
             end
         end
 
@@ -4910,6 +5472,23 @@ local function buildTestTriggerCard(ability, opts)
                 end,
             }
             return fieldRow(sym.name, toggle)
+        end
+
+        -- Creature-typed dotted leaf on an object symbol (e.g.
+        -- cast.PrimaryTarget, cast.FirstTarget). Picks a scene token --
+        -- buildScenario resolves the stored token id to props for the
+        -- eval-time stub. Reuses buildTokenPickerButton like the role
+        -- slots so the UI is identical.
+        if sym.kind == "creature-leaf" then
+            local pickerTitle = "Choose Token for " .. sym.name
+            local control = buildTokenPickerButton(
+                ability, nil, nil, v.raw,
+                function(tokenId)
+                    v.raw = tokenId
+                    refreshTest()
+                end,
+                pickerTitle, nil)
+            return fieldRow(sym.name, control)
         end
 
         if sym.kind == "unsupported" then

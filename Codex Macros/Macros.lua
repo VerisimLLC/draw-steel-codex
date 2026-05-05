@@ -2586,3 +2586,154 @@ Commands.RegisterMacro{
         token:ShowSheet(str)
     end,
 }
+
+Commands.RegisterMacro{
+    name = "setportrait",
+    summary = "set selected token's portrait id",
+    doc = "Usage: /setportrait <portraitid>\nSets the portraitid on selected tokens. Testing aid for spine animation wiring, e.g. /setportrait anim:lightbender.",
+    command = function(str)
+        str = str or ""
+
+        local tokens = dmhub.selectedOrPrimaryTokens
+        if #tokens == 0 then
+            print("/setportrait: no token selected.")
+            return
+        end
+
+        for _, token in ipairs(tokens) do
+            token.portrait = str
+            token:RefreshAppearanceLocally()
+        end
+    end,
+}
+
+
+spine.register{
+    id = "lightbender-small",
+    model = "lightbender",
+
+    -- World rendering: how the spine character is placed on top of the token quad.
+    scale = 0.038,           -- multiplier on the spine renderer's localScale.
+    xoffset = 0,             -- world-space X offset of the spine renderer from the token center.
+    yoffset = -0.28,         -- world-space Y offset of the spine renderer from the token center.
+    bottomClip = 100,         -- degrees of the bottom arc (centered on -90 deg) where spine is
+                             -- forced inside the frame; rest of the circle is the popout zone.
+
+    -- Portrait camera framing (used by the '#spine:tokenid' image lookup).
+    portraitZoom = 2,        -- >1 zooms the portrait camera in, <1 zooms it out.
+    portraitXOffset = 0,     -- world-space X offset added to the portrait camera's position.
+    portraitYOffset = 0.8,     -- world-space Y offset added to the portrait camera's position.
+
+    -- Inspect / up-close portrait framing (used by the '#spineinspect:tokenid' image
+    -- lookup, exposed via CharacterToken.inspectPortrait). Independent from portrait*.
+    inspectZoom = 0.5,
+    inspectXOffset = 0,
+    inspectYOffset = 0.6,
+
+    -- Eye / head IK: drive the named controller bone toward the token's lookAt position
+    -- each frame. eyeMult scales the offset between the animation pose and the look-at
+    -- target (1 = follow exactly, 0 = ignore); eyeRange is the maximum deviation magnitude
+    -- in spine local / parent-bone-local units (a circular window around the anim pose).
+    eyeik = "bLB_head_CON",
+    eyeMult = 1.0,
+    eyeRange = 6.3,
+
+    -- Called at the end of CharacterToken.RefreshLua() for every token using this entry.
+    -- Decides which animation should be playing based on the token's current state.
+    refresh = function(token)
+        print("TOKENREFRESH:: REFRESHING")
+        local q = dmhub.initiativeQueue
+        local isOurTurn = q ~= nil and (not q.hidden)
+            and InitiativeQueue.GetInitiativeId(token) == q.currentTurn
+        if isOurTurn then
+            token:SetSpineSkin("base")
+            token:SetSpineAnimation{ id = "3_RAMPAGE_idle" }
+            token:SetSpineIdleFidgets{}
+        elseif token.properties:IsWinded() then
+            token:SetSpineSkin("winded")
+            token:SetSpineAnimation{ id = "2_WINDED_idle" }
+            token:SetSpineIdleFidgets{}
+        else
+            token:SetSpineSkin("base")
+            token:SetSpineAnimation{ id = "1_BASE_idle" }
+            token:SetSpineIdleFidgets{
+                animations = {"1_BASE_fidget1", "1_BASE_fidget2"},
+                period = 20,
+            }
+        end
+    end,
+}
+
+spine.register{
+    id = "lightbender-big",
+    model = "lightbender",
+
+    -- World rendering: how the spine character is placed on top of the token quad.
+    scale = 0.066,           -- multiplier on the spine renderer's localScale.
+    xoffset = 0,             -- world-space X offset of the spine renderer from the token center.
+    yoffset = -0.75,         -- world-space Y offset of the spine renderer from the token center.
+    bottomClip = 140,         -- degrees of the bottom arc (centered on -90 deg) where spine is
+                             -- forced inside the frame; rest of the circle is the popout zone.
+
+    -- Per-segment layer transforms along the spine's draw order. Each entry covers a
+    -- contiguous range of slots starting at slots[1] (the cut point); the first entry
+    -- implicitly starts at the skeleton's first drawn slot. xoffset/yoffset are in
+    -- token-local units (same as the registry's xoffset/yoffset) and scale is a multiplier
+    -- (1 = same size as the parent spine). Set frame=true on the entry that begins the
+    -- in-front-of-frame range -- entries before it draw BEHIND the token frame, that entry
+    -- and after draw IN FRONT.
+    transforms = {
+        -- podium, light2_glow, light1_glow -> behind frame at identity (no parallax shift).
+        { xoffset = 0.0, yoffset = 0.0, scale = 1.0 },
+        -- tail_1, tail_2 -> behind frame, shifted up for parallax depth. bottomClip = 0
+        -- exempts the tail from the bottom-arc spine suppression so the tail can extend
+        -- below the frame without being clipped.
+        { slots = {"tail_1"}, xoffset = 0.2, yoffset = 0.45, scale = 1.0, bottomClip = 0 },
+        -- "legs_bgbutt" and after -> in front of the frame at identity.
+        { slots = {"legs_bgbutt"}, }, -- frame = true },
+    },
+
+    -- Portrait camera framing (used by the '#spine:tokenid' image lookup).
+    portraitZoom = 1.2,        -- >1 zooms the portrait camera in, <1 zooms it out.
+    portraitXOffset = 0,     -- world-space X offset added to the portrait camera's position.
+    portraitYOffset = 1.2,     -- world-space Y offset added to the portrait camera's position.
+
+    -- Inspect / up-close portrait framing (used by the '#spineinspect:tokenid' image
+    -- lookup, exposed via CharacterToken.inspectPortrait). Independent from portrait*.
+    inspectZoom = 0.5,
+    inspectXOffset = 0,
+    inspectYOffset = 0.6,
+
+    -- Eye / head IK: drive the named controller bone toward the token's lookAt position
+    -- each frame. eyeMult scales the offset between the animation pose and the look-at
+    -- target (1 = follow exactly, 0 = ignore); eyeRange is the maximum deviation magnitude
+    -- in spine local / parent-bone-local units (a circular window around the anim pose).
+    eyeik = "bLB_head_CON",
+    eyeMult = 0.5,
+    eyeRange = 3.3,
+
+    -- Called at the end of CharacterToken.RefreshLua() for every token using this entry.
+    -- Decides which animation should be playing based on the token's current state.
+    refresh = function(token)
+        print("TOKENREFRESH:: REFRESHING")
+        local q = dmhub.initiativeQueue
+        local isOurTurn = q ~= nil and (not q.hidden)
+            and InitiativeQueue.GetInitiativeId(token) == q.currentTurn
+        if isOurTurn then
+            token:SetSpineSkin("base")
+            token:SetSpineAnimation{ id = "3_RAMPAGE_idle" }
+            token:SetSpineIdleFidgets{}
+        elseif token.properties:IsWinded() then
+            token:SetSpineSkin("winded")
+            token:SetSpineAnimation{ id = "2_WINDED_idle" }
+            token:SetSpineIdleFidgets{}
+        else
+            token:SetSpineSkin("base")
+            token:SetSpineAnimation{ id = "1_BASE_idle" }
+            token:SetSpineIdleFidgets{
+                animations = {"1_BASE_fidget1", "1_BASE_fidget2"},
+                period = 20,
+            }
+        end
+    end,
+}

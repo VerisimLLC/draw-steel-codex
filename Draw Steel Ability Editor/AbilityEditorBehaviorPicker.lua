@@ -106,9 +106,9 @@ local BEHAVIOR_METADATA = {
         group = "movement",
     },
     manipulate_targets = {
-        description = "Teleport or reposition targeted creatures.",
-        tags = {"teleport", "swap", "reposition", "move"},
-        group = "movement",
+        description = "Prompt the caster to add or replace the ability's targets.",
+        tags = {"target", "add", "replace", "prompt", "pick"},
+        group = "scripting",
     },
     manipulate_target_locs = {
         description = "Manipulate remembered target locations.",
@@ -207,8 +207,8 @@ local BEHAVIOR_METADATA = {
         group = "modifiers",
     },
     modify_cast = {
-        description = "Modify how the ability is cast or targeted.",
-        tags = {"cast", "override", "modify", "change"},
+        description = "Add a damage bonus, edge, bane, surge, or ignore damage immunity.",
+        tags = {"damage", "edge", "bane", "surge", "immunity", "bonus", "cast"},
         group = "modifiers",
     },
     pay_ability_cost = {

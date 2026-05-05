@@ -60,7 +60,7 @@ function DiceStudioLua:Load(name)
 	-- dummy implementation for documentation purposes only
 end
 
---- Upload: Uploads the current dice set to the cloud. The set must have been saved first.
+--- Upload: Uploads the current dice set to the cloud. The set must have been saved first. Throws if the current account is not signed in as an admin.
 --- @return nil
 function DiceStudioLua:Upload()
 	-- dummy implementation for documentation purposes only

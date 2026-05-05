@@ -330,7 +330,7 @@ function CharacterBuilder.CreatePanel()
 
         notifyChangeSound = function(element)
 	    --remove until we can get a less overbearing sound.
-            --audio.FireSoundEvent("Notify.LockIn")
+            audio.FireSoundEvent("Notify.LockIn")
         end,
 
         refreshBuilderState = function(element, state)

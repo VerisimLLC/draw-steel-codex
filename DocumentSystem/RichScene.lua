@@ -56,6 +56,7 @@ function RichScene.CreateDisplay(self)
             end,
         },
         gui.EnumeratedSliderControl{
+            styles = ThemeEngine.GetStyles(),
             options = {
                 {id = false, text = "Hide"},
                 {id = true, text = "Players"},

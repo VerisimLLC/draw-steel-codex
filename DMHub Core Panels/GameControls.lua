@@ -34,6 +34,7 @@ CreateGameControls = function()
     local m_speed = 1
     local resultPanel
     resultPanel = gui.Panel{
+        styles = ThemeEngine.GetStyles(),
         flow = "vertical",
         width = "100%",
         height = "auto",
@@ -52,10 +53,8 @@ CreateGameControls = function()
         },
 
         gui.Button{
+            classes = {"sizeM"},
             text = "Sync Camera",
-            width = 140,
-            height = 24,
-            fontSize = 18,
             press = function()
                 dmhub.SyncCamera{
                     speed = m_speed
@@ -64,19 +63,13 @@ CreateGameControls = function()
         },
 
         gui.Panel{
-            flow = "horizontal",
-            height = "auto",
-            width = "auto",
+            classes = {"formPanel"},
             gui.Label{
+                classes = {"form"},
                 text = "Speed:",
-                fontSize = 16,
-                width = "auto",
-                height = "auto",
             },
             gui.Input{
-                width = 120,
-                height = 20,
-                fontSize = 16,
+                classes = {"form"},
                 text = tostring(m_speed),
                 change = function(element)
                     local n = tonumber(element.text)
@@ -86,12 +79,12 @@ CreateGameControls = function()
                         m_speed = n
                     end
                 end,
-            }
+            },
         },
 
 		gui.IconEditor{
 			library = "coverart",
-			bgcolor = "white",
+			classes = {"image"},
 			width = "auto",
 			height = "auto",
 			hideIcon = true,
@@ -120,7 +113,7 @@ CreateGameControls = function()
                 valign = "center",
                 bgcolor = "black",
                 opacity = 0.8,
-                bgimage = "panels/square.png",
+                bgimage = true,
                 styles = {
                     {
                         selectors = {"coverArtRibbon"},

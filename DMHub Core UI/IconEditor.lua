@@ -68,7 +68,6 @@ function gui.IconEditor(args)
 
 	local imageDim = 96
 	local iconImageStyle = {
-		bgcolor = 'white',
 		maxWidth = imageDim-4,
 		maxHeight = imageDim*aspect-4,
 		width = cond(stretch, imageDim-4, "auto"),
@@ -145,21 +144,21 @@ function gui.IconEditor(args)
 		local CreateImage = function()
 			local m_imageid = nil
 			local iconImage = gui.Panel{
-				classes = {"icon-image"},
+				classes = {"iconImage", "image"},
 				style = iconImageStyle,
 			}
 
 			local resultImage
 			resultImage = gui.Panel{
-				bgimage = 'panels/square.png',
-				classes = {'hidden', 'image-background'},
+				bgimage = true,
+				classes = {"hidden", "imageBackground"},
 				styles = {
 					{
-						bgcolor = 'black',
+						bgcolor = "@bg",
 						width = imageDim,
 						height = imageDim*aspect,
-						halign = 'center',
-						valign = 'center',
+						halign = "center",
+						valign = "center",
 					},
 				},
 				selfStyle = {
@@ -219,7 +218,7 @@ function gui.IconEditor(args)
 		local images = {}
 
 		local rows = 5
-		local cols = 6
+		local cols = 9
 		local npage = 1
 
 		local GetNumPages = function()
@@ -244,7 +243,6 @@ function gui.IconEditor(args)
 			height = "auto",
 			maxWidth = 300,
 			fontSize = 14,
-			color = Styles.textColor,
 			refreshSearch = function(element)
 				if #imageIds > 0 or library ~= "secret" then
 					element:SetClass("collapsed", true)
@@ -288,162 +286,104 @@ function gui.IconEditor(args)
 		}
 
 		local pagingPanel = gui.Panel{
-			id = 'paging-panel',
-			styles = {
-				{
-					width = '100%',
-					height = 32,
-					flow = 'horizontal',
-				},
-				{
-					selectors = {'hover', 'paging-arrow'},
-					brightness = 2,
-				},
-				{
-					selectors = {'press', 'paging-arrow'},
-					brightness = 0.7,
-				},
-			},
+			id = "paging-panel",
+			width = "100%",
+			height = 32,
+			flow = "horizontal",
 
 			children = {
-				gui.Panel{
-					bgimage = 'panels/InventoryArrow.png',
-					className = 'paging-arrow',
-					style = {
-						height = '100%',
-						width = '50% height',
-						halign = 'left',
-						hmargin = 40,
-					},
-
-					events = {
-						refreshSearch = function(element)
-							element:SetClass('hidden', npage == 1)
-						end,
-
-						click = function(element)
-							npage = npage - 1
-							if npage < 1 then
-								npage = 1
-							end
-							popupPanel:FireEventTree('refreshSearch')
-						end,
-					},
-
+				gui.PagingArrow{
+					facing = -1,
+					hmargin = 40,
+					refreshSearch = function(element)
+						element:SetClass("hidden", npage == 1)
+					end,
+					click = function(element)
+						npage = npage - 1
+						if npage < 1 then
+							npage = 1
+						end
+						popupPanel:FireEventTree("refreshSearch")
+					end,
 				},
 
 				gui.Panel{
-					style = {
-						flow = 'horizontal',
-						width = 'auto',
-						height = 'auto',
-						halign = 'center',
-					},
+					flow = "horizontal",
+					width = "auto",
+					height = "auto",
+					halign = "center",
+					valign = "center",
 
 					gui.Label{
-						style = {
-							fontSize = '35%',
-							color = 'white',
-							width = 'auto',
-							height = 'auto',
-							halign = 'center',
-						},
-						text = 'Page',
+						width = "auto",
+						height = "auto",
+						halign = "center",
+						valign = "center",
+						text = "Page",
 					},
 
 					--padding.
 					gui.Panel{
-						style = {
-							height = 1,
-							width = 8,
-						},
+						height = 1,
+						width = 8,
 					},
 
 					gui.Label{
 						editable = true,
-						style = {
-							fontSize = '35%',
-							color = 'white',
-							width = 'auto',
-							height = 'auto',
-							halign = 'center',
-                            minWidth = 16,
-						},
-						events = {
-							refreshSearch = function(element)
-								element.text = string.format('%d', math.tointeger(npage))
-							end,
-							change = function(element)
-								local newPage = tonumber(element.text)
-								if newPage == nil or newPage < 1 or newPage > GetNumPages() then
-									newPage = npage
-								end
+						width = "auto",
+						height = "auto",
+						halign = "center",
+						valign = "center",
+						minWidth = 16,
+						refreshSearch = function(element)
+							element.text = string.format("%d", math.tointeger(npage))
+						end,
+						change = function(element)
+							local newPage = tonumber(element.text)
+							if newPage == nil or newPage < 1 or newPage > GetNumPages() then
+								newPage = npage
+							end
 
-								npage = newPage
-								popupPanel:FireEventTree('refreshSearch')
-
-							end,
-						}
+							npage = newPage
+							popupPanel:FireEventTree("refreshSearch")
+						end,
 					},
 
 					gui.Label{
-						style = {
-							fontSize = '35%',
-							color = 'white',
-							width = 'auto',
-							height = 'auto',
-							halign = 'center',
-						},
-						events = {
-							refreshSearch = function(element)
-								element.text = string.format('/%d', math.tointeger(GetNumPages()))
-							end,
-						}
-					},
-
-				},
-
-				gui.Panel{
-					bgimage = 'panels/InventoryArrow.png',
-					className = 'paging-arrow',
-					style = {
-						scale = {x = -1, y = 1},
-						height = '100%',
-						width = '50% height',
-						halign = 'right',
-						hmargin = 40,
-					},
-
-					events = {
+						width = "auto",
+						height = "auto",
+						halign = "center",
+						valign = "center",
 						refreshSearch = function(element)
-							element:SetClass('hidden', npage == GetNumPages())
-						end,
-
-						click = function(element)
-							npage = npage + 1
-							if npage > GetNumPages() then
-								npage = GetNumPages()
-							end
-							popupPanel:FireEventTree('refreshSearch')
+							element.text = string.format("/%d", math.tointeger(GetNumPages()))
 						end,
 					},
 				},
 
+				gui.PagingArrow{
+					facing = 1,
+					hmargin = 40,
+					refreshSearch = function(element)
+						element:SetClass("hidden", npage == GetNumPages())
+					end,
+					click = function(element)
+						npage = npage + 1
+						if npage > GetNumPages() then
+							npage = GetNumPages()
+						end
+						popupPanel:FireEventTree("refreshSearch")
+					end,
+				},
 			},
 		}
 
 		local lastSearch = nil
-		local searchInput = gui.Input{
-			placeholderText = 'Search for images...',
+		local searchInput = gui.SearchInput{
+			placeholderText = "Search for images...",
 			hasFocus = true,
-			style = {
-				width = 200,
-				height = 30,
-				fontSize = '40%',
-				bgcolor = 'black',
-				hmargin = 8,
-			},
-
+			width = "80%",
+			height = 24,
+			hmargin = 8,
 			editlag = 0.2,
 
 			events = {
@@ -647,28 +587,16 @@ function gui.IconEditor(args)
 
 
 		local categoriesPanel = gui.Panel{
-			classes = {cond(categoriesHidden, "collapsed")},
-			style = {
-				width = 'auto',
-				height = 30,
-				fontSize = '40%',
-				bgcolor = 'white',
-				hmargin = 8,
-				flow = 'horizontal',
-			},
+			classes = {"formPanel", cond(categoriesHidden, "collapsed")},
 			children = {
 				gui.Label{
-					text = 'Category:',
-					style = {
-						width = 'auto',
-						height = 'auto',
-					},
+					classes = {"form"},
+					text = "Category:",
 				},
 				gui.Dropdown{
+					classes = {"form"},
 					options = options,
 					idChosen = library or "equipment",
-					width = 260,
-					height = "100%",
 
 					events = {
 						change = function(element)
@@ -678,19 +606,16 @@ function gui.IconEditor(args)
 							category = selected.search
 							useBuiltinIcons = selected.builtinIcons == true
 							imageType = ImageTypeMapping[library]
-							searchInput:FireEvent('change')
+							searchInput:FireEvent("change")
 						end,
 					},
-
 				},
 			},
 		}
 
-		local uploadButton = gui.PrettyButton{
-			text = 'Upload Image',
-			width = 200,
-			height = 44,
-			fontSize = 20,
+		local uploadButton = gui.Button{
+			classes = {"sizeM"},
+			text = "Upload Image",
 			hmargin = 12,
 			events = {
 				refreshSearch = function(element)
@@ -729,15 +654,9 @@ function gui.IconEditor(args)
 								gui.Panel{
 									width = "100%",
 									height = "100%",
-									styles = ThemeEngine.MergeStyles({
-										{
-											selectors = {"label", "uploadingImageLabel"},
-											color = "@text",
-										},
-									}),
 									gui.Label{
 										classes = {"uploadingImageLabel"},
-										text = 'Uploading Image...',
+										text = "Uploading Image...",
 										thinkTime = 0.1,
 										events = {
 											think = function(element)
@@ -750,11 +669,11 @@ function gui.IconEditor(args)
 
 										style = {
 											fontSize = 24,
-											width = 'auto',
-											height = 'auto',
-											textAlignment = 'center',
-											halign = 'center',
-											valign = 'center',
+											width = "auto",
+											height = "auto",
+											textAlignment = "center",
+											halign = "center",
+											valign = "center",
 										},
 									},
 								}
@@ -767,16 +686,13 @@ function gui.IconEditor(args)
 		}
 
 		local pasteButton = nil
-		
+
 		if allowPaste then
-			pasteButton = gui.PrettyButton{
-				text = 'Paste Image',
-				width = 200,
-				height = 44,
+			pasteButton = gui.Button{
+				text = "Paste Image",
 				hmargin = 12,
 				vmargin = 12,
-				fontSize = 20,
-				classes = {cond(dmhub.HaveImageInClipboard(), nil, 'disabled')},
+				classes = {"sizeM", cond(dmhub.HaveImageInClipboard(), nil, "disabled")},
 				thinkTime = 0.2,
 				events = {
 					refreshSearch = function(element)
@@ -815,15 +731,9 @@ function gui.IconEditor(args)
 							gui.Panel{
 								width = "100%",
 								height = "100%",
-								styles = ThemeEngine.MergeStyles({
-									{
-										selectors = {"label", "uploadingImageLabel"},
-										color = "@text",
-									},
-								}),
 								gui.Label{
 									classes = {"uploadingImageLabel"},
-									text = 'Uploading Image...',
+									text = "Uploading Image...",
 									thinkTime = 0.1,
 									events = {
 										think = function(element)
@@ -836,11 +746,11 @@ function gui.IconEditor(args)
 
 									style = {
 										fontSize = 24,
-										width = 'auto',
-										height = 'auto',
-										textAlignment = 'center',
-										halign = 'center',
-										valign = 'center',
+										width = "auto",
+										height = "auto",
+										textAlignment = "center",
+										halign = "center",
+										valign = "center",
 									},
 								},
 							}
@@ -854,34 +764,36 @@ function gui.IconEditor(args)
 		
 		popupPanel = gui.Panel{
 			classes = {"framedPanel"},
-			styles = {
-				Styles.Default,
-				Styles.Panel,
+			styles = ThemeEngine.MergeStyles({
 				{
-					flow = 'vertical',
-					halign = 'left',
-					valign = 'center',
-					width = 600,
-					height = 860,
-					borderWidth = 0,
-					bgcolor = 'white',
+					selectors = {"imageBackground", "hover"},
+					borderWidth = 2,
+					borderColor = "@accent",
 				},
 				{
-					selectors = {'image-background', 'selected'},
+					selectors = {"imageBackground", "selected"},
 					borderWidth = 2,
-					borderColor = '#ffffff88',
-                },
-				{
-					selectors = {'image-background', 'hover'},
-					borderWidth = 2,
-					borderColor = 'white',
+					borderColor = "@fgStrong",
 				},
 				{
-					selectors = {'icon-image', 'deleted'},
+					selectors = {"iconImage", "deleted"},
 					brightness = 0.2,
 				},
-			},
+				{
+					selectors = {"label", "uploadingImageLabel"},
+					color = "@fgStrong",
+				},
+			}),
+			flow = "vertical",
+			halign = "center",
+			valign = "top",
+			width = 600,
+			height = "auto",
+			pad = 16,
+			borderBox = true,
+
 			children = {
+				gui.Label{ classes = {"modalTitle"}, text = "Choose Image" },
 				searchInput,
 				categoriesPanel,
 				imagesGrid,
@@ -889,6 +801,15 @@ function gui.IconEditor(args)
 				pagingPanel,
 				uploadButton,
 				pasteButton,
+				gui.Button{
+					classes = {"closeButton"},
+					halign = "right",
+					valign = "top",
+					floating = true,
+					escapeActivates = true,
+					escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+					click = function() resultPanel.popup = nil end,
+				},
 			},
 		}
 

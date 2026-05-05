@@ -460,7 +460,7 @@ function gui.Dropdown(args)
 			end
  
 			parentPanel.popupPositioning = "panel"
-            parentPanel.popupsInheritStyles = true
+            parentPanel.popupsInheritStyles = false
 			parentPanel.popup = popup
 		end,
  

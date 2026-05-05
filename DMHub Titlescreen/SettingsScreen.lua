@@ -1,5 +1,16 @@
 local mod = dmhub.GetModLoading()
 
+local function track(eventType, fields)
+    if dmhub.GetSettingValue("telemetry_enabled") == false then
+        return
+    end
+    fields.type = eventType
+    fields.userid = dmhub.userid
+    fields.gameid = dmhub.gameid
+    fields.version = dmhub.version
+    analytics.Event(fields)
+end
+
 local CreateBetaBranchEditor = function()
 	local branch = dmhub.betaBranch
 	if branch == nil then
@@ -327,6 +338,19 @@ function CreateSettingsScreen(dialog, args)
 					edit = function(element)
 						local matches = {}
 						dialog.sheet:FireEventTree("search", element.text, matches)
+						if element.text ~= "" then
+							local shownCount = 0
+							for _,m in ipairs(matches) do
+								if m.shown then shownCount = shownCount + 1 end
+							end
+							track("search_settings", {
+								query = element.text,
+								hasResults = shownCount > 0,
+								resultCount = shownCount,
+								deduplicate = 0.5,
+								dailyLimit = 50,
+							})
+						end
 					end,
 				},
 				gui.Panel{

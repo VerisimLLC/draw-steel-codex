@@ -23,6 +23,7 @@
 --- @field locked any 
 --- @field attachedRulesObjects any 
 --- @field area any 
+--- @field mapAlignmentDiagnostic any 
 --- @field valid boolean 
 --- @field components any 
 --- @field path string 
@@ -33,6 +34,13 @@ LuaObjectInstance = {}
 --- @param json any
 --- @return nil
 function LuaObjectInstance:AddComponentFromJson(id, json)
+	-- dummy implementation for documentation purposes only
+end
+
+--- ApplyMapCalibration
+--- @param calibration any
+--- @return nil
+function LuaObjectInstance:ApplyMapCalibration(calibration)
 	-- dummy implementation for documentation purposes only
 end
 

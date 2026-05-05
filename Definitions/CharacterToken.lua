@@ -15,7 +15,6 @@
 --- @field selfOrMount CharacterToken (Read-only) If mounted on a token, returns the token mounted on. Otherwise is equal to this token itself.
 --- @field mount nil|CharacterToken The token we are mounted on, if there is one.
 --- @field valid boolean (Read-only) true if this token is still valid. If saving a reference to a CharacterToken between frames, this should be checked before using it. It will become invalid if the token is deleted.
---- @field hasSpineAnimation boolean (Read-only) true if this token currently has an active spine animation (portraitid resolved to a spine registry entry and the spine renderer was instantiated).
 --- @field ModifyProperties @param options {execute: (fun():nil), undoable: nil|boolean, combine: nil|boolean, description: nil|string} This allows you to modify the @see properties of this token and upload it to the cloud. Inside the execute function you supply you should modify the properties of the token. This will observe the changes you make and upload only the diffs. If combine is true the upload will try to occur as a transaction with any other uploads happening this frame. Note that this only uploads the @see properties of the token. It doesn't upload the rest of the token details such as appearance. @see UploadToken to upload the full token.
 --- @field uploadable boolean (Read-only) If true, this is a normal CharacterToken that can be uploaded to the cloud service.
 --- @field appearanceChangedFromBestiary boolean 
@@ -72,7 +71,9 @@
 --- @field portraitFrameBrightness number 
 --- @field portraitFrame nil|string 
 --- @field offTokenPortrait string 
+--- @field inspectPortrait string Up-close 'inspect' variant of offTokenPortrait. For tokens rendering via a spine animation this returns the '#spineinspect:tokenid' image id, which renders a separate live spine portrait framed with the registry's inspectZoom / inspectXOffset / inspectYOffset (independent of the regular portrait* fields). For non-spine tokens this returns the same value as offTokenPortrait, so callers can use it uniformly.
 --- @field portrait string 
+--- @field hasSpineAnimation boolean True if this token currently has an active spine animation (i.e. its portraitid resolved to a spine registry entry and the spine renderer was instantiated).
 --- @field popoutPortrait boolean 
 --- @field popoutScale number 
 --- @field portraitBackground nil|string 
@@ -83,6 +84,7 @@
 --- @field portraitRect Vector4 The rectangle within the portrait to display for this token.
 --- @field radiusInTiles number The radius of the token, in tiles.
 --- @field pos Vector2 (Read-only) The world position the token is at.
+--- @field lookAt nil|Vector2 (Read-only) The world position this token is currently 'looking at', or nil if it isn't looking at anything. Priority: (1) if the token is actively being dragged, the mouse cursor; (2) else if the token is moving along a path, the path's final destination; (3) else if an ability is being cast (see spine.setCurrentCastingToken / setCurrentCastingTargets), then if this token is the caster, the first target's position, else the caster's position; (4) otherwise nil. If the token has a spine animation with an eye IK bone (see spine.register's eyeik option), the bone is driven toward this point each frame, scaled by eyeMult and clamped by eyeRange.
 --- @field posWithParallax Vector2 (Read-only) The world position the token is at, including adjustments due to parallax.
 --- @field portraitZoom number 
 --- @field portraitOffset Vector2 
@@ -335,6 +337,42 @@ function CharacterToken:IsFriend(other)
 	-- dummy implementation for documentation purposes only
 end
 
+--- SetSpineAnimation: Set the spine animation playing on this token. id is the animation name (required); transition is the cross-fade duration in seconds (optional); loop defaults to true; track defaults to 0. No-op if the token doesn't have an active spine animation or if the named animation isn't found in the skeleton.
+--- @param options {id: string, transition: nil|number, loop: nil|boolean, track: nil|number}
+function CharacterToken:SetSpineAnimation(options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetSpineIdleFidgets: Configure idle-fidget animations on this token's spine. Pass a list of animation names to interrupt the current loop with periodically; pass nil or an empty list to disable. period is the base interval in seconds (default 30); each token's actual period is jittered +/-10% based on its tokenid hash so identical creatures don't fidget in unison. Timing runs against the synced server clock so all clients trigger the same fidget at the same wall-clock instant. Fidgets only trigger while the current animation is a loop, so explicit non-loop one-shots (attacks, etc.) won't be interrupted.
+--- @param options nil|{animations: nil|string[], period: nil|number}
+function CharacterToken:SetSpineIdleFidgets(options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- ClearSpineIdleFidgets: Disable idle-fidget animations on this token's spine. Equivalent to SetSpineIdleFidgets(nil).
+--- @return nil
+function CharacterToken:ClearSpineIdleFidgets()
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetSpineAnimation: Returns the name of the currently-playing spine animation on track 0, or nil if no spine animation is active on this token.
+--- @return string
+function CharacterToken:GetSpineAnimation()
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetSpineSkin: Set the active skin on this token's spine. Skins control which attachment images are bound to slots, independent of which animation is playing -- e.g. swap a 'winded' skin to expose injury attachments without changing the running animation. Pass nil to revert to the skeleton's first declared skin (typically 'default'). No-op if the token doesn't have an active spine animation. Logs a warning and is a no-op if the named skin doesn't exist on this skeleton.
+--- @param skinName nil|string
+function CharacterToken:SetSpineSkin(arg)
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetSpineSkin: Returns the name of the active skin on this token's spine, or nil if no spine animation is active.
+--- @return string
+function CharacterToken:GetSpineSkin()
+	-- dummy implementation for documentation purposes only
+end
+
 --- InvalidateObjects: Refresh any objects attached to the token.
 --- @return nil
 function CharacterToken:InvalidateObjects()
@@ -453,40 +491,5 @@ end
 --- ClearMovementArrow
 --- @return nil
 function CharacterToken:ClearMovementArrow()
-	-- dummy implementation for documentation purposes only
-end
-
---- SetSpineAnimation: Set the spine animation playing on this token. id is the animation name (required); transition is the cross-fade duration in seconds (optional); loop defaults to true; track defaults to 0. No-op if the token doesn't have an active spine animation or if the named animation isn't found in the skeleton.
---- @param options {id: string, transition: nil|number, loop: nil|boolean, track: nil|number}
-function CharacterToken:SetSpineAnimation(options)
-	-- dummy implementation for documentation purposes only
-end
-
---- GetSpineAnimation: Returns the name of the currently-playing spine animation on track 0, or nil if no spine animation is active on this token.
---- @return nil|string
-function CharacterToken:GetSpineAnimation()
-	-- dummy implementation for documentation purposes only
-end
-
---- SetSpineIdleFidgets: Configure idle-fidget animations on this token's spine. Pass a list of animation names to interrupt the current loop with periodically; pass nil or an empty list to disable. period is the base interval in seconds (default 30); each token's actual period is jittered +/-10% based on its tokenid hash so identical creatures don't fidget in unison. Timing runs against the synced server clock so all clients trigger the same fidget at the same wall-clock instant. Fidgets only trigger while the current animation is a loop, so explicit non-loop one-shots (attacks, etc.) won't be interrupted.
---- @param options nil|{animations: nil|string[], period: nil|number}
-function CharacterToken:SetSpineIdleFidgets(options)
-	-- dummy implementation for documentation purposes only
-end
-
---- ClearSpineIdleFidgets: Disable idle-fidget animations on this token's spine. Equivalent to SetSpineIdleFidgets(nil).
-function CharacterToken:ClearSpineIdleFidgets()
-	-- dummy implementation for documentation purposes only
-end
-
---- SetSpineSkin: Set the active skin on this token's spine. Skins control which attachment images are bound to slots, independent of which animation is playing -- e.g. swap a 'winded' skin to expose injury attachments without changing the running animation. Pass nil to revert to the skeleton's first declared skin (typically 'default'). No-op if the token doesn't have an active spine animation. Logs a warning and is a no-op if the named skin doesn't exist on this skeleton.
---- @param skinName nil|string
-function CharacterToken:SetSpineSkin(skinName)
-	-- dummy implementation for documentation purposes only
-end
-
---- GetSpineSkin: Returns the name of the active skin on this token's spine, or nil if no spine animation is active.
---- @return nil|string
-function CharacterToken:GetSpineSkin()
 	-- dummy implementation for documentation purposes only
 end

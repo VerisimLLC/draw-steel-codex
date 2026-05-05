@@ -541,3 +541,129 @@ DockablePanel.Register{
         return resultPanel
 	end,
 }
+
+-- Pool stress test: spawn N labels, time the rebuild on demand.
+-- Used to measure SheetPanel pooling savings -- rebuild a fixed N labels with the
+-- pool enabled vs disabled and compare ms.
+DockablePanel.Register{
+    name = "Pool Stress Test",
+    devonly = true,
+    folder = "Development Tools",
+    minHeight = 320,
+
+    content = function()
+        local m_count = 100
+        local m_lastDurationMs = 0
+        local m_lastBuildN = 0
+        local m_runs = {}  -- recent run durations for averaging
+
+        -- Forward declarations so closures can refer to them.
+        local m_labelsContainer
+        local m_durationLabel
+
+        local function rebuild()
+            local sw = dmhub.Stopwatch()
+            local labels = {}
+            for i = 1, m_count do
+                labels[#labels+1] = gui.Label{
+                    text = string.format("Label %d / %d", i, m_count),
+                    fontSize = 12,
+                    width = "100%",
+                    height = 14,
+                }
+            end
+            m_labelsContainer.children = labels
+            m_lastDurationMs = sw.milliseconds
+            m_lastBuildN = m_count
+            m_runs[#m_runs+1] = m_lastDurationMs
+            if #m_runs > 10 then
+                table.remove(m_runs, 1)
+            end
+
+            local total = 0
+            for _,v in ipairs(m_runs) do total = total + v end
+            local avg = total / #m_runs
+
+            m_durationLabel.text = string.format(
+                "Last: %d labels in %d ms\nAvg of last %d runs: %.1f ms\n(check console for any 'Perf: Long frame' lines)",
+                m_lastBuildN, m_lastDurationMs, #m_runs, avg)
+        end
+
+        m_labelsContainer = gui.Panel{
+            width = "100%",
+            height = "100%-130",
+            vscroll = true,
+            flow = "vertical",
+            bgimage = "panels/square.png",
+            bgcolor = "black",
+            pad = 4,
+        }
+
+        m_durationLabel = gui.Label{
+            width = "100%",
+            height = 60,
+            fontSize = 13,
+            text = "Last: -- (press Rebuild)",
+        }
+
+        return gui.Panel{
+            width = "100%",
+            height = "100%",
+            flow = "vertical",
+
+            -- Count input row
+            gui.Panel{
+                width = "100%",
+                height = 28,
+                flow = "horizontal",
+                halign = "left",
+                gui.Label{
+                    text = "N labels:",
+                    width = 70, height = 24, fontSize = 14,
+                    valign = "center",
+                },
+                gui.Input{
+                    text = tostring(m_count),
+                    width = 80, height = 24, fontSize = 14,
+                    change = function(element)
+                        local n = tonumber(element.text)
+                        if n and n >= 0 and n <= 100000 then
+                            m_count = math.floor(n)
+                        end
+                    end,
+                },
+            },
+
+            -- Buttons row
+            gui.Panel{
+                width = "100%",
+                height = 32,
+                flow = "horizontal",
+                halign = "left",
+                gui.Button{
+                    text = "Rebuild",
+                    width = 100, height = 28, fontSize = 14,
+                    click = function() rebuild() end,
+                },
+                gui.Button{
+                    text = "Clear",
+                    width = 80, height = 28, fontSize = 14,
+                    click = function()
+                        m_labelsContainer.children = {}
+                    end,
+                },
+                gui.Button{
+                    text = "Reset Avg",
+                    width = 80, height = 28, fontSize = 14,
+                    click = function()
+                        m_runs = {}
+                        m_durationLabel.text = "Last: -- (press Rebuild)"
+                    end,
+                },
+            },
+
+            m_durationLabel,
+            m_labelsContainer,
+        }
+    end,
+}

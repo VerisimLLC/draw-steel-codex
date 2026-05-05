@@ -914,14 +914,21 @@ local function CreateObjectFolder(nodeid, parentElement, options)
 				--one character searches just count as no search.
 				text = ""
 			end
+			local count = 0
 			if text ~= "" then
 				local nodeids = node:GetNodeIdsMatchingSearch(element.text)
-				local count = 0
 				for k,v in pairs(nodeids) do
 					count = count + 1
 				end
 				printf("PrepareSearch: (%s) / %d", text, count)
 				folderPane:FireEventTree("prepareSearch", nodeids)
+				track("search_objects", {
+					query = text,
+					hasResults = count > 0,
+					resultCount = count,
+					deduplicate = 0.5,
+					dailyLimit = 50,
+				})
 			end
 			folderPane.data.search(text)
 		end

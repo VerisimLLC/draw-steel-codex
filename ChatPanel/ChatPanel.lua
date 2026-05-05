@@ -368,7 +368,7 @@ CreateChatPanel = function()
                     if message.messageType == "chat" or message.messageType == "data" or message.messageType == "object" or (message.messageType == "custom" and rawget(message.properties, "channel") == "chat") then
                         local isNew = (messagePanels[message.key] == nil)
                         newMessage = isNew
-                        if isNew and message.timestamp ~= nil and (nowMs - message.timestamp) < 10000 then
+                        if isNew and element.data.init then
                             freshNewMessage = true
                         end
                         local child = messagePanels[message.key]
@@ -403,6 +403,7 @@ CreateChatPanel = function()
 
 				messagePanels = newMessagePanels
 				element.children = children
+                element.data.init = true
 
 				--go to the bottom if we have new messages
 				if newMessage then

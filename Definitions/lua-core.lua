@@ -15,8 +15,11 @@ if math.tointeger == nil then
 end
 
 function tostring(s)
-	if type(s) == "number" and math.floor(s) == s then
-		return string.format("%d", math.tointeger(s))
+	if type(s) == "number" then
+		local i = math.tointeger(s)
+		if i ~= nil then
+			return string.format("%d", i)
+		end
 	end
 
 	if type(s) == "table" then

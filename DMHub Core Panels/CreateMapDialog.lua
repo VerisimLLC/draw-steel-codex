@@ -643,10 +643,31 @@ mod.shared.FinishMapImport = function(mapName, info)
     end)
 end
 
+-- Open the alignment dialog in "realign" mode for an already-imported floor.
+-- The dialog reuses the same drag/zoom/pan UI as the new-floor flow but, instead
+-- of creating a new floor on confirm, it just updates the existing object's
+-- (x, y) position so the user can re-align it against the other map images.
+mod.shared.ShowFloorRealignDialog = function(mapLayer, mapObj)
+    if mapObj == nil then
+        return
+    end
+    mod.shared.ShowFloorAlignmentDialog{
+        realignTarget = mapObj,
+    }
+end
+
 -- Show a dialog to let the user align a new floor image to the existing map.
 -- info: the import result with objids, width, height, paths, imageWidth, imageHeight.
+-- For realign mode, info.realignTarget is a LuaObjectInstance (with a Map component)
+-- and the rest of info may be empty.
 mod.shared.ShowFloorAlignmentDialog = function(info)
-    if info.objids == nil or #info.objids == 0 then
+    -- Mode A (default): aligning a freshly-imported new floor. info has objids/width/height.
+    -- Mode B (realign): info.realignTarget is the existing LuaObjectInstance to reposition.
+    --   In this mode info.objids may be empty; we reuse the same UI to drag the existing
+    --   floor's image around and on confirm we set obj.x/obj.y instead of creating a new floor.
+    local realignTarget = info.realignTarget
+
+    if realignTarget == nil and (info.objids == nil or #info.objids == 0) then
         return
     end
 
@@ -658,44 +679,164 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
     local dim = currentMap.dimensions
     local mapW = dim.x2 - dim.x1
     local mapH = dim.y2 - dim.y1
-    local floorW = math.ceil(info.width)
-    local floorH = math.ceil(info.height)
 
-    -- Default: align top-left corners.
-    local offsetX = dim.x1
-    local offsetY = dim.y1
+    -- floorW, floorH are the moving image's tile span. In realign mode, derive from
+    -- the existing object's actual rendered span (fractional). In normal mode, use the
+    -- import's reported tile count, ceil'd.
+    local floorW
+    local floorH
+    -- references[]: list of {imageid, x1, y1, x2, y2} drawn as static backdrop in the
+    -- preview panel. Normal mode renders the canvas image at canvas bounds (legacy
+    -- behaviour, exactly one entry). Realign mode renders every OTHER Map object at
+    -- its actual world bounds.
+    local references = {}
 
-    -- Check if the new floor is the same size as the existing map.
-    printf("FLOOR_ALIGN:: ShowFloorAlignmentDialog called: mapW=%d mapH=%d floorW=%d floorH=%d", mapW, mapH, floorW, floorH)
-    printf("FLOOR_ALIGN:: Existing map dims: x1=%s y1=%s x2=%s y2=%s", json(dim.x1), json(dim.y1), json(dim.x2), json(dim.y2))
-    printf("FLOOR_ALIGN:: Default offset: (%d, %d)", offsetX, offsetY)
+    -- Default offset: the moving floor's top-left in world tile coords.
+    local offsetX
+    local offsetY
 
-    local sameSize = (floorW == mapW and floorH == mapH)
+    -- Captured at setup time and used by the Confirm handler to convert offset
+    -- (top-left of rendered image) back to obj.x/obj.y. The renderer's _mapPivot
+    -- is rarely exactly (0.5, 0.5) -- it's wrapped to near-center but can be
+    -- offset by up to one tile, so we must respect it instead of assuming centered.
+    local realignPivotX = 0.5
+    local realignPivotY = 0.5
 
-    if sameSize then
-        printf("FLOOR_ALIGN:: Same size detected, skipping alignment dialog")
-        mod.shared.FinishFloorImport(info, offsetX, offsetY)
-        return
+    if realignTarget ~= nil then
+        local d = realignTarget.mapAlignmentDiagnostic
+        if d == nil then
+            gui.ModalMessage{title = "Error", message = "Could not read this floor's calibration."}
+            return
+        end
+        floorW = d.imageWorldWidth
+        floorH = d.imageWorldHeight
+        if (floorW or 0) <= 0 or (floorH or 0) <= 0 then
+            -- Fallback to the area-derived span if the renderer hasn't computed _tileDim yet.
+            floorW = (d.areaX2 or 0) - (d.areaX1 or 0)
+            floorH = (d.areaY2 or 0) - (d.areaY1 or 0)
+        end
+        if (floorW or 0) <= 0 or (floorH or 0) <= 0 then
+            gui.ModalMessage{title = "Error", message = "Could not determine this floor's size."}
+            return
+        end
+
+        realignPivotX = d.mapPivotX or 0.5
+        realignPivotY = d.mapPivotY or 0.5
+
+        -- Use the actual rendered top-left (areaX1/areaY1). Falling back to
+        -- pos - imageWorldDim * mapPivot if for some reason the area fields are
+        -- missing -- this is the same formula the renderer uses internally.
+        if d.areaX1 ~= nil and d.areaY1 ~= nil then
+            offsetX = d.areaX1
+            offsetY = d.areaY1
+        else
+            offsetX = (realignTarget.x or 0) - floorW * realignPivotX
+            offsetY = (realignTarget.y or 0) - floorH * realignPivotY
+        end
+
+        -- Collect every OTHER Map object as a reference backdrop.
+        for _, floor in ipairs(currentMap.floors) do
+            for _, obj in pairs(floor.objects) do
+                if obj:GetComponent("Map") ~= nil and obj.id ~= realignTarget.id then
+                    local od = obj.mapAlignmentDiagnostic
+                    if od ~= nil and od.areaX1 ~= nil then
+                        references[#references+1] = {
+                            imageid = obj.imageid,
+                            x1 = od.areaX1, y1 = od.areaY1,
+                            x2 = od.areaX2, y2 = od.areaY2,
+                        }
+                    end
+                end
+            end
+        end
+
+        printf("FLOOR_REALIGN:: target=%s/%s floorW=%.4f floorH=%.4f initialOffset=(%.4f,%.4f) refs=%d",
+            d.floorid, d.objid, floorW, floorH, offsetX, offsetY, #references)
+    else
+        floorW = math.ceil(info.width)
+        floorH = math.ceil(info.height)
+        offsetX = dim.x1
+        offsetY = dim.y1
     end
 
-    -- Find the existing map's floor image for display.
-    -- Look for a map object on the ground floor's map layer.
-    local existingImageId = nil
-    local floors = currentMap.floorsWithoutLayers
-    if #floors > 0 then
+    -- Check if the new floor is the same size as the existing map.
+    printf("FLOOR_ALIGN:: ShowFloorAlignmentDialog called: mapW=%s mapH=%s floorW=%s floorH=%s",
+        tostring(mapW), tostring(mapH), tostring(floorW), tostring(floorH))
+    printf("FLOOR_ALIGN:: Existing map dims: x1=%s y1=%s x2=%s y2=%s", json(dim.x1), json(dim.y1), json(dim.x2), json(dim.y2))
+    printf("FLOOR_ALIGN:: Default offset: (%s, %s)", tostring(offsetX), tostring(offsetY))
+    printf("FLOOR_ALIGN:: Incoming info: width=%s height=%s objids=%s imageWidth=%s imageHeight=%s",
+        tostring(info.width), tostring(info.height), json(info.objids or {}), tostring(info.imageWidth), tostring(info.imageHeight))
+
+    -- Snapshot every existing Map LevelObject's calibration so we can compare against the new one.
+    do
+        local count = 0
         for _, floor in ipairs(currentMap.floors) do
             for _, obj in pairs(floor.objects) do
                 if obj:GetComponent("Map") ~= nil then
-                    existingImageId = obj.imageid
-                    break
+                    count = count + 1
+                    local d = obj.mapAlignmentDiagnostic
+                    if d ~= nil then
+                        printf("FLOOR_ALIGN_DIAG:: Existing Map object [%d] floorid=%s objid=%s calibration=%s",
+                            count, floor.floorid, obj.id, json(d))
+                    else
+                        printf("FLOOR_ALIGN_DIAG:: Existing Map object [%d] floorid=%s objid=%s had nil mapAlignmentDiagnostic",
+                            count, floor.floorid, obj.id)
+                    end
                 end
             end
-            if existingImageId ~= nil then break end
+        end
+        if count == 0 then
+            printf("FLOOR_ALIGN_DIAG:: ShowFloorAlignmentDialog: no existing Map LevelObjects found.")
         end
     end
 
-    -- The new floor's image: use the first imported asset's imageid.
-    local newImageId = info.objids[1]
+    if realignTarget == nil then
+        -- If the user picked "Match Existing Map", we have a calibration captured
+        -- from the existing Map LevelObject. Bypass the alignment dialog and place
+        -- the new floor at the same world position as the existing one. Once
+        -- FinishFloorImport applies the calibration, the new image will render
+        -- with the same _tileDim/_mapPivot, so its world bounds match exactly.
+        if info.matchCalibration ~= nil then
+            printf("FLOOR_ALIGN:: matchCalibration present -- skipping alignment dialog and aligning to existing.")
+            mod.shared.FinishFloorImport(info, offsetX, offsetY)
+            return
+        end
+
+        local sameSize = (floorW == mapW and floorH == mapH)
+
+        if sameSize then
+            printf("FLOOR_ALIGN:: Same size detected, skipping alignment dialog")
+            mod.shared.FinishFloorImport(info, offsetX, offsetY)
+            return
+        end
+    end
+
+    -- Find the existing map's floor image for display (legacy single-image backdrop in
+    -- normal mode). In realign mode the references[] list above is what we render.
+    local existingImageId = nil
+    if realignTarget == nil then
+        local floors = currentMap.floorsWithoutLayers
+        if #floors > 0 then
+            for _, floor in ipairs(currentMap.floors) do
+                for _, obj in pairs(floor.objects) do
+                    if obj:GetComponent("Map") ~= nil then
+                        existingImageId = obj.imageid
+                        break
+                    end
+                end
+                if existingImageId ~= nil then break end
+            end
+        end
+    end
+
+    -- The moving image. Normal mode: the first imported asset. Realign mode: the
+    -- existing object's image.
+    local newImageId
+    if realignTarget ~= nil then
+        newImageId = realignTarget.imageid
+    else
+        newImageId = info.objids[1]
+    end
 
     local newFloorOpacity = 0.6
 
@@ -711,24 +852,37 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
         previewPanel:FireEvent("updatePreview")
     end
 
+    -- Format an offset for display: integer if whole, two decimals otherwise.
+    local function fmtOffset(v)
+        if v == math.floor(v) then
+            return tostring(math.floor(v))
+        end
+        return string.format("%.2f", v)
+    end
+
+    -- Realign mode allows fractional offsets (the existing object may be at a
+    -- fractional world position because its image span isn't an integer number
+    -- of tiles). Normal mode keeps the legacy integer-only behaviour.
+    local allowFractional = realignTarget ~= nil
+
     local offsetXInput = gui.Input{
         fontSize = 18,
-        width = 60,
+        width = 80,
         height = 24,
-        text = tostring(offsetX),
+        text = fmtOffset(offsetX),
         edit = function(element)
             local val = tonumber(element.text)
-            if val ~= nil and val == math.floor(val) then
+            if val ~= nil and (allowFractional or val == math.floor(val)) then
                 offsetX = val
                 fireUpdatePreview()
             end
         end,
         change = function(element)
             local val = tonumber(element.text)
-            if val ~= nil and val == math.floor(val) then
+            if val ~= nil and (allowFractional or val == math.floor(val)) then
                 offsetX = val
             else
-                element.text = tostring(offsetX)
+                element.text = fmtOffset(offsetX)
             end
             fireUpdatePreview()
         end,
@@ -736,22 +890,22 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
 
     local offsetYInput = gui.Input{
         fontSize = 18,
-        width = 60,
+        width = 80,
         height = 24,
-        text = tostring(offsetY),
+        text = fmtOffset(offsetY),
         edit = function(element)
             local val = tonumber(element.text)
-            if val ~= nil and val == math.floor(val) then
+            if val ~= nil and (allowFractional or val == math.floor(val)) then
                 offsetY = val
                 fireUpdatePreview()
             end
         end,
         change = function(element)
             local val = tonumber(element.text)
-            if val ~= nil and val == math.floor(val) then
+            if val ~= nil and (allowFractional or val == math.floor(val)) then
                 offsetY = val
             else
-                element.text = tostring(offsetY)
+                element.text = fmtOffset(offsetY)
             end
             fireUpdatePreview()
         end,
@@ -770,37 +924,70 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
             local newX2 = offsetX + floorW
             local newY2 = offsetY + floorH
 
-            local canvasX1 = math.min(dim.x1, offsetX)
-            local canvasY1 = math.min(dim.y1, offsetY)
-            local canvasX2 = math.max(dim.x2, newX2)
-            local canvasY2 = math.max(dim.y2, newY2)
-            local canvasW = canvasX2 - canvasX1
-            local canvasH = canvasY2 - canvasY1
-
-            local needsExpand = (canvasX1 < dim.x1 or canvasY1 < dim.y1 or canvasX2 > dim.x2 or canvasY2 > dim.y2)
-
             local lines = {}
-            lines[#lines+1] = string.format("New floor at (%d, %d) to (%d, %d).", offsetX, offsetY, newX2, newY2)
-            if needsExpand then
-                lines[#lines+1] = string.format("Map canvas will expand to %dx%d tiles.", canvasW, canvasH)
+            if realignTarget ~= nil then
+                local centerX = offsetX + floorW / 2
+                local centerY = offsetY + floorH / 2
+                lines[#lines+1] = string.format(
+                    "This floor: (%s, %s) to (%s, %s); center (%s, %s).",
+                    fmtOffset(offsetX), fmtOffset(offsetY),
+                    fmtOffset(newX2), fmtOffset(newY2),
+                    fmtOffset(centerX), fmtOffset(centerY))
+                for i, ref in ipairs(references) do
+                    local cx = (ref.x1 + ref.x2) / 2
+                    local cy = (ref.y1 + ref.y2) / 2
+                    lines[#lines+1] = string.format(
+                        "Other [%d]: (%s, %s) to (%s, %s); center (%s, %s).",
+                        i,
+                        fmtOffset(ref.x1), fmtOffset(ref.y1),
+                        fmtOffset(ref.x2), fmtOffset(ref.y2),
+                        fmtOffset(cx), fmtOffset(cy))
+                end
             else
-                lines[#lines+1] = "New floor fits within the existing canvas."
+                local canvasX1 = math.min(dim.x1, offsetX)
+                local canvasY1 = math.min(dim.y1, offsetY)
+                local canvasX2 = math.max(dim.x2, newX2)
+                local canvasY2 = math.max(dim.y2, newY2)
+                local canvasW = canvasX2 - canvasX1
+                local canvasH = canvasY2 - canvasY1
+                local needsExpand = (canvasX1 < dim.x1 or canvasY1 < dim.y1 or canvasX2 > dim.x2 or canvasY2 > dim.y2)
+
+                lines[#lines+1] = string.format("New floor at (%d, %d) to (%d, %d).", offsetX, offsetY, newX2, newY2)
+                if needsExpand then
+                    lines[#lines+1] = string.format("Map canvas will expand to %dx%d tiles.", canvasW, canvasH)
+                else
+                    lines[#lines+1] = "New floor fits within the existing canvas."
+                end
             end
 
-            element.text = table.concat(lines, " ")
+            element.text = table.concat(lines, realignTarget ~= nil and "\n" or " ")
         end,
     }
 
     -- The preview area: shows actual images of both floors with grid overlay.
     -- Supports mouse wheel zoom, right-drag to pan, left-drag to move new floor.
-    local previewSize = 700
+    local previewSize = 620
 
     -- View state: zoom level and center position in tile coordinates.
     -- Start zoomed out to fit everything.
-    local canvasX1Init = math.min(dim.x1, offsetX)
-    local canvasY1Init = math.min(dim.y1, offsetY)
-    local canvasX2Init = math.max(dim.x2, offsetX + floorW)
-    local canvasY2Init = math.max(dim.y2, offsetY + floorH)
+    local canvasX1Init, canvasY1Init, canvasX2Init, canvasY2Init
+    if realignTarget ~= nil then
+        canvasX1Init = offsetX
+        canvasY1Init = offsetY
+        canvasX2Init = offsetX + floorW
+        canvasY2Init = offsetY + floorH
+        for _, ref in ipairs(references) do
+            canvasX1Init = math.min(canvasX1Init, ref.x1)
+            canvasY1Init = math.min(canvasY1Init, ref.y1)
+            canvasX2Init = math.max(canvasX2Init, ref.x2)
+            canvasY2Init = math.max(canvasY2Init, ref.y2)
+        end
+    else
+        canvasX1Init = math.min(dim.x1, offsetX)
+        canvasY1Init = math.min(dim.y1, offsetY)
+        canvasX2Init = math.max(dim.x2, offsetX + floorW)
+        canvasY2Init = math.max(dim.y2, offsetY + floorH)
+    end
     local canvasWInit = canvasX2Init - canvasX1Init
     local canvasHInit = canvasY2Init - canvasY1Init
 
@@ -843,8 +1030,8 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
     end
 
     local function updateInputsFromOffset()
-        offsetXInput.textNoNotify = tostring(offsetX)
-        offsetYInput.textNoNotify = tostring(offsetY)
+        offsetXInput.textNoNotify = fmtOffset(offsetX)
+        offsetYInput.textNoNotify = fmtOffset(offsetY)
     end
 
     -- Get panel top-left pixel position for a tile rect.
@@ -857,6 +1044,86 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
         return px, py, tileW * ppt, tileH * ppt
     end
 
+    -- Persistent image panels: created once and re-positioned in updatePreview
+    -- to avoid the white-flash that occurred when bgimage panels were rebuilt
+    -- every frame during drag. A panel listed in element.children is preserved
+    -- across the assignment, so we always include these in the rebuilt list.
+    -- Reference panels (one per ref). Each is the static backdrop image of an
+    -- already-placed Map object (realign mode), or the canvas-sized existing
+    -- image (normal mode).
+    local refImagePanels = {}
+    local refBorderPanels = {}
+    if realignTarget ~= nil then
+        for i, ref in ipairs(references) do
+            if ref.imageid ~= nil then
+                refImagePanels[i] = gui.Panel{
+                    bgimage = ref.imageid,
+                    bgimageStreamed = ref.imageid,
+                    bgcolor = "white",
+                    halign = "left", valign = "top",
+                    x = 0, y = 0,
+                    width = 0, height = 0,
+                }
+            end
+            refBorderPanels[i] = gui.Panel{
+                halign = "left", valign = "top",
+                x = 0, y = 0,
+                width = 0, height = 0,
+                borderColor = "#6699cc",
+                borderWidth = 2,
+            }
+        end
+    elseif existingImageId ~= nil then
+        refImagePanels[1] = gui.Panel{
+            bgimage = existingImageId,
+            bgimageStreamed = existingImageId,
+            bgcolor = "white",
+            halign = "left", valign = "top",
+            x = 0, y = 0,
+            width = 0, height = 0,
+        }
+    end
+
+    -- Moving floor image panel: persistent so dragging doesn't recreate it.
+    local movingImagePanel = nil
+    if newImageId ~= nil then
+        movingImagePanel = gui.Panel{
+            bgimage = newImageId,
+            bgimageStreamed = newImageId,
+            bgcolor = "white",
+            opacity = newFloorOpacity,
+            halign = "left", valign = "top",
+            x = 0, y = 0,
+            width = 0, height = 0,
+        }
+    end
+
+    -- Moving floor border (always present, drawn on top of grid lines).
+    local movingBorderPanel = gui.Panel{
+        halign = "left", valign = "top",
+        x = 0, y = 0,
+        width = 0, height = 0,
+        borderColor = "#cc9966",
+        borderWidth = 2,
+    }
+
+    -- Canvas border for normal mode.
+    local canvasBorderPanel = nil
+    if realignTarget == nil then
+        canvasBorderPanel = gui.Panel{
+            halign = "left", valign = "top",
+            x = 0, y = 0,
+            width = 0, height = 0,
+            borderColor = "#6699cc",
+            borderWidth = 2,
+        }
+    end
+
+    -- Right/middle-click pan state. Tracks previous mouse position while either
+    -- button is held and applies a delta-pan in the think callback.
+    local panPrevX = nil
+    local panPrevY = nil
+
     previewPanel = gui.Panel{
         width = previewSize,
         height = previewSize,
@@ -867,27 +1134,29 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
         borderColor = "#555555",
         borderWidth = 1,
         clip = true,
+        data = {},
 
         -- Dragging: right-drag to pan, left-drag to move new floor.
+        -- Middle-click pan is handled separately in the think callback.
         draggable = true,
         dragMove = false,
         dragThreshold = 2,
 
         events = {
             press = function(element)
-                local mp = element.mousePoint
-                -- mousePoint: (0,0) at panel center, +y up (Unity convention).
-                -- Convert to panel pixel coords where (0,0) is top-left, +y down.
-                local mx = mp.x + previewSize / 2
-                local my = previewSize / 2 - mp.y
-
-                -- Middle mouse or right mouse always pans.
+                -- Right/middle button drags are handled in `think` (the engine's drag
+                -- system only triggers `dragging` for left-click). Skip them here.
                 if element:GetMouseButton(1) or element:GetMouseButton(2) then
                     isDraggingFloor = false
-                    panStartCenterX = viewCenterX
-                    panStartCenterY = viewCenterY
                     return
                 end
+
+                local mp = element.mousePoint
+                if mp == nil then return end
+                -- mousePoint is in normalized [0,1] panel-local coords. Convert to
+                -- panel-local pixel coords (top-left = 0,0; +y down).
+                local mx = mp.x * previewSize
+                local my = (1 - mp.y) * previewSize
 
                 -- Left mouse: check if over the new floor image.
                 local nx, ny, nw, nh = rectToPanel(offsetX, offsetY, floorW, floorH)
@@ -937,16 +1206,25 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
             end,
         },
 
-        -- Mouse wheel zoom.
+        -- Mouse wheel zoom + middle-click pan. Middle-click is handled here
+        -- because the engine's drag system only triggers `dragging` callbacks
+        -- on left/right click, not middle.
         thinkTime = 0.02,
         think = function(element)
+            -- mousePoint is nil when the mouse isn't over the panel. When present,
+            -- it is in normalized [0,1] panel-local coords -- multiply by previewSize
+            -- to get panel-local pixels (top-left = 0,0; +y down).
+            local mp = element.mousePoint
+            local mouseInside = mp ~= nil
+            local mx, my = 0, 0
+            if mouseInside then
+                mx = mp.x * previewSize
+                my = (1 - mp.y) * previewSize
+            end
+
+            -- Mouse wheel zoom (only when mouse is over the panel).
             local wheel = dmhub.mouseWheel
-            if wheel ~= 0 and element.mousePoint.x ~= 0 and element.mousePoint.y ~= 0 then
-                -- Zoom toward mouse position.
-                local mp = element.mousePoint
-                -- mousePoint: +y up. Convert to panel pixel coords: +y down.
-                local mx = mp.x + previewSize / 2
-                local my = previewSize / 2 - mp.y
+            if mouseInside and wheel ~= 0 then
                 local tileBefore_x, tileBefore_y = pixelToTile(mx, my)
 
                 if wheel > 0 then
@@ -962,6 +1240,48 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
 
                 element:FireEvent("updatePreview")
             end
+
+            -- Right-click or middle-click drag pans. The engine's drag system only
+            -- fires `dragging` callbacks for left-click, so we poll GetMouseButton.
+            local panning = element:GetMouseButton(1) or element:GetMouseButton(2)
+            if panning and mouseInside then
+                if panPrevX ~= nil then
+                    local dx = mx - panPrevX
+                    local dy = my - panPrevY
+                    if dx ~= 0 or dy ~= 0 then
+                        local ppt = getPixelsPerTile()
+                        viewCenterX = viewCenterX - dx / ppt
+                        viewCenterY = viewCenterY + dy / ppt
+                        element:FireEvent("updatePreview")
+                    end
+                end
+                panPrevX = mx
+                panPrevY = my
+            else
+                panPrevX = nil
+                panPrevY = nil
+            end
+
+            -- Arrow-key nudge (1 tile per press, with edge-detection so a held key
+            -- moves once per think tick).
+            local function arrowEdge(key, prevField)
+                local down = dmhub.KeyPressed(key)
+                local prev = element.data[prevField]
+                element.data[prevField] = down
+                return down and not prev
+            end
+            local nudgedX = 0
+            local nudgedY = 0
+            if arrowEdge("LeftArrow",  "ke_left")  then nudgedX = nudgedX - 1 end
+            if arrowEdge("RightArrow", "ke_right") then nudgedX = nudgedX + 1 end
+            if arrowEdge("UpArrow",    "ke_up")    then nudgedY = nudgedY + 1 end
+            if arrowEdge("DownArrow",  "ke_down")  then nudgedY = nudgedY - 1 end
+            if nudgedX ~= 0 or nudgedY ~= 0 then
+                offsetX = offsetX + nudgedX
+                offsetY = offsetY + nudgedY
+                updateInputsFromOffset()
+                fireUpdatePreview()
+            end
         end,
 
         updatePreview = function(element)
@@ -969,31 +1289,36 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
 
             local children = {}
 
-            -- Existing map image.
-            if existingImageId ~= nil then
+            -- Update persistent backdrop panels with current positions.
+            if realignTarget ~= nil then
+                for i, ref in ipairs(references) do
+                    local ex, ey, ew, eh = rectToPanel(ref.x1, ref.y1, ref.x2 - ref.x1, ref.y2 - ref.y1)
+                    if refImagePanels[i] ~= nil then
+                        refImagePanels[i].x = ex
+                        refImagePanels[i].y = ey
+                        refImagePanels[i].selfStyle.width = ew
+                        refImagePanels[i].selfStyle.height = eh
+                        children[#children+1] = refImagePanels[i]
+                    end
+                end
+            elseif refImagePanels[1] ~= nil then
                 local ex, ey, ew, eh = rectToPanel(dim.x1, dim.y1, mapW, mapH)
-                children[#children+1] = gui.Panel{
-                    bgimage = existingImageId,
-                    bgimageStreamed = existingImageId,
-                    bgcolor = "white",
-                    halign = "left", valign = "top",
-                    x = ex, y = ey,
-                    width = ew, height = eh,
-                }
+                refImagePanels[1].x = ex
+                refImagePanels[1].y = ey
+                refImagePanels[1].selfStyle.width = ew
+                refImagePanels[1].selfStyle.height = eh
+                children[#children+1] = refImagePanels[1]
             end
 
-            -- New floor image.
-            if newImageId ~= nil then
+            -- Update persistent moving-floor panel.
+            if movingImagePanel ~= nil then
                 local nx, ny, nw, nh = rectToPanel(offsetX, offsetY, floorW, floorH)
-                children[#children+1] = gui.Panel{
-                    bgimage = newImageId,
-                    bgimageInit = true,
-                    bgcolor = "white",
-                    opacity = newFloorOpacity,
-                    halign = "left", valign = "top",
-                    x = nx, y = ny,
-                    width = nw, height = nh,
-                }
+                movingImagePanel.x = nx
+                movingImagePanel.y = ny
+                movingImagePanel.selfStyle.width = nw
+                movingImagePanel.selfStyle.height = nh
+                movingImagePanel.opacity = newFloorOpacity
+                children[#children+1] = movingImagePanel
             end
 
             -- Grid lines: only draw visible ones.
@@ -1041,28 +1366,35 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
                 end
             end
 
-            -- Existing map border.
-            do
+            -- Reference borders (persistent).
+            if realignTarget ~= nil then
+                for i, ref in ipairs(references) do
+                    if refBorderPanels[i] ~= nil then
+                        local bx, by, bw, bh = rectToPanel(ref.x1, ref.y1, ref.x2 - ref.x1, ref.y2 - ref.y1)
+                        refBorderPanels[i].x = bx
+                        refBorderPanels[i].y = by
+                        refBorderPanels[i].selfStyle.width = bw
+                        refBorderPanels[i].selfStyle.height = bh
+                        children[#children+1] = refBorderPanels[i]
+                    end
+                end
+            elseif canvasBorderPanel ~= nil then
                 local bx, by, bw, bh = rectToPanel(dim.x1, dim.y1, mapW, mapH)
-                children[#children+1] = gui.Panel{
-                    halign = "left", valign = "top",
-                    x = bx, y = by,
-                    width = bw, height = bh,
-                    borderColor = "#6699cc",
-                    borderWidth = 2,
-                }
+                canvasBorderPanel.x = bx
+                canvasBorderPanel.y = by
+                canvasBorderPanel.selfStyle.width = bw
+                canvasBorderPanel.selfStyle.height = bh
+                children[#children+1] = canvasBorderPanel
             end
 
-            -- New floor border.
+            -- Moving floor border (persistent).
             do
                 local bx, by, bw, bh = rectToPanel(offsetX, offsetY, floorW, floorH)
-                children[#children+1] = gui.Panel{
-                    halign = "left", valign = "top",
-                    x = bx, y = by,
-                    width = bw, height = bh,
-                    borderColor = "#cc9966",
-                    borderWidth = 2,
-                }
+                movingBorderPanel.x = bx
+                movingBorderPanel.y = by
+                movingBorderPanel.selfStyle.width = bw
+                movingBorderPanel.selfStyle.height = bh
+                children[#children+1] = movingBorderPanel
             end
 
             element.children = children
@@ -1089,10 +1421,24 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
     }
 
     local function resetView()
-        local cx1 = math.min(dim.x1, offsetX)
-        local cy1 = math.min(dim.y1, offsetY)
-        local cx2 = math.max(dim.x2, offsetX + floorW)
-        local cy2 = math.max(dim.y2, offsetY + floorH)
+        local cx1, cy1, cx2, cy2
+        if realignTarget ~= nil then
+            cx1 = offsetX
+            cy1 = offsetY
+            cx2 = offsetX + floorW
+            cy2 = offsetY + floorH
+            for _, ref in ipairs(references) do
+                cx1 = math.min(cx1, ref.x1)
+                cy1 = math.min(cy1, ref.y1)
+                cx2 = math.max(cx2, ref.x2)
+                cy2 = math.max(cy2, ref.y2)
+            end
+        else
+            cx1 = math.min(dim.x1, offsetX)
+            cy1 = math.min(dim.y1, offsetY)
+            cx2 = math.max(dim.x2, offsetX + floorW)
+            cy2 = math.max(dim.y2, offsetY + floorH)
+        end
         viewCenterX = (cx1 + cx2) / 2
         viewCenterY = (cy1 + cy2) / 2
         local cw = cx2 - cx1
@@ -1101,6 +1447,36 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
         viewZoom = 1.0
         fireUpdatePreview()
     end
+
+    -- Zoom slider, log-scaled so the user can sweep across the [minZoom, maxZoom]
+    -- range smoothly. Slider value 0..100 maps to log(minZoom)..log(maxZoom).
+    local logMin = math.log(minZoom)
+    local logMax = math.log(maxZoom)
+    local function zoomToSlider(z)
+        return (math.log(z) - logMin) / (logMax - logMin) * 100
+    end
+    local function sliderToZoom(s)
+        return math.exp(s / 100 * (logMax - logMin) + logMin)
+    end
+
+    local zoomSlider = gui.Slider{
+        style = { height = 20, width = 200, fontSize = 14 },
+        sliderWidth = 140,
+        labelWidth = 60,
+        minValue = 0,
+        maxValue = 100,
+        value = zoomToSlider(viewZoom),
+        change = function(element)
+            viewZoom = sliderToZoom(element.value)
+            fireUpdatePreview()
+        end,
+        thinkTime = 0.1,
+        think = function(element)
+            if not element.dragging then
+                element.data.setValueNoEvent(zoomToSlider(viewZoom))
+            end
+        end,
+    }
 
     local controlsPanel = gui.Panel{
         width = "100%",
@@ -1149,6 +1525,38 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
                 opacitySlider,
             },
 
+            gui.Panel{
+                width = "auto",
+                height = "auto",
+                flow = "horizontal",
+                hmargin = 16,
+
+                gui.Label{
+                    classes = {"sizeS"},
+                    width = "auto",
+                    height = "auto",
+                    -- fontSize = 16,
+                    text = "Zoom: ",
+                },
+                zoomSlider,
+            },
+
+            gui.Panel{
+                width = "auto",
+                height = "auto",
+                flow = "horizontal",
+                hmargin = 16,
+
+                gui.Label{
+                    classes = {"sizeS"},
+                    width = "auto",
+                    height = "auto",
+                    -- fontSize = 16,
+                    text = "Zoom: ",
+                },
+                zoomSlider,
+            },
+
             gui.Button{
                 classes = {"sizeS"},
                 text = "Reset View",
@@ -1163,7 +1571,9 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
             width = "auto",
             height = "auto",
             fontSize = 12,
-            text = "Drag the new floor to position it. Scroll to zoom. Middle-click drag or drag background to pan.",
+            text = realignTarget ~= nil
+                and "Drag this floor to reposition it. Scroll or use the zoom slider. Middle-click drag or drag background to pan."
+                or "Drag the new floor to position it. Scroll or use the zoom slider. Middle-click drag or drag background to pan.",
         },
     }
 
@@ -1171,7 +1581,7 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
         id = "alignDialog",
         classes = {"framedPanel"},
         width = 1000,
-        height = 900,
+        height = 940,
         pad = 16,
         flow = "vertical",
         styles = ThemeEngine.GetStyles(),
@@ -1191,7 +1601,9 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
                 width = "auto",
                 height = "auto",
                 fontSize = 14,
-                text = string.format("Existing map: %dx%d tiles  |  New floor: %dx%d tiles", mapW, mapH, floorW, floorH),
+                text = realignTarget ~= nil
+                    and string.format("Floor: %.2f x %.2f tiles  |  %d other map object(s) shown.", floorW, floorH, #references)
+                    or string.format("Existing map: %dx%d tiles  |  New floor: %dx%d tiles", mapW, mapH, floorW, floorH),
             },
         },
 
@@ -1211,9 +1623,24 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
                 classes = {"sizeL"},
                 text = "Confirm",
                 click = function()
-                    printf("FLOOR_ALIGN:: Confirm clicked: offsetX=%d offsetY=%d", offsetX, offsetY)
-                    gui.CloseModal()
-                    mod.shared.FinishFloorImport(info, offsetX, offsetY)
+                    if realignTarget ~= nil then
+                        -- Convert offset (top-left of rendered image, == areaX1/Y1)
+                        -- back to obj.x/obj.y using the renderer's pivot. This is
+                        -- the inverse of `areaX1 = pos.x - imageWorldWidth * mapPivot.x`.
+                        local newPosX = offsetX + floorW * realignPivotX
+                        local newPosY = offsetY + floorH * realignPivotY
+                        printf("FLOOR_REALIGN:: Confirm clicked: offset=(%.4f, %.4f) pivot=(%.6f, %.6f) -> obj.x=%.4f obj.y=%.4f",
+                            offsetX, offsetY, realignPivotX, realignPivotY, newPosX, newPosY)
+                        gui.CloseModal()
+                        realignTarget:MarkUndo()
+                        realignTarget.x = newPosX
+                        realignTarget.y = newPosY
+                        realignTarget:Upload()
+                    else
+                        printf("FLOOR_ALIGN:: Confirm clicked: offsetX=%d offsetY=%d", offsetX, offsetY)
+                        gui.CloseModal()
+                        mod.shared.FinishFloorImport(info, offsetX, offsetY)
+                    end
                 end,
             },
 
@@ -1713,21 +2140,27 @@ mod.shared.FinishFloorImport = function(info, offsetX, offsetY)
 
         -- Step 3: Expand map dimensions to encompass the new floor.
         -- Done here (after floor creation) to avoid conflicting manifest patches.
-        map = getMap()
-        if map ~= nil then
-            local dim = map.dimensions
-            local newX2 = offsetX + floorW
-            local newY2 = offsetY + floorH
-            local needsExpand = (offsetX < dim.x1 or offsetY < dim.y1 or newX2 > dim.x2 or newY2 > dim.y2)
-            if needsExpand then
-                map.dimensions = {
-                    x1 = math.min(dim.x1, offsetX),
-                    y1 = math.min(dim.y1, offsetY),
-                    x2 = math.max(dim.x2, newX2),
-                    y2 = math.max(dim.y2, newY2),
-                }
-                map:Upload("Expand map for new floor")
-                printf("FLOOR_IMPORT:: Expanded map dimensions")
+        -- Skip in match mode: the new floor occupies the same world bounds as the
+        -- existing floor it's matching, which is already inside the canvas.
+        if info.matchCalibration ~= nil then
+            printf("FLOOR_IMPORT:: matchCalibration in effect; skipping canvas expansion.")
+        else
+            map = getMap()
+            if map ~= nil then
+                local dim = map.dimensions
+                local newX2 = offsetX + floorW
+                local newY2 = offsetY + floorH
+                local needsExpand = (offsetX < dim.x1 or offsetY < dim.y1 or newX2 > dim.x2 or newY2 > dim.y2)
+                if needsExpand then
+                    map.dimensions = {
+                        x1 = math.min(dim.x1, offsetX),
+                        y1 = math.min(dim.y1, offsetY),
+                        x2 = math.max(dim.x2, newX2),
+                        y2 = math.max(dim.y2, newY2),
+                    }
+                    map:Upload("Expand map for new floor")
+                    printf("FLOOR_IMPORT:: Expanded map dimensions")
+                end
             end
         end
 
@@ -1735,18 +2168,129 @@ mod.shared.FinishFloorImport = function(info, offsetX, offsetY)
         for i = 1, 30 do coroutine.yield(0.01) end
 
         -- Step 4: Spawn the imported map image onto the layer.
+        -- If matchCalibration is present, we override the new object's controlPoints/scaling/mapType
+        -- with the existing map's, and place it at the existing's (x, y) so the world bounds match.
+        local applyMatch = info.matchCalibration ~= nil
+        if applyMatch then
+            printf("FLOOR_IMPORT:: matchCalibration in effect; will override new object calibration to match existing.")
+        end
+        local newlySpawnedObjs = {}
         for _, objid in ipairs(info.objids) do
-            printf("FLOOR_IMPORT:: Spawning objid=%s onto layer=%s at (%.1f, %.1f)", objid, mapLayer.floorid, objCenterX, objCenterY)
+            local placeX = applyMatch and info.matchCalibration.x or objCenterX
+            local placeY = applyMatch and info.matchCalibration.y or objCenterY
+            printf("FLOOR_IMPORT:: Spawning objid=%s onto layer=%s at (%.4f, %.4f)%s",
+                objid, mapLayer.floorid, placeX, placeY, applyMatch and " [match mode]" or "")
             local obj = mapLayer:SpawnObjectLocal(objid)
             if obj ~= nil then
-                obj.x = objCenterX
-                obj.y = objCenterY
+                if applyMatch then
+                    obj:ApplyMapCalibration(info.matchCalibration)
+                end
+                obj.x = placeX
+                obj.y = placeY
                 obj:Upload()
-                printf("FLOOR_IMPORT:: Spawned OK. obj.x=%.1f obj.y=%.1f floorIndex=%s", obj.x, obj.y, json(obj.floorIndex))
+                printf("FLOOR_IMPORT:: Spawned OK. obj.x=%.4f obj.y=%.4f floorIndex=%s", obj.x, obj.y, json(obj.floorIndex))
+                newlySpawnedObjs[#newlySpawnedObjs+1] = obj
             else
                 printf("FLOOR_IMPORT:: ERROR: SpawnObjectLocal returned nil for %s", objid)
             end
         end
+
+        -- Wait a few frames so the spawned objects render and ObjectComponentMap.Calculate() runs.
+        for i = 1, 60 do coroutine.yield(0.01) end
+
+        -- Diagnostic: dump calibration for every Map LevelObject on the map (existing + new).
+        printf("FLOOR_ALIGN_DIAG:: ===== Post-spawn calibration dump =====")
+        map = getMap()
+        if map ~= nil then
+            local mapCount = 0
+            for _, floor in ipairs(map.floors) do
+                for _, obj in pairs(floor.objects) do
+                    if obj:GetComponent("Map") ~= nil then
+                        mapCount = mapCount + 1
+                        local d = obj.mapAlignmentDiagnostic
+                        printf("FLOOR_ALIGN_DIAG:: Post-spawn Map object [%d] floorid=%s objid=%s calibration=%s",
+                            mapCount, floor.floorid, obj.id, json(d))
+                    end
+                end
+            end
+            printf("FLOOR_ALIGN_DIAG:: Total Map objects on map after spawn: %d", mapCount)
+        end
+
+        -- Pairwise alignment delta check: compare the first 'existing' Map object
+        -- to each newly-spawned one in tile-space and pixel-space.
+        if #newlySpawnedObjs > 0 then
+            map = getMap()
+            local existingDiag = nil
+            local existingFloorId = nil
+            local existingObjId = nil
+            for _, floor in ipairs(map.floors) do
+                for _, obj in pairs(floor.objects) do
+                    if obj:GetComponent("Map") ~= nil then
+                        local isNew = false
+                        for _, n in ipairs(newlySpawnedObjs) do
+                            if n.id == obj.id then isNew = true break end
+                        end
+                        if not isNew then
+                            existingDiag = obj.mapAlignmentDiagnostic
+                            existingFloorId = floor.floorid
+                            existingObjId = obj.id
+                            break
+                        end
+                    end
+                end
+                if existingDiag ~= nil then break end
+            end
+
+            if existingDiag ~= nil then
+                printf("FLOOR_ALIGN_DIAG:: Reference (existing) Map object floorid=%s objid=%s", existingFloorId, existingObjId)
+                for _, newObj in ipairs(newlySpawnedObjs) do
+                    local newDiag = newObj.mapAlignmentDiagnostic
+                    if newDiag == nil then
+                        printf("FLOOR_ALIGN_DIAG:: New object %s had nil mapAlignmentDiagnostic", newObj.id)
+                    else
+                        local function get(t, k) return t[k] end
+                        local exTilesX = get(existingDiag, "tilesAcross") or 0
+                        local newTilesX = get(newDiag, "tilesAcross") or 0
+                        local exTilesY = get(existingDiag, "tilesDown") or 0
+                        local newTilesY = get(newDiag, "tilesDown") or 0
+                        local exImgW = get(existingDiag, "imageWorldWidth") or 0
+                        local newImgW = get(newDiag, "imageWorldWidth") or 0
+                        local exImgH = get(existingDiag, "imageWorldHeight") or 0
+                        local newImgH = get(newDiag, "imageWorldHeight") or 0
+                        local exX1 = get(existingDiag, "areaX1") or 0
+                        local exY1 = get(existingDiag, "areaY1") or 0
+                        local exX2 = get(existingDiag, "areaX2") or 0
+                        local exY2 = get(existingDiag, "areaY2") or 0
+                        local newX1 = get(newDiag, "areaX1") or 0
+                        local newY1 = get(newDiag, "areaY1") or 0
+                        local newX2 = get(newDiag, "areaX2") or 0
+                        local newY2 = get(newDiag, "areaY2") or 0
+                        printf("FLOOR_ALIGN_DIAG:: COMPARE existing vs new:")
+                        printf("FLOOR_ALIGN_DIAG::   existing: pos=(%.4f, %.4f) area=(%.4f, %.4f)-(%.4f, %.4f) imgWorld=(%.4f x %.4f) tiles=(%.4f x %.4f) tileDim=(%.6f, %.6f) pivot=(%.6f, %.6f) px/tile=(%.4f x %.4f)",
+                            get(existingDiag,"x") or 0, get(existingDiag,"y") or 0,
+                            exX1, exY1, exX2, exY2, exImgW, exImgH, exTilesX, exTilesY,
+                            get(existingDiag,"tileDimX") or 0, get(existingDiag,"tileDimY") or 0,
+                            get(existingDiag,"mapPivotX") or 0, get(existingDiag,"mapPivotY") or 0,
+                            get(existingDiag,"pixelsPerTileX") or 0, get(existingDiag,"pixelsPerTileY") or 0)
+                        printf("FLOOR_ALIGN_DIAG::   new     : pos=(%.4f, %.4f) area=(%.4f, %.4f)-(%.4f, %.4f) imgWorld=(%.4f x %.4f) tiles=(%.4f x %.4f) tileDim=(%.6f, %.6f) pivot=(%.6f, %.6f) px/tile=(%.4f x %.4f)",
+                            get(newDiag,"x") or 0, get(newDiag,"y") or 0,
+                            newX1, newY1, newX2, newY2, newImgW, newImgH, newTilesX, newTilesY,
+                            get(newDiag,"tileDimX") or 0, get(newDiag,"tileDimY") or 0,
+                            get(newDiag,"mapPivotX") or 0, get(newDiag,"mapPivotY") or 0,
+                            get(newDiag,"pixelsPerTileX") or 0, get(newDiag,"pixelsPerTileY") or 0)
+                        printf("FLOOR_ALIGN_DIAG::   delta   : pos=(%.4f, %.4f) topLeft=(%.4f, %.4f) bottomRight=(%.4f, %.4f) imgWorld=(%.4f x %.4f) tilesAcross=%.6f tilesDown=%.6f",
+                            (get(newDiag,"x") or 0) - (get(existingDiag,"x") or 0),
+                            (get(newDiag,"y") or 0) - (get(existingDiag,"y") or 0),
+                            newX1 - exX1, newY1 - exY1, newX2 - exX2, newY2 - exY2,
+                            newImgW - exImgW, newImgH - exImgH,
+                            newTilesX - exTilesX, newTilesY - exTilesY)
+                    end
+                end
+            else
+                printf("FLOOR_ALIGN_DIAG:: No pre-existing Map object to compare against.")
+            end
+        end
+        printf("FLOOR_ALIGN_DIAG:: ===== End post-spawn calibration dump =====")
 
         -- Final state log.
         printf("FLOOR_IMPORT:: --- Final floor state ---")

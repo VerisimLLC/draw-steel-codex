@@ -59,6 +59,10 @@ mod.shared.ImportMapDialog = function(paths, options)
     local perfectFitChecked = false
     local perfectFitActive = false
 
+    -- Forward-declare so the confirmButton closure (defined below) can capture them as upvalues.
+    -- Set later inside the floorImport branch when the user clicks "Match Existing Map".
+    local matchApplied = false
+    local capturedMatchCalibration = nil
 
     local confirmButton = gui.Button{
         classes = {"sizeL", "hidden"},
@@ -76,6 +80,10 @@ mod.shared.ImportMapDialog = function(paths, options)
                     local imgW = importPanel.imageWidth
                     local imgH = importPanel.imageHeight
 
+                    printf("FLOOR_ALIGN_DIAG:: Confirm finish (Finish button). imgW=%s imgH=%s info.width=%s info.height=%s matchApplied=%s",
+                        tostring(imgW), tostring(imgH), tostring(info.width), tostring(info.height), tostring(matchApplied))
+                    printf("FLOOR_ALIGN_DIAG:: Confirm info=%s", json(info))
+
                     gui.CloseModal()
 
                     g_modalDialog = nil
@@ -85,6 +93,10 @@ mod.shared.ImportMapDialog = function(paths, options)
                         info.paths = paths
                         info.imageWidth = imgW
                         info.imageHeight = imgH
+                        if matchApplied and capturedMatchCalibration ~= nil then
+                            info.matchCalibration = capturedMatchCalibration
+                            printf("FLOOR_ALIGN_DIAG:: Attached matchCalibration to info: %s", json(capturedMatchCalibration))
+                        end
                         options.finish(info)
                     end
                     return
@@ -164,12 +176,36 @@ mod.shared.ImportMapDialog = function(paths, options)
 
     -- "Match Existing Map" panel for floor imports.
     local matchMapPanel = nil
-    local matchApplied = false
 
     if options.floorImport then
         local dim = game.currentMap.dimensions
         local mapW = dim.x2 - dim.x1
         local mapH = dim.y2 - dim.y1
+
+        printf("FLOOR_ALIGN_DIAG:: ImportMapDialog opened with floorImport=true. Existing currentMap.dimensions: x1=%s y1=%s x2=%s y2=%s -> mapW=%d mapH=%d",
+            json(dim.x1), json(dim.y1), json(dim.x2), json(dim.y2), mapW, mapH)
+
+        -- Try to find the existing primary map LevelObject so we can compare calibration later.
+        local existingMapObj = nil
+        for _, floor in ipairs(game.currentMap.floors) do
+            for _, obj in pairs(floor.objects) do
+                if obj:GetComponent("Map") ~= nil then
+                    existingMapObj = obj
+                    break
+                end
+            end
+            if existingMapObj ~= nil then break end
+        end
+        if existingMapObj ~= nil then
+            local d = existingMapObj.mapAlignmentDiagnostic
+            if d ~= nil then
+                printf("FLOOR_ALIGN_DIAG:: Existing map LevelObject calibration: %s", json(d))
+            else
+                printf("FLOOR_ALIGN_DIAG:: existingMapObj had no mapAlignmentDiagnostic (component not yet calculated?)")
+            end
+        else
+            printf("FLOOR_ALIGN_DIAG:: No existing map LevelObject with a Map component found on currentMap.")
+        end
 
         if mapW > 0 and mapH > 0 then
             local matchInfoLabel = gui.Label{
@@ -191,6 +227,8 @@ mod.shared.ImportMapDialog = function(paths, options)
                     local tileW = imgW / mapW
                     local tileH = imgH / mapH
                     local ratio = math.abs(tileW - tileH) / math.max(tileW, tileH)
+                    printf("FLOOR_ALIGN_DIAG:: updateMatchInfo: imgW=%s imgH=%s mapW=%d mapH=%d -> tileW=%.4f tileH=%.4f ratio=%.4f",
+                        tostring(imgW), tostring(imgH), mapW, mapH, tileW, tileH, ratio)
                     if ratio < 0.02 then
                         matchInfoLabel.text = string.format("Image dimensions match the existing map. Tile size would be %.0f x %.0f px.", tileW, tileH)
                     else
@@ -214,6 +252,53 @@ mod.shared.ImportMapDialog = function(paths, options)
                     halign = "left",
                     vmargin = 4,
                     click = function(element)
+                        printf("FLOOR_ALIGN_DIAG:: 'Match Existing Map' clicked. Calling CreateGridless + SetMapDimensions(%d, %d). imgW=%s imgH=%s",
+                            mapW, mapH, tostring(importPanel.imageWidth), tostring(importPanel.imageHeight))
+
+                        -- Capture the existing Map LevelObject's calibration so the
+                        -- new floor can copy controlPoints/scaling/mapType verbatim.
+                        -- This makes the new image render with identical _tileDim and
+                        -- _mapPivot, so it occupies the same world bounds as the existing
+                        -- when placed at the same (obj.x, obj.y).
+                        capturedMatchCalibration = nil
+                        for _, floor in ipairs(game.currentMap.floors) do
+                            for _, obj in pairs(floor.objects) do
+                                if obj:GetComponent("Map") ~= nil then
+                                    local d = obj.mapAlignmentDiagnostic
+                                    if d ~= nil then
+                                        local cps = {}
+                                        local cpCount = d.controlPointCount or 0
+                                        if d.controlPoints ~= nil then
+                                            for i = 1, cpCount do
+                                                local p = d.controlPoints[i]
+                                                if p ~= nil then
+                                                    cps[#cps+1] = {x = p.x, y = p.y}
+                                                end
+                                            end
+                                        end
+                                        capturedMatchCalibration = {
+                                            controlPoints = cps,
+                                            scaling = d.scaling or 1,
+                                            mapType = d.mapType or "squares",
+                                            x = d.x or 0,
+                                            y = d.y or 0,
+                                            sourceFloorid = d.floorid,
+                                            sourceObjid = d.objid,
+                                            sourceTileDimX = d.tileDimX,
+                                            sourceTileDimY = d.tileDimY,
+                                        }
+                                        printf("FLOOR_ALIGN_DIAG:: Captured match calibration from %s/%s: cps=%d, scaling=%d, mapType=%s, x=%.4f, y=%.4f",
+                                            d.floorid, d.objid, #cps, d.scaling or 1, tostring(d.mapType), d.x or 0, d.y or 0)
+                                        break
+                                    end
+                                end
+                            end
+                            if capturedMatchCalibration ~= nil then break end
+                        end
+                        if capturedMatchCalibration == nil then
+                            printf("FLOOR_ALIGN_DIAG:: WARNING: Match Existing Map clicked but no existing Map LevelObject found to capture from.")
+                        end
+
                         importPanel:CreateGridless()
                         gridlessChoice.value = false
                         importPanel:SetMapDimensions(mapW, mapH)

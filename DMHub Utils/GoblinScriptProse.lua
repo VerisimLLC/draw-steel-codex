@@ -606,6 +606,10 @@ end
 
 local Render = {}
 
+-- Forward declaration so Render.atomNode's De Morgan branch can call
+-- joinChain (defined further down). Lua locals don't resolve forward.
+local joinChain
+
 local function resolveEntry(entry, ctx)
     if entry == nil then return nil end
     if type(entry) == "string" then return entry end
@@ -902,6 +906,55 @@ end
 function Render.atomBoolNode(atom, ctx, src, negated)
     if atom == nil then return rawSpan(src, 0, 0) end
     if atom.kind == "ident" or atom.kind == "dotted" then
+        -- Classification-boolean prose for dotted access on a role head.
+        -- `Self.Winded`, `Subject.Solo`, `Subject.Leader` etc. previously
+        -- rendered as "your winded" / "your solo" via the possessive form,
+        -- which reads as if the property were a possession. These are
+        -- actually classification states -- "are you winded?", "is the
+        -- subject a solo?". Render with copula form when the head is a
+        -- role; "Has X"-prefixed tails switch to have-form.
+        if atom.kind == "dotted" and atom.parts and #atom.parts >= 2 then
+            local parentKey = normalise(atom.parts[1])
+            local roleNoun, roleCop, roleCopNeg = nil, nil, nil
+            if parentKey == "self" then
+                roleNoun, roleCop, roleCopNeg = "you", "are", "are not"
+            elseif parentKey == "caster" then
+                roleNoun, roleCop, roleCopNeg = "the aura caster", "is", "is not"
+            elseif parentKey == "subject" then
+                local e = GoblinScriptProse.subjectProse[(ctx and ctx.subject) or ""]
+                    or GoblinScriptProse.subjectProse["self"]
+                if e then
+                    roleNoun = e.role
+                    -- Subject phrasings containing "you" take "are";
+                    -- singular "any X" / "another X" / "the X" take "is".
+                    if string.find(string.lower(roleNoun), "you", 1, true) then
+                        roleCop, roleCopNeg = "are", "are not"
+                    else
+                        roleCop, roleCopNeg = "is", "is not"
+                    end
+                end
+            end
+            if roleNoun then
+                local tailWords = {}
+                for i = 2, #atom.parts do
+                    tailWords[#tailWords + 1] = string.lower(atom.parts[i])
+                end
+                local tail = table.concat(tailWords, " ")
+                -- "Has X" tail switches to have-form: "you have a shield"
+                -- / "you do not have a shield".
+                local hasRest = string.match(tail, "^has%s+(.+)$")
+                if hasRest then
+                    local haveVerb, haveVerbNeg
+                    if roleNoun == "you" or string.find(string.lower(roleNoun), "you", 1, true) then
+                        haveVerb, haveVerbNeg = "have", "do not have"
+                    else
+                        haveVerb, haveVerbNeg = "has", "does not have"
+                    end
+                    return roleNoun .. " " .. (negated and haveVerbNeg or haveVerb) .. " " .. hasRest
+                end
+                return roleNoun .. " " .. (negated and roleCopNeg or roleCop) .. " " .. tail
+            end
+        end
         local frag = lookupSymbol(atom.parts, ctx)
         if frag == nil then return rawSpan(src, atom.start, atom.stop) end
         -- Check for a boolean-specific phrasing. Convention in
@@ -981,12 +1034,35 @@ function Render.atomNode(node, ctx, src)
             if inner.type == "isEq" then return Render.isEqNode(flipped, ctx, src) end
             return Render.hasEqNode(flipped, ctx, src)
         end
+        -- P5: De Morgan distribution for not(or)/not(and). Real bestiary
+        -- formulas like `not (Subject.Leader or Subject.Solo)` would
+        -- previously fall through to rawSpan and emit the literal source.
+        -- Distributing the negation produces natural prose:
+        --   not (A or B) = not A and not B
+        --   not (A and B) = not A or not B
+        if inner and (inner.type == "or" or inner.type == "and") then
+            local newConn = (inner.type == "or") and "and" or "or"
+            local parts = {}
+            for _, child in ipairs(inner.children or {}) do
+                local negated = {
+                    type = "not",
+                    child = child,
+                    start = child.start,
+                    stop = child.stop,
+                }
+                parts[#parts + 1] = Render.node(negated, ctx, src)
+            end
+            return joinChain(parts, newConn)
+        end
         return rawSpan(src, node.start, node.stop)
     end
     return rawSpan(src, node.start or 0, node.stop or 0)
 end
 
-local function joinChain(parts, connective)
+-- Assigns the forward-declared joinChain so atomNode's De Morgan branch
+-- can resolve it. Note: this is `joinChain = function(...)` (assignment),
+-- NOT `local function joinChain` (which would shadow the forward decl).
+joinChain = function(parts, connective)
     if #parts == 0 then return "" end
     if #parts == 1 then return parts[1] end
     if #parts == 2 then return parts[1] .. " " .. connective .. " " .. parts[2] end
@@ -995,18 +1071,35 @@ local function joinChain(parts, connective)
     return table.concat(body, ", ") .. ", " .. connective .. " " .. parts[#parts]
 end
 
+-- P5: render a child of an and/or node, wrapping it in literal parens
+-- when its connective differs from the parent's. English doesn't carry
+-- AND/OR precedence the way GoblinScript does, so `(A or B) and C`
+-- otherwise reads as `A or B and C` -- ambiguous in English, parses as
+-- `A or (B and C)`. Adding visual parens keeps the rendered prose
+-- unambiguous without forcing more elaborate rewrites. Atom-level
+-- children render without parens.
+local function renderChildForBoolean(child, parentConn, ctx, src)
+    local rendered = Render.node(child, ctx, src)
+    if rendered == nil or rendered == "" then return rendered end
+    if (parentConn == "and" and child.type == "or")
+            or (parentConn == "or" and child.type == "and") then
+        return "(" .. rendered .. ")"
+    end
+    return rendered
+end
+
 -- Render any node (boolean composition or atom-level).
 function Render.node(node, ctx, src)
     if node.type == "and" then
         local parts = {}
         for i, child in ipairs(node.children) do
-            parts[i] = Render.node(child, ctx, src)
+            parts[i] = renderChildForBoolean(child, "and", ctx, src)
         end
         return joinChain(parts, "and")
     elseif node.type == "or" then
         local parts = {}
         for i, child in ipairs(node.children) do
-            parts[i] = Render.node(child, ctx, src)
+            parts[i] = renderChildForBoolean(child, "or", ctx, src)
         end
         return joinChain(parts, "or")
     end
@@ -1208,7 +1301,20 @@ function GoblinScriptProse.ListReferencedSymbols(formula)
             -- declared registrations to be valid.
             local nxt = tokens[k + 1]
             local isCall = nxt and nxt.kind == "PUNCT" and nxt.value == "("
-            if not isDottedTail and not isCall then
+            -- Skip identifiers that appear as the RHS of an is/has comparison.
+            -- GoblinScript treats `Resource is Recovery` as equivalent to
+            -- `Resource is "Recovery"` -- the bare ident is shorthand for the
+            -- string literal, not a symbol reference. Real bestiary content
+            -- relies on this shorthand widely (Resource is Recovery / Main
+            -- Action, Damage Type is fire/acid/cold/..., Condition is Dazed,
+            -- Trigger Name is madesave, subject.type is Gnoll, etc.).
+            -- The tokeniser merges multi-word RHS ("Main Action") into a
+            -- single IDENT, so a single look-back at the immediate previous
+            -- OP token suffices.
+            local isRhsLiteral = prev and prev.kind == "OP"
+                and (prev.value == "is" or prev.value == "is not"
+                     or prev.value == "has" or prev.value == "has not")
+            if not isDottedTail and not isCall and not isRhsLiteral then
                 local key = string.lower(t.value)
                 if set[key] == nil then
                     set[key] = t.value
@@ -1318,6 +1424,83 @@ function GoblinScriptProse.ListReferencedDottedAccesses(formula)
 end
 
 --------------------------------------------------------------------------
+-- ListReferencedChainedAccesses
+--------------------------------------------------------------------------
+-- Walks the formula's tokens and returns a list of 3-deep chained dotted
+-- accesses (`<a>.<b>.<c>`). Used by the Test Trigger panel to surface
+-- per-resource numeric overrides for chains like `Subject.Resources.Recovery`,
+-- `Resources.Surges`, and `Self.Resources.Hero Tokens` -- ListReferencedDottedAccesses
+-- intentionally skips chains (it only emits 2-deep accesses), so the
+-- override system needed a parallel walker for the 3-deep case.
+--
+-- Returns a list of `{head, mid, tail, opHint, headLookup, midLookup, tailLookup}`
+-- where:
+--   head/mid/tail = original-cased identifier strings
+--   *Lookup       = lowercase + space-stripped form (matches runtime injection
+--                   identity)
+--   opHint        = same shape as ListReferencedDottedAccesses
+-- Chains 4+ deep are NOT emitted (no real-world usage), but each adjacent
+-- triple in a longer chain produces its own entry, so a 4-deep chain like
+-- `A.B.C.D` would emit two entries (A.B.C and B.C.D) -- callers can dedup
+-- on (head, mid, tail).
+function GoblinScriptProse.ListReferencedChainedAccesses(formula)
+    local result = {}
+    if formula == nil or formula == "" then return result end
+    local tokens = getParsed(formula)
+    if tokens == nil then return result end
+
+    local function deriveHint(opTokenValue, opTokenKind)
+        if opTokenValue == nil then return "bool" end
+        local v = string.lower(opTokenValue or "")
+        if v == "has" then return "has" end
+        if v == "is" or v == "=" or v == "!=" then return "compare-str" end
+        if v == ">=" or v == "<=" or v == ">" or v == "<" then
+            return "compare-num"
+        end
+        if v == "and" or v == "or" then return "bool" end
+        if opTokenKind == "PUNCT" and (v == ")" or v == "(") then return "bool" end
+        return "bool"
+    end
+
+    local function norm(s)
+        if type(s) ~= "string" then return "" end
+        return string.lower(string.gsub(s, "%s+", ""))
+    end
+
+    for k, t in ipairs(tokens) do
+        if t.kind == "IDENT" then
+            local d1 = tokens[k + 1]
+            local mid = tokens[k + 2]
+            local d2 = tokens[k + 3]
+            local tail = tokens[k + 4]
+            if d1 and d1.kind == "PUNCT" and d1.value == "."
+                    and mid and mid.kind == "IDENT"
+                    and d2 and d2.kind == "PUNCT" and d2.value == "."
+                    and tail and tail.kind == "IDENT" then
+                local opTok = tokens[k + 5]
+                -- Skip if tail is being called (`A.B.C(...)`) or extended
+                -- into a 4+ chain (`A.B.C.D` -- emit per-triple still
+                -- handles via the overlapping window).
+                local isCall = opTok and opTok.kind == "PUNCT" and opTok.value == "("
+                if not isCall then
+                    result[#result + 1] = {
+                        head = t.value,
+                        mid = mid.value,
+                        tail = tail.value,
+                        headLookup = norm(t.value),
+                        midLookup = norm(mid.value),
+                        tailLookup = norm(tail.value),
+                        opHint = deriveHint(opTok and opTok.value, opTok and opTok.kind),
+                    }
+                end
+            end
+        end
+    end
+
+    return result
+end
+
+--------------------------------------------------------------------------
 -- WalkLiteralComparisons
 --------------------------------------------------------------------------
 -- Walks the AST of a formula and invokes the callback once for each leaf
@@ -1327,9 +1510,16 @@ end
 -- formula doesn't parse.
 --
 -- Callback signature: callback(info) where info = {
---   op    = "has" | "is" | "=" | "!=" -- which operator
---   lhs   = <atom>   -- the LHS atom (kind = "ident" / "dotted" / "call")
---   rhs   = <string> -- the unquoted literal value
+--   op      = "has" | "is" | "=" | "!=" -- which operator
+--   lhs     = <atom>   -- the LHS atom (kind = "ident" / "dotted" / "call")
+--   rhs     = <string> -- the unquoted literal value
+--   rhsKind = "string" | "ident" -- "string" for quoted RHS ("Recovery"),
+--             "ident" for bare-ident RHS (Recovery). GoblinScript treats
+--             the latter as an implicit string literal in is/is-not RHS
+--             position, so consumers that validate against canonical tables
+--             (resources, conditions, damage types, ongoing effects) should
+--             treat both kinds the same. has/has-not don't appear with bare
+--             RHS in real content, so this only fires for isEq.
 --   negated = bool   -- true for "is not" / "has not" / "!="
 -- }
 function GoblinScriptProse.WalkLiteralComparisons(formula, callback)
@@ -1341,6 +1531,23 @@ function GoblinScriptProse.WalkLiteralComparisons(formula, callback)
         if tokens == nil or #tokens == 0 then return end
         if ast == nil then return end
 
+        -- Resolve a bare-ident or dotted RHS atom to the implicit string
+        -- literal it represents in is/is-not RHS position. Returns the
+        -- ident's display name (e.g. "Recovery", "Main Action") -- the
+        -- normalisation matches the case-insensitive comparison runtime
+        -- semantics. Returns nil for any other atom shape (calls, paren'd
+        -- sub-expressions, numbers).
+        local function rhsIdentName(atom)
+            if atom == nil then return nil end
+            if atom.kind == "ident" then return atom.name end
+            if atom.kind == "dotted" and atom.parts then
+                -- Dotted RHS like `Subject.X` is rare and probably refers
+                -- to an actual property -- don't treat as literal.
+                return nil
+            end
+            return nil
+        end
+
         local function visit(node)
             if node == nil then return end
             if node.type == "and" or node.type == "or" then
@@ -1351,23 +1558,51 @@ function GoblinScriptProse.WalkLiteralComparisons(formula, callback)
                 visit(node.child)
                 return
             end
-            if node.type == "hasEq" and node.right and node.right.kind == "string" then
-                callback({
-                    op = "has",
-                    lhs = node.left,
-                    rhs = node.right.value,
-                    negated = node.negated or false,
-                })
-                return
+            if node.type == "hasEq" and node.right then
+                if node.right.kind == "string" then
+                    callback({
+                        op = "has",
+                        lhs = node.left,
+                        rhs = node.right.value,
+                        rhsKind = "string",
+                        negated = node.negated or false,
+                    })
+                    return
+                end
+                local identName = rhsIdentName(node.right)
+                if identName ~= nil then
+                    callback({
+                        op = "has",
+                        lhs = node.left,
+                        rhs = identName,
+                        rhsKind = "ident",
+                        negated = node.negated or false,
+                    })
+                    return
+                end
             end
-            if node.type == "isEq" and node.right and node.right.kind == "string" then
-                callback({
-                    op = "is",
-                    lhs = node.left,
-                    rhs = node.right.value,
-                    negated = node.negated or false,
-                })
-                return
+            if node.type == "isEq" and node.right then
+                if node.right.kind == "string" then
+                    callback({
+                        op = "is",
+                        lhs = node.left,
+                        rhs = node.right.value,
+                        rhsKind = "string",
+                        negated = node.negated or false,
+                    })
+                    return
+                end
+                local identName = rhsIdentName(node.right)
+                if identName ~= nil then
+                    callback({
+                        op = "is",
+                        lhs = node.left,
+                        rhs = identName,
+                        rhsKind = "ident",
+                        negated = node.negated or false,
+                    })
+                    return
+                end
             end
             if node.type == "compare" and node.right and node.right.kind == "string"
                 and (node.op == "=" or node.op == "!=" or node.op == "~=" or node.op == "<>") then
@@ -1375,6 +1610,7 @@ function GoblinScriptProse.WalkLiteralComparisons(formula, callback)
                     op = node.op == "=" and "=" or "!=",
                     lhs = node.left,
                     rhs = node.right.value,
+                    rhsKind = "string",
                     negated = node.op ~= "=",
                 })
                 return
@@ -1469,12 +1705,20 @@ function GoblinScriptProse.ExtractSatisfyingValues(formula)
                 if name == nil then return end
                 if node.right.kind == "string" then setIfAbsent(name, node.right.value)
                 elseif node.right.kind == "number" then setIfAbsent(name, node.right.value)
+                elseif node.right.kind == "ident" and node.right.name then
+                    -- Bare-ident RHS is the engine's implicit-string-literal
+                    -- shorthand (`Resource is Recovery` ~= `Resource is "Recovery"`).
+                    -- Treat it as the literal so the test panel pre-fills the
+                    -- dropdown to the named resource. Same intent as quoted RHS.
+                    setIfAbsent(name, node.right.name)
                 end
             elseif node.type == "hasEq" and not node.negated then
                 local name = atomIdent(node.left)
                 if name == nil then return end
                 if node.right.kind == "string" then
                     setIfAbsent(name, { [node.right.value] = true })
+                elseif node.right.kind == "ident" and node.right.name then
+                    setIfAbsent(name, { [node.right.name] = true })
                 end
             elseif node.type == "atom" then
                 local name = atomIdent(node.atom)
@@ -1651,7 +1895,9 @@ function GoblinScriptProse.AttributeFailure(formula, ctx, evalLeaf)
                         }
                     end
                     if tonumber(v) == 0 or v == false or v == nil then
-                        if child.type == "and" or child.type == "or" then
+                        if child.type == "and" or child.type == "or"
+                                or (child.type == "not" and child.child
+                                    and (child.child.type == "or" or child.child.type == "and")) then
                             local nested = walk(child)
                             if nested ~= nil then return nested end
                         end
@@ -1673,9 +1919,44 @@ function GoblinScriptProse.AttributeFailure(formula, ctx, evalLeaf)
                     local childSrc = rawSpan(formula, child.start, child.stop)
                     local v, err = evalLeaf(childSrc)
                     local info = leafInfo(child, v, err)
+                    -- P6: drill into OR-of-AND. A child that's itself an
+                    -- AND has a specific failing leaf inside it -- recurse
+                    -- and attach so the consumer can render "needed X
+                    -- (A failed inside the AND)" or similar. Other compound
+                    -- shapes (nested OR, not-compound) get the same
+                    -- recursive lookup. Keep the top-level info so the
+                    -- existing renderer keeps working unchanged.
+                    if (child.type == "and" or child.type == "or"
+                            or (child.type == "not" and child.child
+                                and (child.child.type == "or" or child.child.type == "and"))) then
+                        local nested = walk(child)
+                        if nested ~= nil then
+                            info.subAttr = nested
+                        end
+                    end
                     clauses[#clauses + 1] = info
                 end
                 return { kind = "or", clauses = clauses }
+            elseif node.type == "not" and node.child
+                    and (node.child.type == "or" or node.child.type == "and") then
+                -- P6: not(or)/not(and) attribution. The outer not failed,
+                -- so the inner expression evaluated to TRUE. List the
+                -- clauses inside the inner that were truthy -- those are
+                -- the ones the user needs to flip off.
+                local inner = node.child
+                local trueClauses = {}
+                for _, child in ipairs(inner.children or {}) do
+                    local childSrc = rawSpan(formula, child.start, child.stop)
+                    local v, err = evalLeaf(childSrc)
+                    if err == nil and not (tonumber(v) == 0 or v == false or v == nil) then
+                        trueClauses[#trueClauses + 1] = leafInfo(child, v, nil)
+                    end
+                end
+                return {
+                    kind = "not-compound",
+                    innerKind = inner.type,
+                    trueClauses = trueClauses,
+                }
             else
                 local nodeSrc = rawSpan(formula, node.start, node.stop)
                 local v, err = evalLeaf(nodeSrc)

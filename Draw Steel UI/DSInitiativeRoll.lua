@@ -1138,7 +1138,7 @@ local function ShowCombatSetupDialog(selectedTokens)
         args.sideline = nil
         local pool
         pool = {
-            classes = {"tokenPool"},
+            classes = {"tokenPool", "bordered"},
             dragTarget = true,
             flow = "vertical",
             vscroll = true,
@@ -1403,11 +1403,10 @@ local function ShowCombatSetupDialog(selectedTokens)
             height = "auto",
             valign = "top",
             gui.Label{
-                fontSize = 22,
+                classes = {"sizeL", "bold"},
                 text = args.title,
                 width = "auto",
                 height = "auto",
-                bold = true,
                 halign = "center",
                 valign = "top",
             },
@@ -1737,13 +1736,10 @@ local function ShowCombatSetupDialog(selectedTokens)
         styles = ThemeEngine.MergeStyles({
             {
                 selectors = {"tokenPool"},
-                bgimage = true,
-                bgcolor = "@bg",
-                borderWidth = 2,
-                borderColor = "@border",
-                pad = 4,
                 width = 340,
                 height = 360,
+                pad = 4,
+                borderBox = true,
             },
             {
                 selectors = {"tokenPool", "drag-target"},
@@ -1755,26 +1751,7 @@ local function ShowCombatSetupDialog(selectedTokens)
             },
             {
                 selectors = {"tokenGroup", "hover"},
-                bgimage = true,
                 bgcolor = "@accent",
-            },
-            {
-                selectors = {"token-image"},
-                halign = "center",
-                valign = "center",
-                width = 60,
-                height = 60,
-            },
-            {
-                selectors = {"token-image-portrait"},
-                bgcolor = "white",
-                width = "100%",
-                height = "100%",
-            },
-            {
-                selectors = {"token-image-frame"},
-                width = "100%",
-                height = "100%",
             },
         }),
 
@@ -1799,9 +1776,8 @@ local function ShowCombatSetupDialog(selectedTokens)
                     heroes = true,
                 },
                 gui.Label{
+                    classes = {"sizeL", "bold"},
                     width = 22,
-                    fontSize = 22,
-                    bold = true,
                     valign = "center",
                     halign = "center",
                     text = "vs",
@@ -1877,7 +1853,7 @@ local function ShowCombatSetupDialog(selectedTokens)
         gui.Label{
             halign = "center",
             valign = "top",
-            classes = {"dialogTitle"},
+            classes = {"modalTitle"},
             text = "Prepare Combat",
         },
 
@@ -1926,10 +1902,11 @@ local function ShowCombatSetupDialog(selectedTokens)
             },
         },
 
-        gui.CloseButton{
+        gui.Button{
+            classes = {"closeButton"},
             halign = "right",
             valign = "top",
-            press = function(self)
+            press = function()
                 GameHud.instance:CloseModal(dialog)
             end,
         }

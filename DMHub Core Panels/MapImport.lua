@@ -382,25 +382,25 @@ mod.shared.ImportMapDialog = function(paths, options)
             width = "auto",
             height = "auto",
             gui.Label{
+                classes = {"sizeL"},
                 width = 90,
                 height = "auto",
                 text = "Width:",
-                fontSize = 18,
             },
             statusWidth,
             gui.Label{
+                classes = {"sizeL"},
+                lmargin = 4,
                 width = "auto",
                 height = "auto",
                 text = "px",
-                fontSize = 18,
             },
         },
 
-        gui.Panel{
-            bgimage = "icons/icon_tool/icon_tool_30_unlocked.png",
-            width = 16,
-            height = 16,
-            bgcolor = "white",
+        gui.Button{
+            classes = {"sizeM"},
+            vmargin = 8,
+            icon = "icons/icon_tool/icon_tool_30_unlocked.png",
 
             data = {
                 unlocked = true,
@@ -418,17 +418,18 @@ mod.shared.ImportMapDialog = function(paths, options)
             width = "auto",
             height = "auto",
             gui.Label{
+                classes = {"sizeL"},
                 width = 90,
                 height = "auto",
                 text = "Height:",
-                fontSize = 18,
             },
             statusHeight,
             gui.Label{
+                classes = {"sizeL"},
+                lmargin = 4,
                 width = "auto",
                 height = "auto",
                 text = "px",
-                fontSize = 18,
             },
         },
     }
@@ -657,17 +658,16 @@ mod.shared.ImportMapDialog = function(paths, options)
             width = "auto",
             height = "auto",
             gui.Label{
+                classes = {"sizeL"},
+                hmargin = 4,
                 width = "auto",
                 height = "auto",
                 text = "1 tile = ",
-                fontSize = 18,
             },
 
             gui.Input{
                 characterLimit = 3,
                 width = 90,
-                height = 20,
-                fontSize = 18,
                 text = tostring(MeasurementSystem.NativeToDisplayString(dmhub.unitsPerSquare)),
                 edit = function(element)
                     local num = MeasurementSystem.DisplayToNative(tonumber(element.text))
@@ -702,17 +702,20 @@ mod.shared.ImportMapDialog = function(paths, options)
             },
             
             gui.Label{
+                classes = {"sizeL"},
+                lmargin = 4,
                 width = "auto",
                 height = "auto",
                 text = string.format(" %s", string.lower(MeasurementSystem.UnitName())),
-                fontSize = 18,
             },
         },
 
         gui.Label{
+            classes = {"form", "sizeL"},
+            tmargin = 8,
+            lmargin = 52,
             width = 280,
             height = "auto",
-            fontSize = 18,
             create = function(element)
                 element:FireEvent("updateScaling")
             end,

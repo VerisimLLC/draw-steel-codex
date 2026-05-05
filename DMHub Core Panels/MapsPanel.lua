@@ -112,6 +112,10 @@ local CreateMapNode = function(map)
 		characterLimit = 32,
         minWidth = 240,
 
+		styles = ThemeEngine.MergeTokens({
+			{ selectors = {"deleting"}, color = "@danger" },
+		}),
+
 		editable = false,
 		change = function(element)
 			if element.text == "" then
@@ -209,7 +213,7 @@ local CreateMapNode = function(map)
 
 		gui.IconEditor{
 			library = "coverart",
-			bgcolor = "white",
+			classes = {"image"},
 			width = "auto",
 			height = "auto",
 			hideIcon = true,
@@ -284,10 +288,14 @@ local CreateMapNode = function(map)
 
 	resultPanel = gui.Panel{
 		idprefix = "map-panel",
-		bgimage = "panels/square.png",
 		classes = {"row", "map"},
 		flow = "vertical",
 		draggable = true,
+
+		setZebra = function(element, even)
+			element:SetClass("evenRow", even)
+			element:SetClass("oddRow", not even)
+		end,
 		canDragOnto = function(element, target)
             return target ~= nil and target:HasClass("mapDragTarget")
 		end,
@@ -430,6 +438,21 @@ local CreateDragTargetPanel = function(folder)
 		idprefix = "map-drag-target",
 		classes = {"dragPanel", "mapDragTarget"},
 		dragTarget = true,
+		styles = ThemeEngine.MergeTokens({
+			{
+				selectors = {"dragPanel"},
+				bgimage = true,
+				bgcolor = "clear",
+				width = "100%",
+				height = 2,
+				vmargin = 2,
+			},
+			{
+				selectors = {"dragPanel", "drag-target-hover"},
+				height = 10,
+				bgcolor = "@accent",
+			},
+		}),
 		search = function(element, str)
 			element:SetClass("collapsed", str ~= "")
 		end,
@@ -495,6 +518,7 @@ CreateFolderChildPanel = function(folder)
 			}
 
 			for i,child in ipairs(children) do
+				child:FireEvent("setZebra", i % 2 == 1)
 				local key = string.format("drag-%d", i)
 				local dragPanel = childNodes[key] or CreateDragTargetPanel(folder)
 				dragPanel.data.data = child.data.data
@@ -518,33 +542,6 @@ CreateFolderChildPanel = function(folder)
 	}
 end
 
-local triangleStyles = {
-	gui.Style{
-		classes = {"triangle"},
-		bgimage = "panels/triangle.png",
-		bgcolor = "white",
-		hmargin = 4,
-		halign = "left",
-		valign = "center",
-		height = 12,
-		width = 12,
-		rotate = 90,
-	},
-	gui.Style{
-		classes = {"triangle", "expanded"},
-		rotate = 0,
-		transitionTime = 0.2,
-	},
-	gui.Style{
-		classes = {"triangle", "hover"},
-		bgcolor = "yellow",
-	},
-	gui.Style{
-		classes = {"triangle", "press"},
-		bgcolor = "gray",
-	},
-}
-
 CreateFolderPanel = function(folder)
 	local childPanel = CreateFolderChildPanel(folder)
 
@@ -557,19 +554,15 @@ CreateFolderPanel = function(folder)
 	end
 
 
-	local triangle = gui.Panel{
+	local triangle = gui.ExpandoArrow{
 		idprefix = "map-triangle",
-		classes = {"triangle", cond(folderClosed, nil, "expanded")},
-		styles = triangleStyles,
-
-		create = function(element)
-			printf("FOLDER:: %s / %s", dmhub.gameid, folder.id)
-		end,
+		classes = cond(folderClosed, nil, {"expanded"}),
 
 		click = function(element)
-			element:SetClass("expanded", not element:HasClass("expanded"))
-			childPanel:SetClass("collapsed", not element:HasClass("expanded"))
-			dmhub.SetPref(prefKey, not element:HasClass("expanded"))
+			local nowExpanded = not element:HasClass("expanded")
+			element:SetClass("expanded", nowExpanded)
+			childPanel:SetClass("collapsed", not nowExpanded)
+			dmhub.SetPref(prefKey, not nowExpanded)
 		end,
 
 		search = function(element, str)
@@ -580,7 +573,11 @@ CreateFolderPanel = function(folder)
 	local headerPanel = gui.Panel{
 		idprefix = "map-header",
 		classes = {"row", "mapDragTarget"},
-		bgimage = "panels/square.png",
+		flow = "horizontal",
+		width = "100%",
+		height = 24,
+		halign = "left",
+		valign = "top",
 		dragTarget = true,
 
 		data = {
@@ -658,6 +655,11 @@ CreateFolderPanel = function(folder)
             return target ~= nil and target:HasClass("mapDragTarget")
 		end,
 		drag = DragNode,
+
+		setZebra = function(element, even)
+			headerPanel:SetClass("evenRow", even)
+			headerPanel:SetClass("oddRow", not even)
+		end,
 
 		data = {
 			data = folder,
@@ -768,70 +770,7 @@ CreateMapDialog = function()
 			
 		end,
 
-		styles = ThemeEngine.MergeStyles({
-			-- Row layout (sizing + flow only -- no colors).
-			{
-				selectors = {"row"},
-				height = 24,
-				width = "100%",
-				halign = "left",
-				valign = "top",
-				flow = "horizontal",
-				bgcolor = "clear",
-			},
-			{
-				selectors = {"row", "map"},
-				height = "auto",
-				minHeight = 24,
-			},
-
-			-- Label sizing (color comes from theme {label} rule).
-			{
-				selectors = {"label"},
-				halign = "left",
-				width = "auto",
-				height = "auto",
-				margin = 4,
-			},
-			{
-				selectors = {"label", "deleting"},
-				color = "@danger",
-			},
-
-			-- Token image (reused from Prepare Combat dialog).
-			{
-				selectors = {"token-image"},
-				halign = "center",
-				valign = "center",
-			},
-			{
-				selectors = {"token-image-portrait"},
-				bgcolor = "white",
-				width = "100%",
-				height = "100%",
-			},
-			{
-				selectors = {"token-image-frame"},
-				width = "100%",
-				height = "100%",
-			},
-
-			-- Drag-and-drop drop zones: invisible at rest, expand and
-			-- highlight only when the dragged item is over them.
-			{
-				selectors = {"dragPanel"},
-				bgimage = true,
-				bgcolor = "clear",
-				width = "100%",
-				height = 2,
-				vmargin = 2,
-			},
-			{
-				selectors = {"drag-target-hover"},
-				height = 10,
-				bgcolor = "@accent",
-			},
-		}),
+		styles = ThemeEngine.GetStyles(),
 
 		filterInput,
 		treeScrollPanel,

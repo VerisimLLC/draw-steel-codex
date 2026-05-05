@@ -9,7 +9,7 @@ local function CreateRulerPanel()
 	local resultPanel = gui.Panel{
 		styles = ThemeEngine.GetStyles(),
 		classes = {"LaunchablePanel"},
-		width = 400,
+		width = 460,
 		height = 240,
 		halign = "right",
 		valign = "top",

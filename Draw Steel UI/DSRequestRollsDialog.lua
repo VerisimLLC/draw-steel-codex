@@ -6,18 +6,7 @@ local mod = dmhub.GetModLoading()
 -- carries its own styling instead of leaning on the caller's cascade.
 local g_TokenPoolStyles = {
 	{
-		selectors = {"tokenPoolFrame"},
-		bgimage = true,
-		bgcolor = "@bg",
-		cornerRadius = 8,
-		border = 2,
-		borderColor = "@border",
-		width = 210,
-		height = 210,
-		pad = 4,
-	},
-	{
-		selectors = {"token-panel"},
+		selectors = {"tokenPanel"},
 		bgcolor = "@bg",
 		cornerRadius = 8,
 		width = 64,
@@ -25,7 +14,7 @@ local g_TokenPoolStyles = {
 		halign = "left",
 	},
 	{
-		selectors = {"token-panel", "hover"},
+		selectors = {"tokenPanel", "hover"},
 		borderColor = "@border",
 		borderWidth = 2,
 		bgcolor = "@bgInverse",
@@ -33,14 +22,14 @@ local g_TokenPoolStyles = {
 		brightness = 0.5,
 	},
 	{
-		selectors = {"token-panel", "selected"},
+		selectors = {"tokenPanel", "selected"},
 		borderColor = "@fgStrong",
 		borderWidth = 2,
 		bgcolor = "@bgInverse",
 		color = "@fgInverse",
 	},
 	{
-		selectors = {"token-pool-shortcut"},
+		selectors = {"tokenPoolShortcut"},
 		color = "@fgMuted",
 		fontSize = 16,
 		width = "auto",
@@ -49,11 +38,11 @@ local g_TokenPoolStyles = {
 		halign = "center",
 	},
 	{
-		selectors = {"token-pool-shortcut", "hover"},
+		selectors = {"tokenPoolShortcut", "hover"},
 		color = "@fgStrong",
 	},
 	{
-		selectors = {"shortcut-divider"},
+		selectors = {"shortcutDivider"},
 		bgimage = true,
 		bgcolor = "@fgMuted",
 		halign = "center",
@@ -61,134 +50,6 @@ local g_TokenPoolStyles = {
 		margin = 4,
 		width = 2,
 		height = 16,
-	},
-}
-
--- Dialog-specific class rules for ShowRequireRollDialog. Component-specific
--- vocabulary that doesn't belong in DefaultStyles (roll-type-option,
--- check-type-item, etc.) lives here. Applied at the dialog root via
---   styles = { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(g_DialogStyles) }
--- so all colors are scheme-following @-tokens, resolved at call time.
-local g_DialogStyles = {
-	-- Inputs (numeric tier inputs etc.) -- sizing override only.
-	{
-		selectors = {"input"},
-		width = 140,
-		height = 20,
-		fontSize = 18,
-	},
-
-	-- Big centered status text at the top of the result section.
-	{
-		selectors = {"check-summary"},
-		width = "100%",
-		height = 80,
-		valign = "top",
-		textAlignment = "center",
-		fontSize = 28,
-		color = "@fgStrong",
-	},
-
-	-- Result section layout.
-	{
-		selectors = {"result-panel"},
-		flow = "horizontal",
-		width = "100%",
-		height = 70,
-		valign = "top",
-	},
-	{
-		selectors = {"result-panel-scroll"},
-		width = "94%",
-		height = 340,
-		valign = "center",
-		flow = "vertical",
-	},
-	{
-		selectors = {"result-status-label"},
-		fontSize = 18,
-		color = "@fgStrong",
-		width = 80,
-		textAlignment = "left",
-		height = "auto",
-		halign = "left",
-		valign = "center",
-	},
-	{
-		selectors = {"result-outcome-label"},
-		fontSize = 14,
-		color = "@fgStrong",
-		width = 100,
-		textAlignment = "left",
-		height = "auto",
-		halign = "left",
-		valign = "center",
-	},
-	{
-		selectors = {"result-consequences-table"},
-		width = 140,
-		flow = "vertical",
-		height = "auto",
-		valign = "center",
-	},
-	{
-		selectors = {"consequenceLabel"},
-		width = 140,
-		fontSize = 14,
-		color = "@danger",
-		height = "auto",
-	},
-	{
-		selectors = {"consequenceLabel", "avoided"},
-		color = "@fgMuted",
-	},
-
-	-- Roll-type tabs (Test | Table at the top).
-	{
-		selectors = {"roll-type-option"},
-		fontSize = 24,
-		width = "auto",
-		height = "auto",
-		color = "@fgMuted",
-		bgcolor = "clear",
-	},
-	{
-		selectors = {"roll-type-option", "hover"},
-		color = "@fgStrong",
-		transitionTime = 0.1,
-	},
-	{
-		selectors = {"roll-type-option", "selected"},
-		color = "@fgStrong",
-		border = { x1 = 0, x2 = 0, y2 = 0, y1 = 2 },
-		borderColor = "@fgStrong",
-		transitionTime = 0.2,
-	},
-
-	-- Score list rows.
-	{
-		selectors = {"check-type-item"},
-		bgimage = true,
-		bgcolor = "clear",
-		fontSize = 16,
-		minFontSize = 12,
-		textAlignment = "left",
-		hpad = 3,
-		halign = "left",
-		valign = "top",
-		width = 200,
-		minHeight = 22,
-		height = "auto",
-	},
-	{
-		selectors = {"check-type-item", "selected"},
-		bgcolor = "@bgInverse",
-		color = "@fgInverse",
-	},
-	{
-		selectors = {"check-type-item", "hover"},
-		bgcolor = "@bgInverse",
-		color = "@fgInverse",
 	},
 }
 
@@ -873,8 +734,8 @@ function GameHud:CreatePartyTokenPoolSelector(args)
 	local CreateTokenPanel = function(token)
 
 		return gui.Panel{
-			bgimage = 'panels/square.png',
-			classes = 'token-panel',
+			bgimage = true,
+			classes = {"tokenPanel"},
 			data = {
 				token = token,
 			},
@@ -905,26 +766,29 @@ function GameHud:CreatePartyTokenPoolSelector(args)
 	end
 
 	local tokenPool = gui.Panel{
-		classes = {"tokenPoolFrame"},
-		halign = "center",
-		width = poolWidth,
-		height = poolHeight,
+		classes = {"bordered"},
+		halign = "left",
+		lmargin = 12,
+		width = poolWidth or 210,
+		height = poolHeight or 210,
+		cornerRadius = 8,
+		pad = 4,
 		vscroll = true,
 		vmargin = 8,
-		flow = 'horizontal',
+		flow = "horizontal",
 		wrap = true,
 
 		children = tokenPanels
 	}
 
 	local tokenPoolSelection = gui.Panel{
-		flow = 'horizontal',
-		halign = 'center',
-		width = 'auto',
-		height = 'auto',
+		flow = "horizontal",
+		halign = "left",
+		width = poolWidth or 210,
+		height = "auto",
 
 		gui.Label{
-			classes = 'token-pool-shortcut',
+			classes = {"tokenPoolShortcut"},
 			text = 'All',
 			create = function(element)
 				if selection == 'All' then
@@ -947,10 +811,10 @@ function GameHud:CreatePartyTokenPoolSelector(args)
 			end,
 		},
 		gui.Panel{
-			classes = {'shortcut-divider'},
+			classes = {"shortcutDivider"},
 		},
 		gui.Label{
-			classes = 'token-pool-shortcut',
+			classes = {"tokenPoolShortcut"},
 			text = 'Party',
 			create = function(element)
 				if selection == 'Party' then
@@ -965,10 +829,10 @@ function GameHud:CreatePartyTokenPoolSelector(args)
 			end,
 		},
 		gui.Panel{
-			classes = {'shortcut-divider'},
+			classes = {"shortcutDivider"},
 		},
 		gui.Label{
-			classes = 'token-pool-shortcut',
+			classes = {"tokenPoolShortcut"},
 			text = 'None',
 			click = function(element)
 				for i,tokenPanel in ipairs(tokenPanels) do
@@ -1025,18 +889,18 @@ function ShowRequireRollDialog(args)
 	local specializationChecks = {}
 
 	local CreateRollTypeOption = function(options)
-		return gui.Label{
-			classes = {'roll-type-option', cond(options.selected, 'selected', nil)},
-			bgimage = 'panels/square.png',
+		return gui.Button{
+			classes = {"sizeM", "rollTypeButton", cond(options.selected, "selected", nil)},
 			text = options.text,
+			hmargin = 4,
 			press = function(element)
-				local siblings = element.parent:GetChildrenWithClass('roll-type-option')
+				local siblings = element.parent:GetChildrenWithClass("rollTypeButton")
 				for i,item in ipairs(siblings) do
-					item:SetClass('selected', item == element)
+					item:SetClass("selected", item == element)
 				end
 
 				checkSelectedIndex = options.index
-				g_requireRollDialog:FireEventTree('refreshDiceCheck')
+				g_requireRollDialog:FireEventTree("refreshDiceCheck")
 			end,
 		}
 	end
@@ -1047,13 +911,6 @@ function ShowRequireRollDialog(args)
 		if args.checkType == nil or args.checkType == check.name then
 			if checkSelectedIndex == -1 then
 				checkSelectedIndex = i
-			end
-			if #rollTypes ~= 0 then
-
-				rollTypes[#rollTypes+1] = gui.Panel{
-					classes = {"shortcut-divider"},
-					height = 20,
-				}
 			end
 			rollTypes[#rollTypes+1] = CreateRollTypeOption{ index = i, text = check.name, selected = (i == checkSelectedIndex) }
 		end
@@ -1071,34 +928,37 @@ function ShowRequireRollDialog(args)
 			end
 		end,
 
-		styles = {ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(g_DialogStyles)},
+		styles = ThemeEngine.GetStyles(),
 
-		halign = 'center',
-		valign = 'center',
+		halign = "center",
+		valign = "center",
 
 		width = 900,
 		height = 600,
 
-		flow = 'vertical',
+		flow = "vertical",
 
         gui.Label{
-            classes = {"sizeXl", "bold"},
+            classes = {"modalTitle"},
             tmargin = 16,
-            width = "auto",
-            height = "auto",
             text = args.title or "",
-            halign = "center",
         },
-		
+
 		gui.Panel{
-			id = 'roll-type-panel',
-			flow = 'horizontal',
-			halign = 'center',
-			valign = 'top',
+			id = "roll-type-panel",
+			flow = "horizontal",
+			halign = "center",
+			valign = "top",
+			width = "auto",
+			height = "auto",
 			vmargin = 6,
-			flow = 'horizontal',
-			width = 'auto',
-			height = 'auto',
+			styles = ThemeEngine.MergeTokens({
+				{
+					selectors = {"rollTypeButton", "selected"},
+					borderWidth = 2,
+					borderColor = "@accent",
+				},
+			}),
             create = function(element)
                 element:SetClass("collapsed", args.powerRollTable ~= nil)
             end,
@@ -1109,7 +969,6 @@ function ShowRequireRollDialog(args)
 		gui.Panel{
 			id = 'main-check-panel',
 			flow = 'horizontal',
-
 			vmargin = 10,
 			width = '90%',
 			height = '80%',
@@ -1139,9 +998,9 @@ function ShowRequireRollDialog(args)
 				flow = "vertical",
 
 				gui.Panel{
+					classes = {"collapsed"},
 					width = "auto",
 					height = "auto",
-					classes = {"collapsed"},
 					refreshDiceCheck = function(element)
 						local checkInfo = RollCheck.Checks[checkSelectedIndex]
 						if checkInfo.group == nil then
@@ -1153,6 +1012,7 @@ function ShowRequireRollDialog(args)
 
 						element.children = {
 							gui.Dropdown{
+								classes = {"form"},
 								options = checkInfo.groups,
 								idChosen = checkInfo.group:Get(),
 								width = 160,
@@ -1167,13 +1027,38 @@ function ShowRequireRollDialog(args)
 				},
 
 				gui.Panel{
-					id = 'check-type-list',
-					height = '100% available',
+					id = "check-type-list",
+					height = "100% available",
 					width = 210,
-					flow = 'vertical',
+					flow = "vertical",
 					vscroll = true,
 
-
+					styles = ThemeEngine.MergeTokens({
+						{
+							selectors = {"checkTypeItem"},
+							bgimage = true,
+							bgcolor = "clear",
+							fontSize = 16,
+							minFontSize = 12,
+							textAlignment = "left",
+							hpad = 3,
+							halign = "left",
+							valign = "top",
+							width = 200,
+							minHeight = 22,
+							height = "auto",
+						},
+						{
+							selectors = {"checkTypeItem", "selected"},
+							bgcolor = "@bgInverse",
+							color = "@fgInverse",
+						},
+						{
+							selectors = {"checkTypeItem", "hover"},
+							bgcolor = "@bgInverse",
+							color = "@fgInverse",
+						},
+					}),
 
 					refreshDiceCheck = function(element)
 						local children = {}
@@ -1201,7 +1086,7 @@ function ShowRequireRollDialog(args)
                                 end
                             end
 							children[#children+1] = gui.Label{
-								classes = {'check-type-item', cond(selected, 'selected'), cond(checkInfo.group ~= nil and checkInfo.group:Get() ~= check.group, 'collapsed')},
+								classes = {"checkTypeItem", cond(selected, "selected"), cond(checkInfo.group ~= nil and checkInfo.group:Get() ~= check.group, "collapsed")},
 								text = check.text,
 								press = function(element)
 									local multiselect = dmhub.modKeys.ctrl or dmhub.modKeys.shift
@@ -1251,6 +1136,8 @@ function ShowRequireRollDialog(args)
 				},
 
                 gui.Multiselect{
+					valign = "bottom",
+					bmargin = 24,
                     options = Skill.skillsDropdownOptions,
                     value = table.list_to_set(m_skills),
                     addItemText = "Choose Skill...",
@@ -1340,8 +1227,6 @@ function ShowRequireRollDialog(args)
                 gui.Dropdown{
                     textDefault = "Choose Table...",
                     width = 320,
-                    height = 24,
-                    hasSearch = true,
                     create = function(element)
                         element:SetClass("collapsed", args.powerRollTable ~= nil)
                     end,
@@ -1412,11 +1297,11 @@ function ShowRequireRollDialog(args)
             },
 
 			gui.Panel{
-				flow = 'vertical',
-				width = 'auto',
-				height = 'auto',
-                halign = 'right',
-				valign = 'top',
+				flow = "vertical",
+				width = "auto",
+				height = "auto",
+				valign = "top",
+				lmargin = 20,
 
 				gamehud:CreatePartyTokenPoolSelector{
 					initiative = (args.checkType == "Initiative"),
@@ -1428,34 +1313,64 @@ function ShowRequireRollDialog(args)
 			},
 		},
 
-		gui.Check{
-			text = 'Dice Tower (hide result from players)',
-			floating = true,
-			halign = 'left',
-			valign = 'bottom',
-			margin = 18,
-            lmargin = 44,
-			value = false,
-			fontSize = 14,
-			change = function(element)
-				m_dicetower = element.value
-			end,
-		},
+		gui.Panel{
+			flow = "horizontal",
+			width = "90%",
+			height = "auto",
+			halign = "center",
+			valign = "bottom",
+			tmargin = -90,
 
-		gui.Button{
-			text = 'Submit',
-			floating = true,
-			halign = 'right',
-			valign = 'bottom',
-			margin = 18,
-			create = function(element)
-				element:SetClass('hidden', #tokenIdsSelected == 0)
-			end,
-			changePartySelection = function(element)
-				element:FireEvent('create')
-			end,
+			gui.Panel{
+				width = "50%",
+				height = "auto",
+				halign = "left",
+				gui.Check{
+					text = "Dice Tower (hide result from players)",
+					halign = "left",
+					valign = "center",
+					value = false,
+					fontSize = 14,
+					change = function(element)
+						m_dicetower = element.value
+					end,
+				},
+			},
 
-			click = function(element)
+			gui.Panel{
+				width = "25%",
+				height = "auto",
+				halign = "center",
+				gui.Button{
+					classes = {"sizeM"},
+					text = "Cancel",
+					halign = "right",
+					valign = "center",
+					escapeActivates = true,
+					escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+					click = function(element)
+						CloseRequireRollDialog()
+					end,
+				},
+			},
+
+			gui.Panel{
+				width = "25%",
+				height = "auto",
+				halign = "right",
+				gui.Button{
+					classes = {"sizeM"},
+					text = "Submit",
+					halign = "right",
+					valign = "center",
+					create = function(element)
+						element:SetClass("hidden", #tokenIdsSelected == 0)
+					end,
+					changePartySelection = function(element)
+						element:FireEvent("create")
+					end,
+
+					click = function(element)
 
 				local ensureInitiativeShown = false
 
@@ -1521,6 +1436,8 @@ function ShowRequireRollDialog(args)
 
 				gamehud:ShowRollSummaryDialog(actionid)
 			end,
+				},
+			},
 		},
 
 	}
@@ -1578,7 +1495,7 @@ function GameHud:ShowRollSummaryDialog(actionid, resultTable)
 
 	local summaryPanel = gui.Label{
 		text = string.format("Requested a %s", action.info:Describe()),
-		classes = {'check-summary'},
+		classes = {"modalTitle"},
 		interactable = false,
 	}
 
@@ -1597,10 +1514,12 @@ function GameHud:ShowRollSummaryDialog(actionid, resultTable)
 
 	local resultsPanels = {}
 
+	local rowIndex = 0
 	for k,v in pairs(action.info.tokens) do
 		local tok = dmhub.GetCharacterById(k)
 		if tok ~= nil then
 
+			rowIndex = rowIndex + 1
             numTokens = numTokens + 1
 			if ((v.forceuserid == nil and tok.canControl and (dmhub.isDM == false or tok.playerControlled == false or not havePlayersOnline)) or v.forceuserid == dmhub.loginUserid) then
                 numLocal = numLocal + 1
@@ -1609,23 +1528,21 @@ function GameHud:ShowRollSummaryDialog(actionid, resultTable)
             local checkInfo = action.info.checks[1]
 
 			local outcomeLabel = gui.Label{
-				classes = {'result-outcome-label'},
-				text = '',
+				classes = {"sizeL", "resultOutcomeLabel"},
+				text = "",
 			}
 
 			local consequencesTable = gui.Panel{
-				classes = {'result-consequences-table'},
+				classes = {"resultConsequencesTable"},
 			}
 
 			local againButton = nil
 			
 			if dmhub.isDM then
 				againButton = gui.Button{
-					text = 'Re-roll',
-					halign = 'right',
-					width = 80,
-					height = 24,
-					fontSize = 16,
+					classes = {"sizeS"},
+					text = "Re-roll",
+					halign = "right",
 					margin = 16,
 					data = {
 						takeroll = false,
@@ -1656,12 +1573,9 @@ function GameHud:ShowRollSummaryDialog(actionid, resultTable)
 			local panel
 
 			local removeButton = gui.Button{
-				classes = {"hidden"},
-				text = 'Remove',
+				classes = {"sizeS", "hidden"},
+				text = "Remove",
 				halign = "right",
-				width = 80,
-				height = 24,
-				fontSize = 14,
 				margin = 16,
 				click = function(element)
 					action:BeginChanges()
@@ -1673,13 +1587,17 @@ function GameHud:ShowRollSummaryDialog(actionid, resultTable)
 			}
 
 			panel = gui.Panel{
-				classes = {'result-panel'},
+				classes = {"resultPanel", "row", cond(rowIndex % 2 == 1, "evenRow", "oddRow")},
 
-				gui.CreateTokenImage(tok),
+				gui.CreateTokenImage(tok, {
+					width = 32,
+					height = 32,
+					halign = "left",
+					valign = "center",
+				}),
 
 				gui.Label{
-					classes = {'result-status-label'},
-					width = "auto",
+					classes = {"sizeL", "resultStatusLabel"},
 					create = function(element)
 						element:FireEvent('refreshAction')
 					end,
@@ -1825,9 +1743,64 @@ function GameHud:ShowRollSummaryDialog(actionid, resultTable)
     end
 
 	local resultPanelScroll = gui.Panel{
-		classes = {'result-panel-scroll'},
+		classes = {"resultPanelScroll", "bordered"},
+		halign = "center",
+		pad = 8,
 		vscroll = true,
 		children = resultsPanels,
+
+		styles = ThemeEngine.MergeTokens({
+			{
+				selectors = {"resultPanelScroll"},
+				width = "94%",
+				height = 340,
+				valign = "center",
+				flow = "vertical",
+			},
+			{
+				selectors = {"resultPanel"},
+				flow = "horizontal",
+				width = "100%",
+				height = 70,
+				valign = "top",
+			},
+			{
+				selectors = {"resultStatusLabel"},
+				width = 80,
+				textAlignment = "left",
+				halign = "left",
+				valign = "center",
+			},
+			{
+				selectors = {"resultOutcomeLabel"},
+				-- fontSize = 14,
+				-- color = "@fgStrong",
+				width = 100,
+				lmargin = 12,
+				textAlignment = "left",
+				height = "auto",
+				halign = "left",
+				valign = "center",
+			},
+			{
+				selectors = {"resultConsequencesTable"},
+				width = 140,
+				flow = "vertical",
+				height = "auto",
+				valign = "center",
+			},
+			{
+				selectors = {"consequenceLabel"},
+				width = 140,
+				fontSize = 14,
+				color = "@danger",
+				height = "auto",
+			},
+			{
+				selectors = {"consequenceLabel", "avoided"},
+				color = "@fgMuted",
+			},
+		}),
 
 		monitorGame = "/actionRequests",
 

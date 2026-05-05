@@ -8,59 +8,6 @@ local function ResolveFunction(functionOrValue)
     end
 end
 
--- Selectors a complete theme cascade must define for the popup to render.
--- If a candidate styles array contains rules for any of these, we trust it.
-local DROPDOWN_SENTINEL_SELECTORS = {
-    dropdownBorder = true,
-    dropdownMenuSub = true,
-    dropdownOption = true,
-}
-
--- Recursive: returns true if `value` is a rule (has `selectors`) matching one
--- of the sentinel selectors, OR an array containing a value that does. Lets us
--- accept both a flat rules array and nested arrays of arrays (e.g. the
--- `{ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(extras)}` shape used
--- in some panels).
-local function StylesHaveDropdownRules(value)
-    if type(value) ~= "table" then
-        return false
-    end
-    if value.selectors then
-        for _, sel in ipairs(value.selectors) do
-            if DROPDOWN_SENTINEL_SELECTORS[sel] then
-                return true
-            end
-        end
-        return false
-    end
-    for _, item in ipairs(value) do
-        if StylesHaveDropdownRules(item) then
-            return true
-        end
-    end
-    return false
-end
-
--- Find the nearest ancestor (including the element itself) whose `styles`
--- property contains real dropdown-relevant rules, and return those styles.
--- Falls back to `ThemeEngine.GetStyles()` if nothing on the chain qualifies.
--- Used to give the popup the same theme cascade as the trigger, since
--- the popup is rendered at the popup-overlay layer and doesn't inherit
--- the trigger's cascade through normal child-of relationships. The
--- selector validation prevents us from inheriting a styles array that
--- happens to be set on an ancestor for unrelated reasons (e.g. a small
--- MergeTokens extras pack with no dropdown rules in it).
-local function InheritedStyles(el)
-    local p = el
-    while p ~= nil and p.valid do
-        if StylesHaveDropdownRules(p.styles) then
-            return p.styles
-        end
-        p = p.parent
-    end
-    return ThemeEngine.GetStyles()
-end
-
 -- Open-state styling (dropdownBorder, dropdownMenuSub, dropdownOption, etc.)
 -- now lives in DefaultStyles.lua's default theme. The popup inherits its
 -- styles from the nearest ancestor of the trigger that has a `styles`
@@ -433,7 +380,7 @@ function gui.Dropdown(args)
 			end
  
 			local popup = gui.Panel{
-				styles = InheritedStyles(parentPanel),
+				-- styles = InheritedStyles(parentPanel),
 				width = "auto",
 				height = menuHeight + cond(m_centerPopup, 16, 0),
 				scale = parentPanel.renderedScale.x,
@@ -460,7 +407,7 @@ function gui.Dropdown(args)
 			end
  
 			parentPanel.popupPositioning = "panel"
-            parentPanel.popupsInheritStyles = false
+            parentPanel.popupsInheritStyles = true
 			parentPanel.popup = popup
 		end,
  

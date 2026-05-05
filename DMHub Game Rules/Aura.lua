@@ -459,7 +459,7 @@ function Aura:GenerateEditor(options)
                 end,
             },
 
-            gui.SetEditor {
+            gui.Multiselect {
                 halign = "left",
                 value = self:try_get("flags"),
                 addItemText = "Add Flag...",

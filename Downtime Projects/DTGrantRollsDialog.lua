@@ -8,10 +8,11 @@ function DTGrantRollsDialog:ShowDialog()
     local dialog = self
 
     local grantRollsDialog = gui.Panel{
-        classes = {"dtGrantRollsController", "DTDialog"},
-        width = 350,
-        height = 450,
-        styles = DTHelpers.GetDialogStyles(),
+        styles = ThemeEngine.GetStyles(),
+        classes = {"dtGrantRollsController", "dialog"},
+        width = 600,
+        height = 500,
+        flow = "vertical",
         data = {
             heroRollCount = 1,
             followerRollCount = 1,
@@ -120,109 +121,71 @@ function DTGrantRollsDialog:ShowDialog()
         end,
 
         children = {
+            gui.Label{
+                classes = {"modalTitle"},
+                text = "Grant Downtime Rolls",
+            },
+
+            -- Content
             gui.Panel {
-                classes = {"DTPanel", "DTBase"},
-                height = "100%",
                 width = "98%",
+                height = "100%-124",
                 valign = "top",
-                halign = "center",
                 flow = "vertical",
-                borderColor = "red",
                 children = {
-                    -- Header
                     gui.Panel {
-                        classes = {"DTPanel", "DTBase"},
-                        valign = "top",
-                        height = 40,
-                        width = "98%",
-                        flow = "vertical",
-                        borderColor = "blue",
-                        children = {
-                            gui.Label{
-                                text = "Grant Downtime Rolls",
-                                width = "100%",
-                                height = 30,
-                                fontSize = "24",
-                                classes = {"DTLabel", "DTBase"},
-                                textAlignment = "center",
-                                halign = "center",
-                                valign = "top",
-                            },
-                            gui.Divider { width = "80%", layout = "dot", height = 12 },
-                        }
-                    },
-
-                    -- Content
-                    gui.Panel {
-                        classes = {"DTPanel", "DTBase"},
-                        height = "100%-124",
-                        width = "98%",
-                        valign="top",
-                        flow = "vertical",
-                        borderColor = "blue",
-                        children = {
-                            gui.Panel {
-                                classes = {"DTPanelRow", "DTPanel", "DTBase"},
-                                height = "auto",
-                                borderColor = "yellow",
-                                children = {dialog:_buildRollCountFields()}
-                            },
-                            gui.Panel {
-                                classes = {"DTPanelRow", "DTPanel", "DTBase"},
-                                height = "auto",
-                                borderColor = "yellow",
-                                children = {dialog:_createCharacterSelector()}
-                            }
-                        }
-                    },
-
-                    -- Footer
-                    gui.Panel{
-                        classes = {"DTPanel", "DTBase"},
-                        width = "98%",
-                        height = 60,
+                        classes = {"formStackedRow"},
                         halign = "center",
-                        valign = "bottom",
-                        flow = "horizontal",
-                        borderColor = "blue",
-                        children = {
-                            -- Cancel button
-                            gui.Button{
-                                text = "Cancel",
-                                width = 120,
-                                valign = "bottom",
-                                classes = {"DTButton", "DTBase"},
-                                click = function(element)
-                                    gui.CloseModal()
-                                end
-                            },
-                            -- Confirm button
-                            gui.Button{
-                                text = "Grant",
-                                width = 120,
-                                valign = "bottom",
-                                classes = {"DTButton", "DTBase", "DTDisabled"},
-                                interactable = false,
-                                enableConfirm = function(element, enabled, label)
-                                    if label and #label then
-                                        element.text = label
-                                        element:SetClass("DTDanger", string.lower(label):find("revoke"))
-                                    end
-                                    element:SetClass("DTDisabled", not enabled)
-                                    element.interactable = enabled
-                                end,
-                                click = function(element)
-                                    if not element.interactable then return end
-                                    local controller = element:FindParentWithClass("dtGrantRollsController")
-                                    if controller then
-                                        controller:FireEvent("saveAndClose")
-                                    end
-                                end
-                            }
-                        }
-                    }
-                }
-            }
+                        children = {dialog:_buildRollCountFields()},
+                    },
+                    gui.Panel {
+                        classes = {"formStackedRow"},
+                        width = "auto",
+                        halign = "center",
+                        children = {dialog:_createCharacterSelector()},
+                    },
+                },
+            },
+
+            -- Footer
+            gui.Panel{
+                width = "98%",
+                height = 72,
+                halign = "center",
+                valign = "bottom",
+                flow = "horizontal",
+                children = {
+                    gui.Button{
+                        classes = {"sizeL"},
+                        text = "Cancel",
+                        valign = "top",
+                        click = function(element)
+                            gui.CloseModal()
+                        end,
+                    },
+                    gui.Button{
+                        classes = {"sizeL", "disabled"},
+                        text = "Grant",
+                        valign = "top",
+                        interactable = false,
+                        enableConfirm = function(element, enabled, label)
+                            if label and #label > 0 then
+                                element.text = label
+                                element:SetClass("bgDanger", string.lower(label):find("revoke") ~= nil)
+                            end
+                            element:SetClass("disabled", not enabled)
+                            element.interactable = enabled
+                        end,
+                        click = function(element)
+                            if not element.interactable then return end
+                            local controller = element:FindParentWithClass("dtGrantRollsController")
+                            if controller then
+                                controller:FireEvent("saveAndClose")
+                            end
+                        end,
+                    },
+                },
+            },
         },
 
         escape = function(element)
@@ -238,7 +201,6 @@ end
 --- @return table panel The roll count input panel with two fields
 function DTGrantRollsDialog:_buildRollCountFields()
     return gui.Panel{
-        classes = {"DTPanel", "DTBase"},
         width = "100%",
         height = "auto",
         flow = "horizontal",
@@ -248,19 +210,16 @@ function DTGrantRollsDialog:_buildRollCountFields()
         children = {
             -- Grant to Heroes field
             gui.Panel{
-                classes = {"DTPanel", "DTBase"},
+                classes = {"formStackedRow"},
                 width = "50%",
-                height = "auto",
-                flow = "vertical",
                 children = {
                     gui.Label{
+                        classes = {"formStacked"},
                         text = "Grant to Heroes:",
-                        classes = {"DTLabel", "DTBase"},
-                        width = "100%",
-                        height = 20
                     },
                     gui.Label {
                         id = "heroRollsInput",
+                        classes = {"number", "bordered"},
                         editable = true,
                         numeric = true,
                         characterLimit = 2,
@@ -270,12 +229,11 @@ function DTGrantRollsDialog:_buildRollCountFields()
                         height = 24,
                         cornerRadius = 4,
                         fontSize = 20,
-                        bgimage = "panels/square.png",
+                        bgimage = true,
                         border = 1,
                         textAlignment = "center",
                         valign = "center",
                         halign = "left",
-                        classes = {"DTInput", "DTBase"},
 
                         change = function(element)
                             local numericValue = tonumber(element.text) or tonumber(element.text:match("%-?%d+")) or 0
@@ -285,25 +243,22 @@ function DTGrantRollsDialog:_buildRollCountFields()
                             if controller then
                                 controller:FireEvent("heroRollCountChanged", numericValue)
                             end
-                        end
-                    }
-                }
+                        end,
+                    },
+                },
             },
             -- Grant to Followers field
             gui.Panel{
-                classes = {"DTPanel", "DTBase"},
+                classes = {"formStackedRow"},
                 width = "50%",
-                height = "auto",
-                flow = "vertical",
                 children = {
                     gui.Label{
+                        classes = {"formStacked"},
                         text = "Grant to Followers:",
-                        classes = {"DTLabel", "DTBase"},
-                        width = "100%",
-                        height = 20
                     },
                     gui.Label {
                         id = "followerRollsInput",
+                        classes = {"number", "bordered"},
                         editable = true,
                         numeric = true,
                         characterLimit = 2,
@@ -313,12 +268,11 @@ function DTGrantRollsDialog:_buildRollCountFields()
                         height = 24,
                         cornerRadius = 4,
                         fontSize = 20,
-                        bgimage = "panels/square.png",
+                        bgimage = true,
                         border = 1,
                         textAlignment = "center",
                         valign = "center",
                         halign = "left",
-                        classes = {"DTInput", "DTBase"},
 
                         change = function(element)
                             local numericValue = tonumber(element.text) or tonumber(element.text:match("%-?%d+")) or 0
@@ -328,11 +282,11 @@ function DTGrantRollsDialog:_buildRollCountFields()
                             if controller then
                                 controller:FireEvent("followerRollCountChanged", numericValue)
                             end
-                        end
-                    }
-                }
+                        end,
+                    },
+                },
             },
-        }
+        },
     }
 end
 
@@ -380,23 +334,24 @@ function DTGrantRollsDialog:_createCharacterSelector()
 
     -- Return wrapper panel with CharacterSelector
     return gui.Panel{
-        width = "100%",
+        width = 400,
         height = "auto",
+        halign = "center",
+        valign = "top",
         flow = "vertical",
         vmargin = 10,
         children = {
             gui.Label{
+                classes = {"formStacked"},
                 text = "Select Recipients:",
-                classes = {"DTLabel", "DTBase"},
-                width = "100%",
             },
             gui.CharacterSelect({
                 id = "characterSelector",
                 allTokens = allTokens,
                 initialSelection = initialSelectionIds,
-                halign = "left",
-                width = "100%",
+                width = "98%",
                 height = "50%",
+                halign = "center",
                 layout = "list",
                 displayText = displayName,
                 includeFollowers = true,

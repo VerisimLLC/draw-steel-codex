@@ -469,7 +469,7 @@ CreateTerrainEditor = function(options)
 
 
 
-        styles = {
+        styles = ThemeEngine.MergeStyles{
             {
                 selectors = {'terrainItem'},
                 width = terrainDim,
@@ -695,12 +695,24 @@ CreateTerrainEditor = function(options)
 
     local edgeSmoothingEditor = nil
     if options.layer ~= 'building' then
-        edgeSmoothingEditor = CreateSettingsEditor(options.layer .. 'edgesmoothing')
+        edgeSmoothingEditor = gui.Panel{
+            width = "auto",
+            height = "auto",
+            halign = "center",
+            styles = ThemeEngine.MergeStyles{},
+            CreateSettingsEditor(options.layer .. 'edgesmoothing'),
+        }
     end
 
     local lockOpacityPanel = nil
     if options.layer == 'terrain' then
-        lockOpacityPanel = CreateSettingsEditor("terrain:lockopacity")
+        lockOpacityPanel = gui.Panel{
+            width = "auto",
+            height = "auto",
+            halign = "center",
+            styles = ThemeEngine.MergeStyles{},
+            CreateSettingsEditor("terrain:lockopacity"),
+        }
     end
     
     brushPanel = gui.Panel({
@@ -711,7 +723,13 @@ CreateTerrainEditor = function(options)
             flow = 'vertical',
         },
         children = {
-            CreateSettingsEditor(options.layer .. ':erase'),
+            gui.Panel{
+                width = "auto",
+                height = "auto",
+                halign = "center",
+                styles = ThemeEngine.MergeStyles{},
+                CreateSettingsEditor(options.layer .. ':erase'),
+            },
             lockOpacityPanel,
             edgeSmoothingEditor,
 
@@ -728,7 +746,13 @@ CreateTerrainEditor = function(options)
                 mod.shared.BrushEditorPanel('raster' .. options.layer .. 'brush'),
             },
 
-            CreateSettingsEditor(options.layer .. ':stabilization'),
+            gui.Panel{
+                width = "auto",
+                height = "auto",
+                halign = "center",
+                styles = ThemeEngine.MergeStyles{},
+                CreateSettingsEditor(options.layer .. ':stabilization'),
+            },
         },
     })
 
@@ -1307,7 +1331,13 @@ CreateBuildingEditor = function()
             flow = 'vertical',
         },
         children = {
-            CreateSettingsEditor('building:erase', { halign = "center" }),
+            gui.Panel{
+                width = "auto",
+                height = "auto",
+                halign = "center",
+                styles = ThemeEngine.MergeStyles{},
+                CreateSettingsEditor('building:erase', { halign = "center" }),
+            },
 
             gui.Panel{
                 classes = {cond(dmhub.GetSettingValue('buildingtool') ~= 'brush', 'collapsed')},

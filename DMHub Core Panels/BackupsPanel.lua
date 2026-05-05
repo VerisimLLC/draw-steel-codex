@@ -17,7 +17,8 @@ LaunchablePanel.Register{
 BackupsDialog = function()
     local resultPanel
     resultPanel = gui.Panel{
-        width = 800,
+        styles = ThemeEngine.GetStyles(),
+        width = 600,
         height = 800,
         pad = 16,
         flow = "vertical",
@@ -25,7 +26,7 @@ BackupsDialog = function()
         valign = "center",
 
         gui.Label{
-            classes = {"title"},
+            classes = {"dialogTitle"},
             valign = "top",
             halign = "center",
             text = "Backups",
@@ -67,16 +68,14 @@ BackupsDialog = function()
                 flow = "vertical",
 
                 gui.Button{
+                    classes = {"sizeL"},
                     data = {
                         fname = "",
                         type = "",
                     },
-                    fontSize = 28,
                     text = "Restore Backup",
                     halign = "center",
                     valign = "center",
-                    width = 240,
-                    height = 40,
                     startRestore = function(element, fname, type)
                         element.data.fname = fname
                         element.data.type = type
@@ -103,12 +102,10 @@ BackupsDialog = function()
                 },
 
                 gui.Button{
-                    fontSize = 28,
+                    classes = {"sizeL"},
                     text = "Cancel",
                     halign = "center",
                     valign = "center",
-                    width = 240,
-                    height = 40,
 
                     click = function(element)
                         resultPanel:FireEventTree("cancelRestore")
@@ -116,7 +113,6 @@ BackupsDialog = function()
                 },
 
                 gui.Label{
-                    fontSize = 16,
                     valign = "bottom",
                     halign = "left",
                     width = "auto",
@@ -161,9 +157,8 @@ BackupsDialog = function()
                     height = "100%",
 
                     gui.Label{
-                        classes = {"title"},
+                        classes = {"dialogTitle"},
                         text = "Game Backups",
-                        fontSize = 28,
                         width = "auto",
                         height = "auto",
                         halign = "center",
@@ -184,10 +179,11 @@ BackupsDialog = function()
                         refreshBackups = function(element)
                             local children = {}
                             local manifest = backup.manifest
-                            for _,entry in ipairs(manifest.entries) do
+                            for i,entry in ipairs(manifest.entries) do
                                 children[#children+1] = gui.Panel{
+                                    classes = {"row", cond(i%2 == 0, "evenRow", "oddRow")},
                                     flow = "horizontal",
-                                    width = 600,
+                                    width = "100%-6",
                                     height = 40,
                                     halign = "left",
                                     gui.Panel{
@@ -201,8 +197,6 @@ BackupsDialog = function()
                                             valign = "center",
                                             width = "auto",
                                             height = "auto",
-                                            fontSize = 16,
-                                            color = Styles.textColor,
                                         },
                                         gui.Label{
                                             text = DescribeServerTimestamp(entry.timestamp),
@@ -210,14 +204,12 @@ BackupsDialog = function()
                                             valign = "center",
                                             width = "auto",
                                             height = "auto",
-                                            fontSize = 16,
-                                            color = Styles.textColor,
                                         },
                                     },
 
                                     gui.Button{
+                                        classes = {"sizeS"},
                                         text = "Restore",
-                                        fontSize = 14,
                                         halign = "right",
                                         valign = "center",
                                         click = function()
@@ -226,8 +218,8 @@ BackupsDialog = function()
                                     },
 
                                     gui.Button{
+                                        classes = {"sizeS"},
                                         text = "Delete",
-                                        fontSize = 14,
                                         halign = "right",
                                         valign = "center",
                                         click = function()
@@ -270,7 +262,6 @@ BackupsDialog = function()
                         halign = "left",
                         valign = "bottom",
                         gui.Label{
-                            fontSize = 18,
                             valign = "center",
                             text = "Auto-backup every",
                             width = "auto",
@@ -279,9 +270,10 @@ BackupsDialog = function()
 
                         gui.Input{
                             width = 40,
-                            height = 30,
-                            fontSize = 18,
+                            -- height = 30,
+                            hmargin = 8,
                             valign = "center",
+                            textAlignment = "center",
                             text = tostring(backup.autoBackupInterval),
                             change = function(element)
                                 local val = tonumber(element.text)
@@ -295,9 +287,8 @@ BackupsDialog = function()
                         },
 
                         gui.Label{
-                            fontSize = 18,
                             valign = "center",
-                            text = "minutes",
+                            text = "minutes.",
                             width = "auto",
                             height = "auto",
                         },
@@ -305,8 +296,8 @@ BackupsDialog = function()
                     },
 
                     gui.Button{
+                        classes = {"sizeM"},
                         valign = "bottom",
-                        fontSize = 18,
                         text = "Backup Game",
                         click = function(element)
                             backup.BackupGame()

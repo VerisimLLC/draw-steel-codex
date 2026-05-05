@@ -169,10 +169,160 @@ end
 
 
 
---- Create a button.
+--- Classes that, when present in `options.classes`, signal that gui.Button
+--- should take the icon-only (panel-based) render path. The theme rule for
+--- the kind class (e.g. `{iconButton, addButton}`) supplies the bgimage.
+--- Each entry's value is a config table whose recognized fields are:
+---   escapeActivates = bool       -- sets args.escapeActivates
+---   escapePriority  = string     -- resolved as EscapePriority[name] at call time
+---   pressSoundEvent = string     -- when caller supplies `press`, wraps it to
+---                                  fire this audio event before the user's press
+---   confirm         = table      -- when caller supplies `requireConfirm = true`
+---                                  AND a click/press handler, wraps it with a
+---                                  gui.ModalMessage. Fields: title, message,
+---                                  actionText.
+--- An empty table means "no kind-specific behavior" (just the icon path).
+--- Mods may add to this table.
+gui.iconButtonClasses = {
+	addButton = {},
+	closeButton = {
+		escapeActivates = true,
+		escapePriority  = "EXIT_DIALOG",
+		pressSoundEvent = "UI.WindowClose",
+	},
+	copyButton = {},
+	deleteButton = {
+		confirm = {
+			title      = "Confirm Delete",
+			message    = "Are you sure you want to delete this item?",
+			actionText = "Delete",
+		},
+	},
+	settingsButton = {},
+}
+
+--- Create a button. Three render shapes:
+---  - text only, or text + icon -> a {label, button} (existing chrome).
+---  - icon-only via `icon = "path"` (no text) -> a panel themed by `iconButton`.
+---  - icon-only via a kind class registered in `gui.iconButtonClasses`
+---    (e.g. `classes = {"addButton"}`) -> a panel themed by `iconButton`,
+---    with the bgimage supplied by the kind's theme rule and any kind config
+---    (escape activation, press sound) applied from `gui.iconButtonClasses`.
+--- The icon-only paths bypass the {label, button} cascade entirely so the
+--- icon's bgimage/bgcolor don't fight chrome rules.
 --- @param options LabelArgs
---- @return Label
+--- @return Label|Panel
 function gui.Button(options)
+	-- Detect class-based icon-only mode: any class in options.classes that is
+	-- registered in gui.iconButtonClasses triggers the panel path.
+	local kindConfig = nil
+	if options.classes ~= nil then
+		for _,c in ipairs(options.classes) do
+			if gui.iconButtonClasses[c] then
+				kindConfig = gui.iconButtonClasses[c]
+				break
+			end
+		end
+	end
+
+	-- Icon-only path: return a panel themed via iconButton. The optional
+	-- `color` param overrides the @fg tint for status-accented icons. The
+	-- bgimage may come from `options.icon` (callsite) or from a kind-class
+	-- theme rule (e.g. `{iconButton, addButton}` -> `bgimage = "..."`).
+	if (options.icon ~= nil and options.text == nil) or kindConfig ~= nil then
+		-- Pre-extract `requireConfirm` so it doesn't leak into args via the
+		-- generic merge below. Used by kinds whose config has a `confirm` table
+		-- (e.g. deleteButton) to wrap click/press with a confirmation modal.
+		local requireConfirm = options.requireConfirm
+		options.requireConfirm = nil
+
+		local args = {
+			classes = {"iconButton"},
+			bgcolor = options.color or "@fg",
+		}
+		if options.icon ~= nil then
+			args.bgimage = options.icon
+		end
+
+		-- Apply kind-config defaults BEFORE merging options so callers can
+		-- still override (e.g. pass their own escapeActivates = false).
+		if kindConfig ~= nil then
+			if kindConfig.escapeActivates ~= nil then
+				args.escapeActivates = kindConfig.escapeActivates
+			end
+			if kindConfig.escapePriority and EscapePriority then
+				args.escapePriority = EscapePriority[kindConfig.escapePriority]
+			end
+		end
+
+		if options.tooltip ~= nil then
+			options.events = options.events or {}
+			options.events.hover = gui.Tooltip(options.tooltip)
+			options.tooltip = nil
+		end
+
+		if options.classes ~= nil then
+			for _,c in ipairs(options.classes) do
+				if c ~= "iconButton" then
+					args.classes[#args.classes+1] = c
+				end
+			end
+			options.classes = nil
+		end
+
+		for k,v in pairs(options) do
+			if k ~= "icon" and k ~= "color" then
+				args[k] = v
+			end
+		end
+
+		-- Confirmation wrap: when the caller supplied `requireConfirm = true`
+		-- AND the kind has a `confirm` config AND a click/press handler, wrap
+		-- it with a gui.ModalMessage. Replicates gui.DeleteItemButton's logic.
+		if kindConfig and kindConfig.confirm and requireConfirm then
+			local cfg = kindConfig.confirm
+			for _, clickid in ipairs({"click", "press"}) do
+				if args[clickid] then
+					local oldClick = args[clickid]
+					args[clickid] = function(element)
+						gui.ModalMessage{
+							title = cfg.title,
+							message = cfg.message,
+							options = {
+								{
+									text = "Cancel",
+									execute = function()
+										gui.CloseModal()
+									end,
+								},
+								{
+									text = cfg.actionText,
+									execute = function()
+										oldClick(element)
+										gui.CloseModal()
+									end,
+								},
+							},
+						}
+					end
+				end
+			end
+		end
+
+		-- Press-sound default: install a sound-firing press handler ONLY when
+		-- the caller did not provide their own. If the caller supplied `press`,
+		-- leave it untouched -- the caller has opted to handle the press fully
+		-- and own its audio behavior.
+		if kindConfig and kindConfig.pressSoundEvent and args.press == nil then
+			local soundEvent = kindConfig.pressSoundEvent
+			args.press = function(element)
+				audio.FireSoundEvent(soundEvent)
+			end
+		end
+
+		return gui.Panel(args)
+	end
+
 	local args = {
 		classes = {'button'},
 	}
@@ -192,10 +342,11 @@ function gui.Button(options)
 	end
 
 	if options.icon ~= nil then
+		args.classes[#args.classes+1] = "hasIcon"
+
 		args[#args+1] = gui.Panel{
-			width = "100%",
-			height = "100%",
-			bgcolor = options.color or "white",
+			classes = {"buttonIcon"},
+			bgcolor = options.color,
 			bgimage = options.icon,
 		}
 
@@ -218,16 +369,15 @@ function gui.DiamondButton(options)
 	options.icon = nil
 
 	local iconPanel = gui.Panel{
-			width = "70%",
-			height = "70%",
-			bgimage = icon,
-			bgcolor = options.color or "white",
-			halign = "center",
-			valign = "center",
-		}
-	
-	options.color = nil
+		width = "70%",
+		height = "70%",
+		bgimage = icon,
+		bgcolor = options.color or "white",
+		halign = "center",
+		valign = "center",
+	}
 
+	options.color = nil
 
 	local params = {
 		flow = "none",
@@ -288,7 +438,7 @@ end
 function gui.AddButton(options)
 
 	local args = {
-		classes = {'plus-button', "addButton"},
+		classes = {'plusButton', "addButton"},
 		bgimage = 'ui-icons/Plus.png',
 		bgcolor = "white",
 	}
@@ -995,7 +1145,7 @@ function gui.Check(args)
 	options.value = nil
 
 	local checkMark = gui.Panel{
-		classes = {'check-mark'},
+		classes = {'checkMark'},
 		hmargin = 0,
 		vmargin = 0,
         floating = true,
@@ -1019,7 +1169,7 @@ function gui.Check(args)
 	checkMark:SetClass('hidden', not checked)
 
 	local checkPanel = gui.Panel{
-		classes = {'check-background'},
+		classes = {'checkBackground'},
 
 		children = {
 			checkMark
@@ -1030,7 +1180,7 @@ function gui.Check(args)
 	options.text = nil
 
 	local label = gui.Label{
-		classes = {'checkbox-label', cond(placement == "right", "rightAlign")},
+		classes = {'checkboxLabel', cond(placement == "right", "rightAlign")},
 		text = text .. colon,
 		fontSize = fontSize,
 	}
@@ -1239,7 +1389,7 @@ function gui.Slider(args)
 	local notchHeight = args.notchHeight or 2
 	args.notchHeight = nil
 
-	local notchColor = args.notchColor or 'grey'
+	local notchColor = args.notchColor
 	args.notchColor = nil
 
 	local fillColor = args.fillColor or '#880000'
@@ -1459,14 +1609,10 @@ function gui.Slider(args)
 	mainPanel.data.handle = handleItem
 
 	sliderFill = gui.Panel{
+		classes = {"sliderFill"},
 		id = 'slider-fill',
-		bgimage = 'panels/square.png',
 		selfStyle = {
 			width = 1,
-			height = 2,
-			borderWidth = 0,
-			bgcolor = "white",
-			halign = 'left',
 			valign = notchAlign,
 		},
 		events = {
@@ -1492,15 +1638,12 @@ function gui.Slider(args)
 		children = {
 			--the slider notch.
 			gui.Panel{
+				classes = {"sliderNotch"},
 				id = 'slider-notch',
-				bgimage = 'panels/square.png',
 				style = {
-					width = '100%',
 					height = notchHeight,
-					borderWidth = 0,
 					bgcolor = notchColor,
 					valign = notchAlign,
-					halign = 'center',
 				}
 			},
 
@@ -1635,8 +1778,6 @@ function gui.ColorPicker(args)
 
 	local color = core.Color(options.value)
 	options.value = nil
-
-	options.className = 'color-picker'
 
 	if options.data == nil then
 		options.data = {}
@@ -2024,6 +2165,9 @@ function gui.ColorPicker(args)
 	end
 
 	options.styles = styles
+
+	options.classes = options.classes or {}
+	options.classes[#options.classes + 1] = "colorPicker"
 
 	if options.selfStyle == nil then
 		options.selfStyle = {}
@@ -2507,7 +2651,7 @@ function gui.ContextMenuItem(args, params)
 			end)
 		end
 		arrow = gui.Panel{
-			classes = {'arrow'},
+			classes = {'contextMenuArrow'},
 			bgimage = 'panels/triangle.png',
 			selfStyle = { rotate = 90 },
 		}
@@ -2519,10 +2663,10 @@ function gui.ContextMenuItem(args, params)
 	local checkPanel = nil
 	local iconPanel = nil
 	if args.check ~= nil then
-		labelClass = "have-check"
+		labelClass = "hasCheck"
 
 		checkPanel = gui.Panel{
-			classes = {"context-menu-check", cond(args.check, "checked"), cond(args.check == "partial", "partial")},
+			classes = {"contextMenuCheck", cond(args.check, "checked"), cond(args.check == "partial", "partial")},
 			halign = "left",
 			bgimage = "icons/icon_common/icon_common_29.png",
 			width = 16,
@@ -2533,9 +2677,9 @@ function gui.ContextMenuItem(args, params)
 	end
 
 	if args.icon ~= nil then
-		labelClass = "have-icon"
+		labelClass = "hasIcon"
 		iconPanel = gui.Panel{
-			classes = {"context-menu-icon", cond(args.check == false, "context-menu-icon-unchecked")},
+			classes = {"contextMenuIcon", cond(args.check == false, "contextMenuIconUnchecked")},
 			bgimage = args.icon,
 		}
 	end
@@ -2543,7 +2687,7 @@ function gui.ContextMenuItem(args, params)
 	local bindLabel = nil
 	if args.bind ~= nil then
 		bindLabel = gui.Label{
-			classes = {"context-menu-bind", cond(args.disabled, "disabled")},
+			classes = {"contextMenuBind", cond(args.disabled, "disabled")},
 			text = args.bind,
 		}
 	end
@@ -2555,8 +2699,7 @@ function gui.ContextMenuItem(args, params)
 
 	return gui.Panel{
 		id = args.id,
-		bgimage = 'panels/square.png',
-		classes = {'context-menu-item', cond(args.hidden, "collapsed")},
+		classes = {'contextMenuItem', cond(args.hidden, "collapsed")},
 		swallowPress = true,
 
 		events = {
@@ -2585,7 +2728,7 @@ function gui.ContextMenuItem(args, params)
 			hover = function(element)
 				if not args.disabled then
 					element.parent:FireEvent('hoverChild')
-					element:SetClass('hover-linger', true)
+					element:SetClass('hoverLinger', true)
 
 					if args.tooltip ~= nil then
 						gui.Tooltip(args.tooltip)(element)
@@ -2598,7 +2741,7 @@ function gui.ContextMenuItem(args, params)
 			checkPanel,
 			iconPanel,
 			gui.Label{
-				classes = {"context-menu-label", labelClass, cond(args.disabled, "disabled")},
+				classes = {"contextMenuLabel", labelClass, cond(args.disabled, "disabled")},
 				text = args.text,
 				newContentMarker,
 			},
@@ -2622,7 +2765,7 @@ function gui.ContextMenu(args)
 			--add a divider if we are going to a different group
 			if i > 1 and i < #args.entries and args.entries[i+1] ~= nil and entry.group ~= args.entries[i+1].group then
 				items[#items+1] = gui.Panel{
-					classes = {'context-menu-div'},
+					classes = {'contextMenuDiv'},
 				}
 			end
 		end
@@ -2639,22 +2782,10 @@ function gui.ContextMenu(args)
 	end
 
 	return gui.Panel{
-		x = args.x or 0,
-		floating = args.floating or false,
-		classes = {'context-menu', cond(args.submenu, 'context-menu-sub', 'context-menu-parent')},
-		vscroll = cond(args.submenu, true),
-		halign = halign,
-        valign = args.valign,
-		styles = {
+		styles = ThemeEngine.MergeStyles({
 			{
-				selectors = {'context-menu'},
-				bgimage = 'panels/square.png',
-				bgcolor = "white",
-				gradient = Styles.dialogGradient,
-				borderColor = Styles.textColor,
-				border = 2,
+				selectors = {'contextMenu'},
 				pad = 8,
-
 				margin = 4,
 				width = "auto",
 				height = 'auto',
@@ -2663,47 +2794,24 @@ function gui.ContextMenu(args)
 				valign = 'bottom',
 			},
 			{
-				selectors = {'context-menu-sub'},
+				selectors = {'contextMenuSub'},
 				valign = 'top',
 				hidden = 1,
 				maxHeight = 400,
 			},
 			{
-				selectors = {'context-menu-sub','parent:hover-linger'},
+				selectors = {'contextMenuSub','parent:hoverLinger'},
 				hidden = 0,
 			},
-
 			{
-				selectors = {'context-menu-label'},
-				color = Styles.textColor,
-				fontFace = "dubai",
-				fontSize = 18,
+				selectors = {'contextMenuLabel'},
 				textAlignment = 'left',
 				hmargin = 2,
 				height = "auto",
 				width = "auto",
 			},
 			{
-				selectors = {'context-menu-label', 'disabled'},
-				color = "#777777",
-			},
-			{
-				selectors = {'context-menu-label', 'have-check'},
-				--hmargin = 20,
-			},
-			{
-				selectors = {'context-menu-label', 'have-icon'},
-				--hmargin = 20,
-			},
-			{
-				selectors = {'context-menu-label', 'parent:hover'},
-				color = "black",
-			},
-			{
-				selectors = {'context-menu-bind'},
-				color = Styles.textColor,
-				fontFace = "dubai",
-				fontSize = 16,
+				selectors = {'contextMenuBind'},
 				textAlignment = 'right',
 				hmargin = 2,
 				height = "auto",
@@ -2711,108 +2819,77 @@ function gui.ContextMenu(args)
 				halign = "right",
 			},
 			{
-				selectors = {'context-menu-bind', 'disabled'},
-				color = "#777777",
-			},
-			{
-				selectors = {'context-menu-bind', 'parent:hover'},
-				color = "black",
-			},
-			{
-				selectors = {'context-menu-icon'},
+				selectors = {'contextMenuIcon'},
 				width = 16,
 				height = 16,
 				valign = "center",
 				halign = "left",
 				hmargin = 2,
-				bgcolor = Styles.textColor,
 			},
-
 			{
-				selectors = {'context-menu-icon-unchecked'},
-				opacity = 0.1,
-			},
-
-			{
-				selectors = {'context-menu-check'},
-				bgcolor = Styles.textColor,
+				selectors = {'contextMenuIconUnchecked'},
 				opacity = 0.1,
 			},
 			{
-				selectors = {'context-menu-check', 'checked'},
+				selectors = {'contextMenuCheck'},
+				opacity = 0.1,
+			},
+			{
+				selectors = {'contextMenuCheck', 'checked'},
 				opacity = 1,
 			},
 			{
-				selectors = {'context-menu-check', 'partial'},
+				selectors = {'contextMenuCheck', 'partial'},
 				opacity = 0.4,
 			},
 			{
-				selectors = {'context-menu-check', '~checked', '~partial', 'parent:hover'},
+				selectors = {'contextMenuCheck', '~checked', '~partial', 'parent:hover'},
 				opacity = 0.4,
 			},
-
 			{
-				selectors = {'context-menu-icon', 'parent:hover'},
-				bgcolor = "black",
+				selectors = {'contextMenuIcon', 'parent:hover'},
 				opacity = 1,
 			},
-
 			{
-				selectors = {'context-menu-check', 'parent:hover'},
-				bgcolor = "black",
-			},
-
-			{
-				selectors = {'context-menu-item'},
-				bgimage = 'panels/context-menu-background.png',
+				selectors = {'contextMenuItem'},
 				height = 'auto',
 				minWidth = args.width or 200,
 				width = "auto",
 				halign = 'left',
 				valign = 'top',
-				borderWidth = 0,
-				borderColor = 'white',
-				bgcolor = '#ffffff00',
-				color = 'white',
 				vmargin = 0,
 				hmargin = 0,
 				pad = 2,
 				flow = 'horizontal',
 			},
 			{
-				selectors = {'context-menu-item','hover'},
-				bgimage = 'panels/square.png',
-				bgcolor = 'white',
-				color = "black",
-			},
-			{
-				selectors = {'context-menu-item','press'},
-				bgcolor = '#aaaaaa66',
-			},
-			{
-				selectors = {'context-menu-div'},
-				bgimage = "panels/square.png",
+				selectors = {'contextMenuDiv'},
 				hmargin = 0,
 				width = args.width or 200,
 				halign = "center",
 				height = 1,
 				opacity = 1,
-				bgcolor = Styles.textColor,
 			},
 			{
-				selectors = {'arrow'},
+				selectors = {'contextMenuArrow'},
 				halign = 'right',
 				valign = 'center',
 				width = 10,
 				height = 10,
-				bgcolor = Styles.textColor,
 			},
-		},
+		}),
+		x = args.x or 0,
+		floating = args.floating or false,
+		classes = {'contextMenu', cond(args.submenu, 'contextMenuSub', 'contextMenuParent')},
+		vscroll = cond(args.submenu, true),
+		halign = halign,
+        valign = args.valign,
+		flow = "vertical",
 
 		events = {
 			hoverChild = function(element)
 				for i,child in ipairs(element.children) do
-					child:SetClass('hover-linger', false)
+					child:SetClass('hoverLinger', false)
 				end
 			end,
 		},
@@ -3648,7 +3725,7 @@ function gui.CreateTokenImage(tokenArg, options)
 
 	local portraitPanel = gui.Panel{
 		idprefix = "token-portrait",
-		classes = 'token-image-portrait',
+		classes = {'token-image-portrait', 'tokenImagePortrait'},
 		interactable = false,
 
 		bgimage = bgimage,
@@ -3682,7 +3759,7 @@ function gui.CreateTokenImage(tokenArg, options)
 	local framePanel = gui.Panel{
 		idprefix = "token-frame",
 		floating = true,
-		classes = 'token-image-frame',
+		classes = {'token-image-frame', 'tokenImageFrame'},
 		bgcolor = 'white',
 		interactable = options.interactable or false,
 
@@ -3695,7 +3772,7 @@ function gui.CreateTokenImage(tokenArg, options)
 	
 	local info = {
 		idprefix = "token-image",
-		classes = 'token-image',
+		classes = {'token-image', 'tokenImage'},
 		children = {portraitPanel, framePanel},
 		token = function(element, tok)
 			token = tok
@@ -3821,6 +3898,41 @@ function gui.CollapseArrow(options)
 	return gui.Panel(args)
 end
 
+local g_expandoArrowStyles = {
+	{
+		selectors = {"expandoArrow"},
+		rotate = 90,
+	},
+	{
+		selectors = {"expandoArrow", "expanded"},
+		rotate = 0,
+		transitionTime = 0.2,
+	},
+}
+
+--- An expand/collapse triangle. Closed (right-pointing) by default.
+--- Toggle by setting the "expanded" class on the returned panel.
+---
+--- Carries the "triangle" theme class so bgcolor / sizing / hover come
+--- from the active ThemeEngine cascade. The rotate transition lives on
+--- the panel's own styles because cascade-level rotate doesn't animate
+--- in DMHub's UI.
+--- @param options PanelArgs
+--- @return Panel
+function gui.ExpandoArrow(options)
+	local args = {
+		classes = {"triangle", "expandoArrow"},
+		styles = g_expandoArrowStyles,
+		bgimage = "panels/triangle.png",
+	}
+
+	for k,v in pairs(options or {}) do
+		args[k] = gui.CombineFields(args[k], v)
+	end
+
+	return gui.Panel(args)
+end
+
 
 
 local g_pagingArrowStyles = {
@@ -3872,8 +3984,9 @@ function gui.SearchInput(options)
 
 	local args = {
 		classes = {"searchInput"},
+		styles = ThemeEngine.GetStyles(),
 		placeholderText = "Search...",
-        hpad = 24,
+		hpad = 24,
 		editlag = 0.25,
 
 		edit = function(element)
@@ -3884,15 +3997,10 @@ function gui.SearchInput(options)
 		end,
 
 		gui.Panel{
+			classes = {"searchInputIcon"},
 			bgimage = "icons/icon_tool/icon_tool_42.png",
 			floating = true,
-            x = -20,
-			vmargin = 0,
-			halign = "left",
-			valign = "center",
-			height = "90%",
-			width = "100% height",
-            bgcolor = cond(dmhub.whiteLabel == "mcdm", "white", "black"),
+			x = -20,
 		},
 	}
 

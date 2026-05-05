@@ -36,46 +36,22 @@ function DTProjectEditor:_createProjectForm()
     local progress = self.project:GetProgress()
 
     local projectFormStyles = {
-        gui.Style {
-            selectors = {"PEFormRow", "DTPanelRow", "DTPanel", "DTBase"},
-            height = 72,
-            pad = 0,
-            margin = 0,
-            width = "100%-4",
-            borderColor = "blue",
-        },
-        gui.Style {
-            selectors = {"PEFormFieldContainer", "DTPanel", "DTBase"},
-            height = "auto", "100%-8",
-            pad = 0,
-            margin = 0,
-            hpad = 2,
-            borderColor = "yellow",
-        },
-        gui.Style {
-            selectors = {"DTSelectItemBtn"},
-        },
-        gui.Style {
-            selectors = {"DTSelectItemBtn", "hover"},
-            soundEvent = "Mouse.Hover",
-        },
-        gui.Style {
-            selectors = {"DTSelectItemBtn", "press"},
-            soundEvent = "Mouse.Click",
+        {
+            selectors = {"peFormRow"},
+            width = "100%",
+            height = 50,
+            vmargin = 6,
+            flow = "horizontal",
         },
     }
 
     -- Select Item button (only if no progress)
-    local selectItem = progress == 0 and gui.EnhIconButton {
-        classes = {"DTSelectItemBtn"},
-        width = 32,
-        height = 32,
-        halign = "center",
-        valign = "center",
-        hoverColor = "#00cc00",
-        pressColor = "#008000",
+    local selectItem = progress == 0 and gui.Button {
+        classes = {"sizeM", "withSuccess"},
+        halign = "left",
+        rmargin = 6,
+        icon = mod.images.downtimeProjects,
         hoverCursor = "pressbutton",
-        bgimage = mod.images.downtimeProjects,
         data = {
             getProject = function(element)
                 local projectController = element:FindParentWithClass("projectController")
@@ -96,7 +72,7 @@ function DTProjectEditor:_createProjectForm()
                     isEnabled = false
                 end
             end
-            element:SetClass("DTDisabled", not isEnabled)
+            element:SetClass("disabled", not isEnabled)
             element.interactable = isEnabled
         end,
         click = function(element)
@@ -137,18 +113,15 @@ function DTProjectEditor:_createProjectForm()
 
     -- Title field (input only, no label)
     local titleField = gui.Panel{
-        classes = {"DTPanel", "DTBase"},
         width = "98%",
         height = "auto",
         valign = "center",
-        borderColor = "green",
         children = {
             gui.Input {
+                classes = {"form"},
                 width = progress > 0 and "98%" or "98%-36",
                 height = 32,
                 valign = "center",
-                classes = {"DTInput", "DTBase"},
-                --placeholderText = "Enter project title or press the button to the left to select an item to craft.",
                 placeholderText = "Press the button to the left to craft an item (fully automated!), or enter project details manually...",
                 editlag = 0.5,
                 data = {
@@ -191,21 +164,19 @@ function DTProjectEditor:_createProjectForm()
 
     -- Progress field
     local progressField = gui.Panel {
-        classes = {"DTPanel", "DTBase"},
         width = "98%",
+        height = "auto",
         flow = "vertical",
         valign = "center",
-        borderColor = "green",
         children = {
             gui.Label {
                 text = "Progress:",
-                classes = {"DTLabel", "DTBase"},
+                classes = {"form"},
                 width = "98%",
             },
             gui.Label {
-                classes = {"DTLabel", "DTBase"},
+                classes = {"form", "bold"},
                 width = "100%-8",
-                bold = false,
                 data = {
                     getProject = function(element)
                         local projectController = element:FindParentWithClass("projectController")
@@ -230,19 +201,17 @@ function DTProjectEditor:_createProjectForm()
 
     -- Prerequisite field (label + input)
     local prerequisiteField = gui.Panel {
-        classes = {"DTPanel", "DTBase"},
         width = "98%",
+        height = "auto",
         flow = "vertical",
-        borderColor = "green",
         children = {
             gui.Label {
+                classes = {"form"},
                 text = "Project Prerequisite:",
-                classes = {"DTLabel", "DTBase"},
-                width = "98%",
             },
             gui.Input {
+                classes = {"form"},
                 width = "94%",
-                classes = {"DTInput", "DTBase"},
                 placeholderText = "Required items or prerequisites...",
                 editlag = 0.5,
                 data = {
@@ -283,19 +252,17 @@ function DTProjectEditor:_createProjectForm()
 
     -- Source field
     local sourceField = gui.Panel {
-        classes = {"DTPanel", "DTBase"},
         width = "98%-4",
+        height = "auto",
         flow = "vertical",
-        borderColor = "green",
         children = {
             gui.Label {
+                classes = {"form"},
                 text = "Project Source:",
-                classes = {"DTLabel", "DTBase"},
-                width = "80%",
             },
             gui.Input {
+                classes = {"form"},
                 width = "94%",
-                classes = {"DTInput", "DTBase"},
                 placeholderText = "Book, tutor, or source of project knowledge...",
                 editlag = 0.5,
                 data = {
@@ -336,22 +303,19 @@ function DTProjectEditor:_createProjectForm()
 
     -- Breakthrough Rolls field
     local breakthroughRolls = gui.Panel {
-        classes = {"DTPanel", "DTBase"},
         width = "98%",
-        height = "100%-8",
+        height = "auto",
         flow = "vertical",
         halign = "center",
-        borderColor = "green",
         children = {
             gui.Label {
+                classes = {"form"},
                 text = "Breakthroughs:",
-                classes = {"DTLabel", "DTBase"},
-                width = "98%",
             },
             gui.Label {
-                classes = {"DTLabel", "DTBase"},
+                classes = {"form", "bold"},
                 width = "100%-8",
-                bold = false,
+                valign = "bottom",
                 data = {
                     getProject = function(element)
                         local projectController = element:FindParentWithClass("projectController")
@@ -376,28 +340,22 @@ function DTProjectEditor:_createProjectForm()
 
     -- Characteristic field (label + dropdown)
     local characteristicField = gui.Panel {
-        classes = {"DTPanel", "DTBase"},
         width = "98%",
+        height = "auto",
         flow = "vertical",
-        borderColor = "green",
         children = {
             gui.Label {
+                classes = {"form"},
                 text = "Project Roll Characteristic:",
-                classes = {"DTLabel", "DTBase"},
-                width = "98%",
             },
             gui.Multiselect {
-                classes = {"DTPanel", "DTBase"},
+                classes = {"form"},
                 flow = "horizontal",
                 dropdown = {
-                    classes = {"DTDropdown", "DTBase"},
                     width = "33%",
                 },
                 chipPanel = {
                     width = "67%",
-                },
-                chips = {
-                    classes = {"DTChip"}
                 },
                 options = DTHelpers.ListToDropdownOptions(DTConstants.CHARACTERISTICS),
                 sort = true,
@@ -479,27 +437,21 @@ function DTProjectEditor:_createProjectForm()
         }
     end
     local languageField = gui.Panel {
-        classes = {"DTPanel", "DTBase"},
         width = "98%",
+        height = "auto",
         flow = "vertical",
-        borderColor = "green",
         children = {
             gui.Label {
+                classes = {"form"},
                 text = "Languages:",
-                classes = {"DTLabel", "DTBase"},
-                width = "98%",
             },
             gui.Multiselect {
-                classes = {"DTPanel", "DTBase"},
+                classes = {"form"},
                 dropdown = {
-                    classes = {"DTDropdown", "DTBase"},
                     width = "33%",
                 },
                 chipPanel = {
                     width = "67%",
-                },
-                chips = {
-                    classes = {"DTChip"}
                 },
                 options = candidateLangs,
                 flow = "horizontal",
@@ -574,19 +526,17 @@ function DTProjectEditor:_createProjectForm()
 
     -- Goal field (label + input)
     local goalField = gui.Panel {
-        classes = {"DTPanel", "DTBase"},
         width = "98%",
+        height = "auto",
         flow = "vertical",
-        borderColor = "green",
         children = {
             gui.Label {
+                classes = {"form"},
                 text = "Project Goal:",
-                classes = {"DTLabel", "DTBase"},
-                width = "98%",
             },
             gui.Input {
+                classes = {"form"},
                 width = "80%",
-                classes = {"DTInput", "DTBase"},
                 textAlignment = "center",
                 editlag = 0.5,
                 data = {
@@ -628,10 +578,9 @@ function DTProjectEditor:_createProjectForm()
 
     -- Status field (label + dropdown for DM, display for players)
     local statusField = gui.Panel {
-        classes = {"DTPanel", "DTBase"},
         width = "98%",
+        height = "auto",
         flow = "vertical",
-        borderColor = "green",
         data = {
             getProject = function(element)
                 local projectController = element:FindParentWithClass("projectController")
@@ -643,13 +592,12 @@ function DTProjectEditor:_createProjectForm()
         },
         children = {
             gui.Label {
+                classes = {"form"},
                 text = "Status:",
-                classes = {"DTLabel", "DTBase"},
-                width = "98%",
             },
             isDM and gui.Dropdown {
+                classes = {"form"},
                 width = "100%-4",
-                classes = {"DTDropdown", "DTBase"},
                 options = DTHelpers.ListToDropdownOptions(DTConstants.STATUS),
                 refreshToken = function(element)
                     local project = element.parent.data.getProject(element)
@@ -672,17 +620,13 @@ function DTProjectEditor:_createProjectForm()
                     end
                 end
             } or gui.Label {
-                classes = {"DTLabel", "DTBase"},
-                height = 32,
+                classes = {"form", "bold"},
                 width = "auto",
-                hpad = 20,
                 valign = "center",
                 linger = function(element)
                     gui.Tooltip{
                         maxWidth = 300,
                         fontSize = 16,
-                        bgimage = true,
-                        bgcolor = "#663100",
                         text = "Your Director must activate this project by editing this form.",
                     }(element)
                 end,
@@ -691,9 +635,8 @@ function DTProjectEditor:_createProjectForm()
                     if project then
                         local status = project:GetStatus()
                         element.text = DTConstants.GetDisplayText(DTConstants.STATUS, status)
-                        element:SetClass("DTStatusAvailable", status == "ACTIVE")
-                        element:SetClass("DTStatusPaused", status ~= "ACTIVE")
-                        element:SetClass("DTHelpHover", status == "PAUSED" or status == "MILESTONE")
+                        element:SetClass("success", status == "ACTIVE")
+                        element:SetClass("warning", status ~= "ACTIVE")
                     end
                 end
             },
@@ -702,15 +645,14 @@ function DTProjectEditor:_createProjectForm()
 
     -- Status Reason field (label + textbox for DM, display for players)
     local statusReasonField = gui.Panel {
-        classes = {"DTPanel", "DTBase"},
         width = "98%",
+        height = "auto",
         flow = "vertical",
-        borderColor = "green",
         children = {
             gui.Label {
-                text = "",
-                classes = {"DTLabel", "DTBase"},
+                classes = {"form"},
                 width = "98%",
+                text = "",
                 data = {
                     getProject = function(element)
                         local projectController = element:FindParentWithClass("projectController")
@@ -722,7 +664,8 @@ function DTProjectEditor:_createProjectForm()
                 },
                 refreshToken = function(element)
                     local project = element.data.getProject(element)
-                    if isDM or (project and project:GetStatus() == DTConstants.STATUS.PAUSED.key) then
+                    local status = project and project:GetStatus()
+                    if isDM or status == DTConstants.STATUS.PAUSED.key or status == DTConstants.STATUS.MILESTONE.key then
                         element.text = "Status Reason:"
                     else
                         element.text = ""
@@ -730,8 +673,8 @@ function DTProjectEditor:_createProjectForm()
                 end
             },
             isDM and gui.Input {
+                classes = {"form"},
                 width = "94%",
-                classes = {"DTInput", "DTBase"},
                 editlag = 0.5,
                 data = {
                     getProject = function(element)
@@ -768,9 +711,8 @@ function DTProjectEditor:_createProjectForm()
                     end
                 end
             }or gui.Label {
+                classes = {"form", "bold"},
                 text = "",
-                classes = {"DTLabel", "DTBase"},
-                bold = false,
                 width = "98%",
                 data = {
                     getProject = function(element)
@@ -795,19 +737,17 @@ function DTProjectEditor:_createProjectForm()
 
     -- Milestone field (label + input, DM only)
     local milestoneField = isDM and gui.Panel {
-        classes = {"DTPanel", "DTBase"},
         width = "98%",
+        height = "auto",
         flow = "vertical",
-        borderColor = "green",
         children = {
             gui.Label {
+                classes = {"form"},
                 text = "Milestone Stop:",
-                classes = {"DTLabel", "DTBase"},
-                width = "98%",
             },
             gui.Input {
+                classes = {"form"},
                 width = "80%",
-                classes = {"DTInput", "DTBase"},
                 textAlignment = "center",
                 placeholderText = "0",
                 editlag = 0.5,
@@ -855,25 +795,25 @@ function DTProjectEditor:_createProjectForm()
 
     -- Main form panel
     return gui.Panel {
-        classes = {"DTPanel", "DTBase"},
+        styles = projectFormStyles,
         width = "100%",
+        height = "auto",
         flow = "vertical",
         vmargin = 10,
-        borderColor = "red",
-        styles = projectFormStyles,
         children = {
             -- Row 1
             gui.Panel {
-                classes = {"PEFormRow", "DTPanelRow", "DTPanel", "DTBase"},
+                classes = {"peFormRow"},
                 children = {
                     gui.Panel {
-                        classes = {"PEFormFieldContainer", "DTPanel", "DTBase"},
                         width = "84%",
+                        height = "auto",
+                        flow = "horizontal",
                         children = {selectItem, titleField}
                     },
                     gui.Panel {
-                        classes = {"PEFormFieldContainer", "DTPanel", "DTBase"},
                         width = "15%-4",
+                        height = "auto",
                         children = {progressField,},
                     },
                 }
@@ -881,21 +821,22 @@ function DTProjectEditor:_createProjectForm()
 
             -- Row 2
             gui.Panel {
-                classes = {"PEFormRow", "DTPanelRow", "DTPanel", "DTBase"},
+                classes = {"peFormRow"},
                 children = {
                     gui.Panel {
-                        classes = {"PEFormFieldContainer", "DTPanel", "DTBase"},
                         width = "42%-2",
+                        height = "auto",
                         children = {prerequisiteField,}
                     },
                     gui.Panel {
-                        classes = {"PEFormFieldContainer", "DTPanel", "DTBase"},
                         width = "42%-2",
+                        height = "auto",
                         children = {sourceField,}
                     },
                     gui.Panel {
-                        classes = {"PEFormFieldContainer", "DTPanel", "DTBase"},
                         width = "15%-4",
+                        height = "auto",
+                        valign = "bottom",
                         children = {breakthroughRolls,},
                     },
                 }
@@ -903,22 +844,21 @@ function DTProjectEditor:_createProjectForm()
 
             -- Row 3
             gui.Panel {
-                classes = {"PEFormRow", "DTPanelRow", "DTPanel", "DTBase"},
-                height = "auto",
+                classes = {"peFormRow"},
                 children = {
                     gui.Panel {
-                        classes = {"PEFormFieldContainer", "DTPanel", "DTBase"},
                         width = "42%-2",
+                        height = "auto",
                         children = {characteristicField,}
                     },
                     gui.Panel {
-                        classes = {"PEFormFieldContainer", "DTPanel", "DTBase"},
                         width = "42%-2",
+                        height = "auto",
                         children = {languageField,}
                     },
                     gui.Panel {
-                        classes = {"PEFormFieldContainer", "DTPanel", "DTBase"},
                         width = "15%-4",
+                        height = "auto",
                         children = {goalField,}
                     },
                 },
@@ -926,21 +866,21 @@ function DTProjectEditor:_createProjectForm()
 
             -- Row 4
             gui.Panel {
-                classes = {"PEFormRow", "DTPanelRow", "DTPanel", "DTBase"},
+                classes = {"peFormRow"},
                 children = {
                     gui.Panel {
-                        classes = {"PEFormFieldContainer", "DTPanel", "DTBase"},
                         width = "42%-2",
+                        height = "auto",
                         children = {statusField,}
                     },
                     gui.Panel {
-                        classes = {"PEFormFieldContainer", "DTPanel", "DTBase"},
                         width = "42%-2",
+                        height = "auto",
                         children = {statusReasonField,}
                     },
                     gui.Panel {
-                        classes = {"PEFormFieldContainer", "DTPanel", "DTBase"},
                         width = "15%-4",
+                        height = "auto",
                         children = {milestoneField,}
                     },
                 }
@@ -955,42 +895,31 @@ end
 --- @return table panel The read-only form panel
 function DTProjectEditor:_createSharedProjectForm(ownerName, ownerColor)
     local projectFormStyles = {
-        gui.Style {
-            selectors = {"PEFormRow", "DTPanelRow", "DTPanel", "DTBase"},
-            height = 30,
-            pad = 0,
-            margin = 0,
-            width = "100%-4",
-            borderColor = "blue",
+        {
+            selectors = {"peFormRow"},
+            width = "100%",
+            height = "auto",
+            halign = "left",
+            valign = "top",
+            vmargin = 8,
+            flow = "horizontal",
         },
-        gui.Style {
-            selectors = {"PEFormFieldContainer", "DTPanel", "DTBase"},
-            height = "100%-8",
-            pad = 0,
-            margin = 0,
-            hpad = 2,
-            borderColor = "yellow",
-        }
     }
 
     -- Title field (modified to include owner name)
     local titleField = gui.Panel {
-        classes = {"DTPanel", "DTBase"},
         width = "98%",
         height = "auto",
         flow = "horizontal",
         valign = "center",
         children = {
             gui.Label {
+                classes = {"form"},
                 text = "Title:",
-                classes = {"DTLabel", "DTBase"},
-                width = "auto",
                 hmargin = 4,
             },
             gui.Label {
-                classes = {"DTLabel", "DTBase"},
-                width = "auto",
-                bold = false,
+                classes = {"form"},
                 data = {
                     ownerName = ownerName,
                     ownerColor = ownerColor,
@@ -1022,21 +951,18 @@ function DTProjectEditor:_createSharedProjectForm(ownerName, ownerColor)
 
     -- Progress field
     local progressField = gui.Panel {
-        classes = {"DTPanel", "DTBase"},
         width = "98%",
+        height = "auto",
         flow = "horizontal",
         valign = "center",
         children = {
             gui.Label {
+                classes = {"form"},
                 text = "Progress:",
-                classes = {"DTLabel", "DTBase"},
-                width = "auto",
                 hmargin = 4,
             },
             gui.Label {
-                classes = {"DTLabel", "DTBase"},
-                width = "auto",
-                bold = false,
+                classes = {"form"},
                 data = {
                     getProject = function(element)
                         local projectController = element:FindParentWithClass("projectController")
@@ -1064,21 +990,18 @@ function DTProjectEditor:_createSharedProjectForm(ownerName, ownerColor)
 
     -- Source field
     local sourceField = gui.Panel {
-        classes = {"DTPanel", "DTBase"},
         width = "98%",
+        height = "auto",
         flow = "horizontal",
         valign = "center",
         children = {
             gui.Label {
+                classes = {"form"},
                 text = "Project Source:",
-                classes = {"DTLabel", "DTBase"},
-                width = "auto",
                 hmargin = 4,
             },
             gui.Label {
-                classes = {"DTLabel", "DTBase"},
-                width = "auto",
-                bold = false,
+                classes = {"form"},
                 data = {
                     getProject = function(element)
                         local projectController = element:FindParentWithClass("projectController")
@@ -1103,21 +1026,18 @@ function DTProjectEditor:_createSharedProjectForm(ownerName, ownerColor)
 
     -- Characteristic field (read-only, displays comma-separated list)
     local characteristicField = gui.Panel {
-        classes = {"DTPanel", "DTBase"},
         width = "98%",
+        height = "auto",
         flow = "horizontal",
         valign = "center",
         children = {
             gui.Label {
+                classes = {"form"},
                 text = "Project Roll Characteristic:",
-                classes = {"DTLabel", "DTBase"},
-                width = "auto",
                 hmargin = 4,
             },
             gui.Label {
-                classes = {"DTLabel", "DTBase"},
-                width = "auto",
-                bold = false,
+                classes = {"form"},
                 data = {
                     getProject = function(element)
                         local projectController = element:FindParentWithClass("projectController")
@@ -1148,21 +1068,18 @@ function DTProjectEditor:_createSharedProjectForm(ownerName, ownerColor)
 
     -- Language field
     local languageField = gui.Panel {
-        classes = {"DTPanel", "DTBase"},
         width = "98%",
+        height = "auto",
         flow = "horizontal",
         valign = "center",
         children = {
             gui.Label {
+                classes = {"form"},
                 text = "Language Penalty:",
-                classes = {"DTLabel", "DTBase"},
-                width = "auto",
                 hmargin = 4,
             },
             gui.Label {
-                classes = {"DTLabel", "DTBase"},
-                width = "auto",
-                bold = false,
+                classes = {"form"},
                 data = {
                     getProject = function(element)
                         local projectController = element:FindParentWithClass("projectController")
@@ -1190,20 +1107,18 @@ function DTProjectEditor:_createSharedProjectForm(ownerName, ownerColor)
 
     -- Status field
     local statusField = gui.Panel {
-        classes = {"DTPanel", "DTBase"},
         width = "98%",
+        height = "auto",
         flow = "horizontal",
         valign = "center",
         children = {
             gui.Label {
+                classes = {"form"},
                 text = "Status:",
-                classes = {"DTLabel", "DTBase"},
-                width = "auto",
                 hmargin = 4,
             },
             gui.Label {
-                classes = {"DTLabel", "DTBase"},
-                width = "auto",
+                classes = {"form"},
                 data = {
                     getProject = function(element)
                         local projectController = element:FindParentWithClass("projectController")
@@ -1221,8 +1136,8 @@ function DTProjectEditor:_createSharedProjectForm(ownerName, ownerColor)
                     if project then
                         local status = project:GetStatus()
                         element.text = DTConstants.GetDisplayText(DTConstants.STATUS, status)
-                        element:SetClass("DTStatusAvailable", status == "ACTIVE")
-                        element:SetClass("DTStatusPaused", status ~= "ACTIVE")
+                        element:SetClass("success", status == "ACTIVE")
+                        element:SetClass("warning", status ~= "ACTIVE")
                     end
                 end
             }
@@ -1231,12 +1146,10 @@ function DTProjectEditor:_createSharedProjectForm(ownerName, ownerColor)
 
     -- Shared project panel
     return gui.Panel {
-        classes = {"DTPanel", "DTBase"},
+        styles = projectFormStyles,
         width = "100%",
         height = "auto",
         flow = "vertical",
-        styles = projectFormStyles,
-        borderColor = "cyan",
         create = function(element)
             dmhub.Schedule(0.2, function()
                 element.monitorGame = DTShares.GetDocumentPath()
@@ -1248,21 +1161,22 @@ function DTProjectEditor:_createSharedProjectForm(ownerName, ownerColor)
         children = {
             -- Row 1: Title, Status, Progress
             gui.Panel {
-                classes = {"PEFormRow", "DTPanelRow", "DTPanel", "DTBase"},
+                classes = {"peFormRow"},
+                height = "auto",
                 children = {
                     gui.Panel {
-                        classes = {"PEFormFieldContainer", "DTPanel", "DTBase"},
                         width = "33%",
+                        height = "auto",
                         children = {titleField}
                     },
                     gui.Panel {
-                        classes = {"PEFormFieldContainer", "DTPanel", "DTBase"},
                         width = "34%",
+                        height = "auto",
                         children = {statusField}
                     },
                     gui.Panel {
-                        classes = {"PEFormFieldContainer", "DTPanel", "DTBase"},
                         width = "33%",
+                        height = "auto",
                         children = {progressField}
                     }
                 }
@@ -1270,21 +1184,21 @@ function DTProjectEditor:_createSharedProjectForm(ownerName, ownerColor)
 
             -- Row 2: Source, Language Penalty, Characteristic
             gui.Panel {
-                classes = {"PEFormRow", "DTPanelRow", "DTPanel", "DTBase"},
+                classes = {"peFormRow"},
                 children = {
                     gui.Panel {
-                        classes = {"PEFormFieldContainer", "DTPanel", "DTBase"},
                         width = "33%",
+                        height = "auto",
                         children = {sourceField}
                     },
                     gui.Panel {
-                        classes = {"PEFormFieldContainer", "DTPanel", "DTBase"},
                         width = "34%",
+                        height = "auto",
                         children = {languageField}
                     },
                     gui.Panel {
-                        classes = {"PEFormFieldContainer", "DTPanel", "DTBase"},
                         width = "33%",
+                        height = "auto",
                         children = {characteristicField}
                     }
                 }
@@ -1297,33 +1211,28 @@ end
 --- @return table panel The adjustments table / panel
 function DTProjectEditor:_createAdjustmentsPanel()
     return gui.Panel {
-        classes = {"DTPanel", "DTBase"},
+        classes = {"featureCard"},
         width = "98%",
         height = "100%",
         valign = "center",
         flow = "vertical",
-        bgimage = "panels/square.png",
-        borderColor = "#999999",
-        border = 1,
         children = {
             -- Header
             gui.Panel {
-                classes = {"DTPanel", "DTBase"},
+                classes = {"featureCardHeader"},
                 width = "100%",
+                height = "auto",
                 margin = 0,
-                pad = 0,
-                bgimage = "panels/square.png",
-                bgcolor = "#222222",
-                borderColor = "#666666",
-                border = { y1 = 1, y2 = 0, x1 = 0, x2 = 0 },
+                vpad = 6,
                 children = {
                     gui.Panel {
-                        classes = { "DTPanel", "DTBase"},
                         width = "80%",
                         halign = "left",
+                        valign = "center",
+                        height = "auto",
                         children = {
                             gui.Label {
-                                classes = {"DTLabel", "DTBase"},
+                                classes = {"form", "sizeS"},
                                 text = "Adjustments",
                                 width = "90%",
                                 hmargin = 10,
@@ -1331,15 +1240,15 @@ function DTProjectEditor:_createAdjustmentsPanel()
                         }
                     },
                     gui.Panel {
-                        classes = { "DTPanel", "DTBase" },
                         width = "12%",
+                        height = "auto",
                         halign = "right",
                         linger = function(element)
                             gui.Tooltip("Add an adjustment")(element)
                         end,
                         children = {
-                            gui.AddButton {
-                                classes = {"DTButton", "DTBase"},
+                            gui.Button{
+                                classes = {"addButton"},
                                 halign = "center",
                                 click = function(element)
                                     local controller = element:FindParentWithClass("projectController")
@@ -1363,21 +1272,18 @@ function DTProjectEditor:_createAdjustmentsPanel()
 
             -- Body - Scrollable adjustments list
             gui.Panel {
-                classes = {"DTPanel", "DTBase"},
-                width = "98%",
+                classes = {"featureCardBody"},
+                width = "100%",
                 height = "85%",
                 valign = "top",
                 vscroll = true,
-                borderColor = "red",
                 children = {
                     gui.Panel {
                         id = "adjustmentScrollArea",
-                        classes = {"DTPanel", "DTBase"},
                         width = "100%",
-                        height = "auto",
+                        height = "100%",
                         flow = "vertical",
                         valign = "top",
-                        borderColor = "blue",
                         data = {
                             getProject = function(element)
                                 local projectController = element:FindParentWithClass("projectController")
@@ -1406,33 +1312,28 @@ end
 --- @return table panel The adjustments table / panel
 function DTProjectEditor:_createRollsPanel()
     return gui.Panel {
-        classes = {"DTPanel", "DTBase"},
+        classes = {"featureCard"},
         width = "98%",
         height = "100%",
         valign = "center",
         flow = "vertical",
-        bgimage = "panels/square.png",
-        borderColor = "#999999",
-        border = 1,
         children = {
             -- Header
             gui.Panel {
-                classes = {"DTPanel", "DTBase"},
+                classes = {"featureCardHeader"},
                 width = "100%",
+                height = "auto",
                 margin = 0,
-                pad = 0,
-                bgimage = "panels/square.png",
-                bgcolor = "#222222",
-                borderColor = "#666666",
-                border = { y1 = 1, y2 = 0, x1 = 0, x2 = 0 },
+                vpad = 6,
                 children = {
                     gui.Panel {
-                        classes = { "DTPanel", "DTBase"},
                         width = "80%",
                         halign = "left",
+                        valign = "center",
+                        height = "auto",
                         children = {
                             gui.Label {
-                                classes = {"DTLabel", "DTBase"},
+                                classes = {"form", "sizeS"},
                                 text = "Rolls",
                                 width = "90%",
                                 hmargin = 10,
@@ -1440,8 +1341,8 @@ function DTProjectEditor:_createRollsPanel()
                         }
                     },
                     gui.Panel {
-                        classes = { "DTPanel", "DTBase" },
                         width = "12%",
+                        height = "auto",
                         halign = "right",
                         children = {
                             self:_createRollButton({
@@ -1456,21 +1357,19 @@ function DTProjectEditor:_createRollsPanel()
 
             -- Body - Scrollable rolls list
             gui.Panel {
-                classes = {"DTPanel", "DTBase"},
-                width = "98%",
+                classes = {"featureCardBody"},
+                width = "100%",
                 height = "85%",
                 valign = "top",
                 vscroll = true,
-                borderColor = "red",
                 children = {
                     gui.Panel {
                         id = "rollScrollArea",
-                        classes = {"rollListController", "DTPanel", "DTBase"},
+                        classes = {"rollListController"},
                         width = "100%",
                         height = "auto",
                         flow = "vertical",
                         valign = "top",
-                        borderColor = "blue",
                         data = {
                             getProject = function(element)
                                 local projectController = element:FindParentWithClass("projectController")
@@ -1516,16 +1415,15 @@ function DTProjectEditor:_createRollButton(options)
     local hmargin = options.hmargin or nil
     local vmargin = options.vmargin or nil
 
-    return gui.EnhIconButton {
+    return gui.Button{
+        classes = {"withInfo"},
+        icon = "panels/initiative/initiative-dice.png",
         width = width,
         height = height,
         margin = margin,
         halign = halign,
         hmargin = hmargin,
         vmargin = vmargin,
-        hoverColor = "#00cccc",
-        pressColor = "#008080",
-        bgimage = 'panels/initiative/initiative-dice.png',
         data = {
             enabled = false,
             tooltipText = "",
@@ -1715,9 +1613,8 @@ end
 --- Creates action buttons for owned project panels (delete + share)
 --- @return table buttons Array containing delete button and share button elements
 function DTProjectEditor:_createOwnedProjectButtons()
-    local deleteButton = gui.DeleteItemButton {
-        width = 20,
-        height = 20,
+    local deleteButton = gui.Button {
+        classes = {"deleteButton", "sizeS"},
         halign = "left",
         valign = "top",
         hmargin = 5,
@@ -1741,15 +1638,12 @@ function DTProjectEditor:_createOwnedProjectButtons()
         end
     }
 
-    local shareButton = gui.EnhIconButton {
-        width = 20,
-        height = 20,
+    local shareButton = gui.Button {
+        classes = {"withWarning", "sizeS"},
+        icon = mod.images.share,
         halign = "left",
         hmargin = 5,
         vmargin = 5,
-        bgimage = mod.images.share,
-        hoverColor = "#fcae1e",
-        pressColor = "#dc8e00",
         data = {
             getProject = function(element)
                 local projectController = element:FindParentWithClass("projectController")
@@ -1809,9 +1703,8 @@ end
 --- @param ownerId string The token ID of the character who owns this project
 --- @return table buttons Array containing unshare button and roll button elements
 function DTProjectEditor:_createSharedProjectButtons(ownerName, ownerId)
-    local unshareButton = gui.DeleteItemButton {
-        width = 20,
-        height = 20,
+    local unshareButton = gui.Button {
+        classes = {"deleteButton", "sizeS"},
         halign = "left",
         valign = "top",
         hmargin = 5,
@@ -1895,14 +1788,12 @@ end
 --- @return table panel Vertical panel containing the buttons
 function DTProjectEditor:_createActionButtonsPanel(buttons)
     return gui.Panel {
-        classes = {"DTPanel", "DTBase"},
         width = 60,
         height = "auto",
         halign = "left",
         valign = "top",
         flow = "vertical",
-        borderColor = "cyan",
-        children = buttons
+        children = buttons,
     }
 end
 
@@ -1913,7 +1804,7 @@ end
 --- @param eventHandlers table|nil Table of event handler functions (addAdjustment, deleteAdjustment, etc.)
 --- @return table panel The outer container panel
 function DTProjectEditor:_createProjectPanelContainer(additionalClasses, contentPanels, actionButtonsPanel, eventHandlers)
-    local classes = {"projectController", "DTPanel", "DTBase"}
+    local classes = {"projectController"}
     if additionalClasses then
         for _, cls in ipairs(additionalClasses) do
             classes[#classes + 1] = cls
@@ -1934,14 +1825,12 @@ function DTProjectEditor:_createProjectPanelContainer(additionalClasses, content
         },
         children = {
             gui.Panel{
+                classes = {"bordered"},
                 width = "98%",
                 height = "auto",
                 halign = "left",
                 flow = "horizontal",
                 valign = "top",
-                bgimage = "panels/square.png",
-                borderColor = "#444444",
-                border = { y1 = 4, y2 = 1, x2 = 4, x1 = 1 },
                 children = contentPanels
             },
             actionButtonsPanel
@@ -2133,21 +2022,18 @@ function DTProjectEditor._reconcileProgressItemsList(panels, items, deleteEvent)
     if not next(items) then
         return {
             gui.Panel {
-                classes = {"DTPanel", "DTBase"},
                 width = "100%",
                 height = "90%",
                 halign = "center",
                 valign = "top",
                 children = {
                     gui.Label {
+                        classes = {"info"},
                         text = "There are no items yet.",
                         width = "96%",
                         height = "96%",
                         halign = "center",
                         valign = "top",
-                        classes = {"DTLabel", "DTBase"},
-                        bold = false,
-                        color = "#888888"
                     }
                 }
             }
@@ -2195,6 +2081,14 @@ function DTProjectEditor._reconcileProgressItemsList(panels, items, deleteEvent)
         return aTime > bTime
     end)
 
+    -- Zebra-stripe the sorted rows. The {row, evenRow} / {row, oddRow}
+    -- theme rules paint @bg / @bgAlt respectively.
+    for i, panel in ipairs(panels) do
+        local even = i % 2 == 0
+        panel:SetClass("evenRow", even)
+        panel:SetClass("oddRow", not even)
+    end
+
     return panels
 end
 
@@ -2210,7 +2104,7 @@ function DTProjectEditor._createProgressListItem(item, deleteEvent)
     -- Format amount with color coding
     local amount = item:GetAmount()
     local amountText = string.format("%+d", amount)
-    local amountClass = amount >= 0 and "DTListAmountPositive" or "DTListAmountNegative"
+    local amountClass = amount >= 0 and "success" or "danger"
 
     -- Get user display name with color
     local commitBy, rollBy = item:GetCommitBy()
@@ -2229,46 +2123,52 @@ function DTProjectEditor._createProgressListItem(item, deleteEvent)
 
     return gui.Panel{
         id = item:GetID(),
-        classes = {"DTListRow", "DTListBase"},
+        classes = {"row"},
         flow = "vertical",
+        width = "100%",
         height = "auto",
+        halign = "left",
+        bmargin = 4,
         data = {
             serverTime = item:GetServerTime(),
         },
         children = {
-            -- Top Row
+            -- Top row
             gui.Panel {
-                classes = {"DTListDetail", "DTListBase"},
                 flow = "horizontal",
                 valign = "top",
                 height = "auto",
-                width = "95%",
+                width = "100%",
                 children = {
-                    -- Top row
                     gui.Panel{
-                        classes = {"DTListHeader", "DTListBase"},
-                        borderColor = "cyan",
-                        width = "100%-20",
+                        flow = "horizontal",
+                        width = "100%",
+                        height = "auto",
                         children = {
                             gui.Label{
-                                classes = {"DTListTimestamp", "DTListBase"},
+                                classes = {"sizeXxs"},
                                 text = displayTime,
+                                width = 120,
+                                hmargin = 2,
                             },
                             gui.Label{
-                                classes = {"DTListAmount", "DTListBase", amountClass},
+                                classes = {"sizeXxs", "bold", amountClass},
                                 text = amountText,
+                                width = 25,
+                                hmargin = 2,
                             },
                             gui.Label{
-                                classes = {"DTListUser", "DTListBase"},
+                                classes = {"sizeXxs"},
                                 text = userDisplay,
                             },
                         },
                     },
-                    dmhub.isDM and gui.DeleteItemButton {
-                        width = 16,
-                        height = 16,
+                    dmhub.isDM and gui.Button {
+                        classes = {"deleteButton", "sizeXs"},
+                        floating = true,
                         halign = "right",
                         valign = "center",
+                        hmargin = 2,
                         click = function(element)
                             local projectController = element:FindParentWithClass("projectController")
                             if projectController then
@@ -2285,22 +2185,19 @@ function DTProjectEditor._createProgressListItem(item, deleteEvent)
                     } or nil
                 }
             },
-            -- Bottom
+            -- Bottom row
             gui.Panel {
-                classes = {"DTListDetail", "DTListBase"},
                 flow = "horizontal",
                 valign = "top",
                 height = "auto",
-                width = "90%",
-                borderColor = "cyan",
+                width = "100%",
                 children = {
                     gui.Label{
-                        classes = {"DTListReason", "DTListBase"},
+                        classes = {"sizeXxs"},
+                        text = description,
                         height = "auto",
                         width = "98%",
                         valign = "top",
-                        bold = false,
-                        text = description,
                     }
                 }
             }

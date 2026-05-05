@@ -1,18 +1,5 @@
 local mod = dmhub.GetModLoading()
 
-local g_styles = {
-    {
-        selectors = {"label"},
-        fontSize = 12,
-        width = 40,
-        height = 20,
-        textAlignment = "center",
-        color = Styles.textColor,
-        bgimage = "panels/square.png",
-        bgcolor = "clear",
-    },
-}
-
 function gui.FloatInput(args)
 
     local m_dragAnchorValue = nil
@@ -34,11 +21,11 @@ function gui.FloatInput(args)
 
 
     local m_label = gui.Label{
+        classes = {"sizeXs"},
         halign = "center",
         valign = "center",
         width = "100%",
         height = "100%",
-        fontSize = 11,
         refreshValue = function(element)
             local magnitude = math.abs(m_value)
             if magnitude < 1 then
@@ -264,8 +251,11 @@ function gui.ParticleValue(args)
         return val
     end
 
+    local callerStyles = (args and args.styles) or nil
+    if args then args.styles = nil end
+
     local panelParams = {
-        styles = g_styles,
+        styles = callerStyles,
         width = 140,
         height = 20,
         flow = "horizontal",
@@ -303,18 +293,7 @@ function gui.ParticleValue(args)
     }
 
     for k,v in pairs(args or {}) do
-        if k == "styles" then
-            local styles = {}
-            for _,style in ipairs(panelParams.styles) do
-                styles[#styles+1] = style
-            end
-            for _,style in ipairs(v) do
-                styles[#styles+1] = style
-            end
-            panelParams.styles = styles
-        else
-            panelParams[k] = v
-        end
+        panelParams[k] = v
     end
 
     resultPanel = gui.Panel(panelParams)

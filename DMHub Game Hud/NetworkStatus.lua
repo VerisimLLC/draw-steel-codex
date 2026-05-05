@@ -58,10 +58,15 @@ function ShowNetworkStatus(dialog, operations)
 			valign = "center",
 			pad = 8,
 			flow = "none",
-			styles = {
-				Styles.Default,
-				Styles.Panel,
-			},
+			-- Theme provides framedPanel rule + label/utility rules. Local extra:
+			-- the error label's danger color, scoped to a private class so it
+			-- only hits the one error-message label.
+			styles = ThemeEngine.MergeStyles({
+				{
+					selectors = {"label", "uploadErrorLabel"},
+					color = "@danger",
+				},
+			}),
 
 			gui.Label{
 				halign = "center",
@@ -82,11 +87,13 @@ function ShowNetworkStatus(dialog, operations)
 			progressWidget,
 
 			gui.Label{
+				classes = {"uploadErrorLabel"},
 				halign = "center",
 				valign = "top",
 				vmargin = 100,
 				fontSize = 28,
-				color = "red",
+				-- color comes from the {label, uploadErrorLabel} theme rule on
+				-- the parent dialogPanel so this error follows scheme switches.
 				width = "auto",
 				height = "auto",
 				minWidth = "50%",

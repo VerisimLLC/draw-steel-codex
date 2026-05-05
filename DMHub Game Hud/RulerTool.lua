@@ -7,7 +7,9 @@ local function CreateRulerPanel()
 		persistentSetting = CreateSettingsEditor("measure:persistent")
 	end
 	local resultPanel = gui.Panel{
-		width = 400,
+		styles = ThemeEngine.GetStyles(),
+		classes = {"LaunchablePanel"},
+		width = 460,
 		height = 240,
 		halign = "right",
 		valign = "top",
@@ -23,11 +25,7 @@ local function CreateRulerPanel()
 
 		gui.Label{
 			text = "Measuring Tool",
-			fontSize = 24,
-			bold = true,
-			color = "white",
-			width = "auto",
-			height = "auto",
+			classes = {"sizeXl", "bold"},
 			halign = "center",
 		},
 		CreateSettingsEditor("measure:shape"),

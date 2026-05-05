@@ -89,13 +89,13 @@ local SetCharacterType = function(tableName, characterTypePanel, characterTypeId
 
 	--the name of the characterType.
 	children[#children+1] = gui.Panel{
-		classes = {'formPanel'},
+		classes = {"formStackedRow"},
 		gui.Label{
-			text = 'Name:',
-			valign = 'center',
-			minWidth = 240,
+			classes = {"formStackedLabel"},
+			text = "Name:",
 		},
 		gui.Input{
+			classes = {"formStackedControl"},
 			text = characterType.name,
 			change = function(element)
 				characterType.name = element.text
@@ -104,32 +104,42 @@ local SetCharacterType = function(tableName, characterTypePanel, characterTypeId
 		},
 	}
 
-	children[#children+1] = gui.Input{
-		fontSize = 14,
-		vmargin = 4,
-		width = 600,
-		minHeight = 30,
-		height = 'auto',
-		multiline = true,
-		text = characterType.description,
-		textAlignment = "topleft",
-		placeholderText = "Enter Character Type description...",
-		change = function(element)
-			characterType.description = element.text
-		end,
+	children[#children+1] = gui.Panel{
+		classes = {"formStackedRow"},
+		gui.Label{
+			classes = {"formStackedLabel"},
+			text = "Description:",
+		},
+		gui.Input{
+			classes = {"formStackedControl"},
+			multiline = true,
+			height = "auto",
+			minHeight = 30,
+			maxHeight = 300,
+			vscroll = true,
+			textAlignment = "topleft",
+			placeholderText = "Enter Character Type description...",
+			text = characterType.description,
+			change = function(element)
+				characterType.description = element.text
+				UploadCharacterType()
+			end,
+		},
 	}
 
+	--add in characteristics, like backgrounds have, allowing tables to come with character types.
+	BackgroundCharacteristic.EmbedEditor(characterType, children, function()
+		characterTypePanel:FireEvent("change")
+		UploadCharacterType()
+	end)
+
 	children[#children+1] = characterType:GetClassLevel():CreateEditor(characterType, 0, {
+		width = 800,
 		change = function(element)
 			characterTypePanel:FireEvent("change")
 			UploadCharacterType()
 		end,
 	})
-
-	--add in characteristics, like backgrounds have, allowing tables to come with character types.
-	BackgroundCharacteristic.EmbedEditor(characterType, children, function()
-		UploadCharacterType()
-	end)
 
 	characterTypePanel.children = children
 end
@@ -146,39 +156,13 @@ function CharacterType.CreateEditor()
 		classes = 'class-panel',
 		styles = {
 			{
-				halign = "left",
-			},
-			{
-				classes = {'class-panel'},
+				classes = {"class-panel"},
 				width = 1200,
-				height = '90%',
-				halign = 'left',
-				flow = 'vertical',
+				height = "90%",
+				halign = "left",
+				flow = "vertical",
 				pad = 20,
 			},
-			{
-				classes = {'label'},
-				color = 'white',
-				fontSize = 22,
-				width = 'auto',
-				height = 'auto',
-			},
-			{
-				classes = {'input'},
-				width = 200,
-				height = 26,
-				fontSize = 18,
-				color = 'white',
-			},
-			{
-				classes = {'formPanel'},
-				flow = 'horizontal',
-				width = 'auto',
-				height = 'auto',
-				halign = 'left',
-				vmargin = 2,
-			},
-
 		},
 	}
 

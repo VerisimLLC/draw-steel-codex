@@ -13,19 +13,23 @@ end
 
 local AddButton = function(options)
 	local args = {
-		style = {
-			width = 32,
-			height = 32,
-			halign = 'right',
-			valign = 'top',
-		},
+		classes = {"addButton", "sizeL"},
+		halign = "right",
+		valign = "top",
 	}
+
+	if options.classes ~= nil then
+		for _,c in ipairs(options.classes) do
+			args.classes[#args.classes+1] = c
+		end
+		options.classes = nil
+	end
 
 	for k,v in pairs(options) do
 		args[k] = v
 	end
 
-	return gui.AddButton(args)
+	return gui.Button(args)
 end
 
 local function FindFeaturePathInObject(feature, obj, path)
@@ -5255,8 +5259,14 @@ local LibraryPanel = function()
 
 	resultPanel = gui.Panel{
 		classes = {'library-panel'},
-		styles = {
-			Styles.Default,
+		-- Theme provides label/button/input/dropdown/multiselect-chip vocabulary.
+		-- Local extras here are surface-specific to the compendium library:
+		-- the panel sizing (library-panel / content-panel / list-panel), the
+		-- list-item state variants, and the search-result fade behavior.
+		-- Pure theme overrides on {list-item} (fontSize 16, color white) and
+		-- the duplicate {searchableLabel} color='white' rules were dropped so
+		-- the library uses default theme styling.
+		styles = ThemeEngine.MergeStyles({
 			{
 				selectors = {'library-panel'},
 				pad = 16,
@@ -5284,27 +5294,30 @@ local LibraryPanel = function()
 				halign = 'left',
 				valign = 'top',
 			},
+			-- list-item base: only surface layout stays here. Color and font
+			-- come from the theme's {label} rule via the cascade.
 			{
 				selectors = {'list-item'},
 				width = '100%',
-                height = "auto",
-                minHeight = 22,
-				fontSize = 16,
+				height = "auto",
+				minHeight = 22,
 				hmargin = 8,
-				color = 'white',
 				bgcolor = 'clear',
 			},
+			-- list-item state variants. Colors mapped to scheme semantics
+			-- where they fit; the dark-red wash for hover/selected stays
+			-- literal because it's a bespoke compendium-selection look.
 			{
 				selectors = {'list-item', 'defocused'},
-				color = '#888888',
+				color = '@textMuted',
 			},
 			{
 				selectors = {'list-item', 'imported'},
-				color = '#888888',
+				color = '@textMuted',
 			},
 			{
 				selectors = {'list-item', 'deleted'},
-				color = 'red',
+				color = '@danger',
 			},
 			{
 				selectors = {'list-item', 'hover'},
@@ -5316,29 +5329,23 @@ local LibraryPanel = function()
 			},
 			{
 				selectors = {'list-item', 'searching'},
-				color = '#888888',
+				color = '@textMuted',
 			},
 			{
 				selectors = {'list-item', 'matchSearch'},
-				color = '#ffffff',
+				color = '@text',
 			},
-            {
-                selectors = {'searchableLabel'},
-                color = 'white',
-            },
-            {
-                selectors = {'searchableLabel'},
-                color = 'white',
-            },
-            {
-                selectors = {'searchableLabel', 'searching', '~matchSearch'},
-                color = '#666666',
-            },
-            {
-                selectors = {'hideOnSearchMismatch', 'searching', '~matchSearch'},
-                collapsed = 1,
-            }
-		},
+			-- searchableLabel: only the conditional fade-on-no-match rule is
+			-- needed. Default color comes from the theme {label} rule.
+			{
+				selectors = {'searchableLabel', 'searching', '~matchSearch'},
+				color = '@textMuted',
+			},
+			{
+				selectors = {'hideOnSearchMismatch', 'searching', '~matchSearch'},
+				collapsed = 1,
+			},
+		}),
 
         create = function(element)
             --force parent's opacity to 1 even if blurred.
@@ -5370,6 +5377,7 @@ local LibraryPanel = function()
                 height = 20,
                 fontSize = 16,
                 placeholderText = "Search Compendium...",
+				bgcolor = "transparent",
                 editlag = 0.4,
                 edit = function(element)
                     resultPanel:FireEventTree("searchCompendium", trim(element.text))

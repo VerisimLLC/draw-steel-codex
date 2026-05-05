@@ -24,7 +24,6 @@ local SetBackground = function(tableName, backgroundPanel, backgroundid)
 		height = "150% width",
 		autosizeimage = true,
 		allowPaste = true,
-		borderColor = Styles.textColor,
 		borderWidth = 2,
 		change = function(element)
 			background.portraitid = element.value
@@ -37,7 +36,6 @@ local SetBackground = function(tableName, backgroundPanel, backgroundid)
 			width = "auto",
 			height = "auto",
 			halign = "center",
-			color = Styles.textColor,
 			fontSize = 12,
 		}
 	}
@@ -108,20 +106,26 @@ local SetBackground = function(tableName, backgroundPanel, backgroundid)
 
 			gui.Panel{
 				classes = {"triangle"},
-				height = 12,
-				width = "100% height",
 				halign = "left",
 				valign = "center",
-				bgimage = "panels/triangle.png",
-				bgcolor = "white",
-				styles = Styles.triangleStyles,
+				styles = {
+					{
+						selectors = {"triangle"},
+						rotate = 90,
+						transitionTime = 0.2,
+					},
+					{
+						selectors = {"triangle", "expanded"},
+						rotate = 0,
+						transitionTime = 0.2,
+					},
+				},
 			},
 
 			gui.Label{
 				text = "Starting Equipment",
 				fontSize = 20,
 				hmargin = 4,
-				color = "white",
 				width = "auto",
 				height = "auto",
 				valign = "center",
@@ -156,9 +160,6 @@ function Background.CreateEditor()
 		classes = 'class-panel',
 		styles = {
 			{
-				halign = "left",
-			},
-			{
 				classes = {'class-panel'},
 				width = 1200,
 				height = '90%',
@@ -166,29 +167,6 @@ function Background.CreateEditor()
 				flow = 'vertical',
 				pad = 20,
 			},
-			{
-				classes = {'label'},
-				color = 'white',
-				fontSize = 22,
-				width = 'auto',
-				height = 'auto',
-			},
-			{
-				classes = {'input'},
-				width = 200,
-				height = 26,
-				fontSize = 18,
-				color = 'white',
-			},
-			{
-				classes = {'formPanel'},
-				flow = 'horizontal',
-				width = 'auto',
-				height = 'auto',
-				halign = 'left',
-				vmargin = 2,
-			},
-
 		},
 	}
 

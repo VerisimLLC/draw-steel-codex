@@ -71,7 +71,7 @@ local CreateFeatureSummary = function(feature, featuresList, index, parentPanel,
 	local featurePanel
 	featurePanel =  gui.Panel{
 		classes = {"formPanel", "hideOnSearchMismatch"},
-		width = 600,
+		width = "70%",
 		refreshModifier = function(element)
 			element:FireEventTree("refreshFeatures")
 			parentPanel:FireEvent("change")
@@ -204,12 +204,13 @@ local CreateFeatureSummary = function(feature, featuresList, index, parentPanel,
 			width = 16,
 			height = 16,
 			halign = "right",
+			valign = "center",
 			hmargin = 12,
 			click = function(element)
 				local fn = function(element, feature)
 					local editor = feature:PopupEditor()
 					editor.data.notifyElement = featurePanel --will receive refreshModifier events.
-					element.root:AddChild(editor)	
+					element.root:AddChild(editor)
 				end
 
 				print("Compendium:: Firing...")
@@ -221,6 +222,7 @@ local CreateFeatureSummary = function(feature, featuresList, index, parentPanel,
 
 		gui.DeleteItemButton{
 			halign = "right",
+			valign = "center",
 			width = 16,
 			height = 16,
             requireConfirm = true,
@@ -238,9 +240,11 @@ end
 local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, classOrRace, options)
 
 	local pointsCostPanel = nil
-	
+
     local points = options.points
     options.points = nil
+    local nested = options.nested
+    options.nested = nil
 	if points then
 		pointsCostPanel = gui.Input{
 			width = 60,
@@ -272,10 +276,22 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
 
 	local tri = gui.Panel{
 		classes = {"triangle"},
-		height = "30%",
-		width = "100% height",
-		hmargin = 4,
-		styles = Styles.triangleStyles,
+		floating = true,
+		halign = "left",
+		valign = "center",
+		x = 2,
+		styles = {
+			{
+				selectors = {"triangle"},
+				rotate = 90,
+				transitionTime = 0.2,
+			},
+			{
+				selectors = {"triangle", "expanded"},
+				rotate = 0,
+				transitionTime = 0.2,
+			},
+		},
 	}
 
 	local body
@@ -284,9 +300,12 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
             classes = {cond(feature:try_get("imported", false), cond(feature:try_get("importOverride", false), "override", "imported"))},
 			fontSize = 18,
 			bold = true,
-			width = 400,
-			height = 'auto',
+			width = 320,
+			lmargin = 20,
+			height = "auto",
+			halign = "left",
 			valign = "center",
+			textWrap = true,
             textAlignment = "left",
 			text = feature:Describe(),
 		}
@@ -306,26 +325,7 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
     end
 
 	children[#children+1] = gui.Panel{
-
-		bgimage = "panels/square.png",
-		styles = {
-			{
-				selectors = {"header"},
-				bgcolor = "black",
-			},
-			{
-				selectors = {"header","hover"},
-				bgcolor = "#664444ff",
-			},
-		},
-
-		classes = {"header"},
-
-		hmargin = 8,
-
-		flow = "horizontal",
-		height = 30,
-		width = 600,
+		classes = {"featureCardHeader"},
 		tri,
 		nameLabel,
         pointsCostPanel,
@@ -333,6 +333,8 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
 
 		gui.DeleteItemButton{
 			halign = "right",
+			valign = "center",
+			hmargin = 8,
 			width = 16,
 			height = 16,
             requireConfirm = true,
@@ -441,115 +443,55 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
 	local tagEditor = nil
 	if feature.typeName == "CharacterFeatChoice" then
 
-        tagEditor = gui.Panel{
-            width = "auto",
-            height = "auto",
-            flow = "vertical",
-        }
-
-
-        local RefreshTags
-
-        RefreshTags = function()
-            local tags = {
-                feat = true,
-            }
-
+        local tagOptions = (function()
+            local tags = { feat = true }
             local featsTable = dmhub.GetTable(CharacterFeat.tableName) or {}
-
-            for k,feat in pairs(featsTable) do
+            for _,feat in pairs(featsTable) do
                 if not feat:try_get("hidden", false) then
                     for _,tag in ipairs(feat:Tags()) do
                         tags[string.lower(tag)] = true
                     end
                 end
             end
-
-            local options = {}
+            local result = {}
             for k,_ in pairs(tags) do
-                options[#options+1] = {
-                    id = k,
-                    text = k,
-                }
+                result[#result+1] = { id = k, text = k }
             end
+            table.sort(result, function(a,b) return a.text < b.text end)
+            return result
+        end)()
 
-            table.sort(options, function(a,b) return a.text < b.text end)
-
-            local element = tagEditor
-            element.children = {}
-
-            local currentTags = feature:Tags()
-                    print("TAGS:: REFRESH", feature.tag, "is", currentTags)
-            for _,tag in ipairs(currentTags) do
-                local tagPanel = gui.Panel{
-                    classes = {"formPanel"},
-                    gui.Label{
-                        text = "Tag:",
-                        classes = {"formLabel"},
-                        minWidth = 160,
-                    },
-                    gui.Dropdown{
-                        width = 240,
-                        options = options,
-                        idChosen = tag,
-                        change = function(element)
-                            local newTags = {}
-                            for _,tag in ipairs(currentTags) do
-                                if tag ~= element.idChosen then
-                                    newTags[#newTags+1] = tag
-                                else
-                                    newTags[#newTags+1] = element.idChosen
-                                end
-                            end
-                            feature.tag = string.join(newTags,",")
-                            resultPanel:FireEvent("change")
-                            RefreshTags()
-                        end,
-                    },
-
-                    gui.DeleteItemButton{
-                        classes = cond(#currentTags == 1, {"hidden"}),
-                        floating = true,
-                        halign = "right",
-                        valign = "center",
-                        x = 16,
-                        width = 12,
-                        height = 12,
-                        requireConfirm = true,
-                        click = function(element)
-                            local newTags = {}
-                            for _,t in ipairs(currentTags) do
-                                if t ~= tag then
-                                    newTags[#newTags+1] = t
-                                end
-                            end
-                            feature.tag = string.join(newTags,",")
-                            resultPanel:FireEvent("change")
-                            RefreshTags()
-                        end,
-                    }
-                }
-                element:AddChild(tagPanel)
+        local tagValue = (function()
+            local v = {}
+            for _,tag in ipairs(feature:Tags()) do
+                v[string.lower(tag)] = true
             end
+            return v
+        end)()
 
-            element:AddChild(gui.Dropdown{
-                width = 240,
-                halign = "right",
-                textOverride = "Add Tag...",
-                options = options,
-                change = function(element)
-                    local newTags = DeepCopy(currentTags)
-                    newTags[#newTags+1] = element.idChosen
-                    feature.tag = string.join(newTags,",")
-                    print("TAGS:: SET", feature.tag, "HAVE", feature:Tags())
+        tagEditor = gui.Panel{
+            classes = {"formStackedRow"},
+            gui.Label{
+                classes = {"formStacked"},
+                text = "Tags:",
+            },
+            gui.Multiselect{
+                classes = {"formStacked"},
+                addItemText = "Add Tag...",
+                options = tagOptions,
+                value = tagValue,
+                change = function(element, value)
+                    local newTags = {}
+                    for tag,_ in pairs(value) do
+                        newTags[#newTags+1] = tag
+                    end
+                    table.sort(newTags)
+                    feature.tag = string.join(newTags, ",")
                     resultPanel:FireEvent("change")
-                    RefreshTags()
                 end,
-            })
-        end --end of RefreshTags function.
+            },
+        }
 
-        RefreshTags()
-       
 	elseif feature.typeName == "CharacterSingleFeat" then
 
 		local options = {
@@ -582,7 +524,7 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
 				classes = {"formPanel"},
 				gui.Label{
 					text = "Feat:",
-					classes = {"formLabel"},
+					classes = {"form"},
 					minWidth = 160,
 				},
 				gui.Dropdown{
@@ -659,7 +601,7 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
 			classes = {"formPanel"},
 			gui.Label{
 				text = "Rules Text:",
-				classes = {"formLabel"},
+				classes = {"form"},
 				minWidth = 160,
 			},
 			gui.Input{
@@ -677,21 +619,16 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
 
 	if body == nil then
 		body = gui.Panel{
-			width = "100%",
-			height = "auto",
-			hmargin = 40,
-			flow = "vertical",
-			classes = {'collapsed-anim'},
+			classes = {"featureCardBody", "collapsed-anim"},
 
 			gui.Panel{
-				classes = {"formPanel"},
+				classes = {"formStackedRow"},
 				gui.Label{
+					classes = {"formStacked"},
 					text = "Name:",
-					classes = {"formLabel"},
-					minWidth = 160,
 				},
 				gui.Input{
-					width = 240,
+					classes = {"formStacked"},
 					text = feature.name,
 					change = function(element)
 						feature.name = element.text
@@ -709,20 +646,26 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
 			rulesTextEditor,
 
 
-			gui.Input{
-				multiline = true,
-				height = 'auto',
-				minHeight = 30,
-				width = 540,
-				placeholderText = "Enter prompt text...",
-				text = feature.description,
-				characterLimit = 2000,
+			gui.Panel{
+				classes = {"formStackedRow"},
+				gui.Label{
+					classes = {"formStacked"},
+					text = "Description:",
+				},
+				gui.Input{
+					classes = {"formStacked"},
+					multiline = true,
+					height = 'auto',
+					minHeight = 30,
+					placeholderText = "Enter prompt text...",
+					text = feature.description,
+					characterLimit = 2000,
 
-				change = function(element)
-					feature.description = element.text
-					resultPanel:FireEvent("change")
-				end,
-
+					change = function(element)
+						feature.description = element.text
+						resultPanel:FireEvent("change")
+					end,
+				},
 			},
 
 			feature:CreateEditor(classOrRace, {
@@ -736,9 +679,7 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
 	children[#children+1] = body
 
 	local args = {
-        classes = {"hideOnSearchMismatch"},
-		flow = "vertical",
-		width = "auto",
+        classes = nested and {"featureCard", "featureCardNested", "hideOnSearchMismatch"} or {"featureCard", "hideOnSearchMismatch"},
 		height = "auto",
 		children = children,
 
@@ -800,25 +741,33 @@ function ClassLevel:CreateEditor(classOrRace, levelNum, params)
 	local args = {
 		width = "100%",
 		height = "auto",
-		bgimage = "panels/square.png",
-		bgcolor = "black",
 		flow = "vertical",
 
-		styles = {
+		styles = ThemeEngine.MergeTokens({
 			Styles.ImplementationIcon,
             {
                 selectors = {"imported"},
-                color = "#999999",
+                color = "@fgMuted",
             },
             {
                 selectors = {"imported", "hover"},
-                color = "#bbbbbb",
+                color = "@fg",
             },
             {
                 selectors = {"override"},
-                color = "#77bb77",
+                color = "@success",
             },
-		},
+            -- Header strip on each level row (folded in from the local
+            -- inline `styles =` that used to live on the header panel).
+            {
+                selectors = {"header"},
+                bgcolor = "@bg",
+            },
+            {
+                selectors = {"header", "hover"},
+                bgcolor = "@bgAlt",
+            },
+		}),
 
 		paste = function(element, item, index)
 			item = DeepCopy(item)
@@ -1032,14 +981,11 @@ local SetClass = function(tableName, classPanel, classid)
 		halign = "right",
 		valign = "top",
 		gui.IconEditor{
+		classes = {"portraitImage"},
 		value = class.portraitid,
 		library = "Avatar",
-		width = 196,
-		height = "150% width",
 		autosizeimage = true,
 		allowPaste = true,
-		borderColor = Styles.textColor,
-		borderWidth = 2,
 		change = function(element)
 			class.portraitid = element.value
 			UploadClass()
@@ -1051,20 +997,19 @@ local SetClass = function(tableName, classPanel, classid)
 			width = "auto",
 			height = "auto",
 			halign = "center",
-			color = Styles.textColor,
 			fontSize = 12,
 		},
 	}
 
 	--the name of the class.
 	children[#children+1] = gui.Panel{
-		classes = {'formPanel'},
+		classes = {"formStackedRow"},
 		gui.Label{
-			text = 'Name:',
-			classes = {"formLabel"},
-			minWidth = 160,
+			classes = {"formStacked"},
+			text = "Name:",
 		},
 		gui.Input{
+			classes = {"formStacked"},
 			text = class.name,
 			change = function(element)
 				class.name = string.gsub(element.text, "[-+%d]", "")
@@ -1143,21 +1088,21 @@ local SetClass = function(tableName, classPanel, classid)
 
 	--class details.
 	children[#children+1] = gui.Panel{
-		classes = {'formPanel'},
-		height = 'auto',
+		classes = {"formStackedRow"},
 		gui.Label{
+			classes = {"formStacked"},
 			text = "Description:",
-			valign = "center",
-			minWidth = 240,
 		},
 		gui.Input{
-			text = class.details,
+			classes = {"formStacked"},
 			multiline = true,
-			minHeight = 50,
-			height = 'auto',
-			width = 400,
-			characterLimit = 4000,
+			height = "auto",
+			minHeight = 30,
+			maxHeight = 300,
+			vscroll = true,
 			textAlignment = "topleft",
+			characterLimit = 4000,
+			text = class.details,
 			change = function(element)
 				class.details = element.text
 				UploadClass()
@@ -1210,7 +1155,6 @@ function Class.CreateLevelEditor(children, class, UploadClass, startLevel, finis
 			classes = {"triangle"},
 			height = "30%",
 			width = "100% height",
-			styles = Styles.triangleStyles,
 		}
 
 		local classLevel = class:GetLevel(i, subkey)
@@ -1244,16 +1188,6 @@ function Class.CreateLevelEditor(children, class, UploadClass, startLevel, finis
 			width = "100%",
 			flow = "horizontal",
 			bgimage = "panels/square.png",
-			styles = {
-				{
-					selectors = {"header"},
-					bgcolor = "black",
-				},
-				{
-					selectors = {"header","hover"},
-					bgcolor = "#664444ff",
-				},
-			},
 			tri,
 			gui.Label{
                 classes = {"searchableLabel"},
@@ -1338,9 +1272,6 @@ function Class.CreateEditor()
 		classes = 'class-panel',
 		styles = {
 			{
-				halign = "left",
-			},
-			{
 				classes = {'class-panel'},
 				width = "100%-160",
 				height = '90%',
@@ -1349,29 +1280,6 @@ function Class.CreateEditor()
 				flow = 'vertical',
 				pad = 20,
 			},
-			{
-				classes = {'label'},
-				color = 'white',
-				fontSize = 22,
-				width = 'auto',
-				height = 'auto',
-			},
-			{
-				classes = {'input'},
-				width = 200,
-				height = 26,
-				fontSize = 18,
-				color = 'white',
-			},
-			{
-				classes = {'formPanel'},
-				flow = 'horizontal',
-				width = 'auto',
-				height = 'auto',
-				halign = 'left',
-				vmargin = 2,
-			},
-
 			Styles.ImplementationIcon,
 		},
 	}
@@ -1408,15 +1316,15 @@ function CharacterFeatureChoice:CreateEditor(classOrRace, params)
 			local children = {}
 
 			children[#children+1] = gui.Panel{
-				classes = {"formPanel"},
+				classes = {"formStackedRow"},
 				gui.Label{
-					classes = {"formLabel"},
+					classes = {"formStacked"},
 					text = "Choices:",
-					valign = "center",
 				},
 				gui.GoblinScriptInput{
-					width = 180,
+					classes = {"formStacked"},
 					value = self.numChoices,
+					multiline = false,
 					change = function(element)
 						self.numChoices = element.value
 						resultPanel:FireEvent('create')
@@ -1446,7 +1354,7 @@ function CharacterFeatureChoice:CreateEditor(classOrRace, params)
 
 			children[#children+1] = gui.Check{
 				text = "Allow Duplicate Choices",
-				classes = {cond(tonumber(self.numChoices) ~= 1, nil, "hidden")},
+				classes = {cond(tonumber(self.numChoices) ~= 1, nil, "collapsed")},
 				value = self.allowDuplicateChoices,
 				change = function(element)
 					self.allowDuplicateChoices = element.value
@@ -1543,18 +1451,22 @@ function CharacterFeatureChoice:CreateEditor(classOrRace, params)
                 end
             end
 
-			children[#children+1] = gui.Input{
-				width = 200,
-				height = 24,
-				fontSize = 20,
-				characterLimit = 32,
-				placeholderText = "Enter name of points...",
-				classes = {cond(tonumber(self.numChoices) ~= 1 and self.costsPoints, nil, "collapsed")},
-				text = self.pointsName,
-				change = function(element)
-					self.pointsName = element.text
-					resultPanel:FireEvent('change')
-				end,
+			children[#children+1] = gui.Panel{
+				classes = {"formStackedRow", cond(tonumber(self.numChoices) ~= 1 and self.costsPoints, nil, "collapsed")},
+				gui.Label{
+					classes = {"formStacked"},
+					text = "Points name:",
+				},
+				gui.Input{
+					classes = {"formStacked"},
+					characterLimit = 32,
+					placeholderText = "Enter name of points...",
+					text = self.pointsName,
+					change = function(element)
+						self.pointsName = element.text
+						resultPanel:FireEvent('change')
+					end,
+				},
 			}
 
 			for i,feature in ipairs(self.options) do
@@ -1564,6 +1476,7 @@ function CharacterFeatureChoice:CreateEditor(classOrRace, params)
 				else
 					children[#children+1] = CreateChoiceEditor(feature, self.options, index, resultPanel, classOrRace, {
                         points = self.costsPoints,
+                        nested = true,
 						change = function(element)
 							resultPanel:FireEvent("change")
 						end,
@@ -1621,16 +1534,16 @@ function CharacterFeatureChoice:CreateEditor(classOrRace, params)
 			CharacterFeaturePrefabs.FillDropdownOptions(featureOptions)
 
 
-			children[#children+1] = gui.Dropdown{
+			children[#children+1] = gui.Panel{
+				classes = {"formStackedRow"},
+				tmargin = 12,
+				gui.Dropdown{
+					classes = {"formStacked"},
 
-				idChosen = 'none',
-				options = featureOptions,
+					idChosen = 'none',
+					options = featureOptions,
 
-				width = 160,
-				height = 30,
-				fontSize = 16,
-				
-				change = function(element)
+					change = function(element)
 					if element.idChosen == 'feature' then
 						self.options[#self.options+1] = CharacterFeature.Create{
 							source = classOrRace:FeatureSourceName(),
@@ -1675,14 +1588,7 @@ function CharacterFeatureChoice:CreateEditor(classOrRace, params)
 					--recreate this panel.
 					resultPanel:FireEvent("create")
 				end
-			}
-
-			children[#children+1] = gui.Panel{
-				bgimage = "panels/square.png",
-				width = 300,
-				height = 1,
-				bgcolor = "#999999",
-				vmargin = 8,
+				},
 			}
 
 			element.children = children

@@ -16,40 +16,10 @@ mod.shared.ShowCreateMapDialog = function()
     local tileType = "squares"
 
 	local dialogPanel = gui.Panel{
-		classes = {'framedPanel'},
+		classes = {"framedPanel"},
 		width = 1400,
 		height = 940,
-		styles = {
-			Styles.Panel,
-            {
-                selectors = {"mapItem"},
-                bgimage = "panels/square.png",
-                bgcolor = "black",
-                cornerRadius = 12,
-                width = 1920*0.1,
-                height = 1080*0.1,
-                halign = "center",
-                hmargin = 8,
-            },
-            {
-                selectors = {"mapItem", "hover"},
-                borderWidth = 2,
-                borderColor = "#ffffff44",
-            },
-            {
-                selectors = {"mapItem", "selected"},
-                borderWidth = 2,
-                borderColor = "white",
-            },
-            {
-                selectors = {"mapText"},
-                color = "white",
-                fontSize = 14,
-                width = "auto",
-                height = "auto",
-                textAlignment = "center",
-            },
-		},
+		styles = ThemeEngine.GetStyles(),
 
         gui.Panel{
             width = "100%-24",
@@ -60,7 +30,7 @@ mod.shared.ShowCreateMapDialog = function()
             flow = "vertical",
 
             gui.Label{
-                classes = {"dialogTitle"},
+                classes = {"modalTitle"},
                 text = "Create Map",
             },
 
@@ -71,6 +41,36 @@ mod.shared.ShowCreateMapDialog = function()
                 width = "auto",
                 height = "auto",
                 vmargin = 16,
+
+                styles = ThemeEngine.MergeTokens({
+                    {
+                        selectors = {"mapItem"},
+                        bgimage = true,
+                        bgcolor = "@bg",
+                        cornerRadius = 12,
+                        width = 1920*0.1,
+                        height = 1080*0.1,
+                        halign = "center",
+                        hmargin = 8,
+                    },
+                    {
+                        selectors = {"mapItem", "hover"},
+                        borderWidth = 2,
+                        borderColor = "@accent",
+                    },
+                    {
+                        selectors = {"mapItem", "selected"},
+                        borderWidth = 2,
+                        borderColor = "@fg",
+                    },
+                    {
+                        selectors = {"mapText"},
+                        fontSize = 14,
+                        width = "auto",
+                        height = "auto",
+                        textAlignment = "center",
+                    },
+                }),
 
                 gui.Panel{
                     classes = {"mapItem", "selected"},
@@ -109,32 +109,14 @@ mod.shared.ShowCreateMapDialog = function()
                 valign = "top",
                 vmargin = 16,
 
-                styles = {
-                    Styles.Form,
-                    {
-                        selectors = {"formPanel"},
-                        width = 600,
-                    },
-                    {
-                        selectors = {"formLabel"},
-                        halign = "left",
-                        minWidth = 180,
-                    },
-                    {
-                        selectors = {"formData"},
-                        halign = "left",
-                    },
-                },
-
                 gui.Panel{
-                    classes = {"formPanel"},
-                    halign = "center",
+                    classes = {"formRow"},
                     gui.Label{
-                        classes = {"formLabel"},
+                        classes = {"form"},
                         text = "Map Name:",
                     },
                     gui.Input{
-                        classes = {"formInput", "formData"},
+                        classes = {"form"},
                         text = m_mapName,
                         change = function(element)
                             m_mapName = element.text
@@ -144,18 +126,31 @@ mod.shared.ShowCreateMapDialog = function()
 
 
                 gui.Panel{
-                    classes = {"formPanel"},
+                    classes = {"formRow"},
                     gui.Label{
-                        classes = {"formLabel"},
+                        classes = {"form"},
                         text = "Tile Type:",
                     },
 
                     gui.Panel{
-                        classes = {"formData"},
+                        classes = {"form"},
                         width = "auto",
                         height = "auto",
                         flow = "horizontal",
                         halign = "left",
+
+                        styles = ThemeEngine.MergeTokens({
+                            {
+                                selectors = {"tileButton"},
+                                brightness = 0.5,
+                                bgcolor = "@bgInverse",
+                            },
+                            {
+                                selectors = {"tileButton", "selected"},
+                                brightness = 1.8,
+                                bgcolor = "@fgStrong",
+                            },
+                        }),
 
                         select = function(element, target)
                             tileType = target.data.id
@@ -164,20 +159,22 @@ mod.shared.ShowCreateMapDialog = function()
                             end
                         end,
 
-                        gui.HudIconButton{
-                            classes = {"selected"},
+                        gui.Button{
+                            classes = {"sizeL", "tileButton", "selected"},
                             data = {id = "squares"},
                             hmargin = 8,
                             icon = "ui-icons/tile-square.png",
                             click = function(element) element.parent:FireEvent("select", element) end,
                         },
-                        gui.HudIconButton{
+                        gui.Button{
+                            classes = {"sizeL", "tileButton"},
                             data = {id = "flattop"},
                             hmargin = 8,
                             icon = "ui-icons/tile-flathex.png",
                             click = function(element) element.parent:FireEvent("select", element) end,
                         },
-                        gui.HudIconButton{
+                        gui.Button{
+                            classes = {"sizeL", "tileButton"},
                             data = {id = "pointtop"},
                             hmargin = 8,
                             icon = "ui-icons/tile-pointyhex.png",
@@ -193,10 +190,10 @@ mod.shared.ShowCreateMapDialog = function()
                 halign = "center",
                 valign = "bottom",
 
-                gui.PrettyButton{
+                gui.Button{
+                    classes = {"sizeL"},
                     halign = "left",
                     text = "Create Map",
-                    width = 160,
                     click = function(element)
                         local mapType = selectedMap.data.type
 
@@ -247,10 +244,10 @@ mod.shared.ShowCreateMapDialog = function()
                     end,
                 },
 
-                gui.PrettyButton{
+                gui.Button{
+                    classes = {"sizeL"},
                     halign = "right",
                     text = "Cancel",
-                    width = 160,
                     escapeActivates = true,
                     escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
                     click = function(element)
@@ -915,9 +912,9 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
     }
 
     previewLabel = gui.Label{
+        classes = {"form"},
         width = "100%",
         height = "auto",
-        fontSize = 14,
         color = "#cccccc",
         wrap = true,
         halign = "left",
@@ -1498,16 +1495,16 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
                 flow = "horizontal",
 
                 gui.Label{
+                    classes = {"sizeS"},
                     width = "auto",
                     height = "auto",
-                    fontSize = 16,
                     text = "Top-left at tile: ",
                 },
                 offsetXInput,
                 gui.Label{
+                    classes = {"sizeS"},
                     width = "auto",
                     height = "auto",
-                    fontSize = 16,
                     text = " , ",
                 },
                 offsetYInput,
@@ -1520,9 +1517,9 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
                 hmargin = 16,
 
                 gui.Label{
+                    classes = {"sizeS"},
                     width = "auto",
                     height = "auto",
-                    fontSize = 16,
                     text = "Opacity: ",
                 },
                 opacitySlider,
@@ -1535,19 +1532,17 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
                 hmargin = 16,
 
                 gui.Label{
+                    classes = {"sizeS"},
                     width = "auto",
                     height = "auto",
-                    fontSize = 16,
                     text = "Zoom: ",
                 },
                 zoomSlider,
             },
 
-            gui.PrettyButton{
+            gui.Button{
+                classes = {"sizeM"},
                 text = "Reset View",
-                width = 100,
-                height = 28,
-                fontSize = 14,
                 halign = "right",
                 click = function()
                     resetView()
@@ -1556,10 +1551,9 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
         },
 
         gui.Label{
+            classes = {"form", "sizeS"},
             width = "auto",
             height = "auto",
-            fontSize = 12,
-            color = "#888888",
             text = realignTarget ~= nil
                 and "Drag this floor to reposition it. Scroll or use the zoom slider. Middle-click drag or drag background to pan."
                 or "Drag the new floor to position it. Scroll or use the zoom slider. Middle-click drag or drag background to pan.",
@@ -1573,18 +1567,11 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
         height = 940,
         pad = 16,
         flow = "vertical",
-        styles = {
-            Styles.Default,
-            Styles.Panel,
-        },
-
-        -- Arrow-key nudges are handled in the previewPanel's think callback so we
-        -- can use dmhub.KeyPressed directly (the keybind path doesn't seem to
-        -- intercept arrow keys reliably).
+        styles = ThemeEngine.GetStyles(),
 
         gui.Label{
-            classes = {"dialogTitle"},
-            text = realignTarget ~= nil and "Realign Floor" or "Align New Floor",
+            classes = {"modalTitle"},
+            text = "Align New Floor",
         },
 
         gui.Panel{
@@ -1594,9 +1581,9 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
             vmargin = 4,
 
             gui.Label{
+                classes = {"sizeS"},
                 width = "auto",
                 height = "auto",
-                fontSize = 14,
                 text = realignTarget ~= nil
                     and string.format("Floor: %.2f x %.2f tiles  |  %d other map object(s) shown.", floorW, floorH, #references)
                     or string.format("Existing map: %dx%d tiles  |  New floor: %dx%d tiles", mapW, mapH, floorW, floorH),
@@ -1615,10 +1602,9 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
             halign = "center",
             vmargin = 8,
 
-            gui.PrettyButton{
+            gui.Button{
+                classes = {"sizeL"},
                 text = "Confirm",
-                width = 160,
-                height = 50,
                 click = function()
                     if realignTarget ~= nil then
                         -- Convert offset (top-left of rendered image, == areaX1/Y1)
@@ -1641,10 +1627,9 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
                 end,
             },
 
-            gui.PrettyButton{
+            gui.Button{
+                classes = {"sizeL"},
                 text = "Cancel",
-                width = 160,
-                height = 50,
                 escapeActivates = true,
                 escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
                 click = function()
@@ -1653,7 +1638,8 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
             },
         },
 
-        gui.CloseButton{
+        gui.Button{
+            classes = {"closeButton"},
             halign = "right",
             valign = "top",
             floating = true,
@@ -1703,11 +1689,9 @@ mod.shared.ReimportMapSizing = function(floor, mapObj)
     local importPanel
     local gridlessInitApplied = false
 
-    local confirmButton = gui.PrettyButton{
-        classes = {"hidden"},
+    local confirmButton = gui.Button{
+        classes = {"sizeL", "hidden"},
         text = "Apply",
-        height = 50,
-        width = 180,
         valign = "center",
         halign = "center",
         click = function()
@@ -1789,11 +1773,9 @@ mod.shared.ReimportMapSizing = function(floor, mapObj)
         end,
     }
 
-    local continueButton = gui.PrettyButton{
-        classes = {"hidden"},
+    local continueButton = gui.Button{
+        classes = {"sizeL", "hidden"},
         text = "Continue>>",
-        height = 50,
-        width = 180,
         valign = "center",
         halign = "center",
         click = function()
@@ -1801,11 +1783,9 @@ mod.shared.ReimportMapSizing = function(floor, mapObj)
         end,
     }
 
-    local previousButton = gui.PrettyButton{
-        classes = {"hidden"},
+    local previousButton = gui.Button{
+        classes = {"sizeL", "hidden"},
         text = "Back",
-        height = 50,
-        width = 180,
         valign = "center",
         halign = "left",
         click = function()
@@ -1912,16 +1892,16 @@ mod.shared.ReimportMapSizing = function(floor, mapObj)
 
         gui.Panel{
             flow = "horizontal", width = "auto", height = "auto",
-            gui.Label{ width = 90, height = "auto", text = "Width:", fontSize = 18 },
+            gui.Label{ classes = {"sizeL"}, width = 90, height = "auto", text = "Width:"},
             statusWidth,
-            gui.Label{ width = "auto", height = "auto", text = "px", fontSize = 18 },
+            gui.Label{ classes = {"sizeL"}, lmargin = 4, width = "auto", height = "auto", text = "px"},
         },
 
         gui.Panel{
             flow = "horizontal", width = "auto", height = "auto",
-            gui.Label{ width = 90, height = "auto", text = "Height:", fontSize = 18 },
+            gui.Label{ classes = {"sizeL"}, width = 90, height = "auto", text = "Height:"},
             statusHeight,
-            gui.Label{ width = "auto", height = "auto", text = "px", fontSize = 18 },
+            gui.Label{ classes = {"sizeL"}, lmargin = 4, width = "auto", height = "auto", text = "px"},
         },
     }
 
@@ -1980,7 +1960,7 @@ mod.shared.ReimportMapSizing = function(floor, mapObj)
                     gui.Label{
                         halign = "center", valign = "center",
                         width = "auto", height = "auto",
-                        fontSize = 18, color = "white",
+                        fontSize = 18,
                         text = string.format("Error: %s", element.error),
                     }
                 }
@@ -2006,19 +1986,17 @@ mod.shared.ReimportMapSizing = function(floor, mapObj)
         height = 940,
         pad = 8,
         flow = "vertical",
-        styles = {
-            Styles.Default,
-            Styles.Panel,
-        },
+        styles = ThemeEngine.GetStyles(),
 
         gui.Label{
-            classes = {"dialogTitle"},
+            classes = {"modalTitle"},
             text = "Reimport Map Sizing",
         },
 
         resultPanel,
 
-        gui.CloseButton{
+        gui.Button{
+            classes = {"closeButton"},
             halign = "right",
             valign = "top",
             floating = true,

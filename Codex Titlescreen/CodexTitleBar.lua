@@ -28,25 +28,12 @@ local function CreateCodexMenuItem(args)
     local menuItems = args.menuItems
     args.menuItems = nil
 
-    local invertIcon = args.invertIcon
-    args.invertIcon = nil
-
     if args.icon then
-        local styles = nil
-        if invertIcon then
-            styles = {
-                {
-                    selectors = {"parent:hover"},
-                    inversion = 1,
-                },
-            }
-        end
         iconPanel = gui.Panel{
-            styles = styles,
+            classes = {"menuItemIcon"},
             width = 24,
             height = 24,
             bgimage = args.icon,
-            bgcolor = "white",
             valign = "center",
             interactable = false,
             seticon = function(element, icon)
@@ -112,8 +99,7 @@ local function CreateCodexMenuItem(args)
 
 			local menuItems = menuItems()
 
-			element.popup =
-			gui.Panel{
+			element.popup = gui.Panel{
 				width = "auto",
 				height = "auto",
 				halign = "right",
@@ -235,11 +221,9 @@ local function CreateStatusBar()
         end,
 
         gui.Label{
-            fontSize = 14,
             minFontSize = 10,
             width = 160,
             height = "100%",
-            color = "#aaaaaa",
             text = "Ready",
             multimonitor = {"showstatusbar"},
             monitor = function(element)
@@ -333,11 +317,9 @@ local function CreateStatusBar()
         },
 
         gui.Label{
-            fontSize = 14,
             minFontSize = 10,
             width = 420,
             height = "100%",
-            color = "#aaaaaa",
             text = "",
             multimonitor = {"showstatusbar"},
             monitor = function(element)
@@ -679,28 +661,11 @@ local function CreateSearchBar()
     end
 
     resultPanel = gui.SearchInput{
-        styles = {
-            {
-                borderColor = "clear",
-            },
-            {
-                selectors = {"~ingame", "~searchoverride"},
-                hidden = 1,
-            },
-            {
-                selectors = {"focus"},
-                borderWidth = 1,
-                borderColor = Styles.textColor,
-            },
-        },
         bgimage = true,
-        bgcolor = "clear",
         width = 368,
         height = 20,
         halign = "right",
         valign = "center",
-        borderWidth = 1,
-        fontSize = 16,
         pad = 2,
         popupPositioning = "panel",
         placeholderText = cond(dmhub.GetCommandBinding("find"), string.format("Search (%s)...", dmhub.GetCommandBinding("find") or ""), "Search..."),
@@ -859,7 +824,6 @@ local function CreateTopBar()
     local m_documents
     local m_adventureDocumentsBar = CreateCodexMenuItem{
         icon = "panels/drawsteel/delian-tomb.png",
-        invertIcon = true,
         name = "Delian Tomb",
         create = function(element)
             element.selfStyle.collapsed = 1
@@ -892,13 +856,12 @@ local function CreateTopBar()
 
     local menuBar = gui.Panel{
         id = "menuBarPanel",
+        classes = {"titleBarSurface"},
         width = "100%",
         height = 32,
         floating = true,
         valign = "top",
         bgimage = true,
-        bgcolor = "white",
-        gradient = Styles.RichBlackGradient,
         flow = "horizontal",
 
         styles = {
@@ -1088,6 +1051,7 @@ local function CreateTopBar()
                         text = "How to Report a Bug",
                         click = function()
                             gamehud:ModalDialog{
+                                styles = ThemeEngine.GetStyles(),
                                 title = "Reporting Bugs",
                                 gui.Panel{
                                     width = 900,
@@ -1100,7 +1064,6 @@ local function CreateTopBar()
                                         height = "auto",
                                         fontSize = 20,
                                         bold = true,
-                                        color = Styles.textColor,
                                         textWrap = true,
                                         text = "<b>You will be sent to the Draw Steel Codex Discord where you can report bugs.</b>",
                                         vmargin = 10,
@@ -1110,7 +1073,6 @@ local function CreateTopBar()
                                         width = 860,
                                         height = "auto",
                                         fontSize = 15,
-                                        color = Styles.textColor,
                                         textWrap = true,
                                         text = "When you encounter a bug, please follow these steps to make your report as helpful as possible:",
                                         tmargin = 4,
@@ -1121,7 +1083,6 @@ local function CreateTopBar()
                                         width = 840,
                                         height = "auto",
                                         fontSize = 15,
-                                        color = Styles.textColor,
                                         textWrap = true,
                                         lmargin = 16,
                                         vmargin = 4,
@@ -1132,7 +1093,6 @@ local function CreateTopBar()
                                         width = 840,
                                         height = "auto",
                                         fontSize = 15,
-                                        color = Styles.textColor,
                                         textWrap = true,
                                         lmargin = 16,
                                         vmargin = 4,
@@ -1143,7 +1103,6 @@ local function CreateTopBar()
                                         width = 840,
                                         height = "auto",
                                         fontSize = 15,
-                                        color = Styles.textColor,
                                         textWrap = true,
                                         lmargin = 16,
                                         vmargin = 4,
@@ -1154,7 +1113,6 @@ local function CreateTopBar()
                                         width = 840,
                                         height = "auto",
                                         fontSize = 15,
-                                        color = Styles.textColor,
                                         textWrap = true,
                                         lmargin = 16,
                                         vmargin = 4,
@@ -1165,7 +1123,6 @@ local function CreateTopBar()
                                         width = 840,
                                         height = "auto",
                                         fontSize = 15,
-                                        color = Styles.textColor,
                                         textWrap = true,
                                         lmargin = 16,
                                         vmargin = 4,
@@ -1176,7 +1133,6 @@ local function CreateTopBar()
                                         width = 840,
                                         height = "auto",
                                         fontSize = 15,
-                                        color = Styles.textColor,
                                         textWrap = true,
                                         lmargin = 16,
                                         vmargin = 4,
@@ -1187,7 +1143,6 @@ local function CreateTopBar()
                                         width = 840,
                                         height = "auto",
                                         fontSize = 15,
-                                        color = Styles.textColor,
                                         textWrap = true,
                                         lmargin = 16,
                                         vmargin = 4,
@@ -1198,7 +1153,6 @@ local function CreateTopBar()
                                         width = 840,
                                         height = "auto",
                                         fontSize = 15,
-                                        color = Styles.textColor,
                                         textWrap = true,
                                         lmargin = 16,
                                         vmargin = 4,
@@ -1235,6 +1189,44 @@ local function CreateTopBar()
         m_searchBar,
     }
 
+    local titleBarStyleExtras = {
+        -- Title-bar bar surface paints with the scheme's barTrack
+        -- gradient. bgcolor = "white" is the image-tint multiplier:
+        -- without it the cascade's @bg tints the gradient down to
+        -- near-black on dark schemes.
+        {
+            selectors = {"titleBarSurface"},
+            bgimage = true,
+            bgcolor = "white",
+            gradient = "@barTrack",
+        },
+
+        -- Title-bar search field: bordered variant + behavior visibility.
+        -- DefaultStyles' searchInput rule ships borderWidth=0; the title
+        -- bar wants a thin frame so we add it here at the surface.
+        {
+            selectors = {"searchInput"},
+            borderWidth = 1,
+            borderColor = "@border",
+        },
+        {
+            selectors = {"searchInput", "focus"},
+            borderColor = "@fgStrong",
+        },
+        {
+            selectors = {"searchInput", "~ingame", "~searchoverride"},
+            hidden = 1,
+        },
+    }
+
+    -- Tree-wide invalidation pulse for theme repaints. Reassigning .styles
+    -- updates the rule array but doesn't mark descendants dirty, so without
+    -- a forced re-cascade the bar keeps painting the previous scheme until
+    -- something (e.g. hover) churns a pseudo-class. Toggling a no-op class
+    -- across the subtree marks every descendant dirty. The class itself is
+    -- not referenced by any rule -- only the flip matters.
+    local themeRefreshTick = false
+
 	local topBarPanel = gui.Panel{
         id = "topBar",
 		width = dmhub.titleBarContainer.width,
@@ -1257,36 +1249,35 @@ local function CreateTopBar()
             end
         end,
 
-        styles = {
-            {
-                selectors = {"menuItem"},
-                bgimage = true,
-                bgcolor = "clear",
-                hpad = 8,
-            },
-            {
-                selectors = {"menuItem", "hover"},
-                bgcolor = Styles.textColor,
-            },
-            {
-                selectors = {"menuLabel"},
-                fontSize = 16,
-                width = "auto",
-                height = "auto",
-                valign = "center",
-                hmargin = 4,
-                color = Styles.textColor,
-            },
-            {
-                selectors = {"menuLabel", "parent:hover"},
-                color = Styles.backgroundColor,
-            }
-        },
+        styles = ThemeEngine.MergeStyles(titleBarStyleExtras),
 
 		--dmControlsPanel,
 		--layersPanel,
         menuBar,
 	}
+
+    -- Force a re-cascade once the engine signals the game is fully loaded
+    -- (and therefore every mod's color schemes are registered). The cascade
+    -- computed at construction time may resolve before custom-scheme mods
+    -- have finished registering, leaving the bar painted with the wrong
+    -- scheme until something else invalidates the tree.
+    dmhub.RegisterEventHandler("EnterGame", function()
+        if topBarPanel and topBarPanel.valid then
+            topBarPanel.styles = ThemeEngine.MergeStyles(titleBarStyleExtras)
+            themeRefreshTick = not themeRefreshTick
+            topBarPanel:SetClassTree("themeRefreshTick", themeRefreshTick)
+        end
+    end)
+
+    -- Subscribe to theme changes so the bar repaints live when the user
+    -- switches scheme via Settings instead of waiting for the next reload.
+    ThemeEngine.OnThemeChanged(mod, function()
+        if topBarPanel and topBarPanel.valid then
+            topBarPanel.styles = ThemeEngine.MergeStyles(titleBarStyleExtras)
+            themeRefreshTick = not themeRefreshTick
+            topBarPanel:SetClassTree("themeRefreshTick", themeRefreshTick)
+        end
+    end)
 
 	return topBarPanel
 end

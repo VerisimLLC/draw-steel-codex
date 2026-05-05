@@ -156,27 +156,14 @@ function CharacterComplication:Render(args)
         styles = {
             {
                 selectors = {"label"},
-                fontSize = 14,
-                bold = false,
                 width = "100%-20",
                 height = "auto",
                 halign = "center",
                 textAlignment = "topleft",
                 vmargin = 6,
             },
-            {
-                selectors = {"title"},
-                fontFace = 28,
-                fontSize = 24,
-                bold = true,
-            },
         },
 
-        --I think we don't need this since it's redundant with the dropdown triangle.
-        --gui.Label{
-        --    classes = {"title"},
-        --    text = self.name,
-        --},
         gui.Label{
             text = self.description,
         },

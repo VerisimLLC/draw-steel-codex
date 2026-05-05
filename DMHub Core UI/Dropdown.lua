@@ -1,7 +1,5 @@
 local mod = dmhub.GetModLoading()
 
-local g_bgcolor = Styles.backgroundColor
-
 local function ResolveFunction(functionOrValue)
     if type(functionOrValue) == "function" then
         return functionOrValue()
@@ -9,68 +7,15 @@ local function ResolveFunction(functionOrValue)
         return functionOrValue
     end
 end
- 
-local dropdownPopupStyles = {
-	gui.Style{
-		selectors = {"dropdownBorder"},
-		bgcolor = g_bgcolor,
-		border = {x1 = 2, x2 = 2, y1 = 2, y2 = 0},
-		borderColor = Styles.textColor,
-	},
-    gui.Style{
-        selectors = {"dropdownBorder", "vcenter"},
-		border = {x1 = 2, x2 = 2, y1 = 2, y2 = 2},
-        vpad = 4,
-    },
-	gui.Style{
-		selectors = {"dropdownBorder", "top"},
-		border = {x1 = 2, x2 = 2, y1 = 0, y2 = 2},
-	},
-	gui.Style{
-		selectors = {"dropdownBorder", "detached"},
-		border = {x1 = 2, x2 = 2, y1 = 2, y2 = 2},
-	},
-	gui.Style{
-		selectors = {"dropdownMenuSub"},
-		bgimage = "panels/square.png",
-		bgcolor = g_bgcolor,
-		border = {x1 = 2, x2 = 2, y1 = 2, y2 = 2},
-		borderColor = Styles.textColor,
-		flow = "vertical",
-		width = "auto",
-		height = "Auto",
-		valign = "top",
-		hidden = 1,
-	},
-	gui.Style{
-		selectors = {"dropdownMenuSub", "parent:hover"},
-		hidden = 0,
-	},
-	gui.Style{
-		selectors = {"dropdownOption"},
-		bgimage = "panels/square.png",
-		width = "100%-2",
-		height = "auto",
-		halign = "center",
-        hpad = 6,
-		fontSize = 18,
-		color = Styles.textColor,
-	},
-	{
-		selectors = {"dropdownOption", "hover"},
-		color = "black",
-		bgcolor = Styles.textColor,
-	},
-	{
-		selectors = {"dropdownOption", "searchfocus"},
-		color = "black",
-		bgcolor = Styles.textColor,
-	},
-	{
-		selectors = {"dropdownOption", "disabled"},
-		color = "#888888",
-	},
-}
+
+-- Open-state styling (dropdownBorder, dropdownMenuSub, dropdownOption, etc.)
+-- now lives in DefaultStyles.lua's default theme. The popup inherits its
+-- styles from the nearest ancestor of the trigger that has a `styles`
+-- property set (falling back to ThemeEngine.GetStyles() if none does), so
+-- the open-state subtree matches the trigger's cascade — including locked
+-- overrides like ThemeEngine.GetStyles("default", "default") used by the
+-- theme settings dialog. Same selectors are visible to gui.Multiselect's
+-- internal dropdown, so both render identically.
 
 --- @class DropdownOption
 --- @field id string|true|false
@@ -328,6 +273,7 @@ function gui.Dropdown(args)
 							text = ResolveFunction(option.text),
 
 							gui.Panel{
+								classes = {"submenuArrow"},
 								bgimage = 'panels/triangle.png',
 								selfStyle = { rotate = 90 },
 								rotate = 90,
@@ -336,15 +282,6 @@ function gui.Dropdown(args)
 								rmargin = 4,
 								width = 8,
 								height = 8,
-								styles = {
-									{
-										bgcolor = Styles.textColor,
-									},
-									{
-										selectors = {"parent:hover"},
-										bgcolor = "black",
-									},
-								}
 							},
 
 							gui.Panel{
@@ -377,18 +314,18 @@ function gui.Dropdown(args)
 			local searchInput
 			if hasSearch then
 				searchInput = gui.Input{
-					color = "white",
-					fontSize = 18,
-					borderWidth = 0,
-					brightness = 1,
-					pad = 2,
-					bgcolor = "black",
+					classes = {"searchInput"},
+					-- color / bgcolor / borderColor / borderWidth come from the
+					-- {searchInput} theme rule. fontSize bumped to 18 here for
+					-- the dropdown variant; theme default is 16.
+					fontSize = 14,
 					floating = true,
 					valign = cond(showTop, "bottom", "top"),
+					x = 2,
 					y = cond(showTop, 1, -1) * (parentPanel.renderedHeight-2),
-					width = parentPanel.renderedWidth*parentPanel.renderedScale.x-8,
-					height = parentPanel.renderedHeight-2,
-					halign = "center",
+					width = (parentPanel.renderedWidth - 18) * parentPanel.renderedScale.x,
+					height = parentPanel.renderedHeight - 2,
+					halign = "left",
 					hasFocus = true,
 					placeholderText = "Search...",
 					edit = function(element)
@@ -443,7 +380,7 @@ function gui.Dropdown(args)
 			end
  
 			local popup = gui.Panel{
-				styles = {Styles.Default, dropdownPopupStyles},
+				-- styles = InheritedStyles(parentPanel),
 				width = "auto",
 				height = menuHeight + cond(m_centerPopup, 16, 0),
 				scale = parentPanel.renderedScale.x,
@@ -470,7 +407,7 @@ function gui.Dropdown(args)
 			end
  
 			parentPanel.popupPositioning = "panel"
-            parentPanel.popupsInheritStyles = false
+            parentPanel.popupsInheritStyles = true
 			parentPanel.popup = popup
 		end,
  

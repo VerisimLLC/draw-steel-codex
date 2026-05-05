@@ -1,5 +1,53 @@
 local mod = dmhub.GetModLoading()
 
+-- Local style pack passed to every gui.Check{styles = g_CheckboxStyles,} in this file via its
+-- `styles` property. Hardcoded values from the default scheme so the
+-- checkbox visuals paint regardless of what (legacy or theme) cascade
+-- the surrounding dialog uses.
+local g_CheckboxStyles = {
+	{
+		selectors = {"checkbox"},
+		bgimage = true,
+		flow = "horizontal",
+		bgcolor = "clear",
+		height = 30,
+		width = "auto",
+		minWidth = 200,
+		hpad = 4,
+	},
+	{
+		selectors = {"checkBackground"},
+		bgimage = true,
+		bgcolor = "#080B09",
+		halign = "left",
+		valign = "center",
+		height = "70%",
+		width = "100% height",
+		rmargin = 6,
+		borderColor = "#DFDFDF",
+		borderWidth = 2,
+	},
+	{
+		selectors = {"checkMark"},
+		bgimage = true,
+		bgcolor = "#CECECE",
+		halign = "center",
+		valign = "center",
+		width = "50%",
+		height = "50%",
+	},
+	{
+		selectors = {"checkboxLabel"},
+		halign = "left",
+		valign = "center",
+		textAlignment = "left",
+		borderWidth = 0,
+		width = "auto",
+		height = "auto",
+		fontSize = 18,
+	},
+}
+
 local CreateMapNodePanel
 local CreateMapFolderPanel
 local CreateMapFolderChildPanel
@@ -98,7 +146,7 @@ end
 
 CreateMapNodePanel = function(map)
 	local resultPanel
-	local check = gui.Check{
+	local check = gui.Check{styles = g_CheckboxStyles,
 		idprefix = "map-label",
 		text = map.description,
 		value = false,
@@ -281,7 +329,7 @@ local CreateCharacterFolderChildPanel = function()
 			ord = '3' .. name
 		end
 
-		children[#children+1] = gui.Check{
+		children[#children+1] = gui.Check{styles = g_CheckboxStyles,
 
 			customPanel = gui.CreateTokenImage(c, {
 				width = 20,
@@ -621,7 +669,7 @@ local CreateObjectTableView = function(tableName, knownAssetsInCore)
 
                     print("ENTRY::", entry.name, type(entry.name), json(entry))
 
-					local panel = gui.Check{
+					local panel = gui.Check{styles = g_CheckboxStyles,
 						classes = {"row", op}, --cond(hidden, "silent")},
 						text = string.format("%s (%s -- %s)", entry.name, op, k),
 						value = false,
@@ -783,7 +831,7 @@ local function GatherAllAssetsChildren(children, knownAssetsInCore)
 							op = "modify"
 						end
 
-						local panel = gui.Check{
+						local panel = gui.Check{styles = g_CheckboxStyles,
 							classes = {"row"}, -- cond(entry.hidden, "silent")},
 							text = string.format("%s (%s)", description or "(unnamed)", op),
 							value = false,
@@ -944,7 +992,7 @@ end
 
 local function CreateCodeModView(modid, modInfo)
 
-	local resultPanel = gui.Check{
+	local resultPanel = gui.Check{styles = g_CheckboxStyles,
 		text = string.format("%s", modInfo.name),
 		value = false,
 		width = 340,
@@ -973,7 +1021,7 @@ end
 
 local function CreateModuleDependencyView(moduleInstance)
 
-	local resultPanel = gui.Check{
+	local resultPanel = gui.Check{styles = g_CheckboxStyles,
 		text = string.format("%s", moduleInstance.fullid),
 		value = false,
 		width = 340,
@@ -1042,7 +1090,7 @@ local function CreateImageLibraryView(assetid, imageLibrary, coreImageLibrary)
 
 	local name = imageLibrary.name
 
-	local resultPanel = gui.Check{
+	local resultPanel = gui.Check{styles = g_CheckboxStyles,
 		text = string.format("%s (%s)", name, desc),
 		value = false,
 		width = 340,
@@ -1978,7 +2026,7 @@ local showShareModuleDialog = function(options)
         officialModulePanel = gui.Panel{
             flow = "vertical",
             width = "auto",
-            gui.Check{
+            gui.Check{styles = g_CheckboxStyles,
                 text = "Official Module",
                 value = moduleInstance.authorid == "codex",
                 change = function(element)
@@ -2289,7 +2337,7 @@ local showShareModuleDialog = function(options)
 			text = "The DMHub module system is for distributing content that you are legally entitled to share. You retain ownership of any content you have created, but by sharing it in a module you grant permission for other DMHub users to use and share it within DMHub.",
 		},
 
-		gui.Check{
+		gui.Check{styles = g_CheckboxStyles,
 			valign = "top",
 			halign = "left",
 			value = conditionsAgreed,
@@ -2302,7 +2350,7 @@ local showShareModuleDialog = function(options)
 			end,
 		},
 
-		gui.Check{
+		gui.Check{styles = g_CheckboxStyles,
 			classes = {cond(moduleInstance.published == false, "collapsed")},
 			valign = "top",
 			halign = "left",

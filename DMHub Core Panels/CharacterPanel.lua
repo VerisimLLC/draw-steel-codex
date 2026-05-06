@@ -18,15 +18,20 @@ local CreateBestiaryPanel
 
 local g_panelStyles = {
     {
-        selectors = { "triangle", "empty" },
+        selectors = { "triangle" },
         priority = 5,
-        bgcolor = 'grey',
+        bgcolor = "@fg",
     },
     {
-        selectors = { "triangle", 'parent:hover' },
+        selectors = { "triangle", "empty" },
+        priority = 5,
+        bgcolor = "@fgMuted",
+    },
+    {
+        selectors = { "triangle", "parent:hover" },
         priority = 5,
         transitionTime = 0.1,
-        bgcolor = "black",
+        bgcolor = "@fg",
     },
     {
         selectors = { "iconButton", "settingsButton", "parent:hover" },
@@ -580,7 +585,7 @@ function CharacterPanel.ShowHitpoints()
 
     return gui.Panel({
         id = 'HitpointsPanel',
-        bgimage = 'panels/square.png',
+        bgimage = true,
         borderWidth = 2,
         borderColor = Styles.textColor,
         halign = "center",
@@ -883,7 +888,7 @@ function CharacterPanel.ShowHitpoints()
                 borderWidth = 1,
                 borderColor = Styles.textColor,
                 height = 10,
-                bgimage = "panels/square.png",
+                bgimage = true,
                 bgcolor = "#444444ff",
 
                 --stamina fill.
@@ -911,7 +916,7 @@ function CharacterPanel.ShowHitpoints()
 
                     width = "100%-4",
                     height = 8,
-                    bgimage = "panels/square.png",
+                    bgimage = true,
                     bgcolor = "white",
                     borderWidth = 0,
                     lmargin = 1,
@@ -1004,7 +1009,7 @@ function CharacterPanel.ShowHitpoints()
 
                     width = "0%",
                     height = 8,
-                    bgimage = "panels/square.png",
+                    bgimage = true,
                     bgcolor = "white",
                     borderWidth = 0,
                     hmargin = 0,
@@ -1092,7 +1097,7 @@ CharacterPanel.CreateConditionsPanel = function(token)
                         newPanels = true
 
                         panel = gui.DiamondButton {
-                            bgimage = 'panels/square.png',
+                            bgimage = true,
                             halign = "center",
                             width = 24,
                             height = 24,
@@ -1162,7 +1167,7 @@ CharacterPanel.CreateConditionsPanel = function(token)
                                 if effect.statusEffect and not effect:try_get("hidden", false) then
                                     options[#options + 1] = gui.Label {
                                         classes = { "conditionOption" },
-                                        bgimage = "panels/square.png",
+                                        bgimage = true,
                                         text = effect.name,
                                         searchText = function(element, searchText)
                                             if string.starts_with(string.lower(element.text), searchText) then
@@ -1228,7 +1233,7 @@ CharacterPanel.CreateConditionsPanel = function(token)
                                     },
 
                                     gui.Panel {
-                                        bgimage = "panels/square.png",
+                                        bgimage = true,
                                         width = "90%",
                                         height = 1,
                                         bgcolor = Styles.textColor,
@@ -1319,7 +1324,7 @@ function CharacterPanel.SingleCharacterDisplaySidePanel(token)
     local conditionsPanel = CharacterPanel.CreateConditionsPanel(token)
 
     local summaryPanel = gui.Panel {
-        bgimage = "panels/square.png",
+        bgimage = true,
         flow = "horizontal",
         styles = {
             {
@@ -1432,7 +1437,7 @@ function CharacterPanel.SingleCharacterDisplaySidePanel(token)
             valign = "top",
             width = "78% height",
             height = 140,
-            bgimage = "panels/square.png",
+            bgimage = true,
             bgcolor = "white",
             lmargin = 16,
             borderWidth = 2,
@@ -1532,7 +1537,7 @@ local CreateMonsterEntry = function(nodeid)
     resultPanel = gui.Panel({
         classes = { "monsterEntry" },
         id = nodeid,
-        bgimage = 'panels/square.png',
+        bgimage = true,
         draggable = nodeid ~= '',
         canDragOnto = function(element, target)
             if target:HasClass("ignoreDrag") then
@@ -1545,7 +1550,7 @@ local CreateMonsterEntry = function(nodeid)
         styles = {
             {
                 valign = 'top',
-                bgcolor = '#ffffff00',
+                bgcolor = "clear",
                 width = "100%",
                 height = BestiaryPanelHeight,
                 borderWidth = 0,
@@ -1744,6 +1749,7 @@ local CreateMonsterEntry = function(nodeid)
 
         children = {
             gui.Panel({
+                classes = {"image"},
                 bgimageStreamed = monster.portrait,
                 bgimageTokenMask = monster.portraitFrame,
 
@@ -1752,7 +1758,6 @@ local CreateMonsterEntry = function(nodeid)
                 },
 
                 style = {
-                    bgcolor = 'white',
                     halign = 'left',
                     valign = 'center',
                     width = BestiaryPanelHeight,
@@ -1769,9 +1774,9 @@ local CreateMonsterEntry = function(nodeid)
 
                 children = {
                     gui.Panel({
+                        classes = {"image"},
                         bgimage = monster.portraitFrame,
                         selfStyle = {
-                            bgcolor = 'white',
                             hueshift = monster.portraitFrameHueShift,
                             width = BestiaryPanelHeight,
                             height = BestiaryPanelHeight,
@@ -1825,7 +1830,7 @@ local CreateBestiaryFolder = function(nodeid)
         isCollapsed = false
 
         local updateSearch = function(element)
-            clearSearchButton:SetClass('collapsed', element.text == '')
+            clearSearchButton:SetClass("hidden", element.text == "")
             folderPane.data.search(element.text)
             if element.text ~= '' then
                 local ok, ids = pcall(function() return node:GetNodeIdsMatchingSearch(element.text) end)
@@ -1846,49 +1851,57 @@ local CreateBestiaryFolder = function(nodeid)
             end
         end
 
-        local searchInput = gui.Input {
+        local searchInput = gui.SearchInput {
             id = 'MonsterSearch',
+            classes = {"bordered"},
             placeholderText = 'Search for Monsters...',
             editlag = 0.25,
-            style = {
-                fontSize = '50%',
-                width = '80%',
-                height = '80%',
-                halign = 'left',
-                valign = 'center',
-            },
-
-            events = {
-                edit = updateSearch,
-                change = updateSearch,
-            }
+            width = '65%',
+            halign = 'left',
+            valign = 'center',
+            edit = updateSearch,
+            change = updateSearch,
         }
 
         clearSearchButton = gui.Button {
-            icon = 'ui-icons/close.png',
-            classes = { 'collapsed' },
-            halign = 'left',
-            valign = 'center',
-            height = '75%',
+            icon = "ui-icons/close.png",
+            classes = {"hidden"},
+            valign = "center",
             pad = 4,
-            width = '100% height',
 
             events = {
                 press = function(element)
-                    searchInput.text = ''
+                    searchInput.text = ""
                     updateSearch(searchInput)
                 end,
             }
         }
 
-
-        local addBestiaryEntryButton = gui.AddButton {
-            id = "AddBestiaryEntryButton",
-            floating = true,
-            halign = "right",
+        local createBestiaryFolderButton = gui.Button {
+            id = "CreateBestiaryFolderButton",
+            icon = "game-icons/open-folder.png",
             valign = "center",
-            width = 24,
-            height = 24,
+            hover = gui.Tooltip("Create a bestiary folder"),
+            press = function(element)
+                local maxOrd = 0
+                for i, entry in ipairs(node.children) do
+                    if entry.ord > maxOrd then
+                        maxOrd = entry.ord
+                    end
+                end
+
+                assets:UploadNewMonsterFolder({
+                    description = "New Folder",
+                    parentFolder = "",
+                    ord = maxOrd + 1,
+                })
+            end,
+        }
+
+        local addBestiaryEntryButton = gui.Button {
+            id = "AddBestiaryEntryButton",
+            classes = {"addButton"},
+            valign = "center",
             hover = gui.Tooltip("Create a bestiary entry"),
             press = function(element)
                 local menuItems = {}
@@ -1975,6 +1988,7 @@ local CreateBestiaryFolder = function(nodeid)
                         children = {
                             searchInput,
                             clearSearchButton,
+                            createBestiaryFolderButton,
                             addBestiaryEntryButton,
                         },
                     },
@@ -1983,28 +1997,13 @@ local CreateBestiaryFolder = function(nodeid)
     end
 
     local triangle = nil
-    triangle = gui.Panel({
-        bgimage = 'panels/triangle.png',
-        classes = { "triangle", cond(nodeid == "", "collapsed") },
-        styles =
-        {
+    triangle = gui.ExpandoArrow({
+        halign = "left",
+        margin = 5,
+        valign = "center",
+        styles = {
             {
-                bgcolor = Styles.textColor,
-                width = 8,
-                height = 8,
-                halign = 'left',
-                margin = 5,
-                rotate = 90,
-                valign = "center",
-            },
-
-            {
-                selectors = { 'expanded' },
-                transitionTime = 0.2,
-                rotate = 0,
-            },
-            {
-                selectors = { 'search' },
+                selectors = { "search" },
                 transitionTime = 0,
                 rotate = 0,
             },
@@ -2014,8 +2013,11 @@ local CreateBestiaryFolder = function(nodeid)
 
         events = {
             create = function(element)
-                element:SetClass('expanded', not isCollapsed)
-                element:SetClass('empty', #node.children < 1)
+                if nodeid == "" then
+                    element:SetClass("collapsed", true)
+                end
+                element:SetClass("expanded", not isCollapsed)
+                element:SetClass("empty", #node.children < 1)
             end,
             refreshAssets = function(element)
                 element:SetClass('empty', #node.children < 1)
@@ -2052,7 +2054,7 @@ local CreateBestiaryFolder = function(nodeid)
 
     local headerPanel = gui.Panel({
 
-        bgimage = 'panels/square.png',
+        bgimage = true,
         classes = { 'headerPanel', 'monster-drag-target' },
         dragTarget = true,
 
@@ -2073,11 +2075,7 @@ local CreateBestiaryFolder = function(nodeid)
         styles = {
             {
                 borderWidth = 0,
-                bgcolor = '#ffffff00',
-            },
-            {
-                selectors = { 'hover', 'headerPanel' },
-                bgcolor = Styles.textColor,
+                bgcolor = "clear",
             },
             {
                 selectors = { 'drag-target' },
@@ -2091,6 +2089,10 @@ local CreateBestiaryFolder = function(nodeid)
                 bgcolor = '#ffffaaaa',
                 transitionTime = 0.2,
             },
+            nodeid ~= '' and {
+                selectors = { 'hover', 'headerPanel' },
+                bgcolor = Styles.textColor,
+            } or nil,
         },
 
         data = {
@@ -2110,7 +2112,7 @@ local CreateBestiaryFolder = function(nodeid)
 
             gui.Label({
                 text = 'Bestiary',
-                classes = { "bestiaryLabel" },
+                classes = { "bestiaryLabel", cond(nodeid == '', "noHoverColor") },
                 x = 4,
                 editableOnDoubleClick = (nodeid ~= ''), --all folders except the root Bestiary folder can be renamed.
                 characterLimit = 24,
@@ -2227,6 +2229,11 @@ local CreateBestiaryFolder = function(nodeid)
                 element.popup = nil --clear any context menu on click.
             end,
             rightClick = function(element)
+                --no context menu on the Bestiary root label.
+                if nodeid == "" then
+                    return
+                end
+
                 --create the context menu for this folder.
                 local menuItems = {}
                 local parentElement = element
@@ -2417,7 +2424,7 @@ CharacterPanel.CreateCharacterEntry = function(charid, party)
 
 
     resultPanel = gui.Panel {
-        bgimage = 'panels/square.png',
+        bgimage = true,
         draggable = true,
         canDragOnto = function(element, target)
             if target ~= nil and target:HasClass("partyPanel") then
@@ -2430,7 +2437,7 @@ CharacterPanel.CreateCharacterEntry = function(charid, party)
             {
                 color = '#ccccccff',
                 valign = 'top',
-                bgcolor = '#ffffff00',
+                bgcolor = "clear",
                 width = "100%",
                 height = BestiaryPanelHeight,
                 borderWidth = 0,
@@ -2866,26 +2873,12 @@ CharacterPanel.CreatePartyCharacters = function(partyid)
     local selectAllPanel = nil
 
     local triangle = nil
-    triangle = gui.Panel({
-        classes = { "triangle" },
-        bgimage = 'panels/triangle.png',
-        styles =
-        {
-            {
-                bgcolor = 'white',
-                width = 8,
-                height = 8,
-                halign = 'left',
-                margin = 5,
-                rotate = 90,
-                valign = "center",
-            },
-            {
-                selectors = { 'expanded' },
-                transitionTime = 0.2,
-                rotate = 0,
-            },
-        },
+    triangle = gui.ExpandoArrow({
+        -- width = 8,
+        -- height = 8,
+        halign = "left",
+        margin = 5,
+        valign = "center",
 
         swallowPress = true,
 
@@ -2927,7 +2920,7 @@ CharacterPanel.CreatePartyCharacters = function(partyid)
 
     local headerPanel = gui.Panel {
 
-        bgimage = 'panels/square.png',
+        bgimage = true,
         classes = { 'monster-drag-target', cond(party ~= nil, 'party-drag-target'), 'headerPanel' },
         dragTarget = true,
 
@@ -2951,7 +2944,7 @@ CharacterPanel.CreatePartyCharacters = function(partyid)
         styles = {
             {
                 borderWidth = 0,
-                bgcolor = '#ffffff00',
+                bgcolor = "clear",
             },
             {
                 selectors = { 'hover', 'headerPanel' },
@@ -3184,11 +3177,9 @@ local CreateBestiaryAndPartyPanel = function(noBestiary)
                 halign = "right",
                 rmargin = 8,
 
-                gui.AddButton {
-                    bgimage = "icons/icon_app/icon_app_18.png",
+                gui.Button {
+                    icon = "icons/icon_app/icon_app_18.png",
                     halign = "right",
-                    width = 24,
-                    height = 24,
                     hover = gui.Tooltip("Create a party"),
                     press = function(element)
                         local newParty = Party.CreateNew()
@@ -3198,11 +3189,10 @@ local CreateBestiaryAndPartyPanel = function(noBestiary)
                     end,
                 },
 
-                gui.AddButton {
+                gui.Button {
+                    classes = {"addButton"},
                     id = "AddCharacterButton",
                     halign = "right",
-                    width = 24,
-                    height = 24,
                     hover = gui.Tooltip("Create a character"),
 
                     data = {
@@ -3314,7 +3304,7 @@ CharacterPanel.CreateMultiEdit = function()
             width = "30%",
             height = 28,
             pad = 0,
-            bgimage = "panels/square.png",
+            bgimage = true,
             bgcolor = 'white',
             gradient = Styles.healthGradient,
             borderWidth = 2,
@@ -3354,7 +3344,7 @@ CharacterPanel.CreateMultiEdit = function()
             width = "30%",
             height = 28,
             pad = 0,
-            bgimage = "panels/square.png",
+            bgimage = true,
             bgcolor = 'white',
             gradient = Styles.damagedGradient,
             borderWidth = 2,
@@ -3428,34 +3418,42 @@ CreateCharacterPanel = function()
         bestiaryPanel:FireEventTree("refreshAssets")
         bestiaryPanel:FireEventTree("refresh")
     end
-    local resultPanel = gui.Panel {
-        styles = {
-            g_panelStyles,
-            {
-                selectors = { "bestiaryLabel" },
-                color = Styles.textColor,
-                fontFace = "dubai",
-                fontSize = 14,
-                bold = true,
-                height = 'auto',
-                width = 'auto',
-                minWidth = 200,
-                halign = 'left',
-                valign = 'center',
-            },
-            {
-                selectors = { "bestiaryLabel", "focus" },
-                color = "black",
-            },
-            {
-                selectors = { "bestiaryLabel", "parent:hover" },
-                color = "black",
-            },
-            {
-                selectors = { "bestiaryLabel", "invisible" },
-                italics = true,
-            },
+    local extras = {
+        {
+            selectors = { "bestiaryLabel" },
+            color = "@fg",
+            fontSize = 14,
+            bold = true,
+            height = "auto",
+            width = "auto",
+            minWidth = 200,
+            halign = "left",
+            valign = "center",
         },
+        {
+            selectors = { "bestiaryLabel", "focus" },
+            color = "black",
+        },
+        {
+            selectors = { "bestiaryLabel", "parent:hover", "~noHoverColor" },
+            color = "black",
+        },
+        {
+            selectors = { "bestiaryLabel", "invisible" },
+            italics = true,
+        },
+    }
+
+    local function buildStyles()
+        local merged = {}
+        for _, r in ipairs(g_panelStyles) do merged[#merged + 1] = r end
+        for _, r in ipairs(extras) do merged[#merged + 1] = r end
+        return ThemeEngine.MergeStyles(merged)
+    end
+
+    local resultPanel
+    resultPanel = gui.Panel {
+        styles = buildStyles(),
 
         flow = "vertical",
         width = "100%",
@@ -3548,6 +3546,12 @@ CreateCharacterPanel = function()
         bestiaryPanel,
     }
 
+    ThemeEngine.OnThemeChanged(mod, function()
+        if resultPanel ~= nil and resultPanel.valid then
+            resultPanel.styles = buildStyles()
+        end
+    end)
+
     return resultPanel
 end
 
@@ -3558,32 +3562,40 @@ CreateBestiaryPanel = function()
     bestiaryPanel = CreateBestiaryFolder('')
     bestiaryPanel:FireEventTree("refreshAssets")
     bestiaryPanel:FireEventTree("refresh")
-    local resultPanel = gui.Panel {
-        styles = {
-            g_panelStyles,
-            {
-                selectors = { "bestiaryLabel" },
-                color = Styles.textColor,
-                fontFace = "dubai",
-                uppercase = true,
-                fontSize = 14,
-                bold = true,
-                height = 'auto',
-                width = 'auto',
-                minWidth = 200,
-                halign = 'left',
-                valign = 'center',
-            },
-            {
-                selectors = { "bestiaryLabel", "parent:hover" },
-                color = "black",
-            },
-            {
-                selectors = { "bestiaryLabel", "invisible" },
-                color = "#d4d1bacc",
-                italics = true,
-            },
+    local extras = {
+        {
+            selectors = { "bestiaryLabel" },
+            color = "@fg",
+            uppercase = true,
+            fontSize = 14,
+            bold = true,
+            height = "auto",
+            width = "auto",
+            minWidth = 200,
+            halign = "left",
+            valign = "center",
         },
+        {
+            selectors = { "bestiaryLabel", "parent:hover", "~noHoverColor" },
+            color = "black",
+        },
+        {
+            selectors = { "bestiaryLabel", "invisible" },
+            color = "@fgMuted",
+            italics = true,
+        },
+    }
+
+    local function buildStyles()
+        local merged = {}
+        for _, r in ipairs(g_panelStyles) do merged[#merged + 1] = r end
+        for _, r in ipairs(extras) do merged[#merged + 1] = r end
+        return ThemeEngine.MergeStyles(merged)
+    end
+
+    local resultPanel
+    resultPanel = gui.Panel {
+        styles = buildStyles(),
 
         flow = "vertical",
         width = "100%",
@@ -3600,6 +3612,12 @@ CreateBestiaryPanel = function()
 
         bestiaryPanel,
     }
+
+    ThemeEngine.OnThemeChanged(mod, function()
+        if resultPanel ~= nil and resultPanel.valid then
+            resultPanel.styles = buildStyles()
+        end
+    end)
 
     return resultPanel
 end

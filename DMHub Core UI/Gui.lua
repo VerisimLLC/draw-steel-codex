@@ -3984,7 +3984,6 @@ function gui.SearchInput(options)
 
 	local args = {
 		classes = {"searchInput"},
-		styles = ThemeEngine.GetStyles(),
 		placeholderText = "Search...",
 		hpad = 24,
 		editlag = 0.25,

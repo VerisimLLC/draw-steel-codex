@@ -414,6 +414,7 @@ CharacterModifier.TypeInfo.powertabletrigger = {
                     text = "Action:",
                 },
                 gui.Dropdown{
+                    styles = ThemeEngine.GetStyles(),
                     options = g_abilityTypeChoices,
                     idChosen = modifier.type,
                     change = function(element)
@@ -430,6 +431,7 @@ CharacterModifier.TypeInfo.powertabletrigger = {
                     text = "Target:",
                 },
                 gui.Dropdown{
+                    styles = ThemeEngine.GetStyles(),
                     options = g_targetChoices,
                     idChosen = modifier.targetType,
                     change = function(element)
@@ -446,6 +448,7 @@ CharacterModifier.TypeInfo.powertabletrigger = {
                     text = "Multi-target:",
                 },
                 gui.Dropdown{
+                    styles = ThemeEngine.GetStyles(),
                     options = {
                         {
                             id = "one",
@@ -471,6 +474,7 @@ CharacterModifier.TypeInfo.powertabletrigger = {
                     text = "Trigger:",
                 },
                 gui.Dropdown{
+                    styles = ThemeEngine.GetStyles(),
                     options = g_triggerChoices,
                     idChosen = modifier.trigger,
                     change = function(element)
@@ -490,6 +494,7 @@ CharacterModifier.TypeInfo.powertabletrigger = {
                         text = "Damage Type:",
                     },
                     gui.Dropdown{
+                        styles = ThemeEngine.GetStyles(),
                         options = {
                             {
                                 id = "all",
@@ -749,6 +754,7 @@ CharacterModifier.TypeInfo.powertabletrigger = {
             end
 
             children[#children+1] = gui.Check{
+                styles = ThemeEngine.GetStyles(),
                 text = "Force Re-roll",
                 value = modifier:try_get("forceReroll", false),
                 change = function(element)
@@ -792,6 +798,7 @@ CharacterModifier.TypeInfo.powertabletrigger = {
                 }
 
                 children[#children+1] = gui.Check{
+                    styles = ThemeEngine.GetStyles(),
                     text = "Override Base",
                     value = powerRollModifier:try_get("overrideBase", false),
                     change = function(element)

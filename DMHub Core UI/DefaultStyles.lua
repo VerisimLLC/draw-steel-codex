@@ -632,11 +632,13 @@ ThemeEngine.RegisterTheme{
             hpad = 6,
             fontSize = 18,
             color = "@fg",
+            bgcolor = "@bg",
         },
         {
             selectors = {"dropdownOption", "hover"},
-            color = "@bg",
-            bgcolor = "@fg",
+            color = "@fgInverse",
+            bgcolor = "@bgInverse",
+            priority = 5,
         },
         {
             selectors = {"dropdownOption", "searchfocus"},

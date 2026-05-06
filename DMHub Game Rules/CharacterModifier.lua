@@ -199,6 +199,7 @@ function CharacterModifier:ResourceCostEditor(options)
 		local resourceInfo = resourceTable[resourceid]
 		if resourceInfo ~= nil and resourceInfo:GetSpellSlot() ~= nil then
 			upcastableCheck = gui.Check{
+				styles = ThemeEngine.GetStyles(),
 				value = self:try_get("resourceCostUpcastable", false),
 				width = 140,
 				valign = "center",
@@ -219,6 +220,7 @@ function CharacterModifier:ResourceCostEditor(options)
 		classes = {"formPanel", "formPanel-inline"},
 
 		gui.Dropdown{
+			styles = ThemeEngine.GetStyles(),
 			classes = "formDropdown",
 			idChosen = self:try_get("resourceCost", "none"),
 			options = resourceOptions,
@@ -263,6 +265,7 @@ function CharacterModifier:UsageLimitEditor(options)
 		classes = {'formPanel', 'formPanel-inline'},
 		children = {
 			gui.Dropdown{
+				styles = ThemeEngine.GetStyles(),
 				selfStyle = {
 					height = 30,
 					width = 160,
@@ -365,6 +368,7 @@ function CharacterModifier:UsageLimitEditor(options)
 			height = "auto",
 			gui.Panel(args),
 			gui.Check{
+				styles = ThemeEngine.GetStyles(),
 				classes = {cond(self:GetResourceRefreshType() == "none" and self:try_get("multicharge", false) == false, "collapsed")},
 				text = "Can use multiple charges",
 				value = self:try_get("multicharge", false),
@@ -453,44 +457,51 @@ CharacterModifier.TypeInfo.icon = {
 
 			children[#children+1] = modifier:FilterConditionEditor()
 
+			local iconEditor = gui.IconEditor{
+				styles = ThemeEngine.GetStyles(),
+				library = "ongoingEffects",
+				bgcolor = "white",
+				margin = 10,
+				width = 48,
+				height = 48,
+				halign = "left",
+				value = modifier:try_get("statusIcon", "none"),
+				change = function(element)
+					modifier.statusIcon = element.value
+					Refresh()
+				end,
+				create = function(element)
+					element.selfStyle.bgcolor = modifier:try_get("iconColor", "#ffffffff")
+				end,
+			}
+
+			local iconColorPicker = gui.ColorPicker{
+				value = modifier:try_get("iconColor", "#ffffffff"),
+				hmargin = 8,
+				width = 24,
+				height = 24,
+				halign = "left",
+				valign = "center",
+				borderWidth = 2,
+				borderColor = "#999999ff",
+				create = function(element)
+					element:FireEvent("change")
+				end,
+				confirm = function(element)
+					iconEditor.selfStyle.bgcolor = element.value
+					modifier.iconColor = element.value
+				end,
+				change = function(element)
+					iconEditor.selfStyle.bgcolor = element.value
+				end,
+			}
+
 			children[#children+1] = gui.Panel{
 				width = "auto",
 				height = "auto",
 				flow = "horizontal",
-				gui.IconEditor{
-					library = "ongoingEffects",
-					bgcolor = modifier:try_get("iconColor", "#ffffffff"),
-					margin = 10,
-					width = 48,
-					height = 48,
-					halign = "left",
-					value = modifier:try_get("statusIcon", "none"),
-					change = function(element)
-						modifier.statusIcon = element.value
-						Refresh()
-					end,
-					iconcolor = function(element, color)
-						element.selfStyle.bgcolor = color
-					end,
-				},
-				gui.ColorPicker{
-					value = modifier:try_get("iconColor", "#ffffffff"),
-					hmargin = 8,
-					width = 24,
-					height = 24,
-					halign = "left",
-					valign = "center",
-					borderWidth = 2,
-					borderColor = '#999999ff',
-
-					confirm = function(element)
-						modifier.iconColor = element.value
-						Refresh()
-					end,
-					change = function(element)
-						element.parent.parent:FireEventTree("iconcolor", element.value)
-					end,
-				},
+				iconEditor,
+				iconColorPicker,
 			}
 
 			element.children = children
@@ -621,6 +632,7 @@ CharacterModifier.TypeInfo.attribute = {
 						classes = {'formLabel'},
 					},
 					gui.Dropdown{
+						styles = ThemeEngine.GetStyles(),
 						selfStyle = {
 							height = 30,
 							width = 300,
@@ -696,6 +708,7 @@ CharacterModifier.TypeInfo.attribute = {
 						classes = {'formLabel'},
 					},
 					gui.Dropdown{
+						styles = ThemeEngine.GetStyles(),
 						selfStyle = {
 							height = 30,
 							width = 300,
@@ -723,6 +736,7 @@ CharacterModifier.TypeInfo.attribute = {
 						classes = {'formLabel'},
 					},
 					gui.Dropdown{
+						styles = ThemeEngine.GetStyles(),
 						selfStyle = {
 							height = 30,
 							width = 300,
@@ -765,6 +779,7 @@ CharacterModifier.TypeInfo.attribute = {
 							classes = {'formLabel'},
 						},
 						gui.Dropdown{
+							styles = ThemeEngine.GetStyles(),
 							height = 30,
 							width = 240,
 							fontSize = 16,
@@ -872,6 +887,7 @@ CharacterModifier.TypeInfo.attribute = {
 							classes = {'formLabel'},
 						},
 						gui.Dropdown{
+							styles = ThemeEngine.GetStyles(),
 							selfStyle = {
 								height = 30,
 								width = 300,
@@ -915,6 +931,7 @@ CharacterModifier.TypeInfo.attribute = {
 			}
 
 			children[#children+1] = gui.Check{
+				styles = ThemeEngine.GetStyles(),
 				text = "Display Icon When Active",
 				value = modifier:try_get("displayIcon", false),
 				change = function(element)
@@ -929,6 +946,7 @@ CharacterModifier.TypeInfo.attribute = {
 					height = "auto",
 					flow = "horizontal",
 					gui.IconEditor{
+						-- styles = ThemeEngine.GetStyles(),
 						library = "ongoingEffects",
 						bgcolor = modifier:try_get("iconColor", "#ffffffff"),
 						margin = 10,
@@ -1050,6 +1068,7 @@ CharacterModifier.TypeInfo.resistance = {
 				classes = {'formPanel', 'formPanel-inline', cond(#ResistanceEntry.types <= 1, "collapsed")},
 				children = {
 					gui.Dropdown{
+						styles = ThemeEngine.GetStyles(),
 						id = 'resistance-apply-dropdown',
 						selfStyle = {
 							height = 30,
@@ -1122,6 +1141,7 @@ CharacterModifier.TypeInfo.resistance = {
 				}
 
                 children[#children+1] = gui.Check{
+					styles = ThemeEngine.GetStyles(),
                     text = "Stacks with other Damage Reduction",
                     value = modifier.resistances[1].stacks,
                     change = function(element)
@@ -1211,6 +1231,7 @@ CharacterModifier.TypeInfo.resistance = {
                 end
 
                 children[#children+1] = gui.Dropdown{
+					styles = ThemeEngine.GetStyles(),
                     selfStyle = {
                         height = 30,
                         width = 240,
@@ -1230,6 +1251,7 @@ CharacterModifier.TypeInfo.resistance = {
 
 			else
 				children[#children+1] = gui.Check{
+					styles = ThemeEngine.GetStyles(),
 					id = 'non-magical-checkbox',
 					text = 'Non-Magical',
 					style = {
@@ -1281,6 +1303,7 @@ CharacterModifier.TypeInfo.resistance = {
 
 			for i,r in ipairs(modifier.resistances) do
 				children[#children+1] = gui.Dropdown{
+					styles = ThemeEngine.GetStyles(),
 					selfStyle = {
 						height = 30,
 						width = 240,
@@ -1311,6 +1334,7 @@ CharacterModifier.TypeInfo.resistance = {
 
 			if #options > 0 and (#modifier.resistances == 0 or modifier.resistances[1].damageType ~= 'all') then
 				children[#children+1] = gui.Dropdown{
+					styles = ThemeEngine.GetStyles(),
 					selfStyle = {
 						height = 30,
 						width = 240,
@@ -1442,6 +1466,7 @@ CharacterModifier.TypeInfo.conditionimmunity = {
 				classes = {'formPanel'},
 				children = {
 					gui.Dropdown{
+						styles = ThemeEngine.GetStyles(),
 						selfStyle = {
 							height = 30,
 							width = 160,
@@ -1569,6 +1594,7 @@ CharacterModifier.TypeInfo.rollsattacking = {
 					text = "Roll Type:",
 				},
 				gui.Dropdown{
+					styles = ThemeEngine.GetStyles(),
 					options = {
 						{
 							id = "attack",
@@ -1769,6 +1795,7 @@ CharacterModifier.TypeInfo.attackattribute = {
 					text = "Attribute:",
 				},
 				gui.Dropdown{
+					styles = ThemeEngine.GetStyles(),
 					options = creature.attributeDropdownOptions,
 					idChosen = modifier:try_get("attribute", "dex"),
 					change = function(element)
@@ -2006,6 +2033,7 @@ CharacterModifier.TypeInfo.activated = {
 			}
 
             children[#children+1] = gui.Check{
+				styles = ThemeEngine.GetStyles(),
                 value = modifier:try_get("suppressOthers", false),
                 text = "Suppress Other Abilities With Same Name",
                 change = function(element)
@@ -2122,6 +2150,7 @@ CharacterModifier.TypeInfo.spell = {
 					text = "Spell:",
 				},
 				gui.Dropdown{
+					styles = ThemeEngine.GetStyles(),
 					options = options,
 					idChosen = modifier.spell,
 					hasSearch = true,
@@ -2179,6 +2208,7 @@ CharacterModifier.TypeInfo.spell = {
 					text = "Attribute:",
 				},
 				gui.Dropdown{
+					styles = ThemeEngine.GetStyles(),
 					options = creature.attributeDropdownOptions,
 					idChosen = modifier:try_get("attribute", "int"),
 					change = function(element)
@@ -2403,6 +2433,7 @@ CharacterModifier.TypeInfo.transform = {
 
 			for i,attr in ipairs(attributes) do
 				children[#children+1] = gui.Check{
+					styles = ThemeEngine.GetStyles(),
 					halign = "left",
 					text = string.format("Transform %s", attr.name),
 
@@ -2451,6 +2482,7 @@ CharacterModifier.TypeInfo.transform = {
 
 			for i,capability in ipairs(capabilities) do
 				children[#children+1] = gui.Check{
+					styles = ThemeEngine.GetStyles(),
 					halign = "left",
 					text = capability.text,
 
@@ -2558,6 +2590,7 @@ CharacterModifier.TypeInfo.resource = {
 						classes = {'formLabel'},
 					},
 					gui.Dropdown{
+						styles = ThemeEngine.GetStyles(),
 						selfStyle = {
 							height = 30,
 							width = 250,

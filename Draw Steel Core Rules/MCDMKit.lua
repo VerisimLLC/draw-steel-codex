@@ -1005,6 +1005,7 @@ CharacterModifier.TypeInfo.kitaccess = {
 	createEditor = function(modifier, element)
 		local children = {}
 		children[#children+1] = gui.Dropdown{
+			styles = ThemeEngine.GetStyles(),
 			idChosen = modifier.kitType,
 			options = Kit.kitTypes,
 			change = function(element)

@@ -86,6 +86,7 @@ CharacterModifier.TypeInfo.abilityimprovement = {
             end)
 
             children[#children+1] = gui.Multiselect{
+                styles = ThemeEngine.GetStyles(),
                 value = modifier:try_get("keywords", {}),
                 addItemText = "Add Keyword...",
                 options = keywordList,
@@ -126,6 +127,7 @@ CharacterModifier.TypeInfo.abilityimprovement = {
                 classes = {"formPanel"},
                 gui.Label{ classes = {"formLabel"}, text = "Cost:" },
                 gui.Dropdown{
+                    styles = ThemeEngine.GetStyles(),
                     options = {
                         { id = "none", text = "None" },
                         { id = "cost", text = "Heroic/Malice Resource" },
@@ -211,6 +213,7 @@ CharacterModifier.TypeInfo.abilityimprovement = {
             end
 
             children[#children+1] = gui.Dropdown{
+                styles = ThemeEngine.GetStyles(),
                 options = addOptions,
                 idChosen = "none",
                 height = 30,

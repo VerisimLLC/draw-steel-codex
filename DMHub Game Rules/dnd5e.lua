@@ -808,7 +808,8 @@ GameSystem.RegisterConditionRule{
 	conditions = {"Unconscious", "Incapacitated", "Prone"},
 
 	rule = function(targetCreature, modifiers)
-		return targetCreature:MaxHitpoints(modifiers) <= targetCreature.damage_taken
+		local maxHp = targetCreature:MaxHitpoints(modifiers) or 0
+		return maxHp <= targetCreature:try_get("damage_taken", 0)
 	end,
 }
 

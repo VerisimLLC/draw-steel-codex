@@ -13,6 +13,18 @@ end
 
 local CreateHeroesPanel
 
+local g_heroesExtras = {
+    {
+        selectors = {"beforeDivider"},
+        width = "40%",
+        height = "100%",
+        flow = "horizontal",
+        halign = "left",
+        valign = "center",
+        rmargin = 15,
+    },
+}
+
 DockablePanel.Register {
     name = "Heroes",
     icon = "icons/standard/Icon_App_Heroes.png",
@@ -1188,17 +1200,7 @@ CreateHeroesPanel = function()
             end
         end,
 
-        styles = ThemeEngine.MergeStyles({
-            {
-                selectors = {"beforeDivider"},
-                width = "40%",
-                height = "100%",
-                flow = "horizontal",
-                halign = "left",
-                valign = "center",
-                rmargin = 15,
-            },
-        }),
+        styles = ThemeEngine.MergeStyles(g_heroesExtras),
 
 
 
@@ -1352,6 +1354,12 @@ CreateHeroesPanel = function()
 
 
     }
+
+    ThemeEngine.OnThemeChanged(mod, function()
+        if heroesPanel ~= nil and heroesPanel.valid then
+            heroesPanel.styles = ThemeEngine.MergeStyles(g_heroesExtras)
+        end
+    end)
 
     return heroesPanel
 end

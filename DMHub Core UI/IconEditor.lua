@@ -150,11 +150,11 @@ function gui.IconEditor(args)
 
 			local resultImage
 			resultImage = gui.Panel{
-				bgimage = true,
-				classes = {"hidden", "imageBackground"},
+				-- bgimage = true,
+				classes = {"hidden"},
 				styles = {
 					{
-						bgcolor = "@bg",
+						-- bgcolor = "white",
 						width = imageDim,
 						height = imageDim*aspect,
 						halign = "center",
@@ -218,7 +218,7 @@ function gui.IconEditor(args)
 		local images = {}
 
 		local rows = 5
-		local cols = 9
+		local cols = 6
 		local npage = 1
 
 		local GetNumPages = function()
@@ -386,7 +386,7 @@ function gui.IconEditor(args)
 			hmargin = 8,
 			editlag = 0.2,
 
-			events = {
+			-- events = {
 				change = function(element)
 					if element.text == lastSearch then
 						return
@@ -427,7 +427,7 @@ function gui.IconEditor(args)
 				edit = function(element)
 					element:FireEvent("change")
 				end,
-			},
+			-- },
 		}
 
 		if searchHidden then
@@ -962,6 +962,8 @@ function gui.IconEditor(args)
         
 	end
 
+	-- if args.classes == nil then args.classes = {} end
+	-- args.classes[#args.classes+1] = "image"
 	resultPanel = gui.Panel(args)
 
 	args.SetValue(resultPanel, value, false)

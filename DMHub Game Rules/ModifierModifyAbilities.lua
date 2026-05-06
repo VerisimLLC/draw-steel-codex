@@ -617,6 +617,7 @@ CharacterModifier.TypeInfo.modifyability = {
 			}
 
             children[#children+1] = gui.Check{
+				styles = ThemeEngine.GetStyles(),
                 text = "Must Pay Resource Cost",
                 value = modifier:try_get("mustPayResourceCost", false),
                 change = function(element)
@@ -633,6 +634,7 @@ CharacterModifier.TypeInfo.modifyability = {
 
             local keywords = modifier:try_get("keywords", {})
             children[#children+1] = gui.KeywordSelector{
+				styles = ThemeEngine.GetStyles(),
                 keywords = keywords,
                 change = function()
                     modifier.keywords = keywords
@@ -648,6 +650,7 @@ CharacterModifier.TypeInfo.modifyability = {
 						text = "Change Action:",
 					},
 					gui.Dropdown{
+						styles = ThemeEngine.GetStyles(),
 						classes = "formDropdown",
 						idChosen = modifier:try_get("actionResourceId", "nochange"),
 						options = actions,
@@ -695,6 +698,7 @@ CharacterModifier.TypeInfo.modifyability = {
 									text = "Operation:",
 								},
 								gui.Dropdown{
+									styles = ThemeEngine.GetStyles(),
 									height = 30,
 									width = 260,
 									fontSize = 16,
@@ -710,6 +714,7 @@ CharacterModifier.TypeInfo.modifyability = {
 
 						if attr.operation == "Bool" then
 							children[#children+1] = gui.Check{
+								styles = ThemeEngine.GetStyles(),
 								text = info.text,
 								style = {
 									height = 30,
@@ -733,6 +738,7 @@ CharacterModifier.TypeInfo.modifyability = {
 									text = "Target Type:",
 								},
 								gui.Dropdown{
+									styles = ThemeEngine.GetStyles(),
 									classes = "formDropdown",
 									options = dummyAbility:GetDisplayedTargetTypeOptions(),
 									idChosen = attr.targeting or "self",
@@ -749,6 +755,7 @@ CharacterModifier.TypeInfo.modifyability = {
 									text = "Affects:",
 								},
 								gui.Dropdown{
+									styles = ThemeEngine.GetStyles(),
 									classes = "formDropdown",
 									options = {
 										{
@@ -1019,6 +1026,7 @@ CharacterModifier.TypeInfo.modifyability = {
 								classes = {"formPanel"},
 								height = "auto",
 								gui.Multiselect{
+									styles = ThemeEngine.GetStyles(),
 									value = properties,
 									addItemText = "Add Special Property...",
 									options = ActivatedAbility.registeredProperties,
@@ -1054,6 +1062,7 @@ CharacterModifier.TypeInfo.modifyability = {
 			end
 
 			children[#children+1] = gui.Dropdown{
+				styles = ThemeEngine.GetStyles(),
 				options = abilityModifierOptions,
 				idChosen = "none",
 				height = 30,
@@ -1090,6 +1099,7 @@ CharacterModifier.TypeInfo.modifyability = {
 						text = "Behaviors Mode:",
 					},
 					gui.Dropdown{
+						styles = ThemeEngine.GetStyles(),
 						options = {
 							{
 								id = "after",

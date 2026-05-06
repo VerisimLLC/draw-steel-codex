@@ -91,6 +91,7 @@ CharacterModifier.TypeInfo.suppressabilities = {
             end)
 
             children[#children+1] = gui.Multiselect{
+                styles = ThemeEngine.GetStyles(),
                 value = modifier:try_get("keywords", {}),
                 addItemText = "Add Keyword...",
                 options = keywordList,

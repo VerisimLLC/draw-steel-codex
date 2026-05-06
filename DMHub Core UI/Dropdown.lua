@@ -218,6 +218,15 @@ function gui.Dropdown(args)
                         end
                     end
                     panel = gui.Label{
+						-- styles = {
+						-- 	{
+						-- 		selectors = {"hover"},
+						-- 		bgimage = true,
+						-- 		bgcolor = "red",
+						-- 		color = "teal",
+						-- 		priority = 100,
+						-- 	}
+						-- },
                         classes = classes,
                         fontSize = args.fontSize,
                         text = text,
@@ -537,6 +546,9 @@ function gui.Dropdown(args)
 		dropdownParent:FireEvent("change")
 	end
  
+	-- TODO: THEME_PATCH
+	if arguments.styles == nil then arguments.styles = {} end
+	arguments.styles = ThemeEngine.MergeStyles(arguments.styles)
 	dropdownParent = gui.Panel(arguments)
 
 	if options ~= nil then

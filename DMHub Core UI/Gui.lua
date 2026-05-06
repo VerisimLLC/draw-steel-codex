@@ -1225,7 +1225,9 @@ function gui.Check(args)
 		label.text = text .. colon
 	end
 
-
+	-- TODO: THEME_PATCH
+	if options.styles == nil then options.styles = {} end
+	options.styles = ThemeEngine.MergeStyles(options.styles)
 	resultPanel = gui.Panel(options)
 	return resultPanel
 end

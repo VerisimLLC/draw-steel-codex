@@ -208,6 +208,7 @@ CharacterModifier.TypeInfo.proficiency = {
 						classes = {'formLabel'},
 					},
 					gui.Dropdown{
+						styles = ThemeEngine.GetStyles(),
 						selfStyle = {
 							height = 30,
 							width = 260,
@@ -249,6 +250,7 @@ CharacterModifier.TypeInfo.proficiency = {
 						},
 					},
 					gui.Check{
+						styles = ThemeEngine.GetStyles(),
 						text = "Equate",
 						hover = gui.Tooltip("If checked, this modifier will grant proficiency equal to the character's proficiency in another skill."),
 						classes = {cond(modifier.subtype ~= "skill" and modifier.subtype ~= "equipment", "hidden")},
@@ -350,6 +352,7 @@ CharacterModifier.TypeInfo.proficiency = {
 						classes = {'formLabel'},
 					},
 					gui.Dropdown{
+						styles = ThemeEngine.GetStyles(),
 						selfStyle = {
 							height = 30,
 							width = 260,
@@ -406,6 +409,7 @@ CharacterModifier.TypeInfo.proficiency = {
 							classes = {'formLabel'},
 						},
 						gui.Dropdown{
+							styles = ThemeEngine.GetStyles(),
 							selfStyle = {
 								height = 30,
 								width = 260,

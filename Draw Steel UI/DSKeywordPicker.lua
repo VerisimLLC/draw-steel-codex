@@ -50,6 +50,7 @@ gui.KeywordSelector = function(args)
     end
 
     children[#children+1] = gui.Dropdown{
+        styles = ThemeEngine.GetStyles(),
         selfStyle = {
             height = 30,
             width = 240,

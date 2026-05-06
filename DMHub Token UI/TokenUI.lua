@@ -2694,7 +2694,9 @@ function CreateTokenHud(token)
                                                 command = string.format("emote %s", emoteid),
                                                 name = string.format("%s Emote", emote.description),
                                                 destroy = function()
-                                                    element.root:FireEventTree("refreshBindings")
+													if element.root then
+                                                    	element.root:FireEventTree("refreshBindings")
+													end
                                                 end,
                                             }
                                         end,

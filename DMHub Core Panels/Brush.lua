@@ -121,7 +121,7 @@ local BrushFieldEditors = {
 				styles = {
 					{
 						bgimage = "icons/icon_tool/icon_tool_79.png",
-						bgcolor = "#ffffff88",
+						bgcolor = "#999999",
 					},
 					{
 						selectors = {"visible"},
@@ -150,6 +150,11 @@ local BrushFieldEditors = {
 					args.paramsPanel:FireEventTree("refreshParameter")
 				end,
 			}
+
+			--pass this out so BrushField can place it at the right edge of
+			--the formPanel (alongside displayIcon/formLabel/editorPanel),
+			--rather than next to the slider control.
+			args.penIcon = penIcon
 
 			--pass this out to display below us.
 			args.paramsPanel = gui.Panel{
@@ -318,15 +323,7 @@ local BrushFieldEditors = {
 			classes = {"formValue"},
 			width = "auto",
 			height = "auto",
-			gui.Panel{
-				flow = "horizontal",
-				width = "auto",
-				height = "auto",
-				gui.Slider(sliderArgs),
-				penIcon,
-			},
-
-
+			gui.Slider(sliderArgs),
 		}
 
 		return resultPanel
@@ -350,7 +347,7 @@ local BrushField = function(args)
 			styles = {
 				{
 					bgimage = "icons/icon_tool/icon_tool_60.png",
-					bgcolor = "#ffffff88",
+					bgcolor = "#999999",
 				},
 				{
 					selectors = {"visible"},
@@ -391,6 +388,7 @@ local BrushField = function(args)
 			},
 
 			editorPanel,
+			args.penIcon,
 			data = {
 				asset = asset,
 			},
@@ -785,6 +783,16 @@ mod.shared.BrushEditorPanel = function(settingid)
 		flow = "vertical",
 		width = "auto",
 		height = "auto",
+		styles = {
+			{
+				selectors = {"sliderNotch"},
+				bgimage = true,
+				bgcolor = "#A0A0A0",
+				width = "100%",
+				halign = "center",
+				borderWidth = 0,
+			},
+		},
 		palettePanel,
 		brushPropertiesPanel,
 	}
@@ -881,7 +889,7 @@ mod.shared.ShowBrushEditor = function(brushid, startingValues)
 			height = "auto",
 		},
 
-		styles = {
+		styles = ThemeEngine.MergeStyles{
 
 			Styles.Panel,
 			Styles.Form,

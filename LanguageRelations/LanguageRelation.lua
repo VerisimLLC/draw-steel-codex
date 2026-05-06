@@ -458,41 +458,32 @@ function LanguageRelation.CreateEditor()
         },
         vscroll = true,
         classes = {"class-panel"},
-        styles = {
-			{
-				halign = "left",
-			},
-			{
-				classes = {'class-panel'},
-				width = 1200,
-				height = '90%',
-				halign = 'left',
-				flow = 'vertical',
-				pad = 20,
-			},
-			{
-				classes = {'label'},
-				color = 'white',
-				fontSize = 22,
-				width = 'auto',
-				height = 'auto',
-			},
-			{
-				classes = {'input'},
-				width = 200,
-				height = 26,
-				fontSize = 18,
-				color = 'white',
-			},
-			{
-				classes = {'formPanel'},
-				flow = 'horizontal',
-				width = 'auto',
-				height = 'auto',
-				halign = 'left',
-				vmargin = 2,
-			},
-        }
+        -- Theme provides label/input vocabulary (fontSize, color, font) via the
+        -- default theme. Local extras here are layout-only — the surface size
+        -- of the editor and form-row layout. Per-class label/input overrides
+        -- (fontSize 22, color white, etc.) intentionally dropped so this
+        -- editor uses default theme styling.
+        styles = ThemeEngine.MergeStyles({
+            {
+                halign = "left",
+            },
+            {
+                classes = {'class-panel'},
+                width = 1200,
+                height = '90%',
+                halign = 'left',
+                flow = 'vertical',
+                pad = 20,
+            },
+            {
+                classes = {'formPanel'},
+                flow = 'horizontal',
+                width = 'auto',
+                height = 'auto',
+                halign = 'left',
+                vmargin = 2,
+            },
+        }),
     }
     return editor
 end

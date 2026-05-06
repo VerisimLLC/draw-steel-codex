@@ -1772,6 +1772,7 @@ function ActivatedAbility:Render(options, params)
                     if self.objectTarget and self.targetAllegiance ~= "none" and options.ability.name == self.name and options.section == "target" then
                         element.children = {
                             gui.EnumeratedSliderControl {
+                                styles = ThemeEngine.GetStyles(),
                                 options = {
                                     { id = false, text = "Creatures" },
                                     { id = true,  text = "Objects" },
@@ -1781,16 +1782,6 @@ function ActivatedAbility:Render(options, params)
                                 change = function(element)
                                     g_settingTargetObjects:Set(element.value)
                                 end,
-                                styles = {
-                                    {
-                                        selectors = { "enumSlider" },
-                                        height = 18,
-                                    },
-                                    {
-                                        selectors = { "enumSliderOption" },
-                                        fontSize = 10,
-                                    },
-                                }
                             },
                         }
                     else
@@ -1826,6 +1817,7 @@ function ActivatedAbility:Render(options, params)
 
                         element.children = {
                             gui.EnumeratedSliderControl {
+                                styles = ThemeEngine.GetStyles(),
                                 options = modeOptions,
                                 value = 1,
                                 height = "auto",
@@ -1834,13 +1826,6 @@ function ActivatedAbility:Render(options, params)
                                 tmargin = 4,
                                 change = function(element)
                                 end,
-                                styles = {
-                                    {
-                                        selectors = { "enumSliderOption" },
-                                        fontSize = 10,
-                                        height = 18,
-                                    },
-                                }
                             },
                         }
                     else

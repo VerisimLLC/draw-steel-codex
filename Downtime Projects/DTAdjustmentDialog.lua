@@ -31,10 +31,14 @@ end
 function DTAdjustmentDialog._createPanel(adjustment, confirmHandler, cancelHandler)
     local resultPanel = nil
     resultPanel = gui.Panel {
-        classes = {"adjustmentDialogController", "DTDialog"},
+        classes = {"adjustmentDialogController", "dialog"},
+        styles = ThemeEngine.GetStyles(),
         width = 500,
         height = 350,
-        styles = DTHelpers.GetDialogStyles(),
+        flow = "vertical",
+        halign = "center",
+        valign = "center",
+        pad = 4,
         floating = true,
         escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
         captureEscape = true,
@@ -94,19 +98,12 @@ function DTAdjustmentDialog._createPanel(adjustment, confirmHandler, cancelHandl
         children = {
             -- Header
             gui.Label{
+                classes = {"modalTitle"},
                 text = "New Project Adjustment",
-                fontSize = 24,
-                width = "100%",
-                height = 30,
-                classes = {"DTLabel", "DTBase"},
-                textAlignment = "center",
-                halign = "center"
             },
-            gui.Divider { width = "50%" },
 
             -- Form content
             gui.Panel{
-                classes = {"DTPanel", "DTBase"},
                 width = "100%",
                 height = "100%-110",
                 flow = "vertical",
@@ -114,23 +111,19 @@ function DTAdjustmentDialog._createPanel(adjustment, confirmHandler, cancelHandl
                 children = {
                     -- Amount field with numeric editor
                     gui.Panel{
-                        classes = {"DTPanel", "DTBase"},
                         width = "90%",
                         height = "auto",
                         flow = "vertical",
                         vmargin = 10,
-
                         children = {
-                            -- Label
                             gui.Label{
+                                classes = {"form"},
                                 text = "Adjustment Amount:",
-                                classes = {"DTLabel", "DTBase"},
                                 width = "100%",
-                                height = 20
                             },
-                            -- Input field
                             gui.Label {
                                 id = "adjustmentAmountInput",
+                                classes = {"number", "bordered"},
                                 editable = true,
                                 numeric = true,
                                 characterLimit = 4,
@@ -140,13 +133,11 @@ function DTAdjustmentDialog._createPanel(adjustment, confirmHandler, cancelHandl
                                 height = 24,
                                 cornerRadius = 4,
                                 fontSize = 20,
-                                bgimage = "panels/square.png",
+                                bgimage = true,
                                 border = 1,
                                 textAlignment = "center",
                                 valign = "center",
                                 halign = "left",
-                                classes = {"DTInput", "DTBase"},
-
                                 change = function(element)
                                     local numericValue = tonumber(element.text) or tonumber(element.text:match("%-?%d+")) or 0
                                     element.text = tostring(numericValue)
@@ -155,29 +146,28 @@ function DTAdjustmentDialog._createPanel(adjustment, confirmHandler, cancelHandl
                                     if controller then
                                         controller:FireEvent("adjustAmount", numericValue)
                                     end
-                                end
-                            }
-                        }
+                                end,
+                            },
+                        },
                     },
 
                     -- Reason field
                     gui.Panel{
-                        classes = {"DTPanel", "DTBase"},
                         width = "90%",
                         height = 60,
                         flow = "vertical",
                         vmargin = 10,
                         children = {
                             gui.Label{
+                                classes = {"form"},
                                 text = "Reason:",
-                                classes = {"DTLabel", "DTBase"},
                                 width = "100%",
                             },
                             gui.Input{
                                 id = "adjustmentReason",
+                                classes = {"form"},
                                 text = adjustment:GetReason(),
                                 width = "100%",
-                                classes = {"DTInput", "DTBase"},
                                 placeholderText = "Enter the reason for the adjustment...",
                                 editlag = 0.5,
                                 edit = function(element)
@@ -189,41 +179,41 @@ function DTAdjustmentDialog._createPanel(adjustment, confirmHandler, cancelHandl
                                         controller.data.currentReason = element.text
                                         controller:FireEvent("validateForm")
                                     end
-                                end
-                            }
-                        }
-                    }
-                }
+                                end,
+                            },
+                        },
+                    },
+                },
             },
 
             -- Button panel
             gui.Panel{
-                classes = {"DTPanel", "DTBase"},
                 width = "100%",
                 height = 40,
                 halign = "center",
-                valign = "center",
+                valign = "bottom",
+                flow = "horizontal",
                 children = {
                     gui.Button{
+                        classes = {"sizeL"},
                         text = "Cancel",
-                        width = 120,
-                        classes = {"DTButton", "DTBase"},
+                        valign = "bottom",
                         click = function(element)
                             local controller = element:FindParentWithClass("adjustmentDialogController")
                             if controller then
                                 controller:FireEvent("escape")
                             end
-                        end
+                        end,
                     },
                     gui.Button{
                         id = "saveButton",
+                        classes = {"sizeL", "disabled"},
                         text = "Save",
-                        width = 120,
                         halign = "right",
-                        classes = {"DTButton", "DTBase", "DTDisabled"},
+                        valign = "bottom",
                         interactable = false,
                         enableSave = function(element, enabled)
-                            element:SetClass("DTDisabled", not enabled)
+                            element:SetClass("disabled", not enabled)
                             element.interactable = enabled
                         end,
                         click = function(element)
@@ -232,10 +222,10 @@ function DTAdjustmentDialog._createPanel(adjustment, confirmHandler, cancelHandl
                             if controller then
                                 controller:FireEvent("saveAndClose")
                             end
-                        end
-                    }
-                }
-            }
+                        end,
+                    },
+                },
+            },
         },
     }
 

@@ -844,6 +844,16 @@ local CreateEditorPanel = function(fieldInfo, displayInfo, options, valueIndex, 
 							sliderWidth = 60,
 							labelWidth = 20,
 							labelFormat = "%d",
+							styles = {
+								{
+									selectors = {"sliderNotch"},
+									bgimage = true,
+									bgcolor = "#A0A0A0",
+									width = "100%",
+									halign = "center",
+									borderWidth = 0,
+								},
+							},
 							style = {
 								height = 20,
 								fontSize = 12,
@@ -986,6 +996,16 @@ local CreateEditorPanel = function(fieldInfo, displayInfo, options, valueIndex, 
 			labelWidth = labelWidth,
 			labelFormat = labelFormat,
 			wrap = fieldOptions.rotateControls,
+			styles = {
+				{
+					selectors = {"sliderNotch"},
+					bgimage = true,
+					bgcolor = "#A0A0A0",
+					width = "100%",
+					halign = "center",
+					borderWidth = 0,
+				},
+			},
 			data = {
 				randomSpread = {},
 

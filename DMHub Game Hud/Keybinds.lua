@@ -389,8 +389,9 @@ local g_KeybindStyles = {
     {
         selectors = {"sectionPanel"},
         flow = "vertical",
-        width = "100%",
+        width = "100%-6",
         height = "auto",
+        halign = "left",
     },
     {
         selectors = {"sectionDivider"},
@@ -403,26 +404,17 @@ local g_KeybindStyles = {
         flow = "horizontal",
         width = "100%",
         height = 40,
-        bgimage = "panels/square.png",
+        bgimage = true,
         bgcolor = "clear",
         border = {x1 = 0, x2 = 0, y1 = 0, y2 = 1},
-        borderColor = "#ffffff77"
-    },
-    {
-        selectors = {"sectionTitle"},
-        width = "auto",
-        height = "auto",
-        fontSize = 32,
-        halign = "left",
-        hmargin = 6,
-        color = Styles.textColor,
+        borderColor = "@border",
     },
     {
         selectors = {"bindLabel"},
         width = 400,
         height = "100%",
         fontSize = 18,
-        color = Styles.textColor,
+        color = "@fg",
         halign = "left",
         valign = "center",
         hmargin = 6,
@@ -430,27 +422,29 @@ local g_KeybindStyles = {
     },
     {
         selectors = {"shortcutLabel"},
-        bgimage = "panels/square.png",
-        bgcolor = "#ffffff22",
+        bgimage = true,
+        bgcolor = "@bgAlt",
+        color = "@fg",
         width = "100%-412",
         height = "100%",
         fontSize = 18,
         textAlignment = "center",
-        color = Styles.textColor,
+        border = {x1 = 0, x2 = 0, y1 = 0, y2 = 1},
+        borderColor = "@border",
     },
     {
         selectors = {"shortcutLabel", "hover"},
-        bgcolor = "#ffffff44",
+        brightness = 1.5,
         transitionTime = 0.1,
     },
     {
         selectors = {"shortcutLabel", "press"},
-        bgcolor = "#ffffff77",
+        brightness = 0.7,
         transitionTime = 0.1,
     },
     {
         selectors = {"shortcutLabel", "active"},
-        bgcolor = "#aaaaff99",
+        bgcolor = "@fgPending",
         transitionTime = 0.1,
     },
 }
@@ -488,7 +482,7 @@ CreateKeybindsSettingsPanel = function()
                                     create = function() return gui.Panel{
                                         width = "auto",
                                         height = "auto",
-                                        styles = g_KeybindStyles,
+                                        styles = ThemeEngine.MergeTokens(g_KeybindStyles),
                                         children = {createfn()},
                                     } end,
                                     shown = string.find(string.lower(bind.name), string.lower(text)),
@@ -567,7 +561,11 @@ CreateKeybindsSettingsPanel = function()
         if #sectionChildren > 0 then
             table.sort(sectionChildren, function(a,b) return a.data.ord < b.data.ord end)
             table.insert(sectionChildren, 1, gui.Label{
-                classes = {"sectionTitle"},
+                classes = {"sizeL", "bold"},
+                width = "auto",
+                height = "auto",
+                fontSize = 24,
+                bmargin = 0,
                 text = section.name,
             })
 
@@ -585,13 +583,12 @@ CreateKeybindsSettingsPanel = function()
         end
     end
 
-    children[#children+1] = gui.PrettyButton{
+    children[#children+1] = gui.Button{
+        classes = {"sizeL"},
         halign = "right",
         valign = "bottom",
         margin = 8,
         width = 220,
-        height = 30,
-        fontSize = 22,
         text = "Reset to Defaults",
         click = function(element)
             dmhub.ResetKeybindings()
@@ -603,7 +600,7 @@ CreateKeybindsSettingsPanel = function()
         flow = "vertical",
         width = "100%",
         height = "auto",
-        styles = g_KeybindStyles,
+        styles = ThemeEngine.MergeTokens(g_KeybindStyles),
 
         children = children,
     }
@@ -619,7 +616,7 @@ function Keybinds.ShowBindPopup(args)
     local resultPanel
 
     resultPanel = gui.Panel{
-        styles = {Styles.Panel, g_KeybindStyles},
+        styles = {ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(g_KeybindStyles)},
         classes = {"framedPanel"},
         width = 600,
         height = 300,
@@ -627,12 +624,11 @@ function Keybinds.ShowBindPopup(args)
         valign = "center",
         destroy = args.destroy,
         gui.Label{
+            classes = {"sizeXl", "bold"},
             halign = "center",
             valign = "top",
             vmargin = 8,
-            fontSize = 24,
             minFontSize = 10,
-            bold = true,
             maxWidth = 500,
             width = "auto",
             height = "auto",

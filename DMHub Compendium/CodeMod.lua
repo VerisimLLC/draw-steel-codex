@@ -271,7 +271,8 @@ CreateEditor = function(panelArgs)
 		end,
 	}
 
-	local addFileButton = gui.AddButton{
+	local addFileButton = gui.Button{
+		classes = {"addButton"},
 		halign = "left",
 		click = function(element)
 			mod:AddFile()
@@ -286,26 +287,6 @@ CreateEditor = function(panelArgs)
 		width = "100%",
 		height = "auto",
 		flow = "vertical",
-		styles = {
-			{
-				selectors = {"label", "~button"},
-				fontSize = 14,
-				color = "white",
-				height = "auto",
-				valign = "center",
-				hmargin = 8,
-			},
-			{
-				selectors = {"fileEntry", "drag-target"},
-				borderWidth = 1,
-				borderColor = "#ffffff66",
-			},
-			{
-				selectors = {"fileEntry", "drag-target-hover"},
-				borderWidth = 2,
-				borderColor = "#ffffffff",
-			},
-		},
 		addFileButton,
 		refreshMod = function(element)
 			local newFilePanels = {}
@@ -346,7 +327,7 @@ CreateEditor = function(panelArgs)
 
 					--the header.
 					gui.Panel{
-						classes = {"fileEntry"},
+						classes = {"row", "fileEntry"},
 						bgimage = "panels/square.png",
 						dragTarget = true,
 						
@@ -404,7 +385,7 @@ CreateEditor = function(panelArgs)
 						},
 
 						gui.Button{
-							classes = {"tiny"},
+							classes = {"sizeXs"},
 							text = "Edit",
 							valign = "center",
 							create = function(element)
@@ -695,6 +676,16 @@ CreateEditor = function(panelArgs)
 				table.sort(rows, function(a,b) return a.data.file.name < b.data.file.name end)
 			end
 
+			-- Zebra-stripe each file row's header (fileEntry) using the theme's
+			-- evenRow/oddRow rules. Done after sort so stripes follow final order.
+			for j, row in ipairs(rows) do
+				local fileEntry = row.children and row.children[1]
+				if fileEntry then
+					fileEntry:SetClass("evenRow", j % 2 == 0)
+					fileEntry:SetClass("oddRow",  j % 2 == 1)
+				end
+			end
+
 			rows[#rows+1] = addFileButton
 
 			filePanels = newFilePanels
@@ -732,56 +723,59 @@ CreateEditor = function(panelArgs)
 					width = "auto",
 					height = "auto",
 
+					--the header (inline so it's always children[1], available
+					--for post-sort zebra striping by the parent table).
+					gui.Panel{
+						classes = {"row", "fileEntry"},
+						bgimage = "panels/square.png",
+						click = function(element)
+							local siblings = element.parent.children
+							for i = 2, #siblings do
+								siblings[i]:SetClass("collapsed", not siblings[i]:HasClass("collapsed"))
+							end
+						end,
+
+						gui.Label{
+							classes = {"fileName", "fileEntry"},
+							halign = "left",
+							width = 340,
+							fontSize = 14,
+							textOverflow = "ellipsis",
+							text = changelist.comment,
+						},
+
+						gui.Label{
+							classes = {"fileName", "fileEntry"},
+							halign = "left",
+							width = 160,
+							fontSize = 14,
+							text = dmhub.FormatTimestamp(changelist.timestamp, "yyyy-MM-dd HH:mm")
+						},
+
+						gui.Label{
+							classes = {"fileName", "fileEntry"},
+							halign = "left",
+							width = 160,
+							fontSize = 14,
+							text = changelist.engineVersion,
+						},
+
+                        gui.Label{
+                            classes = {"fileName", "fileEntry"},
+							halign = "left",
+                            lmargin = 8,
+							width = 360,
+							fontSize = 14,
+							text = changelist.guid,
+                        },
+					},
+
 					create = function(element)
-						local children = {}
-
-						children[#children+1] = 
-							gui.Panel{
-								classes = {"fileEntry"},
-								bgimage = "panels/square.png",
-								click = function(element)
-									for i=2,#children do
-										children[i]:SetClass("collapsed", not children[i]:HasClass("collapsed"))
-									end
-								end,
-
-								gui.Label{
-									classes = {"fileName", "fileEntry"},
-									halign = "left",
-									width = 340,
-									fontSize = 14,
-									textOverflow = "ellipsis",
-									text = changelist.comment,
-								},
-
-								gui.Label{
-									classes = {"fileName", "fileEntry"},
-									halign = "left",
-									width = 160,
-									fontSize = 14,
-									text = dmhub.FormatTimestamp(changelist.timestamp, "yyyy-MM-dd HH:mm")
-								},
-
-								gui.Label{
-									classes = {"fileName", "fileEntry"},
-									halign = "left",
-									width = 160,
-									fontSize = 14,
-									text = changelist.engineVersion,
-								},
-
-                                gui.Label{
-                                    classes = {"fileName", "fileEntry"},
-									halign = "left",
-                                    lmargin = 8,
-									width = 360,
-									fontSize = 14,
-									text = changelist.guid,
-                                }
-							}
-						
+						--Preserve the inline-constructed header at children[1]
+						--and append one collapsed row per file in the changelist.
+						local newChildren = { element.children[1] }
 						for _,fname in ipairs(changelist.files) do
-							children[#children+1] = gui.Panel{
+							newChildren[#newChildren+1] = gui.Panel{
 								classes = {"fileEntry", "collapsed"},
 								gui.Panel{
 									--padding.
@@ -799,7 +793,7 @@ CreateEditor = function(panelArgs)
 							}
 						end
 
-						element.children = children
+						element.children = newChildren
 					end,
 
 				}
@@ -809,6 +803,17 @@ CreateEditor = function(panelArgs)
 			end
 
 			table.sort(children, function(a,b) return a.data.changelist.timestamp > b.data.changelist.timestamp end)
+
+			-- Zebra-stripe each changelist's header (children[1] of the filerow)
+			-- using the theme's evenRow/oddRow rules. Done after sort so stripes
+			-- follow final order.
+			for j, entry in ipairs(children) do
+				local fileEntry = entry.children and entry.children[1]
+				if fileEntry then
+					fileEntry:SetClass("evenRow", j % 2 == 0)
+					fileEntry:SetClass("oddRow",  j % 2 == 1)
+				end
+			end
 
 			element.children = children
 
@@ -1305,7 +1310,8 @@ CreateEditor = function(panelArgs)
 	end
 
 	local imageRows = {}
-	local addImageButton = gui.AddButton{
+	local addImageButton = gui.Button{
+		classes = {"addButton"},
 		click = function()
 			local imageSeq = 1
 			while resourceNameUsed(string.format("image%d", imageSeq)) do

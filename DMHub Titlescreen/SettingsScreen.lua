@@ -19,7 +19,7 @@ local CreateBetaBranchEditor = function()
 
 	local changesLabel = 
 	gui.Label{
-		classes = {"collapsed-anim"},
+		classes = {"collapseAnim"},
 		fontSize = 14,
 		width = "auto",
 		height = "auto",
@@ -34,20 +34,16 @@ local CreateBetaBranchEditor = function()
 		halign = "center",
 		flow = "vertical",
 		gui.Panel{
+			classes = {"formRow"},
 			width = "100%",
-			height = "48",
-			flow = "horizontal",
 			gui.Label{
+				classes = {"form"},
+				width = "66%",
 				text = "DMHub Version:",
-				halign = "left",
-				valign = "center",
-				fontSize = 18,
-				width = "auto",
-				height = "auto",
 			},
 			gui.Dropdown{
-				halign = "right",
-				valign = "center",
+				classes = {"form"},
+				width = "33%",
 				idChosen = branch,
 				options = {
 					{
@@ -65,7 +61,7 @@ local CreateBetaBranchEditor = function()
 				},
 				change = function(element)
 					dmhub.betaBranch = element.idChosen
-					changesLabel:SetClass("collapsed-anim", false)
+					changesLabel:SetClass("collapseAnim", false)
 				end,
 			},
 		},
@@ -110,20 +106,16 @@ CreateLanguageEditor = function()
 		end,
 
 		gui.Panel{
+			classes = {"formRow"},
 			width = "100%",
-			height = "48",
-			flow = "horizontal",
 			gui.Label{
+				classes = {"form"},
+				width = "66%",
 				text = "Language:",
-				halign = "left",
-				valign = "center",
-				fontSize = 18,
-				width = "auto",
-				height = "auto",
 			},
 			gui.Dropdown{
-				halign = "right",
-				valign = "center",
+				classes = {"form"},
+				width = "33%",
 				idChosen = dmhub.GetSettingValue("lang"),
 				options = options,
 				change = function(element)
@@ -231,8 +223,7 @@ function CreateSettingsScreen(dialog, args)
 		end
 		
 		return gui.Label{
-			bgimage = "panels/square.png",
-			classes = {"advantage-element", cond(args.text == m_selectedTab, "selected")},
+			classes = {"tab", cond(args.text == m_selectedTab, "selected")},
 			text = args.text,
 			press = function(element)
 				for _,child in ipairs(element.parent.children) do
@@ -260,59 +251,46 @@ function CreateSettingsScreen(dialog, args)
 
 	local settingsDialog = gui.Panel{
 		id = "settingsDialog",
-		classes = {"framedPanel"},
+		classes = {"dialog"},
 
 		width = 1024,
 		height = 900,
 		halign = "center",
 		valign = "center",
 		flow = "vertical",
-        blurBackground = true,
+		pad = 8,
 
 		draggable = true,
 		drag = function(element)
 			element.x = element.xdrag
 			element.y = element.ydrag
 		end,
-		
-		styles = {
-			Styles.Panel,
-			Styles.Default,
 
-			{
-				selectors = {"label"},
-				fontFace = "dubai",
-			},
+		styles = ThemeEngine.MergeStyles({
 			{
 				selectors = {"~dm", "dmonly"},
 				collapsed = 1,
 			},
-		},
+		}),
 
 		children = {
-			gui.PrettyButton{
-				text = 'Close',
+			gui.Button{
+				-- classes = {"sizeS"},
+				bgimage = true,
+				text = "Close",
 				floating = true,
 				escapeActivates = true,
-				style = {
-					bgcolor = 'white',
-					vmargin = 20,
-					hmargin = 20,
-					width = 200,
-					height = 60,
-					halign = 'right',
-					valign = 'bottom',
-				},
+				halign = "right",
+				valign = "bottom",
+				hmargin = 20,
+				vmargin = 20,
+				click = function()
+					dialog.sheet = nil
 
-				events = {
-					click = function()
-						dialog.sheet = nil
-
-						if dmhub.settingsChangesRequireRestart then
-							dmhub.QuitApplication()
-						end
+					if dmhub.settingsChangesRequireRestart then
+						dmhub.QuitApplication()
 					end
-				}
+				end,
 			},
 
 			gui.Label{
@@ -333,15 +311,9 @@ function CreateSettingsScreen(dialog, args)
 			},
 
 			gui.Label{
-				text = 'Settings',
+				classes = {"dialogTitle"},
+				text = "Settings",
 				vmargin = 16,
-				style = {
-					color = 'white',
-					valign = 'top',
-					halign = 'center',
-					width = 'auto',
-					height = 'auto',
-				}
 			},
 
 
@@ -350,24 +322,19 @@ function CreateSettingsScreen(dialog, args)
 				height = "auto",
 				halign = "center",
 				flow = "vertical",
-				gui.Input{
+				gui.SearchInput{
 					placeholderText = "Search Settings...",
-					editlag = 0.25,
 					width = 240,
 					height = 20,
-					fontSize = 16,
 					bmargin = 6,
-					borderWidth = 2,
-					borderColor = Styles.textColor,
-					bgimage = "panels/square.png",
 					halign = "left",
 					characterLimit = 30,
-                    create = function(element)
-                        if args.search then
-                            element.text = args.search
-                            element:FireEvent("edit")
-                        end
-                    end,
+					create = function(element)
+						if args.search then
+							element.text = args.search
+							element:FireEvent("edit")
+						end
+					end,
 					edit = function(element)
 						local matches = {}
 						dialog.sheet:FireEventTree("search", element.text, matches)
@@ -385,22 +352,9 @@ function CreateSettingsScreen(dialog, args)
 							})
 						end
 					end,
-					gui.Panel{
-						bgimage = "icons/icon_tool/icon_tool_42.png",
-						bgcolor = Styles.textColor,
-						width = "100% height",
-						height = "100%",
-						halign = "right",
-						vmargin = 0,
-						floating = true,
-					},
 				},
 				gui.Panel{
-					classes = {'advantage-bar'},
-					width = "auto",
-					styles = {
-						Styles.AdvantageBar,
-					},
+					classes = {"tabBar"},
 
 					search = function(element, text)
 						element:SetClass("hidden", text ~= nil and text ~= "")
@@ -428,6 +382,7 @@ function CreateSettingsScreen(dialog, args)
 
 			gui.Panel{
 				vscroll = true,
+				-- scrollHandleColor = "teal",
 				width = "60%",
 				height = "75%",
 				flow = "vertical",
@@ -451,14 +406,13 @@ function CreateSettingsScreen(dialog, args)
 						Setting('diceequipped'),
 						--Setting('dicecolor'),
 						gui.Panel{
-							bgimage = '#DicePreview',
-							style = {
-								bgcolor = 'white',
-								width = 200,
-								height = 200,
-								halign = 'right',
-								hmargin = 20,
-							}
+							classes = {"dicePreview"},
+							bgimage = "#DicePreview",
+							bgcolor = "white",
+							width = 200,
+							height = 200,
+							halign = "right",
+							hmargin = 20,
 						},
 
 						--Setting('dice:gravity'),
@@ -624,7 +578,6 @@ function CreateSettingsScreen(dialog, args)
 							width = "100%",
 							height = "auto",
 							gui.Label{
-								fontSize = 16,
 								text = string.format("Logged in as %s", dmhub.userDisplayName),
 								width = "auto",
 								height = "auto",
@@ -636,8 +589,7 @@ function CreateSettingsScreen(dialog, args)
 							},
 
 							gui.Label{
-								bold = true,
-								fontSize = 16,
+								classes = {"sizeL", "bold"},
 								width = "auto",
 								height = "auto",
 								text = "Bandwidth Usage",
@@ -646,13 +598,12 @@ function CreateSettingsScreen(dialog, args)
 							gui.Label{
 								text = string.format("You have %dMB of your %dMB bandwidth upload quota for the month remaining.", math.floor(dmhub.uploadQuotaRemaining/(1024*1024)), math.floor(dmhub.uploadQuotaTotal/(1024*1024))),
 								maxWidth = 600,
-								fontSize = 14,
 								width = "auto",
 								height = "auto",
 							},
 
                             gui.Label{
-                                styles = Styles.Default,
+                                -- styles = Styles.Default,
                                 text = "See our <color=#00FFFF><link=https://www.mcdmproductions.com/draw-steel-codex-terms-of-service>Terms of Service</link></color> and <color=#00FFFF><link=https://www.mcdmproductions.com/draw-steel-codex-privacy-policy>Privacy Policy</link></color>",
                                 markdown = true,
                                 maxWidth = 600,
@@ -720,6 +671,7 @@ function CreateSettingsScreen(dialog, args)
 			},
 
 			gui.Panel{
+				classes = {"collapsed"},
 				vscroll = true,
 				width = "60%",
 				height = "75%",

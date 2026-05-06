@@ -5,99 +5,15 @@
 --- @field flow? "vertical"|"horizontal"
 --- @field chipPos? "top"|"bottom"|"left"|"right" Position of chips relative to dropdown. For vertical flow: "top" or "bottom" (default "top"). For horizontal flow: "left" or "right" (default "right").
 
---- Determines if the contents of two flag lists are the same
---- regardless of order.
---- @param list1 table A flag list
---- @param list2 table Another flag list
---- @return boolean listsIdentical True if the lists contain identical keys & values
-
-local chipColors = {
-    richBlack = "#040807",
-    gray = "#444444",
-    red = "#D53031",
-    bgTransparency = "0F",
-}
-
-local chipStyles = {
-    {
-        selectors = {"panel", "multiselect-chip"},
-        height = "auto",
-        width = "auto",
-        pad = 4,
-        margin = 4,
-        bgimage = "panels/square.png",
-        borderColor = Styles.textColor,
-        border = 1,
-        cornerRadius = 2,
-        bgcolor = chipColors.richBlack,
-        flow = "horizontal",
-    },
-    {
-        selectors = {"panel", "multiselect-chip", "hover"},
-        brightness = 1.2,
-    },
-    {
-        selectors = {"label", "multiselect-chip-text"},
-        width = "auto",
-        height = "auto",
-        valign = "center",
-        margin = 0,
-        pad = 0,
-        fontFace = "Inter",
-        fontSize = 14,
-    },
-    {
-        selectors = {"panel", "multiselect-chip-remove"},
-        width = 14,
-        height = 14,
-        halign = "right",
-        valign = "center",
-        lmargin = 4,
-        bgimage = true,
-        bgcolor = chipColors.red .. chipColors.bgTransparency,
-        border = 1,
-        borderColor = chipColors.red,
-        bold = true,
-        cornerRadius = 2,
-        hidden = 1,
-    },
-    {
-        selectors = {"panel", "multiselect-chip-remove", "parent:hover"},
-        hidden = 0,
-    },
-    {
-        selectors = {"panel", "multiselect-chip-remove", "hover"},
-        brightness = 1.5,
-    },
-    {
-        selectors = {"label", "multiselect-chip-remove"},
-        width = "100%",
-        height = "100%",
-        halign = "center",
-        valign = "center",
-        margin = 0,
-        -- lmargin = 0,
-        -- tmargin = 0,
-        pad = 0,
-        -- lpad = 0,
-        -- tpad = 0,
-        textAlignment = "center",
-        fontFace = "Inter",
-        fontSize = 8,
-        color = chipColors.red,
-    },
-    {
-        selectors = {"label", "multiselect-chip-remove", "parent:hover"},
-        brightness = 1.5,
-    },
-}
-
-local dropdownStyles = {
-    {
-        selectors = {"label", "dropdownLabel"},
-        fontFace = "Inter",
-    },
-}
+-- Multiselect is a first-class widget — its internal selectors
+-- (multiselectChip, multiselectChipText, multiselectChipRemove) live in
+-- DefaultStyles.lua alongside other widget vocabulary like dropdownLabel /
+-- dropdownTriangle / hudIconButton. This file never sets `styles =` on the
+-- controller or chips: theme reach comes from the ancestor cascade through
+-- whatever panel the caller wired up with ThemeEngine.MergeStyles(...).
+--
+-- Callers that want to override chip-specific styling for a single instance
+-- pass `chips.styles` and we apply that to each chip panel directly.
 
 --- Creates a generic multiselect control for selecting multiple items from a list
 --- Displays selected items as removable chips with a dropdown to add more items
@@ -163,11 +79,16 @@ local function _multiselect(args)
     local function buildDropdown()
         local dropdownOpts = opts.dropdown or {}
         opts.dropdown = nil
-        dropdownOpts.width = dropdownOpts.width or flow == "vertical" and "auto" or "50%"
+        -- For vertical flow, leave width unset so gui.Dropdown uses its own
+        -- default (sized to widget). Forcing "auto" here makes DMHub stretch
+        -- the dropdown to fill the container, which is rarely what callers want.
+        -- Horizontal flow defaults to 50% so the dropdown shares space with chips.
+        if dropdownOpts.width == nil and flow == "horizontal" then
+            dropdownOpts.width = "50%"
+        end
         dropdownOpts.hasSearch = dropdownOpts.hasSearch == nil and true or dropdownOpts.hasSearch
         dropdownOpts.textDefault = dropdownOpts.textDefault or addItemText or opts.textDefault or "Select an item..."
         dropdownOpts.sort = dropdownOpts.sort or opts.sort or nil
-        dropdownOpts.styles = dropdownOpts.styles or dropdownStyles
         dropdownOpts.options = shallow_copy_list(m_options)
         dropdownOpts.change = function(element)
             local controller = element:FindParentWithClass("multiselectController")
@@ -194,18 +115,12 @@ local function _multiselect(args)
                 end
             end
         end
-        dropdownOpts.removeSelected = function(element, item)
-            -- Removing from the selected list = returning to the dropdown
-            local listOptions = element.options
-            local insertPos = #listOptions + 1
-            for i, option in ipairs(listOptions) do
-                if item.text < option.text then
-                    insertPos = i
-                    break
-                end
-            end
-            table.insert(listOptions, insertPos, item)
-        end
+        -- removeSelected on the dropdown is intentionally not handled here.
+        -- The controller's removeSelected fires `repaint` on the tree, which
+        -- the dropdown's repaint handler uses to rebuild options from
+        -- m_options (preserving the original sort key, including custom ord).
+        -- A separate text-based insert here would race with repaint and
+        -- corrupt the result.
         dropdownOpts.repaint = function(element, valueDict)
             -- Remove everything from the original options list that is in the dictionary
             local options = {}
@@ -223,58 +138,73 @@ local function _multiselect(args)
     local dropdownPanel = buildDropdown()
 
     local function buildChips()
-        local chipsStylesBase = DeepCopy(chipStyles)
-
-        -- Calculate for individual chips
         local chipsOpts = opts.chips or {}
         opts.chips = nil
         local chipsClasses = chipsOpts.classes or {}
-        local chipsStyles = chipsOpts.styles or {}
-        opts.chips = nil
-        chipsOpts.styles = table.move(chipsStyles, 1, #chipsStyles, #chipsStylesBase, chipsStylesBase)
+        -- Caller-passed chips.styles, if any, get applied per-chip below.
+        -- Default chip styling lives in DefaultStyles.lua and reaches chips
+        -- through the ancestor cascade.
+        local chipsCallerStyles = chipsOpts.styles
 
         -- Calculate for the panel
         local chipPanelOpts = opts.chipPanel or {}
         opts.chipPanel = nil
-        chipPanelOpts.width = chipPanelOpts.width or "auto"
+        -- Vertical multiselects: chip panel fills the controller's width so
+        -- horizontal flow + wrap has a stable boundary to wrap against.
+        -- Horizontal multiselects: chip panel sizes to its chips next to the
+        -- dropdown, so "auto" is the right default.
+        chipPanelOpts.width = chipPanelOpts.width or (layoutVertical and "100%" or "auto")
         chipPanelOpts.halign = chipPanelOpts.halign or (layoutVertical and "left" or nil)
         chipPanelOpts.height = "auto"
         chipPanelOpts.flow = chipPanelOpts.flow or "horizontal"
         chipPanelOpts.wrap = true
         chipPanelOpts.children = {}
-        chipPanelOpts.borderColor = "#98F347"
         chipPanelOpts.addSelected = function(element, item)
-            local baseClasses = { item.id, "multiselect-chip" }
+            local baseClasses = { item.id, "multiselectChip" }
             local chipClasses = table.move(chipsClasses, 1, #chipsClasses, #baseClasses + 1, baseClasses)
 
-            local chipPanel = gui.Panel{
-                styles = chipsOpts.styles or {},
+            local chipPanelArgs = {
                 classes = chipClasses,
                 id = item.id,
                 data = { item = item },
-                gui.Label{
-                    classes = {"label", "multiselect-chip-text"},
-                    text = item.text,
-                },
-                gui.Panel{
-                    classes = {"panel", "multiselect-chip-remove"},
-                    press = function(el)
-                        local controller = el:FindParentWithClass("multiselectController")
-                        if controller then
-                            local chipItem = el.parent.data.item
-                            controller:FireEventTree("removeSelected", chipItem)
-                            dmhub.Schedule(0.1, function()
-                                el.parent:DestroySelf()
-                            end)
-                        end
-                    end,
+                children = {
                     gui.Label{
-                        classes = {"label", "multiselect-chip-remove"},
-                        text = "X",
+                        classes = {"label", "multiselectChipText"},
+                        text = item.text,
+                    },
+                    gui.Panel{
+                        classes = {"panel", "multiselectChipRemove"},
+                        press = function(el)
+                            local controller = el:FindParentWithClass("multiselectController")
+                            if controller then
+                                local chipItem = el.parent.data.item
+                                controller:FireEventTree("removeSelected", chipItem)
+                                -- No explicit DestroySelf here. The
+                                -- controller's removeSelected fires repaint
+                                -- on the tree, and the chip panel's repaint
+                                -- handler destroys chips not in the new value
+                                -- dict (this chip among them). Scheduling our
+                                -- own destroy would race with that and
+                                -- eventually try to read .parent on an
+                                -- already-destroyed userdata.
+                            end
+                        end,
+                        children = {
+                            gui.Label{
+                                classes = {"label", "multiselectChipRemove"},
+                                text = "X",
+                            },
+                        },
                     },
                 },
             }
-            element:AddChild(chipPanel)
+            -- Caller-supplied chip styling applies per-chip when provided.
+            -- Skipping it lets chips inherit the default theme through the
+            -- ancestor cascade (the desired path for most callers).
+            if chipsCallerStyles then
+                chipPanelArgs.styles = chipsCallerStyles
+            end
+            element:AddChild(gui.Panel(chipPanelArgs))
         end
         chipPanelOpts.repaint = function(element, valueDict)
             -- Remove children not in dictionary
@@ -334,7 +264,7 @@ local function _multiselect(args)
 
         local panelOpts = opts or {}
         panelOpts.classes = controllerClasses
-        panelOpts.width = panelOpts.width or "auto"
+        panelOpts.width = panelOpts.width or "98%"
         panelOpts.height = panelOpts.height or "auto"
         panelOpts.flow = flow
         panelOpts.data = panelData
@@ -349,6 +279,11 @@ local function _multiselect(args)
         end
         panelOpts.removeSelected = function(element, item)
             element.data.selected[item.id] = nil
+            -- Force a full repaint of the dropdown options so the returning
+            -- item lands in its original sorted position (driven by m_options
+            -- order). Without this, the dropdown's own removeSelected handler
+            -- does a text-based insert that ignores any custom ord/sort key.
+            element:FireEventTree("repaint", element.data.selected)
             element:FireEvent("change")
         end
         panelOpts.GetValue = function(element)

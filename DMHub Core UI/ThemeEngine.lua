@@ -1,14 +1,30 @@
 local mod = dmhub.GetModLoading()
 
---- ThemeEngine — UI theming engine for Draw Steel Codex.
---- Registries for color schemes and themes, a resolver with sigil-based substitution,
---- a cache keyed by the resolved (theme, scheme) pair, and an OnThemeChanged event.
---- Default content (default theme, default color scheme) and settings-UI wiring
---- are handled elsewhere; this file is the engine only.
+--- ThemeEngine -- UI theming engine for Draw Steel Codex.
+--- Registries for color schemes and themes, a resolver with sigil-based
+--- substitution, a cache keyed by the resolved (theme, scheme) pair, and an
+--- OnThemeChanged event. Default content (default theme, default color scheme)
+--- and settings-UI wiring are handled elsewhere; this file is the engine only.
 ---
---- Color and font properties in style rules may reference named values via the
---- @name sigil. The engine resolves these at GetStyles() time using property-typed
---- resolution: color/bgcolor/borderColor -> colors table; fontFace -> fonts table.
+--- Color, font, and gradient properties in style rules may reference named
+--- values via the `@name` sigil. The engine resolves these at GetStyles() time
+--- using property-typed resolution:
+---   color / bgcolor / borderColor  -> colors table
+---   fontFace                       -> fonts table
+---   gradient                       -> gradients table
+---
+--- Naming conventions used by the registered content (see DefaultStyles.lua):
+--- a single rule with no exceptions -- camelCase everywhere.
+---   Tokens (color and gradient names): `bg`, `bgAlt`, `accentHover`,
+---     `surfaceRadial`, `barTrack`. Referenced as `@bgAlt` etc.
+---   Selectors (CSS class names): `enumSlider`, `formRow`, `iconButton`,
+---     `multiselectChip`, etc. The engine binary already emits camelCase
+---     state classes (`hover`, `press`, `selected`, `expandedTop`, ...)
+---     and the gui-wrapper layer (`Gui.lua`) names its emitted classes
+---     camelCase too, so picking camelCase as the single convention
+---     means zero exceptions to maintain.
+---   `parent:*` / `~classname` are selector grammar (parent-state and
+---     negation), not class names; they're untouched by the rule.
 --- @class ThemeEngine
 ThemeEngine = {} --RegisterGameType("ThemeEngine")
 
@@ -22,6 +38,21 @@ local _themes = {}               -- themeId -> stored theme spec
 local _activeThemeId = nil
 local _activeSchemeId = nil
 
+-- Persistent storage for the user's active theme and color scheme
+-- selections. No section/editor/description, so they don't appear in
+-- the settings UI. storage = "preference" -- per-user, persists across
+-- games on this machine.
+local _activeThemeSetting = setting{
+    id = "themeengine.activetheme",
+    storage = "preference",
+    default = "default",
+}
+local _activeSchemeSetting = setting{
+    id = "themeengine.activecolorscheme",
+    storage = "preference",
+    default = "default",
+}
+
 local _cache = {}                -- "themeId|schemeId" -> resolved styles array
 local _loggedUnresolved = {}     -- set of "domain:name" keys already logged
 
@@ -29,7 +60,12 @@ local _loggedUnresolved = {}     -- set of "domain:name" keys already logged
 -- Constants
 -- =============================================================================
 
-local COLOR_PROPS = { color = true, bgcolor = true, borderColor = true }
+local COLOR_PROPS = {
+    color = true,
+    bgcolor = true,
+    borderColor = true,
+    scrollHandleColor = true
+}
 local FONT_PROPS = { fontFace = true }
 local GRADIENT_PROPS = { gradient = true }
 
@@ -42,108 +78,41 @@ local DEFAULT_SCHEME_ID = "default"
 local THEME_CHANGED_EVENT = "ThemeEngine.ThemeChanged"
 
 -- =============================================================================
--- Font catalog (hardcoded — DMHub owns which font files exist)
+-- Available fonts (engine-supplied)
 -- =============================================================================
--- Kept in alphabetical order by `name`. Add new entries in the right slot so
--- ListFontFaces returns them sorted without runtime sorting.
 
-local FONT_CATALOG = {
-    {
-        name = "Berling",
-        style = "serif",
-        uses = { "body", "label", "input" },
-        description = "Codex default serif for long-form text, labels, and form inputs.",
-    },
-    {
-        name = "Book",
-        style = "serif",
-        uses = { "heading", "numeric" },
-        description = "Serif with strong numerals; used in dice panels and the initiative bar.",
-    },
-    {
-        name = "Cambria",
-        style = "serif",
-        uses = { "body" },
-        description = "Classic serif body face.",
-    },
-    {
-        name = "Colvillain",
-        style = "display",
-        uses = { "heading", "decorative" },
-        description = "Ornate display face for thematic headers in the game HUD.",
-    },
-    {
-        name = "Courier",
-        style = "mono",
-        uses = { "code" },
-        description = "Monospace face for code editors, debug logs, and regex matchers.",
-    },
-    {
-        name = "CrimsonText",
-        style = "serif",
-        uses = { "body" },
-        description = "Classic book-weight serif suitable for body text.",
-    },
-    {
-        name = "DrawSteelGlyphs",
-        style = "symbol",
-        uses = { "glyph" },
-        description = "Draw Steel ability-tier and system glyph set.",
-    },
-    {
-        name = "DrawSteelPotencies",
-        style = "symbol",
-        uses = { "glyph" },
-        description = "Draw Steel potency glyph set.",
-    },
-    {
-        name = "Dubai",
-        style = "sans",
-        uses = { "body", "label" },
-        description = "Humanist sans used in settings and character panels.",
-    },
-    {
-        name = "Inter",
-        style = "sans",
-        uses = { "body", "label", "input" },
-        description = "Modern UI sans-serif widely used across character sheets.",
-    },
-    {
-        name = "Newzald",
-        style = "serif",
-        uses = { "heading", "display", "numeric" },
-        description = "Serif with display weight and strong numerals; headings and titles.",
-    },
-    {
-        name = "SellYourSoul",
-        style = "display",
-        uses = { "decorative", "heading" },
-        description = "Stylized display face for dramatic headings and overlays.",
-    },
-    {
-        name = "SupernaturalKnight",
-        style = "display",
-        uses = { "decorative", "heading" },
-        description = "Decorative display face for the initiative bar and emotes.",
-    },
-    {
-        name = "Tengwar",
-        style = "symbol",
-        uses = { "obfuscated" },
-        description = "Fantasy alphabet face for obfuscating in-character chat.",
-    },
-    {
-        name = "Varta",
-        style = "sans",
-        uses = { "numeric", "label" },
-        description = "Clean sans with clear numerals; used in the initiative bar.",
-    },
-}
+-- Lazy-built case-insensitive set of font names from gui.availableFonts.
+-- Built on first access so we don't depend on engine load order at module init.
+local _availableFontsLower = nil
 
--- Case-insensitive lookup index built once at load time.
-local FONT_CATALOG_BY_LOWER = {}
-for _, entry in ipairs(FONT_CATALOG) do
-    FONT_CATALOG_BY_LOWER[string.lower(entry.name)] = entry
+local function _buildAvailableFontsSet()
+    local set = {}
+    local list = gui.availableFonts
+    if type(list) == "table" then
+        for _, name in ipairs(list) do
+            if type(name) == "string" then
+                set[string.lower(name)] = true
+            end
+        end
+    end
+    return set
+end
+
+--- Validate a font name against gui.availableFonts. Case-insensitive.
+--- Unknown names log once and return UNRESOLVED_FONT (Berling).
+--- Non-strings pass through unchanged.
+--- @param name any
+--- @return any
+local function _validateFontFace(name)
+    if type(name) ~= "string" then return name end
+    if _availableFontsLower == nil then
+        _availableFontsLower = _buildAvailableFontsSet()
+    end
+    if _availableFontsLower[string.lower(name)] then
+        return name
+    end
+    _logUnresolved("fontFace", name)
+    return UNRESOLVED_FONT
 end
 
 -- =============================================================================
@@ -164,69 +133,61 @@ local function _logUnresolved(domain, name)
     _log("unresolved " .. domain .. " reference: " .. tostring(name))
 end
 
+--- Coerce a theme id to a registered one. Nil and unknown ids both
+--- become DEFAULT_THEME_ID. Unknown ids are logged once.
+--- @param id string|nil
+--- @return string
+local function _normalizeThemeId(id)
+    if id == nil then return DEFAULT_THEME_ID end
+    if _themes[id] then return id end
+    if id ~= DEFAULT_THEME_ID then
+        _logUnresolved("theme", id)
+    end
+    return DEFAULT_THEME_ID
+end
+
+--- Coerce a color scheme id to a registered one. Nil and unknown ids
+--- both become DEFAULT_SCHEME_ID. Unknown ids are logged once.
+--- @param id string|nil
+--- @return string
+local function _normalizeSchemeId(id)
+    if id == nil then return DEFAULT_SCHEME_ID end
+    if _colorSchemes[id] then return id end
+    if id ~= DEFAULT_SCHEME_ID then
+        _logUnresolved("colorScheme", id)
+    end
+    return DEFAULT_SCHEME_ID
+end
+
 -- =============================================================================
 -- Resolver helpers
 -- =============================================================================
 
---- Build the effective theme inheritance chain for resolution.
---- Chain order: default theme (if registered), ancestors top-down, effective theme.
---- Guards against cycles and handles missing ids silently.
+--- Build the effective theme chain for resolution.
+--- Every non-default theme inherits only from default, so the chain is
+--- at most two entries: [default] (if effective IS default or no
+--- effective was given) or [default, effective] otherwise.
 --- @param themeId string|nil
 --- @return table[] chain
 local function _buildChain(themeId)
     local chain = {}
-    local seen = {}
 
     local default = _themes[DEFAULT_THEME_ID]
     if default then
         chain[#chain + 1] = default
-        seen[DEFAULT_THEME_ID] = true
     end
 
-    if themeId == nil then
+    if themeId == nil or themeId == DEFAULT_THEME_ID then
         return chain
     end
 
     local effective = _themes[themeId]
     if not effective then
-        if themeId ~= DEFAULT_THEME_ID then
-            _logUnresolved("theme", themeId)
-        end
+        _logUnresolved("theme", themeId)
         return chain
     end
 
-    -- Walk inherit chain bottom-up, stopping on cycles or missing parents.
-    local ancestors = {}
-    local current = nil
-    if effective.inherit then
-        current = _themes[effective.inherit]
-        if not current then
-            _logUnresolved("theme", effective.inherit)
-        end
-    end
-    while current and not seen[current.id] do
-        seen[current.id] = true
-        ancestors[#ancestors + 1] = current
-        if current.inherit then
-            local parent = _themes[current.inherit]
-            if not parent then
-                _logUnresolved("theme", current.inherit)
-            end
-            current = parent
-        else
-            current = nil
-        end
-    end
-
-    -- Append ancestors top-down.
-    for i = #ancestors, 1, -1 do
-        chain[#chain + 1] = ancestors[i]
-    end
-
-    if not seen[effective.id] then
-        chain[#chain + 1] = effective
-    end
-
+    chain[#chain + 1] = effective
     return chain
 end
 
@@ -254,7 +215,7 @@ local function _resolveValue(value, domain, tables)
                     _logUnresolved("font", name)
                     return UNRESOLVED_FONT
                 end
-                return v
+                return _validateFontFace(v)
             elseif domain == "gradients" then
                 local spec = tables.gradients[name]
                 if spec == nil then
@@ -268,6 +229,9 @@ local function _resolveValue(value, domain, tables)
                 -- Not a themable property; leave the literal in place.
                 return value
             end
+        end
+        if domain == "fonts" then
+            return _validateFontFace(value)
         end
         return value
     elseif type(value) == "table" then
@@ -293,7 +257,7 @@ local function _resolveValue(value, domain, tables)
 end
 
 --- Walk a raw styles array, cloning each rule and substituting @name references.
---- The `selectors` array is treated as literal — never substituted.
+--- The `selectors` array is treated as literal -- never substituted.
 --- @param rawStyles table[]
 --- @param tables table { colors, fonts, gradients }
 --- @return table[]
@@ -385,7 +349,9 @@ local function _buildGradientTable(schemeId)
     return out
 end
 
---- Merge fonts tables across the theme inheritance chain.
+--- Merge fonts tables: default theme's fonts first, then effective theme's
+--- fonts overlaid on top. The chain passed in is always [default, effective]
+--- (or just [default] if effective IS default).
 --- @param chain table[]
 --- @return table
 local function _buildFontsTable(chain)
@@ -409,6 +375,10 @@ end
 --- @return string themeId
 --- @return string schemeId
 local function _resolveEffectivePair(themeIdArg, schemeIdArg)
+    if not devmode() then
+        return DEFAULT_THEME_ID, DEFAULT_SCHEME_ID
+    end
+
     local themeId = themeIdArg or _activeThemeId
     local schemeId
 
@@ -432,7 +402,7 @@ local function _resolveEffectivePair(themeIdArg, schemeIdArg)
         end
     end
 
-    return themeId or DEFAULT_THEME_ID, schemeId or DEFAULT_SCHEME_ID
+    return _normalizeThemeId(themeId), _normalizeSchemeId(schemeId)
 end
 
 local function _cacheKey(themeId, schemeId)
@@ -440,7 +410,10 @@ local function _cacheKey(themeId, schemeId)
 end
 
 local function _fireThemeChanged()
-    EventUtils.FireGlobalEvent(THEME_CHANGED_EVENT)
+    local eu = rawget(_G, "EventUtils")
+    if eu then
+        eu.FireGlobalEvent(THEME_CHANGED_EVENT)
+    end
 end
 
 --- Return true if the given color scheme id is currently referenced by active state:
@@ -460,45 +433,17 @@ local function _isColorSchemeInUse(id)
     return false
 end
 
---- Return true if the given theme id appears anywhere in the active theme's
---- inherit chain (the chain that would be walked for rendering right now).
+--- Return true if the given theme id is the currently-active theme.
+--- (After flattening, the "active chain" is just [default, active]; the
+--- default theme is handled separately in DeregisterTheme.)
 --- @param id string
 --- @return boolean
 local function _isThemeInActiveChain(id)
-    if _activeThemeId == nil then
-        return false
-    end
-    local seen = {}
-    local current = _themes[_activeThemeId]
-    while current and not seen[current.id] do
-        if current.id == id then
-            return true
-        end
-        seen[current.id] = true
-        current = current.inherit and _themes[current.inherit] or nil
-    end
-    return false
-end
-
---- Shallow-clone a font catalog entry so callers can't mutate the hardcoded data.
---- @param entry table
---- @return table
-local function _cloneFontEntry(entry)
-    local usesCopy = {}
-    for i, u in ipairs(entry.uses) do
-        usesCopy[i] = u
-    end
-    return {
-        name        = entry.name,
-        displayName = entry.displayName or entry.name,
-        style       = entry.style,
-        uses        = usesCopy,
-        description = entry.description,
-    }
+    return _activeThemeId ~= nil and id == _activeThemeId
 end
 
 -- =============================================================================
--- Public API — Registration
+-- Public API -- Registration
 -- =============================================================================
 
 --- Register a color scheme. Returns false if the id is already registered; the
@@ -507,7 +452,7 @@ end
 --- `gradients` is an optional map of gradient specs keyed by name. Each spec is a
 --- plain table (not a `gui.Gradient`); the engine wraps it with `gui.Gradient` at
 --- resolve time. Stops inside the spec may use `@name` refs to colors in the same
---- scheme — those resolve during style resolution against the merged color table.
+--- scheme -- those resolve during style resolution against the merged color table.
 --- @param spec table { id, name, description, colors = { name = hex, ... }, gradients? = { name = spec, ... } }
 --- @return boolean registered
 function ThemeEngine.RegisterColorScheme(spec)
@@ -543,8 +488,8 @@ end
 --- Deregister a color scheme by id. Silent no-op if the id isn't registered.
 ---
 --- Refuses (with a log) to remove:
----   * the default color scheme — it's the ultimate fallback and must remain present;
----   * any scheme currently in use — the user's active override or the scheme
+---   * the default color scheme -- it's the ultimate fallback and must remain present;
+---   * any scheme currently in use -- the user's active override or the scheme
 ---     referenced by the active theme's `colorScheme` field.
 ---
 --- Because removal can only affect entries that aren't on-screen, nothing visible
@@ -572,29 +517,23 @@ end
 --- Register a theme. Returns false if the id is already registered; the existing
 --- registration is left untouched.
 ---
+--- Every non-default theme inherits implicitly from the default theme. There is
+--- no `inherit` chain -- the resolution chain is always [default, effective].
+---
 --- Font values in the `fonts` map are validated against the hardcoded font catalog.
---- Unknown names are logged once per unique name but do not prevent registration —
+--- Unknown names are logged once per unique name but do not prevent registration --
 --- this matches the engine's "loud but non-fatal" policy for missing references.
---- @param spec table { id, name, description, inherit?, colorScheme, fonts?, styles }
+--- @param spec table { id, name, description, colorScheme, fonts?, styles }
 --- @return boolean registered
 function ThemeEngine.RegisterTheme(spec)
     if _themes[spec.id] then
         return false
     end
 
-    if spec.fonts then
-        for _, face in pairs(spec.fonts) do
-            if type(face) == "string" and not ThemeEngine.IsKnownFontFace(face) then
-                _logUnresolved("fontFace", face)
-            end
-        end
-    end
-
     _themes[spec.id] = {
         id = spec.id,
         name = spec.name,
         description = spec.description,
-        inherit = spec.inherit,
         colorScheme = spec.colorScheme,
         fonts = spec.fonts or {},
         styles = spec.styles or {},
@@ -605,9 +544,9 @@ end
 --- Deregister a theme by id. Silent no-op if the id isn't registered.
 ---
 --- Refuses (with a log) to remove:
----   * the default theme — it's the ultimate fallback and must remain present;
----   * the active theme or any theme in its inherit chain — removing a link in
----     the chain that's currently rendering would visibly break the UI.
+---   * the default theme -- it's the ultimate fallback and must remain present;
+---   * the currently active theme -- removing it while it's rendering would
+---     visibly break the UI.
 ---
 --- Because removal can only affect entries that aren't on-screen, nothing visible
 --- changes and OnThemeChanged is not fired. The resolved-styles cache is still
@@ -632,35 +571,52 @@ function ThemeEngine.DeregisterTheme(id)
 end
 
 -- =============================================================================
--- Public API — Activation & inspection
+-- Public API -- Activation & inspection
 -- =============================================================================
 
---- Set the active theme. Unknown ids are accepted silently; the resolver handles
---- missing-id fallback. Fires OnThemeChanged if the value actually changed.
+--- Set the active theme. Stores the id as given without validation; resolution
+--- happens at read time (GetActiveTheme / GetStyles fall back to default for
+--- unknown or nil ids). Fires OnThemeChanged if the stored value actually changed.
 --- @param themeId string|nil
 function ThemeEngine.SetActiveTheme(themeId)
     if _activeThemeId == themeId then return end
     _activeThemeId = themeId
+    _activeThemeSetting:Set(themeId or "default")
     _fireThemeChanged()
 end
 
---- Set the active color scheme override. Pass nil to clear the override (use the
---- theme's default colorScheme). Fires OnThemeChanged if the value actually changed.
+--- Set the active color scheme. Stores the id as given without validation;
+--- resolution happens at read time (GetActiveColorScheme / GetStyles fall back
+--- to default for unknown or nil ids). Fires OnThemeChanged if the stored value
+--- actually changed.
 --- @param schemeId string|nil
 function ThemeEngine.SetActiveColorScheme(schemeId)
     if _activeSchemeId == schemeId then return end
     _activeSchemeId = schemeId
+    _activeSchemeSetting:Set(schemeId or "default")
     _fireThemeChanged()
 end
 
---- @return string|nil
+--- Returns the active theme id, guaranteed to be a registered id.
+--- @return string
 function ThemeEngine.GetActiveTheme()
-    return _activeThemeId
+    return _normalizeThemeId(_activeThemeId)
 end
 
---- @return string|nil
+--- Returns the active color scheme id, guaranteed to be a registered id.
+--- @return string
 function ThemeEngine.GetActiveColorScheme()
-    return _activeSchemeId
+    return _normalizeSchemeId(_activeSchemeId)
+end
+
+--- Restore the persisted active theme / scheme ids verbatim. Unknown ids are
+--- preserved here -- the read path coerces them to default at resolution time,
+--- which means the user's stored preference survives even when the registering
+--- mod isn't loaded yet (or at all in the current session).
+function ThemeEngine.RestoreActiveSelection()
+    _activeThemeId = _activeThemeSetting:Get()
+    _activeSchemeId = _activeSchemeSetting:Get()
+    _fireThemeChanged()
 end
 
 --- Register a callback to run whenever the active theme or active color scheme changes.
@@ -703,60 +659,7 @@ function ThemeEngine.ListColorSchemes()
 end
 
 -- =============================================================================
--- Public API — Font catalog (read-only)
--- =============================================================================
-
---- Check whether a font face is in the hardcoded DMHub catalog. Case-insensitive.
---- @param name string
---- @return boolean
-function ThemeEngine.IsKnownFontFace(name)
-    if type(name) ~= "string" then return false end
-    return FONT_CATALOG_BY_LOWER[string.lower(name)] ~= nil
-end
-
---- List catalog entries, optionally filtered by style and/or use tag.
---- Returns a fresh array of entry copies; mutating the result does not affect the catalog.
---- The catalog itself is kept alphabetical, so results are already sorted by name.
----
---- Filter fields (all optional):
----   style — scalar; match when entry.style == style.
----   use   — scalar; match when use is present in entry.uses.
----   Both, when supplied, apply together (AND).
---- @param filter table|nil { style?, use? }
---- @return table[]
-function ThemeEngine.ListFontFaces(filter)
-    local wantStyle = filter and filter.style or nil
-    local wantUse   = filter and filter.use   or nil
-
-    local out = {}
-    for _, entry in ipairs(FONT_CATALOG) do
-        local keep = true
-
-        if wantStyle ~= nil and entry.style ~= wantStyle then
-            keep = false
-        end
-
-        if keep and wantUse ~= nil then
-            local found = false
-            for _, u in ipairs(entry.uses) do
-                if u == wantUse then
-                    found = true
-                    break
-                end
-            end
-            if not found then keep = false end
-        end
-
-        if keep then
-            out[#out + 1] = _cloneFontEntry(entry)
-        end
-    end
-
-    return out
-end
-
--- =============================================================================
--- Public API — Resolution
+-- Public API -- Resolution
 -- =============================================================================
 
 --- Get the resolved styles array for the current (or overridden) theme/scheme pair.
@@ -802,4 +705,80 @@ function ThemeEngine.GetStyles(themeIdOverride, schemeIdOverride)
     local resolved = _buildResolvedStyles(rawStyles, tables)
     _cache[key] = resolved
     return resolved
+end
+
+--- Merge a caller-supplied styles array on top of the active theme's resolved styles.
+---
+--- The custom rules are run through the same @name resolver the engine uses for
+--- registered theme rules, so they can reference @fg / @success / @accentHover /
+--- @surfaceRadial / etc. and follow scheme switches when the caller re-invokes
+--- MergeStyles after an OnThemeChanged event.
+---
+--- The base (theme) styles come first, custom rules are appended last, so on
+--- equal-specificity selector matches the custom rule wins. For finer control,
+--- callers can still set `priority = N` on individual custom rules.
+---
+--- The base styles array is the same memoized array returned by GetStyles().
+--- The custom resolution is recomputed each call (uncached) -- typical custom
+--- arrays are small and the @name resolver is cheap.
+---
+--- Always uses the active theme/scheme pair; no overrides. Callers needing
+--- override semantics can compose manually via GetStyles(theme, scheme) plus
+--- their own resolution loop, but no caller has needed that yet.
+--- @param customStyles table[]|nil Array of rule tables (selectors + properties).
+--- @return table[] styles
+function ThemeEngine.MergeStyles(customStyles)
+    local base = ThemeEngine.GetStyles()
+    if customStyles == nil or #customStyles == 0 then
+        return base
+    end
+
+    local themeId, schemeId = _resolveEffectivePair(nil, nil)
+    local chain = _buildChain(themeId)
+    local tables = {
+        colors = _buildColorTable(schemeId),
+        gradients = _buildGradientTable(schemeId),
+        fonts = _buildFontsTable(chain),
+    }
+
+    local resolvedCustom = _buildResolvedStyles(customStyles, tables)
+
+    local merged = {}
+    for _, r in ipairs(base) do
+        merged[#merged + 1] = r
+    end
+    for _, r in ipairs(resolvedCustom) do
+        merged[#merged + 1] = r
+    end
+    return merged
+end
+
+--- Resolve `@`-token references in a caller-supplied styles array against the
+--- active scheme, without bundling the base theme. Use this when a panel just
+--- needs its own local rules to follow the active scheme, and the panel sits
+--- downstream of an ancestor that already owns the full theme cascade via
+--- `ThemeEngine.MergeStyles`.
+---
+--- Difference vs. MergeStyles:
+---   * MergeStyles   -> base theme + resolved custom (for cascade roots)
+---   * MergeTokens -> resolved custom only (for downstream extras)
+---
+--- Callers that need scheme switches to recolor live should subscribe to
+--- OnThemeChanged and reassign their panel.styles after re-resolving.
+--- @param customStyles table[]|nil Array of rule tables (selectors + properties).
+--- @return table[]|nil resolved
+function ThemeEngine.MergeTokens(customStyles)
+    if customStyles == nil or #customStyles == 0 then
+        return customStyles
+    end
+
+    local themeId, schemeId = _resolveEffectivePair(nil, nil)
+    local chain = _buildChain(themeId)
+    local tables = {
+        colors = _buildColorTable(schemeId),
+        gradients = _buildGradientTable(schemeId),
+        fonts = _buildFontsTable(chain),
+    }
+
+    return _buildResolvedStyles(customStyles, tables)
 end

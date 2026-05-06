@@ -41,8 +41,7 @@ function BackgroundCharacteristic:CreateEditor(args)
     local tableEditor = RollTable.CreateEditor{
         styles = {
             {
-                selectors = {"plus-button"},
-                priority = 5,
+                selectors = {"plusButton"},
                 hidden = 1,
             },
             {
@@ -97,19 +96,75 @@ function BackgroundCharacteristic.EmbedEditor(parentFeature, children, onchange)
 		local characteristicsPanels = {}
 
 		for i,characteristic in ipairs(parentFeature:try_get("characteristics", {})) do
+			local index = i
 
-			--starting equipment editor.
+			local tri = gui.Panel{
+				classes = {"triangle"},
+				floating = true,
+				halign = "left",
+				valign = "center",
+				x = 2,
+				styles = {
+					{
+						selectors = {"triangle"},
+						rotate = 90,
+						transitionTime = 0.2,
+					},
+					{
+						selectors = {"triangle", "expanded"},
+						rotate = 0,
+						transitionTime = 0.2,
+					},
+				},
+			}
+
+			local body
+			body = gui.Panel{
+				classes = {"featureCardBody", "collapsed-anim"},
+				characteristic:CreateEditor{
+					change = function(element)
+						onchange()
+						RefreshCharacteristics()
+					end,
+				},
+			}
+
 			characteristicsPanels[#characteristicsPanels+1] = gui.Panel{
-				width = "auto",
-				height = "auto",
-				flow = "vertical",
+				classes = {"featureCard"},
 				gui.Panel{
-					flow = "horizontal",
-					width = "auto",
-					height = 30,
-					bgimage = "panels/square.png",
-					bgcolor = "clear",
-
+					classes = {"featureCardHeader"},
+					tri,
+					gui.Label{
+						fontSize = 18,
+						bold = true,
+						width = 320,
+						lmargin = 20,
+						height = "auto",
+						halign = "left",
+						valign = "center",
+						textWrap = true,
+						textAlignment = "left",
+						text = string.format("Characteristic: %s", characteristic:Name()),
+					},
+					gui.DeleteItemButton{
+						halign = "right",
+						valign = "center",
+						hmargin = 4,
+						width = 16,
+						height = 16,
+						requireConfirm = true,
+						click = function(element)
+							m_expandedCharacteristics = {}
+							table.remove(parentFeature.characteristics, index)
+							onchange()
+							RefreshCharacteristics()
+						end,
+					},
+					click = function(element)
+						body:SetClass("collapsed-anim", not body:HasClass("collapsed-anim"))
+						tri:SetClass("expanded", not tri:HasClass("expanded"))
+						m_expandedCharacteristics[index] = tri:HasClass("expanded")
+					end,
 					rightClick = function(element)
 						element.popup = gui.ContextMenu{
 							entries = {
@@ -117,62 +172,22 @@ function BackgroundCharacteristic.EmbedEditor(parentFeature, children, onchange)
 									text = "Delete",
 									click = function()
 										m_expandedCharacteristics = {}
-										table.remove(parentFeature.characteristics, i)
-                                        onchange()
-                                        RefreshCharacteristics()
+										table.remove(parentFeature.characteristics, index)
+										onchange()
+										RefreshCharacteristics()
 										element.popup = nil
 									end,
 								}
 							}
 						}
 					end,
-
-					press = function(element)
-						local tri = element.children[1]
-						tri:SetClass("expanded", not tri:HasClass("expanded"))
-
-						local siblings = element.parent.children
-						if #siblings == 1 then
-							siblings[#siblings+1] = characteristic:CreateEditor{
-								change = function(element)
-                                    onchange()
-                                    RefreshCharacteristics()
-								end,
-							}
-
-							element.parent.children = siblings
-						end
-
-						siblings[2]:SetClass("collapsed", not tri:HasClass("expanded"))
-						m_expandedCharacteristics[i] = tri:HasClass("expanded")
-					end,
-
-					gui.Panel{
-						classes = {"triangle"},
-						height = 12,
-						width = "100% height",
-						halign = "left",
-						valign = "center",
-						bgimage = "panels/triangle.png",
-						bgcolor = "white",
-						styles = Styles.triangleStyles,
-					},
-
-					gui.Label{
-						text = string.format("Characteristic: %s", characteristic:Name()),
-						fontSize = 20,
-						hmargin = 4,
-						color = "white",
-						width = "auto",
-						height = "auto",
-						valign = "center",
-					}
 				},
+				body,
 			}
 
 			if m_expandedCharacteristics[i] then
-				--maintain expansion of characteristics.
-				characteristicsPanels[#characteristicsPanels].children[1]:FireEvent("press")
+				body:SetClass("collapsed-anim", false)
+				tri:SetClass("expanded", true)
 			end
 		end
 
@@ -181,7 +196,10 @@ function BackgroundCharacteristic.EmbedEditor(parentFeature, children, onchange)
 
 	RefreshCharacteristics()
 	
-	children[#children+1] = gui.PrettyButton{
+	children[#children+1] = gui.Button{
+		classes = {"btn-sm"},
+		width = "auto",
+		hpad = 8,
 		text = "Add Characteristic",
 		click = function(element)
 			local newCharacteristic = BackgroundCharacteristic.CreateNew()

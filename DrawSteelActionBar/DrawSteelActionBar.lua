@@ -2536,6 +2536,7 @@ local function CreateShiftController()
 
     local resultPanel
     local slider = gui.EnumeratedSliderControl {
+        styles = ThemeEngine.GetStyles(),
         halign = "center",
         width = 180,
         vmargin = 2,

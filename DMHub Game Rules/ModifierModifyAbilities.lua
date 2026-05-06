@@ -1018,7 +1018,7 @@ CharacterModifier.TypeInfo.modifyability = {
 							children[#children+1] = gui.Panel{
 								classes = {"formPanel"},
 								height = "auto",
-								gui.SetEditor{
+								gui.Multiselect{
 									value = properties,
 									addItemText = "Add Special Property...",
 									options = ActivatedAbility.registeredProperties,

@@ -18,38 +18,34 @@ local SetRace = function(tableName, racePanel, raceid)
 		halign = "right",
 		valign = "top",
 		gui.IconEditor{
-		value = race.portraitid,
-		library = "Avatar",
-		width = 196,
-		height = "150% width",
-		autosizeimage = true,
-		allowPaste = true,
-		borderColor = Styles.textColor,
-		borderWidth = 2,
-		change = function(element)
-			race.portraitid = element.value
-			UploadRace()
-		end,
+			classes = {"portraitImage"},
+			value = race.portraitid,
+			library = "Avatar",
+			autosizeimage = true,
+			allowPaste = true,
+			change = function(element)
+				race.portraitid = element.value
+				UploadRace()
+			end,
 		},
 		gui.Label{
 			text = "1000x1500 image",
 			width = "auto",
 			height = "auto",
 			halign = "center",
-			color = Styles.textColor,
 			fontSize = 12,
 		},
 	}
 
 	--the name of the race.
 	children[#children+1] = gui.Panel{
-		classes = {'formPanel'},
+		classes = {"formStackedRow"},
 		gui.Label{
-			text = 'Name:',
-			valign = 'center',
-			minWidth = 240,
+			classes = {"formStacked"},
+			text = "Name:",
 		},
 		gui.Input{
+			classes = {"formStacked"},
 			text = race.name,
 			change = function(element)
 				race.name = element.text
@@ -77,16 +73,13 @@ local SetRace = function(tableName, racePanel, raceid)
 		end
 
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {"formStackedRow"},
 			gui.Label{
-				text = 'Subrace of:',
-				valign = 'center',
-				minWidth = 240,
+				classes = {"formStacked"},
+				text = "Subrace of:",
 			},
 			gui.Dropdown{
-				width = 200,
-				height = 40,
-				fontSize = 20,
+				classes = {"formStacked"},
 				options = options,
 				idChosen = race:try_get("parentRace", "none"),
 				change = function(element)
@@ -104,22 +97,20 @@ local SetRace = function(tableName, racePanel, raceid)
 
 	--race details.
 	children[#children+1] = gui.Panel{
-		classes = {'formPanel'},
-		height = 'auto',
+		classes = {"formStackedRow"},
 		gui.Label{
+			classes = {"formStacked"},
 			text = "Description:",
-			valign = "center",
-			minWidth = 240,
 		},
 		gui.Input{
+			classes = {"formStacked"},
 			text = race.details,
 			multiline = true,
 			minHeight = 50,
 			maxHeight = 300,
             characterLimit = 8096,
 			vscroll = true,
-			height = 'auto',
-			width = 400,
+			height = "auto",
 			textAlignment = "topleft",
 			change = function(element)
 				race.details = element.text
@@ -130,24 +121,21 @@ local SetRace = function(tableName, racePanel, raceid)
 
     --race lore.
 	children[#children+1] = gui.Panel{
-		classes = {'formPanel'},
-		height = 'auto',
+		classes = {"formStackedRow"},
 		gui.Label{
+			classes = {"formStacked"},
 			text = "Lore:",
-			valign = "center",
-			minWidth = 240,
 		},
 		gui.Input{
+			classes = {"formStacked"},
 			text = race.lore,
 			multiline = true,
 			minHeight = 50,
 			maxHeight = 300,
 			vscroll = true,
-			height = 'auto',
-			width = 700,
-            characterLimit = 8096,
+			height = "auto",
+            characterLimit = 8192,
 			textAlignment = "topleft",
-			characterLimit = 8192,
 			change = function(element)
 				race.lore = element.text
 				UploadRace()
@@ -163,7 +151,7 @@ local SetRace = function(tableName, racePanel, raceid)
 		}
 	end
 
-	if tableName ~= 'subraces' then
+	if tableName ~= "subraces" then
 		--the name generation table to use for this race.
 		local nameGeneratorOptions = {
 			{
@@ -182,18 +170,16 @@ local SetRace = function(tableName, racePanel, raceid)
 		table.sort(nameGeneratorOptions, function(a,b) return a.text < b.text end)
 
 		children[#children+1] = gui.Panel{
-			classes = {"formPanel"},
+			classes = {"formStackedRow"},
 			gui.Label{
-				text = 'Name Generator:',
-				valign = 'center',
-				minWidth = 240,
+				classes = {"formStacked"},
+				text = "Name Generator:",
 			},
 			gui.Dropdown{
+				classes = {"formStacked"},
+				fontFace = "Inter",  -- THC:: test: force sans font inline on the dropdown panel
 				idChosen = race:try_get("nameGenerator", "none"),
 				options = nameGeneratorOptions,
-				width = 200,
-				height = 40,
-				fontSize = 20,
 				change = function(element)
 					race.nameGenerator = element.idChosen
 					UploadRace()
@@ -204,18 +190,15 @@ local SetRace = function(tableName, racePanel, raceid)
 		printf("ZZZ: Race: idChosen = %s ; options = %s", json(race.size), json(sizeOptions))
 		--size of creatures in the race.
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {"formStackedRow"},
 			gui.Label{
-				text = 'Creature Size:',
-				valign = 'center',
-				minWidth = 240,
+				classes = {"formStacked"},
+				text = "Creature Size:",
 			},
 			gui.Dropdown{
+				classes = {"formStacked"},
 				idChosen = race.size,
 				options = sizeOptions,
-				width = 200,
-				height = 40,
-				fontSize = 20,
 				change = function(element)
 					race.size = element.idChosen
 					UploadRace()
@@ -225,13 +208,13 @@ local SetRace = function(tableName, racePanel, raceid)
 
 		--height.
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {"formStackedRow"},
 			gui.Label{
-				text = 'Height',
-				valign = 'center',
-				minWidth = 240,
+				classes = {"formStacked"},
+				text = "Height:",
 			},
 			gui.Input{
+				classes = {"formStacked"},
 				text = tostring(race.height),
 				change = function(element)
 					race.height = element.text
@@ -242,13 +225,13 @@ local SetRace = function(tableName, racePanel, raceid)
 
 		--weight.
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {"formStackedRow"},
 			gui.Label{
-				text = 'Weight',
-				valign = 'center',
-				minWidth = 240,
+				classes = {"formStacked"},
+				text = "Weight:",
 			},
 			gui.Input{
+				classes = {"formStacked"},
 				text = tostring(race.weight),
 				change = function(element)
 					race.weight = element.text
@@ -259,13 +242,13 @@ local SetRace = function(tableName, racePanel, raceid)
 
 		--lifespan
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {"formStackedRow"},
 			gui.Label{
-				text = 'Life Expectancy',
-				valign = 'center',
-				minWidth = 240,
+				classes = {"formStacked"},
+				text = "Life Expectancy:",
 			},
 			gui.Input{
+				classes = {"formStacked"},
 				text = tostring(race.lifeSpan),
 				change = function(element)
 					race.lifeSpan = element.text
@@ -276,16 +259,16 @@ local SetRace = function(tableName, racePanel, raceid)
 
 		--walking speed.
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {"formStackedRow"},
 			gui.Label{
-				text = 'Walking Speed:',
-				valign = 'center',
-				minWidth = 240,
+				classes = {"formStacked"},
+				text = "Walking Speed:",
 			},
 			gui.Input{
+				classes = {"formStacked"},
 				text = tostring(race.moveSpeeds.walk),
 				change = function(element)
-					race.moveSpeeds = DeepCopy(race.moveSpeeds) --in case this isn't init yet.
+					race.moveSpeeds = DeepCopy(race.moveSpeeds) --in case this isn"t init yet.
 					race.moveSpeeds.walk = tonumber(element.text) or race.moveSpeeds.walk
 					element.text = tostring(race.moveSpeeds.walk)
 					UploadRace()
@@ -296,7 +279,7 @@ local SetRace = function(tableName, racePanel, raceid)
 	end --end main race only data.
 
 	children[#children+1] = gui.Panel{
-		width = "60%",
+		width = "100%",
 		height = "auto",
 		race:GetClassLevel():CreateEditor(race, 0, {
 			change = function(element)
@@ -323,43 +306,26 @@ function Race.CreateEditor()
 			end,
 		},
 		vscroll = true,
-		classes = 'class-panel',
-		styles = {
+		classes = "class-panel",
+		-- Theme provides label/input vocabulary (fontSize, color, font) via the
+		-- default theme. Local extras here are layout-only — the surface size
+		-- of the editor, form-row layout, and an explicit input size that"s
+		-- specific to this editor"s column geometry. Per-class label/input
+		-- *theme overrides* (fontSize 22, color white) intentionally dropped
+		-- so this editor uses default theme styling.
+		styles = ThemeEngine.MergeStyles({
 			{
 				halign = "left",
 			},
 			{
-				classes = {'class-panel'},
+				classes = {"class-panel"},
 				width = 1200,
-				height = '90%',
-				halign = 'left',
-				flow = 'vertical',
+				height = "90%",
+				halign = "left",
+				flow = "vertical",
 				pad = 20,
 			},
-			{
-				classes = {'label'},
-				color = 'white',
-				fontSize = 22,
-				width = 'auto',
-				height = 'auto',
-			},
-			{
-				classes = {'input'},
-				width = 200,
-				height = 26,
-				fontSize = 18,
-				color = 'white',
-			},
-			{
-				classes = {'formPanel'},
-				flow = 'horizontal',
-				width = 'auto',
-				height = 'auto',
-				halign = 'left',
-				vmargin = 2,
-			},
-
-		},
+		}),
 	}
 
 	return racePanel

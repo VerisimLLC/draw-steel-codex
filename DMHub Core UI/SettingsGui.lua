@@ -14,15 +14,9 @@ local CreateEditorPanel = function(var, editor, changeFunction, args)
 	local label = nil
 	if not var.hidelabel then
 		label = gui.Label{
+			classes = {"form"},
+			width = "60%",
 			text = string.format("%s:", var.description),
-			style = {
-				width = "auto",
-				height = "auto",
-				fontSize = '50%',
-				halign = 'left',
-				valign = 'center',
-				textAlignment = 'center',
-			},
 		}
 	end
 
@@ -57,14 +51,10 @@ local SettingsEditors = {
 
 	input = function(var)
 		local input = gui.Input{
+			classes = {"form"},
 			text = dmhub.GetSettingValue(var.id),
 
 			characterLimit = var.characterLimit,
-
-			halign = 'right',
-			valign = "center",
-			height = 20,
-			width = 200,
 
 			events = {
 				change = function(element)
@@ -298,37 +288,30 @@ local SettingsEditors = {
 		end
 
 		local editor = gui.Dropdown{
-					options = options,
-					idChosen = value,
-					styles = {
-						{
-							fontSize = 18,
-							width = 160,
-							height = 48,
-							halign = 'right',
-							valign = 'center',
-						},
-						args.style,
-					},
-					monitor = var.id,
-					events = {
-						monitor = function(element)
-							value = dmhub.GetSettingValue(var.id)
-							element.idChosen = value
-						end,
-						change = function(element)
-							dmhub.SetSettingValue(var.id, element.idChosen)
-							if var.onchange then
-								var.onchange()
-							end
-						end,
-						refreshAssets = function(element)
-							if var.getOptions ~= nil then
-								element.options = var.getOptions()
-							end
-						end,
-					}
+				classes = {"form"},
+				width = "33%",
+				halign = "right",
+				options = options,
+				idChosen = value,
+				monitor = var.id,
+				events = {
+					monitor = function(element)
+						value = dmhub.GetSettingValue(var.id)
+						element.idChosen = value
+					end,
+					change = function(element)
+						dmhub.SetSettingValue(var.id, element.idChosen)
+						if var.onchange then
+							var.onchange()
+						end
+					end,
+					refreshAssets = function(element)
+						if var.getOptions ~= nil then
+							element.options = var.getOptions()
+						end
+					end,
 				}
+			}
 		
 		return CreateEditorPanel(var, editor, nil, args)
 
@@ -526,18 +509,7 @@ local SettingsEditors = {
 							fontSize = '30%',
 							height = 24,
 							width = 24,
-							borderWidth = 2,
-							borderColor = '#ffffff77',
 						},
-						{
-							selectors = 'hover',
-							borderColor = '#ffffffbb',
-						},
-						{
-							selectors = 'press',
-							borderColor = '#ffffffdd',
-						},
-
 					}
 
 				}

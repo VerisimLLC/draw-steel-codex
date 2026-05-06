@@ -1,6 +1,8 @@
 --Use /BroadcastDefaultSetting dockablepanelsplayer_v1 to broadcast new dockable panel setup.
 --Use /BroadcastDefaultSetting dockablepanelsgm_v2 to broadcast new gm dockable panel setup.
 
+local mod = dmhub.GetModLoading()
+
 setting{
     id = "centerdockoffscreen",
     default = false,
@@ -62,232 +64,6 @@ setting{
 }
 
 local DockablePanelBorder = 8
-
-local DockablePanelTheme = {
-	{
-		selectors = {"dock"},
-	},
-
-	{
-		selectors = {"dock", "offscreen", "left"},
-		x = -DockablePanel.DockWidth,
-		transitionTime = 0.2,
-	},
-
-	{
-		selectors = {"dock", "offscreen", "right"},
-		x = DockablePanel.DockWidth,
-		transitionTime = 0.2,
-	},
-
-
-	{
-		selectors = {"dockFrame"},
-		--bgimage = 'panels/hud/button_09_frame_custom.png',
-        bgimage = true,
-		bgcolor = '#00000000',
-		width = "100%",
-		height = string.format("100%%+%d", round(g_dockGap)),
-        valign = "bottom",
-	},
-
-    {
-        selectors = {"dockFrame", "~uiblur"},
-        bgcolor = "#000000",
-    },
-
-	{
-		selectors = {"dockFrame", "parent:empty"},
-        collapsed = 1,
-	},
-
-	-- Hide minimize arrow on the last non-minimized panel.
-	{
-		selectors = {"minimizeArrow", "lastExpanded"},
-		collapsed = 1,
-	},
-
-	-- Hide maximize arrow on minimized panels.
-	{
-		selectors = {"collapseArrow", "~minimizeArrow", "minimizeSet"},
-		collapsed = 1,
-	},
-
-	-- Hide minimize arrow on maximized panels.
-	{
-		selectors = {"minimizeArrow", "maximized"},
-		collapsed = 1,
-	},
-
-	{
-		selectors = {"dockablePanel"},
-		width = "100%",
-		height = "100%",
-		halign = "center",
-		valign = "center",
-
-		vpad = 4,
-	},
-
-	{
-		selectors = {"dockablePanel", "highlightPanel"},
-		--bgimage = 'panels/hud/button_09_frame_highlight.png',
-	},
-
-
-	{
-		selectors = {"tabContainer"},
-        bgimage = true,
-        gradient = Styles.RichBlackGradient,
-        bgcolor = "white",
-        borderColor = Styles.Gold02,
-        border = {x1 = 0, x2 = 0, y1 = 0, y2 = 1},
-	},
-
-    {
-        selectors = {"tabContainer", "~mono"},
-        border = {x1 = 0, x2 = 0, y1 = 1, y2 = 0},
-    },
-
-	{
-		selectors = {"dragGhost"},
-		opacity = 0,
-		bgcolor = "#4444ff",
-	},
-
-	{
-		selectors = {"dragGhost", "dragging"},
-		opacity = 0.5,
-	},
-	{
-		selectors = {"dragGhost", "dragging", "deleting"},
-		bgcolor = "#ff4444",
-	},
-    {
-        selectors = {"dragGhost", "floatingTarget"},
-        opacity = 0,
-    },
-	{
-		selectors = {"verticalDragInvisibleHandle"},
-		width = "100%",
-		y = -4,
-		height = 8,
-		opacity = 0,
-		bgimage = "panels/square.png",
-		bgcolor = "white",
-		valign = "top",
-		halign = "center",
-	},
-
-	{
-		selectors = {"verticalDragDivider"},
-		width = "100%-8",
-		halign = "center",
-		valign = "top",
-		height = 2,
-		--opacity = 1,
-		--bgimage = "panels/square.png",
-		--bgcolor = "clear",
-	},
-	{
-		selectors = {"verticalDragInvisibleHandle", "tabs"},
-	},
-	{
-		selectors = {"verticalDragDivider", "tabs"},
-	},
-
-	{
-		selectors = {"highlightPanel"},
-		--bgimage = "panels/square.png",
-		--bgcolor = "#ffffff33",
-	},
-
-    {
-        selectors = {"dockHandleImage"},
-        width = 32,
-        height = 64,
-		bgimage = "panels/dock-handle.png",
-		bgcolor = "white",
-		saturation = 0,
-		brightness = 2,
-        opacity = 0.8,
-        x = 8,
-    },
-
-    {
-		selectors = {"dockHandle"},
-		width = 32,
-		height = 64,
-        bgimage = "panels/square.png",
-		bgcolor = "clear",
-		valign = "bottom",
-		halign = "right",
-	},
-
-	{
-		selectors = {"dockHandle", "left"},
-		scale = {x = -1},
-		x = 32,
-		y = 8,
-	},
-
-	{
-		selectors = {"dockHandle", "right"},
-		halign = "left",
-		x = -32,
-		y = 8,
-	},
-
-	{
-		selectors = {"dockHandle", "parent:empty"},
-		collapsed = 1,
-	},
-
-
-
-	{
-		selectors = {"dockHandleImage", "hover"},
-		x = -8,
-		transitionTime = 0.1,
-		brightness = 2,
-	},
-
-    {
-        selectors = {"tab"},
-		width = 20,
-		height = 20,
-        bgcolor = "white",
-        halign = "center",
-        valign = "center",
-    },
-
-    {
-        selectors = {"tabLabel", "crowded", "~selected"},
-        collapsed = 1,
-    },
-
-    {
-        selectors = {"buttonContainer"},
-        bgimage = true,
-        bgcolor = "clear",
-        borderColor = Styles.Gold02,
-        border = {y1 = 1, x1 = 0, x2 = 0, y2 = 0},
-
-    },
-    {
-        selectors = {"buttonContainer", "selected"},
-        bgimage = true,
-        bgcolor = Styles.RichBlack02,
-        border = {y1 = 0, x1 = 1, x2 = 1, y2 = 1},
-    },
-    {
-        selectors = {"buttonContainer", "mono"},
-        bgcolor = "clear",
-        border = {y1 = 0, x1 = 0, x2 = 0, y2 = 0},
-    }
-}
-
-gui.RegisterTheme("DockablePanel", "Main", DockablePanelTheme)
 
 function GameHud:CreateSingleDock(params)
     local floating = params.floating or false
@@ -848,8 +624,9 @@ function GameHud:CreateDocks()
         dragTargetPriority = 5,
     }
 
-	local resultPanel = gui.Panel{
-		theme = "DockablePanel.Main",
+	local resultPanel
+	resultPanel = gui.Panel{
+		styles = ThemeEngine.GetStyles(),
 		width = "100%",
 		height = "100%",
 		valign = "center",
@@ -860,6 +637,16 @@ function GameHud:CreateDocks()
 		self.rightDock,
         self.floatingDock,
 	}
+
+	-- Re-resolve and reapply dock chrome styles when the active theme or
+	-- color scheme changes. styles = GetStyles() is a one-shot snapshot;
+	-- per ThemeEngine.lua, callers must subscribe and re-assign for live
+	-- recoloring on theme switch.
+	ThemeEngine.OnThemeChanged(mod, function()
+		if resultPanel ~= nil and resultPanel.valid then
+			resultPanel.styles = ThemeEngine.GetStyles()
+		end
+	end)
 
 	return resultPanel
 end
@@ -1268,7 +1055,7 @@ CreateDockablePanelTabbedContainer = function(options)
 		end
 
 		button = gui.Panel{
-			classes = {"tab"},
+			classes = {"dockTab"},
 			id = string.format("TabIcon%s", p.data.name),
 		    bgimage = p.data.icon,
             numTabs = function(element, n)
@@ -1299,7 +1086,7 @@ CreateDockablePanelTabbedContainer = function(options)
 		}
 
         label = gui.Label{
-            classes = {"tabLabel"},
+            classes = {"tabLabel", "sizeS"},
             width = "auto",
             height = "auto",
             valign = "center",
@@ -1307,7 +1094,6 @@ CreateDockablePanelTabbedContainer = function(options)
             text = p.data.name,
             textOverflow = "truncate",
             textWrap = false,
-            fontSize = 14,
 
             numTabs = function(element, n)
                 element.interactable = n > 1
@@ -1574,11 +1360,11 @@ CreateDockablePanelTabbedContainer = function(options)
 		idprefix = "contentPanel",
         valign = "center",
         halign = "center",
-		height = "100%-32",
+		height = "100%-40",
 		width = "100%",
 		children = panelInstances,
 		updatetabs = function(element)
-			element.selfStyle.height = "100%-32"
+			-- element.selfStyle.height = "100%-32"
 		end,
 		layoutChanged = function(element)
 			element:SetClass("collapsed", resultPanel.data.minimized == true)

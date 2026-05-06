@@ -122,7 +122,7 @@ CreateEditorPanel = function(key, monsterGroup)
             }
         },
 
-        gui.SetEditor{
+        gui.Multiselect{
             value = monsterGroup:try_get("inherits", {}),
             addItemText = "Inherits from Band...",
             options = (function()

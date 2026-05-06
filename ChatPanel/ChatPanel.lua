@@ -28,7 +28,6 @@ DockablePanel.Register{
 }
 
 local function FormatChatMessage(message)
-    local textColor = cond(message.isLocal, "#777777", "#FFFFFF")
     local text = message.message
     local nick = message.nick
     local nickColor = message.nickColor
@@ -40,14 +39,15 @@ local function FormatChatMessage(message)
     elseif nickColor.v < 0.6 then
         nickColor.v = 0.6
     end
-    return string.format("<color=%s><b>%s:</b></color> <color=%s>%s</color>", nickColor.tostring, nick, textColor, text)
+    return string.format("<color=%s><b>%s:</b></color> %s", nickColor.tostring, nick, text)
 end
 
 local CreateChatMessagePanel = function(message)
     local m_message = message
 	local complete = false
 	return gui.Label{
-		classes = {'chat-message-panel'},
+		classes = {"chatMessage", "sizeS", cond(message.isLocal, "fgMuted", "fgStrong")},
+		halign = "left",
 		markdown = true,
 		text = FormatChatMessage(message),
         linger = function(element)
@@ -95,10 +95,10 @@ local CreateObjectMessagePanel = function(message)
 	end
 
 	return gui.Panel{
-		id = 'SharedObjectPanel',
-		classes = {'chat-message-panel'},
+		id = "SharedObjectPanel",
+		classes = {"chatMessage"},
 		gui.Label{
-			classes = {'chat-message-panel'},
+			classes = {"chatMessage"},
 			text = message.formattedText,
 		},
 		renderPanel,
@@ -111,10 +111,10 @@ local CreateDataMessagePanel = function(message)
 	local renderPanel = message.data:Render({summary = true}, {})
 
 	return gui.Panel{
-		idprefix = 'SharedObjectPanel',
-		classes = {'chat-message-panel'},
+		idprefix = "SharedObjectPanel",
+		classes = {"chatMessage"},
 		gui.Label{
-			classes = {'chat-message-panel'},
+			classes = {"chatMessage"},
 			markdown = true,
 			text = message.formattedText,
 		},
@@ -128,13 +128,10 @@ local CreateCustomMessagePanel = function(message)
     if panel == nil then
         if devmode() then
             return gui.Label{
+				classes = {"sizeS", "chatMessage", "warning"},
                 textAlignment = "center",
                 width = "100%",
                 height = "auto",
-                bgcolor = "black",
-                bgimage = "panels/square.png",
-                color = "white",
-                fontSize = 16,
                 text = "Failed to render custom message: " .. tostring(message.properties.typeName) .. " (devmode only message)",
             }
         else
@@ -271,7 +268,7 @@ CreateChatPanel = function()
 	local messagePanels = {}
 
 	local chatPanel = gui.Panel{
-		id = 'chat-panel',
+		id = "chat-panel",
 		vscroll = true,
 		hideObjectsOutOfScroll = true,
 		hpad = 6,
@@ -280,43 +277,51 @@ CreateChatPanel = function()
 
 		styles = {
 			{
-				bgcolor = 'black',
-				halign = 'center',
-				valign = 'bottom',
+				-- bgcolor = "black",
+				halign = "center",
+				valign = "bottom",
 				width = "100%",
-				flow = 'vertical',
+				flow = "vertical",
 			},
 
-			{
-				selectors = 'separator',
-				bgimage = 'panels/square.png',
-				width = '96%',
-				height = 1,
-				vmargin = 4,
-				bgcolor = Styles.textColor,
-				gradient = Styles.horizontalGradient,
-			},
-			{
-				selectors = {'visibilityPanel'},
-				halign = "right",
-				valign = "center",
-			},
+			-- {
+			-- 	selectors = "separator",
+			-- 	bgimage = "panels/square.png",
+			-- 	width = "96%",
+			-- 	height = 1,
+			-- 	vmargin = 4,
+			-- 	bgcolor = Styles.textColor,
+			-- 	gradient = Styles.horizontalGradient,
+			-- },
+			-- {
+			-- 	selectors = {"visibilityPanel"},
+			-- 	halign = "right",
+			-- 	valign = "center",
+			-- },
 
 			{
-				selectors = {'chat-message-panel'},
-				textAlignment = 'topleft',
-				halign = 'left',
-				width = '100%',
-				height = 'auto',
-				color = 'white',
-				fontSize = '40%',
+				selectors = {"panel", "chatMessage"},
+				width = "100%",
+				height = "auto",
+				valign = "top",
+				halign = "left",
+				flow = "vertical",
+			},
+			{
+				selectors = {"label", "chatMessage"},
+				textAlignment = "topleft",
+				halign = "left",
+				valign = "top",
+				width = "100%-6",
+				height = "auto",
 				vmargin = 2,
+				lmargin = 6,
 			},
 
-			{
-				selectors = {'chat-message-panel'},
-				flow = 'vertical',
-			},
+			-- {
+			-- 	selectors = {"chat-message-panel"},
+			-- 	flow = "vertical",
+			-- },
 
             {
                 selectors = {"unknownLanguage"},
@@ -354,7 +359,7 @@ CreateChatPanel = function()
                 end
             end,
 
-			create = 'refreshChat',
+			create = "refreshChat",
 			refreshChat = function(element)
 				local newMessagePanels = {}
 				local children = {}
@@ -395,7 +400,7 @@ CreateChatPanel = function()
 
                         if child ~= nil then
                             newMessagePanels[message.key] = child
-                            child:FireEvent('refreshMessage', message)
+                            child:FireEvent("refreshMessage", message)
                             children[#children+1] = child
                         end
                     end
@@ -440,14 +445,14 @@ CreateChatPanel = function()
 
 		y = -32,
 		selfStyle = {
-			halign = 'left',
-			valign = 'bottom',
+			halign = "left",
+			valign = "bottom",
 		},
 
 		style = {
-			width = 'auto',
-			height = 'auto',
-			flow = 'vertical',
+			width = "auto",
+			height = "auto",
+			flow = "vertical",
 		},
 		children = {
 		},
@@ -470,7 +475,7 @@ CreateChatPanel = function()
 		local doc = macroInfo and macroInfo.doc or nil
 
 		return gui.Panel{
-			bgimage = "panels/square.png",
+			bgimage = true,
 			width = "100%-20",
 			height = "auto",
 			flow = "horizontal",
@@ -480,68 +485,67 @@ CreateChatPanel = function()
 			data = {
 				commandText = commandText,
 			},
-			styles = {
+			styles = ThemeEngine.MergeTokens({
 				{
 					bgcolor = "clear",
 				},
 				{
 					selectors = {"hover"},
-					bgcolor = Styles.textColor,
+					bgcolor = "@accent",
 				},
 				{
 					selectors = {"selected"},
-					bgcolor = Styles.textColor,
+					bgcolor = "@accent",
 				},
-			},
+			}),
 			hover = doc ~= nil and gui.Tooltip(doc) or nil,
 			press = pressOverride or function(element)
-				inputPanel.text = element.data.commandText .. ' '
+				inputPanel.text = element.data.commandText .. " "
 				inputPanel.caretPosition = string.len(inputPanel.text)
 				inputPanel.hasFocus = true
 			end,
 			gui.Label{
+				classes = {"sizeS"},
 				text = commandText,
-				fontSize = 14,
 				width = "auto",
 				height = "auto",
 				textAlignment = "left",
 				valign = "center",
-				styles = {
+				styles = ThemeEngine.MergeTokens({
 					{
-						color = Styles.textColor,
+						color = "@fg",
 					},
 					{
 						selectors = {"parent:hover"},
-						color = "black",
+						color = "@fgInverse",
 					},
 					{
 						selectors = {"parent:selected"},
-						color = "black",
+						color = "@fgInverse",
 					},
-				},
+				}),
 			},
 			gui.Label{
+				classes = cond(summary == nil, {"sizeXs", "collapsed"}, {"sizeXs"}),
 				text = summary or "",
-				fontSize = 12,
 				width = "auto",
 				height = "auto",
 				textAlignment = "left",
 				valign = "center",
 				lmargin = 8,
-				classes = cond(summary == nil, {"collapsed"}, {}),
-				styles = {
+				styles = ThemeEngine.MergeTokens({
 					{
-						color = "#888888",
+						color = "@fgMuted",
 					},
 					{
 						selectors = {"parent:hover"},
-						color = "#333333",
+						color = "@bgInverse",
 					},
 					{
 						selectors = {"parent:selected"},
-						color = "#333333",
+						color = "@bgInverse",
 					},
-				},
+				}),
 			},
 		}
 	end
@@ -578,34 +582,24 @@ CreateChatPanel = function()
 		for i, arg in ipairs(parsed.args) do
 			local isActive = (i == argIndex)
 			argLabels[#argLabels + 1] = gui.Label{
+				classes = {"sizeXs", cond(isActive, "fg", "fgMuted")},
 				text = arg,
-				fontSize = 13,
 				width = "auto",
 				height = "auto",
 				valign = "center",
 				lmargin = 4,
 				bold = isActive,
-				styles = {
-					{
-						color = cond(isActive, Styles.textColor, "#888888"),
-					},
-				},
 			}
 		end
 
 		local children = {
 			gui.Label{
+				classes = {"sizeXs", "fg"},
 				text = "/" .. macroName,
-				fontSize = 13,
 				width = "auto",
 				height = "auto",
 				valign = "center",
 				bold = true,
-				styles = {
-					{
-						color = Styles.textColor,
-					},
-				},
 			},
 		}
 
@@ -616,27 +610,21 @@ CreateChatPanel = function()
 		local descPanel = nil
 		if parsed.description ~= nil and parsed.description ~= "" then
 			descPanel = gui.Label{
+				classes = {"sizeXs", "fgMuted"},
 				text = parsed.description,
-				fontSize = 11,
 				width = "100%-20",
 				height = "auto",
 				halign = "center",
 				textAlignment = "left",
-				styles = {
-					{
-						color = "#888888",
-					},
-				},
 			}
 		end
 
 		return gui.Panel{
-			bgimage = "panels/square.png",
-			bgcolor = Styles.backgroundColor,
+			classes = {"bg", "border"},
+			bgimage = true,
 			width = 400,
 			height = "auto",
 			border = 2,
-			borderColor = Styles.textColor,
 			flow = "vertical",
 			vpad = 6,
 
@@ -664,10 +652,10 @@ CreateChatPanel = function()
 		local hasContent = false
 		for i = 1, #afterCommand do
 			local c = string.sub(afterCommand, i, i)
-			if c == '"' then
+			if c == "\"" then
 				inQuote = not inQuote
 				hasContent = true
-			elseif c == ' ' and not inQuote then
+			elseif c == " " and not inQuote then
 				if hasContent then
 					count = count + 1
 					hasContent = false
@@ -756,24 +744,22 @@ CreateChatPanel = function()
 
 									if #filtered > maxCompletions then
 										allChildren[#allChildren+1] = gui.Label{
+											classes = {"sizeXs", "fgMuted"},
 											text = string.format("... and %d more", #filtered - maxCompletions),
-											fontSize = 11,
 											width = "100%",
 											height = "auto",
-											color = "#666666",
 											textAlignment = "center",
 											vpad = 4,
 										}
 									end
 
 									argCompletionPanel = gui.Panel{
-										bgimage = "panels/square.png",
-										bgcolor = Styles.backgroundColor,
+										classes = {"bg", "border"},
+										bgimage = true,
 										width = 400,
 										height = "auto",
 										maxHeight = 300,
 										border = 2,
-										borderColor = Styles.textColor,
 										flow = "vertical",
 										vscroll = #allChildren > maxCompletions,
 										children = allChildren,
@@ -842,11 +828,10 @@ CreateChatPanel = function()
 
 		if #items > maxCompletions then
 			allChildren[#allChildren + 1] = gui.Label{
+				classes = {"sizeXs", "fgMuted"},
 				text = string.format("... and %d more", #items - maxCompletions),
-				fontSize = 11,
 				width = "100%",
 				height = "auto",
-				color = "#666666",
 				textAlignment = "center",
 				vpad = 4,
 			}
@@ -854,13 +839,12 @@ CreateChatPanel = function()
 
 		completionsPanel.children = {
 			gui.Panel{
-				bgimage = "panels/square.png",
-				bgcolor = Styles.backgroundColor,
+				classes = {"bg", "border"},
+				bgimage = true,
 				width = 400,
 				height = "auto",
 				maxHeight = 300,
 				border = 2,
-				borderColor = Styles.textColor,
 				flow = "vertical",
 				vscroll = #allChildren > maxCompletions,
 				children = allChildren,
@@ -872,7 +856,7 @@ CreateChatPanel = function()
 		local startIndex = 1
 		local endIndex = #completionChildren
 		local delta = 1
-		if arrow == 'down' then
+		if arrow == "down" then
 			startIndex = #completionChildren
 			endIndex = 1
 			delta = -1
@@ -882,8 +866,8 @@ CreateChatPanel = function()
 		local stop = false
 		for i = startIndex, endIndex, delta do
 			local child = completionChildren[i]
-			if child:HasClass('selected') then
-				child:SetClass('selected', false)
+			if child:HasClass("selected") then
+				child:SetClass("selected", false)
 				stop = true
 			elseif not stop then
 				ntarget = i
@@ -891,7 +875,7 @@ CreateChatPanel = function()
 		end
 
 		if ntarget then
-			completionChildren[ntarget]:SetClass('selected', true)
+			completionChildren[ntarget]:SetClass("selected", true)
 			return true
 		end
 
@@ -900,8 +884,8 @@ CreateChatPanel = function()
 
 	local GetAndClearCompletionSelected = function()
 		for i,child in ipairs(completionChildren) do
-			if child:HasClass('selected') then
-				child:SetClass('selected', false)
+			if child:HasClass("selected") then
+				child:SetClass("selected", false)
 				return child.data.commandText
 			end
 		end
@@ -916,10 +900,9 @@ CreateChatPanel = function()
 	local userChatMessages = {}
 
 	previewPanel = gui.Label{
+		classes = {"sizeXs"},
 		width = 330,
-		height = 18,
 		text = "preview text",
-		fontSize = 14,
 		italics = true,
 		monitorGame = mod:GetDocumentSnapshot("chatEvents").path,
 		thinkTime = 0.4,
@@ -985,28 +968,24 @@ CreateChatPanel = function()
     local m_languagesKnownUpdate = nil
 
     speakerPanel = gui.Panel{
-        styles = {
+        styles = ThemeEngine.MergeTokens{
             {
                 selectors = {"speaker"},
-                fontSize = 14,
-                minFontSize = 6,
-                color = Styles.textColor,
-                bgcolor = Styles.backgroundColor,
                 hpad = 4,
-                height = 20,
                 width = 40,
-                bgimage = true,
             },
             {
                 selectors = {"speaker", "hover", "~selected"},
-                bgcolor = Styles.textColor,
-                color = Styles.backgroundColor,
+				bgimage = true,
+                bgcolor = "@bgInverse",
+                color = "@fgInverse",
                 brightness = 1.2,
             },
             {
                 selectors = {"speaker", "selected"},
-                bgcolor = Styles.textColor,
-                color = Styles.backgroundColor,
+				bgimage = true,
+                bgcolor = "@bgInverse",
+                color = "@fgInverse",
             },
         },
         flow = "horizontal",
@@ -1019,7 +998,7 @@ CreateChatPanel = function()
         end,
 
         gui.Label{
-            classes = {"speaker", "selected"},
+            classes = {"sizeS", "speaker", "selected"},
             text = "OOC",
             press = function(element)
                 g_settingChatOOC:Set(true)
@@ -1155,7 +1134,7 @@ CreateChatPanel = function()
 
 	inputPanel = gui.Input{
         classes = {"inputFaded"},
-		placeholderText = 'Enter Chat...',
+		placeholderText = "Enter Chat...",
 		width = "100%-50",
         minHeight = 24,
         maxHeight = 300,
@@ -1165,13 +1144,13 @@ CreateChatPanel = function()
         consumeTab = true,
 		events = {
 			deselect = function(element)
-				--UpdateCompletions('')
+				--UpdateCompletions("")
                 print("INPUT:: DESELECT")
 			end,
 			tab = function(element)
 				local items = chat.GetCommandCompletions(inputPanel.text)
 				if #items == 1 then
-					inputPanel.text = items[1] .. ' '
+					inputPanel.text = items[1] .. " "
 					inputPanel.caretPosition = string.len(inputPanel.text)
 					UpdateCompletions()
 					element.hasFocus = true
@@ -1187,7 +1166,7 @@ CreateChatPanel = function()
 				end
 			end,
 			uparrow = function(element)
-				if CompletionsArrow('up') then
+				if CompletionsArrow("up") then
 					return
 				end
 
@@ -1211,7 +1190,7 @@ CreateChatPanel = function()
 				UpdateCompletions()
 			end,
 			downarrow = function(element)
-				if CompletionsArrow('down') then
+				if CompletionsArrow("down") then
 					return
 				end
 
@@ -1274,7 +1253,7 @@ CreateChatPanel = function()
 						parts[#parts+1] = completionText
 						element.text = table.concat(parts, " ") .. " "
 					else
-						element.text = completionText .. ' '
+						element.text = completionText .. " "
 					end
 					element.hasFocus = true
 					element.caretPosition = string.len(element.text)
@@ -1293,14 +1272,14 @@ CreateChatPanel = function()
 
 				historyCursor = -1
 
-				if element.text ~= '' and history[#history] ~= element.text then
+				if element.text ~= "" and history[#history] ~= element.text then
 					history[#history+1] = element.text
 				end
 
-				element.text = ''
+				element.text = ""
 
 				element.hasFocus = true
-				chat.PreviewChat('')
+				chat.PreviewChat("")
 
 				UpdateCompletions()
 			end,
@@ -1310,10 +1289,10 @@ CreateChatPanel = function()
 			end,
 			slash = function(element)
 				element.hasFocus = true
-				element.text = '/'
+				element.text = "/"
 				element.caretPosition = 1
 				element.selectionAnchorPosition = nil
-				chat.PreviewChat('/')
+				chat.PreviewChat("/")
 
 				UpdateCompletions()
 			end,
@@ -1324,9 +1303,9 @@ CreateChatPanel = function()
 
 	local resultPanel = gui.Panel{
 		selfStyle = {
-			width = '100%',
-			height = '100%',
-			flow = 'vertical',
+			width = "100%",
+			height = "100%",
+			flow = "vertical",
 		},
 		children = {
 			chatPanel,

@@ -2104,6 +2104,7 @@ local function _buildOverviewSection(ability, fireChange)
             classes = {"nae-field-textarea"},
             placeholderText = "Italicized narrative (not mechanics)...",
             multiline = true,
+            textAlignment = "topleft",
             characterLimit = 2000,
             text = ability:try_get("flavor", ""),
             change = function(element)
@@ -2119,6 +2120,7 @@ local function _buildOverviewSection(ability, fireChange)
             classes = {"nae-field-textarea"},
             placeholderText = "Effect text shown before the power roll tiers...",
             multiline = true,
+            textAlignment = "topleft",
             characterLimit = 2000,
             text = ability:try_get("preDescription", ""),
             change = function(element)
@@ -2134,6 +2136,7 @@ local function _buildOverviewSection(ability, fireChange)
             classes = {"nae-field-textarea"},
             placeholderText = "Effect text shown after the power roll tiers...",
             multiline = true,
+            textAlignment = "topleft",
             characterLimit = 2000,
             text = ability:try_get("description", ""),
             change = function(element)
@@ -2195,6 +2198,7 @@ local function _buildOverviewSection(ability, fireChange)
                 classes = {"nae-field-textarea"},
                 placeholderText = "Notes on unfinished parts...",
                 multiline = true,
+                textAlignment = "topleft",
                 characterLimit = 2048,
                 text = ability:try_get("implementationDetails", ""),
                 change = function(element)
@@ -2386,6 +2390,7 @@ _buildModesBlock = function(ability, fireChange)
                             characterLimit = 300,
                             placeholderText = "Enter rules details...",
                             multiline = true,
+                            textAlignment = "topleft",
                             text = entry.rules or "",
                             change = function(el)
                                 entry.rules = el.text

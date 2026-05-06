@@ -1697,6 +1697,12 @@ function TacPanel.Tooltip(text)
     }
 end
 
+local g_companionAppSetting = setting{
+    id = "companionapp",
+    default = false,
+    storage = "preference",
+}
+
 --- display the portrait
 --- @return Panel
 function TacPanel.Portrait()
@@ -1729,6 +1735,40 @@ function TacPanel.Portrait()
 
         return gui.Panel(args)
     end
+
+    local m_companionAppButton = nil
+    
+    
+    if g_companionAppSetting:Get() then
+        m_companionAppButton = outlineButton(gui.Panel{
+            classes = {"toggle-btn"},
+            hoverCursor = "pressbutton",
+            bgimage = "ui-icons/codex-logo.png",
+            width = TacPanelSizes.VisionBtn.size,
+            height = TacPanelSizes.VisionBtn.size,
+            data = { token = nil },
+            refreshCharacter = function(element, token)
+                element.data.token = token
+            end,
+            refreshToken = function(element, token)
+                element:FireEvent("refreshCharacter", token)
+            end,
+            setToken = function(element, token)
+                element:FireEvent("refreshCharacter", token)
+            end,
+            press = function(element)
+                local token = element.data.token
+                if token == nil then return end
+                dmhub.OpenCharacterPopout(token.charid, nil, function(msg)
+                    gui.Tooltip("Couldn't open companion: " .. msg)(element)
+                end)
+            end,
+            linger = function(element)
+                gui.Tooltip("Open in companion (browser)")(element)
+            end,
+        })
+    end
+
 
 
 
@@ -1848,33 +1888,9 @@ function TacPanel.Portrait()
                     gui.Tooltip("Open Character Sheet")(element)
                 end,
             }),
-            outlineButton(gui.Panel{
-                classes = {"toggle-btn"},
-                hoverCursor = "pressbutton",
-                bgimage = "ui-icons/codex-logo.png",
-                width = TacPanelSizes.VisionBtn.size,
-                height = TacPanelSizes.VisionBtn.size,
-                data = { token = nil },
-                refreshCharacter = function(element, token)
-                    element.data.token = token
-                end,
-                refreshToken = function(element, token)
-                    element:FireEvent("refreshCharacter", token)
-                end,
-                setToken = function(element, token)
-                    element:FireEvent("refreshCharacter", token)
-                end,
-                press = function(element)
-                    local token = element.data.token
-                    if token == nil then return end
-                    dmhub.OpenCharacterPopout(token.charid, nil, function(msg)
-                        gui.Tooltip("Couldn't open companion: " .. msg)(element)
-                    end)
-                end,
-                linger = function(element)
-                    gui.Tooltip("Open in companion (browser)")(element)
-                end,
-            }),
+
+            m_companionAppButton,
+
             outlineButton(gui.Panel{
                 classes = {"toggle-btn", "collapsed"},
                 hoverCursor = "pressbutton",

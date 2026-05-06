@@ -112,6 +112,10 @@ local CreateMapNode = function(map)
 		characterLimit = 32,
         minWidth = 240,
 
+		styles = ThemeEngine.MergeTokens({
+			{ selectors = {"deleting"}, color = "@danger" },
+		}),
+
 		editable = false,
 		change = function(element)
 			if element.text == "" then
@@ -209,7 +213,7 @@ local CreateMapNode = function(map)
 
 		gui.IconEditor{
 			library = "coverart",
-			bgcolor = "white",
+			classes = {"image"},
 			width = "auto",
 			height = "auto",
 			hideIcon = true,
@@ -284,10 +288,14 @@ local CreateMapNode = function(map)
 
 	resultPanel = gui.Panel{
 		idprefix = "map-panel",
-		bgimage = "panels/square.png",
 		classes = {"row", "map"},
 		flow = "vertical",
 		draggable = true,
+
+		setZebra = function(element, even)
+			element:SetClass("evenRow", even)
+			element:SetClass("oddRow", not even)
+		end,
 		canDragOnto = function(element, target)
             return target ~= nil and target:HasClass("mapDragTarget")
 		end,
@@ -430,6 +438,21 @@ local CreateDragTargetPanel = function(folder)
 		idprefix = "map-drag-target",
 		classes = {"dragPanel", "mapDragTarget"},
 		dragTarget = true,
+		styles = ThemeEngine.MergeTokens({
+			{
+				selectors = {"dragPanel"},
+				bgimage = true,
+				bgcolor = "clear",
+				width = "100%",
+				height = 2,
+				vmargin = 2,
+			},
+			{
+				selectors = {"dragPanel", "drag-target-hover"},
+				height = 10,
+				bgcolor = "@accent",
+			},
+		}),
 		search = function(element, str)
 			element:SetClass("collapsed", str ~= "")
 		end,
@@ -495,6 +518,7 @@ CreateFolderChildPanel = function(folder)
 			}
 
 			for i,child in ipairs(children) do
+				child:FireEvent("setZebra", i % 2 == 1)
 				local key = string.format("drag-%d", i)
 				local dragPanel = childNodes[key] or CreateDragTargetPanel(folder)
 				dragPanel.data.data = child.data.data
@@ -518,33 +542,6 @@ CreateFolderChildPanel = function(folder)
 	}
 end
 
-local triangleStyles = {
-	gui.Style{
-		classes = {"triangle"},
-		bgimage = "panels/triangle.png",
-		bgcolor = "white",
-		hmargin = 4,
-		halign = "left",
-		valign = "center",
-		height = 12,
-		width = 12,
-		rotate = 90,
-	},
-	gui.Style{
-		classes = {"triangle", "expanded"},
-		rotate = 0,
-		transitionTime = 0.2,
-	},
-	gui.Style{
-		classes = {"triangle", "hover"},
-		bgcolor = "yellow",
-	},
-	gui.Style{
-		classes = {"triangle", "press"},
-		bgcolor = "gray",
-	},
-}
-
 CreateFolderPanel = function(folder)
 	local childPanel = CreateFolderChildPanel(folder)
 
@@ -557,19 +554,15 @@ CreateFolderPanel = function(folder)
 	end
 
 
-	local triangle = gui.Panel{
+	local triangle = gui.ExpandoArrow{
 		idprefix = "map-triangle",
-		classes = {"triangle", cond(folderClosed, nil, "expanded")},
-		styles = triangleStyles,
-
-		create = function(element)
-			printf("FOLDER:: %s / %s", dmhub.gameid, folder.id)
-		end,
+		classes = cond(folderClosed, nil, {"expanded"}),
 
 		click = function(element)
-			element:SetClass("expanded", not element:HasClass("expanded"))
-			childPanel:SetClass("collapsed", not element:HasClass("expanded"))
-			dmhub.SetPref(prefKey, not element:HasClass("expanded"))
+			local nowExpanded = not element:HasClass("expanded")
+			element:SetClass("expanded", nowExpanded)
+			childPanel:SetClass("collapsed", not nowExpanded)
+			dmhub.SetPref(prefKey, not nowExpanded)
 		end,
 
 		search = function(element, str)
@@ -580,7 +573,11 @@ CreateFolderPanel = function(folder)
 	local headerPanel = gui.Panel{
 		idprefix = "map-header",
 		classes = {"row", "mapDragTarget"},
-		bgimage = "panels/square.png",
+		flow = "horizontal",
+		width = "100%",
+		height = 24,
+		halign = "left",
+		valign = "top",
 		dragTarget = true,
 
 		data = {
@@ -659,6 +656,11 @@ CreateFolderPanel = function(folder)
 		end,
 		drag = DragNode,
 
+		setZebra = function(element, even)
+			headerPanel:SetClass("evenRow", even)
+			headerPanel:SetClass("oddRow", not even)
+		end,
+
 		data = {
 			data = folder,
 			isfolder = true,
@@ -697,10 +699,9 @@ CreateMapDialog = function()
 		treeInnerPanel,
 	}
 
-	local filterInput = gui.Input{
+	local filterInput = gui.SearchInput{
 		width = "80%",
 		height = 24,
-		fontSize = 18,
 		halign = "left",
 		valign = "top",
 		vmargin = 8,
@@ -769,66 +770,7 @@ CreateMapDialog = function()
 			
 		end,
 
-		styles = {
-			{
-				classes = {"row"},
-				height = 24,
-				width = "100%",
-				halign = "left",
-				valign = "top",
-				flow = "horizontal",
-				bgcolor = "#00000044",
-			},
-			{
-				classes = {"row", "map"},
-				height = "auto",
-				minHeight = 24,
-			},
-			{
-				classes = {"row", "hover"},
-				transitionTime = 0.1,
-				bgcolor = "#88000077",
-			},
-			{
-				classes = {"row", "dragging"},
-				bgcolor = "#88000077",
-			},
-			{
-				classes = {"label"},
-				halign = "left",
-				width = "auto",
-				height = "auto",
-				fontSize = 16,
-				margin = 4,
-				color = "#aaaaaa",
-			},
-			{
-				classes = {"label", "selected"},
-				color = "#ffffff",
-			},
-			{
-				classes = {"label", "deleting"},
-				color = "#ff0000",
-			},
-			{
-				classes = {"dragPanel"},
-				width = "100%",
-				height = 2,
-				bgcolor = "#ffffff00",
-				bgimage = "panels/square.png",
-				vmargin = 2,
-			},
-			{
-				classes = {"drag-target"},
-				bgcolor = "#ffffff55",
-			},
-			{
-				classes = {"drag-target-hover"},
-				bgcolor = "#ffffff88",
-				bgimage = "panels/square.png",
-			}
-
-		},
+		styles = ThemeEngine.GetStyles(),
 
 		filterInput,
 		treeScrollPanel,
@@ -842,18 +784,25 @@ CreateMapDialog = function()
 			valign = 'bottom',
 			width = "auto",
 			height = "auto",
-			gui.AddButton{
+			gui.Button{
 				id = "map-dialog-button-open-folder",
+				width = 36,
+				height = 36,
+				valign = "center",
 				hmargin = 4,
-				bgimage = "game-icons/open-folder.png",
+				icon = "game-icons/open-folder.png",
 				click = function(element)
 					game.CreateMapFolder()
 				end,
 				hover = gui.Tooltip("Create a Folder"),
 			},
-			gui.AddButton{
+			gui.Button{
 				id = "map-dialog-button-create-map",
+				width = 36,
+				height = 36,
+				valign = "center",
 				hmargin = 2,
+				icon = "game-icons/treasure-map.png",
 				click = function(element)
 					mod.shared.CompleteTutorial("Create a Map")
                     mod.shared.ShowCreateMapDialog()

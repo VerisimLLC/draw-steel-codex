@@ -28,6 +28,7 @@ CharacterModifier.TypeInfo.filter = {
                     text = "Filter Type:",
                 },
                 gui.Dropdown{
+                    styles = ThemeEngine.GetStyles(),
                     options = CreatureFilter.filterOptions,
                     idChosen = modifier.filterid,
                     textDefault = "Choose...",

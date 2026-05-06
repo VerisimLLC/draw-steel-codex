@@ -135,17 +135,8 @@ function Hud:ModalMessage(args)
 	if args.title ~= nil then
 		titleText = gui.Label({
 			id = 'modal-title',
+			classes = {"modalTitle"},
 			text = args.title,
-			selfStyle = {
-				margin = 16,
-				fontSize = '80%',
-				color = 'white',
-				valign = 'top',
-				halign = 'center',
-				textAlignment = 'center',
-				width = 'auto',
-				height = 'auto',
-			},
 		})
 	end
 
@@ -153,16 +144,8 @@ function Hud:ModalMessage(args)
 	if args.message ~= nil then
 		messageText = gui.Label({
 			id = 'modal-message',
+			classes = {"modalMessage"},
 			text = args.message,
-			selfStyle = {
-				width = '80%',
-				height = 'auto',
-				color = 'white',
-				fontSize = '60%',
-				valign = 'center',
-				halign = 'center',
-				textAlignment = 'left',
-			},
 		})
 	end
 
@@ -179,11 +162,10 @@ function Hud:ModalMessage(args)
 	local options = {}
 	for i,option in ipairs(argOptions) do
 		local optionInfo = option
-		options[#options+1] = gui.PrettyButton({
+		options[#options+1] = gui.Button({
 			id = 'modal-button-' .. optionInfo.text,
+			classes = {"sizeL"},
 			text = optionInfo.text,
-			width = 140,
-			height = 60,
 			events = {
 				click = function()
 					self:CloseModal()
@@ -197,13 +179,11 @@ function Hud:ModalMessage(args)
 
 	optionsPanel = gui.Panel({
 		id = 'modal-buttons-panel',
-		style = {
-			height = 'auto',
-			width = '80%',
-			valign = 'bottom',
-			vmargin = 20,
-			flow = 'horizontal',
-		},
+		height = 'auto',
+		width = '80%',
+		valign = 'bottom',
+		vmargin = 20,
+		flow = 'horizontal',
 		children = options,
 	})
 
@@ -211,17 +191,12 @@ function Hud:ModalMessage(args)
 		gui.Panel({
 			id = 'modal-dialog',
 			classes = {"framedPanel"},
-
-			styles = {
-				Styles.Panel,
-				{
-					halign = 'center',
-					valign = 'center',
-					width = '60%',
-					height = '60%',
-					flow = 'vertical',
-				}
-			},
+			styles = ThemeEngine.GetStyles(),
+			halign = 'center',
+			valign = 'center',
+			width = '60%',
+			height = '60%',
+			flow = 'vertical',
 			children = {
 				titleText,
 				messageText,
@@ -256,10 +231,11 @@ function Hud:ModalChoice(args)
 	local dialog
 	dialog = gui.Panel{
 		classes = {"framedPanel"},
-		styles = {
-			Styles.Default,
-			Styles.Panel,
-			Styles.Table,
+		-- Theme provides framedPanel + row/oddRow/evenRow + base label rules.
+		-- Local extras: option-specific size/font and bespoke red hover/press
+		-- colors. Hover/press literals stay (component-specific dark-red wash;
+		-- could map to @danger family later if you want them theme-driven).
+		styles = ThemeEngine.MergeStyles({
 			{
 				selectors = {"option"},
 				height = 24,
@@ -275,7 +251,7 @@ function Hud:ModalChoice(args)
 				selectors = {"option", "press"},
 				bgcolor = "#550000ff",
 			},
-		},
+		}),
 
 		width = 1024,
 		height = 800,
@@ -283,6 +259,8 @@ function Hud:ModalChoice(args)
 		gui.Label{
 			classes = {"title"},
 			valign = "top",
+			fontSize = 28,
+			bold = true,
 			text = args.title,
 		},
 
@@ -372,20 +350,22 @@ function Hud:UploadDialog(options)
 
 	local label = gui.Label{
 		bgimage = 'panels/square.png',
+		classes = {"uploadDialogLabel"},
 		text = options.text,
 
+		-- Color, bgcolor, borderColor come from the {label, uploadDialogLabel}
+		-- theme rule on the parent dialog so this label follows scheme switches.
+		-- Layout/typography stays inline. Dropped a stray duplicate `height` key
+		-- (was `'center'` then `'auto'`); converted '80%' fontSize to absolute
+		-- 28 since the theme's {label} rule sets a 14px cascade base.
 		style = {
 			valign = 'center',
-			height = 'center',
 			width = 'auto',
 			height = 'auto',
 			pad = 100,
 			cornerRadius = 16,
 			borderWidth = 2,
-			borderColor = 'black',
-			bgcolor = '#777777ff',
-			color = 'white',
-			fontSize = '80%',
+			fontSize = 28,
 			textAlignment = 'center',
 		},
 		monitorAssets = true,
@@ -428,12 +408,20 @@ function Hud:UploadDialog(options)
 			height = 400,
 			flow = 'none',
 		},
+		styles = ThemeEngine.MergeStyles({
+			{
+				selectors = {"label", "uploadDialogLabel"},
+				color = "@text",
+				bgcolor = "@grey02",
+				borderColor = "@text",
+			},
+		}),
 		children = {
 			label,
 			closeButton,
 		},
 	}
-	
+
 	self:ShowModal(dialog)
 	return dialog
 end

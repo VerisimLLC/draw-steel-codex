@@ -127,7 +127,7 @@ local SetKit = function(tableName, kitPanel, kitid)
 		}
 	end
 
-	children[#children+1] = gui.SetEditor{
+	children[#children+1] = gui.Multiselect{
 		value = kit.weapons,
 		options = Kit.weaponTypes,
 		addItemText = "Add Weapon...",

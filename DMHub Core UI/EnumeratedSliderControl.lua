@@ -1,43 +1,7 @@
 local mod = dmhub.GetModLoading()
 
-local enumSliderStyles = {
-    {
-        selectors = {"enumSlider"},
-        width = "100%",
-        height = 24,
-        flow = "horizontal",
-    },
-    {
-        selectors = {"enumSliderOption"},
-        bgimage = "panels/square.png",
-        bgcolor = "black",
-        color = Styles.textColor,
-        fontSize = 12,
-        bold = true,
-        halign = "center",
-        valign = "center",
-        borderWidth = 2,
-        borderColor = Styles.textColor,
-        textAlignment = "center",
-        height = "100%",
-    },
-    {
-        selectors = {"enumSliderOption", "selected"},
-        bgcolor = Styles.textColor,
-        color = "black",
-        transitionTime = 0.2,
-    },
-    {
-        selectors = {"enumSliderOption", "hover"},
-        bgcolor = Styles.textColor,
-        color = "black",
-        brightness = 1.5,
-        transitionTime = 0.2,
-    },
-}
-
+--- gui.EnumeratedSliderControl -- a horizontal row of selectable options.
 function gui.EnumeratedSliderControl(args)
-
     local m_resultPanel = nil
 
     local options = args.options
@@ -49,60 +13,49 @@ function gui.EnumeratedSliderControl(args)
     local optionWidth = args.optionWidth or (100/#options .. "%")
     args.optionWidth = nil
 
+    local callerStyles = args.styles
+    args.styles = nil
+
     local children = {}
 
     local SetValue = function(value, suppressEvent)
         m_value = value
-        for _,child in ipairs(children) do
+        for _, child in ipairs(children) do
             child.SetClass(child, "selected", child.data.id == value)
         end
-
         if not suppressEvent then
             m_resultPanel:FireEvent("change")
         end
     end
 
-    for _,option in ipairs(options) do
-        local optionPanel = gui.Label{
+    for _, option in ipairs(options) do
+        children[#children+1] = gui.Label{
             classes = {"enumSliderOption", cond(m_value == option.id, "selected")},
-            data = {
-                id = option.id,
-            },
+            data = { id = option.id },
             text = option.text,
             width = optionWidth,
-            press = function(element)
+            press = function()
                 SetValue(option.id)
             end,
         }
-
-        children[#children+1] = optionPanel
     end
 
     local params = {
-        styles = enumSliderStyles,
+        styles = callerStyles,
         classes = {"enumSlider"},
-
         children = children,
     }
 
-    params.GetValue = function(element, val)
+    params.GetValue = function()
         return m_value
-	end
+    end
 
-	params.SetValue = function(element, val, firechange)
+    params.SetValue = function(_, val, firechange)
         SetValue(val, not firechange)
-	end
+    end
 
-    for k,v in pairs(args) do
-        if k == "styles" then
-            params.styles = table.shallow_copy(params.styles)
-            for _,style in ipairs(v) do
-                params.styles[#params.styles+1] = style
-            end
-        else
-            params[k] = v
-        end
-
+    for k, v in pairs(args) do
+        params[k] = v
     end
 
     m_resultPanel = gui.Panel(params)

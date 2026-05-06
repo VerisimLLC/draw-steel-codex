@@ -140,13 +140,16 @@ end
 function ExtChatMessage.Render(self, message)
     if self:try_get("recipients") == nil or self.recipients[dmhub.userid] then
         return gui.Panel {
-            classes = {"chat-message-panel"},
+            classes = {"chatMessge"},
+            valign = "top",
+            height = "auto",
             press = function(element)
                 writeDebug("PRESS::")
             end,
             children = {
                 gui.Label {
-                    fontSize = "14.5",  -- match the default chat size
+                    classes = {"chatMessage", "sizeS"},
+                    -- fontSize = "14.5",  -- match the default chat size
                     height = "auto",    -- trim vertical spacing
                     text = self.message,
                     linger = function(element)

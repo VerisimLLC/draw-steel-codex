@@ -214,6 +214,10 @@ function Variant:CreateTextEditor(value, options)
 	local args = {
 		text = value.value,
 		editable = true,
+		width = "100%-24",
+		height = "auto",
+		textWrap = true,
+		markdown = true,
 		change = function(element)
 			value.value = element.text
 			if change ~= nil then
@@ -253,7 +257,10 @@ function Variant:CreateTableRollEditor(value, options)
 
 	local label
 	local args = {
-		text = text
+		text = text,
+		width = "100%-24",
+		height = "auto",
+		textWrap = true,
 	}
 	for k,v in pairs(options) do
 		args[k] = v
@@ -274,6 +281,9 @@ function Variant:CreateMonsterEditor(value, options)
 	local args = {
 		text = string.format("%s", monster.description),
 		color = "white",
+		width = "100%-24",
+		height = "auto",
+		textWrap = true,
 		hover = function(element)
 			local panel = monster:Render{ width = 800 }
 
@@ -309,6 +319,9 @@ function Variant:CreateResourceEditor(value, options)
 	local args = {
 		text = string.format("%s", resource.name),
 		color = "white",
+		width = "100%-24",
+		height = "auto",
+		textWrap = true,
 	}
 	for k,v in pairs(options) do
 		args[k] = v
@@ -330,6 +343,9 @@ function Variant:CreateItemEditor(value, options)
 	local args = {
 		text = string.format("%s", item.name),
 		color = equipment.rarityColors[item:try_get("rarity", "common")] or "white",
+		width = "100%-24",
+		height = "auto",
+		textWrap = true,
 		hover = function(element)
 			element.tooltip = CreateItemTooltip(item, {halign = "right"}, nil)
 		end,
@@ -479,7 +495,7 @@ function Variant:CreateEditor(options)
 	local args = {
 		bgimage = "panels/square.png",
 		opacity = 0,
-		width = "auto",
+		width = "100%",
 		height = "auto",
 		flow = "horizontal",
 		children = {

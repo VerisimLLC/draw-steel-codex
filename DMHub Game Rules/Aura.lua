@@ -223,6 +223,7 @@ function Aura:GenerateEditor(options)
                     },
 
                     gui.Check {
+                        styles = ThemeEngine.GetStyles(),
                         text = "Destroy Aura After Trigger",
                         value = (trigger.destroyaura or false),
                         change = function(element)
@@ -244,6 +245,7 @@ function Aura:GenerateEditor(options)
             end
 
             abilityChildren[#abilityChildren + 1] = gui.Dropdown {
+                styles = ThemeEngine.GetStyles(),
                 classes = "formDropdown",
                 idChosen = "none",
                 options = Aura.TriggerConditions,
@@ -324,6 +326,7 @@ function Aura:GenerateEditor(options)
                     text = "Object:",
                 },
                 gui.Dropdown {
+                    styles = ThemeEngine.GetStyles(),
                     classes = "formDropdown",
                     options = objectChoices,
                     sort = true,
@@ -342,6 +345,7 @@ function Aura:GenerateEditor(options)
                     text = "Apply To:",
                 },
                 gui.Dropdown {
+                    styles = ThemeEngine.GetStyles(),
                     classes = "formDropdown",
                     options = Aura.ApplyOptions,
                     idChosen = self.applyto,
@@ -403,6 +407,7 @@ function Aura:GenerateEditor(options)
                     classes = { 'formLabel' },
                 },
                 gui.Dropdown {
+                    styles = ThemeEngine.GetStyles(),
                     classes = { "formDropdown" },
                     idChosen = self:try_get("movedamage", "none"),
                     options = table.append_arrays({ { id = "none", text = "none" } }, map(rules.damageTypesAvailable, function(
@@ -439,6 +444,7 @@ function Aura:GenerateEditor(options)
             },
 
             gui.Dropdown{
+                styles = ThemeEngine.GetStyles(),
                 halign = "left",
                 classes = "formDropdown",
                 options = {
@@ -459,7 +465,7 @@ function Aura:GenerateEditor(options)
                 end,
             },
 
-            gui.SetEditor {
+            gui.Multiselect {
                 halign = "left",
                 value = self:try_get("flags"),
                 addItemText = "Add Flag...",
@@ -471,6 +477,7 @@ function Aura:GenerateEditor(options)
             },
 
             gui.Check {
+                styles = ThemeEngine.GetStyles(),
                 halign = "left",
                 text = "Offers Concealment",
                 value = self:try_get("concealment", false),
@@ -481,6 +488,7 @@ function Aura:GenerateEditor(options)
             },
 
             gui.Check {
+                styles = ThemeEngine.GetStyles(),
                 halign = "left",
                 text = "Makes Terrain Difficult",
                 value = self:try_get("difficult_terrain", false),
@@ -491,6 +499,7 @@ function Aura:GenerateEditor(options)
             },
 
             gui.Check {
+                styles = ThemeEngine.GetStyles(),
                 halign = "left",
                 text = "Blocks Line of Effect",
                 value = self:try_get("blocks_line_of_effect", false),
@@ -501,6 +510,7 @@ function Aura:GenerateEditor(options)
             },
 
             gui.Check {
+                styles = ThemeEngine.GetStyles(),
                 halign = "left",
                 text = "Blocks Movement",
                 value = self:try_get("blocks_movement", false),
@@ -518,6 +528,7 @@ function Aura:GenerateEditor(options)
 
 
             gui.Check {
+                styles = ThemeEngine.GetStyles(),
                 classes = { cond(options.norelocate, 'collapsed') },
                 text = "Can relocate",
                 value = self.canrelocate,
@@ -537,6 +548,7 @@ function Aura:GenerateEditor(options)
                     text = "Relocate Action:",
                 },
                 gui.Dropdown {
+                    styles = ThemeEngine.GetStyles(),
                     classes = "formDropdown",
                     options = CharacterResource.GetActionOptions(),
                     idChosen = self.relocateResource,
@@ -629,26 +641,22 @@ function Aura:ShowEditDialog(options)
         }
 
     local titleLabel = gui.Label {
+        classes = { "modalTitle" },
         text = "Edit Aura",
-        valign = 'top',
-        halign = 'center',
-        width = 'auto',
-        height = 'auto',
-        color = 'white',
-        fontSize = 28,
+        valign = "top",
+        halign = "center",
+        width = "auto",
+        height = "auto",
     }
 
     resultPanel = gui.Panel {
-        style = {
-            bgcolor = 'white',
-            width = dialogWidth,
-            height = dialogHeight,
-            halign = 'center',
-            valign = 'center',
-        },
-
         classes = { "framedPanel" },
-        styles = Styles.Panel,
+        styles = ThemeEngine.GetStyles(),
+
+        width = dialogWidth,
+        height = dialogHeight,
+        halign = "center",
+        valign = "center",
 
         floating = true,
 

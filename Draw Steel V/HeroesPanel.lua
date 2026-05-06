@@ -13,6 +13,18 @@ end
 
 local CreateHeroesPanel
 
+local g_heroesExtras = {
+    {
+        selectors = {"beforeDivider"},
+        width = "40%",
+        height = "100%",
+        flow = "horizontal",
+        halign = "left",
+        valign = "center",
+        rmargin = 15,
+    },
+}
+
 DockablePanel.Register {
     name = "Heroes",
     icon = "icons/standard/Icon_App_Heroes.png",
@@ -29,25 +41,6 @@ DockablePanel.Register {
     end,
 }
 
-local CreateDividerPanel = function()
-    local resultPanel = gui.Panel {
-
-        width = "100%",
-        height = 1.5,
-
-        bgimage = true,
-        bgcolor = "#42362C",
-
-
-        halign = "center",
-        valign = "bottom",
-
-
-    }
-
-    return resultPanel
-end
-
 local CreateAddButtonPanel = function()
     local resultPanel = gui.Panel {
 
@@ -61,21 +54,21 @@ local CreateAddButtonPanel = function()
             element.data.order = "x" .. string.lower(info.displayName)
         end,
 
+        classes = {"row", "bordered"},
         width = "100%",
         height = 32,
 
-        bgimage = true,
-        bgcolor = "#0A0D0C",
+        border = { x1 = 0, x2 = 0, y1 = 0, y2 = 1 },
 
         halign = "center",
         valign = "top",
 
         flow = "horizontal",
 
-        gui.AddButton {
+        gui.Button {
+            classes = {"sizeM", "addButton"},
             halign = "center",
             valign = "center",
-            bgcolor = "#A29078",
             click = function(element)
                 -- Detect whether the current game is a local (offline) game.
                 -- Local games have storage == 3 (StorageBackend.Local in C#).
@@ -102,7 +95,7 @@ local CreateAddButtonPanel = function()
                         height = "auto",
 
                         gui.Label {
-                            fontSize = 14,
+                            classes = {"sizeS"},
                             text = "Invite Code:",
                             width = 100,
                             textAlignment = "left",
@@ -120,8 +113,7 @@ local CreateAddButtonPanel = function()
                             end,
 
                             gui.Label {
-                                fontFace = "cambria",
-                                fontSize = 18,
+                                classes = {"sizeM"},
                                 width = "auto",
                                 height = "auto",
                                 halign = "center",
@@ -131,11 +123,11 @@ local CreateAddButtonPanel = function()
                             },
 
                             gui.Panel {
+                                classes = {"image"},
                                 bgimage = "icons/icon_app/icon_app_108.png",
-                                bgcolor = Styles.textColor,
                                 styles = {
                                     {
-                                        classes = "parent:hover",
+                                        selectors = {"parent:hover"},
                                         brightness = 1.8,
                                     }
                                 },
@@ -158,35 +150,30 @@ local CreateAddButtonPanel = function()
                         flow = "vertical",
 
                         gui.Label {
+                            classes = {"sizeS"},
                             text = "This game is currently offline. Put it online to get an invite code that players can use to join.",
                             width = "90%",
                             height = "auto",
                             halign = "center",
                             textAlignment = "center",
                             textWrap = true,
-                            fontSize = 16,
                             vmargin = 8,
                         },
 
                         gui.Label {
+                            classes = {"sizeS"},
                             text = "A new game ID will be generated and all game data will be copied to the cloud. This may take a moment.",
                             width = "90%",
                             height = "auto",
                             halign = "center",
                             textAlignment = "center",
                             textWrap = true,
-                            fontSize = 13,
-                            color = "#A29078",
                             vmargin = 4,
                         },
 
                         gui.Button {
+                            classes = {"sizeM"},
                             text = "Put Game Online",
-                            width = "auto",
-                            height = "auto",
-                            fontSize = 18,
-                            vpad = 6,
-                            hpad = 16,
                             halign = "center",
                             vmargin = 16,
                             click = function()
@@ -205,24 +192,22 @@ local CreateAddButtonPanel = function()
                         flow = "vertical",
 
                         gui.Label {
+                            classes = {"sizeM", "bold"},
                             text = "Putting Game Online...",
                             width = "auto",
                             height = "auto",
                             halign = "center",
-                            fontSize = 18,
-                            bold = true,
                             vmargin = 8,
                         },
 
                         gui.Label {
+                            classes = {"sizeS"},
                             text = "Preparing...",
                             width = "90%",
                             height = "auto",
                             halign = "center",
                             textAlignment = "center",
                             textWrap = true,
-                            fontSize = 14,
-                            color = "#A29078",
                             create = function(el)
                                 progressLabel = el
                             end,
@@ -239,24 +224,19 @@ local CreateAddButtonPanel = function()
                         flow = "vertical",
 
                         gui.Label {
+                            classes = {"sizeL", "bold"},
                             text = "Game is Online!",
                             width = "auto",
                             height = "auto",
                             halign = "center",
-                            fontSize = 20,
-                            bold = true,
                             vmargin = 4,
                         },
 
                         BuildInviteCodeView(newGameid),
 
                         gui.Button {
+                            classes = {"sizeL"},
                             text = "Play Online",
-                            width = "auto",
-                            height = "auto",
-                            fontSize = 16,
-                            vpad = 6,
-                            hpad = 16,
                             halign = "center",
                             vmargin = 4,
                             click = function()
@@ -276,25 +256,22 @@ local CreateAddButtonPanel = function()
                         flow = "vertical",
 
                         gui.Label {
+                            classes = {"sizeM", "bold", "danger"},
                             text = "Failed to Put Game Online",
                             width = "auto",
                             height = "auto",
                             halign = "center",
-                            fontSize = 18,
-                            bold = true,
-                            color = "red",
                             vmargin = 4,
                         },
 
                         gui.Label {
+                            classes = {"sizeS"},
                             text = msg,
                             width = "90%",
                             height = "auto",
                             halign = "center",
                             textAlignment = "center",
                             textWrap = true,
-                            fontSize = 14,
-                            color = "#A29078",
                             vmargin = 8,
                         },
                     }
@@ -332,28 +309,23 @@ local CreateAddButtonPanel = function()
                 local titleText = isLocalGame and "Put Game Online" or "Invite Players"
 
                 inviteDialog = gui.Panel {
-                    classes = { 'framedPanel' },
+                    classes = { "framedPanel" },
                     width = 600,
                     height = 400,
-                    styles = {
-                        Styles.Panel,
-                    },
+                    styles = ThemeEngine.GetStyles(),
 
                     gui.Label {
-                        fontSize = 24,
-                        width = "auto",
-                        height = "auto",
-                        floating = true,
-                        bold = true,
+                        classes = {"modalTitle"},
                         text = titleText,
-                        halign = "center",
-                        valign = "top",
-                        vmargin = 8,
+                        tmargin = 16,
                     },
 
-                    gui.CloseButton {
+                    gui.Button {
+                        classes = {"closeButton"},
                         halign = "right",
                         valign = "top",
+                        floating = true,
+                        margin = 8,
                         escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
                         click = function(element)
                             gui.CloseModal()
@@ -410,16 +382,21 @@ local CreateDirectorPanel = function(userid)
             end
         end,
 
+        classes = {"row", "bordered"},
         width = "100%",
         height = 40,
 
-        bgimage = true,
-        bgcolor = "#0A0D0C99",
+        border = { x1 = 0, x2 = 0, y1 = 0, y2 = 1 },
 
         halign = "center",
         valign = "top",
 
         flow = "horizontal",
+
+        rowColor = function(element, bgFlag)
+            element:SetClass("evenRow", bgFlag)
+            element:SetClass("oddRow", not bgFlag)
+        end,
 
         rightClick = function(element)
             local contextMenu = {}
@@ -515,12 +492,12 @@ local CreateDirectorPanel = function(userid)
             --online icon
             gui.Panel {
 
+                classes = {"image"},
 
                 width = 23 * 2,
                 height = 23 * 2,
 
                 bgimage = mod.images.status,
-                bgcolor = "white",
 
                 halign = "left",
                 valign = "center",
@@ -665,11 +642,8 @@ local CreateDirectorPanel = function(userid)
             --"Director" label
             gui.Label {
 
+                classes = {"sizeS"},
                 text = "Director",
-                fontFace = "Berling",
-                fontSize = 16,
-                minFontSize = 10,
-                color = "#A29078",
                 textOverflow = "ellipsis",
                 textWrap = false,
                 lmargin = -8,
@@ -697,43 +671,25 @@ local CreateDirectorPanel = function(userid)
             
             },
 
-            --divider middle
-            gui.Panel {
-
-
-                width = 1.5,
-                height = 23,
-
-                bgimage = true,
-                bgcolor = "#42362C",
-
-                halign = "right",
-                valign = "center",
-
-
-            },
-
         },
 
 
         --Acitivity text
         gui.Label {
 
+            classes = {"sizeS", "bordered"},
             text = "Playing as MONSTERS",
-            fontFace = "Berling",
-            fontSize = 16,
-            minFontSize = 10,
-            color = "#A29078",
             textOverflow = "ellipsis",
             textWrap = false,
 
+            border = { x1 = 1, x2 = 0, y1 = 0, y2 = 0 },
+            lmargin = 8,
+            hpad = 8,
+            borderBox = true,
 
             width = "auto",
             height = "100%",
             maxWidth = "170",
-
-            bgimage = true,
-            bgcolor = "clear",
 
             halign = "left",
             valign = "top",
@@ -758,40 +714,6 @@ local CreateDirectorPanel = function(userid)
                     element.text = info.richStatus
                 end
             end
-
-        },
-
-        --[[activity icon
-        gui.Panel {
-
-
-            width = "10%",
-            height = "100%",
-
-            bgimage = true,
-            bgcolor = "purple",
-
-            halign = "left",
-            valign = "top",
-
-
-        },]]
-
-        gui.Panel {
-
-            floating = true,
-
-
-            width = "100%",
-            height = 1.5,
-
-            bgimage = true,
-            bgcolor = "#42362C",
-
-
-            halign = "center",
-            valign = "bottom",
-
 
         },
 
@@ -822,11 +744,11 @@ local CreatePlayerPanel = function(userid)
             end
         end,
 
+        classes = {"row", "bordered"},
         width = "100%",
         height = 40,
 
-        bgimage = true,
-        bgcolor = "#1B1A1899",
+        border = { x1 = 0, x2 = 0, y1 = 0, y2 = 1 },
 
         halign = "center",
         valign = "top",
@@ -834,11 +756,8 @@ local CreatePlayerPanel = function(userid)
         flow = "horizontal",
 
         rowColor = function(element, bgFlag)
-            if bgFlag then
-                element.selfStyle.bgcolor = "#1B1A1899"
-            else
-                element.selfStyle.bgcolor = "#0A0D0C99"
-            end
+            element:SetClass("evenRow", bgFlag)
+            element:SetClass("oddRow", not bgFlag)
         end,
 
         rightClick = function(element)
@@ -935,13 +854,14 @@ local CreatePlayerPanel = function(userid)
             --online icon
             gui.Panel {
 
+                classes = {"image"},
+
                 data = {previousLoggedOut = nil},
 
                 width = 23 * 2,
                 height = 23 * 2,
 
                 bgimage = mod.images.status,
-                bgcolor = "white",
 
                 halign = "left",
                 valign = "center",
@@ -1112,11 +1032,8 @@ local CreatePlayerPanel = function(userid)
                 flow = "vertical",
 
                 gui.Label{
+                    classes = {"sizeS"},
                     text = "Username",
-                    fontFace = "Berling",
-                    fontSize = 16,
-                    minFontSize = 10,
-                    color = "#A29078",
                     textOverflow = "ellipsis",
                     textWrap = false,
 
@@ -1125,9 +1042,6 @@ local CreatePlayerPanel = function(userid)
                     width = "auto",
                     maxWidth = "90",
                     height = "60%",
-
-                    bgimage = true,
-                    bgcolor = "clear",
 
                     halign = "left",
                     valign = "top",
@@ -1150,23 +1064,16 @@ local CreatePlayerPanel = function(userid)
                 },
 
                 gui.Label{
+                    classes = {"sizeXs", "bold"},
                     text = "Username",
-                    fontFace = "Berling",
-                    fontSize = 12,
-                    minFontSize = 10,
-                    color = "#A29078",
                     textOverflow = "ellipsis",
                     textWrap = false,
-                    bold = true,
 
                     lmargin = -8,
 
                     width = "auto",
                     maxWidth = "90",
                     height = "40%",
-
-                    bgimage = true,
-                    bgcolor = "clear",
 
                     halign = "left",
                     valign = "top",
@@ -1180,43 +1087,25 @@ local CreatePlayerPanel = function(userid)
 
             },
 
-            --divider middle
-            gui.Panel {
-
-
-                width = 1.5,
-                height = 23,
-
-                bgimage = true,
-                bgcolor = "#42362C",
-
-                halign = "right",
-                valign = "center",
-
-
-            },
-
 
         },
 
         --Acitivity text
         gui.Label {
 
+            classes = {"sizeS", "bordered"},
             text = "Playing as MONSTERS",
-            fontFace = "Berling",
-            fontSize = 16,
-            minFontSize = 10,
-            color = "#A29078",
             textOverflow = "ellipsis",
             textWrap = false,
 
+            border = { x1 = 1, x2 = 0, y1 = 0, y2 = 0 },
+            lmargin = 8,
+            hpad = 8,
+            borderBox = true,
 
             width = "auto",
             height = "100%",
             maxWidth = "170",
-
-            bgimage = true,
-            bgcolor = "clear",
 
             halign = "left",
             valign = "top",
@@ -1272,7 +1161,6 @@ CreateHeroesPanel = function()
     local m_currentRichStatus = nil
     local m_richStatusId = nil
 
-    local dividerPanel = CreateDividerPanel()
     local addButtonPanel = CreateAddButtonPanel()
 
     --king panel
@@ -1283,8 +1171,7 @@ CreateHeroesPanel = function()
         height = "100%",
         width = "100%",
 
-        bgimage = true,
-        bgcolor = "#0A0D0C00", 
+        bgcolor = "clear",
         vscroll = true,
 
         flow = "vertical",
@@ -1313,20 +1200,7 @@ CreateHeroesPanel = function()
             end
         end,
 
-        styles = {
-
-            {
-                classes = "beforeDivider",
-                width = "40%",
-                height = "100%",
-                flow = "horizontal",
-                halign = "left",
-                valign = "center",
-                rmargin = 15,
-
-            },
-
-        },
+        styles = ThemeEngine.MergeStyles(g_heroesExtras),
 
 
 
@@ -1455,17 +1329,15 @@ CreateHeroesPanel = function()
                     bgFlag = not bgFlag
                 end
 
-                children[#children + 1] = dividerPanel
                 children[#children + 1] = addButtonPanel
 
-                
+
 
                 element.children = children
 
                 directorPanels = newPanels
             end,
 
-            dividerPanel,
             addButtonPanel,
         },
 
@@ -1482,6 +1354,12 @@ CreateHeroesPanel = function()
 
 
     }
+
+    ThemeEngine.OnThemeChanged(mod, function()
+        if heroesPanel ~= nil and heroesPanel.valid then
+            heroesPanel.styles = ThemeEngine.MergeStyles(g_heroesExtras)
+        end
+    end)
 
     return heroesPanel
 end

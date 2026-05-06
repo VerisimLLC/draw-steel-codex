@@ -16,21 +16,85 @@ CharacterPanel = {}
 local CreateCharacterPanel
 local CreateBestiaryPanel
 
-local g_panelStyles = {
+local g_sidebarExtras = {
     {
-        selectors = { "triangle", "empty" },
-        priority = 5,
-        bgcolor = 'grey',
+        selectors = { "bestiaryLabel" },
+        color = "@fg",
+        bold = true,
+        height = "auto",
+        width = "auto",
+        minWidth = 200,
+        halign = "left",
+        valign = "center",
     },
     {
-        selectors = { "triangle", 'parent:hover' },
-        priority = 5,
-        transitionTime = 0.1,
-        bgcolor = "black",
+        selectors = {"bestiaryLabel", "folder"},
+        uppercase = true,
     },
     {
-        selectors = { "iconButton", "settingsButton", "parent:hover" },
-    }
+        selectors = { "bestiaryLabel", "focus" },
+        color = "@fgInverse",
+    },
+    {
+        selectors = { "bestiaryLabel", "parent:hover", "~noHoverColor" },
+        color = "@fgInverse",
+    },
+    {
+        selectors = { "bestiaryLabel", "parent:focus" },
+        color = "@fgInverse",
+    },
+    {
+        selectors = { "bestiaryLabel", "parent:selected" },
+        color = "@fgInverse",
+    },
+    {
+        selectors = { "bestiaryLabel", "invisible" },
+        color = "@fgMuted",
+        italics = true,
+    },
+    {
+        selectors = { "headerPanel", "hover" },
+        bgcolor = "@bgInverse",
+    },
+    {
+        selectors = {"playerStar"},
+        bgcolor = "@accent",
+    },
+    {
+        selectors = { "monsterEntry", "focus" },
+        borderWidth = 2,
+        borderColor = "@border",
+        bgcolor = "@bgInverse",
+        color = "@fgInverse",
+    },
+    {
+        selectors = { "monsterEntry", "hover" },
+        bgcolor = "@bgInverse",
+        color = "@fgInverse",
+        brightness = 1.2,
+    },
+    {
+        selectors = { "characterEntry" },
+        bgcolor = "clear",
+    },
+    {
+        selectors = { "characterEntry", "selected" },
+        bgcolor = "@bgInverse",
+        color = "@fgInverse",
+    },
+    {
+        selectors = { "characterEntry", "focus" },
+        borderWidth = 2,
+        borderColor = "@border",
+        bgcolor = "@bgInverse",
+        color = "@fgInverse",
+    },
+    {
+        selectors = { "characterEntry", "hover" },
+        bgcolor = "@bgInverse",
+        color = "@fgInverse",
+        brightness = 1.2,
+    },
 }
 
 DockablePanel.Register {
@@ -390,1136 +454,7 @@ local function CharacterDetailsPanel(token)
     return resultPanel
 end
 
-
-CharacterPanel.ShowMovement = function()
-    local creature = nil
-    return gui.Panel {
-        id = 'MovementPanel',
-        bgimage = "panels/character-sheet/PartyFrame_Avatar_Frame.png",
-        bgcolor = "white",
-        valign = "bottom",
-        width = "100% height",
-        height = 40,
-        flow = "none",
-
-        --icon showing the current movement type.
-        gui.Panel {
-            width = "50%",
-            height = "50%",
-            halign = "center",
-            valign = "center",
-            bgcolor = "#d4d1ba",
-            brightness = 0.2,
-            border = 0,
-            refreshCharacter = function(element, token)
-                if token.properties == nil then
-                    return
-                end
-                local info = token.properties.movementTypeById[token.properties:CurrentMoveType()]
-                if info ~= nil then
-                    element.bgimage = info.icon
-                end
-            end,
-        },
-
-        gui.Label {
-            text = "MV",
-            fontSize = 18,
-            editable = false,
-            halign = "center",
-            valign = "center",
-
-            events = {
-                refresh = function(element)
-                end,
-
-                refreshCharacter = function(element, token)
-                    if token.properties ~= nil then
-                        element.text = MeasurementSystem.NativeToDisplayString(token.properties:CurrentMovementSpeed())
-                    end
-                end
-            },
-
-            style = {
-                valign = "center",
-                halign = "center",
-                textAlignment = "center",
-                pad = 0,
-                bold = true,
-
-                width = 30,
-                height = 14,
-            },
-        },
-    }
-end
-
-
-CharacterPanel.ShowArmorClass = function()
-    local creature = nil
-    return gui.Panel({
-        id = 'ArmorClassPanel',
-        bgimage = "panels/character-sheet/bg_01.png",
-        border = 0,
-
-        width = "90% height",
-        height = 38,
-        vmargin = 0,
-        hmargin = 4,
-        pad = 0,
-        bgcolor = 'white',
-        valign = 'top',
-        halign = 'left',
-
-        events = {
-            refreshCharacter = function(element, token)
-                creature = token.properties
-                if token.properties == nil then
-                    element:AddClass('hidden')
-                else
-                    element:RemoveClass('hidden')
-                end
-            end,
-            linger = function(element)
-                if creature ~= nil then
-                    gui.Tooltip { text = creature:ResistanceDescription(), textAlignment = 'center', valign = 'top' } (
-                    element)
-                end
-            end,
-        },
-
-        children = {
-            gui.Label({
-                text = "AC",
-                fontSize = 18,
-                editable = false,
-                halign = "center",
-                valign = "center",
-
-                events = {
-                    refresh = function(element)
-                    end,
-
-                    refreshCharacter = function(element, token)
-                        if token.properties ~= nil then
-                            local newValue = token.properties:ArmorClass()
-                            element.text = string.format("%d", math.tointeger(newValue))
-                        end
-                    end
-                },
-
-                style = {
-                    valign = "center",
-                    halign = "center",
-                    textAlignment = "center",
-                    pad = 0,
-                    bold = true,
-
-                    width = 30,
-                    height = 14,
-                },
-            }),
-        },
-    })
-end
-
-function CharacterPanel.ShowHitpoints()
-    local currentToken = nil
-
-    --temporary hitpoints
-    local temporaryHitpointsPanel
-
-    if GameSystem.haveTemporaryHitpoints then
-        temporaryHitpointsPanel = gui.Label({
-            id = 'TemporaryHitpoints',
-            text = 'TMP',
-            editable = true,
-            style = {
-                color = '#ccccff',
-                halign = "center",
-                valign = "center",
-                width = "20%",
-            },
-
-            valign = "top",
-            tmargin = 6,
-
-            data = {
-                token = nil
-            },
-
-            events = {
-                change = function(element)
-                    if element.data.token.properties ~= nil then
-                        local token = element.data.token
-                        local before = tonumber(token.properties:TemporaryHitpointsStr()) or 0
-                        local after = tonumber(element.text) or 0
-                        element.data.token.properties:SetTemporaryHitpoints(element.text)
-
-                        if after > before then
-                            element.data.token.properties:DispatchEvent("gaintempstamina", {})
-                        end
-
-                        element.data.token:Upload('Change Temporary Hitpoints')
-                    end
-                end,
-
-                refreshCharacter = function(element, token)
-                    element.data.token = token
-                    if token.properties ~= nil then
-                        local temphp = token.properties:TemporaryHitpointsStr()
-                        element.text = temphp
-                    end
-                end,
-            },
-
-        })
-    end
-
-
-
-    return gui.Panel({
-        id = 'HitpointsPanel',
-        bgimage = 'panels/square.png',
-        borderWidth = 2,
-        borderColor = Styles.textColor,
-        halign = "center",
-        style = {
-            bgcolor = 'black',
-            width = 172,
-            height = 80,
-            flow = 'none',
-            valign = 'top',
-            halign = 'center',
-            fontSize = "70%",
-            textAlignment = "center",
-            hmargin = 0,
-        },
-
-        events = {
-            refreshCharacter = function(element, token)
-                currentToken = token
-                element:SetClass('hidden', token.properties == nil)
-            end
-        },
-
-        children = {
-            --main hitpoints display hp / maxhp --temp hp--
-            gui.Panel({
-                events = {
-                    refreshCharacter = function(element, token)
-                        if token.properties ~= nil then
-                            element:RemoveClass('hidden')
-                        else
-                            element:AddClass('hidden')
-                        end
-                    end
-                },
-
-                style = {
-                    width = "100%",
-                    height = "50%",
-                    halign = "center",
-                    valign = "top",
-                    flow = 'horizontal',
-                    textOverflow = 'overflow',
-                    textWrap = false,
-                },
-
-                children = {
-                    gui.Panel {
-                        valign = "top",
-                        tmargin = 4,
-                        halign = "center",
-                        width = "auto",
-                        flow = "horizontal",
-
-                        gui.Label({
-                            text = 'HP',
-                            editable = true,
-                            numeric = true,
-                            halign = "center",
-                            valign = "center",
-                            height = "100%",
-                            width = "auto",
-                            minWidth = 30,
-
-                            data = {
-                                token = nil,
-                            },
-
-                            events = {
-
-                                linger = function(element)
-                                    if currentToken ~= nil and currentToken.properties ~= nil then
-                                        element.tooltip = gui.StatsHistoryTooltip { description = "stamina", entries = currentToken.properties:GetStatHistory("stamina"):GetHistory() }
-                                    end
-                                end,
-
-                                change = function(element)
-                                    if element.data.token.properties ~= nil then
-                                        element:SetClass("pending", true)
-                                        element.data.token:ModifyProperties {
-                                            description = "Set Stamina",
-                                            execute = function()
-                                                element.data.token.properties:SetCurrentHitpoints(element.text)
-                                            end,
-                                        }
-                                    end
-                                end,
-
-                                refreshCharacter = function(element, token)
-                                    if token.properties ~= nil then
-                                        local hp = token.properties:CurrentHitpoints()
-                                        element.text = string.format("%d", math.tointeger(hp))
-                                    end
-
-                                    element:SetClass("pending", false)
-
-                                    element.data.token = token
-                                end,
-                            },
-
-                        }),
-
-                        gui.Label({
-                            text = '/',
-                            editable = false,
-                            style = {
-                                halign = "center",
-                                valign = "center",
-                                width = "10%",
-                            },
-                        }),
-
-
-                        gui.Label({
-                            id = 'MaxHitpoints',
-                            text = 'MAXHP',
-                            editable = false,
-                            height = "100%",
-                            style = {
-                                halign = "center",
-                                valign = "center",
-                                width = "20%",
-                            },
-
-                            events = {
-                                refreshCharacter = function(element, token)
-                                    if token.properties ~= nil then
-                                        local maxhp = token.properties:MaxHitpoints()
-                                        element.text = string.format("%d", math.tointeger(maxhp))
-                                    end
-                                end,
-
-                                --allow modification of max stamina with a complex to add custom modifiers.
-                                press = function(element)
-                                    local baseValue = currentToken.properties:BaseHitpoints()
-                                    gui.PopupOverrideAttribute{
-                                        parentElement = element,
-                                        token = currentToken,
-                                        attributeName = "Stamina",
-                                        baseValue = baseValue,
-                                        modifications = currentToken.properties:DescribeModifications("hitpoints", baseValue),
-                                    }
-                                end,
-
-                                linger = function(element)
-                                    if currentToken ~= nil and currentToken.properties ~= nil and element.popup == nil then
-                                        local baseValue = currentToken.properties:BaseHitpoints()
-                                        local modifications = currentToken.properties:DescribeModifications("hitpoints",
-                                            baseValue)
-                                        print("Modifications:", modifications)
-
-                                        local panels = {}
-                                        panels[#panels + 1] = gui.Label {
-                                            text = string.format("Base Stamina: %d", baseValue),
-                                            width = "auto",
-                                            height = "auto",
-                                            fontSize = 14,
-                                        }
-                                        for _, modification in ipairs(modifications) do
-                                            local text = string.format("%s: %s", modification.key, modification.value)
-                                            panels[#panels + 1] = gui.Label {
-                                                text = text,
-                                                width = "auto",
-                                                height = "auto",
-                                                fontSize = 14,
-                                            }
-                                        end
-
-                                        local container = gui.Panel {
-                                            width = "auto",
-                                            height = "auto",
-                                            flow = "vertical",
-                                            children = panels,
-                                        }
-
-                                        element.tooltip = gui.TooltipFrame(container)
-
-
-                                        --		--element.tooltip = gui.StatsHistoryTooltip{ description = "maximum stamina", entries = currentToken.properties:GetStatHistory("max_stamina"):GetHistory()}
-                                    end
-                                end,
-                            },
-
-                        }),
-                    },
-
-                    temporaryHitpointsPanel,
-
-                },
-            }),
-
-            --bottom hitpoints panel
-            gui.Panel({
-
-                style = {
-                    pad = 0,
-                    width = "100%",
-                    height = "40%",
-                    fontSize = '100%',
-                    halign = 'center',
-                    valign = 'bottom',
-                    vmargin = 0,
-                    textAlignment = 'center',
-                    flow = 'none',
-                },
-
-                children = {
-                    gui.Input({
-                        id = 'heal',
-                        classes = { "inputFaded" },
-                        text = '',
-                        characterLimit = 8,
-                        placeholderText = 'HEAL',
-                        bgcolor = "white",
-                        gradient = Styles.healthGradient,
-                        events = {
-                            change = function(element)
-                                if element.data.token.properties ~= nil then
-                                    element.data.token:ModifyProperties {
-                                        description = "Apply Healing",
-                                        execute = function()
-                                            local num = tonumber(element.text)
-                                            if num ~= nil then
-                                                element.data.token.properties:Heal(round(num))
-                                                element.text = ''
-                                            end
-                                        end,
-                                    }
-                                end
-                            end,
-
-                            refreshCharacter = function(element, token)
-                                element.data.token = token
-                            end,
-                        },
-                        selfStyle = {
-                            bgcolor = '#007700',
-                            pad = 0,
-                            margin = 0,
-                            width = "38%",
-                            height = "100%",
-                            fontSize = '70%',
-                            halign = 'left',
-                            valign = 'bottom',
-                            textAlignment = 'center',
-                        }
-                    }),
-
-                    gui.Input({
-                        text = '',
-                        classes = { "inputFaded" },
-                        characterLimit = 8,
-                        placeholderText = 'DAMAGE',
-                        gradient = Styles.damagedGradient,
-                        events = {
-                            change = function(element)
-                                if element.data.token.properties ~= nil then
-                                    element.data.token:ModifyProperties {
-                                        description = "Apply Damage",
-                                        execute = function()
-                                            element.data.token.properties:TakeDamage(element.text)
-                                            element.text = ''
-                                        end,
-                                    }
-                                end
-                            end,
-
-                            refreshCharacter = function(element, token)
-                                element.data.token = token
-                            end,
-
-                        },
-                        selfStyle = {
-                            bgcolor = 'white',
-                            pad = 0,
-                            margin = 0,
-                            width = "38%",
-                            height = "100%",
-                            fontSize = '70%',
-                            halign = 'right',
-                            valign = 'bottom',
-                            textAlignment = 'center',
-                        }
-                    }),
-                }
-            }),
-
-            --lifebar.
-            gui.Panel {
-
-                flow = "horizontal",
-                valign = "bottom",
-                vmargin = 36,
-                hmargin = 0,
-
-                width = "100%",
-                pad = 0,
-                hpad = 0,
-                vpad = 0,
-
-                borderWidth = 1,
-                borderColor = Styles.textColor,
-                height = 10,
-                bgimage = "panels/square.png",
-                bgcolor = "#444444ff",
-
-                --stamina fill.
-                gui.Panel {
-                    data = {
-                        charid = nil,
-                        animating = false,
-                        targetPercent = nil,
-                        currentPercent = 1,
-                        windedPercent = 0.5,
-                        tempPercent = 0,
-                        tempFill = nil,
-                    },
-
-                    styles = {
-                        {
-                            gradient = Styles.healthGradient,
-                        },
-                        {
-                            selectors = { "winded" },
-                            transitionTime = 0.2,
-                            gradient = Styles.damagedGradient,
-                        },
-                    },
-
-                    width = "100%-4",
-                    height = 8,
-                    bgimage = "panels/square.png",
-                    bgcolor = "white",
-                    borderWidth = 0,
-                    lmargin = 1,
-                    rmargin = 0,
-                    vmargin = 1,
-                    pad = 0,
-                    hpad = 0,
-                    vpad = 0,
-                    halign = "left",
-                    valign = "center",
-                    create = function(element)
-                        element.data.tempFill = element.parent.children[2]
-                    end,
-                    refreshCharacter = function(element, token)
-                        if element.data.tempFill == nil then
-                            element:FireEvent("create")
-                        end
-
-                        local newToken = element.data.charid ~= token.charid
-                        element.data.charid = token.charid
-
-                        local temphp = token.properties:TemporaryHitpoints()
-                        local hp = token.properties:CurrentHitpoints()
-                        local maxhp = token.properties:MaxHitpoints()
-
-                        hp = clamp(hp, 0, maxhp)
-
-                        local percent = hp / (maxhp + temphp)
-                        local tempPercent = temphp / (maxhp + temphp)
-                        local windedPercent = math.ceil(maxhp / 2) / (maxhp + temphp)
-
-                        if percent ~= element.data.targetPercent or tempPercent ~= element.data.tempPercent or windedPercent ~= element.data.windedPercent then
-                            element.data.targetPercent = percent
-                            element.data.tempPercent = tempPercent
-                            element.data.windedPercent = windedPercent
-
-                            if newToken then
-                                element:FireEvent("setwidth", percent, tempPercent, element.data.windedPercent)
-                            elseif element.data.animating == false then
-                                element.data.animating = true
-                                element:ScheduleEvent("animatefill", 0.01)
-                            end
-                        end
-                    end,
-
-                    animatefill = function(element)
-                        local seekSpeed = 0.02
-
-                        if element.data.targetPercent == nil then
-                            element.data.animating = false
-                            return
-                        end
-
-                        local delta = element.data.targetPercent - element.data.currentPercent
-                        if math.abs(delta) <= seekSpeed then
-                            element.data.animating = false
-                            element:FireEvent("setwidth", element.data.targetPercent, element.data.tempPercent,
-                                element.data.windedPercent)
-                            return
-                        end
-
-                        if delta > 0 then
-                            element:FireEvent("setwidth", element.data.currentPercent + seekSpeed,
-                                element.data.tempPercent, element.data.windedPercent)
-                        else
-                            element:FireEvent("setwidth", element.data.currentPercent - seekSpeed,
-                                element.data.tempPercent, element.data.windedPercent)
-                        end
-
-                        element:ScheduleEvent("animatefill", 0.01)
-                    end,
-
-                    setwidth = function(element, percent, tempPercent, windedPercent)
-                        element.selfStyle.width = string.format("%.2f%%-4", percent * 100)
-                        element.data.tempFill.selfStyle.width = string.format("%.2f%%-4", tempPercent * 100)
-                        element.data.currentPercent = percent
-
-                        element:SetClass("winded", percent <= windedPercent)
-                    end,
-                },
-
-                --temporary stamina fill.
-                gui.Panel {
-
-                    styles = {
-                        {
-                            gradient = Styles.tempGradient,
-                        },
-                    },
-
-                    width = "0%",
-                    height = 8,
-                    bgimage = "panels/square.png",
-                    bgcolor = "white",
-                    borderWidth = 0,
-                    hmargin = 0,
-                    vmargin = 1,
-                    pad = 0,
-                    hpad = 0,
-                    vpad = 0,
-                    halign = "left",
-                    valign = "center",
-
-                    setwidth = function(element, percent)
-                        element.selfStyle.width = string.format("%.2f%%-4", percent * 100)
-                        element.data.currentPercent = percent
-                    end,
-                },
-
-            },
-
-
-            CharacterPanel.DecorateHitpointsPanel(),
-        },
-    })
-end
-
-CharacterPanel.CreateConditionsPanel = function(token)
-    local activeOngoingEffects
-    local addConditionButton = nil
-    local ongoingEffectPanels = {}
-
-    return gui.Panel {
-        flow = "vertical",
-        width = 172,
-        height = "auto",
-        halign = "right",
-        valign = "top",
-
-        refreshCharacter = function(element, tok)
-            token = tok
-        end,
-
-        gui.Label {
-            fontSize = 12,
-            text = "Conditions",
-            halign = "center",
-            width = "auto",
-            height = "auto",
-            vmargin = 0,
-            vpad = 0,
-        },
-
-        gui.Panel {
-            flow = "horizontal",
-            width = "100%",
-            height = "auto",
-            wrap = true,
-            refresh = function(element)
-                if token == nil or not token.valid then
-                    for _, p in ipairs(ongoingEffectPanels) do
-                        p:SetClass("collapsed", true)
-                    end
-                    return
-                end
-
-                local creature = token.properties
-                if creature == nil then
-                    for _, p in ipairs(ongoingEffectPanels) do
-                        p:SetClass("collapsed", true)
-                    end
-                    return
-                end
-
-                activeOngoingEffects = creature:ActiveOngoingEffects()
-
-                element.selfStyle.maxWidth = (#activeOngoingEffects + 1) * 40
-
-                local newPanels = false
-
-
-                for i, cond in ipairs(activeOngoingEffects) do
-                    local panel = ongoingEffectPanels[i]
-
-                    if panel == nil then
-                        local index = i
-
-                        newPanels = true
-
-                        panel = gui.DiamondButton {
-                            bgimage = 'panels/square.png',
-                            halign = "center",
-                            width = 24,
-                            height = 24,
-                            refresh = function(element)
-                                local cond = activeOngoingEffects[index]
-                                if cond == nil then
-                                    return
-                                end
-
-                                local ongoingEffectsTable = dmhub.GetTable("characterOngoingEffects")
-                                local ongoingEffectInfo = ongoingEffectsTable[cond.ongoingEffectid]
-                                element:FireEvent("icon", ongoingEffectInfo:GetDisplayIcon())
-                                element:FireEvent("display", ongoingEffectInfo:GetDisplayDisplay())
-                            end,
-
-                            linger = function(element)
-                                local cond = activeOngoingEffects[index]
-                                if cond == nil then
-                                    return
-                                end
-                                local ongoingEffectsTable = dmhub.GetTable("characterOngoingEffects")
-                                local ongoingEffectInfo = ongoingEffectsTable[cond.ongoingEffectid]
-
-                                local stacksText = ""
-                                if ongoingEffectInfo.stackable and cond.stacks > 1 then
-                                    stacksText = string.format(" (%d stacks)", cond.stacks)
-                                end
-
-                                gui.Tooltip(string.format('%s%s: %s\n%s', ongoingEffectInfo.name, stacksText,
-                                    ongoingEffectInfo.description, cond:DescribeTimeRemaining()))(element)
-                            end,
-
-                            press = function(element)
-                                local cond = activeOngoingEffects[index]
-                                token:ModifyProperties {
-                                    description = "Remove Condition",
-                                    execute = function()
-                                        token.properties:RemoveOngoingEffect(cond.ongoingEffectid)
-                                    end,
-                                }
-                            end,
-                        }
-                        ongoingEffectPanels[i] = panel
-                    end
-                end
-
-                for i, p in ipairs(ongoingEffectPanels) do
-                    p:SetClass("collapsed", i > #activeOngoingEffects)
-                end
-
-                if addConditionButton == nil then
-                    newPanels = true
-
-                    addConditionButton = gui.DiamondButton {
-                        width = 24,
-                        height = 24,
-                        halign = "center",
-                        color = Styles.textColor,
-
-                        hover = gui.Tooltip("Add a condition"),
-                        press = function(element)
-                            local options = {}
-                            local ongoingEffectsTable = dmhub.GetTable("characterOngoingEffects") or {}
-
-                            for k, effect in pairs(ongoingEffectsTable) do
-                                --we only do effects that are the same name as their base conditions.
-                                if effect.statusEffect and not effect:try_get("hidden", false) then
-                                    options[#options + 1] = gui.Label {
-                                        classes = { "conditionOption" },
-                                        bgimage = "panels/square.png",
-                                        text = effect.name,
-                                        searchText = function(element, searchText)
-                                            if string.starts_with(string.lower(element.text), searchText) then
-                                                element:SetClass("collapsed", false)
-                                            else
-                                                element:SetClass("collapsed", true)
-                                            end
-                                        end,
-                                        press = function(element)
-                                            token:ModifyProperties {
-                                                description = "Apply Condition",
-                                                execute = function()
-                                                    token.properties:ApplyOngoingEffect(k)
-                                                end,
-                                            }
-                                            addConditionButton.popup = nil
-                                        end,
-                                    }
-                                end
-                            end
-
-                            table.sort(options, function(a, b) return a.text < b.text end)
-
-                            element.popup = gui.TooltipFrame(
-                                gui.Panel {
-                                    styles = {
-                                        Styles.Default,
-
-                                        {
-                                            selectors = { "conditionOption" },
-                                            width = "95%",
-                                            height = 20,
-                                            fontSize = 14,
-                                            bgcolor = "clear",
-                                            halign = "center",
-                                        },
-                                        {
-                                            selectors = { "conditionOption", "searched" },
-                                            bgcolor = "#ff444466",
-                                        },
-                                        {
-                                            selectors = { "conditionOption", "hover" },
-                                            bgcolor = "#ff444466",
-                                        },
-                                        {
-                                            selectors = { "conditionOption", "press" },
-                                            bgcolor = "#aaaaaa66",
-                                        },
-
-                                    },
-                                    vscroll = true,
-                                    flow = "vertical",
-                                    width = 300,
-                                    height = 800,
-
-                                    gui.Label {
-                                        fontSize = 18,
-                                        bold = true,
-                                        width = "auto",
-                                        height = "auto",
-                                        halign = "center",
-                                        text = "Add Condition",
-                                    },
-
-                                    gui.Panel {
-                                        bgimage = "panels/square.png",
-                                        width = "90%",
-                                        height = 1,
-                                        bgcolor = Styles.textColor,
-                                        halign = "center",
-                                        vmargin = 8,
-                                        gradient = Styles.horizontalGradient,
-                                    },
-
-                                    gui.Input {
-                                        placeholderText = "Search...",
-                                        hasFocus = true,
-                                        width = "70%",
-                                        hpad = 8,
-                                        height = 20,
-                                        fontSize = 14,
-                                        data = {
-                                            searchedOption = nil
-
-                                        },
-                                        edit = function(element)
-                                            element.parent:FireEventTree("searchText", string.lower(element.text))
-
-                                            element.data.searchedOption = nil
-
-                                            local found = element.text == ""
-                                            for i, option in ipairs(options) do
-                                                if found == false and option:HasClass("collapsed") == false then
-                                                    found = true
-                                                    option:SetClass("searched", true)
-                                                    element.data.searchedOption = option
-                                                else
-                                                    option:SetClass("searched", false)
-                                                end
-                                            end
-                                        end,
-                                        submit = function(element)
-                                            if element.data.searchedOption ~= nil then
-                                                element.data.searchedOption:FireEvent("press")
-                                            end
-                                        end,
-                                    },
-
-                                    gui.Panel {
-                                        width = "100%",
-                                        height = "auto",
-                                        flow = "vertical",
-
-                                        children = options,
-                                    },
-                                },
-
-                                {
-                                    halign = "left",
-                                    valign = "bottom",
-                                }
-                            )
-                        end,
-                    }
-                end
-
-                if newPanels then
-                    local children = {}
-                    for _, child in ipairs(ongoingEffectPanels) do
-                        children[#children + 1] = child
-                    end
-                    children[#children + 1] = addConditionButton
-                    element.children = children
-                end
-
-
-            end,
-        },
-    }
-end
-
-function CharacterPanel.DecorateHitpointsPanel()
-    return nil
-end
-
-function CharacterPanel.DecoratePortraitPanel(token)
-    return nil
-end
-
-function CharacterPanel.SingleCharacterDisplaySidePanel(token)
-
-    local characterDisplaySidebar
-
-    local conditionsPanel = CharacterPanel.CreateConditionsPanel(token)
-
-    local summaryPanel = gui.Panel {
-        bgimage = "panels/square.png",
-        flow = "horizontal",
-        styles = {
-            {
-                halign = "left",
-                valign = "center",
-                pad = 2,
-                height = "auto",
-                width = "100%",
-                bgcolor = '#000000aa',
-                borderColor = '#000000ff',
-                borderWidth = 2,
-                flow = 'horizontal',
-            },
-        },
-
-        --	gui.Panel({
-        --		id = 'LeftPanel',
-        --		style = {
-        --			width = '40%',
-        --			height = 'auto',
-        --			halign = 'center',
-        --			valign = "top",
-        --			flow = 'none',
-        --		},
-
-        --		children = {
-
-        --			gui.CreateTokenImage(nil, {
-        --				width = 60,
-        --				height = 60,
-        --				valign = 'top',
-        --				halign = 'center',
-
-        --				refresh = function(element)
-        --					if token == nil or not token.valid then
-        --						return
-        --					end
-
-        --					element:FireEventTree("token", token)
-        --				end,
-
-        --			}),
-
-        --			gui.Panel({
-        --				id = 'CharacterSheetButton',
-        --				bgimage = 'fantasy-icons/Enchantment_34_summoning_scroll.png',
-        --				x = 16,
-        --				y = 30,
-        --				events = {
-        --					refreshCharacter = function(element, token)
-        --						element.data.token = token
-        --					end,
-
-        --					press = function(element)
-        --						element.data.token:ShowSheet()
-        --					end,
-        --				},
-        --				styles = {
-        --				{
-        --					bgcolor = 'white',
-        --					borderWidth = 0,
-        --					width = 24,
-        --					height = 24,
-        --				},
-        --				{
-        --					selectors = { 'hover' },
-        --					transitionTime = 0.1,
-        --					brightness = 1.5,
-        --					scale = 1.1,
-        --				}
-        --				},
-        --			}),
-
-        --			gui.Panel({
-        --				id = 'CharacterSheetButton',
-        --				bgimage = 'fantasy-icons/Tailoring_44_little_bag.png',
-        --				x = 0,
-        --				y = 30,
-        --				events = {
-        --					refreshCharacter = function(element, token)
-        --						element.data.token = token
-        --					end,
-
-        --					press = function(element)
-        --						gamehud:ShowInventory(element.data.token)
-        --					end,
-        --				},
-        --				styles = {
-        --					{
-        --						bgcolor = 'white',
-        --						borderWidth = 0,
-        --						width = 24,
-        --						height = 24,
-        --						halign = 'left',
-        --					},
-        --					{
-        --						selectors = { 'hover' },
-        --						transitionTime = 0.1,
-        --						brightness = 1.5,
-        --						scale = 1.1,
-        --					}
-        --				},
-        --			}),
-
-        --		},
-        --	}),
-
-        gui.Panel {
-            id = "LeftPanel",
-            valign = "top",
-            width = "78% height",
-            height = 140,
-            bgimage = "panels/square.png",
-            bgcolor = "white",
-            lmargin = 16,
-            borderWidth = 2,
-            borderColor = Styles.textColor,
-
-            refreshCharacter = function(element, token)
-                element.bgimage = token.portrait
-                element.selfStyle.imageRect = token:GetPortraitRectForAspect(78 * 0.01)
-            end,
-
-            CharacterPanel.DecoratePortraitPanel(token),
-
-            gui.Panel {
-                id = "ArmorClassMovementPanel",
-                flow = "vertical",
-                floating = true,
-                width = "auto",
-                height = "auto",
-                halign = "right",
-                valign = "top",
-                rmargin = -22,
-                CharacterPanel.ShowArmorClass(),
-                CharacterPanel.ShowMovement(),
-            },
-        },
-
-        gui.Panel({
-            id = 'RightPanel',
-            valign = "top",
-            style = {
-                width = '60%',
-                height = 'auto',
-                halign = 'center',
-                flow = 'vertical',
-                vmargin = 0,
-            },
-
-            children = {
-
-                CharacterPanel.ShowHitpoints(),
-                conditionsPanel,
-            },
-        }),
-
-    }
-
-    characterDisplaySidebar = gui.Panel {
-        id = 'sidebar',
-
-        width = "auto",
-        height = "auto",
-        halign = "left",
-        flow = "vertical",
-
-        events = {
-            refresh = function(element)
-                if token == nil or not token.valid then
-                    return
-                end
-
-                element.data.displayedProperties = token.properties
-                element.data.hasInit = true
-
-                characterDisplaySidebar:FireEventTree('refreshCharacter', token)
-
-            end,
-
-            setToken = function(element, tok)
-                token = tok
-                element.data.token = token
-            end,
-        },
-
-        data = {
-            token = token,
-            hasInit = false,
-            displayedProperties = nil,
-        },
-
-        summaryPanel,
-    }
-
-
-    return characterDisplaySidebar
-end
-
-local CreateMonsterEntry = function(nodeid)
+local function CreateMonsterEntry(nodeid)
     local node = assets:GetMonsterNode(nodeid)
     local monster = node.monster.info
 
@@ -1532,7 +467,11 @@ local CreateMonsterEntry = function(nodeid)
     resultPanel = gui.Panel({
         classes = { "monsterEntry" },
         id = nodeid,
-        bgimage = 'panels/square.png',
+        bgimage = true,
+        valign = "top",
+        width = "100%",
+        height = BestiaryPanelHeight,
+        flow = "horizontal",
         draggable = nodeid ~= '',
         canDragOnto = function(element, target)
             if target:HasClass("ignoreDrag") then
@@ -1542,38 +481,6 @@ local CreateMonsterEntry = function(nodeid)
             return target:HasClass('monster-drag-target') and
                    not IsMonsterNodeSelfOrChildOf(element.data.nodeid, target.data.nodeid)
         end,
-        styles = {
-            {
-                valign = 'top',
-                bgcolor = '#ffffff00',
-                width = "100%",
-                height = BestiaryPanelHeight,
-                borderWidth = 0,
-                borderColor = 'black',
-                flow = 'horizontal',
-            },
-
-            {
-                selectors = { 'focus' },
-                borderWidth = 2,
-                borderColor = 'white',
-            },
-
-            {
-                selectors = { 'focus' },
-                inherit_selectors = true,
-                bgcolor = Styles.textColor,
-                brightness = 1.2,
-                color = 'black',
-            },
-
-            {
-                selectors = { "monsterEntry", 'hover' },
-                bgcolor = Styles.textColor,
-                brightness = 0.8,
-            },
-
-        },
 
         events = {
 
@@ -1609,9 +516,7 @@ local CreateMonsterEntry = function(nodeid)
 
             dragging = function(element, target)
                 if target == nil then
-                    element.dragging = false
                     dmhub.SetDraggingMonster()
-                    dmhub.Debug("DRAG:: DRAGGING MONSTER")
                 end
             end,
 
@@ -1744,6 +649,7 @@ local CreateMonsterEntry = function(nodeid)
 
         children = {
             gui.Panel({
+                classes = {"image"},
                 bgimageStreamed = monster.portrait,
                 bgimageTokenMask = monster.portraitFrame,
 
@@ -1752,7 +658,6 @@ local CreateMonsterEntry = function(nodeid)
                 },
 
                 style = {
-                    bgcolor = 'white',
                     halign = 'left',
                     valign = 'center',
                     width = BestiaryPanelHeight,
@@ -1769,9 +674,9 @@ local CreateMonsterEntry = function(nodeid)
 
                 children = {
                     gui.Panel({
+                        classes = {"image"},
                         bgimage = monster.portraitFrame,
                         selfStyle = {
-                            bgcolor = 'white',
                             hueshift = monster.portraitFrameHueShift,
                             width = BestiaryPanelHeight,
                             height = BestiaryPanelHeight,
@@ -1825,7 +730,7 @@ local CreateBestiaryFolder = function(nodeid)
         isCollapsed = false
 
         local updateSearch = function(element)
-            clearSearchButton:SetClass('collapsed', element.text == '')
+            clearSearchButton:SetClass("hidden", element.text == "")
             folderPane.data.search(element.text)
             if element.text ~= '' then
                 local ok, ids = pcall(function() return node:GetNodeIdsMatchingSearch(element.text) end)
@@ -1846,49 +751,57 @@ local CreateBestiaryFolder = function(nodeid)
             end
         end
 
-        local searchInput = gui.Input {
+        local searchInput = gui.SearchInput {
             id = 'MonsterSearch',
+            classes = {"bordered"},
             placeholderText = 'Search for Monsters...',
             editlag = 0.25,
-            style = {
-                fontSize = '50%',
-                width = '80%',
-                height = '80%',
-                halign = 'left',
-                valign = 'center',
-            },
-
-            events = {
-                edit = updateSearch,
-                change = updateSearch,
-            }
+            width = '65%',
+            halign = 'left',
+            valign = 'center',
+            edit = updateSearch,
+            change = updateSearch,
         }
 
         clearSearchButton = gui.Button {
-            icon = 'ui-icons/close.png',
-            classes = { 'collapsed' },
-            halign = 'left',
-            valign = 'center',
-            height = '75%',
+            icon = "ui-icons/close.png",
+            classes = {"hidden"},
+            valign = "center",
             pad = 4,
-            width = '100% height',
 
             events = {
                 press = function(element)
-                    searchInput.text = ''
+                    searchInput.text = ""
                     updateSearch(searchInput)
                 end,
             }
         }
 
-
-        local addBestiaryEntryButton = gui.AddButton {
-            id = "AddBestiaryEntryButton",
-            floating = true,
-            halign = "right",
+        local createBestiaryFolderButton = gui.Button {
+            id = "CreateBestiaryFolderButton",
+            icon = "game-icons/open-folder.png",
             valign = "center",
-            width = 24,
-            height = 24,
+            hover = gui.Tooltip("Create a bestiary folder"),
+            press = function(element)
+                local maxOrd = 0
+                for i, entry in ipairs(node.children) do
+                    if entry.ord > maxOrd then
+                        maxOrd = entry.ord
+                    end
+                end
+
+                assets:UploadNewMonsterFolder({
+                    description = "New Folder",
+                    parentFolder = "",
+                    ord = maxOrd + 1,
+                })
+            end,
+        }
+
+        local addBestiaryEntryButton = gui.Button {
+            id = "AddBestiaryEntryButton",
+            classes = {"addButton"},
+            valign = "center",
             hover = gui.Tooltip("Create a bestiary entry"),
             press = function(element)
                 local menuItems = {}
@@ -1975,6 +888,7 @@ local CreateBestiaryFolder = function(nodeid)
                         children = {
                             searchInput,
                             clearSearchButton,
+                            createBestiaryFolderButton,
                             addBestiaryEntryButton,
                         },
                     },
@@ -1983,28 +897,13 @@ local CreateBestiaryFolder = function(nodeid)
     end
 
     local triangle = nil
-    triangle = gui.Panel({
-        bgimage = 'panels/triangle.png',
-        classes = { "triangle", cond(nodeid == "", "collapsed") },
-        styles =
-        {
+    triangle = gui.ExpandoArrow({
+        halign = "left",
+        margin = 5,
+        valign = "center",
+        styles = {
             {
-                bgcolor = Styles.textColor,
-                width = 8,
-                height = 8,
-                halign = 'left',
-                margin = 5,
-                rotate = 90,
-                valign = "center",
-            },
-
-            {
-                selectors = { 'expanded' },
-                transitionTime = 0.2,
-                rotate = 0,
-            },
-            {
-                selectors = { 'search' },
+                selectors = { "search" },
                 transitionTime = 0,
                 rotate = 0,
             },
@@ -2014,8 +913,11 @@ local CreateBestiaryFolder = function(nodeid)
 
         events = {
             create = function(element)
-                element:SetClass('expanded', not isCollapsed)
-                element:SetClass('empty', #node.children < 1)
+                if nodeid == "" then
+                    element:SetClass("collapsed", true)
+                end
+                element:SetClass("expanded", not isCollapsed)
+                element:SetClass("empty", #node.children < 1)
             end,
             refreshAssets = function(element)
                 element:SetClass('empty', #node.children < 1)
@@ -2052,7 +954,7 @@ local CreateBestiaryFolder = function(nodeid)
 
     local headerPanel = gui.Panel({
 
-        bgimage = 'panels/square.png',
+        bgimage = true,
         classes = { 'headerPanel', 'monster-drag-target' },
         dragTarget = true,
 
@@ -2068,29 +970,6 @@ local CreateBestiaryFolder = function(nodeid)
             width = "100%",
             height = BestiaryPanelHeight,
             flow = 'horizontal',
-        },
-
-        styles = {
-            {
-                borderWidth = 0,
-                bgcolor = '#ffffff00',
-            },
-            {
-                selectors = { 'hover', 'headerPanel' },
-                bgcolor = Styles.textColor,
-            },
-            {
-                selectors = { 'drag-target' },
-                bgcolor = '#ffffaa66',
-                transitionTime = 0.2,
-            },
-            {
-                selectors = { 'drag-target-hover' },
-                borderWidth = 2,
-                borderColor = 'white',
-                bgcolor = '#ffffaaaa',
-                transitionTime = 0.2,
-            },
         },
 
         data = {
@@ -2110,7 +989,7 @@ local CreateBestiaryFolder = function(nodeid)
 
             gui.Label({
                 text = 'Bestiary',
-                classes = { "bestiaryLabel" },
+                classes = { "bestiaryLabel", "folder", cond(nodeid == '', "noHoverColor") },
                 x = 4,
                 editableOnDoubleClick = (nodeid ~= ''), --all folders except the root Bestiary folder can be renamed.
                 characterLimit = 24,
@@ -2149,7 +1028,6 @@ local CreateBestiaryFolder = function(nodeid)
         },
 
         classes = { cond(isCollapsed, "collapsed-anim"), "bestiaryPanel", "ignoreDrag" },
-        dragTarget = true,
 
         data = {
             ord = function()
@@ -2227,6 +1105,11 @@ local CreateBestiaryFolder = function(nodeid)
                 element.popup = nil --clear any context menu on click.
             end,
             rightClick = function(element)
+                --no context menu on the Bestiary root label.
+                if nodeid == "" then
+                    return
+                end
+
                 --create the context menu for this folder.
                 local menuItems = {}
                 local parentElement = element
@@ -2402,11 +1285,11 @@ CharacterPanel.CreateCharacterEntry = function(charid, party)
     end
 
     local playerStar = gui.Panel {
+        bgimage = "icons/icon_simpleshape/icon_simpleshape_31.png",
         width = 16,
         height = 16,
         valign = "center",
-        bgimage = "icons/icon_simpleshape/icon_simpleshape_31.png",
-        bgcolor = "#ffffaaff",
+        classes = {"playerStar"},
         prepareRefresh = function(element)
             resultPanel.data.primaryCharacter = token.playerControlledAndPrimary
             element:SetClass("hidden", not resultPanel.data.primaryCharacter)
@@ -2417,62 +1300,22 @@ CharacterPanel.CreateCharacterEntry = function(charid, party)
 
 
     resultPanel = gui.Panel {
-        bgimage = 'panels/square.png',
+        classes = { "characterEntry" },
+        bgimage = true,
+        valign = "top",
+        width = "100%-6",
+        height = BestiaryPanelHeight,
+        flow = "horizontal",
         draggable = true,
         canDragOnto = function(element, target)
-            if target ~= nil and target:HasClass("partyPanel") then
-                target = target.data.header
-            end
-
             return target ~= nil and target:HasClass('party-drag-target')
         end,
-        styles = {
-            {
-                color = '#ccccccff',
-                valign = 'top',
-                bgcolor = '#ffffff00',
-                width = "100%",
-                height = BestiaryPanelHeight,
-                borderWidth = 0,
-                borderColor = 'black',
-                flow = 'horizontal',
-            },
-
-            {
-                selectors = { 'selected' },
-                inherit_selectors = true,
-                bgcolor = Styles.textColor,
-                color = 'black',
-            },
-
-            {
-                selectors = { 'focus' },
-                borderWidth = 2,
-                borderColor = 'white',
-            },
-
-            {
-                selectors = { 'focus' },
-                inherit_selectors = true,
-                bgcolor = Styles.textColor,
-                color = 'black',
-            },
-
-            {
-                selectors = { 'hover' },
-                bgcolor = Styles.textColor,
-                brightness = 0.8,
-            },
-
-        },
 
         events = {
 
             dragging = function(element, target)
                 if target == nil then
-                    element.dragging = false
                     dmhub.SetDraggingMonster()
-                    dmhub.Debug("DRAG:: DRAGGING MONSTER")
                 end
             end,
 
@@ -2866,26 +1709,12 @@ CharacterPanel.CreatePartyCharacters = function(partyid)
     local selectAllPanel = nil
 
     local triangle = nil
-    triangle = gui.Panel({
-        classes = { "triangle" },
-        bgimage = 'panels/triangle.png',
-        styles =
-        {
-            {
-                bgcolor = 'white',
-                width = 8,
-                height = 8,
-                halign = 'left',
-                margin = 5,
-                rotate = 90,
-                valign = "center",
-            },
-            {
-                selectors = { 'expanded' },
-                transitionTime = 0.2,
-                rotate = 0,
-            },
-        },
+    triangle = gui.ExpandoArrow({
+        -- width = 8,
+        -- height = 8,
+        halign = "left",
+        margin = 5,
+        valign = "center",
 
         swallowPress = true,
 
@@ -2927,7 +1756,7 @@ CharacterPanel.CreatePartyCharacters = function(partyid)
 
     local headerPanel = gui.Panel {
 
-        bgimage = 'panels/square.png',
+        bgimage = true,
         classes = { 'monster-drag-target', cond(party ~= nil, 'party-drag-target'), 'headerPanel' },
         dragTarget = true,
 
@@ -2946,30 +1775,6 @@ CharacterPanel.CreatePartyCharacters = function(partyid)
             width = "100%",
             height = BestiaryPanelHeight,
             flow = 'horizontal',
-        },
-
-        styles = {
-            {
-                borderWidth = 0,
-                bgcolor = '#ffffff00',
-            },
-            {
-                selectors = { 'hover', 'headerPanel' },
-                bgcolor = Styles.textColor,
-            },
-            {
-                selectors = { 'drag-target' },
-                bgcolor = '#ffffaa44',
-                transitionTime = 0.2,
-            },
-            {
-                selectors = { 'drag-target-hover' },
-                borderWidth = 2,
-                borderColor = 'white',
-                bgcolor = Styles.textColor,
-                brightness = 1.4,
-                transitionTime = 0.2,
-            },
         },
 
         events = {
@@ -3045,7 +1850,7 @@ CharacterPanel.CreatePartyCharacters = function(partyid)
 
             gui.Label {
                 text = partyName,
-                classes = { "bestiaryLabel" },
+                classes = { "bestiaryLabel", "folder" },
                 editableOnDoubleClick = false,
                 characterLimit = 24,
                 events = {
@@ -3064,7 +1869,7 @@ CharacterPanel.CreatePartyCharacters = function(partyid)
 
 
     folderPane = gui.Panel {
-        classes = { cond(isCollapsed, "collapsed") },
+        classes = { cond(isCollapsed, "collapsed"), "ignoreDrag" },
         flow = "vertical",
         width = "auto",
         height = "auto",
@@ -3097,11 +1902,10 @@ CharacterPanel.CreatePartyCharacters = function(partyid)
 
 
     resultPanel = gui.Panel {
-        classes = {"partyPanel"},
+        classes = {"partyPanel", "ignoreDrag"},
         flow = "vertical",
         width = "auto",
         height = "auto",
-        dragTarget = true,
         bgimage = true,
         bgcolor = "clear",
 
@@ -3184,11 +1988,9 @@ local CreateBestiaryAndPartyPanel = function(noBestiary)
                 halign = "right",
                 rmargin = 8,
 
-                gui.AddButton {
-                    bgimage = "icons/icon_app/icon_app_18.png",
+                gui.Button {
+                    icon = "icons/icon_app/icon_app_18.png",
                     halign = "right",
-                    width = 24,
-                    height = 24,
                     hover = gui.Tooltip("Create a party"),
                     press = function(element)
                         local newParty = Party.CreateNew()
@@ -3198,11 +2000,10 @@ local CreateBestiaryAndPartyPanel = function(noBestiary)
                     end,
                 },
 
-                gui.AddButton {
+                gui.Button {
+                    classes = {"addButton"},
                     id = "AddCharacterButton",
                     halign = "right",
-                    width = 24,
-                    height = 24,
                     hover = gui.Tooltip("Create a character"),
 
                     data = {
@@ -3293,131 +2094,6 @@ local CreateBestiaryAndPartyPanel = function(noBestiary)
     return resultPanel
 end
 
-CharacterPanel.CreateMultiEdit = function()
-    local resultPanel
-    local m_tokens = {}
-
-    resultPanel = gui.Panel {
-        width = "100%",
-        height = "auto",
-        flow = "horizontal",
-        tokens = function(element, tokens)
-            m_tokens = tokens
-            if #tokens <= 1 then
-                element:SetClass("collapsed", true)
-            else
-                element:SetClass("collapsed", false)
-            end
-        end,
-
-        gui.Panel {
-            width = "30%",
-            height = 28,
-            pad = 0,
-            bgimage = "panels/square.png",
-            bgcolor = 'white',
-            gradient = Styles.healthGradient,
-            borderWidth = 2,
-            borderColor = Styles.textColor,
-            halign = "center",
-            valign = "center",
-
-            gui.Input {
-                bgcolor = 'clear',
-                color = Styles.textColor,
-                bold = true,
-                pad = 0,
-                margin = 0,
-                borderWidth = 0,
-                borderColor = "clear",
-                width = "100%",
-                height = "100%",
-                fontSize = 14,
-                placeholderAlpha = 1,
-                placeholderText = "Heal All",
-                textAlignment = 'center',
-                change = function(element)
-                    for _, tok in ipairs(m_tokens) do
-                        tok:ModifyProperties {
-                            description = "Heal",
-                            execute = function()
-                                tok.properties:Heal(element.text)
-                            end,
-                        }
-                    end
-                    element.text = ''
-                end,
-            },
-        },
-
-        gui.Panel {
-            width = "30%",
-            height = 28,
-            pad = 0,
-            bgimage = "panels/square.png",
-            bgcolor = 'white',
-            gradient = Styles.damagedGradient,
-            borderWidth = 2,
-            borderColor = Styles.textColor,
-            halign = "center",
-            valign = "center",
-
-            gui.Input {
-                bgcolor = 'clear',
-                color = Styles.textColor,
-                bold = true,
-                borderWidth = 0,
-                borderColor = "clear",
-                pad = 0,
-                margin = 0,
-                width = "100%",
-                height = "100%",
-                fontSize = 14,
-                placeholderAlpha = 1,
-                placeholderText = "Damage All",
-                textAlignment = 'center',
-                change = function(element)
-                    for _, tok in ipairs(m_tokens) do
-                        tok:ModifyProperties {
-                            description = "Damage",
-                            execute = function()
-                                tok.properties:TakeDamage(element.text)
-                            end,
-                        }
-                    end
-                    element.text = ''
-                end,
-            },
-        },
-
-        gui.Button {
-            width = "30%",
-            height = 28,
-            fontSize = 14,
-            styles = {
-                {
-                    selectors = { "~hover" },
-                    priority = 10,
-                    bgcolor = "#aaaaaa",
-                    gradient = Styles.conditionGradient,
-                },
-            },
-            text = "Add Condition",
-            press = function(element)
-                CharacterPanel.AddConditionMenu {
-                    tokens = m_tokens,
-                    button = element,
-                }
-            end,
-        }
-
-
-
-    }
-
-    return resultPanel
-end
-
 CreateCharacterPanel = function()
     local multiEditPanel = nil
     local tokenPanels = {}
@@ -3428,34 +2104,9 @@ CreateCharacterPanel = function()
         bestiaryPanel:FireEventTree("refreshAssets")
         bestiaryPanel:FireEventTree("refresh")
     end
-    local resultPanel = gui.Panel {
-        styles = {
-            g_panelStyles,
-            {
-                selectors = { "bestiaryLabel" },
-                color = Styles.textColor,
-                fontFace = "dubai",
-                fontSize = 14,
-                bold = true,
-                height = 'auto',
-                width = 'auto',
-                minWidth = 200,
-                halign = 'left',
-                valign = 'center',
-            },
-            {
-                selectors = { "bestiaryLabel", "focus" },
-                color = "black",
-            },
-            {
-                selectors = { "bestiaryLabel", "parent:hover" },
-                color = "black",
-            },
-            {
-                selectors = { "bestiaryLabel", "invisible" },
-                italics = true,
-            },
-        },
+    local resultPanel
+    resultPanel = gui.Panel {
+        styles = ThemeEngine.MergeStyles(g_sidebarExtras),
 
         flow = "vertical",
         width = "100%",
@@ -3548,6 +2199,12 @@ CreateCharacterPanel = function()
         bestiaryPanel,
     }
 
+    ThemeEngine.OnThemeChanged(mod, function()
+        if resultPanel ~= nil and resultPanel.valid then
+            resultPanel.styles = ThemeEngine.MergeStyles(g_sidebarExtras)
+        end
+    end)
+
     return resultPanel
 end
 
@@ -3558,32 +2215,9 @@ CreateBestiaryPanel = function()
     bestiaryPanel = CreateBestiaryFolder('')
     bestiaryPanel:FireEventTree("refreshAssets")
     bestiaryPanel:FireEventTree("refresh")
-    local resultPanel = gui.Panel {
-        styles = {
-            g_panelStyles,
-            {
-                selectors = { "bestiaryLabel" },
-                color = Styles.textColor,
-                fontFace = "dubai",
-                uppercase = true,
-                fontSize = 14,
-                bold = true,
-                height = 'auto',
-                width = 'auto',
-                minWidth = 200,
-                halign = 'left',
-                valign = 'center',
-            },
-            {
-                selectors = { "bestiaryLabel", "parent:hover" },
-                color = "black",
-            },
-            {
-                selectors = { "bestiaryLabel", "invisible" },
-                color = "#d4d1bacc",
-                italics = true,
-            },
-        },
+    local resultPanel
+    resultPanel = gui.Panel {
+        styles = ThemeEngine.MergeStyles(g_sidebarExtras),
 
         flow = "vertical",
         width = "100%",
@@ -3600,6 +2234,12 @@ CreateBestiaryPanel = function()
 
         bestiaryPanel,
     }
+
+    ThemeEngine.OnThemeChanged(mod, function()
+        if resultPanel ~= nil and resultPanel.valid then
+            resultPanel.styles = ThemeEngine.MergeStyles(g_sidebarExtras)
+        end
+    end)
 
     return resultPanel
 end

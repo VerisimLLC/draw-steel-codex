@@ -63,6 +63,7 @@ CharacterModifier.TypeInfo.bestowcondition = {
                         classes = {'formLabel'},
                     },
                     gui.Dropdown{
+                        styles = ThemeEngine.GetStyles(),
                         selfStyle = {
                             height = 30,
                             width = 260,

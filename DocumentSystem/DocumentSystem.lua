@@ -1076,6 +1076,7 @@ function CustomDocument:CreateInterface(args)
     }
 
     local m_searchInput = gui.SearchInput {
+        styles = ThemeEngine.GetStyles(),
         width = 200,
         height = 16,
         halign = "right",

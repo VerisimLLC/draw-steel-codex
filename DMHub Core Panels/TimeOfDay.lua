@@ -472,11 +472,11 @@ CreateTimeOfDayPanel = function()
 	end
 
 	local sunPanel = gui.Panel {
+		classes = {"image"},
 		width = 80,
 		height = 80,
 		y = -14,
 		bgimage = mod.images.Sun,
-		bgcolor = "white",
 		saturation = 0,
 		floating = true,
 		halign = "center",
@@ -499,11 +499,11 @@ CreateTimeOfDayPanel = function()
 	}
 
 	local moonPanel = gui.Panel {
+		classes = {"image"},
 		width = 80,
 		height = 80,
 		y = -14,
 		bgimage = mod.images.Moon,
-		bgcolor = "white",
 		floating = true,
 		halign = "center",
 		valign = "center",
@@ -574,12 +574,6 @@ CreateTimeOfDayPanel = function()
 			flow = 'vertical',
 		},
 
-		styles = {
-			{
-				bgcolor = 'white',
-			},
-		},
-
 		children = {
 
 			gui.Panel {
@@ -632,26 +626,12 @@ CreateTimeOfDayPanel = function()
 						--	
 						--},
 
-						gui.Panel {
-							bgimage = 'ui-icons/skills/98.png',
-							blend = "add",
-							halign = 'right',
-							valign = 'top',
-							width = 16,
-							height = 16,
+						gui.Button {
+							classes = {"settingsButton"},
+							halign = "right",
+							valign = "top",
 							rmargin = 4,
 							vmargin = 3,
-							styles = {
-								{
-									selectors = { 'hover' },
-									brightness = 2,
-								},
-								{
-									selectors = { 'press' },
-									brightness = 1.5,
-								},
-							},
-
 							click = function(element)
 								ShowTimeOfDaySettingsDialog()
 							end,
@@ -659,7 +639,8 @@ CreateTimeOfDayPanel = function()
 					},
 
 					gui.Slider {
-						bgimage = 'panels/square.png',
+						bgimage = true,
+						bgcolor = "white",
 						halign = "center",
 						valign = "bottom",
 						handleSize = "130%",
@@ -667,10 +648,10 @@ CreateTimeOfDayPanel = function()
 						sliderWidth = 340,
 						wrap = true,
 						notchAlign = "top",
-						notchColor = Styles.textColor,
+						notchColor = "black",
 						notchHeight = 3,
-						fillColor = Styles.textColor,
-						labelFormat = '',
+						fillColor = "black",
+						labelFormat = "",
 						selfStyle = {
 						},
 						data = {
@@ -867,18 +848,30 @@ ShowTimeOfDaySettingsDialog = function()
 		local UpdateTime = nil
 
 		local hoursLabel = gui.Label {
+			classes = {"sizeL"},
 			editable = true,
 			characterLimit = 2,
+			width = 24,
+			height = 24,
+			textAlignment = "right",
 			change = function() UpdateTime() end,
 		}
 		local minutesLabel = gui.Label {
+			classes = {"sizeL"},
 			editable = true,
 			characterLimit = 2,
+			width = 24,
+			height = 24,
+			textAlignment = "right",
 			change = function() UpdateTime() end,
 		}
 		local secondsLabel = gui.Label {
+			classes = {"sizeL"},
 			editable = true,
 			characterLimit = 2,
+			width = 24,
+			height = 24,
+			textAlignment = "right",
 			change = function() UpdateTime() end,
 		}
 
@@ -896,19 +889,17 @@ ShowTimeOfDaySettingsDialog = function()
 		end
 
 		m_dayNightSettingsDialog = gui.Panel {
-			classes = { 'framedPanel', 'hidden' },
+			classes = {"framedPanel", "hidden"},
 
-			halign = 'center',
-			valign = 'center',
+			halign = "center",
+			valign = "center",
 
-			width = 400,
+			width = 480,
 			height = 400,
 
-			flow = 'vertical',
+			flow = "vertical",
 
-			styles = {
-				Styles.Panel,
-			},
+			styles = ThemeEngine.GetStyles(),
 
 			draggable = true,
 			drag = function(element)
@@ -916,40 +907,46 @@ ShowTimeOfDaySettingsDialog = function()
 				element.y = element.ydrag
 			end,
 
-			gui.CloseButton {
+			gui.Button {
+				classes = {"closeButton"},
+				floating = true,
+				halign = "right",
+				valign = "top",
+				margin = 8,
 				click = function(element)
-					m_dayNightSettingsDialog:SetClass('hidden', true)
+					m_dayNightSettingsDialog:SetClass("hidden", true)
 				end,
 			},
 
+			gui.Panel{height = 20, width = "80%"},
 			CreateSettingsEditor("sunbrightness", {
-				width = '65%',
+				width = "300",
 			}),
 
 			CreateSettingsEditor("solarlatitude", {
-				width = '65%',
+				width = "25%",
 			}),
 
 			CreateSettingsEditor("ambientlight", {
-				width = '65%',
+				width = "25%",
 			}),
 
 			--display the time in conventional format.
 			gui.Panel {
-				flow = 'horizontal',
-				halign = 'center',
-				valign = 'top',
-				width = 'auto',
-				height = 'auto',
+				flow = "horizontal",
+				halign = "center",
+				valign = "top",
+				width = "auto",
+				height = "auto",
 
 				events = {
 					create = function(element)
-						element:FireEvent('monitor')
-						element:FireEvent('tick')
+						element:FireEvent("monitor")
+						element:FireEvent("tick")
 					end,
 
 					tick = function(element)
-						element:ScheduleEvent('tick', 0.1)
+						element:ScheduleEvent("tick", 0.1)
 
 						local t = CalculateGameTime()
 
@@ -966,28 +963,18 @@ ShowTimeOfDaySettingsDialog = function()
 						if not secondsLabel.editing then
 							secondsLabel.text = string.format("%02d", second)
 						end
-						--show the time even if underground.
-						--element:SetClass('collapsed', GetDayTypeKey() ~= 'daynight')
 					end,
-				},
-
-				styles = {
-					selectors = { 'label' },
-					priority = 10,
-					color = 'white',
-					fontSize = 20,
-					width = 24,
-					height = 24,
-					textAlignment = 'right',
 				},
 
 				hoursLabel,
 				gui.Label {
+					classes = {"sizeL"},
 					width = 10,
 					text = ":",
 				},
 				minutesLabel,
 				gui.Label {
+					classes = {"sizeL"},
 					width = 10,
 					text = ":",
 				},
@@ -995,44 +982,39 @@ ShowTimeOfDaySettingsDialog = function()
 			},
 
 			CreateSettingsEditor("advancetime", {
+				valign = "top",
 				panelStyle = {
-					priority = 10,
-					valign = 'top',
-					height = 24,
-				},
-				valign = 'top',
-				style = {
-					fontSize = '80%',
-					width = 200,
-					height = 24,
-					valign = 'top',
-					halign = 'center',
-					margin = 0,
+					selectors = {"dropdown"},
+					width = "60%",
 				},
 			}),
 
-
 			CreateSettingsEditor("timepauseduringinitiative", {
-				width = '65%',
+				width = "55%",
 			}),
 
 			CreateSettingsEditor("timemultiplier", {
-				style = {
-					fontSize = '80%',
-					width = 200,
-					height = 24,
-					valign = 'center',
-					halign = 'center',
-					margin = 0,
-				},
+				width = "55%",
 			}),
 
 		}
 
 		gui.DialogPanel():AddChild(m_dayNightSettingsDialog)
+
+		ThemeEngine.OnThemeChanged(mod, function()
+			if m_dayNightSettingsDialog ~= nil and m_dayNightSettingsDialog.valid then
+				m_dayNightSettingsDialog.styles = ThemeEngine.GetStyles()
+			end
+		end)
+
+		mod.unloadHandlers[#mod.unloadHandlers + 1] = function()
+			if m_dayNightSettingsDialog ~= nil and m_dayNightSettingsDialog.valid then
+				m_dayNightSettingsDialog:DestroySelf()
+			end
+		end
 	end
 
-	m_dayNightSettingsDialog:SetClass('hidden', not m_dayNightSettingsDialog:HasClass('hidden'))
+	m_dayNightSettingsDialog:SetClass("hidden", not m_dayNightSettingsDialog:HasClass("hidden"))
 	if not m_dayNightSettingsDialog:HasClass("hidden") then
 		m_dayNightSettingsDialog:PulseClass("fadein")
 	end

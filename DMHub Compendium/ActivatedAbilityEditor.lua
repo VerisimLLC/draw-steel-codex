@@ -476,7 +476,7 @@ function ActivatedAbility:GenerateEditor(opts)
 	end
 
     print("PROPERTIES: ", ActivatedAbility.registeredProperties)
-    local propertyEditorPanel = gui.SetEditor{
+    local propertyEditorPanel = gui.Multiselect{
         value = self:try_get("properties"),
         addItemText = "Add Special Property...",
         options = ActivatedAbility.registeredProperties,
@@ -1099,7 +1099,7 @@ function ActivatedAbility:IconEditorPanel()
 	--the spell's icon.
 	local iconEditor = gui.IconEditor{
 		library = "abilities",
-		bgcolor = self.display['bgcolor'] or '#ffffffff',
+		bgcolor = "white",
 		margin = 20,
 		width = 64,
 		height = 64,
@@ -1110,6 +1110,7 @@ function ActivatedAbility:IconEditorPanel()
 			self.iconid = element.value
 		end,
 		create = function(element)
+			element.selfStyle.bgcolor = self.display['bgcolor'] or 'white'
 			element.selfStyle.hueshift = self.display['hueshift']
 			element.selfStyle.saturation = self.display['saturation']
 			element.selfStyle.brightness = self.display['brightness']
@@ -1118,21 +1119,23 @@ function ActivatedAbility:IconEditorPanel()
 	}
 
 	local iconColorPicker = gui.ColorPicker{
-		value = self.display['bgcolor'] or '#ffffffff',
+		value = self.display['bgcolor'] or 'white',
 		hmargin = 8,
 		width = 24,
 		height = 24,
 		halign = "left",
 		valign = 'center',
-		borderWidth = 2,
-		borderColor = '#999999ff',
-
+		-- borderWidth = 2,
+		-- borderColor = '#999999ff',
+		create = function(element)
+			element:FireEvent("change")
+		end,
 		confirm = function(element)
 			iconEditor.selfStyle.bgcolor = element.value
 			self.display['bgcolor'] = element.value
 		end,
-
 		change = function(element)
+			print("THC:: COLORCHANGE::")
 			iconEditor.selfStyle.bgcolor = element.value
 		end,
 	}
@@ -2736,6 +2739,7 @@ function ActivatedAbility:BehaviorEditor(options)
     }
 
 	local dropdown = gui.Dropdown{
+		styles = ThemeEngine.GetStyles(),
 			classes = "formDropdown",
 			textOverride = "Add Behavior...",
 			width = 240,

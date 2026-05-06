@@ -4,6 +4,8 @@
 --- @field _instance DTCharSheetTab The singleton instance of this class
 DTCharSheetTab = RegisterGameType("DTCharSheetTab")
 
+local mod = dmhub.GetModLoading()
+
 local playersEditProjectRols = setting{
 	id = "permission:playersprojectrolls",
 	description = "Players Edit Project Rolls",
@@ -45,7 +47,7 @@ function DTCharSheetTab.CreateDowntimePanel()
 
     local downtimePanel = gui.Panel {
         id = "downtimeController",
-        classes = {"downtimeController", "DTPanel"},
+        classes = {"downtimeController"},
         bgimage = true,
         bgcolor = "clear",
         width = "100%",
@@ -53,8 +55,7 @@ function DTCharSheetTab.CreateDowntimePanel()
         flow = "vertical",
         valign = "top",
         halign = "center",
-        borderColor = "purple",
-        styles = DTHelpers.GetDialogStyles(),
+        styles = ThemeEngine.GetStyles(),
         data = {
             getDowntimeFollowers = function()
                 local token = getToken()
@@ -136,6 +137,15 @@ function DTCharSheetTab.CreateDowntimePanel()
         }
     }
 
+    -- The CharSheet system caches this panel for the session, so its `styles`
+    -- array would be frozen at construction. Subscribe to ThemeEngine so the
+    -- styles refresh whenever the active theme or scheme changes.
+    ThemeEngine.OnThemeChanged(mod, function()
+        if downtimePanel and downtimePanel.valid then
+            downtimePanel.styles = ThemeEngine.GetStyles()
+        end
+    end)
+
     return downtimePanel
 end
 
@@ -145,29 +155,27 @@ function DTCharSheetTab._createHeaderPanel()
 
     local rollStatusGroup = gui.Panel {
         width = "100%",
-        height = "100%",
+        height = "auto",
         flow = "horizontal",
         halign = "left",
         valign = "center",
         hmargin = 20,
         children = {
             gui.Label {
+                classes = {"sizeL"},
                 text = "Rolling Status: ",
-                classes = {"DTLabel", "DTBase"},
                 width = "auto",
-                height = "100%",
+                height = "auto",
                 hmargin = 2,
-                fontSize = 20,
                 halign = "left",
-                valign = "center"
+                valign = "center",
             },
             gui.Label {
+                classes = {"sizeL"},
                 text = "CALCULATING...",
-                classes = {"DTLabel", "DTBase"},
                 width = "auto",
                 hmargin = 2,
-                height = "100%",
-                fontSize = 20,
+                height = "auto",
                 halign = "left",
                 valign = "center",
                 interactable = CanEditProjectRolls(),
@@ -195,16 +203,15 @@ function DTCharSheetTab._createHeaderPanel()
                         status = settings:GetPauseRolls() and "PAUSED" or "AVAILABLE"
                     end
                     element.text = status
-                    element:SetClass("DTStatusAvailable", status == "AVAILABLE")
-                    element:SetClass("DTStatusPaused", status ~= "AVAILABLE")
-                end
+                    element:SetClass("success", status == "AVAILABLE")
+                    element:SetClass("warning", status ~= "AVAILABLE")
+                end,
             },
             gui.Label {
+                classes = {"sizeL"},
                 text = "",
-                classes = {"DTLabel", "DTBase"},
                 width = "auto",
-                height = "100%",
-                fontSize = 20,
+                height = "auto",
                 halign = "left",
                 valign = "center",
                 bold = false,
@@ -225,12 +232,17 @@ function DTCharSheetTab._createHeaderPanel()
                         end
                     end
                     element.text = reason
-                end
+                end,
             },
             gui.Label {
-                classes = {"DTLabel", "DTBase", "DTHelpHover"},
-                bold = true,
+                classes = {"bordered", "sizeS", "bold", "warning"},
                 text = "?",
+                width = 20,
+                height = 20,
+                halign = "left",
+                valign = "center",
+                hmargin = 4,
+                textAlignment = "center",
                 create = function(element)
                     dmhub.Schedule(0.2, function()
                         element.monitorGame = DTSettings.GetDocumentPath()
@@ -240,8 +252,6 @@ function DTCharSheetTab._createHeaderPanel()
                     gui.Tooltip{
                         maxWidth = 300,
                         fontSize = 16,
-                        bgimage = true,
-                        bgcolor = "#663100",
                         text = "Your Director can enable rolling by opening Panels -> Downtime Projects, then clicking the gear button.",
                     }(element)
                 end,
@@ -262,7 +272,7 @@ function DTCharSheetTab._createHeaderPanel()
 
     local availableRollsGroup = gui.Panel {
         width = "100%",
-        height = "100%",
+        height = "auto",
         flow = "horizontal",
         halign = "left",
         valign = "center",
@@ -295,36 +305,34 @@ function DTCharSheetTab._createHeaderPanel()
                     msg = " (Not a Hero)"
                 end
                 element.data.message = string.format(fmt, element.data.availableRolls, msg)
-                element:SetClass("DTStatusAvailable", element.data.availableRolls > 0)
-                element:SetClass("DTStatusPaused", element.data.availableRolls <= 0)
+                element:SetClass("success", element.data.availableRolls > 0)
+                element:SetClass("warning", element.data.availableRolls <= 0)
             end
         end,
         children = {
             gui.Label {
+                classes = {"sizeL"},
                 text = "Available Rolls: ",
-                classes = {"DTLabel", "DTBase"},
                 width = "auto",
-                height = "100%",
+                height = "auto",
                 hmargin = 2,
-                fontSize = 20,
                 halign = "left",
-                valign = "center"
+                valign = "center",
             },
             gui.Label {
+                classes = {"sizeL"},
                 text = "CALCULATING...",
-                classes = {"DTLabel", "DTBase"},
                 width = "auto",
-                height = "100%",
+                height = "auto",
                 halign = "left",
                 valign = "center",
                 editable = CanEditProjectRolls(),
                 hmargin = 2,
-                fontSize = 20,
                 refreshToken = function(element)
                     local availableRolls = element.parent.data.availableRolls
                     element.text = element.parent.data.message
-                    element:SetClass("DTStatusAvailable", availableRolls > 0)
-                    element:SetClass("DTStatusPaused", availableRolls <= 0)
+                    element:SetClass("success", availableRolls > 0)
+                    element:SetClass("warning", availableRolls <= 0)
                 end,
                 change = function(element)
                     if tonumber(element.text) then
@@ -342,15 +350,18 @@ function DTCharSheetTab._createHeaderPanel()
                 end,
             },
             gui.Label {
-                classes = {"DTLabel", "DTBase", "DTHelpHover"},
-                bold = true,
+                classes = {"bordered", "sizeS", "bold", "warning"},
                 text = "?",
+                width = 20,
+                height = 20,
+                halign = "left",
+                valign = "center",
+                hmargin = 4,
+                textAlignment = "center",
                 linger = function(element)
                     gui.Tooltip{
                         maxWidth = 300,
                         fontSize = 16,
-                        bgimage = true,
-                        bgcolor = "#663100",
                         text = "Your Director can grant rolls by opening Panels -> Downtime Projects, then clicking the dice button.",
                     }(element)
                 end,
@@ -364,30 +375,28 @@ function DTCharSheetTab._createHeaderPanel()
 
     local followerRollsGroup = gui.Panel {
         width = "100%",
-        height = "100%",
+        height = "auto",
         flow = "horizontal",
         halign = "left",
         valign = "center",
         children = {
             gui.Label {
+                classes = {"sizeL"},
                 text = "Follower Rolls: ",
-                classes = {"DTLabel", "DTBase"},
                 width = "auto",
-                height = "100%",
+                height = "auto",
                 hmargin = 2,
-                fontSize = 20,
                 halign = "left",
-                valign = "center"
+                valign = "center",
             },
             gui.Label {
+                classes = {"sizeL"},
                 text = "CALCULATING...",
-                classes = {"DTLabel", "DTBase"},
                 width = "auto",
-                height = "100%",
+                height = "auto",
                 halign = "left",
                 valign = "center",
                 hmargin = 2,
-                fontSize = 20,
                 create = function(element)
                     dmhub.Schedule(0.2, function()
                         element.monitorGame = DTSettings.GetDocumentPath()
@@ -413,15 +422,16 @@ function DTCharSheetTab._createHeaderPanel()
                             msg = " (Not a Hero)"
                         end
                         element.text = string.format(fmt, availableRolls, msg)
-                        element:SetClass("DTStatusAvailable", availableRolls > 0)
-                        element:SetClass("DTStatusPaused", availableRolls <= 0)
+                        element:SetClass("success", availableRolls > 0)
+                        element:SetClass("warning", availableRolls <= 0)
                     end
-                end
+                end,
             }
         }
     }
 
-    local addButton = gui.AddButton {
+    local addButton = gui.Button {
+        classes = {"addButton"},
         halign = "right",
         vmargin = 5,
         hmargin = 20,
@@ -449,15 +459,12 @@ function DTCharSheetTab._createHeaderPanel()
     }
 
     return gui.Panel {
+        classes = {"surfaceLinear"},
         width = "100%",
-        height = 40,
+        height = 36,
         flow = "horizontal",
         halign = "center",
         valign = "center",
-        bgimage = "panels/square.png",
-        bgcolor = "#2a2a2a",
-        border = { y1 = 1, y2 = 0, x1 = 0, x2 = 0 },
-        borderColor = "white",
         children = {
             -- Roll Status
             gui.Panel {
@@ -514,12 +521,13 @@ end
 --- @return table panel The panel for managing downtime projects
 function DTCharSheetTab._createBodyPanel()
     return gui.Panel {
+        classes = {"surfaceRadial"},
         width = "100%",
         height = "100%-50",
         flow = "vertical",
         halign = "center",
         valign = "top",
-        vmargin = 10,
+        vmargin = 4,
         children = {
             -- Scrollable projects area
             gui.Panel{
@@ -527,7 +535,6 @@ function DTCharSheetTab._createBodyPanel()
                 height = "100%",
                 valign = "top",
                 vscroll = true,
-                styles = DTHelpers.GetDialogStyles(),
                 children = {
                     -- Inner auto-height container that pins content to top
                     gui.Panel{
@@ -574,12 +581,12 @@ function DTCharSheetTab._refreshProjectsList(element)
         element.children = {
             gui.Label {
                 text = "(ERROR: unable to create downtime info)",
-                classes = {"DTLabel", "DTBase"},
+                classes = {"sizeL"},
                 width = "100%",
                 height = 40,
                 textAlignment = "center",
                 halign = "center",
-                valign = "top"
+                valign = "top",
             }
         }
         return
@@ -591,13 +598,13 @@ function DTCharSheetTab._refreshProjectsList(element)
         if (not projects or #projects == 0) and #sharedProjects == 0 then
             element.children = {
                 gui.Label {
+                    classes = {"sizeL"},
                     text = "No projects yet.\nClick the Add button to create one.",
-                    classes = {"DTLabel", "DTBase"},
                     width = "100%",
                     height = 40,
                     textAlignment = "center",
                     halign = "center",
-                    valign = "top"
+                    valign = "top",
                 }
             }
             return

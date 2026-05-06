@@ -351,8 +351,9 @@ function Class:CustomEditor(UploadFn, children)
                 minWidth = 240,
             },
             gui.IconEditor{
+                classes = {"image"},
                 library = "abilities",
-                bgcolor = self:try_get("classColor", "#ffffffff"),
+                -- bgcolor = self:try_get("classColor", "#ffffffff"),
                 width = 64,
                 height = 64,
                 halign = "left",
@@ -365,19 +366,13 @@ function Class:CustomEditor(UploadFn, children)
         }
 
         children[#children+1] = gui.Panel{
-            width = "auto",
-            height = "auto",
-            flow = "horizontal",
+            classes = {"formStackedRow"},
             gui.Label{
-                fontSize = 22,
+                classes = {"formStackedLabel"},
                 text = "Heroic Resource:",
-                minWidth = 240,
             },
-
             gui.Input{
-                fontSize = 18,
-                width = 180,
-                height = 22,
+                classes = {"formStackedControl"},
                 characterLimit = 32,
                 text = self.heroicResourceName,
                 change = function(element)
@@ -388,19 +383,13 @@ function Class:CustomEditor(UploadFn, children)
         }
 
         children[#children+1] = gui.Panel{
-            width = "auto",
-            height = "auto",
-            flow = "horizontal",
+            classes = {"formStackedRow"},
             gui.Label{
-                fontSize = 22,
+                classes = {"formStackedLabel"},
                 text = "Epic Resource:",
-                minWidth = 240,
             },
-
             gui.Input{
-                fontSize = 18,
-                width = 180,
-                height = 22,
+                classes = {"formStackedControl"},
                 characterLimit = 32,
                 text = self.epicResourceName,
                 change = function(element)
@@ -483,19 +472,15 @@ function Class:CustomEditor(UploadFn, children)
     end
 
     children[#children+1] = gui.Panel{
-        width = "auto",
-        height = "auto",
-        flow = "horizontal",
-        vmargin = 8,
+        classes = {"formStackedRow"},
         gui.Label{
-            fontSize = 22,
+            classes = {"formStackedLabel"},
             text = "Base Stamina:",
-            minWidth = 240,
         },
 
         gui.GoblinScriptInput{
-            fontSize = 18,
-            width = 240,
+            classes = {"formStackedControl"},
+            multiline = false,
             value = self.hitpointsCalculation,
             placeholderText = "Base Stamina Calculation...",
             change = function(element)

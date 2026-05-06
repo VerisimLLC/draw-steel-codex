@@ -2,6 +2,8 @@
 
 This document is the reference for building UI in the DMHub Lua framework. It covers available controls, the style system, layout, events, and coding standards.
 
+> **For theming, classes, and colors, see [ThemeEngine.md](./ThemeEngine.md).** The Theme Engine is the canonical source for the class vocabulary (`{label, sizeS}`, `{button, sizeL}`, `{form}`, `{modalTitle}`, the `success`/`warning`/`bgDanger`/`borderInfo`/etc. utilities, the `surfaceLinear`/`surfaceRadial` gradients, …) and the `@`-prefixed scheme tokens. New code should compose theme classes and reference scheme tokens — not declare local hex constants. The Style System and Colors sections below are still useful for understanding how the engine cascades work; treat ThemeEngine.md as the authority for what classes exist and when to use them.
+
 ## Overview
 
 UI is declarative: you construct trees of panels using `gui.Panel{}`, `gui.Label{}`, etc. Each constructor takes a table of properties, event handlers, and child panels. Panels support CSS-like styling through class selectors and style tables, and communicate via a custom event system.
@@ -63,16 +65,13 @@ Events: `edit` (fires during typing after editlag), `change` (value committed), 
 
 ### Button Controls
 
-- **gui.EnhIconButton** -- icon button with `bgimage`. Used for toolbar and action buttons.
-- **gui.IconButton** -- icon button with built-in hover/press states. Properties: `icon`, `tooltip`, `press`, `flipped` (mirror image).
-- **gui.Button** -- styled text button with optional `icon` and `tooltip`.
-- **gui.CloseButton** -- X-icon close button.
-- **gui.DeleteItemButton** -- styled delete button with press state.
-- **gui.AddButton** -- plus-sign button for adding items.
-- **gui.SimpleIconButton** -- generic icon button with close-button styling.
-- **gui.DiamondButton** -- diamond-shaped button.
-- **gui.FancyButton** / **gui.PrettyButton** -- decorative styled buttons.
-- **gui.HudIconButton** -- HUD-style icon button.
+For new code, use **`gui.Button`** for everything — pair it with theme size classes (`sizeXxs`/`sizeXs`/`sizeS`/`sizeM`/`sizeL`/`sizeXl`/`sizeXxl`), iconographic kind classes (`addButton`/`closeButton`/`copyButton`/`deleteButton`/`settingsButton`), and hover-tint classes (`withSuccess`/`withInfo`/`withWarning`/`withDanger`). Pass `icon = "..."` for icon-only buttons; pass `text = "..."` for text buttons; pass `requireConfirm = true` on a `deleteButton` to opt into a confirmation modal. See [ThemeEngine.md](./ThemeEngine.md) for the full deprecation table and class reference.
+
+- **gui.Button** -- the canonical button. Use with theme classes as above.
+- **gui.DiamondButton** -- diamond-shaped button (special-purpose; not deprecated).
+
+The following are **deprecated** -- migrate to `gui.Button` per ThemeEngine.md:
+`gui.EnhIconButton`, `gui.IconButton`, `gui.SimpleIconButton`, `gui.HudIconButton`, `gui.AddButton`, `gui.CloseButton`, `gui.CopyButton`, `gui.DeleteButton`, `gui.DeleteItemButton`, `gui.FancyButton`, `gui.PrettyButton`, `gui.SettingsButton`.
 
 ### Selection Controls
 
@@ -95,9 +94,23 @@ Events: `edit` (fires during typing after editlag), `change` (value committed), 
 
 ### Navigation Controls
 
-**gui.CollapseArrow** -- expand/collapse arrow indicator. Uses `collapseSet` class to flip via scale. Always use this -- never build custom expand/collapse arrows.
+**gui.CollapseArrow** -- expand/collapse arrow indicator using a down-arrow asset that flips vertically (via `scale`). Toggled with the `collapseSet` class.
+
+**gui.ExpandoArrow** -- expand/collapse triangle that rotates 90° between right (collapsed) and down (expanded). Toggled with the `expanded` class. Carries the theme's `triangle` class so it inherits themed bgcolor / sizing / hover. See [ThemeEngine.md](./ThemeEngine.md) for the canonical pattern.
+
+Use one of these two -- never roll your own rotate/flip indicator.
 
 ```lua
+-- Triangle (right -> down)
+gui.ExpandoArrow{
+    click = function(element)
+        local nowExpanded = not element:HasClass("expanded")
+        element:SetClass("expanded", nowExpanded)
+        contentPanel:SetClass("collapsed", not nowExpanded)
+    end,
+}
+
+-- Down arrow (down -> up)
 gui.CollapseArrow{
     classes = {"expando"},
     setCollapse = function(element, collapsed)
@@ -116,9 +129,9 @@ gui.CollapseArrow{
 
 **gui.StatsHistoryTooltip{entries=...}** -- tooltip showing stat change history.
 
-**gui.MCDMDivider{layout="..."}** -- decorative divider. Layouts: "line", "dot", "peak", "v", "vdot".
+**gui.MCDMDivider{layout="..."}** -- decorative divider; the canonical choice. Layouts: "line", "dot", "peak", "v", "vdot". Plain `gui.MCDMDivider{ width = "..." }` (no layout) gives a simple horizontal rule.
 
-**gui.Divider** -- simple horizontal line divider.
+**gui.Divider** -- legacy simple horizontal line divider. Prefer `gui.MCDMDivider` for new UI.
 
 **gui.Diamond** -- diamond shape (45-degree rotated square). Properties: `borderWidth`, `borderColor`.
 
@@ -214,6 +227,8 @@ This is especially important for panels with live event subscriptions (e.g. dice
 ---
 
 ## Style System
+
+> **For new theme-aware code, use the Theme Engine** — see [ThemeEngine.md](./ThemeEngine.md). Apply `styles = ThemeEngine.GetStyles()` at the top panel of a window/dialog and compose theme classes on descendants. Use `ThemeEngine.MergeStyles(extras)` only when a surface needs a small block of additional rules on top of the base theme; reach for `ThemeEngine.MergeTokens(extras)` only at a downstream panel that already has a themed ancestor and just needs `@`-token resolution. The general style-system mechanics below still apply (selectors, cascading, inline-vs-class, etc.) — they describe how the engine cascade works under the hood.
 
 ### Definition Format
 
@@ -341,15 +356,18 @@ MySizes.HealthBar = { segmentHeight = 10, diamondSize = 12 }
 
 ### Colors
 
-Define named locals at the top of the file using hex strings:
+> **For new code, use scheme tokens — not local hex constants.** Reference colors via the `@`-prefixed tokens (`@fg`, `@bg`, `@bgAlt`, `@accent`, `@border`, `@success`, `@info`, `@warning`, `@danger`, `@disabled`, `@fgStrong`, `@fgMuted`, `@fgInverse`, …) inside style rules so the UI re-themes with the active scheme. See [ThemeEngine.md](./ThemeEngine.md) for the full token list and usage rules.
+
+The local-hex pattern below is the **legacy** approach, kept here for understanding pre-ThemeEngine code. Don't introduce new files that follow it.
 
 ```lua
+-- LEGACY (do not use in new code):
 local GOLD = "#966D4B"
 local CREAM = "#FFFEF8"
 local TEAL_HEAL = "#2D6A4F"
 ```
 
-Append hex alpha for transparency: `GOLD .. "0F"` for 6% opacity.
+Append hex alpha for transparency: `GOLD .. "0F"` for 6% opacity. (Same idiom applies to the rare cases where you genuinely need a literal color, e.g. `bgcolor = "white"` for image-tint-neutral surfaces.)
 
 ### Dynamic Font Sizing
 
@@ -826,7 +844,7 @@ element:SetClass("negative", val < 0)
 4. **Inline all child panel declarations** -- no local variables for panels.
 5. **Use FireEventTree with custom events** for inter-panel communication between inlined panels.
 6. **Beware FireEventTree infinite loops** -- it fires on the calling element too. Use FireEvent for self-only.
-7. **Use gui.CollapseArrow** -- never build custom expand/collapse arrows.
+7. **Use gui.ExpandoArrow** (90° rotate) or **gui.CollapseArrow** (vertical flip) -- never build custom expand/collapse indicators.
 8. **Use gui.Tooltip(text)(element)** in linger handlers for tooltips.
 9. **All magic numbers** go in a constants table.
 10. **Store panel state in data tables**, not closure upvalues.

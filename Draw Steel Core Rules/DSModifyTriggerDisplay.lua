@@ -131,6 +131,7 @@ CharacterModifier.TypeInfo.triggerdisplay = {
                     text = "Action:",
                 },
                 gui.Dropdown{
+                    styles = ThemeEngine.GetStyles(),
                     options = {
 
                         {

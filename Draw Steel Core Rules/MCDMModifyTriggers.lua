@@ -469,6 +469,7 @@ CharacterModifier.RegisterTriggerModifier{
                 text = "Action:",
             },
             gui.Dropdown{
+                styles = ThemeEngine.GetStyles(),
                 classes = "formDropdown",
                 idChosen = entry.actionResourceId or "none",
                 options = CharacterResource.GetActionOptions(),
@@ -639,6 +640,7 @@ CharacterModifier.TypeInfo.modifytrigger = {
 
             -- Dropdown to add a new modification.
             children[#children+1] = gui.Dropdown{
+                styles = ThemeEngine.GetStyles(),
                 options = triggerModifierOptions,
                 idChosen = "none",
                 height = 30,
@@ -671,6 +673,7 @@ CharacterModifier.TypeInfo.modifytrigger = {
                         text = "Behaviors Mode:",
                     },
                     gui.Dropdown{
+                        styles = ThemeEngine.GetStyles(),
                         options = {
                             {
                                 id = "after",

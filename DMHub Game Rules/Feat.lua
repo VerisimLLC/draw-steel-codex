@@ -140,13 +140,13 @@ local SetFeat = function(tableName, featPanel, featid)
 
 	--the name of the feat.
 	children[#children+1] = gui.Panel{
-		classes = {'formPanel'},
+		classes = {"formStackedRow"},
 		gui.Label{
-			text = 'Name:',
-			valign = 'center',
-			minWidth = 240,
+			classes = {"formStackedLabel"},
+			text = "Name:",
 		},
 		gui.Input{
+			classes = {"formStackedControl"},
 			text = feat.name,
 			change = function(element)
 				feat.name = element.text
@@ -157,11 +157,10 @@ local SetFeat = function(tableName, featPanel, featid)
 
 	--prerequisites for the feat.
 	children[#children+1] = gui.Panel{
-		classes = {'formPanel'},
+		classes = {"formStackedRow"},
 		gui.Label{
-			text = 'Prerequisite:',
-			valign = 'center',
-			minWidth = 240,
+			classes = {"formStackedLabel"},
+			text = "Prerequisite:",
 		},
 		gui.GoblinScriptInput{
 			value = feat.prerequisite,
@@ -191,52 +190,49 @@ local SetFeat = function(tableName, featPanel, featid)
 
 	--The feat's tag.
 	children[#children+1] = gui.Panel{
-		classes = {'formPanel'},
+		classes = {"formStackedRow"},
 		gui.Label{
-			text = 'Tag:',
-			valign = 'center',
-			minWidth = 240,
+			classes = {"formStackedLabel"},
+			text = "Tag:",
 			hover = gui.Tooltip("A feat's tag categorizes how the feat is used. Separate multiple tags with commas. A regular feat should be given the tag 'feat', but feats that are awarded under special circumstances can be given a different tag. When offering a feat selection, only feats with the matching tag will be shown."),
 		},
 		gui.Input{
+			classes = {"formStackedControl"},
 			text = feat.tag,
 			change = function(element)
-                element.text = trim(element.text)
+				element.text = trim(element.text)
 				feat.tag = element.text
-                g_cachedTag = element.text
+				g_cachedTag = element.text
 				UploadFeat()
 			end,
 		},
 	}
 
-    for _,entry in ipairs(feat.descriptionEntries) do
-
-        --feat description/notes.
-        children[#children+1] = gui.Panel{
-            classes = {'formPanel'},
-            height = 'auto',
-            gui.Label{
-                text = string.format("%s:", entry.text),
-                valign = "center",
-                minWidth = 240,
-            },
-            gui.Input{
-                text = feat:try_get(entry.field, ""),
-                fontSize = 14,
-                multiline = true,
-                height = 'auto',
-                width = 800,
-                minHeight = 140,
-                textAlignment = "topleft",
-                characterLimit = 4096,
-                change = function(element)
-                    feat[entry.field] = element.text
-                    UploadFeat()
-                end,
-            }
-        }
-
-    end
+	for _,entry in ipairs(feat.descriptionEntries) do
+		children[#children+1] = gui.Panel{
+			classes = {"formStackedRow"},
+			gui.Label{
+				classes = {"formStackedLabel"},
+				text = string.format("%s:", entry.text),
+			},
+			gui.Input{
+				classes = {"formStackedControl"},
+				multiline = true,
+				height = "auto",
+				minHeight = 140,
+				maxHeight = 400,
+				vscroll = true,
+				textAlignment = "topleft",
+				characterLimit = 4096,
+				placeholderText = string.format("Enter %s...", entry.text),
+				text = feat:try_get(entry.field, ""),
+				change = function(element)
+					feat[entry.field] = element.text
+					UploadFeat()
+				end,
+			},
+		}
+	end
 
 	children[#children+1] = feat:GetClassLevel():CreateEditor(feat, 0, {
 		change = function(element)
@@ -259,39 +255,13 @@ function CharacterFeat.CreateEditor()
 		classes = 'class-panel',
 		styles = {
 			{
-				halign = "left",
-			},
-			{
-				classes = {'class-panel'},
+				classes = {"class-panel"},
 				width = 1200,
-				height = '90%',
-				halign = 'left',
-				flow = 'vertical',
+				height = "90%",
+				halign = "left",
+				flow = "vertical",
 				pad = 20,
 			},
-			{
-				classes = {'label'},
-				color = 'white',
-				fontSize = 22,
-				width = 'auto',
-				height = 'auto',
-			},
-			{
-				classes = {'input'},
-				width = 200,
-				height = 26,
-				fontSize = 18,
-				color = 'white',
-			},
-			{
-				classes = {'formPanel'},
-				flow = 'horizontal',
-				width = 'auto',
-				height = 'auto',
-				halign = 'left',
-				vmargin = 2,
-			},
-
 		},
 	}
 

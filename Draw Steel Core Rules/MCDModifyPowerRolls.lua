@@ -976,6 +976,7 @@ CharacterModifier.TypeInfo.power = {
                 },
 
                 gui.Dropdown{
+                    styles = ThemeEngine.GetStyles(),
 					height = 30,
 					width = 260,
                     valign = "center",
@@ -1003,6 +1004,7 @@ CharacterModifier.TypeInfo.power = {
                     },
 
                     gui.Dropdown{
+                        styles = ThemeEngine.GetStyles(),
                         height = 30,
                         width = 260,
                         valign = "center",
@@ -1043,6 +1045,7 @@ CharacterModifier.TypeInfo.power = {
                 end
 
                 children[#children+1] = gui.Dropdown{
+                    styles = ThemeEngine.GetStyles(),
                     height = 30,
                     width = 260,
                     fontSize = 16,
@@ -1068,6 +1071,7 @@ CharacterModifier.TypeInfo.power = {
                 },
 
 				gui.Dropdown{
+                    styles = ThemeEngine.GetStyles(),
 					height = 30,
 					width = 260,
 					fontSize = 16,
@@ -1130,6 +1134,7 @@ CharacterModifier.TypeInfo.power = {
                 }
 
                 children[#children+1] = gui.Check{
+                    styles = ThemeEngine.GetStyles(),
                     style = {
                         height = 30,
                         width = 160,
@@ -1161,6 +1166,7 @@ CharacterModifier.TypeInfo.power = {
 
                 if table.count_elements(keywords) >= 2 then
                     children[#children+1] = gui.Check{
+                        styles = ThemeEngine.GetStyles(),
                         style = {
                             height = 30,
                             width = 220,
@@ -1188,6 +1194,7 @@ CharacterModifier.TypeInfo.power = {
                 },
 
 				gui.Dropdown{
+                    styles = ThemeEngine.GetStyles(),
 					height = 30,
 					width = 260,
 					fontSize = 16,
@@ -1250,6 +1257,7 @@ CharacterModifier.TypeInfo.power = {
 				},
 
 				gui.Dropdown{
+                    styles = ThemeEngine.GetStyles(),
 					height = 30,
 					width = 260,
 					fontSize = 16,
@@ -1424,6 +1432,7 @@ CharacterModifier.TypeInfo.power = {
                 },
 
                 gui.Dropdown{
+                    styles = ThemeEngine.GetStyles(),
                     options = ActivatedAbilityPowerRollBehavior.s_modificationTypes,
                     valign = "center",
                     idChosen = modifier.modtype,
@@ -1459,6 +1468,7 @@ CharacterModifier.TypeInfo.power = {
                 },
 
                 gui.Dropdown{
+                    styles = ThemeEngine.GetStyles(),
                     options = {
                         {
                             id = "none",
@@ -1562,6 +1572,7 @@ CharacterModifier.TypeInfo.power = {
 
             if options.triggered then
                 children[#children+1] = gui.Check{
+                    styles = ThemeEngine.GetStyles(),
                     style = {
                         height = 30,
                         width = 160,
@@ -1612,6 +1623,7 @@ CharacterModifier.TypeInfo.power = {
                             text = "Retarget Range:",
                         },
                         gui.Dropdown{
+                            styles = ThemeEngine.GetStyles(),
                             idChosen = modifier:try_get("changeTargetRange", "none"),
                             options = {
                                 {
@@ -1694,6 +1706,7 @@ CharacterModifier.TypeInfo.power = {
                         },
 
                         gui.Dropdown{
+                            styles = ThemeEngine.GetStyles(),
                             options = {
                                 {
                                     id = "all",
@@ -1781,6 +1794,7 @@ CharacterModifier.TypeInfo.power = {
                         text = "Damage Type:",
                     },
                     gui.Dropdown{
+                        styles = ThemeEngine.GetStyles(),
                         idChosen = modifier:try_get("damageModifierType", "none"),
                         options = damageTypeOptions,
                         change = function(element)
@@ -1798,6 +1812,7 @@ CharacterModifier.TypeInfo.power = {
                     text = "Damage Multiplier:",
                 },
                 gui.Dropdown{
+                    styles = ThemeEngine.GetStyles(),
                     options = {
                         {
                             id = "full",
@@ -1833,6 +1848,7 @@ CharacterModifier.TypeInfo.power = {
 
             local AddDamageType
             local dropdownDestType = gui.Dropdown{
+                styles = ThemeEngine.GetStyles(),
                 idChosen = "none",
                 fontSize = 12,
                 width = 120,
@@ -1846,6 +1862,7 @@ CharacterModifier.TypeInfo.power = {
             damageTypeOptions[#damageTypeOptions+1] = {id = "all", text = "All"}
 
             local dropdownSourceType = gui.Dropdown{
+                styles = ThemeEngine.GetStyles(),
                 idChosen = "none",
                 fontSize = 12,
                 width = 120,
@@ -1952,6 +1969,7 @@ CharacterModifier.TypeInfo.power = {
 
             if modifier:try_get("surges", "") ~= "" then
                 children[#children+1] = gui.Check{
+                    styles = ThemeEngine.GetStyles(),
                     text = "Surges can be Kept",
                     value = modifier:try_get("surgesCanBeKept", false),
                     change = function(element)
@@ -1968,6 +1986,7 @@ CharacterModifier.TypeInfo.power = {
                     text = "Change Surge Damage to:",
                 },
                 gui.Dropdown{
+                    styles = ThemeEngine.GetStyles(),
                     idChosen = modifier:try_get("surgeDamageType", "none"),
                     options = rules.damageTypesAvailable,
                     change = function(element)
@@ -2004,6 +2023,7 @@ CharacterModifier.TypeInfo.power = {
                                 height = 30,
                                 halign = "left",
                                 gui.Dropdown{
+                                    styles = ThemeEngine.GetStyles(),
                                     width = 120,
                                     halign = "left",
                                     options = {
@@ -2101,6 +2121,7 @@ CharacterModifier.TypeInfo.power = {
                     text = "",
                 },
                 gui.Check{
+                    styles = ThemeEngine.GetStyles(),
                     style = {
                         height = 30,
                         width = 160,
@@ -2176,6 +2197,7 @@ CharacterModifier.TypeInfo.power = {
 
             if options.triggered then
                 children[#children+1] = gui.Check{
+                    styles = ThemeEngine.GetStyles(),
                     style = {
                         height = 30,
                         width = 160,
@@ -2250,7 +2272,7 @@ CharacterModifier.TypeInfo.power = {
             end
 
             children[#children+1] = gui.Check{
-
+                styles = ThemeEngine.GetStyles(),
 				style = {
 					height = 30,
 					width = 160,

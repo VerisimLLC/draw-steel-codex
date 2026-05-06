@@ -90,7 +90,8 @@ CharacterModifier.TypeInfo.suppressabilities = {
                 return string.lower(a.text) < string.lower(b.text)
             end)
 
-            children[#children+1] = gui.SetEditor{
+            children[#children+1] = gui.Multiselect{
+                styles = ThemeEngine.GetStyles(),
                 value = modifier:try_get("keywords", {}),
                 addItemText = "Add Keyword...",
                 options = keywordList,

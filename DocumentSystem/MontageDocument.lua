@@ -705,7 +705,7 @@ function MontageDocument:ChallengesEditor()
                         halign = "left",
                         width = 400,
                         height = "auto",
-                        gui.SetEditor {
+                        gui.Multiselect {
                             halign = "left",
                             vmargin = 4,
                             value = challenge.characteristics,
@@ -716,7 +716,7 @@ function MontageDocument:ChallengesEditor()
                             end,
                         },
 
-                        gui.SetEditor {
+                        gui.Multiselect {
                             halign = "left",
                             hmargin = 6,
                             vmargin = 4,

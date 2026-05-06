@@ -1092,115 +1092,6 @@ ThemeEngine.RegisterTheme{
             height = 58,
             priority = 5,
         },
-        -- {
-        --     selectors = {"hudIconButton"},
-        --     width = 58,
-        --     height = 58,
-        --     bgimage = true,
-        --     bgcolor = "@bg",
-        --     borderColor = "@fg",
-        --     borderWidth = 1,
-        -- },
-        -- {
-        --     selectors = {"hudIconButton", "hover"},
-        --     brightness = 2.5,
-        --     transitionTime = 0.1,
-        -- },
-        -- {
-        --     selectors = {"hudIconButton", "press"},
-        --     brightness = 0.8,
-        --     transitionTime = 0.1,
-        -- },
-        -- {
-        --     selectors = {"hudIconButton", "disabled"},
-        --     brightness = 0.5,
-        --     saturation = 0.2,
-        -- },
-        -- {
-        --     selectors = {"hudIconButton", "selected"},
-        --     brightness = 3.0,
-        --     saturation = 1.4,
-        -- },
-        -- {
-        --     selectors = {"hudIconButton", "selected", "tab"},
-        --     brightness = 1,
-        --     saturation = 1,
-        --     bgcolor = "@bg",
-        --     border = {x1 = 1, x2 = 1, y1 = 0, y2 = 1},
-        -- },
-        -- {
-        --     selectors = {"hudIconButtonIcon"},
-        --     width = "75%",
-        --     height = "75%",
-        --     halign = "center",
-        --     valign = "center",
-        --     bgcolor = "@fg",
-        -- },
-        -- {
-        --     selectors = {"hudIconButtonIcon", "parent:hover"},
-        --     brightness = 1.5,
-        --     transitionTime = 0.1,
-        --     scale = 1.15,
-        -- },
-        -- {
-        --     selectors = {"hudIconButtonIcon", "parent:press"},
-        --     brightness = 0.8,
-        --     transitionTime = 0.1,
-        -- },
-        -- {
-        --     selectors = {"hudIconButtonIcon", "parent:deselected"},
-        --     saturation = 0.0,
-        --     brightness = 0.8,
-        -- },
-        -- {
-        --     selectors = {"hudIconButtonIcon", "parent:disabled"},
-        --     saturation = 0.2,
-        --     brightness = 0.5,
-        --     scale = 1,
-        -- },
-        -- {
-        --     selectors = {"hudIconButtonIcon", "parent:selected"},
-        --     saturation = 1.5,
-        --     brightness = 1.5,
-        -- },
-
-        --[[ Iconographic buttons (close / plus / delete) ]]
-        -- {
-        --     selectors = {"closeButton"},
-        --     width = 24,
-        --     height = 24,
-        --     margin = 6,
-        --     halign = "right",
-        --     valign = "top",
-        --     bgcolor = "@fg",
-        -- },
-        -- {
-        --     selectors = {"closeButton", "hover"},
-        --     brightness = 2,
-        -- },
-        -- {
-        --     selectors = {"closeButton", "press"},
-        --     brightness = 0.5,
-        -- },
-        -- {
-        --     selectors = {"plusButton"},
-        --     width = 24,
-        --     height = 24,
-        --     bgcolor = "@fg",
-        -- },
-        -- {
-        --     selectors = {"plusButton", "hover"},
-        --     brightness = 1.4,
-        -- },
-        -- {
-        --     selectors = {"plusButton", "press"},
-        --     brightness = 0.8,
-        -- },
-        -- {
-        --     selectors = {"deleteItemButton"},
-        --     width = 24,
-        --     height = 24,
-        -- },
 
         --[[ Triangle (expand/collapse arrow) ]]
         --
@@ -1280,12 +1171,12 @@ ThemeEngine.RegisterTheme{
             selectors = {"contextMenuItem", "hover"},
             bgcolor = "@fg",
             color = "@bg",
-            transitionTime = 0.2,
+            -- transitionTime = 0.2,
         },
         {
             selectors = {"contextMenuItem", "press"},
             brightness = 1.2,
-            transitionTime = 0.2,
+            -- transitionTime = 0.2,
         },
 
         -- Row label

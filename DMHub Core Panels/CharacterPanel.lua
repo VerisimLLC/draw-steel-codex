@@ -1333,104 +1333,12 @@ function CharacterPanel.SingleCharacterDisplaySidePanel(token)
                 pad = 2,
                 height = "auto",
                 width = "100%",
-                bgcolor = '#000000aa',
-                borderColor = '#000000ff',
-                borderWidth = 2,
+                -- bgcolor = '#000000aa',
+                -- borderColor = '#000000ff',
+                -- borderWidth = 2,
                 flow = 'horizontal',
             },
         },
-
-        --	gui.Panel({
-        --		id = 'LeftPanel',
-        --		style = {
-        --			width = '40%',
-        --			height = 'auto',
-        --			halign = 'center',
-        --			valign = "top",
-        --			flow = 'none',
-        --		},
-
-        --		children = {
-
-        --			gui.CreateTokenImage(nil, {
-        --				width = 60,
-        --				height = 60,
-        --				valign = 'top',
-        --				halign = 'center',
-
-        --				refresh = function(element)
-        --					if token == nil or not token.valid then
-        --						return
-        --					end
-
-        --					element:FireEventTree("token", token)
-        --				end,
-
-        --			}),
-
-        --			gui.Panel({
-        --				id = 'CharacterSheetButton',
-        --				bgimage = 'fantasy-icons/Enchantment_34_summoning_scroll.png',
-        --				x = 16,
-        --				y = 30,
-        --				events = {
-        --					refreshCharacter = function(element, token)
-        --						element.data.token = token
-        --					end,
-
-        --					press = function(element)
-        --						element.data.token:ShowSheet()
-        --					end,
-        --				},
-        --				styles = {
-        --				{
-        --					bgcolor = 'white',
-        --					borderWidth = 0,
-        --					width = 24,
-        --					height = 24,
-        --				},
-        --				{
-        --					selectors = { 'hover' },
-        --					transitionTime = 0.1,
-        --					brightness = 1.5,
-        --					scale = 1.1,
-        --				}
-        --				},
-        --			}),
-
-        --			gui.Panel({
-        --				id = 'CharacterSheetButton',
-        --				bgimage = 'fantasy-icons/Tailoring_44_little_bag.png',
-        --				x = 0,
-        --				y = 30,
-        --				events = {
-        --					refreshCharacter = function(element, token)
-        --						element.data.token = token
-        --					end,
-
-        --					press = function(element)
-        --						gamehud:ShowInventory(element.data.token)
-        --					end,
-        --				},
-        --				styles = {
-        --					{
-        --						bgcolor = 'white',
-        --						borderWidth = 0,
-        --						width = 24,
-        --						height = 24,
-        --						halign = 'left',
-        --					},
-        --					{
-        --						selectors = { 'hover' },
-        --						transitionTime = 0.1,
-        --						brightness = 1.5,
-        --						scale = 1.1,
-        --					}
-        --				},
-        --			}),
-
-        --		},
-        --	}),
 
         gui.Panel {
             id = "LeftPanel",
@@ -1547,35 +1455,35 @@ local CreateMonsterEntry = function(nodeid)
             return target:HasClass('monster-drag-target') and
                    not IsMonsterNodeSelfOrChildOf(element.data.nodeid, target.data.nodeid)
         end,
-        styles = {
+        styles = ThemeEngine.MergeTokens{
             {
                 valign = 'top',
                 bgcolor = "clear",
                 width = "100%",
                 height = BestiaryPanelHeight,
                 borderWidth = 0,
-                borderColor = 'black',
+                borderColor = 'clear',
                 flow = 'horizontal',
             },
 
             {
                 selectors = { 'focus' },
                 borderWidth = 2,
-                borderColor = 'white',
+                borderColor = "@border",
             },
 
             {
                 selectors = { 'focus' },
                 inherit_selectors = true,
-                bgcolor = Styles.textColor,
-                brightness = 1.2,
-                color = 'black',
+                bgcolor = "@bgInverse",
+                color = "@fgInverse",
             },
 
             {
                 selectors = { "monsterEntry", 'hover' },
-                bgcolor = Styles.textColor,
-                brightness = 0.8,
+                bgcolor = "@bgInverse",
+                color = "@fgInverse",
+                brightness = 1.2,
             },
 
         },
@@ -2072,29 +1980,6 @@ local CreateBestiaryFolder = function(nodeid)
             flow = 'horizontal',
         },
 
-        styles = {
-            {
-                borderWidth = 0,
-                bgcolor = "clear",
-            },
-            {
-                selectors = { 'drag-target' },
-                bgcolor = '#ffffaa66',
-                transitionTime = 0.2,
-            },
-            {
-                selectors = { 'drag-target-hover' },
-                borderWidth = 2,
-                borderColor = 'white',
-                bgcolor = '#ffffaaaa',
-                transitionTime = 0.2,
-            },
-            nodeid ~= '' and {
-                selectors = { 'hover', 'headerPanel' },
-                bgcolor = Styles.textColor,
-            } or nil,
-        },
-
         data = {
             nodeid = nodeid, --store the node id here so it can be conveniently accessed when dragging.
         },
@@ -2433,42 +2318,40 @@ CharacterPanel.CreateCharacterEntry = function(charid, party)
 
             return target ~= nil and target:HasClass('party-drag-target')
         end,
-        styles = {
+        styles = ThemeEngine.MergeTokens{
             {
-                color = '#ccccccff',
                 valign = 'top',
                 bgcolor = "clear",
-                width = "100%",
+                width = "100%-6",
                 height = BestiaryPanelHeight,
-                borderWidth = 0,
-                borderColor = 'black',
                 flow = 'horizontal',
             },
 
             {
                 selectors = { 'selected' },
                 inherit_selectors = true,
-                bgcolor = Styles.textColor,
-                color = 'black',
+                bgcolor = "@bgInverse",
+                color = "@fgInverse",
             },
 
             {
                 selectors = { 'focus' },
                 borderWidth = 2,
-                borderColor = 'white',
+                borderColor = "@border",
             },
 
             {
                 selectors = { 'focus' },
                 inherit_selectors = true,
-                bgcolor = Styles.textColor,
-                color = 'black',
+                bgcolor = "@bgInverse",
+                color = "@fgInverse",
             },
 
             {
                 selectors = { 'hover' },
-                bgcolor = Styles.textColor,
-                brightness = 0.8,
+                bgcolor = "@bgInverse",
+                color = "@fgInverse",
+                brightness = 1.2,
             },
 
         },
@@ -2939,30 +2822,6 @@ CharacterPanel.CreatePartyCharacters = function(partyid)
             width = "100%",
             height = BestiaryPanelHeight,
             flow = 'horizontal',
-        },
-
-        styles = {
-            {
-                borderWidth = 0,
-                bgcolor = "clear",
-            },
-            {
-                selectors = { 'hover', 'headerPanel' },
-                bgcolor = Styles.textColor,
-            },
-            {
-                selectors = { 'drag-target' },
-                bgcolor = '#ffffaa44',
-                transitionTime = 0.2,
-            },
-            {
-                selectors = { 'drag-target-hover' },
-                borderWidth = 2,
-                borderColor = 'white',
-                bgcolor = Styles.textColor,
-                brightness = 1.4,
-                transitionTime = 0.2,
-            },
         },
 
         events = {

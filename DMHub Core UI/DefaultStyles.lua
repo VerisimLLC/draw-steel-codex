@@ -1903,6 +1903,43 @@ ThemeEngine.RegisterTheme{
         { selectors = {"minimizeArrow", "lastExpanded"},                 collapsed = 1 },
         { selectors = {"collapseArrow", "~minimizeArrow", "minimizeSet"}, collapsed = 1 },
         { selectors = {"minimizeArrow", "maximized"},                    collapsed = 1 },
+
+        -- =====================================================================
+        -- 7. DRAG & DROP SUPPORT
+        -- The engine uses kebab case.
+        -- =====================================================================
+        {
+            selectors = { 'drag-target' },
+            bgcolor = '@accent',
+            color = "@fgInverse",
+            priority = 5,
+            -- transitionTime = 0.2,
+        },
+        {
+            selectors = { 'drag-target-hover' },
+            borderWidth = 2,
+            borderColor = '@accent',
+            bgcolor = '@accentHover',
+            color = "@fgInverse",
+            priority = 5,
+            -- transitionTime = 0.2,
+        },
+        {
+            selectors = {"parent:drag-target"},
+            bgcolor = "@accent",
+            color = "@fgInverse",
+            priority = 5,
+            -- transitionTime = 0.2,
+        },
+        {
+            selectors = {"parent:drag-target-hover"},
+            borderWidth = 2,
+            borderColor = '@accent',
+            bgcolor = '@accentHover',
+            color = "@fgInverse",
+            priority = 5,
+            -- transitionTime = 0.2,
+        },
     },
 }
 

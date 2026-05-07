@@ -1761,7 +1761,13 @@ local function _themedDialogStyles(colors)
         height = "auto",
     }
 
-    return styles
+    -- External consumers (CharacterFeature, ActivatedAbilityEditor) iterate
+    -- this list with `for _, rule in ipairs(...)` and append to a local
+    -- styles array -- they don't run the result through MergeStyles, so any
+    -- @-token references in our rules would survive as literal strings and
+    -- render as invalid colors. Resolve @-tokens against the active scheme
+    -- here so the returned rules are ready to splice straight into a panel.
+    return ThemeEngine.MergeTokens(styles)
 end
 
 AbilityEditor.GetThemedDialogStyles = _themedDialogStyles

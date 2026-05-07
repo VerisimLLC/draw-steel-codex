@@ -782,3 +782,45 @@ function ThemeEngine.MergeTokens(customStyles)
 
     return _buildResolvedStyles(customStyles, tables)
 end
+
+-- =============================================================================
+-- Theme safety enforcement
+-- Hidden preference (no name / description / editor, so it does not show up in
+-- the settings dialog). Toggle from chat with `/safetheme true|false`; the
+-- macro with no argument prints the current value. Default: true.
+-- =============================================================================
+
+local _enforceSafetySetting = setting{
+    id = "themeengine.enforcesafety",
+    storage = "preference",
+    default = true,
+}
+
+--- Returns true if theme safety enforcement is currently on.
+--- @return boolean
+function ThemeEngine.ForceSafety()
+    return _enforceSafetySetting:Get()
+end
+
+Commands.RegisterMacro{
+    name = "safetheme",
+    summary = "toggle theme safety enforcement",
+    doc = "Usage: /safetheme [true|false]\nWith no argument, prints the current value. With true or false, sets it.",
+    command = function(str)
+        local arg = (str or ""):match("^%s*(%S+)%s*$")
+        if arg == nil then
+            SendTitledChatMessage(tostring(_enforceSafetySetting:Get()), "safetheme", "#ccccff", dmhub.userid)
+            return
+        end
+        local lower = arg:lower()
+        if lower == "true" then
+            _enforceSafetySetting:Set(true)
+            SendTitledChatMessage("true", "safetheme", "#ccccff", dmhub.userid)
+        elseif lower == "false" then
+            _enforceSafetySetting:Set(false)
+            SendTitledChatMessage("false", "safetheme", "#ccccff", dmhub.userid)
+        else
+            SendTitledChatMessage(string.format("unknown value '%s' (expected true or false). Current: %s", arg, tostring(_enforceSafetySetting:Get())), "safetheme", "#cc4444", dmhub.userid)
+        end
+    end,
+}

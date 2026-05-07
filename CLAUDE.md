@@ -136,7 +136,7 @@ UI is built with `gui.Panel(args)`, `gui.Label(args)`, `gui.Input(args)`, etc. P
 
 **Important:** When using padding (`hpad`, `vpad`, `pad`), always set `borderBox = true` so that padding is included in the declared width/height rather than added on top. This prevents overflow and matches CSS border-box behavior. See the Spacing section in UI_BEST_PRACTICES.md for details.
 
-See **[UI_BEST_PRACTICES.md](UI_BEST_PRACTICES.md)** and **[ThemeEngine.md](ThemeEngine.md)**for detailed guidelines on building UI (rendering, performance, events, styling, layout, etc.).
+See **[UI_BEST_PRACTICES.md](UI_BEST_PRACTICES.md)** and **[ThemeEngine.md](ThemeEngine.md)** for detailed guidelines on building UI (rendering, performance, events, styling, layout, etc.). For the canonical color tokens, gradient tokens, and class vocabulary registered by `DefaultStyles.lua` — and prescriptive guidance on which token/class to reach for — see **[DefaultStyles.md](DefaultStyles.md)**.
 
 ### GoblinScript
 GoblinScript is an expression language (evaluates formula strings) used for ability costs, damage formulas, prerequisites, etc. Compile with `GoblinScript.Compile(formula, symbolTable)` and evaluate with `GoblinScript.Execute(compiled, context)`. See **[GoblinScript_Guide.md](GoblinScript_Guide.md)** for the full language reference including semantics, operator precedence, evaluation model, all available symbols, and real examples.

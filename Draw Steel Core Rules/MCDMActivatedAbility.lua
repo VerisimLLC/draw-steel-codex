@@ -3118,3 +3118,9 @@ ActivatedAbility.RegisterProperty {
     name = "Remain Hidden",
     description = "If true, this ability will not cause hidden to be lost.",
 }
+
+ActivatedAbility.RegisterProperty {
+    id = "forcemovefrominvoker",
+    name = "All Force Move From Caster",
+    description = "If true, push/pull/slide effects from this ability use the original caster as the source for size-difference calculations (Big Versus Little), rather than this ability's caster. Generally only used within Invoked Abilities",
+}

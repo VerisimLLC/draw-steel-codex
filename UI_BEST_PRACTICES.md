@@ -356,7 +356,7 @@ MySizes.HealthBar = { segmentHeight = 10, diamondSize = 12 }
 
 ### Colors
 
-> **For new code, use scheme tokens — not local hex constants.** Reference colors via the `@`-prefixed tokens (`@fg`, `@bg`, `@bgAlt`, `@accent`, `@border`, `@success`, `@info`, `@warning`, `@danger`, `@disabled`, `@fgStrong`, `@fgMuted`, `@fgInverse`, …) inside style rules so the UI re-themes with the active scheme. See [ThemeEngine.md](./ThemeEngine.md) for the full token list and usage rules.
+> **For new code, use scheme tokens — not local hex constants.** Reference colors via the `@`-prefixed tokens (`@fg`, `@bg`, `@bgAlt`, `@accent`, `@border`, `@success`, `@info`, `@warning`, `@danger`, `@disabled`, `@fgStrong`, `@fgMuted`, `@fgInverse`, …) inside style rules so the UI re-themes with the active scheme. See [ThemeEngine.md](./ThemeEngine.md) for cascade mechanics and [DefaultStyles.md](./DefaultStyles.md) for prescriptive guidance on which token / class to reach for in any given situation.
 
 The local-hex pattern below is the **legacy** approach, kept here for understanding pre-ThemeEngine code. Don't introduce new files that follow it.
 

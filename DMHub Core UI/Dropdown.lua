@@ -218,17 +218,9 @@ function gui.Dropdown(args)
                         end
                     end
                     panel = gui.Label{
-						-- styles = {
-						-- 	{
-						-- 		selectors = {"hover"},
-						-- 		bgimage = true,
-						-- 		bgcolor = "red",
-						-- 		color = "teal",
-						-- 		priority = 100,
-						-- 	}
-						-- },
                         classes = classes,
                         fontSize = args.fontSize,
+						bgimage = true,
                         text = text,
                         hover = hover,
                     }
@@ -283,11 +275,11 @@ function gui.Dropdown(args)
 
 							gui.Panel{
 								classes = {"submenuArrow"},
-								bgimage = 'panels/triangle.png',
+								bgimage = "panels/triangle.png",
 								selfStyle = { rotate = 90 },
 								rotate = 90,
-								halign = 'right',
-								valign = 'center',
+								halign = "right",
+								valign = "center",
 								rmargin = 4,
 								width = 8,
 								height = 8,
@@ -327,7 +319,7 @@ function gui.Dropdown(args)
 					-- color / bgcolor / borderColor / borderWidth come from the
 					-- {searchInput} theme rule. fontSize bumped to 18 here for
 					-- the dropdown variant; theme default is 16.
-					fontSize = 14,
+					-- fontSize = 14,
 					floating = true,
 					valign = cond(showTop, "bottom", "top"),
 					x = 2,
@@ -389,7 +381,6 @@ function gui.Dropdown(args)
 			end
  
 			local popup = gui.Panel{
-				-- styles = InheritedStyles(parentPanel),
 				width = "auto",
 				height = menuHeight + cond(m_centerPopup, 16, 0),
 				scale = parentPanel.renderedScale.x,
@@ -397,7 +388,6 @@ function gui.Dropdown(args)
 				halign = "center",
                 gui.Panel{
                     classes = {"dropdownBorder", cond(menuWidth ~= nil, "detached")},
-				    bgimage = "panels/square.png",
                     width = menuWidth or element.renderedWidth,
                     height = "auto",
                     valign = cond(m_centerPopup, "center", cond(showTop, "bottom", "top")),
@@ -547,8 +537,10 @@ function gui.Dropdown(args)
 	end
  
 	-- TODO: THEME_PATCH
-	if arguments.styles == nil then arguments.styles = {} end
-	arguments.styles = ThemeEngine.MergeStyles(arguments.styles)
+	if ThemeEngine.ForceSafety() then
+		if arguments.styles == nil then arguments.styles = {} end
+		arguments.styles = ThemeEngine.MergeStyles(arguments.styles)
+	end
 	dropdownParent = gui.Panel(arguments)
 
 	if options ~= nil then

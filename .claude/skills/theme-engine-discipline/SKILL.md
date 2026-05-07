@@ -11,6 +11,14 @@ Standardize the Draw Steel Codex UI on `ThemeEngine` selectors. Third parties mu
 
 The core rule: **the default theme provides the vocabulary; inline styling only when a use case is genuinely a one-off.** Each deviation requires the user's explicit, in-the-moment approval.
 
+## Canonical reference
+
+For the API and intended usage of ThemeEngine itself (`GetStyles` / `MergeStyles` / `MergeTokens`, `@token` syntax, `requireConfirm` on delete buttons, deprecated-controls table), read `draw-steel-codex/ThemeEngine.md`.
+
+For the catalog of color tokens, gradient tokens, and the class vocabulary registered by `DefaultStyles.lua` — including prescriptive "which token / class do I reach for?" guidance for every widget family — read `draw-steel-codex/DefaultStyles.md`. Consult it before authoring a custom style block: usually a class already exists.
+
+This skill assumes both docs and adds the project-specific discipline on top.
+
 ## Files that own the vocabulary
 
 - `draw-steel-codex/DMHub Core UI/ThemeEngine.lua` — engine itself: `@name` resolver, registries, `MergeStyles` / `MergeTokens` / `GetStyles`, `OnThemeChanged`.
@@ -18,11 +26,13 @@ The core rule: **the default theme provides the vocabulary; inline styling only 
 
 ## Decision flow when styling any element
 
-1. Find an existing selector in `DefaultStyles.lua` that fits → apply it via `classes = {...}` and add nothing else.
-2. Need a small theme-aware tweak local to one panel → `ThemeEngine.MergeStyles{ extras }` at the cascade root, or `ThemeEngine.MergeTokens{ extras }` at a downstream panel that already has a themed ancestor. Use `@token` references, never raw hex.
-3. Genuinely unique one-off → inline `selfStyle`, but **stop and ask the user first** with a one-line justification of why it can't reuse a class. Do not assume the answer.
+`ThemeEngine.md` describes the three tiers (`GetStyles` → `MergeStyles` → `MergeTokens`). The discipline this skill adds:
 
-Layout values (positions and sizes that are unique to a particular construction site — `halign`, `valign`, `width`, `height`, `flow`, `margin` between siblings) are fine inline as direct panel fields. Visual properties (colors, fonts, borders, hover/press states, button sizes from the size vocabulary) belong in the theme.
+1. **Prefer an existing selector** in `DefaultStyles.lua` over writing custom styles. Apply via `classes = {...}` and add nothing else.
+2. **`MergeStyles` / `MergeTokens` extras** are for theme-aware tweaks local to one panel. Use `@token` references, never raw hex. Don't wrap them around extras that contain only layout values.
+3. **Inline `selfStyle` is a last resort.** Stop and ask the user first with a one-line justification of why it can't reuse a class. Do not assume the answer.
+
+Layout values (positions and sizes unique to a particular construction site — `halign`, `valign`, `width`, `height`, `flow`, `margin` between siblings) are fine inline as direct panel fields. Visual properties (colors, fonts, borders, hover/press states, button sizes from the size vocabulary) belong in the theme.
 
 ## Hard rules
 

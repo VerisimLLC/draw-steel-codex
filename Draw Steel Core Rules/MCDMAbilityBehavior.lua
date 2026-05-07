@@ -397,7 +397,18 @@ local g_rulePatterns = {
 
             local sizeDifferenceBonus = 0
             if ability.keywords["Weapon"] and ability.keywords["Melee"] then
-                local casterSize = casterToken.creatureSizeNumber
+                --When a sub-ability's casterid has been remapped (e.g. Behold the Face of Justice), opt in via "forcemovefrominvoker" to use the original invoker as the pusher for the size check.
+                local pusherToken = casterToken
+                if ability:HasProperty("forcemovefrominvoker") then
+                    local invoker = ability:try_get("invoker")
+                    if invoker ~= nil then
+                        local invokerToken = dmhub.LookupToken(invoker)
+                        if invokerToken ~= nil and invokerToken.valid then
+                            pusherToken = invokerToken
+                        end
+                    end
+                end
+                local casterSize = pusherToken.creatureSizeNumber
                 local targetSize = targetToken.properties:CreatureSizeWhenBeingForceMoved()
                 if casterSize > targetSize then
                     sizeDifferenceBonus = 1

@@ -139,19 +139,6 @@ mod.shared.ShowCreateMapDialog = function()
                         flow = "horizontal",
                         halign = "left",
 
-                        styles = ThemeEngine.MergeTokens({
-                            {
-                                selectors = {"tileButton"},
-                                brightness = 0.5,
-                                bgcolor = "@bgInverse",
-                            },
-                            {
-                                selectors = {"tileButton", "selected"},
-                                brightness = 1.8,
-                                bgcolor = "@fgStrong",
-                            },
-                        }),
-
                         select = function(element, target)
                             tileType = target.data.id
                             for _,child in ipairs(element.children) do
@@ -159,22 +146,23 @@ mod.shared.ShowCreateMapDialog = function()
                             end
                         end,
 
+                        -- THEME_EXAMPLE: Bordered, selectable icon buttons
                         gui.Button{
-                            classes = {"sizeL", "tileButton", "selected"},
+                            classes = {"sizeXl", "bordered", "selected"},
                             data = {id = "squares"},
                             hmargin = 8,
                             icon = "ui-icons/tile-square.png",
                             click = function(element) element.parent:FireEvent("select", element) end,
                         },
                         gui.Button{
-                            classes = {"sizeL", "tileButton"},
+                            classes = {"sizeXl", "bordered"},
                             data = {id = "flattop"},
                             hmargin = 8,
                             icon = "ui-icons/tile-flathex.png",
                             click = function(element) element.parent:FireEvent("select", element) end,
                         },
                         gui.Button{
-                            classes = {"sizeL", "tileButton"},
+                            classes = {"sizeXl", "bordered"},
                             data = {id = "pointtop"},
                             hmargin = 8,
                             icon = "ui-icons/tile-pointyhex.png",

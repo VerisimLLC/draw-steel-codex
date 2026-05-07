@@ -377,97 +377,61 @@ local SettingsEditors = {
 		for i,item in ipairs(GetSettingEnum(var)) do
 			local enumItem = item
 			local currentIndex = i
-			local classes = {"hudIconButton"}
+			local classes = {"sizeL", "bordered"}
 			if item.value == value then
-				classes[#classes+1] = 'selected'
+				classes[#classes+1] = "selected"
 				selectedIndex = i
 			end
 
 			valueToIndex[enumItem.value] = i
 
-			buttons[#buttons+1] = gui.Panel({
-				bgimage = 'panels/square.png',
+			buttons[#buttons+1] = gui.Button{
 				classes = classes,
+				icon = enumItem.icon,
+				tooltip = enumItem.help,
+				valign = "center",
+				hmargin = 2,
+				press = function(element)
+					if selectedIndex ~= nil then
+						buttons[selectedIndex]:RemoveClass("selected")
+					end
 
-				events = {
-					press = function(element)
-						if selectedIndex ~= nil then
-							buttons[selectedIndex]:RemoveClass('selected')
-						end
-						
-						gui.SetFocus(element)
+					gui.SetFocus(element)
 
-						selectedIndex = currentIndex
-						element:AddClass('selected')
-						dmhub.SetSettingValue(var.id, enumItem.value)
-						if var.onchange then
-							var.onchange()
-						end
-
-					end,
-					hover = function(element)
-						if enumItem.help ~= nil then
-							gui.Tooltip(enumItem.help)(element)
-						end
-					end,
-				},
-
-				children = {
-					gui.Panel({
-						classes = {"hudIconButtonIcon"},
-						bgimage = enumItem.icon,
-					})
-				},
-			})
+					selectedIndex = currentIndex
+					element:AddClass("selected")
+					dmhub.SetSettingValue(var.id, enumItem.value)
+					if var.onchange then
+						var.onchange()
+					end
+				end,
+			}
 		end
 
-		return gui.Panel({
-			styles = {
-				{
-					width = "100%",
-					height = 48,
-					flow = 'horizontal',
-					hmargin = 2,
-				},
-				{
-					selectors = {"hudIconButton"},
-					width = 32,
-					height = 32,
-                    halign = "center",
-					valign = 'center',
-				},
-			},
+		return gui.Panel{
+			width = "100%",
+			height = 48,
+			flow = "horizontal",
+			halign = "center",
 
 			monitor = var.id,
 			events = {
 				monitor = function(element)
 					local index = valueToIndex[element.monitorValue]
 					if index ~= nil and index ~= selectedIndex then
-						buttons[index]:FireEvent('press')
+						buttons[index]:FireEvent("press")
 					end
 				end,
 
-				--event which selects the first button.
 				pressfirst = function(element)
 					buttons[1]:FireEvent("press")
 				end,
 			},
 
 			children = {
-			--gui.Label({
-			--	text = string.format("%s:", var.description),
-			--	style = {
-			--		width = "auto",
-			--		height = "auto",
-			--		fontSize = '50%',
-			--		valign = 'center',
-			--		textAlignment = 'center',
-			--	},
-			--}),
-
 				buttons,
 			},
-		})
+		}
 
 	end,
 

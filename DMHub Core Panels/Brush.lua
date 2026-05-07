@@ -293,7 +293,8 @@ local BrushFieldEditors = {
 			height = 20,
 			width = 180,
 			valign = "center",
-			halign = "right",
+			halign = "left",
+			lmargin = 12,
 			style = {
 				fontSize = 14,
 			},
@@ -620,20 +621,22 @@ mod.shared.BrushEditorPanel = function(settingid)
 		hmargin = 8,
 		vmargin = 4,
 
-		styles = {
+		styles = ThemeEngine.MergeTokens({
 			{
 				selectors = {"brushPanel"},
 				width = 64,
 				height = 64,
 				cornerRadius = 8,
 				saturation = 0.5,
-				bgcolor = 'white',
-				bgimage = "panels/hud/button_09_frame_custom.png",
+				bgimage = true,
+				border = 1,
+				borderColor = "@border",
 			},
 			{
 				selectors = {"brushPanel", "selected"},
 				brightness = 2.5,
 				saturation = 1.4,
+				borderColor = "@borderInverse",
 			},
 			{
 				selectors = {"brushPanel", "hover"},
@@ -653,7 +656,7 @@ mod.shared.BrushEditorPanel = function(settingid)
 				halign = "center",
 				valign = "center",
 			},
-		},
+		}),
 
 		gui.Panel{
 			width = 320,
@@ -698,7 +701,8 @@ mod.shared.BrushEditorPanel = function(settingid)
 				table.sort(children, function(a,b) return a.data.asset.ord < b.data.asset.ord end)
 
 				if addPanel == nil then
-					addPanel = gui.AddButton{
+					addPanel = gui.Button{
+						classes = {"addButton"},
 						width = 64,
 						height = 64,
 						click = function(element)
@@ -733,7 +737,15 @@ mod.shared.BrushEditorPanel = function(settingid)
 				selectors = {"formLabel"},
 				halign = "left",
 				valign = "center",
-				width = 80,
+				width = "auto",
+				minWidth = 0,
+				hmargin = 0,
+			},
+			{
+				selectors = {"formValue"},
+				halign = "left",
+				width = "auto",
+				hmargin = 4,
 			},
 		},
 

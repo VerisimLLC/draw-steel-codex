@@ -306,8 +306,10 @@ local function _multiselect(args)
             or {dropdownPanel, chipsPanel}
 
         -- TODO: THEME_PATCH
-        if panelOpts.styles == nil then panelOpts.styles = {} end
-        panelOpts.styles = ThemeEngine.MergeStyles(panelOpts.styles)
+        if ThemeEngine.ForceSafety() then
+            if panelOpts.styles == nil then panelOpts.styles = {} end
+            panelOpts.styles = ThemeEngine.MergeStyles(panelOpts.styles)
+        end
         return gui.Panel(panelOpts)
     end
     m_panel = buildController()

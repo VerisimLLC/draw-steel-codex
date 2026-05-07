@@ -962,8 +962,8 @@ function gui.IconEditor(args)
         
 	end
 
-	-- if args.classes == nil then args.classes = {} end
-	-- args.classes[#args.classes+1] = "image"
+	if args.classes == nil then args.classes = {} end
+	args.classes[#args.classes+1] = "image"
 	resultPanel = gui.Panel(args)
 
 	args.SetValue(resultPanel, value, false)

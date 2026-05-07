@@ -100,8 +100,7 @@ local function _baseStyles()
         {
             selectors = {"builder-base"},
             fontSize = 14,
-            fontFace = "Berling",
-            color = Styles.textColor,
+            color = "@fgStrong",
             bold = false,
         },
     }
@@ -110,25 +109,6 @@ end
 --- Generate panel styles with panel-base root selector
 --- @return table[] Array of style definitions
 local function _panelStyles()
-
-    local starburstGradient = gui.Gradient{
-        type = "radial",
-        point_a = {x = 0.5, y = 0.5},
-        point_b = {x = 0.5, y = 1.0},
-        stops = {
-            {position = -0.01, color = "#1c1c1c"},
-            {position = 0.00, color = "#1c1c1c"},
-            {position = 0.12, color = "#191919"},
-            {position = 0.25, color = "#161616"},
-            {position = 0.37, color = "#131413"},
-            {position = 0.50, color = "#101110"},
-            {position = 0.62, color = "#0d0f0d"},
-            {position = 0.75, color = "#0b0d0b"},
-            {position = 0.87, color = "#090c0a"},
-            {position = 1.00, color = "#080b09"},
-        },
-    }
-
     return _applyRootSelectors("panel-base", {
         {
             selectors = {},
@@ -150,7 +130,7 @@ local function _panelStyles()
         },
         {
             selectors = {"border"},
-            borderColor = CBStyles.COLORS.CREAM,
+            borderColor = "@border",
             border = 2,
             cornerRadius = 10,
         },
@@ -160,9 +140,9 @@ local function _panelStyles()
             selectors = {"dialog"},
             halign = "center",
             valign = "center",
-            bgcolor = "#111111ff",
+            bgcolor = "@bg",
             borderWidth = 2,
-            borderColor = Styles.textColor,
+            borderColor = "@fgStrong",
             bgimage = "panels/square.png",
             flow = "vertical",
             hpad = 10,
@@ -222,7 +202,7 @@ local function _panelStyles()
         },
         {
             selectors = {"detail-overview-panel", "has-kit"},
-            bgcolor = "#666666",
+            bgcolor = "@fgMuted",
         },
 
         -- Feature selectors
@@ -237,16 +217,17 @@ local function _panelStyles()
             bgcolor = "clear",
             cornerRadius = 5,
             borderWidth = 1,
-            borderColor = CBStyles.COLORS.GOLD,
+            borderColor = "@accent",
         },
         {
             selectors = {"feature-target", "filled"},
-            bgcolor = CBStyles.COLORS.FILLED_ITEM_BG,
-            borderColor = CBStyles.COLORS.FILLED_ITEM_BORDER,
+            bgcolor = "@bgAlt",
+            borderColor = "@borderInverse",
         },
         {
             selectors = {"feature-target", "filled", "selected"},
-            brightness = 1.8,
+            borderColor = "@border",
+            brightness = 1.4,
         },
         {
             selectors = {"feature-choice-container"},
@@ -263,18 +244,18 @@ local function _panelStyles()
             tmargin = 10,
             vpad = 8,
             bgimage = true,
-            bgcolor = CBStyles.COLORS.BLACK04, --"clear",
+            bgcolor = "@bg", --"clear",
             cornerRadius = 5,
             borderWidth = 1,
-            borderColor = CBStyles.COLORS.GOLD,
+            borderColor = "@accent",
         },
         {
             selectors = {"feature-choice", "selected"},
-            borderColor = CBStyles.COLORS.GOLD03,
+            borderColor = "@fgStrong",
         },
         {
             selectors = {"feature-choice", "hover"},
-            bgcolor = CBStyles.COLORS.GOLD04,
+            bgcolor = "@accentHover",
         },
         {
             selectors = {"feature-choice", "filtered"},
@@ -288,7 +269,7 @@ local function _panelStyles()
         {
             selectors = {"feature-target", "drag-target-hover"},
             brightness = 1.6,
-            borderColor = CBStyles.COLORS.CREAM03,
+            borderColor = "@fgStrong",
         },
         -- Drop target glow for individual choice panels (when dragging targets over)
         {
@@ -298,7 +279,7 @@ local function _panelStyles()
         {
             selectors = {"feature-choice", "drag-target-hover"},
             brightness = 1.6,
-            borderColor = CBStyles.COLORS.CREAM03,
+            borderColor = "@fgStrong",
         },
         {
             selectors = {"feature-selector"},
@@ -313,12 +294,12 @@ local function _panelStyles()
         {
             selectors = {"feature-selector", "remove"},
             bgimage = "icons/icon_tool/icon_tool_43.png",
-            bgcolor = CBStyles.COLORS.GOLD03,
+            bgcolor = "@fgStrong",
         },
         {
             selectors = {"feature-selector", "remove", "hover"},
             bgimage = "icons/icon_tool/icon_tool_44.png",
-            bgcolor = "#fc0000",
+            bgcolor = "@danger",
         },
         {
             selectors = {"feature-selector", "select"},
@@ -354,7 +335,7 @@ local function _panelStyles()
         },
         {
             selectors = {"attr-lock", "parent:locked"},
-            bgcolor = CBStyles.COLORS.GRAY02,
+            bgcolor = "@fgMuted",
         },
 
         -- Level Dividers in Class Panel
@@ -378,7 +359,7 @@ local function _panelStyles()
         },
         {
             selectors = {"class-divider", "builder-check", "complete"},
-            bgcolor = CBStyles.COLORS.GOLD03,
+            bgcolor = "@fgStrong",
         },
 
         -- Right-side character panel
@@ -417,7 +398,7 @@ local function _panelStyles()
         },
         {
             selectors = {"charpanel", "builder-check", "complete"},
-            bgcolor = Styles.textColor,
+            bgcolor = "@fgStrong",
         },
         {
             selectors = {"charpanel", "builder-feature-content"},
@@ -446,23 +427,23 @@ local function _panelStyles()
             width = CBStyles.SIZES.PROGRESS_PIP_SIZE,
             height = CBStyles.SIZES.PROGRESS_PIP_SIZE,
             bgimage = true,
-            bgcolor = CBStyles.COLORS.GRAY02,
+            bgcolor = "@disabled",
             border = 0,
-            borderColor = CBStyles.COLORS.GOLD,
+            borderColor = "@accent",
         },
         {
             selectors = {"progress-pip", "solo"},
-            bgcolor = CBStyles.COLORS.BLACK03,
+            -- bgcolor = "@disabled",
             border = 1,
         },
         {
             selectors = {"progress-pip", "secondary"},
-            bgcolor = CBStyles.COLORS.GRAY02,
+            -- bgcolor = "@disabled",
             border = 0,
         },
         {
             selectors = {"progress-pip", "filled"},
-            bgcolor = CBStyles.COLORS.GOLD03,
+            bgcolor = "@accent",
         },
 
         -- Gradient-based progress pip styles (fill from bottom to top)
@@ -475,8 +456,8 @@ local function _panelStyles()
                 point_a = {x = 0.0, y = 0.0},
                 point_b = {x = 1.0, y = 1.0},
                 stops = {
-                    {position = 0.0, color = CBStyles.COLORS.BLACK},
-                    {position = 1.0, color = CBStyles.COLORS.BLACK},
+                    {position = 0.0, color = "@bg"},
+                    {position = 1.0, color = "@bg"},
                 },
             },
         },
@@ -488,10 +469,10 @@ local function _panelStyles()
                 point_a = {x = 0.0, y = 0.0},
                 point_b = {x = 1.0, y = 1.0},
                 stops = {
-                    {position = 0.0, color = CBStyles.COLORS.GOLD},
-                    {position = 0.10, color = CBStyles.COLORS.GOLD},
-                    {position = 0.10, color = CBStyles.COLORS.BLACK},
-                    {position = 1.0, color = CBStyles.COLORS.BLACK},
+                    {position = 0.0, color = "@accent"},
+                    {position = 0.10, color = "@accent"},
+                    {position = 0.10, color = "@bg"},
+                    {position = 1.0, color = "@bg"},
                 },
             },
         },
@@ -503,10 +484,10 @@ local function _panelStyles()
                 point_a = {x = 0.0, y = 0.0},
                 point_b = {x = 1.0, y = 1.0},
                 stops = {
-                    {position = 0.0, color = CBStyles.COLORS.GOLD},
-                    {position = 0.20, color = CBStyles.COLORS.GOLD},
-                    {position = 0.20, color = CBStyles.COLORS.BLACK},
-                    {position = 1.0, color = CBStyles.COLORS.BLACK},
+                    {position = 0.0, color = "@accent"},
+                    {position = 0.20, color = "@accent"},
+                    {position = 0.20, color = "@bg"},
+                    {position = 1.0, color = "@bg"},
                 },
             },
         },
@@ -518,10 +499,10 @@ local function _panelStyles()
                 point_a = {x = 0.0, y = 0.0},
                 point_b = {x = 1.0, y = 1.0},
                 stops = {
-                    {position = 0.0, color = CBStyles.COLORS.GOLD},
-                    {position = 0.30, color = CBStyles.COLORS.GOLD},
-                    {position = 0.30, color = CBStyles.COLORS.BLACK},
-                    {position = 1.0, color = CBStyles.COLORS.BLACK},
+                    {position = 0.0, color = "@accent"},
+                    {position = 0.30, color = "@accent"},
+                    {position = 0.30, color = "@bg"},
+                    {position = 1.0, color = "@bg"},
                 },
             },
         },
@@ -533,10 +514,10 @@ local function _panelStyles()
                 point_a = {x = 0.0, y = 0.0},
                 point_b = {x = 1.0, y = 1.0},
                 stops = {
-                    {position = 0.0, color = CBStyles.COLORS.GOLD},
-                    {position = 0.40, color = CBStyles.COLORS.GOLD},
-                    {position = 0.40, color = CBStyles.COLORS.BLACK},
-                    {position = 1.0, color = CBStyles.COLORS.BLACK},
+                    {position = 0.0, color = "@accent"},
+                    {position = 0.40, color = "@accent"},
+                    {position = 0.40, color = "@bg"},
+                    {position = 1.0, color = "@bg"},
                 },
             },
         },
@@ -548,10 +529,10 @@ local function _panelStyles()
                 point_a = {x = 0.0, y = 0.0},
                 point_b = {x = 1.0, y = 1.0},
                 stops = {
-                    {position = 0.0, color = CBStyles.COLORS.GOLD},
-                    {position = 0.50, color = CBStyles.COLORS.GOLD},
-                    {position = 0.50, color = CBStyles.COLORS.BLACK},
-                    {position = 1.0, color = CBStyles.COLORS.BLACK},
+                    {position = 0.0, color = "@accent"},
+                    {position = 0.50, color = "@accent"},
+                    {position = 0.50, color = "@bg"},
+                    {position = 1.0, color = "@bg"},
                 },
             },
         },
@@ -563,10 +544,10 @@ local function _panelStyles()
                 point_a = {x = 0.0, y = 0.0},
                 point_b = {x = 1.0, y = 1.0},
                 stops = {
-                    {position = 0.0, color = CBStyles.COLORS.GOLD},
-                    {position = 0.60, color = CBStyles.COLORS.GOLD},
-                    {position = 0.60, color = CBStyles.COLORS.BLACK},
-                    {position = 1.0, color = CBStyles.COLORS.BLACK},
+                    {position = 0.0, color = "@accent"},
+                    {position = 0.60, color = "@accent"},
+                    {position = 0.60, color = "@bg"},
+                    {position = 1.0, color = "@bg"},
                 },
             },
         },
@@ -578,10 +559,10 @@ local function _panelStyles()
                 point_a = {x = 0.0, y = 0.0},
                 point_b = {x = 1.0, y = 1.0},
                 stops = {
-                    {position = 0.0, color = CBStyles.COLORS.GOLD},
-                    {position = 0.70, color = CBStyles.COLORS.GOLD},
-                    {position = 0.70, color = CBStyles.COLORS.BLACK},
-                    {position = 1.0, color = CBStyles.COLORS.BLACK},
+                    {position = 0.0, color = "@accent"},
+                    {position = 0.70, color = "@accent"},
+                    {position = 0.70, color = "@bg"},
+                    {position = 1.0, color = "@bg"},
                 },
             },
         },
@@ -593,10 +574,10 @@ local function _panelStyles()
                 point_a = {x = 0.0, y = 0.0},
                 point_b = {x = 1.0, y = 1.0},
                 stops = {
-                    {position = 0.0, color = CBStyles.COLORS.GOLD},
-                    {position = 0.80, color = CBStyles.COLORS.GOLD},
-                    {position = 0.80, color = CBStyles.COLORS.BLACK},
-                    {position = 1.0, color = CBStyles.COLORS.BLACK},
+                    {position = 0.0, color = "@accent"},
+                    {position = 0.80, color = "@accent"},
+                    {position = 0.80, color = "@bg"},
+                    {position = 1.0, color = "@bg"},
                 },
             },
         },
@@ -608,10 +589,10 @@ local function _panelStyles()
                 point_a = {x = 0.0, y = 0.0},
                 point_b = {x = 1.0, y = 1.0},
                 stops = {
-                    {position = 0.0, color = CBStyles.COLORS.GOLD},
-                    {position = 0.90, color = CBStyles.COLORS.GOLD},
-                    {position = 0.90, color = CBStyles.COLORS.BLACK},
-                    {position = 1.0, color = CBStyles.COLORS.BLACK},
+                    {position = 0.0, color = "@accent"},
+                    {position = 0.90, color = "@accent"},
+                    {position = 0.90, color = "@bg"},
+                    {position = 1.0, color = "@bg"},
                 },
             },
         },
@@ -623,8 +604,8 @@ local function _panelStyles()
                 point_a = {x = 0.0, y = 0.0},
                 point_b = {x = 1.0, y = 1.0},
                 stops = {
-                    {position = 0.0, color = CBStyles.COLORS.CREAM03},
-                    {position = 1.0, color = CBStyles.COLORS.CREAM03},
+                    {position = 0.0, color = "@fgStrong"},
+                    {position = 1.0, color = "@fgStrong"},
                 },
             },
         },
@@ -632,9 +613,9 @@ local function _panelStyles()
         -- Contains all the tab content
         {
             selectors = {CharacterBuilder.CONTROLLER_CLASS},
-            bgcolor = "#ffffff",
+            bgcolor = "white",
             bgimage = true,
-            gradient = starburstGradient,
+            gradient = "@surfaceRadial",
         },
     })
 end
@@ -648,7 +629,7 @@ local function _labelStyles()
             height = "auto",
             textAlignment = "center",
             fontSize = 14,
-            color = Styles.textColor,
+            color = "@fgStrong",
             bold = false,
         },
         {
@@ -720,7 +701,7 @@ local function _labelStyles()
             textAlignment = "center",
             fontSize = 20,
             bgimage = true,
-            borderColor = CBStyles.COLORS.CREAM03,
+            borderColor = "@fgStrong",
             border = 1,
             cornerRadius = 5,
         },
@@ -785,11 +766,11 @@ local function _labelStyles()
         },
         -- {
         --     selectors = {"feature-choice", "hover"},
-        --     color = CBStyles.COLORS.BLACK04,
+        --     color = "@bg",
         -- },
         {
             selectors = {"feature-choice", "parent:hovering"},
-            color = CBStyles.COLORS.BLACK04,
+            color = "@bg",
         },
 
         -- Attribute editor
@@ -811,12 +792,12 @@ local function _labelStyles()
             bgcolor = "clear",
             borderWidth = 2,
             cornerRadius = 10,
-            borderColor = CBStyles.COLORS.GOLD,
+            borderColor = "@accent",
         },
         {
             selectors = {"attr-value", "parent:locked"},
-            color = CBStyles.COLORS.GRAY02,
-            borderColor = CBStyles.COLORS.GRAY02,
+            color = "@fgMuted",
+            borderColor = "@fgMuted",
         },
         {
             selectors = {"attr-value", "drag-target"},
@@ -825,15 +806,15 @@ local function _labelStyles()
         {
             selectors = {"attr-value", "drag-target-hover"},
             brightness = 2.0,
-            borderColor = CBStyles.COLORS.CREAM03,
+            borderColor = "@fgStrong",
         },
 
         -- Kit bonus selectors
         {
             selectors = {"bonus-selector"},
-            color = CBStyles.COLORS.GRAY02,
+            color = "@fgMuted",
             bgimage = true,
-            borderColor = CBStyles.COLORS.GRAY02,
+            borderColor = "@fgMuted",
             border = 1,
             cornerRadius = 3,
         },
@@ -843,8 +824,8 @@ local function _labelStyles()
         },
         {
             selectors = {"bonus-selector", "selected"},
-            color = CBStyles.COLORS.GOLD03,
-            borderColor = CBStyles.COLORS.CREAM03,
+            color = "@fgStrong",
+            borderColor = "@fgStrong",
         },
 
         -- Class panel level dividers
@@ -856,10 +837,10 @@ local function _labelStyles()
             textAlignment = "left",
             vpad = 4,
             fontSize = 20,
-            color = CBStyles.COLORS.GOLD03,
+            color = "@fgStrong",
             bgimage = true,
             border = {y1 = 2, y2 = 0, x1 = 0, x2 = 0},
-            borderColor = CBStyles.COLORS.GOLD03,
+            borderColor = "@fgStrong",
         },
 
         -- For the right-side character panel / builder tab
@@ -892,7 +873,7 @@ local function _labelStyles()
             fontSize = 24,
             bgimage = true,
             border = {y1 = 2, y2 = 0, x1 = 0, x2 = 0},
-            borderColor = Styles.textColor,
+            borderColor = "@fgStrong",
         },
         {
             selectors = {"charpanel", "builder-category"},
@@ -958,13 +939,13 @@ local function _buttonStyles()
             cornerRadius = 5,
             border = 1,
             borderWidth = 1,
-            borderColor = CBStyles.COLORS.GOLD03,
-            color = CBStyles.COLORS.GOLD03,
+            borderColor = "@fgStrong",
+            color = "@fgStrong",
         },
         {
             selectors = {"disabled"},
-            borderColor = CBStyles.COLORS.GRAY02,
-            color = CBStyles.COLORS.GRAY02,
+            borderColor = "@fgMuted",
+            color = "@fgMuted",
         },
         {
             selectors = {"selector"},
@@ -976,13 +957,13 @@ local function _buttonStyles()
             fontSize = 24,
             borderWidth = 1,
             cornerRadius = 2,
-            borderColor = CBStyles.COLORS.GOLD,
-            color = CBStyles.COLORS.GOLD,
+            borderColor = "@accent",
+            color = "@accent",
         },
         {
             selectors = {"selector", "hover"},
-            bgcolor = CBStyles.COLORS.GOLD04,
-            color = CBStyles.COLORS.BLACK02,
+            bgcolor = "@accentHover",
+            color = "@bg",
         },
         -- {
         --     selectors = {"selector", "destructive"},
@@ -992,8 +973,8 @@ local function _buttonStyles()
         -- },
         {
             selectors = {"destructive", "hover"},
-            bgcolor = "#D5303188",
-            borderColor = "#D53031",
+            bgcolor = "@danger",
+            borderColor = "@danger",
             color = "white",
         }
     })
@@ -1005,8 +986,8 @@ local function _inputStyles()
     return _applyRootSelectors("input", {
         {
             selectors = {},
-            bgcolor = "#191A18",
-            borderColor = "#666663",
+            bgcolor = "@bg",
+            borderColor = "@border",
             cornerRadius = 4,
         },
         {
@@ -1037,37 +1018,24 @@ local function _inputStyles()
     })
 end
 
---- Generate dropdown styles with dropdown root selector
+--- The CB label base rule sets textAlignment/fontSize for every label in the
+--- cascade, which leaks into dropdownLabel (closed control) and dropdownOption
+--- (open list rows). These overrides defeat that leak so dropdowns render with
+--- the default theme's intended look.
 --- @return table[] Array of style definitions
-local function _dropdownStyles()
-    return _applyRootSelectors("dropdown", {
+local function _dropdownLabelOverrides()
+    return {
         {
-            selectors = {},
-            bgcolor = "#191A18",
-            borderColor = "#666663",
-            fontSize = 36,
-            cornerRadius = 4,
-            borderWidth = 2,
+            selectors = {"label", "dropdownLabel"},
+            textAlignment = "left",
+            fontSize = 18,
         },
         {
-            selectors = {"primary"},
-            height = 48,
-            fontSize = 20,
+            selectors = {"label", "dropdownOption"},
+            textAlignment = "left",
+            fontSize = 18,
         },
-        {
-            selectors = {"charlevel"},
-            width = "240",
-            height = 32,
-            bgcolor = "#0a0c0b",
-            borderWidth = 1,
-            halign = "center",
-            tmargin = 4,
-        },
-        {
-            selectors = {"charlevel", "hover"},
-            color = Styles.textColor,
-        }
-    })
+    }
 end
 
 --- Generate character panel tab styles
@@ -1077,35 +1045,22 @@ local function _characterPanelTabStyles()
         {
             selectors = {"tab-button"},
             bgimage = true,
+            bgcolor = "clear",
             border = 0,
             pad = 4,
-            borderColor = CBStyles.COLORS.CREAM03,
-        },
-        {
-            selectors = {"tab-border"},
-            width = "100%",
-            height = "100%",
-            border = 0,
-            borderColor = CBStyles.COLORS.CREAM03,
-            bgimage = "panels/square.png",
-            bgcolor = "clear",
-        },
-        {
-            selectors = {"tab-border", "parent:selected"},
-            border = {y1 = 0, y2 = 2, x1 = 2, x2 = 2},
         },
         {
             selectors = {"tab-icon"},
             width = 24,
             height = 24,
-            bgcolor = CBStyles.COLORS.GOLD,
+            bgcolor = "@accent",
         },
         {
             selectors = {"tab-label"},
         },
         {
             selectors = {"tab-icon", "selected"},
-            bgcolor = CBStyles.COLORS.CREAM03,
+            bgcolor = "@fgStrong",
         },
     })
 end
@@ -1126,7 +1081,7 @@ function CBStyles.GetStyles()
     mergeStyles(_labelStyles())
     mergeStyles(_buttonStyles())
     mergeStyles(_inputStyles())
-    mergeStyles(_dropdownStyles())
+    mergeStyles(_dropdownLabelOverrides())
     mergeStyles(_characterPanelTabStyles())
 
     return styles
@@ -1136,12 +1091,12 @@ function CBStyles.SelectorButtonOverrides()
     local styles = {
         {
             selectors = {"parent:destructive"},
-            borderColor = CBStyles.COLORS.DESTRUCTIVE_BORDER,
-            bgcolor = CBStyles.COLORS.DESTRUCTIVE_BG,
+            borderColor = "@danger",
+            bgcolor = "@danger",
         },
         {
             selectors = {"parent:destructive"},
-            color = CBStyles.COLORS.DESTRUCTIVE_TEXT,
+            color = "@fgInverse",
         },
     }
     return styles

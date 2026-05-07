@@ -2102,6 +2102,22 @@ ThemeEngine.RegisterColorScheme{
                 {position = 1, color = "#5C2868"},
             },
         },
+        -- Subtle vignette: bgAlt-ish at center fading to bg at the edge.
+        -- Kept restrained on purpose; MLP is already loud enough without
+        -- a high-contrast radial fighting the rest of the scheme.
+        surfaceRadial = {
+            type = "radial",
+            point_a = {x = 0.5, y = 0.5},
+            point_b = {x = 0.5, y = 1.0},
+            stops = {
+                {position = -0.01, color = "#3D2257"},
+                {position = 0.00,  color = "#3D2257"},
+                {position = 0.25,  color = "#371F50"},
+                {position = 0.50,  color = "#321B4A"},
+                {position = 0.75,  color = "#2F1946"},
+                {position = 1.00,  color = "#2D1843"},
+            },
+        },
         barTrack = {
             point_a = {x = -0.02, y = 0},
             point_b = {x = 1.02, y = 0},

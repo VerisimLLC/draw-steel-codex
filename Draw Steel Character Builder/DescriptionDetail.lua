@@ -135,8 +135,9 @@ function CBDescriptionDetail._editPane()
     }
 
     local level = wrapEditor(gui.Dropdown{
-        classes = {"panel-base", "dropdown", "primary"},
+        classes = {"dropdown", "primary"},
         width = "98%",
+        height = 48,
         textAlignment = "left",
         halign = "left",
         options = {

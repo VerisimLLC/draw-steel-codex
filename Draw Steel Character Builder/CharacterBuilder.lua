@@ -75,6 +75,8 @@
  FeatureSelector.lua.
 ]]
 
+local mod = dmhub.GetModLoading()
+
 CharacterBuilder = RegisterGameType("CharacterBuilder")
 
 CharacterBuilder.CONTROLLER_CLASS = "builderPanel"
@@ -581,7 +583,7 @@ function CharacterBuilder._confirmDialog(opts)
 
     local resultPanel = nil
     resultPanel = gui.Panel {
-        styles = CBStyles.GetStyles(),
+        styles = ThemeEngine.MergeStyles(CBStyles.GetStyles()),
         classes = {"confirmDialogController", "builder-base", "panel-base", "dialog"},
         width = 500,
         height = 300,
@@ -657,6 +659,12 @@ function CharacterBuilder._confirmDialog(opts)
         },
     }
 
+    ThemeEngine.OnThemeChanged(mod, function()
+        if resultPanel ~= nil and resultPanel.valid then
+            resultPanel.styles = ThemeEngine.MergeStyles(CBStyles.GetStyles())
+        end
+    end)
+
     return resultPanel
 end
 
@@ -671,8 +679,6 @@ function CharacterBuilder._makeCategoryButton(options)
     options.height = CBStyles.SIZES.CATEGORY_BUTTON_HEIGHT
     options.valign = "top"
     options.bmargin = CBStyles.SIZES.CATEGORY_BUTTON_MARGIN
-    options.bgcolor = CBStyles.COLORS.BLACK03
-    options.borderColor = CBStyles.COLORS.GRAY02
     return gui.SelectorButton(options)
 end
 
@@ -781,13 +787,14 @@ function CharacterBuilder._makeFeatureRegistry(options)
                 },
                 CharacterBuilder.ProgressPip(1, {
                     rotate = 0,
-                    classes = {"builder-base", "panel-base", "progress-pip", "secondary"},
+                    classes = {"builder-base", "panel-base", "progress-pip", "secondary", "bordered"},
                     halign = "right",
                     valign = "top",
-                    hmargin = 3,
-                    vmargin = 3,
+                    hmargin = 10,
+                    vmargin = 10,
                     width = 12,
                     height = 12,
+                    cornerRadius = 3,
                     refreshBuilderState = function(element, state)
                         local visible = state:Get(selector .. ".blockFeatureSelection") ~= true
                         if visible then

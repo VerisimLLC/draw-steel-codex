@@ -557,17 +557,19 @@ function CharacterFeature:EditorPanel(editorPanelOptions)
 							end
 						end,
 					}
-					-- Capture locals for the themed confirm closure below.
+					-- Capture locals for the confirm closure below.
 					local deleteModIndex = modIndex
 					local deleteModName = behaviorText or "this modifier"
 					local function performDelete()
 						table.remove(self.modifiers, deleteModIndex)
 						modifiersPanel:FireEvent('refreshModifiers')
 					end
-					-- Skip the built-in requireConfirm path (which uses the
-					-- engine-wide gui.ModalMessage, unthemed) and instead
-					-- route through AbilityEditor.ShowThemedConfirm so the
-					-- delete prompt matches the surrounding feature panel.
+					-- Build a small themed confirm dialog inline. Uses the
+					-- engine theme classes (framedPanel / modalTitle /
+					-- modalMessage) so it follows the active color scheme.
+					-- Done as a hand-built panel rather than gui.ModalMessage
+					-- so the Cancel button can carry escapeActivates and
+					-- pressing Escape dismisses the prompt cleanly.
 					local deleteBtn = gui.DeleteItemButton{
 						classes = {cond(mod:try_get("deletable") == false, "hidden")},
 						width = 14,
@@ -575,15 +577,59 @@ function CharacterFeature:EditorPanel(editorPanelOptions)
 						valign = "center",
 						lmargin = 8,
 						click = function(element)
-							abilityEditor.ShowThemedConfirm{
-								title = "Delete Modifier?",
-								message = string.format(
-									"Are you sure you want to delete the %s modifier? This cannot be undone.",
-									deleteModName),
-								confirmText = "Delete",
-								cancelText = "Cancel",
-								onConfirm = performDelete,
-							}
+							gui.ShowModal(gui.Panel{
+								classes = {"framedPanel"},
+								styles = ThemeEngine.GetStyles(),
+								floating = true,
+								flow = "vertical",
+								width = 480,
+								height = "auto",
+								halign = "center",
+								valign = "center",
+								pad = 20,
+								borderBox = true,
+								gui.Label{
+									classes = {"modalTitle"},
+									width = "100%",
+									textAlignment = "left",
+									bmargin = 12,
+									text = "Delete Modifier?",
+								},
+								gui.Label{
+									classes = {"modalMessage"},
+									width = "100%",
+									textAlignment = "left",
+									bmargin = 20,
+									text = string.format(
+										"Are you sure you want to delete the %s modifier? This cannot be undone.",
+										deleteModName),
+								},
+								gui.Panel{
+									width = "100%",
+									height = "auto",
+									flow = "horizontal",
+									halign = "right",
+									valign = "bottom",
+									gui.Button{
+										classes = {"sizeL"},
+										text = "Cancel",
+										rmargin = 8,
+										escapeActivates = true,
+										escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+										click = function()
+											gui.CloseModal()
+										end,
+									},
+									gui.Button{
+										classes = {"sizeL"},
+										text = "Delete",
+										click = function()
+											gui.CloseModal()
+											performDelete()
+										end,
+									},
+								},
+							})
 						end,
 					}
 					local header = gui.Panel{

@@ -111,7 +111,7 @@ local function _editorStyles()
         -- DMHub Titlescreen/Styles.lua:1177.
         Styles.Form,
 
-        gui.Style{
+        {
             selectors = {"nae-root"},
             fontFace = "Berling",
             fontSize = 14,
@@ -130,39 +130,39 @@ local function _editorStyles()
         -- shrinks to fit and sits on the left; then the formLabel
         -- minWidth = 140 still reserves space but the row as a whole no
         -- longer spans the column.
-        gui.Style{
+        {
             selectors = {"formPanel"},
             width = "auto",
             halign = "left",
             priority = 5,
         },
-        gui.Style{
+        {
             selectors = {"formLabel"},
             halign = "left",
             minWidth = 0,
             priority = 5,
         },
-        gui.Style{
+        {
             selectors = {"formDropdown"},
             halign = "left",
             priority = 5,
         },
-        gui.Style{
+        {
             selectors = {"formInput"},
             halign = "left",
             priority = 5,
         },
-        gui.Style{
+        {
             selectors = {"formValue"},
             halign = "left",
             priority = 5,
         },
         -- Nav column
-        gui.Style{
+        {
             selectors = {"nae-nav-col"},
             bgcolor = "clear",
         },
-        gui.Style{
+        {
             selectors = {"nae-nav-button"},
             width = LAYOUT.NAV_WIDTH - 24,
             height = LAYOUT.NAV_BUTTON_HEIGHT,
@@ -184,12 +184,12 @@ local function _editorStyles()
             cornerRadius = 3,
             borderBox = true,
         },
-        gui.Style{
+        {
             selectors = {"nae-nav-button", "hover"},
             bgcolor = COLORS.GOLD_DIM,
             color = COLORS.BG,
         },
-        gui.Style{
+        {
             selectors = {"nae-nav-button", "selected"},
             bgcolor = COLORS.GOLD_DIM,
             color = COLORS.BG,
@@ -197,11 +197,11 @@ local function _editorStyles()
             borderColor = COLORS.CREAM_BRIGHT,
         },
         -- Detail column
-        gui.Style{
+        {
             selectors = {"nae-detail-col"},
             bgcolor = "clear",
         },
-        gui.Style{
+        {
             selectors = {"nae-section-content"},
             width = "100%",
             height = "auto",
@@ -213,11 +213,11 @@ local function _editorStyles()
         -- zero space in the detail column's vertical flow. `hidden` only
         -- suppresses rendering and leaves the layout slot, which stacks
         -- section headings down the page as you click through nav buttons.
-        gui.Style{
+        {
             selectors = {"nae-section-content", "inactive"},
             collapsed = 1,
         },
-        gui.Style{
+        {
             selectors = {"nae-section-heading"},
             width = "100%",
             height = "auto",
@@ -232,7 +232,7 @@ local function _editorStyles()
             bgcolor = "clear",
             vpad = 4,
         },
-        gui.Style{
+        {
             selectors = {"nae-section-placeholder"},
             width = "100%",
             height = "auto",
@@ -245,7 +245,7 @@ local function _editorStyles()
         -- Form rows: stacked label + control. Works well in the narrow ~440px
         -- detail column without wrapping label text the way a horizontal
         -- label + input row would.
-        gui.Style{
+        {
             selectors = {"nae-field-row"},
             width = "100%",
             height = "auto",
@@ -255,7 +255,7 @@ local function _editorStyles()
             vmargin = 8,
             bgcolor = "clear",
         },
-        gui.Style{
+        {
             selectors = {"nae-field-label"},
             width = "100%",
             height = "auto",
@@ -268,7 +268,7 @@ local function _editorStyles()
         -- Inline variant: label + small control sit on the same row. Used
         -- for compact fields like Display Order where stacking label above
         -- a 3-digit input wastes vertical space.
-        gui.Style{
+        {
             selectors = {"nae-field-row-inline"},
             width = "100%",
             height = "auto",
@@ -278,7 +278,7 @@ local function _editorStyles()
             vmargin = 8,
             bgcolor = "clear",
         },
-        gui.Style{
+        {
             selectors = {"nae-field-label-inline"},
             width = "auto",
             height = "auto",
@@ -289,7 +289,7 @@ local function _editorStyles()
             valign = "center",
             rmargin = 10,
         },
-        gui.Style{
+        {
             selectors = {"nae-field-input"},
             width = "100%",
             height = 28,
@@ -304,7 +304,7 @@ local function _editorStyles()
             borderBox = true,
             textAlignment = "left",
         },
-        gui.Style{
+        {
             selectors = {"nae-field-textarea"},
             priority = 3,
             width = "100%",
@@ -327,7 +327,7 @@ local function _editorStyles()
         -- rendering doesn't respect tight right-edges well). 280 is close to
         -- Styles.Form's formDropdown default (240) and feels balanced in the
         -- ~400px detail column.
-        gui.Style{
+        {
             selectors = {"nae-field-dropdown"},
             width = 280,
             height = 30,
@@ -344,7 +344,7 @@ local function _editorStyles()
         -- size the Source row's inline dropdown. Setting width=100% here was
         -- overriding formDropdown and causing the Source dropdown to overflow
         -- its row.
-        gui.Style{
+        {
             selectors = {"dropdown"},
             priority = 3,
             bgcolor = COLORS.PANEL_BG,
@@ -360,7 +360,7 @@ local function _editorStyles()
             halign = "left",
             height = 30,
         },
-        gui.Style{
+        {
             selectors = {"dropdown", "hover"},
             priority = 4,
             borderColor = COLORS.GOLD_DIM,
@@ -370,24 +370,24 @@ local function _editorStyles()
         -- The engine sets dropdownLabel color = "black" and dropdownTriangle
         -- bgcolor = "black" on parent:hover (Styles.lua:295,309). Override
         -- both so text stays readable against our dark hover background.
-        gui.Style{
+        {
             selectors = {"dropdownLabel", "parent:hover"},
             priority = 4,
             color = COLORS.CREAM_BRIGHT,
         },
-        gui.Style{
+        {
             selectors = {"dropdownTriangle", "parent:hover"},
             priority = 4,
             bgcolor = COLORS.GOLD,
         },
-        gui.Style{
+        {
             selectors = {"dropdown", "open"},
             priority = 3,
             borderColor = COLORS.CREAM_BRIGHT,
             color = COLORS.CREAM_BRIGHT,
         },
         -- Dropdown item list + rows.
-        gui.Style{
+        {
             selectors = {"dropdown-list"},
             priority = 3,
             bgcolor = COLORS.PANEL_BG,
@@ -395,7 +395,7 @@ local function _editorStyles()
             borderColor = COLORS.GOLD,
             borderBox = true,
         },
-        gui.Style{
+        {
             selectors = {"dropdown-item"},
             priority = 3,
             bgcolor = "clear",
@@ -405,14 +405,14 @@ local function _editorStyles()
             vpad = 4,
             borderBox = true,
         },
-        gui.Style{
+        {
             selectors = {"dropdown-item", "hover"},
             priority = 4,
             bgcolor = COLORS.GOLD,
             color = COLORS.BG,
         },
         -- Input element skin (applies to all gui.Input inside the editor).
-        gui.Style{
+        {
             selectors = {"input"},
             priority = 3,
             bgcolor = COLORS.PANEL_BG,
@@ -426,12 +426,12 @@ local function _editorStyles()
             color = COLORS.CREAM_BRIGHT,
             textAlignment = "left",
         },
-        gui.Style{
+        {
             selectors = {"input", "hover"},
             priority = 3,
             borderColor = COLORS.GOLD_DIM,
         },
-        gui.Style{
+        {
             selectors = {"input", "focus"},
             priority = 3,
             borderColor = COLORS.CREAM_BRIGHT,
@@ -444,7 +444,7 @@ local function _editorStyles()
         -- Does NOT reach the compendium dialog's Close button, which lives
         -- outside our subtree (that one needs a base-code tweak and is
         -- tracked for the merge PR).
-        gui.Style{
+        {
             selectors = {"button"},
             priority = 3,
             width = "auto",
@@ -466,7 +466,7 @@ local function _editorStyles()
             color = COLORS.CREAM_BRIGHT,
             textAlignment = "center",
         },
-        gui.Style{
+        {
             selectors = {"button", "hover"},
             priority = 3,
             bgcolor = COLORS.GOLD_DIM,
@@ -474,21 +474,21 @@ local function _editorStyles()
             color = COLORS.BG,
             transitionTime = 0.1,
         },
-        gui.Style{
+        {
             selectors = {"button", "press"},
             priority = 3,
             bgcolor = COLORS.GOLD,
             color = COLORS.BG,
             brightness = 0.85,
         },
-        gui.Style{
+        {
             selectors = {"button", "disabled"},
             priority = 3,
             bgcolor = COLORS.PANEL_BG,
             borderColor = COLORS.GRAY,
             color = COLORS.GRAY,
         },
-        gui.Style{
+        {
             selectors = {"nae-field-hint"},
             width = "100%",
             height = "auto",
@@ -506,7 +506,7 @@ local function _editorStyles()
         -- revealed/collapsed animation + the parent toggle above are
         -- already enough to signal the grouping; fields stay flush-left
         -- with the section's other labels for consistent scanning.
-        gui.Style{
+        {
             selectors = {"nae-field-subgroup"},
             width = "100%",
             height = "auto",
@@ -523,7 +523,7 @@ local function _editorStyles()
         -- to shrink the whole widget back to body-text scale and recolor the
         -- box/mark to the gold-on-dark palette. These selectors apply to
         -- every gui.Check inside the editor subtree.
-        gui.Style{
+        {
             selectors = {"checkbox"},
             priority = 3,
             height = 24,
@@ -531,7 +531,7 @@ local function _editorStyles()
             halign = "left",
             valign = "center",
         },
-        gui.Style{
+        {
             selectors = {"checkbox-label"},
             priority = 3,
             fontSize = 14,
@@ -540,14 +540,14 @@ local function _editorStyles()
             valign = "center",
             bold = true,
         },
-        gui.Style{
+        {
             selectors = {"check-background"},
             priority = 3,
             borderColor = COLORS.GOLD,
             borderWidth = 1,
             bgcolor = COLORS.PANEL_BG,
         },
-        gui.Style{
+        {
             selectors = {"check-mark"},
             priority = 3,
             bgcolor = COLORS.GOLD_BRIGHT,
@@ -555,13 +555,13 @@ local function _editorStyles()
         -- Reserved hook class on our Strain/Persistence/Target-in-range
         -- checkboxes; kept so we can target those three specifically later
         -- without touching every checkbox in the subtree.
-        gui.Style{
+        {
             selectors = {"nae-toggle-check"},
             valign = "center",
         },
         -- "More options" CollapseArrow row (Targeting section foldout).
         -- Text + chevron together, centered in column.
-        gui.Style{
+        {
             selectors = {"nae-more-options-row"},
             width = "auto",
             height = "auto",
@@ -572,7 +572,7 @@ local function _editorStyles()
             bmargin = 4,
             bgcolor = "clear",
         },
-        gui.Style{
+        {
             selectors = {"nae-more-options-label"},
             width = "auto",
             height = "auto",
@@ -582,7 +582,7 @@ local function _editorStyles()
             textAlignment = "left",
             valign = "center",
         },
-        gui.Style{
+        {
             selectors = {"nae-more-options-chevron"},
             height = 12,
             width = 24,
@@ -592,16 +592,16 @@ local function _editorStyles()
             bgcolor = COLORS.GOLD_BRIGHT,
             transitionTime = 0.15,
         },
-        gui.Style{
+        {
             selectors = {"nae-more-options-chevron", "nae-collapsed"},
             scale = {x = 1, y = -1},
         },
-        gui.Style{
+        {
             selectors = {"nae-more-options-chevron", "hover"},
             bgcolor = COLORS.CREAM_BRIGHT,
         },
         -- Filter list entries (Ability Filters / Reasoned Filters).
-        gui.Style{
+        {
             selectors = {"nae-filter-heading"},
             width = "100%",
             height = "auto",
@@ -612,7 +612,7 @@ local function _editorStyles()
             tmargin = 8,
             bmargin = 4,
         },
-        gui.Style{
+        {
             selectors = {"nae-filter-entry"},
             width = "100%",
             height = "auto",
@@ -620,7 +620,7 @@ local function _editorStyles()
             bgcolor = "clear",
             bmargin = 6,
         },
-        gui.Style{
+        {
             selectors = {"nae-filter-formula-row"},
             width = "100%",
             height = "auto",
@@ -629,7 +629,7 @@ local function _editorStyles()
             valign = "center",
             bgcolor = "clear",
         },
-        gui.Style{
+        {
             selectors = {"nae-keyword-chip"},
             width = "auto",
             height = 22,
@@ -646,7 +646,7 @@ local function _editorStyles()
             cornerRadius = 11,
             borderBox = true,
         },
-        gui.Style{
+        {
             selectors = {"nae-keyword-chip-label"},
             width = "auto",
             height = "auto",
@@ -656,16 +656,16 @@ local function _editorStyles()
             rmargin = 4,
         },
         -- Preview column. Always visible; fixed width from LAYOUT.PREVIEW_WIDTH.
-        gui.Style{
+        {
             selectors = {"nae-preview-col"},
             bgcolor = "clear",
         },
-        gui.Style{
+        {
             selectors = {"nae-preview-body"},
             width = "100%",
             height = "100%",
         },
-        gui.Style{
+        {
             selectors = {"nae-preview-heading"},
             height = "auto",
             fontSize = 16,
@@ -675,7 +675,7 @@ local function _editorStyles()
             bmargin = 4,
         },
         -- Title strip
-        gui.Style{
+        {
             selectors = {"nae-title-strip"},
             width = "100%",
             height = LAYOUT.TITLE_HEIGHT,
@@ -684,7 +684,7 @@ local function _editorStyles()
             valign = "center",
             bgcolor = "clear",
         },
-        gui.Style{
+        {
             selectors = {"nae-title-label"},
             width = "auto",
             height = "auto",
@@ -694,7 +694,7 @@ local function _editorStyles()
             textAlignment = "left",
             hmargin = 4,
         },
-        gui.Style{
+        {
             selectors = {"nae-subtitle-label"},
             width = "auto",
             height = "auto",
@@ -710,7 +710,7 @@ local function _editorStyles()
         -- ================================================================
         -- Effects section: behavior list
         -- ================================================================
-        gui.Style{
+        {
             selectors = {"nae-behavior-item"},
             width = "100%",
             height = "auto",
@@ -719,7 +719,7 @@ local function _editorStyles()
             valign = "top",
             bgcolor = "clear",
         },
-        gui.Style{
+        {
             selectors = {"nae-behavior-header"},
             width = "100%",
             height = "auto",
@@ -734,7 +734,7 @@ local function _editorStyles()
             vpad = 6,
             borderBox = true,
         },
-        gui.Style{
+        {
             selectors = {"nae-behavior-summary"},
             width = "auto",
             height = "auto",
@@ -745,7 +745,7 @@ local function _editorStyles()
             valign = "center",
             textAlignment = "left",
         },
-        gui.Style{
+        {
             selectors = {"nae-behavior-controls"},
             width = "auto",
             height = "auto",
@@ -754,7 +754,7 @@ local function _editorStyles()
             valign = "center",
             bgcolor = "clear",
         },
-        gui.Style{
+        {
             selectors = {"nae-behavior-copy-btn"},
             priority = 3,
             width = "auto",
@@ -773,20 +773,20 @@ local function _editorStyles()
             bgcolor = COLORS.PANEL_BG,
             borderBox = true,
         },
-        gui.Style{
+        {
             selectors = {"nae-behavior-copy-btn", "hover"},
             priority = 3,
             bgcolor = COLORS.GOLD_DIM,
             color = COLORS.BG,
             borderColor = COLORS.CREAM_BRIGHT,
         },
-        gui.Style{
+        {
             selectors = {"nae-behavior-copy-btn", "press"},
             priority = 3,
             bgcolor = COLORS.GOLD,
             color = COLORS.BG,
         },
-        gui.Style{
+        {
             selectors = {"nae-behavior-arrow"},
             width = 24,
             height = 12,
@@ -796,24 +796,24 @@ local function _editorStyles()
             lmargin = 4,
             transitionTime = 0.15,
         },
-        gui.Style{
+        {
             selectors = {"nae-behavior-arrow", "nae-up"},
             scale = {x = 1, y = -1},
         },
-        gui.Style{
+        {
             selectors = {"nae-behavior-arrow", "disabled"},
             bgcolor = COLORS.GRAY,
         },
-        gui.Style{
+        {
             selectors = {"nae-behavior-arrow", "hover"},
             bgcolor = COLORS.CREAM_BRIGHT,
         },
         -- Disabled arrows should not brighten on hover.
-        gui.Style{
+        {
             selectors = {"nae-behavior-arrow", "disabled", "hover"},
             bgcolor = COLORS.GRAY,
         },
-        gui.Style{
+        {
             selectors = {"nae-behavior-content"},
             width = "100%",
             height = "auto",
@@ -824,7 +824,7 @@ local function _editorStyles()
             hpad = 8,
             vpad = 4,
         },
-        gui.Style{
+        {
             selectors = {"nae-behavior-divider"},
             width = "100%",
             height = 1,
@@ -832,7 +832,7 @@ local function _editorStyles()
             bgcolor = COLORS.GOLD .. "66",
             vmargin = 8,
         },
-        gui.Style{
+        {
             selectors = {"nae-behavior-add-row"},
             width = "auto",
             height = "auto",
@@ -841,7 +841,7 @@ local function _editorStyles()
         },
         -- Fixed bottom bar for Effects section. Sits below the scroll area
         -- inside detailCol. Collapsed for all other sections.
-        gui.Style{
+        {
             selectors = {"nae-effects-bottom-bar"},
             width = "100%",
             height = "auto",
@@ -854,7 +854,7 @@ local function _editorStyles()
             borderBox = true,
         },
         -- Pill container for mode/tier/strain selections.
-        gui.Style{
+        {
             selectors = {"nae-behavior-pills"},
             width = "100%",
             height = "auto",
@@ -867,7 +867,7 @@ local function _editorStyles()
             bgcolor = "clear",
         },
         -- Pill label base style -- themed version of g_modalPanelStyles.
-        gui.Style{
+        {
             selectors = {"nae-pill-label"},
             priority = 3,
             borderWidth = 2,
@@ -884,19 +884,19 @@ local function _editorStyles()
             hpad = 10,
             vpad = 3,
         },
-        gui.Style{
+        {
             selectors = {"nae-pill-label", "selected"},
             priority = 3,
             color = COLORS.BG,
             bgcolor = COLORS.GOLD_DIM,
             transitionTime = 0.2,
         },
-        gui.Style{
+        {
             selectors = {"nae-pill-label", "selected", "disabled"},
             priority = 3,
             bgcolor = "#ff4444",
         },
-        gui.Style{
+        {
             selectors = {"nae-pill-label", "hover"},
             priority = 3,
             brightness = 1.5,
@@ -905,12 +905,12 @@ local function _editorStyles()
         },
         -- Override the delete-item-button's internal styles (priority 10 in
         -- Gui.lua) to match the gold palette. Priority 11 to beat them.
-        gui.Style{
+        {
             selectors = {"delete-item-button"},
             priority = 11,
             bgcolor = COLORS.CREAM,
         },
-        gui.Style{
+        {
             selectors = {"delete-item-button", "hover"},
             priority = 11,
             bgcolor = "#ff4444",
@@ -923,7 +923,7 @@ local function _editorStyles()
         -- Sub-heading labels within the Presentation section ("Icon",
         -- "Visual Effects"). Smaller than the section heading, gold-dim
         -- to separate from the GOLD_BRIGHT section title.
-        gui.Style{
+        {
             selectors = {"nae-sub-heading"},
             width = "100%",
             height = "auto",
@@ -935,7 +935,7 @@ local function _editorStyles()
             bmargin = 4,
         },
         -- Thin divider between Icon and VFX groups.
-        gui.Style{
+        {
             selectors = {"nae-presentation-divider"},
             width = "100%",
             height = 1,
@@ -945,7 +945,7 @@ local function _editorStyles()
             bmargin = 8,
         },
         -- Horizontal row holding the icon editor swatch + color picker.
-        gui.Style{
+        {
             selectors = {"nae-icon-row"},
             width = "100%",
             height = "auto",
@@ -956,7 +956,7 @@ local function _editorStyles()
             bgcolor = "clear",
         },
         -- Slider row: label left, slider right, on a single line.
-        gui.Style{
+        {
             selectors = {"nae-slider-row"},
             width = "100%",
             height = "auto",
@@ -966,7 +966,7 @@ local function _editorStyles()
             vmargin = 4,
             bgcolor = "clear",
         },
-        gui.Style{
+        {
             selectors = {"nae-slider-label"},
             width = 90,
             height = "auto",
@@ -978,18 +978,18 @@ local function _editorStyles()
         },
         -- Theme the slider track/handle to the gold palette. Priority 3
         -- to override engine defaults (Styles.lua:313).
-        gui.Style{
+        {
             selectors = {"sliderHandleBorder"},
             priority = 3,
             borderColor = COLORS.GOLD,
             bgcolor = COLORS.PANEL_BG,
         },
-        gui.Style{
+        {
             selectors = {"sliderHandleInner"},
             priority = 3,
             bgcolor = COLORS.GOLD_BRIGHT,
         },
-        gui.Style{
+        {
             selectors = {"slider"},
             priority = 3,
             height = 28,
@@ -997,7 +997,7 @@ local function _editorStyles()
         -- The slider's editable value label (e.g. "100%"). Override
         -- fontSize at priority 3 so it matches body text regardless
         -- of any inherited or CharacterSheet-scoped sliderLabel style.
-        gui.Style{
+        {
             selectors = {"sliderLabel"},
             priority = 3,
             fontSize = 14,
@@ -1035,11 +1035,11 @@ local function _sharedWidgetStyles(colors)
         -- Styles.Form class pack. Include it before overriding its descendants.
         Styles.Form,
         -- Left-anchor Styles.Form descendants (base pack right-aligns them).
-        gui.Style{ selectors = {"formPanel"}, width = "auto", halign = "left", priority = 5 },
-        gui.Style{ selectors = {"formLabel"}, halign = "left", minWidth = 0, priority = 5 },
-        gui.Style{ selectors = {"formDropdown"}, halign = "left", priority = 5 },
-        gui.Style{ selectors = {"formInput"}, halign = "left", priority = 5 },
-        gui.Style{ selectors = {"formValue"}, halign = "left", priority = 5 },
+        { selectors = {"formPanel"}, width = "auto", halign = "left", priority = 5 },
+        { selectors = {"formLabel"}, halign = "left", minWidth = 0, priority = 5 },
+        { selectors = {"formDropdown"}, halign = "left", priority = 5 },
+        { selectors = {"formInput"}, halign = "left", priority = 5 },
+        { selectors = {"formValue"}, halign = "left", priority = 5 },
         -- Dropdown skin. halign = "left" catches standalone dropdowns
         -- (e.g. Modify Abilities' "Add Attribute", KeywordSelector's
         -- "Add Keyword") that sit as direct children of vertical-flow
@@ -1048,7 +1048,7 @@ local function _sharedWidgetStyles(colors)
         -- formPanel (horizontal flow) aren't affected by halign in the
         -- same way, so this doesn't break multi-input rows like Modify
         -- Power Roll's Replace in Table.
-        gui.Style{
+        {
             selectors = {"dropdown"},
             priority = 3,
             halign = "left",
@@ -1064,29 +1064,29 @@ local function _sharedWidgetStyles(colors)
             color = c.CREAM_BRIGHT,
             textAlignment = "left",
         },
-        gui.Style{
+        {
             selectors = {"dropdown", "hover"},
             priority = 4,
             borderColor = c.GOLD_DIM,
             bgcolor = c.PANEL_BG,
         },
-        gui.Style{
+        {
             selectors = {"dropdownLabel", "parent:hover"},
             priority = 4,
             color = c.CREAM_BRIGHT,
         },
-        gui.Style{
+        {
             selectors = {"dropdownTriangle", "parent:hover"},
             priority = 4,
             bgcolor = c.GOLD,
         },
-        gui.Style{
+        {
             selectors = {"dropdown", "open"},
             priority = 3,
             borderColor = c.CREAM_BRIGHT,
             color = c.CREAM_BRIGHT,
         },
-        gui.Style{
+        {
             selectors = {"dropdown-list"},
             priority = 3,
             bgcolor = c.PANEL_BG,
@@ -1094,7 +1094,7 @@ local function _sharedWidgetStyles(colors)
             borderColor = c.GOLD,
             cornerRadius = 2,
         },
-        gui.Style{
+        {
             selectors = {"dropdown-item"},
             priority = 3,
             bgcolor = "clear",
@@ -1104,14 +1104,14 @@ local function _sharedWidgetStyles(colors)
             hpad = 6,
             vpad = 2,
         },
-        gui.Style{
+        {
             selectors = {"dropdown-item", "hover"},
             priority = 4,
             bgcolor = c.GOLD,
             color = c.BG,
         },
         -- Input skin.
-        gui.Style{
+        {
             selectors = {"input"},
             priority = 3,
             bgcolor = c.PANEL_BG,
@@ -1126,10 +1126,10 @@ local function _sharedWidgetStyles(colors)
             color = c.CREAM_BRIGHT,
             textAlignment = "left",
         },
-        gui.Style{ selectors = {"input", "hover"}, priority = 3, borderColor = c.GOLD_DIM },
-        gui.Style{ selectors = {"input", "focus"}, priority = 3, borderColor = c.CREAM_BRIGHT },
+        { selectors = {"input", "hover"}, priority = 3, borderColor = c.GOLD_DIM },
+        { selectors = {"input", "focus"}, priority = 3, borderColor = c.CREAM_BRIGHT },
         -- Button skin.
-        gui.Style{
+        {
             selectors = {"button"},
             priority = 3,
             width = "auto",
@@ -1151,7 +1151,7 @@ local function _sharedWidgetStyles(colors)
             color = c.CREAM_BRIGHT,
             textAlignment = "center",
         },
-        gui.Style{
+        {
             selectors = {"button", "hover"},
             priority = 3,
             bgcolor = c.GOLD_DIM,
@@ -1159,14 +1159,14 @@ local function _sharedWidgetStyles(colors)
             color = c.BG,
             transitionTime = 0.1,
         },
-        gui.Style{
+        {
             selectors = {"button", "press"},
             priority = 3,
             bgcolor = c.GOLD,
             color = c.BG,
             brightness = 0.85,
         },
-        gui.Style{
+        {
             selectors = {"button", "disabled"},
             priority = 3,
             bgcolor = c.PANEL_BG,
@@ -1174,7 +1174,7 @@ local function _sharedWidgetStyles(colors)
             color = c.GRAY,
         },
         -- Checkbox skin (engine default is height 30 / 18pt, too tall for body text).
-        gui.Style{
+        {
             selectors = {"checkbox"},
             priority = 3,
             height = 24,
@@ -1182,7 +1182,7 @@ local function _sharedWidgetStyles(colors)
             halign = "left",
             valign = "center",
         },
-        gui.Style{
+        {
             selectors = {"checkbox-label"},
             priority = 3,
             fontSize = 14,
@@ -1191,19 +1191,19 @@ local function _sharedWidgetStyles(colors)
             valign = "center",
             bold = true,
         },
-        gui.Style{
+        {
             selectors = {"check-background"},
             priority = 3,
             borderColor = c.GOLD,
             borderWidth = 1,
             bgcolor = c.PANEL_BG,
         },
-        gui.Style{ selectors = {"check-mark"}, priority = 3, bgcolor = c.GOLD_BRIGHT },
+        { selectors = {"check-mark"}, priority = 3, bgcolor = c.GOLD_BRIGHT },
         -- delete-item-button uses priority 10 internal styles, so beat at 11.
-        gui.Style{ selectors = {"delete-item-button"}, priority = 11, bgcolor = c.CREAM },
-        gui.Style{ selectors = {"delete-item-button", "hover"}, priority = 11, bgcolor = "#ff4444" },
+        { selectors = {"delete-item-button"}, priority = 11, bgcolor = c.CREAM },
+        { selectors = {"delete-item-button", "hover"}, priority = 11, bgcolor = "#ff4444" },
         -- Slider label.
-        gui.Style{
+        {
             selectors = {"sliderLabel"},
             priority = 3,
             fontSize = 14,
@@ -1235,7 +1235,7 @@ AbilityEditor.GetSharedWidgetStyles = _sharedWidgetStyles
 local function _sharedFormStyles(colors)
     local c = colors or COLORS
     return {
-        gui.Style{
+        {
             selectors = {"ds-field-row"},
             width = "100%",
             height = "auto",
@@ -1245,7 +1245,7 @@ local function _sharedFormStyles(colors)
             vmargin = 8,
             bgcolor = "clear",
         },
-        gui.Style{
+        {
             selectors = {"ds-field-label"},
             width = "100%",
             height = "auto",
@@ -1261,7 +1261,7 @@ local function _sharedFormStyles(colors)
         -- containers like the feature panel's 900px content column
         -- because children with their own halign float to opposite ends
         -- of the wide row instead of packing tight.
-        gui.Style{
+        {
             selectors = {"ds-field-row-inline"},
             width = "auto",
             height = "auto",
@@ -1271,7 +1271,7 @@ local function _sharedFormStyles(colors)
             vmargin = 8,
             bgcolor = "clear",
         },
-        gui.Style{
+        {
             selectors = {"ds-field-label-inline"},
             width = "auto",
             height = "auto",
@@ -1285,7 +1285,7 @@ local function _sharedFormStyles(colors)
         -- Field-level input/textarea/dropdown classes: match the ability
         -- editor's nae-field-* widths so labels and controls read as the
         -- same component family across editors.
-        gui.Style{
+        {
             selectors = {"ds-field-input"},
             priority = 4,
             width = "100%",
@@ -1300,12 +1300,12 @@ local function _sharedFormStyles(colors)
         -- Compact variant for short single-line fields (Name / Source).
         -- Narrower than the full-width ds-field-input so the row doesn't
         -- span the whole popup for a 20-char value.
-        gui.Style{
+        {
             selectors = {"ds-field-input", "ds-field-input-compact"},
             priority = 5,
             width = 420,
         },
-        gui.Style{
+        {
             selectors = {"ds-field-textarea"},
             priority = 4,
             width = "100%",
@@ -1318,7 +1318,7 @@ local function _sharedFormStyles(colors)
             fontSize = 14,
             textAlignment = "topleft",
         },
-        gui.Style{
+        {
             selectors = {"ds-field-dropdown"},
             priority = 4,
             width = 280,
@@ -1326,7 +1326,7 @@ local function _sharedFormStyles(colors)
             halign = "left",
             fontSize = 14,
         },
-        gui.Style{
+        {
             selectors = {"ds-field-hint"},
             width = "100%",
             height = "auto",
@@ -1387,7 +1387,7 @@ local function _themedDialogStyles(colors)
     }
 
     -- Outer frame.
-    styles[#styles+1] = gui.Style{
+    styles[#styles+1] = {
         selectors = {"framedPanel"},
         priority = 3,
         bgimage = "panels/square.png",
@@ -1398,7 +1398,7 @@ local function _themedDialogStyles(colors)
     }
 
     -- PrettyButton (Confirm/Cancel and similar).
-    styles[#styles+1] = gui.Style{
+    styles[#styles+1] = {
         selectors = {"label", "button", "prettyButton"},
         priority = 3,
         bgcolor = c.PANEL_BG,
@@ -1414,14 +1414,14 @@ local function _themedDialogStyles(colors)
         vmargin = 8,
         textAlignment = "center",
     }
-    styles[#styles+1] = gui.Style{
+    styles[#styles+1] = {
         selectors = {"label", "button", "prettyButton", "hover"},
         priority = 3,
         bgcolor = c.GOLD_DIM,
         color = c.BG,
         borderColor = c.CREAM_BRIGHT,
     }
-    styles[#styles+1] = gui.Style{
+    styles[#styles+1] = {
         selectors = {"label", "button", "prettyButton", "press"},
         priority = 3,
         bgcolor = c.GOLD,
@@ -1436,7 +1436,7 @@ local function _themedDialogStyles(colors)
     -- distributed across the viewport height. See CharacterFeature's
     -- EditorPanel inner wrapper (pattern copied from the Create New
     -- Ability modal at AbilityEditorTemplates.lua:1436-1453).
-    styles[#styles+1] = gui.Style{
+    styles[#styles+1] = {
         selectors = {"content-panel"},
         priority = 6,
         bgcolor = "clear",
@@ -1449,7 +1449,7 @@ local function _themedDialogStyles(colors)
     -- Nested modifier / behavior editor panels: themed card chrome.
     -- (Kept for callers that still use the classic modifierEditorPanel
     -- class; new callers should use the nae-behavior-* classes below.)
-    styles[#styles+1] = gui.Style{
+    styles[#styles+1] = {
         selectors = {"modifierEditorPanel"},
         priority = 6,
         bgcolor = c.PANEL_BG,
@@ -1458,7 +1458,7 @@ local function _themedDialogStyles(colors)
         pad = 6,
         vmargin = 6,
     }
-    styles[#styles+1] = gui.Style{
+    styles[#styles+1] = {
         selectors = {"modifierHeadingLabel"},
         priority = 6,
         fontSize = 16,
@@ -1471,7 +1471,7 @@ local function _themedDialogStyles(colors)
     -- Shared nae-behavior-* chrome for modifier / behavior list items.
     -- Mirrors the ability editor's effects section so feature panel
     -- modifiers visually match ability editor behaviors.
-    styles[#styles+1] = gui.Style{
+    styles[#styles+1] = {
         selectors = {"nae-behavior-item"},
         width = "100%",
         height = "auto",
@@ -1480,7 +1480,7 @@ local function _themedDialogStyles(colors)
         valign = "top",
         bgcolor = "clear",
     }
-    styles[#styles+1] = gui.Style{
+    styles[#styles+1] = {
         selectors = {"nae-behavior-header"},
         width = "100%",
         height = "auto",
@@ -1495,7 +1495,7 @@ local function _themedDialogStyles(colors)
         vpad = 6,
         borderBox = true,
     }
-    styles[#styles+1] = gui.Style{
+    styles[#styles+1] = {
         selectors = {"nae-behavior-summary"},
         width = "auto",
         height = "auto",
@@ -1506,7 +1506,7 @@ local function _themedDialogStyles(colors)
         valign = "center",
         textAlignment = "left",
     }
-    styles[#styles+1] = gui.Style{
+    styles[#styles+1] = {
         selectors = {"nae-behavior-controls"},
         width = "auto",
         height = "auto",
@@ -1515,7 +1515,7 @@ local function _themedDialogStyles(colors)
         valign = "center",
         bgcolor = "clear",
     }
-    styles[#styles+1] = gui.Style{
+    styles[#styles+1] = {
         selectors = {"nae-behavior-copy-btn"},
         priority = 3,
         width = "auto",
@@ -1534,20 +1534,20 @@ local function _themedDialogStyles(colors)
         bgcolor = c.PANEL_BG,
         borderBox = true,
     }
-    styles[#styles+1] = gui.Style{
+    styles[#styles+1] = {
         selectors = {"nae-behavior-copy-btn", "hover"},
         priority = 3,
         bgcolor = c.GOLD_DIM,
         color = c.BG,
         borderColor = c.CREAM_BRIGHT,
     }
-    styles[#styles+1] = gui.Style{
+    styles[#styles+1] = {
         selectors = {"nae-behavior-copy-btn", "press"},
         priority = 3,
         bgcolor = c.GOLD,
         color = c.BG,
     }
-    styles[#styles+1] = gui.Style{
+    styles[#styles+1] = {
         selectors = {"nae-behavior-arrow"},
         width = 24,
         height = 12,
@@ -1557,23 +1557,23 @@ local function _themedDialogStyles(colors)
         lmargin = 4,
         transitionTime = 0.15,
     }
-    styles[#styles+1] = gui.Style{
+    styles[#styles+1] = {
         selectors = {"nae-behavior-arrow", "nae-up"},
         scale = {x = 1, y = -1},
     }
-    styles[#styles+1] = gui.Style{
+    styles[#styles+1] = {
         selectors = {"nae-behavior-arrow", "disabled"},
         bgcolor = c.GRAY,
     }
-    styles[#styles+1] = gui.Style{
+    styles[#styles+1] = {
         selectors = {"nae-behavior-arrow", "hover"},
         bgcolor = c.CREAM_BRIGHT,
     }
-    styles[#styles+1] = gui.Style{
+    styles[#styles+1] = {
         selectors = {"nae-behavior-arrow", "disabled", "hover"},
         bgcolor = c.GRAY,
     }
-    styles[#styles+1] = gui.Style{
+    styles[#styles+1] = {
         selectors = {"nae-behavior-content"},
         width = "100%",
         height = "auto",
@@ -1584,7 +1584,7 @@ local function _themedDialogStyles(colors)
         hpad = 8,
         vpad = 4,
     }
-    styles[#styles+1] = gui.Style{
+    styles[#styles+1] = {
         selectors = {"nae-behavior-divider"},
         width = "100%",
         height = 1,
@@ -1602,7 +1602,7 @@ local function _themedDialogStyles(colors)
     -- label column. Parent-class selectors target the label and widgets
     -- inside inline rows so the opt-in is a single class flip on the
     -- parent -- children don't need to know.
-    styles[#styles+1] = gui.Style{
+    styles[#styles+1] = {
         selectors = {"formPanel"},
         priority = 7,
         flow = "vertical",
@@ -1614,7 +1614,7 @@ local function _themedDialogStyles(colors)
         pad = 0,
         vmargin = 8,
     }
-    styles[#styles+1] = gui.Style{
+    styles[#styles+1] = {
         selectors = {"formPanel-inline"},
         priority = 8,
         flow = "horizontal",
@@ -1623,7 +1623,7 @@ local function _themedDialogStyles(colors)
         valign = "center",
         vmargin = 4,
     }
-    styles[#styles+1] = gui.Style{
+    styles[#styles+1] = {
         selectors = {"formLabel"},
         priority = 7,
         width = "100%",
@@ -1639,7 +1639,7 @@ local function _themedDialogStyles(colors)
                         -- lines up with the input's visible left edge.
         bmargin = 4,
     }
-    styles[#styles+1] = gui.Style{
+    styles[#styles+1] = {
         selectors = {"formLabel", "parent:formPanel-inline"},
         priority = 8,
         width = 140,
@@ -1649,7 +1649,7 @@ local function _themedDialogStyles(colors)
     -- formInput is the classic class most modifier sub-editors attach to
     -- their gui.Input. Themed version gets DS chrome + left halign so the
     -- input doesn't center in whatever container the modifier emitted.
-    styles[#styles+1] = gui.Style{
+    styles[#styles+1] = {
         selectors = {"formInput"},
         priority = 7,
         halign = "left",
@@ -1681,7 +1681,7 @@ local function _themedDialogStyles(colors)
     -- inner `goblinscript-inner-input` alone so it keeps its default
     -- 6px hpad -- that's the gap between the visible box border and
     -- the editable text, matching what plain Inputs show.
-    styles[#styles+1] = gui.Style{
+    styles[#styles+1] = {
         selectors = {"goblinscript-outer"},
         priority = 8,
         hpad = 0,
@@ -1693,7 +1693,7 @@ local function _themedDialogStyles(colors)
     -- right of the input text below it, and renders visibly larger.
     -- Align with input body by zeroing the hmargin and dropping the
     -- fontSize to match formInput's 14.
-    styles[#styles+1] = gui.Style{
+    styles[#styles+1] = {
         selectors = {"dropdownLabel"},
         priority = 8,
         hmargin = 0,
@@ -1711,7 +1711,7 @@ local function _themedDialogStyles(colors)
     -- and a slightly-lighter offset to keep the stripe subtle; a thin
     -- gold hairline separates rows. Labels pick up CREAM_BRIGHT; inputs
     -- nested in rows still use the formInput theming.
-    styles[#styles+1] = gui.Style{
+    styles[#styles+1] = {
         selectors = {"row"},
         priority = 8,
         width = "auto",
@@ -1720,22 +1720,22 @@ local function _themedDialogStyles(colors)
         border = {y1 = 0, y2 = 1, x1 = 0, x2 = 0},
         borderColor = c.GOLD .. "55",
     }
-    styles[#styles+1] = gui.Style{
+    styles[#styles+1] = {
         selectors = {"row", "oddRow"},
         priority = 8,
         bgcolor = c.PANEL_BG,
     }
-    styles[#styles+1] = gui.Style{
+    styles[#styles+1] = {
         selectors = {"row", "evenRow"},
         priority = 8,
         bgcolor = c.BG,
     }
-    styles[#styles+1] = gui.Style{
+    styles[#styles+1] = {
         selectors = {"row", "highlight"},
         priority = 8,
         bgcolor = c.GOLD_DIM,
     }
-    styles[#styles+1] = gui.Style{
+    styles[#styles+1] = {
         selectors = {"row", "label"},
         priority = 8,
         pad = 8,

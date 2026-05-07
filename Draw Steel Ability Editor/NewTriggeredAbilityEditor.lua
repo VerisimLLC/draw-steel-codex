@@ -128,7 +128,7 @@ local function buildStyles()
     -- line ~1203) is width="auto" with no halign, so a vertical-flow parent
     -- centers it. Pinning by its "appearance" class pulls it left without
     -- touching classic code.
-    styles[#styles + 1] = gui.Style{
+    styles[#styles + 1] = {
         selectors = {"appearance"},
         priority = 3,
         halign = "left",
@@ -138,7 +138,7 @@ local function buildStyles()
     -- shows it as a centered fold-out. Inside the Triggered Ability Editor
     -- we want it flush-left like every other Setup-section field row, per
     -- 2026-04-24 design feedback. Scoped priority beats the base halign.
-    styles[#styles + 1] = gui.Style{
+    styles[#styles + 1] = {
         selectors = {"nae-more-options-row"},
         priority = 3,
         halign = "left",

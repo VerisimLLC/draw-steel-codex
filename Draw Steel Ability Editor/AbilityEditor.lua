@@ -131,6 +131,16 @@ local function _editorStyles()
             fontSize = 14,
             color = "@fgMuted",
             bold = false,
+            -- Chrome lives here (not inline on the panel) so @-tokens get
+            -- resolved by MergeStyles. Inline @-token strings on direct
+            -- panel properties are not theme-aware -- they fall through
+            -- to whatever the engine treats unresolved tokens as, which
+            -- shows up as off-scheme colours (e.g. pink in MLP).
+            bgcolor = "@bg",
+            bgimage = "panels/square.png",
+            borderColor = "@accent",
+            borderWidth = 2,
+            cornerRadius = 6,
         },
         -- Overrides for Styles.Form descendants (used by SourceReference:Editor).
         -- The base Form style pack sets formLabel/formDropdown/formInput to
@@ -5036,16 +5046,16 @@ function AbilityEditor.GenerateEditor(ability, opts)
         valign = "center",
         flow = "vertical",
         borderBox = true,
-        -- No root-level padding: the outer compendium dialog already pads
-        -- around us, and any root hpad here would subtract from the inner
-        -- area that nav+detail+preview column widths are computed against.
-        hpad = 0,
-        vpad = 0,
-        bgcolor = "@bg",
-        bgimage = "panels/square.png",
-        borderWidth = 2,
-        borderColor = "@accent",
-        cornerRadius = 6,
+        -- 2px hpad/vpad to inset children clear of the 2px border. borderBox
+        -- accounts for padding but NOT borderWidth (Style.lua:95), so 100%-
+        -- width children would otherwise compute against the outer box and
+        -- the border would overdraw their edges (visible bleed on the title
+        -- divider and the Add Behavior button at the panel bottom).
+        hpad = 2,
+        vpad = 2,
+        -- Chrome (bgcolor, bgimage, borderWidth, borderColor, cornerRadius)
+        -- comes from the nae-root cascade rule so @-tokens resolve through
+        -- MergeStyles. Inline @-token strings would not be theme-aware.
         data = {
             ability = ability,
             selectedSectionId = SECTIONS[1].id,

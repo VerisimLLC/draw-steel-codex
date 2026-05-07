@@ -238,11 +238,18 @@ function gui.Button(options)
 
 		local args = {
 			classes = {"iconButton"},
-			bgcolor = options.color or "@fg",
 		}
-		if options.icon ~= nil then
-			args.bgimage = options.icon
-		end
+
+		-- Inner icon panel owns the bgimage and tint so chrome (border, hit
+		-- target, selected/hover state) can sit on the outer iconButton panel
+		-- and the icon can be insetted independently (e.g. 90% when bordered).
+		-- Kind-class buttons (addButton, deleteButton, ...) leave bgimage nil
+		-- and let `{panel, buttonIcon, parent:kindName}` rules paint it.
+		args[#args+1] = gui.Panel{
+			classes = {"buttonIcon"},
+			bgcolor = options.color,
+			bgimage = options.icon,
+		}
 
 		-- Apply kind-config defaults BEFORE merging options so callers can
 		-- still override (e.g. pass their own escapeActivates = false).

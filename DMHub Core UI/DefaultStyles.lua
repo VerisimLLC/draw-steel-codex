@@ -448,8 +448,10 @@ ThemeEngine.RegisterTheme{
         },
         {
             selectors = {"label", "button", "selected"},
+            bgimage = true,
             color = "@fgInverse",
             bgcolor = "@bgInverse",
+            borderColor = "@borderInverse",
             textAlignment = "center",
             fontWeight = "bold",
         },
@@ -968,20 +970,26 @@ ThemeEngine.RegisterTheme{
         -- class to recolor the hover state.
         --
         -- gui.Button{ icon = ... } (no `text`) returns a panel with this
-        -- class automatically; see Gui.lua's gui.Button.
+        -- class automatically; see Gui.lua's gui.Button. The button is the
+        -- chrome (size, border, hit-target, selected/hover state); a child
+        -- buttonIcon panel owns the bgimage and tint, so the icon can be
+        -- inset (e.g. 90% under `bordered`) without resizing the button.
         --
         -- hudIconButton: larger HUD-bar button with selected/disabled
         -- states and a child hudIconButtonIcon that scales on hover.
+        -- Outer chrome rules. These also paint direct-panel callsites that
+        -- use `classes = {"iconButton"}` with an inline bgimage (e.g.
+        -- gui.SimpleIconButton, gui.CopyButton, gui.EnhIconButton) -- those
+        -- don't have a buttonIcon child, so bgcolor/brightness must apply
+        -- to the iconButton panel itself. gui.Button overrides bgcolor to
+        -- clear at construction so its outer chrome doesn't bleed into the
+        -- 90% bordered-icon margin.
         {
             selectors = {"iconButton"},
             bgcolor = "@fg",
             width = 24,
             height = 24,
             valign = "center",
-        },
-        {
-            selectors = {"iconButton", "flipped"},
-	        scale = {x = -1, y = 1},
         },
         {
             selectors = {"iconButton", "hover"},
@@ -1009,32 +1017,101 @@ ThemeEngine.RegisterTheme{
             selectors = {"iconButton", "withDanger", "hover"},
             bgcolor = "@danger",
         },
-        -- Kind variants. Each registered kind class (see gui.iconButtonClasses
-        -- in Gui.lua) supplies its own bgimage here; size/tint/hover/press
-        -- continue to inherit from the {iconButton} family above.
+        -- Inner buttonIcon parent: rules for gui.Button-routed iconButtons,
+        -- whose icon lives in a child buttonIcon panel. Mirrors the chrome
+        -- rules above so the icon visual reacts to parent state.
         {
-            selectors = {"iconButton", "addButton"},
+            selectors = {"panel", "buttonIcon", "parent:flipped"},
+            scale = {x = -1, y = 1},
+        },
+        {
+            selectors = {"panel", "buttonIcon", "parent:hover"},
+            brightness = 1.5,
+            transitionTime = 0.1,
+        },
+        {
+            selectors = {"panel", "buttonIcon", "parent:press"},
+            brightness = 0.7,
+            transitionTime = 0.1,
+        },
+        {
+            selectors = {"panel", "buttonIcon", "parent:withSuccess", "parent:hover"},
+            bgcolor = "@success",
+        },
+        {
+            selectors = {"panel", "buttonIcon", "parent:withInfo", "parent:hover"},
+            bgcolor = "@info",
+        },
+        {
+            selectors = {"panel", "buttonIcon", "parent:withWarning", "parent:hover"},
+            bgcolor = "@warning",
+        },
+        {
+            selectors = {"panel", "buttonIcon", "parent:withDanger", "parent:hover"},
+            bgcolor = "@danger",
+        },
+        -- Kind variants. Each registered kind class (see gui.iconButtonClasses
+        -- in Gui.lua) supplies its own bgimage on the inner buttonIcon panel
+        -- via parent: selectors; size/tint/hover/press continue to inherit
+        -- from the {iconButton} chrome and {panel, buttonIcon} icon families.
+        {
+            selectors = {"panel", "buttonIcon", "parent:addButton"},
             bgimage = "ui-icons/Plus.png",
         },
         {
-            selectors = {"iconButton", "closeButton"},
+            selectors = {"panel", "buttonIcon", "parent:closeButton"},
             bgimage = "ui-icons/close.png",
         },
         {
-            selectors = {"iconButton", "copyButton"},
+            selectors = {"panel", "buttonIcon", "parent:copyButton"},
             bgimage = "icons/icon_app/icon_app_108.png",
         },
         {
-            selectors = {"iconButton", "deleteButton"},
+            selectors = {"panel", "buttonIcon", "parent:deleteButton"},
             bgimage = "icons/icon_tool/icon_tool_44.png",
         },
         {
-            selectors = {"iconButton", "deleteButton", "hover"},
+            selectors = {"panel", "buttonIcon", "parent:deleteButton", "parent:hover"},
             bgcolor = "@danger",
         },
         {
-            selectors = {"iconButton", "settingsButton"},
+            selectors = {"panel", "buttonIcon", "parent:settingsButton"},
             bgimage = "ui-icons/skills/98.png",
+        },
+        -- Inset the icon to be smaler when the button carries the `bordered`
+        -- class, so the glyph doesn't crowd the border. Targets buttonIcon under
+        -- both Button paths (icon-only iconButton and legacy text+icon label).
+        {
+            selectors = {"panel", "buttonIcon", "parent:bordered"},
+            height = "80%",
+            width = "80%",
+            halign = "center",
+            valign = "center",
+            priority = 5,
+        },
+        -- Under `bordered`, the iconButton outer is a paintable surface
+        -- (bgimage = true). Clear its bgcolor so the @fg base tint doesn't
+        -- bleed into the margin around the inset icon. `selected` below
+        -- overrides this with @bgInverse (priority bump) so the inversion
+        -- still works when both classes are present.
+        {
+            selectors = {"iconButton", "bordered"},
+            bgcolor = "clear",
+        },
+        -- Selected state: invert chrome (bg + border) on the outer iconButton
+        -- and flip the icon tint on the inner buttonIcon. The matching rule
+        -- for label/button selected lives in the Button section above.
+        -- priority = 5 so this wins over {"iconButton","bordered"} above
+        -- when both classes apply (cascade specificity is equal otherwise).
+        {
+            selectors = {"iconButton", "selected"},
+            bgcolor = "@border",
+            borderColor = "@borderInverse",
+            priority = 5,
+        },
+        {
+            selectors = {"panel", "buttonIcon", "parent:selected"},
+            bgcolor = "@fgInverse",
         },
 
         --[[

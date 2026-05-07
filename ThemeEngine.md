@@ -30,6 +30,31 @@ Rarely, you might want to **apply styling to a single control** in a way that ov
 2. Taking #1 above into account, create your styles block.
 3. In the control in which you want to override styles, use `styles = ThemeEngine.MergeTokens(myCustomStyles)`.
 
+### Live re-theming (subscribing to theme changes)
+
+`GetStyles()` / `MergeStyles()` / `MergeTokens()` return a one-shot snapshot resolved against the *current* theme + color scheme. When the user switches theme or scheme, your panel will not recolor unless you re-resolve and reassign `panel.styles`.
+
+Subscribe with `ThemeEngine.OnThemeChanged(mod, callback)`:
+
+```lua
+local mod = dmhub.GetModLoading()
+
+local panel = gui.Panel{
+    styles = ThemeEngine.GetStyles(),
+    -- ... children, classes, etc.
+}
+
+ThemeEngine.OnThemeChanged(mod, function()
+    if panel ~= nil and panel.valid then
+        panel.styles = ThemeEngine.GetStyles()
+    end
+end)
+```
+
+Use `MergeStyles(myCustomStyles)` or `MergeTokens(myCustomStyles)` in place of `GetStyles()` when you have custom rules — the same call you used at construction. The callback receives no arguments. Always guard with `panel.valid` so a stale callback doesn't touch a destroyed panel.
+
+The handler is auto-deregistered when your mod unloads; `OnThemeChanged` also returns an entry with a `Deregister()` method if you need to unsubscribe earlier.
+
 ### requireConfirm for delete buttons
 
 Callers using `gui.Button{ classes = {"deleteButton"} }` can opt into a confirmation modal:
@@ -39,6 +64,10 @@ gui.Button{ classes = {"deleteButton"}, requireConfirm = true, click = onDelete 
 ```
 
 Pass `requireConfirm = true` together with a `click` (or `press`) handler and the user sees a "Confirm Delete" modal before the handler fires.
+
+### Icon assets and theme tinting
+
+`bgcolor` on a `bgimage`-bearing panel is a tint *multiplier*, not a replacement. For an icon to fully retint with the active scheme's `@fg` (or `@fgInverse` when selected, etc.), the source PNG must be a **white silhouette with alpha**. PNGs that bake in their own color (gold, blue, etc.) will desaturate against the tint instead of recoloring, and the icon will look "stuck" on the asset's native color across themes.
 
 ### @token references in custom styles
 
@@ -111,7 +140,8 @@ Interesting classes:
 
 | Class / Selector | Applies To | When To Use |
 |--|--|--|
-|bordered|any|Adds a 1px border (themed `@border`) and a paintable surface to any element.|
+|bordered|any|Adds a 1px border (themed `@border`) and a paintable surface to any element. On an icon button (`gui.Button{ icon = ... }`) the icon insets to 80% so it doesn't crowd the border.|
+|selected|button, iconButton|Marks a button as selected. Inverts chrome (`@bgInverse` / `@borderInverse`) and icon tint (`@fgInverse`). Toggle with `:SetClass("selected", true/false)`.|
 |image|panel|Ensure the bgcolor is white so the image shows properly.|
 |portraitImage|panel|Opinionated about sizing for portraits.|
 |surfaceLinear, surfaceRadial, barTrack|panel|Paint the named scheme gradient on a panel. Use for header strips, framed surfaces, progress-bar tracks.|

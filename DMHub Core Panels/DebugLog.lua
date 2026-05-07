@@ -64,12 +64,10 @@ end
 local function ParseEntry(raw)
     local trace = nil
     local text = raw
-    local color = "white"
+    local isError = false
     if type(raw) ~= "string" then
         trace = raw.trace
-        if raw.type == "assert" or raw.type == "error" then
-            color = "#ffaaaa"
-        end
+        isError = (raw.type == "assert" or raw.type == "error")
         text = raw.message
     end
 
@@ -82,7 +80,7 @@ local function ParseEntry(raw)
         text = text,
         displayText = displayText,
         trace = trace,
-        color = color,
+        isError = isError,
         height = CalcHeight(displayText),
     }
 end
@@ -225,13 +223,14 @@ CreateDebugLogPanel = function()
                 local label = m_poolLabels[p]
 
                 panel.selfStyle.height = entry.height
-                panel.selfStyle.bgcolor = cond(fi % 2 == 0, "#222222", "#333333")
+                panel:SetClass("evenRow", fi % 2 == 0)
+                panel:SetClass("oddRow", fi % 2 ~= 0)
                 panel.data.fullText = entry.text
                 panel.data.trace = entry.trace
 
                 label.text = entry.displayText
                 label.selfStyle.height = entry.height
-                label.selfStyle.color = entry.color
+                label:SetClass("danger", entry.isError == true)
             else
                 m_pool[p].selfStyle.height = 0
                 m_poolLabels[p].text = ""
@@ -265,26 +264,24 @@ CreateDebugLogPanel = function()
 
     for i = 1, g_poolSize do
         local label = gui.Label{
+            classes = {"sizeXs"},
             width = "100%-36",
             height = 0,
             fontFace = "courier",
             editable = false,
             hmargin = 4,
-            fontSize = 12,
             links = true,
-            color = "white",
             halign = "left",
             text = "",
         }
         m_poolLabels[i] = label
 
         m_pool[i] = gui.Panel{
+            classes = {"row"},
             data = { fullText = "", trace = nil },
             flow = "horizontal",
             width = "100%",
             height = 0,
-            bgimage = "panels/square.png",
-            bgcolor = "#222222",
             linger = function(element)
                 local trace = element.data.trace
                 if trace == nil or trace == "" then return end
@@ -305,13 +302,11 @@ CreateDebugLogPanel = function()
 
             label,
 
-            gui.Panel{
-                width = 12,
-                height = 12,
+            gui.Button{
+                classes = {"sizeXxs"},
+                icon = "icons/icon_app/icon_app_108.png",
                 valign = "center",
                 halign = "center",
-                bgcolor = Styles.textColor,
-                bgimage = "icons/icon_app/icon_app_108.png",
                 click = function(element)
                     local fullText = element.parent.data.fullText
                     if fullText ~= "" then
@@ -380,6 +375,7 @@ CreateDebugLogPanel = function()
     m_scrollableList = gui.Panel(scrollArgs)
 
     m_resultPanel = gui.Panel{
+        styles = ThemeEngine.MergeStyles(),
         width = "100%",
         height = "100%",
         flow = "vertical",
@@ -442,6 +438,12 @@ CreateDebugLogPanel = function()
         },
         m_scrollableList,
     }
+
+    ThemeEngine.OnThemeChanged(mod, function()
+        if m_resultPanel ~= nil and m_resultPanel.valid then
+            m_resultPanel.styles = ThemeEngine.MergeStyles()
+        end
+    end)
 
     return m_resultPanel
 end

@@ -471,6 +471,7 @@ ThemeEngine.RegisterTheme{
             borderColor = "@border",
             border = 2,
             bold = false,
+            height = 26,
         },
         {
             selectors = {"input", "focus"},
@@ -548,6 +549,8 @@ ThemeEngine.RegisterTheme{
             bgcolor = "@bgAlt",
             borderColor = "@border",
             border = 2,
+            width = 240,
+            height = 26,
         },
         {
             selectors = {"dropdown", "expandedTop"},
@@ -676,6 +679,8 @@ ThemeEngine.RegisterTheme{
             flow = "horizontal",
             width = "auto",
             height = "auto",
+            halign = "left",
+            valign = "top",
             pad = 4,
             margin = 4,
             bgimage = true,
@@ -822,6 +827,17 @@ ThemeEngine.RegisterTheme{
             color = "@bg",
             brightness = 1.5,
             transitionTime = 0.2,
+        },
+
+        --[[ MCDM Divider ]]
+        -- gui.MCDMDivider (Gui.lua wrapper) -- a primitive divider widget with
+        -- optional dot/line/peak/v ornaments. The outer panel and the three
+        -- inner panels (left line / icon / right line) all use this class so
+        -- the cascade drives their bgcolor. Callers may still override with
+        -- an explicit bgcolor on the option.
+        {
+            selectors = {"mcdmDivider"},
+            bgcolor = "@border",
         },
 
         --[[ Checkbox ]]
@@ -1717,6 +1733,13 @@ ThemeEngine.RegisterTheme{
         { selectors = {"fgPending"}, color = "@fgPending" },
         { selectors = {"fgInverse"}, color = "@fgInverse" },
 
+        -- Foreground tints applied as bgcolor (image multiply, etc.)
+        { selectors = {"bgFg"},        bgcolor = "@fg" },
+        { selectors = {"bgFgStrong"},  bgcolor = "@fgStrong" },
+        { selectors = {"bgFgMuted"},   bgcolor = "@fgMuted" },
+        { selectors = {"bgFgPending"}, bgcolor = "@fgPending" },
+        { selectors = {"bgFgInverse"}, bgcolor = "@fgInverse" },
+
         -- Borders
         { selectors = {"border"},        borderColor = "@border" },
         { selectors = {"borderInverse"}, borderColor = "@borderInverse" },
@@ -2203,6 +2226,131 @@ ThemeEngine.RegisterColorScheme{
             stops = {
                 {position = 0, color = "#0A0506"},
                 {position = 1, color = "#8B1F2D"},
+            },
+        },
+    },
+}
+
+-- =============================================================================
+-- Void color scheme
+--
+-- Deep cosmic black-purple surfaces with silver starlight text and a muted
+-- arcane purple accent. Intended to feel menacing rather than electric --
+-- accent saturation is intentionally kept low.
+-- =============================================================================
+
+ThemeEngine.RegisterColorScheme{
+    id          = "void",
+    name        = "Void",
+    description = "Deep cosmic black-purple with silver starlight and muted arcane accents.",
+    colors = {
+        -- Surfaces
+        bg            = "#0A0612",
+        bgAlt         = "#16101F",
+        bgInverse     = "#D8D6E0",
+
+        -- Foreground / text
+        fg            = "#C5C2D1",
+        fgStrong      = "#EFEDF5",
+        fgMuted       = "#7A7388",
+        fgPending     = "#5C5668",
+        fgInverse     = "#0A0612",
+
+        -- Borders
+        border        = "#6E6680",
+        borderInverse = "#3A3050",
+
+        -- Accent + interactive (lower-saturation arcane purple)
+        accent        = "#6E3CB0",
+        accentHover   = "#A286C9",
+
+        -- Status (kept semantic so they read consistently across schemes)
+        success       = "#6BA84F",
+        info          = "#E9C868",
+        warning       = "#E08A2E",
+        danger        = "#C73131",
+
+        -- Disabled
+        disabled      = "#2A2336",
+    },
+    gradients = {
+        surfaceLinear = {
+            point_a = {x = 0, y = 0},
+            point_b = {x = 1, y = 1},
+            stops = {
+                {position = 0, color = "#1A1228"},
+                {position = 1, color = "#04020A"},
+            },
+        },
+        barTrack = {
+            point_a = {x = -0.02, y = 0},
+            point_b = {x = 1.02, y = 0},
+            stops = {
+                {position = 0, color = "#0A0612"},
+                {position = 1, color = "#1F1530"},
+            },
+        },
+    },
+}
+
+-- =============================================================================
+-- Forest color scheme
+--
+-- Deep forest-floor surfaces with sage-cream text, oak-bark bronze borders,
+-- and a muted moss-emerald accent. Brown undertones in the surfaces ground
+-- the green so it reads as a real woodland (canopy + bark + soil) rather
+-- than a flat green wash.
+-- =============================================================================
+
+ThemeEngine.RegisterColorScheme{
+    id          = "forest",
+    name        = "Forest",
+    description = "Deep forest floor with sage-cream text, oak-bark borders, and muted moss-emerald accents.",
+    colors = {
+        -- Surfaces (slight brown undertone in the dark greens)
+        bg            = "#10180E",
+        bgAlt         = "#1E2218",
+        bgInverse     = "#E0E5D2",
+
+        -- Foreground / text (sage-cream, like dappled sunlight)
+        fg            = "#CDD8B8",
+        fgStrong      = "#EAEFD8",
+        fgMuted       = "#7E8A6E",
+        fgPending     = "#5C6555",
+        fgInverse     = "#10180E",
+
+        -- Borders (oak-bark bronze rim ties brown across the chrome)
+        border        = "#7E6A52",
+        borderInverse = "#2A3828",
+
+        -- Accent + interactive (muted moss-emerald, not neon)
+        accent        = "#427B52",
+        accentHover   = "#6FA37A",
+
+        -- Status (kept semantic so they read consistently across schemes)
+        success       = "#6BA84F",
+        info          = "#E9C868",
+        warning       = "#E08A2E",
+        danger        = "#C73131",
+
+        -- Disabled
+        disabled      = "#2A3328",
+    },
+    gradients = {
+        surfaceLinear = {
+            point_a = {x = 0, y = 0},
+            point_b = {x = 1, y = 1},
+            stops = {
+                {position = 0, color = "#1F3326"},
+                {position = 1, color = "#070D09"},
+            },
+        },
+        barTrack = {
+            point_a = {x = -0.02, y = 0},
+            point_b = {x = 1.02, y = 0},
+            stops = {
+                {position = 0, color = "#10180E"},
+                {position = 1, color = "#1F3326"},
             },
         },
     },

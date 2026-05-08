@@ -10,7 +10,33 @@ local mod = dmhub.GetModLoading()
     button.
 ]]
 
-local COLORS = AbilityEditor.COLORS
+-- Picker-specific style extras spliced into the modal's cascade root via
+-- ThemeEngine.MergeStyles. Keeps the picker's "dark fill + accent border"
+-- card look but routes the colors through @-tokens so the cards re-color
+-- with the active scheme.
+local function _pickerStyles()
+    return {
+        {
+            selectors = {"picker-card"},
+            bgimage = "panels/square.png",
+            bgcolor = "@bgAlt",
+            borderWidth = 1,
+            borderColor = "@border",
+            cornerRadius = 3,
+            borderBox = true,
+        },
+        {
+            selectors = {"picker-card", "hover"},
+            borderColor = "@accentHover",
+        },
+        {
+            selectors = {"picker-divider"},
+            bgimage = "panels/square.png",
+            bgcolor = "@accent",
+            opacity = 0.4,
+        },
+    }
+end
 
 -- ============================================================================
 -- Per-type metadata: description, search tags, category group.
@@ -420,38 +446,30 @@ end
 -- ============================================================================
 local function _makeResultCard(typeEntry, meta, onSelect)
     return gui.Panel{
+        classes = {"picker-card"},
         width = "100%",
         height = "auto",
         flow = "vertical",
         hpad = 10,
         vpad = 6,
         bmargin = 4,
-        bgimage = "panels/square.png",
-        bgcolor = COLORS.PANEL_BG,
-        borderWidth = 1,
-        borderColor = COLORS.GOLD,
-        cornerRadius = 3,
-        borderBox = true,
 
         press = function()
             onSelect(typeEntry.id)
         end,
 
         gui.Label{
+            classes = {"sizeS", "bold"},
             width = "100%",
             height = "auto",
-            fontSize = 14,
-            bold = true,
-            color = COLORS.CREAM_BRIGHT,
             textAlignment = "left",
             text = typeEntry.text,
         },
         gui.Label{
+            classes = {"sizeXs"},
             width = "100%",
             height = "auto",
-            fontSize = 12,
             italics = true,
-            color = COLORS.GRAY,
             textAlignment = "left",
             text = meta.description,
         },
@@ -489,11 +507,9 @@ local function _buildGroupPanel(groupDef, entries, onSelect)
         bgcolor = "clear",
         children = {
             gui.Label{
+                classes = {"sizeM", "bold"},
                 width = "100%",
                 height = "auto",
-                fontSize = 16,
-                bold = true,
-                color = COLORS.GOLD_DIM,
                 textAlignment = "left",
                 bmargin = 4,
                 text = groupDef.label,
@@ -536,23 +552,12 @@ function AbilityEditor.OpenBehaviorPicker(ability, onAdd)
     local searchInput
     local resultsPanel
 
-    searchInput = gui.Input{
+    searchInput = gui.SearchInput{
         width = "100%",
         height = 30,
-        placeholderText = "Search behaviors...",
-        bgimage = "panels/square.png",
-        bgcolor = COLORS.PANEL_BG,
-        borderWidth = 1,
-        borderColor = COLORS.GOLD,
-        cornerRadius = 3,
-        hpad = 8,
-        vpad = 4,
         borderBox = true,
-        fontSize = 14,
-        color = COLORS.CREAM_BRIGHT,
+        placeholderText = "Search behaviors...",
         bmargin = 8,
-        textAlignment = "left",
-
         editlag = 0.15,
         edit = function(element)
             resultsPanel:FireEvent("updateResults")
@@ -588,11 +593,9 @@ function AbilityEditor.OpenBehaviorPicker(ability, onAdd)
             -- Recently-used band (when search is empty)
             if query == nil and #AbilityEditor._recentBehaviors > 0 then
                 children[#children + 1] = gui.Label{
+                    classes = {"sizeM", "bold"},
                     width = "100%",
                     height = "auto",
-                    fontSize = 16,
-                    bold = true,
-                    color = COLORS.GOLD_DIM,
                     textAlignment = "left",
                     bmargin = 4,
                     text = "Recently Used",
@@ -607,10 +610,9 @@ function AbilityEditor.OpenBehaviorPicker(ability, onAdd)
                 end
                 -- Divider after recently-used
                 children[#children + 1] = gui.Panel{
+                    classes = {"picker-divider"},
                     width = "100%",
                     height = 1,
-                    bgimage = "panels/square.png",
-                    bgcolor = COLORS.GOLD .. "66",
                     vmargin = 8,
                 }
             end
@@ -633,11 +635,10 @@ function AbilityEditor.OpenBehaviorPicker(ability, onAdd)
             -- Empty state
             if #filtered == 0 and query ~= nil then
                 children[#children + 1] = gui.Label{
+                    classes = {"sizeS"},
                     width = "100%",
                     height = "auto",
-                    fontSize = 14,
                     italics = true,
-                    color = COLORS.GRAY,
                     textAlignment = "center",
                     vmargin = 24,
                     text = "No behaviors match \"" .. rawQuery .. "\"",
@@ -650,7 +651,7 @@ function AbilityEditor.OpenBehaviorPicker(ability, onAdd)
 
     local dialogPanel = gui.Panel{
         classes = {"framedPanel"},
-        styles = {Styles.Default, Styles.Panel},
+        styles = ThemeEngine.MergeStyles(_pickerStyles()),
         width = 600,
         height = 600,
         flow = "vertical",
@@ -658,36 +659,20 @@ function AbilityEditor.OpenBehaviorPicker(ability, onAdd)
         borderBox = true,
         halign = "center",
         valign = "center",
-        fontFace = "Berling",
 
         children = {
-            -- Title row
-            gui.Panel{
-                width = "100%",
-                height = "auto",
-                flow = "horizontal",
+            gui.Label{
+                classes = {"sizeXl", "bold"},
                 halign = "left",
-                valign = "center",
                 bmargin = 8,
-                bgcolor = "clear",
-                children = {
-                    gui.Label{
-                        width = "auto",
-                        height = "auto",
-                        fontSize = 20,
-                        bold = true,
-                        color = COLORS.GOLD_BRIGHT,
-                        textAlignment = "left",
-                        text = "Add Behavior",
-                    },
-                },
+                text = "Add Behavior",
             },
 
             searchInput,
             resultsPanel,
 
-            -- Close button
-            gui.CloseButton{
+            gui.Button{
+                classes = {"closeButton"},
                 halign = "right",
                 valign = "top",
                 floating = true,

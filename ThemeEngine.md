@@ -16,6 +16,8 @@ The **best** path to theming your UI is:
 3. Never use a constant color for anything; always use a class.
 4. Generally use inline properties to control specific layout, etc.
 
+**Preformance!** Using ThemeEngine.GetStyles() ensures that you use a cached theme + color scheme if one exists, and caches it for the next use if it's not already cached. The other paths always parse so they are considerably less performant.
+
 This path ensures that your UI will leverage any theme and color scheme that the end-user chooses.
 
 Sometimes, you will need to add **custom behaviors** through styles instead of inlining properties or writing event handlers. When you do this:
@@ -78,6 +80,21 @@ When writing custom styles (for `MergeStyles` or `MergeTokens`), reference schem
 ```
 
 The token list (`@fg`, `@bg`, `@accent`, `@danger`, etc.) lives in the color-scheme block of `DMHub Core UI / DefaultStyles.lua`.
+
+### @token references inside text markup
+
+The cascade resolver only walks rule tables, so `@tokenName` references baked into a text string (e.g. TextMeshPro inline-color markup) are not substituted automatically. For those cases, call `ThemeEngine.ResolveTokens(text)` to replace each `@tokenName` in the string with the active scheme's resolved hex:
+
+```lua
+local entry = ThemeEngine.ResolveTokens(
+    string.format('%s <color=@danger>(x%d)</color>', name, count)
+)
+```
+
+- Non-string inputs pass through unchanged.
+- Unknown tokens log a warning once and substitute `UNRESOLVED_COLOR` (magenta) -- same fallback the property resolver uses.
+- Only color tokens are substituted; fonts and gradients aren't useful inside text markup so they aren't handled.
+- Resolution is per-call (no cache). Run it at the format site, typically inside the same handler that produces the markup string. If the active scheme changes after the string is set on a label, re-run the format call to pick up the new colors.
 
 ## Deprecated Controls
 

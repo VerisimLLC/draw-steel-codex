@@ -17,7 +17,51 @@ local mod = dmhub.GetModLoading()
     (not a listed modifier) so it never collides with search results.
 ]]
 
-local COLORS = AbilityEditor.COLORS
+-- Picker-specific style extras, splice into the modal's cascade root via
+-- ThemeEngine.MergeStyles so the dialog frame, search input, and other
+-- engine-themed widgets follow the active color scheme. The card / chip /
+-- divider rules below are the parts the dev wants to keep custom for the
+-- picker list -- they reference @tokens so they re-color with the scheme.
+local function _pickerStyles()
+    return {
+        -- Result card surface. Dark fill, accent border, rounded corners --
+        -- "dark fill + accent border" look the user wants to keep.
+        {
+            selectors = {"picker-card"},
+            bgimage = "panels/square.png",
+            bgcolor = "@bgAlt",
+            borderWidth = 1,
+            borderColor = "@border",
+            cornerRadius = 3,
+            borderBox = true,
+        },
+        {
+            selectors = {"picker-card", "hover"},
+            borderColor = "@accentHover",
+        },
+        -- Suggested-search chip (rounded capsule).
+        {
+            selectors = {"picker-chip"},
+            bgimage = "panels/square.png",
+            bgcolor = "@bgAlt",
+            borderWidth = 1,
+            borderColor = "@border",
+            cornerRadius = 11,
+            borderBox = true,
+        },
+        {
+            selectors = {"picker-chip", "hover"},
+            borderColor = "@accentHover",
+        },
+        -- 1px divider between Recently Used and the rest.
+        {
+            selectors = {"picker-divider"},
+            bgimage = "panels/square.png",
+            bgcolor = "@accent",
+            opacity = 0.4,
+        },
+    }
+end
 
 -- ============================================================================
 -- Per-type metadata: description, search tags, category group, optional
@@ -303,38 +347,30 @@ end
 -- ============================================================================
 local function _makeResultCard(typeEntry, meta, onSelect)
     return gui.Panel{
+        classes = {"picker-card"},
         width = "100%",
         height = "auto",
         flow = "vertical",
         hpad = 10,
         vpad = 6,
         bmargin = 4,
-        bgimage = "panels/square.png",
-        bgcolor = COLORS.PANEL_BG,
-        borderWidth = 1,
-        borderColor = COLORS.GOLD,
-        cornerRadius = 3,
-        borderBox = true,
 
         press = function()
             onSelect(typeEntry.id)
         end,
 
         gui.Label{
+            classes = {"sizeS", "bold"},
             width = "100%",
             height = "auto",
-            fontSize = 14,
-            bold = true,
-            color = COLORS.CREAM_BRIGHT,
             textAlignment = "left",
             text = typeEntry.text,
         },
         gui.Label{
+            classes = {"sizeXs"},
             width = "100%",
             height = "auto",
-            fontSize = 12,
             italics = true,
-            color = COLORS.GRAY,
             textAlignment = "left",
             text = meta.description,
         },
@@ -371,11 +407,9 @@ local function _buildGroupPanel(groupDef, entries, onSelect)
         bgcolor = "clear",
         children = {
             gui.Label{
+                classes = {"sizeM", "bold"},
                 width = "100%",
                 height = "auto",
-                fontSize = 16,
-                bold = true,
-                color = COLORS.GOLD_DIM,
                 textAlignment = "left",
                 bmargin = 4,
                 text = groupDef.label,
@@ -409,23 +443,12 @@ function AbilityEditor.OpenModifierPicker(feature, onAdd)
     local searchInput
     local resultsPanel
 
-    searchInput = gui.Input{
+    searchInput = gui.SearchInput{
         width = "100%",
         height = 30,
-        placeholderText = "Search modifiers...",
-        bgimage = "panels/square.png",
-        bgcolor = COLORS.PANEL_BG,
-        borderWidth = 1,
-        borderColor = COLORS.GOLD,
-        cornerRadius = 3,
-        hpad = 8,
-        vpad = 4,
         borderBox = true,
-        fontSize = 14,
-        color = COLORS.CREAM_BRIGHT,
+        placeholderText = "Search modifiers...",
         bmargin = 8,
-        textAlignment = "left",
-
         editlag = 0.15,
         edit = function(element)
             resultsPanel:FireEvent("updateResults")
@@ -461,11 +484,9 @@ function AbilityEditor.OpenModifierPicker(feature, onAdd)
             -- Recently-used band (only when search is empty).
             if query == nil and #AbilityEditor._recentModifiers > 0 then
                 children[#children + 1] = gui.Label{
+                    classes = {"sizeM", "bold"},
                     width = "100%",
                     height = "auto",
-                    fontSize = 16,
-                    bold = true,
-                    color = COLORS.GOLD_DIM,
                     textAlignment = "left",
                     bmargin = 4,
                     text = "Recently Used",
@@ -480,10 +501,9 @@ function AbilityEditor.OpenModifierPicker(feature, onAdd)
                 end
                 -- Divider after recently-used.
                 children[#children + 1] = gui.Panel{
+                    classes = {"picker-divider"},
                     width = "100%",
                     height = 1,
-                    bgimage = "panels/square.png",
-                    bgcolor = COLORS.GOLD .. "66",
                     vmargin = 8,
                 }
             end
@@ -494,6 +514,7 @@ function AbilityEditor.OpenModifierPicker(feature, onAdd)
                 for _, chipText in ipairs(SUGGESTED_CHIPS) do
                     local ct = chipText
                     chipChildren[#chipChildren + 1] = gui.Panel{
+                        classes = {"picker-chip"},
                         width = "auto",
                         height = 22,
                         flow = "horizontal",
@@ -502,20 +523,14 @@ function AbilityEditor.OpenModifierPicker(feature, onAdd)
                         hpad = 8,
                         rmargin = 6,
                         bmargin = 4,
-                        bgcolor = COLORS.PANEL_BG,
-                        borderWidth = 1,
-                        borderColor = COLORS.GOLD,
-                        cornerRadius = 11,
-                        borderBox = true,
                         press = function()
                             searchInput.text = ct
                             resultsPanel:FireEvent("updateResults")
                         end,
                         gui.Label{
+                            classes = {"sizeXs"},
                             width = "auto",
                             height = "auto",
-                            fontSize = 12,
-                            color = COLORS.CREAM_BRIGHT,
                             textAlignment = "left",
                             text = ct,
                         },
@@ -552,11 +567,10 @@ function AbilityEditor.OpenModifierPicker(feature, onAdd)
             -- Empty state.
             if #filtered == 0 and query ~= nil then
                 children[#children + 1] = gui.Label{
+                    classes = {"sizeS"},
                     width = "100%",
                     height = "auto",
-                    fontSize = 14,
                     italics = true,
-                    color = COLORS.GRAY,
                     textAlignment = "center",
                     vmargin = 24,
                     text = "No modifiers match \"" .. rawQuery .. "\"",
@@ -569,7 +583,7 @@ function AbilityEditor.OpenModifierPicker(feature, onAdd)
 
     local dialogPanel = gui.Panel{
         classes = {"framedPanel"},
-        styles = {Styles.Default, Styles.Panel},
+        styles = ThemeEngine.MergeStyles(_pickerStyles()),
         width = 600,
         height = 600,
         flow = "vertical",
@@ -577,34 +591,20 @@ function AbilityEditor.OpenModifierPicker(feature, onAdd)
         borderBox = true,
         halign = "center",
         valign = "center",
-        fontFace = "Berling",
 
         children = {
-            gui.Panel{
-                width = "100%",
-                height = "auto",
-                flow = "horizontal",
+            gui.Label{
+                classes = {"sizeXl", "bold"},
                 halign = "left",
-                valign = "center",
                 bmargin = 8,
-                bgcolor = "clear",
-                children = {
-                    gui.Label{
-                        width = "auto",
-                        height = "auto",
-                        fontSize = 20,
-                        bold = true,
-                        color = COLORS.GOLD_BRIGHT,
-                        textAlignment = "left",
-                        text = "Add Modifier",
-                    },
-                },
+                text = "Add Modifier",
             },
 
             searchInput,
             resultsPanel,
 
-            gui.CloseButton{
+            gui.Button{
+                classes = {"closeButton"},
                 halign = "right",
                 valign = "top",
                 floating = true,

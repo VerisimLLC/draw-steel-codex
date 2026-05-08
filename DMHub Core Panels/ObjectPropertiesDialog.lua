@@ -2844,6 +2844,7 @@ local function CreateObjectEditorPanel()
 			selectors = {"add-property-dropdown"},
 			width = "90%",
 			halign = "center",
+			tmargin = 6,
 		},
 		{
 			selectors = {"dropdown-option"},
@@ -2940,7 +2941,7 @@ local function CreateObjectEditorPanel()
 			valign = "top",
 			halign = "center",
 			textAlignment = "center",
-			vmargin = 12,
+			vmargin = 6,
 		},
 		{
 			selectors = {"component-header", "incomplete"},

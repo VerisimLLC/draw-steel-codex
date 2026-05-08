@@ -264,13 +264,13 @@ CharacterFeature.ModifierStyles = {
 	gui.Style{
 		selectors = {'modifierEditorPanel'},
 		bgimage = 'panels/square.png',
-		bgcolor = '#00000055',
+		bgcolor = '@bgAlt',
 		hmargin = 4,
 		vmargin = 4,
 		halign = 'left',
 		pad = 8,
-		borderWidth = 2,
-		borderColor = '#ffffff88',
+		borderWidth = 1,
+		borderColor = '@accent',
 
 		width = "90%",
 		height = "auto",
@@ -557,17 +557,19 @@ function CharacterFeature:EditorPanel(editorPanelOptions)
 							end
 						end,
 					}
-					-- Capture locals for the themed confirm closure below.
+					-- Capture locals for the confirm closure below.
 					local deleteModIndex = modIndex
 					local deleteModName = behaviorText or "this modifier"
 					local function performDelete()
 						table.remove(self.modifiers, deleteModIndex)
 						modifiersPanel:FireEvent('refreshModifiers')
 					end
-					-- Skip the built-in requireConfirm path (which uses the
-					-- engine-wide gui.ModalMessage, unthemed) and instead
-					-- route through AbilityEditor.ShowThemedConfirm so the
-					-- delete prompt matches the surrounding feature panel.
+					-- Build a small themed confirm dialog inline. Uses the
+					-- engine theme classes (framedPanel / modalTitle /
+					-- modalMessage) so it follows the active color scheme.
+					-- Done as a hand-built panel rather than gui.ModalMessage
+					-- so the Cancel button can carry escapeActivates and
+					-- pressing Escape dismisses the prompt cleanly.
 					local deleteBtn = gui.DeleteItemButton{
 						classes = {cond(mod:try_get("deletable") == false, "hidden")},
 						width = 14,
@@ -575,15 +577,59 @@ function CharacterFeature:EditorPanel(editorPanelOptions)
 						valign = "center",
 						lmargin = 8,
 						click = function(element)
-							abilityEditor.ShowThemedConfirm{
-								title = "Delete Modifier?",
-								message = string.format(
-									"Are you sure you want to delete the %s modifier? This cannot be undone.",
-									deleteModName),
-								confirmText = "Delete",
-								cancelText = "Cancel",
-								onConfirm = performDelete,
-							}
+							gui.ShowModal(gui.Panel{
+								classes = {"framedPanel"},
+								styles = ThemeEngine.GetStyles(),
+								floating = true,
+								flow = "vertical",
+								width = 480,
+								height = "auto",
+								halign = "center",
+								valign = "center",
+								pad = 20,
+								borderBox = true,
+								gui.Label{
+									classes = {"modalTitle"},
+									width = "100%",
+									textAlignment = "left",
+									bmargin = 12,
+									text = "Delete Modifier?",
+								},
+								gui.Label{
+									classes = {"modalMessage"},
+									width = "100%",
+									textAlignment = "left",
+									bmargin = 20,
+									text = string.format(
+										"Are you sure you want to delete the %s modifier? This cannot be undone.",
+										deleteModName),
+								},
+								gui.Panel{
+									width = "100%",
+									height = "auto",
+									flow = "horizontal",
+									halign = "right",
+									valign = "bottom",
+									gui.Button{
+										classes = {"sizeL"},
+										text = "Cancel",
+										rmargin = 8,
+										escapeActivates = true,
+										escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+										click = function()
+											gui.CloseModal()
+										end,
+									},
+									gui.Button{
+										classes = {"sizeL"},
+										text = "Delete",
+										click = function()
+											gui.CloseModal()
+											performDelete()
+										end,
+									},
+								},
+							})
 						end,
 					}
 					local header = gui.Panel{
@@ -1045,11 +1091,12 @@ function CharacterFeature:PopupEditor()
 
 	-- Match the feature panel's themed/classic split so the outer frame is
 	-- visually cohesive with the inner editor. Gated on the same
-	-- classicAbilityEditor opt-out as the sectioned Ability Editor.
+	-- classicAbilityEditor opt-out as the sectioned Ability Editor. All
+	-- chrome colours are sourced from the themed framedPanel cascade rule
+	-- (GetThemedDialogStyles), so no DS COLORS palette lookup is needed.
 	local abilityEditor = rawget(_G, "AbilityEditor")
 	local themed = abilityEditor ~= nil
 		and dmhub.GetSettingValue("classicAbilityEditor") ~= true
-	local c = themed and abilityEditor.COLORS or nil
 
 	local contentPanel = self:EditorPanel{
 		modifierRefreshed = function(element)
@@ -1067,11 +1114,20 @@ function CharacterFeature:PopupEditor()
 			selectors = {'popup-editor'},
 			width = 1000,
 			height = 800,
-			bgcolor = themed and c.BG or 'white',
 			halign = 'center',
 			valign = 'center',
 		},
 	}
+
+	-- Classic mode: popup-editor rule provides the original white bg.
+	-- Themed mode: framedPanel cascade rule (added below via
+	-- GetThemedDialogStyles) supplies bgcolor / borderColor / gradient.
+	-- We DON'T set bgcolor on popup-editor in themed mode because that
+	-- rule is found ahead of the framedPanel rule in the cascade and
+	-- wins ties on bgcolor, making the popup transparent.
+	if not themed then
+		popupStyles[#popupStyles].bgcolor = 'white'
+	end
 
 	if themed then
 		-- Splice the shared themed-dialog pack. The helper owns the
@@ -1082,35 +1138,41 @@ function CharacterFeature:PopupEditor()
 		end
 	end
 
-	-- The engine MULTIPLIES bgcolor with the gradient's color at each
-	-- pixel. Base Styles.Panel's framedPanel rule sets gradient to
-	-- dialogGradient (near-black #000000 -> #060606), which multiplied
-	-- with any bgcolor produces near-black. To let our bgcolor paint
-	-- as-is, supply a flat white gradient -- white multiplied with
-	-- bgcolor is just bgcolor.
-	local flatWhiteGradient = themed and gui.Gradient{
-		point_a = {x = 0, y = 0},
-		point_b = {x = 1, y = 1},
-		stops = {
-			{position = 0, color = "#ffffff"},
-			{position = 1, color = "#ffffff"},
-		},
-	} or nil
+	-- The framedPanel cascade rule (from GetThemedDialogStyles) paints
+	-- bgimage, borderWidth, and the flat-white gradient that defeats
+	-- Styles.Panel's near-black dialogGradient. Those properties win the
+	-- cascade for this panel, but bgcolor / borderColor do not -- a still-
+	-- unidentified ancestor or engine rule overrides them, leaving the
+	-- frame painted in the default scheme's @bg and a stale gold border
+	-- regardless of the active scheme. Working around it by resolving
+	-- @bg / @accent against the active scheme via MergeTokens here and
+	-- setting the colours inline; inline always wins the cascade.
+	-- cornerRadius stays inline because the cascade rule doesn't declare it.
+	-- Live theme/scheme switches: MergeTokens is a one-shot snapshot, so
+	-- subscribe to OnThemeChanged below and re-resolve into selfStyle.
+	local function _resolveThemedColors()
+		local r = ThemeEngine.MergeTokens({{
+			selectors = {"_resolve"},
+			bgcolor = "@bg",
+			borderColor = "@accent",
+		}})[1]
+		return r.bgcolor, r.borderColor
+	end
+
+	local themedBgcolor = nil
+	local themedBorderColor = nil
+	if themed then
+		themedBgcolor, themedBorderColor = _resolveThemedColors()
+	end
 
 	resultPanel = gui.Panel{
 		id = "CharacterFeaturePopupEditor",
 		classes = {'popup-editor', "framedPanel"},
 		floating = true,
 		flow = "vertical",
-		-- Top-level bg keys match the ability editor's abilityEditorRoot
-		-- (AbilityEditor.lua:4630). Class-based framedPanel styles alone
-		-- don't reliably paint against Styles.Panel's dialogGradient base.
-		bgimage = themed and "panels/square.png" or nil,
-		bgcolor = themed and c.BG or nil,
-		gradient = flatWhiteGradient,
-		borderWidth = themed and 2 or nil,
-		borderColor = themed and c.GOLD or nil,
 		cornerRadius = themed and 6 or nil,
+		bgcolor = themedBgcolor,
+		borderColor = themedBorderColor,
 
 		contentPanel,
 
@@ -1120,7 +1182,8 @@ function CharacterFeature:PopupEditor()
 			flow = "horizontal",
 			halign = "center",
 
-			gui.PrettyButton{
+			gui.Button{
+				classes = {"sizeM"},
 				width = 160,
 				height = 50,
 				halign = "center",
@@ -1133,7 +1196,8 @@ function CharacterFeature:PopupEditor()
 				end,
 			},
 
-			gui.PrettyButton{
+			gui.Button{
+				classes = {"sizeM"},
 				width = 160,
 				height = 50,
 				halign = "center",
@@ -1174,6 +1238,20 @@ function CharacterFeature:PopupEditor()
 
 	}
 
+	-- Live re-resolve on theme / color-scheme switch. The inline bgcolor /
+	-- borderColor above are baked from the active scheme at panel creation;
+	-- without this subscription the popup keeps the old scheme's colours
+	-- until reopened. selfStyle wins the cascade just like inline does.
+	if themed then
+		ThemeEngine.OnThemeChanged(mod, function()
+			if resultPanel ~= nil and resultPanel.valid then
+				local bg, border = _resolveThemedColors()
+				resultPanel.selfStyle.bgcolor = bg
+				resultPanel.selfStyle.borderColor = border
+			end
+		end)
+	end
+
 	return resultPanel
 end
 
@@ -1189,35 +1267,26 @@ function CharacterFeature.ListEditor(document, fieldName, options)
 	options.createOptions = {}
 
 	local addButton = gui.Button{
-		text = options.addText or 'Add Custom Feature',
-		style = {
-			width = 160,
-			height = 30,
-			bgcolor = 'white',
-			fontSize = 16,
-			halign = 'left',
-		},
-		events = {
-			click = function(element)
-				local items = document:try_get(fieldName, {})
-				items[#items+1] = CharacterFeature.Create(createOptions)
-				document[fieldName] = items
-				resultPanel.children = CalculateChildren()
-				resultPanel:FireEvent("refreshModifier")
-			end,
-		},
+		classes = {"addButton"},
+		halign = "left",
+		linger = function(element)
+			gui.Tooltip(options.addText or "Add Custom Feature")(element)
+		end,
+		click = function(element)
+			local items = document:try_get(fieldName, {})
+			items[#items+1] = CharacterFeature.Create(createOptions)
+			document[fieldName] = items
+			resultPanel.children = CalculateChildren()
+			resultPanel:FireEvent("refreshModifier")
+		end,
 	}
 
 	local pasteButton = gui.Button{
-		text = "Paste Feature",
-		style = {
-			width = 160,
-			height = 30,
-			bgcolor = 'white',
-			fontSize = 16,
-			halign = 'left',
-		},
-
+		classes = {"copyButton"},
+		hmargin = 4,
+		linger = function(element)
+			gui.Tooltip("Paste Feature")(element)
+		end,
 		create = function(element)
 			local clipboardItem = dmhub.GetInternalClipboard()
 			element:SetClass("hidden", clipboardItem == nil or (clipboardItem.typeName ~= "CharacterFeature" and clipboardItem.typeName ~= "ActivatedAbility"))
@@ -1276,58 +1345,38 @@ function CharacterFeature.ListEditor(document, fieldName, options)
 					},
 
 					gui.Button{
-						text = 'Copy',
+						classes = {"sizeS"},
+						text = "Copy",
 						hmargin = 6,
-						style = {
-							width = 60,
-							height = 24,
-							fontSize = 14
-						},
-						events = {
-							click = function(element)
-								dmhub.CopyToInternalClipboard(info)
-                                gui.Tooltip("Copied to clipboard!")(element)
-
-								pasteButton:FireEvent("create")
-							end
-						},
+						click = function(element)
+							dmhub.CopyToInternalClipboard(info)
+							gui.Tooltip("Copied to clipboard!")(element)
+							pasteButton:FireEvent("create")
+						end,
 					},
 
 					gui.Button{
-						text = 'Edit',
+						classes = {"sizeS"},
+						text = "Edit",
 						hmargin = 6,
-						style = {
-							width = 60,
-							height = 24,
-							fontSize = 14
-						},
-						events = {
-							click = function(element)
-								local editor = info:PopupEditor()
-								editor.data.notifyElement = resultPanel
-								dialog:AddChild(editor)
-								--resultPanel.popup = info:PopupEditor()
-							end
-						},
+						click = function(element)
+							local editor = info:PopupEditor()
+							editor.data.notifyElement = resultPanel
+							dialog:AddChild(editor)
+						end,
 					},
 
 					gui.Button{
-						text = 'Delete',
+						classes = {"sizeS"},
+						text = "Delete",
 						hmargin = 4,
-						style = {
-							width = 60,
-							height = 24,
-							fontSize = 14
-						},
-						events = {
-							click = function(element)
-								local items = document:try_get(fieldName, {})
-								table.remove(items, itemIndex)
-								document[fieldName] = items
-								resultPanel.children = CalculateChildren()
-								resultPanel:FireEvent("refreshModifier")
-							end,
-						},
+						click = function(element)
+							local items = document:try_get(fieldName, {})
+							table.remove(items, itemIndex)
+							document[fieldName] = items
+							resultPanel.children = CalculateChildren()
+							resultPanel:FireEvent("refreshModifier")
+						end,
 					},
 				}
 			}

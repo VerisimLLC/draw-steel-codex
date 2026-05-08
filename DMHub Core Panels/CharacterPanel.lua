@@ -757,6 +757,7 @@ local CreateBestiaryFolder = function(nodeid)
             placeholderText = 'Search for Monsters...',
             editlag = 0.25,
             width = '65%',
+            height = "100%-8",
             halign = 'left',
             valign = 'center',
             edit = updateSearch,

@@ -259,7 +259,8 @@ mod.shared.InventoryCompendiumEditor = function(categories)
 		end,
 	}
 
-	local addItemButton = gui.AddButton{
+	local addItemButton = gui.Button{
+		classes = {"addButton"},
 		width = 24,
 		height = 24,
 		halign = "right",

@@ -89,6 +89,7 @@ local function _multiselect(args)
         dropdownOpts.hasSearch = dropdownOpts.hasSearch == nil and true or dropdownOpts.hasSearch
         dropdownOpts.textDefault = dropdownOpts.textDefault or addItemText or opts.textDefault or "Select an item..."
         dropdownOpts.sort = dropdownOpts.sort or opts.sort or nil
+        dropdownOpts.halign = "left"
         dropdownOpts.options = shallow_copy_list(m_options)
         dropdownOpts.change = function(element)
             local controller = element:FindParentWithClass("multiselectController")

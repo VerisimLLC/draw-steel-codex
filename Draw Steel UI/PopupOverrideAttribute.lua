@@ -79,15 +79,15 @@ function gui.PopupOverrideAttribute(args)
                 flow = "horizontal",
                 vmargin = 2,
                 gui.Label{
+                    classes = {"sizeS"},
                     text = string.format("Base %s:", attributeName),
                     width = "auto",
                     height = "auto",
-                    fontSize = 14,
                     valign = "center",
                 },
                 gui.Input{
+                    classes = {"sizeS"},
                     text = namingTable[baseValue] or string.format("%d", baseValue),
-                    fontSize = 12,
                     width = 80,
                     height = 16,
                     lmargin = 4,
@@ -103,10 +103,10 @@ function gui.PopupOverrideAttribute(args)
         else
 
             panels[#panels + 1] = gui.Label {
+                classes = {"sizeS"},
                 text = string.format("Base %s: %s", attributeName, namingTable[baseValue] or string.format("%d", baseValue)),
                 width = "auto",
                 height = "auto",
-                fontSize = 14,
             }
         end
 
@@ -124,10 +124,10 @@ function gui.PopupOverrideAttribute(args)
         if featureIndex == nil then
             local text = string.format("%s: %s", modification.key, namingTable[tonumber(ReadModifierValue(modification)) or 0] or ReadModifierValue(modification))
             panels[#panels + 1] = gui.Label {
+                classes = {"sizeS"},
                 text = text,
                 width = "auto",
                 height = "auto",
-                fontSize = 14,
             }
         else
             panels[#panels + 1] = gui.Panel {
@@ -136,8 +136,7 @@ function gui.PopupOverrideAttribute(args)
                 flow = "horizontal",
                 vmargin = 2,
                 gui.Input {
-
-                    fontSize = 12,
+                    classes = {"sizeS"},
                     width = 180,
                     height = 16,
                     lmargin = 4,
@@ -164,7 +163,7 @@ function gui.PopupOverrideAttribute(args)
                 },
 
                 gui.Input {
-                    fontSize = 12,
+                    classes = {"sizeS"},
                     width = 120,
                     height = 16,
                     lmargin = 4,
@@ -196,7 +195,8 @@ function gui.PopupOverrideAttribute(args)
                     end,
                 },
 
-                gui.DeleteItemButton {
+                gui.Button {
+                    classes = {"deleteButton"},
                     width = 16,
                     height = 16,
                     halign = "right",
@@ -224,15 +224,15 @@ function gui.PopupOverrideAttribute(args)
         flow = "horizontal",
         vmargin = 2,
         gui.Label {
+            classes = {"sizeS"},
             width = "auto",
             height = "auto",
             valign = "center",
-            fontSize = 14,
             text = "Custom Modification:",
         },
 
         gui.Input {
-            fontSize = 12,
+            classes = {"sizeS"},
             width = 120,
             height = 16,
             lmargin = 4,
@@ -279,31 +279,20 @@ function gui.PopupOverrideAttribute(args)
 
     }
 
-    panels[#panels + 1] = gui.CloseButton {
-        floating = true,
-        width = 16,
-        height = 16,
-        x = 8,
-        y = -8,
-        halign = "right",
-        valign = "top",
-        press = function()
-            element.popup = nil
-        end,
-    }
-
-    local container = gui.Panel {
-        styles = Styles.Default,
+    element.popup = gui.Panel {
+        classes = {"framedPanel"},
+        styles = ThemeEngine.GetStyles(),
+        interactable = true,
+        swallowPress = true,
+        flow = "vertical",
+        halign = "center",
+        valign = "bottom",
         width = "auto",
         height = "auto",
-        flow = "vertical",
-        swallowPress = true,
+        hpad = 24,
+        vpad = 14,
         children = panels,
     }
-
-    element.popup = gui.TooltipFrame(container, {
-        interactable = true,                                 --important to make it so the popup doesn't close when clicked on.
-    })
 end
 
 function gui.PopupMovementSpeed(args)
@@ -360,15 +349,15 @@ function gui.PopupMovementSpeed(args)
             flow = "horizontal",
             vmargin = 2,
             gui.Label{
+                classes = {"sizeS"},
                 text = "Base Speed:",
                 width = "auto",
                 height = "auto",
-                fontSize = 14,
                 valign = "center",
             },
             gui.Input{
+                classes = {"sizeS"},
                 text = string.format("%d", baseSpeed),
-                fontSize = 12,
                 width = 60,
                 height = 16,
                 lmargin = 4,
@@ -393,10 +382,10 @@ function gui.PopupMovementSpeed(args)
         }
     else
         panels[#panels+1] = gui.Label{
+            classes = {"sizeS"},
             text = string.format("Base Speed: %d", baseSpeed),
             width = "auto",
             height = "auto",
-            fontSize = 14,
         }
     end
 
@@ -416,10 +405,10 @@ function gui.PopupMovementSpeed(args)
         if featureIndex == nil then
             local text = string.format("%s: %s", modification.key, ReadModifierValue(modification))
             panels[#panels+1] = gui.Label{
+                classes = {"sizeS"},
                 text = text,
                 width = "auto",
                 height = "auto",
-                fontSize = 14,
             }
         else
             panels[#panels+1] = gui.Panel{
@@ -428,7 +417,7 @@ function gui.PopupMovementSpeed(args)
                 flow = "horizontal",
                 vmargin = 2,
                 gui.Input{
-                    fontSize = 12,
+                    classes = {"sizeS"},
                     width = 180,
                     height = 16,
                     lmargin = 4,
@@ -448,7 +437,7 @@ function gui.PopupMovementSpeed(args)
                     end,
                 },
                 gui.Input{
-                    fontSize = 12,
+                    classes = {"sizeS"},
                     width = 60,
                     height = 16,
                     lmargin = 4,
@@ -472,7 +461,8 @@ function gui.PopupMovementSpeed(args)
                         }
                     end,
                 },
-                gui.DeleteItemButton{
+                gui.Button{
+                    classes = {"deleteButton"},
                     width = 16,
                     height = 16,
                     halign = "right",
@@ -498,14 +488,14 @@ function gui.PopupMovementSpeed(args)
             flow = "horizontal",
             vmargin = 2,
             gui.Label{
+                classes = {"sizeS"},
                 width = "auto",
                 height = "auto",
                 valign = "center",
-                fontSize = 14,
                 text = "Custom Modification:",
             },
             gui.Input{
-                fontSize = 12,
+                classes = {"sizeS"},
                 width = 60,
                 height = 16,
                 lmargin = 4,
@@ -547,20 +537,20 @@ function gui.PopupMovementSpeed(args)
 
     -- Current speed display
     panels[#panels+1] = gui.Label{
+        classes = {"sizeS"},
         text = string.format("Current Speed: %d", creature:CurrentMovementSpeed()),
         width = "auto",
         height = "auto",
-        fontSize = 14,
         bold = true,
         vmargin = 2,
     }
 
     -- Section B: Movement Types
     panels[#panels+1] = gui.Label{
+        classes = {"sizeS"},
         text = "Movement Types",
         width = "auto",
         height = "auto",
-        fontSize = 14,
         bold = true,
         vmargin = 4,
     }
@@ -680,13 +670,12 @@ function gui.PopupMovementSpeed(args)
             -- Source label
             if sourceText ~= "" then
                 rowChildren[#rowChildren+1] = gui.Label{
+                    classes = {"sizeS", "fgMuted"},
                     text = string.format("(%s)", sourceText),
                     width = "auto",
                     height = "auto",
-                    fontSize = 12,
                     valign = "center",
                     lmargin = 4,
-                    color = "#aaaaaa",
                 }
             end
 
@@ -700,32 +689,18 @@ function gui.PopupMovementSpeed(args)
         end
     end
 
-    -- Close button
-    panels[#panels+1] = gui.CloseButton{
-        floating = true,
-        width = 16,
-        height = 16,
-        x = 8,
-        y = -8,
-        halign = "right",
-        valign = "top",
-        press = function()
-            element.popup = nil
-        end,
-    }
-
-    local container = gui.Panel{
-        styles = Styles.Default,
+    element.popup = gui.Panel{
+        classes = {"framedPanel"},
+        styles = ThemeEngine.GetStyles(),
+        interactable = true,
+        swallowPress = true,
+        flow = "vertical",
         width = "auto",
         height = "auto",
-        flow = "vertical",
-        swallowPress = true,
+        hpad = 24,
+        vpad = 14,
         children = panels,
     }
-
-    element.popup = gui.TooltipFrame(container, {
-        interactable = true,
-    })
 end
 
 function gui.PopupMonsterSize(args)
@@ -748,26 +723,32 @@ function gui.PopupMonsterSize(args)
 
     local currentSize = currentToken.properties:GetBaseCreatureSize() or currentToken.creatureSize
 
-    local container = gui.Panel{
-        styles = Styles.Default,
+    element.popup = gui.Panel{
+        classes = {"framedPanel"},
+        styles = ThemeEngine.GetStyles(),
+        interactable = true,
+        swallowPress = true,
+        flow = "vertical",
+        halign = "center",
+        valign = "bottom",
         width = "auto",
         height = "auto",
-        flow = "vertical",
-        swallowPress = true,
+        hpad = 24,
+        vpad = 14,
 
         gui.Label{
+            classes = {"sizeS"},
             text = "Size",
             width = "auto",
             height = "auto",
-            fontSize = 14,
             bold = true,
             vmargin = 2,
         },
 
         gui.Dropdown{
+            classes = {"sizeS"},
             options = sizeOptions,
             idChosen = currentSize,
-            fontSize = 14,
             change = function(el)
                 local newSize = el.idChosen
                 if characterSheet then
@@ -787,22 +768,5 @@ function gui.PopupMonsterSize(args)
                 end
             end,
         },
-
-        gui.CloseButton{
-            floating = true,
-            width = 16,
-            height = 16,
-            x = 8,
-            y = -8,
-            halign = "right",
-            valign = "top",
-            press = function()
-                element.popup = nil
-            end,
-        },
     }
-
-    element.popup = gui.TooltipFrame(container, {
-        interactable = true,
-    })
 end

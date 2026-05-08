@@ -5309,11 +5309,11 @@ local LibraryPanel = function()
 			-- literal because it's a bespoke compendium-selection look.
 			{
 				selectors = {'list-item', 'defocused'},
-				color = '@textMuted',
+				brightness = 0.7,
 			},
 			{
 				selectors = {'list-item', 'imported'},
-				color = '@textMuted',
+				brightness = 0.7,
 			},
 			{
 				selectors = {'list-item', 'deleted'},
@@ -5321,25 +5321,28 @@ local LibraryPanel = function()
 			},
 			{
 				selectors = {'list-item', 'hover'},
-				bgcolor = '#880000',
+				bgcolor = "@bgInverse", --'#880000',
+				color = "@fgInverse",
+				brightness = 1.2,
 			},
 			{
 				selectors = {'list-item', 'selected'},
-				bgcolor = '#880000',
+				bgcolor = "@bgInverse", --'#880000',
+				color = "@fgInverse"
 			},
 			{
 				selectors = {'list-item', 'searching'},
-				color = '@textMuted',
+				brightness = 0.5,
 			},
 			{
 				selectors = {'list-item', 'matchSearch'},
-				color = '@text',
+				brightness = 1.5,
 			},
 			-- searchableLabel: only the conditional fade-on-no-match rule is
 			-- needed. Default color comes from the theme {label} rule.
 			{
 				selectors = {'searchableLabel', 'searching', '~matchSearch'},
-				color = '@textMuted',
+				brightness = 0.7,
 			},
 			{
 				selectors = {'hideOnSearchMismatch', 'searching', '~matchSearch'},

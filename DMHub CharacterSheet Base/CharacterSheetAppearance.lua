@@ -73,21 +73,36 @@ local AppearanceStyles = {
 
     {
         selectors = { "selectionPanel" },
-        bgimage = "panels/square.png",
+        bgimage = true,
         bgcolor = "clear",
     },
     {
         selectors = { "selectionPanel", "hover" },
-        borderColor = "grey",
+        borderColor = "@border",
         borderWidth = 2,
     },
     {
         selectors = { "selectionPanel", "press" },
-        borderColor = "black",
+        borderColor = "@fgStrong",
     },
     {
         selectors = { "selectionPanel", "selected" },
-        borderColor = "white",
+        borderColor = "@accent",
+        borderWidth = 2,
+    },
+
+    {
+        selectors = { "appearancePreviewFrame" },
+        borderColor = "@border",
+        borderWidth = 2,
+    },
+    {
+        selectors = { "appearanceDivider" },
+        bgcolor = "@border",
+    },
+    {
+        selectors = { "appearanceIconFrame" },
+        borderColor = "@border",
         borderWidth = 2,
     },
 
@@ -154,10 +169,9 @@ local AppearanceStyles = {
         width = "auto",
         height = "auto",
         uppercase = true,
+        color = "@fgStrong",
     },
 }
-
-gui.RegisterTheme("charsheet", "Appearance", AppearanceStyles)
 
 function CharSheet.CharacterNameLabel()
     return gui.Label {
@@ -298,7 +312,6 @@ function CharSheet.RibbonSelectionPanel()
     resultPanel = gui.Panel {
         id = "ribbonSelectionPanel",
         vscroll = true,
-        bgimage = "panels/square.png",
 
         gui.Label {
             classes = { "statsLabel", "titleLabel" },
@@ -312,7 +325,6 @@ function CharSheet.RibbonSelectionPanel()
             halign = "center",
             valign = "top",
             wrap = true,
-            bgimage = "panels/square.png",
 
             refreshAppearance = function(element, info)
                 if created == false then
@@ -351,11 +363,11 @@ function CharSheet.RibbonSelectionPanel()
                     data = { ord = -1000000 },
 
                     gui.Label {
+                        classes = {"sizeS"},
                         text = "(None)",
                         halign = "center",
                         width = "auto",
                         height = "auto",
-                        fontSize = 12,
                         interactable = false,
                     },
 
@@ -417,7 +429,6 @@ function CharSheet.FrameSelectionPanel()
 
     resultPanel = gui.Panel {
         id = "frameSelectionPanel",
-        bgimage = "panels/square.png",
 
         gui.IconEditor {
             library = "AvatarFrame",
@@ -575,12 +586,11 @@ function CharSheet.FramePreviewPanel()
 
                         element.children = {
                             gui.Panel {
+                                classes = {"appearancePreviewFrame"},
                                 bgimage = "#MapPreview" .. previewFloor.floorid,
                                 bgcolor = "white",
                                 width = "100%",
                                 height = "100%",
-                                borderColor = Styles.textColor,
-                                borderWidth = 2,
                                 destroy = function(element)
                                     local args = {
                                         currentMap = true,
@@ -664,8 +674,8 @@ function CharSheet.FramePreviewPanel()
 
         --separator.
         gui.Panel {
-            bgimage = "panels/square.png",
-            bgcolor = Styles.textColor,
+            classes = {"appearanceDivider"},
+            bgimage = true,
             width = "100%",
             height = 1.5,
             vmargin = 48,
@@ -939,7 +949,6 @@ function CharSheet.FramePreviewPanel()
                     style = {
                         height = 30,
                         width = 420,
-                        fontSize = 14,
                     },
 
 
@@ -983,7 +992,6 @@ function CharSheet.FramePreviewPanel()
                     style = {
                         height = 30,
                         width = 420,
-                        fontSize = 14,
                     },
 
 
@@ -1027,8 +1035,8 @@ function CharSheet.FramePreviewPanel()
             },
 
             gui.Button {
+                classes = {"sizeM"},
                 halign = "center",
-                fontSize = 16,
                 vmargin = 12,
                 text = "Reset Placement",
                 click = function(element)
@@ -1083,7 +1091,6 @@ function CharSheet.FramePreviewPanel()
             style = {
                 height = 30,
                 width = 260,
-                fontSize = 14,
             },
 
             halign = "center",
@@ -1206,12 +1213,11 @@ function CharSheet.PortraitSelectionPanel()
         flow = "vertical",
 
         gui.IconEditor {
+            classes = {"appearanceIconFrame"},
             id = "avatarIconEditor",
             library = "Avatar",
             restrictImageType = "Avatar",
             allowPaste = true,
-            borderColor = Styles.textColor,
-            borderWidth = 2,
             width = "auto",
             height = "auto",
             autosizeimage = true,
@@ -1253,12 +1259,11 @@ function CharSheet.PortraitSelectionPanel()
         },
 
         gui.Label {
-            classes = { "statsLabel", "titleLabel" },
+            classes = {"statsLabel", "titleLabel", "sizeXl"},
             uppercase = false,
             text = "Portrait",
             halign = "center",
             valign = "bottom",
-            fontSize = 26,
             bmargin = 40,
         },
     }
@@ -1305,11 +1310,10 @@ function CharSheet.AvatarSelectionPanel()
             halign = "center",
 
             gui.IconEditor {
+                classes = {"appearanceIconFrame"},
                 library = "Avatar",
                 restrictImageType = "Avatar",
                 allowPaste = true,
-                borderColor = Styles.textColor,
-                borderWidth = 2,
                 cornerRadius = 200,
                 width = 400,
                 height = 400,
@@ -1390,17 +1394,17 @@ function CharSheet.AvatarSelectionPanel()
             },
 
             gui.ColorPicker {
-                styles = {
+                styles = ThemeEngine.MergeTokens{
                     {
                         width = 24,
                         height = 24,
                         cornerRadius = 12,
                         borderWidth = 1,
-                        borderColor = "#aaaaaa",
+                        borderColor = "@border",
                     },
                     {
                         selectors = { "hover" },
-                        borderColor = "white",
+                        borderColor = "@accent",
                     }
                 },
                 vmargin = 4,
@@ -1482,39 +1486,31 @@ end
 
 function CharSheet.AppearancePanel()
     local divider = gui.Panel {
+        classes = {"appearanceDivider"},
         height = "100%-64",
         valign = "center",
         halign = "center",
         width = 1,
-        bgimage = "panels/square.png",
-        bgcolor = Styles.textColor,
+        bgimage = true,
         hmargin = 0,
     }
 
     local m_tokenPanels = {}
 
 
-    local addVariationButton = gui.Panel {
+    local addVariationButton = gui.Button {
+        classes = {"addButton"},
         halign = "center",
-        width = 80,
-        height = 80,
+        width = 64,
+        height = 64,
         vmargin = 6,
         hmargin = 6,
-        hover = gui.Tooltip("Add a variation to this creature's appearance"),
-        gui.AddButton {
-            halign = "center",
-            valign = "center",
-            width = 64,
-            height = 64,
-
-            refreshAppearance = function(element, info)
-                element:SetClass("hidden", info.token.numAppearanceVariations > 7)
-            end,
-
-
-        },
-        gui.Panel { classes = { "variationBorder" } },
-
+        linger = function(element)
+            gui.Tooltip("Add a variation to this creature's appearance")(element)
+        end,
+        refreshAppearance = function(element, info)
+            element:SetClass("hidden", info.token.numAppearanceVariations > 7)
+        end,
         press = function(element)
             local info = CharacterSheet.instance.data.info
             info.token:SwitchAppearanceVariation(info.token.numAppearanceVariations)
@@ -1556,7 +1552,7 @@ function CharSheet.AppearancePanel()
                     halign = "center",
                     wrap = true,
 
-                    styles = {
+                    styles = ThemeEngine.MergeTokens{
                         {
                             selectors = { "variation" },
                             width = 80,
@@ -1567,10 +1563,10 @@ function CharSheet.AppearancePanel()
                         },
                         {
                             selectors = { "variationBorder" },
-                            borderColor = Styles.textColor,
+                            borderColor = "@border",
                             border = 3,
 
-                            bgimage = "panels/square.png",
+                            bgimage = true,
                             bgcolor = "clear",
                             cornerRadius = 40,
                             width = "100%",
@@ -1584,6 +1580,8 @@ function CharSheet.AppearancePanel()
                         },
                         {
                             selectors = { "variationBorder", "parent:selected" },
+                            borderColor = "@accent",
+                            border = 4,
                             brightness = 1.5,
                         },
                         {
@@ -1728,9 +1726,9 @@ function CharSheet.AppearancePanel()
                                     },
 
                                     gui.Label{
+                                        classes = {"sizeS"},
                                         textAlignment = "center",
                                         halign = "center",
-                                        fontSize = 14,
                                         width = 84,
                                         height = "auto",
                                         text = key,
@@ -1871,7 +1869,6 @@ function CharSheet.AppearancePanel()
                         style = {
                             height = 30,
                             width = 420,
-                            fontSize = 14,
                         },
 
 
@@ -1913,7 +1910,6 @@ function CharSheet.AppearancePanel()
                         style = {
                             height = 30,
                             width = 420,
-                            fontSize = 14,
                         },
 
 
@@ -1955,7 +1951,6 @@ function CharSheet.AppearancePanel()
                         style = {
                             height = 30,
                             width = 420,
-                            fontSize = 14,
                         },
 
 
@@ -2005,19 +2000,17 @@ function CharSheet.AppearancePanel()
             width = 400,
             height = 24,
             gui.Label {
+                classes = {"sizeM"},
                 text = "Light Style:",
                 width = "auto",
                 height = "auto",
-                fontSize = 16,
                 halign = "left",
                 valign = "center",
             },
             gui.Dropdown {
                 width = 180,
-                height = 26,
                 valign = "center",
                 halign = "right",
-                fontSize = 20,
                 options = {},
                 change = function(element)
                     local info = CharacterSheet.instance.data.info
@@ -2093,10 +2086,7 @@ function CharSheet.AppearancePanel()
     local m_tabs = { avatarPanel, effectsPanel }
 
     local appearanceTabPanel = gui.Panel {
-        flow = "horizontal",
-        width = "auto",
-        height = "auto",
-        halign = "center",
+        classes = {"tabBar"},
         valign = "top",
         vmargin = 6,
 
@@ -2105,8 +2095,6 @@ function CharSheet.AppearancePanel()
                 return m_previewLighting[m_currentPreviewLighting]
             end
         end,
-
-        styles = Styles.Tabs,
 
         selectTab = function(element, tab)
             for i, child in ipairs(element.children) do
@@ -2162,15 +2150,9 @@ function CharSheet.AppearancePanel()
     }
 
 
-    return gui.Panel {
-        theme = "charsheet.Appearance",
-        id = "appearancePanel",
-        classes = { "characterSheetParentPanel", "appearance", "hidden" },
-        floating = true,
-        flow = "horizontal",
-        bgimage = "panels/square.png",
-
-        styles = {
+    local function buildAppearanceStyles()
+        return ThemeEngine.MergeStyles{
+            AppearanceStyles,
             {
                 selectors = { "sliderLabel" },
                 minWidth = 120,
@@ -2183,21 +2165,30 @@ function CharSheet.AppearancePanel()
                 halign = "center",
                 valign = "top",
                 flow = "horizontal",
-                bgimage = "panels/square.png",
+                bgimage = true,
                 bgcolor = "clear",
                 border = { y1 = 2, x1 = 0, x2 = 0, y2 = 0 },
-                borderColor = Styles.textColor,
-
+                borderColor = "@border",
             },
             {
                 selectors = { "sliderNotch" },
                 bgimage = true,
-                bgcolor = "#A0A0A0",
+                bgcolor = "@fgMuted",
                 width = "100%",
                 halign = "center",
                 borderWidth = 0,
             },
-        },
+        }
+    end
+
+    local appearancePanel
+    appearancePanel = gui.Panel {
+        id = "appearancePanel",
+        classes = { "characterSheetParentPanel", "appearance", "hidden", "surfaceRadial" },
+        floating = true,
+        flow = "horizontal",
+
+        styles = buildAppearanceStyles(),
 
         leftPanel,
         divider,
@@ -2225,6 +2216,14 @@ function CharSheet.AppearancePanel()
         },
 
     }
+
+    ThemeEngine.OnThemeChanged(mod, function()
+        if appearancePanel ~= nil and appearancePanel.valid then
+            appearancePanel.styles = buildAppearanceStyles()
+        end
+    end)
+
+    return appearancePanel
 end
 
 CharSheet.RegisterTab {

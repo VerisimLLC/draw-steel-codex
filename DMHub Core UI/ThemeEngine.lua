@@ -98,23 +98,6 @@ local function _buildAvailableFontsSet()
     return set
 end
 
---- Validate a font name against gui.availableFonts. Case-insensitive.
---- Unknown names log once and return UNRESOLVED_FONT (Berling).
---- Non-strings pass through unchanged.
---- @param name any
---- @return any
-local function _validateFontFace(name)
-    if type(name) ~= "string" then return name end
-    if _availableFontsLower == nil then
-        _availableFontsLower = _buildAvailableFontsSet()
-    end
-    if _availableFontsLower[string.lower(name)] then
-        return name
-    end
-    _logUnresolved("fontFace", name)
-    return UNRESOLVED_FONT
-end
-
 -- =============================================================================
 -- Logging
 -- =============================================================================
@@ -131,6 +114,23 @@ local function _logUnresolved(domain, name)
     if _loggedUnresolved[key] then return end
     _loggedUnresolved[key] = true
     _log("unresolved " .. domain .. " reference: " .. tostring(name))
+end
+
+--- Validate a font name against gui.availableFonts. Case-insensitive.
+--- Unknown names log once and return UNRESOLVED_FONT (Berling).
+--- Non-strings pass through unchanged.
+--- @param name any
+--- @return any
+local function _validateFontFace(name)
+    if type(name) ~= "string" then return name end
+    if _availableFontsLower == nil then
+        _availableFontsLower = _buildAvailableFontsSet()
+    end
+    if _availableFontsLower[string.lower(name)] then
+        return name
+    end
+    _logUnresolved("fontFace", name)
+    return UNRESOLVED_FONT
 end
 
 --- Coerce a theme id to a registered one. Nil and unknown ids both
@@ -781,6 +781,35 @@ function ThemeEngine.MergeTokens(customStyles)
     }
 
     return _buildResolvedStyles(customStyles, tables)
+end
+
+--- Resolve `@tokenName` color references embedded in an arbitrary string
+--- against the active scheme. Useful for TextMeshPro markup like
+--- `"<color=@danger>warning</color>"` where the property-level resolver
+--- doesn't reach (it only walks rule tables, not strings inside text).
+---
+--- Each `@<name>` is replaced with the active scheme's resolved hex for that
+--- color token. Unknown tokens log a warning and substitute UNRESOLVED_COLOR.
+--- Non-string inputs pass through unchanged.
+---
+--- Only color tokens are substituted. Fonts and gradients aren't useful in
+--- text markup, so they're not handled here.
+--- @param text string|any The string to resolve. Non-strings return unchanged.
+--- @return string|any resolved
+function ThemeEngine.ResolveTokens(text)
+    if type(text) ~= "string" then
+        return text
+    end
+    local _, schemeId = _resolveEffectivePair(nil, nil)
+    local colors = _buildColorTable(schemeId)
+    return (string.gsub(text, "@([%a][%w]*)", function(name)
+        local v = colors[name]
+        if v == nil then
+            _logUnresolved("color", name)
+            return UNRESOLVED_COLOR
+        end
+        return v
+    end))
 end
 
 -- =============================================================================

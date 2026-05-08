@@ -120,7 +120,7 @@ local function buildStyles()
     if AE ~= nil and AE.GetEditorStyles ~= nil then
         styles = AE.GetEditorStyles()
     else
-        styles = { Styles.Form }
+        styles = {}
     end
 
     -- Classic-code alignment fixup. The upstream appearancePanel inside
@@ -128,7 +128,7 @@ local function buildStyles()
     -- line ~1203) is width="auto" with no halign, so a vertical-flow parent
     -- centers it. Pinning by its "appearance" class pulls it left without
     -- touching classic code.
-    styles[#styles + 1] = gui.Style{
+    styles[#styles + 1] = {
         selectors = {"appearance"},
         priority = 3,
         halign = "left",
@@ -138,7 +138,7 @@ local function buildStyles()
     -- shows it as a centered fold-out. Inside the Triggered Ability Editor
     -- we want it flush-left like every other Setup-section field row, per
     -- 2026-04-24 design feedback. Scoped priority beats the base halign.
-    styles[#styles + 1] = gui.Style{
+    styles[#styles + 1] = {
         selectors = {"nae-more-options-row"},
         priority = 3,
         halign = "left",
@@ -569,45 +569,59 @@ local function _filterTriggers(query, entries)
     return results
 end
 
-local function _makeTriggerCard(entry, onSelect, COLORS)
+-- Picker-specific style extras spliced into the modal's cascade root via
+-- ThemeEngine.MergeStyles. Keeps the picker's "dark fill + accent border"
+-- card look but routes the colors through @-tokens so the cards re-color
+-- with the active scheme.
+local function _pickerStyles()
+    return {
+        {
+            selectors = {"picker-card"},
+            bgimage = "panels/square.png",
+            bgcolor = "@bgAlt",
+            borderWidth = 1,
+            borderColor = "@border",
+            cornerRadius = 3,
+            borderBox = true,
+        },
+        {
+            selectors = {"picker-card", "hover"},
+            borderColor = "@accentHover",
+        },
+    }
+end
+
+local function _makeTriggerCard(entry, onSelect)
     return gui.Panel{
+        classes = {"picker-card"},
         width = "100%",
         height = "auto",
         flow = "vertical",
         hpad = 10,
         vpad = 6,
         bmargin = 4,
-        bgimage = "panels/square.png",
-        bgcolor = COLORS.PANEL_BG,
-        borderWidth = 1,
-        borderColor = COLORS.GOLD,
-        cornerRadius = 3,
-        borderBox = true,
         press = function()
             onSelect(entry.id)
         end,
         gui.Label{
+            classes = {"sizeS", "bold"},
             width = "100%",
             height = "auto",
-            fontSize = 14,
-            bold = true,
-            color = COLORS.CREAM_BRIGHT,
             textAlignment = "left",
             text = entry.label,
         },
         gui.Label{
+            classes = {"sizeXs"},
             width = "100%",
             height = "auto",
-            fontSize = 12,
             italics = true,
-            color = COLORS.GRAY,
             textAlignment = "left",
             text = entry.description or "",
         },
     }
 end
 
-local function _buildTriggerGroupPanel(groupDef, entries, onSelect, COLORS)
+local function _buildTriggerGroupPanel(groupDef, entries, onSelect)
     if groupDef.id == "common" then
         table.sort(entries, function(a, b)
             local sa = a.sortOrder or 99
@@ -621,7 +635,7 @@ local function _buildTriggerGroupPanel(groupDef, entries, onSelect, COLORS)
 
     local cards = {}
     for _, entry in ipairs(entries) do
-        cards[#cards + 1] = _makeTriggerCard(entry, onSelect, COLORS)
+        cards[#cards + 1] = _makeTriggerCard(entry, onSelect)
     end
 
     return gui.Panel{
@@ -634,11 +648,9 @@ local function _buildTriggerGroupPanel(groupDef, entries, onSelect, COLORS)
         bgcolor = "clear",
         children = {
             gui.Label{
+                classes = {"sizeM", "bold"},
                 width = "100%",
                 height = "auto",
-                fontSize = 16,
-                bold = true,
-                color = COLORS.GOLD_DIM,
                 textAlignment = "left",
                 bmargin = 4,
                 text = groupDef.label,
@@ -655,8 +667,6 @@ local function _buildTriggerGroupPanel(groupDef, entries, onSelect, COLORS)
 end
 
 local function openTriggerEventPicker(currentId, onChosen)
-    local COLORS = getColors()
-
     -- Build the filtered entry list from the live trigger registry. Skip
     -- excluded ids, items whose hide() predicate returns true, and
     -- unrecognised entries (they would end up with no description and no
@@ -688,22 +698,12 @@ local function openTriggerEventPicker(currentId, onChosen)
     local searchInput
     local resultsPanel
 
-    searchInput = gui.Input{
+    searchInput = gui.SearchInput{
         width = "100%",
         height = 30,
-        placeholderText = "Search trigger events...",
-        bgimage = "panels/square.png",
-        bgcolor = COLORS.PANEL_BG,
-        borderWidth = 1,
-        borderColor = COLORS.GOLD,
-        cornerRadius = 3,
-        hpad = 8,
-        vpad = 4,
         borderBox = true,
-        fontSize = 14,
-        color = COLORS.CREAM_BRIGHT,
+        placeholderText = "Search trigger events...",
         bmargin = 8,
-        textAlignment = "left",
         editlag = 0.15,
         edit = function(element)
             resultsPanel:FireEvent("updateResults")
@@ -742,17 +742,16 @@ local function openTriggerEventPicker(currentId, onChosen)
                     end
                 end
                 if #groupEntries > 0 then
-                    children[#children + 1] = _buildTriggerGroupPanel(groupDef, groupEntries, onSelect, COLORS)
+                    children[#children + 1] = _buildTriggerGroupPanel(groupDef, groupEntries, onSelect)
                 end
             end
 
             if #filtered == 0 and query ~= nil then
                 children[#children + 1] = gui.Label{
+                    classes = {"sizeS"},
                     width = "100%",
                     height = "auto",
-                    fontSize = 14,
                     italics = true,
-                    color = COLORS.GRAY,
                     textAlignment = "center",
                     vmargin = 24,
                     text = "No trigger events match \"" .. rawQuery .. "\"",
@@ -765,7 +764,7 @@ local function openTriggerEventPicker(currentId, onChosen)
 
     local dialogPanel = gui.Panel{
         classes = {"framedPanel"},
-        styles = {Styles.Default, Styles.Panel},
+        styles = ThemeEngine.MergeStyles(_pickerStyles()),
         width = 600,
         height = 600,
         flow = "vertical",
@@ -773,31 +772,17 @@ local function openTriggerEventPicker(currentId, onChosen)
         borderBox = true,
         halign = "center",
         valign = "center",
-        fontFace = "Berling",
         children = {
-            gui.Panel{
-                width = "100%",
-                height = "auto",
-                flow = "horizontal",
+            gui.Label{
+                classes = {"sizeXl", "bold"},
                 halign = "left",
-                valign = "center",
                 bmargin = 8,
-                bgcolor = "clear",
-                children = {
-                    gui.Label{
-                        width = "auto",
-                        height = "auto",
-                        fontSize = 20,
-                        bold = true,
-                        color = COLORS.GOLD_BRIGHT,
-                        textAlignment = "left",
-                        text = "Select Trigger Event",
-                    },
-                },
+                text = "Select Trigger Event",
             },
             searchInput,
             resultsPanel,
-            gui.CloseButton{
+            gui.Button{
+                classes = {"closeButton"},
                 halign = "right",
                 valign = "top",
                 floating = true,
@@ -845,7 +830,7 @@ local function makeTriggerEventButton(ability, refreshSection)
                         valign = "center",
                         rmargin = 10,
                         bgimage = "panels/square.png",
-                        bgcolor = COLORS.GOLD,
+                        classes = {"bgAccent"},
                     },
                     gui.Label{
                         width = "auto",
@@ -854,7 +839,7 @@ local function makeTriggerEventButton(ability, refreshSection)
                         textAlignment = "left",
                         fontSize = 14,
                         bold = true,
-                        color = COLORS.CREAM_BRIGHT,
+                        classes = {"fg"},
                         text = getTriggerLabel(ability.trigger),
                     },
                 },
@@ -1102,9 +1087,8 @@ local function buildTriggerModeControl(ability, refreshSection)
             vpad = 4,
             borderBox = true,
             bgimage = "panels/square.png",
-            bgcolor = selected and COLORS.GOLD or COLORS.PANEL_BG,
+            classes = {selected and "bgAccent" or "bgAlt", "border"},
             borderWidth = 1,
-            borderColor = COLORS.GOLD,
             cornerRadius = 0,
             press = function()
                 if ability.mandatory ~= option.id then
@@ -1118,7 +1102,7 @@ local function buildTriggerModeControl(ability, refreshSection)
                     height = "100%",
                     textAlignment = "center",
                     fontSize = 14,
-                    color = selected and COLORS.BG or COLORS.CREAM_BRIGHT,
+                    classes = {selected and "fgInverse" or "fg"},
                     bold = selected,
                     text = option.label,
                 },
@@ -1165,9 +1149,9 @@ local function buildTriggerModeControl(ability, refreshSection)
                     halign = "left",
                     valign = "center",
                     bgimage = "panels/square.png",
-                    bgcolor = selected and COLORS.GOLD or "clear",
+                    classes = selected and {"bgAccent", "border"} or {"border"},
+                    bgcolor = (not selected) and "clear" or nil,
                     borderWidth = 1,
-                    borderColor = COLORS.GOLD,
                     cornerRadius = 7,
                 },
                 gui.Label{
@@ -1175,7 +1159,7 @@ local function buildTriggerModeControl(ability, refreshSection)
                     height = "auto",
                     textAlignment = "left",
                     fontSize = 14,
-                    color = COLORS.CREAM_BRIGHT,
+                    classes = {"fg"},
                     text = option.label,
                 },
             },
@@ -2904,23 +2888,21 @@ end
 -- triggered ability), followed by a divider and the secondary group.
 -- onSelect is invoked with the chosen token's id and the modal closes.
 local function openTokenPicker(title, preferred, secondary, currentId, onSelect)
-    local COLORS = getColors()
-
-    -- Matches _makeTriggerCard in the Trigger Event picker: PANEL_BG fill,
-    -- gold border, press-handler (not click), cornerRadius 3. Selected row
-    -- gets a brighter border so the current choice is obvious.
+    -- Themed: row chrome and text colors come from the cascade rules below
+    -- so the modal follows the active scheme. press-handler (not click),
+    -- cornerRadius stays inline because the cascade rule doesn't declare it.
+    -- Selected row picks up the {tokenPickerRow, selected} cascade variant
+    -- for a brighter border so the current choice is obvious.
     local function buildTokenRow(tok)
         local selected = tok.id == currentId
         return gui.Panel{
+            classes = selected and {"tokenPickerRow", "selected"} or {"tokenPickerRow"},
             width = "100%",
             height = "auto",
             flow = "horizontal",
             halign = "left",
             valign = "center",
             bgimage = "panels/square.png",
-            bgcolor = COLORS.PANEL_BG,
-            borderWidth = 1,
-            borderColor = selected and COLORS.GOLD_BRIGHT or COLORS.GOLD,
             cornerRadius = 3,
             hpad = 10,
             vpad = 6,
@@ -2938,8 +2920,8 @@ local function openTokenPicker(title, preferred, secondary, currentId, onSelect)
                     valign = "center",
                 }),
                 gui.Label{
+                    classes = {"tokenPickerRowName"},
                     text = tokenDisplayName(tok),
-                    color = COLORS.CREAM_BRIGHT,
                     fontSize = 16,
                     bold = selected,
                     width = "100%-54",
@@ -2955,8 +2937,8 @@ local function openTokenPicker(title, preferred, secondary, currentId, onSelect)
 
     local function buildGroupHeader(text)
         return gui.Label{
+            classes = {"tokenPickerGroupHeader"},
             text = text,
-            color = COLORS.GOLD_DIM,
             bold = true,
             fontSize = 14,
             width = "100%",
@@ -2978,8 +2960,8 @@ local function openTokenPicker(title, preferred, secondary, currentId, onSelect)
     end
     if #rows == 0 then
         rows[#rows + 1] = gui.Label{
+            classes = {"tokenPickerEmpty"},
             text = "No tokens on this map.",
-            color = COLORS.GRAY,
             italics = true,
             fontSize = 14,
             width = "100%",
@@ -2988,9 +2970,79 @@ local function openTokenPicker(title, preferred, secondary, currentId, onSelect)
         }
     end
 
+    -- Flat white gradient: the engine multiplies bgcolor by the gradient
+    -- color per pixel. The base Styles.Panel framedPanel rule sets a
+    -- near-black gradient, which would multiply our themed @bg to near
+    -- black. A flat white gradient lets bgcolor paint as-is. Mirrors the
+    -- pattern at AbilityEditor.lua:1401-1413.
+    local flatGradient = gui.Gradient{
+        point_a = {x = 0, y = 0},
+        point_b = {x = 1, y = 1},
+        stops = {
+            {position = 0, color = "#ffffff"},
+            {position = 1, color = "#ffffff"},
+        },
+    }
+
+    -- Themed cascade rules for the token picker. @-tokens are resolved
+    -- up front via MergeTokens because the modal's styles list is consumed
+    -- without a second MergeStyles pass (matches the outer dialog title
+    -- pattern at ActivatedAbilityEditor.lua:4940-4948). Spliced alongside
+    -- Styles.Default + Styles.Panel as siblings -- those are gui.Style
+    -- userdata which MergeTokens cannot process.
+    local stylesList = {Styles.Default, Styles.Panel}
+    for _, rule in ipairs(ThemeEngine.MergeTokens({
+        -- Override the base framedPanel rule so the modal frame paints
+        -- the active scheme's @bg surface and @accent border instead of
+        -- the legacy near-black default. priority=3 beats the default rule.
+        {
+            selectors = {"framedPanel"},
+            priority = 3,
+            bgimage = "panels/square.png",
+            bgcolor = "@bg",
+            borderColor = "@border",
+            borderWidth = 2,
+            gradient = flatGradient,
+        },
+        {
+            selectors = {"label", "compendiumDialogTitle"},
+            color = "@fgStrong",
+            priority = 4,
+        },
+        {
+            selectors = {"label", "tokenPickerGroupHeader"},
+            color = "@fgMuted",
+            priority = 4,
+        },
+        {
+            selectors = {"label", "tokenPickerEmpty"},
+            color = "@fgMuted",
+            priority = 4,
+        },
+        {
+            selectors = {"label", "tokenPickerRowName"},
+            color = "@fg",
+            priority = 4,
+        },
+        {
+            selectors = {"panel", "tokenPickerRow"},
+            bgcolor = "@bgAlt",
+            borderColor = "@border",
+            borderWidth = 1,
+            priority = 4,
+        },
+        {
+            selectors = {"panel", "tokenPickerRow", "selected"},
+            borderColor = "@accentHover",
+            priority = 5,
+        },
+    })) do
+        stylesList[#stylesList+1] = rule
+    end
+
     local dialogPanel = gui.Panel{
         classes = {"framedPanel"},
-        styles = {Styles.Default, Styles.Panel},
+        styles = stylesList,
         width = 480,
         height = 560,
         flow = "vertical",
@@ -3001,10 +3053,10 @@ local function openTokenPicker(title, preferred, secondary, currentId, onSelect)
         fontFace = "Berling",
         children = {
             gui.Label{
+                classes = {"compendiumDialogTitle"},
                 text = title,
                 fontSize = 20,
                 bold = true,
-                color = COLORS.GOLD_BRIGHT,
                 width = "auto",
                 height = "auto",
                 halign = "left",
@@ -3033,7 +3085,9 @@ local function openTokenPicker(title, preferred, secondary, currentId, onSelect)
                     },
                 },
             },
-            gui.CloseButton{
+            gui.Button{
+                classes = {"closeButton", "sizeM"},
+                icon = "ui-icons/close.png",
                 halign = "right",
                 valign = "top",
                 floating = true,
@@ -6244,8 +6298,12 @@ function openTestTriggerPopout(ability, initialState, reopen)
         halign = "left",
         valign = "top",
         bgimage = "panels/square.png",
+        -- Muted "danger" surface -- darker than the bright @danger tone so
+        -- the banner reads as recoverable error rather than fatal alarm.
+        -- Border picks up the scheme's danger color so the banner re-themes
+        -- under the active scheme.
         bgcolor = "#3a1414",
-        borderColor = "#a14b3a",
+        classes = {"borderDanger"},
         borderWidth = 1,
         bmargin = 6,
         hpad = 8,
@@ -6256,7 +6314,7 @@ function openTestTriggerPopout(ability, initialState, reopen)
             element.children = {
                 gui.Label{
                     text = msg,
-                    color = "#dfcfc0",
+                    classes = {"fg"},
                     fontSize = 12,
                     width = "100%-24",
                     height = "auto",
@@ -6323,7 +6381,7 @@ function openTestTriggerPopout(ability, initialState, reopen)
         -- this, the popout's controls fall back to engine-default style
         -- (visibly different from the editor's). `buildStyles()` already
         -- merges Styles.Form + the AbilityEditor themed pack.
-        styles = buildStyles(),
+        styles = { Styles.Form, ThemeEngine.MergeStyles(buildStyles()) },
         -- See block-comment above: don't block map/token clicks for areas
         -- outside the popout's visible body. The popout is a floating
         -- utility, not a screen-blocking modal.
@@ -6518,7 +6576,7 @@ local function makePreviewColumn(ability, schedulePreviewRefresh, editorOptions)
                             text = title,
                             bold = true,
                             fontSize = 16,
-                            color = COLORS.GOLD_BRIGHT,
+                            classes = {"fgStrong"},
                             width = "auto",
                             height = "auto",
                             halign = "left",
@@ -6576,7 +6634,7 @@ local function makePreviewColumn(ability, schedulePreviewRefresh, editorOptions)
                     height = "auto",
                     fontSize = 13,
                     italics = true,
-                    color = COLORS.GRAY,
+                    classes = {"fgMuted"},
                     text = "(no preview available)",
                 }
             end
@@ -6853,17 +6911,16 @@ local function generateSectionedEditor(ability, options)
     rootPanel = gui.Panel{
         classes = {"nae-root"},
         id = "triggeredAbilityEditorRoot",
-        styles = buildStyles(),
+        styles = { Styles.Form, ThemeEngine.MergeStyles(buildStyles()) },
         width = "100%",
         height = "100%",
         halign = "center",
         valign = "center",
         flow = "horizontal",
         borderBox = true,
-        bgcolor = COLORS.BG,
         bgimage = "panels/square.png",
+        classes = {"bg", "border"},
         borderWidth = 2,
-        borderColor = COLORS.GOLD,
         cornerRadius = 6,
         data = {
             ability = ability,

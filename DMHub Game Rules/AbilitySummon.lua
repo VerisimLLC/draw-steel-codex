@@ -147,12 +147,12 @@ function ActivatedAbilitySummonBehavior.ShowSquadChoiceDialog(casterToken, monst
         if minionStatusLabel ~= nil and minionStatusLabel.valid then
             local text, exceeded = FormatMinionStatus()
             minionStatusLabel.text = text
-            minionStatusLabel.color = cond(exceeded, "#ff6666", "#cccccc")
+            minionStatusLabel:SetClass("exceeded", exceeded)
         end
         if squadStatusLabel ~= nil and squadStatusLabel.valid then
             local text, exceeded = FormatSquadStatus(chosenIsNew)
             squadStatusLabel.text = text
-            squadStatusLabel.color = cond(exceeded, "#ff6666", "#cccccc")
+            squadStatusLabel:SetClass("exceeded", exceeded)
         end
     end
 
@@ -160,24 +160,22 @@ function ActivatedAbilitySummonBehavior.ShowSquadChoiceDialog(casterToken, monst
         local row
         row = gui.Panel{
             classes = {"squadOption", cond(warn, "warn")},
-            bgimage = "panels/square.png",
             flow = "horizontal",
             gui.Label{
+                classes = {"sizeM"},
                 text = labelText,
                 textAlignment = "left",
                 halign = "left",
-                fontSize = 16,
                 width = "60%",
                 height = "auto",
             },
             gui.Label{
+                classes = {"sizeS", "squadOptionNote"},
                 text = noteText or "",
                 textAlignment = "left",
                 halign = "left",
-                fontSize = 14,
                 width = "auto",
                 height = "auto",
-                color = cond(warn, "#ffaa66", "#cccccc"),
             },
             press = function(element)
                 for _,p in ipairs(optionPanels) do
@@ -225,32 +223,28 @@ function ActivatedAbilitySummonBehavior.ShowSquadChoiceDialog(casterToken, monst
     local initialSquadText, initialSquadExceeded = FormatSquadStatus(chosenIsNew)
 
     minionStatusLabel = gui.Label{
+        classes = {"sizeS", "statusLabel", cond(initialMinionExceeded, "exceeded")},
         text = initialMinionText,
         textAlignment = "center",
         halign = "center",
-        fontSize = 14,
+        valign = "top",
         width = 560,
         height = "auto",
-        color = cond(initialMinionExceeded, "#ff6666", "#cccccc"),
         vmargin = 2,
     }
 
     squadStatusLabel = gui.Label{
+        classes = {"sizeS", "statusLabel", cond(initialSquadExceeded, "exceeded")},
         text = initialSquadText,
         textAlignment = "center",
         halign = "center",
-        fontSize = 14,
+        valign = "top",
         width = 560,
         height = "auto",
-        color = cond(initialSquadExceeded, "#ff6666", "#cccccc"),
         vmargin = 2,
     }
 
     gamehud:ModalDialog{
-        classes = {"framedPanel"},
-        bgimage = 'panels/square.png',
-        bgcolor = Styles.backgroundColor,
-        borderColor = Styles.textColor,
         title = "Assign to Squad",
         buttons = {
             {
@@ -269,7 +263,7 @@ function ActivatedAbilitySummonBehavior.ShowSquadChoiceDialog(casterToken, monst
             },
         },
 
-        styles = {
+        styles = ThemeEngine.MergeTokens{
             {
                 selectors = {"squadOption"},
                 height = 28,
@@ -279,40 +273,34 @@ function ActivatedAbilitySummonBehavior.ShowSquadChoiceDialog(casterToken, monst
                 hmargin = 20,
                 vmargin = 2,
                 vpad = 4,
-                bgcolor = "#00000000",
+                bgimage = true,
+                bgcolor = "clear",
             },
-            {
-                selectors = {"squadOption","warn"},
-                bgcolor = "#552222aa",
-            },
-            {
-                selectors = {"squadOption","hover"},
-                bgcolor = "#ffff0088",
-            },
-            {
-                selectors = {"squadOption","warn","hover"},
-                bgcolor = "#aa5522aa",
-            },
-            {
-                selectors = {"squadOption","selected"},
-                bgcolor = "#ff000088",
-            },
-            {
-                selectors = {"squadOption","warn","selected"},
-                bgcolor = "#ff4422cc",
-            },
+            { selectors = {"squadOption","warn"},            bgcolor = "@danger" },
+            { selectors = {"squadOption","hover"},           bgcolor = "@bgAlt" },
+            { selectors = {"squadOption","warn","hover"},    bgcolor = "@danger", brightness = 1.3 },
+            { selectors = {"squadOption","selected"},        bgcolor = "@accent" },
+            { selectors = {"squadOption","warn","selected"}, bgcolor = "@danger", brightness = 1.5 },
+
+            { selectors = {"statusLabel"},                   color = "@fgMuted" },
+            { selectors = {"statusLabel","exceeded"},        color = "@danger" },
+
+            { selectors = {"squadOptionNote"},               color = "@fgMuted" },
+            { selectors = {"squadOptionNote","parent:warn"}, color = "@warning" },
         },
 
         width = 650,
         height = 500,
         flow = "vertical",
 
+
         children = {
             gui.Label{
+                classes = {"sizeM"},
                 text = string.format("Summoning %d %s%s - choose a squad:", numSummons, monsterType, cond(numSummons == 1, "", "s")),
                 textAlignment = "center",
                 halign = "center",
-                fontSize = 16,
+                valign = "top",
                 width = 600,
                 height = "auto",
                 vmargin = 6,
@@ -362,10 +350,10 @@ function ActivatedAbilitySummonBehavior.ShowCreatureChoiceDialog(choices, dialog
 	local allSameCheck = nil
 	if dialogOptions.index ~= nil and dialogOptions.index < dialogOptions.numSummons and (not dialogOptions.allCreaturesTheSame) then
 		allSameCheck = gui.Check{
+			classes = {"sizeS"},
 			halign = "right",
 			valign = "bottom",
 			hmargin = 32,
-			fontSize = 14,
 			width = 460,
 			height = 30,
 			text = string.format("Use this choice for all %s summons", json(1+dialogOptions.numSummons - dialogOptions.index)),
@@ -391,24 +379,23 @@ function ActivatedAbilitySummonBehavior.ShowCreatureChoiceDialog(choices, dialog
 	for i,option in ipairs(choices) do
 		local panel = gui.Panel{
 			classes = {"option"},
-			bgimage = "panels/square.png",
 			flow = "horizontal",
 			data = {
 				CR = option.properties:CR()
 			},
 			gui.Label{
+				classes = {"sizeM"},
 				text = option.properties.monster_type,
 				textAlignment = "left",
 				halign = "left",
-				fontSize = 16,
 				width = "60%",
 				height = "auto",
 			},
 			gui.Label{
+				classes = {"sizeM"},
 				text = string.format("Level %s", option.properties:PrettyCR()),
 				textAlignment = "left",
 				halign = "left",
-				fontSize = 16,
 				width = "auto",
 				height = "auto",
 			},
@@ -442,11 +429,9 @@ function ActivatedAbilitySummonBehavior.ShowCreatureChoiceDialog(choices, dialog
 	ShowMaxCROnly(dmhub.GetSettingValue("summoncrcheck"))
 
 	gamehud:ModalDialog{
-		classes = {"framedPanel"},
-        bgimage = 'panels/square.png',
-        bgcolor = Styles.backgroundColor,
-        borderColor = Styles.textColor,
 		title = dialogOptions.title or "Summon Creature",
+        valign = "top",
+        tmargin = 12,
 		buttons = {
 			{
 				text = dialogOptions.buttonText or "Summon",
@@ -464,7 +449,7 @@ function ActivatedAbilitySummonBehavior.ShowCreatureChoiceDialog(choices, dialog
 			},
 		},
 
-		styles = {
+		styles = ThemeEngine.MergeTokens{
 			{
 				selectors = {"option"},
 				height = 24,
@@ -474,40 +459,35 @@ function ActivatedAbilitySummonBehavior.ShowCreatureChoiceDialog(choices, dialog
 				hmargin = 20,
 				vmargin = 0,
 				vpad = 4,
-				bgcolor = "#00000000",
+				bgimage = true,
+				bgcolor = "clear",
 			},
-			{
-				selectors = {"option","hover"},
-				bgcolor = "#ffff0088",
-			},
-			{
-				selectors = {"option","selected"},
-				bgcolor = "#ff000088",
-			},
+			{ selectors = {"option","hover"},    bgcolor = "@bgAlt" },
+			{ selectors = {"option","selected"}, bgcolor = "@accent" },
 		},
 
 		width = 650,
 		height = 700,
-
 		flow = "vertical",
 
 		children = {
-			
+
 			gui.Panel{
+                classes = {"bordered"},
+				width = 600,
+				height = 500,
+				valign = "top",
+				halign = "center",
+                vpad = 8,
 				flow = "vertical",
 				vscroll = true,
-				valign = "top",
-				width = 600,
-				halign = "center",
-				height = 500,
 				children = optionPanels,
 			},
 			gui.Check{
-				classes = {cond(minCR == maxCR, "hidden")},
+				classes = {"sizeS", cond(minCR == maxCR, "hidden")},
 				halign = "right",
 				valign = "bottom",
 				hmargin = 32,
-				fontSize = 14,
 				width = 460,
 				height = 30,
 				text = string.format("Show only Level %s creatures", maxPrettyCR),
@@ -811,18 +791,22 @@ function ActivatedAbilitySummonBehavior:CastDuplicate(ability, casterToken, targ
     ability:CommitToPaying(casterToken, args)
 end
 
---- Prompts the user to place summons
+--- Prompts the user to place summons. When squadCtx is provided, also renders an
 --- @param casterToken CharacterToken
 --- @param rangeTiles number max distance in tiles from casterToken.loc.
 --- @param index number which summon
 --- @param total number total summons being placed.
 --- @param isMinion boolean true if the creature being placed is a minion.
---- @return Loc|nil  picked loc, or nil if cancelled.
-function ActivatedAbilitySummonBehavior.PromptPlacementLoc(casterToken, rangeTiles, index, total, isMinion)
+--- @param squadCtx table|nil persistent squad-selection state (see Cast()).
+--- @return Loc|nil pickedLoc, table|nil squadResult ({squadName,isNew,exceededMinions,exceededSquads}) or nil if cancelled.
+function ActivatedAbilitySummonBehavior.PromptPlacementLoc(casterToken, rangeTiles, index, total, isMinion, squadCtx)
+    local SQUAD_CAP = 8
+
     local origin = casterToken.loc
     local validLocs = origin:LocsInRadius(rangeTiles)
 
     local pickedLoc = nil
+    local pickedSquadResult = nil
     local cancelled = false
 
     local rangeMarker = dmhub.MarkLocs{
@@ -842,6 +826,249 @@ function ActivatedAbilitySummonBehavior.PromptPlacementLoc(casterToken, rangeTil
         return loc ~= nil and origin:DistanceInTiles(loc) <= rangeTiles
     end
 
+    local pickerContent
+    local commitWithSquadSelection
+
+    if squadCtx == nil then
+        pickerContent = gui.Label{
+            halign = "center",
+            width = "auto",
+            minWidth = 200,
+            textAlignment = "center",
+            height = "auto",
+            bold = true,
+            fontSize = 16,
+            text = string.format("Place %s %d of %d (Esc to cancel)", isMinion and "minion" or "creature", index, total),
+        }
+    else
+        local caster = casterToken.properties
+        local squadsByType = caster:GetSummonedSquadsByType(squadCtx.monsterType)
+        local allSquads = caster:GetSummonedSquadsByType(nil)
+        local liveEntries = caster:GetLiveSummonedEntries()
+
+        local baselineMinionCount = #liveEntries
+        local baselineSquadCount = 0
+        for _ in pairs(allSquads) do baselineSquadCount = baselineSquadCount + 1 end
+
+        local totalPlacedSoFar = 0
+        for _,c in pairs(squadCtx.placedBySquad) do totalPlacedSoFar = totalPlacedSoFar + c end
+        local newSquadsOpenedSoFar = 0
+        for _ in pairs(squadCtx.newSquadsOpened) do newSquadsOpenedSoFar = newSquadsOpenedSoFar + 1 end
+
+        local projectedMinionsAfterThis = baselineMinionCount + totalPlacedSoFar + 1
+        local exceedsMinionCap = (squadCtx.maxMinions > 0 and projectedMinionsAfterThis > squadCtx.maxMinions)
+
+        -- Same-type squads available as a destination: caster baseline + any newly opened this cast.
+        local sameTypeNames = {}
+        local sameTypeBaselineCount = {}
+        for name,info in pairs(squadsByType) do
+            sameTypeNames[#sameTypeNames+1] = name
+            sameTypeBaselineCount[name] = info.count
+        end
+        for name,_ in pairs(squadCtx.newSquadsOpened) do
+            if squadsByType[name] == nil and squadCtx.newSquadsType[name] == squadCtx.monsterType then
+                sameTypeNames[#sameTypeNames+1] = name
+                sameTypeBaselineCount[name] = 0
+            end
+        end
+        table.sort(sameTypeNames)
+
+        if squadCtx.nextFreshName == nil then
+            squadCtx.nextFreshName = monster.FindFreshSquadName(squadCtx.monsterType)
+        end
+        local newSquadName = squadCtx.nextFreshName
+
+        local hasExistingSameTypeNow = #sameTypeNames > 0
+
+        local optionPanels = {}
+        local sameTypePanelByName = {}
+
+        for _,name in ipairs(sameTypeNames) do
+            local placedHere = squadCtx.placedBySquad[name] or 0
+            local currentCount = sameTypeBaselineCount[name] + placedHere
+            local projectedSquad = currentCount + 1
+            local capturedName = name
+            local warnLines = {}
+            if projectedSquad > SQUAD_CAP then
+                warnLines[#warnLines+1] = string.format("Squad would have %d minions, exceeding the cap of %d.", projectedSquad, SQUAD_CAP)
+            end
+            if exceedsMinionCap then
+                warnLines[#warnLines+1] = string.format("Total minions would be %d, exceeding your maximum of %d.", projectedMinionsAfterThis, squadCtx.maxMinions)
+            end
+            local warnText = table.concat(warnLines, "\n")
+            local warn = warnText ~= ""
+            local rowArgs = {
+                classes = {"advantage-element", cond(warn, "summon-squad-warn")},
+                text = string.format("%s (%d/%d)", name, currentCount, SQUAD_CAP),
+                press = function(element)
+                    squadCtx.selectedSquadName = capturedName
+                    squadCtx.selectedIsNew = false
+                    for _,p in ipairs(optionPanels) do p:SetClass("selected", false) end
+                    element:SetClass("selected", true)
+                end,
+            }
+            if warn then
+                rowArgs.hover = function(element)
+                    gui.Tooltip{ text = warnText, color = "#ff6666", textAlignment = "center" }(element)
+                end
+            end
+            local panel = gui.Label(rowArgs)
+            optionPanels[#optionPanels+1] = panel
+            sameTypePanelByName[name] = panel
+        end
+
+        local newWarnLines = {}
+        if hasExistingSameTypeNow and squadCtx.maxSquads > 0 and (baselineSquadCount + newSquadsOpenedSoFar + 1) > squadCtx.maxSquads then
+            newWarnLines[#newWarnLines+1] = string.format("Opening this squad would put you at %d squads, exceeding your maximum of %d.", baselineSquadCount + newSquadsOpenedSoFar + 1, squadCtx.maxSquads)
+        end
+        if exceedsMinionCap then
+            newWarnLines[#newWarnLines+1] = string.format("Total minions would be %d, exceeding your maximum of %d.", projectedMinionsAfterThis, squadCtx.maxMinions)
+        end
+        local newWarnText = table.concat(newWarnLines, "\n")
+        local newWarn = newWarnText ~= ""
+        local newRowArgs = {
+            classes = {"advantage-element", cond(newWarn, "summon-squad-warn")},
+            text = string.format("+ New: %s", newSquadName),
+            press = function(element)
+                squadCtx.selectedSquadName = newSquadName
+                squadCtx.selectedIsNew = true
+                for _,p in ipairs(optionPanels) do p:SetClass("selected", false) end
+                element:SetClass("selected", true)
+            end,
+        }
+        if newWarn then
+            newRowArgs.hover = function(element)
+                gui.Tooltip{ text = newWarnText, color = "#ff6666", textAlignment = "center" }(element)
+            end
+        end
+        local newPanel = gui.Label(newRowArgs)
+        optionPanels[#optionPanels+1] = newPanel
+
+        -- Reconcile carried-over selection: a previous "+ New" pick may now be an existing same-type chip.
+        if squadCtx.selectedSquadName ~= nil and squadCtx.selectedIsNew then
+            if sameTypePanelByName[squadCtx.selectedSquadName] ~= nil then
+                squadCtx.selectedIsNew = false
+            elseif squadCtx.selectedSquadName ~= newSquadName then
+                squadCtx.selectedSquadName = nil
+                squadCtx.selectedIsNew = false
+            end
+        end
+        if squadCtx.selectedSquadName ~= nil and not squadCtx.selectedIsNew and sameTypePanelByName[squadCtx.selectedSquadName] == nil then
+            squadCtx.selectedSquadName = nil
+        end
+
+        if squadCtx.selectedSquadName == nil then
+            if #sameTypeNames > 0 then
+                squadCtx.selectedSquadName = sameTypeNames[1]
+                squadCtx.selectedIsNew = false
+            else
+                squadCtx.selectedSquadName = newSquadName
+                squadCtx.selectedIsNew = true
+            end
+        end
+
+        if squadCtx.selectedIsNew then
+            newPanel:SetClass("selected", true)
+        elseif sameTypePanelByName[squadCtx.selectedSquadName] ~= nil then
+            sameTypePanelByName[squadCtx.selectedSquadName]:SetClass("selected", true)
+        end
+
+        local minionPart
+        if squadCtx.maxMinions > 0 then
+            minionPart = string.format("Minions: %d -> %d / %d", baselineMinionCount + totalPlacedSoFar, projectedMinionsAfterThis, squadCtx.maxMinions)
+        else
+            minionPart = string.format("Minions: %d -> %d", baselineMinionCount + totalPlacedSoFar, projectedMinionsAfterThis)
+        end
+        local squadPart
+        if squadCtx.maxSquads > 0 then
+            squadPart = string.format("Squads: %d / %d", baselineSquadCount + newSquadsOpenedSoFar, squadCtx.maxSquads)
+        else
+            squadPart = string.format("Squads: %d", baselineSquadCount + newSquadsOpenedSoFar)
+        end
+
+        pickerContent = gui.Panel{
+            width = "auto",
+            height = "auto",
+            flow = "vertical",
+            halign = "center",
+            valign = "center",
+            interactable = true,
+            styles = {
+                Styles.AdvantageBar,
+                {
+                    selectors = {"advantage-element"},
+                    width = "auto",
+                    minWidth = 140,
+                    height = 26,
+                    fontSize = 14,
+                    hpad = 14,
+                    margin = 3,
+                },
+                {
+                    selectors = {"advantage-element","summon-squad-warn"},
+                    color = "#ffaa66",
+                },
+                {
+                    selectors = {"advantage-element","summon-squad-warn","hover","~selected"},
+                    bgcolor = "#ffaa6644",
+                },
+                {
+                    selectors = {"advantage-element","summon-squad-warn","press"},
+                    bgcolor = "#ffaa66",
+                    color = "black",
+                },
+            },
+            children = {
+                gui.Label{
+                    halign = "center",
+                    width = "auto",
+                    height = "auto",
+                    bold = true,
+                    fontSize = 16,
+                    textAlignment = "center",
+                    text = string.format("Place %s %d of %d (Esc to cancel)", isMinion and "minion" or "creature", index, total),
+                    vmargin = 2,
+                },
+                gui.Label{
+                    halign = "center",
+                    width = "auto",
+                    height = "auto",
+                    fontSize = 13,
+                    color = "#cccccc",
+                    textAlignment = "center",
+                    text = string.format("%s    %s", minionPart, squadPart),
+                    vmargin = 2,
+                },
+                gui.Panel{
+                    classes = {"advantage-bar"},
+                    width = "auto",
+                    maxWidth = 760,
+                    height = "auto",
+                    halign = "center",
+                    flow = "horizontal",
+                    wrap = true,
+                    bgcolor = "clear",
+                    vmargin = 6,
+                    children = optionPanels,
+                },
+            },
+        }
+
+        commitWithSquadSelection = function()
+            if squadCtx.selectedSquadName == nil then
+                return nil
+            end
+            local exceededMinions = exceedsMinionCap
+            local exceededSquads = squadCtx.selectedIsNew and hasExistingSameTypeNow and squadCtx.maxSquads > 0 and (baselineSquadCount + newSquadsOpenedSoFar + 1) > squadCtx.maxSquads
+            return {
+                squadName = squadCtx.selectedSquadName,
+                isNew = squadCtx.selectedIsNew,
+                exceededMinions = exceededMinions,
+                exceededSquads = exceededSquads,
+            }
+        end
+    end
+
     local picker
     picker = gui.Panel{
         floating = true,
@@ -855,23 +1082,18 @@ function ActivatedAbilitySummonBehavior.PromptPlacementLoc(casterToken, rangeTil
         captureEscape = true,
         escapePriority = EscapePriority.EXIT_DIALOG,
 
-        gui.Label{
-            halign = "center",
-            valign = "top",
-            vmargin = 80,
-            width = "auto",
-            height = "auto",
-            fontSize = 22,
-            color = "white",
-            bgcolor = "#000000a0",
-            pad = 8,
-            borderBox = true,
-            text = string.format("Place %s %d of %d (Esc to cancel)", isMinion and "minion" or "creature", index, total),
-        },
+        gui.TooltipFrame(pickerContent, { vmargin = 85 }),
 
         mappress = function(element, loc, point)
             if not isInRange(loc) then
                 return
+            end
+            if commitWithSquadSelection ~= nil then
+                local r = commitWithSquadSelection()
+                if r == nil then
+                    return
+                end
+                pickedSquadResult = r
             end
             pickedLoc = loc
         end,
@@ -908,7 +1130,10 @@ function ActivatedAbilitySummonBehavior.PromptPlacementLoc(casterToken, rangeTil
 
     picker:DestroySelf()
 
-    return pickedLoc
+    if cancelled then
+        return nil, nil
+    end
+    return pickedLoc, pickedSquadResult
 end
 
 function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args)
@@ -1015,6 +1240,7 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
         local summonerMaxSquads = casterToken.properties:CalculateNamedCustomAttribute("MaxMinionSquads")
         local isSummoner = (not casterToken.properties.minion) and (summonerMaxMinions > 0 or summonerMaxSquads > 0)
         local cachedSquadResult = nil
+        local placementSquadCtx = nil
         local warningExceededMinions = false
         local warningExceededSquads = false
 
@@ -1049,37 +1275,85 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
             end
 
             local squadNameForSpawn = nil
-            if isSummoner then
-                local squadResult
-                if cachedSquadResult ~= nil then
-                    squadResult = cachedSquadResult
-                else
-                    local shared = self.allCreaturesTheSame or allSame
-                    local dialogCount = shared and numSummons or 1
-                    squadResult = ActivatedAbilitySummonBehavior.ShowSquadChoiceDialog(casterToken, chosenOption.properties.monster_type, dialogCount, summonerMaxMinions, summonerMaxSquads)
-                    if squadResult == nil then
-                        return
-                    end
-                    if shared then
-                        cachedSquadResult = squadResult
-                    end
-                    if squadResult.exceededMinions then warningExceededMinions = true end
-                    if squadResult.exceededSquads then warningExceededSquads = true end
-                end
-                squadNameForSpawn = squadResult.squadName
-            end
 
             local loc
             if self.replaceCaster then
+                if isSummoner then
+                    local squadResult
+                    if cachedSquadResult ~= nil then
+                        squadResult = cachedSquadResult
+                    else
+                        local shared = self.allCreaturesTheSame or allSame
+                        local dialogCount = shared and numSummons or 1
+                        squadResult = ActivatedAbilitySummonBehavior.ShowSquadChoiceDialog(casterToken, chosenOption.properties.monster_type, dialogCount, summonerMaxMinions, summonerMaxSquads)
+                        if squadResult == nil then
+                            return
+                        end
+                        if shared then
+                            cachedSquadResult = squadResult
+                        end
+                        if squadResult.exceededMinions then warningExceededMinions = true end
+                        if squadResult.exceededSquads then warningExceededSquads = true end
+                    end
+                    squadNameForSpawn = squadResult.squadName
+                end
                 loc = casterToken.loc
             elseif manualPlacement then
                 local isMinion = chosenOption ~= nil and chosenOption.properties ~= nil and chosenOption.properties:try_get("minion", false)
-                loc = ActivatedAbilitySummonBehavior.PromptPlacementLoc(casterToken, rangeTiles, j, numSummons, isMinion)
-                if loc == nil then
+                local squadCtxArg = nil
+                if isSummoner then
+                    if placementSquadCtx == nil then
+                        placementSquadCtx = {
+                            maxMinions = summonerMaxMinions,
+                            maxSquads = summonerMaxSquads,
+                            selectedSquadName = nil,
+                            selectedIsNew = false,
+                            placedBySquad = {},
+                            newSquadsOpened = {},
+                            newSquadsType = {},
+                            nextFreshName = nil,
+                        }
+                    end
+                    placementSquadCtx.monsterType = chosenOption.properties.monster_type
+                    squadCtxArg = placementSquadCtx
+                end
+                local pickedLoc, squadResult = ActivatedAbilitySummonBehavior.PromptPlacementLoc(casterToken, rangeTiles, j, numSummons, isMinion, squadCtxArg)
+                if pickedLoc == nil then
                     --user cancelled; stop placing further summons but keep what's already there.
                     break
                 end
+                loc = pickedLoc
+                if squadResult ~= nil then
+                    squadNameForSpawn = squadResult.squadName
+                    if squadResult.exceededMinions then warningExceededMinions = true end
+                    if squadResult.exceededSquads then warningExceededSquads = true end
+                    placementSquadCtx.placedBySquad[squadResult.squadName] = (placementSquadCtx.placedBySquad[squadResult.squadName] or 0) + 1
+                    if squadResult.isNew and not placementSquadCtx.newSquadsOpened[squadResult.squadName] then
+                        placementSquadCtx.newSquadsOpened[squadResult.squadName] = true
+                        placementSquadCtx.newSquadsType[squadResult.squadName] = placementSquadCtx.monsterType
+                        placementSquadCtx.nextFreshName = nil
+                    end
+                end
             else
+                if isSummoner then
+                    local squadResult
+                    if cachedSquadResult ~= nil then
+                        squadResult = cachedSquadResult
+                    else
+                        local shared = self.allCreaturesTheSame or allSame
+                        local dialogCount = shared and numSummons or 1
+                        squadResult = ActivatedAbilitySummonBehavior.ShowSquadChoiceDialog(casterToken, chosenOption.properties.monster_type, dialogCount, summonerMaxMinions, summonerMaxSquads)
+                        if squadResult == nil then
+                            return
+                        end
+                        if shared then
+                            cachedSquadResult = squadResult
+                        end
+                        if squadResult.exceededMinions then warningExceededMinions = true end
+                        if squadResult.exceededSquads then warningExceededSquads = true end
+                    end
+                    squadNameForSpawn = squadResult.squadName
+                end
                 loc = target.loc
             end
 

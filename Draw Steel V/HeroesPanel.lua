@@ -23,6 +23,14 @@ local g_heroesExtras = {
         valign = "center",
         rmargin = 15,
     },
+    {
+        selectors = {"row", "bordered"},
+        cornerRadius = 0,
+    },
+    {
+        selectors = {"label", "bordered"},
+        cornerRadius = 0,
+    },
 }
 
 DockablePanel.Register {

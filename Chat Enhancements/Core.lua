@@ -140,8 +140,8 @@ end
 function ExtChatMessage.Render(self, message)
     if self:try_get("recipients") == nil or self.recipients[dmhub.userid] then
         return gui.Panel {
-            classes = {"chatMessge"},
-            valign = "top",
+            classes = {"chatMessage"},
+            valign = "bottom",
             height = "auto",
             press = function(element)
                 writeDebug("PRESS::")

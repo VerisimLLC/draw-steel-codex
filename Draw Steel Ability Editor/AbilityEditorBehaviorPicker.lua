@@ -21,7 +21,7 @@ local function _pickerStyles()
             bgimage = "panels/square.png",
             bgcolor = "@bgAlt",
             borderWidth = 1,
-            borderColor = "@accent",
+            borderColor = "@border",
             cornerRadius = 3,
             borderBox = true,
         },

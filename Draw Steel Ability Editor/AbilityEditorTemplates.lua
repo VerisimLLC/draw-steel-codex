@@ -21,7 +21,7 @@ local function _pickerStyles()
             bgimage = "panels/square.png",
             bgcolor = "@bgAlt",
             borderWidth = 1,
-            borderColor = "@accent",
+            borderColor = "@border",
             cornerRadius = 3,
             borderBox = true,
             -- Defeat the vertical-flow distribution quirk: without this,
@@ -41,7 +41,7 @@ local function _pickerStyles()
             bgimage = "panels/square.png",
             bgcolor = "@bgAlt",
             borderWidth = 1,
-            borderColor = "@accent",
+            borderColor = "@border",
             cornerRadius = 4,
             borderBox = true,
             valign = "top",
@@ -134,7 +134,7 @@ local function CreateAbilityTemplateEditor(tableName)
 
             gui.Label{
                 width = 90, height = "auto", fontSize = 14,
-                color = "@fgMuted", textAlignment = "left",
+                classes = {"fgMuted"}, textAlignment = "left",
                 valign = "center", text = "Name",
             },
             gui.Input{
@@ -164,7 +164,7 @@ local function CreateAbilityTemplateEditor(tableName)
 
             gui.Label{
                 width = 90, height = "auto", fontSize = 14,
-                color = "@fgMuted", textAlignment = "left",
+                classes = {"fgMuted"}, textAlignment = "left",
                 valign = "center", text = "Description",
             },
             gui.Input{
@@ -196,7 +196,7 @@ local function CreateAbilityTemplateEditor(tableName)
 
             gui.Label{
                 width = 90, height = "auto", fontSize = 14,
-                color = "@fgMuted", textAlignment = "left",
+                classes = {"fgMuted"}, textAlignment = "left",
                 valign = "center", text = "Category",
             },
             gui.Dropdown{

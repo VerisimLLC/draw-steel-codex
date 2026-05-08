@@ -580,7 +580,7 @@ local function _pickerStyles()
             bgimage = "panels/square.png",
             bgcolor = "@bgAlt",
             borderWidth = 1,
-            borderColor = "@accent",
+            borderColor = "@border",
             cornerRadius = 3,
             borderBox = true,
         },
@@ -830,7 +830,7 @@ local function makeTriggerEventButton(ability, refreshSection)
                         valign = "center",
                         rmargin = 10,
                         bgimage = "panels/square.png",
-                        bgcolor = "@accent",
+                        classes = {"bgAccent"},
                     },
                     gui.Label{
                         width = "auto",
@@ -839,7 +839,7 @@ local function makeTriggerEventButton(ability, refreshSection)
                         textAlignment = "left",
                         fontSize = 14,
                         bold = true,
-                        color = "@fg",
+                        classes = {"fg"},
                         text = getTriggerLabel(ability.trigger),
                     },
                 },
@@ -1087,9 +1087,8 @@ local function buildTriggerModeControl(ability, refreshSection)
             vpad = 4,
             borderBox = true,
             bgimage = "panels/square.png",
-            bgcolor = selected and "@accent" or "@bgAlt",
+            classes = {selected and "bgAccent" or "bgAlt", "border"},
             borderWidth = 1,
-            borderColor = "@accent",
             cornerRadius = 0,
             press = function()
                 if ability.mandatory ~= option.id then
@@ -1103,7 +1102,7 @@ local function buildTriggerModeControl(ability, refreshSection)
                     height = "100%",
                     textAlignment = "center",
                     fontSize = 14,
-                    color = selected and "@bg" or "@fg",
+                    classes = {selected and "fgInverse" or "fg"},
                     bold = selected,
                     text = option.label,
                 },
@@ -1150,9 +1149,9 @@ local function buildTriggerModeControl(ability, refreshSection)
                     halign = "left",
                     valign = "center",
                     bgimage = "panels/square.png",
-                    bgcolor = selected and "@accent" or "clear",
+                    classes = selected and {"bgAccent", "border"} or {"border"},
+                    bgcolor = (not selected) and "clear" or nil,
                     borderWidth = 1,
-                    borderColor = "@accent",
                     cornerRadius = 7,
                 },
                 gui.Label{
@@ -1160,7 +1159,7 @@ local function buildTriggerModeControl(ability, refreshSection)
                     height = "auto",
                     textAlignment = "left",
                     fontSize = 14,
-                    color = "@fg",
+                    classes = {"fg"},
                     text = option.label,
                 },
             },
@@ -3001,7 +3000,7 @@ local function openTokenPicker(title, preferred, secondary, currentId, onSelect)
             priority = 3,
             bgimage = "panels/square.png",
             bgcolor = "@bg",
-            borderColor = "@accent",
+            borderColor = "@border",
             borderWidth = 2,
             gradient = flatGradient,
         },
@@ -3028,7 +3027,7 @@ local function openTokenPicker(title, preferred, secondary, currentId, onSelect)
         {
             selectors = {"panel", "tokenPickerRow"},
             bgcolor = "@bgAlt",
-            borderColor = "@accent",
+            borderColor = "@border",
             borderWidth = 1,
             priority = 4,
         },
@@ -6304,7 +6303,7 @@ function openTestTriggerPopout(ability, initialState, reopen)
         -- Border picks up the scheme's danger color so the banner re-themes
         -- under the active scheme.
         bgcolor = "#3a1414",
-        borderColor = "@danger",
+        classes = {"borderDanger"},
         borderWidth = 1,
         bmargin = 6,
         hpad = 8,
@@ -6315,7 +6314,7 @@ function openTestTriggerPopout(ability, initialState, reopen)
             element.children = {
                 gui.Label{
                     text = msg,
-                    color = "@fg",
+                    classes = {"fg"},
                     fontSize = 12,
                     width = "100%-24",
                     height = "auto",
@@ -6577,7 +6576,7 @@ local function makePreviewColumn(ability, schedulePreviewRefresh, editorOptions)
                             text = title,
                             bold = true,
                             fontSize = 16,
-                            color = "@fgStrong",
+                            classes = {"fgStrong"},
                             width = "auto",
                             height = "auto",
                             halign = "left",
@@ -6635,7 +6634,7 @@ local function makePreviewColumn(ability, schedulePreviewRefresh, editorOptions)
                     height = "auto",
                     fontSize = 13,
                     italics = true,
-                    color = "@fgMuted",
+                    classes = {"fgMuted"},
                     text = "(no preview available)",
                 }
             end
@@ -6919,10 +6918,9 @@ local function generateSectionedEditor(ability, options)
         valign = "center",
         flow = "horizontal",
         borderBox = true,
-        bgcolor = "@bg",
         bgimage = "panels/square.png",
+        classes = {"bg", "border"},
         borderWidth = 2,
-        borderColor = "@accent",
         cornerRadius = 6,
         data = {
             ability = ability,

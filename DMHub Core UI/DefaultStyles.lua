@@ -1649,6 +1649,13 @@ ThemeEngine.RegisterTheme{
         { selectors = {"fgPending"}, color = "@fgPending" },
         { selectors = {"fgInverse"}, color = "@fgInverse" },
 
+        -- Foreground tints applied as bgcolor (image multiply, etc.)
+        { selectors = {"bgFg"},        bgcolor = "@fg" },
+        { selectors = {"bgFgStrong"},  bgcolor = "@fgStrong" },
+        { selectors = {"bgFgMuted"},   bgcolor = "@fgMuted" },
+        { selectors = {"bgFgPending"}, bgcolor = "@fgPending" },
+        { selectors = {"bgFgInverse"}, bgcolor = "@fgInverse" },
+
         -- Borders
         { selectors = {"border"},        borderColor = "@border" },
         { selectors = {"borderInverse"}, borderColor = "@borderInverse" },

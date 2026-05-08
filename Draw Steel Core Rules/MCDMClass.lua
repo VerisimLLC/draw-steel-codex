@@ -147,7 +147,8 @@ function Class:HeroicResourceEditor(UploadFn)
         return self:get_or_add("heroicResourceChecklist", {})
     end
 
-    local addButton = gui.AddButton{
+    local addButton = gui.Button{
+        classes = {"addButton"},
         click = function()
             local checklist = GetCollection()
             checklist[#checklist+1] = {
@@ -158,7 +159,7 @@ function Class:HeroicResourceEditor(UploadFn)
             }
             UploadFn()
             contentPanel:FireEvent("create")
-        end
+        end,
     }
 
     contentPanel = gui.Panel{

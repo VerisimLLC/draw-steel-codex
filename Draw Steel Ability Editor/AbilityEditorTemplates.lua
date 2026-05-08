@@ -10,7 +10,50 @@ local mod = dmhub.GetModLoading()
     3. Entry modal UI shown on first edit of a new ability
 ]]
 
-local COLORS = AbilityEditor.COLORS
+-- Picker-specific style extras spliced into the entry-modal cascade root via
+-- ThemeEngine.MergeStyles. Keeps the modal's "dark fill + accent border"
+-- card look but routes the colors through @-tokens so the cards re-color
+-- with the active scheme.
+local function _pickerStyles()
+    return {
+        {
+            selectors = {"picker-card"},
+            bgimage = "panels/square.png",
+            bgcolor = "@bgAlt",
+            borderWidth = 1,
+            borderColor = "@border",
+            cornerRadius = 3,
+            borderBox = true,
+            -- Defeat the vertical-flow distribution quirk: without this,
+            -- DMHub's layout shrinks/auto-fits cards when there are many
+            -- siblings, especially under a vscroll container. valign="top"
+            -- pins each card to its row instead.
+            valign = "top",
+        },
+        {
+            selectors = {"picker-card", "hover"},
+            borderColor = "@accentHover",
+        },
+        -- Larger card for the three main entry paths -- subtle brighten on
+        -- hover to telegraph clickability.
+        {
+            selectors = {"picker-path-button"},
+            bgimage = "panels/square.png",
+            bgcolor = "@bgAlt",
+            borderWidth = 1,
+            borderColor = "@border",
+            cornerRadius = 4,
+            borderBox = true,
+            valign = "top",
+        },
+        {
+            selectors = {"picker-path-button", "hover"},
+            borderColor = "@accentHover",
+            brightness = 1.2,
+            transitionTime = 0.15,
+        },
+    }
+end
 
 -- Template categories for grouping in both the compendium editor and the
 -- entry modal's "Start from Template" sub-view.
@@ -91,7 +134,7 @@ local function CreateAbilityTemplateEditor(tableName)
 
             gui.Label{
                 width = 90, height = "auto", fontSize = 14,
-                color = "#cccccc", textAlignment = "left",
+                classes = {"fgMuted"}, textAlignment = "left",
                 valign = "center", text = "Name",
             },
             gui.Input{
@@ -121,7 +164,7 @@ local function CreateAbilityTemplateEditor(tableName)
 
             gui.Label{
                 width = 90, height = "auto", fontSize = 14,
-                color = "#cccccc", textAlignment = "left",
+                classes = {"fgMuted"}, textAlignment = "left",
                 valign = "center", text = "Description",
             },
             gui.Input{
@@ -153,7 +196,7 @@ local function CreateAbilityTemplateEditor(tableName)
 
             gui.Label{
                 width = 90, height = "auto", fontSize = 14,
-                color = "#cccccc", textAlignment = "left",
+                classes = {"fgMuted"}, textAlignment = "left",
                 valign = "center", text = "Category",
             },
             gui.Dropdown{
@@ -181,7 +224,8 @@ local function CreateAbilityTemplateEditor(tableName)
         },
 
         -- Edit Ability button
-        gui.PrettyButton{
+        gui.Button{
+            classes = {"sizeM"},
             text = "Edit Ability",
             width = 160,
             height = 36,
@@ -263,7 +307,10 @@ local function ShowAbilityTemplatesPanel(parentPanel)
         },
 
         itemsListPanel,
-        Compendium.AddButton{
+        gui.Button{
+            classes = {"addButton", "sizeL"},
+            halign = "right",
+            valign = "top",
             click = function(element)
                 local newData = AbilityTemplate.CreateNew()
                 dmhub.SetAndUploadTableItem(tableName, newData)
@@ -691,6 +738,7 @@ end
 
 local function _makePathButton(title, description, onClick)
     return gui.Panel{
+        classes = {"picker-path-button"},
         width = "100%",
         height = "auto",
         flow = "vertical",
@@ -699,55 +747,40 @@ local function _makePathButton(title, description, onClick)
         hpad = 16,
         vpad = 16,
         bmargin = 6,
-        bgimage = "panels/square.png",
-        bgcolor = COLORS.PANEL_BG,
-        borderWidth = 1,
-        borderColor = COLORS.GOLD,
-        cornerRadius = 4,
-        borderBox = true,
-
         press = onClick,
 
-        styles = {
-            {
-                selectors = {"hover"},
-                borderColor = COLORS.GOLD_BRIGHT,
-                brightness = 1.2,
-                transitionTime = 0.15,
-            },
-        },
-
         gui.Label{
+            classes = {"sizeL", "bold"},
             width = "100%",
             height = "auto",
-            fontSize = 20,
-            bold = true,
-            color = COLORS.CREAM_BRIGHT,
             textAlignment = "left",
             text = title,
         },
         gui.Label{
+            classes = {"sizeS"},
             width = "100%",
             height = "auto",
-            fontSize = 14,
-            color = COLORS.GRAY,
             textAlignment = "left",
             text = description,
         },
     }
 end
 
--- Shared back-link label.
+-- Shared back-link button. A real gui.Button rather than a styled label so
+-- the back action picks up the theme's button chrome (visible border, hover
+-- state, click feedback) and reads as obviously clickable. width=auto so
+-- the button hugs the "< Back" text, with inline hpad so the text isn't
+-- butting against the border.
 local function _makeBackLabel(text, onClick)
-    return gui.Label{
+    return gui.Button{
+        classes = {"sizeS"},
         width = "auto",
-        height = "auto",
-        fontSize = 13,
-        color = COLORS.GOLD_DIM,
-        textAlignment = "left",
-        bmargin = 4,
+        halign = "left",
+        valign = "top",
+        hpad = 12,
+        bmargin = 8,
         text = "< " .. text,
-        press = onClick,
+        click = onClick,
     }
 end
 
@@ -791,11 +824,9 @@ local function _buildTemplateListView(ability, rootPanel, onComplete, rebuildEdi
 
             -- Group heading
             children[#children + 1] = gui.Label{
+                classes = {"sizeS", "bold"},
                 width = "100%",
                 height = "auto",
-                fontSize = 14,
-                bold = true,
-                color = COLORS.GOLD_DIM,
                 textAlignment = "left",
                 bmargin = 2,
                 tmargin = 2,
@@ -806,18 +837,13 @@ local function _buildTemplateListView(ability, rootPanel, onComplete, rebuildEdi
             for _, template in ipairs(group.entries) do
                 local t = template
                 children[#children + 1] = gui.Panel{
+                    classes = {"picker-card"},
                     width = "100%",
                     height = "auto",
                     flow = "vertical",
                     hpad = 8,
                     vpad = 5,
                     bmargin = 2,
-                    bgimage = "panels/square.png",
-                    bgcolor = COLORS.PANEL_BG,
-                    borderWidth = 1,
-                    borderColor = COLORS.GOLD,
-                    cornerRadius = 3,
-                    borderBox = true,
 
                     press = function()
                         local templateAbility = t:try_get("ability")
@@ -831,20 +857,17 @@ local function _buildTemplateListView(ability, rootPanel, onComplete, rebuildEdi
                     end,
 
                     gui.Label{
+                        classes = {"sizeS", "bold"},
                         width = "100%",
                         height = "auto",
-                        fontSize = 14,
-                        bold = true,
-                        color = COLORS.CREAM_BRIGHT,
                         textAlignment = "left",
                         text = t.name or "(unnamed)",
                     },
                     gui.Label{
+                        classes = {"sizeXs"},
                         width = "100%",
                         height = "auto",
-                        fontSize = 12,
                         italics = true,
-                        color = COLORS.GRAY,
                         textAlignment = "left",
                         text = t.description or "",
                     },
@@ -855,11 +878,10 @@ local function _buildTemplateListView(ability, rootPanel, onComplete, rebuildEdi
 
     if not hasAny then
         children[#children + 1] = gui.Label{
+            classes = {"sizeS"},
             width = "100%",
             height = "auto",
-            fontSize = 14,
             italics = true,
-            color = COLORS.GRAY,
             textAlignment = "center",
             vmargin = 24,
             text = "No templates found. Add templates in the Compendium > Ability Templates section.",
@@ -878,18 +900,13 @@ end
 local function _makeAbilityCard(entry, ability, rootPanel, rebuildEditor)
     local e = entry
     return gui.Panel{
+        classes = {"picker-card"},
         width = "100%",
         height = "auto",
         flow = "vertical",
         hpad = 8,
         vpad = 5,
         bmargin = 3,
-        bgimage = "panels/square.png",
-        bgcolor = COLORS.PANEL_BG,
-        borderWidth = 1,
-        borderColor = COLORS.GOLD,
-        cornerRadius = 3,
-        borderBox = true,
 
         press = function()
             _applyAbilityFields(ability, e.ability, true)
@@ -900,19 +917,16 @@ local function _makeAbilityCard(entry, ability, rootPanel, rebuildEditor)
         end,
 
         gui.Label{
+            classes = {"sizeS", "bold"},
             width = "100%",
             height = "auto",
-            fontSize = 14,
-            bold = true,
-            color = COLORS.CREAM_BRIGHT,
             textAlignment = "left",
             text = e.name,
         },
         gui.Label{
+            classes = {"sizeXs"},
             width = "100%",
             height = "auto",
-            fontSize = 11,
-            color = COLORS.GRAY,
             textAlignment = "left",
             text = e.source or "",
         },
@@ -923,56 +937,43 @@ end
 
 local function _buildDuplicateListView(ability, rootPanel, onComplete, rebuildEditor)
     -- The contentPanel whose children are swapped between browse levels.
-    -- All show* functions use setContent() instead of setting children
-    -- directly so items always stack at the top (auto-height wrapper
-    -- prevents the scroll container from distributing children vertically).
+    -- Children are set directly on contentPanel (which is a vscroll
+    -- container with valign="top"). An earlier inner-wrapper indirection
+    -- was being uiscale-shrunk under heavy item counts; matching the
+    -- modifier picker's flat pattern keeps cards readable regardless of
+    -- list length.
     local contentPanel = nil
 
     local function setContent(children)
-        contentPanel.children = {
-            gui.Panel{
-                width = "100%",
-                height = "auto",
-                flow = "vertical",
-                halign = "left",
-                valign = "top",
-                bgcolor = "clear",
-                children = children,
-            },
-        }
+        contentPanel.children = children
     end
 
     -- Shared helper: a clickable row with a name and a count badge.
+    -- Title sized at sizeS bold to match the other picker cards (categories,
+    -- ability cards) -- earlier sizeXs made source rows visibly smaller and
+    -- read as "scaling" when drilling into a dense list.
     local function _makeSourceRow(label, count, onClick)
         return gui.Panel{
+            classes = {"picker-card"},
             width = "100%",
             height = "auto",
             flow = "horizontal",
             hpad = 8,
             vpad = 6,
             bmargin = 3,
-            bgimage = "panels/square.png",
-            bgcolor = COLORS.PANEL_BG,
-            borderWidth = 1,
-            borderColor = COLORS.GOLD,
-            cornerRadius = 3,
-            borderBox = true,
             press = onClick,
 
             gui.Label{
+                classes = {"sizeS", "bold"},
                 width = "100%-30",
                 height = "auto",
-                fontSize = 13,
-                bold = true,
-                color = COLORS.CREAM_BRIGHT,
                 textAlignment = "left",
                 text = label,
             },
             gui.Label{
+                classes = {"sizeXs"},
                 width = 30,
                 height = "auto",
-                fontSize = 11,
-                color = COLORS.GRAY,
                 textAlignment = "right",
                 text = tostring(count),
             },
@@ -985,11 +986,10 @@ local function _buildDuplicateListView(ability, rootPanel, onComplete, rebuildEd
         children[#children + 1] = _makeBackLabel(backLabel, goBack)
 
         children[#children + 1] = gui.Label{
+            classes = {"sizeS", "bold"},
             width = "100%",
             height = "auto",
-            fontSize = 14,
-            bold = true,
-            color = COLORS.GOLD_DIM,
+            valign = "top",
             textAlignment = "left",
             bmargin = 4,
             text = heading,
@@ -1030,11 +1030,10 @@ local function _buildDuplicateListView(ability, rootPanel, onComplete, rebuildEd
         children[#children + 1] = _makeBackLabel(catId, goBack)
 
         children[#children + 1] = gui.Label{
+            classes = {"sizeS", "bold"},
             width = "100%",
             height = "auto",
-            fontSize = 14,
-            bold = true,
-            color = COLORS.GOLD_DIM,
+            valign = "top",
             textAlignment = "left",
             bmargin = 4,
             text = groupName,
@@ -1098,11 +1097,10 @@ local function _buildDuplicateListView(ability, rootPanel, onComplete, rebuildEd
 
             -- Class header
             children[#children + 1] = gui.Label{
+                classes = {"sizeS", "bold"},
                 width = "100%",
                 height = "auto",
-                fontSize = 14,
-                bold = true,
-                color = COLORS.GOLD_DIM,
+                valign = "top",
                 textAlignment = "left",
                 tmargin = 6,
                 bmargin = 2,
@@ -1122,11 +1120,11 @@ local function _buildDuplicateListView(ability, rootPanel, onComplete, rebuildEd
 
         if #sourceNames == 0 then
             children[#children + 1] = gui.Label{
+                classes = {"sizeS"},
                 width = "100%",
                 height = "auto",
-                fontSize = 14,
+                valign = "top",
                 italics = true,
-                color = COLORS.GRAY,
                 textAlignment = "center",
                 vmargin = 24,
                 text = "No abilities found in " .. catId,
@@ -1172,11 +1170,11 @@ local function _buildDuplicateListView(ability, rootPanel, onComplete, rebuildEd
 
         if #sourceNames == 0 then
             children[#children + 1] = gui.Label{
+                classes = {"sizeS"},
                 width = "100%",
                 height = "auto",
-                fontSize = 14,
+                valign = "top",
                 italics = true,
-                color = COLORS.GRAY,
                 textAlignment = "center",
                 vmargin = 24,
                 text = "No abilities found in " .. catId,
@@ -1210,29 +1208,22 @@ local function _buildDuplicateListView(ability, rootPanel, onComplete, rebuildEd
         for _, catDef in ipairs(DUPLICATE_CATEGORIES) do
             local cid = catDef.id
             children[#children + 1] = gui.Panel{
+                classes = {"picker-card"},
                 width = "100%",
                 height = "auto",
                 flow = "horizontal",
                 hpad = 8,
                 vpad = 7,
                 bmargin = 3,
-                bgimage = "panels/square.png",
-                bgcolor = COLORS.PANEL_BG,
-                borderWidth = 1,
-                borderColor = COLORS.GOLD,
-                cornerRadius = 3,
-                borderBox = true,
 
                 press = function()
                     showSources(cid, showCategories)
                 end,
 
                 gui.Label{
+                    classes = {"sizeS", "bold"},
                     width = "100%",
                     height = "auto",
-                    fontSize = 14,
-                    bold = true,
-                    color = COLORS.CREAM_BRIGHT,
                     textAlignment = "left",
                     text = catDef.label,
                 },
@@ -1246,23 +1237,12 @@ local function _buildDuplicateListView(ability, rootPanel, onComplete, rebuildEd
     local allAbilitiesFlat = nil  -- lazy, crawled on first search keystroke
 
     local searchInput = nil
-    searchInput = gui.Input{
+    searchInput = gui.SearchInput{
         width = "100%",
         height = 30,
-        placeholderText = "Search all abilities...",
-        bgimage = "panels/square.png",
-        bgcolor = COLORS.PANEL_BG,
-        borderWidth = 1,
-        borderColor = COLORS.GOLD,
-        cornerRadius = 3,
-        hpad = 8,
-        vpad = 4,
         borderBox = true,
-        fontSize = 14,
-        color = COLORS.CREAM_BRIGHT,
+        placeholderText = "Search all abilities...",
         bmargin = 8,
-        textAlignment = "left",
-
         editlag = 0.2,
         edit = function(element)
             local rawQuery = element.text or ""
@@ -1307,11 +1287,10 @@ local function _buildDuplicateListView(ability, rootPanel, onComplete, rebuildEd
             local children = {}
             for _, groupName in ipairs(groupOrder) do
                 children[#children + 1] = gui.Label{
+                    classes = {"sizeM", "bold"},
                     width = "100%",
                     height = "auto",
-                    fontSize = 16,
-                    bold = true,
-                    color = COLORS.GOLD_DIM,
+                    valign = "top",
                     textAlignment = "left",
                     bmargin = 4,
                     tmargin = 4,
@@ -1325,11 +1304,11 @@ local function _buildDuplicateListView(ability, rootPanel, onComplete, rebuildEd
 
             if #filtered == 0 then
                 children[#children + 1] = gui.Label{
+                    classes = {"sizeS"},
                     width = "100%",
                     height = "auto",
-                    fontSize = 14,
+                    valign = "top",
                     italics = true,
-                    color = COLORS.GRAY,
                     textAlignment = "center",
                     vmargin = 24,
                     text = "No abilities match \"" .. rawQuery .. "\"",
@@ -1454,7 +1433,7 @@ function AbilityEditor.ShowEntryModal(ability, rootPanel, rebuildEditor)
 
     local dialogPanel = gui.Panel{
         classes = {"framedPanel"},
-        styles = {Styles.Default, Styles.Panel},
+        styles = ThemeEngine.MergeStyles(_pickerStyles()),
         width = 460,
         height = 500,
         flow = "vertical",
@@ -1462,25 +1441,19 @@ function AbilityEditor.ShowEntryModal(ability, rootPanel, rebuildEditor)
         borderBox = true,
         halign = "center",
         valign = "center",
-        fontFace = "Berling",
 
         children = {
-            -- Title
             gui.Label{
-                width = "100%",
-                height = "auto",
-                fontSize = 22,
-                bold = true,
-                color = COLORS.GOLD_BRIGHT,
-                textAlignment = "left",
+                classes = {"sizeXl", "bold"},
+                halign = "left",
                 bmargin = 12,
                 text = "Create New Ability",
             },
 
             contentPanel,
 
-            -- Close button
-            gui.CloseButton{
+            gui.Button{
+                classes = {"closeButton"},
                 halign = "right",
                 valign = "top",
                 floating = true,

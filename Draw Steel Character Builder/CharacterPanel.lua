@@ -754,6 +754,7 @@ function CBCharPanel._detailPanel()
         vpad = 4,
         flow = "horizontal",
         bgimage = true,
+        bgcolor = "clear",
         borderColor = CBStyles.COLORS.GOLD03,
         border = { y2 = 0, y1 = 1, x2 = 0, x1 = 0 },
         children = tabButtons,
@@ -899,7 +900,11 @@ function CBCharPanel._headerPanel()
     }
 
     local level = gui.Dropdown{
-        classes = {"panel-base", "dropdown", "charlevel"},
+        classes = {"dropdown", "charlevel"},
+        width = 240,
+        height = 32,
+        halign = "center",
+        tmargin = 4,
         fontSize = 26,
         options = {
             { id = "first", text = "First Encounter",},

@@ -113,6 +113,12 @@ end
 function monster:FillFreeStrikes(options, result)
     local signature = self:GetSignatureAbility()
     if signature == nil then
+        local meleeFreeStrike = MCDMUtils.GetStandardAbility("Melee Free Strike")
+        local rangedFreeStrike = MCDMUtils.GetStandardAbility("Ranged Free Strike")
+        local ability = meleeFreeStrike:MakeTemporaryClone()
+        result[#result+1] = ability
+        ability = rangedFreeStrike:MakeTemporaryClone()
+        result[#result+1] = ability
         return
     end
 

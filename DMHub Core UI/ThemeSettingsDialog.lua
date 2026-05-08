@@ -106,10 +106,7 @@ local function buildPreviewBody()
                 text = "Icon Buttons:",
             },
             gui.Button{
-                icon = "game-icons/griffin-symbol.png",
-            },
-            gui.Button{
-                classes = {"flipped"},
+                classes = {"flipped", "bordered"},
                 icon = "game-icons/griffin-symbol.png",
             },
             gui.Button {
@@ -128,6 +125,68 @@ local function buildPreviewBody()
             },
             gui.Button{
                 classes = { "closeButton" },
+            },
+        },
+        gui.Panel{
+            classes = {"formRow"},
+            gui.Label{
+                classes = {"form"},
+                text = "Sample Slider:",
+            },
+            gui.Slider{
+                minValue = 0,
+                maxValue = 100,
+                value = 60,
+                sliderWidth = 200,
+                labelWidth = 40,
+                labelFormat = "%d",
+                height = 24,
+                valign = "center",
+            },
+        },
+        gui.Panel{
+            classes = {"formRow"},
+            gui.Label{
+                classes = {"form"},
+                text = "Sample Table:",
+                valign = "top",
+            },
+            gui.Panel{
+                width = "auto",
+                height = "auto",
+                flow = "vertical",
+                gui.Panel{
+                    classes = {"row", "headerRow"},
+                    width = 360,
+                    flow = "horizontal",
+                    gui.Label{ classes = {"tableLabel"}, width = "33%", text = "Name" },
+                    gui.Label{ classes = {"tableLabel"}, width = "33%", text = "Class" },
+                    gui.Label{ classes = {"tableLabel"}, width = "33%", text = "Level" },
+                },
+                gui.Panel{
+                    classes = {"row", "evenRow"},
+                    width = 360,
+                    flow = "horizontal",
+                    gui.Label{ classes = {"tableLabel"}, width = "33%", text = "Aldric" },
+                    gui.Label{ classes = {"tableLabel"}, width = "33%", text = "Censor" },
+                    gui.Label{ classes = {"tableLabel"}, width = "33%", text = "5" },
+                },
+                gui.Panel{
+                    classes = {"row", "oddRow"},
+                    width = 360,
+                    flow = "horizontal",
+                    gui.Label{ classes = {"tableLabel"}, width = "33%", text = "Brenna" },
+                    gui.Label{ classes = {"tableLabel"}, width = "33%", text = "Tactician" },
+                    gui.Label{ classes = {"tableLabel"}, width = "33%", text = "5" },
+                },
+                gui.Panel{
+                    classes = {"row", "evenRow"},
+                    width = 360,
+                    flow = "horizontal",
+                    gui.Label{ classes = {"tableLabel"}, width = "33%", text = "Caedrik" },
+                    gui.Label{ classes = {"tableLabel"}, width = "33%", text = "Talent" },
+                    gui.Label{ classes = {"tableLabel"}, width = "33%", text = "5" },
+                },
             },
         },
         gui.Button{
@@ -219,7 +278,7 @@ CreateThemeSettingsDialog = function()
         classes = {"launchablePanel"},
         styles = ThemeEngine.GetStyles("default", "default"),
         width = 640,
-        height = 480,
+        height = 600,
         flow = "vertical",
         pad = 16,
 

@@ -13,11 +13,41 @@ ActivatedAbility.RegisterType
 }
 
 ActivatedAbilityPlaySoundBehavior.summary = 'Play Sound'
+ActivatedAbilityPlaySoundBehavior.mode = "builtin"
 ActivatedAbilityPlaySoundBehavior.soundEvent = "none"
+ActivatedAbilityPlaySoundBehavior.soundAsset = ""
 ActivatedAbilityPlaySoundBehavior.volume = 1
 ActivatedAbilityPlaySoundBehavior.delay = 0
 
 function ActivatedAbilityPlaySoundBehavior:Cast(ability, casterToken, targets, options)
+    if self.mode == "custom" then
+        if self.soundAsset == nil or self.soundAsset == "" then
+            return
+        end
+
+        local asset = assets.audioTable[self.soundAsset]
+        if asset == nil then
+            return
+        end
+
+        local Play = function()
+            audio.PlaySoundEvent {
+                asset = asset,
+                volume = self.volume,
+            }
+        end
+
+        if self.delay > 0 then
+            dmhub.Schedule(self.delay, function()
+                if mod.unloaded then return end
+                Play()
+            end)
+        else
+            Play()
+        end
+        return
+    end
+
     if self.soundEvent == "none" then
         return
     end
@@ -45,8 +75,32 @@ function ActivatedAbilityPlaySoundBehavior:EditorItems(parentPanel)
         }
     end
 
+    local builtinPanel
+    local customPanel
+
     result[#result+1] = gui.Panel {
         classes = { "formPanel" },
+        gui.Label {
+            classes = { "formLabel" },
+            text = "Sound Source:",
+        },
+
+        gui.Dropdown {
+            idChosen = self.mode,
+            options = {
+                { id = "builtin", text = "Built-in" },
+                { id = "custom", text = "Custom" },
+            },
+            change = function(element)
+                self.mode = element.idChosen
+                builtinPanel:SetClass("collapsed", self.mode ~= "builtin")
+                customPanel:SetClass("collapsed", self.mode ~= "custom")
+            end,
+        }
+    }
+
+    builtinPanel = gui.Panel {
+        classes = { "formPanel", cond(self.mode ~= "builtin", "collapsed") },
         gui.Label {
             classes = { "formLabel" },
             text = "Sound Event:",
@@ -62,6 +116,25 @@ function ActivatedAbilityPlaySoundBehavior:EditorItems(parentPanel)
             end,
         }
     }
+    result[#result+1] = builtinPanel
+
+    customPanel = gui.Panel {
+        classes = { "formPanel", cond(self.mode ~= "custom", "collapsed") },
+        gui.Label {
+            classes = { "formLabel" },
+            text = "Custom Sound:",
+        },
+
+        gui.AudioEditor {
+            width = 64,
+            height = 64,
+            value = self.soundAsset ~= "" and self.soundAsset or nil,
+            change = function(element)
+                self.soundAsset = element.value or ""
+            end,
+        },
+    }
+    result[#result+1] = customPanel
 
     result[#result+1] = gui.Panel {
         classes = { "formPanel" },
@@ -121,6 +194,21 @@ function ActivatedAbilityPlaySoundBehavior:EditorItems(parentPanel)
         fontSize = 14,
         text = "Preview Sound",
         click = function(element)
+            if self.mode == "custom" then
+                if self.soundAsset == nil or self.soundAsset == "" then
+                    return
+                end
+                local asset = assets.audioTable[self.soundAsset]
+                if asset == nil then
+                    return
+                end
+                local instance = asset:Play()
+                if instance ~= nil then
+                    instance.volume = self.volume
+                end
+                return
+            end
+
             if self.soundEvent == "none" then
                 return
             end

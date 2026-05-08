@@ -3931,7 +3931,7 @@ Commands.RegisterMacro{
     doc = "Usage: /light\nToggles the light source loadout on selected tokens.",
     command = function(str)
         local tokenids = {}
-        for _,tok in ipairs(dmhub.selectedTokens) do
+        for _,tok in ipairs(dmhub.selectedOrPrimaryTokens) do
             tokenids[#tokenids+1] = tok.charid
             tok:ModifyProperties{
                 description = "Change Loadout to Light",

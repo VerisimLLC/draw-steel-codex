@@ -135,17 +135,37 @@ function CreateSettingsScreen(dialog, args)
 	local m_selectedTab = "General"
 
 	local SettingGroup = function(options)
-		
+
 		local group = options.group
 		options.group = nil
+		local buildFn = options.build
+		options.build = nil
+
+		local built = false
+		local panel
+
+		local function buildIfNeeded()
+			if built then return end
+			built = true
+			if buildFn ~= nil then
+                print("BUILD::", group)
+				panel.children = buildFn()
+			end
+		end
 
 		local args = {
-			classes = {cond(m_selectedTab ~= group, "collapsed")},			
+			classes = {cond(m_selectedTab ~= group, "collapsed")},
 			flow = "vertical",
 			width = "auto",
 			height = "auto",
 			refreshTab = function(element)
 				element:SetClass("collapsed", m_selectedTab ~= group)
+				if m_selectedTab == group then
+					buildIfNeeded()
+				end
+			end,
+			forceBuild = function(element)
+				buildIfNeeded()
 			end,
 		}
 
@@ -153,8 +173,13 @@ function CreateSettingsScreen(dialog, args)
 			args[k] = v
 		end
 
+		panel = gui.Panel(args)
 
-		return gui.Panel(args)
+		if m_selectedTab == group then
+			buildIfNeeded()
+		end
+
+		return panel
 	end
 
 	local m_searchPanels = {}
@@ -239,10 +264,12 @@ function CreateSettingsScreen(dialog, args)
 	local keybinds = nil
 	local keybindsTab = nil
 	if CreateKeybindsSettingsPanel ~= false then
-		printf("CREATE KEYBINDS SETTINGS")
 		keybinds = SettingGroup{
 			group = "Shortcuts",
-			CreateKeybindsSettingsPanel(),
+			build = function()
+				printf("CREATE KEYBINDS SETTINGS")
+				return { CreateKeybindsSettingsPanel() }
+			end,
 		}
 		keybindsTab = CreateTab{
 			text = "Shortcuts",
@@ -336,6 +363,9 @@ function CreateSettingsScreen(dialog, args)
 						end
 					end,
 					edit = function(element)
+						if element.text ~= "" then
+							dialog.sheet:FireEventTree("forceBuild")
+						end
 						local matches = {}
 						dialog.sheet:FireEventTree("search", element.text, matches)
 						if element.text ~= "" then
@@ -396,7 +426,8 @@ function CreateSettingsScreen(dialog, args)
 				children = {
 					SettingGroup{
 						group = "General",
-					
+						build = function() return {
+
 						--Setting('dev:webm'),
 						--Setting('dev:mp4'),
 
@@ -428,10 +459,12 @@ function CreateSettingsScreen(dialog, args)
 						CreateBetaBranchEditor(),
 
 						Setting("codemod:safemode"),
+						} end,
 					},
 
 					SettingGroup{
 						group = "Graphics",
+						build = function() return {
 
 						Setting('vsync'),
 						Setting('fps'),
@@ -538,16 +571,20 @@ function CreateSettingsScreen(dialog, args)
                                 end
                             end,
                         },
+						} end,
 					},
 
 					SettingGroup{
 						group = "Audio",
+						build = function() return {
 						SettingsSection("Audio"),
+						} end,
 					},
 
 
 					SettingGroup{
 						group = "Game",
+						build = function() return {
 						Setting("autorollall"),
 						Setting("dicespeed"),
 
@@ -566,13 +603,15 @@ function CreateSettingsScreen(dialog, args)
 						SettingsHeading("Lighting"),
 
 						SettingsSection("GameLighting"),
+						} end,
 					},
 
 					keybinds,
 
 					SettingGroup{
 						group = "Account",
-						
+						build = function() return {
+
 						gui.Panel{
 							flow = "vertical",
 							width = "100%",
@@ -666,6 +705,7 @@ function CreateSettingsScreen(dialog, args)
 								},
 							}
 						},
+						} end,
 					},
 				}
 			},

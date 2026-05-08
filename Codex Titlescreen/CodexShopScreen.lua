@@ -1,5 +1,25 @@
 local mod = dmhub.GetModLoading()
 
+--Mirror of CodexTitleBar.lua's "dev:storepreview" setting. Settings are
+--keyed by id, so re-declaring here gives this file read access to the same
+--persisted preference without exporting the local from the title bar.
+local g_devStorePreviewSetting = setting{
+    id = "dev:storepreview",
+    default = false,
+    storage = "preference",
+}
+
+--When true, the "Buy with Steam" button skips the actual Steam call and
+--triggers the success path locally after a 0.5s delay. Lets us iterate on
+--the post-purchase UI without doing a real Steam transaction (or any redeploy).
+--Read directly via dmhub.GetPref rather than via setting{} -- setting{}'s
+--cache and dmhub's preference store turn out to use different namespaces, so
+--`dmhub.SetPref(id, value)` doesn't reach a setting{} object with the same id.
+--Toggle with: dmhub.SetPref("dev:simulateSteamPurchase", true)
+local function DevSimulateSteamPurchase()
+    return dmhub.GetPref("dev:simulateSteamPurchase") == true
+end
+
 local fontWeights = {"thin", "extralight", "light", "regular", "medium", "semibold", "bold", "heavy", "black"}
 
 local heightStretch = 175
@@ -2472,6 +2492,92 @@ local function CreateShopScreenInternal(arguments)
 								end,
 							},
 
+							--Steam Microtransactions checkout. Only visible on Steam builds.
+							--The Steam overlay confirms the cart total in one popup; on Yes,
+							--the server (steamPurchaseFinalize) writes ShopItemInstance rows
+							--directly into the user's inventory and we enter the same
+							--checkingOut state the browser-checkout uses.
+							gui.Label{
+								classes = {"itemButton", "checkoutButton", "collapseUnlessCartWithItems"},
+								halign = "center",
+								hmargin = 16,
+								text = "Buy with Steam",
+								data = { purchasing = false, originalText = "Buy with Steam" },
+
+								create = function(element)
+									--Hide unless Steam is initialized OR we're in the
+									--dev simulate mode (so the post-purchase UI is
+									--testable without launching through Steam).
+									if not (shop.steamAvailable or DevSimulateSteamPurchase()) then
+										element:SetClass("collapsed", true)
+									end
+								end,
+
+								press = function(element)
+									if element.data.purchasing then return end
+
+									--m_shoppingCart is keyed by itemid -> true (entries are
+									--removed by setting to nil), so the keys are the items in
+									--the cart.
+									local itemids = {}
+									for itemid in pairs(m_shoppingCart) do
+										itemids[#itemids+1] = itemid
+									end
+									if #itemids == 0 then return end
+
+									analytics.Event{
+										type = "shopCheckoutSteam",
+									}
+
+									element.data.purchasing = true
+									element.text = "Confirm in Steam..."
+
+									local function onSuccess(instanceids)
+										if not element.valid then return end
+										element.data.purchasing = false
+										element.text = element.data.originalText
+										element:FireEventOnParents("steamPurchaseError", "")
+										element:FireEventOnParents("steamPurchaseSuccess", instanceids)
+
+										--Granted items are now in the user's inventory;
+										--remove them from the cart so the cart UI doesn't
+										--still show them as purchasable.
+										for k in pairs(m_shoppingCart) do
+											m_shoppingCart[k] = nil
+										end
+
+										--Close the cart panel first (showInventory only
+										--switches the title/content mode; it doesn't
+										--collapse the cart on its own), then transition
+										--to Inventory so the user sees their newly-
+										--granted item.
+										element:FireEventOnParents("hideCart")
+										resultPanel:FireEvent("showInventory")
+									end
+
+									local function onFailure(err)
+										if not element.valid then return end
+										element.data.purchasing = false
+										element.text = element.data.originalText
+										element:FireEventOnParents("steamPurchaseError", err)
+									end
+
+									if DevSimulateSteamPurchase() then
+										--Dev shortcut: skip Steam entirely. Pretend
+										--the auth + finalize succeeded so we can
+										--iterate on the post-purchase UI without
+										--redeploying or going through the overlay.
+										dmhub.Schedule(0.5, function()
+											if mod.unloaded then return end
+											onSuccess(itemids)
+										end)
+										return
+									end
+
+									shop:BuyItemsWithSteam(itemids, onSuccess, onFailure)
+								end,
+							},
+
 							gui.Label{
 								classes = {"itemButton", "collapseUnlessCart"},
 								halign = "center",
@@ -2483,6 +2589,48 @@ local function CreateShopScreenInternal(arguments)
 								end,
 							},
 
+						},
+
+						--Transient error display for "Buy with Steam". Cleared on success
+						--by firing steamPurchaseError with an empty string.
+						gui.Label{
+							classes = {"collapsed"},
+							text = "",
+							fontSize = 18,
+							color = "#ff8888",
+							halign = "center",
+							width = "80%",
+							height = "auto",
+							textAlignment = "center",
+							vmargin = 4,
+							steamPurchaseError = function(element, message)
+								element.text = message or ""
+								element:SetClass("collapsed", message == nil or message == "")
+							end,
+						},
+
+						--Transient success display for "Buy with Steam". Auto-hides
+						--after 3s; the cart-close handler in the press handler
+						--still runs immediately on success so the user gets fast
+						--visual feedback.
+						gui.Label{
+							classes = {"collapsed"},
+							text = "Purchase complete!",
+							fontSize = 18,
+							color = "#88ff88",
+							halign = "center",
+							width = "80%",
+							height = "auto",
+							textAlignment = "center",
+							vmargin = 4,
+							steamPurchaseSuccess = function(element)
+								element:SetClass("collapsed", false)
+								dmhub.Schedule(3.0, function()
+									if mod.unloaded then return end
+									if not element.valid then return end
+									element:SetClass("collapsed", true)
+								end)
+							end,
 						},
 
 						gui.Panel{
@@ -2719,7 +2867,13 @@ local function CreateShopScreenInternal(arguments)
 		}
 
 
-		if dmhub.whiteLabel == "mcdm" then
+		--MCDM/Codex builds normally hide the commerce UI (price labels,
+		--checkout buttons, gifting, etc.) since the live shop isn't open to
+		--the public yet. The dev:storepreview preference (toggled by the same
+		--setting that exposes the Shop/Inventory menu items in the title bar)
+		--bypasses this so we can browse + buy test items via Steam MTX
+		--sandbox.
+		if dmhub.whiteLabel == "mcdm" and not g_devStorePreviewSetting:Get() then
 			resultPanel:SetClassTree("noCommerce", true)
 		end
 

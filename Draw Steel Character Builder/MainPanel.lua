@@ -1,6 +1,7 @@
 --[[
     Main panel of the Character Builder
 ]]
+local mod = dmhub.GetModLoading()
 local _getHero = CharacterBuilder._getHero
 local _getToken = CharacterBuilder._getToken
 local SEL = CharacterBuilder.SELECTOR
@@ -42,7 +43,7 @@ function CharacterBuilder.CreatePanel()
 
     CharacterBuilder.builderPanel = gui.Panel{
         id = CharacterBuilder.CONTROLLER_CLASS,
-        styles = CBStyles.GetStyles(),
+        styles = ThemeEngine.MergeStyles(CBStyles.GetStyles()),
         classes = {"panel-base", "builder-base", CharacterBuilder.CONTROLLER_CLASS},
         width = "99%",
         height = "99%",
@@ -736,6 +737,13 @@ function CharacterBuilder.CreatePanel()
         detailPanel,
         characterPanel,
     }
+
+    ThemeEngine.OnThemeChanged(mod, function()
+        local panel = CharacterBuilder.builderPanel
+        if panel ~= nil and panel.valid then
+            panel.styles = ThemeEngine.MergeStyles(CBStyles.GetStyles())
+        end
+    end)
 
     return CharacterBuilder.builderPanel
 end

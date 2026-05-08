@@ -4279,7 +4279,7 @@ local g_modalPanelStyles = {
     },
     gui.Style{
         selectors = {"label", "selected", "disabled"},
-        bgcolor = "#ff4444",
+        bgcolor = "@danger",
     },
     gui.Style{
         selectors = {"label", "hover"},
@@ -4793,10 +4793,12 @@ function ActivatedAbility:ShowEditActivatedAbilityDialog(options)
 	-- sectioned editor is active it fills the full-screen dialog minus
 	-- room for the title strip (~40px) and the Create/Close button row
 	-- (60px height + margins). The classic editor keeps its original
-	-- 1100x840 canvas.
+	-- 1100x840 canvas. In themed mode the background is transparent so the
+	-- inner editor's themed surface shows through and we get a single
+	-- consistent background colour from the active scheme.
 	local styles = {
 		{
-			bgcolor = themed and c.BG or 'white',
+			bgcolor = themed and "clear" or 'white',
 			pad = 0,
 			margin = 0,
 			width = themed and "100%" or 1100,
@@ -4829,18 +4831,17 @@ function ActivatedAbility:ShowEditActivatedAbilityDialog(options)
 	local deleteButton = nil
 	if options.delete ~= nil then
 		--we have a delete handler so show a delete button.
-		deleteButton = gui.PrettyButton{
-			floating = true,
+		deleteButton = gui.Button{
+			classes = {"sizeL"},
 			styles = {
 				{
-					selectors = {"pretty-button-label"},
+					selectors = {"label"},
 					color = "red",
 				},
 			},
 			text = "DELETE",
 			halign = "right",
-			valign = "bottom",
-			vmargin = 60,
+			valign = "center",
 			click = function(element)
 				resultPanel:FireEvent("delete")
 				resultPanel.data.close()
@@ -4862,7 +4863,8 @@ function ActivatedAbility:ShowEditActivatedAbilityDialog(options)
 
 	if options.add ~= nil then
 
-		closePanel:AddChild(gui.PrettyButton{
+		closePanel:AddChild(gui.Button{
+			classes = {"sizeL"},
 			text = 'Create',
 			events = {
 				click = function(element)
@@ -4872,7 +4874,8 @@ function ActivatedAbility:ShowEditActivatedAbilityDialog(options)
 			},
 		})
 
-		closePanel:AddChild(gui.PrettyButton{
+		closePanel:AddChild(gui.Button{
+			classes = {"sizeL"},
 			text = 'Cancel',
 			events = {
 				click = function(element)
@@ -4884,7 +4887,8 @@ function ActivatedAbility:ShowEditActivatedAbilityDialog(options)
 
 	else
 
-		closePanel:AddChild(gui.PrettyButton{
+		closePanel:AddChild(gui.Button{
+			classes = {"sizeL"},
 			text = 'Close',
 			events = {
 				click = function(element)
@@ -4900,12 +4904,15 @@ function ActivatedAbility:ShowEditActivatedAbilityDialog(options)
 	end
 
 	local titleLabel = gui.Label{
+		classes = themed and {"compendiumDialogTitle"} or nil,
 		text = title,
 		valign = 'top',
 		halign = 'center',
 		width = 'auto',
 		height = 'auto',
-		color = themed and c.GOLD_BRIGHT or 'white',
+		-- Themed mode: color comes from the cascade rule below so it follows
+		-- the active scheme. Classic mode: stay white.
+		color = (not themed) and 'white' or nil,
 		fontFace = themed and "Berling" or nil,
 		fontSize = 28,
 	}
@@ -4926,26 +4933,33 @@ function ActivatedAbility:ShowEditActivatedAbilityDialog(options)
 		for _, rule in ipairs(abilityEditor.GetThemedDialogStyles(c)) do
 			themeStyles[#themeStyles+1] = rule
 		end
+		-- Outer dialog title -- routed through the cascade so its color
+		-- follows the active scheme. MergeTokens resolves @-tokens up
+		-- front because themeStyles is consumed without a second
+		-- MergeStyles pass.
+		for _, rule in ipairs(ThemeEngine.MergeTokens({
+			{
+				selectors = {"label", "compendiumDialogTitle"},
+				color = "@fgStrong",
+				priority = 4,
+			},
+		})) do
+			themeStyles[#themeStyles+1] = rule
+		end
 	end
 
-	-- Flat white gradient: Styles.Panel's framedPanel rule sets
-	-- gradient = dialogGradient (near-black #000000 -> #060606), and the
-	-- engine MULTIPLIES bgcolor with the gradient's color at each pixel.
-	-- Our themed bgcolor multiplied with dialogGradient produces near-
-	-- black rather than c.BG. Supplying a flat-white gradient lets
-	-- bgcolor paint as-is (bgcolor * white = bgcolor).
-	local flatWhiteGradient = themed and gui.Gradient{
-		point_a = {x = 0, y = 0},
-		point_b = {x = 1, y = 1},
-		stops = {
-			{position = 0, color = "#ffffff"},
-			{position = 1, color = "#ffffff"},
-		},
-	} or nil
-
+	-- The inner editor's framed surface is painted by the themed
+	-- framedPanel cascade rule (bgimage, bgcolor, borderColor, borderWidth,
+	-- gradient). The dialog panel below carries `classes = {"framedPanel"}`
+	-- so it picks those up automatically -- inline overrides have been
+	-- removed so the active scheme drives the colour. cornerRadius stays
+	-- inline because the cascade rule doesn't declare it.
 	local args = {
 		style = {
-			bgcolor = themed and c.BG or 'white',
+			-- Lua short-circuit: `themed and nil or 'white'` always yields
+			-- 'white' (nil is falsy). Use `not themed` so themed mode
+			-- omits bgcolor and falls through to the framedPanel cascade.
+			bgcolor = (not themed) and 'white' or nil,
 			width = dialogWidth,
 			height = dialogHeight,
 			halign = 'center',
@@ -4954,11 +4968,6 @@ function ActivatedAbility:ShowEditActivatedAbilityDialog(options)
 
 		classes = {"framedPanel"},
 		styles = themeStyles,
-		bgimage = themed and "panels/square.png" or nil,
-		bgcolor = themed and c.BG or nil,
-		gradient = flatWhiteGradient,
-		borderWidth = themed and 2 or nil,
-		borderColor = themed and c.GOLD or nil,
 		cornerRadius = themed and 6 or nil,
 
 		floating = true,

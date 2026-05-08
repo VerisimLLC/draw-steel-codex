@@ -92,7 +92,7 @@ local function processCharacterFeature(feature)
                         end
                         skillInfo[#skillInfo + 1] = {
                             type = "static",
-                            guid = item.guid,
+                            guid = feature.guid,
                             sourceGuid = item.sourceguid,
                             name = item.name or "Static Skill",
                             description = item.description or "You gain a static skill.",

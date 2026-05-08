@@ -2798,9 +2798,11 @@ function TacPanel.RecoveryPips(recoveryid, recoveryInfo)
         halign = "center",
         valign = "top",
         flow = "vertical",
+        bgcolor = "clear",
 
         gui.Panel{
             classes = {"recovery-pip-row"},
+            bgcolor = "clear",
             updatePips = function(element, info)
                 local rowCount = math.min(info.maxRec, 10)
                 for i = #element.children + 1, rowCount do
@@ -2816,6 +2818,7 @@ function TacPanel.RecoveryPips(recoveryid, recoveryInfo)
         },
         gui.Panel{
             classes = {"recovery-pip-row"},
+            bgcolor = "clear",
             updatePips = function(element, info)
                 local rowCount = math.max(0, info.maxRec - 10)
                 for i = #element.children + 1, rowCount do
@@ -2953,6 +2956,7 @@ function TacPanel.RecoveriesBox()
             halign = "left",
             hmargin = -4,
             bgimage = true,
+            bgcolor = "clear",
             border = {x1 = 0, y1 = 0, x2 = 0, y2 = 1},
             borderColor = TEAL_HEAL,
             flow = "horizontal",
@@ -2963,6 +2967,7 @@ function TacPanel.RecoveriesBox()
                 valign = "top",
                 halign = "left",
                 bgimage = true,
+                bgcolor = "clear",
                 border = {x1 = 0, y1 = 0, x2 = 1, y2 = 0},
                 borderColor = TEAL_HEAL,
                 gui.Label{
@@ -2980,6 +2985,7 @@ function TacPanel.RecoveriesBox()
                 valign = "top",
                 halign ="left",
                 flow = "vertical",
+                bgcolor = "clear",
                 gui.Panel{
                     classes = {"container"},
                     width = "auto",

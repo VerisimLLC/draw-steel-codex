@@ -2585,3 +2585,23 @@ setting{
     editor = "check",
     default = false,
 }
+
+setting{
+    id = "dmhub:do_websocket_impl",
+    description = "Game Server Connection",
+    help = "Which WebSocket implementation to use when connecting to the cloud game server. Try the alternate option if you have trouble connecting (e.g. behind a corporate proxy or VPN). Takes effect on the next reconnect.",
+    storage = "preference",
+    section = "General",
+    editor = "dropdown",
+    default = "best-http",
+    enum = {
+        {
+            value = "best-http",
+            text = "BestHTTP (default)",
+        },
+        {
+            value = "client-websocket",
+            text = "Native ClientWebSocket",
+        },
+    },
+}

@@ -213,7 +213,9 @@ function PowerRollTableGroup.CreateEditor()
             end,
         },
 
-        gui.AddButton{
+        gui.Button{
+            classes = {"addButton"},
+            valign = "top",
             click = function(element)
                 m_group.tables[#m_group.tables+1] = PowerRollTable.Create{
                     name = "New Table",

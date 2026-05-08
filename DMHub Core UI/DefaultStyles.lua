@@ -679,6 +679,8 @@ ThemeEngine.RegisterTheme{
             flow = "horizontal",
             width = "auto",
             height = "auto",
+            halign = "left",
+            valign = "top",
             pad = 4,
             margin = 4,
             bgimage = true,

@@ -4048,14 +4048,17 @@ function gui.ImplementationStatusPanel(options)
 
 	local types = gui.ImplementationStatusValues
 
+	local function implClass(num)
+		return "implStatus" .. tostring(num)
+	end
+
 	local textLabel = gui.Label{
-		width = 110,
-		height = 24,
-		fontSize = 14,
-		color = "white",
+		classes = {"sizeM", implClass(value)},
+		width = 180,
 		text = types[value],
 		textAlignment = "center",
 		halign = "center",
+		valign = "center",
 	}
 
 
@@ -4070,6 +4073,9 @@ function gui.ImplementationStatusPanel(options)
 
 		SetValue = function(element, val, firechange)
 			local num = ClampValue(val)
+			for i = 0, 4 do
+				textLabel:SetClass(implClass(i), i == num)
+			end
 			textLabel.text = types[num]
 			value = num
 			if firechange then
@@ -4078,9 +4084,8 @@ function gui.ImplementationStatusPanel(options)
 		end,
 
 
-		gui.Panel{
-			bgimage = 'panels/InventoryArrow.png',
-			bgcolor = "white",
+		gui.Button{
+			icon = 'panels/InventoryArrow.png',
 			halign = "left",
 			valign = "center",
 			height = 24,
@@ -4093,13 +4098,12 @@ function gui.ImplementationStatusPanel(options)
 
 		textLabel,
 
-		gui.Panel{
-			bgimage = 'panels/InventoryArrow.png',
-			scale = {x = -1, y = 1},
-			bgcolor = "white",
+		gui.Button{
+			icon = 'panels/InventoryArrow.png',
+			classes = {"flipped"},
 			halign = "right",
 			valign = "center",
-			height = 32,
+			height = 24,
 			width = "50% height",
 			press = function(element)
 				resultPanel.value = value+1

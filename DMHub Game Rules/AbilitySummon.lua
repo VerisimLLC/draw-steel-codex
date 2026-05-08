@@ -855,19 +855,19 @@ function ActivatedAbilitySummonBehavior.PromptPlacementLoc(casterToken, rangeTil
         captureEscape = true,
         escapePriority = EscapePriority.EXIT_DIALOG,
 
-        gui.Label{
-            halign = "center",
-            valign = "top",
-            vmargin = 80,
-            width = "auto",
-            height = "auto",
-            fontSize = 22,
-            color = "white",
-            bgcolor = "#000000a0",
-            pad = 8,
-            borderBox = true,
-            text = string.format("Place %s %d of %d (Esc to cancel)", isMinion and "minion" or "creature", index, total),
-        },
+        gui.TooltipFrame(
+            gui.Label{
+                halign = "center",
+                width = "auto",
+                minWidth = 200,
+                textAlignment = "center",
+                height = "auto",
+                bold = true,
+                fontSize = 16,
+                text = string.format("Place %s %d of %d (Esc to cancel)", isMinion and "minion" or "creature", index, total),
+            },
+            { vmargin = 120 }
+        ),
 
         mappress = function(element, loc, point)
             if not isInRange(loc) then

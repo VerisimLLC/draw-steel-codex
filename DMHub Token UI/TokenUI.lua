@@ -1805,6 +1805,7 @@ function CreateTokenHud(token)
 				children[#children+1] = gui.Label{
 					text = text,
 					floating = true,
+                    markdown = true,
 					styles = {
 						{
 							width = 'auto',

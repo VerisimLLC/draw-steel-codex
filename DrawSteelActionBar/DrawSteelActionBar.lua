@@ -2514,6 +2514,13 @@ local g_forcedMovementTypePanel
 --- @type nil|function
 local m_allowedAltitudeCalculator
 
+--- Which altitude-control flavor is active.
+---  nil        = controller is collapsed (no altitude control needed)
+---  "movement" = forced-movement targeting; uses m_allowedAltitudeCalculator for min/max
+---  "cube"     = cube AoE; default is "On Ground" (track hovered tile altitude), or a fixed altitude
+--- @type nil|string
+local m_altitudeMode
+
 local m_altitudeController
 local m_shiftController
 
@@ -2625,7 +2632,14 @@ local function CreateAltitudeController()
                 if wheel ~= 0 then
                     local alt = element.data.target
                     if type(alt) ~= "number" then
-                        alt = 0
+                        --When transitioning from a non-numeric mode ("ground"/"max"/"min") into a fixed
+                        --altitude via the mouse wheel, anchor the starting point at the current display
+                        --altitude so the first tick steps up/down from the visible value.
+                        if m_altitudeMode == "cube" and element.data.currentLocInfo.loc ~= nil then
+                            alt = element.data.currentLocInfo.loc.withGroundAltitude.altitude
+                        else
+                            alt = 0
+                        end
                     end
 
                     if wheel > 0 then
@@ -2634,7 +2648,7 @@ local function CreateAltitudeController()
                         alt = alt - 1
                     end
 
-                    if element.data.currentLocInfo.loc ~= nil then
+                    if m_altitudeMode == "movement" and element.data.currentLocInfo.loc ~= nil then
                         if m_allowedAltitudeCalculator == nil then return end
                         local minAltitude, maxAltitude = m_allowedAltitudeCalculator(element.data.currentLocInfo.loc)
                         alt = math.clamp(alt, minAltitude, maxAltitude)
@@ -2683,9 +2697,24 @@ local function CreateAltitudeController()
                 if info.loc == nil then
                     return
                 end
+                local target = m_altitudeController.data.target
+
+                if m_altitudeMode == "cube" then
+                    local groundAlt = info.loc.withGroundAltitude.altitude
+                    local alt
+                    if type(target) == "number" then
+                        alt = target
+                        element.text = string.format("%d", alt)
+                    else
+                        alt = groundAlt
+                        element.text = string.format("Ground (%d)", alt)
+                    end
+                    info.loc = info.loc:WithAltitude(alt)
+                    return
+                end
+
                 if m_allowedAltitudeCalculator == nil then return end
                 local minAltitude, maxAltitude = m_allowedAltitudeCalculator(info.loc)
-                local target = m_altitudeController.data.target
                 local alt = info.loc.altitude
                 if target == "max" then
                     alt = maxAltitude
@@ -2721,7 +2750,13 @@ local function CreateAltitudeController()
                 press = function(element)
                     local alt = m_altitudeController.data.target
                     if type(alt) ~= "number" then
-                        alt = 0
+                        --In cube mode, seed from the current ground altitude under the cursor so
+                        --the first up/down click steps relative to what the user can see.
+                        if m_altitudeMode == "cube" and m_altitudeController.data.currentLocInfo.loc ~= nil then
+                            alt = m_altitudeController.data.currentLocInfo.loc.withGroundAltitude.altitude
+                        else
+                            alt = 0
+                        end
                     end
                     m_altitudeController:FireEventTree("setAltitude", alt + 1)
                 end,
@@ -2746,7 +2781,11 @@ local function CreateAltitudeController()
                 press = function(element)
                     local alt = m_altitudeController.data.target
                     if type(alt) ~= "number" then
-                        alt = 0
+                        if m_altitudeMode == "cube" and m_altitudeController.data.currentLocInfo.loc ~= nil then
+                            alt = m_altitudeController.data.currentLocInfo.loc.withGroundAltitude.altitude
+                        else
+                            alt = 0
+                        end
                     end
                     m_altitudeController:FireEventTree("setAltitude", alt - 1)
                 end,
@@ -2763,8 +2802,12 @@ local function CreateAltitudeController()
             },
         },
 
-        --max/min container.
+        --max/min container - only visible in movement (forced-movement) mode.
         gui.Panel {
+            classes = { "collapsed" },
+            setAltitudeMode = function(element, mode)
+                element:SetClass("collapsed", mode ~= "movement")
+            end,
             flow = "vertical",
             width = "auto",
             height = "auto",
@@ -2839,10 +2882,92 @@ local function CreateAltitudeController()
 
         },
 
+        --Ground toggle - only visible in cube mode. Clicking returns target to "ground".
+        gui.Panel {
+            classes = { "collapsed" },
+            setAltitudeMode = function(element, mode)
+                element:SetClass("collapsed", mode ~= "cube")
+            end,
+            styles = {
+                {
+                    selectors = { "groundButton" },
+                    bgimage = "panels/square.png",
+                    bgcolor = "#444444",
+                    border = 1,
+                    borderColor = "#888888",
+                },
+                {
+                    selectors = { "groundButton", "selected" },
+                    bgcolor = "#777733",
+                    borderColor = "#ffcc44",
+                },
+                {
+                    selectors = { "groundButton", "hover" },
+                    borderColor = "white",
+                },
+            },
+            flow = "horizontal",
+            width = "auto",
+            height = "auto",
+            valign = "center",
+            hmargin = 4,
+
+            gui.Label {
+                classes = { "groundButton" },
+                width = 60,
+                height = 22,
+                fontSize = 12,
+                valign = "center",
+                textAlignment = "center",
+                color = Styles.textColor,
+                text = "Ground",
+                pad = 2,
+                press = function(element)
+                    m_altitudeController:FireEventTree("setAltitude", "ground")
+                end,
+                setAltitude = function(element, val)
+                    element:SetClass("selected", val == "ground")
+                end,
+            },
+        },
+
 
     }
 
     return resultPanel
+end
+
+--- Switch the altitude controller into a given mode and reset its UI state when the
+--- mode actually changes. Pass nil to collapse it.
+--- @param mode nil|string  -- one of nil, "movement", "cube"
+local function SetAltitudeMode(mode)
+    if m_altitudeMode == mode then
+        --Mode unchanged: re-fire setAltitudeMode so any newly-created sub-panels sync,
+        --but don't clobber the user's chosen target.
+        if m_altitudeController ~= nil then
+            m_altitudeController:FireEventTree("setAltitudeMode", mode)
+        end
+        return
+    end
+
+    m_altitudeMode = mode
+
+    if m_altitudeController == nil then return end
+
+    m_altitudeController:SetClass("collapsed", mode == nil)
+    m_altitudeController:FireEventTree("setAltitudeMode", mode)
+
+    --Pick a sensible default target when entering a mode.
+    local defaultTarget = nil
+    if mode == "movement" then
+        defaultTarget = "max"
+    elseif mode == "cube" then
+        defaultTarget = "ground"
+    end
+    if defaultTarget ~= nil then
+        m_altitudeController.data.target = defaultTarget
+        m_altitudeController:FireEventTree("setAltitude", defaultTarget)
+    end
 end
 
 ---@return table<{loc: table, token: Token}>[]
@@ -3611,7 +3736,7 @@ CreateAbilityController = function()
             gui.SetFocus(element)
 
             g_synthesizedSpellsPanel:SetClass("collapsed", true)
-            m_altitudeController:SetClass("collapsed", true)
+            SetAltitudeMode(nil)
 
             g_currentSymbols = table.union(
                 { cast = args.cast, mode = 1, charges = ability:DefaultCharges(), spellname = ability.name },
@@ -3849,8 +3974,8 @@ CreateAbilityController = function()
             element.captureEscape = false
 
             if g_channeledResourcePanel ~= nil then g_channeledResourcePanel:SetClass("collapsed", true) end
-            m_altitudeController:SetClass("collapsed", true)
             m_allowedAltitudeCalculator = nil
+            SetAltitudeMode(nil)
 
             if g_actionBar ~= nil then g_actionBar:SetClassTree("invokingAbility", false) end
             if g_abilityController ~= nil then g_abilityController.mapfocus = false end
@@ -4084,7 +4209,7 @@ CreateAbilityController = function()
                 g_pointTargeting.shapeConfirmedLoc = nil
             end
 
-            if loc ~= nil and m_allowedAltitudeCalculator ~= nil then
+            if loc ~= nil and m_altitudeMode ~= nil then
                 local info = { loc = loc, point = point, panel = element }
                 m_altitudeController:FireEventTree("loc", info)
                 loc = info.loc
@@ -4573,6 +4698,15 @@ CreateAbilityController = function()
                     end
                 end
 
+                --For cube targeting, anchor the cube's bottom at the altitude the
+                --altitude controller has resolved on the hovered loc (ground by default,
+                --or a fixed value the user dialed in). Engine expects altitude in game
+                --units. Other shapes leave altitude nil so engine defaults apply.
+                local shapeAltitude = nil
+                if shape == "cube" and loc ~= nil then
+                    shapeAltitude = loc.altitude * dmhub.unitsPerSquare
+                end
+
                 g_pointTargeting.shape = dmhub.CalculateShape {
                     shape = shape,
                     targetPoint = point,
@@ -4585,6 +4719,7 @@ CreateAbilityController = function()
                     emptyMayIncludeSelf = requireEmpty and (targetingType == "pathfind" or targetingType == "vacated" or targetingType == "straightline" or targetingType == "straightpath" or targetingType == "straightpathignorecreatures"),
                     locations = locations,
                     targetFloorIndex = targetFloorIndex,
+                    altitude = shapeAltitude,
                 }
             elseif g_currentAbility.targetType == "map" then
                 g_pointTargeting.shapeRequiresConfirm = false
@@ -4716,9 +4851,22 @@ CreateAbilityController = function()
 
                     --pass loc.floor so the canvas's z is offset by the target floor's base
                     --altitude (cross-floor targeting renders the label on the right floor).
+                    --For cube targeting, also pass the cube's altitude (in tiles) so the
+                    --label parallaxes up with the cube outline (HighlightPerimeter pins the
+                    --cube perimeter mesh Z to the same altitude). loc.altitude is already
+                    --whatever the altitude controller resolved (ground or fixed value).
+                    --Override point.z to the cube altitude so the canvas lives at the cube
+                    --in 3D world space (point.z averaged ground altitude otherwise, which
+                    --would put the label below the cube outline).
+                    local labelAltitude = nil
+                    if loc ~= nil and g_currentAbility.targetType == "cube" then
+                        labelAltitude = loc.altitude
+                        point.z = loc.altitude
+                    end
                     g_pointTargeting.label = dmhub.CreateCanvasOnMap {
                         point = point, --loc.point3,
                         floorIndex = loc and loc.floor or nil,
+                        altitude = labelAltitude,
                         sheet = gui.Panel {
                             interactable = false,
                             halign = "center",
@@ -5398,7 +5546,7 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
                 end
 
                 m_allowedAltitudeCalculator = g_currentAbility:TargetLocMaxElevationChangeFunction(g_token, g_currentSymbols)
-                m_altitudeController:SetClass("collapsed", m_allowedAltitudeCalculator == nil)
+                SetAltitudeMode(m_allowedAltitudeCalculator ~= nil and "movement" or nil)
                 print("ALT:: CALC ALT:", m_allowedAltitudeCalculator)
 
 
@@ -5449,7 +5597,16 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
                     AddRadiusMarker(loc, range, 'white', filterTargetPredicate)
 
                     m_allowedAltitudeCalculator = g_currentAbility:TargetLocMaxElevationChangeFunction(g_token, g_currentSymbols)
-                    m_altitudeController:SetClass("collapsed", m_allowedAltitudeCalculator == nil)
+                    --Cube targeting opts into the controller in "cube" mode (no min/max
+                    --calculator; default is "On Ground"). Forced-movement abilities use
+                    --"movement" mode with a calculator that bounds min/max.
+                    if m_allowedAltitudeCalculator ~= nil then
+                        SetAltitudeMode("movement")
+                    elseif g_currentAbility.targetType == "cube" then
+                        SetAltitudeMode("cube")
+                    else
+                        SetAltitudeMode(nil)
+                    end
                 else
                     AddCustomAreaMarker(customLocs, 'white')
                 end

@@ -904,15 +904,15 @@ local function CreateTopBar()
                 }
 
                 if g_devInventorySetting:Get() then
-                    --items[#items+1] = {
-                    --    text = "Shop",
-                    --    icon = "icons/icon_shopping/shopping-cart.png",
-                    --    click = function()
-                    --        if CodexTitlescreenRoot ~= nil then
-                    --            CodexTitlescreenRoot:AddChild(CreateShopScreen{ titlescreen = CodexTitlescreenRoot })
-                    --        end
-                    --    end,
-                    --}
+                    items[#items+1] = {
+                        text = "Shop",
+                        icon = "icons/icon_shopping/shopping-cart.png",
+                        click = function()
+                            if CodexTitlescreenRoot ~= nil then
+                                CodexTitlescreenRoot:AddChild(CreateShopScreen{ titlescreen = CodexTitlescreenRoot })
+                            end
+                        end,
+                    }
                     items[#items+1] = {
                         text = "Inventory",
                         icon = "ui-icons/gift-icon.png",

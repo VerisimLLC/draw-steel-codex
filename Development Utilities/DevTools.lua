@@ -542,9 +542,9 @@ DockablePanel.Register{
 	end,
 }
 
--- Pool stress test: spawn N labels, time the rebuild on demand.
--- Used to measure SheetPanel pooling savings -- rebuild a fixed N labels with the
--- pool enabled vs disabled and compare ms.
+-- Pool stress test: spawn N gui.Check widgets, time the rebuild on demand.
+-- Used to investigate per-check construction cost -- the settings dialog spends
+-- ~19ms per check editor and we want to know why.
 DockablePanel.Register{
     name = "Pool Stress Test",
     devonly = true,
@@ -556,23 +556,110 @@ DockablePanel.Register{
         local m_lastDurationMs = 0
         local m_lastBuildN = 0
         local m_runs = {}  -- recent run durations for averaging
+        local m_mode = "check"  -- "label", "check", "checkPlain", "checkWrapped"
 
         -- Forward declarations so closures can refer to them.
         local m_labelsContainer
         local m_durationLabel
 
-        local function rebuild()
-            local sw = dmhub.Stopwatch()
-            local labels = {}
-            for i = 1, m_count do
-                labels[#labels+1] = gui.Label{
+        local makeItem = {
+            -- Plain label, the original baseline.
+            label = function(i)
+                return gui.Label{
                     text = string.format("Label %d / %d", i, m_count),
                     fontSize = 12,
                     width = "100%",
                     height = 14,
                 }
+            end,
+
+            -- Bare gui.Check with just text + value. No monitor, no event handlers,
+            -- no style table. Lower bound on per-Check cost.
+            checkPlain = function(i)
+                return gui.Check{
+                    value = false,
+                    text = string.format("Check %d / %d", i, m_count),
+                    halign = "left",
+                    style = {
+                        width = "100%",
+                        height = 40,
+                        fontSize = 14,
+                        hpad = 0,
+                    },
+                }
+            end,
+
+            -- Mirrors SettingsEditors.check (SettingsGui.lua:190): outer 90%-wide
+            -- wrapper panel containing a gui.Check with monitor + change events.
+            -- Uses a fake setting id so monitor wiring does real work.
+            check = function(i)
+                return gui.Panel{
+                    width = "90%",
+                    height = "auto",
+                    gui.Check{
+                        value = false,
+                        text = string.format("Check %d / %d", i, m_count),
+                        halign = "left",
+                        style = {
+                            width = "100%",
+                            height = 40,
+                            fontSize = 14,
+                            hpad = 0,
+                        },
+                        events = {
+                            monitor = function() end,
+                            change = function() end,
+                        },
+                    }
+                }
+            end,
+
+            -- Like check, but also wrapped in the outer container that
+            -- CreateSettingsEditor adds (SettingsGui.lua:583). This is the most
+            -- faithful repro of what the settings dialog actually builds.
+            checkWrapped = function(i)
+                local fakeId = string.format("dev:poolstress:%d", i)
+                local panel = gui.Panel{
+                    width = "90%",
+                    height = "auto",
+                    gui.Check{
+                        value = false,
+                        text = string.format("Check %d / %d", i, m_count),
+                        halign = "left",
+                        style = {
+                            width = "100%",
+                            height = 40,
+                            fontSize = 14,
+                            hpad = 0,
+                        },
+                        monitor = fakeId,
+                        events = {
+                            monitor = function() end,
+                            change = function() end,
+                        },
+                    }
+                }
+                return gui.Panel{
+                    halign = "center",
+                    selfStyle = {
+                        width = "auto",
+                        height = "auto",
+                        pad = 0,
+                        margin = 0,
+                    },
+                    children = { panel },
+                }
+            end,
+        }
+
+        local function rebuild()
+            local fn = makeItem[m_mode] or makeItem.check
+            local sw = dmhub.Stopwatch()
+            local items = {}
+            for i = 1, m_count do
+                items[#items+1] = fn(i)
             end
-            m_labelsContainer.children = labels
+            m_labelsContainer.children = items
             m_lastDurationMs = sw.milliseconds
             m_lastBuildN = m_count
             m_runs[#m_runs+1] = m_lastDurationMs
@@ -585,8 +672,10 @@ DockablePanel.Register{
             local avg = total / #m_runs
 
             m_durationLabel.text = string.format(
-                "Last: %d labels in %d ms\nAvg of last %d runs: %.1f ms\n(check console for any 'Perf: Long frame' lines)",
-                m_lastBuildN, m_lastDurationMs, #m_runs, avg)
+                "Mode: %s\nLast: %d items in %d ms (%.2f ms/item)\nAvg of last %d runs: %.1f ms",
+                m_mode, m_lastBuildN, m_lastDurationMs,
+                m_lastBuildN > 0 and (m_lastDurationMs / m_lastBuildN) or 0,
+                #m_runs, avg)
         end
 
         m_labelsContainer = gui.Panel{
@@ -618,7 +707,7 @@ DockablePanel.Register{
                 flow = "horizontal",
                 halign = "left",
                 gui.Label{
-                    text = "N labels:",
+                    text = "N items:",
                     width = 70, height = 24, fontSize = 14,
                     valign = "center",
                 },
@@ -630,6 +719,25 @@ DockablePanel.Register{
                         if n and n >= 0 and n <= 100000 then
                             m_count = math.floor(n)
                         end
+                    end,
+                },
+                gui.Label{
+                    text = "Mode:",
+                    width = 50, height = 24, fontSize = 14,
+                    valign = "center",
+                    hmargin = 8,
+                },
+                gui.Dropdown{
+                    options = {
+                        { id = "label", text = "label" },
+                        { id = "checkPlain", text = "checkPlain" },
+                        { id = "check", text = "check (settings repro)" },
+                        { id = "checkWrapped", text = "checkWrapped (full editor)" },
+                    },
+                    idChosen = m_mode,
+                    width = 200, height = 24, fontSize = 14,
+                    change = function(element)
+                        m_mode = element.idChosen
                     end,
                 },
             },

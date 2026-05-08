@@ -27,11 +27,12 @@ function ActivatedAbilityFloatTextBehavior:Cast(ability, casterToken, targets, o
     print("CAST:: FLOAT", #targets)
     for _,target in ipairs(targets) do
         if target.token ~= nil then
+            local text = StringInterpolateGoblinScript(self.text, GenerateSymbols(casterToken.properties, options.symbols))
             target.token:ModifyProperties{
                 description = "Float text",
                 undoable = false,
                 execute = function()
-                    target.token.properties:FloatLabel(self.text, self.color)
+                    target.token.properties:FloatLabel(text, self.color)
                 end,
             }
         end

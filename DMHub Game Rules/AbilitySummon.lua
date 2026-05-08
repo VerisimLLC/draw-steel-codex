@@ -147,12 +147,12 @@ function ActivatedAbilitySummonBehavior.ShowSquadChoiceDialog(casterToken, monst
         if minionStatusLabel ~= nil and minionStatusLabel.valid then
             local text, exceeded = FormatMinionStatus()
             minionStatusLabel.text = text
-            minionStatusLabel.color = cond(exceeded, "#ff6666", "#cccccc")
+            minionStatusLabel:SetClass("exceeded", exceeded)
         end
         if squadStatusLabel ~= nil and squadStatusLabel.valid then
             local text, exceeded = FormatSquadStatus(chosenIsNew)
             squadStatusLabel.text = text
-            squadStatusLabel.color = cond(exceeded, "#ff6666", "#cccccc")
+            squadStatusLabel:SetClass("exceeded", exceeded)
         end
     end
 
@@ -160,24 +160,22 @@ function ActivatedAbilitySummonBehavior.ShowSquadChoiceDialog(casterToken, monst
         local row
         row = gui.Panel{
             classes = {"squadOption", cond(warn, "warn")},
-            bgimage = "panels/square.png",
             flow = "horizontal",
             gui.Label{
+                classes = {"sizeM"},
                 text = labelText,
                 textAlignment = "left",
                 halign = "left",
-                fontSize = 16,
                 width = "60%",
                 height = "auto",
             },
             gui.Label{
+                classes = {"sizeS", "squadOptionNote"},
                 text = noteText or "",
                 textAlignment = "left",
                 halign = "left",
-                fontSize = 14,
                 width = "auto",
                 height = "auto",
-                color = cond(warn, "#ffaa66", "#cccccc"),
             },
             press = function(element)
                 for _,p in ipairs(optionPanels) do
@@ -225,32 +223,28 @@ function ActivatedAbilitySummonBehavior.ShowSquadChoiceDialog(casterToken, monst
     local initialSquadText, initialSquadExceeded = FormatSquadStatus(chosenIsNew)
 
     minionStatusLabel = gui.Label{
+        classes = {"sizeS", "statusLabel", cond(initialMinionExceeded, "exceeded")},
         text = initialMinionText,
         textAlignment = "center",
         halign = "center",
-        fontSize = 14,
+        valign = "top",
         width = 560,
         height = "auto",
-        color = cond(initialMinionExceeded, "#ff6666", "#cccccc"),
         vmargin = 2,
     }
 
     squadStatusLabel = gui.Label{
+        classes = {"sizeS", "statusLabel", cond(initialSquadExceeded, "exceeded")},
         text = initialSquadText,
         textAlignment = "center",
         halign = "center",
-        fontSize = 14,
+        valign = "top",
         width = 560,
         height = "auto",
-        color = cond(initialSquadExceeded, "#ff6666", "#cccccc"),
         vmargin = 2,
     }
 
     gamehud:ModalDialog{
-        classes = {"framedPanel"},
-        bgimage = 'panels/square.png',
-        bgcolor = Styles.backgroundColor,
-        borderColor = Styles.textColor,
         title = "Assign to Squad",
         buttons = {
             {
@@ -269,7 +263,7 @@ function ActivatedAbilitySummonBehavior.ShowSquadChoiceDialog(casterToken, monst
             },
         },
 
-        styles = {
+        styles = ThemeEngine.MergeTokens{
             {
                 selectors = {"squadOption"},
                 height = 28,
@@ -279,40 +273,34 @@ function ActivatedAbilitySummonBehavior.ShowSquadChoiceDialog(casterToken, monst
                 hmargin = 20,
                 vmargin = 2,
                 vpad = 4,
-                bgcolor = "#00000000",
+                bgimage = true,
+                bgcolor = "clear",
             },
-            {
-                selectors = {"squadOption","warn"},
-                bgcolor = "#552222aa",
-            },
-            {
-                selectors = {"squadOption","hover"},
-                bgcolor = "#ffff0088",
-            },
-            {
-                selectors = {"squadOption","warn","hover"},
-                bgcolor = "#aa5522aa",
-            },
-            {
-                selectors = {"squadOption","selected"},
-                bgcolor = "#ff000088",
-            },
-            {
-                selectors = {"squadOption","warn","selected"},
-                bgcolor = "#ff4422cc",
-            },
+            { selectors = {"squadOption","warn"},            bgcolor = "@danger" },
+            { selectors = {"squadOption","hover"},           bgcolor = "@bgAlt" },
+            { selectors = {"squadOption","warn","hover"},    bgcolor = "@danger", brightness = 1.3 },
+            { selectors = {"squadOption","selected"},        bgcolor = "@accent" },
+            { selectors = {"squadOption","warn","selected"}, bgcolor = "@danger", brightness = 1.5 },
+
+            { selectors = {"statusLabel"},                   color = "@fgMuted" },
+            { selectors = {"statusLabel","exceeded"},        color = "@danger" },
+
+            { selectors = {"squadOptionNote"},               color = "@fgMuted" },
+            { selectors = {"squadOptionNote","parent:warn"}, color = "@warning" },
         },
 
         width = 650,
         height = 500,
         flow = "vertical",
 
+
         children = {
             gui.Label{
+                classes = {"sizeM"},
                 text = string.format("Summoning %d %s%s - choose a squad:", numSummons, monsterType, cond(numSummons == 1, "", "s")),
                 textAlignment = "center",
                 halign = "center",
-                fontSize = 16,
+                valign = "top",
                 width = 600,
                 height = "auto",
                 vmargin = 6,
@@ -362,10 +350,10 @@ function ActivatedAbilitySummonBehavior.ShowCreatureChoiceDialog(choices, dialog
 	local allSameCheck = nil
 	if dialogOptions.index ~= nil and dialogOptions.index < dialogOptions.numSummons and (not dialogOptions.allCreaturesTheSame) then
 		allSameCheck = gui.Check{
+			classes = {"sizeS"},
 			halign = "right",
 			valign = "bottom",
 			hmargin = 32,
-			fontSize = 14,
 			width = 460,
 			height = 30,
 			text = string.format("Use this choice for all %s summons", json(1+dialogOptions.numSummons - dialogOptions.index)),
@@ -391,24 +379,23 @@ function ActivatedAbilitySummonBehavior.ShowCreatureChoiceDialog(choices, dialog
 	for i,option in ipairs(choices) do
 		local panel = gui.Panel{
 			classes = {"option"},
-			bgimage = "panels/square.png",
 			flow = "horizontal",
 			data = {
 				CR = option.properties:CR()
 			},
 			gui.Label{
+				classes = {"sizeM"},
 				text = option.properties.monster_type,
 				textAlignment = "left",
 				halign = "left",
-				fontSize = 16,
 				width = "60%",
 				height = "auto",
 			},
 			gui.Label{
+				classes = {"sizeM"},
 				text = string.format("Level %s", option.properties:PrettyCR()),
 				textAlignment = "left",
 				halign = "left",
-				fontSize = 16,
 				width = "auto",
 				height = "auto",
 			},
@@ -442,11 +429,9 @@ function ActivatedAbilitySummonBehavior.ShowCreatureChoiceDialog(choices, dialog
 	ShowMaxCROnly(dmhub.GetSettingValue("summoncrcheck"))
 
 	gamehud:ModalDialog{
-		classes = {"framedPanel"},
-        bgimage = 'panels/square.png',
-        bgcolor = Styles.backgroundColor,
-        borderColor = Styles.textColor,
 		title = dialogOptions.title or "Summon Creature",
+        valign = "top",
+        tmargin = 12,
 		buttons = {
 			{
 				text = dialogOptions.buttonText or "Summon",
@@ -464,7 +449,7 @@ function ActivatedAbilitySummonBehavior.ShowCreatureChoiceDialog(choices, dialog
 			},
 		},
 
-		styles = {
+		styles = ThemeEngine.MergeTokens{
 			{
 				selectors = {"option"},
 				height = 24,
@@ -474,40 +459,35 @@ function ActivatedAbilitySummonBehavior.ShowCreatureChoiceDialog(choices, dialog
 				hmargin = 20,
 				vmargin = 0,
 				vpad = 4,
-				bgcolor = "#00000000",
+				bgimage = true,
+				bgcolor = "clear",
 			},
-			{
-				selectors = {"option","hover"},
-				bgcolor = "#ffff0088",
-			},
-			{
-				selectors = {"option","selected"},
-				bgcolor = "#ff000088",
-			},
+			{ selectors = {"option","hover"},    bgcolor = "@bgAlt" },
+			{ selectors = {"option","selected"}, bgcolor = "@accent" },
 		},
 
 		width = 650,
 		height = 700,
-
 		flow = "vertical",
 
 		children = {
-			
+
 			gui.Panel{
+                classes = {"bordered"},
+				width = 600,
+				height = 500,
+				valign = "top",
+				halign = "center",
+                vpad = 8,
 				flow = "vertical",
 				vscroll = true,
-				valign = "top",
-				width = 600,
-				halign = "center",
-				height = 500,
 				children = optionPanels,
 			},
 			gui.Check{
-				classes = {cond(minCR == maxCR, "hidden")},
+				classes = {"sizeS", cond(minCR == maxCR, "hidden")},
 				halign = "right",
 				valign = "bottom",
 				hmargin = 32,
-				fontSize = 14,
 				width = 460,
 				height = 30,
 				text = string.format("Show only Level %s creatures", maxPrettyCR),

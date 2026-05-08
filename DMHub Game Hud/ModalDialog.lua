@@ -68,7 +68,7 @@ function GameHud:ModalDialog(options)
 		height = "100%-32",
 		flow = "vertical",
 		halign = "center",
-		valign = "center",
+		valign = "top",
 		children = {
 			title,
 			clientPanel,

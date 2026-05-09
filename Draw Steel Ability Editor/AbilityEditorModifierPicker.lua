@@ -27,7 +27,7 @@ local function _pickerStyles()
         -- "dark fill + accent border" look the user wants to keep.
         {
             selectors = {"picker-card"},
-            bgimage = "panels/square.png",
+            bgimage = true,
             bgcolor = "@bgAlt",
             borderWidth = 1,
             borderColor = "@border",
@@ -41,7 +41,7 @@ local function _pickerStyles()
         -- Suggested-search chip (rounded capsule).
         {
             selectors = {"picker-chip"},
-            bgimage = "panels/square.png",
+            bgimage = true,
             bgcolor = "@bgAlt",
             borderWidth = 1,
             borderColor = "@border",
@@ -55,7 +55,7 @@ local function _pickerStyles()
         -- 1px divider between Recently Used and the rest.
         {
             selectors = {"picker-divider"},
-            bgimage = "panels/square.png",
+            bgimage = true,
             bgcolor = "@accent",
             opacity = 0.4,
         },

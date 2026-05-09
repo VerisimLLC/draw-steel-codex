@@ -48,39 +48,15 @@ local g_popoutSpawnCount = 0
 -- lexical scope at parse time.
 local openTestTriggerPopout
 
--- Fallback palette used if AbilityEditor hasn't published COLORS yet. Keeps
--- the editor renderable even if load order shifts.
-local FALLBACK_COLORS = {
-    BG = "#080B09",
-    PANEL_BG = "#10110F",
-    -- Card background for the Trigger Preview / How This Triggers panes.
-    -- Uses the DS "rich black" swatch (#040807 -- see
-    -- `Draw Steel Core Rules\MCDMCharacterPanel.lua:34` where it's the
-    -- canonical card fill). Slightly darker than the column BG so the
-    -- cards read as inset / recessed; the 2px gold border carries the
-    -- visual separation so cards pop against the column despite being
-    -- darker. This matches the DS card styling guideline the user
-    -- referenced.
-    CARD_BG = "#040807",
-    GOLD = "#966D4B",
-    GOLD_BRIGHT = "#F1D3A5",
-    GOLD_DIM = "#E9B86F",
-    CREAM = "#BC9B7B",
-    CREAM_BRIGHT = "#DFCFC0",
-    GRAY = "#666663",
-}
 
-local function getColors()
-    local AE = rawget(_G, "AbilityEditor")
-    if AE ~= nil and AE.COLORS ~= nil then
-        -- AE.COLORS predates CARD_BG (this file introduced it). Splice in
-        -- the latest value on every call so iterative tuning of CARD_BG
-        -- propagates across reloads without stale caching.
-        AE.COLORS.CARD_BG = FALLBACK_COLORS.CARD_BG
-        return AE.COLORS
-    end
-    return FALLBACK_COLORS
+-- Theme-resolved color snapshot for inline panel constructors that can't
+-- carry @-tokens directly (those only resolve in cascade rules). One-shot
+-- snapshot at file load; chip / title labels are short-lived enough to
+-- accept that on theme switches they re-resolve next open.
+local function _resolveThemeColor(token)
+    return ThemeEngine.MergeTokens({{selectors = {"_resolve"}, color = token}})[1].color
 end
+local g_themeFgInverse = _resolveThemeColor("@fgInverse")
 
 -- Ordered section list. IDs stable; labels can change later. (Setup was
 -- renamed from Response 2026-04-24 when the trigger-level Target Type +
@@ -554,30 +530,24 @@ local function _filterTriggers(query, entries)
 end
 
 -- Picker-specific style extras appended to the modal's cascade root via
--- ThemeEngine.MergeTokens. Keeps the picker's "dark fill + accent border"
--- card look but routes the colors through @-tokens so the cards re-color
--- with the active scheme. Hover state requires cascade rules (cannot inline).
+-- ThemeEngine.MergeTokens. Keeps the picker's "dark fill" card look but
+-- routes the colors through @-tokens so the cards re-color with the
+-- active scheme. Border comes from the {bordered} class composed on
+-- consuming panels.
 local function _pickerStyles()
     return {
         {
             selectors = {"picker-card"},
-            bgimage = "panels/square.png",
+            bgimage = true,
             bgcolor = "@bgAlt",
-            borderWidth = 1,
-            borderColor = "@border",
-            cornerRadius = 3,
             borderBox = true,
-        },
-        {
-            selectors = {"picker-card", "hover"},
-            borderColor = "@accentHover",
         },
     }
 end
 
 local function _makeTriggerCard(entry, onSelect)
     return gui.Panel{
-        classes = {"picker-card"},
+        classes = {"picker-card", "bordered"},
         width = "100%",
         height = "auto",
         flow = "vertical",
@@ -747,7 +717,7 @@ local function openTriggerEventPicker(currentId, onChosen)
     }
 
     local dialogPanel = gui.Panel{
-        classes = {"framedPanel"},
+        classes = {"framedPanel", "bordered"},
         styles = { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(_pickerStyles()) },
         width = 600,
         height = 600,
@@ -789,7 +759,6 @@ end
 -- always sets a default trigger id ("losehitpoints"), so the field never
 -- needs an empty state.
 local function makeTriggerEventButton(ability, refreshSection)
-    local COLORS = getColors()
     return gui.Panel{
         width = "auto",
         height = 30,
@@ -813,7 +782,7 @@ local function makeTriggerEventButton(ability, refreshSection)
                         halign = "left",
                         valign = "center",
                         rmargin = 10,
-                        bgimage = "panels/square.png",
+                        bgimage = true,
                         classes = {"bgAccent"},
                     },
                     gui.Label{
@@ -821,16 +790,14 @@ local function makeTriggerEventButton(ability, refreshSection)
                         height = "auto",
                         valign = "center",
                         textAlignment = "left",
-                        fontSize = 14,
-                        bold = true,
-                        classes = {"fg"},
+                        classes = {"fg", "sizeS", "bold"},
                         text = getTriggerLabel(ability.trigger),
                     },
                 },
             },
             gui.Button{
+            	classes = {"sizeS"},
                 text = "Change",
-                fontSize = 14,
                 width = 100,
                 height = 28,
                 halign = "left",
@@ -1054,7 +1021,6 @@ local function isAdvancedMode(value)
 end
 
 local function buildTriggerModeControl(ability, refreshSection)
-    local COLORS = getColors()
     local currentMode = ability.mandatory
 
     -- Segmented-toggle button for a common mode. Highlights gold when this
@@ -1070,10 +1036,8 @@ local function buildTriggerModeControl(ability, refreshSection)
             hpad = 8,
             vpad = 4,
             borderBox = true,
-            bgimage = "panels/square.png",
-            classes = {selected and "bgAccent" or "bgAlt", "border"},
-            borderWidth = 1,
-            cornerRadius = 0,
+            bgimage = true,
+            classes = {selected and "bgAccent" or "bgAlt", "border", "bordered"},
             press = function()
                 if ability.mandatory ~= option.id then
                     ability.mandatory = option.id
@@ -1085,8 +1049,7 @@ local function buildTriggerModeControl(ability, refreshSection)
                     width = "100%",
                     height = "100%",
                     textAlignment = "center",
-                    fontSize = 14,
-                    classes = {selected and "fgInverse" or "fg"},
+                    classes = {selected and "fgInverse" or "fg", "sizeS"},
                     bold = selected,
                     text = option.label,
                 },
@@ -1127,23 +1090,20 @@ local function buildTriggerModeControl(ability, refreshSection)
             end,
             children = {
                 gui.Panel{
+                    classes = selected and {"bordered", "bgAccent"} or {"bordered"},
                     width = 14,
                     height = 14,
+                    cornerRadius = 7,
                     rmargin = 8,
                     halign = "left",
                     valign = "center",
-                    bgimage = "panels/square.png",
-                    classes = selected and {"bgAccent", "border"} or {"border"},
                     bgcolor = (not selected) and "clear" or nil,
-                    borderWidth = 1,
-                    cornerRadius = 7,
                 },
                 gui.Label{
                     width = "auto",
                     height = "auto",
                     textAlignment = "left",
-                    fontSize = 14,
-                    classes = {"fg"},
+                    classes = {"fg", "sizeS"},
                     text = option.label,
                 },
             },
@@ -1420,9 +1380,8 @@ local function buildKeywordsPicker(ability, fireChange)
                 vmargin = 2,
                 bgcolor = "clear",
                 gui.Label{
+                	classes = {"sizeXs", "bold"},
                     text = item.text,
-                    fontSize = 11,
-                    bold = true,
                     halign = "left",
                     valign = "center",
                     width = "auto",
@@ -1751,7 +1710,6 @@ local function pickOverride(override, derived)
 end
 
 local function buildTriggerPreviewCard(ability)
-    local COLORS = getColors()
     local CARD_WIDTH = LAYOUT.PREVIEW_WIDTH - 2 * LAYOUT.COL_HPAD - LAYOUT.SCROLL_GUTTER
 
     -- Card Type: explicit override only (no derivation; the dropdown picks
@@ -1842,19 +1800,17 @@ local function buildTriggerPreviewCard(ability)
     local function derivedOrBlank(value)
         if value == nil or value == "" then
             return gui.Label{
+            	classes = {"fgMuted", "sizeS"},
                 text = BLANK,
-                color = COLORS.GRAY,
                 italics = true,
-                fontSize = 13,
                 height = "auto",
                 width = "auto",
                 halign = "left",
             }
         end
         return gui.Label{
+        	classes = {"fg", "sizeS"},
             text = value,
-            color = COLORS.CREAM_BRIGHT,
-            fontSize = 13,
             height = "auto",
             width = "auto",
             halign = "left",
@@ -1871,10 +1827,9 @@ local function buildTriggerPreviewCard(ability)
         local valueLabel
         if value == nil or value == "" then
             valueLabel = gui.Label{
+            	classes = {"fgMuted", "sizeS"},
                 text = BLANK,
-                color = COLORS.GRAY,
                 italics = true,
-                fontSize = 13,
                 height = "auto",
                 width = "auto",
                 halign = "left",
@@ -1882,9 +1837,8 @@ local function buildTriggerPreviewCard(ability)
             }
         else
             valueLabel = gui.Label{
+            	classes = {"fg", "sizeS"},
                 text = value,
-                color = COLORS.CREAM_BRIGHT,
-                fontSize = 13,
                 height = "auto",
                 width = valueMax,
                 textWrap = true,
@@ -1900,10 +1854,8 @@ local function buildTriggerPreviewCard(ability)
             bgcolor = "clear",
             children = {
                 gui.Label{
+                	classes = {"fgStrong", "bold", "sizeS"},
                     text = key,
-                    color = COLORS.GOLD_DIM,
-                    bold = true,
-                    fontSize = 13,
                     height = "auto",
                     width = "auto",
                     rmargin = 4,
@@ -1947,28 +1899,23 @@ local function buildTriggerPreviewCard(ability)
             borderBox = true,
             children = {
                 gui.Label{
+                	classes = {"fgStrong", "bold", "sizeS"},
                     text = key,
-                    color = COLORS.GOLD_DIM,
-                    bold = true,
-                    fontSize = 13,
                     height = "auto",
                     width = "auto",
                     rmargin = 4,
                     valign = "top",
                 },
                 (value == nil or value == "") and gui.Label{
+                	classes = {"fgMuted", "sizeS", "fg", "sizeS"},
                     text = isProse and "(no condition)" or BLANK,
-                    color = COLORS.GRAY,
                     italics = true,
-                    fontSize = 13,
                     height = "auto",
                     width = CARD_WIDTH - 96,
                     halign = "left",
                     textWrap = true,
                 } or gui.Label{
                     text = value,
-                    color = COLORS.CREAM_BRIGHT,
-                    fontSize = 13,
                     height = "auto",
                     width = CARD_WIDTH - 96,
                     halign = "left",
@@ -1979,6 +1926,7 @@ local function buildTriggerPreviewCard(ability)
     end
 
     return gui.Panel{
+    	classes = {"bgAlt", "bordered"},
         width = CARD_WIDTH,
         height = "auto",
         flow = "vertical",
@@ -1986,21 +1934,16 @@ local function buildTriggerPreviewCard(ability)
         valign = "top",
         -- bgimage required for bgcolor + borderColor to paint; bgcolor alone
         -- is a no-op in the DMHub GUI runtime.
-        bgimage = "panels/square.png",
-        bgcolor = COLORS.CARD_BG,
-        borderWidth = 2,
-        borderColor = COLORS.GOLD_DIM,
-        cornerRadius = 4,
+        bgimage = true,
         vpad = 10,
         hpad = 12,
         borderBox = true,
         children = {
             gui.Label{
+            	classes = {"bold", "sizeM"},
                 text = titleText,
-                bold = true,
-                fontSize = 15,
-                color = "white",
-                bgimage = "panels/square.png",
+                color = g_themeFgInverse,
+                bgimage = true,
                 bgcolor = titleColor,
                 width = "100%",
                 height = "auto",
@@ -2014,10 +1957,9 @@ local function buildTriggerPreviewCard(ability)
             -- with where the title text sits inside the yellow bar (per
             -- 2026-04-24 feedback that flavour was offset slightly).
             gui.Label{
+            	classes = {"fg", "sizeS"},
                 text = flavorText or "",
                 italics = true,
-                color = COLORS.CREAM_BRIGHT,
-                fontSize = 13,
                 width = "100%",
                 height = "auto",
                 hpad = 6,
@@ -2030,10 +1972,10 @@ local function buildTriggerPreviewCard(ability)
             kvRow("Distance:", distText, "Target:", targetText),
             -- Divider
             gui.Panel{
+            	classes = {"bgFg"},
                 width = "100%",
                 height = 1,
-                bgimage = "panels/square.png",
-                bgcolor = COLORS.GOLD,
+                bgimage = true,
                 tmargin = 6,
                 bmargin = 4,
             },
@@ -2422,7 +2364,6 @@ end
 -- the chip reads as part of the "How This Triggers" label row instead of
 -- taking its own row inside the card.
 local function buildMechanicalView(ability)
-    local COLORS = getColors()
     local CARD_WIDTH = LAYOUT.PREVIEW_WIDTH - 2 * LAYOUT.COL_HPAD - LAYOUT.SCROLL_GUTTER
 
     -- Gather row values + validation status in one pass so the rollup chip
@@ -2542,7 +2483,7 @@ local function buildMechanicalView(ability)
     -- Rollup chip text and colour.
     local rollupText = (issueCount == 0) and "Trigger ready"
         or string.format("%d issue%s", issueCount, issueCount == 1 and "" or "s")
-    local rollupColor = (issueCount == 0) and "#5e8c4a" or "#c47e2c"
+    local rollupClass = (issueCount == 0) and "bgSuccess" or "bgWarning"
 
     -- Trigger Summary (when / then clauses). When-clause goes through the
     -- prose engine's RenderTriggerSentence so we get the same composition
@@ -2562,19 +2503,18 @@ local function buildMechanicalView(ability)
 
     -- Row renderer. Label left-aligned in a fixed-width column so values
     -- line up across rows; chip pinned to the right.
-    -- Chip can be a string (legacy, defaults to amber "issue" color) or
-    -- {text, class} (themed class: bgDanger for runtime bugs, bgWarning
-    -- for typo-class issues). String form maps to amber default (#c47e2c)
-    -- for structural errors that pre-date the themed class migration.
+    -- Chip can be a string (legacy, defaults to bgWarning) or
+    -- {text, class} (themed status-bg class: bgDanger / bgWarning / bgInfo
+    -- / bgSuccess). The class supplies bgcolor + bgimage via DefaultStyles
+    -- cascade; the chip Label only needs the class + the inverse text color.
     local function buildRow(entry)
-        local chipText, chipColor, chipClass
+        local chipText, chipClass
         if type(entry.chip) == "string" then
             chipText = entry.chip
-            chipColor = "#c47e2c"
+            chipClass = "bgWarning"
         elseif type(entry.chip) == "table" then
             chipText = entry.chip.text
-            chipClass = entry.chip.class
-            chipColor = entry.chip.color or (chipClass == nil and "#c47e2c" or nil)
+            chipClass = entry.chip.class or "bgWarning"
         end
         return gui.Panel{
             width = "100%",
@@ -2587,18 +2527,15 @@ local function buildMechanicalView(ability)
             borderBox = true,
             children = {
                 gui.Label{
+                	classes = {"fgStrong", "bold", "sizeS"},
                     text = entry.label,
-                    color = COLORS.GOLD_DIM,
-                    bold = true,
-                    fontSize = 13,
                     width = 110,
                     height = "auto",
                     halign = "left",
                 },
                 gui.Label{
+                	classes = {"sizeS", entry.hasIssue and "disabled" or nil},
                     text = entry.value,
-                    color = entry.hasIssue and COLORS.GRAY or COLORS.CREAM_BRIGHT,
-                    fontSize = 13,
                     width = CARD_WIDTH - 110 - (chipText and 140 or 0),
                     height = "auto",
                     halign = "left",
@@ -2609,13 +2546,8 @@ local function buildMechanicalView(ability)
                 -- second line inside the card rather than overflowing
                 -- the right border.
                 chipText ~= nil and gui.Label{
-                    classes = chipClass and {chipClass} or nil,
+                    classes = {chipClass, "sizeXs", "bold", "fgInverse"},
                     text = chipText,
-                    color = "white",
-                    fontSize = 11,
-                    bold = true,
-                    bgimage = true,
-                    bgcolor = chipColor,
                     width = 130,
                     height = "auto",
                     hpad = 6,
@@ -2634,6 +2566,7 @@ local function buildMechanicalView(ability)
     end
 
     local card = gui.Panel{
+    	classes = {"bgAlt", "bordered"},
         width = CARD_WIDTH,
         height = "auto",
         flow = "vertical",
@@ -2641,11 +2574,7 @@ local function buildMechanicalView(ability)
         valign = "top",
         -- bgimage required for bgcolor + borderColor to paint; bgcolor alone
         -- is a no-op in the DMHub GUI runtime.
-        bgimage = "panels/square.png",
-        bgcolor = COLORS.CARD_BG,
-        borderWidth = 2,
-        borderColor = COLORS.GOLD_DIM,
-        cornerRadius = 4,
+        bgimage = true,
         vpad = 10,
         hpad = 12,
         borderBox = true,
@@ -2661,10 +2590,10 @@ local function buildMechanicalView(ability)
             },
             -- Divider
             gui.Panel{
+            	classes = {"bgFg"},
                 width = "100%",
                 height = 1,
-                bgimage = "panels/square.png",
-                bgcolor = COLORS.GOLD,
+                bgimage = true,
                 tmargin = 8,
                 bmargin = 8,
             },
@@ -2672,10 +2601,9 @@ local function buildMechanicalView(ability)
             -- and "Then:" leads render bold (Unity rich-text <b> tags) while
             -- the rest of the clause stays regular weight.
             gui.Label{
+            	classes = {"fg", "sizeS"},
                 text = "<b>Triggers when:</b> " .. (whenClause ~= "" and whenClause or "(no trigger set)"),
                 markdown = true,
-                color = COLORS.CREAM_BRIGHT,
-                fontSize = 13,
                 italics = true,
                 width = "100%",
                 height = "auto",
@@ -2684,10 +2612,9 @@ local function buildMechanicalView(ability)
                 bmargin = 4,
             },
             gui.Label{
+            	classes = {"fg", "sizeS"},
                 text = "<b>Then:</b> " .. thenClause,
                 markdown = true,
-                color = COLORS.CREAM_BRIGHT,
-                fontSize = 13,
                 italics = true,
                 width = "100%",
                 height = "auto",
@@ -2697,7 +2624,7 @@ local function buildMechanicalView(ability)
         },
     }
 
-    return card, { text = rollupText, color = rollupColor }
+    return card, { text = rollupText, class = rollupClass }
 end
 
 --[[
@@ -2881,14 +2808,13 @@ local function openTokenPicker(title, preferred, secondary, currentId, onSelect)
     local function buildTokenRow(tok)
         local selected = tok.id == currentId
         return gui.Panel{
-            classes = selected and {"tokenPickerRow", "selected"} or {"tokenPickerRow"},
+            classes = selected and {"bordered", "tokenPickerRow", "selected"} or {"bordered", "tokenPickerRow"},
             width = "100%",
             height = "auto",
             flow = "horizontal",
             halign = "left",
             valign = "center",
-            bgimage = "panels/square.png",
-            cornerRadius = 3,
+            bgimage = true,
             hpad = 10,
             vpad = 6,
             bmargin = 4,
@@ -2905,9 +2831,8 @@ local function openTokenPicker(title, preferred, secondary, currentId, onSelect)
                     valign = "center",
                 }),
                 gui.Label{
-                    classes = {"tokenPickerRowName"},
+                    classes = {"tokenPickerRowName", "sizeM"},
                     text = tokenDisplayName(tok),
-                    fontSize = 16,
                     bold = selected,
                     width = "100%-54",
                     height = "auto",
@@ -2922,10 +2847,8 @@ local function openTokenPicker(title, preferred, secondary, currentId, onSelect)
 
     local function buildGroupHeader(text)
         return gui.Label{
-            classes = {"tokenPickerGroupHeader"},
+            classes = {"tokenPickerGroupHeader", "bold", "sizeS"},
             text = text,
-            bold = true,
-            fontSize = 14,
             width = "100%",
             height = "auto",
             halign = "left",
@@ -2945,10 +2868,9 @@ local function openTokenPicker(title, preferred, secondary, currentId, onSelect)
     end
     if #rows == 0 then
         rows[#rows + 1] = gui.Label{
-            classes = {"tokenPickerEmpty"},
+            classes = {"tokenPickerEmpty", "sizeS"},
             text = "No tokens on this map.",
             italics = true,
-            fontSize = 14,
             width = "100%",
             height = "auto",
             halign = "left",
@@ -2980,13 +2902,13 @@ local function openTokenPicker(title, preferred, secondary, currentId, onSelect)
         -- Override the base framedPanel rule so the modal frame paints
         -- the active scheme's @bg surface and @accent border instead of
         -- the legacy near-black default. priority=3 beats the default rule.
+        -- Border comes from the {bordered} class composed on the dialog
+        -- panel itself (drops borderWidth / borderColor inline).
         {
             selectors = {"framedPanel"},
             priority = 3,
-            bgimage = "panels/square.png",
+            bgimage = true,
             bgcolor = "@bg",
-            borderColor = "@border",
-            borderWidth = 2,
             gradient = flatGradient,
         },
         {
@@ -3012,21 +2934,14 @@ local function openTokenPicker(title, preferred, secondary, currentId, onSelect)
         {
             selectors = {"panel", "tokenPickerRow"},
             bgcolor = "@bgAlt",
-            borderColor = "@border",
-            borderWidth = 1,
             priority = 4,
-        },
-        {
-            selectors = {"panel", "tokenPickerRow", "selected"},
-            borderColor = "@accentHover",
-            priority = 5,
         },
     })) do
         stylesList[#stylesList+1] = rule
     end
 
     local dialogPanel = gui.Panel{
-        classes = {"framedPanel"},
+        classes = {"framedPanel", "bordered"},
         styles = stylesList,
         width = 480,
         height = 560,
@@ -3038,10 +2953,8 @@ local function openTokenPicker(title, preferred, secondary, currentId, onSelect)
         fontFace = "Berling",
         children = {
             gui.Label{
-                classes = {"compendiumDialogTitle"},
+                classes = {"compendiumDialogTitle", "sizeL", "bold"},
                 text = title,
-                fontSize = 20,
-                bold = true,
                 width = "auto",
                 height = "auto",
                 halign = "left",
@@ -3091,17 +3004,15 @@ end
 -- control so authors can tell tokens apart visually (two goblins with
 -- the same name become distinguishable by portrait).
 local function buildTokenPickerButton(ability, casterToken, subjectFilter, currentId, onSelect, pickerTitle, memo)
-    local COLORS = getColors()
     local preferred, secondary = categoriseSceneTokens(ability, casterToken, subjectFilter, memo)
 
     if #preferred == 0 and #secondary == 0 then
         return gui.Label{
+        	classes = {"fgMuted", "sizeXs"},
             text = subjectFilter
                 and ("No tokens on this map match the " .. subjectFilter .. " filter.")
                 or "No tokens on this map.",
-            color = COLORS.GRAY,
             italics = true,
-            fontSize = 12,
             width = "100%-100",
             height = "auto",
             halign = "left",
@@ -3123,21 +3034,16 @@ local function buildTokenPickerButton(ability, casterToken, subjectFilter, curre
     end
 
     return gui.Panel{
+    	classes = {"bgAlt", "bordered"},
         width = "100%-100",
         height = 36,
         flow = "horizontal",
         halign = "left",
         valign = "center",
-        bgimage = "panels/square.png",
-        bgcolor = COLORS.PANEL_BG,
-        borderWidth = 1,
-        borderColor = COLORS.GOLD,
-        cornerRadius = 2,
+        bgimage = true,
         hpad = 6,
         vpad = 2,
         borderBox = true,
-        hover = function(element) element.borderColor = COLORS.GOLD_BRIGHT end,
-        dehover = function(element) element.borderColor = COLORS.GOLD end,
         click = function()
             openTokenPicker(pickerTitle or "Choose Token",
                 preferred, secondary, currentId, onSelect)
@@ -3148,9 +3054,8 @@ local function buildTokenPickerButton(ability, casterToken, subjectFilter, curre
                 halign = "left", valign = "center",
             }) or gui.Panel{ width = 28, height = 28, bgcolor = "clear" },
             gui.Label{
+                classes = {"sizeS", tok and "fg" or "fgMuted"},
                 text = tok and tokenDisplayName(tok) or "(choose a token)",
-                color = tok and COLORS.CREAM_BRIGHT or COLORS.GRAY,
-                fontSize = 13,
                 width = "100%-40",
                 height = "auto",
                 halign = "left",
@@ -4309,7 +4214,6 @@ local function buildTestTriggerCard(ability, opts)
     local mode = opts.mode or "editor"
     local isPopout = (mode == "popout")
     local reopen = opts.reopen
-    local COLORS = getColors()
     local CARD_WIDTH = LAYOUT.PREVIEW_WIDTH - 2 * LAYOUT.COL_HPAD - LAYOUT.SCROLL_GUTTER
 
     -- State carried across rebuilds. roleSelections and symbolValues survive
@@ -4501,16 +4405,20 @@ local function buildTestTriggerCard(ability, opts)
     -- Sub-builders (collapsed strip + expanded card body)
     -- ---------------------------------------------------------------------
 
+    -- Returns { text, class } where class is one of the DefaultStyles
+    -- status-bg utilities (bgSuccess / bgDanger / bgInfo). The chip
+    -- renderer applies the class so the chip background follows the
+    -- active theme's @success / @danger / @info tokens automatically.
     local function lastRunChip()
         if state.lastRun == nil then
-            return { text = "Not yet run", color = "#666663" }
+            return { text = "Not yet run", class = "bgInfo" }
         end
-        if state.lastRun.kind == "pass" then return { text = "Passes", color = "#5e8c4a" } end
-        if state.lastRun.kind == "empty" then return { text = "Passes (no condition)", color = "#5e8c4a" } end
-        if state.lastRun.kind == "fail" then return { text = "Fails", color = "#a14b3a" } end
-        if state.lastRun.kind == "error" then return { text = "Error", color = "#a14b3a" } end
-        if state.lastRun.kind == "no-caster" then return { text = "No tokens", color = "#666663" } end
-        return { text = tostring(state.lastRun.kind), color = "#666663" }
+        if state.lastRun.kind == "pass" then return { text = "Passes", class = "bgSuccess" } end
+        if state.lastRun.kind == "empty" then return { text = "Passes (no condition)", class = "bgSuccess" } end
+        if state.lastRun.kind == "fail" then return { text = "Fails", class = "bgDanger" } end
+        if state.lastRun.kind == "error" then return { text = "Error", class = "bgDanger" } end
+        if state.lastRun.kind == "no-caster" then return { text = "No tokens", class = "bgInfo" } end
+        return { text = tostring(state.lastRun.kind), class = "bgInfo" }
     end
 
     -- Strip view: rendered when state.expanded == false. Mirrors the
@@ -4535,22 +4443,17 @@ local function buildTestTriggerCard(ability, opts)
                     bgcolor = "clear",
                     children = {
                         gui.Label{
+                        	classes = {"bold", "sizeM", "fgStrong", "bold"},
                             text = "Test Trigger",
-                            bold = true,
-                            fontSize = 16,
-                            color = COLORS.GOLD_BRIGHT,
                             width = "auto",
                             height = "auto",
                             halign = "left",
                             valign = "center",
                         },
                         gui.Label{
+                            classes = {chip.class, "bold", "sizeXs"},
                             text = chip.text,
-                            bold = true,
-                            fontSize = 12,
-                            color = "white",
-                            bgimage = "panels/square.png",
-                            bgcolor = chip.color,
+                            color = g_themeFgInverse,
                             width = "auto",
                             height = "auto",
                             hpad = 8,
@@ -4558,17 +4461,16 @@ local function buildTestTriggerCard(ability, opts)
                             lmargin = 10,
                             halign = "left",
                             valign = "center",
-                            borderBox = true,
                         },
                     },
                 },
                 gui.Button{
+                	classes = {"sizeS"},
                     text = "Run Test",
                     width = 110,
                     height = 28,
                     halign = "right",
                     valign = "center",
-                    fontSize = 13,
                     press = function()
                         state.expanded = true
                         refreshTest()
@@ -4582,10 +4484,9 @@ local function buildTestTriggerCard(ability, opts)
         local lines = {}
         if result.kind == "no-caster" then
             lines[#lines + 1] = gui.Label{
+            	classes = {"fgMuted", "sizeS"},
                 text = "Open a map with at least one token to test this trigger.",
-                color = COLORS.GRAY,
                 italics = true,
-                fontSize = 13,
                 width = "100%",
                 height = "auto",
             }
@@ -4599,20 +4500,18 @@ local function buildTestTriggerCard(ability, opts)
         if result.kind == "no-subject" then
             local filterPhrase = result.subjectFilter or "a non-self"
             lines[#lines + 1] = gui.Label{
+                classes = {"danger", "sizeS"},
                 text = string.format(
                     "<b>Cannot test</b> -- this trigger requires a Subject (filter: %s) but no token on the map matches.",
                     filterPhrase),
                 markdown = true,
-                color = "#a14b3a",
-                fontSize = 13,
                 width = "100%",
                 height = "auto",
                 wrap = true,
             }
             lines[#lines + 1] = gui.Label{
+            	classes = {"fgMuted", "sizeS"},
                 text = "Add a token of that type to the map and re-run the test.",
-                color = COLORS.GRAY,
-                fontSize = 13,
                 width = "100%",
                 height = "auto",
                 wrap = true,
@@ -4640,10 +4539,9 @@ local function buildTestTriggerCard(ability, opts)
                 headline = "<b>Passes</b> -- this trigger has no condition, so it fires whenever the event occurs."
             end
             lines[#lines + 1] = gui.Label{
+                classes = {"success", "sizeS"},
                 text = headline,
                 markdown = true,
-                color = "#5e8c4a",
-                fontSize = 13,
                 width = "100%",
                 height = "auto",
                 wrap = true,
@@ -4653,10 +4551,9 @@ local function buildTestTriggerCard(ability, opts)
 
         if result.kind == "error" then
             lines[#lines + 1] = gui.Label{
+                classes = {"danger", "sizeS"},
                 text = "<b>Error</b> -- " .. (result.errorMsg or "evaluation failed"),
                 markdown = true,
-                color = "#a14b3a",
-                fontSize = 13,
                 width = "100%",
                 height = "auto",
                 wrap = true,
@@ -4694,18 +4591,16 @@ local function buildTestTriggerCard(ability, opts)
                     subjectName, condName)
             end
             lines[#lines + 1] = gui.Label{
+                classes = {"danger", "sizeS"},
                 text = headline,
                 markdown = true,
-                color = "#a14b3a",
-                fontSize = 13,
                 width = "100%",
                 height = "auto",
                 wrap = true,
             }
             lines[#lines + 1] = gui.Label{
+            	classes = {"fgMuted", "sizeS"},
                 text = detail .. " Tick \"Pretend subject has condition\" above to bypass for this test.",
-                color = COLORS.GRAY,
-                fontSize = 13,
                 width = "100%",
                 height = "auto",
                 wrap = true,
@@ -4720,10 +4615,9 @@ local function buildTestTriggerCard(ability, opts)
                 valueNote = string.format(" (returned %s)", describeValueForDisplay(result.value))
             end
             lines[#lines + 1] = gui.Label{
+                classes = {"success", "sizeS"},
                 text = "<b>Passes</b>" .. valueNote,
                 markdown = true,
-                color = "#5e8c4a",
-                fontSize = 13,
                 width = "100%",
                 height = "auto",
                 wrap = true,
@@ -4823,20 +4717,18 @@ local function buildTestTriggerCard(ability, opts)
         end
 
         lines[#lines + 1] = gui.Label{
+            classes = {"danger", "sizeS"},
             text = headline,
             markdown = true,
-            color = "#a14b3a",
-            fontSize = 13,
             width = "100%",
             height = "auto",
             wrap = true,
         }
         if detail ~= nil then
             lines[#lines + 1] = gui.Label{
+            	classes = {"fgMuted", "sizeS"},
                 text = detail,
                 markdown = true,
-                color = COLORS.GRAY,
-                fontSize = 13,
                 width = "100%",
                 height = "auto",
                 wrap = true,
@@ -4869,10 +4761,9 @@ local function buildTestTriggerCard(ability, opts)
                 end
                 if hasUnsupported then
                     lines[#lines + 1] = gui.Label{
+                    	classes = {"fgMuted", "sizeS"},
                         text = "Tip: if the failure is because the subject lacks a particular state (a stat threshold, a custom attribute, etc.), apply that state to the token on the map and re-run the test.",
-                        color = COLORS.GRAY,
                         italics = true,
-                        fontSize = 13,
                         width = "100%",
                         height = "auto",
                         wrap = true,
@@ -4929,17 +4820,15 @@ local function buildTestTriggerCard(ability, opts)
                 vpad = 1,
                 children = {
                     gui.Label{
+                    	classes = {"fgStrong", "sizeXs"},
                         text = r.label,
-                        color = COLORS.GOLD_DIM,
-                        fontSize = 12,
                         width = 100,
                         height = "auto",
                         halign = "left",
                     },
                     gui.Label{
+                    	classes = {"fg", "sizeXs"},
                         text = r.value,
-                        color = COLORS.CREAM_BRIGHT,
-                        fontSize = 12,
                         width = "100%-100",
                         height = "auto",
                         halign = "left",
@@ -4957,10 +4846,8 @@ local function buildTestTriggerCard(ability, opts)
             tmargin = 6,
             children = {
                 gui.Label{
+                	classes = {"fgStrong", "bold", "sizeS"},
                     text = "Resolved values",
-                    color = COLORS.GOLD_DIM,
-                    bold = true,
-                    fontSize = 13,
                     width = "auto",
                     height = "auto",
                     bmargin = 2,
@@ -4989,9 +4876,8 @@ local function buildTestTriggerCard(ability, opts)
             vpad = 2,
             children = {
                 gui.Label{
+                	classes = {"fgStrong", "sizeS"},
                     text = labelText,
-                    color = COLORS.GOLD_DIM,
-                    fontSize = 13,
                     width = 100,
                     height = "auto",
                     halign = "left",
@@ -5056,13 +4942,13 @@ local function buildTestTriggerCard(ability, opts)
         local labelText = "Required Condition"
 
         local statusText
-        local statusColor
+        local statusClass
         if gate.kind == "pass-auto" then
             statusText = condName .. " (auto)"
-            statusColor = "#5e8c4a"
+            statusClass = "success"
         elseif gate.kind == "pass-override" then
             statusText = condName .. " (overridden)"
-            statusColor = "#cca350"
+            statusClass = "warning"
         else
             -- fail-auto. Add a hint about whether the wrong-inflicter case
             -- is what's blocking, so the override label below makes sense.
@@ -5071,13 +4957,12 @@ local function buildTestTriggerCard(ability, opts)
             else
                 statusText = condName .. " (subject doesn't have it)"
             end
-            statusColor = "#a14b3a"
+            statusClass = "danger"
         end
 
         local statusRow = gui.Label{
+            classes = {statusClass"sizeS"},
             text = statusText,
-            color = statusColor,
-            fontSize = 13,
             width = "100%",
             height = "auto",
             halign = "left",
@@ -5178,10 +5063,8 @@ local function buildTestTriggerCard(ability, opts)
             local heading = string.format("Pretend %s has:", headLabels[head])
             local checks = {
                 gui.Label{
+                	classes = {"fgStrong", "sizeS", "bold"},
                     text = heading,
-                    color = COLORS.GOLD_DIM,
-                    fontSize = 13,
-                    bold = true,
                     width = "100%",
                     height = "auto",
                     halign = "left",
@@ -5244,10 +5127,8 @@ local function buildTestTriggerCard(ability, opts)
             local heading = string.format("Pretend %s is:", headLabels[head])
             local checks = {
                 gui.Label{
+                	classes = {"fgStrong", "sizeS", "bold"},
                     text = heading,
-                    color = COLORS.GOLD_DIM,
-                    fontSize = 13,
-                    bold = true,
                     width = "100%",
                     height = "auto",
                     halign = "left",
@@ -5302,10 +5183,8 @@ local function buildTestTriggerCard(ability, opts)
             local heading = string.format("Pretend %s stats:", headLabels[head])
             local rows = {
                 gui.Label{
+                	classes = {"fgStrong", "sizeS", "bold"},
                     text = heading,
-                    color = COLORS.GOLD_DIM,
-                    fontSize = 13,
-                    bold = true,
                     width = "100%",
                     height = "auto",
                     halign = "left",
@@ -5330,9 +5209,8 @@ local function buildTestTriggerCard(ability, opts)
                     bgcolor = "clear",
                     children = {
                         gui.Label{
+                        	classes = {"fg", "sizeS"},
                             text = value .. ":",
-                            color = COLORS.CREAM_BRIGHT,
-                            fontSize = 13,
                             width = 200,
                             height = "auto",
                             halign = "left",
@@ -5340,12 +5218,12 @@ local function buildTestTriggerCard(ability, opts)
                             rmargin = 6,
                         },
                         gui.Input{
+                        	classes = {"sizeS"},
                             text = tostring(initialRaw or ""),
                             placeholderText = "(use real value)",
                             characterLimit = 12,
                             width = 80,
                             height = 22,
-                            fontSize = 13,
                             change = function(element)
                                 local raw = element.text or ""
                                 local k = head .. ":Numbers:" .. valueRef
@@ -5393,10 +5271,8 @@ local function buildTestTriggerCard(ability, opts)
             local heading = string.format("Pretend %s resources:", headLabels[head])
             local rows = {
                 gui.Label{
+                	classes = {"fgStrong", "sizeS", "bold"},
                     text = heading,
-                    color = COLORS.GOLD_DIM,
-                    fontSize = 13,
-                    bold = true,
                     width = "100%",
                     height = "auto",
                     halign = "left",
@@ -5421,9 +5297,8 @@ local function buildTestTriggerCard(ability, opts)
                     bgcolor = "clear",
                     children = {
                         gui.Label{
+                        	classes = {"fg", "sizeS"},
                             text = value .. ":",
-                            color = COLORS.CREAM_BRIGHT,
-                            fontSize = 13,
                             width = 200,
                             height = "auto",
                             halign = "left",
@@ -5431,12 +5306,12 @@ local function buildTestTriggerCard(ability, opts)
                             rmargin = 6,
                         },
                         gui.Input{
+                        	classes = {"sizeS"},
                             text = tostring(initialRaw or ""),
                             placeholderText = "(use real value)",
                             characterLimit = 12,
                             width = 80,
                             height = 22,
-                            fontSize = 13,
                             change = function(element)
                                 local raw = element.text or ""
                                 local k = head .. ":Resources:" .. valueRef
@@ -5532,10 +5407,9 @@ local function buildTestTriggerCard(ability, opts)
 
         if sym.kind == "unsupported" then
             return fieldRow(sym.name, gui.Label{
+            	classes = {"fgMuted", "sizeXs"},
                 text = "(" .. (sym.displayType or "complex") .. " input not yet supported in test panel)",
-                color = COLORS.GRAY,
                 italics = true,
-                fontSize = 12,
                 width = "100%-100",
                 height = "auto",
                 halign = "left",
@@ -5670,9 +5544,8 @@ local function buildTestTriggerCard(ability, opts)
                         vmargin = 2,
                         bgcolor = "clear",
                         gui.Label{
+                        	classes = {"sizeS", "bold"},
                             text = item.text,
-                            fontSize = 13,
-                            bold = true,
                             halign = "left",
                             valign = "center",
                             width = "auto",
@@ -5769,18 +5642,16 @@ local function buildTestTriggerCard(ability, opts)
             tmargin = 8,
             children = {
                 gui.Label{
+                	classes = {"fgStrong", "bold", "sizeS"},
+                    halign = "left",
                     text = "If it fires, then:",
-                    color = COLORS.GOLD_DIM,
-                    bold = true,
-                    fontSize = 13,
                     width = "auto",
                     height = "auto",
                     bmargin = 2,
                 },
                 gui.Label{
+                	classes = {"fg", "sizeS"},
                     text = text,
-                    color = COLORS.CREAM_BRIGHT,
-                    fontSize = 13,
                     italics = true,
                     width = "100%",
                     height = "auto",
@@ -5827,20 +5698,18 @@ local function buildTestTriggerCard(ability, opts)
                 bmargin = 6,
                 children = {
                     gui.Label{
+                    	classes = {"bold", "sizeS", "fgStrong", "bold"},
                         text = "Test Trigger",
-                        bold = true,
-                        fontSize = 14,
-                        color = COLORS.GOLD_BRIGHT,
                         width = "100%-70",
                         height = "auto",
                         halign = "left",
                     },
                     gui.Button{
+                    	classes = {"sizeXs"},
                         text = "Close",
                         width = 60,
                         height = 24,
                         halign = "right",
-                        fontSize = 12,
                         press = function()
                             state.expanded = false
                             refreshTest()
@@ -5856,10 +5725,9 @@ local function buildTestTriggerCard(ability, opts)
         -- redundant once the override section is visible -- it self-
         -- documents through the "Pretend X has Y" checkbox labels.
         children[#children + 1] = gui.Label{
+        	classes = {"fgMuted", "sizeXs"},
             text = "Tests the trigger condition only, not its effects.",
-            color = COLORS.GRAY,
             italics = true,
-            fontSize = 12,
             width = "100%",
             height = "auto",
             wrap = true,
@@ -5909,8 +5777,8 @@ local function buildTestTriggerCard(ability, opts)
 
         if #inputs.symbolInputs > 0 then
             children[#children + 1] = gui.Panel{
+                classes = {"bgFg"},
                 width = "100%", height = 1,
-                bgimage = "panels/square.png", bgcolor = COLORS.GOLD,
                 tmargin = 6, bmargin = 6,
             }
             for _, sym in ipairs(inputs.symbolInputs) do
@@ -5919,8 +5787,8 @@ local function buildTestTriggerCard(ability, opts)
         end
 
         children[#children + 1] = gui.Panel{
+            classes = {"bgFg"},
             width = "100%", height = 1,
-            bgimage = "panels/square.png", bgcolor = COLORS.GOLD,
             tmargin = 8, bmargin = 8,
         }
 
@@ -5935,10 +5803,10 @@ local function buildTestTriggerCard(ability, opts)
 
         local actionRow = {
             gui.Button{
+            	classes = {"sizeS"},
                 text = "Run Test",
-                width = 100,
+                width = 110,
                 height = 28,
-                fontSize = 13,
                 halign = "left",
                 press = function()
                     refreshTest()
@@ -5951,10 +5819,10 @@ local function buildTestTriggerCard(ability, opts)
         -- is deep-copied at popout time so the two cards diverge cleanly.
         if not isPopout then
             actionRow[#actionRow + 1] = gui.Button{
+            	classes = {"sizeS"},
                 text = "Pop out",
                 width = 100,
                 height = 28,
-                fontSize = 13,
                 halign = "left",
                 hmargin = 8,
                 press = function()
@@ -6029,34 +5897,16 @@ local function buildTestTriggerCard(ability, opts)
             -- Sync the fingerprint here too so an upstream refreshAbility
             -- dispatch doesn't also trigger a redundant think-poll rebuild.
             lastFingerprint = fingerprint()
-            if state.expanded then
-                if isPopout then
-                    -- Popout chrome carries the border; card body sits
-                    -- transparent inside it for a clean visual.
-                    element.bgimage = nil
-                    element.bgcolor = "clear"
-                    element.borderWidth = 0
-                    element.vpad = 0
-                    element.hpad = 0
-                else
-                    element.bgimage = "panels/square.png"
-                    element.bgcolor = COLORS.CARD_BG
-                    element.borderWidth = 2
-                    element.borderColor = COLORS.GOLD_DIM
-                    element.cornerRadius = 4
-                    element.vpad = 10
-                    element.hpad = 12
-                    element.borderBox = true
-                end
-                element.children = buildExpanded()
-            else
-                element.bgimage = nil
-                element.bgcolor = "clear"
-                element.borderWidth = 0
-                element.vpad = 0
-                element.hpad = 0
-                element.children = { buildStrip() }
-            end
+            -- Card chrome only when expanded inside the editor (not in the
+            -- popout, which carries its own outer border). Toggle theme
+            -- classes for border + bg surface; padding stays imperative.
+            local cardChrome = state.expanded and not isPopout
+            element:SetClass("bordered", cardChrome)
+            element:SetClass("bgAlt", cardChrome)
+            element.borderBox = true
+            element.vpad = cardChrome and 10 or 0
+            element.hpad = cardChrome and 12 or 0
+            element.children = state.expanded and buildExpanded() or { buildStrip() }
         end,
     }
     -- PERF: think handler is editor-mode-only. The popout deliberately
@@ -6172,7 +6022,6 @@ function openTestTriggerPopout(ability, initialState, reopen)
     g_openTestPopouts[key] = nil
 
     local POPOUT_WIDTH = LAYOUT.PREVIEW_WIDTH - 2 * LAYOUT.COL_HPAD - LAYOUT.SCROLL_GUTTER + 24
-    local COLORS = getColors()
 
     -- Construct the inner card first so we can parent it inside the
     -- chrome below. mode = "popout" disables the think handler and the
@@ -6196,10 +6045,8 @@ function openTestTriggerPopout(ability, initialState, reopen)
         labelWidthDelta = labelWidthDelta + 96
     end
     titleChildren[#titleChildren + 1] = gui.Label{
+    	classes = {"bold", "sizeS", "fgStrong", "bold"},
         text = "Test Trigger - " .. abilityName,
-        bold = true,
-        fontSize = 14,
-        color = COLORS.GOLD_BRIGHT,
         width = string.format("100%%-%d", labelWidthDelta),
         height = "auto",
         halign = "left",
@@ -6212,10 +6059,10 @@ function openTestTriggerPopout(ability, initialState, reopen)
     local banner
     if reopen ~= nil then
         titleChildren[#titleChildren + 1] = gui.Button{
+        	classes = {"sizeXxs"},
             text = "Open Editor",
             width = 88,
             height = 22,
-            fontSize = 12,
             halign = "right",
             valign = "center",
             hmargin = 4,
@@ -6234,15 +6081,15 @@ function openTestTriggerPopout(ability, initialState, reopen)
             end,
         }
     end
-    titleChildren[#titleChildren + 1] = gui.CloseButton{
-        width = 20,
-        height = 20,
+    titleChildren[#titleChildren + 1] = gui.Button{
+        classes = {"closeButton", "sizeS"},
         halign = "right",
         valign = "center",
         -- Modal-layer escape priority so Esc closes the top-of-stack
         -- modal (this popout) rather than fighting with the editor's
-        -- own EXIT_MODAL_DIALOG handler. gui.CloseButton's default is
-        -- EXIT_DIALOG which would never fire while a modal is open.
+        -- own EXIT_MODAL_DIALOG handler. The deprecated gui.CloseButton's
+        -- default was EXIT_DIALOG which would never fire while a modal is
+        -- open; we set EXIT_MODAL_DIALOG explicitly here.
         escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
         press = function()
             if popoutRoot ~= nil and popoutRoot.valid then
@@ -6252,17 +6099,15 @@ function openTestTriggerPopout(ability, initialState, reopen)
     }
 
     local titleBar = gui.Panel{
+    	classes = {"bgAlt", "featureCardHeader", "expanded"},
         width = "100%",
         height = "auto",
         flow = "horizontal",
         halign = "left",
         valign = "top",
-        bgimage = "panels/square.png",
-        bgcolor = COLORS.CARD_BG,
         bmargin = 6,
         hpad = 8,
         vpad = 6,
-        borderBox = true,
         children = titleChildren,
     }
 
@@ -6275,20 +6120,18 @@ function openTestTriggerPopout(ability, initialState, reopen)
     -- (`local banner` was forward-declared above so the Open Editor
     -- press handler can reference it; here we assign the actual panel.)
     banner = gui.Panel{
-        classes = { "ds-test-trigger-popout-banner", "hidden" },
+        classes = {"ds-test-trigger-popout-banner", "hidden", "bordered", "borderDanger"},
         width = "100%",
         height = "auto",
         flow = "horizontal",
         halign = "left",
         valign = "top",
-        bgimage = "panels/square.png",
+        bgimage = true,
         -- Muted "danger" surface -- darker than the bright @danger tone so
         -- the banner reads as recoverable error rather than fatal alarm.
         -- Border picks up the scheme's danger color so the banner re-themes
         -- under the active scheme.
         bgcolor = "#3a1414",
-        classes = {"borderDanger"},
-        borderWidth = 1,
         bmargin = 6,
         hpad = 8,
         vpad = 6,
@@ -6298,8 +6141,7 @@ function openTestTriggerPopout(ability, initialState, reopen)
             element.children = {
                 gui.Label{
                     text = msg,
-                    classes = {"fg"},
-                    fontSize = 12,
+                    classes = {"fg", "sizeXs"},
                     width = "100%-24",
                     height = "auto",
                     halign = "left",
@@ -6345,17 +6187,13 @@ function openTestTriggerPopout(ability, initialState, reopen)
     }
 
     popoutRoot = gui.Panel{
-        classes = { "ds-test-trigger-popout" },
+        classes = {"ds-test-trigger-popout", "bgAlt", "bordered"},
         width = POPOUT_WIDTH,
         height = 600,
         halign = "center",
         valign = "center",
         flow = "vertical",
-        bgimage = "panels/square.png",
-        bgcolor = COLORS.CARD_BG,
-        borderWidth = 2,
-        borderColor = COLORS.GOLD_DIM,
-        cornerRadius = 6,
+        bgimage = true,
         borderBox = true,
         x = cascadeOffset,
         y = cascadeOffset,
@@ -6484,7 +6322,6 @@ end
 -- back to the original entry point. Threaded through to buildTestTriggerCard
 -- so the Pop out press handler can capture it for openTestTriggerPopout.
 local function makePreviewColumn(ability, schedulePreviewRefresh, editorOptions)
-    local COLORS = getColors()
     -- Heading rows (subHeading below) need to match the cards' width so the
     -- right-aligned rollup chip aligns with the card's right border instead
     -- of bleeding into the scroll gutter.
@@ -6559,9 +6396,7 @@ local function makePreviewColumn(ability, schedulePreviewRefresh, editorOptions)
                     children = {
                         gui.Label{
                             text = title,
-                            bold = true,
-                            fontSize = 16,
-                            classes = {"fgStrong"},
+                            classes = {"fgStrong", "bold", "sizeM"},
                             width = "auto",
                             height = "auto",
                             halign = "left",
@@ -6579,12 +6414,8 @@ local function makePreviewColumn(ability, schedulePreviewRefresh, editorOptions)
                         bgcolor = "clear",
                         children = {
                             gui.Label{
+                                classes = {rollup.class, "bold", "sizeXs", "fgInverse"},
                                 text = rollup.text,
-                                bold = true,
-                                fontSize = 12,
-                                color = "white",
-                                bgimage = "panels/square.png",
-                                bgcolor = rollup.color,
                                 width = "auto",
                                 height = "auto",
                                 hpad = 10,
@@ -6617,9 +6448,8 @@ local function makePreviewColumn(ability, schedulePreviewRefresh, editorOptions)
                 children[#children + 1] = gui.Label{
                     width = "100%",
                     height = "auto",
-                    fontSize = 13,
                     italics = true,
-                    classes = {"fgMuted"},
+                    classes = {"fgMuted", "sizeS"},
                     text = "(no preview available)",
                 }
             end
@@ -6687,7 +6517,6 @@ local function makePreviewColumn(ability, schedulePreviewRefresh, editorOptions)
 end
 
 local function generateSectionedEditor(ability, options)
-    local COLORS = getColors()
 
     local navButtons = {}
     local sectionContents = {}
@@ -6894,7 +6723,7 @@ local function generateSectionedEditor(ability, options)
     previewCol, previewSlot = makePreviewColumn(ability, schedulePreviewRefresh, options)
 
     rootPanel = gui.Panel{
-        classes = {"nae-root"},
+        classes = {"nae-root", "bg", "bordered"},
         id = "triggeredAbilityEditorRoot",
         styles = { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(buildStyles()) },
         width = "100%",
@@ -6903,10 +6732,7 @@ local function generateSectionedEditor(ability, options)
         valign = "center",
         flow = "horizontal",
         borderBox = true,
-        bgimage = "panels/square.png",
-        classes = {"bg", "border"},
-        borderWidth = 2,
-        cornerRadius = 6,
+        bgimage = true,
         data = {
             ability = ability,
             selectedSectionId = SECTIONS[1].id,

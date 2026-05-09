@@ -18,7 +18,7 @@ local function _pickerStyles()
     return {
         {
             selectors = {"picker-card"},
-            bgimage = "panels/square.png",
+            bgimage = true,
             bgcolor = "@bgAlt",
             borderWidth = 1,
             borderColor = "@border",
@@ -31,7 +31,7 @@ local function _pickerStyles()
         },
         {
             selectors = {"picker-divider"},
-            bgimage = "panels/square.png",
+            bgimage = true,
             bgcolor = "@accent",
             opacity = 0.4,
         },

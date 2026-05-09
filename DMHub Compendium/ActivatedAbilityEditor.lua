@@ -3234,7 +3234,7 @@ local g_modalPanelStyles = {
 
         borderWidth = 2,
         halign = "left",
-        bgimage = "panels/square.png",
+        bgimage = true,
         borderColor = Styles.backgroundColor,
         bgcolor = Styles.backgroundColor,
         bold = true,

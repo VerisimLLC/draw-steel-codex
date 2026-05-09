@@ -1551,6 +1551,10 @@ ThemeEngine.RegisterTheme{
             flow = "horizontal",
             hpad = 0,
         },
+        {
+            selectors = {"featureCardHeader", "expanded"},
+            border = {x1 = 1, x2 = 1, y1 = 0, y2 = 1},
+        },
         -- Body: border on left/right/bottom; top edge is the header's bottom
         -- border. Same fill as the card so the inside reads as one continuous
         -- bgAlt surface.
@@ -2058,6 +2062,10 @@ ThemeEngine.RegisterTheme{
         { selectors = {"framedPanel"},         cornerRadius = 10 },
         { selectors = {"contextMenu"},         cornerRadius = 10 },
         { selectors = {"featureCardHeader"},   cornerRadius = {x1 = 10, x2 = 0, y1 = 10, y2 = 0} },
+        {
+            selectors = {"featureCardHeader", "expanded"},
+            cornerRadius = {x1 = 10, x2 = 0, y1 = 10, y2 = 0},
+        },
         { selectors = {"featureCardBody"},     cornerRadius = {x1 = 0, x2 = 10, y1 = 0, y2 = 10} },
 
         -- Interactive controls

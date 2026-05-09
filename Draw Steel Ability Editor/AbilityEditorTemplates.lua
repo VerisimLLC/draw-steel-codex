@@ -18,7 +18,7 @@ local function _pickerStyles()
     return {
         {
             selectors = {"picker-card"},
-            bgimage = "panels/square.png",
+            bgimage = true,
             bgcolor = "@bgAlt",
             borderWidth = 1,
             borderColor = "@border",
@@ -38,7 +38,7 @@ local function _pickerStyles()
         -- hover to telegraph clickability.
         {
             selectors = {"picker-path-button"},
-            bgimage = "panels/square.png",
+            bgimage = true,
             bgcolor = "@bgAlt",
             borderWidth = 1,
             borderColor = "@border",

@@ -613,19 +613,13 @@ function Aura:ShowEditDialog(options)
                 flow = 'horizontal',
                 height = 60,
                 width = '100%',
-                fontSize = '60%',
                 vmargin = 0,
             },
 
             children = {
-                gui.PrettyButton {
+                gui.Button {
+                    classes = {"sizeM"},
                     text = 'Close',
-                    style = {
-                        height = 60,
-                        width = 160,
-                        fontSize = 44,
-                        bgcolor = 'white',
-                    },
                     events = {
                         click = function(element)
                             resultPanel.data.close()
@@ -1345,7 +1339,7 @@ function CreateAuraTooltip(auraInstance)
         styles = SpellRenderStyles,
 
         pad = 12,
-        bgimage = "panels/square.png",
+        bgimage = true,
         bgcolor = "black",
         borderWidth = 2,
         borderColor = "white",

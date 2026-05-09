@@ -662,6 +662,28 @@ end
 -- Public API -- Resolution
 -- =============================================================================
 
+local _getStylesHits = 0
+local _getStylesMisses = 0
+local _getStylesReportEvery = 50
+
+-- MergeStyles measurement (identity-only). Each call's customStyles table
+-- address is the hash key. Tells us whether callers reuse styles tables
+-- (cacheable cheaply by identity) vs. rebuild them every call (caching by
+-- identity is moot; would need content hashing or caller refactoring).
+local _mergeStylesCalls = 0
+local _mergeStylesHashCounts = {}
+
+local function _reportGetStylesCache()
+    local total = _getStylesHits + _getStylesMisses
+    if total > 0 and total % _getStylesReportEvery == 0 then
+        print(string.format(
+            "THC:: GETSTYLECACHE:: total=%d hits=%d misses=%d (hit rate %.1f%%)",
+            total, _getStylesHits, _getStylesMisses,
+            100 * _getStylesHits / total
+        ))
+    end
+end
+
 --- Get the resolved styles array for the current (or overridden) theme/scheme pair.
 ---
 --- With no arguments, uses the active theme and active color scheme (falling back
@@ -683,7 +705,14 @@ function ThemeEngine.GetStyles(themeIdOverride, schemeIdOverride)
 
     local key = _cacheKey(themeId, schemeId)
     local cached = _cache[key]
-    if cached then return cached end
+    if cached then
+        _getStylesHits = _getStylesHits + 1
+        _reportGetStylesCache()
+        return cached
+    end
+
+    _getStylesMisses = _getStylesMisses + 1
+    _reportGetStylesCache()
 
     local chain = _buildChain(themeId)
 
@@ -732,6 +761,12 @@ function ThemeEngine.MergeStyles(customStyles)
     if customStyles == nil or #customStyles == 0 then
         return base
     end
+
+    _mergeStylesCalls = _mergeStylesCalls + 1
+    -- Identity key. Using the table reference directly avoids a tostring()
+    -- call that would otherwise hit any __tostring metamethod the engine
+    -- installs on style tables (which serializes the whole structure).
+    _mergeStylesHashCounts[customStyles] = (_mergeStylesHashCounts[customStyles] or 0) + 1
 
     local themeId, schemeId = _resolveEffectivePair(nil, nil)
     local chain = _buildChain(themeId)
@@ -829,6 +864,45 @@ local _enforceSafetySetting = setting{
 --- @return boolean
 function ThemeEngine.ForceSafety()
     return _enforceSafetySetting:Get()
+end
+
+if devmode() then
+    Commands.RegisterMacro{
+        name = "themecache",
+        summary = "dump GetStyles + MergeStyles measurement counters",
+        doc = "Usage: /themecache\nPrints GetStyles cache hit/miss counters plus MergeStyles call distribution by customStyles table identity (top 5). Devmode only.",
+        command = function(str)
+            local total = _getStylesHits + _getStylesMisses
+            local rate = total > 0 and (100 * _getStylesHits / total) or 0
+            print(string.format(
+                "THC:: GETSTYLECACHE:: total=%d hits=%d misses=%d (hit rate %.1f%%)",
+                total, _getStylesHits, _getStylesMisses, rate
+            ))
+
+            local uniqueHashes = 0
+            local entries = {}
+            for hash, count in pairs(_mergeStylesHashCounts) do
+                uniqueHashes = uniqueHashes + 1
+                entries[#entries + 1] = { hash = hash, count = count }
+            end
+            table.sort(entries, function(a, b) return a.count > b.count end)
+
+            local repeatRate = _mergeStylesCalls > 0
+                and (100 * (_mergeStylesCalls - uniqueHashes) / _mergeStylesCalls) or 0
+            print(string.format(
+                "THC:: MERGESTYLES:: total=%d unique=%d (repeat rate %.1f%%)",
+                _mergeStylesCalls, uniqueHashes, repeatRate
+            ))
+
+            local topN = math.min(5, #entries)
+            for i = 1, topN do
+                print(string.format(
+                    "THC:: MERGESTYLES:: top %d count=%d ref=%s",
+                    i, entries[i].count, tostring(entries[i].hash)
+                ))
+            end
+        end,
+    }
 end
 
 Commands.RegisterMacro{

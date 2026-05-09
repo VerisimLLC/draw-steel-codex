@@ -91,11 +91,11 @@ local SetCharacterType = function(tableName, characterTypePanel, characterTypeId
 	children[#children+1] = gui.Panel{
 		classes = {"formStackedRow"},
 		gui.Label{
-			classes = {"formStackedLabel"},
+			classes = {"formStacked"},
 			text = "Name:",
 		},
 		gui.Input{
-			classes = {"formStackedControl"},
+			classes = {"formStacked"},
 			text = characterType.name,
 			change = function(element)
 				characterType.name = element.text
@@ -107,11 +107,11 @@ local SetCharacterType = function(tableName, characterTypePanel, characterTypeId
 	children[#children+1] = gui.Panel{
 		classes = {"formStackedRow"},
 		gui.Label{
-			classes = {"formStackedLabel"},
+			classes = {"formStacked"},
 			text = "Description:",
 		},
 		gui.Input{
-			classes = {"formStackedControl"},
+			classes = {"formStacked"},
 			multiline = true,
 			height = "auto",
 			minHeight = 30,

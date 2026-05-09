@@ -1887,9 +1887,10 @@ function ActivatedAbilityPowerRollBehavior:EditorItems(parentPanel)
     result[#result+1] = rollPanel
 
     result[#result+1] = gui.Panel{
-        width = "100%",
+        width = "90%",
         height = "auto",
         flow = "vertical",
+        halign = "left",
 
         create = function(element)
             if #element.children == 1 and self:has_key("modifiers") then
@@ -1900,17 +1901,49 @@ function ActivatedAbilityPowerRollBehavior:EditorItems(parentPanel)
         refreshBehavior = function(element)
             local children = {}
             for i,modifier in ipairs(self:try_get("modifiers", {})) do
+                -- Row 1: Edge/Bane formula. Label + trash sit together in a
+                -- mini horizontal header above the formula input so the
+                -- trash is immediately after the modifier name.
                 children[#children+1] = gui.Panel{
-                    classes = {"formPanel"},
-                    gui.Label{
-                        classes = {"formLabel"},
-                        width = 120,
-                        text = g_modificationIdToText[modifier.type],
-                        lmargin = 20,
+                    classes = {"formStackedRow"},
+                    vmargin = 4,
+
+                    gui.Panel{
+                        classes = {"bordered", "bgAlt"},
+                        width = "100%",
+                        height = "auto",
+                        flow = "horizontal",
+                        halign = "left",
+                        valign = "center",
+                        border = {x1 = 0, x2 = 0, y1 = 0, y2 = 1},
+                        cornerRadius = 0,
+                        vpad = 8,
+
+                        gui.Label{
+                            classes = {"sizeXs", "bold"},
+                            text = g_modificationIdToText[modifier.type],
+                            width = "auto",
+                            height = "auto",
+                            halign = "left",
+                            textAlignment = "left",
+                        },
+
+                        gui.Button{
+                            classes = {"deleteButton", "sizeXs"},
+                            hmargin = 8,
+                            halign = "right",
+                            click = function(element)
+                                local modifiers = self:try_get("modifiers", {})
+                                table.remove(modifiers, i)
+                                parentPanel:FireEvent("refreshBehavior")
+                                -- Modifier removal can change DescribeRoll output.
+                                parentPanel:FireEventOnParents("refreshAbilityPreview")
+                            end,
+                        },
                     },
 
                     gui.GoblinScriptInput{
-                        width = 300,
+                        classes = {"formStacked"},
                         value = modifier.condition,
                         events = {
                             change = function(element)
@@ -1920,7 +1953,6 @@ function ActivatedAbilityPowerRollBehavior:EditorItems(parentPanel)
                                 element:FireEventOnParents("refreshAbilityPreview")
                             end,
                         },
-
                         documentation = {
                             help = string.format("This GoblinScript determines whether the modifier will apply."),
                             output = "boolean",
@@ -1934,61 +1966,39 @@ function ActivatedAbilityPowerRollBehavior:EditorItems(parentPanel)
                             subjectDescription = "The creature that is casting the ability.",
                             symbols = ActivatedAbility.helpCasting,
                         },
-
-                    },
-
-                    gui.DeleteItemButton{
-                        width = 12,
-                        height = 12,
-                        hmargin = 8,
-                        click = function(element)
-                            local modifiers = self:try_get("modifiers", {})
-                            table.remove(modifiers, i)
-                            parentPanel:FireEvent("refreshBehavior")
-                            -- Modifier removal can change DescribeRoll output.
-                            parentPanel:FireEventOnParents("refreshAbilityPreview")
-                        end,
                     },
                 }
 
                 children[#children+1] = gui.Panel{
-                    classes = {"formPanel"},
+                    classes = {"formStackedRow"},
                     gui.Label{
-                        classes = {"formLabel"},
-                        width = 120,
+                        classes = {"formStacked", "sizeXs"},
                         text = "Name:",
-                        lmargin = 20,
                     },
                     gui.Input{
-                        width = 280,
-                        fontSize = 14,
-                        hmargin = 0,
+                        classes = {"formStacked"},
                         text = modifier.text,
                         characterLimit = 80,
                         change = function(element)
                             modifier.text = element.text
                         end,
-                    }
+                    },
                 }
 
                 children[#children+1] = gui.Panel{
-                    classes = {"formPanel"},
+                    classes = {"formStackedRow"},
                     gui.Label{
-                        classes = {"formLabel"},
-                        width = 120,
+                        classes = {"formStacked", "sizeXs"},
                         text = "Details:",
-                        lmargin = 20,
                     },
                     gui.Input{
-                        width = 280,
-                        fontSize = 14,
-                        hmargin = 0,
+                        classes = {"formStacked"},
                         text = modifier.details,
                         characterLimit = 240,
                         change = function(element)
                             modifier.details = element.text
                         end,
-                    }
+                    },
                 }
 
             end

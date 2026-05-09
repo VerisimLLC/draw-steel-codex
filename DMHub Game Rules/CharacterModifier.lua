@@ -4048,9 +4048,11 @@ function CharacterModifier.OnDeserialize(self)
 	end
 end
 
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDModifyPowerRolls.lua:2419
 function CharacterModifier:ApplyToRoll(context, casterCreature, targetCreature, rollType, roll)
 	return roll
 end
+--]==]
 
 function CharacterModifier:ModifyRollProperties(context, creature, rollProperties, targetCreature)
 	local typeInfo = CharacterModifier.TypeInfo[self.behavior] or {}

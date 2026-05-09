@@ -1772,7 +1772,7 @@ function ActivatedAbility:Render(options, params)
                     if self.objectTarget and self.targetAllegiance ~= "none" and options.ability.name == self.name and options.section == "target" then
                         element.children = {
                             gui.EnumeratedSliderControl {
-                                styles = ThemeEngine.GetStyles(),
+                                styles = ThemeEngine.GetStyles("default", "default"),
                                 options = {
                                     { id = false, text = "Creatures" },
                                     { id = true,  text = "Objects" },

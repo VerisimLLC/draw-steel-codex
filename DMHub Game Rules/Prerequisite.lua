@@ -108,6 +108,7 @@ function CharacterPrerequisite:Met(creature)
 	return true
 end
 
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMPrerequisite.lua:199
 function CharacterPrerequisite:Editor(params)
 	local resultPanel
 
@@ -204,3 +205,4 @@ function CharacterPrerequisite:Editor(params)
 
 	return resultPanel
 end
+--]==]

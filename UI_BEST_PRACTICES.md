@@ -534,6 +534,8 @@ cornerRadius = 6                                     -- uniform radius
 cornerRadius = { x1 = 0, x2 = 0, y1 = 4, y2 = 4 } -- bottom corners only
 ```
 
+**Use real borders, not panels-as-dividers.** When you need a separator line between sibling sections (e.g. between modifier cards in a list), put a per-edge `border` on the section panel — do not add a thin `gui.Panel{ height = 1, bgcolor = "@border" }` sibling. The border facility is semantic, ignores layout flow, costs zero extra layout passes, and respects `borderColor` cleanly. A panel-as-divider adds a layout child, contends with margins, and risks breaking under scrolling. Reach for a divider panel only when the border facility can't express what you need (gradient line, shaped separator, divider with mid-line text/icon).
+
 ### Wrap
 
 `wrap = true` -- children wrap to the next line (horizontal flow).

@@ -382,7 +382,6 @@ mod.shared.InventoryCompendiumEditor = function(categories)
                 selectors = {"checkbox-label"},
                 fontSize = 12,
             },
-			Styles.ImplementationIcon,
 		},
 	}
 

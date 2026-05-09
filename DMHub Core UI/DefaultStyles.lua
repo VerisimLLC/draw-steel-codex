@@ -203,6 +203,7 @@ ThemeEngine.RegisterTheme{
         label   = "Berling",
         input   = "LiberationSans",
         number  = "Newzald",
+        mono    = "Courier",
     },
 
     styles = {
@@ -1136,6 +1137,16 @@ ThemeEngine.RegisterTheme{
             priority = 5,
         },
         {
+            selectors = {"underline"},
+            underline = true,
+            priority = 5,
+        },
+        {
+            selectors = {"monospace"},
+            fontFace = "@mono",
+            priority = 5,
+        },
+        {
             selectors = {"noBold"},
             bold = false,
             priority = 5,
@@ -1261,12 +1272,10 @@ ThemeEngine.RegisterTheme{
             selectors = {"contextMenuItem", "hover"},
             bgcolor = "@fg",
             color = "@bg",
-            -- transitionTime = 0.2,
         },
         {
             selectors = {"contextMenuItem", "press"},
             brightness = 1.2,
-            -- transitionTime = 0.2,
         },
 
         -- Row label
@@ -1551,6 +1560,10 @@ ThemeEngine.RegisterTheme{
             flow = "horizontal",
             hpad = 0,
         },
+        {
+            selectors = {"featureCardHeader", "expanded"},
+            border = {x1 = 1, x2 = 1, y1 = 0, y2 = 1},
+        },
         -- Body: border on left/right/bottom; top edge is the header's bottom
         -- border. Same fill as the card so the inside reads as one continuous
         -- bgAlt surface.
@@ -1703,7 +1716,7 @@ ThemeEngine.RegisterTheme{
         {
             selectors = {"collapseAnim"},
             collapsed = 1,
-            transitionTime = 0.2,
+            transitionTime = 0.1,
             uiscale = {x = 1, y = 0.001},
         },
         {
@@ -1722,9 +1735,9 @@ ThemeEngine.RegisterTheme{
         --     `bg`-/`border`-prefixed variants set the alternate property.
 
         -- Surfaces
-        { selectors = {"bg"},        bgcolor = "@bg" },
-        { selectors = {"bgAlt"},     bgcolor = "@bgAlt" },
-        { selectors = {"bgInverse"}, bgcolor = "@bgInverse" },
+        { selectors = {"bg"},        bgimage = true, bgcolor = "@bg" },
+        { selectors = {"bgAlt"},     bgimage = true, bgcolor = "@bgAlt" },
+        { selectors = {"bgInverse"}, bgimage = true, bgcolor = "@bgInverse" },
 
         -- Foregrounds
         { selectors = {"fg"},        color = "@fg" },
@@ -1734,28 +1747,28 @@ ThemeEngine.RegisterTheme{
         { selectors = {"fgInverse"}, color = "@fgInverse" },
 
         -- Foreground tints applied as bgcolor (image multiply, etc.)
-        { selectors = {"bgFg"},        bgcolor = "@fg" },
-        { selectors = {"bgFgStrong"},  bgcolor = "@fgStrong" },
-        { selectors = {"bgFgMuted"},   bgcolor = "@fgMuted" },
-        { selectors = {"bgFgPending"}, bgcolor = "@fgPending" },
-        { selectors = {"bgFgInverse"}, bgcolor = "@fgInverse" },
+        { selectors = {"bgFg"},        bgimage = true, bgcolor = "@fg" },
+        { selectors = {"bgFgStrong"},  bgimage = true, bgcolor = "@fgStrong" },
+        { selectors = {"bgFgMuted"},   bgimage = true, bgcolor = "@fgMuted" },
+        { selectors = {"bgFgPending"}, bgimage = true, bgcolor = "@fgPending" },
+        { selectors = {"bgFgInverse"}, bgimage = true, bgcolor = "@fgInverse" },
 
         -- Borders
-        { selectors = {"border"},        borderColor = "@border" },
-        { selectors = {"borderInverse"}, borderColor = "@borderInverse" },
+        { selectors = {"border"},        bgimage = true, borderColor = "@border" },
+        { selectors = {"borderInverse"}, bgimage = true, borderColor = "@borderInverse" },
 
         -- Accent + interactive (color default; bg/border variants)
         { selectors = {"accent"},            color       = "@accent" },
         { selectors = {"accentHover"},       color       = "@accentHover" },
-        { selectors = {"bgAccent"},          bgcolor     = "@accent" },
-        { selectors = {"bgAccentHover"},     bgcolor     = "@accentHover" },
-        { selectors = {"borderAccent"},      borderColor = "@accent" },
-        { selectors = {"borderAccentHover"}, borderColor = "@accentHover" },
+        { selectors = {"bgAccent"},          bgimage = true, bgcolor     = "@accent" },
+        { selectors = {"bgAccentHover"},     bgimage = true, bgcolor     = "@accentHover" },
+        { selectors = {"borderAccent"},      bgimage = true, borderColor = "@accent" },
+        { selectors = {"borderAccentHover"}, bgimage = true, borderColor = "@accentHover" },
 
         -- Disabled (the state class lives elsewhere; these are explicit color picks)
         { selectors = {"fgDisabled"},     color       = "@disabled" },
-        { selectors = {"bgDisabled"},     bgcolor     = "@disabled" },
-        { selectors = {"borderDisabled"}, borderColor = "@disabled" },
+        { selectors = {"bgDisabled"},     bgimage = true, bgcolor     = "@disabled" },
+        { selectors = {"borderDisabled"}, bgimage = true, borderColor = "@disabled" },
 
         -- Implementation status (used by ability/feature impl indicators)
         { selectors = {"implStatus0"}, color = "@implStatus0" },
@@ -1763,6 +1776,44 @@ ThemeEngine.RegisterTheme{
         { selectors = {"implStatus2"}, color = "@implStatus2" },
         { selectors = {"implStatus3"}, color = "@implStatus3" },
         { selectors = {"implStatus4"}, color = "@implStatus4" },
+
+        -- Implementation status icon (the colored dot painted on compendium
+        -- ability / feature / item entries). Callers attach
+        -- `classes = {"spellImplementationIcon", <status>}` where status is
+        -- `wontimplement` / `unimplemented` / `bronze` / `silver` / `gold`.
+        -- The status modifier picks the matching `@implStatus*` token to
+        -- bgcolor-tint the icon image so the dot retracks the active scheme.
+        {
+            selectors = {"spellImplementationIcon"},
+            width = 16,
+            height = 16,
+            hmargin = 4,
+        },
+        {
+            selectors = {"spellImplementationIcon", "wontimplement"},
+            bgimage = "icons/icon_common/icon_common_29.png",
+            bgcolor = "@implStatus0",
+        },
+        {
+            selectors = {"spellImplementationIcon", "unimplemented"},
+            bgimage = "icons/icon_common/icon_common_29.png",
+            bgcolor = "@implStatus1",
+        },
+        {
+            selectors = {"spellImplementationIcon", "bronze"},
+            bgimage = "icons/icon_common/icon_common_29.png",
+            bgcolor = "@implStatus2",
+        },
+        {
+            selectors = {"spellImplementationIcon", "silver"},
+            bgimage = "icons/icon_common/icon_common_29.png",
+            bgcolor = "@implStatus3",
+        },
+        {
+            selectors = {"spellImplementationIcon", "gold"},
+            bgimage = "icons/icon_common/icon_common_29.png",
+            bgcolor = "@implStatus4",
+        },
 
         --[[ Status color utilities ]]
         -- Composable accents. The plain status names tint foreground;
@@ -1786,18 +1837,22 @@ ThemeEngine.RegisterTheme{
         },
         {
             selectors = {"bgSuccess"},
+            bgimage = true,
             bgcolor = "@success",
         },
         {
             selectors = {"bgInfo"},
+            bgimage = true,
             bgcolor = "@info",
         },
         {
             selectors = {"bgWarning"},
+            bgimage = true,
             bgcolor = "@warning",
         },
         {
             selectors = {"bgDanger"},
+            bgimage = true,
             bgcolor = "@danger",
         },
         {
@@ -2010,7 +2065,6 @@ ThemeEngine.RegisterTheme{
             bgcolor = '@accent',
             color = "@fgInverse",
             priority = 5,
-            -- transitionTime = 0.2,
         },
         {
             selectors = { 'drag-target-hover' },
@@ -2019,7 +2073,6 @@ ThemeEngine.RegisterTheme{
             bgcolor = '@accentHover',
             color = "@fgInverse",
             priority = 5,
-            -- transitionTime = 0.2,
         },
         {
             selectors = {"parent:drag-target"},
@@ -2053,7 +2106,11 @@ ThemeEngine.RegisterTheme{
         { selectors = {"modalDialog"},         cornerRadius = 10 },
         { selectors = {"framedPanel"},         cornerRadius = 10 },
         { selectors = {"contextMenu"},         cornerRadius = 10 },
-        { selectors = {"featureCardHeader"},   cornerRadius = {x1 = 10, x2 = 0, y1 = 10, y2 = 0} },
+        { selectors = {"featureCardHeader"},   cornerRadius = 10 },
+        {
+            selectors = {"featureCardHeader", "expanded"},
+            cornerRadius = {x1 = 10, x2 = 0, y1 = 10, y2 = 0},
+        },
         { selectors = {"featureCardBody"},     cornerRadius = {x1 = 0, x2 = 10, y1 = 0, y2 = 10} },
 
         -- Interactive controls
@@ -2351,6 +2408,93 @@ ThemeEngine.RegisterColorScheme{
             stops = {
                 {position = 0, color = "#10180E"},
                 {position = 1, color = "#1F3326"},
+            },
+        },
+    },
+}
+
+-- =============================================================================
+-- MCDM color scheme
+--
+-- Drawn from the MCDM logo: steel-blue letter faces over a deep navy night
+-- sky, a cream-yellow horizon glow, and a warm amber/sunset border. Surfaces
+-- are deep navy with subtle blue undertones; foreground text reads as steel
+-- blue with cream highlights. Accent is the bright sky-blue from the letter
+-- faces; border is the gold rim. Warning/danger lean into the sunset palette
+-- so semantic colors track the same warm-cool axis as the logo.
+-- =============================================================================
+
+ThemeEngine.RegisterColorScheme{
+    id          = "mcdm",
+    name        = "MCDM",
+    description = "Steel-blue night sky with a cream horizon glow and a warm amber rim, after the MCDM logo.",
+    colors = {
+        -- Surfaces (deep navy with a blue undertone, not pure black)
+        bg            = "#0F1A28",
+        bgAlt         = "#1A2738",
+        bgInverse     = "#C8DCEB",
+
+        -- Foreground / text (steel-blue body, cream-yellow highlight to echo
+        -- the horizon glow inside the logo letters)
+        fg            = "#B8CFE0",
+        fgStrong      = "#F2DEAE",
+        fgMuted       = "#6A89A4",
+        fgPending     = "#4A6680",
+        fgInverse     = "#0F1A28",
+
+        -- Borders (warm amber rim from the logo's outer frame)
+        border        = "#D89540",
+        borderInverse = "#1A2738",
+
+        -- Accent + interactive (bright sky-blue from the letter faces)
+        accent        = "#4A9FD8",
+        accentHover   = "#7CC4EC",
+
+        -- Status (warm side leans sunset; cool side leans cyan-green so it
+        -- reads against the blue surfaces without going neon)
+        success       = "#6BA84F",
+        info          = "#E9C868",
+        warning       = "#E89B36",
+        danger        = "#D63A1C",
+
+        -- Disabled
+        disabled      = "#2A3848",
+    },
+    gradients = {
+        -- Diagonal night-sky wash: lighter navy at the top-left fading to
+        -- near-black at the bottom-right.
+        surfaceLinear = {
+            point_a = {x = 0, y = 0},
+            point_b = {x = 1, y = 1},
+            stops = {
+                {position = 0, color = "#1A2738"},
+                {position = 1, color = "#070C12"},
+            },
+        },
+        -- Soft vignette: the navy surface lifts slightly at the centre to
+        -- suggest the cream horizon glow without ever competing with the
+        -- accents around it.
+        surfaceRadial = {
+            type = "radial",
+            point_a = {x = 0.5, y = 0.5},
+            point_b = {x = 0.5, y = 1.0},
+            stops = {
+                {position = -0.01, color = "#22344A"},
+                {position = 0.00,  color = "#22344A"},
+                {position = 0.25,  color = "#1C2D40"},
+                {position = 0.50,  color = "#162638"},
+                {position = 0.75,  color = "#121F2E"},
+                {position = 1.00,  color = "#0F1A28"},
+            },
+        },
+        -- Bar track: navy on the left fading to the warm amber rim, mirrors
+        -- the night-sky-meets-sunset transition in the logo border.
+        barTrack = {
+            point_a = {x = -0.02, y = 0},
+            point_b = {x = 1.02,  y = 0},
+            stops = {
+                {position = 0, color = "#0F1A28"},
+                {position = 1, color = "#A86A28"},
             },
         },
     },

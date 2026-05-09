@@ -19,6 +19,7 @@ Skill.hasPassive = false
 Skill.specializations = false
 Skill.hidden = false
 
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMSkills.lua:41
 function Skill.CreateNew()
 	return Skill.new{
 		id = dmhub.GenerateGuid(),
@@ -27,6 +28,7 @@ function Skill.CreateNew()
 		specializations = {},
 	}
 end
+--]==]
 
 --- @param name string
 --- @return nil|Skill
@@ -42,6 +44,7 @@ function Skill.FindByName(name)
 	return nil
 end
 
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMSkills.lua:50
 function Skill.GetSpecializationDropdownOptions(self)
 	local result = {}
 	result[#result+1] = {
@@ -57,11 +60,13 @@ function Skill.GetSpecializationDropdownOptions(self)
 	end
 	return result
 end
+--]==]
 
 function Skill.GetSpecializations(self)
 	return self.specializations or {}
 end
 
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMSkills.lua:70
 function Skill.AddSpecialization(self)
 	local specializations = Skill.GetSpecializations(self)
 
@@ -69,7 +74,9 @@ function Skill.AddSpecialization(self)
 
 	self.specializations = specializations
 end
+--]==]
 
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMSkills.lua:78
 function Skill.GetSpecializationById(self, id)
 	for _,s in ipairs(Skill.GetSpecializations(self)) do
 		if s.id == id then
@@ -77,7 +84,9 @@ function Skill.GetSpecializationById(self, id)
 		end
 	end
 end
+--]==]
 
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMSkills.lua:86
 function Skill.DeleteSpecializationById(self, id)
 	local specializations = Skill.GetSpecializations(self)
 	local newSpecializations = {}
@@ -89,13 +98,16 @@ function Skill.DeleteSpecializationById(self, id)
 
 	self.specializations = newSpecializations
 end
+--]==]
 
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMSkills.lua:98
 function SkillSpecialization.CreateNew()
 	return SkillSpecialization.new{
 		id = dmhub.GenerateGuid(),
 		text = "New Specialization",
 	}
 end
+--]==]
 
 local ParseAdvantage = function(str)
 	if str == nil then

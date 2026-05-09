@@ -463,9 +463,11 @@ end
 
 --- If the creature can teleport.
 --- @return boolean
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMCreature.lua:2078
 function creature:CanTeleport()
     return false
 end
+--]==]
 
 --- If the creature can climb at all. (Don't have to have a climb movement type)
 --- @return boolean
@@ -998,6 +1000,7 @@ end
 --- Inflicts a condition directly on the creature (without an ongoing effect wrapper).
 --- @param conditionid string
 --- @param args {stacks: nil|number, casterInfo: nil|table}
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMCreature.lua:3101
 function creature:InflictCondition(conditionid, args)
     local conditionsTable = GetTableCached(CharacterCondition.tableName)
 	local conditionInfo = conditionsTable[conditionid]
@@ -1028,6 +1031,7 @@ function creature:InflictCondition(conditionid, args)
     })
 
 end
+--]==]
 
 function creature:FillCalculatedStatusIcons(result)
 	local mods = self:GetActiveModifiers()
@@ -2017,6 +2021,7 @@ function creature:CheckBelowZeroHitpoints()
 	end
 end
 
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMCreature.lua:4332
 function creature.Heal(self, amount, note)
 	if type(amount) == 'string' then
 		amount = dmhub.RollInstant(amount)
@@ -2052,6 +2057,7 @@ function creature.Heal(self, amount, note)
 
 	self:DispatchEvent("regainhitpoints", {})
 end
+--]==]
 
 function ModStr(result)
 	result = tonum(result)
@@ -2505,6 +2511,7 @@ function creature:GetDeathSavingThrowStatus(index)
 	return nil
 end
 
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMCreature.lua:2005
 function creature:GetNumDeathSavingThrowFailures()
 	if self:CurrentHitpoints() <= 0 then
 		return self:try_get('deathSavingThrowFailures', 0)
@@ -2512,7 +2519,9 @@ function creature:GetNumDeathSavingThrowFailures()
 		return 0
 	end
 end
+--]==]
 
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMCreature.lua:2001
 function creature:GetNumDeathSavingThrowSuccesses()
 	if self:CurrentHitpoints() <= 0 then
 		return self:try_get('deathSavingThrowSuccesses', 0)
@@ -2520,6 +2529,7 @@ function creature:GetNumDeathSavingThrowSuccesses()
 		return 0
 	end
 end
+--]==]
 
 --args : {completefn = function(RollInfo)?}?
 function creature:RollDeathSavingThrow(args)
@@ -3290,6 +3300,7 @@ function creature:ConditionImmunityDescription()
 	return string.format(tr("Immune to %s."), pretty_join_list(items))
 end
 
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMCreature.lua:2381
 function creature.ResistanceDescription(self)
 	local entries = self:CalculateResistances()
 	if #entries <= 0 then
@@ -3427,6 +3438,7 @@ function creature.ResistanceDescription(self)
 
 	return result
 end
+--]==]
 
 function creature:GetGold()
 	if self:has_key('gold') == false then
@@ -3650,9 +3662,11 @@ function creature:ListPreparedSpells()
 
 end
 
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMCreature.lua:468
 function creature:IsRetainer()
     return false
 end
+--]==]
 
 function creature:IsActivatedAbilityInnate(ability)
 	for i,a in ipairs(self.innateActivatedAbilities) do
@@ -3693,6 +3707,7 @@ end
 --
 --An important property is that innate abilities are not clones unless bindCaster is true. This allows the character sheet
 --and other parts of the app to modify the innate abilities to update the creature.
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMCreature.lua:2530
 function creature:GetActivatedAbilities(options)
 	options = options or {}
 	local result = {}
@@ -3871,6 +3886,7 @@ function creature:GetActivatedAbilities(options)
 
 	return result
 end
+--]==]
 
 -----------------------------
 -- Custom innate spellcasting
@@ -5712,33 +5728,43 @@ function creature:ApplyModifiersToD20Roll(rollType, rollStr, options)
 	return rollStr
 end
 
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMCreature.lua:2010
 function creature:IsDeadOrDying()
 	return self:IsDown()
 end
+--]==]
 
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMCreature.lua:2015
 function creature:IsDying()
 	return false
 end
+--]==]
 
 function creature:IsDead()
 	return false
 end
 
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMCreature.lua:2041
 function monster:IsDead()
     return self:CurrentHitpoints() <= 0
 end
+--]==]
 
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMCreature.lua:2036
 function character:IsDead()
     return self:CurrentHitpoints() <= self:MaxHitpoints()/2
 end
+--]==]
 
 function creature:IsUnconsciousButStable()
 	return self:CurrentHitpoints() <= 0 and self:GetNumDeathSavingThrowSuccesses() >= 3
 end
 
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMCreature.lua:2031
 function creature:IsDown()
 	return self:IsDead()
 end
+--]==]
 
 function creature:IsDownCached()
     return self:try_get("_tmp_down", false)
@@ -6732,14 +6758,18 @@ function creature:SpellcastingAbilityModifier(spell)
 end
 
 --called by dmhub to get a descriptive summary of the character.
+--[==[ DEAD_CODE - overridden by DMHub Game Rules\Character.lua:840
 function creature:GetCharacterSummaryText()
 	return "creature"
 end
+--]==]
 
 --called by dmhub to summarize a creature's info in the lobby.
+--[==[ DEAD_CODE - overridden by DMHub Game Rules\Character.lua:888
 function creature:GetLobbySummaryText()
 	return {}
 end
+--]==]
 
 function creature:RaceOrMonsterType()
 	return ""

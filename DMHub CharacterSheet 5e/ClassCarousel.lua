@@ -841,6 +841,7 @@ function CharSheet.HitpointsPanel(classIndex)
 
 end
 
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMClassCarousel.lua:844
 function CharSheet.ClassChoicePanel(options, classIndex)
     local resultPanel
 
@@ -2031,3 +2032,4 @@ function CharSheet.ClassChoicePanel(options, classIndex)
 
     return resultPanel
 end
+--]==]

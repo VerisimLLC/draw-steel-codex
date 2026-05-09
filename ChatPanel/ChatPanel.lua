@@ -283,22 +283,6 @@ CreateChatPanel = function()
 				width = "100%",
 				flow = "vertical",
 			},
-
-			-- {
-			-- 	selectors = "separator",
-			-- 	bgimage = "panels/square.png",
-			-- 	width = "96%",
-			-- 	height = 1,
-			-- 	vmargin = 4,
-			-- 	bgcolor = Styles.textColor,
-			-- 	gradient = Styles.horizontalGradient,
-			-- },
-			-- {
-			-- 	selectors = {"visibilityPanel"},
-			-- 	halign = "right",
-			-- 	valign = "center",
-			-- },
-
 			{
 				selectors = {"panel", "chatMessage"},
 				width = "100%",
@@ -318,12 +302,6 @@ CreateChatPanel = function()
 				vmargin = 0,
 				lmargin = 6,
 			},
-
-			-- {
-			-- 	selectors = {"chat-message-panel"},
-			-- 	flow = "vertical",
-			-- },
-
             {
                 selectors = {"unknownLanguage"},
                 fontFace = "Tengwar",
@@ -1000,6 +978,7 @@ CreateChatPanel = function()
 
         gui.Label{
             classes = {"sizeS", "speaker", "selected"},
+			valign = "bottom",
             text = "OOC",
             press = function(element)
                 g_settingChatOOC:Set(true)
@@ -1017,8 +996,10 @@ CreateChatPanel = function()
             end,
         },
         gui.Label{
-            classes = {"speaker"},
+            classes = {"speaker", "sizeXxs"},
+			valign = "bottom",
             width = 120,
+			height = 20,
             press = function(element)
                 g_settingChatOOC:Set(false)
                 element.parent:FireEventTree("refreshSelectedTokens")

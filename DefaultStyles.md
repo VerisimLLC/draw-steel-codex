@@ -285,6 +285,7 @@ Use these to opt a panel/label into a token without authoring a one-off rule. Na
 - **Accent tokens** — `{accent}` / `{accentHover}` set `color`; the `bg`-prefixed and `border`-prefixed variants (`bgAccent`, `borderAccentHover`, etc.) set the alternate property.
 - **Disabled tokens** — explicit picks: `{fgDisabled}`, `{bgDisabled}`, `{borderDisabled}`.
 - **Implementation status** — `{implStatus0}..{implStatus4}` set `color`.
+- **Implementation status icon** — `{spellImplementationIcon}` is the 16x16 colored-dot indicator on compendium ability / feature / item entries. Compose with one of `wontimplement` / `unimplemented` / `bronze` / `silver` / `gold` to pick the matching `@implStatus*` token as `bgcolor`. Callers attach `classes = {"spellImplementationIcon", <status>}` and the cascade handles the rest — no per-panel style splice needed.
 
 Reach for a class when the styling is purely a token swap. Reach for a one-off rule in `MergeStyles` extras when you also need size, padding, or other layout properties.
 
@@ -300,6 +301,8 @@ Use to highlight a single label or panel without authoring a rule.
 
 - `{bordered}` — adds a 1px `@border` frame and `bgimage = true` so the border renders. Compose with anything that needs a quick frame.
 - `{bold}` / `{noBold}` — flip weight. Both carry `priority = 5` so they beat the base rule.
+- `{underline}` — typographic underline. Same `priority = 5` shape as `{bold}`. Compose with size classes when you want emphasis on a heading without authoring a one-off rule.
+- `{monospace}` — fixed-width font for code/script display (Lua editor body, expression-tree nodes, formula source text). Picks up the active theme's `@mono` font token (default `"Courier"`). Compose with size classes for the right text size.
 
 #### Token image
 

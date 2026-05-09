@@ -42,6 +42,7 @@ Layout values (positions and sizes unique to a particular construction site — 
 - `floating = true` and its `x`/`y` partners are structural — must be inline, the cascade ignores them.
 - Don't put `ThemeEngine.MergeStyles`/`GetStyles` inside primitive `gui.*` widgets; the caller surface owns the cascade.
 - Use `@fg` / `@fgStrong` / `@fgMuted` / `@fgPending` / `@fgInverse` / `@accent` / `@accentHover` / `@bg` / `@bgAlt` / `@border` / `@disabled` / `@success` / `@info` / `@warning` / `@danger`. Never raw hex in theme rules unless the value is intentionally scheme-independent (e.g. `"white"` for image-tint-neutral, `"clear"` for transparent).
+- **`@tokens` are NEVER inline panel fields.** They only resolve inside style rule tables routed through `ThemeEngine.GetStyles` / `MergeStyles` / `MergeTokens`, or inside text markup passed through `ThemeEngine.ResolveTokens`. Writing `gui.Panel{ bgcolor = "@bg" }` ships the literal string "@bg" to the renderer and breaks. If you reach for an inline `@token`, stop: pick an existing default-theme class instead, and only fall back to a `MergeStyles` block (with the user's approval) when no class fits.
 - Token names that don't exist resolve to magenta (`#FF00FF`) and log a warning. If you see `THEME_ENGINE:: unresolved color reference: @something` in the log, fix the rule that produced it — don't register a new token.
 - One property per line in style tables.
 - Lua strings use double quotes.

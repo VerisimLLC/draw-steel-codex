@@ -17,18 +17,17 @@ local mod = dmhub.GetModLoading()
     (not a listed modifier) so it never collides with search results.
 ]]
 
--- Picker-specific style extras, splice into the modal's cascade root via
--- ThemeEngine.MergeStyles so the dialog frame, search input, and other
--- engine-themed widgets follow the active color scheme. The card / chip /
--- divider rules below are the parts the dev wants to keep custom for the
--- picker list -- they reference @tokens so they re-color with the scheme.
+-- Picker-specific style extras appended to the modal's cascade root via
+-- ThemeEngine.MergeTokens. The card / chip / divider rules below are the
+-- picker-list custom look -- they reference @tokens so they re-color with
+-- the active scheme. Hover state requires cascade rules (cannot inline).
 local function _pickerStyles()
     return {
         -- Result card surface. Dark fill, accent border, rounded corners --
         -- "dark fill + accent border" look the user wants to keep.
         {
             selectors = {"picker-card"},
-            bgimage = "panels/square.png",
+            bgimage = true,
             bgcolor = "@bgAlt",
             borderWidth = 1,
             borderColor = "@border",
@@ -42,7 +41,7 @@ local function _pickerStyles()
         -- Suggested-search chip (rounded capsule).
         {
             selectors = {"picker-chip"},
-            bgimage = "panels/square.png",
+            bgimage = true,
             bgcolor = "@bgAlt",
             borderWidth = 1,
             borderColor = "@border",
@@ -56,7 +55,7 @@ local function _pickerStyles()
         -- 1px divider between Recently Used and the rest.
         {
             selectors = {"picker-divider"},
-            bgimage = "panels/square.png",
+            bgimage = true,
             bgcolor = "@accent",
             opacity = 0.4,
         },
@@ -583,7 +582,7 @@ function AbilityEditor.OpenModifierPicker(feature, onAdd)
 
     local dialogPanel = gui.Panel{
         classes = {"framedPanel"},
-        styles = ThemeEngine.MergeStyles(_pickerStyles()),
+        styles = { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(_pickerStyles()) },
         width = 600,
         height = 600,
         flow = "vertical",

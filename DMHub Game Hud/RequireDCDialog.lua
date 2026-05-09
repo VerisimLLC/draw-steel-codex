@@ -39,14 +39,19 @@ RollCheck.customChecks = {}
 --	GetModifiers = (optional) function(RollCheck, creature),
 --	ShowDialog = (optional) function(RollCheck, dialogOptions)
 --}
+--[==[ DEAD_CODE - overridden by Draw Steel UI\DSRequestRollsDialog.lua:96
 function RollCheck.RegisterCustom(options)
 	RollCheck.customChecks[options.id] = options
 end
+--]==]
 
+--[==[ DEAD_CODE - overridden by Draw Steel UI\DSRequestRollsDialog.lua:100
 function RollCheck:CustomInfo()
 	return RollCheck.customChecks[self.id]
 end
+--]==]
 
+--[==[ DEAD_CODE - overridden by Draw Steel UI\DSRequestRollsDialog.lua:104
 function RollRequest:GetTokenOutcome(tokenid, checkNumber)
 	local tokenInfo = self.tokens[tokenid]
 	if tokenInfo == nil then
@@ -55,7 +60,9 @@ function RollRequest:GetTokenOutcome(tokenid, checkNumber)
 
 	return tokenInfo.outcome
 end
+--]==]
 
+--[==[ DEAD_CODE - overridden by Draw Steel UI\DSRequestRollsDialog.lua:113
 function RollRequest:GetTokenResult(tokenid, checkNumber)
 	local tokenInfo = self.tokens[tokenid]
 	if tokenInfo == nil then
@@ -72,12 +79,16 @@ function RollRequest:GetTokenResult(tokenid, checkNumber)
 
 	return tokenInfo.result >= self.checks[checkNumber or 1].dc
 end
+--]==]
 
 
+--[==[ DEAD_CODE - overridden by Draw Steel UI\DSRequestRollsDialog.lua:131
 function RollRequest:Describe(isplayer)
 	return self.checks[1]:Describe(isplayer)
 end
+--]==]
 
+--[==[ DEAD_CODE - overridden by Draw Steel UI\DSRequestRollsDialog.lua:148
 function RollCheck:Describe(isplayer)
 	local dc = ""
 	if (not isplayer) and self:has_key('dc') then
@@ -134,7 +145,9 @@ function RollCheck:Describe(isplayer)
 		return string.format("%s%s%s check", dc, self.text, specializationText)
 	end
 end
+--]==]
 
+--[==[ DEAD_CODE - overridden by Draw Steel UI\DSRequestRollsDialog.lua:206
 function RollCheck:GetRoll(creature)
 	if self:CustomInfo() ~= nil then
 		return self:CustomInfo().GetRoll(self, creature)
@@ -164,7 +177,9 @@ function RollCheck:GetRoll(creature)
 		return string.format("%s+%d", GameSystem.BaseSkillRoll, creature:SkillMod(Skill.SkillsById[self.id]))
 	end
 end
+--]==]
 
+--[==[ DEAD_CODE - overridden by Draw Steel UI\DSRequestRollsDialog.lua:241
 function RollCheck:GetModifiers(creature)
 	if self:CustomInfo() ~= nil then
 		if self:CustomInfo().GetModifiers then
@@ -191,6 +206,7 @@ function RollCheck:GetModifiers(creature)
 	end
 	
 end
+--]==]
 
 local initiativeChecks = {
 	{
@@ -208,6 +224,7 @@ local g_tableGroupSetting = setting{
 }
 
 --called by skills once the skills are loaded.
+--[==[ DEAD_CODE - overridden by Draw Steel UI\DSRequestRollsDialog.lua:325
 function RollCheck.LoadSkills()
 
 	local attributeRollChecks = {}
@@ -293,9 +310,11 @@ function RollCheck.LoadSkills()
 		},
 	}
 end
+--]==]
 
 
 --this is a hidden panel which just listens for required rolls.
+--[==[ DEAD_CODE - overridden by Draw Steel UI\DSRequestRollsDialog.lua:403
 function GameHud:RequireRollListenerPanel()
 
 	local autoRollId = nil
@@ -558,6 +577,7 @@ function GameHud:RequireRollListenerPanel()
 
 	return resultPanel
 end
+--]==]
 
 local g_requireRollDialog = nil
 
@@ -567,6 +587,7 @@ local function CloseRequireRollDialog()
 	end
 end
 
+--[==[ DEAD_CODE - overridden by Draw Steel UI\DSRequestRollsDialog.lua:687
 function GameHud:CreatePartyTokenPoolSelector(args)
 	local initiative = args.initiative
 	args.initiative = nil
@@ -785,6 +806,7 @@ function GameHud:CreatePartyTokenPoolSelector(args)
 
 	return resultPanel
 end
+--]==]
 
 function ShowRequireRollDialog(args)
 
@@ -1270,6 +1292,7 @@ function ShowRequireRollDialog(args)
 end
 
 --resultTable gets marked with a 'result' = true/false for completion or cancel.
+--[==[ DEAD_CODE - overridden by Draw Steel UI\DSRequestRollsDialog.lua:1450
 function GameHud:ShowRollSummaryDialog(actionid, resultTable)
 	if resultTable == nil then
 		resultTable = {}
@@ -1577,6 +1600,7 @@ function GameHud:ShowRollSummaryDialog(actionid, resultTable)
 
 	}
 end
+--]==]
 
 --this is a silent/non-gui version of GameHud:ShowRollSummaryDialog that monitors an actionid for completion.
 --designed to be run in a coroutine. Will cancel the request and time out eventually.

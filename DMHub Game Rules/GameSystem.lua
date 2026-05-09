@@ -211,6 +211,7 @@ function GameSystem.ClearWeaponProperties()
     WeaponProperty.builtins = {}
 end
 
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMRules.lua:138
 function GameSystem.BaseCreatureResources(creature)
     return {
 		standardAction = 1,
@@ -219,6 +220,7 @@ function GameSystem.BaseCreatureResources(creature)
 		reaction = 1,
     }
 end
+--]==]
 
 GameSystem.spellSlotsTable = {
 	{ 2 }, -- level 1
@@ -334,9 +336,11 @@ GameSystem.RegisterModifiableAttribute{
     category = "Combat",
 }
 
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMRules.lua:601
 function GameSystem.IgnoreOffhandWeaponPenalty(creature, weapon)
 	return creature:CalculateAttribute('ignoreoffhandpenalty', 0) > 0
 end
+--]==]
 
 
 function GameSystem.RegisterBuiltinWeaponProperty(properties)
@@ -644,9 +648,11 @@ GameSystem.RegisterConditionRule{
 GameSystem.OnEndCastActivatedAbility = function(casterToken, ability, options)
 end
 
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMRules.lua:1173
 function GameSystem.AllowTargeting(casterToken, targetToken, ability)
 	return true
 end
+--]==]
 
 function GameSystem.RegisterCreatureSizes(sizes)
 

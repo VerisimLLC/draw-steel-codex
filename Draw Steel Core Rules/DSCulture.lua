@@ -132,13 +132,13 @@ local SetCulture = function(tableName, culturePanel, cultureid)
     --the ID of the Culture.
     if dmhub.GetSettingValue("dev") then
         children[#children+1] = gui.Panel{
-            classes = {'formPanel'},
+            classes = {"formStackedRow"},
             gui.Label{
-                text = 'ID:',
-                valign = 'center',
-                minWidth = 100,
+                classes = {"formStacked"},
+                text = "ID:",
             },
             gui.Label{
+                classes = {"formStacked"},
                 text = culture.id,
             },
         }
@@ -146,13 +146,13 @@ local SetCulture = function(tableName, culturePanel, cultureid)
 
     --the name of the Culture.
     children[#children+1] = gui.Panel{
-        classes = {'formPanel'},
+        classes = {"formStackedRow"},
         gui.Label{
-            text = 'Name:',
-            valign = 'center',
-            minWidth = 100,
+            classes = {"formStacked"},
+            text = "Name:",
         },
         gui.Input{
+            classes = {"formStacked"},
             text = culture.name,
             change = function(element)
                 culture.name = element.text
@@ -163,13 +163,13 @@ local SetCulture = function(tableName, culturePanel, cultureid)
 
     --the group of the Culture.
     children[#children+1] = gui.Panel{
-        classes = {'formPanel'},
+        classes = {"formStackedRow"},
         gui.Label{
-            text = 'Group:',
-            valign = 'center',
-            minWidth = 100,
+            classes = {"formStacked"},
+            text = "Group:",
         },
         gui.Input{
+            classes = {"formStacked"},
             text = culture.group,
             change = function(element)
                 culture.group = element.text
@@ -179,54 +179,49 @@ local SetCulture = function(tableName, culturePanel, cultureid)
     }
 
     --Culture description..
-    children[#children + 1] = gui.Panel {
-        classes = { 'formPanel' },
-        height = 'auto',
-        gui.Label {
+    children[#children + 1] = gui.Panel{
+        classes = {"formStackedRow"},
+        gui.Label{
+            classes = {"formStacked"},
             text = "Description:",
-            valign = "center",
-            width = 135,
         },
-        gui.Input {
+        gui.Input{
+            classes = {"formStacked", "multiline"},
             text = culture.description or "",
             multiline = true,
             minHeight = 50,
-            height = 'auto',
-            width = 400,
-            textAlignment = "topleft",
+            height = "auto",
             change = function(element)
                 culture.description = element.text
                 UploadCulture()
             end,
-        }
+        },
     }
 
     --Language choice
     local languageChoices = cultureLanguageChoice:Choices(1, culture.languageid ~= "" and {culture.languageid} or {}, {})
     if languageChoices ~= nil and #languageChoices > 0 then
         table.sort(languageChoices, function(a, b) return a.text < b.text end)
-        
+
         children[#children+1] = gui.Panel{
-            classes = {'formPanel'},
+            classes = {"formStackedRow"},
             gui.Label{
-                text = 'Language:',
-                valign = 'center',
-                minWidth = 145,
+                classes = {"formStacked"},
+                text = "Language:",
             },
             gui.Dropdown{
-                width = 300,
-                height = 32,
+                classes = {"formStacked"},
                 textDefault = "Choose Language...",
                 options = languageChoices,
-                idChosen = culture.languageid ~= "" and culture.languageid or 'none',
+                idChosen = culture.languageid ~= "" and culture.languageid or "none",
                 change = function(element)
                     local choice = element.idChosen
-                    if choice == 'none' then
+                    if choice == "none" then
                         culture.languageid = ""
                     else
                         culture.languageid = choice
                     end
-                    
+
                     UploadCulture()
                 end,
             },
@@ -238,7 +233,7 @@ local SetCulture = function(tableName, culturePanel, cultureid)
         local aspectId = culture.aspects[cat.id] or ""
         local aspectEntry = GetTableCached(CultureAspect.tableName)[aspectId]
 
-        local aspectOptions = { { id = 'none', text = "None" } }
+        local aspectOptions = { { id = "none", text = "None" } }
         local aspectEntries = {}
         for _,v in pairs(GetTableCached(CultureAspect.tableName) or {}) do
             if v.category == cat.id then
@@ -250,26 +245,24 @@ local SetCulture = function(tableName, culturePanel, cultureid)
         table.sort(aspectOptions, function(a, b) return a.text < b.text end)
 
         children[#children+1] = gui.Panel{
-            classes = {'formPanel'},
+            classes = {"formStackedRow"},
             gui.Label{
+                classes = {"formStacked"},
                 text = cat.text .. ":",
-                valign = 'center',
-                minWidth = 145,
             },
             gui.Dropdown{
-                width = 300,
-                height = 32,
+                classes = {"formStacked"},
                 textDefault = "Choose Aspect...",
                 options = aspectOptions,
-                idChosen = aspectId ~= "" and aspectId or 'none',
+                idChosen = aspectId ~= "" and aspectId or "none",
                 change = function(element)
                     local choice = element.idChosen
-                    if choice == 'none' then
+                    if choice == "none" then
                         culture.aspects[cat.id] = ""
                     else
                         culture.aspects[cat.id] = choice
                     end
-                    
+
                     UploadCulture()
                 end,
             },
@@ -289,42 +282,12 @@ local CreateCultureEditor = function()
             end,
         },
         vscroll = true,
-        classes = 'class-panel',
-        styles = {
-            {
-                halign = "left",
-            },
-            {
-                classes = {'class-panel'},
-                width = 1200,
-                height = '90%',
-                halign = 'left',
-                flow = 'vertical',
-                pad = 20,
-            },
-            {
-                classes = {'label'},
-                color = 'white',
-                fontSize = 22,
-                width = 'auto',
-                height = 'auto',
-            },
-            {
-                classes = {'input'},
-                width = 200,
-                height = 26,
-                fontSize = 18,
-                color = 'white',
-            },
-            {
-                classes = {'formPanel'},
-                flow = 'horizontal',
-                width = 'auto',
-                height = 'auto',
-                halign = 'left',
-                vmargin = 2,
-            },
-        },
+        width = 1200,
+        height = "90%",
+        halign = "left",
+        flow = "vertical",
+        pad = 20,
+        styles = ThemeEngine.GetStyles(),
     }
 
     return cultureEditor
@@ -355,12 +318,11 @@ local ShowCulturesPanel = function(contentPanel)
 
                 if newHeadings[group] == nil then
                     newHeadings[group] = sectionHeadings[group] or gui.Label{
+                        classes = {"sizeL", "bold"},
                         data = {
                             ord = group,
                         },
                         text = group,
-                        fontSize = 20,
-                        bold = true,
                         width = "auto",
                         height = "auto",
                         lmargin = 4,

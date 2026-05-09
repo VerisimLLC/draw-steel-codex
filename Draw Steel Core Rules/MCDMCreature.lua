@@ -3584,9 +3584,11 @@ creature.RegisterSymbol {
     },
 }
 
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMMonster.lua:24
 function creature:PowerRollBonus()
     return 0
 end
+--]==]
 
 creature.RegisterSymbol {
     symbol = "powerrollbonus",
@@ -4877,9 +4879,11 @@ function creature:Role()
     return "none"
 end
 
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMMonster.lua:920
 function monster:Role()
     return self:try_get("role", "none")
 end
+--]==]
 
 function character:Role()
     return "hero"

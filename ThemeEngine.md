@@ -81,6 +81,27 @@ When writing custom styles (for `MergeStyles` or `MergeTokens`), reference schem
 
 The token list (`@fg`, `@bg`, `@accent`, `@danger`, etc.) lives in the color-scheme block of `DMHub Core UI / DefaultStyles.lua`.
 
+**`@tokens` only resolve inside ThemeEngine-routed style rule tables.** Writing them as direct panel fields does NOT work -- the engine never sees them. So:
+
+```lua
+-- BROKEN: panel ships the literal string "@bg" to the renderer.
+gui.Panel{ bgimage = true, bgcolor = "@bg", ... }
+
+-- RIGHT (option 1, preferred): use an existing default-theme class.
+gui.Panel{ classes = {"bordered"}, ... }
+
+-- RIGHT (option 2): if no class fits, route a styles block through the engine.
+gui.Panel{
+    styles = ThemeEngine.MergeStyles{
+        { selectors = {"myEntryWrapper"}, bgimage = true, bgcolor = "@bg" },
+    },
+    classes = {"myEntryWrapper"},
+    ...
+}
+```
+
+Always reach for an existing `DefaultStyles.lua` class first -- adding `MergeStyles` blocks for one-off colors is a last resort and still requires the user's go-ahead per the discipline rules.
+
 ### @token references inside text markup
 
 The cascade resolver only walks rule tables, so `@tokenName` references baked into a text string (e.g. TextMeshPro inline-color markup) are not substituted automatically. For those cases, call `ThemeEngine.ResolveTokens(text)` to replace each `@tokenName` in the string with the active scheme's resolved hex:

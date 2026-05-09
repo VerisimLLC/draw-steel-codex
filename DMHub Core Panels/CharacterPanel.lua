@@ -286,6 +286,7 @@ end
 local g_characterDetailsPanel = nil
 local g_displayedAbility = nil
 
+--[==[ DEAD_CODE - overridden by Timeline\AbilitySidebar.lua:1304
 function CharacterPanel.DisplayAbility(token, ability, symbols)
     DockablePanel.LaunchPanelByName("Character", "show")
     if g_characterDetailsPanel ~= nil and g_characterDetailsPanel.valid then
@@ -296,13 +297,17 @@ function CharacterPanel.DisplayAbility(token, ability, symbols)
 
     return false
 end
+--]==]
 
+--[==[ DEAD_CODE - overridden by Timeline\AbilitySidebar.lua:1344
 function CharacterPanel.HighlightAbilitySection(options)
     if g_characterDetailsPanel ~= nil and g_characterDetailsPanel.valid then
         g_characterDetailsPanel:FireEventTree("showAbilitySection", options)
     end
 end
+--]==]
 
+--[==[ DEAD_CODE - overridden by Timeline\AbilitySidebar.lua:1392
 function CharacterPanel.HideAbility(ability)
     local ctrl = dmhub.modKeys['ctrl'] or false
     if ctrl then
@@ -323,6 +328,7 @@ function CharacterPanel.HideAbility(ability)
 
     return false
 end
+--]==]
 
 local function AbilityDisplayPanel()
     local resultPanel

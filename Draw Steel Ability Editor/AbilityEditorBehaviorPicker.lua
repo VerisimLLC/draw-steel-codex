@@ -10,15 +10,15 @@ local mod = dmhub.GetModLoading()
     button.
 ]]
 
--- Picker-specific style extras spliced into the modal's cascade root via
--- ThemeEngine.MergeStyles. Keeps the picker's "dark fill + accent border"
+-- Picker-specific style extras appended to the modal's cascade root via
+-- ThemeEngine.MergeTokens. Keeps the picker's "dark fill + accent border"
 -- card look but routes the colors through @-tokens so the cards re-color
--- with the active scheme.
+-- with the active scheme. Hover state requires cascade rules (cannot inline).
 local function _pickerStyles()
     return {
         {
             selectors = {"picker-card"},
-            bgimage = "panels/square.png",
+            bgimage = true,
             bgcolor = "@bgAlt",
             borderWidth = 1,
             borderColor = "@border",
@@ -31,7 +31,7 @@ local function _pickerStyles()
         },
         {
             selectors = {"picker-divider"},
-            bgimage = "panels/square.png",
+            bgimage = true,
             bgcolor = "@accent",
             opacity = 0.4,
         },
@@ -651,7 +651,7 @@ function AbilityEditor.OpenBehaviorPicker(ability, onAdd)
 
     local dialogPanel = gui.Panel{
         classes = {"framedPanel"},
-        styles = ThemeEngine.MergeStyles(_pickerStyles()),
+        styles = { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(_pickerStyles()) },
         width = 600,
         height = 600,
         flow = "vertical",

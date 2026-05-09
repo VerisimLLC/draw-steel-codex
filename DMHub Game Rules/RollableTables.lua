@@ -393,11 +393,11 @@ local SetData = function(tableName, rolltablePanel, key, options)
 		children[#children+1] = gui.Panel{
 			classes = {"formStackedRow"},
 			gui.Label{
-				classes = {"formStackedLabel"},
+				classes = {"formStacked"},
 				text = "Name:",
 			},
 			gui.Input{
-				classes = {"formStackedControl"},
+				classes = {"formStacked"},
 				text = data.name,
 				change = function(element)
 					data.name = element.text
@@ -417,11 +417,11 @@ local SetData = function(tableName, rolltablePanel, key, options)
 			children[#children+1] = gui.Panel{
 				classes = {"formStackedRow"},
 				gui.Label{
-					classes = {"formStackedLabel"},
+					classes = {"formStacked"},
 					text = "Details:",
 				},
 				gui.Input{
-					classes = {"formStackedControl"},
+					classes = {"formStacked"},
 					multiline = true,
 					height = "auto",
 					minHeight = 30,
@@ -445,11 +445,11 @@ local SetData = function(tableName, rolltablePanel, key, options)
 		children[#children+1] = gui.Panel{
 			classes = {"formStackedRow"},
 			gui.Label{
-				classes = {"formStackedLabel"},
+				classes = {"formStacked"},
 				text = "Roll:",
 			},
 			gui.Dropdown{
-				classes = {"formStackedControl"},
+				classes = {"formStacked"},
 				options = rollTypes,
 				idChosen = data.rollType,
 				change = function(element)
@@ -466,11 +466,11 @@ local SetData = function(tableName, rolltablePanel, key, options)
 				element:SetClass("collapsed", data.rollType ~= "custom")
 			end,
 			gui.Label{
-				classes = {"formStackedLabel"},
+				classes = {"formStacked"},
 				text = "Custom Roll:",
 			},
 			gui.Input{
-				classes = {"formStackedControl"},
+				classes = {"formStacked"},
 				text = data.customRoll,
 				change = function(element)
 					data.customRoll = element.text
@@ -483,11 +483,11 @@ local SetData = function(tableName, rolltablePanel, key, options)
 		children[#children+1] = gui.Panel{
 			classes = {"formStackedRow"},
 			gui.Label{
-				classes = {"formStackedLabel"},
+				classes = {"formStacked"},
 				text = "Player Visibility:",
 			},
 			gui.Dropdown{
-				classes = {"formStackedControl"},
+				classes = {"formStacked"},
 				idChosen = data.visibility,
 				options = {
 					{

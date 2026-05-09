@@ -101,11 +101,11 @@ local SetCultureAspect = function(cultureAspectPanel, cultureAspectid)
 	children[#children+1] = gui.Panel{
 		classes = {"formStackedRow"},
 		gui.Label{
-			classes = {"formStackedLabel"},
+			classes = {"formStacked"},
 			text = "Name:",
 		},
 		gui.Input{
-			classes = {"formStackedControl"},
+			classes = {"formStacked"},
 			text = cultureAspect.name,
 			change = function(element)
 				cultureAspect.name = element.text
@@ -117,11 +117,11 @@ local SetCultureAspect = function(cultureAspectPanel, cultureAspectid)
 	children[#children+1] = gui.Panel{
 		classes = {"formStackedRow"},
 		gui.Label{
-			classes = {"formStackedLabel"},
+			classes = {"formStacked"},
 			text = "Category:",
 		},
 		gui.Dropdown{
-			classes = {"formStackedControl"},
+			classes = {"formStacked"},
 			options = CultureAspect.categories,
 			idChosen = cultureAspect.category,
 			change = function(element)
@@ -134,11 +134,11 @@ local SetCultureAspect = function(cultureAspectPanel, cultureAspectid)
 	children[#children+1] = gui.Panel{
 		classes = {"formStackedRow"},
 		gui.Label{
-			classes = {"formStackedLabel"},
+			classes = {"formStacked"},
 			text = "Description:",
 		},
 		gui.Input{
-			classes = {"formStackedControl"},
+			classes = {"formStacked"},
 			multiline = true,
 			height = "auto",
 			minHeight = 30,

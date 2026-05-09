@@ -1601,6 +1601,15 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
 
             --we summoned, so consume resources.
             ability:CommitToPaying(casterToken, args)
+
+            if self.replaceCaster then
+                casterToken:ModifyProperties{
+                    description = "Replace caster",
+                    execute = function()
+                        casterToken.despawned = true
+                    end,
+                }
+            end
         end
     end
 end

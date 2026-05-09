@@ -178,7 +178,7 @@ ActivatedAbility.RegisterType
     createBehavior = function()
         return ActivatedAbilityPowerRollBehavior.new{
             tiers = {"", "", ""},
-            roll = "2d10 + Might or Agility",
+            roll = "2d10 + Highest Characteristic",
         }
     end,
 }

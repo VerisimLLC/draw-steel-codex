@@ -792,14 +792,16 @@ function ActivatedAbilitySummonBehavior:CastDuplicate(ability, casterToken, targ
 end
 
 --- Prompts the user to place summons. When squadCtx is provided, also renders an
+--- inline squad chip bar.
 --- @param casterToken CharacterToken
 --- @param rangeTiles number max distance in tiles from casterToken.loc.
 --- @param index number which summon
 --- @param total number total summons being placed.
 --- @param isMinion boolean true if the creature being placed is a minion.
 --- @param squadCtx table|nil persistent squad-selection state (see Cast()).
---- @return Loc|nil pickedLoc, table|nil squadResult ({squadName,isNew,exceededMinions,exceededSquads}) or nil if cancelled.
-function ActivatedAbilitySummonBehavior.PromptPlacementLoc(casterToken, rangeTiles, index, total, isMinion, squadCtx)
+--- @param creatureCtx table|nil persistent creature-selection state with .choices and .selectedCreature.
+--- @return Loc|nil pickedLoc, table|nil squadResult, table|nil pickedCreature.
+function ActivatedAbilitySummonBehavior.PromptPlacementLoc(casterToken, rangeTiles, index, total, isMinion, squadCtx, creatureCtx)
     local SQUAD_CAP = 8
 
     local origin = casterToken.loc
@@ -807,6 +809,7 @@ function ActivatedAbilitySummonBehavior.PromptPlacementLoc(casterToken, rangeTil
 
     local pickedLoc = nil
     local pickedSquadResult = nil
+    local pickedCreature = nil
     local cancelled = false
 
     local rangeMarker = dmhub.MarkLocs{
@@ -841,150 +844,307 @@ function ActivatedAbilitySummonBehavior.PromptPlacementLoc(casterToken, rangeTil
             text = string.format("Place %s %d of %d (Esc to cancel)", isMinion and "minion" or "creature", index, total),
         }
     else
-        local caster = casterToken.properties
-        local squadsByType = caster:GetSummonedSquadsByType(squadCtx.monsterType)
-        local allSquads = caster:GetSummonedSquadsByType(nil)
-        local liveEntries = caster:GetLiveSummonedEntries()
+        local headerLabel
+        local statusLabel
+        local squadBarPanel
 
-        local baselineMinionCount = #liveEntries
-        local baselineSquadCount = 0
-        for _ in pairs(allSquads) do baselineSquadCount = baselineSquadCount + 1 end
-
-        local totalPlacedSoFar = 0
-        for _,c in pairs(squadCtx.placedBySquad) do totalPlacedSoFar = totalPlacedSoFar + c end
-        local newSquadsOpenedSoFar = 0
-        for _ in pairs(squadCtx.newSquadsOpened) do newSquadsOpenedSoFar = newSquadsOpenedSoFar + 1 end
-
-        local projectedMinionsAfterThis = baselineMinionCount + totalPlacedSoFar + 1
-        local exceedsMinionCap = (squadCtx.maxMinions > 0 and projectedMinionsAfterThis > squadCtx.maxMinions)
-
-        -- Same-type squads available as a destination: caster baseline + any newly opened this cast.
-        local sameTypeNames = {}
-        local sameTypeBaselineCount = {}
-        for name,info in pairs(squadsByType) do
-            sameTypeNames[#sameTypeNames+1] = name
-            sameTypeBaselineCount[name] = info.count
+        local function CurrentCreatureName()
+            if creatureCtx ~= nil and creatureCtx.selectedCreature ~= nil then
+                return creatureCtx.selectedCreature.properties.monster_type or (isMinion and "minion" or "creature")
+            end
+            return isMinion and "minion" or "creature"
         end
-        for name,_ in pairs(squadCtx.newSquadsOpened) do
-            if squadsByType[name] == nil and squadCtx.newSquadsType[name] == squadCtx.monsterType then
-                sameTypeNames[#sameTypeNames+1] = name
-                sameTypeBaselineCount[name] = 0
+
+        local function SyncMonsterTypeFromCreatureCtx()
+            if creatureCtx ~= nil and creatureCtx.selectedCreature ~= nil then
+                local newType = creatureCtx.selectedCreature.properties.monster_type
+                if squadCtx.monsterType ~= newType then
+                    squadCtx.monsterType = newType
+                    squadCtx.nextFreshName = nil
+                end
             end
         end
-        table.sort(sameTypeNames)
 
-        if squadCtx.nextFreshName == nil then
-            squadCtx.nextFreshName = monster.FindFreshSquadName(squadCtx.monsterType)
-        end
-        local newSquadName = squadCtx.nextFreshName
+        -- Build (or rebuild) the squad chip list, status text, and commit closure
+        -- based on the current squadCtx.monsterType. Returns the chip panels.
+        local function BuildSquadView()
+            local caster = casterToken.properties
+            local squadsByType = caster:GetSummonedSquadsByType(squadCtx.monsterType)
+            local allSquads = caster:GetSummonedSquadsByType(nil)
+            local liveEntries = caster:GetLiveSummonedEntries()
 
-        local hasExistingSameTypeNow = #sameTypeNames > 0
+            local baselineMinionCount = #liveEntries
+            local baselineSquadCount = 0
+            for _ in pairs(allSquads) do baselineSquadCount = baselineSquadCount + 1 end
 
-        local optionPanels = {}
-        local sameTypePanelByName = {}
+            local totalPlacedSoFar = 0
+            for _,c in pairs(squadCtx.placedBySquad) do totalPlacedSoFar = totalPlacedSoFar + c end
+            local newSquadsOpenedSoFar = 0
+            for _ in pairs(squadCtx.newSquadsOpened) do newSquadsOpenedSoFar = newSquadsOpenedSoFar + 1 end
 
-        for _,name in ipairs(sameTypeNames) do
-            local placedHere = squadCtx.placedBySquad[name] or 0
-            local currentCount = sameTypeBaselineCount[name] + placedHere
-            local projectedSquad = currentCount + 1
-            local capturedName = name
-            local warnLines = {}
-            if projectedSquad > SQUAD_CAP then
-                warnLines[#warnLines+1] = string.format("Squad would have %d minions, exceeding the cap of %d.", projectedSquad, SQUAD_CAP)
+            local projectedMinionsAfterThis = baselineMinionCount + totalPlacedSoFar + 1
+            local exceedsMinionCap = (squadCtx.maxMinions > 0 and projectedMinionsAfterThis > squadCtx.maxMinions)
+
+            local sameTypeNames = {}
+            local sameTypeBaselineCount = {}
+            for name,info in pairs(squadsByType) do
+                sameTypeNames[#sameTypeNames+1] = name
+                sameTypeBaselineCount[name] = info.count
+            end
+            for name,_ in pairs(squadCtx.newSquadsOpened) do
+                if squadsByType[name] == nil and squadCtx.newSquadsType[name] == squadCtx.monsterType then
+                    sameTypeNames[#sameTypeNames+1] = name
+                    sameTypeBaselineCount[name] = 0
+                end
+            end
+            table.sort(sameTypeNames)
+
+            if squadCtx.nextFreshName == nil then
+                squadCtx.nextFreshName = monster.FindFreshSquadName(squadCtx.monsterType)
+            end
+            local newSquadName = squadCtx.nextFreshName
+
+            local hasExistingSameTypeNow = #sameTypeNames > 0
+
+            local optionPanels = {}
+            local sameTypePanelByName = {}
+
+            for _,name in ipairs(sameTypeNames) do
+                local placedHere = squadCtx.placedBySquad[name] or 0
+                local currentCount = sameTypeBaselineCount[name] + placedHere
+                local projectedSquad = currentCount + 1
+                local capturedName = name
+                local warnLines = {}
+                if projectedSquad > SQUAD_CAP then
+                    warnLines[#warnLines+1] = string.format("Squad would have %d minions, exceeding the cap of %d.", projectedSquad, SQUAD_CAP)
+                end
+                if exceedsMinionCap then
+                    warnLines[#warnLines+1] = string.format("Total minions would be %d, exceeding your maximum of %d.", projectedMinionsAfterThis, squadCtx.maxMinions)
+                end
+                local warnText = table.concat(warnLines, "\n")
+                local warn = warnText ~= ""
+                local rowArgs = {
+                    classes = {"advantage-element", cond(warn, "summon-squad-warn")},
+                    text = string.format("%s (%d/%d)", name, currentCount, SQUAD_CAP),
+                    press = function(element)
+                        squadCtx.selectedSquadName = capturedName
+                        squadCtx.selectedIsNew = false
+                        for _,p in ipairs(optionPanels) do p:SetClass("selected", false) end
+                        element:SetClass("selected", true)
+                    end,
+                }
+                if warn then
+                    rowArgs.hover = function(element)
+                        gui.Tooltip{ text = warnText, color = "#ff6666", textAlignment = "center" }(element)
+                    end
+                end
+                local panel = gui.Label(rowArgs)
+                optionPanels[#optionPanels+1] = panel
+                sameTypePanelByName[name] = panel
+            end
+
+            local newWarnLines = {}
+            if hasExistingSameTypeNow and squadCtx.maxSquads > 0 and (baselineSquadCount + newSquadsOpenedSoFar + 1) > squadCtx.maxSquads then
+                newWarnLines[#newWarnLines+1] = string.format("Opening this squad would put you at %d squads, exceeding your maximum of %d.", baselineSquadCount + newSquadsOpenedSoFar + 1, squadCtx.maxSquads)
             end
             if exceedsMinionCap then
-                warnLines[#warnLines+1] = string.format("Total minions would be %d, exceeding your maximum of %d.", projectedMinionsAfterThis, squadCtx.maxMinions)
+                newWarnLines[#newWarnLines+1] = string.format("Total minions would be %d, exceeding your maximum of %d.", projectedMinionsAfterThis, squadCtx.maxMinions)
             end
-            local warnText = table.concat(warnLines, "\n")
-            local warn = warnText ~= ""
-            local rowArgs = {
-                classes = {"advantage-element", cond(warn, "summon-squad-warn")},
-                text = string.format("%s (%d/%d)", name, currentCount, SQUAD_CAP),
+            local newWarnText = table.concat(newWarnLines, "\n")
+            local newWarn = newWarnText ~= ""
+            local newRowArgs = {
+                classes = {"advantage-element", cond(newWarn, "summon-squad-warn")},
+                text = "+ New squad",
                 press = function(element)
-                    squadCtx.selectedSquadName = capturedName
-                    squadCtx.selectedIsNew = false
+                    squadCtx.selectedSquadName = newSquadName
+                    squadCtx.selectedIsNew = true
                     for _,p in ipairs(optionPanels) do p:SetClass("selected", false) end
                     element:SetClass("selected", true)
                 end,
             }
-            if warn then
-                rowArgs.hover = function(element)
-                    gui.Tooltip{ text = warnText, color = "#ff6666", textAlignment = "center" }(element)
+            if newWarn then
+                newRowArgs.hover = function(element)
+                    gui.Tooltip{ text = newWarnText, color = "#ff6666", textAlignment = "center" }(element)
+                end
+            else
+                local capturedName = newSquadName
+                newRowArgs.hover = function(element)
+                    gui.Tooltip(string.format("Open a new squad: %s", capturedName))(element)
                 end
             end
-            local panel = gui.Label(rowArgs)
-            optionPanels[#optionPanels+1] = panel
-            sameTypePanelByName[name] = panel
-        end
+            local newPanel = gui.Label(newRowArgs)
+            optionPanels[#optionPanels+1] = newPanel
 
-        local newWarnLines = {}
-        if hasExistingSameTypeNow and squadCtx.maxSquads > 0 and (baselineSquadCount + newSquadsOpenedSoFar + 1) > squadCtx.maxSquads then
-            newWarnLines[#newWarnLines+1] = string.format("Opening this squad would put you at %d squads, exceeding your maximum of %d.", baselineSquadCount + newSquadsOpenedSoFar + 1, squadCtx.maxSquads)
-        end
-        if exceedsMinionCap then
-            newWarnLines[#newWarnLines+1] = string.format("Total minions would be %d, exceeding your maximum of %d.", projectedMinionsAfterThis, squadCtx.maxMinions)
-        end
-        local newWarnText = table.concat(newWarnLines, "\n")
-        local newWarn = newWarnText ~= ""
-        local newRowArgs = {
-            classes = {"advantage-element", cond(newWarn, "summon-squad-warn")},
-            text = string.format("+ New: %s", newSquadName),
-            press = function(element)
-                squadCtx.selectedSquadName = newSquadName
-                squadCtx.selectedIsNew = true
-                for _,p in ipairs(optionPanels) do p:SetClass("selected", false) end
-                element:SetClass("selected", true)
-            end,
-        }
-        if newWarn then
-            newRowArgs.hover = function(element)
-                gui.Tooltip{ text = newWarnText, color = "#ff6666", textAlignment = "center" }(element)
+            -- Reconcile carried-over selection: a previous "+ New" pick may now be an existing
+            -- same-type chip; or the previously-selected name may not exist for this monster type.
+            if squadCtx.selectedSquadName ~= nil and squadCtx.selectedIsNew then
+                if sameTypePanelByName[squadCtx.selectedSquadName] ~= nil then
+                    squadCtx.selectedIsNew = false
+                elseif squadCtx.selectedSquadName ~= newSquadName then
+                    squadCtx.selectedSquadName = nil
+                    squadCtx.selectedIsNew = false
+                end
             end
-        end
-        local newPanel = gui.Label(newRowArgs)
-        optionPanels[#optionPanels+1] = newPanel
-
-        -- Reconcile carried-over selection: a previous "+ New" pick may now be an existing same-type chip.
-        if squadCtx.selectedSquadName ~= nil and squadCtx.selectedIsNew then
-            if sameTypePanelByName[squadCtx.selectedSquadName] ~= nil then
-                squadCtx.selectedIsNew = false
-            elseif squadCtx.selectedSquadName ~= newSquadName then
+            if squadCtx.selectedSquadName ~= nil and not squadCtx.selectedIsNew and sameTypePanelByName[squadCtx.selectedSquadName] == nil then
                 squadCtx.selectedSquadName = nil
-                squadCtx.selectedIsNew = false
             end
-        end
-        if squadCtx.selectedSquadName ~= nil and not squadCtx.selectedIsNew and sameTypePanelByName[squadCtx.selectedSquadName] == nil then
-            squadCtx.selectedSquadName = nil
-        end
 
-        if squadCtx.selectedSquadName == nil then
-            if #sameTypeNames > 0 then
-                squadCtx.selectedSquadName = sameTypeNames[1]
-                squadCtx.selectedIsNew = false
+            if squadCtx.selectedSquadName == nil then
+                if #sameTypeNames > 0 then
+                    squadCtx.selectedSquadName = sameTypeNames[1]
+                    squadCtx.selectedIsNew = false
+                else
+                    squadCtx.selectedSquadName = newSquadName
+                    squadCtx.selectedIsNew = true
+                end
+            end
+
+            if squadCtx.selectedIsNew then
+                newPanel:SetClass("selected", true)
+            elseif sameTypePanelByName[squadCtx.selectedSquadName] ~= nil then
+                sameTypePanelByName[squadCtx.selectedSquadName]:SetClass("selected", true)
+            end
+
+            local minionPart
+            if squadCtx.maxMinions > 0 then
+                minionPart = string.format("Minions: %d -> %d / %d", baselineMinionCount + totalPlacedSoFar, projectedMinionsAfterThis, squadCtx.maxMinions)
             else
-                squadCtx.selectedSquadName = newSquadName
-                squadCtx.selectedIsNew = true
+                minionPart = string.format("Minions: %d -> %d", baselineMinionCount + totalPlacedSoFar, projectedMinionsAfterThis)
+            end
+            local squadPart
+            if squadCtx.maxSquads > 0 then
+                squadPart = string.format("Squads: %d / %d", baselineSquadCount + newSquadsOpenedSoFar, squadCtx.maxSquads)
+            else
+                squadPart = string.format("Squads: %d", baselineSquadCount + newSquadsOpenedSoFar)
+            end
+            local statusText = string.format("%s    %s", minionPart, squadPart)
+
+            commitWithSquadSelection = function()
+                if squadCtx.selectedSquadName == nil then
+                    return nil
+                end
+                local exceededMinions = exceedsMinionCap
+                local exceededSquads = squadCtx.selectedIsNew and hasExistingSameTypeNow and squadCtx.maxSquads > 0 and (baselineSquadCount + newSquadsOpenedSoFar + 1) > squadCtx.maxSquads
+                return {
+                    squadName = squadCtx.selectedSquadName,
+                    isNew = squadCtx.selectedIsNew,
+                    exceededMinions = exceededMinions,
+                    exceededSquads = exceededSquads,
+                }
+            end
+
+            return optionPanels, statusText
+        end
+
+        local function ApplyCreatureChange()
+            SyncMonsterTypeFromCreatureCtx()
+            local optionPanels, statusText = BuildSquadView()
+            if squadBarPanel ~= nil and squadBarPanel.valid then
+                squadBarPanel.children = optionPanels
+            end
+            if statusLabel ~= nil and statusLabel.valid then
+                statusLabel.text = statusText
+            end
+            if headerLabel ~= nil and headerLabel.valid then
+                headerLabel.text = string.format("Place %s %d of %d", CurrentCreatureName(), index, total)
             end
         end
 
-        if squadCtx.selectedIsNew then
-            newPanel:SetClass("selected", true)
-        elseif sameTypePanelByName[squadCtx.selectedSquadName] ~= nil then
-            sameTypePanelByName[squadCtx.selectedSquadName]:SetClass("selected", true)
+        SyncMonsterTypeFromCreatureCtx()
+        local initialOptionPanels, initialStatusText = BuildSquadView()
+
+        local creatureBarPanel = nil
+        if creatureCtx ~= nil and #creatureCtx.choices > 1 then
+            local creatureChips = {}
+            for _,opt in ipairs(creatureCtx.choices) do
+                local capturedOpt = opt
+                local optName = opt.properties.monster_type or "creature"
+                local hoverText = nil
+                if opt.properties.PrettyCR ~= nil then
+                    hoverText = string.format("Level %s", opt.properties:PrettyCR())
+                end
+                local chipArgs = {
+                    classes = {"advantage-element", cond(creatureCtx.selectedCreature == opt, "selected")},
+                    text = optName,
+                    press = function(element)
+                        if creatureCtx.selectedCreature == capturedOpt then
+                            return
+                        end
+                        creatureCtx.selectedCreature = capturedOpt
+                        for _,c in ipairs(creatureChips) do c:SetClass("selected", false) end
+                        element:SetClass("selected", true)
+                        ApplyCreatureChange()
+                    end,
+                }
+                if hoverText ~= nil then
+                    chipArgs.hover = function(element)
+                        gui.Tooltip(hoverText)(element)
+                    end
+                end
+                creatureChips[#creatureChips+1] = gui.Label(chipArgs)
+            end
+            creatureBarPanel = gui.Panel{
+                classes = {"advantage-bar"},
+                width = "auto",
+                maxWidth = 760,
+                height = "auto",
+                halign = "center",
+                flow = "horizontal",
+                wrap = true,
+                bgcolor = "clear",
+                vmargin = 4,
+                children = creatureChips,
+            }
         end
 
-        local minionPart
-        if squadCtx.maxMinions > 0 then
-            minionPart = string.format("Minions: %d -> %d / %d", baselineMinionCount + totalPlacedSoFar, projectedMinionsAfterThis, squadCtx.maxMinions)
-        else
-            minionPart = string.format("Minions: %d -> %d", baselineMinionCount + totalPlacedSoFar, projectedMinionsAfterThis)
+        headerLabel = gui.Label{
+            halign = "center",
+            width = "auto",
+            height = "auto",
+            bold = true,
+            fontSize = 16,
+            textAlignment = "center",
+            text = string.format("Place %s %d of %d", CurrentCreatureName(), index, total),
+            vmargin = 2,
+        }
+        statusLabel = gui.Label{
+            halign = "center",
+            width = "auto",
+            height = "auto",
+            fontSize = 13,
+            color = "#cccccc",
+            textAlignment = "center",
+            text = initialStatusText,
+            vmargin = 2,
+        }
+        squadBarPanel = gui.Panel{
+            classes = {"advantage-bar"},
+            width = "auto",
+            maxWidth = 760,
+            height = "auto",
+            halign = "center",
+            flow = "horizontal",
+            wrap = true,
+            bgcolor = "clear",
+            vmargin = 6,
+            children = initialOptionPanels,
+        }
+
+        local pickerChildren = { headerLabel, statusLabel }
+        if creatureBarPanel ~= nil then
+            pickerChildren[#pickerChildren+1] = creatureBarPanel
         end
-        local squadPart
-        if squadCtx.maxSquads > 0 then
-            squadPart = string.format("Squads: %d / %d", baselineSquadCount + newSquadsOpenedSoFar, squadCtx.maxSquads)
-        else
-            squadPart = string.format("Squads: %d", baselineSquadCount + newSquadsOpenedSoFar)
-        end
+        pickerChildren[#pickerChildren+1] = squadBarPanel
+        pickerChildren[#pickerChildren+1] = gui.Label{
+            halign = "center",
+            width = "auto",
+            height = "auto",
+            fontSize = 10,
+            color = "#888888",
+            textAlignment = "center",
+            text = "Esc to cancel",
+            vmargin = 2,
+        }
 
         pickerContent = gui.Panel{
             width = "auto",
@@ -998,10 +1158,11 @@ function ActivatedAbilitySummonBehavior.PromptPlacementLoc(casterToken, rangeTil
                 {
                     selectors = {"advantage-element"},
                     width = "auto",
-                    minWidth = 140,
+                    minWidth = 120,
+                    maxWidth = 220,
                     height = 26,
                     fontSize = 14,
-                    hpad = 14,
+                    hpad = 12,
                     margin = 3,
                 },
                 {
@@ -1018,55 +1179,8 @@ function ActivatedAbilitySummonBehavior.PromptPlacementLoc(casterToken, rangeTil
                     color = "black",
                 },
             },
-            children = {
-                gui.Label{
-                    halign = "center",
-                    width = "auto",
-                    height = "auto",
-                    bold = true,
-                    fontSize = 16,
-                    textAlignment = "center",
-                    text = string.format("Place %s %d of %d (Esc to cancel)", isMinion and "minion" or "creature", index, total),
-                    vmargin = 2,
-                },
-                gui.Label{
-                    halign = "center",
-                    width = "auto",
-                    height = "auto",
-                    fontSize = 13,
-                    color = "#cccccc",
-                    textAlignment = "center",
-                    text = string.format("%s    %s", minionPart, squadPart),
-                    vmargin = 2,
-                },
-                gui.Panel{
-                    classes = {"advantage-bar"},
-                    width = "auto",
-                    maxWidth = 760,
-                    height = "auto",
-                    halign = "center",
-                    flow = "horizontal",
-                    wrap = true,
-                    bgcolor = "clear",
-                    vmargin = 6,
-                    children = optionPanels,
-                },
-            },
+            children = pickerChildren,
         }
-
-        commitWithSquadSelection = function()
-            if squadCtx.selectedSquadName == nil then
-                return nil
-            end
-            local exceededMinions = exceedsMinionCap
-            local exceededSquads = squadCtx.selectedIsNew and hasExistingSameTypeNow and squadCtx.maxSquads > 0 and (baselineSquadCount + newSquadsOpenedSoFar + 1) > squadCtx.maxSquads
-            return {
-                squadName = squadCtx.selectedSquadName,
-                isNew = squadCtx.selectedIsNew,
-                exceededMinions = exceededMinions,
-                exceededSquads = exceededSquads,
-            }
-        end
     end
 
     local picker
@@ -1094,6 +1208,9 @@ function ActivatedAbilitySummonBehavior.PromptPlacementLoc(casterToken, rangeTil
                     return
                 end
                 pickedSquadResult = r
+            end
+            if creatureCtx ~= nil then
+                pickedCreature = creatureCtx.selectedCreature
             end
             pickedLoc = loc
         end,
@@ -1131,9 +1248,9 @@ function ActivatedAbilitySummonBehavior.PromptPlacementLoc(casterToken, rangeTil
     picker:DestroySelf()
 
     if cancelled then
-        return nil, nil
+        return nil, nil, nil
     end
-    return pickedLoc, pickedSquadResult
+    return pickedLoc, pickedSquadResult, pickedCreature
 end
 
 function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args)
@@ -1176,10 +1293,19 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
 
         table.sort(choices, function(a,b) return a.properties.monster_type < b.properties.monster_type end)
 
+        local preCheckSummonerMaxMinions = casterToken.properties:CalculateNamedCustomAttribute("MaximumMinions")
+        local preCheckSummonerMaxSquads = casterToken.properties:CalculateNamedCustomAttribute("MaxMinionSquads")
+        local preCheckIsSummoner = (not casterToken.properties.minion) and (preCheckSummonerMaxMinions > 0 or preCheckSummonerMaxSquads > 0)
+        local willPickCreatureInline = preCheckIsSummoner and self.casterChoosesCreatures and self.choosePlacement and (not self.replaceCaster) and #choices > 1
+
         --pre-pick the chosen creature so its symbols are available to numSummons
         --and to subsequent behaviors
         local chosenOption
         if #choices == 1 then
+            chosenOption = choices[1]
+        elseif willPickCreatureInline then
+            --skip the upfront modal; the player will pick each creature inline during placement.
+            --use the first sorted choice as a default so symbols and numSummons can resolve.
             chosenOption = choices[1]
         elseif self.casterChoosesCreatures then
             local dialogOptions = { index = 1, numSummons = 1, allCreaturesTheSame = self.allCreaturesTheSame }
@@ -1241,8 +1367,13 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
         local isSummoner = (not casterToken.properties.minion) and (summonerMaxMinions > 0 or summonerMaxSquads > 0)
         local cachedSquadResult = nil
         local placementSquadCtx = nil
+        local placementCreatureCtx = nil
         local warningExceededMinions = false
         local warningExceededSquads = false
+
+        -- For Summoner casters with manual placement, fold the creature-type choice
+        -- into the inline placement picker so it can change per-summon.
+        local creatureChoiceInline = isSummoner and manualPlacement and self.casterChoosesCreatures and #choices > 1
 
         local allSame = false
 
@@ -1258,6 +1389,9 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
 
             elseif self.allCreaturesTheSame or allSame then
                 --all creatures are the same so just maintain the chosen option.
+
+            elseif creatureChoiceInline then
+                --creature is picked inside the inline placement picker below.
 
             elseif #choices > 1 and not self.casterChoosesCreatures then
                 chosenOption = choices[math.random(#choices)]
@@ -1299,7 +1433,6 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
                 end
                 loc = casterToken.loc
             elseif manualPlacement then
-                local isMinion = chosenOption ~= nil and chosenOption.properties ~= nil and chosenOption.properties:try_get("minion", false)
                 local squadCtxArg = nil
                 if isSummoner then
                     if placementSquadCtx == nil then
@@ -1317,12 +1450,27 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
                     placementSquadCtx.monsterType = chosenOption.properties.monster_type
                     squadCtxArg = placementSquadCtx
                 end
-                local pickedLoc, squadResult = ActivatedAbilitySummonBehavior.PromptPlacementLoc(casterToken, rangeTiles, j, numSummons, isMinion, squadCtxArg)
+                local creatureCtxArg = nil
+                if creatureChoiceInline then
+                    if placementCreatureCtx == nil then
+                        placementCreatureCtx = {
+                            choices = choices,
+                            selectedCreature = chosenOption,
+                        }
+                    end
+                    creatureCtxArg = placementCreatureCtx
+                end
+                local isMinion = chosenOption ~= nil and chosenOption.properties ~= nil and chosenOption.properties:try_get("minion", false)
+                local pickedLoc, squadResult, pickedCreature = ActivatedAbilitySummonBehavior.PromptPlacementLoc(casterToken, rangeTiles, j, numSummons, isMinion, squadCtxArg, creatureCtxArg)
                 if pickedLoc == nil then
                     --user cancelled; stop placing further summons but keep what's already there.
                     break
                 end
                 loc = pickedLoc
+                if pickedCreature ~= nil then
+                    chosenOption = pickedCreature
+                    args.symbols.summon = GenerateSymbols(chosenOption.properties)
+                end
                 if squadResult ~= nil then
                     squadNameForSpawn = squadResult.squadName
                     if squadResult.exceededMinions then warningExceededMinions = true end

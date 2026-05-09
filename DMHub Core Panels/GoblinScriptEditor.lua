@@ -51,37 +51,10 @@ function GoblinScriptTable:Normalize()
 	table.sort(self.entries, function(a, b) return a.threshold < b.threshold end)
 end
 
-local g_completionMenuStyles = {
-	gui.Style {
-		selectors = { "menu" },
-		bgcolor = "black",
-		borderWidth = 2,
-		borderColor = Styles.textColor,
-	},
-	gui.Style {
-		selectors = { "option" },
-		bgimage = "panels/square.png",
-		width = "100%-2",
-		height = "auto",
-		halign = "center",
-		hpad = 6,
-		vpad = 4,
-		fontSize = 18,
-		color = Styles.textColor,
-	},
-	{
-		selectors = { "option", "selected" },
-		color = "black",
-		bgcolor = Styles.textColor,
-		brightness = 0.6,
-	},
-	{
-		selectors = { "option", "hover" },
-		color = "black",
-		bgcolor = Styles.textColor,
-		brightness = 1,
-	},
-}
+-- Completion menu reuses the existing `{dropdownOption}` class for option
+-- styling (hover + searchfocus = "current keyboard cursor" both come from
+-- DefaultStyles) and `{bordered}` for the menu frame, so no local style
+-- block is needed.
 
 function gui.GoblinScriptInput(options)
 	local input_value = options.value
@@ -136,7 +109,6 @@ function gui.GoblinScriptInput(options)
 				width = "100%",
 				minHeight = 30,
 				height = "auto",
-				fontSize = 14,
 				multiline = multiline,
 				placeholderText = placeholderText,
 				characterLimit = 1024,
@@ -231,7 +203,7 @@ function gui.GoblinScriptInput(options)
 							end
 
 							children[#children + 1] = gui.Label {
-								classes = { "option" },
+								classes = { "dropdownOption" },
 								text = labelText,
 								press = function(element)
 									printf("GOBLINSCRIPT:: PRESS")
@@ -269,7 +241,7 @@ function gui.GoblinScriptInput(options)
 						local cursor = 1
 						local refreshCompletions = function()
 							for i, child in ipairs(children) do
-								child:SetClass("selected", i == cursor)
+								child:SetClass("searchfocus", i == cursor)
 							end
 						end
 
@@ -277,7 +249,7 @@ function gui.GoblinScriptInput(options)
 
 						local menuHeight = 300
 						local menu = gui.Panel {
-							classes = { "menu" },
+							classes = { "bordered" },
 							bgimage = "panels/square.png",
 							width = element.renderedWidth,
 							height = "auto",
@@ -326,7 +298,6 @@ function gui.GoblinScriptInput(options)
 						end
 
 						element.popup = gui.Panel {
-							styles = { Styles.Default, g_completionMenuStyles },
 							width = "auto",
 							height = menuHeight,
 							scale = parentPanel.renderedScale.x,
@@ -494,34 +465,16 @@ function gui.GoblinScriptInput(options)
 				styles = {
 					{
 						classes = { "label" },
-						fontSize = 14,
 						valign = "center",
 						minHeight = 30,
 						hmargin = 4,
 						textAlignment = "left",
 						width = "auto",
 						height = "auto",
-						color = "#dddddd"
 					},
 					{
 						classes = { "input" },
 						valign = "center",
-						fontSize = 14,
-					},
-					{
-						classes = { "row" },
-						width = "100%",
-						height = "auto",
-						flow = "horizontal",
-						bgimage = "panels/square.png",
-					},
-					{
-						selectors = { "row", "evenRow" },
-						bgcolor = "black",
-					},
-					{
-						selectors = { "row", "oddRow" },
-						bgcolor = "#333333ff",
 					},
 				},
 				setValue = function(element, val)
@@ -561,13 +514,12 @@ function gui.GoblinScriptInput(options)
 								resultPanel:FireEvent("change", m_value)
 							end,
 						}
-						local deleteButton = gui.DeleteItemButton {
+						local deleteButton = gui.Button {
+							classes = {"deleteButton", "sizeXs"},
 							halign = "right",
 							valign = "center",
-							width = 12,
-							height = 12,
 							x = -12,
-
+							requireConfirm = true,
 							click = function(element)
 								table.remove(m_value.entries, i)
 								resultPanel.value = m_value
@@ -818,13 +770,11 @@ function gui.GoblinScriptInput(options)
 		},
 
 		gui.Label {
-			classes = { "collapsed" },
+			classes = { "collapsed", "bgDanger", "sizeS" },
 			bgimage = true,
-			bgcolor = "red",
 			width = "100%",
 			height = "auto",
 			text = "Error message",
-			fontSize = 14,
 
 			checkerror = function(element, value)
 				if type(value) ~= "string" then
@@ -927,6 +877,12 @@ local CollapsibleSectionPanel = function(options)
 
 	contentPanel = gui.Panel(contentPanel)
 
+	local tri = gui.ExpandoArrow {
+		classes = cond(GetCollapsed(), nil, {"expanded"}),
+		interactable = false,
+		hmargin = 8,
+	}
+
 	local headerPanel = gui.Panel {
 		bgimage = "panels/square.png",
 		bgcolor = "clear",
@@ -934,42 +890,17 @@ local CollapsibleSectionPanel = function(options)
 		flow = "horizontal",
 		height = 30,
 		halign = "left",
-		classes = cond(GetCollapsed(), nil, "expanded"),
 		click = function(element)
 			SetCollapsed(not GetCollapsed())
 			contentPanel:SetClass("collapsed-anim", GetCollapsed())
-			element:SetClass("expanded", not GetCollapsed())
+			tri:SetClass("expanded", not GetCollapsed())
 		end,
 
-		gui.Panel {
-			interactable = false,
-			bgimage = "panels/triangle.png",
-			valign = "center",
-			hmargin = 8,
-			halign = "left",
-
-			width = 20,
-			height = 20,
-
-			styles = {
-				{
-					bgcolor = "white",
-				},
-				{
-					selectors = { "parent:hover" },
-					bgcolor = "yellow",
-				},
-				{
-					selectors = { "~parent:expanded" },
-					rotate = 90,
-				},
-			}
-		},
+		tri,
 
 		gui.Label {
+			classes = {"sizeL"},
 			hmargin = 16,
-			fontSize = 20,
-			color = "white",
 			halign = "left",
 			valign = "center",
 			width = "auto",
@@ -1049,33 +980,12 @@ local FieldsPanel = function(fields, options)
 		local getTypeInfoLink = nil
 		if typeInfoMap[typeid] ~= nil then
 			getTypeInfoLink = gui.Label {
+				classes = {"link", "sizeS", "bold", "underline"},
 				text = "See all fields for " .. entry.type,
-				bgimage = "panels/square.png",
-				bgcolor = "clear",
 				halign = "left",
 				vmargin = 6,
-				bold = true,
 				width = "auto",
 				height = "auto",
-				fontSize = 14,
-				styles = {
-					{
-						selectors = { "label" },
-						color = "#bb88ff",
-						border = { x1 = 0, x2 = 0, y2 = 0, y1 = 2 },
-						borderColor = "#bb88ff",
-					},
-					{
-						selectors = { "label", "hover" },
-						color = "#ff66ff",
-						borderColor = "#ff66ff",
-					},
-					{
-						selectors = { "label", "press" },
-						color = "#ffaaff",
-						borderColor = "#ffaaff",
-					},
-				},
 
 				click = function(element)
 					element.root:AddChild(gui.GoblinScriptTypeInfoDialog {
@@ -1096,12 +1006,11 @@ local FieldsPanel = function(fields, options)
 				height = "auto",
 				halign = "left",
 				gui.Label {
-					fontSize = 14,
+					classes = {"sizeS", "bold"},
 					width = "auto",
 					height = "auto",
 					halign = "left",
 					text = "Examples",
-					bold = true,
 				},
 			}
 
@@ -1115,11 +1024,10 @@ local FieldsPanel = function(fields, options)
 				end
 
 				examplesPanel:AddChild(gui.Label {
+					classes = {"info", "sizeS"},
 					text = exampleStr,
-					color = "#ccccff",
 					width = "auto",
 					height = "auto",
-					fontSize = 14,
 					halign = "left",
 				})
 			end
@@ -1136,12 +1044,11 @@ local FieldsPanel = function(fields, options)
 				list = list .. item
 			end
 			seeAlsoPanel = gui.Label {
+				classes = {"sizeS"},
 				width = "auto",
 				height = "auto",
 				halign = "left",
-				color = "white",
-				fontSize = 14,
-				text = "<b>See also</b>: " .. list
+				text = "<b>See also</b>: " .. list,
 			}
 		end
 
@@ -1151,8 +1058,8 @@ local FieldsPanel = function(fields, options)
 			local classesTable = dmhub.GetTable("classes")
 			local classInfo = classesTable[classid]
 			if classInfo ~= nil then
-				descriptionText = string.format("<color=#aaffaa><b>%s-specific field</b></color>\n%s", classInfo.name,
-					descriptionText)
+				descriptionText = ThemeEngine.ResolveTokens(string.format("<color=@success><b>%s-specific field</b></color>\n%s", classInfo.name,
+					descriptionText))
 			end
 		end
 
@@ -1204,32 +1111,28 @@ local FieldsPanel = function(fields, options)
 				height = "auto",
 				halign = "left",
 				gui.Label {
+					classes = {"sizeL", "bold"},
 					halign = "left",
 					minWidth = 180,
 					width = "auto",
 					height = "auto",
-					fontSize = 18,
-					color = "white",
-					bold = true,
 					text = entry.name,
 				},
 				gui.Label {
+					classes = {"sizeM", "success"},
 					halign = "left",
 					width = "auto",
 					height = "auto",
 					hmargin = 8,
-					fontSize = 16,
-					color = "#ccffcc",
 					text = GetFriendlyTypeName(entry.type),
 				},
 			},
 			gui.Label {
+				classes = {"sizeS"},
 				width = "100%",
 				height = "auto",
-				fontSize = 14,
 				textWrap = true,
 				text = descriptionText,
-				color = "white",
 			},
 			getTypeInfoLink,
 			examplesPanel,
@@ -1269,59 +1172,48 @@ function gui.GoblinScriptLuaDialog(options)
 	local closePanel =
 		gui.Panel {
 			style = {
-				valign = 'bottom',
-				flow = 'horizontal',
+				valign = "bottom",
+				flow = "horizontal",
 				height = 60,
-				width = '100%',
-				fontSize = '60%',
+				width = "100%",
 				vmargin = 0,
 			},
 		}
 
-	closePanel:AddChild(gui.PrettyButton {
-		text = 'Close',
-		style = {
-			height = 60,
-			width = 160,
-			fontSize = 44,
-			bgcolor = 'white',
-		},
-		events = {
-			click = function(element)
-				resultPanel.data.close()
-			end,
-		},
+	closePanel:AddChild(gui.Button {
+		classes = {"sizeXl"},
+		text = "Close",
+		click = function(element)
+			resultPanel.data.close()
+		end,
 	})
 
 
 	local titleLabel = gui.Label {
+		classes = {"sizeXxl"},
 		text = "GoblinScript Lua",
-		valign = 'top',
-		halign = 'center',
-		width = 'auto',
-		height = 'auto',
-		color = 'white',
-		fontSize = 28,
+		valign = "top",
+		halign = "center",
+		width = "auto",
+		height = "auto",
 	}
 
 	local mainFormPanel = gui.Panel {
-		bgcolor = 'white',
 		pad = 0,
 		margin = 0,
 		width = 1060,
 		height = 840,
 		flow = "vertical",
 		gui.Label {
+			classes = {"sizeS"},
 			valign = "top",
-			fontSize = 14,
 			width = "100%",
 			height = "auto",
 			text = string.format("This is the Lua used for the formula <b>%s</b>. Editing the Lua will replace it for this session as a debugging feature but the changes will not be saved once you exit the Codex.", formula),
 		},
 
 		gui.Input {
-			fontSize = 16,
-			fontFace = "courier",
+			classes = {"monospace"},
 			multiline = true,
 			textAlignment = "topleft",
 			width = 1060,
@@ -1371,10 +1263,10 @@ function gui.GoblinScriptLuaDialog(options)
 				height = 80,
 				vscroll = true,
 				gui.Label {
+					classes = {"sizeS"},
 					width = 600,
 					height = 80,
 					halign = "left",
-					fontSize = 14,
 					showmessage = function(element, message)
 						element.text = message
 					end,
@@ -1382,10 +1274,9 @@ function gui.GoblinScriptLuaDialog(options)
 			},
 
 			gui.Button {
-				classes = { cond(GoblinScriptDebug.formulaOverrides[formula] ~= nil, nil, "hidden") },
+				classes = { "sizeM", cond(GoblinScriptDebug.formulaOverrides[formula] ~= nil, nil, "hidden") },
 				width = 180,
 				height = 22,
-				fontSize = 18,
 				text = "Clear Debug Lua",
 				showmessage = function(element, message)
 					element:SetClass("hidden", GoblinScriptDebug.formulaOverrides[formula] == nil)
@@ -1402,16 +1293,12 @@ function gui.GoblinScriptLuaDialog(options)
 
 	local args = {
 		style = {
-			bgcolor = 'white',
 			width = dialogWidth,
 			height = dialogHeight,
-			halign = 'center',
-			valign = 'center',
+			halign = "center",
+			valign = "center",
 		},
-		styles = {
-			Styles.Default,
-			Styles.Panel,
-		},
+		styles = ThemeEngine.GetStyles(),
 
 		classes = { "framedPanel" },
 
@@ -1623,18 +1510,16 @@ function gui.GoblinScriptDebugDialog(options)
 		local srcText = SourceSlice(ev)
 		-- TMP rich text: de-emphasize [kind op] in light grey, keep source text white,
 		-- and make the result pop in bold green so the eye can scan values quickly.
-		local label = string.format(
-			"%s<color=#888888>%s</color>  %s  =  <b><color=#7fff7f>%s</color></b>",
+		local label = ThemeEngine.ResolveTokens(string.format(
+			"%s<color=@fgMuted>%s</color>  %s  =  <b><color=@success>%s</color></b>",
 			string.rep("    ", depth),
 			kindText,
 			srcText,
-			FormatValue(ev.result))
+			FormatValue(ev.result)))
 		out[#out+1] = gui.Label {
+			classes = {"sizeS", "monospace"},
 			width = "100%",
 			height = "auto",
-			fontSize = 14,
-			color = "white",
-			fontFace = "courier",
 			text = label,
 			halign = "left",
 		}
@@ -1663,13 +1548,11 @@ function gui.GoblinScriptDebugDialog(options)
 	}
 
 	local treePanel = gui.Panel {
+		classes = {"bordered"},
 		width = "100%",
 		height = "100% available",
 		vscroll = true,
 		flow = "vertical",
-		bgcolor = "#111111",
-		borderWidth = 1,
-		borderColor = "#555555",
 		borderBox = true,
 		pad = 6,
 		treeContent,
@@ -1684,36 +1567,37 @@ function gui.GoblinScriptDebugDialog(options)
 	}
 
 	local historyPanel = gui.Panel {
+		classes = {"bordered"},
 		width = "100%",
 		height = 120,
 		vscroll = true,
 		flow = "vertical",
-		bgcolor = "#111111",
-		borderWidth = 1,
-		borderColor = "#555555",
 		borderBox = true,
 		pad = 6,
+		styles = ThemeEngine.MergeStyles({
+			{ selectors = {"historyRow"}, bgcolor = "clear" },
+			{ selectors = {"historyRow", "selected"}, bgcolor = "@bgAlt" },
+			{ selectors = {"historyRowLabel"}, color = "@fg" },
+			{ selectors = {"historyRowLabel", "parent:selected"}, color = "@accent" },
+		}),
 		historyContent,
 	}
 
 	local sourceLabel = gui.Label {
+		classes = {"sizeL", "monospace"},
 		width = "100%",
 		height = "auto",
 		halign = "left",
 		valign = "top",
-		fontSize = 18,
-		color = "white",
-		fontFace = "courier",
 		text = formula,
 		textWrap = true,
 	}
 
 	local statusLabel = gui.Label {
+		classes = {"sizeS", "fgMuted"},
 		width = "100%",
 		height = "auto",
 		halign = "left",
-		fontSize = 14,
-		color = "#cccccc",
 		text = "Waiting for the formula to be evaluated...",
 	}
 
@@ -1776,9 +1660,10 @@ function gui.GoblinScriptDebugDialog(options)
 			local rowParsed = b.parsedTrace
 			local frameStr = b.frame and string.format("  frame %d", b.frame) or ""
 			rows[#rows+1] = gui.Panel {
+				classes = {"historyRow", selected and "selected" or nil},
 				width = "100%",
 				height = 22,
-				bgcolor = selected and "#333300" or "clear",
+				bgimage = true,
 				flow = "horizontal",
 				halign = "left",
 				valign = "top",
@@ -1798,13 +1683,12 @@ function gui.GoblinScriptDebugDialog(options)
 					if #rowParsed.frames > 0 then
 						text = text .. "\n\n(Hover here and press 1-9 to open the matching frame.)"
 					end
-					gui.Tooltip{text = text, fontSize = 12, width = 800}(element)
+					gui.Tooltip{text = text, width = 800}(element)
 				end,
 				gui.Label {
+					classes = {"sizeS", "historyRowLabel"},
 					width = "100%",
 					height = "100%",
-					fontSize = 14,
-					color = selected and "yellow" or "white",
 					text = string.format("#%d%s  result = %s",
 						bid, frameStr, FormatValue(b.resultValue)),
 					halign = "left",
@@ -1829,39 +1713,31 @@ function gui.GoblinScriptDebugDialog(options)
 	end
 
 	local pauseButton
-	pauseButton = gui.PrettyButton {
-		text = 'Pause',
-		width = 120,
-		height = 36,
-		fontSize = 18,
+	pauseButton = gui.Button {
+		classes = {"sizeM"},
+		text = "Pause",
 		valign = "center",
-		events = {
-			click = function(element)
-				paused = not paused
-				pauseButton.text = paused and 'Resume' or 'Pause'
-				-- When resuming, we leave history as-is; new invocations will stream in
-				-- from here. When pausing, we simply stop recording.
-			end,
-		},
+		click = function(element)
+			paused = not paused
+			pauseButton.text = paused and "Resume" or "Pause"
+			-- When resuming, we leave history as-is; new invocations will stream in
+			-- from here. When pausing, we simply stop recording.
+		end,
 	}
 
-	local followButton = gui.PrettyButton {
-		text = 'Follow latest',
-		width = 160,
-		height = 36,
-		fontSize = 18,
+	local followButton = gui.Button {
+		classes = {"sizeM"},
+		text = "Follow latest",
 		valign = "center",
-		events = {
-			click = function(element)
-				followLatest = true
-				-- Snap to the most recent batch so the user sees the effect immediately.
-				if #batchOrder > 0 then
-					currentBatchId = batchOrder[#batchOrder]
-				end
-				needsTreeRefresh = true
-				needsHistoryRefresh = true
-			end,
-		},
+		click = function(element)
+			followLatest = true
+			-- Snap to the most recent batch so the user sees the effect immediately.
+			if #batchOrder > 0 then
+				currentBatchId = batchOrder[#batchOrder]
+			end
+			needsTreeRefresh = true
+			needsHistoryRefresh = true
+		end,
 	}
 
 	local closePanel = gui.Panel {
@@ -1875,34 +1751,28 @@ function gui.GoblinScriptDebugDialog(options)
 		followButton,
 		-- Spacer pushes Close to the right.
 		gui.Panel { width = "100% available", height = 1 },
-		gui.PrettyButton {
-			text = 'Close',
-			width = 120,
-			height = 36,
-			fontSize = 20,
+		gui.Button {
+			classes = {"sizeM"},
+			text = "Close",
 			valign = "center",
-			events = {
-				click = function(element)
-					resultPanel.data.close()
-				end,
-			},
+			click = function(element)
+				resultPanel.data.close()
+			end,
 		},
 	}
 
 	local titleLabel = gui.Label {
+		classes = {"sizeL"},
 		text = "GoblinScript Debug",
-		valign = 'top',
-		halign = 'center',
-		width = 'auto',
-		height = 'auto',
-		color = 'white',
-		fontSize = 20,
+		valign = "top",
+		halign = "center",
+		width = "auto",
+		height = "auto",
 	}
 
 	local helpLabel = gui.Label {
+		classes = {"sizeXs", "fgMuted"},
 		text = "Trigger the formula (roll an ability, open a sheet, etc.) to populate the tree. Rows: [kind op]  source  =  value. Click a history row to inspect that invocation.",
-		fontSize = 12,
-		color = "#cccccc",
 		italics = true,
 		width = "100%",
 		height = "auto",
@@ -1911,9 +1781,7 @@ function gui.GoblinScriptDebugDialog(options)
 	}
 
 	local mainFormPanel = gui.Panel {
-		bgcolor = "#222222",
-		borderColor = "#555555",
-		borderWidth = 1,
+		classes = {"bordered"},
 		borderBox = true,
 		pad = 8,
 		margin = 0,
@@ -1922,10 +1790,8 @@ function gui.GoblinScriptDebugDialog(options)
 		flow = "vertical",
 
 		gui.Label {
+			classes = {"sizeM", "bold"},
 			text = "Formula:",
-			fontSize = 15,
-			color = "white",
-			bold = true,
 			width = "100%",
 			height = "auto",
 			vmargin = 2,
@@ -1934,10 +1800,8 @@ function gui.GoblinScriptDebugDialog(options)
 		helpLabel,
 
 		gui.Label {
+			classes = {"sizeM", "bold"},
 			text = "Expression tree (current invocation):",
-			fontSize = 15,
-			color = "white",
-			bold = true,
 			width = "100%",
 			height = "auto",
 			vmargin = 4,
@@ -1946,10 +1810,8 @@ function gui.GoblinScriptDebugDialog(options)
 		treePanel,
 
 		gui.Label {
+			classes = {"sizeM", "bold"},
 			text = "Invocation history:",
-			fontSize = 15,
-			color = "white",
-			bold = true,
 			width = "100%",
 			height = "auto",
 			vmargin = 4,
@@ -1967,16 +1829,12 @@ function gui.GoblinScriptDebugDialog(options)
 
 	local args = {
 		style = {
-			bgcolor = 'white',
 			width = dialogWidth,
 			height = dialogHeight,
-			halign = 'left',
-			valign = 'top',
+			halign = "left",
+			valign = "top",
 		},
-		styles = {
-			Styles.Default,
-			Styles.Panel,
-		},
+		styles = ThemeEngine.GetStyles(),
 
 		x = initialX,
 		y = initialY,
@@ -2169,7 +2027,6 @@ function gui.GoblinScriptEditorDialog(options)
 			multiline = true,
 			height = "auto",
 			minHeight = 80,
-			fontSize = 16,
 			text = options.text,
 			change = function(element)
 				resultPanel:FireEvent("change", element.text)
@@ -2187,10 +2044,10 @@ function gui.GoblinScriptEditorDialog(options)
 			height = "auto",
 
 			gui.Label {
+				classes = {"sizeS"},
 				halign = "left",
 				valign = "top",
 				vmargin = 4,
-				fontSize = 14,
 				text = options.documentation.help,
 				links = true,
 				width = "100%",
@@ -2225,23 +2082,21 @@ function gui.GoblinScriptEditorDialog(options)
 					width = "100%",
 					vmargin = 16,
 					gui.Label {
+						classes = {"sizeL", "info"},
 						minWidth = 140,
 						width = "auto",
 						height = "auto",
-						color = "#ccccff",
-						fontSize = 18,
 						text = example.script,
 						textAlignment = "left",
 						halign = "left",
 					},
 					gui.Label {
+						classes = {"sizeM", "success"},
 						width = "50%",
 						height = "auto",
 						halign = "left",
 						hmargin = 16,
-						fontSize = 16,
 						italics = true,
-						color = "#ccffcc",
 						text = example.text,
 						textAlignment = "left",
 					}
@@ -2277,7 +2132,7 @@ function gui.GoblinScriptEditorDialog(options)
 						height = "auto",
 						width = "100%",
 						gui.Label {
-							fontSize = 16,
+							classes = {"sizeM"},
 							text = string.format("%s is self for this script. Any of its fields can be used directly as terms within the script.", options.documentation.subjectDescription),
 							width = "100%",
 							height = "auto",
@@ -2301,7 +2156,7 @@ function gui.GoblinScriptEditorDialog(options)
 							height = "auto",
 							width = "100%",
 							gui.Label {
-								fontSize = 16,
+								classes = {"sizeM"},
 								text = "In addition to the self creature, this GoblinScript can use the following situational fields as terms within the script.",
 								width = "100%",
 								height = "auto",
@@ -2322,7 +2177,6 @@ function gui.GoblinScriptEditorDialog(options)
 
 	local mainFormPanel = gui.Panel {
 		style = {
-			bgcolor = 'white',
 			pad = 0,
 			margin = 0,
 			width = 1060,
@@ -2332,7 +2186,7 @@ function gui.GoblinScriptEditorDialog(options)
 
 		inputPanel,
 		gui.SearchInput {
-	
+
 			bgimage = true,
 			bgcolor = "clear",
 			width = 368,
@@ -2340,7 +2194,6 @@ function gui.GoblinScriptEditorDialog(options)
 			halign = "left",
 			valign = "top",
 			borderWidth = 1,
-			fontSize = 16,
 			pad = 2,
 			popupPositioning = "panel",
 			placeholderText = cond(dmhub.GetCommandBinding("find"), string.format("Search (%s)...", dmhub.GetCommandBinding("find") or ""), "Search..."),
@@ -2362,53 +2215,40 @@ function gui.GoblinScriptEditorDialog(options)
 	local closePanel =
 		gui.Panel {
 			style = {
-				valign = 'bottom',
-				flow = 'horizontal',
+				valign = "bottom",
+				flow = "horizontal",
 				height = 60,
-				width = '100%',
-				fontSize = '60%',
+				width = "100%",
 				vmargin = 0,
 			},
 		}
 
-	closePanel:AddChild(gui.PrettyButton {
-		text = 'Close',
-		style = {
-			height = 60,
-			width = 160,
-			fontSize = 44,
-			bgcolor = 'white',
-		},
-		events = {
-			click = function(element)
-				resultPanel.data.close()
-			end,
-		},
+	closePanel:AddChild(gui.Button {
+		classes = {"sizeXl"},
+		text = "Close",
+		click = function(element)
+			resultPanel.data.close()
+		end,
 	})
 
 
 	local titleLabel = gui.Label {
+		classes = {"sizeXxl"},
 		text = "GoblinScript Editor",
-		valign = 'top',
-		halign = 'center',
-		width = 'auto',
-		height = 'auto',
-		color = 'white',
-		fontSize = 28,
+		valign = "top",
+		halign = "center",
+		width = "auto",
+		height = "auto",
 	}
 
 	local args = {
 		style = {
-			bgcolor = 'white',
 			width = dialogWidth,
 			height = dialogHeight,
-			halign = 'center',
-			valign = 'center',
+			halign = "center",
+			valign = "center",
 		},
-		styles = {
-			Styles.Default,
-			Styles.Panel,
-		},
+		styles = ThemeEngine.GetStyles(),
 
 		classes = { "framedPanel" },
 
@@ -2479,7 +2319,6 @@ function gui.GoblinScriptTypeInfoDialog(options)
 
 	local mainFormPanel = gui.Panel {
 		style = {
-			bgcolor = 'white',
 			pad = 0,
 			margin = 0,
 			width = 1060,
@@ -2495,53 +2334,40 @@ function gui.GoblinScriptTypeInfoDialog(options)
 	local closePanel =
 		gui.Panel {
 			style = {
-				valign = 'bottom',
-				flow = 'horizontal',
+				valign = "bottom",
+				flow = "horizontal",
 				height = 60,
-				width = '100%',
-				fontSize = '60%',
+				width = "100%",
 				vmargin = 0,
 			},
 		}
 
-	closePanel:AddChild(gui.PrettyButton {
-		text = 'Close',
-		style = {
-			height = 60,
-			width = 160,
-			fontSize = 44,
-			bgcolor = 'white',
-		},
-		events = {
-			click = function(element)
-				resultPanel.data.close()
-			end,
-		},
+	closePanel:AddChild(gui.Button {
+		classes = {"sizeXl"},
+		text = "Close",
+		click = function(element)
+			resultPanel.data.close()
+		end,
 	})
 
 
 	local titleLabel = gui.Label {
+		classes = {"sizeXxl"},
 		text = string.format("Fields for %s which is a %s", parentField, typeName),
-		valign = 'top',
-		halign = 'center',
-		width = 'auto',
-		height = 'auto',
-		color = 'white',
-		fontSize = 28,
+		valign = "top",
+		halign = "center",
+		width = "auto",
+		height = "auto",
 	}
 
 	local args = {
 		style = {
-			bgcolor = 'white',
 			width = dialogWidth,
 			height = dialogHeight,
-			halign = 'center',
-			valign = 'center',
+			halign = "center",
+			valign = "center",
 		},
-		styles = {
-			Styles.Default,
-			Styles.Panel,
-		},
+		styles = ThemeEngine.GetStyles(),
 
 		classes = { "framedPanel" },
 

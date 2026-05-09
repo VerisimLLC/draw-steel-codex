@@ -203,6 +203,7 @@ ThemeEngine.RegisterTheme{
         label   = "Berling",
         input   = "LiberationSans",
         number  = "Newzald",
+        mono    = "Courier",
     },
 
     styles = {
@@ -1138,6 +1139,11 @@ ThemeEngine.RegisterTheme{
         {
             selectors = {"underline"},
             underline = true,
+            priority = 5,
+        },
+        {
+            selectors = {"monospace"},
+            fontFace = "@mono",
             priority = 5,
         },
         {

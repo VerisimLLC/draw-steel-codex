@@ -98,24 +98,11 @@ function BackgroundCharacteristic.EmbedEditor(parentFeature, children, onchange)
 		for i,characteristic in ipairs(parentFeature:try_get("characteristics", {})) do
 			local index = i
 
-			local tri = gui.Panel{
-				classes = {"triangle"},
+			local tri = gui.ExpandoArrow{
 				floating = true,
 				halign = "left",
 				valign = "center",
 				x = 2,
-				styles = {
-					{
-						selectors = {"triangle"},
-						rotate = 90,
-						transitionTime = 0.2,
-					},
-					{
-						selectors = {"triangle", "expanded"},
-						rotate = 0,
-						transitionTime = 0.2,
-					},
-				},
 			}
 
 			local body

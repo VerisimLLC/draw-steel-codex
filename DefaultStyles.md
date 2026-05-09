@@ -302,6 +302,7 @@ Use to highlight a single label or panel without authoring a rule.
 - `{bordered}` — adds a 1px `@border` frame and `bgimage = true` so the border renders. Compose with anything that needs a quick frame.
 - `{bold}` / `{noBold}` — flip weight. Both carry `priority = 5` so they beat the base rule.
 - `{underline}` — typographic underline. Same `priority = 5` shape as `{bold}`. Compose with size classes when you want emphasis on a heading without authoring a one-off rule.
+- `{monospace}` — fixed-width font for code/script display (Lua editor body, expression-tree nodes, formula source text). Picks up the active theme's `@mono` font token (default `"Courier"`). Compose with size classes for the right text size.
 
 #### Token image
 

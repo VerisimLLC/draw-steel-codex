@@ -268,24 +268,11 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
 	local children = {}
 	--some kind of choice.
 
-	local tri = gui.Panel{
-		classes = {"triangle"},
+	local tri = gui.ExpandoArrow{
 		floating = true,
 		halign = "left",
 		valign = "center",
 		x = 2,
-		styles = {
-			{
-				selectors = {"triangle"},
-				rotate = 90,
-				transitionTime = 0.2,
-			},
-			{
-				selectors = {"triangle", "expanded"},
-				rotate = 0,
-				transitionTime = 0.2,
-			},
-		},
 	}
 
 	local body
@@ -1113,24 +1100,11 @@ function Class.CreateLevelEditor(children, class, UploadClass, startLevel, finis
 			text = string.format("Level %d", i)
 		end
 
-		local tri = gui.Panel{
-			classes = {"triangle"},
+		local tri = gui.ExpandoArrow{
 			floating = true,
 			halign = "left",
 			valign = "center",
 			x = 2,
-			styles = {
-				{
-					selectors = {"triangle"},
-					rotate = 90,
-					transitionTime = 0.2,
-				},
-				{
-					selectors = {"triangle", "expanded"},
-					rotate = 0,
-					transitionTime = 0.2,
-				},
-			},
 		}
 
 		local classLevel = class:GetLevel(i, subkey)

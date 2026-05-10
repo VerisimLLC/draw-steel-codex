@@ -3104,6 +3104,7 @@ function MarkdownDocument:EditPanel(args)
 
     local previewPanel
     previewPanel = gui.Panel{
+        classes = showPreviewSetting:Get() and {} or { "collapsed" },
         width = "50%",
         height = "100%",
         valign = "top",
@@ -3226,6 +3227,13 @@ function MarkdownDocument:EditPanel(args)
         end,
     }
 
+    local editorColumn
+    editorColumn = gui.Panel{
+        width = showPreviewSetting:Get() and "50%" or "100%",
+        height = "100%",
+        editInput,
+    }
+
     resultPanel = gui.Panel {
         classes = { "collapsed" },
         width = "100%",
@@ -3243,17 +3251,32 @@ function MarkdownDocument:EditPanel(args)
             halign = "center",
             valign = "top",
             flow = "horizontal",
-            gui.Panel{
-                width = "50%",
-                height = "100%",
-                editInput,
-            },
+            editorColumn,
             previewPanel,
         },
         gui.Panel {
             width = "100%",
             height = 16,
             markdownReferenceLabel,
+            gui.Button{
+                text = "Preview",
+                width = 70,
+                height = 16,
+                fontSize = 12,
+                halign = "right",
+                classes = showPreviewSetting:Get() and { "selected" } or {},
+                press = function(element)
+                    local newState = not element:HasClass("selected")
+                    element:SetClass("selected", newState)
+                    showPreviewSetting:Set(newState)
+                    previewPanel:SetClass("collapsed", not newState)
+                    editorColumn.selfStyle.width = newState and "50%" or "100%"
+                    if newState then
+                        previewPanel:FireEvent("editDocument",
+                            editInput.text or self:GetTextContent())
+                    end
+                end,
+            },
             charactersUsedLabel,
             savePanel,
         },

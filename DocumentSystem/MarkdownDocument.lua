@@ -3097,6 +3097,31 @@ function MarkdownDocument:EditPanel(args)
         end,
     }
 
+    local previewDoc = MarkdownDocument.new{
+        content = self:GetTextContent(),
+        annotations = self.annotations,
+    }
+
+    local previewPanel
+    previewPanel = gui.Panel{
+        width = "50%",
+        height = "100%",
+        valign = "top",
+        vscroll = true,
+        flow = "vertical",
+        hmargin = 4,
+
+        editDocument = function(element, content)
+            previewDoc:SetTextContent(content or "")
+            element:FireEventTree("refreshDocument", previewDoc)
+        end,
+
+        previewDoc:DisplayPanel{
+            width = "100%",
+            height = "auto",
+        },
+    }
+
     local m_richPanels = {}
 
     local annotationsPanel = gui.Panel {
@@ -3207,7 +3232,12 @@ function MarkdownDocument:EditPanel(args)
             halign = "center",
             valign = "top",
             flow = "horizontal",
-            editInput,
+            gui.Panel{
+                width = "50%",
+                height = "100%",
+                editInput,
+            },
+            previewPanel,
         },
         gui.Panel {
             width = "100%",

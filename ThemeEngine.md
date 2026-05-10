@@ -20,6 +20,10 @@ The **best** path to theming your UI is:
 
 This path ensures that your UI will leverage any theme and color scheme that the end-user chooses.
 
+### Custom Behaviors
+
+**IMPORTANT!** Be aware that, when you call `MergeStyles()` or `MergeTokens()`, you are taking a performance hit and reducing the panel's ability to automatically respond to theme and color scheme changes. It's usually better to inline these behavior styles in the specific controls that need them and avoid using colors or fonts in them. There are plenty of composable and reactive styles like bold, bordered, selected, disabled, etc. in the main style to help wit this.
+
 Sometimes, you will need to add **custom behaviors** through styles instead of inlining properties or writing event handlers. When you do this:
 
 1. Ensure any colors and font faces you use leverage the `@` tokens in the theme and color scheme dictionary. Never use hardcoded colors.

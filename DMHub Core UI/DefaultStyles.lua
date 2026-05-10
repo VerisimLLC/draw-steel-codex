@@ -242,6 +242,46 @@ ThemeEngine.RegisterTheme{
             bgcolor = "white",
             gradient = "@barTrack",
         },
+        -- Segmented fill bar primitive. {fillBar} is the track surface, sized
+        -- to whatever footprint the caller wants. {fillBarFill} is an inner
+        -- panel whose width represents progress (sized via selfStyle.width
+        -- as a percentage of the track); its bgcolor takes @accent by
+        -- default but can be overridden via selfStyle.bgcolor for
+        -- per-instance hue. The shading gradient is theme-independent.
+        -- {fillBarSegment} panels stripe the track into discrete units,
+        -- each with a 1px @fgStrong border; toggle the `uploading` class
+        -- on the track to dim segments to @fgMuted while a server-side
+        -- update is in flight. For continuous percentage progress, use
+        -- gui.ProgressBar instead.
+        {
+            selectors = {"fillBar"},
+            bgimage = true,
+            bgcolor = "@bg",
+        },
+        {
+            selectors = {"fillBarFill"},
+            bgimage = true,
+            bgcolor = "@accent",
+            gradient = gui.Gradient{
+                point_a = {x = 0, y = 0},
+                point_b = {x = 1, y = 0},
+                stops = {
+                    { position = 0, color = "#484848" },
+                    { position = 1, color = "#C1C1C1" },
+                },
+            },
+        },
+        {
+            selectors = {"fillBarSegment"},
+            bgimage = true,
+            bgcolor = "clear",
+            borderWidth = 1,
+            borderColor = "@fgStrong",
+        },
+        {
+            selectors = {"fillBarSegment", "parent:uploading"},
+            borderColor = "@fgMuted",
+        },
         -- Image-displaying panels. bgcolor "white" is image-tint-neutral
         -- (see top of section 1). Borders are intentionally NOT set here --
         -- callers manage borderWidth / borderColor per their needs.

@@ -83,6 +83,16 @@ Specialized variants:
 - `{panel, dicePreview}` — marker class for live-dice render targets. The `bgimage = "#DicePreview"` render hookup and `bgcolor = "white"` **must** stay inline at the call site — the engine's render-target rendering doesn't honor cascade properties.
 - `{panel, buttonIcon}` — auto-emitted child of `gui.Button{ icon = ... }`. Tints to `@fg` and brightens on hover; you don't apply this class manually.
 
+#### Segmented fill bar
+
+A discrete-count progress widget: a track with N equal segment dividers and a fill panel that flows underneath. Use for things like successes-out-of-N, charges, hit boxes — anything where each segment represents one unit. **Not the same as `gui.ProgressBar`**, which is a continuous percentage bar with a centered "%" label; reach for that when the value is continuous.
+
+Compose three classes on three nested panels:
+
+- `{fillBar}` — the track surface. Solid `@bg` fill. Caller controls `width`/`height` and lays out the fill + segments inside as horizontal-flow children.
+- `{fillBarFill}` — inner panel whose width represents progress. Caller drives width via `selfStyle.width = "X%"`. Default `bgcolor = @accent` with a theme-independent grayscale shading gradient that gives the fill a 3D feel; override `selfStyle.bgcolor` per-instance for a different hue (the gradient still shades it).
+- `{fillBarSegment}` — one segment divider, with a 1px `@fgStrong` border at rest. Stack N of these horizontally on top of the fill. While a server-side update is pending, set the `uploading` class on the parent track (`fillBar:SetClass("uploading", true)`); the cascade dims segment borders to `@fgMuted` until you clear it.
+
 #### Label
 
 `{label}` is the base; default is 14pt `@label` font (Berling), color `@fgStrong`, auto-sized.

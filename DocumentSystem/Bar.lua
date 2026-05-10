@@ -13,12 +13,10 @@ function RichBar.CreateDisplay(self)
     local m_fill
     local m_count = 0
     m_fill = gui.Panel {
-        classes = {"successBarFill"},
+        classes = {"fillBarFill"},
         floating = true,
         width = "0%",
         height = 20,
-        gradient = Styles.grayscaleGradient,
-        bgimage = true,
         halign = "left",
         refreshTag = function(element, tag, match, token)
             local tokenColor = self.GetColorFromToken(token)
@@ -41,32 +39,13 @@ function RichBar.CreateDisplay(self)
             end
         end,
     }
-    local successBar = gui.Panel {
-        classes = {"successBar"},
+    local fillBar = gui.Panel {
+        classes = {"fillBar"},
         width = 100,
         height = 20,
         valign = "center",
         halign = "left",
         flow = "horizontal",
-        bgimage = true,
-        styles = ThemeEngine.MergeTokens({
-            {
-                selectors = {"successBar"},
-                bgcolor = "@bg",
-            },
-            {
-                selectors = {"successBarFill"},
-                bgcolor = "@accent",
-            },
-            {
-                selectors = { "segment" },
-                borderColor = "@fgStrong",
-            },
-            {
-                selectors = { "segment", "parent:uploading" },
-                borderColor = "@fgMuted",
-            },
-        }),
         refreshTag = function(element, tag, match, token)
             m_count = #match.text
             local index = string.find(match.text, "-")
@@ -80,10 +59,7 @@ function RichBar.CreateDisplay(self)
             element.selfStyle.width = m_count * 100
             while #m_segments < m_count do
                 m_segments[#m_segments + 1] = gui.Panel {
-                    classes = { "segment" },
-                    borderWidth = 1,
-                    bgimage = true,
-                    bgcolor = "clear",
+                    classes = { "fillBarSegment" },
                     width = 100,
                     height = 20,
                 }
@@ -122,17 +98,16 @@ function RichBar.CreateDisplay(self)
         local doc = self:GetDocument()
         doc:PatchToken(m_token, "[[" .. string.rep("#", newValue) .. string.rep("-", m_count - newValue) .. "]]")
         doc:Upload()
-        successBar:SetClass("uploading", true)
+        fillBar:SetClass("uploading", true)
     end
 
     local plusButton
     local minusButton
     if dmhub.isDM then
-        minusButton = gui.Label {
-            classes = { "plusButton", "dmonly" },
+        minusButton = gui.Button {
+            classes = { "sizeXxs" },
             text = "-",
-            bgimage = true,
-            click = function(element)
+            press = function(element)
                 incrementSuccess(-1)
             end,
             refreshTag = function(element, richTag, patternMatch, token)
@@ -140,11 +115,10 @@ function RichBar.CreateDisplay(self)
             end,
         }
 
-        plusButton = gui.Label {
-            classes = { "plusButton", "dmonly" },
+        plusButton = gui.Button {
+            classes = { "sizeXxs" },
             text = "+",
-            bgimage = true,
-            click = function(element)
+            press = function(element)
                 incrementSuccess(1)
             end,
             refreshTag = function(element, richTag, patternMatch, token)
@@ -165,30 +139,11 @@ function RichBar.CreateDisplay(self)
         refreshTag = function(element, tag, match, token)
             self = tag or self
             m_token = token
-            successBar:SetClass("uploading", false)
+            fillBar:SetClass("uploading", false)
         end,
-        styles = ThemeEngine.MergeTokens({
-            {
-                selectors = { "plusButton" },
-                width = 20,
-                height = 20,
-                borderWidth = 1,
-                borderColor = "@fgStrong",
-                color = "@fgStrong",
-                bgcolor = "@bg",
-                bold = true,
-                fontSize = 20,
-                textAlignment = "center",
-            },
-            {
-                selectors = { "plusButton", "hover" },
-                color = "@bg",
-                bgcolor = "@fgStrong",
-            },
-        }),
 
         minusButton,
-        successBar,
+        fillBar,
         plusButton,
 
     }

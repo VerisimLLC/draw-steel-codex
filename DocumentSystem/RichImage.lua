@@ -23,11 +23,11 @@ function RichImage.CreateDisplay(self)
         halign = self.halign,
     
         gui.Panel{
+            classes = {"image"},
             maxWidth = self.maxWidth,
             width = "auto",
             height = "auto",
             autosizeimage = true,
-            bgcolor = "white",
             uiscale = self.uiscale,
             refreshTag = function(element, tag, match, token)
                 tag = tag or self
@@ -57,8 +57,8 @@ function RichImage.CreateEditor(self)
                     element.popup = nil
                     return
                 end
+                element.popupsInheritStyles = true
                 element.popup = gui.Panel{
-                    styles = ThemeEngine.GetStyles(),
                     classes = {"bordered", "bg"},
                     width = "auto",
                     height = "auto",
@@ -70,15 +70,16 @@ function RichImage.CreateEditor(self)
                         width = "auto",
                         height = "auto",
                         gui.Label{
-                            fontSize = 14,
+                            classes = {"sizeS"},
                             width = "auto",
                             height = "auto",
                             text = "Dimensions:",
                         },
                         gui.Label{
-                            fontSize = 14,
+                            classes = {"sizeXs"},
                             width = "auto",
                             height = "auto",
+                            lmargin = 4,
                             text = "--",
                             create = function(element)
                                 dmhub.GetImageInfo(self.image, function(info)
@@ -97,15 +98,12 @@ function RichImage.CreateEditor(self)
                         width = "auto",
                         height = "auto",
                         gui.Label{
-                            fontSize = 14,
+                            classes = {"sizeXs"},
                             width = "auto",
                             height = "auto",
                             text = "Scale:",
                         },
                         gui.Slider{
-                            style = {
-                                fontSize = 12,
-                            },
                             width = 160,
                             labelWidth = 40,
                             height = 20,

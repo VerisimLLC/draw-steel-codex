@@ -3007,6 +3007,17 @@ function MarkdownDocument:EditPanel(args)
             width = "100%",
             height = "auto",
         },
+
+        gui.Panel{
+            classes = { "previewClickGuard" },
+            width = "100%",
+            height = "100%",
+            floating = true,
+            bgimage = "panels/square.png",
+            bgcolor = "#00000000",
+            click = function() end,
+            rightClick = function() end,
+        },
     }
 
     local m_richPanels = {}

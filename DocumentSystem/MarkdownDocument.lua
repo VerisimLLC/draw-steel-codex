@@ -13,6 +13,13 @@ local g_markdownStyle = gui.MarkdownStyle {
     ["##### "] = "<size=120%><b>", ["/##### "] = "</b></size>",
 }
 
+local showPreviewSetting = setting{
+    id = "markdownEditorShowPreview",
+    name = "Show Preview Pane in Markdown Editor",
+    default = true,
+    storage = "preferences",
+}
+
 ---@class RichTag
 ---@field pattern false|string
 RichTag = RegisterGameType("RichTag")

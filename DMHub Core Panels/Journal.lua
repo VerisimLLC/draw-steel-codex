@@ -674,6 +674,27 @@ CreateFolderContentsPanel = function(journalPanel, folderid)
                                     end,
                                 },
                                 {
+                                    text = "Duplicate",
+                                    hidden = member.nodeType ~= "custom",
+                                    click = function()
+                                        element.popup = nil
+
+                                        local newDoc = DeepCopy(member)
+                                        newDoc.id = dmhub.GenerateGuid()
+                                        newDoc.description = "Copy of " .. (member.description or "")
+                                        newDoc.updateid = ""
+                                        newDoc.ord = (member.ord or 0) + 0.5
+                                        if not dmhub.isDM then
+                                            newDoc.ownerid = dmhub.loginUserid
+                                        end
+
+                                        newDoc.textStorage = false
+                                        newDoc:SetTextContent(member:GetTextContent())
+
+                                        newDoc:Upload()
+                                    end,
+                                },
+                                {
                                     text = "Delete",
                                     hidden = not member:HaveEditPermissions(),
                                     click = function()

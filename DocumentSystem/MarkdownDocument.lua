@@ -3187,6 +3187,15 @@ function MarkdownDocument:EditPanel(args)
         }
     end
 
+    local headingOptions = {
+        { id = "",       text = "Heading" },
+        { id = "# ",     text = "H1" },
+        { id = "## ",    text = "H2" },
+        { id = "### ",   text = "H3" },
+        { id = "#### ",  text = "H4" },
+        { id = "##### ", text = "H5" },
+    }
+
     local toolbar = gui.Panel{
         width = "100%",
         height = 28,
@@ -3201,6 +3210,21 @@ function MarkdownDocument:EditPanel(args)
         ToolbarButton("I", 16, 28, WrapHandler("*", "*")),
         ToolbarButton("U", 16, 28, WrapHandler("__", "__")),
         ToolbarButton("S", 16, 28, WrapHandler("~~", "~~")),
+
+        gui.Dropdown{
+            width = 80, height = 24, idChosen = "",
+            options = headingOptions,
+            change = function(element)
+                if element.idChosen ~= "" then
+                    LineHandler(element.idChosen)()
+                    element.idChosen = ""
+                end
+            end,
+        },
+
+        ToolbarButton("List",    12, 44, LineHandler("* ")),
+        ToolbarButton("Divider", 12, 56, InsertHandler("\n---\n", 5)),
+        ToolbarButton("Link",    12, 40, InsertHandler("[]", 1)),
     }
 
     local editorColumn

@@ -2963,6 +2963,31 @@ function MarkdownDocument:EditPanel(args)
         input:FireEvent("edit")
     end
 
+    local function WrapHandler(prefix, suffix)
+        return function() InsertAction(editInput, {
+            mode = "wrap", prefix = prefix, suffix = suffix,
+        }) end
+    end
+
+    local function LineHandler(prefix)
+        return function() InsertAction(editInput, {
+            mode = "linePrefix", prefix = prefix,
+        }) end
+    end
+
+    local function InsertHandler(text, caretOffset)
+        return function() InsertAction(editInput, {
+            mode = "insert", text = text, caretOffset = caretOffset,
+        }) end
+    end
+
+    local function RichTagHandler(tagName)
+        return function() InsertAction(editInput, {
+            mode = "insert",
+            text = string.format("[[%s]]\n", tagName),
+        }) end
+    end
+
     editInput = gui.Input {
         id = "editorPanel",
         classes = { "monospace" },
@@ -3151,12 +3176,45 @@ function MarkdownDocument:EditPanel(args)
         end,
     }
 
+    local function ToolbarButton(label, fontSize, width, handler)
+        return gui.Button{
+            text = label,
+            width = width or 28,
+            height = 24,
+            fontSize = fontSize or 14,
+            valign = "center",
+            press = handler,
+        }
+    end
+
+    local toolbar = gui.Panel{
+        width = "100%",
+        height = 28,
+        flow = "horizontal",
+        valign = "top",
+        halign = "left",
+        borderBox = true,
+        hpad = 4,
+        bmargin = 4,
+
+        ToolbarButton("B", 16, 28, WrapHandler("**", "**")),
+        ToolbarButton("I", 16, 28, WrapHandler("*", "*")),
+        ToolbarButton("U", 16, 28, WrapHandler("__", "__")),
+        ToolbarButton("S", 16, 28, WrapHandler("~~", "~~")),
+    }
+
     local editorColumn
     editorColumn = gui.Panel{
         width = showPreviewSetting:Get() and "50%" or "100%",
         height = "100%",
         borderBox = true,
-        editInput,
+        flow = "vertical",
+        toolbar,
+        gui.Panel{
+            width = "100%",
+            height = "100%-32",
+            editInput,
+        },
     }
 
     resultPanel = gui.Panel {

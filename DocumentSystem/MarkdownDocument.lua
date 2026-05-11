@@ -3093,6 +3093,7 @@ function MarkdownDocument:EditPanel(args)
         borderBox = true,
         lmargin = 8,
         hpad = 16,
+        vpad = 16,
 
         editDocument = function(element, content)
             previewDoc:SetTextContent(content or "")

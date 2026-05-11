@@ -3059,7 +3059,7 @@ function MarkdownDocument:EditPanel(args)
         flow = "vertical",
         borderBox = true,
         lmargin = 8,
-        hpad = 8,
+        hpad = 16,
 
         editDocument = function(element, content)
             previewDoc:SetTextContent(content or "")
@@ -3220,8 +3220,9 @@ function MarkdownDocument:EditPanel(args)
 
     local toolbar = gui.Panel{
         width = "100%",
-        height = 28,
+        height = "auto",
         flow = "horizontal",
+        wrap = true,
         valign = "top",
         halign = "left",
         borderBox = true,
@@ -3299,7 +3300,7 @@ function MarkdownDocument:EditPanel(args)
         toolbar,
         gui.Panel{
             width = "100%",
-            height = "100%-32",
+            height = "100% available",
             editInput,
         },
     }

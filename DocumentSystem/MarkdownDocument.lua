@@ -3203,6 +3203,30 @@ function MarkdownDocument:EditPanel(args)
         { id = "v", text = "Revealed" },
     }
 
+    local mediaTags  = { "image", "sound", "ability", "scene",
+                         "encounter", "party", "follower" }
+    local widgetTags = { "dice", "bar", "counter", "checkbox", "macro",
+                         "reminder", "timer", "setting" }
+
+    local function TagDropdown(label, tagList)
+        local options = { { id = "", text = label } }
+        for _, t in ipairs(tagList) do
+            options[#options + 1] = { id = t, text = t }
+        end
+        return gui.Dropdown{
+            width = 110,
+            height = 24,
+            idChosen = "",
+            options = options,
+            change = function(element)
+                if element.idChosen ~= "" then
+                    RichTagHandler(element.idChosen)()
+                    element.idChosen = ""
+                end
+            end,
+        }
+    end
+
     local toolbar = gui.Panel{
         width = "100%",
         height = 28,
@@ -3251,6 +3275,9 @@ function MarkdownDocument:EditPanel(args)
 
         ToolbarButton("Color", 12, 44,
             WrapHandler("<color=red>", "</color>")),
+
+        TagDropdown("Insert Media",  mediaTags),
+        TagDropdown("Insert Widget", widgetTags),
     }
 
     local editorColumn

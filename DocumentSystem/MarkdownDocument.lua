@@ -2988,6 +2988,36 @@ function MarkdownDocument:EditPanel(args)
         }) end
     end
 
+    local lastSyncedCaret = -1
+    local function SyncPreviewScroll(input, previewPanel)
+        if previewPanel:HasClass("collapsed") then
+            return
+        end
+        local caret = input.caretPosition or 0
+        if caret == lastSyncedCaret then
+            return
+        end
+        lastSyncedCaret = caret
+
+        local text = input.text or ""
+        local caretLine = 0
+        for i = 1, math.min(caret, #text) do
+            if text:sub(i, i) == "\n" then
+                caretLine = caretLine + 1
+            end
+        end
+
+        local _, totalNewlines = text:gsub("\n", "\n")
+        local totalLines = totalNewlines + 1
+        local ratio = 0
+        if totalLines > 0 then
+            ratio = caretLine / totalLines
+        end
+
+        local clamped = math.max(0, math.min(1, 1 - ratio))
+        previewPanel.vscrollPosition = clamped
+    end
+
     editInput = gui.Input {
         id = "editorPanel",
         classes = { "monospace" },

@@ -3268,20 +3268,8 @@ function MarkdownDocument:EditPanel(args)
         ToolbarButton("U", 16, 28, WrapHandler("__", "__")),
         ToolbarButton("S", 16, 28, WrapHandler("~~", "~~")),
 
-        gui.Dropdown{
-            width = 80, height = 24, idChosen = "",
-            options = headingOptions,
-            change = function(element)
-                if element.idChosen ~= "" then
-                    LineHandler(element.idChosen)()
-                    element.idChosen = ""
-                end
-            end,
-        },
-
-        ToolbarButton("List",    12, 44, LineHandler("* ")),
-        ToolbarButton("Divider", 12, 56, InsertHandler("\n---\n", 5)),
-        ToolbarButton("Link",    12, 40, InsertHandler("[]", 1)),
+        ToolbarButton("Color", 12, 44,
+            WrapHandler("<color=red>", "</color>")),
 
         gui.Dropdown{
             width = 90, height = 24, idChosen = "",
@@ -3299,8 +3287,23 @@ function MarkdownDocument:EditPanel(args)
             end,
         },
 
-        ToolbarButton("Color", 12, 44,
-            WrapHandler("<color=red>", "</color>")),
+        gui.Dropdown{
+            width = 80, height = 24, idChosen = "",
+            options = headingOptions,
+            change = function(element)
+                if element.idChosen ~= "" then
+                    LineHandler(element.idChosen)()
+                    element.idChosen = ""
+                end
+            end,
+        },
+
+        ToolbarButton("List",    12, 44, LineHandler("* ")),
+        ToolbarButton("Divider", 12, 56, InsertHandler("\n---\n", 5)),
+        ToolbarButton("Link",    12, 40, InsertHandler("[]", 1)),
+
+        ToolbarButton("Draw Steel!", 12, 80,
+            InsertHandler('[[//link "Draw Steel!"|Draw Steel!]]')),
 
         gui.Dropdown{
             width = 110, height = 24, idChosen = "",

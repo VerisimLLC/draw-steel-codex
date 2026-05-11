@@ -3018,6 +3018,8 @@ function MarkdownDocument:EditPanel(args)
         previewPanel.vscrollPosition = clamped
     end
 
+    local previewPanel
+
     editInput = gui.Input {
         id = "editorPanel",
         classes = { "monospace" },
@@ -3060,6 +3062,7 @@ function MarkdownDocument:EditPanel(args)
 
         caretReady = function(element)
             UpdateAutocomplete(element)
+            SyncPreviewScroll(element, previewPanel)
         end,
 
         think = function(element)
@@ -3071,6 +3074,7 @@ function MarkdownDocument:EditPanel(args)
             else
                 UpdateLinkInfo(element)
             end
+            SyncPreviewScroll(element, previewPanel)
         end,
     }
 
@@ -3079,7 +3083,6 @@ function MarkdownDocument:EditPanel(args)
         annotations = self.annotations,
     }
 
-    local previewPanel
     previewPanel = gui.Panel{
         classes = showPreviewSetting:Get() and {} or { "collapsed" },
         width = "50%-16",

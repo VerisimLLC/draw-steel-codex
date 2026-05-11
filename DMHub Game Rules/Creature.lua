@@ -5077,7 +5077,7 @@ function creature:FillBaseActiveModifiers(result)
 
 	--global features first, to do base-level rules like critical hits etc.
 	for k,mod in pairs(modTable) do
-		if (not mod:try_get("hidden")) and ((ischaracter and mod.applyCharacters) or (ismonster and mod.applyMonsters) or (isretainer and mod.applyRetainers)) or (iscompanion and mod.applyCompanions) then
+		if (not mod:try_get("hidden")) and ((ischaracter and mod.applyCharacters) or (ismonster and mod.applyMonsters) or (isretainer and mod.applyRetainers) or (iscompanion and mod.applyCompanions)) then
 			mod:FillClassFeatures(self:GetLevelChoices(), globalFeatures)
 		end
 	end
@@ -6322,6 +6322,12 @@ function creature:ApplyOngoingEffect(ongoingEffectid, duration, casterInfo, opti
 
     print("Caster:: Info:", casterInfo, json(casterInfo))
 
+    --Avoidance (Draw Steel Lightbender trait): a save-ends ongoing effect on a
+    --creature with this attribute is downgraded to end-of-next-turn instead.
+    if duration == "save_ends" and self:CalculateNamedCustomAttribute("Avoidance Save Ends Conversion") > 0 then
+        duration = "end_of_next_turn"
+    end
+
 	--use this as an opportunity to clean up any ongoingEffects that are no longer active.
 	self.ongoingEffects = self:ActiveOngoingEffects(true)
 
@@ -6923,6 +6929,20 @@ creature.helpSymbols = {
         type = "number",
         desc = "The altitude of the creature measured in tenths of a tile high. This is the distance above ground zero of the bottom floor of the map the creature is on. This means that creatures on different floors can have their altitudes compared.",
         seealso = {"Altitude"},
+    },
+
+    x = {
+        name = "X",
+        type = "number",
+        desc = "The X coordinate of the creature on the map, in tiles.",
+        seealso = {"Y"},
+    },
+
+    y = {
+        name = "Y",
+        type = "number",
+        desc = "The Y coordinate of the creature on the map, in tiles.",
+        seealso = {"X"},
     },
 
     altitude = {
@@ -7590,6 +7610,22 @@ creature.lookupSymbols = {
 			return token.altitudeInDeciTiles
 		end
 
+        return 0
+    end,
+
+    x = function(c)
+        local token = dmhub.LookupToken(c)
+        if token ~= nil and token.loc ~= nil then
+            return token.loc.x
+        end
+        return 0
+    end,
+
+    y = function(c)
+        local token = dmhub.LookupToken(c)
+        if token ~= nil and token.loc ~= nil then
+            return token.loc.y
+        end
         return 0
     end,
 

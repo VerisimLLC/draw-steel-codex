@@ -27,11 +27,23 @@ function ActivatedAbilityRememberBehavior:Cast(ability, casterToken, targets, op
     local symbols = table.shallow_copy(options.symbols)
     symbols.caster = casterToken.properties
     local val = 0
-    for _, target in ipairs(targets) do
-        symbols.target = target.token.properties
-        local value = ExecuteGoblinScript(self.calculation, target.token.properties:LookupSymbol(symbols), 0, "Remember Value Calculation")
-        print("MEMORY:: CALC", self.calculation, "=", value, "FROM", table.keys(symbols))
-        val = val + value
+    if #targets == 0 then
+        -- Allow targetless remembers (e.g., used at the start of a move-then-strike
+        -- ability to snapshot the caster's pre-move state). Use the caster as Self.
+        val = ExecuteGoblinScript(self.calculation, casterToken.properties:LookupSymbol(symbols), 0, "Remember Value Calculation")
+    else
+        for _, target in ipairs(targets) do
+            if target.token ~= nil then
+                symbols.target = target.token.properties
+                local value = ExecuteGoblinScript(self.calculation, target.token.properties:LookupSymbol(symbols), 0, "Remember Value Calculation")
+                print("MEMORY:: CALC", self.calculation, "=", value, "FROM", table.keys(symbols))
+                val = val + value
+            else
+                -- Emptyspace target: evaluate with caster as Self, no target symbol.
+                local value = ExecuteGoblinScript(self.calculation, casterToken.properties:LookupSymbol(symbols), 0, "Remember Value Calculation")
+                val = val + value
+            end
+        end
     end
 
     options.symbols.cast:StoreMemory(self.memoryName, val)

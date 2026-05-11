@@ -469,6 +469,12 @@ function CharacterOngoingEffectInstance:Expired()
 			--this effect was created outside of combat, so it should expire immediately.
 			return true
 		end
+		--Defensive: legacy data may have stored an unrecognized duration string
+		--(e.g. "endturn") that should have been normalized at apply time. Treat
+		--such instances as expired so the spam stops and they get cleaned up.
+		if type(self.duration) ~= "number" then
+			return true
+		end
 		return self.time:RoundsSince() > self.duration
 	end
 

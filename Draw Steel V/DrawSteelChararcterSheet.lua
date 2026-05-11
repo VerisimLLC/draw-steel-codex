@@ -3236,7 +3236,8 @@ local function DSCharSheet()
                             height = "100%",
                             flow = "horizontal",
                             refreshToken = function(element, info)
-                                element:SetClass("collapsed", not info.token.properties:IsMonster())
+                                local props = info.token.properties
+                                element:SetClass("collapsed", not (props:IsMonster() or props:IsCompanion()))
                             end,
 
                             --minion-only "with captain" panel
@@ -3371,11 +3372,14 @@ local function DSCharSheet()
                                     editable = true,
 
                                     refreshToken = function(element, info)
-                                        if not info.token.properties:IsMonster() then
+                                        local props = info.token.properties
+                                        if not (props:IsMonster() or props:IsCompanion()) then
                                             return
                                         end
 
-                                        local attack = info.token.properties:OpportunityAttack()
+                                        element.editable = not props:IsCompanion()
+
+                                        local attack = props:OpportunityAttack()
                                         element.text = string.format("%d", round(attack))
                                     end,
 
@@ -3443,11 +3447,12 @@ local function DSCharSheet()
                                     editable = true,
 
                                     refreshToken = function(element, info)
-                                        if not info.token.properties:IsMonster() then
+                                        local props = info.token.properties
+                                        if not (props:IsMonster() or props:IsCompanion()) then
                                             return
                                         end
 
-                                        local ev = info.token.properties.ev
+                                        local ev = props.ev
                                         element.text = string.format("%d", round(ev))
                                     end,
 
@@ -3473,7 +3478,8 @@ local function DSCharSheet()
                             flow = "vertical",
 
                             refreshToken = function(element, info)
-                                element:SetClass("collapsed", info.token.properties:IsMonster())
+                                local props = info.token.properties
+                                element:SetClass("collapsed", props:IsMonster() or props:IsCompanion())
                             end,
 
                             --Victories label

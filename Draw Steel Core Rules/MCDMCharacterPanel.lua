@@ -4792,7 +4792,9 @@ function TacPanel.HeroicResources()
                 element:SetClass("collapsed", true)
                 return
             end
-            element:SetClass("collapsed", not token.properties:IsHero())
+            local hasRampage = token.properties.GetRampageDisplayToken ~= nil and token.properties:GetRampageDisplayToken() ~= nil
+            local shouldShow = token.properties:IsHero() or hasRampage
+            element:SetClass("collapsed", not shouldShow)
         end,
         refreshToken = function(element, token)
             element:FireEvent("refreshCharacter", token)
@@ -5008,6 +5010,7 @@ function TacPanel.OtherResources()
         [CharacterResource.maneuverResourceId] = true,
         [CharacterResource.freeManeuverResourceId] = true,
         [CharacterResource.triggerResourceId] = true,
+        [CharacterResource.rampageId] = true,
     }
 
     return TacPanel.CollapsiblePanel{

@@ -1817,12 +1817,10 @@ function ActivatedAbility:Render(options, params)
 
                         element.children = {
                             gui.EnumeratedSliderControl {
-                                styles = ThemeEngine.GetStyles(),
                                 options = modeOptions,
                                 value = 1,
-                                height = "auto",
                                 wrap = true,
-                                optionWidth = "33.3333%",
+                                optionWidth = cond(#modeOptions <= 2, "50%", "33.3333%"),
                                 tmargin = 4,
                                 change = function(element)
                                 end,

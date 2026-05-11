@@ -798,6 +798,17 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
     local caster = casterToken.properties
     local roll = dmhub.EvalGoblinScript(self.roll, casterToken.properties:LookupSymbol(options.symbols), "Power table roll")
 
+    --If the symbols carry a forcedroll (set by an InvokeAbility behavior with inheritRoll=true,
+    --so a child ability can replicate the parent's raw d10 result), substitute the dice portion
+    --of the roll formula with that natural value. The child's characteristic bonus and any
+    --edges/banes/triggers the player applies in the dialog still stack on top -- the dialog
+    --opens normally with the forced value as the dice base. (Visual dice replay isn't possible
+    --without C# engine support; the math is correct but no animated d10s appear.)
+    local forcedroll = options.symbols and options.symbols.forcedroll
+    if forcedroll ~= nil then
+        roll = regex.ReplaceAll(roll, "\\d+d\\d+", tostring(forcedroll))
+    end
+
 	local modifiersApplied = nil
     local appliedTargetCreature = nil
 
@@ -1306,6 +1317,9 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
         type = "ability_power_roll",
         ability = ability,
         roll = roll,
+        --Only set autoroll when forcing -- the dialog's autoroll branch treats
+        --any non-nil value (including false) as a table-with-.id and crashes.
+        autoroll = forcedroll ~= nil and true or nil,
         showDialogDuringRoll = true,
         amendable = true,
         modifiers = modifiersApplied,

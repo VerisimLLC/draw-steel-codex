@@ -3267,6 +3267,26 @@ function ActivatedAbilityBehavior:ApplyToTargets(ability, casterToken, targets, 
                 result[#result+1] = { token = tok }
             end
         end
+    elseif self.applyto == 'caster_summoner' then
+        result = {}
+
+        local summonerid = casterToken.summonerid
+        if summonerid ~= nil and summonerid ~= "" then
+            local summonerToken = dmhub.GetTokenById(summonerid)
+            if summonerToken ~= nil and summonerToken.valid then
+                result[#result+1] = { token = summonerToken }
+            end
+        end
+    elseif self.applyto == 'caster_companion' then
+        result = {}
+
+        local companionid = casterToken.properties:try_get("companionid", false)
+        if companionid then
+            local companionToken = dmhub.GetTokenById(companionid)
+            if companionToken ~= nil and companionToken.valid then
+                result[#result+1] = { token = companionToken }
+            end
+        end
     elseif self.applyto == 'caster_including_squad' then
         result = {
             {

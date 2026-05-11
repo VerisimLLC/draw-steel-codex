@@ -1150,6 +1150,19 @@ creature.RegisterSymbol {
     },
 }
 
+creature.RegisterSymbol {
+    symbol = "winded",
+    lookup = function(c)
+        return c:IsWinded()
+    end,
+    help = {
+        name = "Winded",
+        type = "boolean",
+        desc = "True if this creature is winded (current Stamina at or below half their maximum).",
+        seealso = {"Stamina", "Maximum Stamina", "Dying", "Dead"},
+    },
+}
+
 creature.RegisterSymbol{
     symbol = "herotokens",
     lookup = function(c)
@@ -2527,6 +2540,16 @@ end
 --An important property is that innate abilities are not clones unless bindCaster is true. This allows the character sheet
 --and other parts of the app to modify the innate abilities to update the creature.
 local g_defaultExcludeKeywords = { "Companion" }
+
+--Hook called by ActivatedAbilityInvokeAbilityBehavior on the invoker creature
+--right before a custom invoked ability is cast. Lets per-creature subclasses
+--apply the same post-processing they'd do in GetActivatedAbilities (e.g. the
+--companion melee bonus that AnimalCompanion adds outside the modifier pipeline).
+--Default: no-op. Returns the (possibly modified) ability.
+function creature:PostProcessInvokedAbility(ability)
+    return ability
+end
+
 function creature:GetActivatedAbilities(options)
     options = options or {}
 
@@ -2541,7 +2564,11 @@ function creature:GetActivatedAbilities(options)
 
     self:FillMonsterActivatedAbilities(options, result)
 
-    local kit = self:Kit()
+    --options.excludeKitAbilities lets a derived caller skip the kit's signature
+    --abilities when pulling abilities from this creature -- e.g. an animal
+    --companion deriving abilities from its beastheart summoner doesn't take
+    --the kit's signature ability with it.
+    local kit = (not options.excludeKitAbilities) and self:Kit() or nil
     if kit ~= nil then
         for _, a in ipairs(kit:SignatureAbilities()) do
             local ability = a
@@ -2645,21 +2672,29 @@ function creature:GetActivatedAbilities(options)
 
 
     --let our modifiers modify the abilities we are returning.
+    --options.excludeKitModifications skips the kitmodifyability step. Used by
+    --the companion when it pulls abilities from its summoner -- the companion
+    --doesn't get the kit's full bonus pile, only a chosen melee-damage bonus
+    --that gets applied on the companion side instead.
     local j = 1
     local nitems = #result
     for i = 1, #result do
         local ability = result[i]
         if ability._tmp_temporaryClone or (not options.characterSheet) then
             for i, mod in ipairs(modifiers) do
-                ability = mod.mod:ModifyAbility(mod, self, ability)
-                if ability == nil then
-                    break
-                end
+                if options.excludeKitModifications and mod.mod.behavior == "kitmodifyability" then
+                    --skip
+                else
+                    ability = mod.mod:ModifyAbility(mod, self, ability)
+                    if ability == nil then
+                        break
+                    end
 
-                local variations = ability:GetVariations()
-                if variations ~= nil then
-                    for i = 1, #variations do
-                        mod.mod:ModifyAbility(mod, self, variations[i])
+                    local variations = ability:GetVariations()
+                    if variations ~= nil then
+                        for i = 1, #variations do
+                            mod.mod:ModifyAbility(mod, self, variations[i])
+                        end
                     end
                 end
             end
@@ -3104,6 +3139,13 @@ function creature:InflictCondition(conditionid, args)
     --this creature is immune to the condition.
     if immunities[conditionid] and (not args.purge) then
         return
+    end
+
+    --Avoidance: a save-ends condition on a creature with this attribute set
+    --is downgraded to end-of-target's-next-turn instead. Used by the
+    --Lightbender companion's Avoidance trait.
+    if args.duration == "save" and self:CalculateNamedCustomAttribute("Avoidance Save Ends Conversion") > 0 then
+        args.duration = "eot"
     end
 
     local conditionsTable = dmhub.GetTable(CharacterCondition.tableName)
@@ -4431,6 +4473,13 @@ function creature:CostToMoveThroughToken(otherToken)
             --we can move through enemies freely.
             return true
         end
+        --if the enemy is prone and we have the right attribute, we can move through them freely.
+        if otherToken.properties:HasCondition("da6867b1-01e3-4570-8d1b-1b94ea1ea343") then
+            local freeProneMove = self:CalculateNamedCustomAttribute("Can Move Through Prone Enemies Freely")
+            if freeProneMove > 0 then
+                return true
+            end
+        end
         --moving through an enemy is regarded as difficult terrain.
         return "difficult"
     end
@@ -4912,6 +4961,21 @@ creature.RegisterSymbol {
         name = "InWater",
         type = "boolean",
         desc = "Is this creature in water?",
+        seealso = {},
+    }
+}
+
+creature.RegisterSymbol {
+    symbol = "onground",
+
+    lookup = function(c)
+        local moveType = c:CurrentMoveType()
+        return moveType ~= "fly" and moveType ~= "burrow" and moveType ~= "climb"
+    end,
+    help = {
+        name = "OnGround",
+        type = "boolean",
+        desc = "True if this creature is on the ground (not flying, burrowing, or climbing).",
         seealso = {},
     }
 }

@@ -787,6 +787,26 @@ CharacterModifier.TypeInfo.power = {
             end
         end
 
+        local damageReduction = self:try_get("damageReduction", "")
+        if damageReduction ~= "" then
+            local reduction = ExecuteGoblinScript(damageReduction, lookupFunction, 0, "Damage reduction")
+            reduction = tonumber(reduction) or 0
+            if reduction > 0 then
+                for i,tier in ipairs(rollProperties.tiers) do
+                    local match = regex.MatchGroups(tier, "(?<damage>\\d+)\\s+(\\+\\s*\\d+d\\d+\\s+)?([a-zA-Z]+\\s+)?damage", {indexes = true})
+                    if match ~= nil then
+                        local index = match.damage.index
+                        local length = match.damage.length
+                        local before = string.sub(tier, 1, index-1)
+                        local after = string.sub(tier, index+length)
+                        local damageValue = round(tonumber(match.damage.value))
+                        damageValue = math.max(0, round(damageValue - reduction))
+                        rollProperties.tiers[i] = string.format("%s%d%s", before, damageValue, after)
+                    end
+                end
+            end
+        end
+
         for i,adjustment in ipairs(self:try_get("adjustments", {})) do
             local pattern = "^(?<prefix>.*)(?<type>" .. adjustment.type .. ")\\s+(?<value>\\d+)(?<postfix>.*)$"
 

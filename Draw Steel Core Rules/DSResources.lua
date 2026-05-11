@@ -12,6 +12,7 @@ CharacterResource.villainActionId = "67f15a17-523c-4a30-8f1a-a27e4f122605"
 CharacterResource.recoveryResourceId = "5bd90f9b-46be-4cf2-8ca6-a96430d62949"
 CharacterResource.freeManeuverResourceId = "d81ce1e9-96a3-4705-9180-1c80f72a86cf"
 CharacterResource.respiteActivityId = "5758da29-8660-47d3-805b-7c6038f476a1"
+CharacterResource.rampageId = "9f418676-96be-402b-92da-0f50294146b3"
 
 monster.resourceid = CharacterResource.maliceResourceId
 character.resourceid = CharacterResource.heroicResourceId

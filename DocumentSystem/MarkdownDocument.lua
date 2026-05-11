@@ -3296,13 +3296,7 @@ function MarkdownDocument:EditPanel(args)
         width = showPreviewSetting:Get() and "50%" or "100%",
         height = "100%",
         borderBox = true,
-        flow = "vertical",
-        toolbar,
-        gui.Panel{
-            width = "100%",
-            height = "100% available",
-            editInput,
-        },
+        editInput,
     }
 
     resultPanel = gui.Panel {
@@ -3316,9 +3310,11 @@ function MarkdownDocument:EditPanel(args)
             self = doc or self
         end,
 
+        toolbar,
+
         gui.Panel{
             width = "98%",
-            height = "90% available",
+            height = "100% available",
             halign = "center",
             valign = "top",
             flow = "horizontal",

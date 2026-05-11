@@ -3110,7 +3110,7 @@ function MarkdownDocument:EditPanel(args)
         valign = "top",
         vscroll = true,
         flow = "vertical",
-        hmargin = 4,
+        borderBox = true,
 
         editDocument = function(element, content)
             previewDoc:SetTextContent(content or "")
@@ -3231,6 +3231,7 @@ function MarkdownDocument:EditPanel(args)
     editorColumn = gui.Panel{
         width = showPreviewSetting:Get() and "50%" or "100%",
         height = "100%",
+        borderBox = true,
         editInput,
     }
 

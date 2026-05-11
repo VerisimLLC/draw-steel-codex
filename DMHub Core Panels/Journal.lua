@@ -1526,8 +1526,10 @@ CreateJournalPanel = function()
         },
 
         gui.Panel {
-            width = "100%",
+            width = "auto",
             height = 32,
+            halign = "right",
+            hmargin = 12,
             flow = "horizontal",
 
             gui.Button {

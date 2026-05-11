@@ -3368,6 +3368,7 @@ function MarkdownDocument:EditPanel(args)
                 height = 16,
                 fontSize = 12,
                 halign = "right",
+                rmargin = 168,
                 classes = showPreviewSetting:Get() and { "selected" } or {},
                 press = function(element)
                     local newState = not element:HasClass("selected")

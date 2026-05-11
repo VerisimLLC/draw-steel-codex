@@ -3105,7 +3105,7 @@ function MarkdownDocument:EditPanel(args)
     local previewPanel
     previewPanel = gui.Panel{
         classes = showPreviewSetting:Get() and {} or { "collapsed" },
-        width = "50%",
+        width = "50%-16",
         height = "100%",
         valign = "top",
         vscroll = true,

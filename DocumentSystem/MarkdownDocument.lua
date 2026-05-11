@@ -2928,6 +2928,41 @@ function MarkdownDocument:EditPanel(args)
         inputElement.popup = popup
     end
 
+    local function InsertAction(input, action)
+        local text = input.text or ""
+        local caret = input.caretPosition or #text
+        local anchor = input.selectionAnchorPosition or caret
+        local selStart = math.min(caret, anchor)
+        local selEnd   = math.max(caret, anchor)
+        local selected = text:sub(selStart + 1, selEnd)
+
+        local newText, newCaret
+
+        if action.mode == "wrap" then
+            local body = selected
+            if body == "" then body = action.placeholder or "" end
+            newText = text:sub(1, selStart)
+                    .. action.prefix .. body .. action.suffix
+                    .. text:sub(selEnd + 1)
+            newCaret = selStart + #action.prefix + #body
+        elseif action.mode == "linePrefix" then
+            local lineStart = selStart
+            while lineStart > 0 and text:sub(lineStart, lineStart) ~= "\n" do
+                lineStart = lineStart - 1
+            end
+            newText = text:sub(1, lineStart) .. action.prefix
+                    .. text:sub(lineStart + 1)
+            newCaret = selStart + #action.prefix
+        else
+            newText = text:sub(1, selStart) .. action.text
+                    .. text:sub(selEnd + 1)
+            newCaret = selStart + (action.caretOffset or #action.text)
+        end
+
+        input:SetTextAndCaret(newCaret, newText)
+        input:FireEvent("edit")
+    end
+
     editInput = gui.Input {
         id = "editorPanel",
         classes = { "monospace" },

@@ -13,6 +13,13 @@ local g_markdownStyle = gui.MarkdownStyle {
     ["##### "] = "<size=120%><b>", ["/##### "] = "</b></size>",
 }
 
+local showPreviewSetting = setting{
+    id = "markdownEditorShowPreview",
+    name = "Show Preview Pane in Markdown Editor",
+    default = true,
+    storage = "preferences",
+}
+
 ---@class RichTag
 ---@field pattern false|string
 RichTag = RegisterGameType("RichTag")
@@ -1871,6 +1878,7 @@ function MarkdownDocument:EditPanel(args)
         height = "auto",
         halign = "right",
         valign = "center",
+        rmargin = 246,
         fontSize = CustomDocument.ScaleFontSize(16),
         refreshLength = function(element, text)
             local len = #text
@@ -2921,6 +2929,98 @@ function MarkdownDocument:EditPanel(args)
         inputElement.popup = popup
     end
 
+    local function InsertAction(input, action)
+        local text = input.text or ""
+        local caret = input.caretPosition or #text
+        local anchor = input.selectionAnchorPosition or caret
+        local selStart = math.min(caret, anchor)
+        local selEnd   = math.max(caret, anchor)
+        local selected = text:sub(selStart + 1, selEnd)
+
+        local newText, newCaret
+
+        if action.mode == "wrap" then
+            local body = selected
+            if body == "" then body = action.placeholder or "" end
+            newText = text:sub(1, selStart)
+                    .. action.prefix .. body .. action.suffix
+                    .. text:sub(selEnd + 1)
+            newCaret = selStart + #action.prefix + #body
+        elseif action.mode == "linePrefix" then
+            local lineStart = selStart
+            while lineStart > 0 and text:sub(lineStart, lineStart) ~= "\n" do
+                lineStart = lineStart - 1
+            end
+            newText = text:sub(1, lineStart) .. action.prefix
+                    .. text:sub(lineStart + 1)
+            newCaret = selStart + #action.prefix
+        else
+            newText = text:sub(1, selStart) .. action.text
+                    .. text:sub(selEnd + 1)
+            newCaret = selStart + (action.caretOffset or #action.text)
+        end
+
+        input:SetTextAndCaret(newCaret, newText)
+        input:FireEvent("edit")
+    end
+
+    local function WrapHandler(prefix, suffix)
+        return function() InsertAction(editInput, {
+            mode = "wrap", prefix = prefix, suffix = suffix,
+        }) end
+    end
+
+    local function LineHandler(prefix)
+        return function() InsertAction(editInput, {
+            mode = "linePrefix", prefix = prefix,
+        }) end
+    end
+
+    local function InsertHandler(text, caretOffset)
+        return function() InsertAction(editInput, {
+            mode = "insert", text = text, caretOffset = caretOffset,
+        }) end
+    end
+
+    local function RichTagHandler(tagName)
+        return function() InsertAction(editInput, {
+            mode = "insert",
+            text = string.format("[[%s]]\n", tagName),
+        }) end
+    end
+
+    local lastSyncedCaret = -1
+    local function SyncPreviewScroll(input, previewPanel)
+        if previewPanel:HasClass("collapsed") then
+            return
+        end
+        local caret = input.caretPosition or 0
+        if caret == lastSyncedCaret then
+            return
+        end
+        lastSyncedCaret = caret
+
+        local text = input.text or ""
+        local caretLine = 0
+        for i = 1, math.min(caret, #text) do
+            if text:sub(i, i) == "\n" then
+                caretLine = caretLine + 1
+            end
+        end
+
+        local _, totalNewlines = text:gsub("\n", "\n")
+        local totalLines = totalNewlines + 1
+        local ratio = 0
+        if totalLines > 0 then
+            ratio = caretLine / totalLines
+        end
+
+        local clamped = math.max(0, math.min(1, 1 - ratio))
+        previewPanel.vscrollPosition = clamped
+    end
+
+    local previewPanel
+
     editInput = gui.Input {
         id = "editorPanel",
         classes = { "monospace" },
@@ -2963,6 +3063,7 @@ function MarkdownDocument:EditPanel(args)
 
         caretReady = function(element)
             UpdateAutocomplete(element)
+            SyncPreviewScroll(element, previewPanel)
         end,
 
         think = function(element)
@@ -2974,7 +3075,47 @@ function MarkdownDocument:EditPanel(args)
             else
                 UpdateLinkInfo(element)
             end
+            SyncPreviewScroll(element, previewPanel)
         end,
+    }
+
+    local previewDoc = MarkdownDocument.new{
+        content = self:GetTextContent(),
+        annotations = self.annotations,
+    }
+
+    previewPanel = gui.Panel{
+        classes = showPreviewSetting:Get() and {} or { "collapsed" },
+        width = "50%-16",
+        height = "100%",
+        valign = "top",
+        vscroll = true,
+        flow = "vertical",
+        borderBox = true,
+        lmargin = 8,
+        hpad = 16,
+        vpad = 16,
+
+        editDocument = function(element, content)
+            previewDoc:SetTextContent(content or "")
+            element:FireEventTree("refreshDocument", previewDoc)
+        end,
+
+        previewDoc:DisplayPanel{
+            width = "100%",
+            height = "auto",
+        },
+
+        gui.Panel{
+            classes = { "previewClickGuard" },
+            width = "100%",
+            height = "100%",
+            floating = true,
+            bgimage = "panels/square.png",
+            bgcolor = "#00000000",
+            click = function() end,
+            rightClick = function() end,
+        },
     }
 
     local m_richPanels = {}
@@ -3070,6 +3211,132 @@ function MarkdownDocument:EditPanel(args)
         end,
     }
 
+    local function ToolbarButton(label, fontSize, width, handler)
+        return gui.Button{
+            text = label,
+            width = width or 28,
+            height = 24,
+            fontSize = fontSize or 14,
+            valign = "center",
+            press = handler,
+        }
+    end
+
+    local headingOptions = {
+        { id = "",       text = "Heading" },
+        { id = "# ",     text = "H1" },
+        { id = "## ",    text = "H2" },
+        { id = "### ",   text = "H3" },
+        { id = "#### ",  text = "H4" },
+        { id = "##### ", text = "H5" },
+    }
+
+    local spoilerOptions = {
+        { id = "",  text = "Spoiler" },
+        { id = "h", text = "Hidden" },
+        { id = "r", text = "Redacted" },
+        { id = "v", text = "Revealed" },
+    }
+
+    local mediaTags  = { "image", "sound", "ability", "scene",
+                         "encounter", "party", "follower" }
+    local widgetTags = { "dice", "bar", "counter", "checkbox", "macro",
+                         "reminder", "timer", "setting" }
+
+    local mediaOptions = { { id = "", text = "Insert Media" } }
+    for _, t in ipairs(mediaTags) do
+        mediaOptions[#mediaOptions + 1] = { id = t, text = t }
+    end
+
+    local widgetOptions = { { id = "", text = "Insert Widget" } }
+    for _, t in ipairs(widgetTags) do
+        widgetOptions[#widgetOptions + 1] = { id = t, text = t }
+    end
+
+    local toolbar = gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "horizontal",
+        wrap = true,
+        valign = "top",
+        halign = "left",
+        borderBox = true,
+        hpad = 4,
+        bmargin = 4,
+
+        ToolbarButton("B", 16, 28, WrapHandler("**", "**")),
+        ToolbarButton("I", 16, 28, WrapHandler("*", "*")),
+        ToolbarButton("U", 16, 28, WrapHandler("__", "__")),
+        ToolbarButton("S", 16, 28, WrapHandler("~~", "~~")),
+
+        ToolbarButton("Color", 12, 44,
+            WrapHandler("<color=red>", "</color>")),
+
+        gui.Dropdown{
+            width = 90, height = 24, idChosen = "",
+            options = spoilerOptions,
+            change = function(element)
+                local id = element.idChosen
+                if id == "h" then
+                    WrapHandler("{", "}")()
+                elseif id == "r" then
+                    WrapHandler("{#", "}")()
+                elseif id == "v" then
+                    WrapHandler("{!", "}")()
+                end
+                element.idChosen = ""
+            end,
+        },
+
+        gui.Dropdown{
+            width = 80, height = 24, idChosen = "",
+            options = headingOptions,
+            change = function(element)
+                if element.idChosen ~= "" then
+                    LineHandler(element.idChosen)()
+                    element.idChosen = ""
+                end
+            end,
+        },
+
+        ToolbarButton("List",    12, 44, LineHandler("* ")),
+        ToolbarButton("Divider", 12, 56, InsertHandler("\n---\n", 5)),
+        ToolbarButton("Link",    12, 40, InsertHandler("[]", 1)),
+
+        ToolbarButton("Draw Steel!", 12, 80,
+            InsertHandler('[[//link "Draw Steel!"|Draw Steel!]]')),
+
+        gui.Dropdown{
+            width = 110, height = 24, idChosen = "",
+            options = mediaOptions,
+            change = function(element)
+                if element.idChosen ~= "" then
+                    RichTagHandler(element.idChosen)()
+                    element.idChosen = ""
+                end
+            end,
+        },
+
+        gui.Dropdown{
+            width = 110, height = 24, idChosen = "",
+            options = widgetOptions,
+            change = function(element)
+                if element.idChosen ~= "" then
+                    RichTagHandler(element.idChosen)()
+                    element.idChosen = ""
+                end
+            end,
+        },
+    }
+
+    local editorColumn
+    editorColumn = gui.Panel{
+        width = showPreviewSetting:Get() and "50%" or "100%",
+        height = "100%",
+        borderBox = true,
+        editInput,
+    }
+
     resultPanel = gui.Panel {
         classes = { "collapsed" },
         width = "100%",
@@ -3081,18 +3348,43 @@ function MarkdownDocument:EditPanel(args)
             self = doc or self
         end,
 
+        toolbar,
+
         gui.Panel{
             width = "98%",
-            height = "90% available",
+            height = "100% available",
             halign = "center",
             valign = "top",
             flow = "horizontal",
-            editInput,
+            editorColumn,
+            previewPanel,
         },
         gui.Panel {
             width = "100%",
             height = 16,
+            tmargin = 12,
             markdownReferenceLabel,
+            gui.Button{
+                text = "Preview",
+                width = 70,
+                height = 16,
+                fontSize = 12,
+                halign = "right",
+                rmargin = 168,
+                classes = showPreviewSetting:Get() and { "selected" } or {},
+                press = function(element)
+                    local newState = not element:HasClass("selected")
+                    element:SetClass("selected", newState)
+                    showPreviewSetting:Set(newState)
+                    previewPanel:SetClass("collapsed", not newState)
+                    editorColumn.selfStyle.width = newState and "50%" or "100%"
+                    if newState then
+                        lastSyncedCaret = -1
+                        previewPanel:FireEvent("editDocument",
+                            editInput.text or self:GetTextContent())
+                    end
+                end,
+            },
             charactersUsedLabel,
             savePanel,
         },

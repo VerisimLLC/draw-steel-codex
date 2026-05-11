@@ -684,6 +684,8 @@ local _getStylesReportEvery = 50
 -- identity is moot; would need content hashing or caller refactoring).
 local _mergeStylesCalls = 0
 local _mergeStylesHashCounts = {}
+local _mergeStylesHashIds = {}
+local _mergeStylesNextId = 1
 
 local function _reportGetStylesCache()
     local total = _getStylesHits + _getStylesMisses
@@ -779,6 +781,10 @@ function ThemeEngine.MergeStyles(customStyles)
     -- call that would otherwise hit any __tostring metamethod the engine
     -- installs on style tables (which serializes the whole structure).
     _mergeStylesHashCounts[customStyles] = (_mergeStylesHashCounts[customStyles] or 0) + 1
+    if _mergeStylesHashIds[customStyles] == nil then
+        _mergeStylesHashIds[customStyles] = _mergeStylesNextId
+        _mergeStylesNextId = _mergeStylesNextId + 1
+    end
 
     local themeId, schemeId = _resolveEffectivePair(nil, nil)
     local chain = _buildChain(themeId)
@@ -909,8 +915,8 @@ if devmode() then
             local topN = math.min(5, #entries)
             for i = 1, topN do
                 print(string.format(
-                    "THC:: MERGESTYLES:: top %d count=%d ref=%s",
-                    i, entries[i].count, tostring(entries[i].hash)
+                    "THC:: MERGESTYLES:: top %d count=%d id=#%d",
+                    i, entries[i].count, _mergeStylesHashIds[entries[i].hash] or -1
                 ))
             end
         end,

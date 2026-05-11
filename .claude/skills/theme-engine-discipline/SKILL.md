@@ -64,6 +64,18 @@ Layout values (positions and sizes unique to a particular construction site — 
 - Themed message dialog: `Hud:ModalMessage` in `draw-steel-codex/DMHub Core UI/Hud.lua` — title gets `{"modalTitle"}`, message gets `{"modalMessage"}`, Okay button gets `gui.Button{ classes = {"sizeL"} }`. Zero inline styling on those three elements; only the outer dialog panel carries layout values.
 - Local theme extras with `MergeStyles`: the `mergeTestExtras` block at the bottom of `DefaultStyles.lua` (`devmode` Theme Test panel) shows the smallest valid pattern — one custom rule that resolves `@danger` and follows scheme switches.
 
+## Popups re-root the cascade — strongly prefer `popupsInheritStyles`
+
+Setting `element.popup = gui.Panel{...}` promotes the popup into the application's popup overlay layer. It does **not** inherit the opener's panel-tree cascade by default — even if the opener's root has `styles = ThemeEngine.GetStyles()`, the popup root sees an empty cascade, and theme classes on the popup's children (`{bordered}`, `{bg}`, `{fgStrong}`, `{dropdownOption}`, etc.) silently no-op.
+
+**Default to `popupsInheritStyles`.** Set `element.popupsInheritStyles = true` on the **parent of the popup** (the element you're about to assign `element.popup = ...` to) **before** assigning the popup. The popup then inherits the parent's cascade automatically — no `styles` arg on the popup root, no separate `OnThemeChanged` subscription, theme switches propagate through the existing parent's subscription.
+
+Reference: `draw-steel-codex/DocumentSystem/RichImage.lua:60` — the settings gear sets `element.popupsInheritStyles = true` immediately before assigning `element.popup = gui.Panel{ classes = {"bordered", "bg"}, ... }`, and the bordered/bg cascade resolves correctly without a popup-level `styles` block.
+
+Order matters: `popupsInheritStyles` must be set on the parent **before** the `element.popup = ...` assignment. Setting it after has no effect.
+
+**Only reach for explicit `styles = ThemeEngine.GetStyles()` on the popup root if** the popup is a self-contained modal/dialog whose lifetime is independent of the opener (e.g. it survives after the opener is destroyed, or it has its own theme-reactivity requirements). For 95% of popups — settings popovers, manual dropdowns, context-menu wrappers, info popouts — `popupsInheritStyles = true` on the parent is the correct answer.
+
 ## Workflow checklist before claiming a UI change is done
 
 1. Did I add any inline styling? If yes, can it be expressed as a class — and did I ask the user before keeping it inline?

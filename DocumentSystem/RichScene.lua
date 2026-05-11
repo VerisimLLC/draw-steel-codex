@@ -103,28 +103,27 @@ function RichScene.CreateEditor(self)
         refreshEditor = function(element, richTag)
             self = richTag or self
         end,
-        gui.Button{
-            classes = {"settingsButton"},
-            halign = "right",
-            valign = "top",
-            width = 12,
-            height = 12,
-            press = function(element)
-                if element.popup ~= nil then
-                    element.popup = nil
-                    return
-                end
-                element.popup = gui.Panel{
-                    styles = Styles.Default,
-                    bgimage = true,
-                    bgcolor = "black",
-                    opacity = 0.8,
-                    width = "auto",
-                    height = "auto",
-                    flow = "vertical",
-                }
-            end,
-        },
+        -- This seems to do nothing?
+        -- gui.Button{
+        --     classes = {"settingsButton", "sizeXxs"},
+        --     halign = "right",
+        --     valign = "top",
+        --     press = function(element)
+        --         if element.popup ~= nil then
+        --             element.popup = nil
+        --             return
+        --         end
+        --         element.popup = gui.Panel{
+        --             styles = Styles.Default,
+        --             bgimage = true,
+        --             bgcolor = "black",
+        --             opacity = 0.8,
+        --             width = "auto",
+        --             height = "auto",
+        --             flow = "vertical",
+        --         }
+        --     end,
+        -- },
         gui.IconEditor{
             width = 64,
             height = 64,

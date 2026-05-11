@@ -29,10 +29,11 @@ function RichAudio.Create()
     return RichAudio.new {}
 end
 
--- Audio widget styles. Built fresh per call so @-token references resolve
--- against the active scheme.
+-- Audio widget styles. Layered on top of DefaultStyles so standard
+-- classes (sizes, bold, etc.) resolve inside the widget while these
+-- widget-specific rules carry the chrome.
 local function BuildAudioStyles()
-    return ThemeEngine.MergeTokens({
+    return ThemeEngine.MergeStyles({
         {
             selectors = { "audioPanel" },
             bgcolor = "@fgStrong",
@@ -214,9 +215,7 @@ function RichAudio.CreateDisplay(self)
             flow = "horizontal",
             valign = "top",
             gui.Label {
-                classes = {"audioTimeLabel"},
-                bold = true,
-                fontSize = 12,
+                classes = {"audioTimeLabel", "bold", "sizeXs"},
                 rmargin = 0,
                 width = "auto",
                 height = "auto",
@@ -295,6 +294,12 @@ function RichAudio.CreateDisplay(self)
         },
     }
 
+    ThemeEngine.OnThemeChanged(mod, function()
+        if m_audioPanel ~= nil and m_audioPanel.valid then
+            m_audioPanel.styles = BuildAudioStyles()
+        end
+    end)
+
     local resultPanel
 
     resultPanel = gui.Panel {
@@ -305,9 +310,9 @@ function RichAudio.CreateDisplay(self)
         flow = "vertical",
         m_audioPanel,
         gui.EnumeratedSliderControl {
+            classes = { "sizeXxs" },
             width = 120,
             height = 16,
-            fontSize = 10,
             vmargin = 2,
             halign = "center",
             refreshTag = function(element, tag, match, token)
@@ -390,13 +395,13 @@ function RichAudio.CreateEditor(self)
         },
 
         gui.Check {
+            classes = { "sizeXs" },
             width = 60,
             height = 16,
             minWidth = 0,
             halign = "center",
             valign = "center",
             text = "Loop",
-            fontSize = 12,
             value = false,
             refreshEditor = function(element, richTag)
                 if m_asset == nil then

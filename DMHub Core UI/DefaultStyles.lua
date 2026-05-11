@@ -242,6 +242,15 @@ ThemeEngine.RegisterTheme{
             bgcolor = "white",
             gradient = "@barTrack",
         },
+        {
+            selectors = {"panel", "blockQuote"},
+            bgimage = true,
+            bgcolor = "@bgAlt",
+            borderColor = "@fgStrong",
+            border = {x1 = 4, x2 = 0, y1 = 0, y2 = 0},
+            hpad = 8,
+            vmargin = 8,
+        },
         -- Segmented fill bar primitive. {fillBar} is the track surface, sized
         -- to whatever footprint the caller wants. {fillBarFill} is an inner
         -- panel whose width represents progress (sized via selfStyle.width
@@ -426,6 +435,7 @@ ThemeEngine.RegisterTheme{
         {
             selectors = {"label", "link", "hover"},
             color = "@accentHover",
+            brightness = 1.2,
         },
         {
             selectors = {"label", "link", "press"},
@@ -1880,11 +1890,11 @@ ThemeEngine.RegisterTheme{
         { selectors = {"borderDisabled"}, bgimage = true, borderColor = "@disabled" },
 
         -- Implementation status (used by ability/feature impl indicators)
-        { selectors = {"implStatus0"}, color = "@implStatus0" },
-        { selectors = {"implStatus1"}, color = "@implStatus1" },
-        { selectors = {"implStatus2"}, color = "@implStatus2" },
-        { selectors = {"implStatus3"}, color = "@implStatus3" },
-        { selectors = {"implStatus4"}, color = "@implStatus4" },
+        { selectors = {"implStatus0"}, color = "@implStatus0", priority = 5 },
+        { selectors = {"implStatus1"}, color = "@implStatus1", priority = 5 },
+        { selectors = {"implStatus2"}, color = "@implStatus2", priority = 5 },
+        { selectors = {"implStatus3"}, color = "@implStatus3", priority = 5 },
+        { selectors = {"implStatus4"}, color = "@implStatus4", priority = 5 },
 
         -- Implementation status icon (the colored dot painted on compendium
         -- ability / feature / item entries). Callers attach

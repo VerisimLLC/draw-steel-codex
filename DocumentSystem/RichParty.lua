@@ -16,18 +16,16 @@ end
 
 function RichParty.CreateDisplay(self)
     local resultPanel
-    print("PARTY:: CREATE")
 
     local m_token = {}
 
     local nameLabel = gui.Label {
+        classes = {"sizeL", "bold"},
         text = "Party Members",
         textAlignment = "center",
         halign = "center",
         valign = "bottom",
-        fontSize = 18,
         minFontSize = 12,
-        bold = true,
         width = 300,
         height = 24,
         refreshTag = function(element, tag, match)
@@ -37,7 +35,7 @@ function RichParty.CreateDisplay(self)
         end,
 
         gui.Button {
-            classes = {"addButton", "sizeXs"},
+            classes = {"addButton", "sizeS"},
             halign = "right",
             valign = "center",
             refreshTag = function(element, richTag, patternMatch, token)
@@ -162,8 +160,8 @@ function RichParty.CreateDisplay(self)
                         local state = self:get_or_add("state", {})
                         local currentState = state[charid]
                         if currentState == nil then
-                            currentState = "highlight"
-                        elseif currentState == "highlight" then
+                            currentState = "selected"
+                        elseif currentState == "selected" then
                             currentState = "disabled"
                         else
                             currentState = nil
@@ -220,13 +218,11 @@ function RichParty.CreateDisplay(self)
                         end
                     end,
                     gui.Panel {
-                        classes = "tokenImage",
+                        classes = {"tokenImage", "image"},
                         width = "78% height",
                         height = 120,
                         halign = "center",
                         valign = "top",
-                        bgimage = true,
-                        bgcolor = "white",
                         token = function(element, token)
                             local portrait = token.offTokenPortrait
                             element.bgimage = portrait
@@ -234,16 +230,7 @@ function RichParty.CreateDisplay(self)
                         end,
 
                         gui.Button {
-                            styles = {
-                                {
-                                    hidden = 1,
-                                },
-                                {
-                                    selectors = { "parent:hover", "dm" },
-                                    hidden = 0,
-                                },
-                            },
-                            classes = {"closeButton", "sizeXxs"},
+                            classes = {"closeButton", "sizeXxs", cond(not dmhub.isDM, "hidden")},
                             refreshTag = function(element, richTag, patternMatch, token)
                                 token = token or m_token
                                 element:SetClass("collapsed", token.player)
@@ -263,7 +250,7 @@ function RichParty.CreateDisplay(self)
                         }
                     },
                     gui.Label {
-                        fontSize = 12,
+                        classes = {"sizeXxs"},
                         width = 100,
                         height = 20,
                         textAlignment = "center",
@@ -280,7 +267,8 @@ function RichParty.CreateDisplay(self)
                 tokenPanel:FireEventTree("token", character)
 
                 local panelState = state ~= nil and state[charid]
-                tokenPanel:SetClassTree("highlight", panelState == "highlight")
+                tokenPanel:SetClassTree("selected", panelState == "selected")
+                tokenPanel:SetClass("bordered", panelState == "selected")
                 tokenPanel:SetClassTree("disabled", panelState == "disabled")
 
                 newTokenPanels[charid] = tokenPanel
@@ -384,8 +372,43 @@ function RichParty.CreateDisplay(self)
         end,
     }
 
+    local tokenPanelStyles = {
+        {
+            selectors = {"tokenPanel", "selected"},
+            y = -8,
+            transitionTime = 0.2,
+        },
+        {
+            selectors = {"tokenImage", "selected"},
+            transitionTime = 0.2,
+            brightness = 1.2,
+        },
+        {
+            selectors = {"tokenImage", "disabled"},
+            transitionTime = 0.2,
+            brightness = 0.7,
+            saturation = 0.2,
+        },
+        {
+            selectors = { "tokenPanel", "new" },
+            uiscale = { x = 0, y = 1 },
+            transitionTime = 0.2,
+            brightness = 3,
+        },
+        {
+            selectors = { "tokenPanel", "remove" },
+            uiscale = { x = 0, y = 1 },
+            transitionTime = 0.2,
+        },
+    }
     resultPanel = gui.Panel {
-        classes = "richParty",
+        styles = tokenPanelStyles,
+        classes = {"richParty", "bordered"},
+        dragTarget = true,
+        minWidth = 300,
+        width = "auto",
+        height = 200,
+        flow = "vertical",
         data = {
             GetDocument = function()
                 return self:try_get("_tmp_document")
@@ -395,75 +418,6 @@ function RichParty.CreateDisplay(self)
             end,
 
         },
-
-        styles = ThemeEngine.MergeTokens({
-            {
-                selectors = { "richParty" },
-                borderColor = "@border",
-                borderWidth = 1,
-            },
-            {
-                selectors = { "richParty", "drag-target" },
-                borderColor = "@fgStrong",
-            },
-            {
-                selectors = { "richParty", "drag-target-hover" },
-                borderColor = "@accent",
-            },
-            {
-                selectors = { "tokenPanel", "hover", "~playerview" },
-                borderWidth = 1,
-                borderColor = "@border",
-            },
-            {
-                selectors = {"tokenPanel", "highlight"},
-                borderWidth = 2,
-                borderColor = "@fgStrong",
-                y = -8,
-                transitionTime = 0.2,
-            },
-            {
-                selectors = {"tokenImage", "highlight"},
-                transitionTime = 0.2,
-                brightness = 1.2,
-            },
-            {
-                selectors = {"tokenImage", "disabled"},
-                transitionTime = 0.2,
-                brightness = 0.7,
-                saturation = 0.2,
-            },
-            {
-                selectors = { "tokenPanel", "drag-target" },
-                borderWidth = 1,
-                borderColor = "@fgStrong",
-            },
-            {
-                selectors = { "tokenPanel", "drag-target-hover" },
-                borderWidth = 1,
-                borderColor = "@accent",
-            },
-            {
-                selectors = { "tokenPanel", "new" },
-                uiscale = { x = 0, y = 1 },
-                transitionTime = 0.2,
-                brightness = 3,
-            },
-            {
-                selectors = { "tokenPanel", "remove" },
-                uiscale = { x = 0, y = 1 },
-                transitionTime = 0.2,
-            },
-        }),
-
-        dragTarget = true,
-
-        minWidth = 300,
-        width = "auto",
-        height = 200,
-        flow = "vertical",
-        bgimage = true,
-        bgcolor = "clear",
 
         press = function(element)
             if element.popup ~= nil then
@@ -489,6 +443,7 @@ function RichParty.CreateDisplay(self)
                 }
             }
 
+            element.popupsInheritStyles = true
             element.popup = gui.ContextMenu {
                 entries = entries,
             }

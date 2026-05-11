@@ -82,6 +82,7 @@ Specialized variants:
 - `{portraitImage}` — fixed-size compendium portrait (196x294, 2px `@border` frame). Reach for this on Race / Class / Career portrait sidebars.
 - `{panel, dicePreview}` — marker class for live-dice render targets. The `bgimage = "#DicePreview"` render hookup and `bgcolor = "white"` **must** stay inline at the call site — the engine's render-target rendering doesn't honor cascade properties.
 - `{panel, buttonIcon}` — auto-emitted child of `gui.Button{ icon = ... }`. Tints to `@fg` and brightens on hover; you don't apply this class manually.
+- `{panel, blockQuote}` — reach for this when you want a child region to read as a "quoted" / "aside" / "called-out" passage set apart from surrounding body content. Typical uses: flavor text inside a longer description, an attributed quotation, a rules-clarification callout, a GM-only note inset into a player-facing panel. Carries its own inset padding and vertical margin so it sits visually separated from siblings without per-call spacing tweaks; drop labels / child panels inside and let the cascade handle the framing. (Exact accent treatment is theme-owned and may differ across schemes — choose this class for the *semantic* "this is a quoted aside," not for any specific look.)
 
 #### Segmented fill bar
 
@@ -187,12 +188,12 @@ Engine-emitted — match verbatim:
 
 #### Icon button
 
-`{iconButton}` is the small accent-able click target — 24x24 default (size M), tinted to `@fg`. Hover brightens, press dims.
+`{iconButton}` is the small accent-able click target — 24x24 default (size M), tinted to `@fg`. Hover brightens, press dims. You get this automatically when you use one of the kind variants (see below).
 
 - **Sizes** — `sizeXxs..sizeXxl` (12x12 .. 58x58).
 - **State color variants** — `withSuccess`, `withInfo`, `withWarning`, `withDanger` recolor the **hover** state to the matching status token. Reach for these when a button has a semantic outcome (a `withDanger` icon-button reads as destructive without you having to author a hover rule).
 - **Kind variants** — each registered `gui.iconButtonClasses` kind carries its own bgimage:
-  - `addButton`, `closeButton`, `copyButton`, `deleteButton` (auto-applies `withDanger`-equivalent hover), `settingsButton`.
+  - `addButton`, `closeButton`, `copyButton`, `deleteButton` (auto-applies `withDanger`-equivalent hover), `pagingButton` (paired with `right` to point it to the right) `settingsButton`.
 - `{iconButton, flipped}` — mirror horizontally.
 
 `gui.Button{ icon = ... }` (no `text`) returns a panel with `{iconButton}` automatically.
@@ -200,6 +201,8 @@ Engine-emitted — match verbatim:
 #### Triangle
 
 `{triangle}` is the expand/collapse arrow. Defaults to "closed" (rotated to point right); compose `{triangle, expanded}` to rotate to point down with a short transition. Hover brightens.
+
+**IMPORTANT!** Use `gui.ExpandoArrow()` for built-in automation.
 
 #### Menu
 
@@ -263,6 +266,8 @@ Used by class / race / background / kit feature editors:
 - `{featureCardNested}` — slight width/margin tweak for cards rendered inside another card's option list.
 - `{featureCardHeader}` — top strip (30 tall) holding the expand triangle, name display, and delete button. Border on all four sides; the bottom edge separates header from body. Transparent fill so the card's `@bgAlt` shows through.
 - `{featureCardBody}` — body region. Border on left/right/bottom only (top edge is the header's bottom border). `@bgAlt` fill so card reads as one continuous surface.
+
+The header and body are built to be stacked. In order to ensure reasonable display in rounded corner themes, be sure to use `featureCardHeader, expanded` when the header has the body visible beneath it.
 
 ### Section 4 — DIALOGS
 
@@ -361,8 +366,6 @@ The engine uses **kebab case** for these — match verbatim:
 - `{drag-target}` — applied to a valid drop zone while a drag is in progress. `@accent` fill, `@fgInverse` text.
 - `{drag-target-hover}` — hovered drop zone; adds `@accent` border and brightens to `@accentHover`.
 - `{parent:drag-target}` and `{parent:drag-target-hover}` — child rules that retint text inside the drop zone to `@fgInverse` so labels stay legible against the accent fill.
-
-All four carry `priority = 5` to beat the base rules they override.
 
 ## 4. Theme variants
 

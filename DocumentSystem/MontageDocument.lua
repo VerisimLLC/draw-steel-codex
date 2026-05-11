@@ -196,11 +196,10 @@ function MontageDocument:DisplayPanel()
     local resultPanel
 
     local titleLabel = gui.Label {
+        classes = { "bold", "sizeXl" },
         width = "auto",
         height = "auto",
         halign = "center",
-        fontSize = 24,
-        bold = true,
         text = self.description,
         vmargin = 4,
         savedoc = function(element)
@@ -218,24 +217,21 @@ function MontageDocument:DisplayPanel()
             flow = "horizontal",
             height = 24,
             width = 600,
-            bgimage = true,
-            bgcolor = "white",
-            opacity = 0.02,
             gui.Label {
+                classes = { "bold" },
                 width = 200,
-                bold = true,
                 text = "Heroes",
                 textAlignment = "left",
             },
             gui.Label {
+                classes = { "bold" },
                 width = 200,
-                bold = true,
                 text = "Success Limit",
                 textAlignment = "left",
             },
             gui.Label {
+                classes = { "bold" },
                 width = 200,
-                bold = true,
                 text = "Failure Limit",
                 textAlignment = "left",
             },
@@ -246,9 +242,6 @@ function MontageDocument:DisplayPanel()
             for i = 3, 6 do
                 local difficulty = self.difficulty[i]
                 children[#children + 1] = gui.Panel {
-                    bgimage = true,
-                    bgcolor = "white",
-                    opacity = cond(i % 2 == 1, 0.01, 0.02),
                     flow = "horizontal",
                     height = 24,
                     width = 600,
@@ -293,12 +286,12 @@ function MontageDocument:DisplayPanel()
 
 
     local sceneLabel = gui.Label {
+        classes = { "sizeS" },
         width = "95%",
         height = "auto",
         halign = "left",
         valign = "top",
         vmargin = 4,
-        fontSize = 14,
         text = self.scene,
         textWrap = true,
         textAlignment = "topleft",
@@ -314,21 +307,10 @@ function MontageDocument:DisplayPanel()
         height = "100%-50",
         flow = "vertical",
         valign = "top",
-        styles = {
-            {
-                selectors = { "label" },
-                fontSize = 14,
-                width = "auto",
-                height = "auto",
-                valign = "center",
-                hpad = 6,
-            }
-        },
         titleLabel,
         testDifficulty,
         gui.Label {
-            bold = true,
-            fontSize = 16,
+            classes = { "bold", "sizeM" },
             width = "auto",
             height = "auto",
             halign = "left",
@@ -339,7 +321,7 @@ function MontageDocument:DisplayPanel()
         sceneLabel,
 
         gui.Label {
-            fontSize = 16,
+            classes = { "sizeM" },
             width = "auto",
             height = "auto",
             halign = "left",
@@ -351,7 +333,7 @@ function MontageDocument:DisplayPanel()
         self:ChallengesDisplay(),
 
         gui.Label {
-            fontSize = 16,
+            classes = { "sizeM" },
             width = "auto",
             height = "auto",
             halign = "left",
@@ -370,11 +352,10 @@ function MontageDocument:DisplayPanel()
         scrollablePanel,
 
         gui.Button {
+            classes = { "bold", "sizeXl" },
             valign = "bottom",
             text = "Begin Montage",
             halign = "center",
-            bold = true,
-            fontSize = 22,
             click = function(element)
                 local livedata = LiveMontage.new {
                     participants = {}
@@ -401,11 +382,11 @@ function MontageDocument:EditPanel()
     local resultPanel
 
     local nameInput = gui.Input {
+        classes = { "sizeL" },
         halign = "center",
         valign = "top",
         width = 300,
         height = 20,
-        fontSize = 18,
         text = self.description,
         vmargin = 4,
         change = function(element)
@@ -423,24 +404,21 @@ function MontageDocument:EditPanel()
             flow = "horizontal",
             height = 24,
             width = 600,
-            bgimage = true,
-            bgcolor = "white",
-            opacity = 0.02,
             gui.Label {
+                classes = { "bold" },
                 width = 200,
-                bold = true,
                 text = "Heroes",
                 textAlignment = "left",
             },
             gui.Label {
+                classes = { "bold" },
                 width = 200,
-                bold = true,
                 text = "Success Limit",
                 textAlignment = "left",
             },
             gui.Label {
+                classes = { "bold" },
                 width = 200,
-                bold = true,
                 text = "Failure Limit",
                 textAlignment = "left",
             },
@@ -454,9 +432,6 @@ function MontageDocument:EditPanel()
                     flow = "horizontal",
                     height = 24,
                     width = 600,
-                    bgimage = true,
-                    bgcolor = "white",
-                    opacity = cond(i % 2 == 1, 0.01, 0.02),
                     gui.Label {
                         width = 200,
                         height = 24,
@@ -468,12 +443,12 @@ function MontageDocument:EditPanel()
                         width = 200,
                         height = 24,
                         gui.Input {
+                            classes = { "sizeS" },
                             width = 20,
                             height = 16,
                             valign = "center",
                             halign = "left",
                             vpad = 1,
-                            fontSize = 14,
                             text = difficulty.success,
                             characterLimit = 1,
                             change = function(element)
@@ -488,12 +463,12 @@ function MontageDocument:EditPanel()
                         width = 200,
                         height = 24,
                         gui.Input {
+                            classes = { "sizeS" },
                             width = 20,
                             height = 16,
                             valign = "center",
                             halign = "left",
                             vpad = 1,
-                            fontSize = 14,
                             text = difficulty.failure,
                             characterLimit = 1,
                             change = function(element)
@@ -511,13 +486,13 @@ function MontageDocument:EditPanel()
     }
 
     local sceneInput = gui.Input {
+        classes = { "sizeS" },
         width = "90%",
         height = "auto",
         text = self.scene,
         maxHeight = 200,
         multiline = true,
         halign = "left",
-        fontSize = 14,
         textAlignment = "topleft",
         placeholderText = "Enter scene description",
         valign = "top",
@@ -535,23 +510,6 @@ function MontageDocument:EditPanel()
         halign = "center",
         valign = "top",
         vscroll = true,
-        styles = {
-            Styles.Form,
-            {
-                selectors = { "deleteItemButton" },
-                priority = 20,
-                width = 12,
-                height = 12,
-            },
-            {
-                selectors = { "label" },
-                fontSize = 14,
-                width = "auto",
-                height = "auto",
-                valign = "center",
-                hpad = 6,
-            },
-        },
 
         savedoc = function(element)
             self:Upload()
@@ -561,8 +519,7 @@ function MontageDocument:EditPanel()
         testDifficulty,
 
         gui.Label {
-            bold = true,
-            fontSize = 16,
+            classes = { "bold", "sizeM" },
             width = "auto",
             height = "auto",
             halign = "left",
@@ -574,7 +531,7 @@ function MontageDocument:EditPanel()
         sceneInput,
 
         gui.Label {
-            fontSize = 16,
+            classes = { "sizeM" },
             width = "auto",
             height = "auto",
             halign = "left",
@@ -586,7 +543,7 @@ function MontageDocument:EditPanel()
         self:ChallengesEditor(),
 
         gui.Label {
-            fontSize = 16,
+            classes = { "sizeM" },
             width = "auto",
             height = "auto",
             halign = "left",
@@ -633,7 +590,7 @@ function MontageDocument:ChallengesEditor()
                     width = 500,
                     height = "auto",
                     gui.Input {
-                        fontSize = 18,
+                        classes = { "sizeL" },
                         vmargin = 4,
                         halign = "left",
                         text = challenge.name,
@@ -641,19 +598,18 @@ function MontageDocument:ChallengesEditor()
                         change = function(element)
                             challenge.name = element.text
                         end,
-                        gui.DeleteItemButton {
+                        gui.Button {
+                            classes = { "deleteButton", "sizeXs" },
                             halign = "right",
                             x = 32,
-                            width = 16,
-                            height = 16,
-                            click = function(element)
+                            press = function(element)
                                 table.remove(self.challenges, i)
                                 resultPanel:FireEventTree("refreshChallenges")
                             end,
                         },
                     },
                     gui.Input {
-                        fontSize = 18,
+                        classes = { "sizeL" },
                         vmargin = 4,
                         halign = "left",
                         multiline = true,
@@ -668,15 +624,15 @@ function MontageDocument:ChallengesEditor()
                     },
 
                     gui.Panel {
-                        classes = { "formPanel" },
+                        classes = { "form" },
                         halign = "left",
                         gui.Label {
-                            classes = { "formLabel" },
+                            classes = { "form" },
                             halign = "left",
                             text = "Attempts:",
                         },
                         gui.Input {
-                            classes = { "formInput" },
+                            classes = { "form" },
                             halign = "left",
                             text = challenge.maximum,
                             characterLimit = 2,
@@ -687,11 +643,6 @@ function MontageDocument:ChallengesEditor()
                         }
                     },
                 }
-                children[#children + 1] = gui.Divider {
-                    width = 700,
-                    halign = "left",
-                }
-
                 children[#children + 1] = gui.Panel {
                     flow = "horizontal",
                     halign = "left",
@@ -766,7 +717,7 @@ function MontageDocument:OutcomesEditor()
         local victoriesPanel
         if entry.key ~= "failure" then
             victoriesPanel = gui.Panel {
-                classes = { "formPanel" },
+                classes = { "form" },
                 halign = "left",
                 width = 20,
                 gui.Label {
@@ -774,7 +725,7 @@ function MontageDocument:OutcomesEditor()
                     width = 120,
                 },
                 gui.Input {
-                    fontSize = 14,
+                    classes = { "sizeS" },
                     width = 40,
                     characterLimit = 1,
                     text = outcome.victories,
@@ -792,7 +743,7 @@ function MontageDocument:OutcomesEditor()
             halign = "left",
             valign = "top",
             gui.Panel {
-                classes = { "formPanel" },
+                classes = { "form" },
                 halign = "left",
                 width = 700,
                 height = "auto",
@@ -803,8 +754,8 @@ function MontageDocument:OutcomesEditor()
                     halign = "left",
                 },
                 gui.Input {
+                    classes = { "sizeS" },
                     multiline = true,
-                    fontSize = 14,
                     textAlignment = "topleft",
                     width = 540,
                     height = "auto",
@@ -855,15 +806,17 @@ local CreateMontageTestUI = function(args)
     local addParticipantButton
 
     if isDM then
-        closeButton = gui.CloseButton {
+        closeButton = gui.Button {
+            classes = { "closeButton" },
             halign = "right",
             valign = "top",
-            click = function(element)
+            press = function(element)
                 GameHud.HidePresentedDialog()
             end,
         }
 
-        addParticipantButton = gui.AddButton {
+        addParticipantButton = gui.Button {
+            classes = { "addButton", "sizeXs" },
             x = 28,
             halign = "right",
             valign = "bottom",
@@ -938,10 +891,9 @@ local CreateMontageTestUI = function(args)
                         width = 100,
                         height = 130,
                         gui.Panel {
-                            bgcolor = "white",
+                            classes = { "image" },
                             width = "78% height",
                             height = 100,
-                            bgimage = true,
                             halign = "center",
                             valign = "top",
 
@@ -978,10 +930,10 @@ local CreateMontageTestUI = function(args)
                             end,
                         },
                         gui.Label {
+                            classes = { "sizeM" },
                             width = "90%",
                             height = "auto",
                             halign = "center",
-                            fontSize = 16,
                             minFontSize = 10,
 
                             textAlignment = "center",
@@ -1022,12 +974,11 @@ local CreateMontageTestUI = function(args)
         local m_segments = {}
         local m_fill
         m_fill = gui.Panel{
+            classes = { "fillBarFill" },
             floating = true,
             width = "0%",
             height = 20,
-            bgcolor = "white",
             gradient = cond(mode == "success", Styles.healthGradient, Styles.bloodiedGradient),
-            bgimage = true,
             halign = "left",
 
             thinkTime = 0.01,
@@ -1044,23 +995,19 @@ local CreateMontageTestUI = function(args)
             end,
         }
         local successBar = gui.Panel{
+            classes = { "fillBar" },
             width = 100,
             height = 20,
             valign = "center",
             halign = "left",
             flow = "horizontal",
-            bgimage = true,
-            bgcolor = "black",
             refreshMontage = function(element, montage)
                 local difficultyInfo = montageDoc:GetDifficultyInfo(montage:HeroCount())
                 local count = math.min(8, difficultyInfo[mode])
                 element.selfStyle.width = count*100
                 while #m_segments < count do
                     m_segments[#m_segments + 1] = gui.Panel {
-                        borderWidth = 1,
-                        borderColor = "white",
-                        bgimage = true,
-                        bgcolor = "clear",
+                        classes = { "fillBarSegment" },
                         width = 100,
                         height = 20,
                     }
@@ -1112,39 +1059,18 @@ local CreateMontageTestUI = function(args)
             width = "auto",
             height = "auto",
             halign = "left",
-            styles = {
-                {
-                    selectors = {"plusButton"},
-                    width = 20,
-                    height = 20,
-                    borderWidth = 1,
-                    borderColor = "white",
-                    color = "white",
-                    bgcolor = "black",
-                    bold = true,
-                    fontSize = 20,
-                    textAlignment = "center",
-                },
-                {
-                    selectors = {"plusButton", "hover"},
-                    color = "black",
-                    bgcolor = "white",
-                },
-            },
-            gui.Label{
-                classes = {"plusButton"},
+            gui.Button{
+                classes = { "sizeXxs" },
                 text = "-",
-                bgimage = true,
-                click = function(element)
+                press = function(element)
                     incrementSuccess(-1)
                 end,
             },
             successBar,
-            gui.Label{
-                classes = {"plusButton"},
+            gui.Button{
+                classes = { "sizeXxs" },
                 text = "+",
-                bgimage = true,
-                click = function(element)
+                press = function(element)
                     incrementSuccess(1)
                 end,
             },
@@ -1166,11 +1092,10 @@ local CreateMontageTestUI = function(args)
             width = 900,
             height = 50,
             gui.Label{
+                classes = { "bold", "sizeL" },
                 halign = "left",
-                fontSize = 20,
                 width = 100,
                 height = 24,
-                bold = true,
                 text = "Successes:",
             },
             CreateSuccessBar("success"),
@@ -1181,11 +1106,10 @@ local CreateMontageTestUI = function(args)
             width = 900,
             height = 50,
             gui.Label{
+                classes = { "bold", "sizeL" },
                 halign = "left",
-                fontSize = 20,
                 width = 100,
                 height = 24,
-                bold = true,
                 text = "Failures:",
             },
             CreateSuccessBar("failure"),
@@ -1194,22 +1118,20 @@ local CreateMontageTestUI = function(args)
 
     local resultPanel
     resultPanel = gui.Panel {
+        styles = ThemeEngine.GetStyles(),
+        classes = { "bordered", "bg" },
         width = 1100,
         height = 900,
-        bgcolor = "black",
-        bgimage = true,
-        opacity = 0.9,
         blurBackground = true,
         monitorGame = doc.path,
 
         gui.Label {
+            classes = { "bold", "sizeXxl" },
             halign = "center",
             valign = "top",
             width = "auto",
             height = "auto",
             tmargin = 6,
-            fontSize = 26,
-            bold = true,
             text = string.format(tr("Montage: %s"), montageDoc.description),
         },
 
@@ -1229,6 +1151,12 @@ local CreateMontageTestUI = function(args)
             element:FireEventTree("refreshMontage", doc.data.livedata)
         end,
     }
+
+    ThemeEngine.OnThemeChanged(mod, function()
+        if resultPanel ~= nil and resultPanel.valid then
+            resultPanel.styles = ThemeEngine.GetStyles()
+        end
+    end)
 
     resultPanel:FireEventTree("refreshMontage", doc.data.livedata)
 

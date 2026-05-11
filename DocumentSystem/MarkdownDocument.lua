@@ -2999,6 +2999,7 @@ function MarkdownDocument:EditPanel(args)
         flow = "vertical",
         borderBox = true,
         lmargin = 8,
+        hpad = 8,
 
         editDocument = function(element, content)
             previewDoc:SetTextContent(content or "")

@@ -1878,6 +1878,7 @@ function MarkdownDocument:EditPanel(args)
         height = "auto",
         halign = "right",
         valign = "center",
+        rmargin = 246,
         fontSize = CustomDocument.ScaleFontSize(16),
         refreshLength = function(element, text)
             local len = #text
@@ -3361,6 +3362,7 @@ function MarkdownDocument:EditPanel(args)
         gui.Panel {
             width = "100%",
             height = 16,
+            tmargin = 8,
             markdownReferenceLabel,
             gui.Button{
                 text = "Preview",

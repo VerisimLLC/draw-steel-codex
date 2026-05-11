@@ -3372,6 +3372,7 @@ function MarkdownDocument:EditPanel(args)
                     previewPanel:SetClass("collapsed", not newState)
                     editorColumn.selfStyle.width = newState and "50%" or "100%"
                     if newState then
+                        lastSyncedCaret = -1
                         previewPanel:FireEvent("editDocument",
                             editInput.text or self:GetTextContent())
                     end

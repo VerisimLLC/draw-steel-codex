@@ -23,11 +23,11 @@ function RichImage.CreateDisplay(self)
         halign = self.halign,
     
         gui.Panel{
+            classes = {"image"},
             maxWidth = self.maxWidth,
             width = "auto",
             height = "auto",
             autosizeimage = true,
-            bgcolor = "white",
             uiscale = self.uiscale,
             refreshTag = function(element, tag, match, token)
                 tag = tag or self
@@ -48,41 +48,38 @@ function RichImage.CreateEditor(self)
         refreshEditor = function(element, richTag)
             self = richTag or self
         end,
-        gui.SettingsButton{
+        gui.Button{
+            classes = {"settingsButton", "sizeXxs"},
             halign = "right",
             valign = "top",
-            width = 12,
-            height = 12,
             press = function(element)
                 if element.popup ~= nil then
                     element.popup = nil
                     return
                 end
+                element.popupsInheritStyles = true
                 element.popup = gui.Panel{
-                    styles = Styles.Default,
-                    bgimage = true,
-                    bgcolor = "black",
-                    opacity = 0.8,
+                    classes = {"bordered", "bg"},
                     width = "auto",
                     height = "auto",
                     flow = "vertical",
+                    pad = 8,
 
                     gui.Panel{
                         flow = "horizontal",
                         width = "auto",
                         height = "auto",
                         gui.Label{
-                            fontSize = 14,
-                            color = "white",
+                            classes = {"sizeS"},
                             width = "auto",
                             height = "auto",
                             text = "Dimensions:",
                         },
                         gui.Label{
-                            fontSize = 14,
-                            color = "white",
+                            classes = {"sizeXs"},
                             width = "auto",
                             height = "auto",
+                            lmargin = 4,
                             text = "--",
                             create = function(element)
                                 dmhub.GetImageInfo(self.image, function(info)
@@ -101,16 +98,12 @@ function RichImage.CreateEditor(self)
                         width = "auto",
                         height = "auto",
                         gui.Label{
-                            fontSize = 14,
-                            color = "white",
+                            classes = {"sizeXs"},
                             width = "auto",
                             height = "auto",
                             text = "Scale:",
                         },
                         gui.Slider{
-                            style = {
-                                fontSize = 12,
-                            },
                             width = 160,
                             labelWidth = 40,
                             height = 20,

@@ -203,6 +203,7 @@ ThemeEngine.RegisterTheme{
         label   = "Berling",
         input   = "LiberationSans",
         number  = "Newzald",
+        mono    = "Courier",
     },
 
     styles = {
@@ -240,6 +241,55 @@ ThemeEngine.RegisterTheme{
             bgimage = true,
             bgcolor = "white",
             gradient = "@barTrack",
+        },
+        {
+            selectors = {"panel", "blockQuote"},
+            bgimage = true,
+            bgcolor = "@bgAlt",
+            borderColor = "@fgStrong",
+            border = {x1 = 4, x2 = 0, y1 = 0, y2 = 0},
+            hpad = 8,
+            vmargin = 8,
+        },
+        -- Segmented fill bar primitive. {fillBar} is the track surface, sized
+        -- to whatever footprint the caller wants. {fillBarFill} is an inner
+        -- panel whose width represents progress (sized via selfStyle.width
+        -- as a percentage of the track); its bgcolor takes @accent by
+        -- default but can be overridden via selfStyle.bgcolor for
+        -- per-instance hue. The shading gradient is theme-independent.
+        -- {fillBarSegment} panels stripe the track into discrete units,
+        -- each with a 1px @fgStrong border; toggle the `uploading` class
+        -- on the track to dim segments to @fgMuted while a server-side
+        -- update is in flight. For continuous percentage progress, use
+        -- gui.ProgressBar instead.
+        {
+            selectors = {"fillBar"},
+            bgimage = true,
+            bgcolor = "@bg",
+        },
+        {
+            selectors = {"fillBarFill"},
+            bgimage = true,
+            bgcolor = "@accent",
+            gradient = gui.Gradient{
+                point_a = {x = 0, y = 0},
+                point_b = {x = 1, y = 0},
+                stops = {
+                    { position = 0, color = "#484848" },
+                    { position = 1, color = "#C1C1C1" },
+                },
+            },
+        },
+        {
+            selectors = {"fillBarSegment"},
+            bgimage = true,
+            bgcolor = "clear",
+            borderWidth = 1,
+            borderColor = "@fgStrong",
+        },
+        {
+            selectors = {"fillBarSegment", "parent:uploading"},
+            borderColor = "@fgMuted",
         },
         -- Image-displaying panels. bgcolor "white" is image-tint-neutral
         -- (see top of section 1). Borders are intentionally NOT set here --
@@ -280,6 +330,10 @@ ThemeEngine.RegisterTheme{
             bgcolor = "@fg",
             height = "100%",
             width = "100%",
+        },
+        {
+            selectors = {"panel", "buttonIcon", "parent:disabled"},
+            bgcolor = "@disabled",
         },
         {
             selectors = {"panel", "buttonIcon", "hover"},
@@ -332,6 +386,41 @@ ThemeEngine.RegisterTheme{
             priority = 5,
         },
         {
+            selectors = {"input", "sizeXxs"},
+            fontSize = 10,
+            priority = 5,
+        },
+        {
+            selectors = {"input", "sizeXs"},
+            fontSize = 12,
+            priority = 5,
+        },
+        {
+            selectors = {"input", "sizeS"},
+            fontSize = 14,
+            priority = 5,
+        },
+        {
+            selectors = {"input", "sizeM"},
+            fontSize = 16,
+            priority = 5,
+        },
+        {
+            selectors = {"input", "sizeL"},
+            fontSize = 18,
+            priority = 5,
+        },
+        {
+            selectors = {"input", "sizeXl"},
+            fontSize = 24,
+            priority = 5,
+        },
+        {
+            selectors = {"input", "sizeXxl"},
+            fontSize = 28,
+            priority = 5,
+        },
+        {
             selectors = {"label", "number"},
             fontFace = "@number",
         },
@@ -346,6 +435,7 @@ ThemeEngine.RegisterTheme{
         {
             selectors = {"label", "link", "hover"},
             color = "@accentHover",
+            brightness = 1.2,
         },
         {
             selectors = {"label", "link", "press"},
@@ -428,6 +518,7 @@ ThemeEngine.RegisterTheme{
         {
             selectors = {"button", "disabled"},
             bgcolor = "@disabled",
+            opacity = 0.3,
         },
         {
             selectors = {"label", "button", "~disabled", "hasIcon", "hover"},
@@ -471,6 +562,7 @@ ThemeEngine.RegisterTheme{
             borderColor = "@border",
             border = 2,
             bold = false,
+            height = 26,
         },
         {
             selectors = {"input", "focus"},
@@ -548,6 +640,8 @@ ThemeEngine.RegisterTheme{
             bgcolor = "@bgAlt",
             borderColor = "@border",
             border = 2,
+            width = 240,
+            height = 26,
         },
         {
             selectors = {"dropdown", "expandedTop"},
@@ -676,6 +770,8 @@ ThemeEngine.RegisterTheme{
             flow = "horizontal",
             width = "auto",
             height = "auto",
+            halign = "left",
+            valign = "top",
             pad = 4,
             margin = 4,
             bgimage = true,
@@ -812,16 +908,27 @@ ThemeEngine.RegisterTheme{
         },
         {
             selectors = {"enumSliderOption", "selected"},
-            bgcolor = "@fg",
-            color = "@bg",
+            bgcolor = "@bgInverse",
+            color = "@fgInverse",
             transitionTime = 0.2,
         },
         {
             selectors = {"enumSliderOption", "hover"},
-            bgcolor = "@fg",
-            color = "@bg",
+            bgcolor = "@bgInverse",
+            color = "@fgInverse",
             brightness = 1.5,
             transitionTime = 0.2,
+        },
+
+        --[[ MCDM Divider ]]
+        -- gui.MCDMDivider (Gui.lua wrapper) -- a primitive divider widget with
+        -- optional dot/line/peak/v ornaments. The outer panel and the three
+        -- inner panels (left line / icon / right line) all use this class so
+        -- the cascade drives their bgcolor. Callers may still override with
+        -- an explicit bgcolor on the option.
+        {
+            selectors = {"mcdmDivider"},
+            bgcolor = "@border",
         },
 
         --[[ Checkbox ]]
@@ -914,9 +1021,7 @@ ThemeEngine.RegisterTheme{
             selectors = {"tab", "selected"},
             bold = true,
             color = "@fgStrong",
-            bgcolor = "@bgAlt",
-            borderColor = "@fg",
-            borderWidth = 2,
+            border = {x1 = 1, x2 = 1, y1 = 0, y2 = 1},
         },
         {
             selectors = {"tabBar"},
@@ -924,6 +1029,9 @@ ThemeEngine.RegisterTheme{
             width = "auto",
             height = "auto",
             halign = "center",
+            bgimage = true,
+            borderColor = "@border",
+            border = {x1 = 0, x2 = 0, y1 = 1, y2 = 0},
         },
 
         --[[ Tooltip ]]
@@ -1067,7 +1175,25 @@ ThemeEngine.RegisterTheme{
         },
         {
             selectors = {"panel", "buttonIcon", "parent:settingsButton"},
-            bgimage = "ui-icons/skills/98.png",
+            bgimage = "panels/gamescreen/settings.png",
+        },
+        -- pagingArrow: the canonical previous/next paging chevron.
+        -- Use `gui.Button{ classes = {"pagingArrow"} }` for the left arrow and
+        -- `gui.Button{ classes = {"pagingArrow", "right"} }` for the right
+        -- arrow (the `right` modifier flips the glyph horizontally). This
+        -- pattern REPLACES the legacy `gui.PaginButton` helper -- there is no
+        -- bespoke constructor; pagingArrow is just an iconButton kind class
+        -- registered in `gui.iconButtonClasses` (Gui.lua), painted here.
+        {
+            selectors = {"panel", "buttonIcon", "parent:pagingArrow"},
+            bgimage = "panels/InventoryArrow.png",
+            width = "50% height",
+            halign = "right",
+        },
+        {
+            selectors = {"panel", "buttonIcon", "parent:pagingArrow", "parent:right"},
+            scale = {x = -1, y = 1},
+            halign = "left",
         },
         -- Inset the icon to be smaler when the button carries the `bordered`
         -- class, so the glyph doesn't crowd the border. Targets buttonIcon under
@@ -1102,7 +1228,7 @@ ThemeEngine.RegisterTheme{
         },
         {
             selectors = {"panel", "buttonIcon", "parent:selected"},
-            bgcolor = "@fgInverse",
+            brightness = 2,
         },
 
         --[[
@@ -1115,8 +1241,28 @@ ThemeEngine.RegisterTheme{
             borderColor = "@border",
         },
         {
+            selectors = {"noBorder"},
+            border = 0,
+            priority = 5,
+        },
+        {
             selectors = {"bold"},
             bold = true,
+            priority = 5,
+        },
+        {
+            selectors = {"transparent"},
+            bgcolor = "clear",
+            priority = 5,
+        },
+        {
+            selectors = {"underline"},
+            underline = true,
+            priority = 5,
+        },
+        {
+            selectors = {"monospace"},
+            fontFace = "@mono",
             priority = 5,
         },
         {
@@ -1245,12 +1391,10 @@ ThemeEngine.RegisterTheme{
             selectors = {"contextMenuItem", "hover"},
             bgcolor = "@fg",
             color = "@bg",
-            -- transitionTime = 0.2,
         },
         {
             selectors = {"contextMenuItem", "press"},
             brightness = 1.2,
-            -- transitionTime = 0.2,
         },
 
         -- Row label
@@ -1535,6 +1679,10 @@ ThemeEngine.RegisterTheme{
             flow = "horizontal",
             hpad = 0,
         },
+        {
+            selectors = {"featureCardHeader", "expanded"},
+            border = {x1 = 1, x2 = 1, y1 = 0, y2 = 1},
+        },
         -- Body: border on left/right/bottom; top edge is the header's bottom
         -- border. Same fill as the card so the inside reads as one continuous
         -- bgAlt surface.
@@ -1687,7 +1835,7 @@ ThemeEngine.RegisterTheme{
         {
             selectors = {"collapseAnim"},
             collapsed = 1,
-            transitionTime = 0.2,
+            transitionTime = 0.1,
             uiscale = {x = 1, y = 0.001},
         },
         {
@@ -1706,9 +1854,9 @@ ThemeEngine.RegisterTheme{
         --     `bg`-/`border`-prefixed variants set the alternate property.
 
         -- Surfaces
-        { selectors = {"bg"},        bgcolor = "@bg" },
-        { selectors = {"bgAlt"},     bgcolor = "@bgAlt" },
-        { selectors = {"bgInverse"}, bgcolor = "@bgInverse" },
+        { selectors = {"bg"},        bgimage = true, bgcolor = "@bg" },
+        { selectors = {"bgAlt"},     bgimage = true, bgcolor = "@bgAlt" },
+        { selectors = {"bgInverse"}, bgimage = true, bgcolor = "@bgInverse" },
 
         -- Foregrounds
         { selectors = {"fg"},        color = "@fg" },
@@ -1718,35 +1866,73 @@ ThemeEngine.RegisterTheme{
         { selectors = {"fgInverse"}, color = "@fgInverse" },
 
         -- Foreground tints applied as bgcolor (image multiply, etc.)
-        { selectors = {"bgFg"},        bgcolor = "@fg" },
-        { selectors = {"bgFgStrong"},  bgcolor = "@fgStrong" },
-        { selectors = {"bgFgMuted"},   bgcolor = "@fgMuted" },
-        { selectors = {"bgFgPending"}, bgcolor = "@fgPending" },
-        { selectors = {"bgFgInverse"}, bgcolor = "@fgInverse" },
+        { selectors = {"bgFg"},        bgimage = true, bgcolor = "@fg" },
+        { selectors = {"bgFgStrong"},  bgimage = true, bgcolor = "@fgStrong" },
+        { selectors = {"bgFgMuted"},   bgimage = true, bgcolor = "@fgMuted" },
+        { selectors = {"bgFgPending"}, bgimage = true, bgcolor = "@fgPending" },
+        { selectors = {"bgFgInverse"}, bgimage = true, bgcolor = "@fgInverse" },
 
         -- Borders
-        { selectors = {"border"},        borderColor = "@border" },
-        { selectors = {"borderInverse"}, borderColor = "@borderInverse" },
+        { selectors = {"border"},        bgimage = true, borderColor = "@border" },
+        { selectors = {"borderInverse"}, bgimage = true, borderColor = "@borderInverse" },
 
         -- Accent + interactive (color default; bg/border variants)
         { selectors = {"accent"},            color       = "@accent" },
         { selectors = {"accentHover"},       color       = "@accentHover" },
-        { selectors = {"bgAccent"},          bgcolor     = "@accent" },
-        { selectors = {"bgAccentHover"},     bgcolor     = "@accentHover" },
-        { selectors = {"borderAccent"},      borderColor = "@accent" },
-        { selectors = {"borderAccentHover"}, borderColor = "@accentHover" },
+        { selectors = {"bgAccent"},          bgimage = true, bgcolor     = "@accent" },
+        { selectors = {"bgAccentHover"},     bgimage = true, bgcolor     = "@accentHover" },
+        { selectors = {"borderAccent"},      bgimage = true, borderColor = "@accent" },
+        { selectors = {"borderAccentHover"}, bgimage = true, borderColor = "@accentHover" },
 
         -- Disabled (the state class lives elsewhere; these are explicit color picks)
         { selectors = {"fgDisabled"},     color       = "@disabled" },
-        { selectors = {"bgDisabled"},     bgcolor     = "@disabled" },
-        { selectors = {"borderDisabled"}, borderColor = "@disabled" },
+        { selectors = {"bgDisabled"},     bgimage = true, bgcolor     = "@disabled" },
+        { selectors = {"borderDisabled"}, bgimage = true, borderColor = "@disabled" },
 
         -- Implementation status (used by ability/feature impl indicators)
-        { selectors = {"implStatus0"}, color = "@implStatus0" },
-        { selectors = {"implStatus1"}, color = "@implStatus1" },
-        { selectors = {"implStatus2"}, color = "@implStatus2" },
-        { selectors = {"implStatus3"}, color = "@implStatus3" },
-        { selectors = {"implStatus4"}, color = "@implStatus4" },
+        { selectors = {"implStatus0"}, color = "@implStatus0", priority = 5 },
+        { selectors = {"implStatus1"}, color = "@implStatus1", priority = 5 },
+        { selectors = {"implStatus2"}, color = "@implStatus2", priority = 5 },
+        { selectors = {"implStatus3"}, color = "@implStatus3", priority = 5 },
+        { selectors = {"implStatus4"}, color = "@implStatus4", priority = 5 },
+
+        -- Implementation status icon (the colored dot painted on compendium
+        -- ability / feature / item entries). Callers attach
+        -- `classes = {"spellImplementationIcon", <status>}` where status is
+        -- `wontimplement` / `unimplemented` / `bronze` / `silver` / `gold`.
+        -- The status modifier picks the matching `@implStatus*` token to
+        -- bgcolor-tint the icon image so the dot retracks the active scheme.
+        {
+            selectors = {"spellImplementationIcon"},
+            width = 16,
+            height = 16,
+            hmargin = 4,
+        },
+        {
+            selectors = {"spellImplementationIcon", "wontimplement"},
+            bgimage = "icons/icon_common/icon_common_29.png",
+            bgcolor = "@implStatus0",
+        },
+        {
+            selectors = {"spellImplementationIcon", "unimplemented"},
+            bgimage = "icons/icon_common/icon_common_29.png",
+            bgcolor = "@implStatus1",
+        },
+        {
+            selectors = {"spellImplementationIcon", "bronze"},
+            bgimage = "icons/icon_common/icon_common_29.png",
+            bgcolor = "@implStatus2",
+        },
+        {
+            selectors = {"spellImplementationIcon", "silver"},
+            bgimage = "icons/icon_common/icon_common_29.png",
+            bgcolor = "@implStatus3",
+        },
+        {
+            selectors = {"spellImplementationIcon", "gold"},
+            bgimage = "icons/icon_common/icon_common_29.png",
+            bgcolor = "@implStatus4",
+        },
 
         --[[ Status color utilities ]]
         -- Composable accents. The plain status names tint foreground;
@@ -1770,18 +1956,22 @@ ThemeEngine.RegisterTheme{
         },
         {
             selectors = {"bgSuccess"},
+            bgimage = true,
             bgcolor = "@success",
         },
         {
             selectors = {"bgInfo"},
+            bgimage = true,
             bgcolor = "@info",
         },
         {
             selectors = {"bgWarning"},
+            bgimage = true,
             bgcolor = "@warning",
         },
         {
             selectors = {"bgDanger"},
+            bgimage = true,
             bgcolor = "@danger",
         },
         {
@@ -1994,7 +2184,6 @@ ThemeEngine.RegisterTheme{
             bgcolor = '@accent',
             color = "@fgInverse",
             priority = 5,
-            -- transitionTime = 0.2,
         },
         {
             selectors = { 'drag-target-hover' },
@@ -2003,7 +2192,6 @@ ThemeEngine.RegisterTheme{
             bgcolor = '@accentHover',
             color = "@fgInverse",
             priority = 5,
-            -- transitionTime = 0.2,
         },
         {
             selectors = {"parent:drag-target"},
@@ -2037,7 +2225,11 @@ ThemeEngine.RegisterTheme{
         { selectors = {"modalDialog"},         cornerRadius = 10 },
         { selectors = {"framedPanel"},         cornerRadius = 10 },
         { selectors = {"contextMenu"},         cornerRadius = 10 },
-        { selectors = {"featureCardHeader"},   cornerRadius = {x1 = 10, x2 = 0, y1 = 10, y2 = 0} },
+        { selectors = {"featureCardHeader"},   cornerRadius = 10 },
+        {
+            selectors = {"featureCardHeader", "expanded"},
+            cornerRadius = {x1 = 10, x2 = 0, y1 = 10, y2 = 0},
+        },
         { selectors = {"featureCardBody"},     cornerRadius = {x1 = 0, x2 = 10, y1 = 0, y2 = 10} },
 
         -- Interactive controls
@@ -2068,7 +2260,7 @@ if devmode() then
 
 ThemeEngine.RegisterColorScheme{
     id          = "my-little-pony",
-    name        = "My Little Pony",
+    name        = "Carnivorous Pony",
     description = "Twilight's night-sky purple with pastel mane-six accents.",
     colors = {
         -- Surfaces
@@ -2132,84 +2324,6 @@ ThemeEngine.RegisterColorScheme{
                 {position = 0, color = "#3D1B5C"},
                 {position = 1, color = "#6B2D9C"},
                 -- {position = 1, color = "#A347D9"},
-            },
-        },
-    },
-}
-
--- =============================================================================
--- Darth Maul color scheme
---
--- Sith obsidian and saber crimson. Near-black surfaces with deep blood-red
--- frames and a hot crimson accent. Sith-eye yellow for info; intentionally
--- dimmed green for success so it doesn't fight the palette.
--- =============================================================================
-
-ThemeEngine.RegisterColorScheme{
-    id          = "darth-maul",
-    name        = "Darth Maul",
-    description = "Sith obsidian surfaces with saber-red accents and dried-blood frames.",
-    colors = {
-        -- Surfaces
-        bg            = "#0A0506",
-        bgAlt         = "#2C1218",
-        bgInverse     = "#C72035",
-
-        -- Foreground / text
-        fg            = "#D9AAB0",
-        fgStrong      = "#D63040",
-        fgMuted       = "#6B3838",
-        fgPending     = "#4F2828",
-        fgInverse     = "#0A0506",
-
-        -- Borders
-        border        = "#8B1F2D",
-        borderInverse = "#4A0F18",
-
-        -- Accent + interactive
-        accent        = "#E10F23",
-        accentHover   = "#FF3D52",
-
-        -- Status (muted green so it doesn't fight; Sith-eye yellow for info)
-        success       = "#5A8C5A",
-        info          = "#FFC93D",
-        warning       = "#FF8A3D",
-        danger        = "#FF1A35",
-
-        -- Disabled
-        disabled      = "#3A2A2D",
-    },
-    gradients = {
-        surfaceLinear = {
-            point_a = {x = 0, y = 0},
-            point_b = {x = 1, y = 1},
-            stops = {
-                {position = 0, color = "#2A1116"},
-                {position = 1, color = "#050203"},
-            },
-        },
-        -- Subtle saber-glow vignette: a faint red blush at the center fading
-        -- through obsidian to near-black at the edge. Restrained on purpose
-        -- so the crimson accents elsewhere stay the loud part.
-        surfaceRadial = {
-            type = "radial",
-            point_a = {x = 0.5, y = 0.5},
-            point_b = {x = 0.5, y = 1.0},
-            stops = {
-                {position = -0.01, color = "#321820"},
-                {position = 0.00,  color = "#321820"},
-                {position = 0.25,  color = "#221015"},
-                {position = 0.50,  color = "#160A0D"},
-                {position = 0.75,  color = "#0A0506"},
-                {position = 1.00,  color = "#050203"},
-            },
-        },
-        barTrack = {
-            point_a = {x = -0.02, y = 0},
-            point_b = {x = 1.02, y = 0},
-            stops = {
-                {position = 0, color = "#0A0506"},
-                {position = 1, color = "#8B1F2D"},
             },
         },
     },
@@ -2335,6 +2449,93 @@ ThemeEngine.RegisterColorScheme{
             stops = {
                 {position = 0, color = "#10180E"},
                 {position = 1, color = "#1F3326"},
+            },
+        },
+    },
+}
+
+-- =============================================================================
+-- MCDM color scheme
+--
+-- Drawn from the MCDM logo: steel-blue letter faces over a deep navy night
+-- sky, a cream-yellow horizon glow, and a warm amber/sunset border. Surfaces
+-- are deep navy with subtle blue undertones; foreground text reads as steel
+-- blue with cream highlights. Accent is the bright sky-blue from the letter
+-- faces; border is the gold rim. Warning/danger lean into the sunset palette
+-- so semantic colors track the same warm-cool axis as the logo.
+-- =============================================================================
+
+ThemeEngine.RegisterColorScheme{
+    id          = "mcdm",
+    name        = "MCDM",
+    description = "Steel-blue night sky with a cream horizon glow and a warm amber rim, after the MCDM logo.",
+    colors = {
+        -- Surfaces (deep navy with a blue undertone, not pure black)
+        bg            = "#0F1A28",
+        bgAlt         = "#1A2738",
+        bgInverse     = "#C8DCEB",
+
+        -- Foreground / text (steel-blue body, cream-yellow highlight to echo
+        -- the horizon glow inside the logo letters)
+        fg            = "#B8CFE0",
+        fgStrong      = "#F2DEAE",
+        fgMuted       = "#6A89A4",
+        fgPending     = "#4A6680",
+        fgInverse     = "#0F1A28",
+
+        -- Borders (warm amber rim from the logo's outer frame)
+        border        = "#D89540",
+        borderInverse = "#1A2738",
+
+        -- Accent + interactive (bright sky-blue from the letter faces)
+        accent        = "#4A9FD8",
+        accentHover   = "#7CC4EC",
+
+        -- Status (warm side leans sunset; cool side leans cyan-green so it
+        -- reads against the blue surfaces without going neon)
+        success       = "#6BA84F",
+        info          = "#E9C868",
+        warning       = "#E89B36",
+        danger        = "#D63A1C",
+
+        -- Disabled
+        disabled      = "#2A3848",
+    },
+    gradients = {
+        -- Diagonal night-sky wash: lighter navy at the top-left fading to
+        -- near-black at the bottom-right.
+        surfaceLinear = {
+            point_a = {x = 0, y = 0},
+            point_b = {x = 1, y = 1},
+            stops = {
+                {position = 0, color = "#1A2738"},
+                {position = 1, color = "#070C12"},
+            },
+        },
+        -- Soft vignette: the navy surface lifts slightly at the centre to
+        -- suggest the cream horizon glow without ever competing with the
+        -- accents around it.
+        surfaceRadial = {
+            type = "radial",
+            point_a = {x = 0.5, y = 0.5},
+            point_b = {x = 0.5, y = 1.0},
+            stops = {
+                {position = -0.01, color = "#22344A"},
+                {position = 0.00,  color = "#22344A"},
+                {position = 0.25,  color = "#1C2D40"},
+                {position = 0.50,  color = "#162638"},
+                {position = 0.75,  color = "#121F2E"},
+                {position = 1.00,  color = "#0F1A28"},
+            },
+        },
+        -- Bar track: navy on the left fading to the warm amber rim, mirrors
+        -- the night-sky-meets-sunset transition in the logo border.
+        barTrack = {
+            point_a = {x = -0.02, y = 0},
+            point_b = {x = 1.02,  y = 0},
+            stops = {
+                {position = 0, color = "#0F1A28"},
+                {position = 1, color = "#A86A28"},
             },
         },
     },

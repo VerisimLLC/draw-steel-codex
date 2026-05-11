@@ -174,16 +174,17 @@ function CharacterLanguageChoice:CreateEditor(classOrRace, params)
         flow = "vertical",
 
         gui.Panel{
-            classes = {"formPanel"},
+            classes = {"formStackedRow"},
             gui.Label{
-                classes = {"formLabel"},
-                text = "Languages",
+                classes = {"formStacked"},
+                text = "Languages:",
             },
             gui.Input{
+                classes = {"formStacked"},
                 width = 180,
                 text = tonumber(self.numChoices),
                 characterLimit = 2,
-
+                numeric = true,
                 change = function(element)
                     local n = math.max(1, round(tonumber(element.text) or self.numChoices))
                     self.numChoices = n

@@ -16,7 +16,7 @@ function RichMacro.CreateDisplay(self)
     resultPanel = gui.Button {
         width = "auto",
         height = "auto",
-        fontSize = 16,
+        pad = 8,
         refreshTag = function(element, tag, match, token)
             m_strike = match.strike
             m_token = token

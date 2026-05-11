@@ -251,6 +251,7 @@ function Spell:GenerateTextDescription(token)
 
 end
 
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMActivatedAbility.lua:2124
 function ActivatedAbility:DescribeRange()
 	if self.targetType == 'self' then
 		return 'Self'
@@ -268,6 +269,7 @@ function ActivatedAbility:DescribeRange()
 		return string.format("%s %s", MeasurementSystem.NativeToDisplayString(range), string.lower(MeasurementSystem.UnitName()))
 	end
 end
+--]==]
 
 function Spell:DescribeComponents()
 	local result = ""

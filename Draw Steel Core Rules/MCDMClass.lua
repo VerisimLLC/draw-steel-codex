@@ -173,19 +173,23 @@ function Class:HeroicResourceEditor(UploadFn)
             local checklist = GetCollection()
             for i,entry in ipairs(checklist) do
                 local panel = gui.Panel{
-                    width = "100%",
+                    classes = {"bordered"},
+                    width = "100%-20",
                     height = "auto",
+                    valign = "top",
+                    halign = "center",
                     flow = "vertical",
+                    vmargin = 4,
+                    pad = 8,
 
                     gui.Panel{
                         classes = {"formPanel"},
                         gui.Label{
-                            classes = {"formLabel"},
+                            classes = {"form"},
                             text = "Name:",
-                            minWidth = 140,
                         },
                         gui.Input{
-                            classes = {"formInput"},
+                            classes = {"form"},
                             characterLimit = 60,
                             text = entry.name,
                             change = function(e)
@@ -194,31 +198,17 @@ function Class:HeroicResourceEditor(UploadFn)
                                 UploadFn()
                             end,
                         },
-                        gui.DeleteItemButton{
-                            halign = "right",
-                            width = 12,
-                            height = 12,
-                            click = function()
-                                local checklist = GetCollection()
-                                table.remove(checklist, i)
-                                UploadFn()
-                                contentPanel:FireEvent("create")
-                            end,
-
-                        }
                     },
 
                     gui.Panel{
                         classes = {"formPanel"},
                         gui.Label{
-                            classes = {"formLabel"},
+                            classes = {"form"},
                             text = "Quantity:",
-                            minWidth = 140,
                         },
 
                         gui.GoblinScriptInput{
-                            fontSize = 18,
-                            width = 240,
+                            classes = {"form"},
                             value = entry.quantity,
                             placeholderText = "Quantity Calculation...",
                             change = function(element)
@@ -249,11 +239,11 @@ function Class:HeroicResourceEditor(UploadFn)
                     gui.Panel{
                         classes = {"formPanel"},
                         gui.Label{
-                            classes = {"formLabel"},
+                            classes = {"form"},
                             text = "Mode:",
-                            minWidth = 140,
                         },
                         gui.Dropdown{
+                            classes = {"form"},
                             options = {
                                 {text = "Once per Combat", id = "encounter"},
                                 {text = "Once per Round", id = "round"},
@@ -267,18 +257,16 @@ function Class:HeroicResourceEditor(UploadFn)
                         },
                     },
 
-
-
                     gui.Panel{
                         classes = {"formPanel"},
                         gui.Input{
-                            classes = {"formInput"},
+                            classes = {"form", "multiline"},
+                            width = "80%",
+                            minHeight = 30,
+                            height = "auto",
                             characterLimit = 500,
                             text = entry.details,
                             multiline = true,
-                            width = 400,
-                            minHeight = 30,
-                            height = "auto",
                             change = function(e)
                                 g_createChecklistDefaultDetails = e.text
                                 entry.details = e.text
@@ -287,8 +275,20 @@ function Class:HeroicResourceEditor(UploadFn)
                         },
                     },
 
-
-
+                    gui.Button{
+                        classes = {"deleteButton", "sizeXs"},
+                        floating = true,
+                        valign = "top",
+                        halign = "right",
+                        margin = 8,
+                        requireConfirm = true,
+                        click = function()
+                            local checklist = GetCollection()
+                            table.remove(checklist, i)
+                            UploadFn()
+                            contentPanel:FireEvent("create")
+                        end,
+                    },
                 }
 
                 children[#children+1] = panel
@@ -302,10 +302,42 @@ function Class:HeroicResourceEditor(UploadFn)
     }
 
 
-    return gui.TreeNode{
-        text = "Heroic Resource Checklist",
-        contentPanel = contentPanel,
-        width = 600,
+    local tri = gui.ExpandoArrow{
+        floating = true,
+        halign = "left",
+        valign = "center",
+        x = 2,
+    }
+
+    local body
+    body = gui.Panel{
+        classes = {"featureCardBody", "collapsed-anim"},
+        contentPanel,
+    }
+
+    return gui.Panel{
+        classes = {"featureCard"},
+        gui.Panel{
+            classes = {"featureCardHeader"},
+            tri,
+            gui.Label{
+                classes = {"sizeL", "bold"},
+                width = "auto",
+                lmargin = 20,
+                height = "auto",
+                halign = "left",
+                valign = "center",
+                textWrap = true,
+                textAlignment = "left",
+                text = "Heroic Resource Checklist",
+            },
+            click = function(element)
+                body:SetClass("collapsed-anim", not body:HasClass("collapsed-anim"))
+                tri:SetClass("expanded", not tri:HasClass("expanded"))
+                element:SetClass("expanded", tri:HasClass("expanded"))
+            end,
+        },
+        body,
     }
 end
 
@@ -369,11 +401,11 @@ function Class:CustomEditor(UploadFn, children)
         children[#children+1] = gui.Panel{
             classes = {"formStackedRow"},
             gui.Label{
-                classes = {"formStackedLabel"},
+                classes = {"formStacked"},
                 text = "Heroic Resource:",
             },
             gui.Input{
-                classes = {"formStackedControl"},
+                classes = {"formStacked"},
                 characterLimit = 32,
                 text = self.heroicResourceName,
                 change = function(element)
@@ -386,11 +418,11 @@ function Class:CustomEditor(UploadFn, children)
         children[#children+1] = gui.Panel{
             classes = {"formStackedRow"},
             gui.Label{
-                classes = {"formStackedLabel"},
+                classes = {"formStacked"},
                 text = "Epic Resource:",
             },
             gui.Input{
-                classes = {"formStackedControl"},
+                classes = {"formStacked"},
                 characterLimit = 32,
                 text = self.epicResourceName,
                 change = function(element)
@@ -401,13 +433,13 @@ function Class:CustomEditor(UploadFn, children)
         }
     else
         children[#children+1] = gui.Panel{
-            classes = {'formPanel'},
+            classes = {"formStackedRow"},
             gui.Label{
-                text = 'Prerequisite:',
-                valign = 'center',
-                minWidth = 240,
+                classes = {"formStacked"},
+                text = "Prerequisite:",
             },
             gui.GoblinScriptInput{
+                classes = {"formStacked"},
                 value = self:try_get("prerequisite", ""),
                 change = function(element)
                     self.prerequisite = element.value
@@ -431,38 +463,42 @@ function Class:CustomEditor(UploadFn, children)
         return nil
     end
 
+    local characteristicColumns = {}
     for _,attrid in ipairs(creature.attributeIds) do
-        children[#children+1] = gui.Panel{
+        characteristicColumns[#characteristicColumns+1] = gui.Panel{
+            classes = {"formStackedRow"},
             width = "auto",
-            height = "auto",
-            flow = "horizontal",
+            hmargin = 12,
             gui.Label{
-                fontSize = 22,
-                text = creature.attributesInfo[attrid].description .. ":",
-                minWidth = 240,
+                classes = {"formStacked"},
+                width = "auto",
+                halign = "center",
+                text = creature.attributesInfo[attrid].description,
             },
-
             gui.Input{
-                fontSize = 18,
-                width = 180,
-                height = 22,
+                classes = {"formStacked", "sizeXxl"},
+                height = 60,
+                width = "100% height",
+                halign = "center",
+                numeric = true,
+                placeholderText = "--",
+                textAlignment = "center",
                 text = self.baseCharacteristics[attrid] or "",
                 change = function(element)
                     self.baseCharacteristics = DeepCopy(self.baseCharacteristics)
                     self.baseCharacteristics[attrid] = tonumber(element.text)
 
-                    local numCharacteristics = 0;
-
-                    for _,attrid in ipairs(creature.attributeIds) do
-                        if(self.baseCharacteristics[attrid]~=nil) then
-                            numCharacteristics = numCharacteristics + 1;
+                    local numCharacteristics = 0
+                    for _,otherAttrId in ipairs(creature.attributeIds) do
+                        if self.baseCharacteristics[otherAttrId] ~= nil then
+                            numCharacteristics = numCharacteristics + 1
                         end
                     end
 
-                    if(numCharacteristics == 1) then
-                        self.baseCharacteristics.arrays = g_classArrays1;
+                    if numCharacteristics == 1 then
+                        self.baseCharacteristics.arrays = g_classArrays1
                     else
-                        self.baseCharacteristics.arrays = g_classArrays2;
+                        self.baseCharacteristics.arrays = g_classArrays2
                     end
 
                     element.text = self.baseCharacteristics[attrid] or ""
@@ -473,14 +509,22 @@ function Class:CustomEditor(UploadFn, children)
     end
 
     children[#children+1] = gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "horizontal",
+        halign = "left",
+        children = characteristicColumns,
+    }
+
+    children[#children+1] = gui.Panel{
         classes = {"formStackedRow"},
         gui.Label{
-            classes = {"formStackedLabel"},
+            classes = {"formStacked"},
             text = "Base Stamina:",
         },
 
         gui.GoblinScriptInput{
-            classes = {"formStackedControl"},
+            classes = {"formStacked"},
             multiline = false,
             value = self.hitpointsCalculation,
             placeholderText = "Base Stamina Calculation...",

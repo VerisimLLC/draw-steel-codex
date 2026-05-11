@@ -1311,39 +1311,10 @@ Styles = {
 		},
 	},
 
-	ImplementationIcon = {
-		{
-			selectors = {"spellImplementationIcon"},
-			width = 16,
-			height = 16,
-			hmargin = 4,
-		},
-		{
-			selectors = {"spellImplementationIcon", "wontimplement"},
-			bgimage = "icons/icon_common/icon_common_29.png",
-			bgcolor = implementationStatusColors[0],
-		},
-		{
-			selectors = {"spellImplementationIcon", "unimplemented"},
-			bgimage = "icons/icon_common/icon_common_29.png",
-			bgcolor = implementationStatusColors[1],
-		},
-		{
-			selectors = {"spellImplementationIcon", "bronze"},
-			bgimage = "icons/icon_common/icon_common_29.png",
-			bgcolor = implementationStatusColors[2],
-		},
-		{
-			selectors = {"spellImplementationIcon", "silver"},
-			bgimage = "icons/icon_common/icon_common_29.png",
-			bgcolor = implementationStatusColors[3],
-		},
-		{
-			selectors = {"spellImplementationIcon", "gold"},
-			bgimage = "icons/icon_common/icon_common_29.png",
-			bgcolor = implementationStatusColors[4],
-		},
-	},
+	-- ImplementationIcon: the spellImplementationIcon rule family lives in
+	-- DefaultStyles.lua now. Callers no longer need to splice
+	-- Styles.ImplementationIcon into their local styles -- the rules cascade
+	-- globally and pick up the active scheme's @implStatus* tokens.
 
 	triangleStyles = {
 		gui.Style{

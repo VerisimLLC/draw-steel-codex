@@ -142,11 +142,11 @@ local SetFeat = function(tableName, featPanel, featid)
 	children[#children+1] = gui.Panel{
 		classes = {"formStackedRow"},
 		gui.Label{
-			classes = {"formStackedLabel"},
+			classes = {"formStacked"},
 			text = "Name:",
 		},
 		gui.Input{
-			classes = {"formStackedControl"},
+			classes = {"formStacked"},
 			text = feat.name,
 			change = function(element)
 				feat.name = element.text
@@ -159,7 +159,7 @@ local SetFeat = function(tableName, featPanel, featid)
 	children[#children+1] = gui.Panel{
 		classes = {"formStackedRow"},
 		gui.Label{
-			classes = {"formStackedLabel"},
+			classes = {"formStacked"},
 			text = "Prerequisite:",
 		},
 		gui.GoblinScriptInput{
@@ -192,12 +192,12 @@ local SetFeat = function(tableName, featPanel, featid)
 	children[#children+1] = gui.Panel{
 		classes = {"formStackedRow"},
 		gui.Label{
-			classes = {"formStackedLabel"},
+			classes = {"formStacked"},
 			text = "Tag:",
 			hover = gui.Tooltip("A feat's tag categorizes how the feat is used. Separate multiple tags with commas. A regular feat should be given the tag 'feat', but feats that are awarded under special circumstances can be given a different tag. When offering a feat selection, only feats with the matching tag will be shown."),
 		},
 		gui.Input{
-			classes = {"formStackedControl"},
+			classes = {"formStacked"},
 			text = feat.tag,
 			change = function(element)
 				element.text = trim(element.text)
@@ -212,11 +212,11 @@ local SetFeat = function(tableName, featPanel, featid)
 		children[#children+1] = gui.Panel{
 			classes = {"formStackedRow"},
 			gui.Label{
-				classes = {"formStackedLabel"},
+				classes = {"formStacked"},
 				text = string.format("%s:", entry.text),
 			},
 			gui.Input{
-				classes = {"formStackedControl"},
+				classes = {"formStacked"},
 				multiline = true,
 				height = "auto",
 				minHeight = 140,

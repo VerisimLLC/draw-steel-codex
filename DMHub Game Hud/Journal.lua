@@ -262,7 +262,7 @@ function GameHud:ViewJournalEntry(doc)
 		maxHeight = 1024,
 		width = rawget(doc, "width") or "auto",
 		height = rawget(doc, "height") or "auto",
-		autosizeimage = cond(rawget(doc, "autosizeimage") ~= nil, doc.autosizeimage, true),
+		autosizeimage = cond(rawget(doc, "autosizeimage") ~= nil, rawget(doc, "autosizeimage"), true),
 		interactable = false,
 	}
 

@@ -82,6 +82,17 @@ Specialized variants:
 - `{portraitImage}` — fixed-size compendium portrait (196x294, 2px `@border` frame). Reach for this on Race / Class / Career portrait sidebars.
 - `{panel, dicePreview}` — marker class for live-dice render targets. The `bgimage = "#DicePreview"` render hookup and `bgcolor = "white"` **must** stay inline at the call site — the engine's render-target rendering doesn't honor cascade properties.
 - `{panel, buttonIcon}` — auto-emitted child of `gui.Button{ icon = ... }`. Tints to `@fg` and brightens on hover; you don't apply this class manually.
+- `{panel, blockQuote}` — reach for this when you want a child region to read as a "quoted" / "aside" / "called-out" passage set apart from surrounding body content. Typical uses: flavor text inside a longer description, an attributed quotation, a rules-clarification callout, a GM-only note inset into a player-facing panel. Carries its own inset padding and vertical margin so it sits visually separated from siblings without per-call spacing tweaks; drop labels / child panels inside and let the cascade handle the framing. (Exact accent treatment is theme-owned and may differ across schemes — choose this class for the *semantic* "this is a quoted aside," not for any specific look.)
+
+#### Segmented fill bar
+
+A discrete-count progress widget: a track with N equal segment dividers and a fill panel that flows underneath. Use for things like successes-out-of-N, charges, hit boxes — anything where each segment represents one unit. **Not the same as `gui.ProgressBar`**, which is a continuous percentage bar with a centered "%" label; reach for that when the value is continuous.
+
+Compose three classes on three nested panels:
+
+- `{fillBar}` — the track surface. Solid `@bg` fill. Caller controls `width`/`height` and lays out the fill + segments inside as horizontal-flow children.
+- `{fillBarFill}` — inner panel whose width represents progress. Caller drives width via `selfStyle.width = "X%"`. Default `bgcolor = @accent` with a theme-independent grayscale shading gradient that gives the fill a 3D feel; override `selfStyle.bgcolor` per-instance for a different hue (the gradient still shades it).
+- `{fillBarSegment}` — one segment divider, with a 1px `@fgStrong` border at rest. Stack N of these horizontally on top of the fill. While a server-side update is pending, set the `uploading` class on the parent track (`fillBar:SetClass("uploading", true)`); the cascade dims segment borders to `@fgMuted` until you clear it.
 
 #### Label
 
@@ -132,6 +143,18 @@ Compose `{dropdown, expandedTop}` / `{dropdown, expandedBottom}` to adjust the b
 - `{panel, multiselectChipRemove}` — small X button, hidden until parent chip is hovered. Carries a `@danger` border (no fill) to signal the destructive action.
 - `{label, multiselectChipRemove}` — the X glyph itself. Color is `@fg` (not `@danger`) — the parent's red border carries the warning, the X just needs to be readable.
 
+**Reusable as a compact delete affordance.** `multiselectChipRemove` is not Multiselect-specific — reach for it anywhere you need a small (14x14) inline dismiss/delete control (list rows, tag pills, summary lines, etc.). Compose it as a panel with an "X" label child:
+
+```lua
+gui.Panel{
+    classes = {"multiselectChipRemove"},
+    press = onRemove,
+    gui.Label{ classes = {"multiselectChipRemove"}, text = "X" },
+}
+```
+
+The `parent:hover` rule keeps it hidden until the enclosing hover-host is hovered. If you want it always visible, override `hidden = 0` inline at the call site (or don't nest it under a hover-host).
+
 #### Slider
 
 Two distinct widgets share this section:
@@ -165,12 +188,12 @@ Engine-emitted — match verbatim:
 
 #### Icon button
 
-`{iconButton}` is the small accent-able click target — 24x24 default (size M), tinted to `@fg`. Hover brightens, press dims.
+`{iconButton}` is the small accent-able click target — 24x24 default (size M), tinted to `@fg`. Hover brightens, press dims. You get this automatically when you use one of the kind variants (see below).
 
 - **Sizes** — `sizeXxs..sizeXxl` (12x12 .. 58x58).
 - **State color variants** — `withSuccess`, `withInfo`, `withWarning`, `withDanger` recolor the **hover** state to the matching status token. Reach for these when a button has a semantic outcome (a `withDanger` icon-button reads as destructive without you having to author a hover rule).
 - **Kind variants** — each registered `gui.iconButtonClasses` kind carries its own bgimage:
-  - `addButton`, `closeButton`, `copyButton`, `deleteButton` (auto-applies `withDanger`-equivalent hover), `settingsButton`.
+  - `addButton`, `closeButton`, `copyButton`, `deleteButton` (auto-applies `withDanger`-equivalent hover), `pagingButton` (paired with `right` to point it to the right) `settingsButton`.
 - `{iconButton, flipped}` — mirror horizontally.
 
 `gui.Button{ icon = ... }` (no `text`) returns a panel with `{iconButton}` automatically.
@@ -178,6 +201,8 @@ Engine-emitted — match verbatim:
 #### Triangle
 
 `{triangle}` is the expand/collapse arrow. Defaults to "closed" (rotated to point right); compose `{triangle, expanded}` to rotate to point down with a short transition. Hover brightens.
+
+**IMPORTANT!** Use `gui.ExpandoArrow()` for built-in automation.
 
 #### Menu
 
@@ -242,6 +267,8 @@ Used by class / race / background / kit feature editors:
 - `{featureCardHeader}` — top strip (30 tall) holding the expand triangle, name display, and delete button. Border on all four sides; the bottom edge separates header from body. Transparent fill so the card's `@bgAlt` shows through.
 - `{featureCardBody}` — body region. Border on left/right/bottom only (top edge is the header's bottom border). `@bgAlt` fill so card reads as one continuous surface.
 
+The header and body are built to be stacked. In order to ensure reasonable display in rounded corner themes, be sure to use `featureCardHeader, expanded` when the header has the body visible beneath it.
+
 ### Section 4 — DIALOGS
 
 #### Plain dialog
@@ -285,6 +312,7 @@ Use these to opt a panel/label into a token without authoring a one-off rule. Na
 - **Accent tokens** — `{accent}` / `{accentHover}` set `color`; the `bg`-prefixed and `border`-prefixed variants (`bgAccent`, `borderAccentHover`, etc.) set the alternate property.
 - **Disabled tokens** — explicit picks: `{fgDisabled}`, `{bgDisabled}`, `{borderDisabled}`.
 - **Implementation status** — `{implStatus0}..{implStatus4}` set `color`.
+- **Implementation status icon** — `{spellImplementationIcon}` is the 16x16 colored-dot indicator on compendium ability / feature / item entries. Compose with one of `wontimplement` / `unimplemented` / `bronze` / `silver` / `gold` to pick the matching `@implStatus*` token as `bgcolor`. Callers attach `classes = {"spellImplementationIcon", <status>}` and the cascade handles the rest — no per-panel style splice needed.
 
 Reach for a class when the styling is purely a token swap. Reach for a one-off rule in `MergeStyles` extras when you also need size, padding, or other layout properties.
 
@@ -299,7 +327,11 @@ Use to highlight a single label or panel without authoring a rule.
 #### Shape / weight
 
 - `{bordered}` — adds a 1px `@border` frame and `bgimage = true` so the border renders. Compose with anything that needs a quick frame.
+- '{noBorder}` - removes any border from the control.
 - `{bold}` / `{noBold}` — flip weight. Both carry `priority = 5` so they beat the base rule.
+- `{underline}` — typographic underline. Same `priority = 5` shape as `{bold}`. Compose with size classes when you want emphasis on a heading without authoring a one-off rule.
+- `{monospace}` — fixed-width font for code/script display (Lua editor body, expression-tree nodes, formula source text). Picks up the active theme's `@mono` font token (default `"Courier"`). Compose with size classes for the right text size.
+- `{transparent}` — clears `bgcolor` (`bgcolor = "clear"`) at `priority = 5` so it overrides the base rule. Compose anywhere you've inherited a fill you don't want — e.g. a row inside a card that should let the card's surface paint through, or a button whose cascade gave it a `@bg` it shouldn't have. Affects fill only; borders, text color, and `bgimage` are untouched.
 
 #### Token image
 
@@ -334,8 +366,6 @@ The engine uses **kebab case** for these — match verbatim:
 - `{drag-target}` — applied to a valid drop zone while a drag is in progress. `@accent` fill, `@fgInverse` text.
 - `{drag-target-hover}` — hovered drop zone; adds `@accent` border and brightens to `@accentHover`.
 - `{parent:drag-target}` and `{parent:drag-target-hover}` — child rules that retint text inside the drop zone to `@fgInverse` so labels stay legible against the accent fill.
-
-All four carry `priority = 5` to beat the base rules they override.
 
 ## 4. Theme variants
 

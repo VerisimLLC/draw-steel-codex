@@ -52,6 +52,7 @@ local g_rollOptionsPlayer = {
 	},
 }
 
+--[==[ DEAD_CODE - overridden by Draw Steel UI\DSRollDialog.lua:157
 function GameHud.CreateRollDialog(self)
 
 	--the creature doing the roll
@@ -1673,3 +1674,4 @@ function GameHud.CreateRollDialog(self)
 
 	return resultPanel
 end
+--]==]

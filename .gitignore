@@ -44,5 +44,6 @@ status.json
 
 Definitions/version.txt
 
-# Compendium content -- ignored everything in this folder
-compendium/
+# Compendium content -- ignored everything in this folder except reference/
+compendium/*
+!compendium/reference/

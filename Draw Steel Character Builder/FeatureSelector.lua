@@ -580,6 +580,7 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                 markdown = true,
                 interactable = false,
                 updateDesc = function(element, text)
+                    print("TEXT:: UPDATE", text)
                     if element.text ~= text then element.text = text end
                     element:SetClass("collapsed", #element.text == 0)
                 end,

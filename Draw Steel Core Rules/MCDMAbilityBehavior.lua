@@ -84,7 +84,13 @@ function ActivatedAbilityDrawSteelCommandBehavior:Cast(ability, casterToken, tar
 
         for _,target in ipairs(targets) do
             if target.token ~= nil then
-                local rule = StringInterpolateGoblinScript(self.rule, casterToken.properties)
+                -- Expose Cast (with its memory), Target, Mode, etc. to GoblinScript
+                -- in the rule string so authors can write damage formulas like
+                -- {Min(1, Cast.Spaces Moved) * Might} damage or reference
+                -- Cast.Memory("StartX") set by an earlier RememberBehavior.
+                local ruleSymbols = table.shallow_copy(options.symbols or {})
+                ruleSymbols.target = GenerateSymbols(target.token.properties)
+                local rule = StringInterpolateGoblinScript(self.rule, casterToken.properties:LookupSymbol(ruleSymbols))
                 --print("INTERPOLATE::", self.rule, "->", rule)
                 self:ExecuteCommand(ability, casterToken, target.token, options, rule)
             end

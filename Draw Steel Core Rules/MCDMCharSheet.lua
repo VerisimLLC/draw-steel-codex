@@ -101,39 +101,3 @@ function CharSheet.InspirationPanel()
 	return resultPanel
 end
 
-function CharSheet.BuilderKitPanel()
-
-	local banner
-
-	local raceChoicePanel = CharSheet.KitChoicePanel{
-		alert = function(element)
-			banner:FireEvent("showAlert")
-		end,
-	}
-
-	local content = gui.Panel{
-		width = "100%",
-		height = "auto",
-		flow = "vertical",
-		halign = "center",
-		valign = "center",
-
-		raceChoicePanel,
-	}
-
-	banner = CharSheet.BuilderBanner{
-		text = "Kit",
-		content = content,
-		calculateText = function(element)
-			local creature = CharacterSheet.instance.data.info.token.properties
-			if creature:has_key("kitid") then
-				element.text = string.format("%s", creature:Kit().name)
-			else
-				element.text = tr("Kit")
-			end
-		end,
-	}
-
-	return banner
-
-end

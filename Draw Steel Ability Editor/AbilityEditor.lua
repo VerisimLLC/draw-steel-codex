@@ -1,16 +1,5 @@
 local mod = dmhub.GetModLoading()
 
--- Opt-out toggle. The sectioned Ability Editor is the default; this lets a
--- user fall back to the classic editor if they hit a regression.
-setting{
-    id = "classicAbilityEditor",
-    description = "Use classic ability editor",
-    editor = "check",
-    default = false,
-    storage = "preference",
-    section = "game",
-}
-
 -- Use rawget because the DMHub Lua env errors on reads of uninitialized globals.
 AbilityEditor = rawget(_G, "AbilityEditor") or {}
 AbilityEditor._recentBehaviors = AbilityEditor._recentBehaviors or {}
@@ -137,7 +126,7 @@ local function _editorStyles()
             -- to whatever the engine treats unresolved tokens as, which
             -- shows up as off-scheme colours (e.g. pink in MLP).
             bgcolor = "@bg",
-            bgimage = "panels/square.png",
+            bgimage = true,
             borderColor = "@border",
             borderWidth = 2,
             cornerRadius = 6,
@@ -201,7 +190,7 @@ local function _editorStyles()
             fontSize = 18,
             bold = false,
             color = "@fgMuted",
-            bgimage = "panels/square.png",
+            bgimage = true,
             bgcolor = "clear",
             borderWidth = 1,
             borderColor = "@border",
@@ -250,7 +239,7 @@ local function _editorStyles()
             color = "@fgStrong",
             textAlignment = "left",
             bmargin = 4,
-            bgimage = "panels/square.png",
+            bgimage = true,
             border = {y1 = 0, y2 = 2, x1 = 0, x2 = 0},
             borderColor = "@border",
             bgcolor = "clear",
@@ -480,7 +469,7 @@ local function _editorStyles()
             hmargin = 4,
             vmargin = 2,
             borderBox = true,
-            bgimage = "panels/square.png",
+            bgimage = true,
             bgcolor = "@bgAlt",
             borderWidth = 1,
             borderColor = "@border",
@@ -750,7 +739,7 @@ local function _editorStyles()
             flow = "horizontal",
             halign = "left",
             valign = "center",
-            bgimage = "panels/square.png",
+            bgimage = true,
             bgcolor = "@bgAlt",
             border = {y1 = 0, y2 = 1, x1 = 0, x2 = 0},
             borderColor = "@border",
@@ -793,7 +782,7 @@ local function _editorStyles()
             borderWidth = 1,
             borderColor = "@border",
             cornerRadius = 2,
-            bgimage = "panels/square.png",
+            bgimage = true,
             bgcolor = "@bgAlt",
             borderBox = true,
         },
@@ -852,7 +841,7 @@ local function _editorStyles()
             selectors = {"nae-behavior-divider"},
             width = "100%",
             height = 1,
-            bgimage = "panels/square.png",
+            bgimage = true,
             bgcolor = "#966D4B66",
             vmargin = 8,
         },
@@ -896,7 +885,7 @@ local function _editorStyles()
             priority = 3,
             borderWidth = 2,
             halign = "left",
-            bgimage = "panels/square.png",
+            bgimage = true,
             borderColor = "@bgAlt",
             bgcolor = "@bgAlt",
             bold = true,
@@ -963,7 +952,7 @@ local function _editorStyles()
             selectors = {"nae-presentation-divider"},
             width = "100%",
             height = 1,
-            bgimage = "panels/square.png",
+            bgimage = true,
             bgcolor = "#966D4B66",
             tmargin = 12,
             bmargin = 8,
@@ -1167,7 +1156,7 @@ local function _sharedWidgetStyles(colors)
             hmargin = 4,
             vmargin = 2,
             borderBox = true,
-            bgimage = "panels/square.png",
+            bgimage = true,
             bgcolor = "@bgAlt",
             borderWidth = 1,
             borderColor = "@border",
@@ -1416,7 +1405,7 @@ local function _themedDialogStyles(colors)
     styles[#styles+1] = {
         selectors = {"framedPanel"},
         priority = 3,
-        bgimage = "panels/square.png",
+        bgimage = true,
         bgcolor = "@bg",
         borderColor = "@border",
         borderWidth = 2,
@@ -1428,7 +1417,7 @@ local function _themedDialogStyles(colors)
         selectors = {"label", "button", "prettyButton"},
         priority = 3,
         bgcolor = "@bgAlt",
-        bgimage = "panels/square.png",
+        bgimage = true,
         color = "@fg",
         borderColor = "@border",
         borderWidth = 2,
@@ -1513,7 +1502,7 @@ local function _themedDialogStyles(colors)
         flow = "horizontal",
         halign = "left",
         valign = "center",
-        bgimage = "panels/square.png",
+        bgimage = true,
         bgcolor = "@bgAlt",
         border = {y1 = 0, y2 = 1, x1 = 0, x2 = 0},
         borderColor = "@border",
@@ -1556,7 +1545,7 @@ local function _themedDialogStyles(colors)
         borderWidth = 1,
         borderColor = "@border",
         cornerRadius = 2,
-        bgimage = "panels/square.png",
+        bgimage = true,
         bgcolor = "@bgAlt",
         borderBox = true,
     }
@@ -1614,7 +1603,7 @@ local function _themedDialogStyles(colors)
         selectors = {"nae-behavior-divider"},
         width = "100%",
         height = 1,
-        bgimage = "panels/square.png",
+        bgimage = true,
         bgcolor = "#966D4B66",
         vmargin = 4,
     }
@@ -1742,7 +1731,7 @@ local function _themedDialogStyles(colors)
         priority = 8,
         width = "auto",
         height = "auto",
-        bgimage = "panels/square.png",
+        bgimage = true,
         border = {y1 = 0, y2 = 1, x1 = 0, x2 = 0},
         borderColor = "#966D4B55",
     }
@@ -1951,9 +1940,8 @@ local function _buildOverviewSection(ability, fireChange)
                                         classes = {"nae-keyword-chip-label"},
                                         text = ActivatedAbility.CanonicalKeyword(k),
                                     },
-                                    gui.DeleteItemButton{
-                                        width = 14,
-                                        height = 14,
+                                    gui.Button{
+                                        classes = {"deleteButton", "sizeXxs"},
                                         halign = "right",
                                         valign = "center",
                                         click = function()
@@ -2267,9 +2255,8 @@ _buildModesBlock = function(ability, fireChange)
                                         fireChange()
                                     end,
                                 },
-                                gui.DeleteItemButton{
-                                    width = 14,
-                                    height = 14,
+                                gui.Button{
+                                    classes = {"deleteButton", "sizeXxs"},
                                     halign = "right",
                                     valign = "center",
                                     lmargin = 6,
@@ -2737,8 +2724,8 @@ local function _buildCostAndActionSection(ability, fireChange)
     -- the cost, mode, and mode-conditional options. The Edit Recast
     -- Ability button (recast_new mode only) opens a nested ability
     -- editor via ShowEditActivatedAbilityDialog -- which re-enters
-    -- ActivatedAbility:GenerateEditor so the nested editor honors the
-    -- same "classicAbilityEditor" setting as the outer one.
+    -- ActivatedAbility:GenerateEditor so the nested editor uses the
+    -- same sectioned editor as the outer one.
     local persistenceSubgroup = gui.Panel{
         classes = {"nae-field-subgroup",
                    cond(persistenceEnabled(), nil, "collapsed-anim")},
@@ -3149,10 +3136,9 @@ local function _buildFilterList(ability, fireChange, fieldName, formulaLabel,
                             end,
                             documentation = documentation,
                         },
-                        gui.DeleteItemButton{
+                        gui.Button{
+                            classes = {"deleteButton", "sizeXxs"},
                             halign = "right",
-                            width = 14,
-                            height = 14,
                             click = function(el)
                                 table.remove(filters, i)
                                 ability[fieldName] = filters
@@ -4104,9 +4090,8 @@ local function _makeBehaviorPanel(ability, behavior, index, totalCount, fireChan
         end,
     }
 
-    local deleteBtn = gui.DeleteItemButton{
-        width = 14,
-        height = 14,
+    local deleteBtn = gui.Button{
+        classes = {"deleteButton", "sizeXxs"},
         valign = "center",
         lmargin = 8,
         click = function()
@@ -4994,7 +4979,7 @@ function AbilityEditor.GenerateEditor(ability, opts)
             -- the bgimage as the clip mask. Without it, previewCol (440 wide)
             -- bleeds past the host's collapsed 28px footprint and the edge of
             -- "Preview" / the ability card peeks through next to the tab.
-            bgimage = "panels/square.png",
+            bgimage = true,
             clipHidden = true,
             borderBox = true,
             clip = true,
@@ -5039,10 +5024,10 @@ function AbilityEditor.GenerateEditor(ability, opts)
     rootPanel = gui.Panel{
         classes = {"nae-root"},
         id = "abilityEditorRoot",
-        -- Cascade: Styles.Form (legacy form pack used by SourceReference)
-        -- + theme + DS-specific rules. The engine flattens nested arrays
-        -- at the cascade root.
-        styles = { Styles.Form, ThemeEngine.MergeStyles(_editorStyles()) },
+        -- Cascade: cached ThemeEngine base + DS-specific rules
+        -- (theme tokens resolved via MergeTokens, no recompute on each open).
+        -- The engine flattens nested arrays at the cascade root.
+        styles = { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(_editorStyles()) },
         width = "100%",
         height = "100%",
         halign = "center",

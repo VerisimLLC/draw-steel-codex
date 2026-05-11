@@ -14,6 +14,7 @@ local CardWidthPercent = 78
 --      info.UploadInitiative(): Whenever we change info.initiativeQueue we must call this to ensure that initiativeQueue gets networked.
 --      info.tokens: This contains a table of tokens currently in the game. We scan this to check that we can see tokens and should show their initiative.
 --      info.selectedOrPrimaryTokens: This contains a table of tokens that are selected, which we use to choose which tokens to roll dice for.
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMInitiativeBar.lua:993
 function GameHud.CreateInitiativeBar(self, info)
 
 	self.initiativeInterface = info
@@ -440,6 +441,7 @@ function GameHud.CreateInitiativeBar(self, info)
 		},
 	})
 end
+--]==]
 
 --Function to create the main area of the initiative panel, all the initiative entries displayed in order.
 function GameHud.CreateMainInitiativePanel(self, info)
@@ -644,6 +646,7 @@ function GameHud.CreateMainInitiativePanel(self, info)
 	return mainInitiativeBar
 end
 
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMInitiativeBar.lua:1940
 function GameHud:NextInitiative()
 	local info = self.initiativeInterface
 	local mainInitiativeBar = self.initiativeCarousel
@@ -673,8 +676,10 @@ function GameHud:NextInitiative()
 	end
 
 end
+--]==]
 
 --Creates a single initiative entry. This consists of a panel with an image, a display of the initiative number, etc.
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMInitiativeBar.lua:2185
 function GameHud.CreateInitiativeEntry(self, info, initiativeid)
 
 	--A function which will conveniently return the token for this entry. If there are multiple tokens (because it's a monster entry)
@@ -984,10 +989,12 @@ function GameHud.CreateInitiativeEntry(self, info, initiativeid)
 		}
 	})
 end
+--]==]
 
 --This utility function is given an initiative ID and finds the list of tokens that match that initiative ID.
 --For a character this will give back that single character token.
 --For monsters it will give back all monsters of that type.
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMInitiativeBar.lua:2789
 function GameHud.GetTokensForInitiativeId(self, info, initiativeid)
 	local result = {}
 	if string.starts_with(initiativeid, 'MONSTER-') then
@@ -1004,3 +1011,4 @@ function GameHud.GetTokensForInitiativeId(self, info, initiativeid)
 
 	return result
 end
+--]==]

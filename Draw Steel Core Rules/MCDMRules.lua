@@ -579,6 +579,25 @@ GameSystem.RegisterGoblinScriptField{
     end,
 }
 
+GameSystem.RegisterGoblinScriptField{
+    name = "Is Friend",
+
+    type = "function",
+    desc = "A function that returns true if the target creature is friendly toward the creature passed in (e.g. an ally for the purposes of allegiance checks).",
+    examples = {"Target.IsFriend(Self)"},
+
+    calculate = function(targetCreature)
+        return function(us)
+            local targetToken = dmhub.LookupToken(targetCreature)
+            local ourToken = dmhub.LookupToken(us)
+            if targetToken == nil or ourToken == nil then
+                return false
+            end
+            return targetToken:IsFriend(ourToken)
+        end
+    end,
+}
+
 RegisterGoblinScriptSymbol(creature, {
 	name = "Stability",
 	type = "number",

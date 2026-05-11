@@ -29,38 +29,60 @@ function RichAudio.Create()
     return RichAudio.new {}
 end
 
-local g_audioStyles = {
-    {
-        selectors = { "audioPanel" },
-
-    },
-    {
-        selectors = { "audioPanel", "hover", "haveasset" },
-        brightness = 1.2,
-    },
-    {
-        selectors = { "playButton" },
-        bgimage = "panels/triangle.png",
-    },
-    {
-        selectors = { "playButton", "parent:playing" },
-        bgimage = "panels/square.png",
-    },
-    {
-        selectors = { "sliderHandleInner" },
-        priority = 10,
-        bgcolor = "black",
-    },
-    {
-        selectors = { "sliderHandleBorder" },
-        priority = 10,
-        borderColor = "black",
-    },
-    {
-        selectors = { "enumSlider" },
-        cornerRadius = 4,
-    },
-}
+-- Audio widget styles. Layered on top of DefaultStyles so standard
+-- classes (sizes, bold, etc.) resolve inside the widget while these
+-- widget-specific rules carry the chrome.
+local function BuildAudioStyles()
+    return ThemeEngine.MergeStyles({
+        {
+            selectors = { "audioPanel" },
+            bgcolor = "@fgStrong",
+        },
+        {
+            selectors = { "audioPanel", "hover", "haveasset" },
+            brightness = 1.2,
+        },
+        {
+            selectors = { "audioTitleStrip" },
+            bgcolor = "@bg",
+        },
+        {
+            selectors = { "audioTitleLabel" },
+            color = "@fgStrong",
+        },
+        {
+            selectors = { "audioTimeLabel" },
+            color = "@bg",
+        },
+        {
+            selectors = { "audioVolumeIcon" },
+            bgcolor = "@bg",
+        },
+        {
+            selectors = { "playButton" },
+            bgimage = "panels/triangle.png",
+            bgcolor = "@bg",
+        },
+        {
+            selectors = { "playButton", "parent:playing" },
+            bgimage = "panels/square.png",
+        },
+        {
+            selectors = { "sliderHandleInner" },
+            priority = 10,
+            bgcolor = "@bg",
+        },
+        {
+            selectors = { "sliderHandleBorder" },
+            priority = 10,
+            borderColor = "@bg",
+        },
+        {
+            selectors = { "enumSlider" },
+            cornerRadius = 4,
+        },
+    })
+end
 
 function RichAudio.CreateDisplay(self)
     local m_audioAsset = nil
@@ -75,7 +97,6 @@ function RichAudio.CreateDisplay(self)
 
     local m_playButton = gui.Panel {
         classes = { "playButton" },
-        bgcolor = "black",
         rotate = 90,
         floating = true,
         halign = "center",
@@ -89,7 +110,7 @@ function RichAudio.CreateDisplay(self)
 
 
     local m_audioPanel = gui.Panel {
-        styles = g_audioStyles,
+        styles = BuildAudioStyles(),
         classes = { "audioPanel" },
         width = 120,
         height = 64,
@@ -98,7 +119,6 @@ function RichAudio.CreateDisplay(self)
         flow = "vertical",
         cornerRadius = 6,
         bgimage = true,
-        bgcolor = Styles.textColor,
         refreshTag = function(element, tag, match, token)
             tag = tag or self
             m_player = token.player or false
@@ -165,20 +185,20 @@ function RichAudio.CreateDisplay(self)
         end,
 
         gui.Panel {
+            classes = {"audioTitleStrip"},
             cornerRadius = { x1 = 6, y1 = 6, x2 = 0, y2 = 0 },
             width = "100%-2",
             height = 20,
             bgimage = true,
-            bgcolor = "black",
             halign = "center",
             valign = "top",
             vmargin = 1,
             clip = true,
 
             gui.Label {
+                classes = {"audioTitleLabel"},
                 width = "auto",
                 height = "100%",
-                color = "#ffffee",
                 refreshTag = function(element, tag)
                     if m_audioAsset == nil then
                         element.text = "(no sound)"
@@ -195,14 +215,12 @@ function RichAudio.CreateDisplay(self)
             flow = "horizontal",
             valign = "top",
             gui.Label {
-                bold = true,
-                fontSize = 12,
+                classes = {"audioTimeLabel", "bold", "sizeXs"},
                 rmargin = 0,
                 width = "auto",
                 height = "auto",
                 halign = "right",
                 valign = "center",
-                color = "black",
                 refreshTag = function(element, tag)
                     if m_audioAsset == nil then
                         return
@@ -233,8 +251,8 @@ function RichAudio.CreateDisplay(self)
             flow = "horizontal",
             valign = "bottom",
             gui.Panel {
-                bgimage = 'ui-icons/AudioVolumeButton.png',
-                bgcolor = "black",
+                classes = {"audioVolumeIcon"},
+                bgimage = "ui-icons/AudioVolumeButton.png",
                 width = 12,
                 height = 12,
                 swallowPress = true,
@@ -276,6 +294,12 @@ function RichAudio.CreateDisplay(self)
         },
     }
 
+    ThemeEngine.OnThemeChanged(mod, function()
+        if m_audioPanel ~= nil and m_audioPanel.valid then
+            m_audioPanel.styles = BuildAudioStyles()
+        end
+    end)
+
     local resultPanel
 
     resultPanel = gui.Panel {
@@ -286,9 +310,9 @@ function RichAudio.CreateDisplay(self)
         flow = "vertical",
         m_audioPanel,
         gui.EnumeratedSliderControl {
+            classes = { "sizeXxs" },
             width = 120,
             height = 16,
-            fontSize = 10,
             vmargin = 2,
             halign = "center",
             refreshTag = function(element, tag, match, token)
@@ -371,13 +395,13 @@ function RichAudio.CreateEditor(self)
         },
 
         gui.Check {
+            classes = { "sizeXs" },
             width = 60,
             height = 16,
             minWidth = 0,
             halign = "center",
             valign = "center",
             text = "Loop",
-            fontSize = 12,
             value = false,
             refreshEditor = function(element, richTag)
                 if m_asset == nil then

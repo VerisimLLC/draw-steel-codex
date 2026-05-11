@@ -1,21 +1,16 @@
 local mod = dmhub.GetModLoading()
 
-local bg_color = "#1D1D1D"
---local border_color = "#A3A3A3"
-local border_color = "white"
-
 local g_mainActionId = "d19658a2-4d7b-4504-af9e-1a5410fb17fd"
 local g_maneuverId = "a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b"
 local g_triggeredactionId = "b9bc06dd-80f1-4f33-bc55-25c114e3300c"
+local g_villainActionId = "villain-action"
 local g_abilityActionSortOrder = {
     [g_mainActionId] = -2,
     [g_maneuverId] = -1,
     [g_triggeredactionId] = 0,
+    [g_villainActionId] = 1,
 }
 
-local SwatchBlack = "#000000"
-local SwatchNeutral1 = "#ffffff"
-local SwatchNeutral2 = "#ffffff"
 local fontScaling = 1
 local g_styles = {
     {
@@ -23,7 +18,7 @@ local g_styles = {
         fontSize = 16 * fontScaling,
         fontFace = "Berling",
         fontWeight = "SemiBold",
-        color = SwatchBlack,
+        color = "@fgInverse",
         width = "auto",
         height = "auto",
     },
@@ -32,7 +27,7 @@ local g_styles = {
         fontSize = 12 * fontScaling,
         fontFace = "Berling",
         fontWeight = "SemiBold",
-        color = SwatchBlack,
+        color = "@fgInverse",
         width = "auto",
         height = "auto",
     },
@@ -42,7 +37,7 @@ local g_styles = {
         fontFace = "Berling",
         fontWeight = "SemiBold",
         uppercase = true,
-        color = SwatchBlack,
+        color = "@fgInverse",
         width = "auto",
         height = "auto",
     },
@@ -52,7 +47,7 @@ local g_styles = {
         fontFace = "Berling",
         fontWeight = "Regular",
         uppercase = true,
-        color = SwatchBlack,
+        color = "@fgInverse",
         width = "auto",
         height = "auto",
     },
@@ -62,7 +57,7 @@ local g_styles = {
         fontFace = "Berling",
         fontWeight = "SemiBold",
         uppercase = true,
-        color = SwatchBlack,
+        color = "@fgInverse",
         width = "auto",
         height = "auto",
     },
@@ -71,7 +66,7 @@ local g_styles = {
         fontSize = 8 * fontScaling,
         fontFace = "Berling",
         fontWeight = "Regular",
-        color = SwatchBlack,
+        color = "@fgInverse",
         width = "auto",
         height = "auto",
     },
@@ -80,7 +75,7 @@ local g_styles = {
         fontSize = 8 * fontScaling,
         fontFace = "Berling",
         fontWeight = "SemiBold",
-        color = SwatchBlack,
+        color = "@fgInverse",
         width = "auto",
         height = "auto",
     },
@@ -89,7 +84,7 @@ local g_styles = {
         fontSize = 7 * fontScaling,
         fontFace = "Berling",
         fontWeight = "Regular",
-        color = SwatchBlack,
+        color = "@fgInverse",
         width = "auto",
         height = "auto",
     },
@@ -98,7 +93,7 @@ local g_styles = {
         fontSize = 7 * fontScaling,
         fontFace = "Berling",
         fontWeight = "Regular",
-        color = SwatchNeutral1,
+        color = "@fgStrong",
         width = "auto",
         height = 10 * fontScaling,
         valign = "top",
@@ -109,7 +104,7 @@ local g_styles = {
         fontSize = 7 * fontScaling,
         fontFace = "Berling",
         fontWeight = "Regular",
-        color = '#8cdecf',
+        color = "#8cdecf",  -- bespoke trained-skill mint; no clean token analog
         width = "auto",
         height = 10 * fontScaling,
         valign = "top",
@@ -120,7 +115,7 @@ local g_styles = {
         fontSize = 7 * fontScaling,
         fontFace = "Berling",
         fontWeight = "SemiBold",
-        color = SwatchBlack,
+        color = "@fgInverse",
         width = "auto",
         height = "auto",
     },
@@ -129,50 +124,72 @@ local g_styles = {
         fontSize = 6 * fontScaling,
         fontFace = "Berling",
         fontWeight = "SemiBold",
-        color = SwatchBlack,
+        color = "@fgInverse",
         width = "auto",
         height = "auto",
     },
     {
         selectors = { "panel_bg_hero" },
-        bgcolor = SwatchNeutral1
+        bgcolor = "@bgInverse"
     },
     {
         selectors = { "panel_bg_monster" },
-        bgcolor = "#910d0d",
-        borderColor = 'red',
+        bgcolor = "@danger",
+        borderColor = "@danger",
     },
     {
         selectors = { "panel_hero_filled" },
         bgimage = true,
-        bgcolor = bg_color,
+        bgcolor = "@bg",
         halign = "center",
         valign = "top",
         width = 260,
         height = 50,
-        borderWidth = 1,
-        borderColor = border_color,
-        --cornerRadius = 16,
-        --beveledcorners = true,
-        --bgcolor = SwatchLight,
-        --bgcolor = "red",
-        --bgimage = "panels/square.png",
+        borderColor = "@border",
         flow = "vertical",
         opacity = 0.9,
-        --interactable = false,
     },
     {
         selectors = { "panel_hero_label" },
         fontSize = 12,
         fontFace = "Berling",
         fontWeight = "Regular",
-        color = border_color,
+        color = "@fgStrong",
         height = "auto",
         valign = "top",
         halign = "center",
         width = "auto",
         bmargin = 8,
 
+    },
+    -- Solid panel-as-divider line (fakes a border via a thin filled panel).
+    -- Apply to panels with width/height sized as a thin bar; bgcolor follows
+    -- the active scheme's border token so the visual stays consistent with
+    -- real {bordered} frames elsewhere on the sheet.
+    {
+        selectors = { "cs-divider-line" },
+        bgcolor = "@border",
+    },
+    -- Privacy (eye) icon on the name field.  Tints with the scheme's strong
+    -- foreground so the icon stays legible across schemes.  PNG is a white
+    -- silhouette with alpha; bgcolor acts as a tint multiplier.
+    {
+        selectors = { "privacyIcon" },
+        halign = "right",
+        valign = "center",
+        x = 16,
+        width = 16,
+        height = 16,
+        bgimage = "ui-icons/eye-closed.png",
+        bgcolor = "@fgStrong",
+    },
+    {
+        selectors = { "privacyIcon", "hover" },
+        brightness = 1.5,
+    },
+    {
+        selectors = { "privacyIcon", "inactive" },
+        bgimage = "ui-icons/eye.png",
     },
 }
 
@@ -183,7 +200,7 @@ local PopupStyles = {
         halign = 'center',
         width = 'auto',
         height = 'auto',
-        bgcolor = 'black',
+        bgcolor = "@bg",
         flow = 'vertical',
         fontSize = 12,
     },
@@ -193,10 +210,9 @@ local PopupStyles = {
         halign = 'center',
         width = 300,
         height = 'auto',
-        bgcolor = 'black',
+        bgcolor = "@bg",
         flow = 'vertical',
-        borderWidth = 2,
-        borderColor = 'white',
+        borderColor = "@border",
         pad = 6,
     },
     {
@@ -208,7 +224,7 @@ local PopupStyles = {
     },
     {
         selectors = { 'popupLabel' },
-        color = 'white',
+        color = "@fgStrong",
         fontSize = 16,
         width = 'auto',
         height = 'auto',
@@ -217,7 +233,7 @@ local PopupStyles = {
     },
     {
         selectors = { 'popupValue' },
-        color = 'white',
+        color = "@fgStrong",
         fontSize = 16,
         width = 'auto',
         height = 'auto',
@@ -232,22 +248,22 @@ local PopupStyles = {
     },
     {
         selectors = { 'editable' },
-        color = '#aaaaff',
+        color = "@accent",
         priority = 2,
     },
     {
         selectors = { 'option' },
-        bgcolor = 'black',
+        bgcolor = "@bg",
         width = '100%',
         height = 20,
     },
     {
         selectors = { 'option', 'selected' },
-        bgcolor = '#880000',
+        bgcolor = "@danger",
     },
     {
         selectors = { 'option', 'hover' },
-        bgcolor = '#880000',
+        bgcolor = "@danger",
     },
     {
         selectors = { 'input' },
@@ -366,12 +382,11 @@ local function CreateAbilityPanel()
             },
         },
 
-        gui.SettingsButton {
+        gui.Button {
+            classes = {"settingsButton"},
             floating = true,
             halign = "right",
             valign = "top",
-            width = 16,
-            height = 16,
             tmargin = 2,
             rmargin = 4,
             ability = function(element, ability, c)
@@ -486,30 +501,7 @@ local function CreateTriggeredAbilityPanel()
             },
         },
 
-        --[[ gui.SettingsButton {
-            floating = true,
-            halign = "right",
-            valign = "top",
-            width = 16,
-            height = 16,
-            tmargin = 2,
-            rmargin = 4,
-            ability = function(element, ability, c)
-                element:SetClass("hidden", not c:IsActivatedAbilityInnate(ability))
-            end,
-            press = function(element)
-                CharacterSheet.instance:AddChild(m_triggeredAbility:ShowEditActivatedAbilityDialog {
-                    close = function(element)
-                        CharacterSheet.instance:FireEvent("refreshAll")
-                    end,
-                    delete = function(element)
-                        CharacterSheet.instance.data.info.token.properties:RemoveInnateActivatedAbility(m_ability)
-                    end,
-                })
-            end,
-        }, ]]
-
-        --[[ gui.Panel {
+--[[ gui.Panel {
             classes = { "costDiamond", "collapsed" },
             floating = true,
             rotate = 135,
@@ -549,8 +541,6 @@ local function CreateAbilityListPanel()
         classes = { "submenuHeading" },
         data = { ord = g_mainActionId },
         width = "100%",
-        color = "white",
-        fontSize = 20,
         text = "Main Actions",
         press = function(element)
             element:SetClassTree("collapseSet", not element:HasClass("collapseSet"))
@@ -566,8 +556,6 @@ local function CreateAbilityListPanel()
         classes = { "submenuHeading" },
         data = { ord = g_maneuverId },
         width = "100%",
-        color = "white",
-        fontSize = 20,
         text = "Maneuvers",
         press = function(element)
             element:SetClassTree("collapseSet", not element:HasClass("collapseSet"))
@@ -583,8 +571,6 @@ local function CreateAbilityListPanel()
         classes = { "submenuHeading" },
         data = { ord = g_triggeredactionId },
         width = "100%",
-        color = "white",
-        fontSize = 20,
         text = "Triggered Actions",
         press = function(element)
             element:SetClassTree("collapseSet", not element:HasClass("collapseSet"))
@@ -600,9 +586,22 @@ local function CreateAbilityListPanel()
         classes = { "submenuHeading" },
         data = { ord = "other" },
         width = "100%",
-        color = "white",
-        fontSize = 20,
         text = "Other Abilities",
+        press = function(element)
+            element:SetClassTree("collapseSet", not element:HasClass("collapseSet"))
+            resultPanel:FireEvent("refreshToken")
+        end,
+        gui.CollapseArrow {
+            halign = "right",
+            valign = "center",
+        },
+    }
+
+    local m_villainActionsLabel = gui.Label {
+        classes = { "submenuHeading" },
+        data = { ord = g_villainActionId },
+        width = "100%",
+        text = "Villain Actions",
         press = function(element)
             element:SetClassTree("collapseSet", not element:HasClass("collapseSet"))
             resultPanel:FireEvent("refreshToken")
@@ -617,8 +616,17 @@ local function CreateAbilityListPanel()
     m_maneuversLabel:SetClassTree("collapseSet", true)
     m_triggersLabel:SetClassTree("collapseSet", true)
     m_otherActionsLabel:SetClassTree("collapseSet", true)
+    m_villainActionsLabel:SetClassTree("collapseSet", true)
+
+    local function IsVillainAction(ability)
+        local v = ability:try_get("villainAction")
+        return v ~= nil and v ~= "none"
+    end
 
     local GetActionId = function(ability)
+        if IsVillainAction(ability) then
+            return g_villainActionId
+        end
         local actionid = ability:ActionResource()
         if actionid ~= g_mainActionId and actionid ~= g_maneuverId then
             actionid = "other"
@@ -626,18 +634,33 @@ local function CreateAbilityListPanel()
         return actionid
     end
 
+    local function buildActionMenuStyles()
+        return ThemeEngine.MergeTokens{
+            Styles.ActionMenu,
+
+            { selectors = {"submenuHeading"},
+              bgcolor = "@bgAlt", borderColor = "@border",
+              color = "@fgStrong", fontSize = 16 },
+            { selectors = {"submenuHeading", "hover"},
+              bgcolor = "@bg", borderColor = "@fgStrong" },
+
+            { selectors = {"abilityHeading"},
+              bgcolor = "@bg", borderColor = "@border" },
+            { selectors = {"abilityHeading", "hover"},
+              bgcolor = "@bgAlt", borderColor = "@accent" },
+
+            { selectors = {"abilityTitle"},     color = "@fgStrong" },
+            { selectors = {"abilityInfoLabel"}, color = "@fgMuted" },
+        }
+    end
+
     resultPanel = gui.Panel {
         m_mainActionsLabel,
         m_maneuversLabel,
         m_triggersLabel,
         m_otherActionsLabel,
-        styles = {
-            Styles.ActionMenu,
-            {
-                selectors = { "submenuHeading", "hover" },
-                borderColor = "white",
-            },
-        },
+        m_villainActionsLabel,
+        styles = buildActionMenuStyles(),
         width = "100%-12",
         height = "auto",
         bgimage = true,
@@ -653,6 +676,15 @@ local function CreateAbilityListPanel()
             local abilities = c:GetActivatedAbilities {} -- characterSheet = true }
             local children = {}
 
+            local hasVillainActions = false
+            for _, ability in ipairs(abilities) do
+                if IsVillainAction(ability) then
+                    hasVillainActions = true
+                    break
+                end
+            end
+            m_villainActionsLabel:SetClass("collapsed", not hasVillainActions)
+
             local showAbilities = {}
             if not m_mainActionsLabel:HasClass("collapseSet") then
                 showAbilities[g_mainActionId] = true
@@ -664,6 +696,10 @@ local function CreateAbilityListPanel()
 
             if not m_otherActionsLabel:HasClass("collapseSet") then
                 showAbilities["other"] = true
+            end
+
+            if hasVillainActions and not m_villainActionsLabel:HasClass("collapseSet") then
+                showAbilities[g_villainActionId] = true
             end
 
             local filteredAbilities = {}
@@ -691,6 +727,11 @@ local function CreateAbilityListPanel()
                 if action_a ~= action_b then
                     return (g_abilityActionSortOrder[action_a or ""] or 0) <
                         (g_abilityActionSortOrder[action_b or ""] or 0)
+                end
+
+                if action_a == g_villainActionId then
+                    -- Villain Action 1 < Villain Action 2 < Villain Action 3 by string compare
+                    return a:try_get("villainAction", "") < b:try_get("villainAction", "")
                 end
 
                 return a.name < b.name
@@ -722,7 +763,7 @@ local function CreateAbilityListPanel()
             end
 
             --now insert the headings at the right locations.
-            local headings = { m_mainActionsLabel, m_maneuversLabel, m_triggersLabel, m_otherActionsLabel }
+            local headings = { m_mainActionsLabel, m_maneuversLabel, m_triggersLabel, m_otherActionsLabel, m_villainActionsLabel }
             local j = 1
             while #headings > 0 and j <= #children do
                 for n, heading in ipairs(headings) do
@@ -754,6 +795,12 @@ local function CreateAbilityListPanel()
             element.children = children
         end,
     }
+
+    ThemeEngine.OnThemeChanged(mod, function()
+        if resultPanel ~= nil and resultPanel.valid then
+            resultPanel.styles = buildActionMenuStyles()
+        end
+    end)
 
     return resultPanel
 end
@@ -936,15 +983,12 @@ function CharSheet.CharacterSheetAndAvatarPanel()
             gui.Label {
 
                 text = "Name",
-                color = border_color,
                 fontSize = 20,
                 textAlignment = "center",
                 characterLimit = 30,
 
                 bgimage = true,
-                bgcolor = bg_color,
-                borderWidth = 2,
-                borderColor = border_color,
+                classes = {"bordered"},
 
                 width = "100%",
                 height = 50,
@@ -991,7 +1035,6 @@ function CharSheet.CharacterSheetAndAvatarPanel()
             gui.Label {
 
                 text = "Name",
-                color = border_color,
                 fontSize = 12,
                 textAlignment = "center",
 
@@ -1006,14 +1049,11 @@ function CharSheet.CharacterSheetAndAvatarPanel()
             gui.Label {
 
                 text = "Ancestry",
-                color = border_color,
                 fontSize = 20,
                 textAlignment = "center",
 
                 bgimage = true,
-                bgcolor = bg_color,
-                borderWidth = 2,
-                borderColor = border_color,
+                classes = {"bordered"},
 
                 width = "100%",
                 height = 50,
@@ -1028,16 +1068,14 @@ function CharSheet.CharacterSheetAndAvatarPanel()
                 end,
 
                 refreshToken = function(element, info)
-                    if info.token.properties:IsMonster() then
+                    if info.token.properties:IsMonster() or info.token.properties:IsCompanion() then
                         element.text = info.token.properties:try_get("monster_type", "")
-                        if info.token.properties:IsMonster() and element.text == "" then
+                        if element.text == "" then
                             element.text = "(No monster type)"
                             element:SetClass("invalid", true)
                         else
                             element:SetClass("invalid", false)
                         end
-                        --element.text = info.token.properties:RaceOrMonsterType()
-                        --element.text = creature.GetTokenDescription(element)
                         element.editable = true
                     else
                         element.text = info.token.properties:RaceOrMonsterType()
@@ -1052,14 +1090,15 @@ function CharSheet.CharacterSheetAndAvatarPanel()
             gui.Label {
 
                 refreshToken = function(element, info)
-                    if info.token.properties:IsMonster() then
+                    if info.token.properties:IsCompanion() then
+                        element.text = "Companion Type"
+                    elseif info.token.properties:IsMonster() then
                         element.text = "Monster"
                     else
                         element.text = "Ancestry"
                     end
                 end,
                 text = "Ancestry",
-                color = border_color,
                 fontSize = 12,
                 textAlignment = "center",
 
@@ -1074,15 +1113,12 @@ function CharSheet.CharacterSheetAndAvatarPanel()
             gui.Label {
 
                 text = "Class",
-                color = border_color,
                 fontSize = 20,
                 minFontSize = 12,
                 textAlignment = "center",
 
                 bgimage = true,
-                bgcolor = bg_color,
-                borderWidth = 2,
-                borderColor = border_color,
+                classes = {"bordered"},
 
                 hpad = 8,
                 width = "100%",
@@ -1178,7 +1214,8 @@ function CharSheet.CharacterSheetAndAvatarPanel()
                     element.text = "-"
                 end,
 
-                gui.SettingsButton {
+                gui.Button {
+                    classes = {"settingsButton"},
                     floating = true,
                     halign = "right",
                     valign = "top",
@@ -1227,7 +1264,7 @@ function CharSheet.CharacterSheetAndAvatarPanel()
                                 gui.Panel {
                                     width = 340,
                                     height = "auto",
-                                    styles = {
+                                    styles = ThemeEngine.MergeTokens{
                                         Styles.Default,
                                         PopupStyles,
                                         CharSheet.GetCharacterSheetStyles(),
@@ -1278,7 +1315,7 @@ function CharSheet.CharacterSheetAndAvatarPanel()
                                             },
                                         },
 
-                                        gui.Divider {
+                                        gui.MCDMDivider {
                                             width = "80%",
                                             height = 1,
                                             vmargin = 4,
@@ -1325,7 +1362,6 @@ function CharSheet.CharacterSheetAndAvatarPanel()
             --class label
             gui.Label {
                 text = "Class",
-                color = border_color,
                 fontSize = 12,
                 textAlignment = "center",
 
@@ -1345,16 +1381,12 @@ function CharSheet.CharacterSheetAndAvatarPanel()
             --subclass of character
             gui.Label {
 
-                classes = { "monstercollapse", "followercollapse" },
+                classes = { "bordered", "monstercollapse", "followercollapse" },
                 text = "Subclass",
-                color = border_color,
                 fontSize = 20,
                 textAlignment = "center",
 
                 bgimage = true,
-                bgcolor = bg_color,
-                borderWidth = 2,
-                borderColor = border_color,
 
                 width = "100%",
                 height = 50,
@@ -1385,7 +1417,6 @@ function CharSheet.CharacterSheetAndAvatarPanel()
                 classes = { "monstercollapse", "followercollapse" },
 
                 text = "Subclass",
-                color = border_color,
                 fontSize = 12,
                 textAlignment = "center",
 
@@ -1439,7 +1470,6 @@ function CharSheet.CharacterSheetAndAvatarPanel()
             gui.Label {
                 classes = { "monsteronly" },
                 text = "Organization",
-                color = border_color,
                 fontSize = 12,
                 textAlignment = "center",
 
@@ -1481,7 +1511,6 @@ function CharSheet.CharacterSheetAndAvatarPanel()
             gui.Label {
                 classes = { "followeronly" },
                 text = "Follower Type",
-                color = border_color,
                 fontSize = 12,
                 textAlignment = "center",
 
@@ -1534,7 +1563,6 @@ function CharSheet.CharacterSheetAndAvatarPanel()
             gui.Label {
                 classes = { "monsterorfolloweronly" },
                 text = "Role",
-                color = border_color,
                 fontSize = 12,
                 textAlignment = "center",
 
@@ -1562,7 +1590,6 @@ function CharSheet.CharacterSheetAndAvatarPanel()
             gui.Label {
 
                 text = "Controlled by",
-                color = border_color,
                 fontSize = 12,
                 textAlignment = "center",
 
@@ -1594,7 +1621,6 @@ function CharSheet.CharacterSheetAndAvatarPanel()
             gui.Label {
                 classes = { "monsterorfolloweronly" },
                 text = "Treat as",
-                color = border_color,
                 fontSize = 12,
                 textAlignment = "center",
                 width = "100%",
@@ -1604,7 +1630,6 @@ function CharSheet.CharacterSheetAndAvatarPanel()
 
             -- Titles
             gui.Multiselect {
-                styles = ThemeEngine.GetStyles("default", "default"),
                 options = Title.GetDropdownList(),
                 addItemText = "Grant title...",
                 refreshToken = function(element, info)
@@ -1622,7 +1647,6 @@ function CharSheet.CharacterSheetAndAvatarPanel()
             gui.Label {
 
                 text = "Titles",
-                color = border_color,
                 fontSize = 12,
                 textAlignment = "center",
 
@@ -1651,10 +1675,8 @@ function CharSheet.CharacterSheetAndAvatarPanel()
         ----------------------------------------
         gui.Panel {
 
+            classes = {"bordered"},
             bgimage = true,
-            bgcolor = bg_color,
-            borderWidth = 2,
-            borderColor = border_color,
             beveledcorners = true,
             refreshToken = function(element, info)
                 if info.token.properties:IsMonster() then
@@ -1670,7 +1692,6 @@ function CharSheet.CharacterSheetAndAvatarPanel()
 
             gui.Label {
 
-                color = border_color,
                 width = 260,
                 height = 50,
                 textAlignment = "center",
@@ -1734,7 +1755,6 @@ function CharSheet.CharacterSheetAndAvatarPanel()
                         local classInfo = classesTable[entry.classid]
                         if classInfo ~= nil then
                             local label = currentPanels[i] or gui.Label {
-                                color = border_color,
                                 width = 260,
                                 height = "100%",
                                 textAlignment = "center",
@@ -1907,7 +1927,7 @@ local EditResistanceEntry = function(creature, resistanceEntry, params)
                 style = {
                     halign = 'left',
                     valign = 'center',
-                    height = 24,
+                    height = 30,
                     width = 100,
                 },
             }),
@@ -1940,9 +1960,11 @@ local EditResistanceEntry = function(creature, resistanceEntry, params)
                 end,
                 halign = 'left',
                 valign = 'center',
-                fontSize = 14,
+                textAlignment = "center",
+                numeric = true,
                 height = 24,
-                width = 20,
+                width = 34,
+                lmargin = 4,
             },
 
             gui.Label({
@@ -1984,7 +2006,8 @@ local EditResistanceEntry = function(creature, resistanceEntry, params)
                 },
             }),
 
-            gui.DeleteItemButton {
+            gui.Button {
+                classes = {"deleteButton"},
                 width = 16,
                 height = 16,
 
@@ -2011,8 +2034,8 @@ function CharSheet.DSEditImmunitiesPopup(element, info)
     local children = {}
 
     children[#children + 1] = gui.Label {
+        classes = {"sizeXl", "bold"},
         halign = "center",
-        fontSize = 24,
         text = "Immunities & Weaknesses",
         width = "auto",
         height = "auto",
@@ -2028,16 +2051,12 @@ function CharSheet.DSEditImmunitiesPopup(element, info)
     end
 
     children[#children + 1] =
-        gui.PrettyButton {
+        gui.Button {
+            classes = {"sizeM"},
             text = 'Add Entry',
-            width = 200,
             halign = 'center',
             valign = 'bottom',
-            fontSize = 20,
-            margin = 2,
-            height = 50,
-            pad = 4,
-            hpad = 4,
+            vmargin = 4,
             events = {
                 click = function(element)
                     local resistances = creature:GetResistances()
@@ -2056,124 +2075,32 @@ function CharSheet.DSEditImmunitiesPopup(element, info)
             },
         }
 
-    --[[
-	children[#children+1] = gui.Panel{
-		bgimage = "panels/square.png",
-		bgcolor = "white",
-		height = 1,
-		width = 100,
-		vmargin = 20,
-		halign = "center",
-	}
-
-	children[#children+1] = gui.Label{
-		halign = "center",
-		fontSize = 24,
-		text = "Innate Condition Immunities",
-		width = "auto",
-		height = "auto",
-	}
-
-
-	local immunityPanels = {}
-	local conditionsTable = dmhub.GetTable(CharacterCondition.tableName)
-
-	for k,v in pairs(creature:try_get("innateConditionImmunities", {})) do
-		local condid = k
-		local cond = conditionsTable[k]
-		if cond ~= nil then
-			immunityPanels[#immunityPanels+1] = gui.Label{
-				text = cond.name,
-				fontSize = 20,
-				width = 240,
-
-				gui.DeleteItemButton{
-					width = 16,
-					height = 16,
-					halign = "right",
-					valign = "center",
-					click = function(element)
-						creature:try_get("innateConditionImmunities", {})[k] = nil
-						CharacterSheet.instance:FireEvent('refreshAll')
-						CharSheet.DSEditImmunitiesPopup(parentElement, info)
-					end,
-				}
-			}
-
-		end
-	end
-
-	table.sort(immunityPanels, function(a,b) return a.text < b.text end)
-	for _,p in ipairs(immunityPanels) do
-		children[#children+1] = p
-	end
-
-	children[#children+1] = gui.Dropdown{
-		create = function(element)
-			local options = {}
-
-			local immunities = creature:try_get("innateConditionImmunities", {})
-
-			for j,cond in pairs(conditionsTable) do
-				if cond:try_get("hidden", false) == false and cond.immunityPossible and (not immunities[j]) then
-					options[#options+1] = {
-						id = j,
-						text = cond.name,
-					}
-				end
-			end
-
-			table.sort(options, function(a,b) return a.text < b.text end)
-			table.insert(options, 1, {
-				id = "none",
-				text = "Add Immunity...",
-			})
-
-			element.options = options
-			element.idChosen = "none"
-		end,
-
-		change = function(element)
-			if element.idChosen == "none" then
-				return
-			end
-
-			local immunities = creature:get_or_add("innateConditionImmunities", {})
-			immunities[element.idChosen] = true
-			CharacterSheet.instance:FireEvent('refreshAll')
-			CharSheet.DSEditImmunitiesPopup(parentElement, info)
-		end,
-	}
-]]
-
     element.popupPositioning = "panel"
 
-    element.popup = gui.TooltipFrame(
-        gui.Panel {
-            width = "auto",
-            height = "auto",
-            styles = {
-                Styles.Default,
-                PopupStyles,
-            },
-
-            children = children,
+    element.popup = gui.Panel {
+        classes = {"framedPanel"},
+        halign = "right",
+        interactable = true,
+        flow = "vertical",
+        hpad = 24,
+        vpad = 14,
+        width = "auto",
+        height = "auto",
+        styles = ThemeEngine.MergeStyles{
+            PopupStyles,
         },
-
-        {
-            halign = "right",
-            interactable = true,
-        }
-    )
+        children = children,
+    }
 end
 
 local function DSCharSheet()
     --find id for recovery from resourcestable
     local recoveryid = "5bd90f9b-46be-4cf2-8ca6-a96430d62949"
 
-    local DSCharSheetPanel = gui.Panel {
-
-        styles = {
+    -- Factored so the OnThemeChanged subscription can re-resolve with the
+    -- same composition the panel was built from.
+    local function buildSheetStyles()
+        return ThemeEngine.MergeStyles{
             g_styles,
             {
                 selectors = {"~monster", "~follower", "monsterorfolloweronly" },
@@ -2195,10 +2122,14 @@ local function DSCharSheet()
                 selectors = { "follower", "followercollapse" },
                 collapsed = 1,
             },
-        },
+        }
+    end
 
-        bgimage = true,
-        bgcolor = "clear",
+    local DSCharSheetPanel = gui.Panel {
+        classes = {"surfaceRadial"},
+
+        styles = buildSheetStyles(),
+
         width = "100%",
         height = "100%",
 
@@ -2248,13 +2179,11 @@ local function DSCharSheet()
                 --frame
                 gui.Panel {
 
+                    classes = {"bordered"},
                     bgimage = true,
-                    bgcolor = bg_color,
                     width = "100%",
                     height = "80%",
 
-                    border = 2,
-                    borderColor = border_color,
                     beveledcorners = true,
                     cornerRadius = 15,
 
@@ -2312,7 +2241,6 @@ local function DSCharSheet()
 
                                         text = info.description,
                                         uppercase = true,
-                                        color = border_color,
                                         fontSize = 20,
                                         width = "auto",
                                         height = "auto",
@@ -2323,12 +2251,12 @@ local function DSCharSheet()
 
                                     gui.Panel {
 
+                                        classes = {"bordered"},
                                         width = 70,
                                         height = 70,
                                         bgimage = true,
                                         color = "clear",
                                         border = 3,
-                                        borderColor = border_color,
                                         halign = "center",
                                         valign = "bottom",
 
@@ -2337,7 +2265,6 @@ local function DSCharSheet()
                                             characterLimit = 2,
                                             text = "+0",
                                             textAlignment = "center",
-                                            color = border_color,
                                             fontSize = 30,
                                             width = "100%",
                                             height = "auto",
@@ -2406,10 +2333,9 @@ local function DSCharSheet()
                                 width = "100%",
                                 height = 40,
 
+                                classes = {"bordered"},
                                 bgimage = true,
                                 bgcolor = "clear",
-                                border = 2,
-                                borderColor = border_color,
                                 beveledcorners = true,
                                 cornerRadius = 10,
 
@@ -2443,7 +2369,6 @@ local function DSCharSheet()
 
                                     text = "4",
                                     fontSize = 20,
-                                    color = border_color,
                                     height = "auto",
                                     width = "auto",
 
@@ -2461,7 +2386,6 @@ local function DSCharSheet()
 
                                 text = "Size",
                                 fontSize = 20,
-                                color = border_color,
                                 height = "auto",
                                 width = "auto",
 
@@ -2497,10 +2421,9 @@ local function DSCharSheet()
                                 width = "100%",
                                 height = 40,
 
+                                classes = {"bordered"},
                                 bgimage = true,
                                 bgcolor = "clear",
-                                border = 2,
-                                borderColor = border_color,
                                 beveledcorners = true,
                                 cornerRadius = 10,
 
@@ -2509,7 +2432,6 @@ local function DSCharSheet()
                                 gui.Label {
                                     text = "4",
                                     fontSize = 20,
-                                    color = border_color,
                                     height = "auto",
                                     width = "auto",
 
@@ -2554,7 +2476,6 @@ local function DSCharSheet()
 
                                 text = "Speed",
                                 fontSize = 20,
-                                color = border_color,
                                 height = "auto",
                                 width = "auto",
 
@@ -2579,10 +2500,9 @@ local function DSCharSheet()
                                 width = "100%",
                                 height = 40,
 
+                                classes = {"bordered"},
                                 bgimage = true,
                                 bgcolor = "clear",
-                                border = 2,
-                                borderColor = border_color,
                                 beveledcorners = true,
                                 cornerRadius = 10,
 
@@ -2602,7 +2522,6 @@ local function DSCharSheet()
 
                                     text = "4",
                                     fontSize = 20,
-                                    color = border_color,
                                     height = "auto",
                                     width = "auto",
 
@@ -2631,7 +2550,6 @@ local function DSCharSheet()
 
                                 text = "Disengage",
                                 fontSize = 20,
-                                color = border_color,
                                 height = "auto",
                                 width = "auto",
 
@@ -2656,10 +2574,9 @@ local function DSCharSheet()
                                 width = "100%",
                                 height = 40,
 
+                                classes = {"bordered"},
                                 bgimage = true,
                                 bgcolor = "clear",
-                                border = 2,
-                                borderColor = border_color,
                                 beveledcorners = true,
                                 cornerRadius = 10,
 
@@ -2695,7 +2612,6 @@ local function DSCharSheet()
 
                                     text = "4",
                                     fontSize = 20,
-                                    color = border_color,
                                     height = "auto",
                                     width = "auto",
                                     minWidth = 80,
@@ -2718,7 +2634,6 @@ local function DSCharSheet()
 
                                 text = "Stability",
                                 fontSize = 20,
-                                color = border_color,
                                 height = "auto",
                                 width = "auto",
 
@@ -2763,10 +2678,8 @@ local function DSCharSheet()
 
                         gui.Panel {
 
+                            classes = {"bordered"},
                             bgimage = true,
-                            bgcolor = bg_color,
-                            border = 2,
-                            borderColor = border_color,
                             beveledcorners = true,
                             cornerRadius = 15,
                             width = "100%",
@@ -2777,7 +2690,6 @@ local function DSCharSheet()
                             gui.Label {
 
                                 text = "Potencies",
-                                color = border_color,
                                 fontSize = 20,
                                 width = "auto",
                                 height = "auto",
@@ -2786,10 +2698,7 @@ local function DSCharSheet()
 
                             },
 
-                            gui.Divider {
-
-                                width = "80%",
-                            },
+                            gui.MCDMDivider { width = "80%", },
 
                             gui.Label {
 
@@ -2805,10 +2714,9 @@ local function DSCharSheet()
 
                                 gui.Panel {
 
+                                    classes = {"bordered"},
                                     bgimage = true,
                                     bgcolor = "clear",
-                                    border = 2,
-                                    borderColor = border_color,
                                     beveledcorners = true,
                                     cornerRadius = 15,
                                     width = "25%",
@@ -2820,7 +2728,6 @@ local function DSCharSheet()
                                     gui.Label {
 
                                         text = "Strong",
-                                        color = border_color,
                                         fontSize = 20,
                                         width = "auto",
                                         height = "auto",
@@ -2832,7 +2739,6 @@ local function DSCharSheet()
                                     gui.Label {
 
                                         text = "1",
-                                        color = border_color,
                                         fontSize = 20,
                                         width = "auto",
                                         height = "auto",
@@ -2853,10 +2759,9 @@ local function DSCharSheet()
 
                                 gui.Panel {
 
+                                    classes = {"bordered"},
                                     bgimage = true,
                                     bgcolor = "clear",
-                                    border = 2,
-                                    borderColor = border_color,
                                     beveledcorners = true,
                                     cornerRadius = 15,
                                     width = "25%",
@@ -2867,7 +2772,6 @@ local function DSCharSheet()
                                     gui.Label {
 
                                         text = "Average",
-                                        color = border_color,
                                         fontSize = 20,
                                         width = "auto",
                                         height = "auto",
@@ -2879,7 +2783,6 @@ local function DSCharSheet()
                                     gui.Label {
 
                                         text = "2",
-                                        color = border_color,
                                         fontSize = 20,
                                         width = "auto",
                                         height = "auto",
@@ -2900,10 +2803,9 @@ local function DSCharSheet()
 
                                 gui.Panel {
 
+                                    classes = {"bordered"},
                                     bgimage = true,
                                     bgcolor = "clear",
-                                    border = 2,
-                                    borderColor = border_color,
                                     beveledcorners = true,
                                     cornerRadius = 15,
                                     width = "25%",
@@ -2915,7 +2817,6 @@ local function DSCharSheet()
                                     gui.Label {
 
                                         text = "Weak",
-                                        color = border_color,
                                         fontSize = 20,
                                         width = "auto",
                                         height = "auto",
@@ -2927,7 +2828,6 @@ local function DSCharSheet()
                                     gui.Label {
 
                                         text = "2",
-                                        color = border_color,
                                         fontSize = 20,
                                         width = "auto",
                                         height = "auto",
@@ -2964,12 +2864,10 @@ local function DSCharSheet()
 
                         gui.Panel {
 
+                            classes = {"bordered"},
                             width = "100%",
                             height = "100%",
                             bgimage = true,
-                            bgcolor = bg_color,
-                            border = 2,
-                            borderColor = border_color,
                             beveledcorners = true,
                             cornerRadius = 15,
 
@@ -2979,7 +2877,6 @@ local function DSCharSheet()
                             gui.Label {
 
                                 text = "Immunities & Weaknesses",
-                                color = border_color,
                                 fontSize = 20,
                                 width = "auto",
                                 height = "auto",
@@ -2988,7 +2885,8 @@ local function DSCharSheet()
                                 tmargin = 5,
                             },
 
-                            gui.SettingsButton {
+                            gui.Button {
+                                classes = {"settingsButton"},
                                 floating = true,
                                 halign = "right",
                                 valign = "top",
@@ -3006,10 +2904,7 @@ local function DSCharSheet()
                             },
 
 
-                            gui.Divider {
-
-                                width = "80%",
-                            },
+                            gui.MCDMDivider { width = "80%", },
 
 
                             --immunities list.
@@ -3085,12 +2980,10 @@ local function DSCharSheet()
 
                         gui.Panel {
 
+                            classes = {"bordered"},
                             width = "100%",
                             height = "100%",
                             bgimage = true,
-                            bgcolor = bg_color,
-                            border = 2,
-                            borderColor = border_color,
                             beveledcorners = true,
                             cornerRadius = 15,
 
@@ -3100,7 +2993,6 @@ local function DSCharSheet()
                             gui.Label {
 
                                 text = "Skills",
-                                color = border_color,
                                 fontSize = 20,
                                 width = "auto",
                                 height = "auto",
@@ -3109,7 +3001,8 @@ local function DSCharSheet()
                                 tmargin = 5,
                             },
 
-                            gui.SettingsButton {
+                            gui.Button {
+                                classes = {"settingsButton"},
                                 floating = true,
                                 halign = "right",
                                 valign = "top",
@@ -3133,10 +3026,7 @@ local function DSCharSheet()
                                 end,
                             },
 
-                            gui.Divider {
-
-                                width = "80%",
-                            },
+                            gui.MCDMDivider { width = "80%", },
 
 
                             --skills list
@@ -3215,13 +3105,12 @@ local function DSCharSheet()
                 },
 
                 gui.Panel {
+                    classes = {"bordered"},
                     width = "50%-18",
                     height = "100%-50",
                     halign = "right",
                     bgimage = true,
                     bgcolor = "clear",
-                    borderWidth = 2,
-                    borderColor = "white",
                     valign = "top",
                     flow = "vertical",
 
@@ -3316,13 +3205,11 @@ local function DSCharSheet()
                 --frame
                 gui.Panel {
 
+                    classes = {"bordered"},
                     bgimage = true,
-                    bgcolor = bg_color,
                     width = "95%",
                     height = "80%",
 
-                    border = 2,
-                    borderColor = border_color,
                     beveledcorners = true,
                     cornerRadius = 15,
 
@@ -3349,7 +3236,8 @@ local function DSCharSheet()
                             height = "100%",
                             flow = "horizontal",
                             refreshToken = function(element, info)
-                                element:SetClass("collapsed", not info.token.properties:IsMonster())
+                                local props = info.token.properties
+                                element:SetClass("collapsed", not (props:IsMonster() or props:IsCompanion()))
                             end,
 
                             --minion-only "with captain" panel
@@ -3484,11 +3372,14 @@ local function DSCharSheet()
                                     editable = true,
 
                                     refreshToken = function(element, info)
-                                        if not info.token.properties:IsMonster() then
+                                        local props = info.token.properties
+                                        if not (props:IsMonster() or props:IsCompanion()) then
                                             return
                                         end
 
-                                        local attack = info.token.properties:OpportunityAttack()
+                                        element.editable = not props:IsCompanion()
+
+                                        local attack = props:OpportunityAttack()
                                         element.text = string.format("%d", round(attack))
                                     end,
 
@@ -3556,11 +3447,12 @@ local function DSCharSheet()
                                     editable = true,
 
                                     refreshToken = function(element, info)
-                                        if not info.token.properties:IsMonster() then
+                                        local props = info.token.properties
+                                        if not (props:IsMonster() or props:IsCompanion()) then
                                             return
                                         end
 
-                                        local ev = info.token.properties.ev
+                                        local ev = props.ev
                                         element.text = string.format("%d", round(ev))
                                     end,
 
@@ -3586,7 +3478,8 @@ local function DSCharSheet()
                             flow = "vertical",
 
                             refreshToken = function(element, info)
-                                element:SetClass("collapsed", info.token.properties:IsMonster())
+                                local props = info.token.properties
+                                element:SetClass("collapsed", props:IsMonster() or props:IsCompanion())
                             end,
 
                             --Victories label
@@ -3617,38 +3510,65 @@ local function DSCharSheet()
 
                                 gui.Panel {
 
-                                    styles = {
+                                    styles = ThemeEngine.MergeTokens{
+                                        {
+                                            selectors = { "notch" },
+                                            width = string.format("%f%%", 100 / 15),
+                                            height = "100%",
+                                            borderColor = "@border",
+                                            bgcolor = "@bg",
+                                            cornerRadius = 0,
+                                            priority = 5,
+                                        },
                                         {
                                             selectors = { "notch", "left" },
                                             beveledcorners = true,
                                             cornerRadius = { x1 = 8, y1 = 0, x2 = 0, y2 = 8 },
+                                            priority = 10,
                                         },
                                         {
                                             selectors = { "notch", "right" },
                                             beveledcorners = true,
                                             cornerRadius = { x1 = 0, y1 = 8, x2 = 8, y2 = 0 },
-                                        },
-                                        {
-                                            selectors = { "notch" },
-                                            width = string.format("%f%%", 100 / 15),
-                                            height = "100%",
-                                            borderColor = border_color,
-                                            border = 2,
-                                            bgcolor = "black",
+                                            priority = 10,
                                         },
                                         {
                                             selectors = { "notch", "filled" },
-                                            bgcolor = "#aaaaff",
+                                            bgcolor = "@accent",
+                                            priority = 10,
                                         },
                                         {
                                             selectors = { "notch", "hover" },
-                                            bgcolor = "#aaaaaa",
+                                            bgcolor = "@fgMuted",
+                                            priority = 10,
                                         },
                                         {
                                             selectors = { "notch", "hover", "filled" },
-                                            bgcolor = "#ffaaff",
+                                            bgcolor = "@accentHover",
+                                            priority = 10,
                                         },
                                     },
+
+                                    create = function(element)
+                                        local function rebuild()
+                                            return ThemeEngine.MergeTokens{
+                                                { selectors = {"notch"}, width = string.format("%f%%", 100 / 15), height = "100%",
+                                                  borderColor = "@border", bgcolor = "@bg", cornerRadius = 0, priority = 5 },
+                                                { selectors = {"notch", "left"}, beveledcorners = true,
+                                                  cornerRadius = { x1 = 8, y1 = 0, x2 = 0, y2 = 8 }, priority = 10 },
+                                                { selectors = {"notch", "right"}, beveledcorners = true,
+                                                  cornerRadius = { x1 = 0, y1 = 8, x2 = 8, y2 = 0 }, priority = 10 },
+                                                { selectors = {"notch", "filled"}, bgcolor = "@accent", priority = 10 },
+                                                { selectors = {"notch", "hover"}, bgcolor = "@fgMuted", priority = 10 },
+                                                { selectors = {"notch", "hover", "filled"}, bgcolor = "@accentHover", priority = 10 },
+                                            }
+                                        end
+                                        ThemeEngine.OnThemeChanged(mod, function()
+                                            if element ~= nil and element.valid then
+                                                element.styles = rebuild()
+                                            end
+                                        end)
+                                    end,
 
                                     refreshToken = function(element, info)
                                         if element.data.init == nil then
@@ -3670,7 +3590,8 @@ local function DSCharSheet()
                                         for i = 1, 15 do
                                             local index = i
                                             children[#children + 1] = gui.Panel {
-                                                classes = { "notch", cond(i == 1, "left"), cond(i == 15, "right") },
+                                                classes = { "notch", "bordered", cond(i == 1, "left"), cond(i == 15, "right") },
+                                                -- cornerRadius = cond(i == 1, nil, cond(i == 15, nil, 0)),
                                                 bgimage = true,
                                                 press = function()
                                                     local token = CharacterSheet.instance.data.info.token
@@ -3725,8 +3646,8 @@ local function DSCharSheet()
 
                             gui.Panel {
 
+                                classes = {"cs-divider-line"},
                                 bgimage = true,
-                                bgcolor = border_color,
                                 width = "6%",
                                 height = "80%",
                                 halign = "left",
@@ -3738,8 +3659,8 @@ local function DSCharSheet()
 
                             gui.Panel {
 
+                                classes = {"cs-divider-line"},
                                 bgimage = true,
-                                bgcolor = border_color,
                                 width = "6%",
                                 height = "80%",
                                 valign = "center",
@@ -3828,8 +3749,8 @@ local function DSCharSheet()
                     --big divider
                     gui.Panel {
 
+                        classes = {"cs-divider-line"},
                         bgimage = true,
-                        bgcolor = border_color,
                         width = "95%",
                         height = 2,
                         halign = "center",
@@ -3851,13 +3772,11 @@ local function DSCharSheet()
 
                         gui.Panel {
 
+                            classes = {"bordered"},
                             bgimage = true,
-                            bgcolor = bg_color,
                             width = "30%",
                             height = "80%",
 
-                            border = 2,
-                            borderColor = border_color,
                             beveledcorners = true,
                             cornerRadius = 12,
 
@@ -3926,13 +3845,11 @@ local function DSCharSheet()
 
                         gui.Panel {
 
+                            classes = {"bordered"},
                             bgimage = true,
-                            bgcolor = bg_color,
                             width = "30%",
                             height = "80%",
 
-                            border = 2,
-                            borderColor = border_color,
                             beveledcorners = true,
                             cornerRadius = 12,
 
@@ -4000,13 +3917,11 @@ local function DSCharSheet()
 
                         gui.Panel {
 
+                            classes = {"bordered"},
                             bgimage = true,
-                            bgcolor = bg_color,
                             width = "30%",
                             height = "80%",
 
-                            border = 2,
-                            borderColor = border_color,
                             beveledcorners = true,
                             cornerRadius = 12,
 
@@ -4111,13 +4026,11 @@ local function DSCharSheet()
                 --frame
                 gui.Panel {
 
+                    classes = {"bordered"},
                     bgimage = true,
-                    bgcolor = bg_color,
                     width = "95%",
                     height = "80%",
 
-                    border = 2,
-                    borderColor = border_color,
                     beveledcorners = true,
                     cornerRadius = 15,
 
@@ -4155,10 +4068,9 @@ local function DSCharSheet()
 
                         gui.Panel {
 
+                            classes = {"bordered"},
                             bgimage = true,
                             bgcolor = "clear",
-                            border = 2,
-                            borderColor = border_color,
                             beveledcorners = true,
                             cornerRadius = 10,
 
@@ -4184,7 +4096,6 @@ local function DSCharSheet()
 
                                     text = "TEMP:",
                                     fontSize = 15,
-                                    color = border_color,
                                     halign = "right",
                                     valign = "top",
                                     textAlignment = "top",
@@ -4267,8 +4178,8 @@ local function DSCharSheet()
 
                             gui.Panel {
 
+                                classes = {"cs-divider-line"},
                                 bgimage = true,
-                                bgcolor = border_color,
                                 width = 2,
                                 height = "80%",
                                 valign = "center",
@@ -4278,7 +4189,6 @@ local function DSCharSheet()
 
                                 text = "Healthy",
                                 fontSize = 13,
-                                color = border_color,
                                 halign = "center",
                                 valign = "center",
                                 lmargin = 6,
@@ -4308,16 +4218,15 @@ local function DSCharSheet()
 
                         gui.Panel {
 
+                            classes = {"cs-divider-line"},
                             bgimage = mod.images.shield2,
-                            bgcolor = border_color,
-
 
                             width = 120,
                             height = 120,
                             halign = "horizontal",
                             valign = "center",
 
-                            lmargin = 0,
+                            lmargin = -2,
 
                             gui.Panel {
                                 id = "staminaContainer",
@@ -4397,7 +4306,7 @@ local function DSCharSheet()
 
                                     refreshToken = function(element, info)
                                         --monsters can direct edit stamina.
-                                        element.editable = info.token.properties:IsMonster()
+                                        element.editable = info.token.properties:IsMonster() or info.token.properties:IsCompanion()
 
                                         local maxhp = info.token.properties:MaxHitpoints()
                                         element.text = string.format("/%d", math.tointeger(maxhp))
@@ -4405,7 +4314,7 @@ local function DSCharSheet()
 
                                     press = function(element)
                                         local token = CharacterSheet.instance.data.info.token
-                                        if token.properties:IsMonster() then
+                                        if token.properties:IsMonster() or token.properties:IsCompanion() then
                                             return
                                         end
                                         local baseValue = token.properties:BaseHitpoints()
@@ -4427,8 +4336,8 @@ local function DSCharSheet()
                     --divider 1
                     gui.Panel {
 
+                        classes = {"cs-divider-line"},
                         bgimage = true,
-                        bgcolor = border_color,
                         width = 2,
                         height = "85%",
 
@@ -4465,10 +4374,10 @@ local function DSCharSheet()
 
                         gui.Panel {
 
+                            classes = {"bordered"},
                             bgimage = true,
                             bgcolor = "clear",
                             border = 3,
-                            borderColor = border_color,
 
                             width = 80,
                             height = 80,
@@ -4627,8 +4536,8 @@ local function DSCharSheet()
                     --divider 2
                     gui.Panel {
 
+                        classes = {"cs-divider-line"},
                         bgimage = true,
-                        bgcolor = border_color,
                         width = 2,
                         height = "85%",
 
@@ -4679,10 +4588,10 @@ local function DSCharSheet()
 
                         gui.Panel {
 
+                            classes = {"bordered"},
                             bgimage = true,
                             bgcolor = "clear",
                             border = 3,
-                            borderColor = border_color,
 
                             width = 80,
                             height = 80,
@@ -4741,8 +4650,8 @@ local function DSCharSheet()
                     --divider 3
                     gui.Panel {
 
+                        classes = {"cs-divider-line"},
                         bgimage = true,
-                        bgcolor = border_color,
                         width = 2,
                         height = "85%",
 
@@ -4777,10 +4686,10 @@ local function DSCharSheet()
 
                         gui.Panel {
 
+                            classes = {"bordered"},
                             bgimage = true,
                             bgcolor = "clear",
                             border = 3,
-                            borderColor = border_color,
 
                             width = 80,
                             height = 80,
@@ -4843,6 +4752,11 @@ local function DSCharSheet()
 
     }
 
+    ThemeEngine.OnThemeChanged(mod, function()
+        if DSCharSheetPanel ~= nil and DSCharSheetPanel.valid then
+            DSCharSheetPanel.styles = buildSheetStyles()
+        end
+    end)
 
     return DSCharSheetPanel
 end
@@ -4918,7 +4832,8 @@ function CharSheet.NotesInnerPanel()
                         end
                     end,
                 },
-                gui.DeleteItemButton {
+                gui.Button {
+                    classes = {"deleteButton"},
                     width = 24,
                     height = 24,
                     halign = "right",
@@ -4988,7 +4903,8 @@ function CharSheet.NotesInnerPanel()
         return resultPanel
     end
 
-    local addNotesButton = gui.AddButton {
+    local addNotesButton = gui.Button {
+        classes = {"addButton"},
         hmargin = 15,
         height = 24,
         width = 24,
@@ -5082,15 +4998,16 @@ local function CharacterSheetEditLanguagesPopup(element)
                 local lang = languagesTable[k]
                 if lang ~= nil then
                     children[#children + 1] = gui.Label {
+                        classes = {"sizeM"},
                         width = "80%",
                         height = 20,
                         flow = "horizontal",
                         text = lang.name,
-                        fontSize = 16,
                         textAlignment = "left",
                         halign = "center",
 
-                        gui.DeleteItemButton {
+                        gui.Button {
+                            classes = {"deleteButton"},
                             width = 16,
                             height = 16,
                             halign = "right",
@@ -5112,6 +5029,8 @@ local function CharacterSheetEditLanguagesPopup(element)
     }
 
     children[#children + 1] = gui.Dropdown {
+        height = 30,
+        width = "auto",
         vmargin = 8,
         hasSearch = true,
         create = function(element)
@@ -5164,25 +5083,19 @@ local function CharacterSheetEditLanguagesPopup(element)
 
     element.popupPositioning = "panel"
 
-    resultPanel = gui.TooltipFrame(
-        gui.Panel {
-            width = 340,
-            height = "auto",
-            styles = {
-                Styles.Default,
-                PopupStyles,
-                CharSheet.GetCharacterSheetStyles(),
-            },
-
-            children = children,
-        },
-
-        {
-            halign = "right",
-            valign = "center",
-            interactable = true,
-        }
-    )
+    resultPanel = gui.Panel {
+        classes = {"framedPanel"},
+        halign = "right",
+        valign = "center",
+        interactable = true,
+        flow = "vertical",
+        hpad = 24,
+        vpad = 14,
+        width = 340,
+        height = "auto",
+        styles = ThemeEngine.GetStyles(),
+        children = children,
+    }
 
     parentElement.popup = resultPanel
 end
@@ -5197,19 +5110,18 @@ function CharSheet.LanguagesPanel()
 
         gui.Panel {
 
+            classes = {"bordered"},
             width = "100%",
             height = "100%",
             bgimage = true,
-            bgcolor = bg_color,
-            border = 2,
-            borderColor = border_color,
             beveledcorners = true,
             cornerRadius = 15,
 
             valign = "center",
             flow = "vertical",
 
-            gui.SettingsButton {
+            gui.Button {
+                classes = {"settingsButton"},
                 floating = true,
                 halign = "right",
                 valign = "top",
@@ -5229,7 +5141,6 @@ function CharSheet.LanguagesPanel()
             gui.Label {
 
                 text = "Languages",
-                color = border_color,
                 fontSize = 20,
                 width = "auto",
                 height = "auto",
@@ -5239,9 +5150,7 @@ function CharSheet.LanguagesPanel()
             },
 
 
-            gui.Divider {
-                width = "80%",
-            },
+            gui.MCDMDivider { width = "80%",},
 
             gui.Label {
                 width = "90%",
@@ -5305,7 +5214,7 @@ function CharSheet.KitPanel()
         bgimage = true,
         bgcolor = "clear",
 
-        styles = {
+        styles = ThemeEngine.MergeTokens{
             {
                 selectors = { "valueLabel" },
                 bold = true,
@@ -5313,12 +5222,12 @@ function CharSheet.KitPanel()
                 hpad = 6,
                 textWrap = false,
                 minFontSize = 12,
-                color = "white",
+                color = "@fgStrong",
                 textAlignment = "center",
                 bgimage = "panels/square.png",
                 bgcolor = "clear",
                 beveledcorners = true,
-                borderColor = border_color,
+                borderColor = "@border",
                 border = 1,
                 cornerRadius = 4,
                 width = "100%",
@@ -5345,12 +5254,10 @@ function CharSheet.KitPanel()
 
         gui.Panel {
 
+            classes = {"bordered"},
             width = "100%",
             height = "98%",
             bgimage = true,
-            bgcolor = bg_color,
-            border = 2,
-            borderColor = border_color,
             beveledcorners = true,
             cornerRadius = 15,
 
@@ -5367,7 +5274,6 @@ function CharSheet.KitPanel()
                 gui.Label {
 
                     text = "Kit",
-                    color = border_color,
                     fontSize = 20,
                     halign = "center",
                     valign = "top",
@@ -5376,19 +5282,16 @@ function CharSheet.KitPanel()
 
                 },
 
-                gui.Divider {
-
-                    width = "80%",
-                },
+                gui.MCDMDivider { width = "80%", },
 
                 gui.Panel {
 
+                    classes = {"bordered"},
                     width = "70%",
                     height = 40,
                     bgimage = true,
                     bgcolor = "clear",
                     border = 1,
-                    borderColor = border_color,
                     beveledcorners = true,
                     cornerRadius = 10,
                     halign = "center",
@@ -5400,7 +5303,6 @@ function CharSheet.KitPanel()
                         text = "Name",
                         width = "auto",
                         height = "auto",
-                        color = border_color,
                         fontSize = 15,
                         halign = "center",
 
@@ -5418,7 +5320,6 @@ function CharSheet.KitPanel()
                     text = "Name",
                     width = "auto",
                     height = "auto",
-                    color = border_color,
                     fontSize = 15,
                     halign = "center",
                     valign = "top",
@@ -5694,7 +5595,8 @@ function CharSheet.InnerFeaturesPanel()
                                 end,
 
                                 label,
-                                gui.DeleteItemButton {
+                                gui.Button {
+                                    classes = {"deleteButton"},
                                     width = 24,
                                     height = 24,
                                     halign = "right",
@@ -5820,7 +5722,8 @@ function CharSheet.InnerFeaturesPanel()
                                 end,
 
                                 label,
-                                gui.DeleteItemButton {
+                                gui.Button {
+                                    classes = {"deleteButton"},
                                     width = 24,
                                     height = 24,
                                     halign = "right",
@@ -5864,7 +5767,6 @@ function CharSheet.FeaturesAndNotesPanel()
     local CreateTab = function(text, index)
         return gui.Label {
             classes = { "tab", cond(index == 1, "selected") },
-            bgimage = true,
             text = text,
             press = function(element)
                 for i, panel in ipairs(element.parent.children) do
@@ -5901,31 +5803,19 @@ function CharSheet.FeaturesAndNotesPanel()
 
     local resultPanel
     resultPanel = gui.Panel {
+        classes = {"bordered"},
         width = "100%-40",
         height = "55.3%",
         bgimage = true,
-        bgcolor = bg_color,
         valign = "top",
         halign = "center",
-        borderColor = border_color,
-        borderWidth = 2,
         flow = "vertical",
-
-        styles = {
-            Styles.Tabs,
-
-        },
 
         --tab panel.
         gui.Panel {
-            flow = "horizontal",
+            classes = {"tabBar"},
             valign = "top",
             width = "100%",
-            height = "auto",
-            bgimage = true,
-            bgcolor = "clear",
-            borderColor = "#aaaaaa",
-            borderWidth = 1,
             CreateTab("Notes", 1),
             CreateTab("Features", 2),
             CreateTab("Followers", 3),

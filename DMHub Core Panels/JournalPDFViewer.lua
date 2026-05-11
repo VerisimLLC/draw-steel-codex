@@ -2487,8 +2487,7 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page)
             doc = doc,
         },
         styles = {
-            Styles.Default,
-            Styles.Panel,
+            ThemeEngine.GetStyles(),
 
             {
                 selectors = { "framedPanel" },

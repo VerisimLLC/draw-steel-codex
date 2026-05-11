@@ -259,7 +259,8 @@ mod.shared.InventoryCompendiumEditor = function(categories)
 		end,
 	}
 
-	local addItemButton = gui.AddButton{
+	local addItemButton = gui.Button{
+		classes = {"addButton"},
 		width = 24,
 		height = 24,
 		halign = "right",
@@ -381,7 +382,6 @@ mod.shared.InventoryCompendiumEditor = function(categories)
                 selectors = {"checkbox-label"},
                 fontSize = 12,
             },
-			Styles.ImplementationIcon,
 		},
 	}
 

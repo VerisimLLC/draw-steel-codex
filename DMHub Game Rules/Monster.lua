@@ -459,6 +459,8 @@ end
 AddGoblinScriptDerived(creature, monster)
 
 --monsters die as soon as they are down.
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMCreature.lua:2041
 function monster:IsDead()
 	return self:IsDown()
 end
+--]==]

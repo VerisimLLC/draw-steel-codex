@@ -1388,7 +1388,7 @@ local function AbilityHeading(args)
                 improvements = m_activeImprovements,
             }
 
-            g_abilityController:FireEventTree("beginCasting", m_ability, { targets = args.targets, cast = args.cast, fromui = true })
+            g_abilityController:FireEventTree("beginCasting", m_ability, { targets = args.targets, cast = args.cast, symbols = args.symbols, fromui = true })
         end,
 
         gui.Label {
@@ -2097,6 +2097,29 @@ local function GetArrowColor(ability, sourceToken, targetToken)
     return "black"
 end
 
+-- For arrow greying: returns the smaller of the ability range and any active
+-- per-creature line-of-effect cap on either token (e.g. Dazzled). LoE limits
+-- are stored as a square count, so they're scaled to dmhub units to match
+-- range. Returns nil only if range is also nil.
+local function EffectiveArrowRange(sourceToken, targetToken, range)
+    local function loeUnits(tok)
+        if tok == nil or tok.properties == nil then return nil end
+        local limit = tok.properties:CalculateNamedCustomAttribute("Line Of Effect Limit") or 0
+        if limit <= 0 then return nil end
+        return limit * dmhub.unitsPerSquare
+    end
+    local effective = range
+    local sourceUnits = loeUnits(sourceToken)
+    local targetUnits = loeUnits(targetToken)
+    if sourceUnits ~= nil and (effective == nil or sourceUnits < effective) then
+        effective = sourceUnits
+    end
+    if targetUnits ~= nil and (effective == nil or targetUnits < effective) then
+        effective = targetUnits
+    end
+    return effective
+end
+
 local function AddModifierLabelsToMarker(markers, sourceToken, targetToken, ability, range)
     if markers == nil or ability == nil or sourceToken == nil or targetToken == nil then
         return
@@ -2106,6 +2129,25 @@ local function AddModifierLabelsToMarker(markers, sourceToken, targetToken, abil
     if sourceToken:GetLineOfSight(targetToken, pierceWalls) == 0 then
         markers:AddLabel("No Line of Sight", "forbidden")
         return
+    end
+
+    -- Per-creature line-of-effect cap (e.g. the Dazzled condition's "line of
+    -- effect only within 1 square"). Fires for either token, since LoE is
+    -- mutual: a Dazzled caster can't reach distant targets, and distant
+    -- attackers can't reach a Dazzled target.
+    local function loeLimit(tok)
+        if tok == nil or tok.properties == nil then return 0 end
+        return tok.properties:CalculateNamedCustomAttribute("Line Of Effect Limit") or 0
+    end
+    local sourceLoeLimit = loeLimit(sourceToken)
+    local targetLoeLimit = loeLimit(targetToken)
+    if sourceLoeLimit > 0 or targetLoeLimit > 0 then
+        local distSquares = sourceToken:Distance(targetToken) / dmhub.unitsPerSquare
+        if (sourceLoeLimit > 0 and distSquares > sourceLoeLimit) or
+           (targetLoeLimit > 0 and distSquares > targetLoeLimit) then
+            markers:AddLabel("Beyond Line of Effect", "forbidden")
+            return
+        end
     end
 
     -- Match the validity check in CalculateSpellTargetFocusing: failReason
@@ -2161,7 +2203,7 @@ local function ReplaceTargetLineOfSightRays(rays, ability, range)
         if m_targetLineOfSightRays[key] ~= nil then
             t[key] = m_targetLineOfSightRays[key]
         else
-            t[key] = dmhub.MarkLineOfSight(ray.a, ray.b, ray.a.properties:GetPierceWalls(), GetArrowColor(ability, ray.a, ray.b), range)
+            t[key] = dmhub.MarkLineOfSight(ray.a, ray.b, ray.a.properties:GetPierceWalls(), GetArrowColor(ability, ray.a, ray.b), EffectiveArrowRange(ray.a, ray.b, range))
             AddModifierLabelsToMarker(t[key], ray.a, ray.b, ability, range)
         end
         m_targetLineOfSightRays[key] = nil
@@ -3011,6 +3053,37 @@ local function CreateSynthesizedSpellsPanel()
             end
 
             local synth = g_currentAbility:SynthesizeAbilities(g_creature)
+
+            --For invoked abilities the upstream bifurcation in GetActivatedAbilities
+            --doesn't run, so a dual-keyword (Melee + Ranged) custom ability arrives here
+            --as a single entry. Inject both variants into the synth list so the player
+            --gets the same melee/ranged chip picker they'd see on the regular action bar.
+            --BifurcateIntoMeleeAndRanged is idempotent (returns self with variants attached
+            --after first call), so we always call it and read the variants off the result.
+            if g_currentAbility:HasKeyword("Melee") and g_currentAbility:HasKeyword("Ranged")
+                and not g_currentAbility:try_get("disableSplitIntoMeleeAndRanged", false) then
+                local bifurcated = g_currentAbility:BifurcateIntoMeleeAndRanged(g_creature)
+                if bifurcated:try_get("meleeAndRanged", false) then
+                    --Propagate OnBeginCast/OnFinishCast from the parent so the InvokeAbility
+                    --behavior's finishHandler still fires when the player picks a variant.
+                    --Without this the parent's wait loop never sees finishedCasting=true and
+                    --the echo prompt re-fires endlessly.
+                    local parentOnBegin = g_currentAbility:try_get("OnBeginCast")
+                    local parentOnFinish = g_currentAbility:try_get("OnFinishCast")
+                    if parentOnBegin ~= nil then
+                        bifurcated.meleeVariation.OnBeginCast = parentOnBegin
+                        bifurcated.rangedVariation.OnBeginCast = parentOnBegin
+                    end
+                    if parentOnFinish ~= nil then
+                        bifurcated.meleeVariation.OnFinishCast = parentOnFinish
+                        bifurcated.rangedVariation.OnFinishCast = parentOnFinish
+                    end
+                    synth = synth or {}
+                    synth[#synth+1] = bifurcated.meleeVariation
+                    synth[#synth+1] = bifurcated.rangedVariation
+                end
+            end
+
             element.data.synthesized = synth
             if synth == nil then
                 element:SetClass("collapsed", true)
@@ -3030,6 +3103,9 @@ local function CreateSynthesizedSpellsPanel()
                     synthesized = true,
                     cast = cast,
                     ability = a,
+                    --Forward the current symbol table so flags like `forcedroll` (set by
+                    --InvokeAbility with inheritRoll=true) survive the chip-pick handoff.
+                    symbols = g_currentSymbols,
                 }
                 for k, v in pairs(addedSpellOptions or {}) do
                     spellOptions[k] = v
@@ -4142,7 +4218,7 @@ CreateAbilityController = function()
                 --new one to highlight and maintain any existing ones.
                 for _, ray in ipairs(rays) do
                     if ray.b.id == targetToken.id and m_targetLineOfSightRays[string.format("%s-%s", ray.a.id, ray.b.id)] == nil then
-                        m_markLineOfSight = dmhub.MarkLineOfSight(ray.a, ray.b, ray.a.properties:GetPierceWalls(), GetArrowColor(g_currentAbility, ray.a, ray.b), range)
+                        m_markLineOfSight = dmhub.MarkLineOfSight(ray.a, ray.b, ray.a.properties:GetPierceWalls(), GetArrowColor(g_currentAbility, ray.a, ray.b), EffectiveArrowRange(ray.a, ray.b, range))
                         AddModifierLabelsToMarker(m_markLineOfSight, ray.a, ray.b, g_currentAbility, range)
                         m_markLineOfSightToken = targetToken
                         m_markLineOfSightSourceToken = g_token
@@ -4151,7 +4227,7 @@ CreateAbilityController = function()
                 end
             else
                 --we just target from the source to the target.
-                m_markLineOfSight = dmhub.MarkLineOfSight(g_token, targetToken, g_token.properties:GetPierceWalls(), GetArrowColor(g_currentAbility, g_token, targetToken), range)
+                m_markLineOfSight = dmhub.MarkLineOfSight(g_token, targetToken, g_token.properties:GetPierceWalls(), GetArrowColor(g_currentAbility, g_token, targetToken), EffectiveArrowRange(g_token, targetToken, range))
                 if m_markLineOfSight ~= nil then
                     AddModifierLabelsToMarker(m_markLineOfSight, g_token, targetToken, g_currentAbility, range)
                     m_markLineOfSightToken = targetToken
@@ -4313,6 +4389,7 @@ CreateAbilityController = function()
                         rebound = reboundOptions.rebound,
                         maxBounces = reboundOptions.maxBounces,
                         forcedMovementDistance = previewForcedDist,
+                        slide = (g_currentSymbols.forcedmovement or g_currentAbility:try_get("forcedMovement")) == "vertical_slide",
                     })
                     
                     if movementInfo ~= nil then
@@ -5306,7 +5383,17 @@ local function CalculateSpellTargetFocusing(symbols)
                 end
 
                 if canTarget and targetToken.properties:HasNamedCondition("Hidden") and g_currentAbility:HasKeyword("Strike") then
-                    failReason = "Cannot target a hidden creature with a strike"
+                    local ignoreRange = g_token.properties:CalculateNamedCustomAttribute("Ignore Hidden at Range") or 0
+                    local bypass = false
+                    if ignoreRange > 0 then
+                        local dist = g_token:Distance(targetToken)
+                        if dist <= ignoreRange + dmhub.unitsPerSquare then
+                            bypass = true
+                        end
+                    end
+                    if not bypass then
+                        failReason = "Cannot target a hidden creature with a strike"
+                    end
                 end
 
                 if targetToken.properties:CalculateNamedCustomAttribute("Untargetable") > 0 then

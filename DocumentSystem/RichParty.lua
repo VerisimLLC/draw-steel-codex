@@ -16,18 +16,16 @@ end
 
 function RichParty.CreateDisplay(self)
     local resultPanel
-    print("PARTY:: CREATE")
 
     local m_token = {}
 
     local nameLabel = gui.Label {
+        classes = {"sizeL", "bold"},
         text = "Party Members",
         textAlignment = "center",
         halign = "center",
         valign = "bottom",
-        fontSize = 18,
         minFontSize = 12,
-        bold = true,
         width = 300,
         height = 24,
         refreshTag = function(element, tag, match)
@@ -36,11 +34,10 @@ function RichParty.CreateDisplay(self)
             end
         end,
 
-        gui.AddButton {
+        gui.Button {
+            classes = {"addButton", "sizeS"},
             halign = "right",
             valign = "center",
-            width = 16,
-            height = 16,
             refreshTag = function(element, richTag, patternMatch, token)
                 token = token or m_token
                 element:SetClass("collapsed", token.player)
@@ -163,8 +160,8 @@ function RichParty.CreateDisplay(self)
                         local state = self:get_or_add("state", {})
                         local currentState = state[charid]
                         if currentState == nil then
-                            currentState = "highlight"
-                        elseif currentState == "highlight" then
+                            currentState = "selected"
+                        elseif currentState == "selected" then
                             currentState = "disabled"
                         else
                             currentState = nil
@@ -221,29 +218,19 @@ function RichParty.CreateDisplay(self)
                         end
                     end,
                     gui.Panel {
-                        classes = "tokenImage",
+                        classes = {"tokenImage", "image"},
                         width = "78% height",
                         height = 120,
                         halign = "center",
                         valign = "top",
-                        bgimage = true,
-                        bgcolor = "white",
                         token = function(element, token)
                             local portrait = token.offTokenPortrait
                             element.bgimage = portrait
                             element.selfStyle.imageRect = token:GetPortraitRectForAspect(78 * 0.01, portrait)
                         end,
 
-                        gui.CloseButton {
-                            styles = {
-                                {
-                                    hidden = 1,
-                                },
-                                {
-                                    selectors = { "parent:hover", "dm" },
-                                    hidden = 0,
-                                },
-                            },
+                        gui.Button {
+                            classes = {"closeButton", "sizeXxs", cond(not dmhub.isDM, "hidden")},
                             refreshTag = function(element, richTag, patternMatch, token)
                                 token = token or m_token
                                 element:SetClass("collapsed", token.player)
@@ -251,8 +238,6 @@ function RichParty.CreateDisplay(self)
                             escapeActivates = false,
                             halign = "right",
                             valign = "top",
-                            width = 12,
-                            height = 12,
                             hmargin = 2,
                             vmargin = 2,
                             press = function(element)
@@ -265,7 +250,7 @@ function RichParty.CreateDisplay(self)
                         }
                     },
                     gui.Label {
-                        fontSize = 12,
+                        classes = {"sizeXxs"},
                         width = 100,
                         height = 20,
                         textAlignment = "center",
@@ -282,7 +267,8 @@ function RichParty.CreateDisplay(self)
                 tokenPanel:FireEventTree("token", character)
 
                 local panelState = state ~= nil and state[charid]
-                tokenPanel:SetClassTree("highlight", panelState == "highlight")
+                tokenPanel:SetClassTree("selected", panelState == "selected")
+                tokenPanel:SetClass("bordered", panelState == "selected")
                 tokenPanel:SetClassTree("disabled", panelState == "disabled")
 
                 newTokenPanels[charid] = tokenPanel
@@ -386,8 +372,43 @@ function RichParty.CreateDisplay(self)
         end,
     }
 
+    local tokenPanelStyles = {
+        {
+            selectors = {"tokenPanel", "selected"},
+            y = -8,
+            transitionTime = 0.2,
+        },
+        {
+            selectors = {"tokenImage", "selected"},
+            transitionTime = 0.2,
+            brightness = 1.2,
+        },
+        {
+            selectors = {"tokenImage", "disabled"},
+            transitionTime = 0.2,
+            brightness = 0.7,
+            saturation = 0.2,
+        },
+        {
+            selectors = { "tokenPanel", "new" },
+            uiscale = { x = 0, y = 1 },
+            transitionTime = 0.2,
+            brightness = 3,
+        },
+        {
+            selectors = { "tokenPanel", "remove" },
+            uiscale = { x = 0, y = 1 },
+            transitionTime = 0.2,
+        },
+    }
     resultPanel = gui.Panel {
-        classes = "richParty",
+        styles = tokenPanelStyles,
+        classes = {"richParty", "bordered"},
+        dragTarget = true,
+        minWidth = 300,
+        width = "auto",
+        height = 200,
+        flow = "vertical",
         data = {
             GetDocument = function()
                 return self:try_get("_tmp_document")
@@ -397,75 +418,6 @@ function RichParty.CreateDisplay(self)
             end,
 
         },
-
-        styles = {
-            {
-                selectors = { "richParty" },
-                borderColor = "#FFFFFF66",
-                borderWidth = 1,
-            },
-            {
-                selectors = { "richParty", "drag-target" },
-                borderColor = "white",
-            },
-            {
-                selectors = { "richParty", "drag-target-hover" },
-                borderColor = "yellow",
-            },
-            {
-                selectors = { "tokenPanel", "hover", "~playerview" },
-                borderWidth = 1,
-                borderColor = "#ffffff88",
-            },
-            {
-                selectors = {"tokenPanel", "highlight"},
-                borderWidth = 2,
-                borderColor = "white",
-                y = -8,
-                transitionTime = 0.2,
-            },
-            {
-                selectors = {"tokenImage", "highlight"},
-                transitionTime = 0.2,
-                brightness = 1.2,
-            },
-            {
-                selectors = {"tokenImage", "disabled"},
-                transitionTime = 0.2,
-                brightness = 0.7,
-                saturation = 0.2,
-            },
-            {
-                selectors = { "tokenPanel", "drag-target" },
-                borderWidth = 1,
-                borderColor = "white",
-            },
-            {
-                selectors = { "tokenPanel", "drag-target-hover" },
-                borderWidth = 1,
-                borderColor = "yellow",
-            },
-            {
-                selectors = { "tokenPanel", "new" },
-                uiscale = { x = 0, y = 1 },
-                transitionTime = 0.2,
-                brightness = 3,
-            },
-            {
-                selectors = { "tokenPanel", "remove" },
-                uiscale = { x = 0, y = 1 },
-                transitionTime = 0.2,
-            },
-        },
-
-        dragTarget = true,
-
-        minWidth = 300,
-        width = "auto",
-        height = 200,
-        flow = "vertical",
-        bgimage = true,
-        bgcolor = "clear",
 
         press = function(element)
             if element.popup ~= nil then
@@ -491,6 +443,7 @@ function RichParty.CreateDisplay(self)
                 }
             }
 
+            element.popupsInheritStyles = true
             element.popup = gui.ContextMenu {
                 entries = entries,
             }

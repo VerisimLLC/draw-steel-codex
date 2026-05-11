@@ -61,6 +61,7 @@ function GameHud.ClearMapTooltip(self)
 end
 
 --functions called by dmhud to indicate that a token is moving or has finished moving.
+--[==[ DEAD_CODE - overridden by Draw Steel UI\DSHud.lua:4
 function GameHud.TokenMoving(self, token, path)
 	
 	local diagonals = dmhub.GetSettingValue("truediagonals") and math.floor(path.numDiagonals/2) or 0
@@ -225,6 +226,7 @@ function GameHud.TokenMoving(self, token, path)
 		floorDelta = floorDelta,
 	})
 end
+--]==]
 
 function GameHud.FinishTokenMoving(self)
 	self.dialog.sheet.tooltip = nil
@@ -1049,8 +1051,10 @@ function GameHud:CreateAbilityDisplayPanel()
     return self.abilityDisplayPanel
 end
 
+--[==[ DEAD_CODE - overridden by Timeline\AbilitySidebar.lua:1080
 function GameHud:InitAbilityDisplayPanel(abilityDisplayPanel)
 end
+--]==]
 
 --return the presented dialog doc, if it exists and matches the given dialogid.
 function GameHud.GetPresentDialogDoc(dialogid)

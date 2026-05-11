@@ -314,80 +314,36 @@ end
 CharacterSkillDialog = RegisterGameType("CharacterSkillDialog")
 
 local dialogStyles = {
-    {   -- Base
-        selectors = {"skilldlg-base"},
-        fontSize = 18,
-        fontFace = "berling",
-        color = Styles.textColor,
-    },
-
-    {   -- Dialog
-        selectors = {"skilldlg-dialog", "skilldlg-base"},
-        halign = "center",
-        valign = "center",
-        bgcolor = "#111111ff",
-        borderWidth = 2,
-        borderColor = Styles.textColor,
-        bgimage = "panels/square.png",
-        flow = "vertical",
-        hpad = 8,
-        vpad = 8,
-    },
-
-    {   -- Panel base
-        selectors = {"skilldlg-panel", "skilldlg-base"},
+    {   -- Generic skilldlg panel layout (also picked up by wrappers)
+        selectors = {"skilldlg-panel"},
         width = "100%",
         height = "auto",
         valign = "center",
     },
-    {   -- Body Panel
-        selectors = {"skilldlg-body", "skilldlg-panel", "skilldlg-base"},
+    {   -- Body region
+        selectors = {"skilldlg-body"},
         flow = "vertical",
     },
-    {   -- Skill Section Panel
-        selectors = {"skilldlg-section", "skilldlg-panel", "skilldlg-base"},
+    {   -- Skill section
+        selectors = {"skilldlg-section"},
         flow = "vertical",
         vpad = 8,
     },
-
-    {   -- Label
-        selectors = {"skilldlg-label", "skilldlg-base"},
-        height = "auto",
-        bold = true,
+    {   -- Section-name header label: top-border divider
+        selectors = {"skilldlg-section-header"},
+        width = "98%",
+        border = {x1 = 0, x2 = 0, y1 = 1, y2 = 0},
+        borderColor = "@fgStrong",
     },
-    {   -- Choice Description
-        selectors = {"skilldlg-choicedescr", "skilldlg-label", "skilldlg-base"},
-        height = "auto",
-        fontSize = 12,
-        minFontSize = 8,
-        bold = false,
+    {   -- Choice description label custom margins (size handled by sizeXs class)
+        selectors = {"skilldlg-choicedescr"},
         vmargin = 6,
         hmargin = 2,
     },
-
-    {   -- Dropdown
-        selectors = {"skilldlg-dropdown", "skilldlg-base"},
-        bgcolor = Styles.backgroundColor,
-        borderWidth = 1,
-        borderColor = Styles.textColor,
-        height = 20,
-        hmargin = 4,
-        bold = false,
-    },
-
-    {   -- Button
-        selectors = {"skilldlg-button", "skilldlg-base"},
-        fontSize = 22,
-        textAlignment = "center",
-        bold = true,
-        height = 35,
-        cornerRadius = 4,
-    },
-
-    {   -- Duplicate flag
-        selectors = {"dup-flag", "skilldlg-base"},
+    {   -- Duplicate-skill warning pip
+        selectors = {"dup-flag"},
         bgimage = "icons/icon_app/icon_app_187.png",
-        bgcolor = "#cc0000",
+        bgcolor = "@danger",
         width = 20,
         height = 20,
         halign = "left",
@@ -421,7 +377,7 @@ local function wrapDisplay(skillId, item, uiComponent)
     } or nil
 
     local panel = gui.Panel{
-        classes = {"skilldlg-wrapper", "skilldlg-panel", "skilldlg-base"},
+        classes = {"skilldlg-wrapper", "skilldlg-panel"},
         width = "100%",
         valign = "top",
         pad = 4,
@@ -464,7 +420,7 @@ local function wrapDisplay(skillId, item, uiComponent)
         uiComponent,
         deleteButton,
         gui.Panel{
-            classes = {"dup-flag", "skilldlg-base", "collapsed"}
+            classes = {"dup-flag", "collapsed"}
         },
     }
     return panel
@@ -479,7 +435,7 @@ local function makeStaticSkillDisplay(item, skills)
     for _,skillId in ipairs(item.selected) do
         local panel = wrapDisplay(skillId, item,
             gui.Label{
-                classes = {"skilldlg-label", "skilldlg-base"},
+                classes = {"sizeS"},
                 text = skills.lookup[skillId],
                 data = {
                     skillId = skillId,
@@ -526,10 +482,8 @@ local function makeSkillDropdowns(item, skills)
         local skillId = selected[i]
         local panel = wrapDisplay(skillId, item,
             gui.Dropdown{
-                classes = {"skilldlg-dropdown", "skilldlg-base"},
                 options = skillOpts,
                 idChosen = skillId,
-                fontSize = 14,
                 textDefault = "Select a skill...",
                 hasSearch = true,
                 data = {
@@ -577,7 +531,7 @@ local function makeSkillPanel(item, skills)
     local skillItems = makeSkillDisplay(item, skills)
     local children = {
         gui.Label {
-            classes = {"skilldlg-choicedescr", "skilldlg-label", "skilldlg-base"},
+            classes = {"sizeXs", "skilldlg-choicedescr"},
             width = "90%",
             height = "auto",
             text = string.format("<b>%s:</b> %s", item.name, item.description)
@@ -585,7 +539,7 @@ local function makeSkillPanel(item, skills)
     }
     table.move(skillItems, 1, #skillItems, #children + 1, children)
     return gui.Panel{
-        classes = {"skilldlg-panel", "skilldlg-base"},
+        classes = {"skilldlg-panel"},
         flow = "vertical",
         data = {
             item = item,
@@ -660,7 +614,7 @@ local function formatSelectedSkillsByCategory(idsSelected, skills)
             local name = skills.lookup[skillId] or skillId
             local entry
             if count >= 2 then
-                entry = string.format('%s <color=red>(x%d)</color>', name, count)
+                entry = ThemeEngine.ResolveTokens(string.format('%s <color=@danger>(x%d)</color>', name, count))
             else
                 entry = name
             end
@@ -923,13 +877,12 @@ function CharacterSkillDialog.CreateAsChild(options)
     local resultPanel
 
     local headerPanel = gui.Panel{
-        classes = {"skilldlg-panel", "skilldlg-base"},
+        classes = {"skilldlg-panel"},
         valign = "top",
         flow = "vertical",
         gui.Label{
-            classes = {"skilldlg-label", "skilldlg-base"},
+            classes = {"sizeXl", "bold"},
             text = "Manage Skill Selections",
-            fontSize = 24,
             width = "100%",
             height = 30,
             textAlignment = "center",
@@ -938,7 +891,7 @@ function CharacterSkillDialog.CreateAsChild(options)
     }
 
     local summaryPanel = gui.Panel{
-        classes = {"skilldlg-body", "skilldlg-panel", "skilldlg-base"},
+        classes = {"skilldlg-body", "skilldlg-panel"},
         height = 80,
         width = "100%",
         halign = "center",
@@ -946,12 +899,10 @@ function CharacterSkillDialog.CreateAsChild(options)
         tmargin = 8,
         vscroll = true,
         gui.Label{
-            classes = {"skilldlg-label", "skilldlg-base"},
+            classes = {"sizeS"},
             width = "90%",
             valign = "top",
             vpad = 8,
-            bold = false,
-            fontSize = 14,
             text = "calculating...",
             onSetSummary = function(element, summary)
                 element.text = summary
@@ -972,18 +923,15 @@ function CharacterSkillDialog.CreateAsChild(options)
             local sectionName = id:sub(1,1):upper() .. id:sub(2) .. " Skills"
             local children = {
                 gui.Label {
-                    classes = {"skilldlg-label", "skilldlg-base"},
+                    classes = {"sizeS", "bold", "skilldlg-section-header"},
                     text = sectionName,
-                    width = "98%",
                     bgimage = true,
-                    borderColor = Styles.textColor,
-                    border = {x1 = 0, x2 = 0, y1 = 1, y2 = 0},
                 },
             }
             table.move(skillPanels, 1, #skillPanels, #children + 1, children)
             local section = gui.Panel{
                 id = id .. "-skills",
-                classes = {"skilldlg-section", "skilldlg-panel", "skilldlg-base"},
+                classes = {"skilldlg-section", "skilldlg-panel"},
                 valign = "top",
                 addSkill = function(element)
                     if element.id == "features-skills" then
@@ -1007,8 +955,8 @@ function CharacterSkillDialog.CreateAsChild(options)
         table.sort(skillSections, function(a,b) return a.id < b.id end)
     end
 
-    local addButton = gui.PrettyButton{
-        classes = {"skilldlg-button", "skilldlg-base"},
+    local addButton = gui.Button{
+        classes = {"sizeXs"},
         width = "auto",
         halign = "left",
         valign = "top",
@@ -1016,8 +964,6 @@ function CharacterSkillDialog.CreateAsChild(options)
         hpad = 20,
         vpad = 4,
         text = "Add A Skill",
-        fontSize = 12,
-        cornerRadius = 0,
         click = function(element)
             resultPanel:FireEventTree("addSkill")
         end
@@ -1025,7 +971,7 @@ function CharacterSkillDialog.CreateAsChild(options)
     skillSections[#skillSections + 1] = addButton
 
     local selectorPanel = gui.Panel{
-        classes = {"skilldlg-body", "skilldlg-panel", "skilldlg-base"},
+        classes = {"skilldlg-body", "skilldlg-panel"},
         height = "100%-90",
         width = "100%",
         halign = "left",
@@ -1035,7 +981,7 @@ function CharacterSkillDialog.CreateAsChild(options)
     }
 
     local bodyPanel = gui.Panel{
-        classes = {"skilldlg-body", "skilldlg-panel", "skilldlg-base"},
+        classes = {"skilldlg-body", "skilldlg-panel"},
         height = "100%-100,",
         flow = "vertical",
         valign = "center",
@@ -1045,11 +991,11 @@ function CharacterSkillDialog.CreateAsChild(options)
     }
 
     local footerPanel = gui.Panel{
-        classes = {"skilldlg-panel", "skilldlg-base"},
+        classes = {"skilldlg-panel"},
         flow = "horizontal",
         valign = "bottom",
         gui.Button{
-            classes = {"skilldlg-button", "skilldlg-base"},
+            classes = {"sizeL"},
             text = "Cancel",
             width = 120,
             halign = "center",
@@ -1058,7 +1004,7 @@ function CharacterSkillDialog.CreateAsChild(options)
             end,
         },
         gui.Button{
-            classes = {"skilldlg-button", "skilldlg-base"},
+            classes = {"sizeL"},
             text = "Confirm",
             width = 120,
             halign = "center",
@@ -1070,11 +1016,21 @@ function CharacterSkillDialog.CreateAsChild(options)
 
     -- skills by catgory.
     resultPanel = gui.Panel {
-        styles = dialogStyles,
-        classes = {"skilldlg-dialog", "skilldlg-base"},
+        styles = ThemeEngine.MergeStyles(dialogStyles),
+        classes = {"framedPanel", "skilldlg-dialog"},
         width = 600,
         height = 800,
+        halign = "center",
+        valign = "center",
         floating = true,
+        draggable = true,
+        drag = function(element)
+            element.x = element.xdrag
+            element.y = element.ydrag
+        end,
+        flow = "vertical",
+        hpad = 8,
+        vpad = 8,
         escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
         captureEscape = true,
 

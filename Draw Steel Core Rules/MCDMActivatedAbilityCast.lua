@@ -99,3 +99,30 @@ GameSystem.RegisterGoblinScriptField{
         return c.hasRolledDamage
     end,
 }
+
+GameSystem.RegisterGoblinScriptField{
+    target = ActivatedAbilityCast,
+    name = "NumAttackers",
+    type = "function",
+    desc = "Given a target, returns the number of creatures attacking that target during this ability. Generally used for Minion attacks.",
+    seealso = {},
+    examples = {"Cast.NumAttackers(Target) > 1", "Cast.NumAttackers(Target)"},
+    calculate = function(c)
+        return function(target)
+            local targetToken = dmhub.LookupToken(target)
+            if targetToken == nil then
+                return 1
+            end
+            local targets = c:try_get("targets")
+            if targets == nil then
+                return 1
+            end
+            for _, t in ipairs(targets) do
+                if t.token ~= nil and t.token.id == targetToken.id then
+                    return t.numAttackers or 1
+                end
+            end
+            return 1
+        end
+    end,
+}

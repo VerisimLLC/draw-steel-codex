@@ -38,6 +38,7 @@ InitiativeQueueEntry.initiative = 0
 InitiativeQueueEntry.dexterity = 0
 
 --Create a new empty initiative queue. Called when the DM starts initiative.
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMInitiativeQueue.lua:103
 function InitiativeQueue.Create()
 	return InitiativeQueue.new{
 		guid = dmhub.GenerateGuid(),
@@ -46,6 +47,7 @@ function InitiativeQueue.Create()
 		entries = CreateTable(),
 	}
 end
+--]==]
 
 --for a token give the initiative id. This is the token id if the token is a
 --unique character, or the monster type if the token is a monster.
@@ -58,6 +60,7 @@ function InitiativeQueue.GetInitiativeId(token)
 end
 
 --End a token's turn and go to the next turn.
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMInitiativeQueue.lua:310
 function InitiativeQueue.NextTurn(self, initiativeid)
 
 	--find this entry and increment the round it moves at.
@@ -77,13 +80,17 @@ function InitiativeQueue.NextTurn(self, initiativeid)
 
 	self.round = self.round+1
 end
+--]==]
 
 --does this initiative id have an entry?
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMInitiativeQueue.lua:405
 function InitiativeQueue.HasInitiative(self, initiativeid)
 	local entry = self.entries[initiativeid]
 	return entry ~= nil
 end
+--]==]
 
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMInitiativeQueue.lua:435
 function InitiativeQueue:DescribeEntry(initiativeid)
 	local entry = self.entries[initiativeid]
 	if entry == nil then
@@ -103,9 +110,11 @@ function InitiativeQueue:DescribeEntry(initiativeid)
 
 	return entry.description
 end
+--]==]
 
 --set the initiative for a given initiative id, creating an entry if necessary.
 --also optionally set the token's dexterity, which is used for tie breakers.
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMInitiativeQueue.lua:454
 function InitiativeQueue.SetInitiative(self, initiativeid, value, dexterity)
 	local entry = self.entries[initiativeid]
 	if entry == nil then
@@ -131,11 +140,14 @@ function InitiativeQueue.SetInitiative(self, initiativeid, value, dexterity)
 
 	self.entries[initiativeid] = entry
 end
+--]==]
 
 --remove an initiative entry, if it exists.
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMInitiativeQueue.lua:487
 function InitiativeQueue.RemoveInitiative(self, initiativeid)
 	self.entries[initiativeid] = nil
 end
+--]==]
 
 --given an entry in the initiative queue, return 'ord', a number which is higher
 --the closer to the front of the initiative queue the entry is.
@@ -148,6 +160,7 @@ function InitiativeQueue.GetEntryOrdAbsolute(entry)
 end
 
 --get the entry for the first item in the initiative queue -- i.e. whose turn it currently is.
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMInitiativeQueue.lua:510
 function InitiativeQueue:GetFirstInitiativeEntry()
 	local result = nil
 	local ord = 0
@@ -163,7 +176,9 @@ function InitiativeQueue:GetFirstInitiativeEntry()
 
 	return result
 end
+--]==]
 
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMInitiativeQueue.lua:514
 function InitiativeQueue:HasHadTurn(initiativeid)
 	local entry = self.entries[initiativeid]
 	if entry == nil then
@@ -172,7 +187,9 @@ function InitiativeQueue:HasHadTurn(initiativeid)
 
 	return entry.round > self.round
 end
+--]==]
 
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMInitiativeQueue.lua:523
 function InitiativeQueue:CurrentInitiativeId()
 	if self.hidden then
 		return nil
@@ -185,8 +202,10 @@ function InitiativeQueue:CurrentInitiativeId()
 
 	return nil
 end
+--]==]
 
 --get the tokenid of the character whose turn it is currently.
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMInitiativeQueue.lua:537
 function InitiativeQueue:CurrentPlayer()
 	if self.hidden then
 		return nil
@@ -200,8 +219,10 @@ function InitiativeQueue:CurrentPlayer()
 
 	return entry.initiativeid
 end
+--]==]
 
 --gets a unique ID for the next round the given token will take in combat.
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMInitiativeQueue.lua:554
 function InitiativeQueue:GetRoundIdForToken(token)
 	if self.hidden then
 		return nil
@@ -222,8 +243,10 @@ function InitiativeQueue:GetRoundIdForToken(token)
 
 	return self:GetRoundId()
 end
+--]==]
 
 --gets a unique ID for this round in this combat.
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMInitiativeQueue.lua:563
 function InitiativeQueue:GetRoundId()
 	if self.hidden then
 		return nil
@@ -231,8 +254,10 @@ function InitiativeQueue:GetRoundId()
 
 	return string.format('%s-%d', self.guid, self.round)
 end
+--]==]
 
 --gets a unique ID for this turn in this combat.
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMInitiativeQueue.lua:572
 function InitiativeQueue:GetTurnId()
 	if self.hidden then
 		return nil
@@ -245,6 +270,7 @@ function InitiativeQueue:GetTurnId()
 
 	return string.format("%s-%s", self:GetRoundId(), entry.initiativeid)
 end
+--]==]
 
 --called by DMHub to query the current combat round. zero-based result.
 function GetCombatRound(initiativeQueue)

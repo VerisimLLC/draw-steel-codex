@@ -5323,25 +5323,6 @@ end
 
 function CharSheet.CharacterFeaturesPanel()
 
-	local triangleStyles = {
-		gui.Style{
-			classes = {'triangle'},
-			rotate = 90,
-			height = 12,
-			width = 12,
-			halign = "right",
-			valign = "center",
-			hmargin = 8,
-			bgimage = "panels/triangle.png",
-			bgcolor = "white",
-		},
-		gui.Style{
-			classes = {'triangle', 'expanded'},
-			rotate = 0,
-			transitionTime = 0.2,
-		},
-	}
-
 	local featurePanels = {}
 
 	local resultPanel = gui.Panel{
@@ -5389,10 +5370,7 @@ function CharSheet.CharacterFeaturesPanel()
 
 				if featurePanel == nil then
 
-					local tri = gui.Panel{
-						classes = {"triangle"},
-						styles = triangleStyles,
-					}
+					local tri = gui.ExpandoArrow{}
 
 					local bodyChildren = {}
 
@@ -5463,25 +5441,18 @@ function CharSheet.CharacterFeaturesPanel()
 					}
 					
 					local header = gui.Panel{
-						classes = {"featureHeader"},
+						classes = {"featureRow"},
 						halign = "left",
 						width = "90%",
 						height = "auto",
 						flow = "horizontal",
-						bgimage = "panels/square.png",
 						press = function(element)
 							body:SetClass('collapsed-anim', tri:HasClass('expanded'))
 							tri:SetClass('expanded', not tri:HasClass('expanded'))
 						end,
-						styles = {
-							{
-								selectors = {"featureHeader"},
-								bgcolor = 'black',
-							},
-							{
-								selectors = {"featureHeader","hover"},
-								bgcolor = '#770000ff',
-							},
+						styles = ThemeEngine.MergeTokens{
+							{ selectors = {"featureRow"}, bgimage = true, bgcolor = "clear" },
+							{ selectors = {"featureRow", "hover"}, bgcolor = "@bgAlt" },
 						},
 
 

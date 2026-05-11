@@ -48,6 +48,89 @@ end
 --- @return Panel
 function CBKitDetail._overviewPanel()
 
+    local BEASTHEART_CLASS_ID = "9a583e69-2775-4b39-a52d-1b1dce0dd39e"
+    local COMPANION_DEFAULT_MELEE_TEXT = "+0/+0/+4"
+
+    local function isBeastheartHero(hero)
+        if hero == nil then return false end
+        local cls = hero:GetClass()
+        return cls ~= nil and cls.id == BEASTHEART_CLASS_ID
+    end
+
+    --Companion damage-bonus selector. Per the Beastheart rules, a companion can
+    --use either the kit's melee damage bonus or a flat +0/+0/+4. We expose this
+    --on the kit overview as a two-way picker, only when the hero is a beastheart
+    --and the selected kit actually has a melee bonus to compare against.
+    local function makeCompanionBonusChoicePanel()
+        local kitKey = "companionBonusChoices"
+        local bonusid = "melee"
+
+        local function currentChoice()
+            local hero = _getHero()
+            if hero == nil then return "kit" end
+            local levelChoices = hero:GetLevelChoices() or {}
+            local bonusChoices = levelChoices[kitKey] or {}
+            local v = bonusChoices[bonusid]
+            return v == "default" and "default" or "kit"
+        end
+
+        local function makeLabel(idx, choiceId)
+            return gui.Label{
+                classes = {"builder-base", "label", "info", "overview", "bonus-selector"},
+                textWrap = true,
+                width = "auto",
+                lmargin = 8,
+                text = "",
+                data = {
+                    index = idx,
+                    choiceId = choiceId,
+                },
+                assignKit = function(element, kitItem)
+                    if choiceId == "kit" then
+                        element.text = (kitItem and kitItem:FormatDamageBonus(bonusid)) or ""
+                    else
+                        element.text = COMPANION_DEFAULT_MELEE_TEXT
+                    end
+                    element:FireEvent("refreshBuilderState", _getState())
+                end,
+                press = function(element)
+                    element.parent:FireEvent("selectChoice", element.data.choiceId)
+                end,
+                refreshBuilderState = function(element, state)
+                    element:SetClass("selected", currentChoice() == element.data.choiceId)
+                end,
+            }
+        end
+
+        local kitLabel = makeLabel(1, "kit")
+        local defaultLabel = makeLabel(2, "default")
+
+        return gui.Panel{
+            classes = {"builder-base", "panel-base", "info", "overview", "container"},
+            width = "100%",
+            flow = "horizontal",
+            selectChoice = function(element, choice)
+                local hero = _getHero()
+                if hero == nil then return end
+                local levelChoices = hero:GetLevelChoices() or {}
+                local bonusChoices = levelChoices[kitKey] or {}
+                bonusChoices[bonusid] = choice
+                levelChoices[kitKey] = bonusChoices
+                hero.levelChoices = levelChoices
+                _fireControllerEvent("tokenDataChanged")
+            end,
+            gui.Label{
+                classes = {"builder-base", "label", "info", "overview"},
+                width = "auto",
+                textWrap = false,
+                bold = true,
+                text = "Companion Melee: ",
+            },
+            kitLabel,
+            defaultLabel,
+        }
+    end
+
     local function makeBonusChoicePanel(bonusItem)
         local kitKey = "kitBonusChoices"
 
@@ -296,7 +379,32 @@ function CBKitDetail._overviewPanel()
                 element.children = children
                 element:SetClass("collapsed", false)
             end,
-        }
+        },
+        gui.Panel{
+            classes = {"builder-base", "panel-base", "info", "overview", "container", "collapsed"},
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            data = { panel = nil },
+            updateSelectedKit = function(element, kitItem, kitItem2)
+                local hero = _getHero()
+                if hero == nil or not isBeastheartHero(hero) or kitItem == nil then
+                    element:SetClass("collapsed", true)
+                    return
+                end
+                local meleeBonus = kitItem:FormatDamageBonus("melee")
+                if meleeBonus == nil or #meleeBonus == 0 then
+                    element:SetClass("collapsed", true)
+                    return
+                end
+                if element.data.panel == nil then
+                    element.data.panel = makeCompanionBonusChoicePanel()
+                    element.children = { element.data.panel }
+                end
+                element:SetClass("collapsed", false)
+                element.data.panel:FireEventTree("assignKit", kitItem)
+            end,
+        },
     }
 
     local abilityPanel = gui.Panel{

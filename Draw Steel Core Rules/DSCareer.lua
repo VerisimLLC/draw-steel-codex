@@ -134,11 +134,11 @@ local SetBackground = function(tableName, backgroundPanel, backgroundid)
 	children[#children+1] = gui.Panel{
 		classes = {"formStackedRow"},
 		gui.Label{
-			classes = {"formStackedLabel"},
+			classes = {"formStacked"},
 			text = "Name:",
 		},
 		gui.Input{
-			classes = {"formStackedControl"},
+			classes = {"formStacked"},
 			text = background.name,
 			change = function(element)
 				background.name = element.text
@@ -150,11 +150,11 @@ local SetBackground = function(tableName, backgroundPanel, backgroundid)
 	children[#children+1] = gui.Panel{
 		classes = {"formStackedRow"},
 		gui.Label{
-			classes = {"formStackedLabel"},
+			classes = {"formStacked"},
 			text = "Description:",
 		},
 		gui.Input{
-			classes = {"formStackedControl"},
+			classes = {"formStacked"},
 			multiline = true,
 			height = "auto",
 			minHeight = 30,

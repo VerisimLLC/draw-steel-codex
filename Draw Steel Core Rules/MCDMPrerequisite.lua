@@ -200,14 +200,15 @@ function CharacterPrerequisite:Editor(params)
 	local resultPanel
 
 	local args = {
+		classes = {"bordered"},
 		width = 400,
 		height = 'auto',
 		vmargin = 4,
 		halign = "left",
-		borderWidth = 1,
-		borderColor = 'white',
-		bgimage = 'panels/square.png',
-		bgcolor = 'black',
+		-- borderWidth = 1,
+		-- borderColor = 'white',
+		-- bgimage = 'panels/square.png',
+		-- bgcolor = 'black',
 		flow = 'vertical',
 		pad = 4,
 	}
@@ -259,7 +260,7 @@ function CharacterPrerequisite:Editor(params)
 				vmargin = 4,
 				width = 240,
 				height = 24,
-				fontSize = 18,
+				-- fontSize = 18,
 				options = skillOptions,
 				idChosen = self.skill,
 				change = function(element)
@@ -286,12 +287,13 @@ function CharacterPrerequisite:Editor(params)
 			children[#children+1] = typeInfo.editor(self)
 		end
 
-		children[#children+1] = gui.DeleteItemButton{
+		children[#children+1] = gui.Button{
+			classes = {"deleteButton"},
 			floating = true,
 			halign = "right",
 			valign = "top",
-			width = 16,
-			height = 16,
+			-- width = 16,
+			-- height = 16,
 			click = function(element)
 				resultPanel:FireEvent("delete")
 			end,

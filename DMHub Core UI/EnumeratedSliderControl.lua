@@ -58,6 +58,10 @@ function gui.EnumeratedSliderControl(args)
         params[k] = v
     end
 
+    if ThemeEngine.ForceSafety() then
+        if params.styles == nil then params.styles = {} end
+        params.styles = ThemeEngine.MergeStyles(params.styles)
+    end
     m_resultPanel = gui.Panel(params)
     return m_resultPanel
 end

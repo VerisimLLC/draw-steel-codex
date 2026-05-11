@@ -352,35 +352,37 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
         local shouldCollapse = nil
         if options.types ~= nil or options.collapse ~= nil then
             shouldCollapse = function(element)
-                element:SetClass('collapsed-anim', calculateCollapse())
+                element:SetClass("collapsed-anim", calculateCollapse())
             end
         end
 
+        local rowClasses = {"formStackedRow"}
+        if calculateCollapse() then
+            rowClasses[#rowClasses + 1] = "collapsed-anim"
+        end
+        if options.classes then
+            for k, v in pairs(options.classes) do
+                if type(k) == "string" and v then
+                    rowClasses[#rowClasses + 1] = k
+                elseif type(k) == "number" then
+                    rowClasses[#rowClasses + 1] = v
+                end
+            end
+        end
+
+        if options.child ~= nil then
+            options.child:SetClass("formStacked", true)
+        end
+
         return gui.Panel {
-            classes = options.classes or {
-                --start it off collapsed if it should collapse.
-                ['collapsed-anim'] = calculateCollapse()
-            },
+            classes = rowClasses,
             events = {
                 refresh = shouldCollapse,
             },
-            style = {
-                width = '100%',
-                height = 'auto',
-                flow = 'horizontal',
-                hmargin = 8,
-                vmargin = 4,
-            },
             children = {
                 gui.Label {
+                    classes = {"formStacked"},
                     text = options.text,
-                    style = {
-                        valign = 'center',
-                        halign = 'left',
-                        width = '50%',
-                        height = 'auto',
-                        textAlignment = 'right',
-                    },
                 },
                 options.child,
             },
@@ -392,6 +394,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
             width = '45%',
             height = 'auto',
             halign = 'center',
+            valign = 'top',
             flow = 'vertical',
         },
         children = {
@@ -455,11 +458,9 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                             children[#children + 1] = FormPanel {
                                 text = typeNames[i] or typeNames[#typeNames],
                                 child = gui.Dropdown {
+                                    classes = {"formStacked"},
                                     options = options,
                                     idChosen = idchosen,
-                                    width = 180,
-                                    height = 26,
-                                    fontSize = 18,
                                     change = function(element)
                                         if element.idChosen ~= 'choose' then
                                             document.equipmentCategory = element.idChosen
@@ -478,85 +479,13 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                 end,
             },
 
-            --[[
-			FormPanel{
-				text = "Base Item:",
-				collapse = function()
-					return false
-				end,
-				child = gui.Dropdown{
-					data = {
-						catid = nil,
-						itemidsKnown = {},
-					},
-					change = function(element)
-						if element.idChosen == "none" then
-							document.baseid = nil
-						else
-							document.baseid = element.idChosen
-						end
-					end,
-					refresh = function(element)
-						local cat = document:try_get("equipmentCategory")
-						if cat == nil then
-							return
-						end
-
-						if cat ~= element.data.catid then
-							element.data.catid = cat
-
-							local catsToItems = EquipmentCategory.GetCategoriesToItems(false)
-							local itemList = catsToItems[element.data.catid]
-							if itemList == nil or #itemList == 0 then
-								element.parent:SetClass("hidden", true)
-							end
-
-							local inventoryTable = dmhub.GetTable("tbl_Gear")
-							local options = {
-								{
-									id = "none",
-									text = "(None)",
-								}
-							}
-
-							element.data.itemidsKnown = {}
-							for _,itemid in ipairs(itemList or {}) do
-								local item = inventoryTable[itemid]
-								if item ~= nil then
-									options[#options+1] = {
-										id = itemid,
-										text = item.name,
-									}
-
-									element.data.itemidsKnown[itemid] = true
-								end
-							end
-
-							element.options = options
-						end
-
-						element.parent:SetClass("hidden", false)
-
-						local id = document:try_get("baseid", document.id)
-						if element.data.itemidsKnown[id] then
-							element.idChosen = id
-						else
-							element.idChosen = "none"
-						end
-					end,
-
-				},
-
-
-			},
-            ]]
-
             FormPanel {
                 text = "ID:",
                 collapse = function()
                     return not devmode()
                 end,
                 child = gui.Input {
+                    classes = {"formStacked"},
                     id = "equipment-id-input",
                     text = document:try_get("id", "(unassigned)"),
                     refresh = function(element)
@@ -566,9 +495,10 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
             },
 
             FormPanel {
-                text = 'Name:',
+                text = "Name:",
                 child = gui.Input {
-                    id = 'equipment-name-input',
+                    classes = {"formStacked"},
+                    id = "equipment-name-input",
 
                     events = {
                         refresh = function(element)
@@ -590,11 +520,12 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
             },
 
             FormPanel {
-                text = 'Availability:',
+                text = "Availability:",
                 collapse = function()
                     return (not EquipmentCategory.IsLightSource(document))
                 end,
                 child = gui.Dropdown{
+                    classes = {"formStacked"},
                     idChosen = document:try_get("availability", "available"),
                     change = function(element)
                         document.availability = element.idChosen
@@ -621,6 +552,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
             FormPanel {
                 text = "Implementation:",
                 child = gui.ImplementationStatusPanel {
+                    classes = {"formStacked"},
                     value = document:try_get("implementation", 1),
                     change = function(element)
                         document.implementation = element.value
@@ -628,24 +560,30 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                 },
             },
 
-            gui.Multiselect {
-                value = document:try_get("keywords", {}),
-                addItemText = "Add Keyword...",
-                options = GameSystem.KeywordsSetToDropdownList{GameSystem.abilityKeywords, GameSystem.itemKeywords},
-                change = function(element, value)
-                    document.keywords = value
-                    Refresh()
-                end,
+            FormPanel {
+                text = "Keywords:",
+                child = gui.Multiselect {
+                    classes = {"form"},
+                    width = "100%",
+                    halign = "left",
+                    value = document:try_get("keywords", {}),
+                    addItemText = "Add Keyword...",
+                    options = GameSystem.KeywordsSetToDropdownList{GameSystem.abilityKeywords, GameSystem.itemKeywords},
+                    change = function(element, value)
+                        document.keywords = value
+                        Refresh()
+                    end,
+                },
             },
 
 
             FormPanel {
-                text = 'Echelon:',
+                text = "Echelon:",
                 collapse = function()
                     return (not EquipmentCategory.IsTreasure(document)) or EquipmentCategory.IsLeveledTreasure(document) or EquipmentCategory.IsImbuement(document)
                 end,
                 child = gui.Dropdown {
-
+                    classes = {"formStacked"},
                     options = {
                         {
                             id = 1,
@@ -683,6 +621,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                     return not EquipmentCategory.IsImbuement(document)
                 end,
                 child = gui.Dropdown {
+                    classes = {"formStacked"},
                     options = {
                         { id = "armor", text = "Armor" },
                         { id = "implement", text = "Implement" },
@@ -706,6 +645,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                     return not EquipmentCategory.IsImbuement(document)
                 end,
                 child = gui.Dropdown {
+                    classes = {"formStacked"},
                     options = {
                         { id = 1, text = "Level 1" },
                         { id = 5, text = "Level 5" },
@@ -730,6 +670,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                 end,
 
                 child = gui.Input {
+                    classes = {"formStacked"},
                     text = document:try_get("itemPrerequisite", ""),
                     events = {
                         change = function(element)
@@ -737,9 +678,6 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                             Refresh()
                         end,
                     },
-                    style = {
-                        width = 200,
-                    }
                 },
             },
 
@@ -750,6 +688,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                 end,
 
                 child = gui.Input {
+                    classes = {"formStacked"},
                     text = document:try_get("projectSource", ""),
                     events = {
                         change = function(element)
@@ -757,9 +696,6 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                             Refresh()
                         end,
                     },
-                    style = {
-                        width = 200,
-                    }
                 },
             },
 
@@ -770,6 +706,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                 end,
 
                 child = gui.Multiselect {
+                    classes = {"formStacked"},
                     value = document:try_get("projectRollCharacteristic", {}),
                     addItemText = "Add Characteristic...",
                     options = creature.attributeDropdownOptions,
@@ -787,6 +724,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                 end,
 
                 child = gui.Input {
+                    classes = {"formStacked"},
                     text = document:try_get("projectGoal", ""),
                     events = {
                         change = function(element)
@@ -794,9 +732,6 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                             Refresh()
                         end,
                     },
-                    style = {
-                        width = 200,
-                    }
                 },
             },
 
@@ -808,12 +743,10 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                 end,
 
                 child = gui.Dropdown {
+                    classes = {"formStacked"},
                     options = {},
                     idChosen = document:try_get("imbuePrereq", "none"),
                     hasSearch = true,
-                    width = 180,
-                    height = 26,
-                    fontSize = 18,
 
                     refresh = function(element)
                         if not EquipmentCategory.IsImbuement(document) then
@@ -856,6 +789,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                 end,
 
                 child = gui.Check {
+                    classes = {"formStacked"},
                     text = "Replaces benefit of prerequisite",
                     value = document:try_get("imbueReplacesPrereq", false),
                     refresh = function(element)
@@ -869,22 +803,17 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
             },
 
             FormPanel {
-                text = '',
+                text = "",
                 dmOnly = true,
                 child = gui.Check {
-                    id = 'checkbox-hidden-from-players',
-                    text = 'Hide from Players',
-                    style = {
-                        halign = "left",
-                        height = 40,
-                        width = '40%',
-                        fontSize = '60%',
-                    },
+                    classes = {"formStacked"},
+                    id = "checkbox-hidden-from-players",
+                    text = "Hide from Players",
 
                     events = {
-                        hover = gui.Tooltip('Players will not be shown this item in list of all possible items. They will only see it if it is in their inventory.'),
+                        hover = gui.Tooltip("Players will not be shown this item in list of all possible items. They will only see it if it is in their inventory."),
                         refresh = function(element)
-                            element.value = document:try_get('hiddenFromPlayers', dmhub.GetSettingValue("hideitems"))
+                            element.value = document:try_get("hiddenFromPlayers", dmhub.GetSettingValue("hideitems"))
                         end,
 
                         change = function(element)
@@ -899,11 +828,12 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
             },
 
             FormPanel {
-                text = 'Destroy Chance:',
+                text = "Destroy Chance:",
                 collapse = function()
                     return not document:IsAmmoForWeapon()
                 end,
                 child = gui.Input {
+                    classes = {"formStacked"},
                     refresh = function(element)
                         local destroyChance = document:AmmoDestroyChance()
                         element.text = string.format("%d", round(destroyChance * 100))
@@ -959,12 +889,8 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                 height = "auto",
                 halign = "left",
                 flow = "vertical",
-                bgimage = "panels/square.png",
-                bgcolor = "clear",
-                borderWidth = 1,
-                borderColor = "white",
                 pad = 4,
-                classes = { cond(not document:IsAmmoForWeapon(), 'collapsed-anim') },
+                classes = { "bordered", cond(not document:IsAmmoForWeapon(), "collapsed-anim") },
 
                 refreshModifier = function(element)
                 end,
@@ -1026,12 +952,8 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                 height = "auto",
                 halign = "left",
                 flow = "vertical",
-                bgimage = "panels/square.png",
-                bgcolor = "clear",
-                borderWidth = 1,
-                borderColor = "white",
                 pad = 4,
-                classes = { cond(not document.isWeapon, 'collapsed-anim') },
+                classes = { "bordered", cond(not document.isWeapon, "collapsed-anim") },
 
                 refreshModifier = function(element)
                 end,
@@ -1076,23 +998,20 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
 
             gui.Panel {
                 id = "packEditor",
+                classes = {"bordered"},
                 flow = "vertical",
                 width = 300,
                 height = "auto",
                 vmargin = 8,
                 hmargin = 8,
                 pad = 8,
-                bgimage = "panels/square.png",
-                bgcolor = "clear",
-                borderWidth = 2,
-                borderColor = Styles.textColor,
 
                 gui.Label {
+                    classes = {"sizeXl"},
                     halign = "center",
                     valign = "top",
                     width = "auto",
                     height = "auto",
-                    fontSize = 26,
                     text = "Pack Items",
                 },
 
@@ -1167,7 +1086,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                             height = 30,
                             flow = "horizontal",
                             gui.Label {
-                                fontSize = 20,
+                                classes = {"sizeM"},
                                 width = 200,
                                 height = "auto",
                                 item = function(element, item)
@@ -1177,7 +1096,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                             },
 
                             gui.Input {
-                                fontSize = 20,
+                                classes = {"sizeM"},
                                 width = 60,
                                 item = function(element, item)
                                     element.text = tostring(item.quantity)
@@ -1197,8 +1116,9 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                                 end,
                             },
 
-                            gui.DeleteItemButton {
-                                press = function(element)
+                            gui.Button {
+                                classes = {"deleteButton"},
+                                click = function(element)
                                     table.remove(document.packItems, i)
                                     Refresh()
                                 end,
@@ -1219,9 +1139,10 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
             FormPanel {
                 text = "Quantity:",
                 classes = {
-                    ['collapsed-anim'] = (document:has_key("equipmentCategory") == false or not EquipmentCategory.quantityCategories[document.equipmentCategory]),
+                    ["collapsed-anim"] = (document:has_key("equipmentCategory") == false or not EquipmentCategory.quantityCategories[document.equipmentCategory]),
                 },
                 child = gui.Input {
+                    classes = {"formStacked"},
                     text = string.format("%d", document:try_get("massQuantity", 1)),
                     change = function(element)
                         document.massQuantity = tonumber(element.text)
@@ -1276,12 +1197,13 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
 --]]
 
             FormPanel {
-                text = 'Charges',
-                types = { 'Gear' },
+                text = "Charges",
+                types = { "Gear" },
                 classes = {
-                    ['collapsed'] = not EquipmentCategory.IsConsumable(document),
+                    ["collapsed"] = not EquipmentCategory.IsConsumable(document),
                 },
                 child = gui.Input {
+                    classes = {"formStacked"},
                     characterLimit = 2,
 
                     events = {
@@ -1314,9 +1236,9 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                     ['collapsed'] = not EquipmentCategory.IsConsumable(document),
                 },
 
-                child = gui.PrettyButton {
+                child = gui.Button {
+                    classes = {"sizeM"},
                     width = 240,
-                    height = 60,
                     text = "Consumable Ability",
                     click = function(element)
                         if not document:has_key("consumable") then
@@ -1324,7 +1246,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                                 name = document.name,
                                 iconid = document.iconid,
                                 attributeOverride = "no_attribute",
-                                description = '',
+                                description = "",
                                 range = 5,
                                 behaviors = {},
                                 consumables = { [document.id] = 1 },
@@ -1343,10 +1265,11 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
 
             --armor-specific fields.
             FormPanel {
-                text = 'Armor Class:',
-                types = { 'Armor' },
+                text = "Armor Class:",
+                types = { "Armor" },
                 child = gui.Input {
-                    id = 'armor-class-input',
+                    classes = {"formStacked"},
+                    id = "armor-class-input",
 
                     events = {
                         refresh = function(element)
@@ -1365,10 +1288,11 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
             },
 
             FormPanel {
-                text = 'Strength Req.:',
-                types = { 'Armor' },
+                text = "Strength Req.:",
+                types = { "Armor" },
                 child = gui.Input {
-                    id = 'armor-strength-req-input',
+                    classes = {"formStacked"},
+                    id = "armor-strength-req-input",
 
                     events = {
                         refresh = function(element)
@@ -1395,10 +1319,11 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
             },
 
             FormPanel {
-                text = 'Effect on Stealth:',
-                types = { 'Armor' },
+                text = "Effect on Stealth:",
+                types = { "Armor" },
                 child = gui.Dropdown {
-                    id = 'armor-stealth-effect-input',
+                    classes = {"formStacked"},
+                    id = "armor-stealth-effect-input",
 
                     options = armor.possibleStealth,
 
@@ -1417,10 +1342,11 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
             },
 
             FormPanel {
-                text = 'Dex. Mod. Limit:',
-                types = { 'Armor' },
+                text = "Dex. Mod. Limit:",
+                types = { "Armor" },
                 child = gui.Input {
-                    id = 'armor-dex-mod-limit-input',
+                    classes = {"formStacked"},
+                    id = "armor-dex-mod-limit-input",
 
                     events = {
                         refresh = function(element)
@@ -1449,10 +1375,11 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
 
             --shield-specific fields.
             FormPanel {
-                text = 'AC Modifier:',
-                types = { 'Shield' },
+                text = "AC Modifier:",
+                types = { "Shield" },
                 child = gui.Input {
-                    id = 'shield-armor-class-modifier-input',
+                    classes = {"formStacked"},
+                    id = "shield-armor-class-modifier-input",
 
                     events = {
                         refresh = function(element)
@@ -1475,10 +1402,11 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
 
             --weapon-specific fields.
             FormPanel {
-                text = 'Bonus to Hit:',
-                types = { 'Weapon' },
+                text = "Bonus to Hit:",
+                types = { "Weapon" },
                 child = gui.Input {
-                    id = 'weapon-bonus-input',
+                    classes = {"formStacked"},
+                    id = "weapon-bonus-input",
                     events = {
                         refresh = function(element)
                             element.text = tostring(document:try_get('hitbonus', 0))
@@ -1490,10 +1418,11 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                 },
             },
             FormPanel {
-                text = 'Damage:',
-                types = { 'Weapon' },
+                text = "Damage:",
+                types = { "Weapon" },
                 child = gui.Input {
-                    id = 'weapon-damage-input',
+                    classes = {"formStacked"},
+                    id = "weapon-damage-input",
 
                     events = {
                         refresh = function(element)
@@ -1507,12 +1436,13 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
             },
 
             FormPanel {
-                text = 'Versatile Damage:',
+                text = "Versatile Damage:",
                 classes = {
-                    ['collapsed-anim'] = (document.type ~= 'Weapon' or document.hands ~= 'Versatile'),
+                    ["collapsed-anim"] = (document.type ~= "Weapon" or document.hands ~= "Versatile"),
                 },
                 child = gui.Input {
-                    id = 'weapon-versatile-damage-input',
+                    classes = {"formStacked"},
+                    id = "weapon-versatile-damage-input",
 
                     events = {
                         refresh = function(element)
@@ -1528,12 +1458,13 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
             },
 
             FormPanel {
-                text = 'Range:',
+                text = "Range:",
                 classes = {
-                    ['collapsed-anim'] = (document.type ~= 'Weapon' or not document:IsRanged()),
+                    ["collapsed-anim"] = (document.type ~= "Weapon" or not document:IsRanged()),
                 },
                 child = gui.Input {
-                    id = 'weapon-range-input',
+                    classes = {"formStacked"},
+                    id = "weapon-range-input",
                     events = {
                         refresh = function(element)
                             element.text = tostring(document:try_get('range', ''))
@@ -1550,9 +1481,10 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
             FormPanel {
                 text = "Ammo:",
                 classes = {
-                    ['collapsed-anim'] = (document.type ~= 'Weapon' or not document:HasProperty('ammo')),
+                    ["collapsed-anim"] = (document.type ~= "Weapon" or not document:HasProperty("ammo")),
                 },
                 child = gui.Dropdown {
+                    classes = {"formStacked"},
                     options = EquipmentCategory.ammunitionOptions,
                     idChosen = document:try_get("ammunitionType"),
 
@@ -1573,10 +1505,11 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
             },
 
             FormPanel {
-                text = 'Damage Type:',
-                types = { 'Weapon' },
+                text = "Damage Type:",
+                types = { "Weapon" },
                 child = gui.Dropdown {
-                    id = 'weapon-damage-type',
+                    classes = {"formStacked"},
+                    id = "weapon-damage-type",
                     options = rules.damageTypesAvailable,
                     optionChosen = document:try_get('damageType', 'slashing'),
 
@@ -1594,16 +1527,12 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
             },
 
             FormPanel {
-                text = '',
-                types = { 'Weapon' },
+                text = "",
+                types = { "Weapon" },
                 child = gui.Check {
-                    id = 'weapon-magical-damage-checkbox',
-                    text = 'Magical Damage',
-                    style = {
-                        height = 40,
-                        width = '40%',
-                        fontSize = '60%',
-                    },
+                    classes = {"formStacked"},
+                    id = "weapon-magical-damage-checkbox",
+                    text = "Magical Damage",
 
                     events = {
                         refresh = function(element)
@@ -1625,10 +1554,11 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
             },
 
             FormPanel {
-                text = 'Hands:',
-                types = { 'Weapon' },
+                text = "Hands:",
+                types = { "Weapon" },
                 child = gui.Dropdown {
-                    id = 'weapon-hands-dropdown',
+                    classes = {"formStacked"},
+                    id = "weapon-hands-dropdown",
                     options = weapon.handOptions,
                     optionChosen = document:try_get('hands', 'One-handed'),
 
@@ -1675,162 +1605,71 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
             },
             --]]
 
-            gui.Panel {
-                style = { flow = 'horizontal', wrap = true, width = '100%', height = 'auto' },
-                data = {
-                    panels = {},
-                },
-                events = {
-                    refresh = function(element)
-                        if (not document:IsEquippable()) or document:try_get("properties") == nil then
-                            element.children = {}
-                            element.data.panels = {}
-                            return
+            FormPanel {
+                text = "Weapon Properties:",
+                collapse = function() return not document:IsEquippable() end,
+                child = gui.Multiselect {
+                    classes = {"formStacked"},
+                    value = (function()
+                        local ids = {}
+                        for k, _ in pairs(document:try_get("properties", {}) or {}) do
+                            ids[#ids + 1] = k
                         end
+                        return ids
+                    end)(),
+                    addItemText = "Add Property...",
+                    options = WeaponProperty.DropdownOptions(document),
+                    change = function(element, value)
+                        local existing = document:try_get("properties", {}) or {}
+                        local newProps = {}
+                        for _, id in ipairs(value) do
+                            newProps[id] = existing[id] or true
+                        end
+                        document.properties = newProps
+                        Refresh()
+                    end,
+                },
+            },
 
-                        local newPanels = {}
-                        local children = {}
-
-                        for k, p in pairs(document.properties) do
-                            local prop = WeaponProperty.Get(k)
-
-                            local newPanel = element.data.panels[k] or gui.Panel {
-                                bgimage = 'panels/square.png',
-                                selfStyle = { pad = 6 },
-                                classes = { 'property-panel' },
-                                data = {
-                                    ord = prop.name
-                                },
-                                styles = {
-                                    { cornerRadius = 8, bgcolor = '#000000ff', color = 'white', height = 'auto', width = 'auto', flow = 'horizontal', wrap = false },
-                                    {
-                                        selectors = 'hover',
-                                        bgcolor = '#222222ff',
-                                    },
-                                    {
-                                        selectors = 'pressed',
-                                        bgcolor = '#111111ff',
-                                    },
-                                },
-                                events = {
-                                },
-                                children = {
-                                    gui.Label {
-                                        style = { width = 'auto', height = 'auto', halign = 'center' },
-                                        text = prop.name,
-                                    },
-
-                                    gui.Panel {
-                                        width = "auto",
-                                        height = "auto",
-                                        flow = "horizontal",
-
-                                        create = function(element)
-                                            if not prop.hasValue then
-                                                return
-                                            end
-
-                                            element.children = {
-                                                gui.Label {
-                                                    fontSize = 18,
-                                                    valign = "center",
-                                                    hmargin = 4,
-                                                    color = "white",
-                                                    width = "auto",
-                                                    height = "auto",
-                                                    minWidth = 10,
-                                                    create = function(element)
-                                                        element:FireEvent("refreshValue")
-                                                    end,
-                                                    refreshValue = function(element)
-                                                        local val = document.properties[k]
-                                                        if val ~= nil then
-                                                            local n = 1
-                                                            if type(val) == "table" then
-                                                                n = val.value or 1
-                                                            end
-
-                                                            element.text = tostring(n)
-                                                        end
-                                                    end,
-                                                },
-
-                                                gui.Panel {
-                                                    flow = "none",
-                                                    hmargin = 8,
-                                                    width = 16,
-                                                    height = 16,
-                                                    gui.PagingArrow {
-                                                        y = -8,
-                                                        rotate = 90,
-
-                                                        click = function(element)
-                                                            local val = document.properties[k]
-                                                            if type(val) ~= "table" then
-                                                                val = { value = 1 }
-                                                            end
-
-                                                            val.value = math.max(1, (val.value or 1) + 1)
-                                                            document.properties[k] = val
-                                                            element.parent.parent:FireEventTree("refreshValue")
-                                                        end,
-
-                                                    },
-                                                    gui.PagingArrow {
-                                                        y = 8,
-                                                        rotate = -90,
-                                                        click = function(element)
-                                                            local val = document.properties[k]
-                                                            if type(val) ~= "table" then
-                                                                val = { value = 1 }
-                                                            end
-
-                                                            val.value = math.max(1, (val.value or 1) - 1)
-                                                            document.properties[k] = val
-                                                            element.parent.parent:FireEventTree("refreshValue")
-                                                        end,
-                                                    },
-                                                }
-                                            }
-                                        end,
-                                    },
-
-                                    gui.Panel {
-                                        bgimage = 'ui-icons/close.png',
-                                        styles = {
-                                            {
-                                                halign = 'center',
-                                                valign = 'center',
-                                                bgcolor = 'grey',
-                                                width = 16,
-                                                height = 16,
-                                                hmargin = 2,
-                                            },
-                                            {
-                                                selectors = { 'hover' },
-                                                bgcolor = 'red',
-                                                transitionTime = 0.2,
-                                            },
-                                        },
-
-                                        click = function(element)
-                                            document:RemoveProperty(prop.id)
+            gui.Panel {
+                classes = {"collapsed-anim"},
+                flow = "vertical",
+                width = "100%",
+                height = "auto",
+                refresh = function(element)
+                    if (not document:IsEquippable()) or document:try_get("properties") == nil then
+                        element:SetClass("collapsed-anim", true)
+                        element.children = {}
+                        return
+                    end
+                    local rows = {}
+                    for k, _ in pairs(document.properties) do
+                        local prop = WeaponProperty.Get(k)
+                        if prop ~= nil and prop.hasValue then
+                            rows[#rows + 1] = FormPanel {
+                                text = prop.name .. " value:",
+                                child = gui.Input {
+                                    classes = {"formStacked", "sizeS"},
+                                    characterLimit = 4,
+                                    refresh = function(input)
+                                        local val = document.properties[k]
+                                        local n = (type(val) == "table") and (val.value or 1) or 1
+                                        input.text = tostring(n)
+                                    end,
+                                    change = function(input)
+                                        local n = tonumber(input.text)
+                                        if n ~= nil and n >= 1 then
+                                            document.properties[k] = { value = math.floor(n) }
                                             Refresh()
                                         end
-                                    },
-                                }
+                                    end,
+                                },
                             }
-
-                            children[#children + 1] = newPanel
-                            newPanels[k] = newPanel
                         end
-
-                        table.sort(children, function(a, b) return a.data.ord < b.data.ord end)
-
-                        element.children = children
-                        element.data.panels = newPanels
-                    end,
-                }
+                    end
+                    element:SetClass("collapsed-anim", #rows == 0)
+                    element.children = rows
+                end,
             },
 
         }
@@ -1860,6 +1699,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
             width = '45%',
             height = 'auto',
             halign = 'center',
+            valign = 'top',
             flow = 'vertical',
         },
 
@@ -1929,29 +1769,14 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
             --	},
             --},
 
-            gui.Panel {
-                vmargin = 4,
-                flow = "horizontal",
-                width = "100%",
-                height = "auto",
-                gui.Label {
-                    fontSize = 18,
-                    width = "auto",
-                    height = "auto",
-                    text = "Accessory:",
-                },
-                gui.Dropdown {
+            FormPanel {
+                text = "Accessory:",
+                child = gui.Dropdown {
+                    classes = {"formStacked"},
                     options = emojiOptions,
                     idChosen = document:try_get("accessory", "none"),
-                    selfStyle = {
-                        halign = 'center',
-                    },
-                    style = {
-                        width = 200,
-                        height = 50,
-                    },
                     change = function(element)
-                        if element.idChosen == 'none' then
+                        if element.idChosen == "none" then
                             document.accessory = nil
                         else
                             document.accessory = element.idChosen
@@ -1961,19 +1786,16 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
             },
 
             gui.Check {
-                text = 'Has Inspection Image',
-                style = {
-                    height = 40,
-                    width = '40%',
-                    fontSize = '60%',
-                },
+                classes = {"sizeM"},
+                halign = "center",
+                text = "Has Inspection Image",
                 refresh = function(element)
-                    element.value = document:has_key('inspectionImage')
+                    element.value = document:has_key("inspectionImage")
                 end,
 
                 change = function(element)
-                    document.inspectionImage = cond(element.value, '')
-                    resultPanel:FireEventTree('refresh')
+                    document.inspectionImage = cond(element.value, "")
+                    resultPanel:FireEventTree("refresh")
                 end,
             },
 
@@ -2004,7 +1826,12 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
 
             --Item flavor text area.
             gui.Input {
-                selfStyle = { width = 400, height = 30, vmargin = 4, halign = 'center', textAlignment = "topleft" },
+                classes = {"sizeM"},
+                width = 400,
+                height = 30,
+                vmargin = 4,
+                halign = "center",
+                textAlignment = "topleft",
                 placeholderText = "Enter Flavor Text...",
                 multiline = true,
                 text = document.flavor,
@@ -2017,7 +1844,12 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
 
             --Item description text area.
             gui.Input {
-                selfStyle = { width = 400, height = 140, vmargin = 4, halign = 'center', textAlignment = "topleft" },
+                classes = {"sizeM"},
+                width = 400,
+                height = 140,
+                vmargin = 4,
+                halign = "center",
+                textAlignment = "topleft",
                 characterLimit = 8192,
                 placeholderText = "Enter Description...",
                 multiline = true,
@@ -2037,16 +1869,21 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                 end,
 
                 gui.Label{
-                    fontSize = 18,
+                    classes = {"sizeM"},
                     halign = "left",
                     width = "auto",
                     height = "auto",
                     text = "5th Level.",
                 },
- 
+
                 --Item description text area.
                 gui.Input {
-                    selfStyle = { width = 400, height = 140, vmargin = 4, halign = 'center', textAlignment = "topleft" },
+                    classes = {"sizeM"},
+                    width = 400,
+                    height = 140,
+                    vmargin = 4,
+                    halign = "center",
+                    textAlignment = "topleft",
                     characterLimit = 8192,
                     placeholderText = "Enter Level 5 effect...",
                     multiline = true,
@@ -2056,19 +1893,24 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                             document.level5 = element.text
                         end,
                     }
-                },               
+                },
 
                 gui.Label{
-                    fontSize = 18,
+                    classes = {"sizeM"},
                     halign = "left",
                     width = "auto",
                     height = "auto",
                     text = "9th Level.",
                 },
- 
+
                 --Item description text area.
                 gui.Input {
-                    selfStyle = { width = 400, height = 140, vmargin = 4, halign = 'center', textAlignment = "topleft" },
+                    classes = {"sizeM"},
+                    width = 400,
+                    height = 140,
+                    vmargin = 4,
+                    halign = "center",
+                    textAlignment = "topleft",
                     placeholderText = "Enter Level 9 effect...",
                     characterLimit = 8192,
                     multiline = true,
@@ -2078,21 +1920,15 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                             document.level9 = element.text
                         end,
                     }
-                },               
+                },
 
             },
 
             gui.Check {
+                classes = {"sizeM", cond(not EquipmentCategory.IsLightSource(document), "collapsed")},
                 halign = "center",
-                height = 40,
-                width = '40%',
-                fontSize = '60%',
-
                 text = "Display on Token",
                 value = document:try_get("displayOnToken", true),
-                classes = {
-                    ['collapsed'] = (not EquipmentCategory.IsLightSource(document))
-                },
                 refresh = function(element)
                     element:SetClass("collapsed", not EquipmentCategory.IsLightSource(document))
                 end,
@@ -2103,13 +1939,10 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                 end,
             },
 
-            gui.PrettyButton {
+            gui.Button {
+                classes = {"sizeM", cond(not EquipmentCategory.IsLightSource(document), "collapsed")},
                 width = 160,
-                height = 50,
                 text = "Edit Object",
-                classes = {
-                    ['collapsed'] = (not EquipmentCategory.IsLightSource(document))
-                },
                 refresh = function(element)
                     element:SetClass("collapsed", not EquipmentCategory.IsLightSource(document))
                 end,
@@ -2195,15 +2028,13 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                 },
 
                 FormPanel {
-                    text = 'Scale:',
-                    classes = {
-                    },
+                    text = "Scale:",
                     child = gui.Slider {
-                        id = 'slider-light-inner-radius',
+                        classes = {"formStacked"},
+                        id = "slider-light-inner-radius",
                         style = {
                             height = 40,
                             width = 200,
-                            fontSize = 14,
                         },
 
                         sliderWidth = 140,
@@ -2227,15 +2058,13 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                 },
 
                 FormPanel {
-                    text = 'Rotation:',
-                    classes = {
-                    },
+                    text = "Rotation:",
                     child = gui.Slider {
-                        id = 'slider-light-inner-radius',
+                        classes = {"formStacked"},
+                        id = "slider-light-inner-radius",
                         style = {
                             height = 40,
                             width = 200,
-                            fontSize = 14,
                         },
 
                         sliderWidth = 140,
@@ -2265,46 +2094,23 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
 
     resultPanel = gui.Panel {
         id = "MainTableGearForm",
-
+        classes = {"framedPanel"},
+        styles = ThemeEngine.GetStyles(),
         vscroll = true,
-        styles = {
-            {
-                bgcolor = 'black',
-                width = 1060,
-                height = 800,
-                flow = 'vertical',
-                fontSize = 18,
-                margin = 0,
-                valign = 'top',
-            },
-            {
-                selectors = { 'dropdown' },
-                priority = 3,
-                halign = 'left',
-                width = 160,
-                height = 28,
-                valign = 'center',
-            },
-            {
-                selectors = { 'input' },
-                priority = 3,
-                width = 180,
-                height = 20,
-                halign = 'left',
-            },
-        },
+        width = 1060,
+        height = 800,
+        vpad = 8,
+        flow = "vertical",
+        valign = "top",
+        margin = 0,
 
         children = {
             gui.Label {
-                text = options.description or 'Create Item',
-                style = {
-                    width = 'auto',
-                    height = 'auto',
-                    textAlignment = 'center',
-                    fontSize = '200%',
-                    halign = 'center',
-                    color = 'white',
-                }
+                classes = {"dialogTitle"},
+                text = options.description or "Create Item",
+                width = "auto",
+                height = "auto",
+                halign = "center",
             },
 
             gui.Panel {
@@ -2312,6 +2118,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                     width = '100%',
                     height = 'auto',
                     flow = 'horizontal',
+                    valign = "top",
                 },
                 children = {
                     leftPanel,

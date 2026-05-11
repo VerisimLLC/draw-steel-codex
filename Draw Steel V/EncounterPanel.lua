@@ -1,6 +1,6 @@
 local mod = dmhub.GetModLoading()
 
-local g_numHeroesSetting = setting{
+local g_numHeroesSetting = setting {
     id = "numheroes",
     description = "Number of Heroes",
     help = "This setting will guide balance of encounters you create.",
@@ -50,7 +50,6 @@ local g_numHeroesSetting = setting{
 --}
 --
 
-
 local function track(eventType, fields)
     if dmhub.GetSettingValue("telemetry_enabled") == false then
         return
@@ -63,7 +62,6 @@ local function track(eventType, fields)
 end
 
 local CreateEncounterPanel
-
 
 DockablePanel.Register {
     name = "Encounter creator",
@@ -78,7 +76,6 @@ DockablePanel.Register {
         return CreateEncounterPanel()
     end,
 }
-
 
 Encounter = RegisterGameType('Encounter')
 
@@ -99,9 +96,6 @@ EncounterFolder.tableName = 'encounterfolders'
 
 EncounterFolder.name = 'New Encounter Folder'
 
-
-
-
 function Encounter.MainMonster(encounter)
     local mainmonster = nil
     for i, group in ipairs(encounter.groups) do
@@ -119,7 +113,7 @@ end
 function Encounter.CloneForNumberOfHeroes(self, numHeroes)
     numHeroes = numHeroes or g_numHeroesSetting:Get()
     local encounter = DeepCopy(self)
-    for i=#encounter.groups,1,-1 do
+    for i = #encounter.groups, 1, -1 do
         if encounter.groups[i].minHeroes ~= nil and encounter.groups[i].minHeroes > numHeroes then
             table.remove(encounter.groups, i)
         end
@@ -181,8 +175,6 @@ local function createSmallMonsterDisplay(monsterid, quantity)
     --example of one monster: image + name + quantity BACK
     return gui.Panel {
 
-        bgimage = true,
-        bgcolor = "red",
         width = "100%",
         height = 41,
         halign = "left",
@@ -192,15 +184,13 @@ local function createSmallMonsterDisplay(monsterid, quantity)
 
         gui.Panel {
 
+            classes = { "image", "bordered" },
             bgimage = monster.appearance.portraitId,
-            bgcolor = "white",
             width = 35,
             height = 35,
             halign = "left",
             tmargin = 3,
             lmargin = 3,
-            border = 1,
-            borderColor = Styles.textColor,
 
         },
 
@@ -229,30 +219,28 @@ local function createGroupPanel(encounter)
     local groupkingpanel
     groupkingpanel = gui.Panel {
 
-        styles = {
+        styles = ThemeEngine.MergeStyles({
 
             {
-                classes = { "addButton" },
+                selectors = { "addButton" },
                 hidden = 1,
             },
 
             {
-                classes = { "addButton", "parent:hover", "~full" },
+                selectors = { "addButton", "parent:hover", "~full" },
                 hidden = 0,
             },
 
-        },
+        }),
 
+        classes = { "bg" },
         width = "96%",
         height = "auto",
-        bgimage = true,
-        bgcolor = "black",
         valign = "top",
         flow = "vertical",
 
         maxHeight = 300,
         vscroll = true,
-
 
         update = function(element)
             local panels = {}
@@ -260,12 +248,9 @@ local function createGroupPanel(encounter)
             for i, group in ipairs(encounter.groups) do
                 panels[#panels + 1] = gui.Panel {
 
+                    classes = { "bordered", "bg" },
                     width = "85%",
                     height = "65",
-                    border = 1,
-                    borderColor = "white",
-                    bgimage = true,
-                    bgcolor = "black",
                     valign = "top",
                     tmargin = 5,
                     flow = "horizontal",
@@ -287,19 +272,17 @@ local function createGroupPanel(encounter)
 
                     gui.Panel {
 
+                        classes = { "bordered" },
                         width = 50,
                         height = 65,
-                        borderColor = "white",
-                        border = 1,
-                        bgimage = true,
                         halign = "left",
 
                         gui.Label {
 
+                            classes = { "fgStrong", "number" },
                             text = #panels + 1,
                             fontSize = 14,
-                            color = "white",
-                        }
+                        },
 
                     },
 
@@ -317,7 +300,6 @@ local function createGroupPanel(encounter)
                         create = function(element)
                             local panels = {}
 
-
                             for monsterid, quantity in pairs(group.monsters) do
                                 local monster = assets.monsters[monsterid]
 
@@ -330,6 +312,7 @@ local function createGroupPanel(encounter)
 
                                     gui.Label {
 
+                                        classes = { "fgStrong" },
                                         width = "auto",
                                         height = "auto",
                                         fontSize = 16,
@@ -355,28 +338,23 @@ local function createGroupPanel(encounter)
                                             self.text = group.monsters[monsterid]
                                         end
 
-
                                     },
                                     gui.Label {
 
+                                        classes = { "fg" },
                                         width = "auto",
                                         height = "auto",
                                         fontSize = 16,
                                         text = string.format("X %s", creature.GetTokenDescription(monster)),
 
-
                                     },
-
-
-
-
 
                                 }
                             end
 
                             element.children = panels
 
-                            if #panels >= 3 then
+                            if #panels >= 4 then
                                 element.parent:SetClassTree("full", true)
                             else
                                 element.parent:SetClassTree("full", false)
@@ -385,8 +363,9 @@ local function createGroupPanel(encounter)
 
                     },
 
-                    gui.AddButton {
+                    gui.Button {
 
+                        classes = { "addButton", "sizeXs" },
                         halign = "center",
                         valign = "center",
                         floating = true,
@@ -404,7 +383,6 @@ local function createGroupPanel(encounter)
                                     monsterinfo.quantity
                             end
 
-
                             element.parent:FireEventTree("create")
                         end,
 
@@ -418,11 +396,10 @@ local function createGroupPanel(encounter)
 
                                     monsterpanels[#monsterpanels + 1] = gui.Label {
 
+                                        classes = { "sizeXs", "bg" },
                                         text = name,
-                                        fontSize = 11,
-                                        bgimage = true,
                                         width = "100%",
-                                        height = 20,
+                                        valign = "top",
 
                                         search = function(element, searchtext)
                                             if string.find(string.lower(element.text), searchtext) then
@@ -444,8 +421,7 @@ local function createGroupPanel(encounter)
                                             element.parent:FireEventTree("create")
 
                                             element.popup = nil
-                                        end
-
+                                        end,
 
                                     }
                                 end
@@ -455,45 +431,26 @@ local function createGroupPanel(encounter)
                                 return a.text < b.text
                             end)
 
-
                             local monsterlist = gui.Panel {
-
-                                bgimage = true,
-                                bgcolor = "black",
                                 width = 300,
                                 height = 400,
                                 flow = "vertical",
-
-
+                                vscroll = true,
                                 children = monsterpanels,
-
-                                styles = {
-
-                                    {
-                                        classes = { "label" },
-                                        bgcolor = "black",
-                                        color = Styles.textColor,
-                                    },
-
-                                    {
-                                        classes = { "label", "hover" },
-                                        bgcolor = Styles.textColor,
-                                        color = "black",
-                                    }
-
-                                },
-
                             }
 
+                            element.popupsInheritStyles = true
                             element.popup = gui.Panel {
-
-                                styles = Styles.Default,
+                                classes = { "bordered", "bg" },
                                 width = "auto",
                                 height = "auto",
+                                valign = "center",
+                                halign = "left",
+                                x = -600,
                                 flow = "vertical",
 
-                                gui.Input {
-
+                                gui.SearchInput {
+                                    classes = {"bordered"},
                                     fontSize = 11,
                                     height = 20,
                                     width = 280,
@@ -546,27 +503,23 @@ local function createGroupPanel(encounter)
                             element.parent:FireEventTree("create")
                         end
 
-
-
                     },
 
-
-
-                    gui.DeleteItemButton {
-                        width = 16,
-                        height = 16,
+                    gui.Button {
+                        classes = { "deleteButton", "sizeXs" },
                         x = 18,
 
                         floating = true,
                         halign = "right",
+                        valign = "top",
                         press = function(element)
                             table.remove(encounter.groups, i)
                             groupkingpanel:FireEvent("update")
                         end,
                     },
 
-                    gui.Label{
-                        classes = {"link"},
+                    gui.Label {
+                        classes = { "link" },
                         floating = true,
                         fontSize = 12,
                         halign = "right",
@@ -577,20 +530,20 @@ local function createGroupPanel(encounter)
                         text = "Balancing",
                         press = function(element)
                             local balancing = group.balancing or {}
-                            for _,i in ipairs({3,4,5,6,7}) do
+                            for _, i in ipairs({ 3, 4, 5, 6, 7 }) do
                                 balancing[i] = balancing[i] or {}
                             end
 
                             local balancingBaseline = DeepCopy(balancing)
                             local children = {}
 
-                            for _,i in ipairs({3,4,5,6,7}) do
+                            for _, i in ipairs({ 3, 4, 5, 6, 7 }) do
                                 local info = balancing[i]
-                                children[#children+1] = gui.Panel{
+                                children[#children + 1] = gui.Panel {
                                     flow = "horizontal",
                                     width = "100%",
                                     height = "auto",
-                                    gui.Label{
+                                    gui.Label {
                                         width = 80,
                                         height = "auto",
                                         fontSize = 12,
@@ -598,24 +551,25 @@ local function createGroupPanel(encounter)
                                         text = string.format("%d Heroes", i),
                                     },
 
-                                    gui.Panel{
+                                    gui.Panel {
                                         width = 180,
                                         flow = "vertical",
                                         height = "auto",
-                                        gui.Panel{
+                                        gui.Panel {
                                             halign = "right",
                                             flow = "horizontal",
                                             width = "auto",
                                             height = "auto",
                                             vmargin = 4,
-                                            gui.Label{
+                                            gui.Label {
                                                 fontSize = 12,
                                                 text = "Stamina:",
                                                 width = "auto",
                                                 height = "auto",
                                                 hmargin = 4,
                                             },
-                                            gui.Input{
+                                            gui.Input {
+                                                classes = { "form" },
                                                 fontSize = 12,
                                                 width = 50,
                                                 height = 12,
@@ -635,7 +589,8 @@ local function createGroupPanel(encounter)
                                             }
                                         },
 
-                                        gui.Check{
+                                        gui.Check {
+                                            classes = { "form" },
                                             text = "Disable Solo Action",
                                             height = 14,
                                             minWidth = 100,
@@ -650,12 +605,9 @@ local function createGroupPanel(encounter)
                                 }
                             end
 
-                            local panel = gui.Panel{
-                                styles = {
-                                    Styles.Default,
-                                    Styles.Panel,
-                                },
-                                classes = {"framedPanel"},
+                            local panel = gui.Panel {
+                                -- styles = ThemeEngine.GetStyles(),
+                                classes = { "dialog" },
                                 width = 260,
                                 height = "auto",
                                 flow = "vertical",
@@ -669,11 +621,12 @@ local function createGroupPanel(encounter)
                                 end,
                             }
 
+                            element.popupsInheritStyles = true
                             element.popup = panel
                         end,
                     },
 
-                    gui.Panel{
+                    gui.Panel {
                         floating = true,
                         halign = "right",
                         valign = "top",
@@ -682,8 +635,8 @@ local function createGroupPanel(encounter)
                         height = 16,
                         press = function(element)
                             local entries = {}
-                            for _,i in ipairs({0,3,4,5,6,7}) do
-                                entries[#entries+1] = {
+                            for _, i in ipairs({ 0, 3, 4, 5, 6, 7 }) do
+                                entries[#entries + 1] = {
                                     text = cond(i == 0, "Always", string.format("%d+ Heroes", i)),
                                     selected = (group.minHeroes or 0) == i,
                                     click = function()
@@ -694,11 +647,11 @@ local function createGroupPanel(encounter)
                                 }
                             end
 
-                            element.popup = gui.ContextMenu{
+                            element.popup = gui.ContextMenu {
                                 entries = entries,
                             }
                         end,
-                        gui.Label{
+                        gui.Label {
                             width = 18,
                             height = 16,
                             fontSize = 12,
@@ -707,9 +660,9 @@ local function createGroupPanel(encounter)
                                 element.text = (group.minHeroes and string.format("%d+", group.minHeroes)) or "all"
                             end,
                         },
-                        gui.Panel{
+                        gui.Panel {
+                            classes = { "image" },
                             bgimage = "icons/icon_app/icon_app_18.png",
-                            bgcolor = "white",
                             width = 16,
                             height = 16,
                         },
@@ -736,28 +689,22 @@ local function createMonsterDisplayPanel(monsterid, quantity)
 
     return gui.Panel {
 
+        classes = { "bordered", "bg" },
         width = "90%",
         height = 110,
-        bgimage = true,
-        bgcolor = "black",
-        border = 1,
-        borderColor = Styles.textColor,
         halign = "center",
-        flow = 'horizontal',
+        flow = "horizontal",
         pad = 1,
         bmargin = 8,
 
         --monster image panel
         gui.Panel {
 
+            classes = { "image" },
             width = "35%",
             height = "100%",
             bgimage = monster.appearance.portraitId,
-            bgcolor = "white",
             halign = "left",
-            border = { 0, 0, 1, 0 },
-            borderColor = Styles.textColor,
-
 
         },
 
@@ -766,13 +713,11 @@ local function createMonsterDisplayPanel(monsterid, quantity)
 
             width = "65%",
             height = "100%",
-            bgimage = true,
-            bgcolor = "black",
-            flow = 'vertical',
-
+            flow = "vertical",
 
             gui.Label {
 
+                classes = { "fgStrong" },
                 text = string.format("%s", monster.name),
                 halign = "center",
                 fontSize = 16,
@@ -781,6 +726,7 @@ local function createMonsterDisplayPanel(monsterid, quantity)
 
             gui.Label {
 
+                classes = { "fg" },
                 text = string.format("Level %d", monster.properties:Level()),
                 halign = "center",
                 fontSize = 16,
@@ -789,6 +735,7 @@ local function createMonsterDisplayPanel(monsterid, quantity)
 
             gui.Label {
 
+                classes = { "fg" },
                 text = string.format("%d", quantity),
                 halign = "center",
                 fontSize = 16,
@@ -797,6 +744,7 @@ local function createMonsterDisplayPanel(monsterid, quantity)
 
             gui.Label {
 
+                classes = { "fg" },
                 text = string.format("%s", monster.properties.role),
                 halign = "center",
                 fontSize = 16,
@@ -805,6 +753,7 @@ local function createMonsterDisplayPanel(monsterid, quantity)
 
             gui.Label {
 
+                classes = { "fg" },
                 text = string.format("EV: %d  Total: %d", monster.properties.ev, evtotal),
                 halign = "center",
                 fontSize = 16,
@@ -816,8 +765,6 @@ local function createMonsterDisplayPanel(monsterid, quantity)
     }
 end
 
-
-
 function Encounter.Editor(self, options)
     local resultPanel
 
@@ -826,10 +773,11 @@ function Encounter.Editor(self, options)
     local appearancesCheck
 
     if options.journal then
-        appearancesCheck = gui.Check{
+        appearancesCheck = gui.Check {
+            classes = { "form" },
             text = "Save monster appearances",
             value = self.saveAppearances,
-            change = function(element) 
+            change = function(element)
                 self.saveAppearances = element.value
             end,
         }
@@ -837,23 +785,13 @@ function Encounter.Editor(self, options)
 
     resultPanel = gui.Panel {
 
-        bgimage = true,
-        width = '100%',
-        height = '100%',
-        flow = 'vertical',
-
-        styles = {
-
-            {
-                classes = { 'label' },
-                width = "auto",
-                height = "auto",
-            }
-
-        },
+        width = "100%",
+        height = "100%",
+        flow = "vertical",
 
         gui.Label {
 
+            classes = { "fgStrong" },
             text = self.name,
             fontSize = 16,
             bold = true,
@@ -863,7 +801,7 @@ function Encounter.Editor(self, options)
             height = 20,
             valign = "top",
             tmargin = 5,
-
+            bmargin = 6,
 
             characterLimit = 20,
             editable = true,
@@ -873,21 +811,13 @@ function Encounter.Editor(self, options)
 
         },
 
-        gui.Divider {
-
-            valign = "top",
-        },
-
         gui.Panel {
 
+            classes = { "bordered", "bg" },
             width = "90%",
             height = 30,
-            border = 1,
-            borderColor = Styles.textColor,
-            halign = 'center',
+            halign = "center",
             valign = "top",
-            bgimage = true,
-            bgcolor = "black",
             tmargin = 5,
             gui.Label {
 
@@ -902,44 +832,31 @@ function Encounter.Editor(self, options)
                     label.text = string.format("EV total: %d", self:CountEDS())
                 end
             },
-
-            --[[gui.Label {
-                text = string.format("Trivial"),
-                fontSize = 14,
-                color = "blue",
-                halign = "right",
-                rmargin = 6,
-            }]]
-
         },
 
         gui.Label {
-
-            text = 'Groups:',
+            classes = { "fgStrong" },
+            text = "Groups:",
             fontSize = 16,
             bold = true,
             halign = "center",
             valign = "top",
             tmargin = 4,
-
-
         },
 
         groupPanel,
 
         gui.Panel {
 
+            classes = { "bordered", "bg" },
             width = "90%",
             height = "50",
-            border = 1,
-            borderColor = "white",
-            bgimage = true,
-            bgcolor = "black",
             valign = "top",
             tmargin = 5,
 
-            gui.AddButton {
+            gui.Button {
 
+                classes = { "addButton", "sizeXs" },
                 halign = "center",
                 valign = "center",
 
@@ -953,10 +870,7 @@ function Encounter.Editor(self, options)
 
             },
 
-
         },
-
-
 
         gui.Panel {
 
@@ -1035,7 +949,9 @@ function Encounter.Editor(self, options)
 
 
 
-            gui.AddButton {
+            gui.Button {
+                classes = {"addButton"},
+            
 
                 halign = "center",
                 valign = "center",
@@ -1196,6 +1112,7 @@ function Encounter.Editor(self, options)
 
         gui.Button {
 
+            classes = { "sizeM" },
             text = options.mode or "Save",
             halign = "center",
             valign = "bottom",
@@ -1210,69 +1127,60 @@ function Encounter.Editor(self, options)
                         eds = self:CountEDS(),
                     }
 
-                    dmhub.SetAndUploadTableItem('encounters', self)
+                    dmhub.SetAndUploadTableItem("encounters", self)
                 end
 
-                button:FindParentWithClass('editorPanel'):DestroySelf()
-            end
+                button:FindParentWithClass("editorPanel"):DestroySelf()
+            end,
 
-        }
+        },
     }
-
 
     resultPanel:FireEventTree("update")
     return resultPanel
 end
 
 function Encounter.CreateEditorDialog(encounter, options)
-
     local editorPanel
 
     editorPanel = gui.Panel {
 
-        classes = { 'editorPanel' },
+        classes = { "editorPanel" },
+        styles = ThemeEngine.GetStyles(),
 
-        halign = 'center',
-        valign = 'center',
+        halign = "center",
+        valign = "center",
         width = 400,
         height = 500,
 
-
         gui.Panel {
 
-            styles = {
-                Styles.Default,
-                Styles.Panel,
-            },
+            classes = { "dialog" },
 
-
-            classes = { "framedPanel" },
-
-
-            halign = 'center',
-            --bgimage = true,
+            halign = "center",
             width = 360,
             height = 500,
-            --bgcolor = "white",
 
             encounter.Editor(encounter, options),
 
-            gui.CloseButton {
-
+            gui.Button {
+                classes = { "closeButton" },
                 halign = "right",
                 valign = "top",
                 press = function()
                     editorPanel:DestroySelf()
-                end
-            }
+                end,
+            },
 
         }
 
-
-
     }
 
-
+    ThemeEngine.OnThemeChanged(mod, function()
+        if editorPanel ~= nil and editorPanel.valid then
+            editorPanel.styles = ThemeEngine.GetStyles()
+        end
+    end)
 
     GameHud.instance.documentsPanel:AddChild(editorPanel)
 end
@@ -1283,7 +1191,8 @@ CreateEncounterPanel = function()
     local inspectorPanel
 
     inspectorPanel = gui.Panel {
-        id = 'inspector-panel',
+        id = "inspector-panel",
+        styles = ThemeEngine.GetStyles(),
         hpad = 6,
         width = "100%",
         height = "auto",
@@ -1328,7 +1237,6 @@ CreateEncounterPanel = function()
                 for key, encounterfolder in unhidden_pairs(encounterfolders) do
                     local folder = gui.TreeNode {
 
-
                         text = encounterfolder.name,
                         width = "100%",
                         editable = true,
@@ -1341,13 +1249,10 @@ CreateEncounterPanel = function()
 
                         contentPanel = gui.Panel {
 
+                            classes = { "bg" },
                             height = 100,
                             width = 100,
-                            bgcolor = "red",
-                            bgimage = true,
                         }
-
-
 
                     }
 
@@ -1390,14 +1295,13 @@ CreateEncounterPanel = function()
 
                     children[index] = gui.Panel {
 
+                        classes = { "featureCard" },
                         width = "90%",
                         height = 110,
-                        bgimage = true,
-                        bgcolor = "black",
                         halign = "left",
-                        flow = 'vertical',
+                        flow = "vertical",
                         pad = 1,
-                        bmargin = 8,
+                        vmargin = 8,
                         draggable = true,
 
                         canDragOnto = function(self, target)
@@ -1414,42 +1318,19 @@ CreateEncounterPanel = function()
 
                         click = function(self)
                             gui.SetFocus(self)
+                            for _, sibling in ipairs(self.parent.children) do
+                                sibling:SetClass("selected", false)
+                            end
+                            self:SetClass("selected", true)
                         end,
-
-                        classes = { "encounterpanel" },
-
-                        styles = {
-
-                            {
-                                border = 1,
-                                borderColor = Styles.textColor,
-                                classes = { "encounterpanel" },
-
-                            },
-
-                            {
-                                border = 3,
-                                borderColor = "white",
-                                brightness = 1.4,
-                                classes = { "encounterpanel", "focus" },
-
-                            },
-
-
-                        },
 
                         --king panel for name and difficulty
                         gui.Panel {
 
+                            classes = { "featureCardHeader", "expanded" },
                             width = "100%",
                             height = "23%",
-                            flow = 'horizontal',
-                            bgimage = true,
-                            bgcolor = "clear",
-                            --DAVID: (bug to fix) making the border partial ex: {0, 0, 1, 0} doesn't works
-                            border = 1,
-                            borderColor = Styles.textColor,
-
+                            flow = "horizontal",
 
                             gui.Label {
 
@@ -1460,8 +1341,6 @@ CreateEncounterPanel = function()
                                 width = "auto",
                                 fontSize = 16,
                                 lmargin = 12,
-
-
 
                             },
 
@@ -1486,6 +1365,7 @@ CreateEncounterPanel = function()
 
                         gui.Panel {
 
+                            classes = { "featureCardBody" },
                             width = "100%",
                             height = "85%",
                             flow = "horizontal",
@@ -1493,17 +1373,13 @@ CreateEncounterPanel = function()
                             --monster image panel
                             gui.Panel {
 
+                                classes = { "image" },
                                 width = "35%",
                                 height = "91%",
                                 bgimage = headmonsteravatar,
-                                bgcolor = "white",
                                 halign = "left",
-                                border = { 0, 0, 1, 0 },
-                                borderColor = Styles.textColor,
 
                                 thinkTime = 0.2,
-
-
 
                                 think = function(panel)
                                     local mainmonster = Encounter.MainMonster(encounter)
@@ -1511,7 +1387,6 @@ CreateEncounterPanel = function()
                                         panel.bgimage = mainmonster.appearance:GetPortraitId()
                                     end
                                 end
-
 
                             },
 
@@ -1527,8 +1402,6 @@ CreateEncounterPanel = function()
                                     width = "100%",
                                     height = "100%",
                                     flow = "vertical",
-
-
 
                                     lmargin = 5,
                                     fontSize = 16,
@@ -1554,45 +1427,40 @@ CreateEncounterPanel = function()
                                         panel.children = children
                                     end]]
 
-
-
                                 },
 
                             },
 
                         },
 
-
-
-
-                        gui.DeleteItemButton {
-                            width = 16,
-                            height = 16,
+                        gui.Button {
+                            classes = { "deleteButton", "sizeXs" },
                             x = 18,
 
                             floating = true,
                             halign = "right",
+                            valign = "top",
                             press = function(element)
                                 encounter.hidden = true
-                                dmhub.SetAndUploadTableItem('encounters', encounter)
+                                dmhub.SetAndUploadTableItem("encounters", encounter)
                                 inspectorPanel:FireEvent("update")
                             end,
                         },
 
-                        gui.SettingsButton {
-                            width = 16,
-                            height = 16,
+                        gui.Button {
+                            classes = { "settingsButton", "sizeXs" },
                             x = 18,
                             y = 20,
                             floating = true,
                             halign = "right",
+                            valign = "top",
 
                             swallowPress = true,
                             press = function(element)
                                 local encounterCopy = DeepCopy(encounter)
-                                encounterCopy:CreateEditorDialog{mode = "Save"}
+                                encounterCopy:CreateEditorDialog { mode = "Save" }
                             end,
-                        }
+                        },
 
                     }
 
@@ -1604,9 +1472,10 @@ CreateEncounterPanel = function()
         }
     }
 
-    local addEncounterButton = gui.AddButton {
+    local addEncounterButton = gui.Button {
 
-        halign = 'center',
+        classes = { "addButton", "sizeXs" },
+        halign = "center",
 
         click = function(element)
             local dock = element:FindParentWithClass("dockablePanel")
@@ -1620,56 +1489,47 @@ CreateEncounterPanel = function()
 
             editorPanel = gui.Panel {
 
-                classes = { 'editorPanel' },
+                classes = { "editorPanel" },
+                styles = ThemeEngine.GetStyles(),
 
-                halign = 'center',
-                valign = 'center',
+                halign = "center",
+                valign = "center",
                 width = 400,
                 height = 500,
 
-
                 gui.Panel {
 
-                    styles = {
-                        Styles.Default,
-                        Styles.Panel,
-                    },
+                    classes = { "dialog" },
 
-
-                    classes = { "framedPanel" },
-
-
-                    halign = 'center',
-                    --bgimage = true,
+                    halign = "center",
                     width = 360,
                     height = 500,
-                    --bgcolor = "white",
 
                     newEncounter.Editor(newEncounter, { mode = "Create" }),
 
-                    gui.CloseButton {
-
+                    gui.Button {
+                        classes = { "closeButton" },
                         halign = "right",
                         valign = "top",
                         press = function()
                             editorPanel:DestroySelf()
-                        end
-                    }
+                        end,
+                    },
 
                 }
 
-
-
             }
 
-
+            ThemeEngine.OnThemeChanged(mod, function()
+                if editorPanel ~= nil and editorPanel.valid then
+                    editorPanel.styles = ThemeEngine.GetStyles()
+                end
+            end)
 
             GameHud.instance.documentsPanel:AddChild(editorPanel)
         end
 
-
     }
-
 
     local resultPanel = gui.Panel {
         width = "100%",
@@ -1679,6 +1539,12 @@ CreateEncounterPanel = function()
         addEncounterButton,
 
     }
+
+    ThemeEngine.OnThemeChanged(mod, function()
+        if inspectorPanel ~= nil and inspectorPanel.valid then
+            inspectorPanel.styles = ThemeEngine.GetStyles()
+        end
+    end)
 
     return resultPanel
 end

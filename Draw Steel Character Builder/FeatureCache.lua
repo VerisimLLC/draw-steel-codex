@@ -826,7 +826,19 @@ end
 
 --- @return string|nil
 function CBOptionWrapper:GetDescription()
-    return _safeGet(self.option, "description")
+    local result = _safeGet(self.option, "description")
+
+
+    --if we don't have a description set, but have an activated ability, then use its flavor text as a description
+    if result == nil or result == "" then
+        local modifiers = _safeGet(self.option, "modifiers", {})
+        if modifiers ~= nil and #modifiers > 0 and modifiers[1].behavior == "activated" then
+            local result = modifiers[1].activatedAbility:try_get("flavor", "")
+            return result
+        end
+    end
+
+    return result
 end
 
 --- @return string

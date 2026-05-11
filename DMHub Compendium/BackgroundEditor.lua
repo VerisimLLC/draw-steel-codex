@@ -148,6 +148,7 @@ local SetBackground = function(tableName, backgroundPanel, backgroundid)
 	backgroundPanel.children = children
 end
 
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\DSCareer.lua:187
 function Background.CreateEditor()
 	local backgroundPanel
 	backgroundPanel = gui.Panel{
@@ -172,4 +173,5 @@ function Background.CreateEditor()
 
 	return backgroundPanel
 end
+--]==]
 

@@ -135,6 +135,13 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 		end
 
 		if swapTokens ~= nil then
+			--Mirror the teleport branch: track distance moved on the cast so
+			--downstream behaviors (e.g. activationCondition gates like
+			--`Cast.Spaces Moved > 0`) can detect that the swap actually happened.
+			local swapDistance = casterToken:Distance(targets[1].loc)
+			if swapDistance > 0 then
+				options.symbols.cast.spacesMoved = options.symbols.cast.spacesMoved + swapDistance
+			end
 			casterToken:SwapPositions(swapTokens[1])
 		elseif movementType == "teleport" or movementType == "relocate" then
             local distance = casterToken:Distance(targets[1].loc)
@@ -176,7 +183,8 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 			local abilityDist = ability:GetRange(casterToken.properties)/dmhub.unitsPerSquare
 			if ability.targeting == "straightline" or ability.targetType == "line" then
 				local abilityDistForArrow = abilityDist
-				local movementInfo = casterToken:MarkMovementArrow(targets[1].loc, {waypoints = options.symbols.waypoints, straightline = true, ignorecreatures = (ability.targetType == "line" or throughCreatures), forcedMovementDistance = abilityDistForArrow, rebound = forcedPushOptions.rebound, maxBounces = forcedPushOptions.maxBounces})
+				local isVerticalSlide = (options.symbols.forcedmovement or ability:try_get("forcedMovement", "slide")) == "vertical_slide"
+				local movementInfo = casterToken:MarkMovementArrow(targets[1].loc, {waypoints = options.symbols.waypoints, straightline = true, ignorecreatures = (ability.targetType == "line" or throughCreatures), forcedMovementDistance = abilityDistForArrow, rebound = forcedPushOptions.rebound, maxBounces = forcedPushOptions.maxBounces, slide = isVerticalSlide})
 				if movementInfo ~= nil then
 
 					local loc = targets[1].loc
@@ -249,7 +257,8 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
             end
 
 
-			local path = casterToken:Move(targets[#targets].loc, { waypoints = waypoints, straightline = (ability.targeting == "straightline" or ability.targeting == "straightpath" or ability.targeting == "straightpathignorecreatures" or ability.targetType == "line"), moveThroughFriends = (ability.targeting ~= "straightline"), ignorecreatures = (ability.targeting == "straightpathignorecreatures" or ability.targetType == "line" or throughCreatures), maxCost = 30000, movementType = movementType, forcedMovementDistance = abilityDist, rebound = forcedPushOptions.rebound, maxBounces = forcedPushOptions.maxBounces })
+			local isVerticalSlideCast = (options.symbols.forcedmovement or ability:try_get("forcedMovement", "slide")) == "vertical_slide"
+			local path = casterToken:Move(targets[#targets].loc, { waypoints = waypoints, straightline = (ability.targeting == "straightline" or ability.targeting == "straightpath" or ability.targeting == "straightpathignorecreatures" or ability.targetType == "line"), moveThroughFriends = (ability.targeting ~= "straightline"), ignorecreatures = (ability.targeting == "straightpathignorecreatures" or ability.targetType == "line" or throughCreatures), maxCost = 30000, movementType = movementType, forcedMovementDistance = abilityDist, rebound = forcedPushOptions.rebound, maxBounces = forcedPushOptions.maxBounces, slide = isVerticalSlideCast })
 
             --fire wallbreak events for any walls broken during the move
             --(wall erasure and rubble spawning are handled by the engine in TryStraightLineMove)

@@ -420,62 +420,66 @@ function buildRetainerList()
     return retainerTypes, retainerLookup
 end
 
-local DialogStyles = {
-    gui.Style{
-        selectors = { "avatarPanel"},
-        borderColor = Styles.textColor,
-        borderWidth = 2,
-        width = 90,
-        height = 120,
-        halign = "left",
-        valign = "top",
-        bgcolor = "white",
-    },
-    gui.Style{
-        selectors = { "followerLabel"},
-        height = 25,
-        minWidth = 120,
-        valign = "center",
-        fontSize = 20,
-        bold = true,
-        fontFace = "Berling",
-    },
-    gui.Style{
-        selectors = { "followersListLabel"},
-        height = 20,
-        width = 180,
-        valign = "center",
-        fontSize = 16,
-        fontFace = "Berling",
-    },
-    gui.Style{
-        selectors = { "followerDropdown"},
-        width = 190,
-        valign = "top",
-        fontFace = "Berling",
-    },
-    gui.Style{
-        selectors = { "followerMultiselect" },
-        valign ="top",
-        fontFace = "Berling",
-    },
-    gui.Style{
-        selectors = { "followerNameLabel"},
-        width = "50%",
-        height = 25,
-        fontSize = 32,
-        bold = true,
-        color = Styles.textColor,
-        fontFace = "Berling",
-    },
-    gui.Style{
-        selectors = {"saveButton"},
-        fontSize = 22,
-        textAlignment = "center",
-        bold = true,
-        height = 35,
-    }
-}
+-- Follower editor dialog styles. Built fresh per call so @-token references
+-- resolve against the active scheme.
+local function BuildDialogStyles()
+    return ThemeEngine.MergeTokens({
+        {
+            selectors = { "avatarPanel" },
+            borderColor = "@fgStrong",
+            borderWidth = 2,
+            width = 90,
+            height = 120,
+            halign = "left",
+            valign = "top",
+            bgcolor = "white",
+        },
+        {
+            selectors = { "followerLabel" },
+            height = 25,
+            minWidth = 120,
+            valign = "center",
+            fontSize = 20,
+            bold = true,
+            fontFace = "Berling",
+        },
+        {
+            selectors = { "followersListLabel" },
+            height = 20,
+            width = 180,
+            valign = "center",
+            fontSize = 16,
+            fontFace = "Berling",
+        },
+        {
+            selectors = { "followerDropdown" },
+            width = 190,
+            valign = "top",
+            fontFace = "Berling",
+        },
+        {
+            selectors = { "followerMultiselect" },
+            valign = "top",
+            fontFace = "Berling",
+        },
+        {
+            selectors = { "followerNameLabel" },
+            width = "50%",
+            height = 25,
+            fontSize = 32,
+            bold = true,
+            color = "@fgStrong",
+            fontFace = "Berling",
+        },
+        {
+            selectors = { "saveButton" },
+            fontSize = 22,
+            textAlignment = "center",
+            bold = true,
+            height = 35,
+        },
+    })
+end
 
 function CreateFollowerEditorDialog(follower, options)
     local types = {
@@ -783,7 +787,7 @@ function CreateFollowerEditorDialog(follower, options)
     }
 
     editorPanel = gui.Panel {
-        styles = DialogStyles,
+        styles = BuildDialogStyles(),
         classes = {"editorPanel"},
 
         halign = "center",
@@ -797,7 +801,7 @@ function CreateFollowerEditorDialog(follower, options)
         children = {
             gui.Panel {
                 classes = {"framedPanel"},
-                styles = { Styles.Default, Styles.Panel },
+                styles = ThemeEngine.GetStyles(),
                 halign = "center",
                 width = "100%",
                 height = "100%",

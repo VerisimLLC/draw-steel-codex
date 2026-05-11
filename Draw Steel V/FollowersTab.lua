@@ -24,17 +24,9 @@ end
 
 local Styles = {
     {
-        classes = { "mainPanel"},
-        pad = 5,
-        bgimage = "panels/square.png",
-        bgcolor = "#2a2a2a",
-        border = 1,
-        borderColor = "white",
-    },
-    {
         classes = { "avatarPanel"},
-        borderColor = Styles.textColor,
         borderWidth = 2,
+        borderColor = "@border",
         hmargin = 8,
         width = 80,
         height = 120,
@@ -43,28 +35,8 @@ local Styles = {
         bgcolor = "white",
     },
     {
-        selectors = {'hover', "avatarPanel"},
+        selectors = {"hover", "avatarPanel"},
         brightness = 2,
-    },
-    {
-        classes = { "followerLabel"},
-        height = 25,
-        minWidth = 120,
-        valign = "center",
-        fontSize = 18,
-        bold = true,
-    },
-    {
-        classes = { "followersListLabel"},
-        height = 20,
-        width = 180,
-        valign = "center",
-        fontSize = 16,
-    },
-    {
-        classes = { "followerDropdown"},
-        width = 190,
-        valign = "top",
     },
     {
         classes = { "followerNameLabel"},
@@ -72,9 +44,9 @@ local Styles = {
         height = 25,
         fontSize = 20,
         bold = true,
-        color = Styles.textColor,
+        color = "@fgStrong",
         hmargin = 5,
-    }
+    },
 }
 
 local retainerDropdownOptions = {}
@@ -152,18 +124,15 @@ function CharSheet.FollowersInnerPanel()
         if not mentorToken then return end
         local resultsPanel
         resultsPanel = gui.Panel{
-            flow = "horizontal",
-            width = "auto",
-            height = 30,
+            classes = {"formRow"},
 
             gui.Label{
-                classes = { "followerLabel"},
-                width = "auto",
-                height = "auto",
+                classes = {"form"},
                 text = "Token:",
             },
 
             gui.Dropdown{
+                classes = {"form"},
                 options = FollowerTokenDropdownOptions(mentorToken.partyid, true),
 
                 idChosen = follower.followerToken,
@@ -171,7 +140,7 @@ function CharSheet.FollowersInnerPanel()
                 refreshAll = function(element)
                     element.options = FollowerTokenDropdownOptions(mentorToken.partyid, true)
                 end,
-                
+
                 change = function(element)
                     follower.followerToken = element.idChosen
                     resultPanel:FireEventTree("refreshAll")
@@ -191,16 +160,16 @@ function CharSheet.FollowersInnerPanel()
         local options = {}
 
         resultPanel = gui.Panel{
-            styles = Styles,
-
             id = "followerSelectionDialog",
-            classes = { "mainPanel", "collapsed"},
+            classes = {"framedPanel", "collapsed"},
+            styles = ThemeEngine.MergeStyles{ Styles },
             halign = "left",
             valign = "top",
             flow = "vertical",
             height = 250,
             width = "60%",
             margin = 10,
+            pad = 5,
 
             newFollower = function(element)
                 --initialive follower information
@@ -228,42 +197,44 @@ function CharSheet.FollowersInnerPanel()
                 bold = true,
             },
 
-            gui.Dropdown{
-                vmargin = 8,
-                valign = "top",
-                options = {
-                    { id = "none", text = "Select Follower Type" },
-                    { id = "artisan", text = "Artisan" },
-                    { id = "sage", text = "Sage" },
-                    { id = "premaderetainer", text = "Premade Retainer" },
-                    { id = "existing", text = "Manual" },
+            gui.Panel{
+                classes = {"formRow"},
+                gui.Label{
+                    classes = {"form"},
+                    text = "Type:",
                 },
+                gui.Dropdown{
+                    classes = {"form"},
+                    options = {
+                        { id = "none", text = "Select Follower Type" },
+                        { id = "artisan", text = "Artisan" },
+                        { id = "sage", text = "Sage" },
+                        { id = "premaderetainer", text = "Premade Retainer" },
+                        { id = "existing", text = "Manual" },
+                    },
 
-                idChosen = newFollowerType,
+                    idChosen = newFollowerType,
 
-                change = function(element)
-                    newFollowerType = element.idChosen
-                    follower.manual = (element.idChosen == "existing")
-                    resultPanel:FireEventTree("refreshAll")
-                end,
+                    change = function(element)
+                        newFollowerType = element.idChosen
+                        follower.manual = (element.idChosen == "existing")
+                        resultPanel:FireEventTree("refreshAll")
+                    end,
 
-                refreshAll = function(element)
-                    element.idChosen = newFollowerType
-                end,
+                    refreshAll = function(element)
+                        element.idChosen = newFollowerType
+                    end,
+                },
             },
 
             gui.Panel{
-                classes = {"collapsed-anim"},
-                flow = "horizontal",
-                width = "auto",
-                height = 30,
+                classes = {"formRow", "collapsed-anim"},
                 gui.Label{
-                    classes = { "followerLabel"},
-                    width = "auto",
-                    height = "auto",
+                    classes = {"form"},
                     text = "Name:",
                 },
                 gui.Input{
+                    classes = {"form"},
                     text = follower.name or "",
                     change = function(element)
                         follower.name = element.text
@@ -286,10 +257,7 @@ function CharSheet.FollowersInnerPanel()
 
             --Retainers from Bestiary
             gui.Panel{
-                classes = {"collapsed-anim"},
-                width = "auto",
-                height = "auto",
-                vmargin = 5,
+                classes = {"formRow", "collapsed-anim"},
 
                 refreshAll = function(element)
                     if newFollowerType ~= "premaderetainer" then
@@ -299,7 +267,13 @@ function CharSheet.FollowersInnerPanel()
                     end
                 end,
 
+                gui.Label{
+                    classes = {"form"},
+                    text = "Retainer:",
+                },
+
                 gui.Dropdown{
+                    classes = {"form"},
                     options = retainerDropdownOptions,
 
                     idChosen = "none",
@@ -331,16 +305,13 @@ function CharSheet.FollowersInnerPanel()
                 end,
 
                 gui.Panel{
-                    flow = "horizontal",
-                    width = "auto",
-                    height = 30,
+                    classes = {"formRow"},
                     gui.Label{
-                        classes = { "followerLabel"},
-                        width = "auto",
-                        height = "auto",
+                        classes = {"form"},
                         text = "Ancestry:",
                     },
                     gui.Dropdown{
+                        classes = {"form"},
                         options = Race.GetDropdownList(),
                         idChosen = follower.ancestry,
 
@@ -356,10 +327,7 @@ function CharSheet.FollowersInnerPanel()
                 },
 
                 gui.Panel{
-                    classes = {"collapsed-anim"},
-                    flow = "horizontal",
-                    width = "auto",
-                    height = 30,
+                    classes = {"formRow", "collapsed-anim"},
 
                     refreshAll = function(element)
                         if newFollowerType == "artisan" then
@@ -370,13 +338,12 @@ function CharSheet.FollowersInnerPanel()
                     end,
 
                     gui.Label{
-                        classes = { "followerLabel"},
-                        width = "auto",
-                        height = "auto",
+                        classes = {"form"},
                         text = "Characteristic:",
                     },
 
                     gui.Dropdown{
+                        classes = {"form"},
                         options = {
                             {
                                 id = "mgt",
@@ -389,7 +356,7 @@ function CharSheet.FollowersInnerPanel()
                         },
 
                         idChosen = follower.characteristic,
-                        
+
                         change = function(element)
                             follower.characteristic = element.idChosen
                             resultPanel:FireEventTree("refreshAll")
@@ -403,10 +370,7 @@ function CharSheet.FollowersInnerPanel()
             },
 
             gui.Panel{
-                classes = {"collapsed-anim"},
-                flow = "horizontal",
-                width = "auto",
-                height = 30,
+                classes = {"formRow", "collapsed-anim"},
 
                 refreshAll = function(element)
                     if newFollowerType == "existing" then
@@ -417,19 +381,18 @@ function CharSheet.FollowersInnerPanel()
                 end,
 
                 gui.Label{
-                    classes = { "followerLabel"},
-                    width = "auto",
-                    height = "auto",
+                    classes = {"form"},
                     text = "Token:",
                 },
 
                 gui.Dropdown{
+                    classes = {"form"},
                     idChosen = options.followerToken or "none",
 
                     refreshAll = function(element)
                         element.options = FollowerTokenDropdownOptions(mentorToken.partyid, true)
                     end,
-                    
+
                     change = function(element)
                         options.followerToken = element.idChosen
                         resultPanel:FireEventTree("refreshAll")
@@ -438,12 +401,12 @@ function CharSheet.FollowersInnerPanel()
             },
 
             gui.Button{
+                classes = {"sizeM"},
                 floating = true,
                 valign = "bottom",
                 halign = "center",
                 interactable = newFollowerType ~= "none",
                 text = "Create",
-                fontSize = 25,
 
                 refreshAll = function(element)
                     element.interactable = newFollowerType ~= "none"
@@ -462,15 +425,17 @@ function CharSheet.FollowersInnerPanel()
                 end,
             },
 
-            gui.CloseButton{
+            gui.Button{
+                classes = {"closeButton"},
                 floating = true,
                 valign = "top",
                 halign = "right",
                 click = function(element)
                     element.parent:SetClass("collapsed", true)
-                end
+                end,
             },
-        }        
+        }
+
 
         return resultPanel
     end
@@ -488,15 +453,11 @@ function CharSheet.FollowersInnerPanel()
             height = "auto",
             flow = "vertical",
             halign = "center",
-            bgimage = 'panels/square.png',
-            bgcolor = Styles.backgroundColor,
-            borderColor = Styles.textColor,
-            borderWidth = 2,
             margin = 5,
             pad = 5,
             minHeight = 180,
 
-            styles = Styles,
+            styles = ThemeEngine.MergeStyles{ Styles },
 
             refreshToken = function(element, info)
                 followers = info.token.properties:GetFollowers()
@@ -524,7 +485,8 @@ function CharSheet.FollowersInnerPanel()
                         end
                     end,
                 },
-                gui.DeleteItemButton {
+                gui.Button {
+                    classes = {"deleteButton"},
                     width = 24,
                     height = 24,
                     halign = "right",
@@ -575,21 +537,14 @@ function CharSheet.FollowersInnerPanel()
                         height = "auto",
 
                         gui.Panel{
-                            flow = "horizontal",
-                            width = "auto",
-                            height = 30,
+                            classes = {"formRow"},
                             gui.Label{
-                                classes = { "followerLabel"},
-                                width = "auto",
-                                height = "auto",
+                                classes = {"form"},
                                 text = "Type:",
                             },
                             gui.Label{
-                                classes = { "followerLabel"},
-                                width = "auto",
-                                height = "auto",
+                                classes = {"form"},
                                 text = follower and follower.properties and follower.properties:has_key("followerType") and follower.properties.followerType and string.upper_first(follower.properties.followerType) or "Unknown",
-
 
                                 refreshAll = function(element)
                                     if follower and follower.properties and follower.properties.followerType then
@@ -621,18 +576,15 @@ function CharSheet.FollowersInnerPanel()
                         },
 
                         gui.Panel{
-                            flow = "horizontal",
-                            width = "auto",
-                            height = 30,
+                            classes = {"formRow"},
 
                             gui.Label{
-                                classes = { "followerLabel"},
-                                width = "auto",
-                                height = "auto",
+                                classes = {"form"},
                                 text = "Token:",
                             },
 
                             gui.Dropdown{
+                                classes = {"form"},
                                 idChosen = id,
                                 options = (function()
                                     local mentorToken = CharacterSheet.instance.data.info.token
@@ -686,10 +638,13 @@ function CharSheet.FollowersInnerPanel()
     end
 
     local addFollowerButton = gui.Button{
+        classes = {"addButton"},
         hmargin = 15,
         halign = "right",
         valign = "top",
-        text = "Add New Follower",
+        linger = function(element)
+            gui.Tooltip("Add New Follower")(element)
+        end,
         click = function(element)
             local followerDiag = element:Get("followerSelectionDialog")
             followerDiag:FireEvent("newFollower")

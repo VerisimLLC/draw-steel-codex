@@ -102,6 +102,7 @@ end
 
 
 --the basic action resources every creature has.
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMRules.lua:138
 function GameSystem.BaseCreatureResources(creature)
     local result = {
 		standardAction = 1,
@@ -117,6 +118,7 @@ function GameSystem.BaseCreatureResources(creature)
 
 	return result
 end
+--]==]
 
 
 --in 5e, abilities don't have "categorizations" attached to them.
@@ -471,13 +473,16 @@ GameSystem.CalculateWeaponProficiencyBonus = function(creature, weapon)
 end
 
 --we give characters and monsters a way to calculate their proficiency bonus.
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMRules.lua:496
 function character:BaseProficiencyBonus()
 	local n = self:CharacterLevel() - 1
 	n = n - n%4
 	local baseProficiency = 2 + n/4
 	return self:CalculateAttribute("proficiencyBonus", baseProficiency)
 end
+--]==]
 
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMRules.lua:504
 function monster:BaseProficiencyBonus()
 	local cr = (tonumber(self:try_get("cr", 0)) or 0)
 	local n = cr - 1
@@ -485,6 +490,7 @@ function monster:BaseProficiencyBonus()
 	local baseProficiency = 2 + math.max(0, n/4)
 	return self:CalculateAttribute("proficiencyBonus", baseProficiency)
 end
+--]==]
 
 --The way in which proficiency bonus is calculated from a proficiency level.
 GameSystem.CalculateProficiencyBonus = function(creature, proficiencyLevel)
@@ -562,9 +568,11 @@ GameSystem.RegisterModifiableAttribute{
 }
 
 --This is used to tell if we ignore off hand weapon penalties.
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMRules.lua:601
 function GameSystem.IgnoreOffhandWeaponPenalty(creature, weapon)
 	return creature:CalculateAttribute('ignoreoffhandpenalty', 0) > 0
 end
+--]==]
 
 GameSystem.ClearWeaponProperties()
 
@@ -817,9 +825,11 @@ GameSystem.RegisterConditionRule{
 GameSystem.OnEndCastActivatedAbility = function(casterToken, ability, options)
 end
 
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMRules.lua:1173
 function GameSystem.AllowTargeting(casterToken, targetToken, ability)
 	return true
 end
+--]==]
 
 GameSystem.RegisterCreatureSizes{
 	{

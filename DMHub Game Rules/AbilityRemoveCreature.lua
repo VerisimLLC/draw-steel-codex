@@ -369,17 +369,88 @@ CorpseComponent = RegisterGameType("CorpseComponent")
 
 CorpseComponent.charid = "none"
 
+-- Diagnostic logger used by both the kill (LeaveCorpse path) and the revive
+-- (Respawn). Tagged "[CORPSE_REVIVE]" so it's easy to grep out of the logs
+-- on either client. Snapshots the fields that matter for the desync where
+-- some monsters (Essence of Change, an Elite Mount) revive locally on the
+-- DM but never re-appear on player clients despite the corpse-delete arriving.
+local function _dumpCorpseTokenState(tag, charid, token)
+    if token == nil then
+        print(string.format("[CORPSE_REVIVE] %s charid=%s token=NIL", tostring(tag), tostring(charid)))
+        return
+    end
+    local props = token.properties
+    local mtype = props and props:try_get("monster_type") or "(non-monster)"
+    local locInfo = token.locInfo
+    local mountedOn = locInfo and locInfo.mountedOn or ""
+    local mountedOnObject = locInfo and locInfo.mountedOnObject or ""
+    local mapid = locInfo and locInfo.mapid or "(nil)"
+    local mountedByCount = 0
+    if token.mountedBy ~= nil then
+        for _ in pairs(token.mountedBy) do mountedByCount = mountedByCount + 1 end
+    end
+    local x, y, fi = "?", "?", "?"
+    if token.loc ~= nil then x = token.loc.x; y = token.loc.y; fi = token.loc.floorIndex end
+    print(string.format(
+        "[CORPSE_REVIVE] %s charid=%s name=%s monster=%s despawned=%s inactive=%s mapid=%s loc=%s,%s,%s mountedOn=%s mountedOnObject=%s mountedByCount=%d valid=%s",
+        tostring(tag), tostring(charid), tostring(token.name), tostring(mtype),
+        tostring(token.despawned), tostring(token.invisibleToPlayers), tostring(mapid),
+        tostring(x), tostring(y), tostring(fi),
+        tostring(mountedOn), tostring(mountedOnObject), mountedByCount,
+        tostring(token.valid)))
+end
+
 function CorpseComponent:Respawn(obj)
+    print(string.format("[CORPSE_REVIVE] Respawn invoked: corpseObjid=%s storedCharid=%s",
+        tostring(obj and obj.id), tostring(self.charid)))
     local token = dmhub.GetCharacterById(self.charid)
+    _dumpCorpseTokenState("BEFORE", self.charid, token)
     if token ~= nil then
+        -- Order matters here. We must clear `despawned` BEFORE any
+        -- ChangeLocation, not after.
+        --
+        -- ChangeLocation routes through GameController.SummonTokens, which
+        -- (a) locally sets charInfo.locInfo.despawned = false on the
+        -- caller and (b) ships a single PATCH of the entire locInfo
+        -- object. LocationInfo.despawned is tagged
+        -- [NoSerializeValue(false)], so the serialized patch OMITS the
+        -- field, and PatchObject's class-merge path on the receiver
+        -- preserves the receiver's existing `despawned = true` (set at
+        -- kill time). Worse, by the time we then try to set
+        -- `token.despawned = false` here, the setter sees the local copy
+        -- already false (mutated by SummonTokens) and short-circuits the
+        -- upload entirely -- so the despawn=false PUT is never sent and
+        -- player clients leave the token hidden.
+        --
+        -- Writing despawned=false first guarantees the leaf PUT to
+        -- /locInfo/despawned goes through (the setter's diff check sees a
+        -- real change), and the subsequent SummonTokens PATCH lands on a
+        -- receiver whose `despawned` is already false -- the merge then
+        -- correctly preserves it.
+        --
+        -- Affects size>=2 tokens (mounts): for size 1 the corpse position
+        -- equals token.loc and ChangeLocation is skipped, so the explicit
+        -- setter call has always carried the despawn=false write. Mounts
+        -- like the Essence of Change tripped this because the corpse is
+        -- at the visual centre (token.pos), not the anchor (token.loc).
+        print("[CORPSE_REVIVE] writing token.despawned = false (pre-move)")
+        token.despawned = false
+
         if obj ~= nil then
             local x = round(obj.x)
             local y = round(obj.y)
             if token.loc.x ~= x or token.loc.y ~= y then
+                print(string.format("[CORPSE_REVIVE] ChangeLocation -> %d,%d floor %d (was %s,%s,%s)",
+                    x, y, obj.floorIndex,
+                    tostring(token.loc.x), tostring(token.loc.y), tostring(token.loc.floorIndex)))
                 token:ChangeLocation(core.Loc{x = x, y = y, floorIndex = obj.floorIndex}:WithGroundLevelAltitude())
+            else
+                print("[CORPSE_REVIVE] ChangeLocation skipped (same x,y)")
             end
         end
-        token.despawned = false
+        _dumpCorpseTokenState("AFTER", self.charid, token)
+    else
+        print("[CORPSE_REVIVE] WARNING: no token resolved for corpse charid -- nothing to revive")
     end
 end
 

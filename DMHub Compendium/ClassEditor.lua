@@ -2,9 +2,11 @@ local mod = dmhub.GetModLoading()
 
 local g_registeredCharacterChoices = {}
 
+--[==[ DEAD_CODE - overridden by Draw Steel UI\DSClassEditor.lua:5
 function CharacterChoice.RegisterChoice(options)
     g_registeredCharacterChoices[options.id] = options
 end
+--]==]
 
 local CreateFeatureSummary = function(feature, featuresList, index, parentPanel, DescribeFeature, options)
 	options = options or {}
@@ -680,7 +682,6 @@ function ClassLevel:CreateEditor(classOrRace, levelNum, params)
 		flow = "vertical",
 
 		styles = {
-			Styles.ImplementationIcon,
             {
                 selectors = {"imported"},
                 color = "#999999",
@@ -856,8 +857,10 @@ function ClassLevel:CreateEditor(classOrRace, levelNum, params)
 	return resultPanel
 end
 
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMClass.lua:312
 function Class:CustomEditor(UploadFn, panels)
 end
+--]==]
 
 local SetClass = function(tableName, classPanel, classid)
 	local classTable = dmhub.GetTable(tableName) or {}
@@ -1184,6 +1187,7 @@ local SetClass = function(tableName, classPanel, classid)
 
 end
 
+--[==[ DEAD_CODE - overridden by Draw Steel UI\DSClassEditor.lua:1141
 function Class.CreateLevelEditor(children, class, UploadClass, startLevel, finishLevel)
 
 	for i=startLevel,GameSystem.numLevels do
@@ -1289,7 +1293,9 @@ function Class.CreateLevelEditor(children, class, UploadClass, startLevel, finis
 		children[#children+1] = panel
 	end
 end
+--]==]
 
+--[==[ DEAD_CODE - overridden by Draw Steel UI\DSClassEditor.lua:1242
 function Class.CreateEditor()
     local m_search = ""
 	local classPanel
@@ -1363,11 +1369,15 @@ function Class.CreateEditor()
 
 	return classPanel
 end
+--]==]
 
+--[==[ DEAD_CODE - overridden by Draw Steel UI\DSClassEditor.lua:1291
 function CharacterChoice:CreateEditor(class, params)
 	return nil
 end
+--]==]
 
+--[==[ DEAD_CODE - overridden by Draw Steel UI\DSClassEditor.lua:1295
 function CharacterFeatureChoice:CreateEditor(classOrRace, params)
 	params = params or {}
 
@@ -1597,7 +1607,9 @@ function CharacterFeatureChoice:CreateEditor(classOrRace, params)
 	resultPanel = gui.Panel(args)
 	return resultPanel
 end
+--]==]
 
+--[==[ DEAD_CODE - overridden by Draw Steel UI\DSClassEditor.lua:1607
 function CharacterSubclassChoice:CreateEditor(class, params)
 	params = params or {}
 
@@ -1717,11 +1729,14 @@ function CharacterSubclassChoice:CreateEditor(class, params)
 
 	return resultPanel
 end
+--]==]
 
+--[==[ DEAD_CODE - overridden by Draw Steel UI\DSClassEditor.lua:1727
 function CharacterFeatureList:CreateEditor(class, params)
 	local subpanel = ClassLevel.CreateEditor(self, class, -1, params)
 	return subpanel
 end
+--]==]
 
 mod.shared.StartingEquipmentEditor = function(options)
 

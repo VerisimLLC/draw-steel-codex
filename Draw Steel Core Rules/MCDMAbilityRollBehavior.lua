@@ -9,6 +9,17 @@ local g_animateTiers = setting{
     storage = "preference",
 }
 
+-- When true, ability power roll resolution pauses after the roll completes
+-- but BEFORE per-target tier is read, so a test harness can write
+-- rollProperties.overrideTier deterministically. The harness clears this
+-- flag to release the cast. Storage is transient so it never persists.
+setting{
+    id = "test:aiholdroll",
+    description = "Test: Hold Power Roll for Override",
+    default = false,
+    storage = "transient",
+}
+
 --register the ability to modify power roll damage during spell casting.
 ActivatedAbilityModifyCastBehavior.RegisterParam{
     id = "ability_damage",
@@ -178,7 +189,7 @@ ActivatedAbility.RegisterType
     createBehavior = function()
         return ActivatedAbilityPowerRollBehavior.new{
             tiers = {"", "", ""},
-            roll = "2d10 + Might or Agility",
+            roll = "2d10 + Highest Characteristic",
         }
     end,
 }
@@ -787,6 +798,17 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
     local caster = casterToken.properties
     local roll = dmhub.EvalGoblinScript(self.roll, casterToken.properties:LookupSymbol(options.symbols), "Power table roll")
 
+    --If the symbols carry a forcedroll (set by an InvokeAbility behavior with inheritRoll=true,
+    --so a child ability can replicate the parent's raw d10 result), substitute the dice portion
+    --of the roll formula with that natural value. The child's characteristic bonus and any
+    --edges/banes/triggers the player applies in the dialog still stack on top -- the dialog
+    --opens normally with the forced value as the dice base. (Visual dice replay isn't possible
+    --without C# engine support; the math is correct but no animated d10s appear.)
+    local forcedroll = options.symbols and options.symbols.forcedroll
+    if forcedroll ~= nil then
+        roll = regex.ReplaceAll(roll, "\\d+d\\d+", tostring(forcedroll))
+    end
+
 	local modifiersApplied = nil
     local appliedTargetCreature = nil
 
@@ -903,9 +925,7 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
     --modifier list so CalculateMultitargets can evaluate them per-target.
     local attackerModifierInfo = nil
     if rollType == "ability_power_roll"
-        and caster.minion
-        and ability.categorization == "Signature Ability"
-        and caster:has_key("_tmp_minionSquad")
+        and ability:UsesSquadCoordination(casterToken)
         and options.symbols ~= nil
         and options.symbols.targetPairs ~= nil then
         attackerModifierInfo = {}
@@ -1073,9 +1093,9 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
                 end
             end
 
-            --if we are attacking as part of a minion squad signature, any excess targeting
-            --gets to do free strikes against the targets.
-            if options.symbols.targetPairs ~= nil and ability.categorization == "Signature Ability" and casterToken.properties.minion then
+            --if we are attacking as part of a minion squad strike (signature ability or
+            --free strike), any excess targeting gets to do free strikes against the targets.
+            if options.symbols.targetPairs ~= nil and ability:UsesSquadStrike(casterToken) then
                 local numAttackers = 0
 
                 for i,pair in ipairs(options.symbols.targetPairs) do
@@ -1097,7 +1117,7 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
                         description = string.format("There %s %d extra minion attacker%s, each of which does free strike against the target.", cond(numAttackers-1 == 1, "is", "are"), numAttackers-1, cond(numAttackers-1 > 1, "s", "")),
                         damageModifier = casterToken.properties:OpportunityAttack()*(numAttackers-1),
                     }
-                    
+
                     candidateModifiers[#candidateModifiers+1] = {
                         modifier = mod,
                         hint = mod:HintModifyPowerRolls(mod, caster, "ability_power_roll", {
@@ -1109,7 +1129,44 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
                 end
             end
 
+            --Squad maneuvers: replace the power roll with the rule's deterministic
+            --formula. Result = 8 + caster's highest characteristic + the number of
+            --squad members within range of the target (counting the caster).
+            if ability:UsesSquadManeuver(casterToken) then
+                local maneuverRange = ability:GetRange(casterToken.properties) or 1
+                local squad = casterToken.properties._tmp_minionSquad
+                local inRangeCount = 0
+                for _,tok in ipairs(squad.tokens or {}) do
+                    if tok ~= nil and tok.valid and (not tok.properties:IsDead())
+                        and tok:Distance(target.token) <= maneuverRange then
+                        inRangeCount = inRangeCount + 1
+                    end
+                end
+                if inRangeCount < 1 then inRangeCount = 1 end
 
+                local highest = casterToken.properties:HighestCharacteristic()
+                local maneuverResult = 8 + highest + inRangeCount
+
+                local mod = CharacterModifier.new{
+                    behavior = "power",
+                    rollType = "ability_power_roll",
+                    activationCondition = true,
+                    keywords = {},
+                    modtype = "replaceroll",
+                    replaceText = tostring(maneuverResult),
+                    guid = dmhub.GenerateGuid(),
+                    name = "Squad Maneuver",
+                    description = string.format("Squad maneuver: 8 + %d (highest characteristic) + %d (in-range squad member%s) = %d", highest, inRangeCount, cond(inRangeCount == 1, "", "s"), maneuverResult),
+                }
+
+                candidateModifiers[#candidateModifiers+1] = {
+                    modifier = mod,
+                    hint = mod:HintModifyPowerRolls(mod, caster, "ability_power_roll", {
+                        ability = ability,
+                        target = targetCreature,
+                    })
+                }
+            end
 
             local candidateRoll = roll
             for _,mod in ipairs(candidateModifiers) do
@@ -1260,6 +1317,9 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
         type = "ability_power_roll",
         ability = ability,
         roll = roll,
+        --Only set autoroll when forcing -- the dialog's autoroll branch treats
+        --any non-nil value (including false) as a table-with-.id and crashes.
+        autoroll = forcedroll ~= nil and true or nil,
         showDialogDuringRoll = true,
         amendable = true,
         modifiers = modifiersApplied,
@@ -1401,6 +1461,14 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
             refreshAtPanel = nil
             holdOpenRefreshAt = nil
         end
+    end
+
+    -- Test hook: pause between roll-complete and per-target tier read so a
+    -- harness can deterministically write rollProperties.overrideTier. The
+    -- harness clears the setting to release. Transient storage means this
+    -- never affects production play.
+    while m_canceled == false and dmhub.GetSettingValue("test:aiholdroll") do
+        coroutine.yield(0.02)
     end
 
     CharacterPanel.UnlockDisplayAbility()
@@ -1852,9 +1920,10 @@ function ActivatedAbilityPowerRollBehavior:EditorItems(parentPanel)
     result[#result+1] = rollPanel
 
     result[#result+1] = gui.Panel{
-        width = "100%",
+        width = "90%",
         height = "auto",
         flow = "vertical",
+        halign = "left",
 
         create = function(element)
             if #element.children == 1 and self:has_key("modifiers") then
@@ -1865,17 +1934,49 @@ function ActivatedAbilityPowerRollBehavior:EditorItems(parentPanel)
         refreshBehavior = function(element)
             local children = {}
             for i,modifier in ipairs(self:try_get("modifiers", {})) do
+                -- Row 1: Edge/Bane formula. Label + trash sit together in a
+                -- mini horizontal header above the formula input so the
+                -- trash is immediately after the modifier name.
                 children[#children+1] = gui.Panel{
-                    classes = {"formPanel"},
-                    gui.Label{
-                        classes = {"formLabel"},
-                        width = 120,
-                        text = g_modificationIdToText[modifier.type],
-                        lmargin = 20,
+                    classes = {"formStackedRow"},
+                    vmargin = 4,
+
+                    gui.Panel{
+                        classes = {"bordered", "bgAlt"},
+                        width = "100%",
+                        height = "auto",
+                        flow = "horizontal",
+                        halign = "left",
+                        valign = "center",
+                        border = {x1 = 0, x2 = 0, y1 = 0, y2 = 1},
+                        cornerRadius = 0,
+                        vpad = 8,
+
+                        gui.Label{
+                            classes = {"sizeXs", "bold"},
+                            text = g_modificationIdToText[modifier.type],
+                            width = "auto",
+                            height = "auto",
+                            halign = "left",
+                            textAlignment = "left",
+                        },
+
+                        gui.Button{
+                            classes = {"deleteButton", "sizeXs"},
+                            hmargin = 8,
+                            halign = "right",
+                            click = function(element)
+                                local modifiers = self:try_get("modifiers", {})
+                                table.remove(modifiers, i)
+                                parentPanel:FireEvent("refreshBehavior")
+                                -- Modifier removal can change DescribeRoll output.
+                                parentPanel:FireEventOnParents("refreshAbilityPreview")
+                            end,
+                        },
                     },
 
                     gui.GoblinScriptInput{
-                        width = 300,
+                        classes = {"formStacked"},
                         value = modifier.condition,
                         events = {
                             change = function(element)
@@ -1885,7 +1986,6 @@ function ActivatedAbilityPowerRollBehavior:EditorItems(parentPanel)
                                 element:FireEventOnParents("refreshAbilityPreview")
                             end,
                         },
-
                         documentation = {
                             help = string.format("This GoblinScript determines whether the modifier will apply."),
                             output = "boolean",
@@ -1899,61 +1999,39 @@ function ActivatedAbilityPowerRollBehavior:EditorItems(parentPanel)
                             subjectDescription = "The creature that is casting the ability.",
                             symbols = ActivatedAbility.helpCasting,
                         },
-
-                    },
-
-                    gui.DeleteItemButton{
-                        width = 12,
-                        height = 12,
-                        hmargin = 8,
-                        click = function(element)
-                            local modifiers = self:try_get("modifiers", {})
-                            table.remove(modifiers, i)
-                            parentPanel:FireEvent("refreshBehavior")
-                            -- Modifier removal can change DescribeRoll output.
-                            parentPanel:FireEventOnParents("refreshAbilityPreview")
-                        end,
                     },
                 }
 
                 children[#children+1] = gui.Panel{
-                    classes = {"formPanel"},
+                    classes = {"formStackedRow"},
                     gui.Label{
-                        classes = {"formLabel"},
-                        width = 120,
+                        classes = {"formStacked", "sizeXs"},
                         text = "Name:",
-                        lmargin = 20,
                     },
                     gui.Input{
-                        width = 280,
-                        fontSize = 14,
-                        hmargin = 0,
+                        classes = {"formStacked"},
                         text = modifier.text,
                         characterLimit = 80,
                         change = function(element)
                             modifier.text = element.text
                         end,
-                    }
+                    },
                 }
 
                 children[#children+1] = gui.Panel{
-                    classes = {"formPanel"},
+                    classes = {"formStackedRow"},
                     gui.Label{
-                        classes = {"formLabel"},
-                        width = 120,
+                        classes = {"formStacked", "sizeXs"},
                         text = "Details:",
-                        lmargin = 20,
                     },
                     gui.Input{
-                        width = 280,
-                        fontSize = 14,
-                        hmargin = 0,
+                        classes = {"formStacked"},
                         text = modifier.details,
                         characterLimit = 240,
                         change = function(element)
                             modifier.details = element.text
                         end,
-                    }
+                    },
                 }
 
             end

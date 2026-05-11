@@ -2103,7 +2103,8 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 						elseif (shape == 'emptyspace' or shape == 'anyspace') and (targetingType == "straightline" or targetingType == "straightpath" or targetingType == "straightpathignorecreatures") then
 							local throughCreatures = currentSpell:try_get("forcedMovementThroughCreatures", false)
 							local reboundOptions = token.properties:GetForcedPushOptions()
-							local movementInfo = token:MarkMovementArrow(loc, {straightline = true, ignorecreatures = (targetingType == "straightpathignorecreatures" or throughCreatures), rebound = reboundOptions.rebound, maxBounces = reboundOptions.maxBounces })
+							local isVerticalSlidePreview = (currentSymbols.forcedmovement or currentSpell:try_get("forcedMovement")) == "vertical_slide"
+							local movementInfo = token:MarkMovementArrow(loc, {straightline = true, ignorecreatures = (targetingType == "straightpathignorecreatures" or throughCreatures), rebound = reboundOptions.rebound, maxBounces = reboundOptions.maxBounces, slide = isVerticalSlidePreview })
 							showingMovementArrow = true
 							clearMovementArrow = false
 

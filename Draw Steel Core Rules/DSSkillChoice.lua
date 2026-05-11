@@ -249,11 +249,11 @@ function CharacterSkillChoice:CreateEditor(classOrRace, params)
         gui.Panel{
             classes = {"formStackedRow"},
             gui.Label{
-                classes = {"formStackedLabel"},
+                classes = {"formStacked"},
                 text = "# Skills:",
             },
             gui.Input{
-                classes = {"formStackedControl"},
+                classes = {"formStacked"},
                 text = tonumber(self.numChoices),
                 characterLimit = 2,
 
@@ -268,11 +268,11 @@ function CharacterSkillChoice:CreateEditor(classOrRace, params)
         gui.Panel{
             classes = {"formStackedRow"},
             gui.Label{
-                classes = {"formStackedLabel"},
+                classes = {"formStacked"},
                 text = "Skills:",
             },
             gui.Multiselect{
-                classes = {"formStackedControl"},
+                classes = {"formStacked"},
                 width = "98%",
                 addItemText = "Add Skills...",
                 options = (function()

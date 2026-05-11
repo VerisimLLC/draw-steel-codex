@@ -11,10 +11,7 @@ function RichCounter.CreateDisplay(self)
     local m_token
 
     resultPanel = gui.Panel{
-        bgimage = true,
-        bgcolor = "black",
-        borderColor = "white",
-        borderWidth = 2,
+        classes = {"richCounterFrame", "bg", "fgStrong"},
         width = 64,
         height = 30,
         halign = "left",
@@ -25,11 +22,11 @@ function RichCounter.CreateDisplay(self)
                     opacity = 0.4,
                 }
             },
+            classes = {"sizeXl", "bold", "bordered"},
             width = "100%",
             height = "100%",
-            fontSize = 20,
             textAlignment = "center",
-            bold = true,
+            numeric = true,
             characterLimit = 3,
             editable = dmhub.isDM,
             refreshTag = function(element, tag, match, token)

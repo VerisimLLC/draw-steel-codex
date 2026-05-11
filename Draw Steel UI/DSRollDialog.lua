@@ -2452,6 +2452,15 @@ function GameHud.CreateRollDialog(self)
                     powerRollModifier._tmp_trigger = true
                     powerRollModifier._tmp_triggerCharid = trigger.charid
 
+                    --Install cast symbols on the trigger's powerRollModifier so
+                    --formulas like `Caster.Intuition` resolve when the trigger's
+                    --modifyRollProperties runs. Without this, GoblinScript fields
+                    --that reference the inflicting caster evaluate to 0.
+                    powerRollModifier:InstallSymbolsFromContext{
+                        caster = creature,
+                        target = targetCreature,
+                    }
+
                     trigger.triggerInfo = {
                         hint = { result = true, justification = {} },
                         context = { mod = powerRollModifier },

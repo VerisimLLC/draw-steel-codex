@@ -1,3 +1,4 @@
+--[===[ DEAD_CODE - entire file unused; old-builder cluster deleted from MCDMCharacterBuilder.lua
 local mod = dmhub.GetModLoading()
 
 --our master reference of characterFeatures
@@ -2241,9 +2242,11 @@ end
 
 CharSheet.BuilderTabs = {}
 
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMCharacterBuilder.lua:2613
 function CharSheet.ClearBuilderTabs()
 	CharSheet.BuilderTabs = {}
 end
+--]==]
 
 function CharSheet.RegisterBuilderTab(args)
 	CharSheet.BuilderTabs[#CharSheet.BuilderTabs+1] = args
@@ -2283,3 +2286,4 @@ CharSheet.RegisterTab{
 	end,
 	panel = CharSheet.BuilderPanel,
 }
+--]===]

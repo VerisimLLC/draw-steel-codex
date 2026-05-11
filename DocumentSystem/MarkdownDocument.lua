@@ -95,7 +95,7 @@ local function StripSpoilers(text)
                 b = b + 1
             elseif text:sub(a + 1, a + 1) == "#" and depth == 0 then
                 if markDepth == 0 then
-                    result = result .. "<alpha=#FF><mark=#ffffff><color=#ffffff>"
+                    result = result .. ThemeEngine.ResolveTokens("<alpha=#FF><mark=@fg><color=@fg>")
                     markEnd = "</color></mark>"
                 end
                 markDepth = markDepth + 1
@@ -149,7 +149,7 @@ local function StripSpoilers(text)
 
                     if markDepth == 1 and not canSpeak then
                         --TODO: get fonts working.
-                        result = result .. "<alpha=#FF><mark=#ffffff><color=#ffffff>"
+                        result = result .. ThemeEngine.ResolveTokens("<alpha=#FF><mark=@fg><color=@fg>")
                         markEnd = "</color></mark>"
                         --result = result .. "<font=\"Tengwar\">"
                         --markEnd = "</font>"
@@ -534,7 +534,7 @@ BreakdownRichTags = function(content, result, options, extraOutput)
 
                     print("SPOILER: ADD spoiler", guid)
 
-                    text = text .. string.format("<color=#00FFFF><size=70%%><link=spoiler:%s>%s</link></size></color>", guid, spoilerText)
+                    text = text .. ThemeEngine.ResolveTokens(string.format("<color=@accent><size=70%%><link=spoiler:%s>%s</link></size></color>", guid, spoilerText))
                 end
 
                 text = text .. "{"
@@ -748,16 +748,6 @@ local function TierRoll(n)
     }
 end
 
-local g_linkStyles = {
-    gui.Style {
-        color = "white",
-    },
-    gui.Style {
-        selectors = { "hover" },
-        color = "#FFD700",
-    },
-}
-
 local function PowerRollDisplay(doc)
     local resultPanel
 
@@ -777,7 +767,7 @@ local function PowerRollDisplay(doc)
             flow = "horizontal",
             halign = "left",
             gui.Label {
-                styles = g_linkStyles,
+                classes = { "link", "bold" },
                 halign = "left",
                 refreshPowerRoll = function(element, info)
                     m_info = info
@@ -817,12 +807,11 @@ local function PowerRollDisplay(doc)
                         end
                     end
                 end,
-                bold = true,
                 fontSize = CustomDocument.ScaleFontSize(18),
             },
 
             gui.Label{
-                styles = g_linkStyles,
+                classes = {"fg", "link"},
                 lmargin = 8,
                 fontSize = 16,
                 width = 120,
@@ -895,22 +884,20 @@ local function CreateTreeNodePanel()
         width = "auto",
         height = "auto",
         halign = "left",
-        gui.Panel {
+        gui.ExpandoArrow {
             classes = { "expanded" },
-            styles = gui.TriangleStyles,
-            bgimage = "panels/triangle.png",
             press = function(element)
                 element:SetClass("expanded", not element:HasClass("expanded"))
                 bodyPanel:SetClass("collapsed", not element:HasClass("expanded"))
             end,
         },
         gui.Label {
+            classes = { "fg", "bold" },
             refreshTreeNode = function(element, title)
                 element.text = title
                 element:HaltEventPropagation()
             end,
             fontSize = CustomDocument.ScaleFontSize(16),
-            bold = true,
             width = "auto",
             height = "auto",
         },
@@ -967,23 +954,8 @@ function MarkdownDocument.DisplayPanel(self, args)
     local m_tokenExtraInfo = {}
 
     local params = {
-        styles = {
-            Styles.Table,
-            gui.Style {
-                selectors = { "checkbox-label" },
-                width = "auto",
-                height = "auto",
-            },
-            gui.Style {
-                selectors = { "checkbox-label", "parent:uploading" },
-                opacity = 0.5,
-            },
-            gui.Style {
-                selectors = { "checkbox" },
-                minWidth = 0,
-            },
-        },
-        width = "100%-24",
+        styles = ThemeEngine.GetStyles(),
+        width = "100%",
         height = "100%",
         flow = "vertical",
         halign = "center",
@@ -1136,22 +1108,13 @@ function MarkdownDocument.DisplayPanel(self, args)
                     end
 
                     local panel = m_rollableTables[tableName] or gui.Label {
-                        styles = {
-                            {
-                                color = "#ffbbff",
-                            },
-                            {
-                                selectors = { "hover" },
-                                color = "#ff00ff",
-                            },
-                        },
+                        classes = { "bold", "link" },
                         data = {
                             rolls = {},
                             diceToRollId = {},
 
                         },
                         valign = "top",
-                        bold = true,
                         fontSize = CustomDocument.ScaleFontSize(18),
                         width = "auto",
                         height = "auto",
@@ -1313,6 +1276,14 @@ function MarkdownDocument.DisplayPanel(self, args)
 
                     currentTableRow.data.children = {}
 
+                    -- First row of each table is the markdown header row (followed
+                    -- by `|---|`). Toggle the headerRow class so the cascade's
+                    -- {row, headerRow} / {label, parent:headerRow} rules apply.
+                    -- SetClass with a boolean correctly clears the class on rows
+                    -- that were previously a header row but got repositioned.
+                    local isHeaderRow = #currentTable.data.children == 0
+                    currentTableRow:SetClass("headerRow", isHeaderRow)
+
                     newTableRows[#newTableRows + 1] = currentTableRow
 
                     currentTable.data.children[#currentTable.data.children + 1] = currentTableRow
@@ -1322,9 +1293,9 @@ function MarkdownDocument.DisplayPanel(self, args)
                         local range = rollInfo.rollRanges[currentRollableTable.data.row]
                         if range ~= nil then
                             newRollableTableRowLabels[#newRollableTableRowLabels + 1] = m_rollableTableRowLabels[#newRollableTableRowLabels + 1] or gui.Label{
+                                classes = { "bold" },
                                 fontSize = 16,
                                 width = 70,
-                                bold = true,
                                 halign = "left",
                                 height = "auto",
                             }
@@ -1407,6 +1378,7 @@ function MarkdownDocument.DisplayPanel(self, args)
                     end
 
                     local textPanel = m_textPanels[#newTextPanels + 1] or gui.Label {
+                        classes = {"fg"},
                         width = "auto",
                         height = "auto",
                         maxWidth = "100%",
@@ -1598,11 +1570,7 @@ function MarkdownDocument.DisplayPanel(self, args)
                 elseif token.type == "blockquote" then
                     currentRichRow = nil
                     local blockquote = m_blockquotes[#newBlockquotes + 1] or gui.Panel {
-                        bgimage = true,
-                        bgcolor = "#333333",
-                        opacity = 0.4,
-                        borderColor = "white",
-                        border = {x1 = 4, y1 = 0, x2 = 0, y2 = 0},
+                        classes = {"blockQuote"},
                         width = "100%",
                         height = "auto",
                         halign = "left",
@@ -1783,6 +1751,13 @@ function MarkdownDocument.DisplayPanel(self, args)
     resultPanel = gui.Panel(params)
     resultPanel:FireEventTree("refreshDocument")
 
+    ThemeEngine.OnThemeChanged(mod, function()
+        if resultPanel ~= nil and resultPanel.valid then
+            resultPanel.styles = ThemeEngine.GetStyles()
+            resultPanel:FireEventTree("refreshDocument")
+        end
+    end)
+
     return resultPanel
 end
 
@@ -1792,11 +1767,11 @@ function MarkdownDocument:EditPanel(args)
     local resultPanel
 
     local markdownReferenceLabel = gui.Label {
+        classes = { "link" },
         width = "auto",
         height = "auto",
         text = "Formatting Guide",
         fontSize = CustomDocument.ScaleFontSize(16),
-        color = "#FF00FF",
         halign = "left",
         valign = "top",
         hover = function(element)
@@ -1832,7 +1807,7 @@ function MarkdownDocument:EditPanel(args)
         },
 
         gui.Label{
-            color = "#888888",
+            classes = { "fgMuted" },
             styles = {
                 {
                     selectors = {"changes"},
@@ -1898,21 +1873,17 @@ function MarkdownDocument:EditPanel(args)
     }
 
     local charactersUsedLabel = gui.Label {
+        classes = {"fg"},
         width = "auto",
         height = "auto",
         halign = "right",
         valign = "center",
         fontSize = CustomDocument.ScaleFontSize(16),
-        color = "white",
         refreshLength = function(element, text)
             local len = #text
             local remaining = CustomDocument.MaxLength - len
             if remaining < 1000 then
-                if remaining < 200 then
-                    element.selfStyle.color = "red"
-                else
-                    element.selfStyle.color = "white"
-                end
+                element:SetClass("danger", remaining < 200)
 
                 element.text = string.format("%d characters remaining...", remaining)
                 element:SetClass("hidden", false)
@@ -2112,15 +2083,15 @@ function MarkdownDocument:EditPanel(args)
         return innerText, innerText, bracketOpen
     end
 
-    local autocompleteTypeColors = {
-        ["PDF Document"] = "#7799ff",
-        ["PDF Fragment"] = "#6688dd",
-        ["Document"] = "#77cc77",
-        ["Map"] = "#ddaa44",
-        ["item"] = "#dddd66",
-        ["title"] = "#cc88dd",
-        ["Rich Tag"] = "#dd8844",
-        ["Command"] = "#88bbdd",
+    local autocompleteTypeClasses = {
+        ["Document"]     = "implStatus2",
+        ["PDF Document"] = "implStatus2",
+        ["PDF Fragment"] = "implStatus2",
+        ["Map"]          = "implStatus3",
+        ["item"]         = "implStatus4",
+        ["title"]        = "implStatus4",
+        ["Rich Tag"]     = "implStatus0",
+        ["Command"]      = "implStatus1",
     }
 
     -- Descriptions and metadata for rich tags used by autocomplete.
@@ -2196,25 +2167,16 @@ function MarkdownDocument:EditPanel(args)
                 end
             end
 
-            local typeColor = autocompleteTypeColors[resolvedType] or "#88cc88"
+            local typeClass = autocompleteTypeClasses[resolvedType] or "fgMuted"
 
             children[#children + 1] = gui.Panel{
-                bgimage = "panels/square.png",
+                classes = {"contextMenuItem"},
                 width = "100%-20",
                 height = "auto",
                 flow = "horizontal",
                 halign = "center",
                 hpad = 10,
                 vpad = 5,
-                styles = {
-                    {
-                        bgcolor = "clear",
-                    },
-                    {
-                        selectors = {"hover"},
-                        bgcolor = Styles.textColor,
-                    },
-                },
                 hover = function(element)
                     CustomDocument.PreviewLink(element, linkText)
                 end,
@@ -2224,39 +2186,24 @@ function MarkdownDocument:EditPanel(args)
                     CustomDocument.OpenContent(resolved)
                 end,
                 gui.Label{
+                    classes = {"contextMenuLabel", "sizeS"},
                     text = resolvedName or displayName,
-                    fontSize = 14,
+                    -- fontSize = 14,
                     width = "100%-90",
                     height = "auto",
                     textAlignment = "left",
                     valign = "center",
-                    styles = {
-                        {
-                            color = Styles.textColor,
-                        },
-                        {
-                            selectors = {"parent:hover"},
-                            color = "black",
-                        },
-                    },
+                    -- }),
                 },
                 gui.Label{
+                    classes = { "contextMenuLabel", "sizeXs", typeClass },
                     text = resolvedType,
-                    fontSize = 11,
+                    -- fontSize = 11,
                     width = 90,
                     height = "auto",
                     halign = "right",
                     textAlignment = "right",
                     valign = "center",
-                    styles = {
-                        {
-                            color = typeColor,
-                        },
-                        {
-                            selectors = {"parent:hover"},
-                            color = "black",
-                        },
-                    },
                 },
             }
         else
@@ -2269,12 +2216,12 @@ function MarkdownDocument:EditPanel(args)
                 hpad = 10,
                 vpad = 5,
                 gui.Label{
+                    classes = { "danger" },
                     text = string.format("No link found for \"%s\"", displayName),
                     fontSize = 13,
                     width = "100%",
                     height = "auto",
                     textAlignment = "left",
-                    color = "#cc6666",
                 },
             }
 
@@ -2290,24 +2237,15 @@ function MarkdownDocument:EditPanel(args)
             local maxSuggestions = 5
             for i = 1, math.min(#suggestions, maxSuggestions) do
                 local result = suggestions[i]
-                local typeColor = autocompleteTypeColors[result.type] or "#888888"
+                local typeClass = autocompleteTypeClasses[result.type] or "fgMuted"
                 children[#children + 1] = gui.Panel{
-                    bgimage = "panels/square.png",
+                    classes = {"contextMenuItem"},
                     width = "100%-20",
                     height = "auto",
                     flow = "horizontal",
                     halign = "center",
                     hpad = 10,
                     vpad = 4,
-                    styles = {
-                        {
-                            bgcolor = "clear",
-                        },
-                        {
-                            selectors = {"hover"},
-                            bgcolor = Styles.textColor,
-                        },
-                    },
                     press = function(element)
                         -- Replace the link text with the suggestion
                         local text = inputElement.text
@@ -2355,39 +2293,21 @@ function MarkdownDocument:EditPanel(args)
                         end
                     end,
                     gui.Label{
+                        classes = {"contextMenuLabel", "sizeS"},
                         text = result.name,
-                        fontSize = 13,
                         width = "100%-80",
                         height = "auto",
                         textAlignment = "left",
                         valign = "center",
-                        styles = {
-                            {
-                                color = Styles.textColor,
-                            },
-                            {
-                                selectors = {"parent:hover"},
-                                color = "black",
-                            },
-                        },
                     },
                     gui.Label{
+                        classes = { "contextMenuLabel", "sizeXs", typeClass },
                         text = result.type,
-                        fontSize = 11,
                         width = 80,
                         height = "auto",
                         halign = "right",
                         textAlignment = "right",
                         valign = "center",
-                        styles = {
-                            {
-                                color = typeColor,
-                            },
-                            {
-                                selectors = {"parent:hover"},
-                                color = "black",
-                            },
-                        },
                     },
                 }
             end
@@ -2399,13 +2319,10 @@ function MarkdownDocument:EditPanel(args)
             valign = "bottom",
             halign = "right",
             gui.Panel{
-                bgimage = "panels/square.png",
-                bgcolor = Styles.backgroundColor,
+                classes = {"bordered", "bg"},
                 width = 400,
                 height = "auto",
                 maxHeight = 300,
-                border = 2,
-                borderColor = Styles.textColor,
                 flow = "vertical",
                 children = children,
             },
@@ -2417,6 +2334,7 @@ function MarkdownDocument:EditPanel(args)
         else
             inputElement.popupPositioning = "panel"
         end
+        inputElement.popupsInheritStyles = true
         inputElement.popup = popup
     end
 
@@ -2451,11 +2369,11 @@ function MarkdownDocument:EditPanel(args)
 
         if meta.desc then
             children[#children + 1] = gui.Label{
+                classes = {"fg"},
                 text = meta.desc,
                 fontSize = 13,
                 width = "100%",
                 height = "auto",
-                color = Styles.textColor,
                 vpad = 4,
             }
         end
@@ -2489,13 +2407,10 @@ function MarkdownDocument:EditPanel(args)
             valign = "bottom",
             halign = "right",
             gui.Panel{
-                bgimage = "panels/square.png",
-                bgcolor = Styles.backgroundColor,
+                classes = {"bordered", "bg"},
                 width = 300,
                 height = "auto",
                 maxHeight = 300,
-                border = 2,
-                borderColor = Styles.textColor,
                 flow = "vertical",
                 children = children,
             },
@@ -2507,6 +2422,7 @@ function MarkdownDocument:EditPanel(args)
         else
             inputElement.popupPositioning = "panel"
         end
+        inputElement.popupsInheritStyles = true
         inputElement.popup = popup
     end
 
@@ -2667,28 +2583,21 @@ function MarkdownDocument:EditPanel(args)
     local function BuildAutocompletePopup(inputElement, results)
         local maxShow = 8
         local children = {}
+        inputElement.popupsInheritStyles = true
 
         for i = 1, math.min(#results, maxShow) do
             local result = results[i]
-            local typeColor = autocompleteTypeColors[result.type] or "#888888"
+            local typeClass = autocompleteTypeClasses[result.type] or "fgMuted"
             children[#children + 1] = gui.Panel{
-                bgimage = "panels/square.png",
+                -- bgimage = true,
                 -- width excludes padding, so subtract 2*hpad to stay within parent bounds
-                width = "100%-20",
+                classes = {"contextMenuItem"},
+                width = "100%-40",
                 height = "auto",
                 flow = "horizontal",
                 halign = "center",
                 hpad = 10,
                 vpad = 5,
-                styles = {
-                    {
-                        bgcolor = "clear",
-                    },
-                    {
-                        selectors = {"hover"},
-                        bgcolor = Styles.textColor,
-                    },
-                },
                 press = function(element)
                     AcceptAutocomplete(inputElement, result)
                 end,
@@ -2699,11 +2608,11 @@ function MarkdownDocument:EditPanel(args)
                         local tooltipChildren = {}
                         if result.desc then
                             tooltipChildren[#tooltipChildren + 1] = gui.Label{
+                                classes = {"fg"},
                                 text = result.desc,
                                 fontSize = 13,
                                 width = "100%",
                                 height = "auto",
-                                color = Styles.textColor,
                                 vpad = 4,
                             }
                         end
@@ -2739,11 +2648,11 @@ function MarkdownDocument:EditPanel(args)
                         local tooltipChildren = {}
                         if result.desc then
                             tooltipChildren[#tooltipChildren + 1] = gui.Label{
+                                classes = {"fg"},
                                 text = result.desc,
                                 fontSize = 13,
                                 width = "100%",
                                 height = "auto",
-                                color = Styles.textColor,
                                 vpad = 4,
                             }
                         end
@@ -2785,50 +2694,31 @@ function MarkdownDocument:EditPanel(args)
                     end
                 end,
                 gui.Label{
+                    classes = {"fg", "sizeXs", "contextMenuLabel"},
                     text = result.name,
-                    fontSize = 14,
                     width = "100%-90",
                     height = "auto",
                     textAlignment = "left",
                     valign = "center",
-                    styles = {
-                        {
-                            color = Styles.textColor,
-                        },
-                        {
-                            selectors = {"parent:hover"},
-                            color = "black",
-                        },
-                    },
                 },
                 gui.Label{
+                    classes = {"sizeXs", "contextMenuLabel", typeClass},
                     text = result.type,
-                    fontSize = 11,
                     width = 90,
                     height = "auto",
                     halign = "right",
                     textAlignment = "right",
                     valign = "center",
-                    styles = {
-                        {
-                            color = typeColor,
-                        },
-                        {
-                            selectors = {"parent:hover"},
-                            color = "black",
-                        },
-                    },
                 },
             }
         end
 
         if #results > maxShow then
             children[#children + 1] = gui.Label{
+                classes = { "fgMuted", "sizeXxs" },
                 text = string.format("... and %d more results", #results - maxShow),
-                fontSize = 11,
                 width = "100%",
                 height = "auto",
-                color = "#666666",
                 textAlignment = "center",
                 vpad = 4,
             }
@@ -2840,13 +2730,10 @@ function MarkdownDocument:EditPanel(args)
             valign = "bottom",
             halign = "right",
             gui.Panel{
-                bgimage = "panels/square.png",
-                bgcolor = Styles.backgroundColor,
+                classes = {"bordered", "bgAlt"},
                 width = 400,
                 height = "auto",
                 maxHeight = 300,
-                border = 2,
-                borderColor = Styles.textColor,
                 flow = "vertical",
                 children = children,
             },
@@ -3043,11 +2930,11 @@ function MarkdownDocument:EditPanel(args)
 
     editInput = gui.Input {
         id = "editorPanel",
+        classes = { "monospace" },
         width = "100%",
         height = "100%",
         halign = "center",
         fontSize = CustomDocument.ScaleFontSize(16),
-        fontFace = "Courier",
         multiline = true,
         textAlignment = "topleft",
         text = self:GetTextContent(),
@@ -3349,23 +3236,20 @@ MarkdownReferenceTooltip = function()
     local children = {}
 
     children[#children + 1] = gui.TableRow {
+        classes = {"markdownRefRow", "bordered"},
         width = "100%",
         height = "auto",
-        bgcolor = "clear",
-        bgimage = true,
-        borderColor = "white",
-        border = 1,
 
         gui.Panel {
             width = "50%",
             height = "auto",
             pad = 6,
             gui.Label {
+                classes = { "bold" },
                 fontSize = CustomDocument.ScaleFontSize(24),
                 width = "100%",
                 height = "auto",
                 text = "You Type",
-                bold = true,
             },
         },
 
@@ -3374,11 +3258,11 @@ MarkdownReferenceTooltip = function()
             height = "auto",
             pad = 6,
             gui.Label {
+                classes = { "bold" },
                 fontSize = CustomDocument.ScaleFontSize(24),
                 width = "100%",
                 height = "auto",
                 text = "You See",
-                bold = true,
             },
         },
     }
@@ -3389,23 +3273,20 @@ MarkdownReferenceTooltip = function()
             annotations = annotations,
         }
         children[#children + 1] = gui.TableRow {
+            classes = {"markdownRefRow", "bordered"},
             width = "100%",
             height = "auto",
-            bgcolor = "clear",
-            bgimage = true,
-            borderColor = "white",
-            border = 1,
             gui.Panel {
                 width = "50%",
                 height = "auto",
                 pad = 6,
                 gui.Label {
+                    classes = { "monospace" },
                     width = "100%",
                     height = "auto",
                     text = string.format("<noparse>%s</noparse>", sample),
                     fontSize = CustomDocument.ScaleFontSize(14),
                     textAlignment = "topleft",
-                    fontFace = "Courier",
                 },
             },
             gui.Panel {

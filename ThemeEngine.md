@@ -16,7 +16,13 @@ The **best** path to theming your UI is:
 3. Never use a constant color for anything; always use a class.
 4. Generally use inline properties to control specific layout, etc.
 
+**Preformance!** Using ThemeEngine.GetStyles() ensures that you use a cached theme + color scheme if one exists, and caches it for the next use if it's not already cached. The other paths always parse so they are considerably less performant.
+
 This path ensures that your UI will leverage any theme and color scheme that the end-user chooses.
+
+### Custom Behaviors
+
+**IMPORTANT!** Be aware that, when you call `MergeStyles()` or `MergeTokens()`, you are taking a performance hit and reducing the panel's ability to automatically respond to theme and color scheme changes. It's usually better to inline these behavior styles in the specific controls that need them and avoid using colors or fonts in them. There are plenty of composable and reactive styles like bold, bordered, selected, disabled, etc. in the main style to help wit this.
 
 Sometimes, you will need to add **custom behaviors** through styles instead of inlining properties or writing event handlers. When you do this:
 
@@ -79,6 +85,42 @@ When writing custom styles (for `MergeStyles` or `MergeTokens`), reference schem
 
 The token list (`@fg`, `@bg`, `@accent`, `@danger`, etc.) lives in the color-scheme block of `DMHub Core UI / DefaultStyles.lua`.
 
+**`@tokens` only resolve inside ThemeEngine-routed style rule tables.** Writing them as direct panel fields does NOT work -- the engine never sees them. So:
+
+```lua
+-- BROKEN: panel ships the literal string "@bg" to the renderer.
+gui.Panel{ bgimage = true, bgcolor = "@bg", ... }
+
+-- RIGHT (option 1, preferred): use an existing default-theme class.
+gui.Panel{ classes = {"bordered"}, ... }
+
+-- RIGHT (option 2): if no class fits, route a styles block through the engine.
+gui.Panel{
+    styles = ThemeEngine.MergeStyles{
+        { selectors = {"myEntryWrapper"}, bgimage = true, bgcolor = "@bg" },
+    },
+    classes = {"myEntryWrapper"},
+    ...
+}
+```
+
+Always reach for an existing `DefaultStyles.lua` class first -- adding `MergeStyles` blocks for one-off colors is a last resort and still requires the user's go-ahead per the discipline rules.
+
+### @token references inside text markup
+
+The cascade resolver only walks rule tables, so `@tokenName` references baked into a text string (e.g. TextMeshPro inline-color markup) are not substituted automatically. For those cases, call `ThemeEngine.ResolveTokens(text)` to replace each `@tokenName` in the string with the active scheme's resolved hex:
+
+```lua
+local entry = ThemeEngine.ResolveTokens(
+    string.format('%s <color=@danger>(x%d)</color>', name, count)
+)
+```
+
+- Non-string inputs pass through unchanged.
+- Unknown tokens log a warning once and substitute `UNRESOLVED_COLOR` (magenta) -- same fallback the property resolver uses.
+- Only color tokens are substituted; fonts and gradients aren't useful inside text markup so they aren't handled.
+- Resolution is per-call (no cache). Run it at the format site, typically inside the same handler that produces the markup string. If the active scheme changes after the string is set on a label, re-run the format call to pick up the new colors.
+
 ## Deprecated Controls
 
 Please try to avoid using the following controls, using the suggested alternative instead.
@@ -93,6 +135,7 @@ Please try to avoid using the following controls, using the suggested alternativ
 | gui.FancyButton | gui.Button |
 | gui.HudIconButton | gui.Button{ classes = { sizeM }, icon = "image" } |
 | gui.IconButton | gui.Button{ icon = iconName } |
+| gui.PagingButton | gui.Button{ classes = { pagingArrow }} (left, default) / gui.Button{ classes = { pagingArrow, right }} (right) |
 | gui.PrettyButton | gui.Button |
 | gui.SetEditor | gui.Multiselect |
 | gui.SettingsButton | gui.Button{ classes = { settingsButton }} |

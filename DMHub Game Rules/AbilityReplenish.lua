@@ -47,6 +47,7 @@ function ResourceChatMessage:GetResource()
     return resourceTable[self.resourceid]
 end
 
+--[==[ DEAD_CODE - overridden by Draw Steel V\ResourceChat.lua:3
 function ResourceChatMessage.Render(selfInput, message)
     local token = selfInput:GetToken()
     local resource = selfInput:GetResource()
@@ -99,6 +100,7 @@ function ResourceChatMessage.Render(selfInput, message)
 
     return resultPanel
 end
+--]==]
 
 function ResourceChatMessage:Undo(message)
     local token = self:GetToken()

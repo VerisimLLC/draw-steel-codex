@@ -17,40 +17,36 @@ local SetKit = function(tableName, kitPanel, kitid)
 		halign = "right",
 		valign = "top",
 		gui.IconEditor{
-		value = kit.portraitid,
-		library = "Avatar",
-			width = "100%",
-		height = "150% width",
-		autosizeimage = true,
-		allowPaste = true,
-		borderColor = Styles.textColor,
-		borderWidth = 2,
-		change = function(element)
-			kit.portraitid = element.value
-			UploadKit()
-		end,
+			classes = {"portraitImage"},
+			value = kit.portraitid,
+			library = "Avatar",
+			autosizeimage = true,
+			allowPaste = true,
+			change = function(element)
+				kit.portraitid = element.value
+				UploadKit()
+			end,
 		},
 
 		gui.Label{
+			classes = {"sizeXs"},
 			text = "1000x1500 image",
 			width = "auto",
 			height = "auto",
 			halign = "center",
-			color = Styles.textColor,
-			fontSize = 12,
-		}
+		},
 	}
 
 
 	--the name of the kit.
 	children[#children+1] = gui.Panel{
-		classes = {'formPanel'},
+		classes = {"formStackedRow"},
 		gui.Label{
-			text = 'Name:',
-			valign = 'center',
-			minWidth = 240,
+			classes = {"formStacked"},
+			text = "Name:",
 		},
 		gui.Input{
+			classes = {"formStacked"},
 			text = kit.name,
 			change = function(element)
 				kit.name = element.text
@@ -59,59 +55,71 @@ local SetKit = function(tableName, kitPanel, kitid)
 		},
 	}
 
-	children[#children+1] = gui.Input{
-		fontSize = 14,
-		vmargin = 4,
-		width = 600,
-		minHeight = 30,
-		height = 'auto',
-		multiline = true,
-		text = kit.description,
-		textAlignment = "topleft",
-		placeholderText = "Enter kit description...",
-		change = function(element)
-			kit.description = element.text
-			UploadKit()
-		end,
+	--description
+	children[#children+1] = gui.Panel{
+		classes = {"formStackedRow"},
+		gui.Label{
+			classes = {"formStacked"},
+			text = "Description:",
+		},
+		gui.Input{
+			classes = {"formStacked", "multiline"},
+			minHeight = 30,
+			height = "auto",
+			multiline = true,
+			text = kit.description,
+			placeholderText = "Enter kit description...",
+			change = function(element)
+				kit.description = element.text
+				UploadKit()
+			end,
+		},
 	}
 
 	--whether the kit has an implement
 	children[#children+1] = gui.Panel{
-		classes = {'formPanel'},
+		classes = {"formStackedRow"},
 		gui.Check{
+			classes = {"formStacked"},
 			text = "Has Implement",
 			value = kit.implement,
 			change = function(element)
 				kit.implement = element.value
 				UploadKit()
 			end,
-		}
+		},
 	}
 
-	children[#children+1] = gui.Dropdown{
-		vmargin = 4,
-		idChosen = kit.type,
-		options = Kit.kitTypes,
-		change = function(element)
-			kit.type = element.idChosen
-			UploadKit()
-			element.parent:FireEventTree("changeType")
-		end,
+	children[#children+1] = gui.Panel{
+		classes = {"formStackedRow"},
+		gui.Label{
+			classes = {"formStacked"},
+			text = "Type:",
+		},
+		gui.Dropdown{
+			classes = {"formStacked"},
+			idChosen = kit.type,
+			options = Kit.kitTypes,
+			change = function(element)
+				kit.type = element.idChosen
+				UploadKit()
+				element.parent:FireEventTree("changeType")
+			end,
+		},
 	}
 
 	for _,damageBonus in ipairs(Kit.damageBonusTypes) do
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel', cond(damageBonus.kitType ~= kit.type and (not Kit.lockedKitTypes[kit.type]), "collapsed")},
+			classes = {"formStackedRow", cond(damageBonus.kitType ~= kit.type and (not Kit.lockedKitTypes[kit.type]), "collapsed")},
 			changeType = function(element)
 				element:SetClass("collapsed", damageBonus.kitType ~= kit.type and (not Kit.lockedKitTypes[kit.type]))
 			end,
 			gui.Label{
+				classes = {"formStacked"},
 				text = string.format("%s Damage Bonus:", damageBonus.text),
-				minFontSize = 10,
-				valign = 'center',
-				minWidth = 240,
 			},
 			gui.Input{
+				classes = {"formStacked"},
 				text = kit:FormatDamageBonus(damageBonus.id) or "+0/+0/+0",
 				change = function(element)
 					local match = regex.MatchGroups(element.text, Kit.damageBonusMatchPattern)
@@ -127,23 +135,46 @@ local SetKit = function(tableName, kitPanel, kitid)
 		}
 	end
 
-	children[#children+1] = gui.Multiselect{
-		value = kit.weapons,
-		options = Kit.weaponTypes,
-		addItemText = "Add Weapon...",
-		change = function(element, value)
-			kit.weapons = value
-			UploadKit()
-		end,
+	children[#children+1] = gui.Panel{
+		classes = {"formStackedRow"},
+		gui.Label{
+			classes = {"formStacked"},
+			text = "Weapons:",
+		},
+		gui.Multiselect{
+			classes = {"formStacked"},
+			value = kit.weapons,
+			options = Kit.weaponTypes,
+			addItemText = "Add Weapon...",
+			change = function(element, value)
+				kit.weapons = value
+				UploadKit()
+			end,
+		},
 	}
 
-	children[#children+1] = gui.Dropdown{
-		idChosen = kit.armor,
-		options = Kit.armorTypes,
-		change = function(element)
-			kit.armor = element.idChosen
-			UploadKit()
-		end,
+	-- Build column elements for the 2-column stats grid: Armor + 8 stat fields,
+	-- paired armor/health, speed/damage, range/reach, area/stability, disengage/(blank).
+	local statColumns = {}
+
+	statColumns[#statColumns+1] = gui.Panel{
+		classes = {"formStackedRow"},
+		width = "50%-8",
+		lmargin = 0,
+		hmargin = 4,
+		gui.Label{
+			classes = {"formStacked"},
+			text = "Armor:",
+		},
+		gui.Dropdown{
+			classes = {"formStacked"},
+			idChosen = kit.armor,
+			options = Kit.armorTypes,
+			change = function(element)
+				kit.armor = element.idChosen
+				UploadKit()
+			end,
+		},
 	}
 
 	local stats = {
@@ -158,15 +189,17 @@ local SetKit = function(tableName, kitPanel, kitid)
 	}
 
 	for _,stat in ipairs(stats) do
-		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+		statColumns[#statColumns+1] = gui.Panel{
+			classes = {"formStackedRow"},
+			width = "50%-8",
+			lmargin = 0,
+			hmargin = 4,
 			gui.Label{
+				classes = {"formStacked"},
 				text = string.format("%s:", stat.text),
-				valign = 'center',
-				minWidth = 240,
 			},
-
 			gui.Input{
+				classes = {"formStacked"},
 				text = kit[stat.id],
 				change = function(element)
 					local n = tonumber(element.text)
@@ -183,13 +216,26 @@ local SetKit = function(tableName, kitPanel, kitid)
 		}
 	end
 
+	-- Pack columns into 2-per-row horizontal panels.
+	for i = 1, #statColumns, 2 do
+		local rowChildren = { statColumns[i] }
+		if statColumns[i + 1] ~= nil then
+			rowChildren[#rowChildren + 1] = statColumns[i + 1]
+		end
+		children[#children+1] = gui.Panel{
+			width = "100%",
+			height = "auto",
+			flow = "horizontal",
+			halign = "left",
+			children = rowChildren,
+		}
+	end
+
 
 	children[#children+1] = gui.Button{
+		classes = {"sizeM"},
 		text = "Signature Ability",
-		width = 180,
-		height = 24,
 		vmargin = 4,
-		fontSize = 18,
 		click = function(element)
 			local fn = function(element, kit, savefn)
 				if kit.signatureAbility == false then
@@ -227,43 +273,12 @@ function Kit.CreateEditor()
 			end,
 		},
 		vscroll = true,
-		classes = 'class-panel',
-		styles = {
-			{
-				halign = "left",
-			},
-			{
-				classes = {'class-panel'},
-				width = 1200,
-				height = '90%',
-				halign = 'left',
-				flow = 'vertical',
-				pad = 20,
-			},
-			{
-				classes = {'label'},
-				color = 'white',
-				fontSize = 22,
-				width = 'auto',
-				height = 'auto',
-			},
-			{
-				classes = {'input'},
-				width = 200,
-				height = 26,
-				fontSize = 18,
-				color = 'white',
-			},
-			{
-				classes = {'formPanel'},
-				flow = 'horizontal',
-				width = 'auto',
-				height = 'auto',
-				halign = 'left',
-				vmargin = 2,
-			},
-
-		},
+		width = 1200,
+		height = "90%",
+		halign = "left",
+		flow = "vertical",
+		pad = 20,
+		styles = ThemeEngine.GetStyles(),
 	}
 
 	return kitPanel
@@ -296,13 +311,11 @@ local ShowKitsPanel = function(parentPanel)
 
 				--heading for kit section.
 				children[#children+1] = kitItems[i] or gui.Label{
-					fontSize = 18,
-					bold = true,
+					classes = {"sizeL", "bold"},
 					width = "auto",
 					height = "auto",
 					hmargin = 4,
 					text = v.text,
-					color = "white",
 					data = {
 						ord = string.format("%d", i),
 					},

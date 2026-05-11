@@ -1,6 +1,7 @@
 local mod = dmhub.GetModLoading()
 
 
+--[==[ DEAD_CODE - overridden by Draw Steel UI\DSCareerBuilder.lua:3
 function CharSheet.BackgroundChoicePanel(options)
     local resultPanel
 
@@ -831,7 +832,9 @@ function CharSheet.BackgroundChoicePanel(options)
 
     return resultPanel
 end
+--]==]
 
+--[==[ DEAD_CODE - overridden by Draw Steel UI\DSCareerBuilder.lua:444
 function CharSheet.BackgroundCharacteristicPanel(options)
 
     local selectedStyle = options.selectedStyle or "always"
@@ -1248,3 +1251,4 @@ function CharSheet.BackgroundCharacteristicPanel(options)
         end,       
     }
 end
+--]==]

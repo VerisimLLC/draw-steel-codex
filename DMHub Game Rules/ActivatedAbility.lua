@@ -280,9 +280,11 @@ ActivatedAbility._tmp_temporaryClone = false
 ActivatedAbility.displayOrder = 1
 
 --- @return number
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMActivatedAbility.lua:2963
 function ActivatedAbility:DisplayOrder()
     return self.displayOrder
 end
+--]==]
 
 --- @return ActivatedAbility
 function ActivatedAbility:MakeTemporaryClone()
@@ -299,32 +301,40 @@ end
 ActivatedAbility.keywords = {}
 
 --- @param keyword string
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMActivatedAbility.lua:244
 function ActivatedAbility:AddKeyword(keyword)
 	if self.keywords == ActivatedAbility.keywords then
 		self.keywords = {}
 	end
 	self.keywords[keyword] = true
 end
+--]==]
 
 --- @param keyword string
 --- @return boolean
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMActivatedAbility.lua:250
 function ActivatedAbility:HasKeyword(keyword)
 	return self.keywords[keyword] == true
 end
+--]==]
 
 --- @param keyword string
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMActivatedAbility.lua:255
 function ActivatedAbility:RemoveKeyword(keyword)
 	self.keywords[keyword] = nil
 end
+--]==]
 
 --- @return boolean
 function ActivatedAbility:RequiresConcentration()
 	return cond(self:try_get("concentration"), true, false)
 end
 
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMActivatedAbility.lua:2869
 function ActivatedAbility:GetTypeIconForActionBar()
     return nil
 end
+--]==]
 
 function ActivatedAbility:GetIcon()
     if self.hasCustomIcon then
@@ -548,6 +558,7 @@ function ActivatedAbility.SuppressType(nameOrId)
 end
 
 --- @return boolean
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMActivatedAbility.lua:515
 function ActivatedAbility:HasAttack()
 	for _,behavior in ipairs(self.behaviors) do
 		if behavior.typeName == "ActivatedAbilityAttackBehavior" then
@@ -557,6 +568,7 @@ function ActivatedAbility:HasAttack()
 
 	return false
 end
+--]==]
 
 --- @return boolean
 function ActivatedAbility:HasSavingThrow()
@@ -808,6 +820,7 @@ end
 
 --- @param caster creature
 --- @return boolean
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMActivatedAbility.lua:2687
 function ActivatedAbility:AffectedByCover(caster)
 	local behaviors = self:try_get("behaviors", {})
 	for _,behavior in ipairs(behaviors) do
@@ -818,6 +831,7 @@ function ActivatedAbility:AffectedByCover(caster)
 
 	return false
 end
+--]==]
 
 --- @return nil|ActivatedAbilityAttackBehavior
 function ActivatedAbility:GetAttackBehavior()
@@ -957,6 +971,7 @@ end
 --- @param castingSymbols table
 --- @param selfRange nil|string|number
 --- @return number
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMActivatedAbility.lua:2969
 function ActivatedAbility:GetRange(casterCreature, castingSymbols, selfRange)
 	if selfRange == nil or selfRange == "" then
 		selfRange = self.range
@@ -1012,6 +1027,7 @@ function ActivatedAbility:GetRange(casterCreature, castingSymbols, selfRange)
 
 	return result
 end
+--]==]
 
 function ActivatedAbility:GetRangeDisadvantage(casterCreature, castingSymbols)
 	return self:GetRange(casterCreature, castingSymbols, self.rangeDisadvantage)
@@ -1058,9 +1074,11 @@ function ActivatedAbility:CustomTargetShape(casterToken, range, symbols)
 end
 
 --- @return boolean
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMActivatedAbility.lua:2230
 function ActivatedAbility:IsForcedMovement()
     return self:try_get("targeting") == "straightline"
 end
+--]==]
 
 --- @return nil|string
 function ActivatedAbility:ForcedMovementType()
@@ -1416,6 +1434,7 @@ end
 --- @param symbols Symbols
 --- @param synthesizedSpells nil|(ActivatedAbility[])
 --- @return string
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMActivatedAbility.lua:2643
 function ActivatedAbility:PromptText(casterToken, targets, symbols, synthesizedSpells)
 	if self:try_get("promptOverride") ~= nil then
 		return self.promptOverride
@@ -1457,6 +1476,7 @@ function ActivatedAbility:PromptText(casterToken, targets, symbols, synthesizedS
 	return string.format("Choose Target %d/%d", #targets+1, numTargets)
 	
 end
+--]==]
 
 --- if this ability can be cast with these targets.
 --- @param casterToken CharacterToken
@@ -2008,6 +2028,7 @@ function ActivatedAbility:CastInstantPortion(casterToken, targets, options)
 	return haveNonInstant
 end
 
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMActivatedAbility.lua:2915
 function ActivatedAbility:SynthesizeAbilities(creature)
 	
 	if #self.behaviors > 0 then
@@ -2016,6 +2037,7 @@ function ActivatedAbility:SynthesizeAbilities(creature)
 
 	return nil
 end
+--]==]
 
 function ActivatedAbilityBehavior:SynthesizeAbilities(ability, creature)
 	return nil
@@ -3245,6 +3267,26 @@ function ActivatedAbilityBehavior:ApplyToTargets(ability, casterToken, targets, 
                 result[#result+1] = { token = tok }
             end
         end
+    elseif self.applyto == 'caster_summoner' then
+        result = {}
+
+        local summonerid = casterToken.summonerid
+        if summonerid ~= nil and summonerid ~= "" then
+            local summonerToken = dmhub.GetTokenById(summonerid)
+            if summonerToken ~= nil and summonerToken.valid then
+                result[#result+1] = { token = summonerToken }
+            end
+        end
+    elseif self.applyto == 'caster_companion' then
+        result = {}
+
+        local companionid = casterToken.properties:try_get("companionid", false)
+        if companionid then
+            local companionToken = dmhub.GetTokenById(companionid)
+            if companionToken ~= nil and companionToken.valid then
+                result[#result+1] = { token = companionToken }
+            end
+        end
     elseif self.applyto == 'caster_including_squad' then
         result = {
             {
@@ -3866,6 +3908,7 @@ function ActivatedAbilityAttackBehavior:ExpectedDamageRoll(ability, casterToken,
 	return roll
 end
 
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMAttack.lua:305
 function ActivatedAbilityAttackBehavior:Cast(ability, casterToken, targets, options)
 
 	for i,target in ipairs(targets) do
@@ -4042,6 +4085,7 @@ function ActivatedAbilityAttackBehavior:Cast(ability, casterToken, targets, opti
 		end
 	end
 end
+--]==]
 
 function ActivatedAbilityApplyOngoingEffectBehavior:ConditionID()
 	if self:try_get("ongoingEffect") == nil then
@@ -4797,6 +4841,7 @@ function ActivatedAbility:GenerateTextDescription(token)
 	return description
 end
 
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMActivatedAbility.lua:563
 function ActivatedAbility:Render(options, params)
 
 	params = params or {}
@@ -4949,6 +4994,7 @@ function ActivatedAbility:Render(options, params)
 	return gui.Panel(args)
 	
 end
+--]==]
 
 function ActivatedAbility:GetCastingEmote()
 	if self:try_get("castingEmote") ~= nil then

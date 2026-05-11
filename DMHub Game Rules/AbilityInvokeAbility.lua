@@ -295,6 +295,47 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                             abilityClone.keywords = ability.keywords
                         end
 
+                        --For custom abilities the invoker (the creature actually casting the
+                        --invoked ability) doesn't get its modifier pipeline run automatically --
+                        --normal abilities go through GetActivatedAbilities which applies modifiers,
+                        --but custom invokes use the static template directly. Bifurcate dual-
+                        --keyword strikes first so per-variant modifiers land on the right variant,
+                        --then run the invoker's modifier pipeline, then call PostProcessInvoked-
+                        --Ability for any per-creature-type adjustments that live outside the
+                        --modifier system (e.g. AnimalCompanion's melee damage bonus).
+                        if self.abilityType == "custom" and target.token ~= nil and target.token.properties ~= nil then
+                            local invokerCreature = target.token.properties
+                            abilityClone = abilityClone:BifurcateIntoMeleeAndRanged(invokerCreature)
+                            for _, mod in ipairs(invokerCreature:GetActiveModifiers()) do
+                                if abilityClone == nil then break end
+                                abilityClone = mod.mod:ModifyAbility(mod, invokerCreature, abilityClone)
+                                if abilityClone ~= nil then
+                                    local variations = abilityClone:GetVariations()
+                                    if variations ~= nil then
+                                        for vi = 1, #variations do
+                                            mod.mod:ModifyAbility(mod, invokerCreature, variations[vi])
+                                        end
+                                    end
+                                end
+                            end
+                            if abilityClone ~= nil and invokerCreature.PostProcessInvokedAbility ~= nil then
+                                abilityClone = invokerCreature:PostProcessInvokedAbility(abilityClone) or abilityClone
+                            end
+                        end
+
+                        --When inheritRoll is set, force the invoked ability's power roll(s)
+                        --to reuse the parent cast's raw d10 result instead of rolling fresh.
+                        --PowerRollBehavior reads this off symbols.forcedroll and substitutes
+                        --the dice portion of the formula with the natural value. The child's
+                        --own characteristic bonus and any edges/banes/triggers in the dialog
+                        --still stack on top.
+                        if self:try_get("inheritRoll", false) and options.symbols.cast ~= nil then
+                            local parentNatural = options.symbols.cast:try_get("naturalRoll")
+                            if parentNatural ~= nil then
+                                symbols.forcedroll = parentNatural
+                            end
+                        end
+
                         if self.promptText ~= "" then
                             abilityClone.promptOverride = StringInterpolateGoblinScript(self.promptText, casterToken.properties:LookupSymbol{})
                         end

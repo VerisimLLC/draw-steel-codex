@@ -198,6 +198,7 @@ gui.iconButtonClasses = {
 			actionText = "Delete",
 		},
 	},
+	pagingArrow = {},
 	settingsButton = {},
 }
 
@@ -3114,15 +3115,9 @@ function gui.AudioEditor(args)
 		bgimage = "icons/icon_media/icon_media_5.png",
 		halign = "center",
 		valign = "center",
-		styles = {
-			{
-				bgcolor = Styles.textColor,
-			},
-			{
-				selectors = {"parent:hover"},
-				bgcolor = "black",
-				transitionTime = 0.2,
-			},
+		styles = ThemeEngine.MergeTokens{
+			{ bgcolor = "@fg" },
+			{ selectors = {"parent:hover"}, bgcolor = "@fgInverse", transitionTime = 0.2 },
 		},
 	}
 
@@ -3207,20 +3202,16 @@ function gui.AudioEditor(args)
 			autoplayVolume = vol
 		end,
 
-		styles = {
-			{
-				selectors = {"audioPanel"},
-				borderWidth = 2,
-				borderColor = Styles.textColor,
-				bgimage = "panels/square.png",
-				bgcolor = "black",
-			},
-			{
-				selectors = {"audioPanel", "hover"},
-				bgcolor = Styles.textColor,
-				transitionTime = 0.2,
-				brightness = 1.2,
-			},
+		styles = ThemeEngine.MergeTokens{
+			{ selectors = {"audioPanel"},
+			  borderWidth = 2,
+			  borderColor = "@border",
+			  bgimage = true,
+			  bgcolor = "@bg" },
+			{ selectors = {"audioPanel", "hover"},
+			  bgcolor = "@bgAlt",
+			  transitionTime = 0.2,
+			  brightness = 1.2 },
 		},
 
 		musicIcon,
@@ -3237,15 +3228,9 @@ function gui.AudioEditor(args)
 			fontSize = 16 * scaling,
             characterLimit = 48,
 
-			styles = {
-				{
-					color = Styles.textColor,
-				},
-				{
-					selectors = {"parent:hover"},
-					color = "black",
-					transitionTime = 0.2,
-				}
+			styles = ThemeEngine.MergeTokens{
+				{ color = "@fg" },
+				{ selectors = {"parent:hover"}, color = "@fgInverse", transitionTime = 0.2 },
 			},
 			create = function(element)
 				if value == nil or assets.audioTable[value] == nil then
@@ -3268,8 +3253,7 @@ function gui.AudioEditor(args)
 				local audioAsset = nil
 				local playingEvent = nil
 				local label = gui.Label{
-					fontSize = 16,
-					color = "white",
+					classes = {"sizeM"},
 					halign = "left",
 					textAlignment = "left",
 					width = "auto",
@@ -3278,15 +3262,12 @@ function gui.AudioEditor(args)
 				}
 
 				local playButton
-				playButton = gui.IconButton{
+				playButton = gui.Button{
 					icon = "ui-icons/AudioPlayButton.png",
-					style = {
-						width = 32,
-						height = 32,
-						valign = "center",
-						halign = "right",
-						vmargin = 4,
-					},
+					classes = {"sizeM"},
+					valign = "center",
+					halign = "right",
+					vmargin = 4,
 
 					think = function(element)
 						if playingEvent == nil then
@@ -3329,7 +3310,7 @@ function gui.AudioEditor(args)
 					width = "90%",
 					height = 40,
 					cornerRadius = 8,
-					bgimage = "panels/square.png",
+					bgimage = true,
 					click = function(element)
 						if audioAsset ~= nil then
 							value = audioAsset.id
@@ -3342,15 +3323,9 @@ function gui.AudioEditor(args)
 						resultPanel.popup = nil
 					end,
 
-					styles = {
-						{
-							selectors = {"audioEntry"},
-							bgcolor = "black",
-						},
-						{
-							selectors = {"audioEntry", "hover"},
-							bgcolor = "#770000",
-						},
+					styles = ThemeEngine.MergeTokens{
+						{ selectors = {"audioEntry"}, bgcolor = "clear" },
+						{ selectors = {"audioEntry", "hover"}, bgcolor = "@bgAlt" },
 					},
 
 					data = {
@@ -3401,7 +3376,7 @@ function gui.AudioEditor(args)
 				pad = 0,
 				width = 400,
 				height = rows*40,
-
+				tmargin = 12,
 				halign = 'center',
 
 				children = sounds,
@@ -3424,182 +3399,125 @@ function gui.AudioEditor(args)
 
 			local pagingPanel = gui.Panel{
 				id = 'paging-panel',
+				width = 'auto',
+				height = 32,
+				flow = 'horizontal',
+				halign = "center",
 				styles = {
 					{
-						width = '100%',
-						height = 32,
-						flow = 'horizontal',
-					},
-					{
-						selectors = {'hover', 'paging-arrow'},
-						brightness = 2,
-					},
-					{
-						selectors = {'press', 'paging-arrow'},
-						brightness = 0.7,
+						selectors = {'paging-arrow'},
+						height = '100%',
+						width = '50% height',
+						halign = 'left',
+						hmargin = 20,
 					},
 				},
 
 				children = {
-					gui.Panel{
-						bgimage = 'panels/InventoryArrow.png',
+					gui.Button{
+						icon = 'panels/InventoryArrow.png',
 						className = 'paging-arrow',
-						style = {
-							height = '100%',
-							width = '50% height',
-							halign = 'left',
-							hmargin = 40,
-						},
-
-						events = {
-							refreshSearch = function(element)
-								element:SetClass('hidden', npage == 1)
-							end,
-
-							click = function(element)
-								npage = npage - 1
-								if npage < 1 then
-									npage = 1
-								end
-								popupPanel:FireEventTree('refreshSearch')
-							end,
-						},
-
+						refreshSearch = function(element)
+							element:SetClass('hidden', npage == 1)
+						end,
+						click = function(element)
+							npage = npage - 1
+							if npage < 1 then
+								npage = 1
+							end
+							popupPanel:FireEventTree('refreshSearch')
+						end,
 					},
 
 					gui.Panel{
-						style = {
-							flow = 'horizontal',
+						flow = 'horizontal',
+						width = 'auto',
+						height = 'auto',
+						halign = 'center',
+						valign = "center",
+						gui.Label{
+							classes = {"sizeM"},
 							width = 'auto',
 							height = 'auto',
 							halign = 'center',
-						},
-
-						gui.Label{
-							style = {
-								fontSize = '35%',
-								color = 'white',
-								width = 'auto',
-								height = 'auto',
-								halign = 'center',
-							},
 							text = 'Page',
 						},
-
-						--padding.
-						gui.Panel{
-							style = {
-								height = 1,
-								width = 8,
-							},
-						},
-
 						gui.Label{
+							classes = {"sizeM"},
 							editable = true,
-							style = {
-								fontSize = '35%',
-								color = 'white',
-								width = 'auto',
-								height = 'auto',
-								halign = 'center',
-							},
-							events = {
-								refreshSearch = function(element)
-									element.text = string.format('%d', math.tointeger(npage))
-								end,
-								change = function(element)
-									local newPage = tonumber(element.text)
-									if newPage == nil or newPage < 1 or newPage > GetNumPages() then
-										newPage = npage
-									end
+							width = 'auto',
+							height = 'auto',
+							halign = 'center',
+							lmargin = 8,
+							refreshSearch = function(element)
+								element.text = string.format('%d', math.tointeger(npage))
+							end,
+							change = function(element)
+								local newPage = tonumber(element.text)
+								if newPage == nil or newPage < 1 or newPage > GetNumPages() then
+									newPage = npage
+								end
 
-									npage = newPage
-									popupPanel:FireEventTree('refreshSearch')
+								npage = newPage
+								popupPanel:FireEventTree('refreshSearch')
 
-								end,
-							}
+							end,
 						},
 
 						gui.Label{
-							style = {
-								fontSize = '35%',
-								color = 'white',
-								width = 'auto',
-								height = 'auto',
-								halign = 'center',
-							},
-							events = {
-								refreshSearch = function(element)
-									element.text = string.format('/%d', math.tointeger(GetNumPages()))
-								end,
-							}
+							classes = {"sizeM"},
+							width = 'auto',
+							height = 'auto',
+							halign = 'center',
+							lmargin = 8,
+							refreshSearch = function(element)
+								element.text = string.format('/ %d', math.tointeger(GetNumPages()))
+							end,
 						},
 
 					},
 
-					gui.Panel{
-						bgimage = 'panels/InventoryArrow.png',
-						className = 'paging-arrow',
-						style = {
-							scale = {x = -1, y = 1},
-							height = '100%',
-							width = '50% height',
-							halign = 'right',
-							hmargin = 40,
-						},
-
-						events = {
-							refreshSearch = function(element)
-								element:SetClass('hidden', npage == GetNumPages())
-							end,
-
-							click = function(element)
-								npage = npage + 1
-								if npage > GetNumPages() then
-									npage = GetNumPages()
-								end
-								popupPanel:FireEventTree('refreshSearch')
-							end,
-						},
+					gui.Button{
+						icon = 'panels/InventoryArrow.png',
+						classes = {'paging-arrow', "flipped"},
+						refreshSearch = function(element)
+							element:SetClass('hidden', npage == GetNumPages())
+						end,
+						click = function(element)
+							npage = npage + 1
+							if npage > GetNumPages() then
+								npage = GetNumPages()
+							end
+							popupPanel:FireEventTree('refreshSearch')
+						end,
 					},
 
 				},
 			}
 
-			local searchInput = gui.Input{
+			local searchInput = gui.SearchInput{
 				placeholderText = 'Search for sounds...',
 				hasFocus = true,
-				style = {
-					width = 200,
-					height = 30,
-					fontSize = '40%',
-					bgcolor = 'black',
-					hmargin = 8,
-				},
-
-				events = {
-					change = function(element)
-						soundIds = dmhub.SearchSounds(element.text)
-						table.insert(soundIds, 1, "none")
-						npage = 1
-						popupPanel:FireEventTree('refreshSearch')
-					end,
-				},
+				width = 200,
+				height = 30,
+				search = function(element, text)
+					soundIds = dmhub.SearchSounds(text)
+					table.insert(soundIds, 1, "none")
+					npage = 1
+					popupPanel:FireEventTree('refreshSearch')
+				end,
 			}
 
-			local uploadButton = gui.PrettyButton{
+			local uploadButton = gui.Button{
+				classes = {"sizeM"},
 				text = 'Upload Audio',
-				width = "auto",
-				height = "auto",
 				width = 200,
 				height = 44,
-				fontSize = 20,
 				hmargin = 12,
 				vmargin = 12,
 				halign = "left",
 				valign = "bottom",
-				events = {
-					click = function(element)
+				click = function(element)
 					
 						local uploadDialog = nil
 						dmhub.OpenFileDialog{
@@ -3658,33 +3576,37 @@ function gui.AudioEditor(args)
 							end,
 						}
 					end,
-				},
+			}
+
+			local closeButton = gui.Button{
+				classes = {"closeButton"},
+				floating = true,
+				halign = "right",
+				valign = "top",
+				click = function(element)
+					resultPanel.popup = nil
+				end,
 			}
 			
 			popupPanel = gui.Panel{
 				classes = {"framedPanel"},
-				styles = {
-					Styles.Default,
-					Styles.Panel,
-					{
-						flow = 'vertical',
-						halign = 'left',
-						valign = 'top',
-						width = 600,
-						height = 820,
-						borderWidth = 0,
-						bgcolor = 'white',
-					},
-				},
+				styles = ThemeEngine.GetStyles(),
+				flow = 'vertical',
+				halign = 'left',
+				valign = 'top',
+				pad = 8,
+				width = 600,
+				height = 820,
 				children = {
 					searchInput,
 					soundsGrid,
 					pagingPanel,
 					uploadButton,
+					closeButton,
 				},
 			}
 
-			searchInput:FireEvent('change')
+			searchInput:FireEvent('search', '')
 
 			resultPanel.popupPositioning = 'panel'
 			resultPanel.popup = popupPanel
@@ -4127,18 +4049,22 @@ function gui.ImplementationStatusPanel(options)
 
 	local types = gui.ImplementationStatusValues
 
+	local function implClass(num)
+		return "implStatus" .. tostring(num)
+	end
+
 	local textLabel = gui.Label{
-		width = 110,
-		height = 24,
-		fontSize = 14,
-		color = "white",
+		classes = {"sizeM", implClass(value)},
+		width = 180,
 		text = types[value],
 		textAlignment = "center",
 		halign = "center",
+		valign = "center",
 	}
 
 
 	resultPanel = {
+		styles = ThemeEngine.ForceSafety() and ThemeEngine.GetStyles() or nil,
 		width = 148,
 		height = 32,
 		flow = "horizontal",
@@ -4149,6 +4075,9 @@ function gui.ImplementationStatusPanel(options)
 
 		SetValue = function(element, val, firechange)
 			local num = ClampValue(val)
+			for i = 0, 4 do
+				textLabel:SetClass(implClass(i), i == num)
+			end
 			textLabel.text = types[num]
 			value = num
 			if firechange then
@@ -4157,9 +4086,8 @@ function gui.ImplementationStatusPanel(options)
 		end,
 
 
-		gui.Panel{
-			bgimage = 'panels/InventoryArrow.png',
-			bgcolor = "white",
+		gui.Button{
+			icon = 'panels/InventoryArrow.png',
 			halign = "left",
 			valign = "center",
 			height = 24,
@@ -4172,13 +4100,12 @@ function gui.ImplementationStatusPanel(options)
 
 		textLabel,
 
-		gui.Panel{
-			bgimage = 'panels/InventoryArrow.png',
-			scale = {x = -1, y = 1},
-			bgcolor = "white",
+		gui.Button{
+			icon = 'panels/InventoryArrow.png',
+			classes = {"flipped"},
 			halign = "right",
 			valign = "center",
-			height = 32,
+			height = 24,
 			width = "50% height",
 			press = function(element)
 				resultPanel.value = value+1
@@ -5011,13 +4938,13 @@ function gui.MCDMDivider(options)
 	options.bgimage = nil
 
 	local args = {
+		classes = {"mcdmDivider"},
 		tmargin = 4,
 		bmargin = 0,
 		height = 1,
 		width = "80%",
 		halign = "center",
-		bgimage = "panels/square.png",
-		bgcolor = Styles.textColor,
+		bgimage = true,
 	}
 
 	if layout and mcdmLayouts[layout] then
@@ -5030,20 +4957,24 @@ function gui.MCDMDivider(options)
 		args.bgimage = nil
 		args.gradient = nil
 		args.flow = "horizontal"
-		
-		local lineWidth = "50%-" .. math.floor(args.height/2)
-		local bgcolor = args.bgcolor or Styles.textColor
+
+		-- Inner panels share the cascade rule via the same class.  If the
+		-- caller passed an explicit bgcolor, propagate it inline so it still
+		-- wins over the cascade.
+		local innerBgcolor = options.bgcolor
 		local leftPanel = gui.Panel{
+			classes = {"mcdmDivider"},
 			height = args.height,
-			width = lineWidth,
+			width = "50%-" .. math.floor(args.height/2),
 			halign = "right",
 			valign = "center",
 			pad = 0,
 			margin = 0,
 			bgimage = mod.images.line,
-			bgcolor = bgcolor
+			bgcolor = innerBgcolor,
 		}
 		local midPanel = gui.Panel{
+			classes = {"mcdmDivider"},
 			height = args.height,
 			width = args.height,
 			halign = "center",
@@ -5051,17 +4982,18 @@ function gui.MCDMDivider(options)
 			pad = 0,
 			margin = 0,
 			bgimage = mod.images[layout],
-			bgcolor = bgcolor
+			bgcolor = innerBgcolor,
 		}
 		local rightPanel = gui.Panel{
+			classes = {"mcdmDivider"},
 			height = args.height,
-			width = lineWidth,
+			width = "50%-" .. math.floor(args.height/2),
 			halign = "left",
 			valign = "center",
 			pad = 0,
 			margin = 0,
 			bgimage = mod.images.line,
-			bgcolor = bgcolor
+			bgcolor = innerBgcolor,
 		}
 
 		args.children = {

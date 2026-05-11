@@ -1540,8 +1540,6 @@ function Spell.CompendiumEditor()
 				textAlignment = "left",
 				hmargin = 4,
 			},
-
-			Styles.ImplementationIcon,
 		},
 	}
 
@@ -3309,7 +3307,6 @@ local CreateCharSheetSpells = function()
 		flow = "vertical",
 		styles = {
 			SpellStyles,
-			Styles.ImplementationIcon,
 		},
 
 		tabsPanel,

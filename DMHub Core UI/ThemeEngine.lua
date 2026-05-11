@@ -25,6 +25,18 @@ local mod = dmhub.GetModLoading()
 ---     means zero exceptions to maintain.
 ---   `parent:*` / `~classname` are selector grammar (parent-state and
 ---     negation), not class names; they're untouched by the rule.
+---
+--- Kind-class buttons (icon-only): a small set of registered class names
+--- (see `gui.iconButtonClasses` in Gui.lua) make `gui.Button` take the
+--- icon-only render path and let `parent:<kind>` rules in the iconButton
+--- family supply the bgimage. Use these instead of bespoke constructors:
+---   gui.Button{ classes = {"pagingArrow"} }            -- previous arrow
+---   gui.Button{ classes = {"pagingArrow", "right"} }   -- next arrow
+--- The `pagingArrow` kind class is the canonical replacement for the
+--- legacy `gui.PaginButton` helper -- there is no `gui.PaginButton`; route
+--- paging chevrons through `gui.Button` + the `pagingArrow` class so the
+--- chrome, hit-target, hover/press cascade, and bgimage all come from the
+--- iconButton theme rules in DefaultStyles.lua.
 --- @class ThemeEngine
 ThemeEngine = {} --RegisterGameType("ThemeEngine")
 
@@ -98,23 +110,6 @@ local function _buildAvailableFontsSet()
     return set
 end
 
---- Validate a font name against gui.availableFonts. Case-insensitive.
---- Unknown names log once and return UNRESOLVED_FONT (Berling).
---- Non-strings pass through unchanged.
---- @param name any
---- @return any
-local function _validateFontFace(name)
-    if type(name) ~= "string" then return name end
-    if _availableFontsLower == nil then
-        _availableFontsLower = _buildAvailableFontsSet()
-    end
-    if _availableFontsLower[string.lower(name)] then
-        return name
-    end
-    _logUnresolved("fontFace", name)
-    return UNRESOLVED_FONT
-end
-
 -- =============================================================================
 -- Logging
 -- =============================================================================
@@ -131,6 +126,23 @@ local function _logUnresolved(domain, name)
     if _loggedUnresolved[key] then return end
     _loggedUnresolved[key] = true
     _log("unresolved " .. domain .. " reference: " .. tostring(name))
+end
+
+--- Validate a font name against gui.availableFonts. Case-insensitive.
+--- Unknown names log once and return UNRESOLVED_FONT (Berling).
+--- Non-strings pass through unchanged.
+--- @param name any
+--- @return any
+local function _validateFontFace(name)
+    if type(name) ~= "string" then return name end
+    if _availableFontsLower == nil then
+        _availableFontsLower = _buildAvailableFontsSet()
+    end
+    if _availableFontsLower[string.lower(name)] then
+        return name
+    end
+    _logUnresolved("fontFace", name)
+    return UNRESOLVED_FONT
 end
 
 --- Coerce a theme id to a registered one. Nil and unknown ids both
@@ -662,6 +674,30 @@ end
 -- Public API -- Resolution
 -- =============================================================================
 
+local _getStylesHits = 0
+local _getStylesMisses = 0
+local _getStylesReportEvery = 50
+
+-- MergeStyles measurement (identity-only). Each call's customStyles table
+-- address is the hash key. Tells us whether callers reuse styles tables
+-- (cacheable cheaply by identity) vs. rebuild them every call (caching by
+-- identity is moot; would need content hashing or caller refactoring).
+local _mergeStylesCalls = 0
+local _mergeStylesHashCounts = {}
+local _mergeStylesHashIds = {}
+local _mergeStylesNextId = 1
+
+local function _reportGetStylesCache()
+    local total = _getStylesHits + _getStylesMisses
+    if total > 0 and total % _getStylesReportEvery == 0 then
+        print(string.format(
+            "THC:: GETSTYLECACHE:: total=%d hits=%d misses=%d (hit rate %.1f%%)",
+            total, _getStylesHits, _getStylesMisses,
+            100 * _getStylesHits / total
+        ))
+    end
+end
+
 --- Get the resolved styles array for the current (or overridden) theme/scheme pair.
 ---
 --- With no arguments, uses the active theme and active color scheme (falling back
@@ -683,7 +719,14 @@ function ThemeEngine.GetStyles(themeIdOverride, schemeIdOverride)
 
     local key = _cacheKey(themeId, schemeId)
     local cached = _cache[key]
-    if cached then return cached end
+    if cached then
+        _getStylesHits = _getStylesHits + 1
+        _reportGetStylesCache()
+        return cached
+    end
+
+    _getStylesMisses = _getStylesMisses + 1
+    _reportGetStylesCache()
 
     local chain = _buildChain(themeId)
 
@@ -731,6 +774,16 @@ function ThemeEngine.MergeStyles(customStyles)
     local base = ThemeEngine.GetStyles()
     if customStyles == nil or #customStyles == 0 then
         return base
+    end
+
+    _mergeStylesCalls = _mergeStylesCalls + 1
+    -- Identity key. Using the table reference directly avoids a tostring()
+    -- call that would otherwise hit any __tostring metamethod the engine
+    -- installs on style tables (which serializes the whole structure).
+    _mergeStylesHashCounts[customStyles] = (_mergeStylesHashCounts[customStyles] or 0) + 1
+    if _mergeStylesHashIds[customStyles] == nil then
+        _mergeStylesHashIds[customStyles] = _mergeStylesNextId
+        _mergeStylesNextId = _mergeStylesNextId + 1
     end
 
     local themeId, schemeId = _resolveEffectivePair(nil, nil)
@@ -783,6 +836,35 @@ function ThemeEngine.MergeTokens(customStyles)
     return _buildResolvedStyles(customStyles, tables)
 end
 
+--- Resolve `@tokenName` color references embedded in an arbitrary string
+--- against the active scheme. Useful for TextMeshPro markup like
+--- `"<color=@danger>warning</color>"` where the property-level resolver
+--- doesn't reach (it only walks rule tables, not strings inside text).
+---
+--- Each `@<name>` is replaced with the active scheme's resolved hex for that
+--- color token. Unknown tokens log a warning and substitute UNRESOLVED_COLOR.
+--- Non-string inputs pass through unchanged.
+---
+--- Only color tokens are substituted. Fonts and gradients aren't useful in
+--- text markup, so they're not handled here.
+--- @param text string|any The string to resolve. Non-strings return unchanged.
+--- @return string|any resolved
+function ThemeEngine.ResolveTokens(text)
+    if type(text) ~= "string" then
+        return text
+    end
+    local _, schemeId = _resolveEffectivePair(nil, nil)
+    local colors = _buildColorTable(schemeId)
+    return (string.gsub(text, "@([%a][%w]*)", function(name)
+        local v = colors[name]
+        if v == nil then
+            _logUnresolved("color", name)
+            return UNRESOLVED_COLOR
+        end
+        return v
+    end))
+end
+
 -- =============================================================================
 -- Theme safety enforcement
 -- Hidden preference (no name / description / editor, so it does not show up in
@@ -800,6 +882,45 @@ local _enforceSafetySetting = setting{
 --- @return boolean
 function ThemeEngine.ForceSafety()
     return _enforceSafetySetting:Get()
+end
+
+if devmode() then
+    Commands.RegisterMacro{
+        name = "themecache",
+        summary = "dump GetStyles + MergeStyles measurement counters",
+        doc = "Usage: /themecache\nPrints GetStyles cache hit/miss counters plus MergeStyles call distribution by customStyles table identity (top 5). Devmode only.",
+        command = function(str)
+            local total = _getStylesHits + _getStylesMisses
+            local rate = total > 0 and (100 * _getStylesHits / total) or 0
+            print(string.format(
+                "THC:: GETSTYLECACHE:: total=%d hits=%d misses=%d (hit rate %.1f%%)",
+                total, _getStylesHits, _getStylesMisses, rate
+            ))
+
+            local uniqueHashes = 0
+            local entries = {}
+            for hash, count in pairs(_mergeStylesHashCounts) do
+                uniqueHashes = uniqueHashes + 1
+                entries[#entries + 1] = { hash = hash, count = count }
+            end
+            table.sort(entries, function(a, b) return a.count > b.count end)
+
+            local repeatRate = _mergeStylesCalls > 0
+                and (100 * (_mergeStylesCalls - uniqueHashes) / _mergeStylesCalls) or 0
+            print(string.format(
+                "THC:: MERGESTYLES:: total=%d unique=%d (repeat rate %.1f%%)",
+                _mergeStylesCalls, uniqueHashes, repeatRate
+            ))
+
+            local topN = math.min(5, #entries)
+            for i = 1, topN do
+                print(string.format(
+                    "THC:: MERGESTYLES:: top %d count=%d id=#%d",
+                    i, entries[i].count, _mergeStylesHashIds[entries[i].hash] or -1
+                ))
+            end
+        end,
+    }
 end
 
 Commands.RegisterMacro{

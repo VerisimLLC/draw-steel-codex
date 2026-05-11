@@ -32,12 +32,11 @@ function RichEncounter.CreateDisplay(self)
     }
 
     local headerPanel = gui.Panel{
+        classes = {"encounterHeader"},
         width = "100%",
         flow = "horizontal",
         height = 20,
         bgimage = true,
-        bgcolor = "black",
-        borderColor = "white",
         border = {x1 = 0, y1 = 1, x2 = 0, y2 = 0},
 
         titleLabel,
@@ -170,21 +169,26 @@ function RichEncounter.CreateDisplay(self)
     }
 
     resultPanel = gui.Panel{
-        styles = {
+        styles = ThemeEngine.MergeTokens({
+            {
+                selectors = {"encounterHeader"},
+                bgcolor = "@bg",
+                borderColor = "@fgStrong",
+            },
             {
                 borderWidth = 1,
-                borderColor = "#ffffff88",
+                borderColor = "@border",
             },
             {
                 selectors = {"hover"},
-                borderColor = "white",
+                borderColor = "@fgStrong",
                 borderWidth = 2,
             },
             {
                 selectors = {"focus"},
-                borderColor = "yellow",
-            }
-        },
+                borderColor = "@accent",
+            },
+        }),
         flow = "vertical",
         width = 260,
         height = "auto",
@@ -401,12 +405,11 @@ function RichEncounter.CreateEditor(self)
     }
 
     local headerPanel = gui.Panel{
+        classes = {"encounterEditorHeader"},
         width = "100%",
         flow = "horizontal",
         height = 18,
         bgimage = true,
-        bgcolor = "black",
-        borderColor = "white",
         borderWidth = 1,
 
         titleLabel,
@@ -424,7 +427,8 @@ function RichEncounter.CreateEditor(self)
             end,
         },
 
-        gui.SettingsButton{
+        gui.Button{
+            classes = {"settingsButton"},
             width = 12,
             height = 12,
             valign = "center",
@@ -442,6 +446,7 @@ function RichEncounter.CreateEditor(self)
     }
 
     local textPanel = gui.Label{
+        classes = {"encounterEditorText"},
         width = "100%",
         height = "100% available",
         fontSize = 12,
@@ -450,7 +455,6 @@ function RichEncounter.CreateEditor(self)
         textAlignment = "topleft",
         bgimage = true,
         bgcolor = "clear",
-        borderColor = "#ffffff88",
         borderWidth = 1,
         refreshEditor = function(element)
             element.text = self.encounter:Describe()
@@ -458,6 +462,17 @@ function RichEncounter.CreateEditor(self)
     }
 
     resultPanel = gui.Panel{
+        styles = ThemeEngine.MergeTokens({
+            {
+                selectors = {"encounterEditorHeader"},
+                bgcolor = "@bg",
+                borderColor = "@fgStrong",
+            },
+            {
+                selectors = {"encounterEditorText"},
+                borderColor = "@border",
+            },
+        }),
         flow = "vertical",
         width = 160,
         height = "100%",

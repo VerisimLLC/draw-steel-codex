@@ -15,9 +15,7 @@ function RichCheckbox.CreateDisplay(self)
     resultPanel = gui.Check{
         value = false,
         text = "",
-        fontSize = 16,
         width = "auto",
-        height = 18,
         halign = "left",
         refreshTag = function(element, tag, match, token)
             self = tag or self

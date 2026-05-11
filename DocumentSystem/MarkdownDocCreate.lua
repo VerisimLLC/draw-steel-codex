@@ -94,11 +94,11 @@ function MarkdownDocument:ShowCreateDialog()
             flow = "vertical",
             vscroll = true,
             children = labels,
-            styles = {
+            styles = ThemeEngine.MergeTokens({
                 {
                     selectors = {"label"},
                     fontSize = 16,
-                    color = Styles.textColor,
+                    color = "@fg",
                     bgimage = true,
                     bgcolor = "clear",
                     halign = "left",
@@ -111,16 +111,16 @@ function MarkdownDocument:ShowCreateDialog()
                 },
                 {
                     selectors = {"label", "hover"},
-                    color = Styles.backgroundColor,
-                    bgcolor = Styles.textColor,
+                    color = "@fgInverse",
+                    bgcolor = "@fg",
                     brightness = 1.2,
                 },
                 {
                     selectors = {"label", "selected"},
-                    color = Styles.backgroundColor,
-                    bgcolor = Styles.textColor,
+                    color = "@fgInverse",
+                    bgcolor = "@fg",
                 },
-            }
+            }),
         },
     }
 
@@ -135,22 +135,22 @@ function MarkdownDocument:ShowCreateDialog()
 
     local dialog
 
+    local dialogStyles = ThemeEngine.GetStyles()
+    dialogStyles[#dialogStyles + 1] = gui.Style {
+        classes = { "framedPanel" },
+        priority = 5,
+        opacity = 0.98,
+        borderWidth = 0,
+        borderColor = "clear",
+    }
+    dialogStyles[#dialogStyles + 1] = gui.Style {
+        classes = { "framedPanel", "~uiblur" },
+        priority = 5,
+        opacity = 1,
+    }
+
     dialog = gui.Panel {
-        styles = {
-            Styles.Panel,
-            gui.Style {
-                classes = { "framedPanel" },
-                priority = 5,
-                opacity = 0.98,
-                borderWidth = 0,
-                borderColor = "clear",
-            },
-            gui.Style {
-                classes = { "framedPanel", "~uiblur" },
-                priority = 5,
-                opacity = 1,
-            },
-        },
+        styles = dialogStyles,
         classes = { "framedPanel" },
         bgimage = true,
         blurBackground = true,

@@ -545,6 +545,7 @@ function character.ToggleSavingThrowProficiency(self, attr)
 	self.savingThrowProficiencies[attr] = newValue
 end
 
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMCreature.lua:2713
 function character:BaseHitpoints()
 	if self.override_hitpoints then
 		return self.max_hitpoints
@@ -587,6 +588,7 @@ function character:BaseHitpoints()
 
 	return result
 end
+--]==]
 
 --Called from DMHub to allow initialization of a token
 function CreateToken(token)
@@ -687,6 +689,7 @@ end
 --- Returns all CharacterFeature objects active on this character from all sources.
 --- @param options nil|table
 --- @return CharacterFeature[]
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMCustomRules.lua:33
 function character:GetClassFeatures(options)
 	options = options or {}
 	local result = {}
@@ -732,9 +735,11 @@ function character:GetClassFeatures(options)
 
 	return result
 end
+--]==]
 
 
 --returns a list of { class/race/background/characterType = Class/Race/Background, levels = {list of ints}, feature = CharacterFeature or CharacterChoice }
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMCustomRules.lua:131
 function character:GetClassFeaturesAndChoicesWithDetails()
 	local result = {}
 
@@ -772,6 +777,7 @@ function character:GetClassFeaturesAndChoicesWithDetails()
 
 	return result
 end
+--]==]
 
 --- Returns all features on this character (custom + class features).
 --- @return CharacterFeature[]
@@ -825,12 +831,14 @@ end
 
 --- Returns true if the character is dead.
 --- @return boolean
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMCreature.lua:2036
 function character:IsDead()
     if self:IsHero() then
         return self:CurrentHitpoints() <= -self:BloodiedThreshold()
     end
 	return self:CurrentHitpoints() <= 0
 end
+--]==]
 
 function creature:IsStable()
 	return self:CurrentHitpoints() <= 0 and self:GetNumDeathSavingThrowSuccesses() >= 3

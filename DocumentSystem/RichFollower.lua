@@ -70,97 +70,37 @@ function RichFollower.CreateDisplay(self)
     local resultPanel
     self:_validate()
 
-    local assignButtonStyles = {
-        {
-            priority = 10,
-            selectors = {"assign-button"},
-            bgimage = "panels/square.png",
-            borderWidth = 0,
-            cornerRadius = 6,
-            pad = 4,
-        },
-        {
-            priority = 10,
-            selectors = {"assign-button", "hover"},
-            bgcolor = "#333333",
-            borderColor = "#666666",
-            borderWidth = 1,
-            transitionTime = 0.2
-        },
-        {
-            priority = 10,
-            selectors = {"assign-button", "press"},
-            bgcolor = "#808080",
-            borderColor = "#F0F0F0",
-            borderWidth = 1,
-            transitionTime = 0.2
-        },
-        {
-            priority = 10,
-            selectors = {"assign-button-label"},
-            bgimage = "panels/square.png",
-            bgcolor = "#333333",
-            border = 1,
-            borderColor = "white",
-            cornerRadius = 4,
-            fontSize = 12,
-            hmargin = 32,
-            vmargin = 8,
-        },
-        {
-            priority = 10,
-            selectors = {"assign-button-label", "revoke"},
-            borderWidth = 1,
-            borderColor = "#660000",
-            bgcolor = "#330000",
-        },
-        {
-            priority = 10,
-            selectors = {"assign-button-label", "press", "revoke"},
-            bgcolor = "#660000",
-            borderColor = "#990000",
-        },
-        {
-            selectors = {"token-image-frame"},
-            borderWidth = 0,
-        }
-    }
-
     local titleLabel = gui.Label{
+        classes = {"sizeS"},
         width = "100%",
         height = 20,
         lmargin = 2,
         hpad = 2,
         halign = "left",
-        fontSize = 14,
         refreshTag = function(element)
             element.text = string.format("<b>Follower:</b> %s", self.follower.name)
         end,
     }
 
     local headerPanel = gui.Panel{
+        classes = {"featureCardHeader", "expanded"},
         width = "100%",
         flow = "horizontal",
         height = 20,
-        bgimage = true,
-        bgcolor = "black",
-        borderColor = "white",
-        border = {x1 = 0, y1 = 1, x2 = 0, y2 = 0},
         titleLabel,
     }
 
     local detailPanel = gui.Panel{
+        classes = {"featureCardBody"},
         width = "100%",
         height = 140,
-        fontSize = 12,
         minFontSize = 8,
         pad = 4,
         textAlignment = "topleft",
         flow = "horizontal",
-        borderWidth = 1,
         gui.Panel {
+            classes = {"image"},
             bgimage = "DEFAULT_MONSTER_AVATAR",
-            bgcolor = "white",
             halign = "left",
             valign = "top",
             width = 90,
@@ -191,17 +131,12 @@ function RichFollower.CreateDisplay(self)
         for _, token in ipairs(dmhub.GetTokens{playerControlled = true}) do
             if token.properties and token.properties:IsHero() then
 
-                -- local revokeMode = isFollowerAssignedToHero(token.id)
-                -- local label = revokeMode and "Revoke from " or "Assign to "
-                -- label = label .. (token.name or "Unnamed Hero")
-
                 assignButtons[#assignButtons+1] = gui.Panel{
-                    styles = assignButtonStyles,
                     classes = {"assign-button"},
                     width = "auto",
                     height = 68,
                     lmargin = 8,
-                    vpad = 4,
+                    pad = 4,
                     data = {
                         revokeMode = false,
                     },
@@ -231,21 +166,22 @@ function RichFollower.CreateDisplay(self)
                     end,
                     children = {
                         gui.CreateTokenImage(token, {
-                            classes = {"token-image-frame"},
+                            classes = {"noBorder"},
                             width = 64,
                             height = 64,
                             halign = "left",
                             valign = "center",
                             interactable = false,
-                            border = 0,
-                            borderWidth = 0,
                             refresh = function(element)
                                 if token == nil or not token.valid then return end
                                 element:FireEvent("token", token)
                             end
                         }),
                         gui.Label{
-                            classes = {"assign-button-label"},
+                            classes = {"bordered", "bgAlt"},
+                            hmargin = 32,
+                            vmargin = 8,
+                            pad = 8,
                             width = "auto",
                             height = 20,
                             valign = "bottom",
@@ -256,7 +192,7 @@ function RichFollower.CreateDisplay(self)
                                 if parent and token ~= nil and token.valid then
                                     local label = parent.data.revokeMode and "Revoke from " or "Assign to "
                                     element.text = label .. (token.name or "Unnamed Hero")
-                                    element:SetClass("revoke", parent.data.revokeMode)
+                                    element:SetClass("danger", parent.data.revokeMode)
                                 end
                             end
                         }
@@ -276,29 +212,12 @@ function RichFollower.CreateDisplay(self)
     }
 
     resultPanel = gui.Panel{
-        styles = {
-            {
-                selectors = {"follower-panel"},
-                borderWidth = 1,
-                borderColor = "#ffffff88",
-            },
-            {
-                selectors = {"hover"},
-                borderColor = "white",
-                borderWidth = 2,
-            },
-            {
-                selectors = {"focus"},
-                borderColor = "yellow",
-            }
-        },
         classes = {"follower-panel"},
         flow = "vertical",
         width = "98%",
         height = "auto",
         pad = 2,
         halign = "left",
-        bgimage = true,
         create = function(element)
             element:FireEventTree("refreshTag")
         end,
@@ -307,11 +226,12 @@ function RichFollower.CreateDisplay(self)
         footerPanel,
 
         gui.Button {
+            classes = {"sizeM"},
             text = "Commit Follower to Hero",
             width = "auto",
-            height = 30,
-            halign = "Center",
-            valign = "Bottom",
+            halign = "center",
+            valign = "bottom",
+            hpad = 8,
             interactable = false,
             refreshTag = function(element)
                 element.interactable = self.follower.assignedTo ~= ""
@@ -339,30 +259,26 @@ function RichFollower.CreateEditor(self)
     self:_validate()
 
     local titleLabel = gui.Label {
+        classes = {"sizeXs", "bold"},
         width = "100%-14",
         height = 18,
         lmargin = 2,
         halign = "left",
-        bold = true,
-        fontSize = 14,
         minFontSize = 8,
+        textOverflow = "ellipsis",
         refreshEditor = function(element)
             element.text = self.follower.name
         end,
     }
     
     local headerPanel = gui.Panel {
+        classes = {"featureCardHeader", "bgAlt", "expanded"},
         width = "100%",
         flow = "horizontal",
         height = 18,
-        bgimage = true,
-        bgcolor = "black",
-        borderColor = "white",
-        borderWidth = 1,
         titleLabel,
-        gui.SettingsButton {
-            width = 12,
-            height = 12,
+        gui.Button {
+            classes = {"settingsButton", "sizeXxs"},
             valign = "center",
             halign = "right",
             click = function(element)
@@ -373,20 +289,24 @@ function RichFollower.CreateEditor(self)
         }
     }
 
-    local detailPanel = gui.Label {
+    local detailPanel = gui.Panel{
+        classes = {"featureCardBody"},
         width = "100%",
         height = "100% available",
-        fontSize = 12,
-        minFontSize = 8,
-        pad = 4,
-        textAlignment = "topLeft",
-        bgimage = true,
-        bgcolor = "clear",
-        borderColor = "#ffffff88",
-        borderWidth = 1,
-        refreshEditor = function(element)
-            element.text = DescribeFollower(self.follower)
-        end,
+        valign = "top",
+        pad = 1,
+        gui.Label {
+            classes = {"sizeXxs"},
+            width = "100%-4",
+            height = "100%-4",
+            valign = "top",
+            minFontSize = 8,
+            pad = 4,
+            textAlignment = "topLeft",
+            refreshEditor = function(element)
+                element.text = DescribeFollower(self.follower)
+            end,
+        }
     }
 
     resultPanel = gui.Panel {

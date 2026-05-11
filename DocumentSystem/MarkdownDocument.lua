@@ -3196,6 +3196,13 @@ function MarkdownDocument:EditPanel(args)
         { id = "##### ", text = "H5" },
     }
 
+    local spoilerOptions = {
+        { id = "",  text = "Spoiler" },
+        { id = "h", text = "Hidden" },
+        { id = "r", text = "Redacted" },
+        { id = "v", text = "Revealed" },
+    }
+
     local toolbar = gui.Panel{
         width = "100%",
         height = 28,
@@ -3225,6 +3232,25 @@ function MarkdownDocument:EditPanel(args)
         ToolbarButton("List",    12, 44, LineHandler("* ")),
         ToolbarButton("Divider", 12, 56, InsertHandler("\n---\n", 5)),
         ToolbarButton("Link",    12, 40, InsertHandler("[]", 1)),
+
+        gui.Dropdown{
+            width = 90, height = 24, idChosen = "",
+            options = spoilerOptions,
+            change = function(element)
+                local id = element.idChosen
+                if id == "h" then
+                    WrapHandler("{", "}")()
+                elseif id == "r" then
+                    WrapHandler("{#", "}")()
+                elseif id == "v" then
+                    WrapHandler("{!", "}")()
+                end
+                element.idChosen = ""
+            end,
+        },
+
+        ToolbarButton("Color", 12, 44,
+            WrapHandler("<color=red>", "</color>")),
     }
 
     local editorColumn

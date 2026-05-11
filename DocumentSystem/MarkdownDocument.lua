@@ -3208,23 +3208,14 @@ function MarkdownDocument:EditPanel(args)
     local widgetTags = { "dice", "bar", "counter", "checkbox", "macro",
                          "reminder", "timer", "setting" }
 
-    local function TagDropdown(label, tagList)
-        local options = { { id = "", text = label } }
-        for _, t in ipairs(tagList) do
-            options[#options + 1] = { id = t, text = t }
-        end
-        return gui.Dropdown{
-            width = 110,
-            height = 24,
-            idChosen = "",
-            options = options,
-            change = function(element)
-                if element.idChosen ~= "" then
-                    RichTagHandler(element.idChosen)()
-                    element.idChosen = ""
-                end
-            end,
-        }
+    local mediaOptions = { { id = "", text = "Insert Media" } }
+    for _, t in ipairs(mediaTags) do
+        mediaOptions[#mediaOptions + 1] = { id = t, text = t }
+    end
+
+    local widgetOptions = { { id = "", text = "Insert Widget" } }
+    for _, t in ipairs(widgetTags) do
+        widgetOptions[#widgetOptions + 1] = { id = t, text = t }
     end
 
     local toolbar = gui.Panel{
@@ -3276,8 +3267,27 @@ function MarkdownDocument:EditPanel(args)
         ToolbarButton("Color", 12, 44,
             WrapHandler("<color=red>", "</color>")),
 
-        TagDropdown("Insert Media",  mediaTags),
-        TagDropdown("Insert Widget", widgetTags),
+        gui.Dropdown{
+            width = 110, height = 24, idChosen = "",
+            options = mediaOptions,
+            change = function(element)
+                if element.idChosen ~= "" then
+                    RichTagHandler(element.idChosen)()
+                    element.idChosen = ""
+                end
+            end,
+        },
+
+        gui.Dropdown{
+            width = 110, height = 24, idChosen = "",
+            options = widgetOptions,
+            change = function(element)
+                if element.idChosen ~= "" then
+                    RichTagHandler(element.idChosen)()
+                    element.idChosen = ""
+                end
+            end,
+        },
     }
 
     local editorColumn

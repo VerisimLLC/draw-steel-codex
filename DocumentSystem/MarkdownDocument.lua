@@ -3362,7 +3362,7 @@ function MarkdownDocument:EditPanel(args)
         gui.Panel {
             width = "100%",
             height = 16,
-            tmargin = 8,
+            tmargin = 12,
             markdownReferenceLabel,
             gui.Button{
                 text = "Preview",

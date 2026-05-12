@@ -2768,7 +2768,7 @@ GameSystem.RegisterGoblinScriptField {
     seealso = {},
     examples = {},
     calculate = function(c)
-        return c:has_key("trigger")
+        return c:ActionResource() == "b9bc06dd-80f1-4f33-bc55-25c114e3300c"
     end,
 }
 

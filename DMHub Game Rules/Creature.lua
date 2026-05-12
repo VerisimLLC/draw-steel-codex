@@ -1589,7 +1589,7 @@ end
 --- @return number
 function creature.WalkingSpeed(self)
 	local result = self:BaseWalkingSpeed()
-	result = self:CalculateAttribute('speed', result) * self:MovementMultiplier()
+	result = (self:CalculateAttribute('speed', result) or 0) * (self:MovementMultiplier() or 0)
 	return result
 end
 

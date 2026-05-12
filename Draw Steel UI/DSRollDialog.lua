@@ -449,6 +449,24 @@ function GameHud.CreateRollDialog(self)
         valign = "bottom",
     }
 
+    -- externaldice:enabled is registered by a separate mod that may load after
+    -- this file. Check the Settings registry before reading so we don't spam
+    -- "Could not find setting" into the console.
+    local physicalDiceDefault = false
+    if Settings ~= nil and Settings["externaldice:enabled"] ~= nil then
+        physicalDiceDefault = dmhub.GetSettingValue("externaldice:enabled") == true
+    end
+
+    local physicalDiceCheck = gui.Check {styles = g_CheckboxStyles,
+        text = "Use physical dice",
+        classes = { "hiddenWhenRolling", "hideWhenMinimized" },
+        value = physicalDiceDefault or false,
+        valign = "bottom",
+        prepare = function(element)
+            element:SetClass("collapsed", not dmhub.externalDiceBridgeConfigured)
+        end,
+    }
+
     local autoRollId = nil
 
     local autoRollPanel = gui.Panel {
@@ -459,6 +477,7 @@ function GameHud.CreateRollDialog(self)
         autoHideCheck,
         autoQuickCheck,
         autoRollCheck,
+        physicalDiceCheck,
     }
 
     local prerollCheck = gui.Check {styles = g_CheckboxStyles,
@@ -3294,6 +3313,7 @@ function GameHud.CreateRollDialog(self)
                     roll = rollInput.text,
                     creature = creature,
                     properties = rollProperties,
+                    externalDice = physicalDiceCheck.value,
                     begin = function(rollInfo)
                         print("ROLL:: BEGIN", rollInfo, rollIsSilent, instant)
                         m_rollInfo = rollInfo

@@ -2672,7 +2672,7 @@ function creature:GetActivatedAbilities(options)
     local reach = self:GetReach()
 
     --reach of greater than 1 modifies melee abilities to have a bonus to their range.
-    if reach > 1 and (not options.characterSheet) then
+    if (reach or 0) > 1 and (not options.characterSheet) then
         for i = 1, #result do
             local ability = result[i]
             if ability:HasKeyword("Melee") then

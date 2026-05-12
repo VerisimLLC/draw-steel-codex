@@ -72,6 +72,19 @@ function AnimalCompanion:IsMonster()
     return false
 end
 
+-- Animal companions follow the hero death rules rather than the default
+-- monster behavior: they enter a dying state at 0 Stamina and only die when
+-- pushed past -BloodiedThreshold. Mirrors character:IsDead / character:IsDying
+-- (and the retainer branch of monster:IsDead / monster:IsDying).
+function AnimalCompanion:IsDead()
+    return self:CurrentHitpoints() <= -self:BloodiedThreshold()
+end
+
+function AnimalCompanion:IsDying()
+    local hp = self:CurrentHitpoints()
+    return hp <= 0 and hp > -self:BloodiedThreshold()
+end
+
 -- Companions level up alongside their summoner (the beastheart). Without this
 -- override the monster default returns self.cr, leaving level-gated rampage
 -- progression rows (lvl 4 / 7 / 10) permanently locked even for high-level

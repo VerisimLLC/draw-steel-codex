@@ -2042,7 +2042,7 @@ end
 
 --- @return boolean
 function creature:IsDeadOrDying()
-    return self:IsDead()
+    return self:IsDead() or self:IsDying()
 end
 
 --- @return boolean

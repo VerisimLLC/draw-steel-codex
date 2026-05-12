@@ -1842,10 +1842,16 @@ DockablePanel = {
                     
                     ---@param operation nil|'toggle'|'show'|'hide'
 					click = function(operation)
+						-- Docks are only created once a game is active. Bail out
+						-- silently when invoked from the lobby.
+						if gamehud == nil or rawget(gamehud, "leftDock") == nil then
+							return
+						end
+
 						local uilocked = dmhub.GetSettingValue("uilocked")
 
 						local instance = nil
-					
+
 						if not p.multipleInstances then
 							instance = DockablePanel.FindInstance(p.identifier)
 						end

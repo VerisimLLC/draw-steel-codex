@@ -1245,12 +1245,12 @@ CreateJournalPanel = function()
             width = "100%",
             height = "100% available",
 
-            styles = {
+            styles = ThemeEngine.MergeTokens({
                 {
                     selectors = { "icon" },
                     width = 16,
                     height = 16,
-                    bgcolor = Styles.textColor,
+                    bgcolor = "@fg",
                     valign = "center",
                     hmargin = 4,
                 },
@@ -1270,7 +1270,7 @@ CreateJournalPanel = function()
                 },
                 {
                     selectors = { "label" },
-                    color = Styles.textColor,
+                    color = "@fg",
                     fontSize = 14,
                     hmargin = 4,
                     width = "auto",
@@ -1279,37 +1279,37 @@ CreateJournalPanel = function()
                 },
                 {
                     selectors = { "item", "hover" },
-                    bgcolor = Styles.textColor,
+                    bgcolor = "@fgStrong",
                 },
                 {
                     selectors = { "label", "parent:hover" },
-                    color = "black",
+                    color = "@bg",
                 },
                 {
                     selectors = { "icon", "parent:hover" },
-                    bgcolor = "black",
+                    bgcolor = "@bg",
                 },
                 {
                     priority = 5,
                     selectors = { "folder" },
-                    bgcolor = "black",
+                    bgcolor = "@bg",
                 },
                 {
                     priority = 6,
                     selectors = { "folder", "parent:subfolder" },
-                    bgcolor = Styles.RichBlack04,
+                    bgcolor = "@bgAlt",
                 },
                 {
                     priority = 5,
                     selectors = { "folder", "hover" },
-                    bgcolor = Styles.textColor,
-                    color = "black",
+                    bgcolor = "@fgStrong",
+                    color = "@bg",
                 },
                 {
                     priority = 5,
                     selectors = { "folder", "drag-target" },
-                    bgcolor = Styles.textColor,
-                    color = "black",
+                    bgcolor = "@fgStrong",
+                    color = "@bg",
                 },
                 {
                     priority = 5,
@@ -1317,7 +1317,7 @@ CreateJournalPanel = function()
                     brightness = 2,
                 },
                 {
-                    classes = {"dragDocumentSiblingSpacer"},
+                    selectors = {"dragDocumentSiblingSpacer"},
                     width = "100%",
                     height = 2,
                     valign = "top",
@@ -1325,100 +1325,100 @@ CreateJournalPanel = function()
                     bgcolor = "clear",
                 },
                 {
-                    classes = {"dragDocumentSiblingSpacer", "drag-target-hover"},
-                    bgcolor = "white",
+                    selectors = {"dragDocumentSiblingSpacer", "drag-target-hover"},
+                    bgcolor = "@accent",
                 },
                 {
-                    classes = {"dragDocumentSiblingSpacer", "parent:dragging"},
+                    selectors = {"dragDocumentSiblingSpacer", "parent:dragging"},
                     collapsed = 1,
                 },
                 {
                     priority = 5,
                     selectors = { "folderLabel" },
-                    color = Styles.textColor,
+                    color = "@fg",
                     fontSize = 14,
                 },
                 {
                     priority = 5,
                     selectors = { "folderLabel", "parent:hover" },
-                    color = "black",
+                    color = "@bg",
                 },
                 {
                     priority = 5,
                     selectors = { "folderLabel", "parent:drag-target" },
-                    color = "black",
+                    color = "@bg",
                 },
                 {
                     priority = 6,
                     selectors = { "folderLabel", "parent:subfolder" },
-                    color = Styles.Grey01,
+                    color = "@fgMuted",
                 },
                 {
                     priority = 6,
                     selectors = { "folderLabel", "parent:subfolder", "parent:hover" },
-                    color = "white",
+                    color = "@fgStrong",
                 },
                 {
                     priority = 6,
                     selectors = { "folderLabel", "parent:subfolder", "parent:drag-target" },
-                    color = "white",
+                    color = "@fgStrong",
                 },
                 {
                     priority = 6,
                     selectors = { "folderLabel", "parent:subfolder", "parent:press" },
-                    color = "white",
+                    color = "@fgStrong",
                 },
                 {
                     priority = 6,
                     selectors = { "folderLabel", "parent:subfolder", "parent:expanded" },
-                    color = "white",
+                    color = "@fgStrong",
                 },
                 {
                     priority = 5,
                     selectors = { "triangle" },
-                    bgcolor = Styles.textColor,
+                    bgcolor = "@fg",
                 },
                 {
                     priority = 5,
                     selectors = { "triangle", "parent:hover" },
-                    bgcolor = "black",
+                    bgcolor = "@bg",
                 },
                 {
                     priority = 5,
                     selectors = { "triangle", "parent:drag-target" },
-                    bgcolor = "black",
+                    bgcolor = "@bg",
                 },
                 {
                     priority = 5,
                     selectors = { "triangle", "empty" },
-                    bgcolor = "grey",
+                    bgcolor = "@fgMuted",
                 },
                 {
                     priority = 6,
                     selectors = { "triangle", "parent:subfolder" },
-                    bgcolor = Styles.Grey01,
+                    bgcolor = "@fgMuted",
                 },
                 {
                     priority = 6,
                     selectors = { "triangle", "parent:subfolder", "parent:hover" },
-                    bgcolor = "white",
+                    bgcolor = "@fgStrong",
                 },
                 {
                     priority = 6,
                     selectors = { "triangle", "parent:subfolder", "parent:drag-target" },
-                    bgcolor = "white",
+                    bgcolor = "@fgStrong",
                 },
                 {
                     priority = 6,
                     selectors = { "triangle", "parent:subfolder", "parent:press" },
-                    bgcolor = "white",
+                    bgcolor = "@fgStrong",
                 },
                 {
                     priority = 6,
                     selectors = { "triangle", "parent:subfolder", "parent:expanded" },
-                    bgcolor = "white",
+                    bgcolor = "@fgStrong",
                 },
-            },
+            }),
 
 
             create = function(element)

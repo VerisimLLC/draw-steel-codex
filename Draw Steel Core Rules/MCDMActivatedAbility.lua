@@ -1208,6 +1208,10 @@ function ActivatedAbility:Render(options, params)
         end
     end
 
+    if token ~= nil then
+        descriptionString = StringInterpolateGoblinScript(descriptionString, token.properties)
+    end
+
     local suppressMessage = self:try_get("suppressExplanation")
     if suppressMessage == nil and creatureProperties ~= nil then
         suppressMessage = self:AbilityFilterFailureMessage(creatureProperties)
@@ -1791,8 +1795,9 @@ function ActivatedAbility:Render(options, params)
 
             },
 
-            --modes panel
+            --modes panel -- collapsed for now?
             gui.Panel {
+                classes = {"collapsed"},
                 width = "auto",
                 height = "auto",
                 showAbilitySection = function(element, options)

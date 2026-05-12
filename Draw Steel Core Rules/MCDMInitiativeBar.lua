@@ -2092,7 +2092,7 @@ function StartOfTurnChatMessage.Render(self, message)
         token = primaryToken,
         content = {
             gui.Label{
-                classes = {"action-log-subtext"},
+                classes = {"action-log-subtext", "sizeXxs", "fgMuted"},
                 text = "Start of Turn",
             },
         },

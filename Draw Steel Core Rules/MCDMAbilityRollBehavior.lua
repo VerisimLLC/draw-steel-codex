@@ -2332,50 +2332,58 @@ function RollPropertiesPowerTable:ModifyDamageWithType(damage, damageType)
 end
 
 local g_tableStyles = {
-    gui.Style{
+    {
         selectors = {"label"},
-        color = "#cccccc",
+        color = "@fg",
         valign = "center",
     },
-    gui.Style{
+    {
         selectors = {"row"},
-        bgcolor = Styles.RichBlackGradient,
+        bgcolor = "@bg",
     },
-    gui.Style{
+    {
+        selectors = {"row", "oddRow"},
+        bgcolor = "@bg",
+    },
+    {
+        selectors = {"row", "evenRow"},
+        bgcolor = "@bg",
+    },
+    {
         selectors = {"row", "highlighted"},
         transitionTime = 1.0,
-        bgcolor = Styles.textColor,
+        bgcolor = "@fgStrong",
     },
-    gui.Style{
+    {
         selectors = {"label", "parent:highlighted"},
         transitionTime = 1.0,
-        color = "black",
+        color = "@bg",
     },
-	gui.Style{
+	{
 		selectors = {"row", "flash"},
 		brightness = 3,
 		transitionTime = 0.3,
 	},
-    gui.Style{
+    {
         selectors = {"label", "parent:collapsedAnim"},
         transitionTime = 0.5,
         uiscale = {x = 1, y = 0.001},
     },
-    gui.Style{
+    {
         selectors = {"amendable", "row", "hover"},
-        bgcolor = "#ff7777",
+        bgcolor = "@danger",
     },
 }
 
 local g_boonsBanesStyles = {
-    gui.Style{
+    {
         selectors = {"collapsedAnim"},
         transitionTime = 0.5,
         uiscale = {x = 1, y = 0.001},
     },
-    gui.Style{
+    {
         selectors = {"label"},
-        color = Styles.textColor,
+        color = "@fgStrong",
         valign = "center",
         width = "20%",
         height = "100%",
@@ -2383,18 +2391,18 @@ local g_boonsBanesStyles = {
         fontSize = 16,
         textAlignment = "center",
         borderWidth = 1,
-        borderColor = Styles.textColor,
+        borderColor = "@border",
     },
-    gui.Style{
+    {
         selectors = {"label", "selected"},
-        bgcolor = Styles.textColor,
-        color = "black",
+        bgcolor = "@fgStrong",
+        color = "@bg",
         bold = true,
     },
-    gui.Style{
+    {
         selectors = {"label", "hover", "~selected", "parent:active"},
-        bgcolor = Styles.textColor,
-        color = "black",
+        bgcolor = "@fgStrong",
+        color = "@bg",
         brightness = 0.9,
     },
 }
@@ -2556,7 +2564,7 @@ function RollPropertiesPowerTable:CustomPanel(message)
         end
 
         m_boonsBanesPanel = gui.Panel{
-            styles = g_boonsBanesStyles,
+            styles = ThemeEngine.MergeTokens(g_boonsBanesStyles),
             classes = {"boonbanePanel"},
             width = "100%",
             height = 22,
@@ -2585,7 +2593,7 @@ function RollPropertiesPowerTable:CustomPanel(message)
         flow = "vertical",
         styles = {
             Styles.Table,
-            g_tableStyles,
+            ThemeEngine.MergeTokens(g_tableStyles),
         },
 
         recordInteracting = function(element)
@@ -2958,10 +2966,9 @@ function RollPropertiesPowerTable:CustomPanel(message)
             if text ~= nil then
                 if m_label == nil then
                     m_label = gui.Label{
-                        color = Styles.textColor,
+                        classes = {"sizeM"},
                         width = "100%",
                         height = "auto",
-                        fontSize = 16,
                         text = text,
                         
                         data = {

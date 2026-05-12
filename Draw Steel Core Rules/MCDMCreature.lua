@@ -1357,10 +1357,6 @@ function creature:RecoveriesAvailableToSpend()
     return quantity
 end
 
-function creature:CalcuatePotencyValue(potency)
-    return self:CalculatePotencyValue(potency)
-end
-
 function creature:CalculatePotencyValue(potency)
     --When this minion redirects potency to its summoner, forward the entire calculation
     --(including the "Potency Bonus" custom attribute) to the summoner's creature.
@@ -1544,6 +1540,31 @@ creature.RegisterSymbol {
         name = "Highest Characteristic",
         type = "number",
         desc = "This creature's highest characteristic. This is the highest of their characteristics.",
+    },
+}
+
+--Detects whether this creature is sharing a tile with at least one allied
+--creature. Useful for traits like the Sporeling's Skulker that key off
+--"ending movement in an ally's space" -- gate a follow-on modifier with
+--filterCondition: InAllySpace.
+creature.RegisterSymbol {
+    symbol = "inallyspace",
+    lookup = function(c)
+        local token = dmhub.LookupToken(c)
+        if token == nil or not token.valid or token.loc == nil then return false end
+        local locTokens = game.GetTokensAtLoc(token.loc)
+        if locTokens == nil then return false end
+        for _, other in ipairs(locTokens) do
+            if other.valid and other.charid ~= token.charid and token:IsFriend(other) then
+                return true
+            end
+        end
+        return false
+    end,
+    help = {
+        name = "In Ally Space",
+        type = "boolean",
+        desc = "True if this creature is sharing a space with at least one allied creature.",
     },
 }
 

@@ -3821,7 +3821,6 @@ function gui.CollapseArrow(options)
 		height = 16,
 		width = "200% height",
 		bgimage = "panels/hud/down-arrow.png",
-		bgcolor = "white",
 	}
 
 	for k,v in pairs(options) do

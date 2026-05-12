@@ -837,6 +837,39 @@ local g_rulePatterns = {
     },
 
     {
+        -- Apply the Invisible From condition to the caster (the ability user),
+        -- with the ability's TARGET stored as the condition's caster. Used by
+        -- the Sporeling's Spore Puff: "the sporeling is invisible to the target
+        -- until the end of the sporeling's next turn". Because the condition
+        -- lives on the sporeling, `end_of_next_turn` lines up with the
+        -- sporeling's turn (not the target's), and the Invisible From modifier
+        -- reads `ConditionCaster("Invisible From")` to identify the attacker
+        -- whose strikes should take a bane.
+        pass = "caster",
+        pattern = "^become invisible from target \\((?<duration>eot|eoe|save ends)\\)",
+        execute = function(behavior, ability, casterToken, targetToken, options, match)
+            local duration = string.lower(match.duration)
+            if string.starts_with(duration, "save") then
+                duration = "save"
+            end
+
+            local invisibleFromId = "9d4f1c95-5c2b-4a76-b428-3e4f1d2c8a05"
+            casterToken:ModifyProperties{
+                description = "Apply Invisible From",
+                execute = function()
+                    casterToken.properties:InflictCondition(invisibleFromId, {
+                        duration = duration,
+                        sourceDescription = string.format("Inflicted by %s's <b>%s</b> ability", creature.GetTokenDescription(casterToken), ability.name),
+                        casterInfo = {
+                            tokenid = targetToken.charid,
+                        },
+                        cast = options.symbols.cast,
+                    })
+                end,
+            }
+        end,
+    },
+    {
         pattern = "^(?<condition>prone|grabbed)",
         execute = function(behavior, ability, casterToken, targetToken, options, match)
             ability:CommitToPaying(casterToken, options)

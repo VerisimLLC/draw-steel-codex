@@ -43,12 +43,12 @@ function ActivatedAbilityTemporaryStaminaChatMessage:Render(message)
     end
 
     local detailLabel = gui.Label{
-        classes = {"action-log-detail"},
+        classes = {"action-log-detail", "sizeXs", "fg"},
         text = self.chatMessage,
     }
 
     local staminaLabel = gui.Label{
-        classes = {"action-log-subtext"},
+        classes = {"action-log-subtext", "sizeXxs", "fgMuted"},
         text = string.format("%d temporary stamina", self.amount),
     }
 

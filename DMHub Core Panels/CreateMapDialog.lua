@@ -557,8 +557,11 @@ mod.shared.FinishMapImport = function(mapName, info)
             coroutine.yield(0.05)
         end
 
-        local w = math.ceil(info.width)
-        local h = math.ceil(info.height)
+        -- Round to nearest tile: if the image overhangs an integer tile
+        -- by less than half a tile (a few pixels) we round down, not up.
+        -- math.ceil would always round up even for tiny overhangs.
+        local w = math.floor(info.width + 0.5)
+        local h = math.floor(info.height + 0.5)
 
         printf("DIMENSIONS:: %s / %s", json(info.width), json(info.height))
 
@@ -575,11 +578,18 @@ mod.shared.FinishMapImport = function(mapName, info)
 
         local map = game.GetMap(guid)
         map.description = mapName
+        -- Bounds box: dimMin..dimMax (inclusive) covers exactly w cells in
+        -- x and h cells in y. For odd w/h the box is centered on origin.
+        -- For even w/h the box is biased RIGHT (center at +0.5) to match
+        -- the renderer's pivot wrap, which lands _mapPivot at 0.5-tileDim/2
+        -- for even-tile-count perfect fits and therefore shifts the image
+        -- right by half a tile. A left-biased box would appear "one tile
+        -- to the left of where it should be" relative to the image.
         map.dimensions = {
             x1 = -math.ceil(w/2) + 1,
             y1 = -math.ceil(h/2) + 1,
-            x2 = math.ceil(w/2) - 1,
-            y2 = math.ceil(h/2),
+            x2 = math.floor(w/2),
+            y2 = math.floor(h/2),
         }
         map:Upload()
 
@@ -741,8 +751,9 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
         printf("FLOOR_REALIGN:: target=%s/%s floorW=%.4f floorH=%.4f initialOffset=(%.4f,%.4f) refs=%d",
             d.floorid, d.objid, floorW, floorH, offsetX, offsetY, #references)
     else
-        floorW = math.ceil(info.width)
-        floorH = math.ceil(info.height)
+        -- Round to nearest tile (see CreateMap comment above).
+        floorW = math.floor(info.width + 0.5)
+        floorH = math.floor(info.height + 0.5)
         offsetX = dim.x1
         offsetY = dim.y1
     end
@@ -2017,8 +2028,9 @@ mod.shared.FinishFloorImport = function(info, offsetX, offsetY)
     end
 
     local mapId = game.currentMap.id
-    local floorW = math.ceil(info.width)
-    local floorH = math.ceil(info.height)
+    -- Round to nearest tile (see CreateMap comment above).
+    local floorW = math.floor(info.width + 0.5)
+    local floorH = math.floor(info.height + 0.5)
     offsetX = offsetX or game.currentMap.dimensions.x1
     offsetY = offsetY or game.currentMap.dimensions.y1
 

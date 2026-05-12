@@ -1136,13 +1136,11 @@ CreateLayersPanel = function()
 		height = "100%",
 		flow = 'vertical',
 
-		styles = {
-			Styles.Panel,
-
+		styles = ThemeEngine.MergeTokens({
 			{
 				selectors = {'settingsButton'},
 				bgimage = 'ui-icons/skills/98.png',
-				bgcolor = 'white',
+				bgcolor = '@fg',
 				height = '30%',
 				width = '100% height',
 				blend = 'add',
@@ -1162,29 +1160,29 @@ CreateLayersPanel = function()
 			{
 				selectors = {'floorOrLayerDragTarget'},
 				bgimage = 'panels/square.png',
-				bgcolor = '#00000077',
+				bgcolor = '@bgAlt',
 				height = 2,
 				width = '100%',
 			},
 			{
 				selectors = {'floorOrLayerDragTarget', 'drag-target'},
-				bgcolor = '#ffffff77',
+				bgcolor = '@fgMuted',
 			},
 			{
 				selectors = {'floorOrLayerDragTarget', 'drag-target-hover'},
-				bgcolor = '#ffff00aa',
+				bgcolor = '@accent',
 			},
 			{
 				selectors = {'floorPanel'},
 				flow = "horizontal",
 				bgimage = 'panels/square.png',
-				bgcolor = '#00000077',
+				bgcolor = '@bgAlt',
 				halign = "left",
 				hmargin = 8,
 				height = 40,
 				width = '92%',
 				fontSize = 16,
-				color = 'white',
+				color = '@fg',
 			},
 			{
 				selectors = {'floorPanel', 'selected'},
@@ -1218,17 +1216,17 @@ CreateLayersPanel = function()
 				height = "80%",
 				halign = "center",
 				valign = "center",
-				bgcolor = "#ffffff55",
+				bgcolor = "@fgMuted",
 			},
 			{
 				selectors = {'floorOptionIcon', 'enabled'},
-				bgcolor = "white",
+				bgcolor = "@fg",
 			},
 			{
 				selectors = {'floorPanelMinimap'},
 				bgimage = "panels/square.png",
-				bgcolor = "black",
-				borderColor = Styles.textColor,
+				bgcolor = "@bg",
+				borderColor = "@border",
 				borderWidth = 1,
 				cornerRadius = 3,
 				width = "100% height",
@@ -1258,7 +1256,7 @@ CreateLayersPanel = function()
 			{
 				selectors = {'floorLabel'},
 				fontSize = 14,
-				color = Styles.textColor,
+				color = "@fg",
 				hmargin = 6,
 				valign = "top",
 				halign = "left",
@@ -1267,10 +1265,10 @@ CreateLayersPanel = function()
 			},
 			{
 				selectors = {'floorLabel', 'selected'},
-				color = "black",
+				color = "@fgInverse",
 
 			},
-		},
+		}),
 
 		floorsList,
 

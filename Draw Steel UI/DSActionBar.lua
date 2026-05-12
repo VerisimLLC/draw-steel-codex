@@ -5775,6 +5775,7 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 		id = "actionBarResultPanel",
 		styles = {
 			styles,
+            ThemeEngine.GetStyles(),
 			{
 				selectors = {"hideWhenInvoking", "invokingAbility"},
 				priority = 20,

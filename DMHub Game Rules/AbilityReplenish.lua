@@ -73,13 +73,13 @@ function ResourceChatMessage.Render(selfInput, message)
     local reasonLabel = nil
     if selfInput.reason ~= "" then
         reasonLabel = gui.Label{
-            classes = {"action-log-subtext"},
+            classes = {"action-log-subtext", "sizeXxs", "fgMuted"},
             text = selfInput.reason,
         }
     end
 
     local detailLabel = gui.Label{
-        classes = {"action-log-detail"},
+        classes = {"action-log-detail", "sizeXs", "fg"},
         text = modeText,
     }
 

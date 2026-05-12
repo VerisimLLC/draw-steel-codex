@@ -24,16 +24,16 @@ function ResourceChatMessage.Render(selfInput, message)
     }
 
     local resourceLabel = gui.Label{
-        classes = {"action-log-detail"},
+        classes = {"action-log-detail", "sizeXs", "fg"},
         refreshUndo = function(element)
             element.selfStyle.strikethrough = cond(self.undone, true, false)
-            element.selfStyle.color = cond(self.undone, "grey", "#cccccc")
+            element:SetClass("fgMuted", self.undone)
         end,
         text = string.format("%s: %s %d", token.properties:GetResourceName(resource.id), cond(self.mode == "replenish", tr("gain"), tr("consume")), self.quantity),
     }
 
     local reasonLabel = gui.Label{
-        classes = {"action-log-subtext"},
+        classes = {"action-log-subtext", "sizeXxs", "fgMuted"},
         text = self.reason,
     }
 

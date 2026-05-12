@@ -297,6 +297,7 @@ function gui.GoblinScriptInput(options)
 							parentPanel.popupPositioning = "panel"
 						end
 
+                        element.popupsInheritStyles = true
 						element.popup = gui.Panel {
 							width = "auto",
 							height = menuHeight,

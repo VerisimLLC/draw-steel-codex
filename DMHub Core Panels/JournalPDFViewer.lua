@@ -2004,6 +2004,7 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
         gui.Panel {
             width = "100%",
             height = 30,
+            bmargin = 4,
 
             gui.Panel {
                 width = "auto",

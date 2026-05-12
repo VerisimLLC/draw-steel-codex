@@ -20,9 +20,52 @@ You implement Draw Steel game content as importable YAML files for DMHub. This i
 3. **Validate**: Run `python validate_yaml.py <name>.yaml` from the repo root to check for
    errors. Fix ALL errors before proceeding. The validator catches missing required fields,
    wrong table names, malformed UUIDs, and structural issues. Zero errors required.
-4. **Instruct**: Tell the user to type `/import <name>.yaml` in DMHub to load it.
-   The in-app `/import` also validates and refuses to import if errors are found.
-5. **Iterate**: The user tests in-app, reports issues, and you refine the YAML
+4. **Auto-import**: Import the file directly via the DMHub MCP server (`mcp__dmhub__execute_lua`)
+   by calling `dmhub.ImportFile(filename)` for each file. Report the results to the user
+   (`monstersImported`, `itemsImported`, and any `errors` from the result). Do NOT ask the
+   user to type `/import` -- you have the MCP tool, use it. See "Auto-Import Pattern" below
+   for the canonical Lua snippet. The MCP import path skips the macro's pre-validation,
+   so step 3 above (running `validate_yaml.py`) is mandatory before this step.
+5. **Iterate**: The user tests in-app, reports issues, and you refine the YAML, then re-import.
+
+### Auto-Import Pattern
+
+After validation passes (step 3), invoke this via `mcp__dmhub__execute_lua`:
+
+```lua
+local files = {
+    "wild-nature-prowler.yaml",
+    "wild-nature-punisher.yaml",
+}
+
+local totalMonsters, totalItems, totalErrors = 0, 0, {}
+
+for _, filename in ipairs(files) do
+    print("Importing:", filename)
+    local result = dmhub.ImportFile(filename)
+    if result == nil then
+        print("  FAILED to resolve:", filename)
+        totalErrors[#totalErrors+1] = "Failed to resolve: " .. filename
+    else
+        print("  monstersImported =", result.monstersImported or 0,
+              "itemsImported =", result.itemsImported or 0)
+        totalMonsters = totalMonsters + (result.monstersImported or 0)
+        totalItems = totalItems + (result.itemsImported or 0)
+        for _, err in ipairs(result.errors or {}) do
+            print("  ERROR:", tostring(err))
+            totalErrors[#totalErrors+1] = tostring(err)
+        end
+    end
+end
+
+print("--- SUMMARY ---")
+print("Monsters:", totalMonsters, "Items:", totalItems, "Errors:", #totalErrors)
+```
+
+If `dmhub.ImportFile` returns nil, the file path is wrong (it resolves relative to
+`compendium/import/`, so pass just the basename). If `result.errors` contains entries, surface
+each one to the user verbatim. If MCP isn't connected, fall back to telling the user to type
+`/import <files>` -- but only after attempting via MCP first.
 
 ## File Placement Rules
 
@@ -146,11 +189,18 @@ blocker appears across many items.
 - **1-2**: Speculative, may not be possible without C# engine changes
 
 **The report should:**
-1. Research the actual Lua codebase (not just reference docs) for each change
-2. Identify the specific functions, files, and mechanisms involved
-3. Find existing patterns that prove the approach works (or highlight why it might not)
-4. Rank changes by effort-to-impact ratio so the user can prioritize
-5. Recommend an implementation order (quick wins first)
+1. **Delegate research to the `Explore` subagent** -- give it the list of
+   candidate changes and ask it to return, per change: specific
+   functions/files/mechanisms involved, an existing pattern that proves the
+   approach works (or a note on why it might not), and any risks. Your job
+   is to synthesize Explore's findings into the report -- do not read the
+   Lua files yourself. See "Investigating Automation Paths" below for how
+   to shape the Explore prompt.
+2. Identify the specific functions, files, and mechanisms involved (from Explore).
+3. Find existing patterns that prove the approach works -- or highlight why
+   it might not -- from Explore's findings.
+4. Rank changes by effort-to-impact ratio so the user can prioritize.
+5. Recommend an implementation order (quick wins first).
 
 ### Always Offer Full Automation
 
@@ -161,69 +211,106 @@ investigate a Lua implementation. Present three tiers:
 2. **YAML + creative workaround**: Approximate the mechanic using existing tools (e.g.,
    `Ability.HasPotency and Ability.Inflicts("Frightened")` as an activation condition
    to approximate "when an ability inflicts frightened via potency").
-3. **Lua implementation** (most complete): Offer to implement a new GoblinScript symbol,
-   behavior, or modifier type. State the effort level (small = new RegisterSymbol,
-   medium = new behavior type, large = engine change). Ask the user if they want to
-   proceed with the Lua approach.
+3. **Lua implementation** (most complete): Offer to extend the engine -- a new
+   GoblinScript symbol, behavior type, modifier type, trigger, or custom attribute.
+   State the effort level (small = new RegisterSymbol, medium = new behavior type,
+   large = engine change). If the user accepts, delegate the Lua work to a subagent
+   per the "Lua Implementation Handoff Protocol" below -- do NOT implement it inline.
+   Your context should stay focused on YAML and rules logic.
 
-### Proactively Investigate the Codebase for Automation Paths
+### Lua Implementation Handoff Protocol
 
-Before declaring something PARTIAL or TEXT-ONLY, **always search the Lua codebase** for
-existing mechanisms that might solve the problem. The reference docs may not cover
-everything -- the engine has many features that are only discoverable by reading code.
+When the user accepts a Tier-3 Lua implementation, hand the work off to a subagent.
+Your context should stay focused on YAML and rules logic -- do not read or edit
+Lua source files yourself.
 
-**When you hit an automation gap, follow this investigation checklist:**
+**Use the `general-purpose` Agent** with a prompt that explicitly directs it to
+invoke the right existing skill:
+- **New GoblinScript symbol** (most common case) -- direct the agent to invoke
+  the `goblinscript` skill.
+- **New behavior, modifier, trigger, custom attribute, or anything else** --
+  direct the agent to invoke the `codexmod` skill.
 
-1. **Search for existing triggers** that might fire at the right time:
-   ```
-   grep for "RegisterTrigger" in Draw Steel Core Rules/*.lua and DMHub Game Rules/*.lua
-   ```
-   Every `RegisterTrigger{id = "...", symbols = {...}}` defines a trigger with its
-   available GoblinScript symbols. There may be a trigger you don't know about that
-   solves your problem (e.g., `targetwithability` fires per-target with the ability
-   and target as symbols).
+**The handoff prompt MUST include:**
 
-2. **Search for existing GoblinScript symbols** on the relevant object:
-   ```
-   grep for "RegisterSymbol" or "RegisterGoblinScriptSymbol" or "helpSymbols" in *.lua
-   ```
-   Check `help` tables in registrations -- they document name, type, and description.
-   Key files:
-   - Abilities: `MCDMActivatedAbility.lua`, `ActivatedAbility.lua`
-   - Creatures: `MCDMCreature.lua`, `Creature.lua`
-   - Cast context: `ActivatedAbilityCast.lua`, `MCDMActivatedAbilityCast.lua`
-   - Power rolls: `MCDMAbilityRollBehavior.lua`
-   - Conditions: `Condition.lua`
+1. **Blocker**: the YAML feature that's currently inexpressible, in one sentence.
+2. **Proposed extension shape**: what kind of Lua addition you're requesting
+   (new symbol with a specific name and arguments / new behavior `__typeName` /
+   new trigger id / new custom attribute key).
+3. **Acceptance criteria**: a YAML snippet showing what should work after the
+   change. This is the contract.
+4. **Skill instruction**: "Invoke the `goblinscript` skill" or "Invoke the
+   `codexmod` skill" depending on the kind of work.
+5. **Return contract**: tell the subagent what to report back -- the final
+   symbol name and arguments (or behavior `__typeName` and fields), and any
+   caveats or naming differences from what you proposed.
 
-3. **Search for existing custom attributes** that control the mechanic:
-   ```
-   grep for the mechanic name in compendium/tables/customattributes/_table.yaml
-   ```
-   Many mechanics are controlled by custom attributes (e.g., `cannotregainstamina`,
-   `ignoredifficultterrain`, `immunityfromopportunityattack`).
+**Example handoff prompt:**
 
-4. **Search for how similar existing content solves the same problem:**
-   ```
-   grep for the mechanic in compendium/bestiary/ or compendium/tables/
-   ```
-   If another monster or class feature does something similar, study its YAML.
+> Blocker: a power-roll modifier needs to check whether an ability inflicted a
+> named condition via a potency check that succeeded, not just whether the
+> ability lists the condition.
+>
+> Proposed extension: a new GoblinScript symbol on `Ability` named
+> `InflictsBasedOnPotency(conditionName)` returning boolean.
+>
+> Acceptance criteria -- this YAML should work after your change:
+> ```yaml
+> activationCondition: 'Ability.InflictsBasedOnPotency("Frightened")'
+> ```
+>
+> Invoke the `goblinscript` skill to implement this. When done, report: the
+> final symbol name (in case it had to differ), its argument signature, and
+> any edge cases the YAML author should know about (e.g., what it returns
+> if potency wasn't rolled).
 
-5. **Check the DispatchEvent calls** in the Lua code:
-   ```
-   grep for "DispatchEvent" in DMHub Game Rules/*.lua
-   ```
-   Every DispatchEvent creates an event that triggers can listen for. The event name
-   maps to a trigger ID.
+Once the subagent reports back, wire the new API into the YAML and re-run
+`python validate_yaml.py`. Trust the subagent's report -- do not re-read the
+Lua files to verify. If runtime behavior doesn't match expectations, re-engage
+the implementation subagent with the specific failure case, or send a follow-up
+Explore query if you need to understand a related mechanic.
 
-6. **Check what symbols are passed to lookup functions** in modifier evaluation code:
-   ```
-   grep for "LookupSymbol" in the relevant modifier/behavior code
-   ```
-   This shows exactly what GoblinScript context is available.
+### Investigating Automation Paths (Lua Research)
 
-**The reference docs are a starting point, not the final answer.** The Lua codebase is
-the source of truth. When the docs say "PARTIAL" or "TEXT-ONLY", that's a prompt to
-investigate whether the engine already has a solution that wasn't documented.
+Before declaring something PARTIAL or TEXT-ONLY, investigate whether the engine
+already has a mechanism that solves the problem. The reference docs don't cover
+everything -- many features are only discoverable in Lua source.
+
+**Delegate Lua research to the `Explore` subagent.** Keep your own context focused
+on YAML and rules logic. Inline grep is acceptable only for a single targeted
+lookup ("does the symbol `Ability.InflictsBasedOnPotency` exist?"). Anything
+beyond ~2 reads, or any open-ended question ("how does push interact with
+stability?"), goes to Explore.
+
+**Question-shaping rules for Explore prompts.** A poorly scoped delegation
+wastes a round-trip. Each Explore prompt must:
+
+1. State the YAML feature you're trying to express in one sentence (the *blocker*).
+2. Ask a specific, answerable question -- not "how does X work" but "is there
+   a trigger that fires when a creature is reduced to 0 stamina, and what
+   GoblinScript symbols does it expose?"
+3. Tell Explore what shape of answer you need: symbol name + arguments, or
+   trigger id + symbols, or "the file/line where the existing pattern lives."
+4. Cap the response: "report in under 150 words; include only what's needed
+   to write the YAML."
+
+**Where to point Explore (pick the one that matches the question -- do not
+list all of these in a single prompt):**
+
+| Question | Where Explore should look |
+|---|---|
+| Is there a trigger for event X? | `RegisterTrigger` calls in `Draw Steel Core Rules/*.lua`, `DMHub Game Rules/*.lua` |
+| Is there a GoblinScript symbol Y on object Z? | `RegisterSymbol` / `helpSymbols` in `MCDMActivatedAbility.lua`, `ActivatedAbility.lua`, `MCDMCreature.lua`, `Creature.lua`, `ActivatedAbilityCast.lua`, `MCDMActivatedAbilityCast.lua`, `MCDMAbilityRollBehavior.lua`, `Condition.lua` |
+| Does a custom attribute control mechanic X? | `compendium/tables/customattributes/_table.yaml` |
+| Does similar content already solve this? | `compendium/bestiary/`, `compendium/tables/` |
+| What event fires at point X? | `DispatchEvent` calls in `DMHub Game Rules/*.lua` |
+| What symbols are passed to a modifier formula? | `LookupSymbol` calls in the relevant modifier/behavior code |
+
+The Lua codebase is the source of truth -- but it's Explore's job to read it,
+not yours. Your job is to ask the right question and translate the answer into
+YAML. If Explore's answer reveals that no existing mechanism solves the
+problem, that's the cue to offer Tier-3 (see "Always Offer Full Automation")
+and, if the user accepts, follow the "Lua Implementation Handoff Protocol".
 
 ### Ability Targeting Must Match Rules Text
 
@@ -653,10 +740,50 @@ shift (`shift 2`), teleport (`teleport 5`), conditions (`slowed (eot)`),
 potency gates (`M<2 prone`), surges, heroic resources, and more.
 
 **GoblinScript interpolation:** `{expression}` anywhere -- e.g., `push {Reason}`, `{Might} damage`.
+Interpolated against the **target** of the rule (per `applyto`), so `applyto: caster` evaluates
+against the caster, `applyto: caster_companion` against the companion, etc.
 
 **Compound rules:** Separate with `;` -- e.g., `2 damage; A<2 prone; push 3`.
 
 See `compendium/REFERENCE.md` "Power Table Effect / Rules Engine Commands" for full syntax.
+
+### Movement: ALWAYS Prefer Rule Strings Over RelocateCreatureBehavior / ForcedMovementBehavior
+
+For ANY movement -- shift, teleport, move, push, pull, slide -- default to a
+`DrawSteelCommandBehavior` rule string. Do NOT wrap movement in
+`InvokeAbility{customAbility{targetType:emptyspace,RelocateCreatureBehavior}}`
+boilerplate, and do NOT use `ActivatedAbilityForcedMovementBehavior`. Both reinvent
+what the rules engine already does and bypass shift/forced-movement restrictions
+(slowed, grabbed, stability, etc.).
+
+| Rule string | Replaces |
+|---|---|
+| `shift {N}` (with `applyto: caster` or `caster_companion`) | InvokeAbility wrapping a customAbility with `RelocateCreatureBehavior movementType: shift` |
+| `teleport {N}` | InvokeAbility wrapping a customAbility with `RelocateCreatureBehavior movementType: teleport` and `targetType: emptyspace` (rule string invokes the standard Teleport ability which already prompts for destination) |
+| `move {N}` | RelocateCreatureBehavior with `movementType: move` |
+| `push {N}` / `pull {N}` / `slide {N}` (with `applyto: targets`) | `ActivatedAbilityForcedMovementBehavior` |
+
+Interpolation cheat sheet for movement:
+- `shift {Intuition}` -- caster's Intuition (when `applyto: caster`)
+- `shift {Movement Speed}` -- caster's Movement Speed
+- `shift {Cast.Spaces Moved}` -- the slide/push distance from the triggering ability (use in trigger callbacks like Herd the Sheep)
+- `push {Caster.Might + 1}` -- caster's Might + 1 (when `applyto: targets`)
+- `shift {Caster.Companion.Speed}` -- the caster's companion's Speed (cross-actor lookup)
+
+**Reserve raw `RelocateCreatureBehavior` only for these cases:**
+- **Cross-actor relocate to a SPECIFIC creature's loc** (e.g., "your companion teleports
+  into your space" -- destination is the summoner's loc, not a player-picked square).
+  Use `applyto: caster_summoner` or `caster_companion` on the relocate; the destination
+  resolves to that creature's loc.
+- **`swapCreatures: true`** -- swap two creatures' positions (no rule string for this).
+- **Auto-routed movement to a vicinity/filter** (e.g., `targetMoveVicinity: true,
+  vicinityFilter: Enemy` to move adjacent to nearest enemy).
+
+**Reserve raw `ForcedMovementBehavior` only for** behavior-level fields the rule string
+can't express (almost never -- `push/pull/slide N` rules cover virtually all cases).
+
+See `feedback_prefer_drawsteelcommand_for_movement.md` for the full rationale and
+before/after examples.
 
 ## Design Philosophy
 

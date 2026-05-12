@@ -2303,7 +2303,7 @@ function CastActivatedAbilityChatMessage.Render(self, message)
 
     local m_statusCount = 0
     local statusLabel = gui.Label{
-        classes = {"action-log-subtext"},
+        classes = {"action-log-subtext", "sizeXxs", "fgMuted"},
         text = "",
 
         think = function(element)
@@ -2339,7 +2339,7 @@ function CastActivatedAbilityChatMessage.Render(self, message)
     end
 
     local abilityLabel = gui.Label{
-        classes = {"action-log-detail"},
+        classes = {"action-log-detail", "sizeXs", "fg"},
         text = ability.name,
         hover = function(element)
             local tok = self:GetCasterToken()
@@ -2358,7 +2358,7 @@ function CastActivatedAbilityChatMessage.Render(self, message)
     local typeLabel = nil
     if abilityTypeText ~= "" then
         typeLabel = gui.Label{
-            classes = {"action-log-subtext"},
+            classes = {"action-log-subtext", "sizeXxs", "fgMuted"},
             text = abilityTypeText,
         }
     end
@@ -2501,6 +2501,15 @@ function ActivatedAbility:Cast(casterToken, targets, options)
 			ability = self,
 			targets = targets,
             mode = options.symbols.mode or 1,
+            --LuaShape (or nil for non-area abilities). Stashed so GoblinScript
+            --formulas can call Cast.WithinArea(creature) to test whether a
+            --creature (e.g. Caster.Companion) is inside the cast's area shape.
+            --`_tmp_` prefix marks it transient -- LuaShape is userdata and won't
+            --survive cross-network serialization (DeepCopy for runOnController
+            --invokes, database writes, etc.), so we strip it from any
+            --serialized form and let WithinArea silently return false on the
+            --receiving side.
+            _tmp_targetArea = options.targetArea,
 		}
 	end
 

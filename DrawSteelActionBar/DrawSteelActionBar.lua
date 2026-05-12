@@ -3280,15 +3280,13 @@ CreateAbilityController = function()
     })
 
     g_castModesPanel = gui.Panel {
-        styles = Styles.AdvantageBar,
-        classes = { 'advantage-bar', 'collapsed' },
+        classes = { 'collapsed' },
         width = "auto",
-        maxWidth = 800,
         height = "auto",
         bgimage = "panels/square.png",
         bgcolor = "#000000bb",
-        wrap = true,
         vmargin = 8,
+        flow = "horizontal",
 
         refreshModes = function(element)
             if g_currentAbility == nil or g_currentAbility.multipleModes == false or g_currentAbility:try_get("modeList") == nil then
@@ -3309,11 +3307,12 @@ CreateAbilityController = function()
 
                 if available then
                     children[#children + 1] = gui.Label {
-                        classes = { "advantage-element", cond(i == g_currentSymbols.mode, "selected") },
+                        classes = { "enumSliderOption", cond(i == g_currentSymbols.mode, "selected") },
                         text = mode.text,
                         fontSize = 14,
                         textWrap = true,
-                        pad = 1,
+                        vpad = 1,
+                        hpad = 4,
                         width = "auto",
                         minWidth = 120,
                         maxWidth = 140,
@@ -3390,13 +3389,13 @@ CreateAbilityController = function()
     }
 
     g_forcedMovementTypePanel = gui.Panel {
-        styles = Styles.AdvantageBar,
-        classes = { 'advantage-bar', 'collapsed' },
+        classes = { 'collapsed' },
         width = "auto",
         maxWidth = 800,
         height = "auto",
         bgimage = "panels/square.png",
         bgcolor = Styles.Ability.blurColor,
+        flow = "horizontal",
         blurBackground = true,
         wrap = true,
 
@@ -3435,7 +3434,7 @@ CreateAbilityController = function()
             local children = {}
             for i, moveType in ipairs(possibleForcedMovementTypes) do
                 children[#children + 1] = gui.Label {
-                    classes = { "advantage-element", cond(moveType == g_currentSymbols.forcedmovement, "selected") },
+                    classes = { "enumSliderOption", cond(moveType == g_currentSymbols.forcedmovement, "selected") },
                     text = moveType,
 
                     press = function(element)
@@ -3484,7 +3483,7 @@ CreateAbilityController = function()
     --- @type Label
     local channeledResourceTitle = gui.Label {
         text = "Channeled Resource",
-        fontSize = 24,
+        fontSize = 18,
         bold = true,
         markdown = true,
         bmargin = 5,
@@ -3620,7 +3619,12 @@ CreateAbilityController = function()
             for i = 1, #children do
                 children[i].text = tostring(baseCost + (i - 1) * channelIncrement)
                 children[i].data.nresources = (i - 1) * channelIncrement
-                children[i]:SetClass("collapsed", (i - 1) * channelIncrement > resourcesAvailable)
+                --Collapse if either the player can't afford it OR the ability's
+                --maxChannel limit excludes it. The maxChannel check is needed
+                --because the add-children loop above only runs once (the while
+                --grows children, never shrinks); when mode changes drop the
+                --max, those previously-added chips need to hide here.
+                children[i]:SetClass("collapsed", (i - 1) * channelIncrement > resourcesAvailable or (i - 1) * channelIncrement > maxChannel)
                 children[i]:SetClass("selected", (i - 1) == g_currentSymbols.charges)
             end
 

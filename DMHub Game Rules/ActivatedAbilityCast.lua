@@ -187,6 +187,11 @@ ActivatedAbilityCast.helpSymbols = {
         type = "function",
         desc = "A function which will return true if this ability has the given creature as a target.",
     },
+    withinarea = {
+        name = "WithinArea",
+        type = "function",
+        desc = "A function which given a creature returns true if that creature is inside this cast's area shape (cube, burst, line, etc.). Returns false for non-area abilities or when the area isn't known.",
+    },
 	targetcount = {
 		name = "Target Count",
 		type = "number",
@@ -318,6 +323,31 @@ ActivatedAbilityCast.lookupSymbols = {
                             return true
                         end
                     end
+                end
+            end
+
+            return false
+        end
+    end,
+
+    withinarea = function(c)
+        return function(target)
+            if type(target) == "function" then
+                target = target("self")
+            end
+
+            --LuaShape userdata -- transient, stripped by serialization.
+            --When this cast was sent across the network or restored from
+            --storage, _tmp_targetArea is nil; WithinArea then returns false.
+            local area = c:try_get("_tmp_targetArea")
+            if area == nil then
+                return false
+            end
+
+            if type(target) == "table" then
+                local tok = dmhub.LookupToken(target)
+                if tok ~= nil then
+                    return area:ContainsToken(tok)
                 end
             end
 

@@ -292,6 +292,10 @@ local CreateMapNode = function(map)
 		flow = "vertical",
 		draggable = true,
 
+		refreshMaps = function(element)
+			element:SetClass("selected", map.valid and map.id == game.currentMapId)
+		end,
+
 		setZebra = function(element, even)
 			element:SetClass("evenRow", even)
 			element:SetClass("oddRow", not even)
@@ -721,6 +725,9 @@ CreateMapDialog = function()
 		valign = "top",
 		width = 400,
 		height = 700,
+		hpad = 12,
+		vpad = 12,
+		borderBox = true,
 		flow = "vertical",
 		
 		data = {

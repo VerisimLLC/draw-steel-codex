@@ -1038,6 +1038,7 @@ end
 
 function GameHud:CreateAbilityDisplayPanel()
     self.abilityDisplayPanel = gui.Panel{
+        styles = ThemeEngine.GetStyles(),
         height = "100%",
         width = 360,
         rmargin = 364,
@@ -1045,6 +1046,12 @@ function GameHud:CreateAbilityDisplayPanel()
         valign = "center",
         interactable = false,
     }
+
+    ThemeEngine.OnThemeChanged(mod, function()
+        if self.abilityDisplayPanel ~= nil and self.abilityDisplayPanel.valid then
+            self.abilityDisplayPanel.styles = ThemeEngine.GetStyles()
+        end
+    end)
 
     self:InitAbilityDisplayPanel(self.abilityDisplayPanel)
 

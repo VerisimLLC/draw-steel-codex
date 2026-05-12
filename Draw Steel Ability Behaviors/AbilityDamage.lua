@@ -419,12 +419,12 @@ function ActivatedAbilityDamageChatMessage:Render(message)
     local messageText = string.format("%d%s damage", self.amount, damageTypeText)
 
     local detailLabel = gui.Label{
-        classes = {"action-log-detail"},
+        classes = {"action-log-detail", "sizeXs", "fg"},
         text = self.chatMessage,
     }
 
     local damageLabel = gui.Label{
-        classes = {"action-log-subtext"},
+        classes = {"action-log-subtext", "sizeXxs", "fgMuted"},
         text = messageText,
     }
 

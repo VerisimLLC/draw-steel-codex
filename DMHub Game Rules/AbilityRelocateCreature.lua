@@ -123,6 +123,21 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
             movementType = "move"
         end
 
+        -- Charge-jump override (e.g., Panther's Mighty Spring): a creature with
+        -- the "Charge Uses Jump" custom attribute leaps instead of running when
+        -- the Charge action's relocate runs. We identify Charge by ability name
+        -- rather than the Charging momentary attribute because the action bar's
+        -- destructor (from ApplyOnCasting in DrawSteelActionBar.lua) fires at
+        -- finishCasting AFTER Cast() returns but BEFORE the cast coroutine
+        -- reaches this behavior, and `table.remove_value` strips ALL copies of
+        -- the effect, so even the duplicate added by ApplyAbilityDurationEffect's
+        -- :Cast is wiped before we'd see Charging > 0 here.
+        if movementType == "move"
+            and ability.name == "Charge"
+            and casterToken.properties:CalculateNamedCustomAttribute("Charge Uses Jump") > 0 then
+            movementType = "jump"
+        end
+
         local startingOpportunityAttacks = casterToken.properties._tmp_triggeredOpportunityAttacks
 
 		local swapTokens = nil
@@ -144,7 +159,19 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 			end
 			casterToken:SwapPositions(swapTokens[1])
 		elseif movementType == "teleport" or movementType == "relocate" then
-            local distance = casterToken:Distance(targets[1].loc)
+            --Some `applyto` handlers (caster_summoner, caster_companion, etc.) build
+            --target entries as { token = X } without a `loc` field. Fall back to the
+            --token's current loc so teleport works for those targets too.
+            local destLoc = targets[1].loc
+            if destLoc == nil and targets[1].token ~= nil and targets[1].token.valid then
+                destLoc = targets[1].token.loc
+            end
+            if destLoc == nil then
+                print("Relocate:: teleport target has no loc; skipping")
+                return
+            end
+
+            local distance = casterToken:Distance(destLoc)
             if distance > 0 then
 			    options.symbols.cast.spacesMoved = options.symbols.cast.spacesMoved + distance
             end
@@ -153,8 +180,7 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
                 casterToken.properties._tmp_suppressTeleportEvent = true
             end
 
-            local loc = targets[1].loc
-        	casterToken:Teleport(loc.withGroundAltitude)
+        	casterToken:Teleport(destLoc.withGroundAltitude)
 
             casterToken.properties._tmp_suppressTeleportEvent = nil
         elseif movementType == "jump" then

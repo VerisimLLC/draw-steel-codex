@@ -1500,6 +1500,18 @@ ThemeEngine.RegisterTheme{
             selectors = {"row", "highlight"},
             bgcolor = "@info",
         },
+        {
+            selectors = {"row", "hover"},
+            brightness = 1.5,
+        },
+        {
+            selectors = {"row", "selected"},
+            bgcolor = "@accent",
+        },
+        {
+            selectors = {"label", "parent:row", "parent:selected"},
+            color = "@fgInverse",
+        },
 
         -- =====================================================================
         -- 2. FORMS -- label/control layouts
@@ -1812,8 +1824,10 @@ ThemeEngine.RegisterTheme{
         },
         {
             selectors = {"framedPanel", "toplevel"},
-            borderWidth = 0,
-            opacity = 0.98,
+            bgcolor = "@bgAlt",
+            borderWidth = 1,
+            borderColor = "@border",
+            opacity = 1,
         },
         {
             selectors = {"framedPanel", "create", "~hidden", "~collapsed"},
@@ -2084,17 +2098,27 @@ ThemeEngine.RegisterTheme{
             border = { y1 = 0, x1 = 0, x2 = 0, y2 = 0 },
         },
 
-        -- Dock tab icon container. bgcolor "white" is image-tint-neutral so
-        -- the icon (set inline as bgimage = p.data.icon) renders at its true
-        -- colors. Class is `dockTab` (NOT `tab`) to avoid collision with the
+        -- Dock tab icon container. bgcolor tints the icon (set inline as
+        -- bgimage = p.data.icon) with the active scheme's foreground token.
+        -- For full retinting the source PNG should be a white silhouette
+        -- with alpha; colored PNGs will desaturate against the tint.
+        -- Class is `dockTab` (NOT `tab`) to avoid collision with the
         -- form-style `{tab}` rule in section 1.
         {
             selectors = {"dockTab"},
             width = 20,
             height = 20,
-            bgcolor = "white",
+            bgcolor = "@fg",
             halign = "center",
             valign = "center",
+        },
+        {
+            selectors = {"dockTab", "selected"},
+            bgcolor = "@fgStrong",
+        },
+        {
+            selectors = {"dockTab", "hover"},
+            bgcolor = "@fgStrong",
         },
 
         -- Hide tab labels on non-selected tabs when the strip is crowded
@@ -2169,6 +2193,12 @@ ThemeEngine.RegisterTheme{
             transitionTime = 0.1,
             brightness = 2,
         },
+
+        -- Collapse / minimize arrow tinting. The PNG is a white silhouette,
+        -- so `bgcolor` retints with the active scheme's foreground tokens.
+        { selectors = {"collapseArrow"},                                  bgcolor = "@fg" },
+        { selectors = {"collapseArrow", "hover"},                         bgcolor = "@fgStrong" },
+        { selectors = {"collapseArrow", "press"},                         bgcolor = "@accent" },
 
         -- Chevron visibility (minimize/maximize per-panel arrows on the right).
         { selectors = {"minimizeArrow", "lastExpanded"},                 collapsed = 1 },

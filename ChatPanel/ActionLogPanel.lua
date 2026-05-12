@@ -124,7 +124,7 @@ function CreateActionLogCard(options)
         end
         if name ~= nil then
             nameLabel = gui.Label{
-                classes = {"action-log-name"},
+                classes = {"action-log-name", "sizeS", "bold"},
                 text = name,
             }
         end
@@ -140,7 +140,7 @@ function CreateActionLogCard(options)
         contentChildren[#contentChildren+1] = child
     end
 
-    local cardClasses = {"action-log-card", cond(outOfTurn, "out-of-turn")}
+    local cardClasses = {"action-log-card", "bgAlt", cond(outOfTurn, "out-of-turn")}
     for _,cls in ipairs(options.classes or {}) do
         cardClasses[#cardClasses+1] = cls
     end
@@ -370,13 +370,13 @@ local CreateRollCategoryPanel = function(cat, catInfo)
 			if rollType ~= "project_power_roll" then 
 				if boons >= 2 and banes == 0 then
 					children[#children+1] = panelCache['doubleboon'] or gui.Panel{
+						classes = {"bgSuccess"},
 						width = 16,
 						height = 16,
 						halign = "left",
 						valign = "center",
 						bgimage = "panels/triangle.png",
 						rotate = 180,
-						bgcolor = "green",
 						linger = function(element)
 							gui.Tooltip("Double Edge -- +Tier")(element)
 						end,
@@ -387,11 +387,11 @@ local CreateRollCategoryPanel = function(cat, catInfo)
 
 				if banes >= 2 and boons == 0 then
 					children[#children+1] = panelCache['doublebane'] or gui.Panel{
+						classes = {"bgDanger"},
 						width = 16,
 						height = 16,
 						valign = "center",
 						bgimage = "panels/triangle.png",
-						bgcolor = "red",
 						linger = function(element)
 							gui.Tooltip("Double Bane -- -Tier")(element)
 						end,
@@ -523,17 +523,17 @@ local CreateRollMessagePanel = function(message, adoptiveParentPanel)
 						end
 					end
 					if #outcomeText < 14 then
-						outcomePanel.selfStyle.color = outcome.color or "white"
+						outcomePanel.selfStyle.color = outcome.color or ThemeEngine.ResolveTokens("@fgStrong")
 						outcomePanel.text = outcomeText
 					else
 						longFormResultsLabel.text = outcomeText
 					end
 				end
 			elseif outcomePanel ~= nil and message.autofailure then
-				outcomePanel.selfStyle.color = "red"
+				outcomePanel.selfStyle.color = ThemeEngine.ResolveTokens("@danger")
 				outcomePanel.text = "Failure"
 			elseif outcomePanel ~= nil and message.autosuccess then
-				outcomePanel.selfStyle.color = "green"
+				outcomePanel.selfStyle.color = ThemeEngine.ResolveTokens("@success")
 				outcomePanel.text = "Success"
 			end
 
@@ -674,7 +674,7 @@ local CreateRollMessagePanel = function(message, adoptiveParentPanel)
         }
 
         local rollNameLabel = gui.Label{
-            classes = {"action-log-name"},
+            classes = {"action-log-name", "sizeS", "bold"},
             text = "",
         }
 
@@ -792,16 +792,7 @@ CreateChatPanel = function()
 	local messagePanels = {}
     local adoptedPanels = {}
 
-	local chatPanel = gui.Panel{
-		id = 'action-log-panel',
-		vscroll = true,
-        vscrollLockToBottom = true,
-		hideObjectsOutOfScroll = true,
-		hpad = 6,
-		height = "100% available",
-
-
-		styles = {
+	local chatPanelStyles = {
 			{
 				bgcolor = 'black',
 				halign = 'center',
@@ -826,8 +817,6 @@ CreateChatPanel = function()
                 flow = "vertical",
                 width = "100%",
                 height = "auto",
-                bgimage = "panels/square.png",
-                bgcolor = "#1a1a1a",
                 cornerRadius = 4,
                 vmargin = 2,
             },
@@ -880,9 +869,6 @@ CreateChatPanel = function()
             },
             {
                 selectors = {"action-log-name"},
-                fontSize = 14,
-                bold = true,
-                color = "white",
                 width = "auto",
                 height = "auto",
                 maxWidth = "100%",
@@ -890,8 +876,6 @@ CreateChatPanel = function()
             },
             {
                 selectors = {"action-log-detail"},
-                fontSize = 12,
-                color = "#cccccc",
                 width = "100%",
                 height = "auto",
                 halign = "left",
@@ -899,8 +883,6 @@ CreateChatPanel = function()
             },
             {
                 selectors = {"action-log-subtext"},
-                fontSize = 11,
-                color = "#999999",
                 width = "100%",
                 height = "auto",
                 halign = "left",
@@ -918,7 +900,7 @@ CreateChatPanel = function()
 				halign = 'left',
 				width = '100%',
 				height = 'auto',
-				color = 'white',
+				color = '@fgStrong',
 				fontSize = '40%',
 				vmargin = 2,
 			},
@@ -947,7 +929,7 @@ CreateChatPanel = function()
 			},
 			{
 				selectors = {'roll-message-outcome'},
-				color = 'white',
+				color = '@fgStrong',
 				fontSize = 18,
 				minFontSize = 10,
 				halign = 'center',
@@ -965,7 +947,7 @@ CreateChatPanel = function()
 			{
 				selectors = {'long-form-message-outcome'},
 				fontSize = 14,
-				color = "white",
+				color = "@fgStrong",
 				width = "100%",
 				height = "auto",
 			},
@@ -996,7 +978,7 @@ CreateChatPanel = function()
 				maxWidth = 64,
 				fontSize = 18,
 				minFontSize = 8,
-				color = 'white',
+				color = '@fgStrong',
 			},
 			{
 				selectors = {'roll-category-total'},
@@ -1018,7 +1000,7 @@ CreateChatPanel = function()
 				selectors = {'roll-category-total', 'complete'},
 				transitionTime = 0.25,
 				scale = 1,
-				color = 'white',
+				color = '@fgStrong',
 			},
 			{
 				selectors = {'rolls-result-panel'},
@@ -1053,15 +1035,15 @@ CreateChatPanel = function()
 			},
 			{
 				selectors = {'single-roll-panel','complete'},
-				color = 'white',
+				color = '@fgStrong',
 			},
 			{
 				selectors = {'single-roll-panel','complete','best'},
-				color = '#aaffaa',
+				color = '@success',
 			},
 			{
 				selectors = {'single-roll-panel','complete','worst'},
-				color = '#ffaaaa',
+				color = '@danger',
 			},
 			{
 				selectors = {'single-roll-panel','complete','dropped'},
@@ -1071,7 +1053,17 @@ CreateChatPanel = function()
 				selectors = {'single-roll-panel','label','preview'},
 				opacity = 0.6,
 			},
-		},
+		}
+
+	local chatPanel = gui.Panel{
+		id = 'action-log-panel',
+		vscroll = true,
+        vscrollLockToBottom = true,
+		hideObjectsOutOfScroll = true,
+		hpad = 6,
+		height = "100% available",
+
+		styles = ThemeEngine.MergeStyles(chatPanelStyles),
 
 		events = {
 			create = 'refreshChat',
@@ -1158,6 +1150,12 @@ CreateChatPanel = function()
 	}
 
 	chat.events:Listen(chatPanel)
+
+	ThemeEngine.OnThemeChanged(mod, function()
+		if chatPanel ~= nil and chatPanel.valid then
+			chatPanel.styles = ThemeEngine.MergeStyles(chatPanelStyles)
+		end
+	end)
 
 	local resultPanel = gui.Panel{
 		selfStyle = {

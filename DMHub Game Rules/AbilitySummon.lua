@@ -24,6 +24,7 @@ ActivatedAbilitySummonBehavior.hasReplaceCaster = true --display 'replace caster
 ActivatedAbilitySummonBehavior.replaceCaster = false
 ActivatedAbilitySummonBehavior.casterControls = true
 ActivatedAbilitySummonBehavior.casterChoosesCreatures = true
+ActivatedAbilitySummonBehavior.changeCreatureWhileCasting = false
 ActivatedAbilitySummonBehavior.groupInitiativeWithCaster = true
 ActivatedAbilitySummonBehavior.shareSurgesWithSummoner = false
 ActivatedAbilitySummonBehavior.shareHeroicResourceWithSummoner = false
@@ -1296,7 +1297,7 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
         local preCheckSummonerMaxMinions = casterToken.properties:CalculateNamedCustomAttribute("MaximumMinions")
         local preCheckSummonerMaxSquads = casterToken.properties:CalculateNamedCustomAttribute("MaxMinionSquads")
         local preCheckIsSummoner = (not casterToken.properties.minion) and (preCheckSummonerMaxMinions > 0 or preCheckSummonerMaxSquads > 0)
-        local willPickCreatureInline = preCheckIsSummoner and self.casterChoosesCreatures and self.choosePlacement and (not self.replaceCaster) and #choices > 1
+        local willPickCreatureInline = preCheckIsSummoner and self.casterChoosesCreatures and self.choosePlacement and (not self.replaceCaster) and #choices > 1 and self.changeCreatureWhileCasting
 
         --pre-pick the chosen creature so its symbols are available to numSummons
         --and to subsequent behaviors
@@ -1373,7 +1374,7 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
 
         -- For Summoner casters with manual placement, fold the creature-type choice
         -- into the inline placement picker so it can change per-summon.
-        local creatureChoiceInline = isSummoner and manualPlacement and self.casterChoosesCreatures and #choices > 1
+        local creatureChoiceInline = isSummoner and manualPlacement and self.casterChoosesCreatures and #choices > 1 and self.changeCreatureWhileCasting
 
         local allSame = false
 
@@ -1945,6 +1946,15 @@ function ActivatedAbilityBehavior:SummonEditor(parentPanel, list, options)
         minWidth = 300,
 		change = function(element)
 			self.casterChoosesCreatures = element.value
+		end,
+	}
+
+	list[#list+1] = gui.Check{
+		text = "Change Creature Choice While Casting",
+		value = self.changeCreatureWhileCasting,
+        minWidth = 300,
+		change = function(element)
+			self.changeCreatureWhileCasting = element.value
 		end,
 	}
 

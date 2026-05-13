@@ -4208,7 +4208,10 @@ function TacPanel.GrowingHRTable()
 
             for _, entry in ipairs(growingResources.progression) do
                 if (tonumber(entry.level) or 0) <= characterLevel then
-                    local row = rows[index] or TacPanel.GrowingHRRow(entry, creature)
+                    local row = rows[index]
+                    if row == nil or not row.valid then
+                        row = TacPanel.GrowingHRRow(entry, creature)
+                    end
                     rows[index] = row
                     index = index + 1
 
@@ -4221,7 +4224,7 @@ function TacPanel.GrowingHRTable()
             end
 
             for i = index, #rows do
-                if rows[i] and rows[i].valid then rows[i]:SetClass("collapsed", true) end
+                rows[i] = nil
             end
 
             element.data.rows = rows

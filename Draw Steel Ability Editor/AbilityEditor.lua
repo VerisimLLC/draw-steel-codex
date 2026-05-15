@@ -4320,7 +4320,7 @@ local function _buildPresentationSection(ability, fireChange)
         height = 48,
         halign = "left",
         bgimage = ability:GetIcon(),
-        classes = {"bgFgMuted", cond(ability.hasCustomIcon, "collapsed-anim")},
+        classes = {"image", cond(ability.hasCustomIcon, "collapsed-anim")},
         refreshAbility = function(element)
             element.bgimage = ability:GetIcon()
         end,

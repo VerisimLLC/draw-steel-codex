@@ -174,6 +174,7 @@ ActivatedAbility.domains = {}
 ActivatedAbility.isSpell = false
 
 ActivatedAbilityBehavior.mono = false
+ActivatedAbilityBehavior.runOnDismiss = false
 ActivatedAbilityAugmentedAbilityBehavior.mono = true
 ActivatedAbilityCastSpellBehavior.mono = true
 
@@ -3122,6 +3123,17 @@ end
 --- @param casterToken nil|CharacterToken
 --- @param options nil|table
 function ActivatedAbilityBehavior:IsFiltered(ability, casterToken, options)
+
+    --runOnDismiss filter: behaviors flagged runOnDismiss only fire when the
+    --triggered-ability prompt was dismissed (options.dismiss == true).
+    --Behaviors without the flag are filtered out on the dismiss path.
+    local dismissPath = options ~= nil and options.dismiss == true
+    if self.runOnDismiss and not dismissPath then
+        return true
+    end
+    if (not self.runOnDismiss) and dismissPath then
+        return true
+    end
 
     if casterToken ~= nil and self:has_key("strainSelection") then
         local strainSelection = self.strainSelection

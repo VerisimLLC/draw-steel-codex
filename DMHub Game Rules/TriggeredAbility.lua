@@ -1055,9 +1055,10 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 
     end
 
-	local executeTrigger = function()
+	local executeTrigger = function(isDismiss)
 
-		local options = { symbols = symbols, alreadyPaid = argOptions.alreadyPaid }
+		argOptions.dismiss = isDismiss == true
+		local options = { symbols = symbols, alreadyPaid = argOptions.alreadyPaid, dismiss = isDismiss == true }
 		local needCoroutine = self:CastInstantPortion(casterToken, targets, options)
 		if not needCoroutine then
 			if not options.alreadyPaid then
@@ -1197,10 +1198,18 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 			local gameupdate = dmhub.ngameupdate
 
             local expireAt = nil
-            
+            local wasDismissed = false
+
 			while trigger ~= nil and (not trigger.triggered) and (not trigger.dismissed) and sustain do
 				coroutine.yield()
 
+				--Hold on to the previous trigger reference so we can detect
+				--dismissal-by-clear: when the player clicks dismiss, the
+				--ActiveTrigger has clearOnDismiss=true, so DispatchAvailableTrigger
+				--immediately removes the entry from availableTriggers and the
+				--refetch below returns nil, losing the dismissed flag we'd
+				--otherwise have observed.
+				local prevTrigger = trigger
 				trigger = nil
                 if casterToken == nil or (not casterToken.valid) then
                     break
@@ -1217,8 +1226,18 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
                 local triggers = casterToken.properties:GetAvailableTriggers() or {}
                 trigger = triggers[guid]
 
+                --Detect dismissal: either the new copy carries dismissed=true,
+                --or it's gone entirely (cleared by DispatchAvailableTrigger
+                --via clearOnDismiss).
+                if trigger ~= nil and trigger.dismissed then
+                    wasDismissed = true
+                elseif prevTrigger ~= nil and trigger == nil and sustain then
+                    wasDismissed = true
+                end
+
                 --give at least 5 seconds to recover if the trigger is not found.
-                while trigger == nil and dmhub.Time() < starttime+5 and casterToken.valid do
+                --Skip the recovery wait if we already know the trigger was dismissed
+                while trigger == nil and (not wasDismissed) and dmhub.Time() < starttime+5 and casterToken.valid do
 
                     local triggers = casterToken.properties:GetAvailableTriggers() or {}
                     trigger = triggers[guid]
@@ -1262,7 +1281,9 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 				}
 			end
 
-			if trigger ~= nil and trigger.triggered then
+			local accepted = trigger ~= nil and trigger.triggered
+			local dismissed = (not accepted) and (wasDismissed or (trigger ~= nil and trigger.dismissed))
+			if accepted or dismissed then
                 local removes = {}
                 for i, target in ipairs(targets) do
                     if target.token ~= nil and (not target.token.valid) then
@@ -1288,15 +1309,16 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
                     return
                 end
 
-                if type(trigger.triggered) == "number" then
+                if accepted and type(trigger.triggered) == "number" then
                     --the first mode is just the 'activate' which will show up as true.
                     symbols.mode = trigger.triggered + 1
                 else
                     symbols.mode = 1
                 end
 
+				local isDismiss = dismissed
 				dmhub.Schedule(0.01, function() --make execute in the main thread with a schedule.
-					executeTrigger()
+					executeTrigger(isDismiss)
 					casterToken.properties:DispatchEvent("finishability", {usedability = self})
 				end)
 			end
@@ -1332,6 +1354,7 @@ function TriggeredAbility:TriggerCo(targets, characterModifier, casterToken, cre
         targetArea = targetArea,
 		alreadyInCoroutine = true,
 		alreadyPaid = argOptions.alreadyPaid,
+		dismiss = argOptions.dismiss == true,
         OnFinishCastHandlers = {
             function()
                 if argOptions.complete then

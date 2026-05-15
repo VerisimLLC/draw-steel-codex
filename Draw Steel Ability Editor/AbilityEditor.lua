@@ -3963,12 +3963,52 @@ local function _makeBehaviorPillPanel(ability, behavior, fireChange)
         end,
     }
 
+    -- Dismiss pills: visible only when editing a TriggeredAbility. Toggles
+    -- behavior.runOnDismiss between false
+    local dismissPanel = gui.Panel{
+        classes = {"nae-behavior-pills", "collapsed"},
+        data = {cacheKey = nil},
+
+        create = function(element) element:FireEvent("refreshAbility") end,
+
+        refreshAbility = function(element)
+            local shown = ability.categorization == "Triggered Ability"
+            element:SetClass("collapsed", not shown)
+            if not shown then return end
+
+            local key = {runOnDismiss = behavior:try_get("runOnDismiss", false)}
+            if dmhub.DeepEqual(key, element.data.cacheKey) then return end
+            element.data.cacheKey = DeepCopy(key)
+
+            local children = {}
+            children[#children + 1] = gui.Label{
+                classes = {"nae-pill-label",
+                           cond(not behavior:try_get("runOnDismiss", false), "selected")},
+                text = "On Accept",
+                press = function()
+                    behavior.runOnDismiss = false
+                    fireChange()
+                end,
+            }
+            children[#children + 1] = gui.Label{
+                classes = {"nae-pill-label",
+                           cond(behavior:try_get("runOnDismiss", false), "selected")},
+                text = "On Dismiss",
+                press = function()
+                    behavior.runOnDismiss = true
+                    fireChange()
+                end,
+            }
+            element.children = children
+        end,
+    }
+
     return gui.Panel{
         width = "100%",
         height = "auto",
         flow = "vertical",
         bgcolor = "clear",
-        children = {modePanel, tierPanel, strainPanel},
+        children = {modePanel, tierPanel, strainPanel, dismissPanel},
     }
 end
 

@@ -2498,33 +2498,41 @@ function ActivatedAbility:GetTargetingRays(casterToken, range, symbols, targets)
         -- Try with locked commitments first to keep assignments stable.
         local matchOfTarget = BipartiteMatch(adjacency, #squadTokens, #targets, committedTargets)
 
-        -- Check that every target got a minion assigned.
-        local allMatched = true
+        -- Count how many targets got a minion under the constrained match.
+        local constrainedCount = 0
         for j = 1, #targets do
-            if matchOfTarget[j] == nil then
-                allMatched = false
-                break
+            if matchOfTarget[j] ~= nil then
+                constrainedCount = constrainedCount + 1
             end
         end
 
-        -- If locked commitments prevented a full match, fall back to an
-        -- unconstrained match that can reassign anyone.
-        if not allMatched then
-            matchOfTarget = BipartiteMatch(adjacency, #squadTokens, #targets)
-            allMatched = true
+        -- If locked commitments prevented a full match, try an unconstrained
+        -- match that can reassign anyone. Keep the unconstrained result only
+        -- when it covers strictly more targets, so stable pairings survive.
+        if constrainedCount < #targets then
+            local unconstrained = BipartiteMatch(adjacency, #squadTokens, #targets)
+            local unconstrainedCount = 0
             for j = 1, #targets do
-                if matchOfTarget[j] == nil then
-                    allMatched = false
-                    break
+                if unconstrained[j] ~= nil then
+                    unconstrainedCount = unconstrainedCount + 1
                 end
             end
+
+            if unconstrainedCount > constrainedCount then
+                matchOfTarget = unconstrained
+            end
         end
 
-        if allMatched then
-            local result = {}
-            for j = 1, #targets do
+        -- Build rays from whichever targets got matched. Targets without a
+        -- match are omitted; callers fall back to drawing from the caster.
+        local result = {}
+        for j = 1, #targets do
+            if matchOfTarget[j] ~= nil then
                 result[#result + 1] = { a = squadTokens[matchOfTarget[j]], b = targets[j].token }
             end
+        end
+
+        if #result > 0 then
             g_prevTargetingRays = result
             return result
         end
@@ -2604,16 +2612,26 @@ function ActivatedAbility:CustomTargetShape(casterToken, range, symbols, targets
             end
         end
 
-        -- A squad member is "usable" if there exists SOME valid complete
-        -- assignment of the current targets that leaves that member free.
-        -- Equivalently: member i is usable if removing it from the squad
-        -- still allows a complete matching of all targets.
+        -- A squad member is "usable" if removing it from the squad doesn't
+        -- shrink the maximum target coverage. This means the squad's inherent
+        -- inability to reach some target doesn't disqualify members that
+        -- weren't going to reach that target anyway.
         -- When no targets are selected yet, all members are usable.
         local usableSquadMembers = {}
         if #targets == 0 then
             usableSquadMembers = squadTokens
         else
             local adjacency = BuildSquadAdjacency(squadTokens, possibleTargetsForEachToken, targets, targetLocsOccupying)
+
+            -- Baseline: how many targets can the full squad cover at most.
+            local baselineMatch = BipartiteMatch(adjacency, #squadTokens, #targets)
+            local baselineMatched = 0
+            for j = 1, #targets do
+                if baselineMatch[j] ~= nil then
+                    baselineMatched = baselineMatched + 1
+                end
+            end
+
             for i, tok in ipairs(squadTokens) do
                 -- Build adjacency with member i removed (shift indices).
                 local reducedAdj = {}
@@ -2627,16 +2645,14 @@ function ActivatedAbility:CustomTargetShape(casterToken, range, symbols, targets
 
                 local matchOfTarget = BipartiteMatch(reducedAdj, #squadTokens - 1, #targets)
 
-                -- If all targets are still matched without member i, it's usable.
-                local allMatched = true
+                local reducedMatched = 0
                 for j = 1, #targets do
-                    if matchOfTarget[j] == nil then
-                        allMatched = false
-                        break
+                    if matchOfTarget[j] ~= nil then
+                        reducedMatched = reducedMatched + 1
                     end
                 end
 
-                if allMatched then
+                if reducedMatched == baselineMatched then
                     usableSquadMembers[#usableSquadMembers + 1] = tok
                 end
             end

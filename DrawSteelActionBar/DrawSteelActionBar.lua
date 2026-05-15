@@ -4217,20 +4217,26 @@ CreateAbilityController = function()
             local range = g_currentAbility:GetRange(g_token.properties, g_currentSymbols)
             g_currentSymbols.range = range
             local rays = g_currentAbility:GetTargetingRays(g_token, range, g_currentSymbols, targets)
+            local rayCoversTarget = false
             if rays ~= nil then
                 --the ability specifies the rays, we try to fish out the
                 --new one to highlight and maintain any existing ones.
                 for _, ray in ipairs(rays) do
-                    if ray.b.id == targetToken.id and m_targetLineOfSightRays[string.format("%s-%s", ray.a.id, ray.b.id)] == nil then
-                        m_markLineOfSight = dmhub.MarkLineOfSight(ray.a, ray.b, ray.a.properties:GetPierceWalls(), GetArrowColor(g_currentAbility, ray.a, ray.b), EffectiveArrowRange(ray.a, ray.b, range))
-                        AddModifierLabelsToMarker(m_markLineOfSight, ray.a, ray.b, g_currentAbility, range)
-                        m_markLineOfSightToken = targetToken
-                        m_markLineOfSightSourceToken = g_token
+                    if ray.b.id == targetToken.id then
+                        rayCoversTarget = true
+                        if m_targetLineOfSightRays[string.format("%s-%s", ray.a.id, ray.b.id)] == nil then
+                            m_markLineOfSight = dmhub.MarkLineOfSight(ray.a, ray.b, ray.a.properties:GetPierceWalls(), GetArrowColor(g_currentAbility, ray.a, ray.b), EffectiveArrowRange(ray.a, ray.b, range))
+                            AddModifierLabelsToMarker(m_markLineOfSight, ray.a, ray.b, g_currentAbility, range)
+                            m_markLineOfSightToken = targetToken
+                            m_markLineOfSightSourceToken = g_token
+                        end
                         break
                     end
                 end
-            else
-                --we just target from the source to the target.
+            end
+            if rays == nil or not rayCoversTarget then
+                --either no squad rays at all, or the hovered target wasn't
+                --reachable by any squad member -- draw from the caster.
                 m_markLineOfSight = dmhub.MarkLineOfSight(g_token, targetToken, g_token.properties:GetPierceWalls(), GetArrowColor(g_currentAbility, g_token, targetToken), EffectiveArrowRange(g_token, targetToken, range))
                 if m_markLineOfSight ~= nil then
                     AddModifierLabelsToMarker(m_markLineOfSight, g_token, targetToken, g_currentAbility, range)

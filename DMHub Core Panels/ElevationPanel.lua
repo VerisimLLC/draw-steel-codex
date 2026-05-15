@@ -147,7 +147,7 @@ CreateHeightmapEditor = function()
     resultPanel = gui.Panel{
         flow = "vertical",
         height = "auto",
-        width = "100%",
+        width = "80%",
 
         styles = {
             Styles.formPanel,

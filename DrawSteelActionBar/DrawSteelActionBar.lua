@@ -1335,63 +1335,68 @@ local function AbilityHeading(args)
             end
 
             if dmhub.isDM then
+                local addedEditEntry = false
                 for domain, _ in pairs(m_ability.domains or {}) do
-                            if domain ~= "_luaTable" then
-                                --parse domain information
-                                local tableType, guid = string.match(domain, "^([^:]+):(.+)$")
-                                if tableType and guid then
-                                    -- Find the parent object (class/feat/etc) that contains this ability
-                                    local obj, tableid = FindAbilityParentByGuid(guid)
-                                    if obj and tableid then
-                                        local path = {}
-                                        --Find the path to the ability within the parent object
-                                        local found = FindObjectPathByGuid(m_ability.guid, obj, path)
-                                        --if a path is found create an edit option
-                                        if found then
-                                            entries[#entries + 1] = {
-                                                text = 'Edit Ability',
-                                                click = function()
-                                                    element.popup = nil
+                    if domain ~= "_luaTable" then
+                        --parse domain information
+                        local tableType, guid = string.match(domain, "^([^:]+):(.+)$")
+                        if tableType and guid then
+                            -- Find the parent object (class/feat/etc) that contains this ability
+                            local obj, tableid = FindAbilityParentByGuid(guid)
+                            if obj and tableid then
+                                local path = {}
+                                --Find the path to the ability within the parent object
+                                local found = FindObjectPathByGuid(m_ability.guid, obj, path)
+                                --if a path is found create an edit option
+                                if found then
+                                    entries[#entries + 1] = {
+                                        text = 'Edit Ability',
+                                        click = function()
+                                            element.popup = nil
 
-                                                    -- Get the original ability from the parent object
-                                                    local originalAbility = GetObjectAtPath(obj, path)
-                                                    
-                                                    element.root:AddChild(originalAbility:ShowEditActivatedAbilityDialog{
-                                                        close = function()
-                                                            --Use found path to save edited ability back to parent object
-                                                            SetObjectAtPath(obj, path, originalAbility)
-                        
-                                                            -- Upload the parent object
-                                                            dmhub.SetAndUploadTableItem(tableid, obj)
-                                                        end
-                                                    })
-                                                end,
-                                            }
-                                        end
-                                    end
+                                            -- Get the original ability from the parent object
+                                            local originalAbility = GetObjectAtPath(obj, path)
+
+                                            element.root:AddChild(originalAbility:ShowEditActivatedAbilityDialog{
+                                                close = function()
+                                                    --Use found path to save edited ability back to parent object
+                                                    SetObjectAtPath(obj, path, originalAbility)
+
+                                                    -- Upload the parent object
+                                                    dmhub.SetAndUploadTableItem(tableid, obj)
+                                                end
+                                            })
+                                        end,
+                                    }
+                                    addedEditEntry = true
                                 end
                             end
                         end
-                        
-                        --[[ element.root:AddChild(m_ability:ShowEditActivatedAbilityDialog{
-                            close = function()
-                                print("Ability Info::", g_token.properties:IsActivatedAbilityInnate(m_ability))
-                                for _, ability in ipairs(g_token.properties.innateActivatedAbilities or {}) do
-                                    
-                                end
-                                g_token:ModifyProperties {
-                                    description = "Update Ability",
-                                    execute = function()
-                                        -- This is a bit hacky, but we need to trigger a properties update so that any changes to the ability are reflected in the UI.
-                                        local props = g_token.properties
-                                        g_token.properties = nil
-                                        g_token.properties = props
-                                    end,
-                                }
-                            end
-                        })
                     end
-                } ]]
+                end
+
+                if not addedEditEntry and g_token ~= nil and g_token.properties ~= nil then
+                    local innateAbility = g_token.properties:IsActivatedAbilityInnate(m_ability)
+                    if innateAbility then
+                        entries[#entries + 1] = {
+                            text = 'Edit Ability',
+                            click = function()
+                                element.popup = nil
+
+                                element.root:AddChild(innateAbility:ShowEditActivatedAbilityDialog{
+                                    close = function()
+                                        g_token:ModifyProperties{
+                                            description = "Edit Innate Ability",
+                                            execute = function()
+                                                g_token.properties.innateActivatedAbilities = g_token.properties.innateActivatedAbilities
+                                            end,
+                                        }
+                                    end,
+                                })
+                            end,
+                        }
+                    end
+                end
             end
 
             element.popup = gui.ContextMenu {
@@ -4543,20 +4548,26 @@ CreateAbilityController = function()
             local range = g_currentAbility:GetRange(g_token.properties, g_currentSymbols)
             g_currentSymbols.range = range
             local rays = g_currentAbility:GetTargetingRays(g_token, range, g_currentSymbols, targets)
+            local rayCoversTarget = false
             if rays ~= nil then
                 --the ability specifies the rays, we try to fish out the
                 --new one to highlight and maintain any existing ones.
                 for _, ray in ipairs(rays) do
-                    if ray.b.id == targetToken.id and m_targetLineOfSightRays[string.format("%s-%s", ray.a.id, ray.b.id)] == nil then
-                        m_markLineOfSight = dmhub.MarkLineOfSight(ray.a, ray.b, ray.a.properties:GetPierceWalls(), GetArrowColor(g_currentAbility, ray.a, ray.b), EffectiveArrowRange(ray.a, ray.b, range))
-                        AddModifierLabelsToMarker(m_markLineOfSight, ray.a, ray.b, g_currentAbility, range)
-                        m_markLineOfSightToken = targetToken
-                        m_markLineOfSightSourceToken = g_token
+                    if ray.b.id == targetToken.id then
+                        rayCoversTarget = true
+                        if m_targetLineOfSightRays[string.format("%s-%s", ray.a.id, ray.b.id)] == nil then
+                            m_markLineOfSight = dmhub.MarkLineOfSight(ray.a, ray.b, ray.a.properties:GetPierceWalls(), GetArrowColor(g_currentAbility, ray.a, ray.b), EffectiveArrowRange(ray.a, ray.b, range))
+                            AddModifierLabelsToMarker(m_markLineOfSight, ray.a, ray.b, g_currentAbility, range)
+                            m_markLineOfSightToken = targetToken
+                            m_markLineOfSightSourceToken = g_token
+                        end
                         break
                     end
                 end
-            else
-                --we just target from the source to the target.
+            end
+            if rays == nil or not rayCoversTarget then
+                --either no squad rays at all, or the hovered target wasn't
+                --reachable by any squad member -- draw from the caster.
                 m_markLineOfSight = dmhub.MarkLineOfSight(g_token, targetToken, g_token.properties:GetPierceWalls(), GetArrowColor(g_currentAbility, g_token, targetToken), EffectiveArrowRange(g_token, targetToken, range))
                 if m_markLineOfSight ~= nil then
                     AddModifierLabelsToMarker(m_markLineOfSight, g_token, targetToken, g_currentAbility, range)

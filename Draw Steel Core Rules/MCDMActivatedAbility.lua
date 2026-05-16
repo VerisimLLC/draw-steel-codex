@@ -2317,11 +2317,17 @@ function ActivatedAbility:ConsumeResources(casterToken, options)
     end
 
     if self:UsesIndividualManeuver(casterToken) then
+        --An individual maneuver expends the caster's action AND maneuver
+        local actionId = CharacterResource.actionResourceId
+        local needAction = (casterToken.properties:GetResourceUsage(actionId, "turn") or 0) < 1
         casterToken:ModifyProperties{
-            description = "Mark Individual Maneuver",
+            description = "Individual Maneuver",
             undoable = false,
             combine = true,
             execute = function()
+                if needAction then
+                    casterToken.properties:ConsumeResource(actionId, "turn", 1, self.name)
+                end
                 casterToken.properties:MarkIndividualManeuverUsed()
             end,
         }
@@ -2336,9 +2342,8 @@ function ActivatedAbility:ConsumeResources(casterToken, options)
         return
     end
 
-    if not (self:IsAction() or self:IsManeuver()) then
-        return
-    end
+    --Any squad-coordinated ability expends both action
+    --and maneuver for every active squad member.
 
     local squad = casterToken.properties:try_get("_tmp_minionSquad")
     if squad == nil or squad.tokens == nil then
@@ -2872,9 +2877,25 @@ function ActivatedAbility:GetNumTargets(casterToken, symbols)
     local result = g_numTargetsFunction(self, casterToken, symbols)
 
     if (not mod.unloaded) and casterToken ~= nil and result == 1 and self:UsesSquadStrike(casterToken) then
-        --minion signature abilities can target one target for each active (non-skipped) member.
-        return casterToken.properties._tmp_minionSquad.activeMinions
-            or casterToken.properties._tmp_minionSquad.liveMinions
+        --minion signature abilities and free strikes can target one enemy per active
+        --(non-skipped) squad member. For Maneuver-or-Action squads, also exclude
+        --minions that have already broken off for an individual maneuver this turn.
+        local squad = casterToken.properties._tmp_minionSquad
+        if casterToken.properties:HasManeuverOrActionRule() and squad ~= nil and squad.tokens ~= nil then
+            local count = 0
+            for _, tok in ipairs(squad.tokens) do
+                if tok ~= nil and tok.valid
+                    and (not tok.properties:IsDead())
+                    and (not tok.properties:IsTurnSkipped(tok))
+                    and tok.properties:IsActiveInSquad() then
+                    count = count + 1
+                end
+            end
+            if count < 1 then count = 1 end
+            return count
+        end
+
+        return squad.activeMinions or squad.liveMinions
     end
 
     return result

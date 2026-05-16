@@ -325,7 +325,17 @@ end
 local g_squadPanelMovementLag = 0.5
 
 DrawSteelMinion.SquadHud = function(floorid, squad)
-    if dmhub.isDM == false then
+    --True when the current user can control any token in this squad
+    local function viewerControlsSquad()
+        for _, tok in ipairs(squad.tokens or {}) do
+            if tok ~= nil and tok.valid and tok.canControl then
+                return true
+            end
+        end
+        return false
+    end
+
+    if dmhub.isDM == false and not viewerControlsSquad() then
         if dmhub.initiativeQueue == nil or dmhub.initiativeQueue.hidden or (dmhub.GetSettingValue("enemystambardisplay") == "none") then
             return
         end
@@ -365,7 +375,7 @@ DrawSteelMinion.SquadHud = function(floorid, squad)
 
             thinkTime = 0.2,
             think = function(element)
-                if dmhub.isDM == false and (dmhub.GetSettingValue("enemystambardisplay") == "none") then
+                if dmhub.isDM == false and not viewerControlsSquad() and (dmhub.GetSettingValue("enemystambardisplay") == "none") then
                     sheetParent:Destroy()
                     return
                 end
@@ -465,7 +475,7 @@ DrawSteelMinion.SquadHud = function(floorid, squad)
                 m_label.text = "DEAD"
             else
                 local display = dmhub.GetSettingValue("enemystambardisplay") or "none"
-                if dmhub.isDM or display == "val" then
+                if dmhub.isDM or viewerControlsSquad() or display == "val" then
                     m_label.text = string.format("%d/%d", round(squad.maximum_health - squad.damage_taken), squad.maximum_health)
                 elseif display == "pct" then
                     m_label.text = string.format("%d%%", 100 * round((squad.maximum_health - squad.damage_taken) / squad.maximum_health))

@@ -3012,7 +3012,6 @@ mod.shared.ShowDownloadShareDialog = function()
 		local resultPanel
 		local moduleHeading = gui.Label{
 			classes = {"moduleHeading"},
-			color = Styles.textColor,
 		}
 
 		local newBadge = gui.Panel{
@@ -3050,12 +3049,7 @@ mod.shared.ShowDownloadShareDialog = function()
 			hmargin = 4,
 			headingAndInstall,
 			gui.Panel{
-				width = 240,
-				height = 1,
-				vmargin = 1,
-				bgcolor = Styles.textColor,
-				bgimage = "panels/square.png",
-				halign = "left",
+				classes = {"moduleHeadingDivider"},
 			}
 		}
 
@@ -3384,7 +3378,7 @@ mod.shared.ShowDownloadShareDialog = function()
 
 		gui.Panel{
 			bgimage = "icons/icon_app/icon_app_108.png",
-			bgcolor = Styles.textColor,
+			bgcolor = "white",
 			x = 20,
 			width = 16,
 			height = 16,
@@ -3430,9 +3424,7 @@ mod.shared.ShowDownloadShareDialog = function()
 
 
 	local installCountLabel = gui.Label{
-		fontFace = "Inter",
 		fontSize = 24,
-		color = "white",
 		width = "auto",
 		height = "auto",
 		hmargin = 6,
@@ -3460,9 +3452,7 @@ mod.shared.ShowDownloadShareDialog = function()
 	}
 
 	local upvoteCountLabel = gui.Label{
-		fontFace = "Inter",
 		fontSize = 24,
-		color = "white",
 		width = "auto",
 		height = "auto",
 		hmargin = 6,
@@ -3541,14 +3531,8 @@ mod.shared.ShowDownloadShareDialog = function()
 	local uninstallButton
 
 	local installButton =
-		gui.PrettyButton{
-			styles = {
-				{
-					selectors = {"label"},
-					halign = "center",
-					valign = "center",
-				},
-			},
+		gui.Button{
+			classes = {"sizeXxl"},
 			halign = "right",
 			valign = "bottom",
 			width = 180,
@@ -3598,20 +3582,10 @@ mod.shared.ShowDownloadShareDialog = function()
 			end,
 		}
 	
-	uninstallButton = gui.Panel{
-		classes = {"collapsed"},
+	uninstallButton = gui.Button{
+		classes = {"deleteButton", "collapsed"},
 		width = 16,
 		height = 16,
-		bgimage = "icons/icon_tool/icon_tool_44.png",
-		styles = {
-			{
-				bgcolor = "white",
-			},
-			{
-				selectors = {"hover"},
-				bgcolor = "red",
-			}
-		},
 
 		press = function(element)
 			gui.ModalMessage{
@@ -3957,13 +3931,7 @@ mod.shared.ShowDownloadShareDialog = function()
 		pagingSection,
 	}
 
-	moduleDisplayPanel = gui.Panel{
-		classes = {"collapsed"},
-		width = "100%",
-		height ="100%",
-		flow = "vertical",
-
-		styles = {
+	local moduleDisplayCustomStyles = {
 
 			{
 				selectors = {"moduleItem"},
@@ -3991,8 +3959,8 @@ mod.shared.ShowDownloadShareDialog = function()
 			},
 			{
 				selectors = {"moduleHeading"},
-				color = Styles.textColor,
-				fontFace = "Inter",
+				color = "@fgStrong",
+				fontFace = "@heading",
 				fontSize = 18,
 				minFontSize = 14,
 				fontWeight = "light",
@@ -4003,6 +3971,15 @@ mod.shared.ShowDownloadShareDialog = function()
 				height = 24,
 				wrap = false,
 				textOverflow = "truncate",
+			},
+			{
+				selectors = {"moduleHeadingDivider"},
+				bgimage = "panels/square.png",
+				bgcolor = "@border",
+				width = 240,
+				height = 1,
+				vmargin = 1,
+				halign = "left",
 			},
 			{
 				selectors = {"installCheck"},
@@ -4020,7 +3997,7 @@ mod.shared.ShowDownloadShareDialog = function()
 			},
 			{
 				selectors = {"moduleAuthor"},
-				color = Styles.textColor,
+				color = "@fgMuted",
 				fontSize = 12,
 				width = "auto",
 				maxWidth = 160,
@@ -4044,8 +4021,8 @@ mod.shared.ShowDownloadShareDialog = function()
 			},
 			{
 				selectors = {"moduleDetails"},
-				color = Styles.textColor,
-				fontFace = "Inter",
+				color = "@fg",
+				fontFace = "@label",
 				fontSize = 12,
 				width = "auto",
 				height = "auto",
@@ -4064,7 +4041,7 @@ mod.shared.ShowDownloadShareDialog = function()
 			{
 				selectors = {"publishedLabel", "published"},
 			--	hidden = 0,
-				color = "white",
+				color = "@fgStrong",
 				fontSize = 12,
 				halign = "right",
 				valign = "bottom",
@@ -4075,7 +4052,7 @@ mod.shared.ShowDownloadShareDialog = function()
 				selectors = {"installCountLabel"},
 				fontSize = 16,
 				minFontSize = 12,
-				color = Styles.textColor,
+				color = "@fg",
 				width = "auto",
 				height = "auto",
 				valign = "center",
@@ -4127,7 +4104,64 @@ mod.shared.ShowDownloadShareDialog = function()
 				brightness = 1.5,
 			},
 
-		},
+			-- Pill-bar styling for the tab strip: only the end options get
+			-- rounded corners, and middle options drop their left/right borders
+			-- so the strip reads as one continuous control. cornerRadius pairs
+			-- the corners by diagonal: x1 = top-left, x2 = bottom-right (TL-BR
+			-- diagonal); y1 = top-right, y2 = bottom-left (TR-BL diagonal).
+			-- border keys are (x1, x2, y1, y2) = (left, right, bottom, top).
+			-- The two-selector specificity beats the rounded theme variant's
+			-- flat `enumSliderOption` cornerRadius rule.
+			{
+				selectors = {"enumSliderOption", "firstOption"},
+				cornerRadius = {x1 = 5, x2 = 0, y1 = 0, y2 = 5},
+				border = {x1 = 2, x2 = 0, y1 = 2, y2 = 2},
+			},
+			{
+				selectors = {"enumSliderOption", "middleOption"},
+				cornerRadius = 0,
+				border = {x1 = 0, x2 = 0, y1 = 2, y2 = 2},
+			},
+			{
+				selectors = {"enumSliderOption", "lastOption"},
+				cornerRadius = {x1 = 0, x2 = 5, y1 = 5, y2 = 0},
+				border = {x1 = 0, x2 = 2, y1 = 2, y2 = 2},
+			},
+
+	}
+
+	-- Positional classes drive asymmetric corner rounding + adjacent-border
+	-- removal so the strip reads as a single pill bar rather than a row of
+	-- separate chips. "Purchased" and "Published Modules" can be collapsed,
+	-- so the visibly-last tab is computed from their visibility.
+	local hasPurchased = #module.GetOurPurchasedModules() > 0
+	local hasPublished = #module.GetOurPublishedModules() > 0
+	local lastVisibleTab
+	if hasPublished then
+		lastVisibleTab = "published"
+	elseif hasPurchased then
+		lastVisibleTab = "purchased"
+	else
+		lastVisibleTab = "installed"
+	end
+
+	local TabPosition = function(tab)
+		if tab == "hot" then
+			return "firstOption"
+		elseif tab == lastVisibleTab then
+			return "lastOption"
+		else
+			return "middleOption"
+		end
+	end
+
+	moduleDisplayPanel = gui.Panel{
+		classes = {"collapsed"},
+		width = "100%",
+		height ="100%",
+		flow = "vertical",
+
+		styles = ThemeEngine.MergeTokens(moduleDisplayCustomStyles),
 
 		gui.Input{
 			valign = "top",
@@ -4150,10 +4184,10 @@ mod.shared.ShowDownloadShareDialog = function()
 		},
 
 		gui.Panel{
-			styles = Styles.AdvantageBar,
-			classes = {"advantage-bar"},
+			classes = {"enumSlider"},
 			valign = "top",
 			width = "auto",
+			height = 28,
 
 			select = function(element, childSelected)
 				local children = element.children
@@ -4167,8 +4201,10 @@ mod.shared.ShowDownloadShareDialog = function()
 			end,
 
 			gui.Label{
-				classes = {"advantage-element", "selected"},
+				classes = {"enumSliderOption", TabPosition("hot"), "selected"},
 				text = "Hot",
+				width = "auto",
+				hpad = 14,
 				data = {
 					tab = "hot",
 				},
@@ -4180,8 +4216,10 @@ mod.shared.ShowDownloadShareDialog = function()
 
 
 			gui.Label{
-				classes = {"advantage-element"},
+				classes = {"enumSliderOption", TabPosition("new")},
 				text = "New",
+				width = "auto",
+				hpad = 14,
 				data = {
 					tab = "new",
 				},
@@ -4192,8 +4230,10 @@ mod.shared.ShowDownloadShareDialog = function()
 			},
 
 			gui.Label{
-				classes = {"advantage-element"},
+				classes = {"enumSliderOption", TabPosition("best")},
 				text = "Best",
+				width = "auto",
+				hpad = 14,
 				data = {
 					tab = "best",
 				},
@@ -4204,8 +4244,10 @@ mod.shared.ShowDownloadShareDialog = function()
 			},
 
 			gui.Label{
-				classes = {"advantage-element"},
+				classes = {"enumSliderOption", TabPosition("installed")},
 				text = "Installed",
+				width = "auto",
+				hpad = 14,
 				data = {
 					tab = "installed",
 				},
@@ -4215,8 +4257,10 @@ mod.shared.ShowDownloadShareDialog = function()
 				end,
 			},
 			gui.Label{
-				classes = {"advantage-element", cond(#module.GetOurPurchasedModules() == 0, "collapsed")},
+				classes = {"enumSliderOption", TabPosition("purchased"), cond(not hasPurchased, "collapsed")},
 				text = "Purchased",
+				width = "auto",
+				hpad = 14,
 				data = {
 					tab = "purchased",
 				},
@@ -4226,8 +4270,10 @@ mod.shared.ShowDownloadShareDialog = function()
 				end,
 			},
 			gui.Label{
-				classes = {"advantage-element", cond(#module.GetOurPublishedModules() == 0, "collapsed")},
+				classes = {"enumSliderOption", TabPosition("published"), cond(not hasPublished, "collapsed")},
 				text = "Published Modules",
+				width = "auto",
+				hpad = 14,
 				data = {
 					tab = "published",
 				},
@@ -4247,47 +4293,47 @@ mod.shared.ShowDownloadShareDialog = function()
     local aspectRatio = dmhub.screenDimensionsBelowTitlebar.x/dmhub.screenDimensionsBelowTitlebar.y
 
 
+	local dialogCustomStyles = {
+		{
+			selectors = {'framedPanel'},
+			width = (1080-32)*aspectRatio,
+			height = (1080-32),
+			flow = 'none',
+		},
+		{
+			selectors = {'center-panel'},
+			width = 1804,
+			height = (990-32),
+			halign = 'center',
+			valign = 'center',
+			flow = 'vertical',
+		},
+		{
+			selectors = {'input'},
+			priority = 10,
+			width = 400,
+			height = 'auto',
+			fontSize = 18,
+			valign = 'center',
+		},
+		{
+			selectors = {'status-label'},
+			fontSize = 22,
+			maxWidth = 600,
+			minHeight = 80,
+			textWrap = true,
+			color = '@fgStrong',
+			width = 'auto',
+			height = 'auto',
+			halign = 'center',
+			valign = 'center',
+		},
+	}
+
 	local dialogPanel = gui.Panel{
 		id = 'DownloadShareDialog',
 		classes = {'framedPanel'},
-		styles = {
-			Styles.Default,
-			Styles.Panel,
-			{
-				selectors = {'framedPanel'},
-				width = (1080-32)*aspectRatio,
-				height = (1080-32),
-				flow = 'none',
-			},
-			{
-				selectors = {'center-panel'},
-				width = 1804,
-				height = (990-32),
-				halign = 'center',
-				valign = 'center',
-				flow = 'vertical',
-			},
-			{
-				selectors = {'input'},
-				priority = 10,
-				width = 400,
-				height = 'auto',
-				fontSize = 18,
-				valign = 'center',
-			},
-			{
-				selectors = {'status-label'},
-				fontSize = 22,
-				maxWidth = 600,
-				minHeight = 80,
-				textWrap = true,
-				color = 'white',
-				width = 'auto',
-				height = 'auto',
-				halign = 'center',
-				valign = 'center',
-			},
-		},
+		styles = ThemeEngine.MergeStyles(dialogCustomStyles),
 
 		gui.Panel{
 			classes = {"center-panel"},
@@ -4313,6 +4359,15 @@ mod.shared.ShowDownloadShareDialog = function()
 	}
 
 	gui.ShowModal(dialogPanel)
+
+	ThemeEngine.OnThemeChanged(mod, function()
+		if dialogPanel ~= nil and dialogPanel.valid then
+			dialogPanel.styles = ThemeEngine.MergeStyles(dialogCustomStyles)
+		end
+		if moduleDisplayPanel ~= nil and moduleDisplayPanel.valid then
+			moduleDisplayPanel.styles = ThemeEngine.MergeTokens(moduleDisplayCustomStyles)
+		end
+	end)
 
 	module.PrepareModuleStats(QueryModuleIndex)
 end

@@ -208,6 +208,81 @@ function character:GetClassFeaturesAndChoicesWithDetails()
 	return passedResult
 end
 
+--- Returns an array of { feature = CharacterChoice, ... } entries for every
+--- CharacterChoice-derived feature reachable from this creature's "catch-all"
+--- sources -- the ones not covered by the per-source builder tabs.
+---
+--- Common sources (creature-level): characterFeatures, creatureFeats,
+--- creatureTemplates. Subclasses add more via FillExtraBuilderChoiceFeatures:
+---   monster -> monsterGroup traits
+---   character -> CharacterType (chartypeid) features
+--- @return table[]
+function creature:GetBuilderChoiceFeatures()
+    local result = {}
+    local levelChoices = self:GetLevelChoices()
+
+    -- characterFeatures: direct features stored on the creature.
+    for _,feature in ipairs(self:try_get("characterFeatures", {})) do
+        local nested = {}
+        feature:FillFeaturesRecursive(levelChoices, nested)
+        for _,f in ipairs(nested) do
+            result[#result+1] = { feature = f }
+        end
+    end
+
+    -- creatureFeats: feats picked via AddFeat. Same FillFeatureDetails path
+    -- the character sheet uses.
+    local featTable = dmhub.GetTable(CharacterFeat.tableName) or {}
+    for _,featid in ipairs(self:try_get("creatureFeats", {})) do
+        local feat = featTable[featid]
+        if feat ~= nil then
+            feat:FillFeatureDetails(levelChoices, result)
+        end
+    end
+
+    -- creatureTemplates: templates inherit from CharacterFeat and expose
+    -- the same FillFeatureDetails entry point.
+    for _,template in ipairs(self:GetActiveTemplates()) do
+        template:FillFeatureDetails(levelChoices, result)
+    end
+
+    self:FillExtraBuilderChoiceFeatures(result, levelChoices)
+
+    local filtered = {}
+    for _,entry in ipairs(result) do
+        local feature = entry.feature
+        if feature and feature.IsDerivedFrom and feature.IsDerivedFrom("CharacterChoice") then
+            filtered[#filtered+1] = entry
+        end
+    end
+    return filtered
+end
+
+--- Default no-op hook. Subclasses (monster, character) override to add
+--- their own sources.
+--- @param result table
+--- @param levelChoices table
+function creature:FillExtraBuilderChoiceFeatures(result, levelChoices)
+end
+
+--- character override: pull in CharacterType-supplied features. Class/race/
+--- career/etc. features are already handled by their own builder tabs and
+--- intentionally not duplicated here.
+--- @param result table
+--- @param levelChoices table
+function character:FillExtraBuilderChoiceFeatures(result, levelChoices)
+    local characterType = self:CharacterType()
+    if characterType ~= nil then
+        characterType:FillFeatureDetails(levelChoices, result)
+    end
+end
+
+--- @return boolean true if this creature has any CharacterChoice-derived
+--- features that the builder's catch-all Choices section should surface.
+function creature:HasBuilderChoices()
+    return #self:GetBuilderChoiceFeatures() > 0
+end
+
 --resource grouping options.
 CharacterResource.groupingOptions = {
     {

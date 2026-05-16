@@ -1170,7 +1170,7 @@ local CreateEditorPanel = function(fieldInfo, displayInfo, options, valueIndex, 
 			hmargin = 4,
 			height = cond(multiline, "auto", 24),
 			minHeight = 24,
-			width = 130,
+			width = 260,
 			events = {
 				change = function(element)
 					local groupid = dmhub.GenerateGuid()
@@ -1420,17 +1420,15 @@ local CreateFieldEditor = function(fieldInfo, options)
 				text = fieldInfo.prettyName,
 				classes = {'field-description-label', cond(resultOptions.showLabel, nil, 'collapsed')},
 				selfStyle = {
-					hmargin = 4,
                     bmargin = 4,
 				},
 			},
 
             gui.Panel{
 			    editorPanel,
-                hmargin = 4,
                 width = "auto",
                 height = "auto",
-                halign = "center",
+                halign = "left",
             },
 		},
 	}

@@ -7,21 +7,35 @@ local mod = dmhub.GetModLoading()
 
 local SELECTOR = CharacterBuilder.SELECTOR.CLASS
 local INITIAL_CATEGORY = "overview"
-local AVAILABLE_WITHOUT_CLASS = {overview = true}
 
 local _fireControllerEvent = CharacterBuilder._fireControllerEvent
 local _formatOrder = CharacterBuilder._formatOrder
 local _getHero = CharacterBuilder._getHero
-local _makeDetailNavButton = CharacterBuilder._makeDetailNavButton
+
+--- Recognise an overview-style category id ("overview" or "overview:N").
+--- @param category any
+--- @return boolean
+local function _isOverviewCategory(category)
+    if type(category) ~= "string" then return false end
+    if category == INITIAL_CATEGORY then return true end
+    return category:sub(1, #INITIAL_CATEGORY + 1) == (INITIAL_CATEGORY .. ":")
+end
+
+--- Pull the level number out of a per-level overview category. Returns nil
+--- for the bare "overview" category (which represents the no-class intro).
+--- @param category any
+--- @return integer|nil
+local function _parseOverviewLevel(category)
+    if type(category) ~= "string" then return nil end
+    local levelStr = category:match("^" .. INITIAL_CATEGORY .. ":(%d+)$")
+    if levelStr then return tonumber(levelStr) end
+    return nil
+end
 
 --- Generate the navigation panel
 --- @return Panel
 function CBClassDetail._navPanel()
 
-    local overviewButton = _makeDetailNavButton(SELECTOR, {
-        text = "Overview",
-        data = { category = INITIAL_CATEGORY },
-    })
     local changeButton = gui.PrettyButton{
         classes = {"changeClass", "builder-base", "button", "selector", "destructive"},
         width = CBStyles.SIZES.CATEGORY_BUTTON_WIDTH,
@@ -169,6 +183,45 @@ function CBClassDetail._navPanel()
                     }
                     element.data.levelPanels[level] = levelPanel
                     element:AddChild(levelPanel)
+
+                    local overviewCategory = INITIAL_CATEGORY .. ":" .. tostring(level)
+                    local overviewButtonPanel
+                    overviewButtonPanel = gui.Panel{
+                        classes = {"builder-base", "panel-base"},
+                        valign = "top",
+                        data = {
+                            level = level,
+                            order = _formatOrder(level, _formatOrder(1, "Overview")),
+                            category = overviewCategory,
+                            visible = true,
+                        },
+                        press = function(panelEl)
+                            _fireControllerEvent("updateState", {
+                                key = SELECTOR .. ".category.selectedId",
+                                value = panelEl.data.category,
+                            })
+                        end,
+                        showLevel = function(panelEl, showLvl, expanded)
+                            if panelEl.data.level == showLvl then
+                                panelEl.data.visible = expanded
+                            end
+                            panelEl:SetClass("collapsed-anim", not panelEl.data.visible)
+                        end,
+                        CharacterBuilder._makeCategoryButton{
+                            text = "Overview",
+                            press = function(buttonEl)
+                                _fireControllerEvent("updateState", {
+                                    key = SELECTOR .. ".category.selectedId",
+                                    value = buttonEl.parent.data.category,
+                                })
+                            end,
+                            refreshBuilderState = function(buttonEl, state)
+                                buttonEl:FireEvent("setAvailable", state:Get(SELECTOR .. ".selectedId") ~= nil)
+                                buttonEl:FireEvent("setSelected", state:Get(SELECTOR .. ".category.selectedId") == buttonEl.parent.data.category)
+                            end,
+                        },
+                    }
+                    element:AddChild(overviewButtonPanel)
                 end
             end
             element:AddChild(button)
@@ -186,7 +239,6 @@ function CBClassDetail._navPanel()
 
         selectButton,
         changeButton,
-        overviewButton,
     }
 end
 
@@ -211,6 +263,10 @@ function CBClassDetail._overviewPanel()
                     end
                     if class then text = class.name end
                 end
+                local level = _parseOverviewLevel(state:Get(SELECTOR .. ".category.selectedId"))
+                if level then
+                    text = string.format("%s - Level %d", text, level)
+                end
                 element.text = text
             end
         }
@@ -218,6 +274,10 @@ function CBClassDetail._overviewPanel()
 
     local introLabel = gui.Panel{
         classes = {"builder-base", "panel-base", "detail-overview-labels"},
+        refreshBuilderState = function(element, state)
+            local level = _parseOverviewLevel(state:Get(SELECTOR .. ".category.selectedId"))
+            element:SetClass("collapsed", level ~= nil)
+        end,
         gui.Label{
             classes = {"builder-base", "label", "info", "overview"},
             vpad = 6,
@@ -257,11 +317,27 @@ function CBClassDetail._overviewPanel()
                     local textItems = {}
 
                     local featureCache = state:Get(SELECTOR .. ".featureCache")
+                    local filterLevel = _parseOverviewLevel(state:Get(SELECTOR .. ".category.selectedId"))
                     local featureDetails = featureCache:GetFlattenedFeatures()
                     for _,item in ipairs(featureDetails) do
-                        local s = item.feature:GetDetailedSummaryText()
-                        if s ~= nil and #s > 0 then
-                            textItems[#textItems+1] = s
+                        local include = true
+                        if filterLevel then
+                            include = false
+                            local itemLevels = item.levels
+                            if itemLevels then
+                                for _,l in ipairs(itemLevels) do
+                                    if l == filterLevel then
+                                        include = true
+                                        break
+                                    end
+                                end
+                            end
+                        end
+                        if include then
+                            local s = item.feature:GetDetailedSummaryText()
+                            if s ~= nil and #s > 0 then
+                                textItems[#textItems+1] = s
+                            end
                         end
                     end
 
@@ -289,8 +365,9 @@ function CBClassDetail._overviewPanel()
 
         refreshBuilderState = function(element, state)
             local classId = state:Get(SELECTOR .. ".selectedId")
+            local category = state:Get(SELECTOR .. ".category.selectedId")
 
-            local visible = classId == nil or state:Get(SELECTOR .. ".category.selectedId") == element.data.category
+            local visible = classId == nil or _isOverviewCategory(category)
             element:SetClass("collapsed", not visible)
 
             if visible then
@@ -423,17 +500,16 @@ function CBClassDetail.CreatePanel()
                         end
                     end
                 else
-                    if not AVAILABLE_WITHOUT_CLASS[currentCategory] then
+                    -- No class selected: only the bare "overview" intro applies.
+                    if currentCategory ~= INITIAL_CATEGORY then
                         currentCategory = INITIAL_CATEGORY
                     end
                 end
             end
 
             -- Which category to show?
-            if not AVAILABLE_WITHOUT_CLASS[currentCategory] then
-                if not element.data.features[currentCategory] then
-                    currentCategory = INITIAL_CATEGORY
-                end
+            if not _isOverviewCategory(currentCategory) and not element.data.features[currentCategory] then
+                currentCategory = INITIAL_CATEGORY
             end
             state:Set{ key = categoryKey, value = currentCategory }
         end,

@@ -1,5 +1,48 @@
 local mod = dmhub.GetModLoading()
 
+--- Generic registry of pre-cast controls. Other mods (e.g. Draw Steel Acolyte) can
+--- register cast controls that render in the cast panel and hook into the cast lifecycle.
+--- DMHub's Lua runs in strict mode -- reading uninitialized globals errors -- so we
+--- bootstrap via rawget(_G,...). Other mods (Acolyte) do the same dance so order
+--- of load doesn't matter.
+DrawSteelActionBar = rawget(_G, "DrawSteelActionBar") or {}
+_G.DrawSteelActionBar = DrawSteelActionBar
+DrawSteelActionBar._castControls = DrawSteelActionBar._castControls or {}
+
+--- @class DrawSteelActionBarCastControl
+--- @field id string Unique id for the control.
+--- @field priority number|nil Display order; lower renders first. Defaults to 0.
+--- @field appliesTo function|nil predicate(ability) -> boolean; the control only renders when this returns truthy. If nil, control applies to every ability.
+--- @field render function|nil render(parent, ability, castState, ctx) -> Panel|nil. Build UI; mutate castState to record toggle/choice. Return value is ignored - just add children to parent. `ctx` is a table with: { symbols = g_currentSymbols (cast already populated), cast = symbols.cast (an ActivatedAbilityCast you may mutate before the cast commits, e.g. cast.invoked = true), refreshTargeting = function() (call after toggling state to re-evaluate numTargets/range/etc and refresh the targeting UI) }.
+--- @field onCommit function|nil onCommit(ability, cast, castState, casterToken, symbols). Called right before the cast resolves. cast is options.symbols.cast (pre-built by the action bar at render time, so non-nil for any control whose appliesTo returned true). Apply pre-cast effects and populate cast symbols here.
+--- @field onResolve function|nil onResolve(ability, cast, castState, casterToken). Called after the cast finishes resolving (all behaviors done). Post-cast effects.
+
+--- Register a cast control. See DrawSteelActionBarCastControl for the spec shape.
+--- @param spec DrawSteelActionBarCastControl
+function DrawSteelActionBar.RegisterCastControl(spec)
+    if type(spec) ~= "table" or type(spec.id) ~= "string" then
+        return
+    end
+    --replace any existing entry with the same id so hot-reloads don't duplicate.
+    for i,existing in ipairs(DrawSteelActionBar._castControls) do
+        if existing.id == spec.id then
+            DrawSteelActionBar._castControls[i] = spec
+            return
+        end
+    end
+    DrawSteelActionBar._castControls[#DrawSteelActionBar._castControls+1] = spec
+end
+
+--- Returns the registered cast controls sorted by priority (lower first).
+function DrawSteelActionBar.GetCastControls()
+    local result = {}
+    for _,c in ipairs(DrawSteelActionBar._castControls) do
+        result[#result+1] = c
+    end
+    table.sort(result, function(a,b) return (a.priority or 0) < (b.priority or 0) end)
+    return result
+end
+
 local ActionMenu
 local CreateAbilityController
 
@@ -57,6 +100,64 @@ local g_pointForceTargets = {}
 --- @type function[] a list of functions we will call when we cancel casting.
 local g_castingDestructors = {}
 
+--Instant "apply on casting" duration effects, keyed by the behavior table that
+--produced them. Each entry is { destructor = function|nil }. Tracked separately
+--from g_castingDestructors so they can be re-evaluated (applied / removed) when the
+--player switches the ability's mode mid-targeting.
+--- @type table<table, {destructor: function|nil}>
+local g_castingDurationEffects = {}
+
+--Apply (or re-evaluate) the instant "apply on casting" duration effects of the
+--current ability. Honors each behavior's filterTarget gate against the current
+--`mode` symbol: behaviors whose gate now passes get their effect applied, behaviors
+--whose gate no longer passes get their effect removed. Safe to call repeatedly.
+local function RefreshCastingDurationEffects()
+    if g_currentAbility == nil or g_token == nil then
+        return
+    end
+
+    --collect the set of behaviors that are still instant duration effects on the
+    --current ability, so we can drop tracking for any that no longer exist.
+    local liveBehaviors = {}
+    for _, behavior in ipairs(g_currentAbility.behaviors) do
+        if behavior.typeName == "ActivatedAbilityApplyAbilityDurationEffect" then
+            liveBehaviors[behavior] = true
+
+            local shouldApply = behavior:CastingFilterPasses(g_token, g_currentSymbols)
+            local entry = g_castingDurationEffects[behavior]
+            local currentlyApplied = entry ~= nil and entry.destructor ~= nil
+
+            if shouldApply and not currentlyApplied then
+                local destructor = behavior:ApplyOnCasting(g_token, g_currentSymbols)
+                g_castingDurationEffects[behavior] = { destructor = destructor }
+            elseif (not shouldApply) and currentlyApplied then
+                entry.destructor()
+                g_castingDurationEffects[behavior] = { destructor = nil }
+            end
+        end
+    end
+
+    --tear down any tracked effects whose behavior is no longer present.
+    for behavior, entry in pairs(g_castingDurationEffects) do
+        if liveBehaviors[behavior] == nil then
+            if entry.destructor ~= nil then
+                entry.destructor()
+            end
+            g_castingDurationEffects[behavior] = nil
+        end
+    end
+end
+
+--Remove all instant duration effects and clear tracking. Called when casting ends.
+local function ClearCastingDurationEffects()
+    for behavior, entry in pairs(g_castingDurationEffects) do
+        if entry.destructor ~= nil then
+            entry.destructor()
+        end
+    end
+    g_castingDurationEffects = {}
+end
+
 function IsCurrentlyUsingAbility()
     return g_currentAbility ~= nil
 end
@@ -103,6 +204,10 @@ local function ClearPointTargeting()
         g_pointTargeting.radius:Destroy()
     end
 
+    if g_pointTargeting.partnerRadius ~= nil then
+        g_pointTargeting.partnerRadius:Destroy()
+    end
+
     if g_pointTargeting.labelsAtThroughCreatures ~= nil then
         for _, marker in ipairs(g_pointTargeting.labelsAtThroughCreatures) do
             marker:Destroy()
@@ -110,6 +215,25 @@ local function ClearPointTargeting()
     end
 
     g_pointTargeting = {}
+end
+
+--- Fire movementplan on every token but the caster so opportunity-attack warning
+--- arrows can compute during ability-targeted movement. Mirrors the drag broadcast
+--- in CharacterToken.cs (FireHudEventRecursive("movementplan", ...)). The token-side
+--- handler in DrawSteelTokenHud.lua filters by movementType; teleport/shift/forced
+--- are no-ops there.
+--- @param caster nil|CharacterToken the moving token
+--- @param path nil|LuaPath the planned path; nil clears prior warnings
+--- @param movementType nil|string "walk"|"move"|"jump"|"teleport"|"shift"|"forced"|nil
+local function BroadcastMovementPlan(caster, path, movementType)
+    if caster == nil then
+        return
+    end
+    for _, tok in ipairs(dmhub.allTokens) do
+        if tok ~= nil and tok.valid and tok.id ~= caster.id and tok.sheet ~= nil then
+            tok.sheet:FireEventTree("movementplan", tok, caster, path, movementType)
+        end
+    end
 end
 
 local function PushCasterToken(token)
@@ -531,7 +655,6 @@ local function ActionBarDrawer(args)
         floating = true,
         halign = "center",
         valign = "top",
-        bgcolor = Styles.Ability.borderColor,
         bgimage = true,
     }
 
@@ -545,25 +668,26 @@ local function ActionBarDrawer(args)
         valign = "top",
 
         gui.Panel {
+            classes = { "diamondAccentLine" },
             width = "50%-6",
             halign = "left",
             valign = "top",
             height = 1,
-            bgcolor = Styles.Ability.goldColor,
             bgimage = true,
         },
 
         gui.Panel {
+            classes = { "diamondAccentLine" },
             width = "50%-6",
             halign = "right",
             valign = "top",
             height = 1,
-            bgcolor = Styles.Ability.goldColor,
             bgimage = true,
         },
 
 
         gui.Panel {
+            classes = { "diamondAccentDot" },
             halign = "center",
             valign = "top",
             y = -4,
@@ -571,9 +695,7 @@ local function ActionBarDrawer(args)
             height = 10,
             rotate = 45,
             border = { x1 = 1, y1 = 1, x2 = 0, y2 = 0 },
-            borderColor = Styles.Ability.goldColor,
             bgimage = true,
-            bgcolor = "clear",
         },
     }
 
@@ -1045,7 +1167,7 @@ local function CreateActionBar()
 
     resultPanel = gui.Panel {
         classes = { "actionBar" },
-        styles = Styles.ActionBar,
+        styles = { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(Styles.ActionBar) },
         width = "100%",
         height = 50,
         halign = "center",
@@ -2552,6 +2674,22 @@ local g_tokenSelectionContainer
 local g_castModesPanel
 local g_forcedMovementTypePanel
 
+--- Panel that hosts all registered DrawSteelActionBar cast controls (e.g. Acolyte's Invoke toggle).
+--- @type nil|Panel
+local g_castControlsPanel = nil
+
+--- Per-cast state shared between a cast control's render/onCommit/onResolve callbacks.
+--- Reset on each beginCasting. Each control may mutate this freely.
+--- @type table
+local g_castControlState = {}
+
+--- The cast controls (filtered to those whose appliesTo returns true) that are active
+--- for the currently-targeting ability. Captured at beginCasting and consumed by
+--- onCommit/onResolve at the right lifecycle points so registration changes mid-cast
+--- can't desync the lifecycle.
+--- @type DrawSteelActionBarCastControl[]
+local g_activeCastControls = {}
+
 
 --- @type nil|function
 local m_allowedAltitudeCalculator
@@ -3225,11 +3363,169 @@ local function CreateTokenSelectionContainer()
     return resultPanel
 end
 
+--- Ensure symbols.cast is populated with an ActivatedAbilityCast. Used by both the
+--- cast-control rendering pipeline (so GoblinScript formulas like `Cast.Invoked` resolve
+--- during targeting setup -- numTargets, range, prompts, etc.) and by FireCastControlsOnCommit
+--- as a fallback for any code path that bypasses rendering. ActivatedAbility:Cast respects
+--- an existing options.symbols.cast (see ActivatedAbility.lua:2498-2514), so the cast
+--- object created here flows all the way through to ability behaviors.
+--- @param ability ActivatedAbility
+--- @param symbols table
+--- @param targets table[]|nil
+--- @return table The cast object now stored at symbols.cast.
+local function EnsureSymbolsCast(ability, symbols, targets)
+    if symbols.cast == nil then
+        symbols.cast = ActivatedAbilityCast.new{
+            ability = ability,
+            targets = targets or {},
+            mode = symbols.mode or 1,
+            _tmp_targetArea = symbols.targetArea,
+        }
+    end
+    return symbols.cast
+end
+
+--- Invoke onCommit on all active cast controls. Called right before ability:Cast
+--- runs, so controls can apply pre-cast effects (self damage, resource adjustments)
+--- and populate symbols (e.g. Cast.Invoked) that ability behaviors will read.
+--- Must run BEFORE Cast() because Cast() lazily builds options.symbols.cast and
+--- begins invoking behaviors; symbol values must be settled by then.
+---
+--- Controls receive (ability, cast, castState, casterToken, symbols). symbols.cast
+--- is guaranteed non-nil (either pre-built at render time, or built here as a fallback).
+--- @param ability ActivatedAbility
+--- @param symbols table The g_currentSymbols table that will be passed to Cast.
+--- @param casterToken CharacterToken
+--- @param targets table[] The target list (after PrepareTargets) about to be passed to Cast.
+local function FireCastControlsOnCommit(ability, symbols, casterToken, targets)
+    local cast = EnsureSymbolsCast(ability, symbols, targets)
+    for _,control in ipairs(g_activeCastControls) do
+        if type(control.onCommit) == "function" then
+            local ok,err = pcall(control.onCommit, ability, cast, g_castControlState, casterToken, symbols)
+            if not ok then
+                dmhub.CloudError(string.format("DrawSteelActionBar cast control '%s' onCommit failed: %s", tostring(control.id), tostring(err)))
+            end
+        end
+    end
+end
+
+--- Build an OnFinishCast handler that invokes onResolve on every active cast control.
+--- Captures castState by reference at the time Cast is called -- this is safe because
+--- cancelCasting only clears g_castControlState AFTER Cast() returns (Cast queues a
+--- coroutine for behaviors; the controller's finishCasting clears state immediately,
+--- but the captured local table reference survives).
+--- @return function
+local function MakeCastControlsOnResolveHandler(casterToken)
+    local capturedControls = {}
+    for _,c in ipairs(g_activeCastControls) do capturedControls[#capturedControls+1] = c end
+    local capturedState = g_castControlState
+    return function(ability, _, options)
+        local cast = options and options.symbols and options.symbols.cast
+        for _,control in ipairs(capturedControls) do
+            if type(control.onResolve) == "function" then
+                local ok,err = pcall(control.onResolve, ability, cast, capturedState, casterToken)
+                if not ok then
+                    dmhub.CloudError(string.format("DrawSteelActionBar cast control '%s' onResolve failed: %s", tostring(control.id), tostring(err)))
+                end
+            end
+        end
+    end
+end
+
 CreateAbilityController = function()
     local resultPanel
 
     m_altitudeController = CreateAltitudeController()
     m_shiftController = CreateShiftController()
+
+    --Pre-cast controls registered via DrawSteelActionBar.RegisterCastControl.
+    --Each entry's render(parent, ability, castState) builds widgets into this panel.
+    g_castControlsPanel = gui.Panel {
+        classes = { 'collapsed' },
+        width = "auto",
+        height = "auto",
+        flow = "horizontal",
+        halign = "center",
+        vmargin = 4,
+
+        refreshCastControls = function(element)
+            element.children = {}
+            g_activeCastControls = {}
+
+            if g_currentAbility == nil then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            local controls = DrawSteelActionBar.GetCastControls()
+            local rendered = {}
+
+            --First pass: determine which controls apply. We need this up front so
+            --that if any control applies we can pre-build g_currentSymbols.cast
+            --BEFORE rendering -- controls populate cast fields (e.g. cast.invoked)
+            --in render and on toggle, and downstream GoblinScript (numTargets,
+            --range, prompts) reads those during the targeting flow. Without the
+            --pre-built cast, formulas like `1 + Cast.Invoked` crash because
+            --symbols("cast") returns nil.
+            local applying = {}
+            for _,control in ipairs(controls) do
+                local apply = true
+                if type(control.appliesTo) == "function" then
+                    local ok,result = pcall(control.appliesTo, g_currentAbility)
+                    apply = ok and result
+                end
+                if apply then
+                    applying[#applying+1] = control
+                end
+            end
+
+            if #applying > 0 then
+                EnsureSymbolsCast(g_currentAbility, g_currentSymbols, nil)
+            end
+
+            --refreshTargeting: controls call this when their toggle state changes,
+            --so numTargets/range/prompts re-evaluate live. CalculateSpellTargeting is
+            --idempotent and reads g_currentSymbols, so callers just mutate the cast
+            --object (e.g. cast.invoked = true) before calling.
+            local refreshTargeting = function()
+                if g_currentAbility ~= nil then
+                    CalculateSpellTargeting()
+                end
+            end
+
+            for _,control in ipairs(applying) do
+                g_activeCastControls[#g_activeCastControls+1] = control
+                if type(control.render) == "function" then
+                    --The control creates panels by passing them as children to a wrapper
+                    --panel, OR by appending to a list we own. To keep the API simple, we
+                    --hand the control a "parent" panel that it uses as a place to attach
+                    --widgets via the children = {...} pattern. We build a sub-panel per
+                    --control so each control's render is isolated.
+                    local subpanel = gui.Panel {
+                        width = "auto",
+                        height = "auto",
+                        flow = "horizontal",
+                        halign = "center",
+                        valign = "center",
+                        hmargin = 4,
+                    }
+                    local ctx = {
+                        symbols = g_currentSymbols,
+                        cast = g_currentSymbols.cast,
+                        refreshTargeting = refreshTargeting,
+                    }
+                    local ok,err = pcall(control.render, subpanel, g_currentAbility, g_castControlState, ctx)
+                    if not ok then
+                        dmhub.CloudError(string.format("DrawSteelActionBar cast control '%s' render failed: %s", tostring(control.id), tostring(err)))
+                    end
+                    rendered[#rendered+1] = subpanel
+                end
+            end
+
+            element.children = rendered
+            element:SetClass("collapsed", #rendered == 0)
+        end,
+    }
 
     g_castButton = gui.PrettyButton {
         halign = "center",
@@ -3356,6 +3652,14 @@ CreateAbilityController = function()
 
                             g_currentCostProposal = g_currentAbility:GetCost(g_token, g_currentSymbols)
                             AppendImprovementCosts(g_currentCostProposal)
+
+                            --re-evaluate instant "apply on casting" duration effects for the
+                            --newly-selected mode: apply effects whose filterTarget gate now
+                            --passes, remove those whose gate no longer holds. Done before
+                            --CalculateSpellTargeting so a Movement-Speed bump recalculates the
+                            --pathfind reachable area for the new mode.
+                            RefreshCastingDurationEffects()
+
                             CalculateSpellTargeting()
                             --TODO: resourcesBar
                             --resourcesBar:FireEventTree("cost", g_currentCostProposal)
@@ -3689,6 +3993,8 @@ CreateAbilityController = function()
 
         g_castModesPanel,
 
+        g_castControlsPanel,
+
         gui.Panel {
             width = "auto",
             height = "auto",
@@ -3801,18 +4107,6 @@ CreateAbilityController = function()
             m_positionTargetsChosen = {}
             g_pointTargeting = {}
 
-            --if we have a 'duration effect' on this ability we apply it while casting,
-            --so that we can get its effects during casting. E.g. if their movement increases
-            --for pathfinding, or the Charging attribute blocks difficult terrain.
-            for _, behavior in ipairs(g_currentAbility.behaviors) do
-                if behavior.typeName == "ActivatedAbilityApplyAbilityDurationEffect" then
-                    local destructor = behavior:ApplyOnCasting(g_token)
-                    if destructor then
-                        g_castingDestructors[#g_castingDestructors + 1] = destructor
-                    end
-                end
-            end
-
             gui.SetFocus(element)
 
             g_synthesizedSpellsPanel:SetClass("collapsed", true)
@@ -3821,6 +4115,15 @@ CreateAbilityController = function()
             g_currentSymbols = table.union(
                 { cast = args.cast, mode = 1, charges = ability:DefaultCharges(), spellname = ability.name },
                 args.symbols or {})
+
+            --if we have a 'duration effect' on this ability we apply it while casting,
+            --so that we can get its effects during casting. E.g. if their movement increases
+            --for pathfinding, or the Charging attribute blocks difficult terrain.
+            --This is mode-aware: behaviors with a filterTarget gate apply only when the
+            --gate passes for the selected mode. It must run before the movement-speed
+            --pathfind clamp below so a Movement-Speed bump widens the reachable area.
+            ClearCastingDurationEffects()
+            RefreshCastingDurationEffects()
 
             --limit any pathfinding moves to the creature's current movement speed
             local targetingType = ability:try_get("targeting", "direct")
@@ -3882,6 +4185,13 @@ CreateAbilityController = function()
             g_castMessageContainer:SetClass("collapsed", true)
             g_tokenSelectionContainer:SetClass("collapsed", true)
             g_castButton:SetClass("collapsed", true)
+
+            --Reset cast-control state for this new cast and refresh the controls panel.
+            --Each control's render() builds widgets and may mutate g_castControlState.
+            g_castControlState = {}
+            if g_castControlsPanel ~= nil and g_castControlsPanel.valid then
+                g_castControlsPanel:FireEvent("refreshCastControls")
+            end
 
             if ability.targetType ~= 'self' and ability.targetType ~= 'target' and ability.targetType ~= 'all' and ability.targetType ~= 'areatemplate' then
                 --make this get map events.
@@ -4005,6 +4315,8 @@ CreateAbilityController = function()
         cancelCasting = function(element)
             ClearCastingTriggers()
 
+            ClearCastingDurationEffects()
+
             for _, destructor in ipairs(g_castingDestructors) do
                 destructor()
             end
@@ -4029,6 +4341,10 @@ CreateAbilityController = function()
 
             if g_token ~= nil and g_token.valid then
                 g_token:ClearMovementArrow()
+                if g_pointTargeting ~= nil and g_pointTargeting.showingWarningArrows then
+                    BroadcastMovementPlan(g_token, nil, nil)
+                    g_pointTargeting.showingWarningArrows = false
+                end
             end
 
             dmhub.blockTokenSelection = false
@@ -4054,6 +4370,12 @@ CreateAbilityController = function()
             element.captureEscape = false
 
             if g_channeledResourcePanel ~= nil then g_channeledResourcePanel:SetClass("collapsed", true) end
+            if g_castControlsPanel ~= nil and g_castControlsPanel.valid then
+                g_castControlsPanel.children = {}
+                g_castControlsPanel:SetClass("collapsed", true)
+            end
+            g_activeCastControls = {}
+            g_castControlState = {}
             m_allowedAltitudeCalculator = nil
             SetAltitudeMode(nil)
 
@@ -4081,7 +4403,11 @@ CreateAbilityController = function()
             if g_actionBar == nil then return end
             ClearRadiusMarkers()
 
-            if options.sourceToken ~= nil and options.sourceToken.properties._tmp_aicontrol then
+            -- _tmp_aicontrol is a counter (incremented while AI is in control),
+            -- so the falsy/truthy check must be against `> 0` -- a plain truthy
+            -- check matches `0` and silently auto-picks every prompt target,
+            -- defeating the "Prompt When Resolving" option on PowerRollBehavior.
+            if options.sourceToken ~= nil and options.sourceToken.properties._tmp_aicontrol > 0 then
                 options.choose(options.targets[1])
                 return
             end
@@ -4300,6 +4626,7 @@ CreateAbilityController = function()
 
             local targetColor = "white"
             local clearMovementArrow = g_pointTargeting.showingMovementArrow
+            local clearWarningArrows = g_pointTargeting.showingWarningArrows
             local prevShape = g_pointTargeting.shape
             if g_pointTargeting.fallingShape ~= nil then
                 g_pointTargeting.fallingShape:Destroy()
@@ -4357,6 +4684,14 @@ CreateAbilityController = function()
                         for _, target in ipairs(targets) do
                             filteredTargets[target.id] = target
                         end
+
+                        --Mirror the drag flow's movementplan broadcast so OA warning
+                        --arrows show during ability-targeted movement too. The token-
+                        --side handler in DrawSteelTokenHud.lua filters on movementType,
+                        --so teleport/shift abilities get a no-op there.
+                        BroadcastMovementPlan(g_token, movementInfo.path, movementType)
+                        g_pointTargeting.showingWarningArrows = true
+                        clearWarningArrows = false
                     end
                     g_pointTargeting.showingMovementArrow = true
                     clearMovementArrow = false
@@ -4366,9 +4701,22 @@ CreateAbilityController = function()
                     --at the wrong place; leave clearMovementArrow=true so any prior arrow is removed
                     --and the radius shape preview (rendered on the target floor) is the indicator.
                     if loc.floor == g_token.floorIndex then
-                        g_token:MarkMovementArrow(loc, { teleport = true })
+                        --Capture the preview path so jump abilities (targeting=direct,
+                        --movementType=jump) can also broadcast OA warning arrows. The
+                        --teleport-flag straight-line preview matches the actual jump path
+                        --that AbilityRelocateCreature uses (straightline+ignorecreatures).
+                        local movementInfo = g_token:MarkMovementArrow(loc, { teleport = true })
                         g_pointTargeting.showingMovementArrow = true
                         clearMovementArrow = false
+
+                        if movementInfo ~= nil then
+                            local movementType = g_currentAbility:GetMovementType(g_token, g_currentSymbols)
+                            if movementType == "move" or movementType == "jump" then
+                                BroadcastMovementPlan(g_token, movementInfo.path, movementType)
+                                g_pointTargeting.showingWarningArrows = true
+                                clearWarningArrows = false
+                            end
+                        end
                     end
                 elseif (shape == 'emptyspace' or shape == 'anyspace') and (targetingType == "straightline" or targetingType == "straightpath" or targetingType == "straightpathignorecreatures") then
                     local waypoints = {}
@@ -4401,6 +4749,17 @@ CreateAbilityController = function()
                             filteredTargets
                         for _, target in ipairs(targets) do
                             filteredTargets[target.id] = target
+                        end
+
+                        --Broadcast OA warning arrows for straightpath movement (e.g. Charge),
+                        --but NOT for straightline targeting (forced push/pull/slide). The token-
+                        --side handler in DrawSteelTokenHud.lua additionally filters by movementType
+                        --so teleport/shift abilities are a no-op.
+                        if targetingType ~= "straightline" then
+                            local movementType = g_currentAbility:GetMovementType(g_token, g_currentSymbols)
+                            BroadcastMovementPlan(g_token, movementInfo.path, movementType)
+                            g_pointTargeting.showingWarningArrows = true
+                            clearWarningArrows = false
                         end
                     end
                     g_pointTargeting.showingMovementArrow = true
@@ -4802,6 +5161,41 @@ CreateAbilityController = function()
                     targetFloorIndex = targetFloorIndex,
                     altitude = shapeAltitude,
                 }
+
+                -- Partner burst: if the ability declares partnerBurst (a GoblinScript
+                -- condition formula that evaluates true) and we're doing a
+                -- RadiusFromCreature burst around the caster, also build a second
+                -- RadiusFromCreature shape around the caster's summoner so e.g.
+                -- companion abilities can extend a burst to both the companion and
+                -- the player character ("This ability also affects a 2 burst
+                -- originating from you" -- Beastheart's Bring the Thunder).
+                g_pointTargeting.partnerShape = nil
+                g_pointTargeting.partnerCasterToken = nil
+                if shape == "RadiusFromCreature" then
+                    local partnerBurst = g_currentAbility:try_get("partnerBurst", "")
+                    if partnerBurst ~= "" then
+                        local condResult = ExecuteGoblinScript(partnerBurst, g_token.properties:LookupSymbol(g_currentSymbols), 0, "Partner burst condition")
+                        if tonumber(condResult) ~= 0 then
+                            -- summonerid lives on the TOKEN, not on properties
+                            -- (mirrors how applyto:caster_summoner reads it in
+                            -- ActivatedAbility.lua's ApplyToTargets).
+                            local summonerid = g_token.summonerid
+                            if summonerid ~= nil and summonerid ~= "" then
+                                local summonerToken = dmhub.GetTokenById(summonerid)
+                                if summonerToken ~= nil and summonerToken.valid then
+                                    g_pointTargeting.partnerShape = dmhub.CalculateShape {
+                                        shape = "RadiusFromCreature",
+                                        token = summonerToken,
+                                        range = range,
+                                        radius = radius,
+                                        checklos = true,
+                                    }
+                                    g_pointTargeting.partnerCasterToken = summonerToken
+                                end
+                            end
+                        end
+                    end
+                end
             elseif g_currentAbility.targetType == "map" then
                 g_pointTargeting.shapeRequiresConfirm = false
                 g_pointTargeting.shape = dmhub.CalculateShape {
@@ -4824,6 +5218,30 @@ CreateAbilityController = function()
 
             local selfTarget = g_currentAbility.selfTarget
             local targetTokens = dmhub.tokenInfo.TokensInShape(g_pointTargeting.shape)
+
+            -- Partner burst: union tokens from the partner shape into the target dict.
+            -- Same-key entries dedupe automatically -- "An enemy in both areas is
+            -- only affected once" (Bring the Thunder rules). Also track which
+            -- tokens are ONLY in the partner shape (not in the caster's shape) so
+            -- that forced movement against them is sourced from the partner caster
+            -- (the beastheart) rather than the original caster (the panther) --
+            -- pushes go "away from the right creature."
+            g_pointTargeting.partnerOnlyTokenIds = nil
+            if g_pointTargeting.partnerShape ~= nil then
+                local partnerTokens = dmhub.tokenInfo.TokensInShape(g_pointTargeting.partnerShape)
+                local partnerOnly = {}
+                local anyPartnerOnly = false
+                for k, tok in pairs(partnerTokens) do
+                    if targetTokens[k] == nil then
+                        partnerOnly[tok.charid] = true
+                        anyPartnerOnly = true
+                    end
+                    targetTokens[k] = tok
+                end
+                if anyPartnerOnly then
+                    g_pointTargeting.partnerOnlyTokenIds = partnerOnly
+                end
+            end
 
             --if we target the entire map or burst, do not target creatures on other floors unless they are in initiative.
             if (g_currentAbility.targetType == "map" or g_currentAbility.targetType == "all") and dmhub.initiativeQueue ~= nil and (not dmhub.initiativeQueue.hidden) then
@@ -4861,6 +5279,12 @@ CreateAbilityController = function()
                 g_pointTargeting.radius = nil
             end
 
+            -- Destroy any prior partner-burst marker; re-marked below if still applicable.
+            if g_pointTargeting.partnerRadius ~= nil then
+                g_pointTargeting.partnerRadius:Destroy()
+                g_pointTargeting.partnerRadius = nil
+            end
+
             if g_pointTargeting.label ~= nil then
                 g_pointTargeting.label:Destroy()
                 g_pointTargeting.label = nil
@@ -4881,6 +5305,12 @@ CreateAbilityController = function()
                 end
 
                 g_pointTargeting.radius = g_pointTargeting.shape:Mark { color = targetColor, video = video }
+
+                -- Render the partner-burst with the same styling so the player can see
+                -- both areas at once.
+                if g_pointTargeting.partnerShape ~= nil then
+                    g_pointTargeting.partnerRadius = g_pointTargeting.partnerShape:Mark { color = targetColor, video = video }
+                end
 
                 if g_currentAbility ~= nil and loc ~= nil and g_pointTargeting.shape ~= nil then
                     local numTargets = g_currentAbility:GetNumTargets(g_token, g_currentSymbols)
@@ -4986,6 +5416,11 @@ CreateAbilityController = function()
             if clearMovementArrow and g_token ~= nil then
                 g_token:ClearMovementArrow()
                 g_pointTargeting.showingMovementArrow = false
+            end
+
+            if clearWarningArrows and g_token ~= nil then
+                BroadcastMovementPlan(g_token, nil, nil)
+                g_pointTargeting.showingWarningArrows = false
             end
 
             if destroyLabelsBeforeReturning then
@@ -5237,6 +5672,14 @@ CreateAbilityController = function()
                 AppendImprovementCosts(g_currentCostProposal)
 
                 local clearAbility = g_currentAbility
+
+                --Fire pre-cast controls (e.g. Acolyte Invoke: deal Presence to caster,
+                --add Patron's Gaze, set Cast.Invoked = 1). Must happen before Cast()
+                --so symbol values are visible to behaviors and resource changes are
+                --applied as part of this user-initiated action.
+                FireCastControlsOnCommit(g_currentAbility, g_currentSymbols, g_token, targets)
+                local castControlsResolveHandler = MakeCastControlsOnResolveHandler(g_token)
+
                 g_currentAbility:Cast(g_token, targets, {
                     targetArea = g_pointTargeting.shape,
                     costOverride = g_currentCostProposal,
@@ -5245,7 +5688,8 @@ CreateAbilityController = function()
                     OnFinishCastHandlers = {
                         function()
                             CharacterPanel.HideAbility(clearAbility)
-                        end
+                        end,
+                        castControlsResolveHandler,
                     }
                 })
 
@@ -5550,7 +5994,43 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
 
             AppendImprovementCosts(g_currentCostProposal)
 
+            -- Partner burst: pre-create the cast object with "caster" retargets
+            -- for partner-only targets. The PowerRollBehavior remaps casterToken
+            -- per-target via ActivatedAbilityCast:RemapCasterForTarget BEFORE
+            -- running each tier-text command, so the swap propagates to ALL
+            -- effects -- push direction, taunt source, prone source, etc. --
+            -- not just forced movement. Tokens in BOTH bursts are left on the
+            -- original caster (no retarget recorded), matching the "primary
+            -- caster" interpretation of "an enemy in both areas is only affected
+            -- once." ActivatedAbility:Cast respects a pre-existing
+            -- options.symbols.cast.
+            if g_pointTargeting.partnerOnlyTokenIds ~= nil and g_pointTargeting.partnerCasterToken ~= nil and g_currentSymbols.cast == nil then
+                local cast = ActivatedAbilityCast.new{
+                    ability = g_currentAbility,
+                    targets = targets,
+                    mode = g_currentSymbols.mode or 1,
+                    _tmp_targetArea = g_currentSymbols.targetArea,
+                }
+                for charid, _ in pairs(g_pointTargeting.partnerOnlyTokenIds) do
+                    cast:RecordRetarget{
+                        retargetType = "caster",
+                        tokenid = charid,
+                        retargetid = charid,
+                        casterid = g_pointTargeting.partnerCasterToken.charid,
+                    }
+                end
+                g_currentSymbols.cast = cast
+            end
+
             local clearAbility = g_currentAbility
+
+            --Fire pre-cast controls (e.g. Acolyte Invoke). See FireCastControlsOnCommit
+            --for the rationale on ordering: it must run before Cast() so symbols (e.g.
+            --Cast.Invoked) are visible to behaviors and pre-cast effects (self damage,
+            --resource adjustments) post-commit cleanly.
+            FireCastControlsOnCommit(g_currentAbility, g_currentSymbols, g_token, targets)
+            local castControlsResolveHandler = MakeCastControlsOnResolveHandler(g_token)
+
             g_currentAbility:Cast(g_token, targets, {
                 attachedTriggers = attachedTriggers,
                 costOverride = g_currentCostProposal,
@@ -5565,6 +6045,7 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
                             end
                         end
                     end,
+                    castControlsResolveHandler,
                 },
             })
             m_targetLineOfSightRays = {}

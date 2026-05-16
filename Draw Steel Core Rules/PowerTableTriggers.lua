@@ -210,7 +210,7 @@ CharacterModifier.TypeInfo.powertabletrigger = {
             entry.epicResourceCost = tonumber(selfClone.powerRollModifier:try_get("resourceCostAmount", 1))
         end
 
-        if self.abilityTargets ~= "" then
+        if self:try_get("abilityTargets", "") ~= "" then
             local targets = ExecuteGoblinScript(self.abilityTargets, token.properties:LookupSymbol(symbols), 0)
             entry.params.targetcount = targets
         end

@@ -5916,13 +5916,14 @@ function creature:OnMove(path)
         }
     })
 
-    if path.forced then
-        return
-    end
-
     --floorAltitude
 
-    local immuneFromOpportunityAttacks = path.shifting or (self:CalculateNamedCustomAttribute("Immunity from Opportunity Attack") > 0)
+    -- Forced movement no longer short-circuits the per-step processing -- we
+    -- still want to fire `movethrough` events for triggers like Beastheart's
+    -- Pushover Trample (which listens for an enemy being pushed through the
+    -- beastheart's space). We DO treat forced movement as OA-immune, so the
+    -- leaveadjacent / opportunity-attack dispatch loop below skips itself.
+    local immuneFromOpportunityAttacks = path.forced or path.shifting or (self:CalculateNamedCustomAttribute("Immunity from Opportunity Attack") > 0)
 
     local ourTileSize = ourToken.tileSize
 
@@ -6644,10 +6645,26 @@ end
 function creature:ApplyTemporaryEffect(effect)
     local temporaryEffects = self:get_or_add("_tmp_temporaryEffects", {})
     temporaryEffects[#temporaryEffects+1] = effect
-    
+
+    -- Re-entrant: each ApplyTemporaryEffect/cancel pair owns exactly one slot
+    -- in _tmp_temporaryEffects. Removing only the first matching reference (via
+    -- table.remove) lets the same effect be applied multiple times in parallel
+    -- and each cancel undo a single application. table.remove_value (used
+    -- here historically) removed ALL matches in one call, which broke abilities
+    -- whose buff was applied twice (e.g. eagerly via DrawSteelActionBar's
+    -- ApplyOnCasting + again in CastInstantPortion): the early action-bar
+    -- destructor would wipe both copies and the buff would be gone before the
+    -- non-instant coroutine actually used it.
     local result = {
         cancel = function()
-            table.remove_value(self:try_get("_tmp_temporaryEffects", {}), effect)
+            local list = self:try_get("_tmp_temporaryEffects", {})
+            for i, v in ipairs(list) do
+                if v == effect then
+                    table.remove(list, i)
+                    self:Invalidate()
+                    return
+                end
+            end
         end
     }
 

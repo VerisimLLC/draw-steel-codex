@@ -424,6 +424,57 @@ The most common errors:
 7. **`reasonedFilters` replaces `targetFilter`** -- don't use both for the same restriction
 8. **`ongoingEffectCustom`** is editor-only state; has NO runtime effect
 
+### Modifier Name Must Match Parent Feature
+
+**Every `CharacterModifier`'s `name` field MUST match its parent `CharacterFeature.name`
+verbatim.** The character-sheet bonus-listing UI groups modifiers by name. If a feature
+"Gift of Elder Sorcery" has children named "Speed Bonus", "Range Bonus", "Stamina Bonus",
+they appear as scattered rows in the bonus list instead of one clean block under the
+feature heading.
+
+```yaml
+# CORRECT
+- __typeName: CharacterFeature
+  name: Gift of Elder Sorcery
+  modifiers:
+    - __typeName: CharacterModifier
+      behavior: attribute
+      name: Gift of Elder Sorcery     # matches feature
+      attribute: speed
+      value: 1
+    - __typeName: CharacterModifier
+      behavior: power
+      name: Gift of Elder Sorcery     # matches feature
+      damageModifier: "2"
+      keywords: { Ranged: true }
+
+# WRONG -- separate rows in the bonus listing
+- __typeName: CharacterFeature
+  name: Gift of Elder Sorcery
+  modifiers:
+    - __typeName: CharacterModifier
+      name: Speed Bonus               # diverges -> ungrouped
+    - __typeName: CharacterModifier
+      name: Ranged Damage Bonus       # diverges -> ungrouped
+```
+
+**Scope and exceptions:**
+
+- Applies to `behavior: attribute`, `behavior: power`, `behavior: resource`,
+  `behavior: trigger`, `behavior: activated`, `behavior: proficiency` -- any direct
+  child of `CharacterFeature.modifiers[]`.
+- For `behavior: trigger`, only the **outer** `CharacterModifier.name` matches the
+  feature. The inner `triggeredAbility.name` is a separate display label (used in
+  chat / triggerPrompt) and is allowed to differ. Example: feature "Focus" -> outer
+  `CharacterModifier.name: Focus` -> inner `triggeredAbility.name: "Draw Steel"`
+  (Tactician's start-of-combat trigger).
+- For `behavior: activated`, same pattern -- outer modifier name matches the feature,
+  the inner `activatedAbility.name` is the ability's display name.
+- Modifiers nested deeper (e.g. inline `ActivatedAbility.modifiers[]` for per-ability
+  roll-dialog options like a "1 Zeal" damage rider) follow a different convention --
+  those surface as roll-dialog checkboxes and are typically labelled descriptively.
+  This rule only applies to direct `CharacterFeature.modifiers[]` children.
+
 ### ASCII Only
 All YAML content must be pure ASCII (bytes 0-127). No em dashes, curly quotes, ellipses, or Unicode. Use `-` not `--`, `"` not curly quotes, `...` not ellipsis.
 

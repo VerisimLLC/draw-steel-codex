@@ -1328,7 +1328,7 @@ TriggeredAbility.RegisterTrigger{
         },
         rawdamage = {
             name = "Raw Damage",
-            type = "number", 
+            type = "number",
             desc = "The amount of damage taken before any immunities or damage reduction.",
         },
         damagetype = {
@@ -1336,6 +1336,11 @@ TriggeredAbility.RegisterTrigger{
             type = "text",
             desc = "The type of damage taken when triggering this event.",
             valueOptionsSource = "damageTypes",
+        },
+        patrondamage = {
+            name = "Patron Damage",
+            type = "boolean",
+            desc = "True if this damage event was marked as patron damage (Acolyte class).",
         },
         damageimmunity = {
             name = "Damage Immunity",
@@ -1411,6 +1416,11 @@ TriggeredAbility.RegisterTrigger{
             type = "text",
             desc = "The type of damage dealt.",
             valueOptionsSource = "damageTypes",
+        },
+        {
+            name = "Patron Damage",
+            type = "boolean",
+            desc = "True if this damage event was marked as patron damage (Acolyte class).",
         },
         {
             name = "Keywords",

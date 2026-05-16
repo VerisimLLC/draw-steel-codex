@@ -3251,6 +3251,15 @@ function GameHud.CreateEmbeddedRollDialog()
                         element:SetAsDicePreviewPanel(true)
                     end,
 
+                    --Clear the global dice-preview panel when this dialog is torn down.
+                    --DiceHarness.dicePreviewPanel is a static; if it keeps pointing at this
+                    --destroyed panel, the next plain /roll inherits a stale (fake-null) panel
+                    --reference and its dice get destroyed the moment they settle instead of
+                    --resting and fading out.
+                    destroy = function(element)
+                        element:SetAsDicePreviewPanel(false)
+                    end,
+
                     hover = function(element)
                         dice.MouseEnter()
                     end,

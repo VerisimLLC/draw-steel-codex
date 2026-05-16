@@ -144,18 +144,17 @@ local g_heightmapEditor = nil
 CreateHeightmapEditor = function()
     local resultPanel
 
+    -- Every form-style setting in this panel uses the stacked (label-above-
+    -- control) layout. Pull the option once so each CreateSettingsEditor call
+    -- stays terse.
+    local stackedOpts = {stacked = true}
+
     resultPanel = gui.Panel{
         flow = "vertical",
         height = "auto",
         width = "100%",
 
-        styles = {
-            Styles.formPanel,
-            {
-                classes = {"label"},
-                fontSize = 14,
-            }
-        },
+        styles = ThemeEngine.GetStyles(),
 
         showpanel = function(element)
             if not gui.ChildHasFocus(element) then
@@ -168,7 +167,7 @@ CreateHeightmapEditor = function()
                 gui.SetFocus(nil)
             end
         end,
-        
+
         childfocus = function(element)
             element:FindParentWithClass("dockablePanel"):SetClass("highlightPanel", true)
         end,
@@ -193,10 +192,10 @@ CreateHeightmapEditor = function()
             mod.shared.BrushEditorPanel("heightmapbrush"),
         },
 
-        CreateSettingsEditor("heightmap:height"),
-        CreateSettingsEditor("heightmap:blend"),
-        CreateSettingsEditor("heightmap:opacity"),
-        CreateSettingsEditor("heightmap:gradient"),
+        CreateSettingsEditor("heightmap:height", stackedOpts),
+        CreateSettingsEditor("heightmap:blend", stackedOpts),
+        CreateSettingsEditor("heightmap:opacity", stackedOpts),
+        CreateSettingsEditor("heightmap:gradient", stackedOpts),
         (function()
             local function slopeHintVisible()
                 local tool = dmhub.GetSettingValue("heightmaptool")
@@ -204,15 +203,14 @@ CreateHeightmapEditor = function()
                 return toolUsesGradient and g_gradientSetting:Get() == "slope"
             end
             return gui.Label{
-                classes = {cond(not slopeHintVisible(), "collapsed")},
+                classes = {"fgMuted", cond(not slopeHintVisible(), "collapsed")},
                 text = "Right-click while drawing to change direction",
                 width = "90%",
                 height = "auto",
                 halign = "left",
                 textAlignment = "center",
-                fontSize = 14,
+                fontSize = 12,
                 italics = true,
-                color = "#dddddd",
                 vmargin = 0,
                 multimonitor = {"heightmap:gradient", "heightmaptool"},
                 monitor = function(element)
@@ -220,10 +218,16 @@ CreateHeightmapEditor = function()
                 end,
             }
         end)(),
-        CreateSettingsEditor("heightmap:overlaytype"),
-        CreateSettingsEditor("heightmap:opacitysetting"),
+        CreateSettingsEditor("heightmap:overlaytype", stackedOpts),
+        CreateSettingsEditor("heightmap:opacitysetting", stackedOpts),
 
     }
+
+    ThemeEngine.OnThemeChanged(mod, function()
+        if resultPanel ~= nil and resultPanel.valid then
+            resultPanel.styles = ThemeEngine.GetStyles()
+        end
+    end)
 
     g_heightmapEditor = resultPanel
 

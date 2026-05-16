@@ -98,6 +98,7 @@ CharacterBuilder.SELECTOR = {
     KIT         = "kit",
     COMPLICATION = "complication",
     TITLE       = "title",
+    CHOICES     = "choices",
 }
 CharacterBuilder.INITIAL_SELECTOR = CharacterBuilder.SELECTOR.ANCESTRY
 
@@ -150,6 +151,12 @@ CharacterBuilder.STRINGS.TITLE.INTRO = [[
 Titles are special benefits earned by heroes through adventure and mighty deeds. Heroes must win titles - sometimes individually, sometimes as a group - by accomplishing heroic tasks. Titles are the record of a hero's accomplishments, forming the basis of the stories told of them in taverns or whispered in the halls of the mighty.
 
 Each title comes with a new ability or other special benefit. By earning titles, heroes gain a unique set of capabilities that sets them apart from other adventurers.]]
+
+CharacterBuilder.STRINGS.CHOICES = {}
+CharacterBuilder.STRINGS.CHOICES.INTRO = [[
+Some features grant additional choices that don't fit any other category. Use this section to configure those choices.]]
+CharacterBuilder.STRINGS.CHOICES.OVERVIEW = [[
+Select an entry from the list to configure it.]]
 
 --[[
     Ability to register selectors - controls down the left side of the window
@@ -347,6 +354,18 @@ end
 function CharacterBuilder._getHero()
     local token = CharacterBuilder._getToken()
     if token and token.properties and token.properties:IsHero() then
+        return token.properties
+    end
+    return nil
+end
+
+--- Returns the creature (hero or monster) on the active token, or nil.
+--- Used by code paths that work with both heroes and monsters; prefer
+--- _getHero() when the logic only makes sense for heroes.
+--- @return creature|nil
+function CharacterBuilder._getCreature()
+    local token = CharacterBuilder._getToken()
+    if token and token.properties then
         return token.properties
     end
     return nil

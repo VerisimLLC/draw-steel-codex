@@ -207,6 +207,36 @@ Commands.RegisterMacro{
 }
 
 Commands.RegisterMacro{
+    name = "dramaticbanner",
+    summary = "show a dramatic banner",
+    doc = "Usage: /dramaticbanner <title> [ | <subtitle>]\nShows a dramatic banner centred on the currently selected token. Put a vertical bar after the title to add an optional subtitle.",
+    command = function(str)
+        local tokens = dmhub.selectedTokens
+        if tokens == nil or #tokens == 0 then
+            print("dramaticbanner: select a token first.")
+            return
+        end
+
+        local title = str
+        local subtitle = nil
+        local barIndex = string.find(str, "|", 1, true)
+        if barIndex ~= nil then
+            title = string.sub(str, 1, barIndex - 1)
+            subtitle = string.trim(string.sub(str, barIndex + 1))
+            if subtitle == "" then
+                subtitle = nil
+            end
+        end
+
+        DramaticBanner.Show{
+            tokenid = tokens[1].id,
+            text = string.trim(title),
+            subtitle = subtitle,
+        }
+    end,
+}
+
+Commands.RegisterMacro{
     name = "collapsefloor",
     summary = "collapse a floor",
     doc = "Usage: /collapsefloor <floor name>\nCollapses given floor object and drops tokens.",
@@ -2723,14 +2753,8 @@ spine.register{
     -- Decides which animation should be playing based on the token's current state.
     refresh = function(token)
         print("TOKENREFRESH:: REFRESHING")
-        local summonerRampage = false
-        local summonerid = token.summonerid
-        if summonerid ~= nil then
-            local summoner = dmhub.GetCharacterById(summonerid)
-            if summoner ~= nil and summoner.properties ~= nil then
-                summonerRampage = summoner.properties:GetUnboundedResourceQuantity(CharacterResource.rampageId) >= 8
-            end
-        end
+        local summonerRampage = token.properties:GetUnboundedResourceQuantity(CharacterResource.rampageId) >= 8
+
         if summonerRampage then
             token:SetSpineSkin("base")
             token:SetSpineAnimation{ id = "3_RAMPAGE_idle" }

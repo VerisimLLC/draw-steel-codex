@@ -1966,13 +1966,14 @@ function ActivatedAbility:Render(options, params)
                     },
                 },
 
-                gui.DocumentDisplay {
+                gui.Label {
                     text = descriptionString,
-                    noninteractive = true,
+                    markdown = true,
                     width = "100%",
                     height = "auto",
                     halign = "left",
                     bmargin = 4,
+                    fontSize = 14,
                 },
             },
 

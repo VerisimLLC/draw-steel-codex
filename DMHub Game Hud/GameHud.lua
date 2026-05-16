@@ -995,6 +995,8 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
 
 			FullscreenDisplay.Create{belowui = false},
 
+			DramaticBanner.Create(),
+
 			gamehud:ConnectionStatusPanel(),
 		}
 	})

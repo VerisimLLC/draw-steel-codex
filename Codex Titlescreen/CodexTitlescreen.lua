@@ -3611,10 +3611,31 @@ function CreateTitlescreen(dialog, options)
                             y = 3.5,
                         },
 
-                        gui.Divider {
+                        gui.Panel {
+                            classes = { "loadingQuoteBanner" },
+                            -- Theme-aware banner: the scheme's @bg paints in the
+                            -- middle of a horizontal alpha mask, darkening the
+                            -- cover art behind the quote and fading to clear at
+                            -- the edges. Label color falls through to the theme
+                            -- default ({label} -> @fgStrong) for legibility.
+                            styles = ThemeEngine.MergeStyles{
+                                {
+                                    selectors = { "loadingQuoteBanner" },
+                                    bgimage = "panels/square.png",
+                                    bgcolor = "@bg",
+                                    gradient = "@maskHorizontal",
+                                },
+                            },
+
+                            halign = "center",
+                            height = "auto",
+                            vpad = 15,
+                            minHeight = 60,
+                            vmargin = 0,
+                            width = "68%",
+
                             gui.Label {
                                 text = quoteText,
-                                color = Styles.textColor,
                                 fontSize = 20,
                                 width = "auto",
                                 height = "auto",
@@ -3623,37 +3644,6 @@ function CreateTitlescreen(dialog, options)
                                 valign = "center",
                                 maxWidth = 600,
                                 markdown = true,
-                            },
-
-                            height = "auto",
-                            vpad = 15,
-                            minHeight = 60,
-                            vmargin = 0,
-                            width = "68%",
-
-                            gradient = gui.Gradient {
-                                easing = "EaseInCubic",
-                                point_a = { x = 0, y = 0 },
-                                point_b = { x = 1, y = 0 },
-                                stops = {
-                                    {
-                                        position = 0,
-                                        color = "#00000000",
-                                    },
-                                    {
-                                        position = 0.2,
-                                        color = "#000000ff",
-                                    },
-                                    {
-                                        position = 0.8,
-                                        color = "#000000ff",
-                                    },
-                                    {
-                                        position = 1,
-                                        color = "#00000000",
-                                    },
-
-                                },
                             },
                         },
 

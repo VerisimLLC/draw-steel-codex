@@ -194,6 +194,69 @@ function CustomDocument.SearchLinks(search)
             end
             return results
         end
+
+        -- Hard lock for the built-in link prefixes (pdf:, document:, map:).
+        -- Restrict to the named category and match on description only --
+        -- otherwise body-text matches via doc:MatchesSearch leak across
+        -- categories (e.g. "pdf:draw" surfacing Documents that mention "draw").
+        if prefixStr == "pdf" then
+            local results = {}
+            local docs = assets.pdfDocumentsTable
+            for k, doc in pairs(docs or {}) do
+                if (not doc.hidden) and (isDM or not doc.hiddenFromPlayers) then
+                    if #rest == 0 or string.find(string.lower(doc.description), rest, 1, true) then
+                        results[#results+1] = {
+                            link = "pdf:" .. doc.description,
+                            name = doc.description,
+                            type = "PDF Document",
+                        }
+                    end
+                end
+            end
+            local fragments = dmhub.GetTable(PDFFragment.tableName) or {}
+            for k, doc in unhidden_pairs(fragments) do
+                if #rest == 0 or string.find(string.lower(doc.description), rest, 1, true) then
+                    results[#results+1] = {
+                        link = "pdf:" .. doc.description,
+                        name = doc.description,
+                        type = "PDF Fragment",
+                    }
+                end
+            end
+            return results
+        end
+
+        if prefixStr == "document" then
+            local results = {}
+            local customDocs = dmhub.GetTable(CustomDocument.tableName) or {}
+            local accessibleRoots = CustomDocument.GetAccessibleRoots()
+            for k,doc in unhidden_pairs(customDocs) do
+                if (isDM or not doc.hiddenFromPlayers)
+                    and CustomDocument.IsDocInAccessibleRoot(doc, accessibleRoots)
+                    and (#rest == 0 or string.find(string.lower(doc.description), rest, 1, true)) then
+                    results[#results+1] = {
+                        link = "document:" .. doc.description,
+                        name = doc.description,
+                        type = "Document",
+                    }
+                end
+            end
+            return results
+        end
+
+        if prefixStr == "map" and isDM then
+            local results = {}
+            for _,map in ipairs(game.maps) do
+                if #rest == 0 or string.find(string.lower(map.description), rest, 1, true) then
+                    results[#results+1] = {
+                        link = "map:" .. map.description,
+                        name = map.description,
+                        type = "Map",
+                    }
+                end
+            end
+            return results
+        end
     end
 
     -- Normal search (no locked prefix)
@@ -203,7 +266,7 @@ function CustomDocument.SearchLinks(search)
     for k, doc in pairs(docs or {}) do
         if (not doc.hidden) and (isDM or not doc.hiddenFromPlayers) then
             if string.find(string.lower(doc.description), search, 1, true) then
-                local link = "pdf:" .. k
+                local link = "pdf:" .. doc.description
                 results[#results+1] = {
                     link = link,
                     name = doc.description,
@@ -216,7 +279,7 @@ function CustomDocument.SearchLinks(search)
     local fragments = dmhub.GetTable(PDFFragment.tableName) or {}
     for k, doc in unhidden_pairs(fragments) do
         if string.find(string.lower(doc.description), search, 1, true) then
-            local link = "pdf:" .. k
+            local link = "pdf:" .. doc.description
             results[#results+1] = {
                 link = link,
                 name = doc.description,
@@ -231,7 +294,7 @@ function CustomDocument.SearchLinks(search)
         if (isDM or not doc.hiddenFromPlayers)
             and CustomDocument.IsDocInAccessibleRoot(doc, accessibleRoots)
             and (string.find(string.lower(doc.description), search, 1, true) or doc:MatchesSearch(search)) then
-            local link = "document:" .. k
+            local link = "document:" .. doc.description
             results[#results+1] = {
                 link = link,
                 name = doc.description,
@@ -244,7 +307,7 @@ function CustomDocument.SearchLinks(search)
         local maps = game.maps
         for _,map in ipairs(maps) do
             if string.find(string.lower(map.description), search, 1, true) ~= nil then
-                local link = string.format("map:%s", map.id)
+                local link = "map:" .. map.description
                 results[#results+1] = {
                     link = link,
                     name = map.description,
@@ -295,37 +358,67 @@ function CustomDocument.ResolveLink(link)
     end
 
     if string.starts_with(link, "pdf:") then
-        local match = regex.MatchGroups(link, "^pdf:(?<docid>[^:]+?)(?<page>:[0-9a-zA-Z]+)?$")
-        if match ~= nil then
-            local docid = match.docid
-            local docs = assets.pdfDocumentsTable
-            local fragments = dmhub.GetTable(PDFFragment.tableName) or {}
-            if match.page ~= nil and docs[docid] ~= nil then
-                return PDFDeepLink.new{
-                    docid = docid,
-                    page = string.sub(match.page, 2),
-                }
-            elseif match.page ~= nil then
-                local docidLower = string.lower(docid)
-                for k,doc in pairs(docs) do
-                    if string.lower(doc.description) == docidLower then
-                        local pageNum = string.sub(match.page, 2)
-                        return PDFDeepLink.new{
-                            docid = k,
-                            page = pageNum,
-                        }
-                    end 
+        local docs = assets.pdfDocumentsTable
+        local fragments = dmhub.GetTable(PDFFragment.tableName) or {}
+
+        -- Match the whole remainder (no page) by guid or by description first,
+        -- so a title that happens to contain a colon still resolves.
+        local rest = string.sub(link, 5)
+        local doc = docs[rest] or fragments[rest]
+        if doc == nil then
+            for k,d in pairs(docs) do
+                if string.lower(d.description) == rest then
+                    doc = d
+                    break
                 end
             end
-            local doc = docs[docid] or fragments[docid]
+        end
+        if doc == nil then
+            for k,d in unhidden_pairs(fragments) do
+                if string.lower(d.description) == rest then
+                    doc = d
+                    break
+                end
+            end
+        end
+        if doc ~= nil then
             return doc
         end
+
+        -- Otherwise treat a trailing ":page" as a PDF deep link.
+        local match = regex.MatchGroups(link, "^pdf:(?<docid>.+):(?<page>[0-9a-zA-Z]+)$")
+        if match ~= nil then
+            local docid = match.docid
+            if docs[docid] ~= nil then
+                return PDFDeepLink.new{
+                    docid = docid,
+                    page = match.page,
+                }
+            end
+            for k,d in pairs(docs) do
+                if string.lower(d.description) == docid then
+                    return PDFDeepLink.new{
+                        docid = k,
+                        page = match.page,
+                    }
+                end
+            end
+        end
+        return nil
     end
 
     if string.starts_with(link, "document:") then
         local docid = string.sub(link, 10)
         local customDocs = dmhub.GetTable(CustomDocument.tableName) or {}
         local doc = customDocs[docid]
+        if doc == nil then
+            for k,d in unhidden_pairs(customDocs) do
+                if string.lower(d.description) == docid then
+                    doc = d
+                    break
+                end
+            end
+        end
         return doc
     end
 
@@ -335,6 +428,13 @@ function CustomDocument.ResolveLink(link)
             if map.id == mapid then
                 return MapDocument.new{
                     mapid = mapid,
+                }
+            end
+        end
+        for _,map in ipairs(game.maps) do
+            if string.lower(map.description) == mapid then
+                return MapDocument.new{
+                    mapid = map.id,
                 }
             end
         end

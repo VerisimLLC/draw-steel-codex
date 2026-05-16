@@ -245,6 +245,34 @@ function ActivatedAbilityDamageBehavior:Cast(ability, casterToken, targets, opti
 
 					for catName,value in pairs(rollInfo.categories) do
 
+						--Patron damage handling (Acolyte class). If the behavior's
+						--damageType is "patron" (or the roll categorized damage as
+						--"patron"), substitute the caster's patron-element damage
+						--type and tag this damage event with patrondamage=true.
+						--Falls back to "untyped" if the caster has no patron set.
+						local catPatronDamage = false
+						local effectiveCatName = catName
+						if string.lower(tostring(catName)) == "patron" then
+							catPatronDamage = true
+							local resolved = nil
+							if casterToken.properties.PatronDamageType ~= nil then
+								resolved = casterToken.properties:PatronDamageType()
+							end
+							if type(resolved) == "string" and resolved ~= "" then
+								effectiveCatName = string.lower(resolved)
+							else
+								effectiveCatName = "untyped"
+								local cast = options.symbols and options.symbols.cast
+								if cast == nil or not cast:try_get("_tmp_patronDamageWarned", false) then
+									if cast ~= nil then cast._tmp_patronDamageWarned = true end
+									print(string.format(
+										"PATRON DAMAGE:: caster has no patron_damage_type set; emitting untyped for AbilityDamage on %s.",
+										ability.name
+									))
+								end
+							end
+						end
+
 						for j=1,target.count do
 
 							local saveText = ''
@@ -298,16 +326,17 @@ function ActivatedAbilityDamageBehavior:Cast(ability, casterToken, targets, opti
                             if damageAmount > 0 then
                                 damageEntries[#damageEntries+1] = {
                                     amount = damageAmount,
-                                    catName = catName,
+                                    catName = effectiveCatName,
+                                    patrondamage = catPatronDamage,
                                     desc = string.format("%s's %s%s", casterName, ability.name, info.saveText),
                                 }
 
                                 if logMessage ~= nil then
                                     logMessage.amount = damageAmount
-                                    if catName == "untyped" then
+                                    if effectiveCatName == "untyped" then
                                         logMessage.damageType = nil
                                     else
-                                        logMessage.damageType = catName
+                                        logMessage.damageType = effectiveCatName
                                     end
                                 end
                             end
@@ -328,8 +357,8 @@ function ActivatedAbilityDamageBehavior:Cast(ability, casterToken, targets, opti
 						description = "Damaged",
 						execute = function()
 							for _,entry in ipairs(damageEntries) do
-								local res = targetCreature:InflictDamageInstance(entry.amount, entry.catName, ability.keywords, entry.desc, {attacker = casterToken.properties, ability = ability, hasability = true, pusher = options.symbols.pusher, cannotBeReduced = self:try_get("cannotBeReduced"), doesNotTrigger = self:try_get("doesNotTrigger"), hasrolleddamage = isRolledDamage, cast = options.symbols.cast})
-								options.symbols.cast:CountDamage(target.token, res.damageDealt, entry.amount, isRolledDamage)
+								local res = targetCreature:InflictDamageInstance(entry.amount, entry.catName, ability.keywords, entry.desc, {attacker = casterToken.properties, ability = ability, hasability = true, pusher = options.symbols.pusher, cannotBeReduced = self:try_get("cannotBeReduced"), doesNotTrigger = self:try_get("doesNotTrigger"), hasrolleddamage = isRolledDamage, cast = options.symbols.cast, patrondamage = entry.patrondamage})
+								options.symbols.cast:CountDamage(target.token, res.damageDealt, entry.amount, isRolledDamage, entry.patrondamage)
                                 print("DAMAGE:: COUNT", res.damageDealt)
 							end
 

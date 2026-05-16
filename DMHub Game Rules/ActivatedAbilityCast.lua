@@ -591,6 +591,37 @@ function ActivatedAbilityCast:RemapForceMoveTargetAndCaster(targetToken, casterT
     return targetToken, casterToken
 end
 
+--- Returns the casterToken that should be used to resolve a power-roll command for
+--- this particular target. Used by PowerRollBehavior so that "caster"-type retargets
+--- swap the source for ALL effects produced by the command -- push direction, taunt
+--- source, prone source, etc. -- not just forced movement (which has its own narrower
+--- `forcemove` retarget type queried inside the push pattern).
+---
+--- Currently used by partner-burst abilities (e.g. Bring the Thunder's Spend 1
+--- Ferocity), where enemies in the partner shape only should be pushed away from /
+--- taunted by / etc. the partner caster (the beastheart) rather than the original
+--- caster (the companion).
+--- @param targetToken CharacterToken
+--- @param casterToken CharacterToken
+--- @return CharacterToken
+function ActivatedAbilityCast:RemapCasterForTarget(targetToken, casterToken)
+    local retargets = self:try_get("retargets")
+    if retargets == nil or targetToken == nil then
+        return casterToken
+    end
+
+    for _, retarget in ipairs(retargets) do
+        if retarget.retargetType == "caster" and retarget.tokenid == targetToken.charid then
+            local newCaster = dmhub.GetTokenById(retarget.casterid)
+            if newCaster ~= nil and newCaster.valid then
+                return newCaster
+            end
+        end
+    end
+
+    return casterToken
+end
+
 function ActivatedAbilityCast:RecordInflictedCondition(conditionid, charid)
     local inflictedConditions = self:get_or_add("inflictedConditions", {})
     local list = inflictedConditions[conditionid] or {}
@@ -598,9 +629,15 @@ function ActivatedAbilityCast:RecordInflictedCondition(conditionid, charid)
     inflictedConditions[conditionid] = list
 end
 
-function ActivatedAbilityCast:CountDamage(targetToken, damageDealt, damageRaw, isRolledDamage)
+function ActivatedAbilityCast:CountDamage(targetToken, damageDealt, damageRaw, isRolledDamage, patrondamage)
 	if isRolledDamage then
 		self.hasRolledDamage = true
+	end
+	--Sticky flag: any patron-tagged damage event during the cast latches dealsPatronDamage
+	--so Cast.DealsPatronDamage in GoblinScript resolves to 1 after the fact (e.g. for
+	--an Elder Sorcery `activationCondition: "Cast.DealsPatronDamage = 1"` check).
+	if patrondamage then
+		self.dealsPatronDamage = true
 	end
 	self.damagedealt = self.damagedealt + damageDealt
 	self.damageraw = self.damageraw + damageRaw

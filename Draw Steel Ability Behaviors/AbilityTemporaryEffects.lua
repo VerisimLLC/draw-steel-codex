@@ -23,10 +23,39 @@ function ActivatedAbilityApplyAbilityDurationEffect:SummarizeBehavior(ability, c
     return "Apply Ability Duration Effect"
 end
 
+--Evaluate this behavior's filterTarget (a per-behavior condition gate) against the
+--caster, with the supplied symbols (e.g. the selected `mode`) in scope. Returns true
+--if there is no gate, or the gate currently evaluates truthy. Used by the instant
+--"apply on casting" path so the effect is mode-aware.
+function ActivatedAbilityApplyAbilityDurationEffect:CastingFilterPasses(casterToken, symbols)
+    local filterTarget = self:try_get("filterTarget", "")
+    if type(filterTarget) ~= "string" then
+        filterTarget = tostring(filterTarget)
+    end
+    if trim(filterTarget) == "" then
+        return true
+    end
+
+    --the gate is normally written against a `target`; for the caster-applied
+    --instant effect the caster is both caster and target.
+    local syms = {}
+    for k,v in pairs(symbols or {}) do
+        syms[k] = v
+    end
+    syms.target = casterToken.properties
+
+    return GoblinScriptTrue(ExecuteGoblinScript(filterTarget, casterToken.properties:LookupSymbol(syms), 1, "Ability Duration Effect filter"))
+end
+
 --If this effect applies to the caster then this is a way to out-of-line apply it, so
 --we can apply it while still preparing to cast and get the effect.
-function ActivatedAbilityApplyAbilityDurationEffect:ApplyOnCasting(casterToken)
+--`symbols` (optional) carries the current casting symbols, notably `mode`, so the
+--filterTarget gate can be mode-aware.
+function ActivatedAbilityApplyAbilityDurationEffect:ApplyOnCasting(casterToken, symbols)
     if self.applyto == "caster" or self.applyto == "caster_including_squad" then
+        if not self:CastingFilterPasses(casterToken, symbols) then
+            return nil
+        end
         print("ApplyTo:: Applying effect")
         local result = casterToken.properties:ApplyTemporaryEffect(self.momentaryEffect)
         if result and result.cancel then

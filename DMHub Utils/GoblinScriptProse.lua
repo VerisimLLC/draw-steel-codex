@@ -1173,6 +1173,7 @@ GoblinScriptProse.eventProse = {
     fall              = "when {subject} land{s} from a fall",
     movethrough       = "when {subject} move{s} through another creature",
     pressureplate     = "when {subject} step{s} on a pressure plate",
+    pressureplateoff  = "when {subject} step{s} off a pressure plate",
     teleport          = "when {subject} teleport{s}",
 
     -- Resources & Victory band

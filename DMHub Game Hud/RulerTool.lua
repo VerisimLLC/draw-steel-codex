@@ -6,11 +6,16 @@ local function CreateRulerPanel()
 	if dmhub.isDM then
 		persistentSetting = CreateSettingsEditor("measure:persistent")
 	end
+	-- Every form-style setting in this panel uses the stacked (label-above-
+	-- control) layout. Pull the option once so each CreateSettingsEditor call
+	-- stays terse.
+	local stackedOpts = {stacked = true}
+
 	local resultPanel = gui.Panel{
 		styles = ThemeEngine.GetStyles(),
 		classes = {"LaunchablePanel"},
-		width = 460,
-		height = 240,
+		width = 320,
+		height = "auto",
 		halign = "right",
 		valign = "top",
 		flow = "vertical",
@@ -28,11 +33,11 @@ local function CreateRulerPanel()
 			classes = {"sizeXl", "bold"},
 			halign = "center",
 		},
-		CreateSettingsEditor("measure:shape"),
-		CreateSettingsEditor("measure:coneangle"),
-		CreateSettingsEditor("measure:linewidth"),
-		CreateSettingsEditor("measure:share"),
-		CreateSettingsEditor("measure:snap"),
+		CreateSettingsEditor("measure:shape", stackedOpts),
+		CreateSettingsEditor("measure:coneangle", stackedOpts),
+		CreateSettingsEditor("measure:linewidth", stackedOpts),
+		CreateSettingsEditor("measure:share", stackedOpts),
+		CreateSettingsEditor("measure:snap", stackedOpts),
 		persistentSetting,
 
 	}

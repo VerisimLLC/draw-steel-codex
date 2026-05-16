@@ -131,7 +131,7 @@ TriggeredAbility.TargetTypes = {
 		id = 'target',
 		text = 'Target',
 		condition = function(ability)
-			return ability.trigger == "damage" or ability.trigger == "dealdamage" or ability.trigger == "movethrough" or ability.trigger == "pressureplate" or ability.silent
+			return ability.trigger == "damage" or ability.trigger == "dealdamage" or ability.trigger == "movethrough" or ability.trigger == "pressureplate" or ability.trigger == "pressureplateoff" or ability.silent
 		end,
 	},
     {
@@ -481,6 +481,17 @@ TriggeredAbility.triggers = {
                 name = "Target",
                 type = "creature",
                 desc = "The creature that moved onto the pressure plate.",
+            }
+        }
+    },
+    {
+        id = "pressureplateoff",
+        text = "Stepped off a Pressure Plate",
+        symbols = {
+            target = {
+                name = "Target",
+                type = "creature",
+                desc = "The creature that moved off the pressure plate.",
             }
         }
     }

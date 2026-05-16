@@ -39,10 +39,10 @@ local SetGlobalRuleMod = function(tableName, ruleModPanel, ruleModid)
 			options = GlobalRuleMod.ApplyOptions,
 			idChosen = ruleMod:GetApplyID(),
 			change = function(element)
-				ruleMod.applyRetainers = element.idChosen == "retainers" or element.idChosen == "characters_retainers" or element.idChosen == "all"
-				ruleMod.applyCharacters = element.idChosen == "characters" or element.idChosen == "characters_retainers" or element.idChosen == "all"
+				ruleMod.applyRetainers = element.idChosen == "retainers" or element.idChosen == "characters_retainers" or element.idChosen == "characters_retainers_companions" or element.idChosen == "all"
+				ruleMod.applyCharacters = element.idChosen == "characters" or element.idChosen == "characters_retainers" or element.idChosen == "characters_retainers_companions" or element.idChosen == "all"
 				ruleMod.applyMonsters = element.idChosen == "monsters" or element.idChosen == "all"
-				ruleMod.applyCompanions = element.idChosen == "companions" or element.idChosen == "all"
+				ruleMod.applyCompanions = element.idChosen == "companions" or element.idChosen == "characters_retainers_companions" or element.idChosen == "all"
 				UploadGlobalRuleMod()
 			end,
 		},

@@ -3457,12 +3457,22 @@ function CharacterModifier:ConsumeResourceInternal(creature, modContext)
 
 
 	local result = false
-	local resourceCost = creature:ResourceToConsume(self.resourceCost)
-	if resourceCost ~= nil then
-		local resourcesTable = dmhub.GetTable("characterResources")
-		local resourceInfo = resourcesTable[resourceCost]
-		creature:ConsumeResource(self:try_get("consumeResourceOverride", resourceCost), resourceInfo.usageLimit)
-		result = true
+	--The legacy `resourceCost` field is a separate, older per-modifier cost
+	--mechanism from the modern `resourceCostType` ("cost"/"epic"/"surges"/etc.)
+	--power-roll-modifier cost system handled above. A modifier that specifies
+	--`resourceCostType` has already had its cost charged by that path; running
+	--this legacy block as well would double-charge the resource (e.g. a power
+	--modifier chip with both `resourceCostType: cost` and `resourceCost: <heroic
+	--resource guid>` would deduct the heroic resource twice for a single use).
+	--Only honour the legacy field when the modern cost system is inactive.
+	if costType == "none" then
+		local resourceCost = creature:ResourceToConsume(self.resourceCost)
+		if resourceCost ~= nil then
+			local resourcesTable = dmhub.GetTable("characterResources")
+			local resourceInfo = resourcesTable[resourceCost]
+			creature:ConsumeResource(self:try_get("consumeResourceOverride", resourceCost), resourceInfo.usageLimit)
+			result = true
+		end
 	end
 
 	local refreshType = self:GetResourceRefreshType()

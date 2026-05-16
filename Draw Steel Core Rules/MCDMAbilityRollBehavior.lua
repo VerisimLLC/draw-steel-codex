@@ -1648,7 +1648,42 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
                     end
                 end
 
-                ability.RecordTokenMessage(targetToken, options, string.format("Tier %d (%s)", tier, command))
+                -- "caster"-type retargets remap the source of the command for this
+                -- specific target -- e.g. partner-burst abilities (Bring the
+                -- Thunder's Spend 1 Ferocity) want enemies in the partner-only
+                -- shape to be pushed away from / taunted by the partner caster
+                -- (the beastheart) rather than the original caster (the
+                -- companion). Apply this AFTER targetPairs so a minion squad
+                -- attack's caster is still preferred when both apply.
+                if options.symbols.cast ~= nil then
+                    casterTokenForCommand = options.symbols.cast:RemapCasterForTarget(targetToken, casterTokenForCommand)
+                end
+
+                --Acolyte patron damage: the literal token "patron damage" in
+                --tier text is a placeholder for the caster's patron-element
+                --damage type. ExecuteCommand still receives the raw `command`
+                --so MCDMAbilityBehavior.ExecuteDamage can resolve+tag the
+                --damage event, but the chat log line should already show the
+                --resolved type (e.g. "corruption damage") rather than the raw
+                --placeholder. Untyped fallback drops the prefix entirely.
+                local displayCommand = command
+                if type(displayCommand) == "string" and string.find(string.lower(displayCommand), "patron damage", 1, true) ~= nil then
+                    local resolved = nil
+                    if casterTokenForCommand ~= nil and casterTokenForCommand.valid
+                        and casterTokenForCommand.properties ~= nil
+                        and casterTokenForCommand.properties.PatronDamageType ~= nil then
+                        resolved = casterTokenForCommand.properties:PatronDamageType()
+                    end
+                    local replacement
+                    if type(resolved) == "string" and resolved ~= "" then
+                        replacement = string.lower(resolved) .. " damage"
+                    else
+                        replacement = "damage"
+                    end
+                    displayCommand = string.gsub(displayCommand, "[Pp][Aa][Tt][Rr][Oo][Nn] [Dd][Aa][Mm][Aa][Gg][Ee]", replacement)
+                end
+
+                ability.RecordTokenMessage(targetToken, options, string.format("Tier %d (%s)", tier, displayCommand))
 
                 self:ExecuteCommand(ability, casterTokenForCommand, targetToken, options, command)
 

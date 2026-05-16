@@ -827,6 +827,33 @@ CharacterModifier.TypeInfo.power = {
             end
         end
 
+        --replaceForcedMovement rewrites the forced-movement TYPE word in each tier
+        --(e.g. "push 2" -> "slide 2"). The displayed power table updates live, and
+        --because forced movement is resolved by parsing the tier text (see
+        --TierSymbols in MCDMAbilityRollBehavior.lua), the actual resolved movement
+        --changes type as well. Value/distance is left untouched -- use `adjustments`
+        --to change distance. Shape: { from = "push", to = "slide" }. `from` may be
+        --"any" to match push/pull/slide regardless of original type.
+        local replaceForcedMovement = self:try_get("replaceForcedMovement")
+        if replaceForcedMovement ~= nil and replaceForcedMovement.from ~= nil and replaceForcedMovement.to ~= nil then
+            local fromPattern = replaceForcedMovement.from
+            if fromPattern == "any" then
+                fromPattern = "push|pull|slide"
+            end
+            local pattern = "^(?<prefix>.*?)(?<vert>vertical\\s+)?(?<type>" .. fromPattern .. ")(?<gap>\\s+\\d+)(?<postfix>.*)$"
+            for j,tier in ipairs(rollProperties.tiers) do
+                local output = ""
+                local rest = tier
+                local match = regex.MatchGroups(rest, pattern)
+                while match ~= nil do
+                    output = output .. match.prefix .. (match.vert or "") .. replaceForcedMovement.to .. match.gap
+                    rest = match.postfix
+                    match = regex.MatchGroups(rest, pattern)
+                end
+                rollProperties.tiers[j] = output .. rest
+            end
+        end
+
         local surges = self:try_get("surges", "")
         if surges ~= "" then
             local addSurges = ExecuteGoblinScript(surges, lookupFunction, 0, "Power Roll Surges")
@@ -2123,6 +2150,74 @@ CharacterModifier.TypeInfo.power = {
 
                         element.children = children
                     end,
+                },
+            }
+
+            --Replace Forced Movement: rewrites the movement-type word in each tier
+            --(e.g. push -> slide). Stored as modifier.replaceForcedMovement = {from=, to=}.
+            local replaceForcedMovement = modifier:try_get("replaceForcedMovement")
+            children[#children+1] = gui.Panel{
+                classes = {"formPanel", cond(modifier.rollType == "project_roll", "collapsed-anim")},
+                gui.Label{
+                    classes = {"formLabel"},
+                    text = "Replace Movement:",
+                },
+                gui.Panel{
+                    flow = "horizontal",
+                    width = "auto",
+                    height = 30,
+                    halign = "left",
+                    gui.Dropdown{
+                        styles = ThemeEngine.GetStyles(),
+                        width = 110,
+                        halign = "left",
+                        textDefault = "(none)",
+                        options = {
+                            { id = "none", text = "(none)"},
+                            { id = "any", text = "any"},
+                            { id = "push", text = "push"},
+                            { id = "pull", text = "pull"},
+                            { id = "slide", text = "slide"},
+                        },
+                        idChosen = (replaceForcedMovement and replaceForcedMovement.from) or "none",
+                        change = function(element)
+                            if element.idChosen == "none" then
+                                modifier.replaceForcedMovement = nil
+                            else
+                                local r = modifier:get_or_add("replaceForcedMovement", {})
+                                r.from = element.idChosen
+                                r.to = r.to or "slide"
+                            end
+                            Refresh()
+                        end,
+                    },
+                    gui.Label{
+                        text = "->",
+                        textAlignment = "center",
+                        halign = "center",
+                        valign = "center",
+                        fontSize = 22,
+                        width = 40,
+                        height = "auto",
+                    },
+                    gui.Dropdown{
+                        styles = ThemeEngine.GetStyles(),
+                        width = 110,
+                        halign = "left",
+                        classes = {cond(replaceForcedMovement == nil, "collapsed")},
+                        options = {
+                            { id = "push", text = "push"},
+                            { id = "pull", text = "pull"},
+                            { id = "slide", text = "slide"},
+                        },
+                        idChosen = (replaceForcedMovement and replaceForcedMovement.to) or "slide",
+                        change = function(element)
+                            local r = modifier:get_or_add("replaceForcedMovement", {})
+                            r.to = element.idChosen
+                            r.from = r.from or "push"
+                            Refresh()
+                        end,
+                    },
                 },
             }
 

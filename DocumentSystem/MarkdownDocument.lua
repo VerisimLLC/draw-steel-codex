@@ -1913,6 +1913,22 @@ function MarkdownDocument:EditPanel(args)
         local beforeCaret = string.sub(text, 1, caretPos)
         local afterCaret = string.sub(text, caretPos + 1)
 
+        -- Check for caret inside the (link) portion of a [text](link). This
+        -- fires even when ) is already present so editing an existing link
+        -- target gets autocomplete too. Search text is whatever sits between
+        -- ( and the caret.
+        for i = #beforeCaret, 1, -1 do
+            local ch = string.sub(beforeCaret, i, i)
+            if ch == '\n' or ch == ')' or ch == '[' or ch == ']' then
+                break
+            elseif ch == '(' then
+                if i > 1 and string.sub(beforeCaret, i - 1, i - 1) == ']' then
+                    return string.sub(beforeCaret, i + 1), i, "linkTarget"
+                end
+                break
+            end
+        end
+
         -- Search backwards for an unclosed [ or [[
         local bracketPos = nil
         local depth = 0
@@ -2022,8 +2038,59 @@ function MarkdownDocument:EditPanel(args)
             return nil
         end
 
-        -- Search backwards from caret for the nearest [ that has a matching ]
         local beforeCaret = string.sub(text, 1, caretPos)
+
+        -- If caret is inside the (link) portion of [text](link), resolve from
+        -- the parenthesised target rather than the bracketed display text.
+        local parenOpen = nil
+        for i = #beforeCaret, 1, -1 do
+            local ch = string.sub(beforeCaret, i, i)
+            if ch == '(' then
+                if i > 1 and string.sub(beforeCaret, i - 1, i - 1) == ']' then
+                    parenOpen = i
+                end
+                break
+            elseif ch == ')' or ch == '\n' or ch == '[' or ch == ']' then
+                break
+            end
+        end
+        if parenOpen ~= nil then
+            local parenClose = nil
+            for i = caretPos + 1, #text do
+                local ch = string.sub(text, i, i)
+                if ch == ')' then
+                    parenClose = i
+                    break
+                elseif ch == '\n' then
+                    break
+                end
+            end
+            if parenClose ~= nil then
+                local closeBracket = parenOpen - 1
+                local openBracket = nil
+                for i = closeBracket - 1, 1, -1 do
+                    local ch = string.sub(text, i, i)
+                    if ch == '[' then
+                        -- Skip [[ rich tag opener
+                        if i > 1 and string.sub(text, i - 1, i - 1) == '[' then
+                            openBracket = nil
+                        else
+                            openBracket = i
+                        end
+                        break
+                    elseif ch == '\n' or ch == ']' then
+                        break
+                    end
+                end
+                if openBracket ~= nil then
+                    local displayName = string.sub(text, openBracket + 1, closeBracket - 1)
+                    local linkTarget = string.sub(text, parenOpen + 1, parenClose - 1)
+                    return linkTarget, displayName, openBracket
+                end
+            end
+        end
+
+        -- Search backwards from caret for the nearest [ that has a matching ]
 
         -- Find the [ before or at the caret. Stop at ] or newline.
         local bracketOpen = nil
@@ -2475,6 +2542,31 @@ function MarkdownDocument:EditPanel(args)
             return
         end
 
+        if contextType == "linkTarget" then
+            -- Replace the link target inside [text](link). bracketPos is the
+            -- position of (; we keep [text]( and ) (or newline / end of line)
+            -- and overwrite everything between with result.link.
+            local afterCaret = string.sub(text, caretPos + 1)
+            local closeOffset = string.find(afterCaret, "[)\n]")
+            local replaceEnd
+            if closeOffset == nil then
+                replaceEnd = #text
+            else
+                replaceEnd = caretPos + closeOffset - 1
+            end
+            local before = string.sub(text, 1, bracketPos)
+            local after = string.sub(text, replaceEnd + 1)
+            local newText = before .. result.link .. after
+            local targetCaretPos = #before + #result.link
+            if resultPanel ~= nil then
+                resultPanel:FireEventTree("editDocument", newText)
+            end
+            charactersUsedLabel:FireEvent("refreshLength", newText)
+            DismissAutocomplete(inputElement)
+            inputElement:SetTextAndCaret(targetCaretPos, newText)
+            return
+        end
+
         local before = string.sub(text, 1, bracketPos - 1)
         local after = string.sub(text, caretPos + 1)
 
@@ -2877,6 +2969,15 @@ function MarkdownDocument:EditPanel(args)
                     end
                 end
             end
+        elseif contextType == "linkTarget" then
+            -- Inside [text](...) -- search for links to fill the target.
+            -- Same backing search as plain [ but without the [[ rich-tag prefix
+            -- (rich tags can't be the target of a Markdown link).
+            if #searchText < 1 then
+                DismissAutocomplete(inputElement)
+                return
+            end
+            results = CustomDocument.SearchLinks(searchText)
         else
             -- Inside [ -- search for links
             if #searchText < 1 then
@@ -3069,7 +3170,7 @@ function MarkdownDocument:EditPanel(args)
         think = function(element)
             if #autocompleteState.results > 0 then
                 local searchText, bracketPos, contextType = FindLinkContext(element.text, element.caretPosition)
-                if searchText == nil or (contextType == "link" and #searchText < 1) then
+                if searchText == nil or ((contextType == "link" or contextType == "linkTarget") and #searchText < 1) then
                     DismissAutocomplete(element)
                 end
             else

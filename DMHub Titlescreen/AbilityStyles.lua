@@ -298,61 +298,78 @@ Styles.ActionMenu = {
 
 }
 
+-- Theme-aware: routed through ThemeEngine.MergeTokens at the call site, so
+-- @token color references resolve against the active scheme. Plain Lua tables
+-- (not gui.Style{}) so MergeTokens can walk them with pairs().
 Styles.ActionBar = {
-    gui.Style {
+    {
         selectors = { "actionBarDrawer" },
         width = 205,
         height = "20% width",
         halign = "center",
         valign = "bottom",
         bgimage = true,
-        bgcolor = "#10110F",
+        bgcolor = "@bg",
         flow = "vertical",
         cornerRadius = 10,
         beveledcorners = true,
-        borderColor = g_borderColor,
+        borderColor = "@border",
         borderWidth = 2,
     },
-    gui.Style {
+    {
         selectors = { "actionBarDrawer", "~available" },
-        borderColor = "grey",
+        borderColor = "@disabled",
         transitionTime = 0.2,
     },
-    gui.Style {
+    {
+        selectors = { "diamond" },
+        bgcolor = "@accent",
+    },
+    {
         selectors = { "diamond", "~available" },
         scale = 0,
         transitionTime = 0.2,
     },
-    gui.Style {
+    {
         selectors = { "diamondAccent", "~available" },
         scale = { x = 1, y = 0 },
         transitionTime = 0.2,
     },
-    gui.Style {
-        selectors = { "actionBarDrawer", "available" },
-        bgcolor = "#10110F",
+    {
+        selectors = { "diamondAccentLine" },
+        bgcolor = "@accent",
     },
-    gui.Style {
+    {
+        selectors = { "diamondAccentDot" },
+        borderColor = "@accent",
+        bgcolor = "clear",
+    },
+    {
+        selectors = { "actionBarDrawer", "available" },
+        bgcolor = "@bg",
+    },
+    {
         selectors = { "actionBarDrawer", "hover" },
         transitionTime = 0.1,
         brightness = 1.5,
         soundEvent = "Mouse.Hover",
     },
-    gui.Style {
+    {
         selectors = { "actionBarDrawer", "active" },
-        bgcolor = "#10110F",
+        bgcolor = "@bg",
         brightness = 1.5,
         soundEvent = "Mouse.Click",
     },
-    gui.Style {
+    {
         selectors = { "actionBarDrawer", "invokingAbility" },
         hidden = 1,
     },
-    gui.Style {
+    {
         selectors = { "accent" },
-        color = g_accentColor,
+        color = "@accent",
     },
-    gui.Style {
+    {
+        -- Scheme-independent darken stripe across the bottom of the drawer.
         selectors = { "drawerSummary" },
         fontSize = 10,
         bgcolor = "#00000044",
@@ -364,7 +381,7 @@ Styles.ActionBar = {
         valign = "bottom",
         textAlignment = "center",
     },
-    gui.Style {
+    {
         selectors = { "drawerTopPanel" },
         flow = "horizontal",
         width = "100%",
@@ -372,7 +389,7 @@ Styles.ActionBar = {
         halign = "center",
         valign = "top",
     },
-    gui.Style {
+    {
         selectors = { "drawerIconPanel" },
         width = 26,
         height = 26,
@@ -382,18 +399,18 @@ Styles.ActionBar = {
         valign = "center",
         bgimage = true,
         bgcolor = "clear",
-        borderColor = Styles.textColor,
+        borderColor = "@fg",
         borderWidth = 1,
     },
-    gui.Style {
+    {
         selectors = { "drawerIconPanel", "~available" },
-        borderColor = "grey"
+        borderColor = "@disabled",
     },
-    gui.Style {
+    {
         selectors = { "drawerIconPanel", "hover" },
         brightness = 2,
     },
-    gui.Style {
+    {
         selectors = { "drawerInfoPanel" },
         flow = "vertical",
         width = "100%-44",
@@ -401,11 +418,11 @@ Styles.ActionBar = {
         halign = "left",
         valign = "center",
     },
-    gui.Style {
+    {
         selectors = { "drawerTitle" },
         fontSize = 15,
         uppercase = true,
-        color = g_goldColor,
+        color = "@fgStrong",
         bold = true,
         tmargin = 3,
         width = "auto",
@@ -414,11 +431,11 @@ Styles.ActionBar = {
         valign = "center",
     },
 
-    gui.Style {
+    {
         selectors = { "drawerTitle", "~available", "parent:active" },
         fontSize = 15,
         uppercase = true,
-        color = "white",
+        color = "@fgStrong",
         bold = true,
         tmargin = 3,
         width = "auto",
@@ -427,27 +444,27 @@ Styles.ActionBar = {
         valign = "center",
     },
 
-    gui.Style {
+    {
         selectors = { "drawerTitle", "~available" },
-        color = "grey",
+        color = "@fgMuted",
     },
 
 
-    gui.Style {
+    {
         selectors = { "drawerInfo" },
         fontSize = 10,
         minFontSize = 6,
         textAlignment = "topleft",
-        color = Styles.textColor,
+        color = "@fg",
         opacity = 0.8,
         width = "100%",
         height = "30%",
         halign = "left",
         valign = "top",
     },
-    gui.Style {
+    {
         selectors = { "drawerInfo", "~available" },
-        color = "grey",
+        color = "@fgMuted",
     },
 
 

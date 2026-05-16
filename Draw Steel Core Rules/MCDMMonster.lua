@@ -236,6 +236,21 @@ function monster:GetTraitsFromGroup()
 
 end
 
+--- Subclass hook for monster-specific builder-choice sources. Adds
+--- monsterGroup traits into the catch-all Choices section. The shared
+--- implementation lives on creature:GetBuilderChoiceFeatures().
+--- @param result table The accumulating list of { feature = ... } entries.
+--- @param levelChoices table The creature's current levelChoices map.
+function monster:FillExtraBuilderChoiceFeatures(result, levelChoices)
+    for _,trait in ipairs(self:GetTraitsFromGroup()) do
+        local nested = {}
+        trait:FillFeaturesRecursive(levelChoices, nested)
+        for _,f in ipairs(nested) do
+            result[#result+1] = { feature = f, monsterGroup = self:MonsterGroup() }
+        end
+    end
+end
+
 function creature:OpportunityAttack()
     return 0
 end

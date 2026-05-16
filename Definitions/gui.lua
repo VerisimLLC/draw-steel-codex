@@ -107,3 +107,24 @@ end
 function gui.GetSheetById(id)
 	-- dummy implementation for documentation purposes only
 end
+
+--- DebugDumpPanel: Diagnostic: returns a state-snapshot table for the panel with the given id, or nil if not found. Walks all top-level sheets. Useful for chasing UI regressions from the MCP bridge.
+--- @param id string The panel id to look up.
+--- @return nil|table
+function gui.DebugDumpPanel(idValue)
+	-- dummy implementation for documentation purposes only
+end
+
+--- DebugSetLogging: Diagnostic: enable/disable debugLogging on a panel by id. Per-panel diagnostics (DoUpdateMaterial sprite assignments, bgimage square fallback, etc.) only log when this flag is on for the panel. Returns true if found.
+--- @param id string
+--- @param on bool
+--- @return bool
+function gui.DebugSetLogging(idValue, onValue)
+	-- dummy implementation for documentation purposes only
+end
+
+--- DebugListPanels: Diagnostic: returns a flat array of every panel id reachable from any top-level sheet. Useful for finding ids to pass to DebugDumpPanel.
+--- @return string[]
+function gui.DebugListPanels()
+	-- dummy implementation for documentation purposes only
+end

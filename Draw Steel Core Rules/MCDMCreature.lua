@@ -4114,6 +4114,9 @@ function creature.TakeDamage(self, amount, note, info)
                 ability = eventArg.ability,
                 usedability = eventArg.ability,
                 hasrolleddamage = eventArg.hasrolleddamage,
+                --Acolyte patron damage marker. Top-level bare symbol PatronDamage
+                --in trigger formulas (matches how gainresource exposes Quantity).
+                patrondamage = eventArg.patrondamage,
             }
             attacker:DispatchEvent("dealdamage", args)
         end
@@ -4305,6 +4308,9 @@ function creature.TakeDamage(self, amount, note, info)
             ability = eventArg.ability,
             usedability = eventArg.ability,
             hasrolleddamage = eventArg.hasrolleddamage,
+            --Acolyte patron damage marker. Top-level bare symbol PatronDamage
+            --in trigger formulas (matches how gainresource exposes Quantity).
+            patrondamage = eventArg.patrondamage,
         }
         attacker:DispatchEvent("dealdamage", args)
     end

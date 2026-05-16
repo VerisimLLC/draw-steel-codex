@@ -1061,6 +1061,7 @@ CreateChatPanel = function()
         vscrollLockToBottom = true,
 		hideObjectsOutOfScroll = true,
 		hpad = 6,
+		width = "100%-12",
 		height = "100% available",
 
 		styles = ThemeEngine.MergeStyles(chatPanelStyles),

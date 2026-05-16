@@ -132,12 +132,36 @@ function CBSelectors._cultureItems()
 end
 
 --- Creates the main selectors panel containing all registered selectors.
+--- Each registered selector may declare `tokenKinds` (default {"hero"}); the
+--- wrapper collapses the selector when the active token's kind is not allowed.
 --- @return Panel
 function CBSelectors.CreatePanel()
 
     local selectors = {}
     for _,selector in ipairs(CharacterBuilder.Selectors) do
-        selectors[#selectors+1] = selector.selector()
+        local kinds = selector.tokenKinds or {"hero"}
+        local kindSet = {}
+        for _,k in ipairs(kinds) do kindSet[k] = true end
+
+        local inner = selector.selector()
+        local wrapper = gui.Panel{
+            classes = {"builder-base", "panel-base"},
+            width = "100%",
+            height = "auto",
+            valign = "top",
+            flow = "vertical",
+            data = { tokenKinds = kindSet },
+            refreshBuilderState = function(element, state)
+                local kind = state:Get("tokenKind") or "hero"
+                local allowed = element.data.tokenKinds[kind] == true
+                element:SetClass("collapsed", not allowed)
+                if not allowed then
+                    element:HaltEventPropagation()
+                end
+            end,
+            inner,
+        }
+        selectors[#selectors+1] = wrapper
     end
 
     local selectorsPanel = gui.Panel{
@@ -491,6 +515,34 @@ CharacterBuilder.RegisterSelector{
     ord = 9,
     selector = CBSelectors._title,
     detail = CBTitleDetail.CreatePanel,
+}
+
+--- @return Panel Choices selector button (catch-all for unscoped CharacterChoice features)
+function CBSelectors._choices()
+    return CBSelectors._makeButton{
+        text = "Choices",
+        data = { selector = SEL.CHOICES },
+        refreshBuilderState = function(element, state)
+            local creature = CharacterBuilder._getCreature()
+            local visible = creature ~= nil and creature.HasBuilderChoices and creature:HasBuilderChoices()
+            element:SetClass("collapsed", not visible)
+            if not visible then return end
+            element:FireEventTree("setSelected", state:Get("activeSelector") == element.data.selector)
+        end,
+        button = {
+            text = "Choices",
+        }
+    }
+end
+
+CharacterBuilder.RegisterSelector{
+    id = SEL.CHOICES,
+    ord = 10,
+    tokenKinds = {"hero","monster"},
+    selector = CBSelectors._choices,
+    -- Lazy reference: CBChoicesDetail loads after Selectors. Avoid evaluating
+    -- the function reference at registration time.
+    detail = function() return CBChoicesDetail.CreatePanel() end,
 }
 
 --[[

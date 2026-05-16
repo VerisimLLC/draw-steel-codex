@@ -2879,7 +2879,35 @@ function TacPanel.RecoveriesBox()
                     usageNote = "No Recoveries left"
                 end
             end
-            gui.Tooltip(usageNote)(element)
+
+            local lines = {usageNote}
+
+            local baseRecoveryValue = math.floor(token.properties:MaxHitpoints() / 3)
+            local recoveryValueMods = token.properties:DescribeModifications("recoveryvalue", baseRecoveryValue)
+            if #recoveryValueMods > 0 then
+                lines[#lines+1] = ""
+                lines[#lines+1] = string.format("Base Recovery Value: %d", baseRecoveryValue)
+                for _, modification in ipairs(recoveryValueMods) do
+                    lines[#lines+1] = string.format("%s: %s", modification.key, tostring(modification.value))
+                end
+            end
+
+            local recoveryMods = token.properties:DescribeResourceModifications(recoveryid)
+            if #recoveryMods > 1 then
+                lines[#lines+1] = ""
+                lines[#lines+1] = string.format("Maximum Recoveries: %d", maxRec)
+                for _, modification in ipairs(recoveryMods) do
+                    local valStr
+                    if type(modification.value) == "number" then
+                        valStr = string.format("%+d", modification.value)
+                    else
+                        valStr = tostring(modification.value)
+                    end
+                    lines[#lines+1] = string.format("%s: %s", modification.key, valStr)
+                end
+            end
+
+            element.tooltip = TacPanel.Tooltip(table.concat(lines, "\n"))
         end,
         press = function(element)
             local token = element.data.token
@@ -4208,7 +4236,10 @@ function TacPanel.GrowingHRTable()
 
             for _, entry in ipairs(growingResources.progression) do
                 if (tonumber(entry.level) or 0) <= characterLevel then
-                    local row = rows[index] or TacPanel.GrowingHRRow(entry, creature)
+                    local row = rows[index]
+                    if row == nil or not row.valid then
+                        row = TacPanel.GrowingHRRow(entry, creature)
+                    end
                     rows[index] = row
                     index = index + 1
 
@@ -4221,7 +4252,7 @@ function TacPanel.GrowingHRTable()
             end
 
             for i = index, #rows do
-                if rows[i] and rows[i].valid then rows[i]:SetClass("collapsed", true) end
+                rows[i] = nil
             end
 
             element.data.rows = rows

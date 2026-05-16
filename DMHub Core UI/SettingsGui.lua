@@ -10,12 +10,18 @@ end
 
 local CreateEditorPanel = function(var, editor, changeFunction, args)
 	args = args or {}
+	-- Opt-in label-above-control layout. When passed via the editor's options
+	-- table (e.g. CreateSettingsEditor("foo", {stacked = true})), the row
+	-- flows vertically with a smaller formStacked-themed label sitting above
+	-- the editor instead of beside it. Callers that don't pass `stacked` keep
+	-- the legacy horizontal layout.
+	local stacked = args.stacked
 
 	local label = nil
 	if not var.hidelabel then
 		label = gui.Label{
-			classes = {"form"},
-			width = "60%",
+			classes = stacked and {"formStacked", "sizeXs"} or {"form"},
+			width = stacked and "98%" or "60%",
 			text = string.format("%s:", var.description),
 		}
 	end
@@ -23,10 +29,11 @@ local CreateEditorPanel = function(var, editor, changeFunction, args)
 	return gui.Panel{
 		styles = {
 			{
-				width = "90%",
-				height = 48,
-				flow = 'horizontal',
+				width = stacked and "98%" or "90%",
+				height = stacked and "auto" or 48,
+				flow = stacked and "vertical" or "horizontal",
 				hmargin = 2,
+				vmargin = stacked and 4 or 0,
 			},
 			args.panelStyle,
 		},
@@ -131,6 +138,7 @@ local SettingsEditors = {
 
 	slider = function(var, options)
 		options = options or {}
+		local stacked = options.stacked
 
 		local formatFunction = nil
 		local deformatFunction = nil
@@ -157,7 +165,7 @@ local SettingsEditors = {
 			labelWidth = 40,
 			labelFormat = var.labelFormat or '%.1f',
 			events = {
-				
+
 				change = function(element)
 					dmhub.PreviewSettingValue(var.id, element.data.getValue())
 				end,
@@ -173,11 +181,12 @@ local SettingsEditors = {
 			},
 			styles = {
 				{
-					halign = 'right',
+					halign = stacked and 'left' or 'right',
 					valign = 'center',
 					fontSize = 12,
 					height = 28,
 					width = 160,
+					lmargin = stacked and 6 or 0,
 				},
 				options.style,
 			},
@@ -268,6 +277,7 @@ local SettingsEditors = {
 		local value = dmhub.GetSettingValue(var.id)
 
 		args = args or {}
+		local stacked = args.stacked
 
 		local options = {}
 
@@ -288,9 +298,10 @@ local SettingsEditors = {
 		end
 
 		local editor = gui.Dropdown{
-				classes = {"form"},
-				width = "33%",
-				halign = "right",
+				classes = {stacked and "formStacked" or "form"},
+				width = stacked and "98%" or "33%",
+				halign = stacked and "left" or "right",
+				lmargin = stacked and 6 or 0,
 				options = options,
 				idChosen = value,
 				monitor = var.id,

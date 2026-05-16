@@ -45,6 +45,7 @@ local EMPTY_SLOT_TEXT = "Unassigned"
 local _fireControllerEvent = CharacterBuilder._fireControllerEvent
 local _functionOrValue = CharacterBuilder._functionOrValue
 local _getHero = CharacterBuilder._getHero
+local _getCreature = CharacterBuilder._getCreature
 local _getState = CharacterBuilder._getState
 local _mergeKeyedTables = CharacterBuilder._mergeKeyedTables
 
@@ -663,11 +664,11 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
         },
         applyItem = function(element, option)
             local state = _getState()
-            local hero = _getHero()
-            if state and hero then
+            local creature = _getCreature()
+            if state and creature then
                 local cachedFeature = getCachedFeature(state, element.data.featureId)
                 if cachedFeature then
-                    local actionComplete = cachedFeature:SaveSelection(hero, option)
+                    local actionComplete = cachedFeature:SaveSelection(creature, option)
                     if actionComplete then
                         track("builder_selection", {
                             featureId = element.data.featureId,
@@ -683,11 +684,11 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
         end,
         removeItem = function(element, option)
             local state = _getState()
-            local hero = _getHero()
-            if state and hero then
+            local creature = _getCreature()
+            if state and creature then
                 local cachedFeature = getCachedFeature(state, element.data.featureId)
                 if cachedFeature then
-                    local actionComplete = cachedFeature:RemoveSelection(hero, option)
+                    local actionComplete = cachedFeature:RemoveSelection(creature, option)
                     if actionComplete then
                         track("ability_respec", {
                             featureId = element.data.featureId,
@@ -754,8 +755,8 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
             press = function(element)
                 local state = _getState()
                 if state == nil then return end
-                local hero = _getHero()
-                if hero == nil then return end
+                local creature = _getCreature()
+                if creature == nil then return end
                 local cachedFeature = getCachedFeature(state, element.data.featureId)
                 if cachedFeature == nil then return end
                 local controller = getFeatureSelController(element)
@@ -764,7 +765,7 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                 dmhub.Roll{
                     roll = rollInfo.roll,
                     description = string.format(feature:GetName()),
-                    tokenid = dmhub.LookupTokenId(hero),
+                    tokenid = dmhub.LookupTokenId(creature),
                     complete = function(rollResult)
                         local rowIndex = rollTable:RowIndexFromDiceResult(rollResult.total)
                         if rowIndex == nil then return end

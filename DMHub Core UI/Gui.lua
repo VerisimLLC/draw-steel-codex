@@ -1459,6 +1459,11 @@ function gui.Slider(args)
 		return (value - minValue) / (maxValue - minValue)
 	end
 
+	-- sliderWidth is now a fallback used only before the slider has rendered
+	-- (renderedWidth is 0 until then) and as the default outer width when the
+	-- caller didn't supply one. Once the track has a real renderedWidth, every
+	-- piece of pixel math reads it dynamically so the slider tracks parent
+	-- layout changes.
 	local sliderWidth = options.sliderWidth or 100
 	options.sliderWidth = nil
 
@@ -1467,6 +1472,20 @@ function gui.Slider(args)
 
 	local labelFormat = options.labelFormat
 	options.labelFormat = nil
+
+	-- Forward-declared so the trackWidth helper closes over it before sliderPanel
+	-- is actually constructed below.
+	local sliderPanel
+
+	-- Returns the current pixel width of the track. Reads sliderPanel.renderedWidth
+	-- when available; falls back to the legacy sliderWidth argument during the
+	-- brief window before the first render completes.
+	local function trackWidth()
+		if sliderPanel ~= nil and sliderPanel.valid and sliderPanel.renderedWidth ~= nil and sliderPanel.renderedWidth > 0 then
+			return sliderPanel.renderedWidth
+		end
+		return sliderWidth
+	end
 
 	options.events = options.events or {}
 
@@ -1479,6 +1498,13 @@ function gui.Slider(args)
 	end
 
 	options.flow = 'horizontal'
+
+	-- Outer width comes from the caller. They can set it top-level
+	-- (`width = X` on the slider call), via `style = { width = X }`, or via
+	-- a `styles = { { width = X } }` cascade rule. The slider does not set a
+	-- default width here -- that would be selfStyle and would override any
+	-- cascade rule the caller supplied. The inner track (sliderPanel) below
+	-- uses "100%-(labelWidth+4)" so it fills whatever mainPanel ends up being.
 
 	local mainPanel
 
@@ -1576,6 +1602,9 @@ function gui.Slider(args)
 
 
 	local handley = cond(notchAlign == "top", 4, 0)
+	-- Tracks the last track width we saw so the think tick can detect resize
+	-- and refresh dragBounds + re-fire updateValue (to reposition handle/fill).
+	local lastTrackWidth = 0
 	local handle = gui.Panel({
 		id = 'slider-handle',
 		draggable = true,
@@ -1595,24 +1624,40 @@ function gui.Slider(args)
 			handleItem,
 		},
 
+		thinkTime = 0.1,
+
 		events = {
 			setwrap = function(element, val)
 				wrap = val
 				element.dragxwrap = val
 			end,
 
+			-- Track parent resize. When the track's renderedWidth changes
+			-- (most importantly: 0 -> N on first render, or parent column
+			-- resize), refresh dragBounds so the handle's drag travel matches
+			-- the new track, and re-fire updateValue so the handle x and fill
+			-- width snap to the new pixel positions.
+			think = function(element)
+				local w = trackWidth()
+				if w ~= lastTrackWidth and w > 0 then
+					lastTrackWidth = w
+					element.dragBounds = { x1 = 0, y1 = handley, x2 = w, y2 = handley }
+					mainPanel:FireEventTree('updateValue')
+				end
+			end,
+
 			drag = function(element)
-				--mainPanel.data.setNormalizedValue(clamp(element.xdrag / sliderWidth, 0, 1))
+				--mainPanel.data.setNormalizedValue(clamp(element.xdrag / trackWidth(), 0, 1))
 				mainPanel.data.setNormalizedValue(NormalizedValue())
 				mainPanel:FireEvent('confirm')
 			end,
 			dragging = function(element)
-				mainPanel.data.setNormalizedValue(clamp(element.xdrag / sliderWidth, 0, 1))
+				mainPanel.data.setNormalizedValue(clamp(element.xdrag / trackWidth(), 0, 1))
 				mainPanel:FireEvent('preview')
 			end,
 			updateValue = function(element)
 				if element.dragging == false then
-					element.x = sliderWidth * NormalizedValue()
+					element.x = trackWidth() * NormalizedValue()
 				end
 			end
 		},
@@ -1629,16 +1674,20 @@ function gui.Slider(args)
 		},
 		events = {
 			updateValue = function(element)
-				element.selfStyle.width = math.floor(sliderWidth * NormalizedValue())
+				element.selfStyle.width = math.floor(trackWidth() * NormalizedValue())
 			end,
 		},
 	}
 
-	local sliderPanel = gui.Panel({
+	-- Inner track is responsive. If there's a value label to its right, carve
+	-- out room for it (labelWidth + 2px hmargin on each side = labelWidth+4).
+	local sliderTrackWidth = labelWidth and ("100%-" .. (labelWidth + 4)) or "100%"
+
+	sliderPanel = gui.Panel({
 		id = 'slider-panel',
 		style = {
 			cornerRadius = 0,
-			width = sliderWidth,
+			width = sliderTrackWidth,
 			height = '100%',
 			halign = 'left',
 			pad = 0,
@@ -2314,6 +2363,13 @@ function gui.TreeNode(args)
 		headerClasses[#headerClasses+1] = cls
 	end
 
+    local headerClick = nil
+    if options.click == nil and options.press == nil then
+        headerClick = function(element)
+            triangle:FireEvent("toggle")
+        end
+    end
+
 	local headerPanel = gui.Panel({
 
 		classes = headerClasses,
@@ -2341,6 +2397,7 @@ function gui.TreeNode(args)
 		},
 
 		events = {
+            click = headerClick,
 			rightClick = function(element)
 				resultPanel:FireEvent('contextMenu')
 			end,
@@ -2397,10 +2454,6 @@ function gui.TreeNode(args)
 
 	options.setempty = function(element, val)
 		triangle:SetClass("empty", val)
-	end
-
-	options.click = function(element)
-		triangle:FireEvent("toggle")
 	end
 
 	options.children = {

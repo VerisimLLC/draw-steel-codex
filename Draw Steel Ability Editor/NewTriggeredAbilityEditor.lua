@@ -382,6 +382,12 @@ local TRIGGER_METADATA = {
         tags = {"pressure", "plate", "trap", "step"},
         group = "movement",
     },
+    pressureplateoff = {
+        label = "Stepped off a Pressure Plate",
+        description = "Fires when a creature steps off a pressure plate tile.",
+        tags = {"pressure", "plate", "trap", "step", "off"},
+        group = "movement",
+    },
     teleport = {
         label = "Teleport",
         description = "Fires when the creature teleports.",

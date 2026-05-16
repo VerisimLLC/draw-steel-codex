@@ -251,6 +251,35 @@ function CharacterBuilder.CreatePanel()
             end
         end,
 
+        -- Build the SEL.CHOICES feature cache. Populated for any creature
+        -- (hero or monster) that exposes builder-choice features through its
+        -- catch-all sources.
+        cacheChoices = function(element, creature)
+            local state = element.data.state
+            if creature == nil or creature.GetBuilderChoiceFeatures == nil then
+                state:Set{ key = SEL.CHOICES .. ".featureCache", value = nil }
+                state:Set{ key = SEL.CHOICES .. ".selectionStatus", value = nil }
+                return
+            end
+            local choiceFeatures = creature:GetBuilderChoiceFeatures()
+            if #choiceFeatures == 0 then
+                state:Set{ key = SEL.CHOICES .. ".featureCache", value = nil }
+                state:Set{ key = SEL.CHOICES .. ".selectionStatus", value = nil }
+                return
+            end
+            local featureCache = CBFeatureCache.CreateNew(creature, SEL.CHOICES, "Choices", choiceFeatures)
+            featureCache:TransferUISelections(state:Get(SEL.CHOICES .. ".featureCache"))
+            local selectionStatus = CBSelectionStatus.CreateNew{
+                featureCache = featureCache,
+                selectorName = SEL.CHOICES,
+                visible = true,
+                suppressRow1 = true,
+                displayName = "Choices",
+            }
+            state:Set{ key = SEL.CHOICES .. ".featureCache", value = featureCache }
+            state:Set{ key = SEL.CHOICES .. ".selectionStatus", value = selectionStatus }
+        end,
+
         cachePerks = function(element)
             local state = element.data.state
             local hero = _getHero()
@@ -325,7 +354,9 @@ function CharacterBuilder.CreatePanel()
 
         ensureActiveSelector = function(element)
             if element.data.state:Get("activeSelector") == nil then
-                element:FireEvent("selectorChange", CharacterBuilder.INITIAL_SELECTOR)
+                local kind = element.data.state:Get("tokenKind") or "hero"
+                local initialSel = (kind == "monster") and SEL.CHOICES or CharacterBuilder.INITIAL_SELECTOR
+                element:FireEvent("selectorChange", initialSel)
             end
         end,
 
@@ -351,9 +382,21 @@ function CharacterBuilder.CreatePanel()
                     state = element.data.state
                     state:Set{ key = "tokenId", value = token.id }
                 end
+
+                local props = token.properties
+                local tokenKind = props:IsHero() and "hero" or (props:IsMonster() and "monster" or nil)
+                state:Set{ key = "tokenKind", value = tokenKind }
+
                 element:FireEvent("ensureActiveSelector")
 
-                local hero = token.properties
+                if tokenKind == "monster" then
+                    element:FireEvent("cacheChoices", props)
+                    element:FireEventTree("refreshBuilderState", state)
+                    element:HaltEventPropagation()
+                    return
+                end
+
+                local hero = props
                 if hero:IsHero() then
 
                     -- Validate the description info
@@ -387,6 +430,8 @@ function CharacterBuilder.CreatePanel()
                             if feature then feature:Update(hero) end
                         end
                     end
+
+                    element:FireEvent("cacheChoices", hero)
 
                     -- Always cache levelChoices last. Other actions depend
                     -- on determining the difference between cache and current.
@@ -753,7 +798,10 @@ CharSheet.RegisterTab {
     id = "Builder",
     text = "Builder",
 	visible = function(c)
-		return c ~= nil and c:IsHero()
+		if c == nil then return false end
+		if c:IsHero() then return true end
+		if c:IsMonster() and c:HasBuilderChoices() then return true end
+		return false
 	end,
     panel = CharacterBuilder.CreatePanel
 }

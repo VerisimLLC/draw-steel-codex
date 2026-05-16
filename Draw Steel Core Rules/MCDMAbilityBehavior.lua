@@ -157,7 +157,39 @@ local function ExecuteDamage(behavior, ability, casterToken, targetToken, option
     local damageType = match.type or "untyped"
     local damage = tonumber(match.damage)
     local isRolledDamage = damage == nil
-    
+
+    --Patron damage handling (Acolyte class).
+    --The literal token "patron" in tier/rule text is a placeholder for the
+    --caster's patron-element damage type (corruption / holy / lightning).
+    --Resolve here so the eventual damage event is typed correctly AND carries
+    --the patrondamage flag for triggers and GoblinScript symbols.
+    local patrondamage = false
+    if damageType == "patron" then
+        patrondamage = true
+        local resolved = nil
+        if casterToken ~= nil and casterToken.valid and casterToken.properties ~= nil
+            and casterToken.properties.PatronDamageType ~= nil then
+            resolved = casterToken.properties:PatronDamageType()
+        end
+        if type(resolved) == "string" and resolved ~= "" then
+            damageType = string.lower(resolved)
+        else
+            damageType = "untyped"
+            --One warning per cast: log to console (not chat) when a patron
+            --damage tier fires from a caster with no patron set. options.symbols.cast
+            --is the per-cast ActivatedAbilityCast; using a transient flag lets us
+            --gate the warning per-cast without polluting persisted state.
+            local cast = options ~= nil and options.symbols ~= nil and options.symbols.cast
+            if cast == nil or not cast:try_get("_tmp_patronDamageWarned", false) then
+                if cast ~= nil then cast._tmp_patronDamageWarned = true end
+                print(string.format(
+                    "PATRON DAMAGE:: caster '%s' has no patron_damage_type set; emitting untyped damage for tier text 'patron damage'.",
+                    casterToken ~= nil and creature.GetTokenDescription(casterToken) or "?"
+                ))
+            end
+        end
+    end
+
     -- Count how many times (half) appears in the modifiers
     local halfCount = 0
     if match.mods then
@@ -170,8 +202,8 @@ local function ExecuteDamage(behavior, ability, casterToken, targetToken, option
         local _, count = string.gsub(match.mods, "no damage", "")
         noDamage = count > 0
     end
-    
-    print("ExecuteDamage::", damage, damageType, "halfCount:", halfCount, "noDamage:", noDamage)
+
+    print("ExecuteDamage::", damage, damageType, "halfCount:", halfCount, "noDamage:", noDamage, "patron:", patrondamage)
 
     if damage == nil then
         local complete = false
@@ -253,8 +285,8 @@ local function ExecuteDamage(behavior, ability, casterToken, targetToken, option
                 description = "Inflict Damage",
                 undoable = false,
                 execute = function()
-                    result = targetToken.properties:InflictDamageInstance(damage, damageType, ability.keywords, string.format("%s's %s", selfName, ability.name), { criticalhit = false, attacker = attacker, surges = options.surges, ability = ability, hasability = true, cast = options.symbols.cast, hasrolleddamage = isRolledDamage})
-                    options.symbols.cast:CountDamage(targetToken, result.damageDealt, damage, isRolledDamage)
+                    result = targetToken.properties:InflictDamageInstance(damage, damageType, ability.keywords, string.format("%s's %s", selfName, ability.name), { criticalhit = false, attacker = attacker, surges = options.surges, ability = ability, hasability = true, cast = options.symbols.cast, hasrolleddamage = isRolledDamage, patrondamage = patrondamage})
+                    options.symbols.cast:CountDamage(targetToken, result.damageDealt, damage, isRolledDamage, patrondamage)
                 end,
             }
         end

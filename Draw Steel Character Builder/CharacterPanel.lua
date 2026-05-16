@@ -1013,6 +1013,15 @@ function CBCharPanel.CreatePanel()
         bgimage = true,
         flow = "vertical",
 
+        refreshBuilderState = function(element, state)
+            local kind = state:Get("tokenKind") or "hero"
+            local visible = kind == "hero"
+            element:SetClass("collapsed", not visible)
+            if not visible then
+                element:HaltEventPropagation()
+            end
+        end,
+
         headerPanel,
         detailPanel,
     }

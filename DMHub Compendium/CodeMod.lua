@@ -930,6 +930,7 @@ CreateEditor = function(panelArgs)
 
 	checkinButton = gui.Button{
 		fontSize = 18,
+        width = 220,
 		text = "Check In Code",
 		click = function(element)
             local mergingRequired = false

@@ -330,6 +330,7 @@ Use to highlight a single label or panel without authoring a rule.
 - '{noBorder}` - removes any border from the control.
 - `{bold}` / `{noBold}` — flip weight. Both carry `priority = 5` so they beat the base rule.
 - `{underline}` — typographic underline. Same `priority = 5` shape as `{bold}`. Compose with size classes when you want emphasis on a heading without authoring a one-off rule.
+- `{hoverable}` — generic "this element is clickable" affordance: brightens the element on hover (with a short transition). Compose onto any base — a `{bordered}` panel acting as a card/button, a row, a label — instead of hand-rolling a per-component `hover` rule. Token-free and scheme-independent (brightness is a multiplier, not a color), so it tracks every theme without an `@token`. Reach for this before authoring any custom hover rule for a clickable surface.
 - `{monospace}` — fixed-width font for code/script display (Lua editor body, expression-tree nodes, formula source text). Picks up the active theme's `@mono` font token (default `"Courier"`). Compose with size classes for the right text size.
 - `{transparent}` — clears `bgcolor` (`bgcolor = "clear"`) at `priority = 5` so it overrides the base rule. Compose anywhere you've inherited a fill you don't want — e.g. a row inside a card that should let the card's surface paint through, or a button whose cascade gave it a `@bg` it shouldn't have. Affects fill only; borders, text color, and `bgimage` are untouched.
 

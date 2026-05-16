@@ -190,6 +190,7 @@ Interesting classes:
 |surfaceLinear, surfaceRadial, barTrack|panel|Paint the named scheme gradient on a panel. Use for header strips, framed surfaces, progress-bar tracks.|
 |sizeXxs, sizeXs, sizeS, sizeM,<br>sizeL, sizeXl, sizeXxl|label, button|Default sizing.|
 |bold, noBold|anything|Make text bold or not bold.|
+|hoverable|any clickable surface|Generic "this is clickable" affordance: brightens the element on hover. Compose onto a `bordered` card/row/button-panel instead of writing a custom hover rule. Token-free, tracks every theme.|
 |number|label|The label holds only a number.|
 |disabled|button, checkbox, input|Appear disabled.|
 |flipped|iconButton|Flips the icon horizontally.|

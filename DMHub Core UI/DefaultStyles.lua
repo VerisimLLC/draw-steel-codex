@@ -1268,6 +1268,18 @@ ThemeEngine.RegisterTheme{
             underline = true,
             priority = 5,
         },
+        -- Generic "this element is clickable" affordance. Composes onto any
+        -- base (panel, bordered surface, label) and brightens it on hover so
+        -- callers don't hand-roll per-component hover rules. Token-free and
+        -- scheme-independent -- brightness is a multiplier, not a color, so
+        -- it tracks every theme without an @token. priority=5 so it beats
+        -- the base rule like the other composable flips above.
+        {
+            selectors = {"hoverable", "hover"},
+            brightness = 1.2,
+            transitionTime = 0.1,
+            priority = 5,
+        },
         {
             selectors = {"monospace"},
             fontFace = "@mono",

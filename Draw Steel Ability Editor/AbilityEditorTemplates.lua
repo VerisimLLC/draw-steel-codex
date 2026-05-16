@@ -10,51 +10,6 @@ local mod = dmhub.GetModLoading()
     3. Entry modal UI shown on first edit of a new ability
 ]]
 
--- Picker-specific style extras appended to the entry-modal cascade root via
--- ThemeEngine.MergeTokens. Keeps the modal's "dark fill + accent border"
--- card look but routes the colors through @-tokens so the cards re-color
--- with the active scheme. Hover state requires cascade rules (cannot inline).
-local function _pickerStyles()
-    return {
-        {
-            selectors = {"picker-card"},
-            bgimage = true,
-            bgcolor = "@bgAlt",
-            borderWidth = 1,
-            borderColor = "@border",
-            cornerRadius = 3,
-            borderBox = true,
-            -- Defeat the vertical-flow distribution quirk: without this,
-            -- DMHub's layout shrinks/auto-fits cards when there are many
-            -- siblings, especially under a vscroll container. valign="top"
-            -- pins each card to its row instead.
-            valign = "top",
-        },
-        {
-            selectors = {"picker-card", "hover"},
-            borderColor = "@accentHover",
-        },
-        -- Larger card for the three main entry paths -- subtle brighten on
-        -- hover to telegraph clickability.
-        {
-            selectors = {"picker-path-button"},
-            bgimage = true,
-            bgcolor = "@bgAlt",
-            borderWidth = 1,
-            borderColor = "@border",
-            cornerRadius = 4,
-            borderBox = true,
-            valign = "top",
-        },
-        {
-            selectors = {"picker-path-button", "hover"},
-            borderColor = "@accentHover",
-            brightness = 1.2,
-            transitionTime = 0.15,
-        },
-    }
-end
-
 -- Template categories for grouping in both the compendium editor and the
 -- entry modal's "Start from Template" sub-view.
 local TEMPLATE_CATEGORIES = {
@@ -102,13 +57,13 @@ local function CreateAbilityTemplateEditor(tableName)
     local editPanel
     editPanel = gui.Panel{
         classes = {"hidden"},
+        styles = ThemeEngine.GetStyles(),
         selfStyle = {
             flow = "vertical",
             height = "100%",
             width = "auto",
             vpad = 8,
             hpad = 12,
-            borderBox = true,
         },
 
         change = function(element)
@@ -126,20 +81,14 @@ local function CreateAbilityTemplateEditor(tableName)
 
         -- Name
         gui.Panel{
-            flow = "horizontal",
-            width = 360,
-            height = "auto",
-            halign = "left",
-            bmargin = 6,
+            classes = {"formStackedRow"},
 
             gui.Label{
-                width = 90, height = "auto", fontSize = 14,
-                classes = {"fgMuted"}, textAlignment = "left",
-                valign = "center", text = "Name",
+                classes = {"formStacked"},
+                text = "Name",
             },
             gui.Input{
-                width = 240,
-                fontSize = 14,
+                classes = {"formStacked"},
                 refreshTemplate = function(element)
                     if m_item ~= nil then
                         element.text = m_item.name
@@ -156,21 +105,15 @@ local function CreateAbilityTemplateEditor(tableName)
 
         -- Description
         gui.Panel{
-            flow = "horizontal",
-            width = 360,
-            height = "auto",
-            halign = "left",
-            bmargin = 6,
+            classes = {"formStackedRow"},
 
             gui.Label{
-                width = 90, height = "auto", fontSize = 14,
-                classes = {"fgMuted"}, textAlignment = "left",
-                valign = "center", text = "Description",
+                classes = {"formStacked"},
+                text = "Description",
             },
             gui.Input{
-                width = 240,
+                classes = {"formStacked"},
                 height = 60,
-                fontSize = 14,
                 multiline = true,
                 refreshTemplate = function(element)
                     if m_item ~= nil then
@@ -188,19 +131,14 @@ local function CreateAbilityTemplateEditor(tableName)
 
         -- Category
         gui.Panel{
-            flow = "horizontal",
-            width = 360,
-            height = "auto",
-            halign = "left",
-            bmargin = 6,
+            classes = {"formStackedRow"},
 
             gui.Label{
-                width = 90, height = "auto", fontSize = 14,
-                classes = {"fgMuted"}, textAlignment = "left",
-                valign = "center", text = "Category",
+                classes = {"formStacked"},
+                text = "Category",
             },
             gui.Dropdown{
-                width = 240,
+                classes = {"formStacked"},
                 refreshTemplate = function(element)
                     if m_item ~= nil then
                         local options = {}
@@ -251,6 +189,12 @@ local function CreateAbilityTemplateEditor(tableName)
             end,
         },
     }
+
+    ThemeEngine.OnThemeChanged(mod, function()
+        if editPanel ~= nil and editPanel.valid then
+            editPanel.styles = ThemeEngine.GetStyles()
+        end
+    end)
 
     return editPanel
 end
@@ -738,7 +682,7 @@ end
 
 local function _makePathButton(title, description, onClick)
     return gui.Panel{
-        classes = {"picker-path-button"},
+        classes = {"bordered", "bgAlt", "hoverable"},
         width = "100%",
         height = "auto",
         flow = "vertical",
@@ -747,6 +691,7 @@ local function _makePathButton(title, description, onClick)
         hpad = 16,
         vpad = 16,
         bmargin = 6,
+        borderBox = true,
         press = onClick,
 
         gui.Label{
@@ -837,13 +782,15 @@ local function _buildTemplateListView(ability, rootPanel, onComplete, rebuildEdi
             for _, template in ipairs(group.entries) do
                 local t = template
                 children[#children + 1] = gui.Panel{
-                    classes = {"picker-card"},
+                    classes = {"bordered", "bgAlt", "hoverable"},
                     width = "100%",
                     height = "auto",
                     flow = "vertical",
+                    valign = "top",
                     hpad = 8,
                     vpad = 5,
                     bmargin = 2,
+                    borderBox = true,
 
                     press = function()
                         local templateAbility = t:try_get("ability")
@@ -900,13 +847,15 @@ end
 local function _makeAbilityCard(entry, ability, rootPanel, rebuildEditor)
     local e = entry
     return gui.Panel{
-        classes = {"picker-card"},
+        classes = {"bordered", "bgAlt", "hoverable"},
         width = "100%",
         height = "auto",
         flow = "vertical",
+        valign = "top",
         hpad = 8,
         vpad = 5,
         bmargin = 3,
+        borderBox = true,
 
         press = function()
             _applyAbilityFields(ability, e.ability, true)
@@ -954,13 +903,15 @@ local function _buildDuplicateListView(ability, rootPanel, onComplete, rebuildEd
     -- read as "scaling" when drilling into a dense list.
     local function _makeSourceRow(label, count, onClick)
         return gui.Panel{
-            classes = {"picker-card"},
+            classes = {"bordered", "bgAlt", "hoverable"},
             width = "100%",
             height = "auto",
             flow = "horizontal",
+            valign = "top",
             hpad = 8,
             vpad = 6,
             bmargin = 3,
+            borderBox = true,
             press = onClick,
 
             gui.Label{
@@ -1208,13 +1159,15 @@ local function _buildDuplicateListView(ability, rootPanel, onComplete, rebuildEd
         for _, catDef in ipairs(DUPLICATE_CATEGORIES) do
             local cid = catDef.id
             children[#children + 1] = gui.Panel{
-                classes = {"picker-card"},
+                classes = {"bordered", "bgAlt", "hoverable"},
                 width = "100%",
                 height = "auto",
                 flow = "horizontal",
+                valign = "top",
                 hpad = 8,
                 vpad = 7,
                 bmargin = 3,
+                borderBox = true,
 
                 press = function()
                     showSources(cid, showCategories)
@@ -1433,7 +1386,7 @@ function AbilityEditor.ShowEntryModal(ability, rootPanel, rebuildEditor)
 
     local dialogPanel = gui.Panel{
         classes = {"framedPanel"},
-        styles = { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(_pickerStyles()) },
+        styles = ThemeEngine.GetStyles(),
         width = 460,
         height = 500,
         flow = "vertical",
@@ -1465,6 +1418,12 @@ function AbilityEditor.ShowEntryModal(ability, rootPanel, rebuildEditor)
             },
         },
     }
+
+    ThemeEngine.OnThemeChanged(mod, function()
+        if dialogPanel ~= nil and dialogPanel.valid then
+            dialogPanel.styles = ThemeEngine.GetStyles()
+        end
+    end)
 
     showMainView()
     gui.ShowModal(dialogPanel)

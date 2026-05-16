@@ -172,7 +172,7 @@ function ActivatedAbilityAddNewTargetsBehavior:EditorItems(parentPanel)
 		height = 50,
 		text = "Edit Targeting",
 		click = function(element)
-			element.root:AddChild(self.targetingAbility:ShowEditActivatedAbilityDialog())
+			element.root:AddChild(self.targetingAbility:ShowEditActivatedAbilityDialog{hideEffectsSection = true})
 		end,
 	}
 

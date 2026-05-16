@@ -4707,6 +4707,16 @@ function AbilityEditor.GenerateEditor(ability, opts)
     -- replaced with a floating overlay that is collapsed by default and
     -- toggled via a 28px tab pinned to the right edge of the body row.
     local embedded = opts.embedded == true
+    -- Section filtering.
+    local sections = SECTIONS
+    if opts.hideEffectsSection then
+        sections = {}
+        for _, sectionDef in ipairs(SECTIONS) do
+            if sectionDef.id ~= "effects" then
+                sections[#sections + 1] = sectionDef
+            end
+        end
+    end
     local sectionContents = {}
     local navButtons = {}
 
@@ -4794,7 +4804,7 @@ function AbilityEditor.GenerateEditor(ability, opts)
         end
     end
 
-    for _, sectionDef in ipairs(SECTIONS) do
+    for _, sectionDef in ipairs(sections) do
         navButtons[#navButtons + 1] = _makeNavButton(sectionDef, selectSection)
         sectionContents[#sectionContents + 1] = _makeSectionContent(sectionDef, ability, fireChange)
     end
@@ -5086,7 +5096,7 @@ function AbilityEditor.GenerateEditor(ability, opts)
         -- MergeStyles. Inline @-token strings would not be theme-aware.
         data = {
             ability = ability,
-            selectedSectionId = SECTIONS[1].id,
+            selectedSectionId = sections[1].id,
         },
         -- Behaviour-driven preview invalidation. EditorItem change handlers
         -- on behaviours that surface fields on the preview card (currently
@@ -5110,7 +5120,7 @@ function AbilityEditor.GenerateEditor(ability, opts)
     }
 
     -- Initial selection + initial preview render.
-    selectSection(SECTIONS[1].id)
+    selectSection(sections[1].id)
     if previewSlot ~= nil then
         previewSlot:FireEvent("refreshPreview")
     end

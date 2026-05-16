@@ -3791,6 +3791,9 @@ function ActivatedAbility:ShowEditActivatedAbilityDialog(options)
 	local title = options.title or "Edit Ability"
 	options.title = nil
 
+	local hideEffectsSection = options.hideEffectsSection
+	options.hideEffectsSection = nil
+
 
 	if options.hide ~= nil then
 		for _,item in ipairs(options.hide) do
@@ -3970,7 +3973,7 @@ function ActivatedAbility:ShowEditActivatedAbilityDialog(options)
 				-- re-navigates the user to the original entry point.
 				-- Other GenerateEditor variants ignore the field.
 				mainFormPanel.children = {
-					editItem:GenerateEditor({reopen = options.reopen}),
+					editItem:GenerateEditor({reopen = options.reopen, hideEffectsSection = hideEffectsSection}),
 				}
 
 			end,

@@ -1138,6 +1138,7 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
                 local inRangeCount = 0
                 for _,tok in ipairs(squad.tokens or {}) do
                     if tok ~= nil and tok.valid and (not tok.properties:IsDead())
+                        and tok.properties:IsActiveInSquad()
                         and tok:Distance(target.token) <= maneuverRange then
                         inRangeCount = inRangeCount + 1
                     end

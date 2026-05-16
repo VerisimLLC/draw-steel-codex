@@ -850,6 +850,42 @@ function creature:MinionDeath()
     }
 end
 
+--- "Maneuver or Action" squad rule.
+function creature:HasManeuverOrActionRule()
+    if not self.minion then
+        return false
+    end
+    return (self:CalculateNamedCustomAttribute("Maneuver or Action") or 0) > 0
+end
+
+--- Individual maneuver tracking
+local function g_currentTurnId()
+    local q = dmhub.initiativeQueue
+    if q == nil then
+        return "no-combat"
+    end
+    return q:GetTurnId()
+end
+
+function creature:HasUsedIndividualManeuver()
+    local stamp = self:try_get("_tmp_individualManeuverTurnId")
+    if stamp == nil then
+        return false
+    end
+    return stamp == g_currentTurnId()
+end
+
+function creature:MarkIndividualManeuverUsed()
+    self._tmp_individualManeuverTurnId = g_currentTurnId()
+end
+
+--- True if this minion is still participating in their squad's coordinated
+--- action/maneuver this turn. False if they've broken off for an individual
+--- maneuver. Always true for minions that don't use the Maneuver or Action rule.
+function creature:IsActiveInSquad()
+    return not self:HasUsedIndividualManeuver()
+end
+
 --- Refresh info about the squad.
 --- @param token CharacterToken
 function creature:RefreshSquadInfo(token)

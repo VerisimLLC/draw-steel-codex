@@ -2244,6 +2244,23 @@ function ActivatedAbility:IsForcedMovement()
     return true
 end
 
+--Minion Individual Maneuver rule
+function ActivatedAbility:UsesIndividualManeuver(casterToken)
+    if casterToken == nil or not casterToken.properties.minion then
+        return false
+    end
+    if not casterToken.properties:has_key("_tmp_minionSquad") then
+        return false
+    end
+    if not casterToken.properties:HasManeuverOrActionRule() then
+        return false
+    end
+    if not self:IsManeuver() then
+        return false
+    end
+    return self.selfTarget or self.targetType == 'self'
+end
+
 --Returns true if this ability, when cast by a minion in a squad, should be coordinated across the squad
 function ActivatedAbility:UsesSquadCoordination(casterToken)
     if casterToken == nil or not casterToken.properties.minion then
@@ -2269,7 +2286,9 @@ function ActivatedAbility:UsesSquadCoordination(casterToken)
     end
 
     --Maneuvers used as a squad action (single-target collapsed to one shared roll).
-    if self:IsManeuver() then
+    --For creatures with the Maneuver-or-Action rule, self-targeted maneuvers are
+    --instead routed through the individual-maneuver path (see UsesIndividualManeuver).
+    if self:IsManeuver() and not self:UsesIndividualManeuver(casterToken) then
         return true
     end
 
@@ -2286,6 +2305,74 @@ end
 --power roll is replaced with `8 + highest characteristic + in-range squad members`.
 function ActivatedAbility:UsesSquadManeuver(casterToken)
     return self:UsesSquadCoordination(casterToken) and self:IsManeuver()
+end
+
+--function wrapper for Summoner Minion Main Action and Maneuver usage support
+local g_consumeResources_base = ActivatedAbility.ConsumeResources
+function ActivatedAbility:ConsumeResources(casterToken, options)
+    g_consumeResources_base(self, casterToken, options)
+
+    if casterToken == nil or not casterToken.valid then
+        return
+    end
+
+    if self:UsesIndividualManeuver(casterToken) then
+        casterToken:ModifyProperties{
+            description = "Mark Individual Maneuver",
+            undoable = false,
+            combine = true,
+            execute = function()
+                casterToken.properties:MarkIndividualManeuverUsed()
+            end,
+        }
+        return
+    end
+
+    if not self:UsesSquadCoordination(casterToken) then
+        return
+    end
+
+    if not casterToken.properties:HasManeuverOrActionRule() then
+        return
+    end
+
+    if not (self:IsAction() or self:IsManeuver()) then
+        return
+    end
+
+    local squad = casterToken.properties:try_get("_tmp_minionSquad")
+    if squad == nil or squad.tokens == nil then
+        return
+    end
+
+    local actionId = CharacterResource.actionResourceId
+    local maneuverId = CharacterResource.maneuverResourceId
+
+    for _,tok in ipairs(squad.tokens) do
+        if tok ~= nil and tok.valid
+            and (not tok.properties:IsDead())
+            and tok.properties:IsActiveInSquad() then
+
+            local consumeAction = (tok.properties:GetResourceUsage(actionId, "turn") or 0) < 1
+            local consumeManeuver = (tok.properties:GetResourceUsage(maneuverId, "turn") or 0) < 1
+
+            if consumeAction or consumeManeuver then
+                tok:ModifyProperties{
+                    description = "Squad Expends Both Resources",
+                    undoable = false,
+                    combine = true,
+                    execute = function()
+                        if consumeAction then
+                            tok.properties:ConsumeResource(actionId, "turn", 1, self.name)
+                        end
+                        if consumeManeuver then
+                            tok.properties:ConsumeResource(maneuverId, "turn", 1, self.name)
+                        end
+                    end,
+                }
+            end
+        end
+    end
 end
 
 function ActivatedAbility:CanTargetAdditionalTimes(casterToken, symbols, targets, targetToken)
@@ -2405,7 +2492,12 @@ function ActivatedAbility:GetTargetingRays(casterToken, range, symbols, targets)
     if self:UsesSquadCoordination(casterToken) then
         local locations = {}
         local squad = casterToken.properties._tmp_minionSquad
-        local squadTokens = table.shallow_copy(squad.tokens)
+        local squadTokens = {}
+        for _, tok in ipairs(squad.tokens) do
+            if tok ~= nil and tok.valid and tok.properties:IsActiveInSquad() then
+                squadTokens[#squadTokens + 1] = tok
+            end
+        end
 
         --put the caster token at the front so they'll get priority.
         for i, tok in ipairs(squadTokens) do
@@ -2668,7 +2760,12 @@ function ActivatedAbility:CustomTargetShape(casterToken, range, symbols, targets
     if (not mod.unloaded) and self:UsesSquadCoordination(casterToken) then
         local locations = {}
         local squad = casterToken.properties._tmp_minionSquad
-        local squadTokens = table.shallow_copy(squad.tokens)
+        local squadTokens = {}
+        for _, tok in ipairs(squad.tokens) do
+            if tok ~= nil and tok.valid and tok.properties:IsActiveInSquad() then
+                squadTokens[#squadTokens + 1] = tok
+            end
+        end
 
         targets = GetTargetsWithTokens(targets)
 

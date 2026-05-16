@@ -61,14 +61,13 @@ function ConditionRider:FillEditingFields(result)
     }
 
     result[#result+1] = gui.Panel{
-        classes = {"formPanel"},
+        classes = {"formStackedRow"},
         gui.Label{
+            classes = {"formStacked"},
             text = "Power Table Text:",
-            valign = "center",
-            classes = {"formLabel"},
         },
         gui.Input{
-            classes = {"formInput"},
+            classes = {"formStacked"},
             text = self.powerTableText,
             characterLimit = 120,
             placeholderText = "Enter power table text...",

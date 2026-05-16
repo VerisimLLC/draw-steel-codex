@@ -347,6 +347,32 @@ function Class:CustomEditor(UploadFn, children)
     if not self.isSubclass then
     print("CLASS:: CUSTOM IS SUB")
 
+        -- Master Class
+        if devmode() then
+            children[#children+1] = gui.Panel{
+                classes = {"formStackedRow"},
+                gui.Check{
+                    text = "Beta Testing",
+                    value = self:try_get("isBetaTesting", false),
+                    change = function(element)
+                        self.isBetaTesting = element.value
+                    end,
+                }
+            }
+        end
+
+        -- Master Class
+        children[#children+1] = gui.Panel{
+            classes = {"formStackedRow"},
+            gui.Check{
+                text = "Master Class",
+                value = self:try_get("isMasterClass", false),
+                change = function(element)
+                    self.isMasterClass = element.value
+                end,
+            }
+        }
+
         -- Class Color
         children[#children+1] = gui.Panel{
             width = "auto",

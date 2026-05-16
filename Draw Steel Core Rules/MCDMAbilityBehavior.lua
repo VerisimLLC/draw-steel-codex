@@ -1221,6 +1221,7 @@ dmhub.RegisterEventHandler("refreshTables", function(keys)
     g_rulePatterns[g_applyConditionIndex] = {
         pattern = "^(?<condition>" .. GetTableNameRegex(CharacterCondition.tableName, "powertable") .. ") \\((?<duration>eot|EoT|save ends|eoe)?\\)",
         execute = function(behavior, ability, casterToken, targetToken, options, match)
+            ability:CommitToPaying(casterToken, options)
             local duration = string.lower(match.duration)
             if string.starts_with(duration, "save") then
                 duration = "save"

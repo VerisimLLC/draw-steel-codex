@@ -5187,22 +5187,34 @@ CreateAbilityController = function()
                     if partnerBurst ~= "" then
                         local condResult = ExecuteGoblinScript(partnerBurst, g_token.properties:LookupSymbol(g_currentSymbols), 0, "Partner burst condition")
                         if tonumber(condResult) ~= 0 then
-                            -- summonerid lives on the TOKEN, not on properties
-                            -- (mirrors how applyto:caster_summoner reads it in
-                            -- ActivatedAbility.lua's ApplyToTargets).
+                            -- Resolve the "partner" token. The partner burst works
+                            -- in either direction along the beastheart/companion
+                            -- link:
+                            --   * If the caster is a summoned creature (a companion
+                            --     casting Bring the Thunder), the partner is its
+                            --     summoner -- the beastheart. summonerid lives on
+                            --     the TOKEN (mirrors applyto:caster_summoner in
+                            --     ActivatedAbility.lua's ApplyToTargets).
+                            --   * Otherwise the partner is the caster's companion
+                            --     (the beastheart casting All of You Versus All of
+                            --     Me). companionid lives on the creature props;
+                            --     GetCompanionToken returns nil when there is none.
+                            local partnerToken = nil
                             local summonerid = g_token.summonerid
                             if summonerid ~= nil and summonerid ~= "" then
-                                local summonerToken = dmhub.GetTokenById(summonerid)
-                                if summonerToken ~= nil and summonerToken.valid then
-                                    g_pointTargeting.partnerShape = dmhub.CalculateShape {
-                                        shape = "RadiusFromCreature",
-                                        token = summonerToken,
-                                        range = range,
-                                        radius = radius,
-                                        checklos = true,
-                                    }
-                                    g_pointTargeting.partnerCasterToken = summonerToken
-                                end
+                                partnerToken = dmhub.GetTokenById(summonerid)
+                            elseif g_token.properties.GetCompanionToken ~= nil then
+                                partnerToken = g_token.properties:GetCompanionToken()
+                            end
+                            if partnerToken ~= nil and partnerToken.valid then
+                                g_pointTargeting.partnerShape = dmhub.CalculateShape {
+                                    shape = "RadiusFromCreature",
+                                    token = partnerToken,
+                                    range = range,
+                                    radius = radius,
+                                    checklos = true,
+                                }
+                                g_pointTargeting.partnerCasterToken = partnerToken
                             end
                         end
                     end

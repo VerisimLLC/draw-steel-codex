@@ -2315,7 +2315,7 @@ function GameHud.CreateInitiativeEntry(self, info, initiativeid, options)
             local newTriggeredActionPanels = {}
             local triggeredActions = token.properties:GetTriggeredActions()
             for _,action in ipairs(triggeredActions) do
-                if action.type ~= "free" then
+                if action.type == "trigger" then
                     local p = m_triggeredActionPanels[action.guid] or gui.TriggerPanel{
                         classes = {action.type, cond(expended, "expended")},
                         width = 20,

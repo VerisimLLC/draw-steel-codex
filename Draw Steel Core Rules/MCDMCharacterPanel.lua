@@ -4780,6 +4780,92 @@ function TacPanel.Routines()
     }
 end
 
+function TacPanel.Summoner()
+    return TacPanel.CollapsiblePanel{
+        sectionId = "summoner",
+        classes = {"collapsed"},
+        altBg = false,
+        title = "SUMMONER",
+        data = {},
+        setCollapse = function(element)
+            element:FireEvent("refreshCharacter", element.data.token)
+        end,
+        refreshCharacter = function(element, token)
+            if token == nil or not token.valid then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            element.data.token = token
+
+            local range = token.properties:CalculateNamedCustomAttribute("SummonerRange") or 0
+            if range <= 0 then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            element:SetClass("collapsed", false)
+        end,
+        refreshToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        setToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+
+        gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            vmargin = 4,
+
+            gui.PrettyButton{
+                halign = "center",
+                width = 175,
+                height = 40,
+                fontSize = 16,
+                text = "Sacrifice Minions",
+                hover = function(element)
+                    element.tooltip = gui.Tooltip("You can willingly sacrifice one or more of your minions to reduce the cost of a heroic ability by 1 or more.")
+                end,
+                data = { token = nil },
+                refreshToken = function(element, token)
+                    element.data.token = token
+                end,
+                press = function(element)
+                    local token = element.data.token
+                    if token == nil or not token.valid then return end
+                    local ability = MCDMUtils.GetStandardAbility("Summoner Sacrifice Minions")
+                    if ability == nil then return end
+                    local clone = ability:MakeTemporaryClone()
+                    gamehud.actionBarPanel:FireEventTree("invokeAbility", token, clone, {})
+                end,
+            },
+
+            gui.Label{
+                width = "100%",
+                height = "auto",
+                tmargin = 8,
+                hpad = 4,
+                color = "white",
+                fontSize = 14,
+                halign = "left",
+                textAlignment = "topleft",
+                markdown = true,
+                text = "### <u>Your Hero</u>\n"
+                    .. "- Move Action\n"
+                    .. "- Maneuver\n"
+                    .. "- Main Action\n\n"
+                    .. "### <u>Your Minion Squads</u>\n"
+                    .. "- Move Action\n"
+                    .. "- Maneuver or Main Action\n\n"
+                    .. "If a minion has a signature ability, apply one instance of the effects to each target.\n\n"
+                    .. "Each additional minion that strikes the target adds their free strike value to the action.",
+            },
+        },
+    }
+end
+
 local g_heroicResourceDisplays = {}
 
 function TacPanel.RegisterHeroicResourceDisplay(entry)
@@ -7928,6 +8014,7 @@ end
 
 local TACPANEL_DEFAULT_ORDER = {
     "statistics",
+    "summoner",
     "routines",
     "persistentabilities",
     "heroicresources",
@@ -7950,6 +8037,7 @@ local TACPANEL_FACTORIES = {
     features = TacPanel.Features,
     perks = TacPanel.Perks,
     notes = TacPanel.Notes,
+    summoner = TacPanel.Summoner,
 }
 
 --- Register a tac-panel section so it appears in the character details panel.

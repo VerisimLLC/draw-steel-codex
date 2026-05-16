@@ -3963,8 +3963,8 @@ local function _makeBehaviorPillPanel(ability, behavior, fireChange)
         end,
     }
 
-    -- Dismiss pills: visible only when editing a TriggeredAbility. Toggles
-    -- behavior.runOnDismiss between false
+    -- Dismiss pills: visible only when editing a TriggeredAbility. Two
+    -- independent toggles -- "On Accept" and "On Dismiss"
     local dismissPanel = gui.Panel{
         classes = {"nae-behavior-pills", "collapsed"},
         data = {cacheKey = nil},
@@ -3976,17 +3976,20 @@ local function _makeBehaviorPillPanel(ability, behavior, fireChange)
             element:SetClass("collapsed", not shown)
             if not shown then return end
 
-            local key = {runOnDismiss = behavior:try_get("runOnDismiss", false)}
+            local key = {
+                runOnAccept = behavior:try_get("runOnAccept", true),
+                runOnDismiss = behavior:try_get("runOnDismiss", false),
+            }
             if dmhub.DeepEqual(key, element.data.cacheKey) then return end
             element.data.cacheKey = DeepCopy(key)
 
             local children = {}
             children[#children + 1] = gui.Label{
                 classes = {"nae-pill-label",
-                           cond(not behavior:try_get("runOnDismiss", false), "selected")},
+                           cond(behavior:try_get("runOnAccept", true), "selected")},
                 text = "On Accept",
                 press = function()
-                    behavior.runOnDismiss = false
+                    behavior.runOnAccept = not behavior:try_get("runOnAccept", true)
                     fireChange()
                 end,
             }
@@ -3995,7 +3998,7 @@ local function _makeBehaviorPillPanel(ability, behavior, fireChange)
                            cond(behavior:try_get("runOnDismiss", false), "selected")},
                 text = "On Dismiss",
                 press = function()
-                    behavior.runOnDismiss = true
+                    behavior.runOnDismiss = not behavior:try_get("runOnDismiss", false)
                     fireChange()
                 end,
             }

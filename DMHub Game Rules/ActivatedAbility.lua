@@ -174,6 +174,7 @@ ActivatedAbility.domains = {}
 ActivatedAbility.isSpell = false
 
 ActivatedAbilityBehavior.mono = false
+ActivatedAbilityBehavior.runOnAccept = true
 ActivatedAbilityBehavior.runOnDismiss = false
 ActivatedAbilityAugmentedAbilityBehavior.mono = true
 ActivatedAbilityCastSpellBehavior.mono = true
@@ -3124,14 +3125,16 @@ end
 --- @param options nil|table
 function ActivatedAbilityBehavior:IsFiltered(ability, casterToken, options)
 
-    --runOnDismiss filter: behaviors flagged runOnDismiss only fire when the
-    --triggered-ability prompt was dismissed (options.dismiss == true).
-    --Behaviors without the flag are filtered out on the dismiss path.
+    --Accept/Dismiss phase filter: each behavior independently opts in to the
+    --accept path (runOnAccept) and/or the dismiss path (runOnDismiss). On the
+    --dismiss path (options.dismiss == true), behaviors with runOnDismiss=false
+    --are filtered out; on the accept path, behaviors with runOnAccept=false
+    --are filtered out. A behavior with both flags set fires on both paths.
     local dismissPath = options ~= nil and options.dismiss == true
-    if self.runOnDismiss and not dismissPath then
+    if dismissPath and not self.runOnDismiss then
         return true
     end
-    if (not self.runOnDismiss) and dismissPath then
+    if (not dismissPath) and (not self.runOnAccept) then
         return true
     end
 

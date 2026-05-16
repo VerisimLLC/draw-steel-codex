@@ -89,7 +89,8 @@ function ActivatedAbilityDamageBehavior:Cast(ability, casterToken, targets, opti
 		local symbols = DeepCopy(options.symbols or {})
 
 		if #targets == 1 and targets[1].token ~= nil and targets[1].token.properties ~= nil then
-			symbols.target = targets[1].token.properties:LookupSymbol()
+			--Set target as creature properties
+			symbols.target = targets[1].token.properties
 		end
 
 		--target hints for the dialog to set up. These show things like expected damage.

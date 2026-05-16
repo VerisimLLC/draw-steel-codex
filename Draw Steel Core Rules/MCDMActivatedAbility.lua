@@ -2524,6 +2524,95 @@ function ActivatedAbility:GetTargetingRays(casterToken, range, symbols, targets)
             end
         end
 
+        -- The player chose how many minions to commit per target via repeated clicks
+        local minionUsed = {}
+        for j = 1, #targets do
+            if matchOfTarget[j] ~= nil then
+                minionUsed[matchOfTarget[j]] = true
+            end
+        end
+        for j = 1, #targets do
+            if matchOfTarget[j] == nil then
+                for i = 1, #squadTokens do
+                    local tok = squadTokens[i]
+                    if not minionUsed[i] and tok ~= nil and tok.valid
+                        and (not tok.properties:IsDead()) then
+                        matchOfTarget[j] = i
+                        minionUsed[i] = true
+                        break
+                    end
+                end
+            end
+        end
+
+        -- Distance-optimization swap pass: for any two assigned slots
+        -- where swapping the minions would reduce total distance, swap.
+        local function squadDistance(minionIdx, targetIdx)
+            local tok = squadTokens[minionIdx]
+            local target = targets[targetIdx]
+            if tok == nil or not tok.valid or target == nil or target.token == nil then
+                return math.huge
+            end
+            return tok:Distance(target.token)
+        end
+
+        local improved = true
+        local maxIterations = #targets * #squadTokens
+        local iterations = 0
+        while improved and iterations < maxIterations do
+            improved = false
+            iterations = iterations + 1
+            -- (a) Slot-slot swap: re-order minions between assigned
+            -- slots if doing so reduces total distance.
+            for j1 = 1, #targets do
+                for j2 = j1 + 1, #targets do
+                    local m1 = matchOfTarget[j1]
+                    local m2 = matchOfTarget[j2]
+                    if m1 ~= nil and m2 ~= nil and m1 ~= m2 then
+                        local currentCost = squadDistance(m1, j1) + squadDistance(m2, j2)
+                        local swappedCost = squadDistance(m1, j2) + squadDistance(m2, j1)
+                        if swappedCost < currentCost then
+                            matchOfTarget[j1] = m2
+                            matchOfTarget[j2] = m1
+                            improved = true
+                        end
+                    end
+                end
+            end
+            -- Pull in an unmatched minion: for each slot, if a
+            -- currently-unused squad member is closer to that slot's
+            -- target than the assigned minion.
+            for j = 1, #targets do
+                local current = matchOfTarget[j]
+                if current ~= nil then
+                    local currentDist = squadDistance(current, j)
+                    for i = 1, #squadTokens do
+                        if i ~= current then
+                            local assignedElsewhere = false
+                            for jj = 1, #targets do
+                                if matchOfTarget[jj] == i then
+                                    assignedElsewhere = true
+                                    break
+                                end
+                            end
+                            if not assignedElsewhere then
+                                local tok = squadTokens[i]
+                                if tok ~= nil and tok.valid
+                                    and (not tok.properties:IsDead()) then
+                                    local d = squadDistance(i, j)
+                                    if d < currentDist then
+                                        matchOfTarget[j] = i
+                                        currentDist = d
+                                        improved = true
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+
         -- Build rays from whichever targets got matched. Targets without a
         -- match are omitted; callers fall back to drawing from the caster.
         local result = {}

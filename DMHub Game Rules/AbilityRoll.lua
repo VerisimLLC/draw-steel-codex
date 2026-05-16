@@ -43,6 +43,13 @@ function ActivatedAbilityRollBehavior:Cast(ability, casterToken, targets, option
             creature = target.token.properties
         end
 
+        --Inject the current target so GoblinScript formulas like
+        --Cast.NumAttackers(Target) can resolve.
+        local prevTarget = options.symbols.target
+        if target ~= nil and target.token ~= nil then
+            options.symbols.target = target.token.properties
+        end
+
         local complete = false
         local rollid
         rollid = GameHud.instance.rollDialog.data.ShowDialog{
@@ -65,6 +72,8 @@ function ActivatedAbilityRollBehavior:Cast(ability, casterToken, targets, option
         while not complete do
 			coroutine.yield(0.1)
         end
+
+        options.symbols.target = prevTarget
     end
 
 end

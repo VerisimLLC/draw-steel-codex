@@ -112,76 +112,65 @@ end
 
 function monster:FillFreeStrikes(options, result)
     local signature = self:GetSignatureAbility()
-    if signature == nil then
-        local meleeFreeStrike = MCDMUtils.GetStandardAbility("Melee Free Strike")
-        local rangedFreeStrike = MCDMUtils.GetStandardAbility("Ranged Free Strike")
-        local ability = meleeFreeStrike:MakeTemporaryClone()
-        result[#result+1] = ability
-        ability = rangedFreeStrike:MakeTemporaryClone()
-        result[#result+1] = ability
-        return
-    end
 
     local powerRoll = nil
-    for _,behavior in ipairs(signature.behaviors) do
-        if behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
-            powerRoll = behavior
-            break
-        end
-    end
-
     local damageType = "untyped"
-
-    if powerRoll ~= nil then
-        local matchDamageType = regex.MatchGroups(powerRoll.tiers[3], "[0-9]+ (?<damageType>[a-z]+) damage")
-        if matchDamageType ~= nil then
-            damageType = matchDamageType.damageType
+    local signatureRange = 1
+    if signature ~= nil then
+        for _,behavior in ipairs(signature.behaviors) do
+            if behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
+                powerRoll = behavior
+                break
+            end
         end
+
+        if powerRoll ~= nil then
+            local matchDamageType = regex.MatchGroups(powerRoll.tiers[3], "[0-9]+ (?<damageType>[a-z]+) damage")
+            if matchDamageType ~= nil then
+                damageType = matchDamageType.damageType
+            end
+        end
+
+        signatureRange = signature:GetRange(self) or 1
     end
 
-    local signatureRange = signature:GetRange(self) or 1
+    local freeStrikeDamage = tostring(self:OpportunityAttack())
 
-    local meleeFreeStrike = MCDMUtils.GetStandardAbility("Melee Free Strike")
-    if meleeFreeStrike ~= nil then
-        local ability = meleeFreeStrike:MakeTemporaryClone()
-
-        if signature:HasKeyword("Melee") then
-            ability.range = math.max(1, signatureRange)
+    --Build one free strike clone. Forces the ability name to the
+    --canonical "Melee Free Strike" / "Ranged Free Strike" so the name
+    --match in UsesSquadCoordination
+    local function buildFreeStrike(stdName, signatureKeyword, defaultRange)
+        local stdAbility = MCDMUtils.GetStandardAbility(stdName)
+        if stdAbility == nil then return nil end
+        local ability = stdAbility:MakeTemporaryClone()
+        ability.name = stdName
+        --Force targeting properties so both Melee and Ranged variants
+        --behave identically through the squad-strike pipeline
+        ability.targetType = "target"
+        ability.numTargets = "1"
+        if signature ~= nil and signature:HasKeyword(signatureKeyword) then
+            ability.range = math.max(defaultRange, signatureRange)
+        else
+            ability.range = defaultRange
         end
-
-        local freeStrikeDamage = tostring(self:OpportunityAttack())
-        ability.behaviors[1].roll = freeStrikeDamage .. "*Charges"
+        ability.behaviors[1].roll = freeStrikeDamage .. "*Charges*Cast.NumAttackers(Target)"
         ability.behaviors[1].damageType = damageType
-
+        --Force per-target roll evaluation so Cast.NumAttackers(Target)
+        --resolves against the actual target being damaged.
+        ability.behaviors[1].separateRolls = true
         if damageType == "untyped" then
             ability.description = string.format("%s damage", freeStrikeDamage)
         else
             ability.description = string.format("%s %s damage", freeStrikeDamage, damageType)
         end
-
-        result[#result+1] = ability
+        return ability
     end
 
-    local rangedFreeStrike = MCDMUtils.GetStandardAbility("Ranged Free Strike")
-    if rangedFreeStrike ~= nil then
-        local ability = rangedFreeStrike:MakeTemporaryClone()
+    local melee = buildFreeStrike("Melee Free Strike", "Melee", 1)
+    if melee ~= nil then result[#result+1] = melee end
 
-        if signature:HasKeyword("Ranged") then
-            ability.range = math.max(5, signatureRange)
-        end
-
-        local freeStrikeDamage = tostring(self:OpportunityAttack())
-        ability.behaviors[1].roll = freeStrikeDamage .. "*Charges"
-        ability.behaviors[1].damageType = damageType
-
-        if damageType == "untyped" then
-            ability.description = string.format("%s damage", freeStrikeDamage)
-        else
-            ability.description = string.format("%s %s damage", freeStrikeDamage, damageType)
-        end
-
-        result[#result+1] = ability
-    end
+    local ranged = buildFreeStrike("Ranged Free Strike", "Ranged", 5)
+    if ranged ~= nil then result[#result+1] = ranged end
 end
 
 function creature:MakeFreeStrikeAttack(attackerToken, targetToken, symbols)

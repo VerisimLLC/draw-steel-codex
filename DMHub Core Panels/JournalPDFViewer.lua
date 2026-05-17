@@ -494,10 +494,9 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                         width = "auto",
                         height = "auto",
 
-                        gui.HudIconButton {
+                        gui.Button {
+                            classes = {"bordered", "sizeM"},
                             icon = mod.images.chatIcon,
-                            width = 24,
-                            height = 24,
                             swallowPress = true,
                             linger = gui.Tooltip("Share to chat"),
                             click = function(element)
@@ -513,10 +512,9 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                             end,
                         },
 
-                        gui.HudIconButton {
+                        gui.Button {
+                            classes = {"bordered", "sizeM"},
                             icon = "game-icons/bookmarklet.png",
-                            width = 24,
-                            height = 24,
                             swallowPress = true,
                             linger = gui.Tooltip("Add to Journal"),
                             click = function(element)
@@ -600,10 +598,9 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                             end,
                         },
 
-                        gui.HudIconButton {
+                        gui.Button {
+                            classes = {"bordered", "sizeM"},
                             icon = "icons/icon_app/icon_app_29.png",
-                            width = 24,
-                            height = 24,
                             swallowPress = true,
                             linger = gui.Tooltip("Add to image library"),
                             click = function(element)
@@ -661,10 +658,9 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                             end,
                         },
 
-                        gui.HudIconButton {
+                        gui.Button {
+                            classes = {"bordered", "sizeM"},
                             icon = "icons/icon_app/icon_app_182.png",
-                            width = 24,
-                            height = 24,
                             swallowPress = true,
                             linger = gui.Tooltip("Import as a Map"),
                             click = function(element)

@@ -1,5 +1,18 @@
 local mod = dmhub.GetModLoading()
 
+-- Standard analytics helper (mirrors the copy used across the codebase).
+-- Gated by the telemetry_enabled setting; stamps the common id fields.
+local function track(eventType, fields)
+    if dmhub.GetSettingValue("telemetry_enabled") == false then
+        return
+    end
+    fields.type = eventType
+    fields.userid = dmhub.userid
+    fields.gameid = dmhub.gameid
+    fields.version = dmhub.version
+    analytics.Event(fields)
+end
+
 local CreateThemeSettingsDialog
 
 if devmode() then
@@ -38,6 +51,17 @@ end
 
 local function buildThemeOptions()  return buildSortedOptions(ThemeEngine.ListThemes())       end
 local function buildSchemeOptions() return buildSortedOptions(ThemeEngine.ListColorSchemes()) end
+
+-- Resolve a registered id to its display name; falls back to the id itself
+-- if no match (defensive -- selected ids come from these same lists).
+local function nameForId(list, id)
+    for _, item in ipairs(list) do
+        if item.id == id then
+            return item.name
+        end
+    end
+    return id
+end
 
 local function buildPreviewBody()
     return {
@@ -270,6 +294,12 @@ CreateThemeSettingsDialog = function()
             click = function()
                 ThemeEngine.SetActiveTheme(selectedThemeId)
                 ThemeEngine.SetActiveColorScheme(selectedSchemeId)
+                track("theme_change", {
+                    theme = selectedThemeId,
+                    themeName = nameForId(ThemeEngine.ListThemes(), selectedThemeId),
+                    colorScheme = selectedSchemeId,
+                    colorSchemeName = nameForId(ThemeEngine.ListColorSchemes(), selectedSchemeId),
+                })
             end,
         },
     }

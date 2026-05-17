@@ -7,11 +7,11 @@
 --- @field border string Gets or sets the border style name for the dice. Returns 'None' if no border is set.
 --- @field borderOptions string[] Gets a list of available border style names, including 'None'.
 --- @field customDiceModel string Gets or sets the custom dice 3D model name, or nil if using the default model.
---- @field customDiceModelOptions table[] Gets a list of available custom dice model options, each as a table with id and text fields.
---- @field teleporting boolean Gets or sets whether dice in this set have the teleporting feature (once almost stopped, a die freezes its momentum, jumps across the playfield wrapping around the edges, and finishes settling at the destination).
---- @field teleportVelocity number For teleporting dice: the linear speed at or below which the teleport jump triggers.
+--- @field teleporting boolean Whether dice in this set have the teleporting feature: once a die has almost come to a stop near the end of a roll its momentum freezes, it jumps across the playfield (wrapping around the edges, fading out then back in), and finishes settling at the destination.
+--- @field teleportVelocity number For teleporting dice: the linear speed at or below which a die's teleport jump triggers (it is then 'almost at a stop').
 --- @field teleportDistance number For teleporting dice: how far the die jumps, as a fraction (0-1) of the playfield width.
 --- @field teleportDuration number For teleporting dice: how long the jump slide takes, in seconds (lower = faster).
+--- @field customDiceModelOptions table[] Gets a list of available custom dice model options, each as a table with id and text fields.
 --- @field particles table<string, boolean> Gets or sets the active particle system names as a table of name-to-true entries.
 --- @field particleOptions string[] Gets a list of available particle system names.
 --- @field curves DiceCurveLua[] Gets or sets the list of dice curve modifiers applied to the dice.

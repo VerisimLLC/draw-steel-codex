@@ -167,8 +167,27 @@ function gui.IconEditor(args)
 				data = {
 					setImage = function(imageid)
 						m_imageid = imageid
-						iconImage.bgimage = imageid
-						iconImage:SetClass("deleted", false)
+                        print("SETIMAGE::", json(imageid))
+
+                        if imageid == "" then
+                            iconImage.bgimage = "panels/square.png"
+                            iconImage.selfStyle.bgcolor = "black"
+                            iconImage.selfStyle.autosizeimage = false
+                            iconImage.selfStyle.width = imageDim-4
+                            iconImage.selfStyle.height = imageDim-4
+                            element.data.none = true
+                        else
+                            iconImage.bgimage = imageid
+                            if element.data.none then
+                                iconImage.selfStyle.bgcolor = "white"
+                                iconImage.selfStyle.autosizeimage = true
+                                iconImage.selfStyle.width = "auto"
+                                iconImage.selfStyle.height = "auto"
+                                element.data.none = false
+                            end
+                        end
+
+                        iconImage:SetClass("deleted", false)
                         resultImage:SetClass("selected", m_imageid == value)
 					end,
 				},

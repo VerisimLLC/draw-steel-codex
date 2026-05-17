@@ -133,6 +133,14 @@ function ActivatedAbilitySaveBehavior:RollSaveInTimeline(ability, casterToken, t
         end
     end
 
+    -- The dialog reference can go stale across the yields above: the ability
+    -- sidebar may be rebuilt or the embedded dialog destroyed, leaving an
+    -- invalid panel whose .data is nil. If we no longer have a usable dialog,
+    -- bail out (treated as a canceled roll) rather than indexing nil.
+    if dialog == nil or (not dialog.valid) or dialog.data == nil then
+        return false
+    end
+
     dialog.data.ShowDialog{
         title = string.format("Saving Throw vs %s", item.name),
         description = string.format("Saving Throw vs %s", item.name),

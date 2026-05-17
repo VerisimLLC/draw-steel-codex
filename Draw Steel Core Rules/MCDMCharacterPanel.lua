@@ -1755,7 +1755,7 @@ function TacPanel.Portrait()
                 end)
             end,
             linger = function(element)
-                gui.Tooltip("Open in companion (browser)")(element)
+                gui.Tooltip("Open in companion")(element)
             end,
         })
     end

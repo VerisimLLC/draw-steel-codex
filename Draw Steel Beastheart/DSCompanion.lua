@@ -85,6 +85,26 @@ function AnimalCompanion:IsDying()
     return hp <= 0 and hp > -self:BloodiedThreshold()
 end
 
+-- A companion's Stamina (and therefore its bloodied/dying threshold) is
+-- derived from its summoner -- see MaxHitpoints above. Delegate the threshold
+-- to the summoner too, rather than going through this companion's own
+-- CalculateNamedCustomAttribute("dying value"). That cached value is computed
+-- from MaxHitpoints(), but the companion is never invalidated when the
+-- summoner changes (or when the summoner token finishes loading), so the
+-- companion-side cache can latch a stale value. In particular, if it is first
+-- computed before the summoner resolves, MaxHitpoints() returns its 1-HP
+-- fallback, the threshold caches as floor(1/2) = 0, and IsDead()/IsDying()
+-- then treat the companion as dead at 0 Stamina instead of -half. The
+-- summoner's own threshold cache is invalidated correctly, so deferring to it
+-- always reflects current Stamina.
+function AnimalCompanion:BloodiedThreshold()
+    local summoner = self:SummonerToken()
+    if summoner ~= nil and summoner.properties ~= nil then
+        return summoner.properties:BloodiedThreshold()
+    end
+    return creature.BloodiedThreshold(self)
+end
+
 -- Companions level up alongside their summoner (the beastheart). Without this
 -- override the monster default returns self.cr, leaving level-gated rampage
 -- progression rows (lvl 4 / 7 / 10) permanently locked even for high-level
@@ -267,6 +287,21 @@ end
 function AnimalCompanion:SummonerToken()
     if self:try_get("_tmp_summonerToken") and self._tmp_summonerToken.valid then
         return self._tmp_summonerToken
+    end
+
+    -- The transient cache above is only populated by RefreshToken, so it can be
+    -- nil right after load or on a client that hasn't refreshed this companion's
+    -- token yet. Fall back to resolving the summoner directly from our own
+    -- token's summonerid (mirrors creature:GetPotencySummonerToken). Without
+    -- this fallback MaxHitpoints() returns its bogus 1-HP default, collapsing
+    -- BloodiedThreshold() to 0 and making the companion read as dead at 0
+    -- Stamina instead of following the hero rule of dying only at -half.
+    local selfToken = dmhub.LookupToken(self)
+    if selfToken ~= nil and selfToken.summonerid then
+        local summonerToken = dmhub.GetTokenById(selfToken.summonerid)
+        if summonerToken ~= nil and summonerToken.valid then
+            return summonerToken
+        end
     end
 
     return nil

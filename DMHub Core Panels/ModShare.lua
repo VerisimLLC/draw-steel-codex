@@ -1577,13 +1577,11 @@ local showShareModuleDialog = function(options)
 
 	local shareButton
 	local backButton
-	backButton = gui.PrettyButton{
+	backButton = gui.Button{
+		classes = {"sizeL"},
 		text = '<<< Back',
-		width = 240,
-		height = 70,
 		halign = 'left',
 		valign = 'center',
-		fontSize = 20,
 
 		events = {
 			click = function(element)
@@ -1603,14 +1601,12 @@ local showShareModuleDialog = function(options)
 		},
 	}
 
-	shareButton = gui.PrettyButton{
+	shareButton = gui.Button{
+		classes = {"sizeL"},
 
 		text = 'Proceed >>>',
-		width = 240,
-		height = 70,
 		halign = 'right',
 		valign = 'center',
-		fontSize = 20,
 
 		events = {
 			refreshModule = function(element)
@@ -2497,7 +2493,7 @@ local showShareModuleDialog = function(options)
 
 
 	local createModuleLabel = gui.Label{
-		fontSize = 24,
+		classes = {"sizeXl"},
 		width = "auto",
 		height = "auto",
 		halign = "center",
@@ -2528,18 +2524,7 @@ local showShareModuleDialog = function(options)
 
 
 
-	dialogPanel = gui.Panel{
-		id = 'ShareDialog',
-		classes = {"framedPanel"},
-		styles = {
-			Styles.Default,
-			Styles.Panel,
-
-			{
-				selectors = {"framedPanel"},
-				width = 1024,
-				height = 980,
-			},
+	local dialogCustomStyles = {
 
 			{
 				selectors = {'content-panel'},
@@ -2573,14 +2558,14 @@ local showShareModuleDialog = function(options)
 				width = '40%',
 				height = 40,
 				fontSize = 14,
-				color = 'white',
+				color = '@fgStrong',
 			},
 			{
 				selectors = {'dropdown'},
 				width = 200,
 				height = 40,
 				fontSize = 18,
-				color = 'white',
+				color = '@fgStrong',
 			},
 			{
 				selectors = {'dropdown-option'},
@@ -2588,7 +2573,7 @@ local showShareModuleDialog = function(options)
 				width = 200,
 				height = 40,
 				fontSize = 18,
-				color = 'white',
+				color = '@fgStrong',
 			},
 			{
 				selectors = {'input'},
@@ -2619,7 +2604,7 @@ local showShareModuleDialog = function(options)
 				valign = 'center',
 				halign = 'center',
 				maxWidth = 400,
-				color = 'white',
+				color = '@fgStrong',
 			},
 			{
 				selectors = {'share-panel'},
@@ -2646,7 +2631,7 @@ local showShareModuleDialog = function(options)
 				width = 1,
 				height = 12,
 				bgimage = "panels/square.png",
-				bgcolor = "white",
+				bgcolor = "@border",
 				valign = "center",
 				hmargin = 4,
 			},
@@ -2657,7 +2642,14 @@ local showShareModuleDialog = function(options)
 				height = "auto",
 				halign = "center",
 			},
-		},
+	}
+
+	dialogPanel = gui.Panel{
+		id = 'ShareDialog',
+		classes = {"framedPanel"},
+		width = 1024,
+		height = 980,
+		styles = ThemeEngine.MergeStyles(dialogCustomStyles),
 
 		thinkTime = 0.1,
 
@@ -2724,12 +2716,10 @@ local showShareModuleDialog = function(options)
 
 		gui.Panel{
 
-			selfStyle = {
-				width = '60%',
-				height = 100,
-				valign = 'bottom',
-				halign = 'center',
-			},
+			width = '60%',
+			height = 100,
+			valign = 'bottom',
+			halign = 'center',
 
 			backButton,
 			shareButton,
@@ -2761,6 +2751,12 @@ local showShareModuleDialog = function(options)
 	if not isNewModule then
 		dialogPanel:FireEventTree("includedAssets", includedAssets, m_dependencyAssets, true)
 	end
+
+	ThemeEngine.OnThemeChanged(mod, function()
+		if dialogPanel ~= nil and dialogPanel.valid then
+			dialogPanel.styles = ThemeEngine.MergeStyles(dialogCustomStyles)
+		end
+	end)
 end
 
 mod.shared.ShowShareDialog = function()
@@ -2817,7 +2813,7 @@ mod.shared.ShowShareDialog = function()
 	end
 
 	local infoDisplay = gui.Label{
-		fontSize = 16,
+		classes = {"sizeM"},
 		textAlignment = "center",
 		width = "60%",
 		height = "auto",
@@ -2858,6 +2854,7 @@ mod.shared.ShowShareDialog = function()
 
 
 	moduleSelectionDropdown = gui.Dropdown{
+		classes = {"form"},
 		options = moduleOptions,
 		idChosen = defaultModuleSelected,
 		create = GetModuleInfo,
@@ -2870,20 +2867,18 @@ mod.shared.ShowShareDialog = function()
 		valign = "top",
 		width = "40%",
 		gui.Label{
-			classes = {"formLabel"},
+			classes = {"form"},
 			text = "Module:",
 		},
 
 		moduleSelectionDropdown,
 	}
 
-	shareButton = gui.PrettyButton{
+	shareButton = gui.Button{
+		classes = {"sizeL"},
 		text = 'Proceed >>>',
-		width = 240,
-		height = 70,
 		halign = 'right',
 		valign = 'center',
-		fontSize = 20,
 		floating = true,
 		events = {
 			click = function(element)
@@ -2912,7 +2907,7 @@ mod.shared.ShowShareDialog = function()
 	}
 
 	statusLabel = gui.Label{
-		fontSize = 16,
+		classes = {"sizeM"},
 		width = "60%",
 		height = "auto",
 		valign = "center",
@@ -2936,17 +2931,10 @@ mod.shared.ShowShareDialog = function()
 	dialogPanel = gui.Panel{
 		id = 'ShareDialog',
 		classes = {"framedPanel"},
-		styles = {
-			Styles.Default,
-			Styles.Panel,
-			Styles.Form,
+		styles = ThemeEngine.GetStyles(),
 
-			{
-				selectors = {"framedPanel"},
-				width = 1024,
-				height = 900,
-			},
-		},
+		width = 1024,
+		height = 900,
 
 		flow = "vertical",
 
@@ -2957,12 +2945,10 @@ mod.shared.ShowShareDialog = function()
 
 			floating = true,
 
-			selfStyle = {
-				width = '60%',
-				height = 100,
-				valign = 'bottom',
-				halign = 'center',
-			},
+			width = '60%',
+			height = 100,
+			valign = 'bottom',
+			halign = 'center',
 
 			shareButton,
 		},
@@ -2985,6 +2971,12 @@ mod.shared.ShowShareDialog = function()
 
 	gui.ShowModal(dialogPanel, {nofade = true})
 	dialogPanel:FireEventTree("refreshModule", {nofade = true})
+
+	ThemeEngine.OnThemeChanged(mod, function()
+		if dialogPanel ~= nil and dialogPanel.valid then
+			dialogPanel.styles = ThemeEngine.GetStyles()
+		end
+	end)
 
 end
 
@@ -4882,14 +4874,14 @@ mod.shared.ShowExportDialog = function()
 				width = '40%',
 				height = 40,
 				fontSize = 18,
-				color = 'white',
+				color = '@fgStrong',
 			},
 			{
 				selectors = {'dropdown'},
 				width = 200,
 				height = 40,
 				fontSize = 18,
-				color = 'white',
+				color = '@fgStrong',
 			},
 			{
 				selectors = {'dropdown-option'},
@@ -4897,7 +4889,7 @@ mod.shared.ShowExportDialog = function()
 				width = 200,
 				height = 40,
 				fontSize = 18,
-				color = 'white',
+				color = '@fgStrong',
 			},
 			{
 				selectors = {'input'},
@@ -4928,7 +4920,7 @@ mod.shared.ShowExportDialog = function()
 				valign = 'center',
 				halign = 'center',
 				maxWidth = 400,
-				color = 'white',
+				color = '@fgStrong',
 			},
 			{
 				selectors = {'share-panel'},

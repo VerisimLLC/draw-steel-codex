@@ -21,7 +21,8 @@
 --- @field appearanceVariationIndex number Which appearance variation the token is currently using.
 --- @field numAppearanceVariations number The number of appearance variations this token has.
 --- @field alternateAppearanceOverride string 
---- @field saddlePositions Vector2[] 
+--- @field saddlePositions Vector2[]
+--- @field hideShadow boolean When true, the token does not cast a drop shadow on the ground.
 --- @field tokenScale number 
 --- @field saddles number 
 --- @field saddleSize string 

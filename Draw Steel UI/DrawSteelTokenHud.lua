@@ -60,7 +60,7 @@ TokenUI.RegisterIcon{
 	    return (not creature.minion) and creature.damage_taken >= maxhp and dmhub.GetSettingValue("showwoundedicon")
     end,
 
-    hoverText = "Winded",
+    hoverText = "Dying",
 
     --Only show to those who can't see the health bar.
     showToAll = true,

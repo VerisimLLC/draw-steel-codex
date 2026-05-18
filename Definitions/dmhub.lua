@@ -129,6 +129,7 @@
 --- @field serverTimeMilliseconds number (Read-only) The server time in milliseconds. Server time is designed to be the same (or at least as close as possible) across all computers connected to the game.
 --- @field infoBubbles table<string, InfoBubbleHudLua> (Read-only) The info bubbles available on the current map.
 --- @field initiativeQueue nil|InitiativeQueue The initiative queue. Note: check to make sure it's not nil and that the hidden member isn't set to check if initiative is active.
+--- @field companionChannel CompanionChannelLua The Codex <-> Companion channel: send events/requests to, and receive them from, the desktop Companion windows.
 --- @field inCharacterSheet boolean If the player is viewing their character sheet.
 --- @field useParallax boolean (Read-only) if true the app is using parallax features.
 --- @field parallaxRatio number The current parallax ratio the game is using.

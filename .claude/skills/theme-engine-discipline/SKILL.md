@@ -1,6 +1,6 @@
 ---
 name: theme-engine-discipline
-description: Use when working on Draw Steel Codex UI/theming — applying the new ThemeEngine, picking selectors, deciding inline-vs-class, or migrating a panel onto theme classes. Keeps me from drifting back into ad-hoc inline styling and from polluting DefaultStyles with component-specific rules.
+description: Use when authoring or adjusting Draw Steel Codex themed UI — applying the new ThemeEngine, picking selectors, deciding inline-vs-class. For whole-file re-theming / migrating an existing file off legacy or ad-hoc styling, use theme-engine-retheme instead. Keeps me from drifting back into ad-hoc inline styling and from polluting DefaultStyles with component-specific rules.
 ---
 
 # Theme Engine Discipline

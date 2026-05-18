@@ -4,8 +4,7 @@ Codex core and custom module developers should use the Theme Engine to ensure th
 
 Module developers can also create their own custom themes and color schemes.
 
-**IMPORTANT:** Please do not try to create custom themes or color schemes yet. We're still early days. Things *will* change and those changes *will break your work*.
-We understand that lots of folks will be eager to create their own themes & color schemes. We are, too! We'll let you know as soon as it's safe to do this!
+**Creating your own theme or color scheme?** See **[CreatingThemes.md](CreatingThemes.md)** -- it documents the exact keywords a color scheme and a theme accept (every color, gradient, and font key) and where the engine uses each. This document covers consuming the Theme Engine from your UI; that one covers authoring new themes/schemes.
 
 ## Developer Usage
 
@@ -167,7 +166,7 @@ Note that for custom development, you need only specify differences from `defaul
 
 ## Theme (incl. Font Faces)
 
-Themes are relatively broad in scope. They consist of fonts and styles. They have four named font use cases and numerous styles.
+Themes are relatively broad in scope. They consist of fonts and styles. They have five named font slots (`heading`, `label`, `input`, `number`, `mono`) and numerous style rules. For the full keyword reference -- every font slot, color, and gradient key a theme/scheme accepts -- see **[CreatingThemes.md](CreatingThemes.md)**.
 
 Please review the `default` theme in `DMHub Core UI / DefaultStyles.lua` to see the available fonts and class selectors. The file is sectioned for navigation: `1. BASICS` (panel/label/button/input/dropdown), `2. FORMS`, `3. CARDS`, `4. DIALOGS`, `5. UTILITIES`.
 

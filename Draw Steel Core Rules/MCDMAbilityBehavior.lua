@@ -1118,16 +1118,77 @@ local g_gainResourceIndex = nil
 local g_applyConditionIndex = nil
 local g_gainConditionWithRiderIndex = nil
 local g_gainHeroicResourceIndex = nil
+local g_gainConditionByNameWithRiderIndex = nil
 
 dmhub.RegisterEventHandler("refreshTables", function(keys)
     if mod.unloaded then
         return
     end
 
-	if keys ~= nil and (not keys[CharacterResource.tableName]) and (not keys[Class.tableName]) then
+	if keys ~= nil and (not keys[CharacterResource.tableName]) and (not keys[Class.tableName]) and (not keys[CharacterCondition.tableName]) and (not keys[CharacterCondition.ridersTableName]) then
 		return
 	end
 
+
+    -- Pattern: "Weakened Tail Spike (Save Ends)" -- condition name + rider powerTableText + duration
+    g_gainConditionByNameWithRiderIndex = g_gainConditionByNameWithRiderIndex or #g_rulePatterns + 1
+    g_rulePatterns[g_gainConditionByNameWithRiderIndex] = {
+        pattern = "^(?<condition>" .. GetTableNameRegex(CharacterCondition.tableName, "powertable") .. ") (?<rider>" .. GetTableNameRegex(CharacterCondition.ridersTableName, nil, "powerTableText") .. ")\\s+\\((?<duration>eot|eoe|save ends)\\)",
+        execute = function(behavior, ability, casterToken, targetToken, options, match)
+            local duration = string.lower(match.duration)
+            if string.starts_with(duration, "save") then
+                duration = "save"
+            end
+
+            local condName = match.condition
+            local riderName = match.rider
+
+            local conditionid = nil
+            local conditionsTable = dmhub.GetTable(CharacterCondition.tableName)
+            for k, v in unhidden_pairs(conditionsTable) do
+                local vname = regex.ReplaceAll(string.lower(v.name), "[^a-z0-9 ]", "")
+                if vname == condName then
+                    conditionid = k
+                    break
+                end
+            end
+
+            if conditionid == nil then
+                print("Rider:: Could not find condition for '" .. condName .. "'")
+                return
+            end
+
+            local riderid = nil
+            local t = dmhub.GetTable(CharacterCondition.ridersTableName)
+            for key, value in unhidden_pairs(t) do
+                local name = regex.ReplaceAll(string.lower(value["powerTableText"]), "[^a-z0-9 ]", "")
+                if name == string.lower(riderName) then
+                    riderid = key
+                    break
+                end
+            end
+
+            if riderid == nil then
+                print("Rider:: Could not find rider for '" .. riderName .. "'")
+                return
+            end
+
+            targetToken:ModifyProperties {
+                description = "Inflict Condition",
+                execute = function()
+                    targetToken.properties:InflictCondition(conditionid, {
+                        duration = duration,
+                        riders = {riderid},
+                        sourceDescription = string.format("Inflicted by %s's <b>%s</b> ability", creature.GetTokenDescription(casterToken), ability.name),
+                        casterInfo = {
+                            tokenid = casterToken.charid,
+                        },
+                        cast = options.symbols.cast,
+                    })
+                end
+            }
+        end,
+    }
 
     g_gainConditionWithRiderIndex = g_gainConditionWithRiderIndex or #g_rulePatterns + 1
     g_rulePatterns[g_gainConditionWithRiderIndex] = {

@@ -1001,37 +1001,30 @@ local function CreateObjectFolder(nodeid, parentElement, options)
 							height = 24,
 							flow = "horizontal",
 							children = {
-								gui.Panel{
-									classes = {"clickableIcon"},
-									width = 24,
-									height = 24,
-									bgimage = "game-icons/open-folder.png",
+								gui.Button{
+									classes = {"sizeM"},
+									icon = "game-icons/open-folder.png",
 									linger = gui.Tooltip("Create a new folder"),
 									press = function(element)
 										dmhub.AddObjectFolder()
 									end,
 								},
-								gui.Panel{
-									classes = {"clickableIcon"},
-									width = 24,
-									height = 24,
+								gui.Button{
+									classes = {"sizeM"},
 									id = "ImportMapObjectButton",
-									bgimage = 'game-icons/treasure-map.png',
+									icon = "game-icons/treasure-map.png",
 									linger = gui.Tooltip('Import a new map object from an image'),
 									press = function(element)
 										mod.shared.ImportMap{ imagesOnly = true }
 									end,
 								},
-								gui.AddButton{
-									width = 24,
-									height = 24,
+								gui.Button{
+									classes = {"addButton", "sizeM"},
 									valign = "center",
-									events = {
-										linger = gui.Tooltip("Import new objects from an image"),
-										click = function(element)
-											mod.shared.ImportObjects()
-										end,
-									}
+									linger = gui.Tooltip("Import new objects from an image"),
+									click = function(element)
+										mod.shared.ImportObjects()
+									end,
 								},
 							},
 						},

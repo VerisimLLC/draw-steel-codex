@@ -67,6 +67,7 @@ local function ImportObjectsDialog(filePaths, progressPanel)
 				height = 128,
 
 				gui.Panel{
+					classes = {"image"},
 					bgimage = imageid,
 					uiscale = 1/2,
 					maxWidth = 256,
@@ -74,19 +75,18 @@ local function ImportObjectsDialog(filePaths, progressPanel)
 					width = "auto",
 					height = "auto",
 					autosizeimage = true,
-					bgcolor = "white",
 					halign = "center",
 					valign = "center",
 				},
 			},
 
 			gui.Label{
+				classes = {"sizeS"},
 				text = info.fname,
 				change = function(element)
 					imageDescriptions[imageid] = element.text
 				end,
 				editable = true,
-				fontSize = 14,
 				minFontSize = 8,
 				halign = "center",
 				valign = "center",
@@ -100,11 +100,9 @@ local function ImportObjectsDialog(filePaths, progressPanel)
 	local foldersPanel = ObjectFoldersPanel()
 
 	local addFolderButton = gui.Button{
-		width = 90,
-		height = 24,
+		classes = {"sizeM"},
 		tmargin = 6,
 		text = "Add Folder",
-		fontSize = 16,
 		halign = "center",
 		click = function(element)
 			g_addingObject = dmhub.AddObjectFolder()
@@ -148,16 +146,13 @@ local function ImportObjectsDialog(filePaths, progressPanel)
 			width = "auto",
 			halign = "center",
 			gui.Label{
-				fontSize = 18,
+				classes = {"sizeL"},
 				width = "auto",
 				height = "auto",
-				color = "white",
 				text = "Artist:",
 			},
 			gui.Dropdown{
 				width = 180,
-				fontSize = 18,
-				height = 26,
 				idChosen = 'null',
 				options = artistOptions,
 				change = function(element)
@@ -248,10 +243,9 @@ local function ImportObjectsDialog(filePaths, progressPanel)
 					},
 				},
 				gui.Label{
+					classes = {"sizeS"},
 					width = "auto",
 					height = "auto",
-					color = "white",
-					fontSize = 14,
 					refresh = function(element)
 						local percentComplete = importer.percentComplete
 						if percentComplete >= 1 then
@@ -274,11 +268,10 @@ local function ImportObjectsDialog(filePaths, progressPanel)
 		artistPanel,
 
 		gui.Label{
-			fontSize = 18,
+			classes = {"sizeL"},
 			maxWidth = 900,
 			width = "auto",
 			height = "auto",
-			color = "white",
 
 			create = function(element)
 				if importer.percentComplete >= 1 then
@@ -291,14 +284,15 @@ local function ImportObjectsDialog(filePaths, progressPanel)
 
 					if availableMB < uploadMB then
 						element.text = string.format("You do not have enough upload bandwidth left. You are trying to upload %.2fMB and you only have %.2fMB more this month. You can support us on Patreon for an increased upload limit.", uploadMB, availableMB)
-						element.selfStyle.color = "red"
+						element:SetClass("danger", true)
 						dialogPanel:FireEventTree("errorBandwidth")
 					elseif availableSingleMB < largestMB then
 						element.text = string.format("You are trying to upload a %.2fMB file. You cannot upload files larger than %.2fMB.%s", largestMB, availableSingleMB, dmhub.singleFilePatreonUpgradeMessage)
-						element.selfStyle.color = "red"
+						element:SetClass("danger", true)
 						dialogPanel:FireEventTree("errorBandwidth")
 					else
 						element.text = string.format("Uploading %.2fMB, you can upload %.2fMB more this month.", uploadMB, availableMB)
+						element:SetClass("danger", false)
 					end
 
 
@@ -311,10 +305,8 @@ local function ImportObjectsDialog(filePaths, progressPanel)
 		},
 
 		gui.Button{
+			classes = {"sizeXl"},
 			halign = "center",
-			height = 60,
-			width = 360,
-            fontSize = 26,
 			text = "Import Objects",
 			errorBandwidth = function(element)
 				element:SetClass("hidden", false)
@@ -393,10 +385,10 @@ local function ProgressPanel()
 		},
 
 		gui.Label{
+			classes = {"sizeM"},
 			text = "Importing...",
 			width = "auto",
 			height = "auto",
-			fontSize = 16,
 			margin = 6,
 			errorMessage = function(element, msg)
 				element.text = msg
@@ -429,8 +421,10 @@ local function ImportObjectsWizard()
 		end,
 
 		gui.Panel{
-			classes = "dropArea",
-			bgimage = "panels/square.png",
+			classes = {"bordered", "hoverable"},
+			width = "80%",
+			height = "60%",
+			valign = "center",
 
 			dragAndDropExtensions = {".png", ".jpg", ".jpeg", ".webm", ".webp", ".mp4", ".avi", ".gif"},
 
@@ -438,27 +432,8 @@ local function ImportObjectsWizard()
 				contentPanel:FireEvent("processFiles", paths)
 			end,
 
-			styles = {
-				{
-					width = "80%",
-					height = "60%",
-					valign = "center",
-					selectors = {"dropArea"},
-					bgcolor = "#ffffff33",
-					borderColor = "white",
-					borderWidth = 6,
-					cornerRadius = 16,
-				},
-				{
-					selectors = {"dropArea","hover"},
-					bgcolor = "#ffffff99",
-				}
-
-			},
-
 			gui.Label{
-				color = "white",
-				fontSize = 24,
+				classes = {"sizeXl"},
 				width = "auto",
 				height = "auto",
 				halign = "center",
@@ -468,20 +443,17 @@ local function ImportObjectsWizard()
 		},
 
 		gui.Label{
+			classes = {"sizeM"},
 			valign = "center",
 			halign = "center",
-			fontSize = 16,
-			color = "white",
 			width = "auto",
 			height = "auto",
 			text = "-or-",
 		},
 
 		gui.Button{
+			classes = {"sizeXl"},
 			text = "Choose Files",
-			width = 320,
-			height = 70,
-            fontSize = 26,
 			click = function(element)
 
 				dmhub.OpenFileDialog{
@@ -515,14 +487,12 @@ local function ImportObjectsWizard()
 	dialogPanel = gui.Panel{
 		id = "ImportObjectsDialog",
 		classes = {"framedPanel"},
+		styles = ThemeEngine.GetStyles(),
 		width = 1200,
 		height = 800,
 		pad = 8,
+		borderBox = true,
 		flow = "vertical",
-		styles = {
-			Styles.Default,
-			Styles.Panel,
-		},
 
 		destroy = function(element)
 			if g_modalDialog == element then
@@ -553,7 +523,8 @@ local function ImportObjectsWizard()
 	--	end,
 	--},
 
-		gui.CloseButton{
+		gui.Button{
+			classes = {"closeButton"},
 			halign = "right",
 			valign = "top",
 			floating = true,
@@ -565,6 +536,12 @@ local function ImportObjectsWizard()
 		},
 
 	}
+
+	ThemeEngine.OnThemeChanged(mod, function()
+		if dialogPanel ~= nil and dialogPanel.valid then
+			dialogPanel.styles = ThemeEngine.GetStyles()
+		end
+	end)
 
 	gui.ShowModal(dialogPanel)
 	g_modalDialog = dialogPanel

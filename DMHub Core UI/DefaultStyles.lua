@@ -2302,7 +2302,6 @@ ThemeEngine.RegisterTheme{
     },
 }
 
-if devmode() then
 -- =============================================================================
 -- My Little Pony color scheme
 --
@@ -2592,8 +2591,6 @@ ThemeEngine.RegisterColorScheme{
         },
     },
 }
-
-end
 
 -- After schemes and themes are registered, restore the user's
 -- saved selections (defaults to "default" / "default" if they

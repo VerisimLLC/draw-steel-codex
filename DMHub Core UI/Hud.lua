@@ -428,4 +428,9 @@ end
 
 RegisterGameType("GameHud", "Hud")
 
+-- Fullscreen host panel for the shop/inventory screen. Set by
+-- dmhub.CreateGameHud for the in-game hud; stays false for the lobby hud
+-- (the lobby uses the titlescreen as the shop host instead).
+GameHud.shopPanel = false
+
 ActionBarElements = {}

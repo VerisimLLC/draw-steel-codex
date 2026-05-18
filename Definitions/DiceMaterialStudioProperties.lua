@@ -88,3 +88,10 @@ end
 function DiceMaterialStudioProperties.DiceFacesToIndex(numFaces)
 	-- dummy implementation for documentation purposes only
 end
+
+--- DiceFacesToSurfaceMaterialIndex
+--- @param numFaces number
+--- @return number
+function DiceMaterialStudioProperties.DiceFacesToSurfaceMaterialIndex(numFaces)
+	-- dummy implementation for documentation purposes only
+end

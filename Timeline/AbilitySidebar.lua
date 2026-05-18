@@ -1341,6 +1341,142 @@ function CharacterPanel.DisplayAbility(token, ability, symbols, options)
     return true
 end
 
+--Acquire an embedded roll dialog for an ability-roll behavior, serializing
+--against any other ability roll in progress.
+--
+--Every ability cast runs all its behaviors in one coroutine, so the embedded
+--roll dialog is stamped with that coroutine id (data.castCoroutine) and a
+--data.rollRelinquished flag (set false here, set true by the dialog's
+--RelinquishPanel when its roll finishes). Together they classify any dialog
+--already on screen:
+--   * castCoroutine == mine            -> reuse it (power roll then damage in
+--                                         one cast share a dialog)
+--   * owner alive and not relinquished -> queue (its roll is mid-flight; this
+--                                         includes the not-yet-shown window
+--                                         right after creation)
+--   * relinquished / owner dead / untracked -> displace the lingering panel
+--
+--Classifying by rollRelinquished rather than IsShown is what makes the
+--not-yet-shown init window safe (IsShown is false there too), while still
+--letting a finished-but-lingering dialog be displaced -- so a cast that invokes
+--a sub-ability roll does not deadlock against its own leftover panel.
+--
+--Must be called from within a cast coroutine (every ability behavior is).
+--
+--castOptions: the behavior's `options` table. If passed and a fresh card is
+--shown, a cast-aware HideAbility handler is appended to its OnFinishCastHandlers
+--(see below). Omit it to skip handler installation.
+--
+--Returns: dialog, displayed
+--  dialog    -- the roll dialog to call ShowDialog on (the embedded dialog, or
+--               GameHud.instance.rollDialog as a fallback when the sidebar is
+--               unavailable). Caller should still nil/valid-check before use.
+--  displayed -- true if a fresh ability card was shown; false when reusing a
+--               dialog an earlier behavior of the same cast established.
+function CharacterPanel.AcquireAbilityRollDialog(token, ability, symbols, displayOptions, castOptions)
+    local coid = coroutine.GetCurrentId()
+
+    --DIAG: trace roll-dialog acquisition while chasing the "dialog vanished,
+    --dice stuck" bug. Pairs with the "RollDialog:: DESTROY" traceback. Safe to keep.
+    print(string.format("AcquireRollDialog:: enter coid=%s ability=%s",
+        tostring(coid), tostring(ability ~= nil and ability.name)))
+
+    local waited = false
+    while true do
+        local existing = CharacterPanel.FindEmbeddedRollDialog()
+        if existing == nil then
+            break
+        end
+
+        local ownerco = nil
+        local relinquished = false
+        if existing.data ~= nil then
+            ownerco = existing.data.castCoroutine
+            relinquished = existing.data.rollRelinquished
+        end
+
+        if ownerco ~= nil and ownerco == coid then
+            --This cast already has a dialog up; sequential behaviors share it.
+            --Re-mark it active so a concurrent cast does not displace it in the
+            --gap before we call ShowDialog on it again.
+            if existing.data ~= nil then
+                existing.data.rollRelinquished = false
+            end
+            print("AcquireRollDialog:: REUSE (own cast's dialog)")
+            return existing, false
+        end
+
+        --Another cast's dialog. Displace only when its roll is finished
+        --(relinquished -- panel just lingering until that cast ends), its
+        --owning coroutine has died, or it is untracked. While its roll is in
+        --progress -- including the not-yet-shown init window -- queue behind it.
+        if ownerco == nil then
+            print("AcquireRollDialog:: displace (untracked dialog)")
+            break
+        end
+        if relinquished then
+            print(string.format("AcquireRollDialog:: displace relinquished dialog castCoroutine=%s", tostring(ownerco)))
+            break
+        end
+        if not coroutine.IsCoroutineWithIdStillRunning(ownerco) then
+            print(string.format("AcquireRollDialog:: displace (owner dead) castCoroutine=%s", tostring(ownerco)))
+            break
+        end
+        if coid == nil then
+            --Cannot yield outside a coroutine; do not hang.
+            print("AcquireRollDialog:: displace (caller not in a coroutine)")
+            break
+        end
+
+        if not waited then
+            waited = true
+            print(string.format("AcquireRollDialog:: QUEUE behind dialog castCoroutine=%s", tostring(ownerco)))
+        end
+        coroutine.yield(0.01)
+    end
+
+    --Clear any stale lock so DisplayAbility's displace guard does not refuse us.
+    CharacterPanel.UnlockDisplayAbility()
+
+    local displayed = CharacterPanel.DisplayAbility(token, ability, symbols, displayOptions)
+
+    local dialog = CharacterPanel.EmbedDialogInAbility()
+    if dialog ~= nil then
+        if dialog.data ~= nil then
+            dialog.data.castCoroutine = coid
+            dialog.data.rollRelinquished = false
+        end
+
+        --give a few cycles for the dialog to init.
+        for i = 1, 4 do
+            coroutine.yield(0.01)
+        end
+    else
+        dialog = GameHud.instance.rollDialog
+    end
+
+    --Install the ability-card hide handler ourselves, cast-aware: a shared
+    --ability object can back several concurrent casts, so HideAbility(ability)
+    --keyed on object identity alone can tear down a different cast's live
+    --dialog. Only hide if the dialog on screen is still this cast's (or gone).
+    if displayed and castOptions ~= nil then
+        castOptions.OnFinishCastHandlers = castOptions.OnFinishCastHandlers or {}
+        castOptions.OnFinishCastHandlers[#castOptions.OnFinishCastHandlers+1] = function()
+            local cur = CharacterPanel.FindEmbeddedRollDialog()
+            if cur ~= nil and cur.data ~= nil and cur.data.castCoroutine ~= nil
+               and cur.data.castCoroutine ~= coid then
+                --A different cast's dialog is on screen now; leave it alone.
+                return
+            end
+            CharacterPanel.HideAbility(ability)
+        end
+    end
+
+    print(string.format("AcquireRollDialog:: CREATE coid=%s displayed=%s dialogValid=%s",
+        tostring(coid), tostring(displayed), tostring(dialog ~= nil and dialog.valid)))
+    return dialog, displayed
+end
+
 function CharacterPanel.HighlightAbilitySection(options)
     if (not GameHud.instance) or (not GameHud.instance.abilityDisplay) then
         return

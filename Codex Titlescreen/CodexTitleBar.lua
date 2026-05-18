@@ -17,6 +17,46 @@ local g_devInventorySetting = setting{
     storage = "preference",
 }
 
+-- Open the shop/inventory screen. The screen needs a host panel that has a
+-- .data.dialog (for sizing) and that it can be parented to. On the
+-- titlescreen/lobby that host is CodexTitlescreenRoot; once in a real game
+-- the titlescreen is gone, so we host it on the game hud's dedicated
+-- fullscreen shopPanel instead.
+local function OpenShopScreen(inventory)
+    if dmhub.inGame and not dmhub.isLobbyGame and GameHud.instance and GameHud.instance.shopPanel then
+        local host = GameHud.instance.shopPanel
+        host:AddChild(CreateShopScreen{ titlescreen = host, inventory = inventory })
+    elseif CodexTitlescreenRoot ~= nil and CodexTitlescreenRoot.valid then
+        CodexTitlescreenRoot:AddChild(CreateShopScreen{ titlescreen = CodexTitlescreenRoot, inventory = inventory })
+    end
+end
+
+-- Shop/Inventory menu entries, gated behind the dev:storepreview setting.
+-- Returned for both the main-menu Codex menu and the in-game Codex menu so
+-- the options are reachable everywhere in the app.
+local function GetStoreMenuItems()
+    if not g_devInventorySetting:Get() then
+        return {}
+    end
+
+    return {
+        {
+            text = "Shop",
+            icon = "icons/icon_shopping/shopping-cart.png",
+            click = function()
+                OpenShopScreen(false)
+            end,
+        },
+        {
+            text = "Inventory",
+            icon = "ui-icons/gift-icon.png",
+            click = function()
+                OpenShopScreen(true)
+            end,
+        },
+    }
+end
+
 local function CreateCodexMenuItem(args)
     local iconPanel
 
@@ -903,25 +943,8 @@ local function CreateTopBar()
                     },
                 }
 
-                if g_devInventorySetting:Get() then
-                    items[#items+1] = {
-                        text = "Shop",
-                        icon = "icons/icon_shopping/shopping-cart.png",
-                        click = function()
-                            if CodexTitlescreenRoot ~= nil then
-                                CodexTitlescreenRoot:AddChild(CreateShopScreen{ titlescreen = CodexTitlescreenRoot })
-                            end
-                        end,
-                    }
-                    items[#items+1] = {
-                        text = "Inventory",
-                        icon = "ui-icons/gift-icon.png",
-                        click = function()
-                            if CodexTitlescreenRoot ~= nil then
-                                CodexTitlescreenRoot:AddChild(CreateShopScreen{ titlescreen = CodexTitlescreenRoot, inventory = true })
-                            end
-                        end,
-                    }
+                for _,storeItem in ipairs(GetStoreMenuItems()) do
+                    items[#items+1] = storeItem
                 end
 
                 items[#items+1] = {
@@ -940,7 +963,12 @@ local function CreateTopBar()
             name = "Codex",
             icon = "ui-icons/codex-logo.png",
             menuItems = function()
-			    return table.filter(LaunchablePanel.GetMenuItems(), function(item) return item.menu == nil and item.text ~= "Development Tools" end)
+			    local items = table.filter(LaunchablePanel.GetMenuItems(), function(item) return item.menu == nil and item.text ~= "Development Tools" end)
+                local storeItems = GetStoreMenuItems()
+                for i=#storeItems,1,-1 do
+                    table.insert(items, 1, storeItems[i])
+                end
+                return items
             end,
         },
 

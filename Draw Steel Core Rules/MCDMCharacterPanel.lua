@@ -5942,9 +5942,9 @@ function TacPanel.MultiEdit()
             local ev = 0
             for _,tok in ipairs(monsterTokens) do
                 if tok.properties.minion then
-                    ev = ev + tok.properties.ev/GameSystem.minionsPerSquad
+                    ev = ev + tok.properties:EV()/GameSystem.minionsPerSquad
                 else
-                    ev = ev + tok.properties.ev
+                    ev = ev + tok.properties:EV()
                 end
             end
 

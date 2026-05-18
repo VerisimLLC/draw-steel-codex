@@ -105,82 +105,6 @@ TriggeredAbility.RegisterTrigger{
 
 ACOLYTE_PATRON_DAMAGE_TYPE_ATTRIBUTE_ID = "a7c01b7e-d4af-4dba-9ad0-7a17ed4ace1d"
 
---Set true once the attribute is confirmed present (or successfully uploaded), so
---we stop touching the table on every subsequent refreshTables. This also stops
---the redundant re-uploads the unguarded version produced each refresh.
-local g_patronDamageTypeAttributeReady = false
-
-local function EnsurePatronDamageTypeAttribute()
-    --Idempotently bootstrap the customAttributes table entry. Uses a stable
-    --UUID so YAML references resolve across all instances. The attribute is a
-    --stringset under the hood (the closest match in the existing type system
-    --to "a single text value"); we read attr.strings[1] to recover the value.
-    if g_patronDamageTypeAttributeReady then
-        return
-    end
-
-    --GetTable can return a non-nil-but-not-yet-upload-ready table during early
-    --refreshTables passes; in that window SetAndUploadTableItem dereferences a
-    --null backing store inside the engine and throws a NullReferenceException.
-    --Guard on the table being a populated table before attempting any upload.
-    local attrTable = dmhub.GetTable(CustomAttribute.tableName)
-    if type(attrTable) ~= "table" then
-        return
-    end
-
-    local existing = attrTable[ACOLYTE_PATRON_DAMAGE_TYPE_ATTRIBUTE_ID]
-    if existing ~= nil and not existing:try_get("hidden", false) then
-        --Already present in the database -- nothing to create, and never
-        --re-upload it on later refreshes.
-        g_patronDamageTypeAttributeReady = true
-        return
-    end
-
-    --The attribute is missing. Defer the create+upload via dmhub.Schedule so it
-    --runs after the current load/refresh pass settles, when the customAttributes
-    --table's backing store is fully initialized and SetAndUploadTableItem is
-    --safe to call. (Same deferral trick used for the symbol re-registration and
-    --the OnEndCast hook install below.)
-    dmhub.Schedule(0.01, function()
-        if mod.unloaded then return end
-        if g_patronDamageTypeAttributeReady then return end
-
-        local t = dmhub.GetTable(CustomAttribute.tableName)
-        if type(t) ~= "table" then
-            --Table still not ready; a later refreshTables will retry.
-            return
-        end
-
-        local present = t[ACOLYTE_PATRON_DAMAGE_TYPE_ATTRIBUTE_ID]
-        if present ~= nil and not present:try_get("hidden", false) then
-            g_patronDamageTypeAttributeReady = true
-            return
-        end
-
-        local attr = CustomAttribute.new{
-            id = ACOLYTE_PATRON_DAMAGE_TYPE_ATTRIBUTE_ID,
-            name = "Patron Damage Type",
-            category = "Acolyte",
-            classid = "global",
-            attributeType = "stringset",
-            baseValue = "",
-        }
-
-        local ok, err = pcall(dmhub.SetAndUploadTableItem, CustomAttribute.tableName, attr)
-        if ok then
-            g_patronDamageTypeAttributeReady = true
-        else
-            --Upload still not safe; leave the flag clear so a future
-            --refreshTables retries. Log so the failure isn't silent.
-            printf("PATRON DAMAGE:: Deferred customAttributes bootstrap not ready yet: %s", tostring(err))
-        end
-    end)
-end
-
-dmhub.RegisterEventHandler("refreshTables", function(keys)
-    EnsurePatronDamageTypeAttribute()
-end)
-
 --Returns the caster's patron damage type as a lowercase string, or "" if not
 --set. Handles both stringset (set via add operation -> StringSet object with
 --.strings[1]) and raw-string (set via set operation -> plain string) storage.
@@ -297,6 +221,71 @@ local function GetPatronsGazeResourceId()
     return CharacterResource.nameToId and CharacterResource.nameToId["Patron's Gaze"]
 end
 
+-- Apply the cost of Invoking the patron for a single cast: mark the cast object
+-- as invoked (so Cast.Invoked = 1 in GoblinScript), deal Presence patron damage
+-- to the caster, and add the invoke cost to the caster's Patron's Gaze resource.
+--
+-- This is the SINGLE source of truth for the Invoke cost. It is called from two
+-- places:
+--   * the action-bar Invoke cast control's onCommit (abilities cast normally);
+--   * the triggered-ability Invoke prompt (abilities that fire as triggers).
+--
+-- `cast` is the ActivatedAbilityCast the ability's behaviors will see
+-- (options.symbols.cast). It may be nil for callers that have not built one yet;
+-- in that case only the damage / Patron's Gaze side effects are applied.
+function AcolyteApplyInvoke(casterToken, ability, cast)
+    if casterToken == nil or not casterToken.valid then return end
+
+    local invoke = ability ~= nil and ability:try_get("invoke")
+    local cost = (invoke and tonumber(invoke.cost)) or 0
+
+    --Mark the cast as invoked so Cast.Invoked = 1 in GoblinScript. ability:Cast
+    --respects an existing options.symbols.cast, so this flag flows through to all
+    --behaviors and tier-text formulas.
+    if cast ~= nil then
+        cast.invoked = true
+    end
+
+    --Apply self damage (Presence) and Patron's Gaze increment as part of the
+    --same ModifyProperties transaction so they undo together.
+    casterToken:ModifyProperties{
+        description = "Invoke Patron",
+        execute = function()
+            --Read the caster's Presence score (in Draw Steel the score IS the
+            --bonus; AttributeMod is the right call). Use prs for Presence per
+            --the Draw Steel attribute id convention.
+            local presenceValue = casterToken.properties:AttributeMod("prs") or 0
+            if presenceValue < 0 then presenceValue = 0 end
+
+            if presenceValue > 0 then
+                --Resolve the patron damage type at commit-time so subclass
+                --selection (Goxomoc / Unicorn / Von Glauer / ...) drives the
+                --damage type. If no patron is configured, fall back to untyped.
+                --This damage is patron damage by definition, so we always set
+                --patrondamage=true.
+                local patronType = casterToken.properties:PatronDamageType()
+                if patronType == "" then
+                    patronType = "untyped"
+                    print(string.format(
+                        "PATRON DAMAGE:: Invoke self-damage: caster '%s' has no patron_damage_type set; emitting untyped.",
+                        creature.GetTokenDescription(casterToken)
+                    ))
+                end
+                casterToken.properties:TakeDamage(presenceValue, "Invoked patron", {
+                    damagetype = patronType,
+                    patrondamage = true,
+                })
+            end
+
+            --Add to Patron's Gaze (unbounded resource).
+            local pgId = GetPatronsGazeResourceId()
+            if pgId ~= nil and cost > 0 then
+                casterToken.properties:RefreshResource(pgId, "unbounded", cost, "Invoked patron")
+            end
+        end,
+    }
+end
+
 DrawSteelActionBar.RegisterCastControl{
     id = "acolyte-invoke",
     priority = 10,
@@ -376,57 +365,13 @@ DrawSteelActionBar.RegisterCastControl{
         if not castState.invoked then return end
         if casterToken == nil or not casterToken.valid then return end
 
-        local invoke = ability:try_get("invoke")
-        local cost = (invoke and tonumber(invoke.cost)) or 0
-
-        --Mark the cast as invoked so Cast.Invoked = 1 in GoblinScript.
-        --FireCastControlsOnCommit pre-builds the cast object (assigning it to
-        --symbols.cast) before invoking us when one doesn't already exist, so
-        --`cast` is guaranteed non-nil here. ability:Cast respects an existing
-        --options.symbols.cast (see ActivatedAbility.lua:2498-2514), so this
-        --flag flows through to all behaviors and tier-text formulas.
-        if cast ~= nil then
-            cast.invoked = true
-        end
-
-        --Apply self damage (Presence) and Patron's Gaze increment as part of
-        --the same ModifyProperties transaction so they undo together.
-        casterToken:ModifyProperties{
-            description = "Invoke Patron",
-            execute = function()
-                --Read the caster's Presence score (in Draw Steel the score IS the
-                --bonus; AttributeMod is the right call). Use prs for Presence per
-                --the Draw Steel attribute id convention.
-                local presenceValue = casterToken.properties:AttributeMod("prs") or 0
-                if presenceValue < 0 then presenceValue = 0 end
-
-                if presenceValue > 0 then
-                    --Resolve the patron damage type at commit-time so subclass
-                    --selection (Goxomoc / Unicorn / Von Glauer / ...) drives the
-                    --damage type. If no patron is configured, fall back to untyped.
-                    --This damage is patron damage by definition, so we always set
-                    --patrondamage=true.
-                    local patronType = casterToken.properties:PatronDamageType()
-                    if patronType == "" then
-                        patronType = "untyped"
-                        print(string.format(
-                            "PATRON DAMAGE:: Invoke self-damage: caster '%s' has no patron_damage_type set; emitting untyped.",
-                            creature.GetTokenDescription(casterToken)
-                        ))
-                    end
-                    casterToken.properties:TakeDamage(presenceValue, "Invoked patron", {
-                        damagetype = patronType,
-                        patrondamage = true,
-                    })
-                end
-
-                --Add to Patron's Gaze (unbounded resource).
-                local pgId = GetPatronsGazeResourceId()
-                if pgId ~= nil and cost > 0 then
-                    casterToken.properties:RefreshResource(pgId, "unbounded", cost, "Invoked patron")
-                end
-            end,
-        }
+        --Apply the Invoke cost via the shared helper. FireCastControlsOnCommit
+        --pre-builds the cast object (assigning it to symbols.cast) before
+        --invoking us when one doesn't already exist, so `cast` is guaranteed
+        --non-nil here. ability:Cast respects an existing options.symbols.cast
+        --(see ActivatedAbility.lua:2500-2516), so cast.invoked flows through to
+        --all behaviors and tier-text formulas.
+        AcolyteApplyInvoke(casterToken, ability, cast)
 
         --The post-resolution risk roll is no longer driven from a cast-control
         --hook (the old onResolve d10 logic). Instead, GameSystem.OnEndCastActivatedAbility

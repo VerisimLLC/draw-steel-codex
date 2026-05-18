@@ -78,4 +78,24 @@ creature.RegisterSymbol{
     end,
 }
 
+creature.RegisterSymbol{
+    symbol = "getpointsspent",
+    help = {
+        name = "GetPointsSpent",
+        type = "function",
+        desc = "Given the name of a points pool, returns how many points of that type have been spent building this creature. Points pools are named on feature choices that cost points; choices left unnamed belong to the default pool called \"Points\". Returns zero for unknown pool names.",
+        seealso = {},
+        examples = {
+            'GetPointsSpent("Points")',
+            'GetPointsSpent("Animal Traits Points")',
+        },
+    },
+
+    lookup = function(c)
+        return function(pointsName)
+            return c:GetPointsSpentByName(pointsName)
+        end
+    end,
+}
+
 --symbols

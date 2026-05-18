@@ -114,6 +114,7 @@ function CBFeatureSelector.BuildSelectorPanel(overrides)
         halign = "left",
         valign = "top",
         flow = "vertical",
+        overrides.targetsHeader,
         targetsContainer,
         _functionOrValue(injections.afterTargets),
         gui.MCDMDivider{
@@ -364,6 +365,32 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
         }
     end
 
+    -- When a feature offers an unbounded number of point-costed choices, show
+    -- a running total of points spent of that type on the creature.
+    local pointsHeader = gui.Label{
+        classes = {"builder-base", "label", "collapsed"},
+        halign = "left",
+        valign = "top",
+        bold = true,
+        fontSize = 16,
+        color = CBStyles.COLORS.GOLD,
+        bmargin = 4,
+        text = "",
+        refreshBuilderState = function(element, state)
+            local cachedFeature = getCachedFeature(state, feature:GetGuid())
+            local visible = false
+            if cachedFeature ~= nil and cachedFeature:IsUnbounded() and cachedFeature:CostsPoints() then
+                -- GetPointsName falls back to "Points" when left unnamed.
+                local pointsName = cachedFeature:GetPointsName()
+                local creature = _getCreature()
+                local spent = creature and creature:GetPointsSpentByName(pointsName) or 0
+                element.text = string.format("%d %s spent", spent, pointsName)
+                visible = true
+            end
+            element:SetClass("collapsed", not visible)
+        end,
+    }
+
     local targetsContainer = {
         data = {
             featureId = feature:GetGuid(),
@@ -371,7 +398,12 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
         refreshBuilderState = function(element, state)
             local cachedFeature = getCachedFeature(state, element.data.featureId)
             if cachedFeature == nil then return end
+            -- For an unbounded feature, only create the filled slots plus one
+            -- empty slot to fill next; otherwise create a slot per choice.
             local numTargets = cachedFeature:GetNumChoices()
+            if cachedFeature:IsUnbounded() then
+                numTargets = cachedFeature:GetMaxVisibleTargets()
+            end
             for i = #element.children + 1, numTargets do
                 element:AddChild(targetPanel(element.data.featureId, i))
             end
@@ -817,6 +849,7 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
     return CBFeatureSelector.BuildSelectorPanel{
         controllerClass = controllerClass,
         header = header,
+        targetsHeader = pointsHeader,
         targetsContainer = targetsContainer,
         optionsContainer = optionsContainer,
         mainPanel = mainPanel,

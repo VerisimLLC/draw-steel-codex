@@ -461,7 +461,7 @@ function monster:Render(args, options)
                         height = "auto",
                         halign = "right",
                         fontSize = 20,
-                        text = string.format("EV %d%s", self.ev, cond(self.minion, " for " .. GameSystem.minionsPerSquadText .. " minions", "")),
+                        text = string.format("EV %d%s", self:EV(), cond(self.minion, " for " .. GameSystem.minionsPerSquadText .. " minions", "")),
                     }
                 },
 
@@ -852,14 +852,46 @@ monster.RegisterSymbol{
     }
 }
 
+--EV (encounter value). The raw value is stored in `monster.ev`; access it
+--through these accessors rather than the raw field so "Modify Attributes"
+--CharacterModifiers targeting the "ev" attribute are applied. Registered as
+--a modifiable attribute just below so those modifiers can target it.
+CustomAttribute.RegisterAttribute{
+    id = "ev",
+    text = "EV",
+    attributeType = "number",
+    category = "Basic Attributes",
+}
+
+--- @return number the unmodified, stored EV.
+function creature:BaseEV()
+    return 0
+end
+
+--- @return number the unmodified, stored EV.
+function monster:BaseEV()
+    return self.ev or 1
+end
+
+--- @return number the EV with attribute modifiers applied.
+function creature:EV()
+    return 0
+end
+
+--- @return number the EV with attribute modifiers applied.
+function monster:EV()
+    return self:CalculateAttribute("ev", self:BaseEV())
+end
+
+--- @return {key:string,value:string}[] descriptions of the modifiers affecting EV.
+function monster:DescribeEVModifications()
+    return self:DescribeModifications("ev", self:BaseEV())
+end
+
 monster.RegisterSymbol{
     symbol = "ev",
     lookup = function(c)
-        if c:IsMonster() then
-            return c.ev or 1
-        end
-
-        return 0
+        return c:EV()
     end,
     help = {
         name = "EV",

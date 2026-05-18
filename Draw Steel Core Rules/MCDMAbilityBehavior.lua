@@ -753,25 +753,11 @@ local g_rulePatterns = {
             casterToken:SwapPositions(targetToken)
         end,
     },
-    {
-        pattern = "^[Gg]ain (?<amount>[0-9]+) (?<resource>piety|essence|ferocity|drama|discipline|insight|wrath|focus|clarity)",
-        execute = function(behavior, ability, casterToken, targetToken, options, match)
-            ability:CommitToPaying(casterToken, options)
-            local quantity = tonumber(match.amount)
-            local resourceInfo = dmhub.GetTable(CharacterResource.tableName)[CharacterResource.heroicResourceId]
-            casterToken:ModifyProperties{
-                description = "Gain " .. match.resource,
-                execute = function()
-                    --Allow Attribute Modification of HR amount
-                    quantity = quantity + casterToken.properties:CalculateNamedCustomAttribute("Heroic Resource Gain Modification")
-                    local num = casterToken.properties:RefreshResource(CharacterResource.heroicResourceId, resourceInfo.usageLimit, quantity, ability.name)
-                    if options.symbols and options.symbols.cast then
-                        options.symbols.cast.heroicresourcesgained = options.symbols.cast.heroicresourcesgained + num
-                    end
-                end,
-            }
-        end,
-    },
+    -- NOTE: "Gain N <heroic resource>" is handled dynamically by the
+    -- refreshTables handler below (see g_gainHeroicResourceIndex). The set of
+    -- heroic-resource names is built by scanning the classes table so that
+    -- custom (user-authored) classes are recognized too, rather than relying
+    -- on a hard-coded list of the standard class resources.
     {
         pattern = "^the director gains (?<amount>[0-9]+) malice",
         execute = function(behavior, ability, casterToken, targetToken, options, match)
@@ -1131,13 +1117,14 @@ ActivatedAbility.RegisterPowerTableRule{
 local g_gainResourceIndex = nil
 local g_applyConditionIndex = nil
 local g_gainConditionWithRiderIndex = nil
+local g_gainHeroicResourceIndex = nil
 
 dmhub.RegisterEventHandler("refreshTables", function(keys)
     if mod.unloaded then
         return
     end
 
-	if keys ~= nil and (not keys[CharacterResource.tableName]) then
+	if keys ~= nil and (not keys[CharacterResource.tableName]) and (not keys[Class.tableName]) then
 		return
 	end
 
@@ -1252,6 +1239,48 @@ dmhub.RegisterEventHandler("refreshTables", function(keys)
             }
         end,
     }
+
+    -- Build the "Gain N <heroic resource>" pattern dynamically by scanning the
+    -- classes table for the heroic-resource name each class uses. This way the
+    -- pattern recognizes user-authored custom classes, not just the standard
+    -- ones. Regardless of which name matched, the caster's heroic resource
+    -- (CharacterResource.heroicResourceId) is the resource that is refreshed.
+    g_gainHeroicResourceIndex = g_gainHeroicResourceIndex or #g_rulePatterns + 1
+
+    local heroicResourceNames = {}
+    local seenHeroicResourceNames = {}
+    for _,classInfo in pairs(dmhub.GetTable(Class.tableName) or {}) do
+        if not classInfo:try_get("hidden", false) then
+            local name = regex.ReplaceAll(string.lower(classInfo.heroicResourceName or ""), "[^a-z0-9 ]", "")
+            name = trim(name)
+            if name ~= "" and not seenHeroicResourceNames[name] then
+                seenHeroicResourceNames[name] = true
+                heroicResourceNames[#heroicResourceNames+1] = name
+            end
+        end
+    end
+
+    if #heroicResourceNames > 0 then
+        g_rulePatterns[g_gainHeroicResourceIndex] = {
+            pattern = "^[Gg]ain +(?<amount>[0-9]+) +(?<resource>" .. table.concat(heroicResourceNames, "|") .. ")",
+            execute = function(behavior, ability, casterToken, targetToken, options, match)
+                ability:CommitToPaying(casterToken, options)
+                local quantity = tonumber(match.amount)
+                local resourceInfo = dmhub.GetTable(CharacterResource.tableName)[CharacterResource.heroicResourceId]
+                casterToken:ModifyProperties{
+                    description = "Gain " .. match.resource,
+                    execute = function()
+                        --Allow Attribute Modification of HR amount
+                        quantity = quantity + casterToken.properties:CalculateNamedCustomAttribute("Heroic Resource Gain Modification")
+                        local num = casterToken.properties:RefreshResource(CharacterResource.heroicResourceId, resourceInfo.usageLimit, quantity, ability.name)
+                        if options.symbols and options.symbols.cast then
+                            options.symbols.cast.heroicresourcesgained = options.symbols.cast.heroicresourcesgained + num
+                        end
+                    end,
+                }
+            end,
+        }
+    end
 
 end)
 

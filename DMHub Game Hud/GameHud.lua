@@ -741,7 +741,21 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
 	gamehud.tradeInventoryDialog.x = 600
 
 	gamehud.createItemDialog = gamehud:CreateAddItemDialog{
-		
+
+	}
+
+	-- Fullscreen host for the shop/inventory screen. CreateShopScreen reads
+	-- its host's .data.dialog for sizing and parents the screen here.
+	-- interactable = false so the empty host does not eat clicks to the map;
+	-- the shop screen child is interactable in its own right.
+	gamehud.shopPanel = gui.Panel{
+		id = "shop-screen-panel",
+		width = "100%",
+		height = "100%",
+		halign = "center",
+		valign = "center",
+		interactable = false,
+		data = { dialog = dialog },
 	}
 
 	local g_settingMapTooltips = setting{
@@ -987,6 +1001,7 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
             gamehud:CreateAbilityDisplayPanel(),
 			gamehud:CreateDocumentsPanel(),
 			mainDialogPanel,
+			gamehud.shopPanel,
 			gamehud:ModalDialogPanel(),
 			gamehud:CreatePopupPanel(),
 			gamehud:CreateRollResultPanel(),

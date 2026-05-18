@@ -160,28 +160,12 @@ function ActivatedAbilityDamageBehavior:Cast(ability, casterToken, targets, opti
 		local rollid = nil
         print("ROLL:: SHOW", rollStr)
 
-		local dialog
-		local existingEmbedded = CharacterPanel.FindEmbeddedRollDialog()
-		if existingEmbedded ~= nil then
-			dialog = existingEmbedded
-		else
-			local displayed = CharacterPanel.DisplayAbility(casterToken, ability, options.symbols, {lock = true, renderAsAbility = true})
-			if displayed then
-				options.OnFinishCastHandlers = options.OnFinishCastHandlers or {}
-				options.OnFinishCastHandlers[#options.OnFinishCastHandlers+1] = function()
-					CharacterPanel.HideAbility(ability)
-				end
-			end
-
-			local embeddedDialog = CharacterPanel.EmbedDialogInAbility()
-			if embeddedDialog ~= nil then
-				dialog = embeddedDialog
-				for j=1,4 do
-					coroutine.yield(0.01)
-				end
-			else
-				dialog = GameHud.instance.rollDialog
-			end
+		--Acquire the embedded roll dialog, queuing behind any other ability
+		--roll in progress. The helper installs the cast-aware HideAbility
+		--OnFinishCast handler. See CharacterPanel.AcquireAbilityRollDialog.
+		local dialog = CharacterPanel.AcquireAbilityRollDialog(casterToken, ability, options.symbols, {lock = true, renderAsAbility = true}, options)
+		if dialog == nil or (not dialog.valid) or dialog.data == nil then
+			return false
 		end
 
 		rollid = dialog.data.ShowDialog{
@@ -194,6 +178,10 @@ function ActivatedAbilityDamageBehavior:Cast(ability, casterToken, targets, opti
 			delayInstant = cond(hasProjectile, 2, 0),
 			skipDeterministic = true,
 			type = 'damage',
+			--Keep the dialog up after the dice settle so the roll ends with an
+			--Accept Result / Re-roll step, consistent with power rolls.
+			showDialogDuringRoll = true,
+			amendable = true,
 			cancelRoll = function()
 				rollCanceled = true
 			end,

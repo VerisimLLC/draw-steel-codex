@@ -290,6 +290,22 @@ function CBFeatureWrapper:CostsPoints()
     return self.feature:try_get("costsPoints", false)
 end
 
+--- The display name a points pool falls back to when no explicit name is set.
+--- Kept in sync with DEFAULT_POINTS_NAME in MCDMCustomRules.lua.
+CBFeatureWrapper.DEFAULT_POINTS_NAME = "Points"
+
+--- The display name of the points pool this feature draws from. Falls back to
+--- CBFeatureWrapper.DEFAULT_POINTS_NAME ("Points") when the editor's "Points
+--- name" field has been left blank.
+--- @return string
+function CBFeatureWrapper:GetPointsName()
+    local name = self.feature:try_get("pointsName")
+    if name == nil or name == "" then
+        return CBFeatureWrapper.DEFAULT_POINTS_NAME
+    end
+    return name
+end
+
 --- @return number The number of slots available / unassigned on the hero
 function CBFeatureWrapper:GetAvailableSlots()
     return math.max(0, self:GetNumChoices() - self:GetSelectedValue())
@@ -351,6 +367,10 @@ end
 --- Get the maximum number of target panels that should be visible
 --- @return number
 function CBFeatureWrapper:GetMaxVisibleTargets()
+    if self:IsUnbounded() then
+        -- Show every filled slot plus one empty slot to fill next.
+        return #self:GetSelected() + 1
+    end
     return #self:GetSelected() + self:GetAvailableSlots()
 end
 
@@ -362,6 +382,18 @@ end
 --- @return number
 function CBFeatureWrapper:GetNumChoices()
     return self:try_get("numChoices", 1)
+end
+
+--- The choice count at or above which a feature is treated as offering an
+--- effectively unbounded number of choices.
+CBFeatureWrapper.UNBOUNDED_CHOICES = 99
+
+--- Determine whether this feature offers an effectively unbounded number of
+--- choices. When unbounded, the UI shows only the filled slots plus a single
+--- extra empty slot rather than a slot for every possible choice.
+--- @return boolean
+function CBFeatureWrapper:IsUnbounded()
+    return self:GetNumChoices() >= CBFeatureWrapper.UNBOUNDED_CHOICES
 end
 
 --- @return CBOptionWrapper|nil
@@ -476,6 +508,9 @@ end
 
 --- @return boolean
 function CBFeatureWrapper:IsComplete()
+    -- An unbounded feature has no required number of selections, so it is
+    -- never "incomplete" -- otherwise it could never be satisfied.
+    if self:IsUnbounded() then return true end
     local status = self:GetStatus()
     return status.selected >= status.numChoices
 end

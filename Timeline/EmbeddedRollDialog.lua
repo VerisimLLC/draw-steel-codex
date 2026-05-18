@@ -386,6 +386,9 @@ function GameHud.CreateEmbeddedRollDialog()
         resultPanel:FireEventTree("closedialog")
         m_rollInfo = nil
         resultPanel.data.coroutineOwner = nil
+        --Mark the roll finished so a queued ability roll (AcquireAbilityRollDialog)
+        --may displace this now-lingering panel instead of waiting on it.
+        resultPanel.data.rollRelinquished = true
         g_holdingRollOpen = false
     end
 
@@ -3237,8 +3240,8 @@ function GameHud.CreateEmbeddedRollDialog()
                             opacity = 0,
                         },
                     },
-                    width = "60%",
-                    height = 80,
+                    width = "85%",
+                    height = 120,
                     halign = "center",
                     bgimage = true,
                     bgcolor = "white",
@@ -3960,6 +3963,17 @@ function GameHud.CreateEmbeddedRollDialog()
             end,
             destroy = function(element)
                 --dmhub.SetSettingValue("hideactionbar", element.data.hideactionbar)
+
+                --DIAG: the embedded roll dialog has been seen to vanish mid-roll,
+                --leaving orphaned, unresponsive preview dice. Log the Lua call
+                --path that tore the panel down so the destroyer can be pinned.
+                --Pairs with the OnShow/OnHide "RICH:: Push/Pop" traces: a DESTROY
+                --with wasShown=true and no preceding Pop means the dialog was
+                --torn down out from under an active roll. Safe to keep.
+                local shown = element.data ~= nil and element.data.IsShown ~= nil and element.data.IsShown()
+                local castco = element.data ~= nil and element.data.castCoroutine
+                print(string.format("RollDialog:: DESTROY castCoroutine=%s wasShown=%s\n%s",
+                    tostring(castco), tostring(shown), debug.traceback()))
             end,
             broadcastDialogState = function(element)
                 BroadcastDialogState()

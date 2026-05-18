@@ -1468,6 +1468,16 @@ TriggeredAbility.RegisterTrigger{
             type = "boolean",
             desc = "True if the damage came from a dice roll rather than flat damage.",
         },
+        {
+            name = "HasCast",
+            type = "boolean",
+            desc = "True if a Cast (ActivatedAbilityCast) is associated with this damage.",
+        },
+        {
+            name = "Cast",
+            type = "spellcast",
+            desc = "The cast context of the ability that dealt the damage. Only valid if HasCast is true.",
+        },
     }
 }
 

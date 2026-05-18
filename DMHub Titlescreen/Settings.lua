@@ -2568,6 +2568,7 @@ setting{
     storage = "game",
     editor = "check",
     default = false,
+	section = "GameStrictRules",
 }
 
 setting{
@@ -2576,6 +2577,7 @@ setting{
     storage = "game",
     editor = "check",
     default = false,
+	section = "GameStrictRules",
 }
 
 setting{
@@ -2584,6 +2586,16 @@ setting{
     storage = "game",
     editor = "check",
     default = false,
+	section = "GameStrictRules",
+}
+
+setting{
+    id = "strict:inventory",
+    description = "Strict Inventory Management",
+    storage = "game",
+    editor = "check",
+    default = false,
+    section = "GameStrictRules",
 }
 
 setting{

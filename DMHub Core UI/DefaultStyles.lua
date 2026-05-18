@@ -1162,12 +1162,14 @@ ThemeEngine.RegisterTheme{
             bgimage = "ui-icons/close.png",
         },
         -- Standard inset for close buttons. They are almost always pinned to a
-        -- top corner (halign right/left + floating), and sitting flush against
-        -- the panel edge looks cramped. A small horizontal margin keeps the
-        -- glyph off the edge wherever a closeButton is used.
+        -- top corner (halign right/left + valign top + floating), and sitting
+        -- flush against the panel edge looks cramped. A small margin keeps the
+        -- glyph off both the side and the top edge wherever a closeButton is
+        -- used. hmargin (not rmargin) so it works in either top corner.
         {
             selectors = {"closeButton"},
             hmargin = 6,
+            tmargin = 6,
         },
         {
             selectors = {"panel", "buttonIcon", "parent:copyButton"},

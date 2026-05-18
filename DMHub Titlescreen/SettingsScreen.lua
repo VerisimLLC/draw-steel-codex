@@ -603,6 +603,10 @@ function CreateSettingsScreen(dialog, args)
 						SettingsHeading("Lighting"),
 
 						SettingsSection("GameLighting"),
+
+						SettingsHeading("Rules Enforcement"),
+
+						SettingsSection("GameStrictRules"),
 						} end,
 					},
 

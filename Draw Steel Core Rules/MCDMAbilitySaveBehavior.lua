@@ -109,34 +109,16 @@ function ActivatedAbilitySaveBehavior:RollSaveInTimeline(ability, casterToken, t
     local rollCanceled = false
     local rollComplete = false
 
-    local dialog
-    local existingEmbedded = CharacterPanel.FindEmbeddedRollDialog()
-    if existingEmbedded ~= nil then
-        dialog = existingEmbedded
-    else
-        local displayed = CharacterPanel.DisplayAbility(casterToken, ability, options.symbols, {lock = true})
-        if displayed then
-            options.OnFinishCastHandlers = options.OnFinishCastHandlers or {}
-            options.OnFinishCastHandlers[#options.OnFinishCastHandlers+1] = function()
-                CharacterPanel.HideAbility(ability)
-            end
-        end
+    --Acquire the embedded roll dialog, queuing behind any other ability roll
+    --in progress. The helper installs the cast-aware HideAbility OnFinishCast
+    --handler. See CharacterPanel.AcquireAbilityRollDialog.
+    local dialog = CharacterPanel.AcquireAbilityRollDialog(casterToken, ability, options.symbols, {lock = true}, options)
 
-        local embeddedDialog = CharacterPanel.EmbedDialogInAbility()
-        if embeddedDialog ~= nil then
-            dialog = embeddedDialog
-            for j = 1, 4 do
-                coroutine.yield(0.01)
-            end
-        else
-            dialog = GameHud.instance.rollDialog
-        end
-    end
-
-    -- The dialog reference can go stale across the yields above: the ability
-    -- sidebar may be rebuilt or the embedded dialog destroyed, leaving an
-    -- invalid panel whose .data is nil. If we no longer have a usable dialog,
-    -- bail out (treated as a canceled roll) rather than indexing nil.
+    -- The dialog reference can go stale across the init yields inside the
+    -- helper: the ability sidebar may be rebuilt or the embedded dialog
+    -- destroyed, leaving an invalid panel whose .data is nil. If we no longer
+    -- have a usable dialog, bail out (treated as a canceled roll) rather than
+    -- indexing nil.
     if dialog == nil or (not dialog.valid) or dialog.data == nil then
         return false
     end
@@ -148,6 +130,10 @@ function ActivatedAbilitySaveBehavior:RollSaveInTimeline(ability, casterToken, t
         creature = targetCreature,
         skipDeterministic = true,
         type = "save",
+        --Keep the dialog up after the dice settle so the roll ends with an
+        --Accept Result / Re-roll step, consistent with power rolls.
+        showDialogDuringRoll = true,
+        amendable = true,
         cancelRoll = function()
             rollCanceled = true
         end,

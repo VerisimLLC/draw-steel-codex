@@ -2,6 +2,11 @@ local mod = dmhub.GetModLoading()
 
 local CreateMapDialog
 
+--Returns a set { [mapid] = true } of the maps the local player is allowed to
+--browse: maps they have a controllable token on, plus maps flagged
+--"Player Viewable". For the DM this is unused (they see every map).
+local GetPlayerAccessibleMaps
+
 LaunchablePanel.Register{
 	name = "Maps",
     menu = "game",
@@ -12,7 +17,13 @@ LaunchablePanel.Register{
 	hmargin = 4,
 	draggable = false,
 	filtered = function()
-		return not dmhub.isDM
+		if dmhub.isDM then
+			return false
+		end
+
+		--players only get the Maps panel if there is at least one map they
+		--can browse.
+		return next(GetPlayerAccessibleMaps()) == nil
 	end,
 	content = function()
 		return CreateMapDialog()
@@ -93,9 +104,77 @@ local DragNode = function(element, target)
 end
 
 
+--Builds the row of party-token portraits shown next to a map. Shared by the
+--DM map node and the player map node. onClick fires when a portrait is
+--clicked (the node passes a handler that activates the row).
+local CreateMapTokenContainer = function(map, onClick)
+	local tokenPanels = {}
+
+	return gui.Panel{
+		idprefix = "map-token-container",
+		flow = "horizontal",
+		halign = "right",
+		valign = "center",
+		width = "auto",
+		maxWidth = 32*6,
+		height = "auto",
+		wrap = true,
+		refreshMaps = function(element)
+			local newTokenPanels = {}
+			local children = {}
+
+			local tokens = g_mapDialog.data.tokensPerMap[map.id] or {}
+
+			for i,tok in ipairs(tokens) do
+				local charid = tok.charid
+				local tokenPanel = tokenPanels[charid] or gui.CreateTokenImage(tok,{
+					idprefix = "map-token-image",
+					width = 32,
+					height = 32,
+					halign = "left",
+					interactable = true,
+					click = function(element)
+						onClick()
+					end,
+					linger = function(element)
+						local tok = dmhub.GetCharacterById(charid)
+						if tok == nil or (not tok.valid) then
+							return
+						end
+
+						local partyid = tok.partyid
+						local party = GetParty(partyid)
+						if party ~= nil then
+							gui.Tooltip(string.format("%s -- %s", tok.description, party.name))(element)
+						end
+					end,
+
+					gui.Panel{
+						idprefix = "map-token-player",
+						classes = {cond(not tok.playerControlledAndPrimary, "hidden")},
+						width = 12,
+						height = 12,
+						halign = "right",
+						valign = "bottom",
+						floating = true,
+						bgimage = "icons/icon_simpleshape/icon_simpleshape_31.png",
+						bgcolor = "#ffffaaff",
+					},
+				})
+
+				newTokenPanels[charid] = tokenPanel
+				children[#children+1] = tokenPanel
+			end
+
+			tokenPanels = newTokenPanels
+			element.children = children
+		end,
+	}
+end
+
+
 local CreateMapNode = function(map)
 	local resultPanel
-	local tokenPanels = {}
 
 	local newMapMarker = nil
 	local novelMaps = module.GetNovelContent("map")
@@ -141,68 +220,9 @@ local CreateMapNode = function(map)
 		newMapMarker,
 	}
 
-	local tokenContainer = gui.Panel{
-		idprefix = "map-token-container",
-		flow = "horizontal",
-		halign = "right",
-		valign = "center",
-		width = "auto",
-		maxWidth = 32*6,
-		height = "auto",
-		wrap = true,
-		refreshMaps = function(element)
-			local newTokenPanels = {}
-			local children = {}
-
-			local tokens = g_mapDialog.data.tokensPerMap[map.id] or {}
-
-			for i,tok in ipairs(tokens) do
-				local charid = tok.charid
-				local tokenPanel = tokenPanels[charid] or gui.CreateTokenImage(tok,{
-					idprefix = "map-token-image",
-					width = 32,
-					height = 32,
-					halign = "left",
-					interactable = true,
-					click = function(element)
-						resultPanel:FireEvent("click")
-					end,
-					linger = function(element)
-						dmhub.Debug(string.format("LINGER:: TOKEN: %s", charid))
-						local tok = dmhub.GetCharacterById(charid)
-						if tok == nil or (not tok.valid) then
-							return
-						end
-
-						local partyid = tok.partyid
-						local party = GetParty(partyid)
-						if party ~= nil then
-						dmhub.Debug(string.format("LINGER:: TOOLTIP: %s", charid))
-							gui.Tooltip(string.format("%s -- %s", tok.description, party.name))(element)
-						end
-					end,
-
-					gui.Panel{
-						idprefix = "map-token-player",
-						classes = {cond(not tok.playerControlledAndPrimary, "hidden")},
-						width = 12,
-						height = 12,
-						halign = "right",
-						valign = "bottom",
-						floating = true,
-						bgimage = "icons/icon_simpleshape/icon_simpleshape_31.png",
-						bgcolor = "#ffffaaff",
-					},
-				})
-
-				newTokenPanels[charid] = tokenPanel
-				children[#children+1] = tokenPanel
-			end
-
-			tokenPanels = newTokenPanels
-			element.children = children
-		end,
-	}
+	local tokenContainer = CreateMapTokenContainer(map, function()
+		resultPanel:FireEvent("click")
+	end)
 
 	local editArea = gui.Panel{
 		classes = {"collapsed-anim"},
@@ -288,7 +308,7 @@ local CreateMapNode = function(map)
 
 	resultPanel = gui.Panel{
 		idprefix = "map-panel",
-		classes = {"row", "map"},
+		classes = {"row", "map", "hoverable"},
 		flow = "vertical",
 		draggable = true,
 
@@ -680,7 +700,235 @@ CreateFolderPanel = function(folder)
 	}
 end
 
+GetPlayerAccessibleMaps = function()
+	local result = {}
+
+	--maps explicitly flagged "Player Viewable" by the DM.
+	for _,m in ipairs(game.maps) do
+		if m.valid and m.playerViewable then
+			result[m.id] = true
+		end
+	end
+
+	--maps the local player has a controllable token on.
+	for _,partyid in ipairs(GetAllParties()) do
+		for _,charid in ipairs(dmhub.GetCharacterIdsInParty(partyid)) do
+			local token = dmhub.GetCharacterById(charid)
+			if token ~= nil and token.canControl and token.mapid ~= nil then
+				result[token.mapid] = true
+			end
+		end
+	end
+
+	return result
+end
+
+--Read-only map row shown to players. Unlike CreateMapNode it has no rename,
+--drag, delete/duplicate context menu or cover-art editor -- clicking the row
+--simply travels to the map.
+local CreatePlayerMapNode = function(map)
+	local resultPanel
+
+	local nameLabel = gui.Label{
+		idprefix = "player-map-label",
+		classes = {"map"},
+		text = map.description,
+		characterLimit = 32,
+		minWidth = 240,
+		editable = false,
+		refreshMaps = function(element)
+			if map.valid then
+				element.text = map.description
+				element:SetClass("selected", map.id == game.currentMapId)
+			end
+		end,
+	}
+
+	local tokenContainer = CreateMapTokenContainer(map, function()
+		resultPanel:FireEvent("click")
+	end)
+
+	resultPanel = gui.Panel{
+		idprefix = "player-map-panel",
+		classes = {"row", "map", "hoverable"},
+		flow = "vertical",
+
+		refreshMaps = function(element)
+			element:SetClass("selected", map.valid and map.id == game.currentMapId)
+		end,
+
+		setZebra = function(element, even)
+			element:SetClass("evenRow", even)
+			element:SetClass("oddRow", not even)
+		end,
+
+		search = function(element, text)
+			local mapName = string.lower(map.description)
+			local searchText = string.lower(text)
+			element:SetClass("collapsed", string.find(mapName, searchText) == nil)
+		end,
+
+		click = function(element)
+			if map.valid and map.id ~= game.currentMapId then
+				map:Travel()
+			end
+		end,
+
+		data = {
+			data = map,
+		},
+
+		gui.Panel{
+			flow = "horizontal",
+			width = "100%",
+			height = "auto",
+			valign = "center",
+
+			nameLabel,
+			tokenContainer,
+		},
+	}
+
+	return resultPanel
+end
+
+--The player-facing Maps panel: a flat, read-only, searchable list of the
+--maps the player is allowed to browse (see GetPlayerAccessibleMaps).
+local CreatePlayerMapDialog = function()
+	local mapNodes = {}
+
+	local listPanel = gui.Panel{
+		idprefix = "player-map-list",
+		width = "96%",
+		halign = "center",
+		valign = "top",
+		height = "auto",
+		flow = "vertical",
+
+		refreshMaps = function(element)
+			local accessible = GetPlayerAccessibleMaps()
+
+			local maps = {}
+			for _,m in ipairs(game.maps) do
+				if m.valid and accessible[m.id] then
+					maps[#maps+1] = m
+				end
+			end
+
+			table.sort(maps, function(a,b)
+				if a.ord ~= b.ord then
+					return a.ord < b.ord
+				end
+				return a.description < b.description
+			end)
+
+			local newNodes = {}
+			local children = {}
+			for i,m in ipairs(maps) do
+				local node = mapNodes[m.id] or CreatePlayerMapNode(m)
+				newNodes[m.id] = node
+				node:FireEvent("setZebra", i % 2 == 1)
+				children[#children+1] = node
+			end
+
+			mapNodes = newNodes
+			element.children = children
+
+			--tokensPerMap is populated by the dialog's own refreshMaps
+			--handler (fired first, top-down), so refresh every node now
+			--that the list is in place.
+			for _,node in ipairs(children) do
+				node:FireEventTree("refreshMaps")
+			end
+		end,
+	}
+
+	local treeScrollPanel = gui.Panel{
+		idprefix = "player-map-scroll-panel",
+		width = "96%",
+		height = "85%",
+		halign = "center",
+		valign = "top",
+		vscroll = true,
+		listPanel,
+	}
+
+	local filterInput = gui.SearchInput{
+		width = "80%",
+		height = 24,
+		halign = "left",
+		valign = "top",
+		vmargin = 8,
+		placeholderText = "Search Maps...",
+		edit = function(element)
+			treeScrollPanel:FireEventTree("search", element.text)
+		end,
+	}
+
+	return gui.Panel{
+		id = "map-dialog",
+
+		halign = "left",
+		valign = "top",
+		width = 400,
+		height = 700,
+		hpad = 12,
+		vpad = 12,
+		borderBox = true,
+		flow = "vertical",
+
+		data = {
+			tokensPerMap = {},
+		},
+
+		create = function(element)
+			g_mapDialog = element
+			element:FireEventTree("refreshMaps")
+		end,
+
+		destroy = function(element)
+			if g_mapDialog == element then
+				g_mapDialog = nil
+			end
+		end,
+
+		draggable = true,
+		drag = function(element)
+			element.x = element.xdrag
+			element.y = element.ydrag
+		end,
+
+		monitorGame = {"/mapManifests", "/characters"},
+		refreshGame = function(element)
+			element:FireEventTree("refreshMaps")
+		end,
+
+		refreshMaps = function(element)
+			element.data.tokensPerMap = {}
+			for _,partyid in ipairs(GetAllParties()) do
+				for _,charid in ipairs(dmhub.GetCharacterIdsInParty(partyid)) do
+					local token = dmhub.GetCharacterById(charid)
+					if token ~= nil and token.mapid then
+						local mapTokens = element.data.tokensPerMap[token.mapid] or {}
+						element.data.tokensPerMap[token.mapid] = mapTokens
+						mapTokens[#mapTokens+1] = token
+					end
+				end
+			end
+		end,
+
+		styles = ThemeEngine.GetStyles(),
+
+		filterInput,
+		treeScrollPanel,
+	}
+end
+
 CreateMapDialog = function()
+	if not dmhub.isDM then
+		return CreatePlayerMapDialog()
+	end
+
 	local treeInnerPanel = gui.Panel{
 		idprefix = "map-tree-inner-panel",
 		width = "96%",

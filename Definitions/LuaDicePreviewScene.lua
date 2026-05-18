@@ -6,6 +6,6 @@
 --- @field solo boolean Sets whether only the selected die is visible, hiding all others. (Write-only)
 --- @field initialRotation number Sets the initial rotation angle in degrees applied to dice when the preview initializes. (Write-only)
 --- @field diceScale number Sets a uniform scale override for all dice in the preview. Set to 0 to use the default calculated scale. (Write-only)
---- @field bgcolor string Sets the background color of the preview camera as an HTML color string (e.g. '#ff0000'). (Write-only)
+--- @field bgcolor string Sets the preview background to a radial gradient: this color (an HTML color string, e.g. '#ff0000') in the center fading to black at the edges. (Write-only)
 --- @field bgtexture string Sets a background texture by image asset identifier. Set to nil or empty string to hide the background texture. (Write-only)
 LuaDicePreviewScene = {}

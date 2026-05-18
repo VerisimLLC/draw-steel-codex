@@ -1275,38 +1275,14 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
 
     local m_rollInfo = nil
 
-    local dialog = GameHud.instance.rollDialog
-
-
-    --timeline roll dialog
-    local displaying = CharacterPanel.DisplayAbility(casterToken, ability, options.symbols, {lock = true, renderAsAbility = true})
+    --Acquire the embedded roll dialog, queuing behind any other ability roll
+    --in progress. The helper installs the cast-aware HideAbility OnFinishCast
+    --handler itself. See CharacterPanel.AcquireAbilityRollDialog.
+    local dialog, displaying = CharacterPanel.AcquireAbilityRollDialog(casterToken, ability, options.symbols, {lock = true, renderAsAbility = true}, options)
     print("Timeline:: Displaying:", displaying)
 
-    if displaying then
-        print("Timeline:: INSTALL HANDLER")
-        options.OnFinishCastHandlers = options.OnFinishCastHandlers or {}
-        options.OnFinishCastHandlers[#options.OnFinishCastHandlers+1] = function()
-        print("Timeline:: RUN HANDLER")
-            CharacterPanel.HideAbility(ability)
-        end
-    end
-
-    -- EmbedDialogInAbility returns nil when the sidebar is not available
-    -- (e.g. triggered ability context). Only overwrite dialog if successful
-    -- so the fallback GameHud.instance.rollDialog is preserved.
-    local embeddedDialog = CharacterPanel.EmbedDialogInAbility()
-    if embeddedDialog ~= nil then
-        dialog = embeddedDialog
-
-        --give a few cycles for the dialog to init.
-        for i=1,4 do
-            coroutine.yield(0.01)
-        end
-    end
-
-
     local rollKey
-    if not dialog.valid then
+    if dialog == nil or not dialog.valid then
         dialog = GameHud.instance.rollDialog
     end
     if not dialog.valid then

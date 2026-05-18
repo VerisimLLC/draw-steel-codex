@@ -48,6 +48,15 @@ setting{
 	},
 }
 
+setting{
+	id = "map:playerviewable",
+	description = "Player Viewable",
+	help = "If enabled, all players can see this map: they get full vision (no fog of war) on it, and it always appears in their Maps list even if they have no tokens on it.",
+	storage = "map",
+	editor = "check",
+	default = false,
+}
+
 local function track(eventType, fields)
 	if dmhub.GetSettingValue("telemetry_enabled") == false then
 		return
@@ -115,6 +124,7 @@ CreateMapSettings = function()
             }
         },
 		children = {
+			CreateSettingsEditor("map:playerviewable"),
 			CreateSettingsEditor('gridcolor'),
 			CreateSettingsEditorsForSection('vision'),
 

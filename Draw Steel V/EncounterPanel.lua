@@ -101,7 +101,7 @@ function Encounter.MainMonster(encounter)
     for i, group in ipairs(encounter.groups) do
         for monsterid, value in pairs(group.monsters) do
             local monster = assets.monsters[monsterid]
-            if mainmonster == nil or monster.properties.ev > mainmonster.properties.ev then
+            if mainmonster == nil or monster.properties:EV() > mainmonster.properties:EV() then
                 mainmonster = monster
             end
         end
@@ -140,9 +140,9 @@ function Encounter.CountEDS(self)
             local monster = assets.monsters[monsterid]
 
             if monster.properties.minion then
-                EDSTotal = EDSTotal + round((assets.monsters[monsterid].properties.ev * quantity) / 4)
+                EDSTotal = EDSTotal + round((assets.monsters[monsterid].properties:EV() * quantity) / 4)
             else
-                EDSTotal = EDSTotal + (assets.monsters[monsterid].properties.ev * quantity)
+                EDSTotal = EDSTotal + (assets.monsters[monsterid].properties:EV() * quantity)
             end
         end
     end
@@ -681,7 +681,7 @@ end
 local function createMonsterDisplayPanel(monsterid, quantity)
     local monster = assets.monsters[monsterid]
 
-    local evtotal = monster.properties.ev * quantity
+    local evtotal = monster.properties:EV() * quantity
 
     if monster.properties.minion then
         evtotal = round(evtotal / 4)
@@ -754,7 +754,7 @@ local function createMonsterDisplayPanel(monsterid, quantity)
             gui.Label {
 
                 classes = { "fg" },
-                text = string.format("EV: %d  Total: %d", monster.properties.ev, evtotal),
+                text = string.format("EV: %d  Total: %d", monster.properties:EV(), evtotal),
                 halign = "center",
                 fontSize = 16,
 
@@ -1277,8 +1277,8 @@ CreateEncounterPanel = function()
                             headmonster = currentmonster
                         end
 
-                        if currentmonster.properties.ev > highestev then
-                            highestev = currentmonster.properties.ev
+                        if currentmonster.properties:EV() > highestev then
+                            highestev = currentmonster.properties:EV()
                             headmonster = currentmonster
                         end
 

@@ -1499,6 +1499,10 @@ function GameHud.CreateInventoryDialog(self, options)
 
 	local hasAddItem = playerInventory
 
+    if dmhub.GetSettingValue("strict:inventory") and (not dmhub.isDM) then
+        hasAddItem = false
+    end
+
 	local addItemSlot = nil
 	local partyItemsSlot = nil
 	local generateShopSlot = nil

@@ -4150,6 +4150,10 @@ function creature.TakeDamage(self, amount, note, info)
                 ability = eventArg.ability,
                 usedability = eventArg.ability,
                 hasrolleddamage = eventArg.hasrolleddamage,
+                --The ActivatedAbilityCast associated with this damage, if any.
+                --hascast lets trigger formulas guard before reading Cast.Tier etc.
+                cast = eventArg.cast,
+                hascast = eventArg.cast ~= nil,
                 --Acolyte patron damage marker. Top-level bare symbol PatronDamage
                 --in trigger formulas (matches how gainresource exposes Quantity).
                 patrondamage = eventArg.patrondamage,
@@ -4344,6 +4348,10 @@ function creature.TakeDamage(self, amount, note, info)
             ability = eventArg.ability,
             usedability = eventArg.ability,
             hasrolleddamage = eventArg.hasrolleddamage,
+            --The ActivatedAbilityCast associated with this damage, if any.
+            --hascast lets trigger formulas guard before reading Cast.Tier etc.
+            cast = eventArg.cast,
+            hascast = eventArg.cast ~= nil,
             --Acolyte patron damage marker. Top-level bare symbol PatronDamage
             --in trigger formulas (matches how gainresource exposes Quantity).
             patrondamage = eventArg.patrondamage,

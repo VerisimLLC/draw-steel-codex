@@ -10,6 +10,7 @@
 --- @field floors any 
 --- @field parentFolder any 
 --- @field ord number 
+--- @field playerViewable boolean (Read-only) True if this map has the 'Player Viewable' map setting enabled. Player-viewable maps grant all players full vision and always appear in the player-facing Maps panel.
 MapManifestLua = {}
 
 --- MarkUndo

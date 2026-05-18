@@ -3452,13 +3452,13 @@ local function DSCharSheet()
                                             return
                                         end
 
-                                        local ev = props.ev
+                                        local ev = props:EV()
                                         element.text = string.format("%d", round(ev))
                                     end,
 
                                     change = function(element)
                                         local token = CharacterSheet.instance.data.info.token
-                                        local newValue = round(tonumber(element.text) or token.properties.ev)
+                                        local newValue = round(tonumber(element.text) or token.properties:BaseEV())
                                         element.text = string.format("%d", newValue)
                                         token.properties.ev = newValue
                                     end,

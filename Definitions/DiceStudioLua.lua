@@ -129,6 +129,34 @@ function DiceStudioLua:GetMaterial(id)
 	-- dummy implementation for documentation purposes only
 end
 
+--- GetMaterialForType: Gets the per-die-type surface material override for the die with the given face count, or nil if that die type has no override (it falls back to the default 'material'). Note that d100 shares the d10 slot.
+--- @param numFaces number  The die's face count (e.g. 4, 6, 8, 10, 12, 20).
+--- @return nil|DiceMaterialLua
+function DiceStudioLua:GetMaterialForType(numFaces)
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetMaterialForType: Sets the per-die-type surface material override for the die with the given face count. Pass nil to clear the override so that die type falls back to the default 'material'. Note that d100 shares the d10 slot.
+--- @param numFaces number  The die's face count (e.g. 4, 6, 8, 10, 12, 20).
+--- @param material nil|DiceMaterialLua
+function DiceStudioLua:SetMaterialForType(numFaces, value)
+	-- dummy implementation for documentation purposes only
+end
+
+--- HasMaterialForType: True if the die with the given face count has a per-die-type surface material override (as opposed to falling back to the default 'material').
+--- @param numFaces number  The die's face count (e.g. 4, 6, 8, 10, 12, 20).
+--- @return boolean
+function DiceStudioLua:HasMaterialForType(numFaces)
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetMaterialPropertiesForType: Gets the tuned surface-material properties for the die with the given face count: the per-type override's properties when that die type has an override, otherwise the default surface material properties.
+--- @param numFaces number  The die's face count (e.g. 4, 6, 8, 10, 12, 20).
+--- @return DiceMaterialStudioProperties
+function DiceStudioLua:GetMaterialPropertiesForType(numFaces)
+	-- dummy implementation for documentation purposes only
+end
+
 --- SpawnPreview: Spawns a preview die in the dice harness with the specified number of faces.
 --- @param nfaces number
 --- @return nil

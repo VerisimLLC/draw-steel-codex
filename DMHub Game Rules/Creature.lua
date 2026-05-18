@@ -8514,6 +8514,87 @@ function creature:GetAurasAffecting(token)
     return result
 end
 
+-- Companion channel: stream the auras affecting a creature to that creature's
+-- open desktop Companion window (if any) whenever GetAurasAffecting recomputes
+-- them. These auras are engine/Lua-computed, so the Companion app cannot derive
+-- them on its own -- it relies on this push. The set is de-duplicated by a
+-- content signature so an unchanged recalculation does not re-send.
+-- See docs/superpowers/specs/2026-05-16-codex-companion-channel-design.md.
+local g_companionAuraSignatures = {}
+
+local function PushAurasToCompanion(creatureObj, token, auras)
+    local channel = dmhub.companionChannel
+    if channel == nil or channel:IsAvailable() == false then
+        return
+    end
+
+    token = token or dmhub.LookupToken(creatureObj)
+    if token == nil then
+        return
+    end
+
+    local charid = token.charid
+    if charid == nil or charid == "" then
+        return
+    end
+
+    local session = channel:GetSession(charid)
+    if session == nil then
+        return
+    end
+
+    local list = {}
+    local sigParts = {}
+    if auras ~= nil then
+        for _,entry in ipairs(auras) do
+            local instance = entry.auraInstance
+            if instance ~= nil then
+                local auraDef = instance:try_get("aura")
+                local name = instance:try_get("name")
+                if name == nil and auraDef ~= nil then
+                    name = auraDef:try_get("name")
+                end
+                name = name or "Aura"
+                local item = {
+                    guid = instance:try_get("guid", ""),
+                    name = name,
+                    description = auraDef ~= nil and auraDef:try_get("description", "") or "",
+                    source = auraDef ~= nil and auraDef:try_get("source", "") or "",
+                }
+                list[#list+1] = item
+                sigParts[#sigParts+1] = item.guid .. "/" .. item.name
+            end
+        end
+    end
+
+    local signature = table.concat(sigParts, ";")
+    if g_companionAuraSignatures[charid] == signature then
+        return
+    end
+    g_companionAuraSignatures[charid] = signature
+
+    session:SendEvent("creature.auras", { characterId = charid, auras = list })
+end
+
+local g_baseGetAurasAffecting = creature.GetAurasAffecting
+function creature:GetAurasAffecting(token)
+    local result = g_baseGetAurasAffecting(self, token)
+    PushAurasToCompanion(self, token, result)
+    return result
+end
+
+-- When a Companion (re)connects -- including a reconnect after the desktop app
+-- was closed and reopened -- drop the cached aura signature for its character
+-- so the next GetAurasAffecting re-pushes the current set to the freshly
+-- loaded window, whose display state starts empty.
+if dmhub.companionChannel ~= nil then
+    dmhub.companionChannel:OnCompanionConnected(function(session)
+        if session ~= nil then
+            g_companionAuraSignatures[session.characterId] = nil
+        end
+    end)
+end
+
 function creature:EndTurn(token)
 
     --end turn before ending effects. This makes it so if e.g. you have an ongoing effect

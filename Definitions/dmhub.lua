@@ -1064,6 +1064,12 @@ function dmhub:DumpSteamRichPresence()
 	-- dummy implementation for documentation purposes only
 end
 
+--- IsSteamOverlayRunning: Returns true if the Steam overlay is currently running and available to the user. The overlay is required to confirm Steam Microtransaction purchases; it returns false if the game was launched outside Steam, or the overlay is disabled in the user's Steam settings, or it simply has not finished loading yet.
+--- @return boolean
+function dmhub.IsSteamOverlayRunning()
+	-- dummy implementation for documentation purposes only
+end
+
 --- ElevateToDM: Elevates the user to GM status or removes their GM status. Only works on admin accounts.
 --- @param isDM any
 --- @return nil

@@ -2473,6 +2473,22 @@ local function CreateShopScreenInternal(arguments)
 								press = function(element)
 									if element.data.purchasing then return end
 
+									--The Steam Microtransaction confirmation is shown
+									--through the Steam overlay. If the overlay isn't
+									--running (launched outside Steam, or the overlay is
+									--disabled in Steam's settings) the confirmation can
+									--never appear, so block the purchase up front and
+									--tell the user why. Skipped in dev simulate mode,
+									--which bypasses Steam entirely.
+									if not DevSimulateSteamPurchase() and not dmhub.IsSteamOverlayRunning() then
+										gui.Tooltip{
+											text = tr("The Steam overlay must be enabled to purchase. Turn it on in Steam under Settings -> In Game, then restart Draw Steel."),
+											valign = "top",
+											borderWidth = 0,
+										}(element)
+										return
+									end
+
 									--m_shoppingCart is keyed by itemid -> true (entries are
 									--removed by setting to nil), so the keys are the items in
 									--the cart.

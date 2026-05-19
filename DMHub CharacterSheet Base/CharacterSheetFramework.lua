@@ -1187,11 +1187,38 @@ function CharSheet.CreateCharacterSheet(params)
 
 	tabsPanel = gui.Panel{
 		id = "charsheetTabs",
+		-- {tabContainer}: themed header gradient strip. Spans the full sheet
+		-- width so the area beside the tabs is covered, not see-through.
 		classes = {"tabContainer"},
 		floating = true,
-		styles = {
-			CharSheet.TabsStyles,
-		},
+		valign = "top",
+		halign = "left",
+		width = "100%",
+		height = 40,
+		flow = "horizontal",
+
+		-- The character-sheet harness still runs on the legacy Styles.*
+		-- cascade, so the tab strip roots its own ThemeEngine cascade here
+		-- (and re-resolves it when the user switches theme / color scheme).
+		-- {tabContainer} styles this strip; {tab} styles each tab child.
+		styles = ThemeEngine.GetStyles(),
+
+		data = {},
+
+		create = function(element)
+			element.data.themeListener = ThemeEngine.OnThemeChanged(mod, function()
+				if element.valid then
+					element.styles = ThemeEngine.GetStyles()
+				end
+			end)
+		end,
+
+		destroy = function(element)
+			if element.data.themeListener ~= nil then
+				element.data.themeListener:Deregister()
+				element.data.themeListener = nil
+			end
+		end,
 
 		init = function(element)
 			local children = {}
@@ -1199,6 +1226,11 @@ function CharSheet.CreateCharacterSheet(params)
 				children[#children+1] = gui.Label{
 					classes = {"tab", cond(tabOption.id == selectedTab, "selected")},
 					text = tabOption.text,
+					-- Layout only: left-packed, and wider than the theme
+					-- default so the strip stays proportionate to the
+					-- full-width sheet.
+					width = 200,
+					halign = "left",
 					refreshToken = function(element, info)
 						element:SetClass("collapsed", tabOption.visible ~= nil and (not tabOption.visible(info.token.properties)))
 					end,
@@ -1208,7 +1240,6 @@ function CharSheet.CreateCharacterSheet(params)
 					data = {
 						info = tabOption,
 					},
-					gui.Panel{classes = {"tabBorder"}},
 				}
 			end
 

@@ -156,7 +156,7 @@ local CreateListHeading = function(options)
 		text = options.text,
 		hmargin = 3,
 		fontSize = 22,
-		classes = {'list-item'},
+		classes = {'list-item', 'list-heading'},
 		bold = true,
 	}
 end
@@ -5320,7 +5320,9 @@ local LibraryPanel = function()
 				color = '@danger',
 			},
 			{
-				selectors = {'list-item', 'hover'},
+				-- exclude headings: they reuse list-item for layout but are
+				-- not interactive, so they should not get the hover wash.
+				selectors = {'list-item', 'hover', '~list-heading'},
 				bgcolor = "@bgInverse", --'#880000',
 				color = "@fgInverse",
 				brightness = 1.2,

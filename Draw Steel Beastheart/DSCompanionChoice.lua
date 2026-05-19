@@ -64,13 +64,44 @@ local function ScanCompanionMonsters()
     return result
 end
 
+--- Render an expandable stat block for a companion option, mirroring how an
+--- ability option's panel expands in the character builder. The builder's
+--- CBOptionWrapper:Panel() picks this up via the option's `render` field.
+--- @param companionId string bestiary id of the AnimalCompanion stat block
+--- @return Panel
+function CharacterCompanionChoice._RenderCompanionPanel(companionId)
+    local monsterAsset = assets.monsters[companionId]
+    if monsterAsset == nil or monsterAsset:try_get("properties") == nil then
+        return gui.Label{
+            classes = {"builder-base", "label", "info"},
+            width = "98%",
+            height = "auto",
+            halign = "left",
+            text = "Companion details unavailable.",
+        }
+    end
+
+    return monsterAsset.properties:Render({
+        width = "96%",
+        halign = "center",
+        bgimage = true,
+        bgcolor = CBStyles.COLORS.BLACK03,
+    }, {
+        asset = monsterAsset,
+    })
+end
+
 function CharacterCompanionChoice:Choices(numOption, existingChoices, creature)
     local result = {}
     for _,entry in ipairs(ScanCompanionMonsters()) do
+        local companionId = entry.id
         result[#result+1] = {
-            id = entry.id,
+            id = companionId,
             text = entry.name,
             description = entry.description,
+            render = function()
+                return CharacterCompanionChoice._RenderCompanionPanel(companionId)
+            end,
         }
     end
     return result

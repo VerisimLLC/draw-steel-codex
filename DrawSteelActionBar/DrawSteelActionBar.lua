@@ -5977,8 +5977,11 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
         -- When a promptOverride is set (e.g. an invoke-ability prompt), always fall through to the
         -- confirmation UI so the player can read the prompt and click Confirm, even if all
         -- targets are already pre-selected via the inherited target list.
+        -- promptOverride suppresses only the AUTOMATIC cast (the "no more targets" branch),
+        -- so the Confirm button gets a chance to appear. It must NOT suppress forceCast --
+        -- forceCast is exactly what the Confirm button uses to push the cast through.
         local hasPromptOverride = g_currentAbility:try_get("promptOverride") ~= nil
-        if ((not g_currentAbility:CanSelectMoreTargets(g_token, targets, g_currentSymbols)) or forceCast) and not hasPromptOverride then --temporarily disabled -David -- and not initialSetup then
+        if ((not g_currentAbility:CanSelectMoreTargets(g_token, targets, g_currentSymbols)) and not hasPromptOverride) or forceCast then --temporarily disabled -David -- and not initialSetup then
             --we can't select more targets, so cast the spell in here.
             g_token.lookAtMouse = false
             if g_castingEmoteSet and g_token.valid then

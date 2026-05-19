@@ -154,8 +154,10 @@ end
 ---@param mentorToken Token[]
 local SetFollowerPartyInfo = function(follower, followerInfo, mentorToken)
     follower.name = followerInfo.name
+    --Assign partyId before ownerId: the partyId setter forces ownerId to "PARTY",
+    --so ownerId must be written last to preserve a specific-player owner.
+    follower.partyId = mentorToken.partyId
     follower.ownerId = mentorToken.ownerId
-    follower.partyId = mentorToken.partyId        
 end
 
 ---@param followerInfo table[]

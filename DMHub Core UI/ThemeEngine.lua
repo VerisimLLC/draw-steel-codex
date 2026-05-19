@@ -875,7 +875,7 @@ end
 local _enforceSafetySetting = setting{
     id = "themeengine.enforcesafety",
     storage = "preference",
-    default = true,
+    default = false,
 }
 
 --- Returns true if theme safety enforcement is currently on.

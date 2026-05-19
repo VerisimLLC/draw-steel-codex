@@ -290,14 +290,17 @@ Commands.RegisterMacro{
         targetCharId = tokens[targetIndex].charid
     end
 
-    --we reset to the start of the list, so try to see if any off-map tokens match.
+    --we reset to the start of the list, so try to see if any off-map tokens
+    --match. Only real maps count here: a character with no map (mapid nil or
+    --the empty string) is on no map at all -- it cannot be centered on or
+    --selected -- so it must never be treated as a cycle destination.
     if (cycleToStart or #tokens == 0) and #playerCharactersOffMap > 0 then
         local maps = {game.currentMapId}
         for i,charid in ipairs(playerCharactersOffMap) do
             local token = dmhub.GetCharacterById(charid)
 
             if token ~= nil and token.canControl then
-                if token.mapid ~= nil then
+                if token.mapid ~= nil and token.mapid ~= "" then
                     maps[#maps + 1] = token.mapid
                 end
             end
@@ -322,9 +325,8 @@ Commands.RegisterMacro{
             local nextMapId = maps[nextIndex]
             for i,charid in ipairs(playerCharactersOffMap) do
                 local token = dmhub.GetCharacterById(charid)
-                if token.mapid == nextMapId and (currentCharId == nil or token.charid < currentCharId) then
+                if token ~= nil and token.canControl and token.mapid == nextMapId and (currentCharId == nil or token.charid < currentCharId) then
                     currentCharId = token.charid
-                    break
                 end
             end
 

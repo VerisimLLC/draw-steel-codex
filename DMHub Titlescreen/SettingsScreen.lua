@@ -126,6 +126,54 @@ CreateLanguageEditor = function()
 	}
 end
 
+--A slider that controls the game-wide master volume -- the same value as the
+--master slider in the Audio panel (audio.masterVolume / gameDetails.audio).
+--Only shown to the Director, and only while in a game, since the value lives
+--on the game's shared audio state rather than a per-machine preference.
+local CreateGameWideMasterVolumeEditor = function()
+	if (not dmhub.inGame) or (not dmhub.isDM) then
+		return nil
+	end
+
+	local slider = gui.Slider{
+		width = "33%",
+		height = 30,
+		halign = "right",
+		sliderWidth = 110,
+		labelWidth = 40,
+		labelFormat = "%d%%",
+		minValue = 0,
+		maxValue = 100,
+		round = true,
+		value = math.floor(audio.masterVolume*100 + 0.5),
+		confirm = function(element)
+			audio.masterVolume = element.value*0.01
+			if audio.masterVolume > 0 and audio.muted then
+				audio.muted = false
+				audio.UploadMuted()
+			end
+			audio.UploadMasterVolume()
+		end,
+		preview = function(element)
+			audio.masterVolume = element.value*0.01
+		end,
+	}
+
+	return gui.Panel{
+		classes = {"formRow"},
+		width = "90%",
+		height = 48,
+		halign = "center",
+		flow = "horizontal",
+		gui.Label{
+			classes = {"form"},
+			width = "66%",
+			text = "Game-Wide Master Volume",
+		},
+		slider,
+	}
+end
+
 --called from DMHub (from DialogLua, reference to script is a Unity property.)
 function CreateSettingsScreen(dialog, args)
     args = args or {}
@@ -578,6 +626,7 @@ function CreateSettingsScreen(dialog, args)
 						group = "Audio",
 						build = function() return {
 						SettingsSection("Audio"),
+						CreateGameWideMasterVolumeEditor(),
 						} end,
 					},
 

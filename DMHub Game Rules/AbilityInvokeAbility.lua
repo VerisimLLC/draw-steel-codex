@@ -396,7 +396,7 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                         end
 
                         local autoTarget = self:try_get("autoTarget", true)
-                        if autoTarget and not abilityClone:RequiresPromptWhenCast() and abilityClone:try_get("promptOverride") == nil then
+                        if autoTarget and not abilityClone:RequiresPromptWhenCast() then
                             abilityClone.castImmediately = true
                             print("INVOKE:: Auto-target enabled for", abilityClone.name)
                         end
@@ -578,7 +578,7 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
                 end
             end
 
-            if abilityClone:RequiresPromptWhenCast() or abilityClone:try_get("promptOverride") ~= nil then
+            if abilityClone:RequiresPromptWhenCast() then
                 abilityClone.skippable = true
                 gamehud.actionBarPanel:FireEventTree("invokeAbility", casterToken, abilityClone, symbols, invokerCallback, {instantCast = true, targets = targets})
             else

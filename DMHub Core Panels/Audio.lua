@@ -1337,6 +1337,25 @@ CreateSoundPanel = function()
 
 	}
 
+	--Label the master volume slider so it is clear this controls the
+	--game-wide audio level shared by everyone in the session.
+	local masterVolumeContainer = gui.Panel{
+		flow = "vertical",
+		width = "auto",
+		height = "auto",
+		halign = "center",
+		gui.Label{
+			text = "Game-Wide Master Volume",
+			halign = "center",
+			width = "auto",
+			height = "auto",
+			fontSize = 14,
+			color = Styles.textColor,
+			bmargin = 2,
+		},
+		masterVolumeSlider,
+	}
+
 	local mainPanel = gui.Panel{
 		styles = {
 			Styles.Default,
@@ -1437,7 +1456,7 @@ CreateSoundPanel = function()
 
 		children = {
 			audioVisualize,
-			masterVolumeSlider,
+			masterVolumeContainer,
 
 			CreateAudioGrid(),
 

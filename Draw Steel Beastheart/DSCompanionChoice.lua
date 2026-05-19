@@ -71,7 +71,7 @@ end
 --- @return Panel
 function CharacterCompanionChoice._RenderCompanionPanel(companionId)
     local monsterAsset = assets.monsters[companionId]
-    if monsterAsset == nil or monsterAsset:try_get("properties") == nil then
+    if monsterAsset == nil or monsterAsset.properties == nil then
         return gui.Label{
             classes = {"builder-base", "label", "info"},
             width = "98%",
@@ -110,11 +110,15 @@ end
 function CharacterCompanionChoice:GetOptions(choices, creature)
     local options = {}
     for _,entry in ipairs(ScanCompanionMonsters()) do
+        local companionId = entry.id
         options[#options+1] = {
-            guid = entry.id,
+            guid = companionId,
             name = entry.name,
             description = entry.description,
             unique = true,
+            render = function()
+                return CharacterCompanionChoice._RenderCompanionPanel(companionId)
+            end,
         }
     end
     return options

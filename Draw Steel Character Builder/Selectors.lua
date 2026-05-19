@@ -8,6 +8,43 @@ local _getHero = CharacterBuilder._getHero
 local _getState = CharacterBuilder._getState
 local SEL = CharacterBuilder.SELECTOR
 
+-- Dirty hack: classes that are still a work in progress get a "Beta" badge on
+-- their selector button. Keyed by display name.
+local _BETA_ITEM_NAMES = {
+    ["Beastheart"] = true,
+    ["Summoner"] = true,
+}
+
+--- Creates a small "Beta" badge intended to be overlaid (floating) on a
+--- selector button for content that is still incomplete.
+--- @return Panel
+local function _betaBadge()
+    return gui.Label{
+        classes = {"builder-base"},
+        floating = true,
+        halign = "right",
+        valign = "top",
+        hmargin = 4,
+        vmargin = 4,
+        width = "auto",
+        height = "auto",
+        hpad = 6,
+        vpad = 2,
+        borderBox = true,
+        text = "BETA",
+        textAlignment = "center",
+        fontSize = 10,
+        bold = true,
+        color = "@bg",
+        bgimage = true,
+        bgcolor = "@accent",
+        borderWidth = 1,
+        borderColor = "@bg",
+        cornerRadius = 4,
+        hover = gui.Tooltip("This class is still being worked on and is incomplete."),
+    }
+end
+
 --- Creates a panel of selectable item buttons that expands when its selector is active.
 --- Items must have `id` and `name` fields.
 --- @param config {items: table[], selectorName: string, getSelected: fun(character): table|nil, getItem: fun(id): table|nil}
@@ -17,7 +54,7 @@ function CBSelectors._makeItemsPanel(config)
     local buttons = {}
 
     for _,item in ipairs(config.items) do
-        buttons[#buttons+1] = gui.SelectorButton{
+        local itemButton = gui.SelectorButton{
             classes = {"builder-base", "button", "category"},
             width = CBStyles.SIZES.SELECTOR_BUTTON_WIDTH,
             height = CBStyles.SIZES.SELECTOR_BUTTON_HEIGHT,
@@ -52,6 +89,12 @@ function CBSelectors._makeItemsPanel(config)
                 element:FireEvent("setSelected", state:Get(config.selectorName .. ".selectedId") == element.data.id)
             end,
         }
+
+        if _BETA_ITEM_NAMES[item.name] then
+            itemButton:AddChild(_betaBadge())
+        end
+
+        buttons[#buttons+1] = itemButton
     end
 
     selectorPanel = gui.Panel {

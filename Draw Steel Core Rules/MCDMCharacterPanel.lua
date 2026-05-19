@@ -4865,14 +4865,38 @@ function TacPanel.Summoner()
                     selfStyle = {
                         hueshift = (sq.color ~= nil) and core.Color(sq.color).hue or 0,
                     },
-                    data = { fillLast = initialPct, colorLast = sq.color },
-                    thinkTime = 0.05,
+                    data = {
+                        fillLast = initialPct,
+                        pctLast = initialPct,
+                        colorLast = sq.color,
+                        damageLast = sq.damage_taken or 0,
+                        maxLast = sq.maximum_health or 0,
+                    },
+                    thinkTime = 0.1,
                     think = function(fill)
-                        local maxhp = sq.maximum_health or 1
-                        if maxhp <= 0 then maxhp = 1 end
-                        local pct = math.max(0, math.min(1, (maxhp - (sq.damage_taken or 0)) / maxhp))
-                        fill.data.fillLast = fill.data.fillLast + (pct - fill.data.fillLast) * 0.2
-                        fill.selfStyle.width = string.format("%.02f%%", fill.data.fillLast * 100)
+                        -- Recompute target percent only when the underlying
+                        -- damage/max actually changed. Avoids per-tick math.
+                        local damage = sq.damage_taken or 0
+                        local maxhp = sq.maximum_health or 0
+                        if damage ~= fill.data.damageLast or maxhp ~= fill.data.maxLast then
+                            fill.data.damageLast = damage
+                            fill.data.maxLast = maxhp
+                            local denom = maxhp
+                            if denom <= 0 then denom = 1 end
+                            fill.data.pctLast = math.max(0, math.min(1, (maxhp - damage) / denom))
+                        end
+
+                        -- Lerp toward target. Stop touching style once we
+                        -- are within a pixel of the target so a settled bar
+                        -- costs zero per-tick work.
+                        local diff = fill.data.pctLast - fill.data.fillLast
+                        if math.abs(diff) > 0.002 then
+                            fill.data.fillLast = fill.data.fillLast + diff * 0.25
+                            fill.selfStyle.width = string.format("%.02f%%", fill.data.fillLast * 100)
+                        elseif fill.data.fillLast ~= fill.data.pctLast then
+                            fill.data.fillLast = fill.data.pctLast
+                            fill.selfStyle.width = string.format("%.02f%%", fill.data.fillLast * 100)
+                        end
 
                         if sq.color ~= fill.data.colorLast then
                             fill.data.colorLast = sq.color
@@ -4895,11 +4919,20 @@ function TacPanel.Summoner()
                     text = string.format("%d / %d",
                         math.max(0, (sq.maximum_health or 0) - (sq.damage_taken or 0)),
                         sq.maximum_health or 0),
-                    thinkTime = 0.2,
+                    data = {
+                        damageLast = sq.damage_taken or 0,
+                        maxLast = sq.maximum_health or 0,
+                    },
+                    thinkTime = 0.25,
                     think = function(label)
+                        local damage = sq.damage_taken or 0
                         local maxhp = sq.maximum_health or 0
-                        local remaining = math.max(0, maxhp - (sq.damage_taken or 0))
-                        label.text = string.format("%d / %d", remaining, maxhp)
+                        if damage == label.data.damageLast and maxhp == label.data.maxLast then
+                            return
+                        end
+                        label.data.damageLast = damage
+                        label.data.maxLast = maxhp
+                        label.text = string.format("%d / %d", math.max(0, maxhp - damage), maxhp)
                     end,
                 },
             },
@@ -4973,28 +5006,31 @@ function TacPanel.Summoner()
                 height = "auto",
                 flow = "vertical",
                 vmargin = 6,
-                data = { token = nil, gameUpdateId = -1 },
+                data = { token = nil, rosterSignature = false },
                 refreshToken = function(element, token)
                     element.data.token = token
                     -- Force a rebuild on the next think tick when the token swaps.
-                    element.data.gameUpdateId = -1
+                    element.data.rosterSignature = false
                 end,
-                thinkTime = 0.2,
+                thinkTime = 0.25,
                 think = function(element)
                     local token = element.data.token
                     if token == nil or not token.valid or token.properties == nil then
-                        if element.children ~= nil and #element.children > 0 then
+                        if element.data.rosterSignature ~= "" then
+                            element.data.rosterSignature = ""
                             element.children = {}
                         end
                         return
                     end
 
-                    local gameId = dmhub.gameupdateid
-                    if element.data.gameUpdateId == gameId then return end
-                    element.data.gameUpdateId = gameId
-
+                    -- Gather live squads and build a stable signature from
+                    -- squad names + sorted live charids. Damage and other
+                    -- mutable state are NOT in the signature -- those flow
+                    -- through the inner think handlers on the bar/label,
+                    -- so we don't recreate token portraits each game tick.
                     local squads = token.properties:GetSummonedSquadsByType(nil) or {}
-                    local children = {}
+                    local squadList = {}
+                    local sigParts = {}
                     for squadName, info in pairs(squads) do
                         local liveTokens = {}
                         for _, charid in ipairs(info.charids) do
@@ -5003,14 +5039,32 @@ function TacPanel.Summoner()
                                 liveTokens[#liveTokens + 1] = mt
                             end
                         end
-
                         if #liveTokens > 0 then
-                            local leader = liveTokens[1]
-                            leader.properties:RefreshSquadInfo(leader)
-                            local sq = leader.properties:try_get("_tmp_minionSquad")
-                            if sq ~= nil then
-                                children[#children + 1] = BuildSquadRow(squadName, info, liveTokens, sq)
-                            end
+                            table.sort(liveTokens, function(a, b) return a.charid < b.charid end)
+                            squadList[#squadList + 1] = {
+                                name = squadName,
+                                info = info,
+                                liveTokens = liveTokens,
+                            }
+                            local ids = {}
+                            for _, t in ipairs(liveTokens) do ids[#ids + 1] = t.charid end
+                            sigParts[#sigParts + 1] = squadName .. "=" .. table.concat(ids, ",")
+                        end
+                    end
+                    table.sort(squadList, function(a, b) return a.name < b.name end)
+                    table.sort(sigParts)
+                    local signature = table.concat(sigParts, "|")
+
+                    if signature == element.data.rosterSignature then return end
+                    element.data.rosterSignature = signature
+
+                    local children = {}
+                    for _, entry in ipairs(squadList) do
+                        local leader = entry.liveTokens[1]
+                        leader.properties:RefreshSquadInfo(leader)
+                        local sq = leader.properties:try_get("_tmp_minionSquad")
+                        if sq ~= nil then
+                            children[#children + 1] = BuildSquadRow(entry.name, entry.info, entry.liveTokens, sq)
                         end
                     end
                     element.children = children
@@ -5027,11 +5081,7 @@ function TacPanel.Summoner()
                 halign = "left",
                 textAlignment = "topleft",
                 markdown = true,
-                text = "### <u>Your Hero</u>\n"
-                    .. "- Move Action\n"
-                    .. "- Maneuver\n"
-                    .. "- Main Action\n\n"
-                    .. "### <u>Your Minion Squads</u>\n"
+                text = "### <u>Your Minion Squads</u>\n"
                     .. "- Move Action\n"
                     .. "- Maneuver or Main Action\n\n"
                     .. "If a minion has a signature ability, apply one instance of the effects to each target.\n\n"

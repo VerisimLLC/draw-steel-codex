@@ -1,52 +1,5 @@
 local mod = dmhub.GetModLoading()
 
--- Local style pack passed to every gui.Check{} in this file via its
--- `styles` property. Hardcoded values from the default scheme so the
--- checkbox visuals paint regardless of what (legacy or theme) cascade
--- the surrounding dialog uses.
-local g_CheckboxStyles = {
-	{
-		selectors = {"checkbox"},
-		bgimage = true,
-		flow = "horizontal",
-		bgcolor = "clear",
-		height = 30,
-		width = "auto",
-		minWidth = 200,
-		hpad = 4,
-	},
-	{
-		selectors = {"checkBackground"},
-		bgimage = true,
-		bgcolor = "#080B09",
-		halign = "left",
-		valign = "center",
-		height = "70%",
-		width = "100% height",
-		rmargin = 6,
-		borderColor = "#DFDFDF",
-		borderWidth = 2,
-	},
-	{
-		selectors = {"checkMark"},
-		bgimage = true,
-		bgcolor = "#CECECE",
-		halign = "center",
-		valign = "center",
-		width = "50%",
-		height = "50%",
-	},
-	{
-		selectors = {"checkboxLabel"},
-		halign = "left",
-		valign = "center",
-		textAlignment = "left",
-		borderWidth = 0,
-		width = "auto",
-		height = "auto",
-		fontSize = 18,
-	},
-}
 
 --This file implements the main roll prompt dialog that appears when you get a dice roll prompt.
 
@@ -124,32 +77,6 @@ local g_rollOptionsPlayer = {
     },
 }
 
-local g_boonsBanesStyles = {
-    gui.Style {
-        selectors = { "label" },
-        color = Styles.textColor,
-        valign = "center",
-        width = "20%",
-        height = "100%",
-        bgimage = "panels/square.png",
-        fontSize = 16,
-        textAlignment = "center",
-        borderWidth = 1,
-        borderColor = Styles.textColor,
-    },
-    gui.Style {
-        selectors = { "label", "selected" },
-        bgcolor = Styles.textColor,
-        color = "black",
-        bold = true,
-    },
-    gui.Style {
-        selectors = { "label", "hover", "~selected" },
-        bgcolor = Styles.textColor,
-        color = "black",
-        brightness = 0.9,
-    },
-}
 
 local g_boonsLabels = { "Bane x 2", "Bane", "None", "Edge", "Edge x 2" }
 
@@ -239,8 +166,11 @@ function GameHud.CreateRollDialog(self)
     end
 
 
+    -- Color/font-free structural + state-machine rules only. Routed through
+    -- ThemeEngine.MergeStyles so the default theme owns panel/label/button
+    -- visuals; these extras carry only this dialog's layout state machine
+    -- (minimize/rolling/finished) plus @token semantic icon states.
     local styles = {
-        Styles.Panel,
         {
             selectors = { 'framedPanel' },
             width = 940,
@@ -282,7 +212,6 @@ function GameHud.CreateRollDialog(self)
             selectors = { 'title' },
             width = 'auto',
             height = 'auto',
-            color = 'white',
             halign = 'center',
             valign = 'top',
             fontSize = 28,
@@ -291,7 +220,6 @@ function GameHud.CreateRollDialog(self)
             selectors = { 'explanation' },
             width = 'auto',
             height = 'auto',
-            color = 'white',
             halign = 'center',
             valign = 'top',
             fontSize = 20,
@@ -320,8 +248,6 @@ function GameHud.CreateRollDialog(self)
             height = 'auto',
             width = 'auto',
         },
-
-        Styles.AdvantageBar,
 
         {
             selectors = { "reduceWhenMinimized", "minimized" },
@@ -371,13 +297,13 @@ function GameHud.CreateRollDialog(self)
 
         {
             selectors = { "icon", "override" },
-            bgcolor = "#ffff88",
+            bgcolor = "@warning",
             transitionTime = 0.2,
             brightness = 2,
         },
         {
             selectors = { "icon", "override", "inactive" },
-            bgcolor = "#888844",
+            bgcolor = "@disabled",
             transitionTime = 0.2,
         },
         {
@@ -396,7 +322,6 @@ function GameHud.CreateRollDialog(self)
     local title = gui.Label {
         id = "rollDialogTitle",
         classes = { 'title', 'reduceWhenMinimized' },
-        color = Styles.textColor,
     }
 
     local explanation = gui.Label {
@@ -427,23 +352,23 @@ function GameHud.CreateRollDialog(self)
     }
 
 
-    local autoRollCheck = gui.Check {styles = g_CheckboxStyles,
+    local autoRollCheck = gui.Check {
         text = "Auto-roll",
         value = false,
         valign = "bottom",
     }
-    local autoHideCheck = gui.Check {styles = g_CheckboxStyles,
+    local autoHideCheck = gui.Check {
         text = "Auto-hide",
         value = false,
         valign = "bottom",
     }
-    local autoQuickCheck = gui.Check {styles = g_CheckboxStyles,
+    local autoQuickCheck = gui.Check {
         text = "Auto-quick",
         value = false,
         valign = "bottom",
     }
 
-    local rollAllPromptsCheck = gui.Check {styles = g_CheckboxStyles,
+    local rollAllPromptsCheck = gui.Check {
         text = "Roll all prompts",
         value = true,
         valign = "bottom",
@@ -461,7 +386,7 @@ function GameHud.CreateRollDialog(self)
         autoRollCheck,
     }
 
-    local prerollCheck = gui.Check {styles = g_CheckboxStyles,
+    local prerollCheck = gui.Check {
         text = "Pre-roll dice",
         classes = { "hiddenWhenRolling", "hideWhenMinimized" },
         value = dmhub.GetSettingValue("preroll"),
@@ -503,7 +428,7 @@ function GameHud.CreateRollDialog(self)
         end,
     }
 
-    updateRollVisibility = gui.Check {styles = g_CheckboxStyles,
+    updateRollVisibility = gui.Check {
         classes = { "hiddenWhenRolling", "hideWhenMinimized" },
         text = "Use roll visibility setting for all rolls",
         valign = "bottom",
@@ -658,10 +583,10 @@ function GameHud.CreateRollDialog(self)
         end
 
         if rollDisallowed ~= nil then
-            rollDisabledLabel:SetClass("collapsed-anim", false)
+            rollDisabledLabel:SetClass("collapseAnim", false)
             rollDisabledLabel.text = rollDisallowed
         else
-            rollDisabledLabel:SetClass("collapsed-anim", true)
+            rollDisabledLabel:SetClass("collapseAnim", true)
         end
 
         rollDiceButton:SetClass("hidden", rollDisallowed ~= nil)
@@ -737,7 +662,7 @@ function GameHud.CreateRollDialog(self)
 
     local RecalculateMultiTargets
 
-    local rerollFudgedButton = gui.HudIconButton {
+    local rerollFudgedButton = gui.Button {
         icon = "panels/hud/clockwise-rotation.png",
         halign = "right",
         valign = "center",
@@ -785,9 +710,9 @@ function GameHud.CreateRollDialog(self)
         for i = 1, 3 do
             local index = i
             augmentationOptions[#augmentationOptions + 1] = gui.Label {
+                classes = { "enumSliderOption" },
                 width = 60,
                 height = 16,
-                fontSize = 12,
                 minFontSize = 6,
                 bgimage = true,
                 swallowPress = true,
@@ -848,34 +773,11 @@ function GameHud.CreateRollDialog(self)
         end
 
         local augmentationsPanel = gui.Panel {
+            classes = { "enumSlider" },
             width = "auto",
             height = "auto",
             halign = "center",
             children = augmentationOptions,
-            styles = {
-                {
-                    selectors = { "label" },
-                    bgcolor = Styles.backgroundColor,
-                    color = Styles.textColor,
-                    borderWidth = 2,
-                    borderColor = Styles.textColor,
-                    textAlignment = "center",
-                },
-                {
-                    selectors = { "label", "hover" },
-                    bgcolor = Styles.textColor,
-                    color = Styles.backgroundColor,
-                    borderWidth = 2,
-                    borderColor = Styles.textColor,
-                },
-                {
-                    selectors = { "label", "selected" },
-                    bgcolor = Styles.textColor,
-                    color = Styles.backgroundColor,
-                    borderWidth = 2,
-                    borderColor = Styles.textColor,
-                },
-            },
         }
 
         triggerPanel = gui.Panel {
@@ -1028,6 +930,58 @@ function GameHud.CreateRollDialog(self)
 
     local m_openedTriggers = nil
 
+    -- Component-specific trigger-card cascade. `triggerPanel` and its state
+    -- selectors are not generic theme vocabulary, so this is intentionally a
+    -- MergeStyles extra (routed so the @tokens resolve and the default theme
+    -- still applies underneath -- without it the cards do not render).
+    local triggerStyles = {
+        {
+            selectors = { "label" },
+            color = "@fg",
+        },
+        {
+            selectors = { "label", "parent:triggered" },
+            color = "@bg",
+        },
+        {
+            selectors = { "triggerPanel" },
+            bgcolor = "clear",
+        },
+        {
+            selectors = { "triggerPanel", "selftrigger" },
+            border = 1,
+            borderColor = "@border",
+        },
+        {
+            selectors = { "triggerPanel", "selftrigger", "~triggered", "hover", "rolling" },
+            bgcolor = "@fg",
+            brightness = 0.7,
+        },
+        {
+            selectors = { "triggerPanel", "selftrigger", "~triggered", "hover", "~afterroll" },
+            bgcolor = "@fg",
+            brightness = 0.7,
+        },
+        {
+            selectors = { "triggerPanel", "triggered" },
+            bgcolor = "@fg",
+        },
+        {
+            selectors = { "triggerPanel", "hover" },
+            border = 1,
+            borderColor = "@fgStrong",
+        },
+        {
+            selectors = { "triggerPanel", "ping" },
+            border = 2,
+            borderColor = "@accent",
+        },
+        {
+            selectors = { "triggerPanel", "ping", "pong" },
+            borderColor = "@accentHover",
+        },
+    }
+
     local triggersContainer = gui.Panel {
         width = "100%",
         height = "auto",
@@ -1036,54 +990,7 @@ function GameHud.CreateRollDialog(self)
         flow = "horizontal",
         vscroll = true,
 
-        styles = {
-            {
-                selectors = { "label" },
-                color = Styles.textColor,
-            },
-            {
-                selectors = { "label", "parent:triggered" },
-                color = Styles.backgroundColor,
-            },
-            {
-                selectors = { "triggerPanel" },
-                bgcolor = "#00000000",
-            },
-            {
-                selectors = { "triggerPanel", "selftrigger" },
-                border = 1,
-                borderColor = "grey",
-            },
-            {
-                selectors = { "triggerPanel", "selftrigger", "~triggered", "hover", "rolling" },
-                bgcolor = Styles.textColor,
-                brightness = 0.7,
-            },
-            {
-                selectors = { "triggerPanel", "selftrigger", "~triggered", "hover", "~afterroll" },
-                bgcolor = Styles.textColor,
-                brightness = 0.7,
-            },
-            {
-                selectors = { "triggerPanel", "triggered" },
-                bgcolor = Styles.textColor,
-            },
-            {
-                selectors = { "triggerPanel", "hover" },
-                border = 1,
-                borderColor = "white",
-            },
-            {
-                selectors = { "triggerPanel", "ping" },
-                border = 2,
-                borderColor = "#ff00ff",
-            },
-            {
-                selectors = { "triggerPanel", "ping", "pong" },
-                borderColor = "#ff88ff",
-            },
-
-        },
+        styles = ThemeEngine.MergeStyles(triggerStyles),
 
         prepare = function(element, options)
             element:SetClass("collapsed", true)
@@ -1384,35 +1291,6 @@ function GameHud.CreateRollDialog(self)
         end,
     }
 
-    local tableStyles = {
-        Styles.Table,
-        gui.Style {
-            selectors = { "label" },
-            pad = 6,
-            fontSize = 20,
-            width = "auto",
-            height = "auto",
-            color = Styles.textColor,
-            valign = "center",
-        },
-        gui.Style {
-            selectors = { "row" },
-            width = "auto",
-            height = "auto",
-            bgimage = "panels/square.png",
-            borderColor = Styles.textColor,
-            borderWidth = 1,
-        },
-        gui.Style {
-            selectors = { "row", "oddRow" },
-            bgcolor = "#222222ff",
-        },
-        gui.Style {
-            selectors = { "row", "evenRow" },
-            bgcolor = "#444444ff",
-        },
-    }
-
     m_customContainer = gui.Panel {
         classes = { "hideWhenMinimized" },
         width = "94%",
@@ -1420,7 +1298,6 @@ function GameHud.CreateRollDialog(self)
         halign = "center",
         valign = "bottom",
         flow = "vertical",
-        styles = tableStyles,
     }
 
     m_tableContainer = gui.Table {
@@ -1429,7 +1306,6 @@ function GameHud.CreateRollDialog(self)
         halign = "center",
         valign = "bottom",
         flow = "vertical",
-        styles = tableStyles,
     }
 
 
@@ -1483,10 +1359,9 @@ function GameHud.CreateRollDialog(self)
 
             for i, target in ipairs(m_multitargets) do
                 local nameLabel = gui.Label {
+                    classes = { "bold" },
                     fontSize = 12,
                     minFontSize = 8,
-                    bold = true,
-                    color = Styles.textColor,
                     width = "95%",
                     height = "auto",
                     maxHeight = 30,
@@ -1496,8 +1371,8 @@ function GameHud.CreateRollDialog(self)
                     textAlignment = "center",
                 }
                 local boonLabel = gui.Label {
+                    classes = { cond(target.text ~= nil, "accent") },
                     fontSize = 10,
-                    color = cond(target.text == nil, Styles.textColor, "#9999ffff"),
                     width = "95%",
                     height = "auto",
                     halign = "center",
@@ -1680,7 +1555,7 @@ function GameHud.CreateRollDialog(self)
         classes = { "hideWhenMinimized", "advantage-bar" },
         prepare = function(element, options)
             if options.alternateOptions == nil or #options.alternateOptions <= 1 then
-                element:SetClass("collapsed-anim", true)
+                element:SetClass("collapseAnim", true)
                 return
             end
 
@@ -1698,7 +1573,7 @@ function GameHud.CreateRollDialog(self)
             end
 
             element.children = children
-            element:SetClass("collapsed-anim", false)
+            element:SetClass("collapseAnim", false)
         end,
     }
 
@@ -1709,7 +1584,9 @@ function GameHud.CreateRollDialog(self)
 
         for i, text in ipairs(g_boonsLabels) do
             boonsBanesLabels[#boonsBanesLabels + 1] = gui.Label {
+                classes = { "enumSliderOption" },
                 text = text,
+                width = "20%",
                 press = function(element)
                     local delta = (i - 3) - m_currentBoons
                     m_boons = m_boons + delta
@@ -1741,8 +1618,7 @@ function GameHud.CreateRollDialog(self)
         end
 
         boonBar = gui.Panel {
-            styles = g_boonsBanesStyles,
-            classes = { "hideWhenMinimized", "boonbanePanel" },
+            classes = { "enumSlider", "hideWhenMinimized", "boonbanePanel" },
             halign = "center",
             width = "60%",
             height = 22,
@@ -1760,9 +1636,8 @@ function GameHud.CreateRollDialog(self)
             children = boonsBanesLabels,
         }
 
-        boonBar:AddChild(gui.Panel {
-            classes = { "icon" },
-            bgimage = "panels/hud/anticlockwise-rotation.png",
+        boonBar:AddChild(gui.Button {
+            icon = "panels/hud/anticlockwise-rotation.png",
             floating = true,
             halign = "right",
             x = 20,
@@ -1994,11 +1869,11 @@ function GameHud.CreateRollDialog(self)
                 modifierDropdowns = {}
                 if creature == nil or options.modifiers == nil then
                     element.children = {}
-                    element:SetClass('collapsed-anim', true)
+                    element:SetClass('collapseAnim', true)
                     return
                 end
 
-                element:SetClass('collapsed-anim', false)
+                element:SetClass('collapseAnim', false)
 
                 local addedCritical = false
 
@@ -2057,10 +1932,10 @@ function GameHud.CreateRollDialog(self)
                         local classes = nil
 
                         if force then
-                            classes = { "collapsed-anim" }
+                            classes = { "collapseAnim" }
                         end
 
-                        check = gui.Check {styles = g_CheckboxStyles,
+                        check = gui.Check {
                             classes = classes,
                             text = text,
                             value = ischecked,
@@ -2127,7 +2002,7 @@ function GameHud.CreateRollDialog(self)
                     elseif mod.check then
                         --this is a checkbox that is passed in that we will pass the results of straight out.
 
-                        local check = gui.Check {styles = g_CheckboxStyles,
+                        local check = gui.Check {
                             text = mod.text,
                             value = mod.value,
                             data = {
@@ -2198,7 +2073,7 @@ function GameHud.CreateRollDialog(self)
     local CancelRollDialog = function()
         RemoveTargetHints()
         if cancelRoll ~= nil then
-            if not rollAllPromptsCheck:HasClass("collapsed-anim") and rollAllPromptsCheck.value and rollAllPrompts ~= nil then
+            if not rollAllPromptsCheck:HasClass("collapseAnim") and rollAllPromptsCheck.value and rollAllPrompts ~= nil then
                 rollAllPrompts()
             end
             cancelRoll()
@@ -2209,7 +2084,7 @@ function GameHud.CreateRollDialog(self)
         RelinquishPanel()
     end
 
-    rollAgainButton = gui.PrettyButton {
+    rollAgainButton = gui.Button {
         text = "Re-roll",
         classes = { "shownWhenRollingOrFinished", "button" },
         width = 160,
@@ -2253,7 +2128,7 @@ function GameHud.CreateRollDialog(self)
         end,
     }
 
-    proceedAfterRollButton = gui.PrettyButton {
+    proceedAfterRollButton = gui.Button {
         text = "Accept Result",
         classes = { "shownWhenRollingOrFinished", "button" },
         width = 200,
@@ -2263,7 +2138,7 @@ function GameHud.CreateRollDialog(self)
 
     }
 
-    rollDiceButton = gui.PrettyButton {
+    rollDiceButton = gui.Button {
         text = 'Roll Dice',
         classes = { "collapsedWhenRolling", "button" },
         width = 200,
@@ -2279,7 +2154,7 @@ function GameHud.CreateRollDialog(self)
         }
     }
 
-    cancelButton = gui.PrettyButton {
+    cancelButton = gui.Button {
         text = 'Cancel',
         classes = { "collapsedWhenRolling", "button" },
         escapeActivates = true,
@@ -2294,8 +2169,7 @@ function GameHud.CreateRollDialog(self)
     }
 
     rollDisabledLabel = gui.Label {
-        classes = { 'explanation', "collapsed-anim" },
-        color = "#ffaaaaff",
+        classes = { 'explanation', "danger", "collapseAnim" },
         valign = "bottom",
     }
 
@@ -2548,7 +2422,7 @@ function GameHud.CreateRollDialog(self)
         halign = "center",
         valign = "center",
 
-        styles = styles,
+        styles = ThemeEngine.MergeStyles(styles),
 
         gui.Panel {
             classes = { "framedPanel" },
@@ -2561,25 +2435,17 @@ function GameHud.CreateRollDialog(self)
                 width = "auto",
                 height = "auto",
                 flow = "horizontal",
-                gui.Panel {
-                    styles = {
-                        {
-                            selectors = { "hover" },
-                            brightness = 1.4,
-                        },
-                    },
+                gui.Button {
+                    icon = "game-icons/square.png",
                     width = 24,
                     height = 24,
-                    bgimage = true,
-                    bgcolor = "black",
                     valign = "center",
-                    borderWidth = 2,
-                    borderColor = Styles.textColor,
                     press = function(element)
                         resultPanel:SetClassTree("minimized", not resultPanel:HasClass("minimized"))
                     end,
                 },
-                gui.CloseButton {
+                gui.Button {
+                    classes = { "closeButton" },
                     escapeActivates = true,
                     escapePriority = EscapePriority.EXIT_ROLL_DIALOG,
                     press = function(element)
@@ -2847,10 +2713,10 @@ function GameHud.CreateRollDialog(self)
                 if options.numPrompts ~= nil and options.numPrompts > 1 then
                     rollAllPromptsCheck.value = true
                     rollAllPromptsCheck.data.SetText(string.format("Roll all %d prompts", options.numPrompts))
-                    rollAllPromptsCheck:SetClass("collapsed-anim", false)
+                    rollAllPromptsCheck:SetClass("collapseAnim", false)
                 else
                     rollAllPromptsCheck.value = false
-                    rollAllPromptsCheck:SetClass("collapsed-anim", true)
+                    rollAllPromptsCheck:SetClass("collapseAnim", true)
                 end
 
                 if options.skipDeterministic and dmhub.IsRollDeterministic(rollInput.text) and dmhub.IsRollDeterministic(options.roll) then
@@ -2878,7 +2744,7 @@ function GameHud.CreateRollDialog(self)
                     .id))
                     local quickRoll = dmhub.GetSettingValue(string.format("%s:quickRoll", options.autoroll.id))
 
-                    autoRollPanel:SetClass("collapsed-anim", false)
+                    autoRollPanel:SetClass("collapseAnim", false)
                     autoRollCheck.value = autoroll or false
                     autoRollCheck.data.SetText(string.format("Auto-roll %s in future", options.autoroll.text))
                     autoHideCheck.data.SetText(string.format("Hide %s from players", options.autoroll.text))
@@ -2893,7 +2759,7 @@ function GameHud.CreateRollDialog(self)
                         rollDiceButton:FireEventTree("press")
                     end
                 else
-                    autoRollPanel:SetClass("collapsed-anim", true)
+                    autoRollPanel:SetClass("collapseAnim", true)
                     autoRollId = nil
                 end
 
@@ -3380,6 +3246,15 @@ function GameHud.CreateRollDialog(self)
             end,
         },
     }
+
+    ThemeEngine.OnThemeChanged(mod, function()
+        if resultPanel ~= nil and resultPanel.valid then
+            resultPanel.styles = ThemeEngine.MergeStyles(styles)
+        end
+        if triggersContainer ~= nil and triggersContainer.valid then
+            triggersContainer.styles = ThemeEngine.MergeStyles(triggerStyles)
+        end
+    end)
 
     return resultPanel
 end

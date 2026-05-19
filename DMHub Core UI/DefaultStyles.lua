@@ -778,7 +778,7 @@ ThemeEngine.RegisterTheme{
             bgcolor = "@bg",
             border = 1,
             borderColor = "@border",
-            cornerRadius = 2,
+            -- cornerRadius = 2,
         },
         {
             selectors = {"panel", "multiselectChip", "hover"},
@@ -807,7 +807,7 @@ ThemeEngine.RegisterTheme{
             bgimage = true,
             border = 1,
             borderColor = "@danger",
-            cornerRadius = 2,
+            -- cornerRadius = 2,
             bold = true,
             hidden = 1,
         },
@@ -1746,7 +1746,7 @@ ThemeEngine.RegisterTheme{
             selectors = {"panel", "dialog"},
             bgimage = true,
             bgcolor = "white",
-            cornerRadius = 4,
+            -- cornerRadius = 4,
             gradient = "@surfaceLinear",
             borderWidth = 2.2,
             borderColor = "@border",
@@ -1795,7 +1795,7 @@ ThemeEngine.RegisterTheme{
             bgcolor = "@bgInverse",
             borderWidth = 2,
             borderColor = "@bg",
-            cornerRadius = 8,
+            -- cornerRadius = 8,
         },
         -- {
         --     selectors = {"prettyButton"},
@@ -1839,7 +1839,7 @@ ThemeEngine.RegisterTheme{
             selectors = {"framedPanel"},
             bgimage = true,
             bgcolor = "white",
-            cornerRadius = 4,
+            -- cornerRadius = 4,
             gradient = "@surfaceLinear",
             borderWidth = 2.2,
             borderColor = "@fg",
@@ -2255,6 +2255,41 @@ ThemeEngine.RegisterTheme{
             color = "@fgInverse",
             priority = 5,
         },
+
+        -- =====================================================================
+        -- Square-corner reset.
+        --
+        -- The cascade is additive: an absent property does not reset an
+        -- inherited one. When a rounded theme (e.g. default-rounded) is the
+        -- active theme on an ancestor, its cornerRadius cascades into any
+        -- subtree -- even one explicitly styled with GetStyles("default").
+        -- The default theme must therefore *assert* square corners, not
+        -- merely omit cornerRadius. This block mirrors the default-rounded
+        -- selector set 1:1 so the two stay in lockstep.
+        -- =====================================================================
+        { selectors = {"panel", "bordered"},   cornerRadius = 0 },
+        { selectors = {"panel", "dialog"},     cornerRadius = 0 },
+        { selectors = {"modalDialog"},         cornerRadius = 0 },
+        { selectors = {"framedPanel"},         cornerRadius = 0 },
+        { selectors = {"contextMenu"},         cornerRadius = 0 },
+        { selectors = {"featureCardHeader"},   cornerRadius = 0 },
+        { selectors = {"featureCardHeader", "expanded"}, cornerRadius = 0 },
+        { selectors = {"featureCardBody"},     cornerRadius = 0 },
+
+        { selectors = {"label", "button"},        cornerRadius = 0 },
+        { selectors = {"input"},                  cornerRadius = 0 },
+        { selectors = {"searchInput"},            cornerRadius = 0 },
+        { selectors = {"dropdown"},               cornerRadius = 0 },
+        { selectors = {"dropdownBorder"},         cornerRadius = 0 },
+        { selectors = {"dropdownMenuSub"},        cornerRadius = 0 },
+        { selectors = {"colorPicker"},            cornerRadius = 0 },
+        { selectors = {"label", "bordered"},      cornerRadius = 0 },
+        { selectors = {"input", "bordered"},      cornerRadius = 0 },
+        { selectors = {"multiselectChip"},        cornerRadius = 0 },
+        { selectors = {"multiselectChipRemove"},  cornerRadius = 0 },
+        { selectors = {"enumSliderOption"},       cornerRadius = 0 },
+        { selectors = {"checkBackground"},        cornerRadius = 0 },
+        { selectors = {"tab"},                    cornerRadius = 0 },
     },
 }
 

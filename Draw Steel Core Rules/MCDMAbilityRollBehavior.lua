@@ -1998,19 +1998,31 @@ function ActivatedAbilityPowerRollBehavior:EditorItems(parentPanel)
                                 element:FireEventOnParents("refreshAbilityPreview")
                             end,
                         },
-                        documentation = {
-                            help = string.format("This GoblinScript determines whether the modifier will apply."),
-                            output = "boolean",
-                            examples = {
-                                {
-                                    script = "Might > 4",
-                                    text = "The modifier will apply if the caster's Might is greater than 4.",
+                        documentation = (function()
+                            local syms = DeepCopy(ActivatedAbility.helpCasting)
+                            syms.target = {
+                                name = "Target",
+                                type = "creature",
+                                desc = "The creature being targeted by this ability roll.",
+                            }
+                            return {
+                                help = string.format("This GoblinScript determines whether the modifier will apply."),
+                                output = "boolean",
+                                examples = {
+                                    {
+                                        script = "Might > 4",
+                                        text = "The modifier will apply if the caster's Might is greater than 4.",
+                                    },
+                                    {
+                                        script = 'target.Ongoing Effects has "Petrified"',
+                                        text = "The modifier will apply if the target has the Petrified ongoing effect.",
+                                    },
                                 },
-                            },
-                            subject = creature.helpSymbols,
-                            subjectDescription = "The creature that is casting the ability.",
-                            symbols = ActivatedAbility.helpCasting,
-                        },
+                                subject = creature.helpSymbols,
+                                subjectDescription = "The creature that is casting the ability.",
+                                symbols = syms,
+                            }
+                        end)(),
                     },
                 }
 
@@ -3055,7 +3067,22 @@ RollCheck.RegisterCustom{
 	GetModifiers = function(check, creature)
         local options = check.options or {}
         options.attribute = check.info.attrid
-        return creature:GetModifiersForPowerRoll(check:GetRoll(creature), "resistance_power_roll" , options)
+        -- Expose the rolling creature as 'target' so activationCondition formulas
+        -- like 'target.Ongoing Effects has "Petrified"' resolve correctly.
+        options.target = creature
+        local result = creature:GetModifiersForPowerRoll(check:GetRoll(creature), "resistance_power_roll", options)
+        local behaviorModifiers = options.behaviorModifiers or {}
+        for _, mod in ipairs(behaviorModifiers) do
+            local modEntry = {mod = mod}
+            local m = mod:DescribeModifyPowerRoll(modEntry, creature, "resistance_power_roll", options)
+            if m ~= nil then
+                m.hint = m.modifier:HintModifyPowerRolls(modEntry, creature, "resistance_power_roll", options)
+                if m.hint ~= nil then
+                    result[#result+1] = m
+                end
+            end
+        end
+        return result
     end,
 	ShowDialog = function(check, dialogOptions)
         dialogOptions.rollProperties = RollPropertiesPowerTable.new{
@@ -3074,6 +3101,23 @@ end
 function ActivatedAbilityPowerRollBehavior:CastResistance(ability, casterToken, targets, options)
     options = options or {}
 	local tokenids = ActivatedAbility.GetTokenIds(targets)
+
+    -- Build ability-level modifiers so conditions like
+    -- 'target.Ongoing Effects has "Petrified"' apply per-target on the resistance roll.
+    local behaviorModifiers = {}
+    for _, modInfo in ipairs(self:try_get("modifiers", {})) do
+        behaviorModifiers[#behaviorModifiers+1] = CharacterModifier.new{
+            behavior = "power",
+            rollType = "resistance_power_roll",
+            activationCondition = modInfo.condition,
+            keywords = {},
+            modtype = modInfo.type,
+            guid = dmhub.GenerateGuid(),
+            name = modInfo.text,
+            description = modInfo.details,
+        }
+    end
+
     local dcaction = ability:RequireSavingThrowsCo(self, casterToken, tokenids, {
         id = "resistance_power_roll",
         rollType = "resistance_power_roll",
@@ -3083,6 +3127,9 @@ function ActivatedAbilityPowerRollBehavior:CastResistance(ability, casterToken, 
         info = {
             attrid = self:ResistanceAttr(),
             tiers = DeepCopy(self.tiers),
+        },
+        dc_options = {
+            behaviorModifiers = behaviorModifiers,
         },
     })
 

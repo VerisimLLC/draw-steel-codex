@@ -387,9 +387,6 @@ end
 --- @return string themeId
 --- @return string schemeId
 local function _resolveEffectivePair(themeIdArg, schemeIdArg)
-    if not devmode() then
-        return DEFAULT_THEME_ID, DEFAULT_SCHEME_ID
-    end
 
     local themeId = themeIdArg or _activeThemeId
     local schemeId

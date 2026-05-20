@@ -330,7 +330,7 @@ end
 local CreateDragTarget = function(index, belowGround, layerType)
 	layerType = layerType or "floor"
 	return gui.Panel{
-		classes = {"floorOrLayerDragTarget", string.format('%sDragTarget', layerType)},
+		classes = {"floorOrLayerDragTarget", "drag-target", string.format('%sDragTarget', layerType)},
 		dragTarget = true,
 		data = {
 			index = index,
@@ -801,9 +801,13 @@ CreateLayersPanel = function()
 								floorTokensPanel,
 							},
 
-							gui.Panel{
+							gui.Button{
 								classes = {'settingsButton'},
 								floating = true,
+								halign = "right",
+								valign = "top",
+								width = 12,
+								height = 12,
 								click = function(element)
 									mod.shared.CreateLayersDisplay()
 								end,
@@ -1109,73 +1113,28 @@ CreateLayersPanel = function()
 		end,
 	}
 
-	local accentHex = string.gsub(ThemeEngine.ResolveTokens("@accent") or "#4A9FD8", "^#", "")
-	local highlightGradient = core.Gradient{
-		point_a = { x = 0, y = 0 },
-		point_b = { x = 1, y = 0 },
-		stops = {
-			{
-				position = 0,
-				color = 'srgb:#' .. accentHex .. '00',
-			},
-			{
-				position = 0.6,
-				color = 'srgb:#' .. accentHex .. 'BB',
-			},
-			{
-				position = 1.0,
-				color = 'srgb:#' .. accentHex .. '00',
-			},
-		},
-	}
+	local resultPanel
 
-
-	local aspect = (dmhub.screenDimensionsBelowTitlebar.y/dmhub.screenDimensions.x) / (1080/1920)
-	local resultPanel = gui.Panel{
-		width = "100%",
-		height = "100%",
-		flow = 'vertical',
-
-		styles = ThemeEngine.MergeTokens({
-			{
-				selectors = {'settingsButton'},
-				bgimage = 'ui-icons/skills/98.png',
-				bgcolor = '@fg',
-				height = '30%',
-				width = '100% height',
-				blend = 'add',
-				brightness = 0.7,
-				halign = 'right',
-				valign = 'top',
-			},
-			{
-				selectors = {'settingsButton','hover'},
-				brightness = 1.0,
-				scale = 1.1,
-			},
-			{
-				selectors = {'settingsButton','press'},
-				brightness = 0.9,
-			},
+	-- Local rule set for this panel's custom selectors. The @token refs are
+	-- resolved by MergeTokens at call time; OnThemeChanged below re-runs the
+	-- assignment so the panel recolors live when the user switches theme/scheme.
+	local function buildLocalStyles()
+		return {
 			{
 				selectors = {'floorOrLayerDragTarget'},
-				bgimage = 'panels/square.png',
+				bgimage = true,
 				bgcolor = '@bgAlt',
 				height = 2,
 				width = '100%',
 			},
 			{
-				selectors = {'floorOrLayerDragTarget', 'drag-target'},
-				bgcolor = '@fgMuted',
-			},
-			{
-				selectors = {'floorOrLayerDragTarget', 'drag-target-hover'},
-				bgcolor = '@accent',
+				selectors = {"floorOrLayerDragTarget", "hover"},
+				height = 10,
 			},
 			{
 				selectors = {'floorPanel'},
 				flow = "horizontal",
-				bgimage = 'panels/square.png',
+				bgimage = true,
 				bgcolor = '@bgAlt',
 				halign = "left",
 				hmargin = 8,
@@ -1186,9 +1145,8 @@ CreateLayersPanel = function()
 			},
 			{
 				selectors = {'floorPanel', 'selected'},
-				bgcolor = "white",
-				gradient = highlightGradient,
-
+				bgcolor = "@accent",
+				gradient = "@maskHorizontal",
 			},
 			{
 				selectors = {'floorPanel', 'dragging'},
@@ -1266,13 +1224,26 @@ CreateLayersPanel = function()
 			{
 				selectors = {'floorLabel', 'selected'},
 				color = "@fgInverse",
-
 			},
-		}),
+		}
+	end
+
+	local aspect = (dmhub.screenDimensionsBelowTitlebar.y/dmhub.screenDimensions.x) / (1080/1920)
+	resultPanel = gui.Panel{
+		width = "100%",
+		height = "100%",
+		flow = 'vertical',
+
+		styles = ThemeEngine.MergeTokens(buildLocalStyles()),
 
 		floorsList,
-
 	}
+
+	ThemeEngine.OnThemeChanged(mod, function()
+		if resultPanel ~= nil and resultPanel.valid then
+			resultPanel.styles = ThemeEngine.MergeTokens(buildLocalStyles())
+		end
+	end)
 
 	return resultPanel
 end
@@ -1465,12 +1436,15 @@ CreateLayersList = function(parentFloor)
 								floorTokensPanel,
 							},
 
-							gui.Panel{
+							gui.Button{
 								classes = {'settingsButton'},
 								floating = true,
+								halign = "right",
+								valign = "top",
+								width = 12,
+								height = 12,
 								click = function(element)
-		mod.shared.CreateLayersDisplay()
-			--						ShowFloorSettings(floor)
+									mod.shared.CreateLayersDisplay()
 								end,
 							},
 

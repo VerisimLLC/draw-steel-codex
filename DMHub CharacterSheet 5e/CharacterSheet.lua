@@ -5388,12 +5388,12 @@ function CharSheet.CharacterFeaturesPanel()
 					for i=1,numChoices do
 
 						local dropdown = gui.Dropdown{
-							fontSize = 18,
+							-- fontSize = 18,
 							height = 26,
 							width = 240,
-                            centerPopup = true,
-                            menuWidth = 616,
-                            menuHeight = 920,
+                            -- centerPopup = true,
+                            -- menuWidth = 616,
+                            -- menuHeight = 920,
 							textDefault = "Choose...",
 							sort = true,
 							data = {

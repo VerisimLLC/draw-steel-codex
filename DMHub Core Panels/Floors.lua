@@ -1128,7 +1128,7 @@ CreateLayersPanel = function()
 				width = '100%',
 			},
 			{
-				selectors = {"floorOrLayerDragTarget", "hover"},
+				selectors = {"floorOrLayerDragTarget", "drag-target-hover"},
 				height = 10,
 			},
 			{

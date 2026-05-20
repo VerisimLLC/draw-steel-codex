@@ -2114,12 +2114,10 @@ function ActivatedAbilityPowerRollBehavior:EditorItems(parentPanel)
             minHeight = 30,
             halign = "left",
             styles = {
-                Styles.Table,
                 {
                     classes = {"input"},
                     width = 300,
                 },
-
             },
 
             children = rows,
@@ -2343,101 +2341,6 @@ function RollPropertiesPowerTable:ModifyDamageWithType(damage, damageType)
     end
 end
 
-local g_tableStyles = {
-    {
-        selectors = {"label"},
-        color = "@fg",
-        valign = "center",
-    },
-    {
-        selectors = {"row"},
-        bgcolor = "@bg",
-    },
-    {
-        selectors = {"row", "oddRow"},
-        bgcolor = "@bg",
-    },
-    {
-        selectors = {"row", "evenRow"},
-        bgcolor = "@bg",
-    },
-    {
-        selectors = {"row", "highlighted"},
-        transitionTime = 1.0,
-        bgcolor = "@fgStrong",
-    },
-    {
-        selectors = {"label", "parent:highlighted"},
-        transitionTime = 1.0,
-        color = "@bg",
-    },
-	{
-		selectors = {"row", "flash"},
-		brightness = 3,
-		transitionTime = 0.3,
-	},
-    {
-        selectors = {"label", "parent:collapsedAnim"},
-        transitionTime = 0.5,
-        uiscale = {x = 1, y = 0.001},
-    },
-    {
-        selectors = {"amendable", "row", "hover"},
-        bgcolor = "@danger",
-    },
-}
-
-local g_boonsBanesStyles = {
-    {
-        selectors = {"collapsedAnim"},
-        transitionTime = 0.5,
-        uiscale = {x = 1, y = 0.001},
-    },
-    {
-        selectors = {"label"},
-        color = "@fgStrong",
-        valign = "center",
-        width = "20%",
-        height = "100%",
-        bgimage = "panels/square.png",
-        fontSize = 16,
-        textAlignment = "center",
-        borderWidth = 1,
-        borderColor = "@border",
-    },
-    {
-        selectors = {"label", "selected"},
-        bgcolor = "@fgStrong",
-        color = "@bg",
-        bold = true,
-    },
-    {
-        selectors = {"label", "hover", "~selected", "parent:active"},
-        bgcolor = "@fgStrong",
-        color = "@bg",
-        brightness = 0.9,
-    },
-}
-
-local g_RollModifierStyles = {
-    gui.Style{
-        selectors = {"modifierPanel"},
-        bgcolor = "#888888",
-    },
-    gui.Style{
-        selectors = {"modifierPanel", "~good", "~bad"},
-        gradient = Styles.dialogGradient,
-    },
-    gui.Style{
-        selectors = {"modifierPanel", "good"},
-        gradient = Styles.healthGradient,
-    },
-    gui.Style{
-        selectors = {"modifierPanel", "bad"},
-        gradient = Styles.bloodiedGradient,
-    },
-}
-
 local g_boonsLabels = {"Bane x 2", "Bane", "None", "Edge", "Edge x 2"}
 
 function RollPropertiesPowerTable:CustomPanel(message)
@@ -2508,6 +2411,7 @@ function RollPropertiesPowerTable:CustomPanel(message)
         boonsBanesLabels = {}
         for i,text in ipairs(g_boonsLabels) do
             boonsBanesLabels[#boonsBanesLabels+1] = gui.Label{
+                classes = {"boonsBanesLabel"},
                 text = text,
                 fontSize = 14,
 
@@ -2576,7 +2480,6 @@ function RollPropertiesPowerTable:CustomPanel(message)
         end
 
         m_boonsBanesPanel = gui.Panel{
-            styles = ThemeEngine.MergeTokens(g_boonsBanesStyles),
             classes = {"boonbanePanel"},
             width = "100%",
             height = 22,
@@ -2603,10 +2506,6 @@ function RollPropertiesPowerTable:CustomPanel(message)
         height = "auto",
         halign = "center",
         flow = "vertical",
-        styles = {
-            Styles.Table,
-            ThemeEngine.MergeTokens(g_tableStyles),
-        },
 
         recordInteracting = function(element)
             message:UploadRealtimeInteraction(dmhub.userid, { guid = dmhub.GenerateGuid(), message = dmhub.userDisplayName .. " is reviewing the roll", timestamp = dmhub.serverTime })
@@ -2891,7 +2790,6 @@ function RollPropertiesPowerTable:CustomPanel(message)
                         end
 
                         local panel = m_modifiersPanelCache[key] or gui.Panel{
-                            styles = g_RollModifierStyles,
                             classes = {"modifierPanel"},
                             width = 60,
                             height = 40,

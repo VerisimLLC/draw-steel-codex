@@ -523,17 +523,25 @@ local CreateRollMessagePanel = function(message, adoptiveParentPanel)
 						end
 					end
 					if #outcomeText < 14 then
-						outcomePanel.selfStyle.color = outcome.color or ThemeEngine.ResolveTokens("@fgStrong")
+						-- Caller-supplied custom color stays inline; otherwise clear so
+						-- the cascade's @fgStrong on {roll-message-outcome} wins reactively.
+						outcomePanel.selfStyle.color = outcome.color
+						outcomePanel:SetClass("success", false)
+						outcomePanel:SetClass("danger", false)
 						outcomePanel.text = outcomeText
 					else
 						longFormResultsLabel.text = outcomeText
 					end
 				end
 			elseif outcomePanel ~= nil and message.autofailure then
-				outcomePanel.selfStyle.color = ThemeEngine.ResolveTokens("@danger")
+				outcomePanel.selfStyle.color = nil
+				outcomePanel:SetClass("success", false)
+				outcomePanel:SetClass("danger", true)
 				outcomePanel.text = "Failure"
 			elseif outcomePanel ~= nil and message.autosuccess then
-				outcomePanel.selfStyle.color = ThemeEngine.ResolveTokens("@success")
+				outcomePanel.selfStyle.color = nil
+				outcomePanel:SetClass("danger", false)
+				outcomePanel:SetClass("success", true)
 				outcomePanel.text = "Success"
 			end
 
@@ -1052,6 +1060,75 @@ CreateChatPanel = function()
 			{
 				selectors = {'single-roll-panel','label','preview'},
 				opacity = 0.6,
+			},
+
+			-- Rules previously in MCDMAbilityRollBehavior.lua's g_tableStyles /
+			-- g_boonsBanesStyles / g_RollModifierStyles. Lifted here so the
+			-- chatPanel's reactive cascade carries them -- those packs were
+			-- frozen MergeTokens snapshots that broke theme reactivity.
+			{
+				selectors = {'row', 'highlighted'},
+				transitionTime = 1.0,
+				bgcolor = "@fgStrong",
+			},
+			{
+				selectors = {'label', 'parent:highlighted'},
+				transitionTime = 1.0,
+				color = "@bg",
+			},
+			{
+				selectors = {'row', 'flash'},
+				brightness = 3,
+				transitionTime = 0.3,
+			},
+			{
+				selectors = {'label', 'parent:collapsedAnim'},
+				transitionTime = 0.5,
+				uiscale = {x = 1, y = 0.001},
+			},
+			{
+				selectors = {'amendable', 'row', 'hover'},
+				bgcolor = "@danger",
+			},
+			{
+				selectors = {'collapsedAnim'},
+				transitionTime = 0.5,
+				uiscale = {x = 1, y = 0.001},
+			},
+			{
+				selectors = {'boonsBanesLabel'},
+				color = "@fgStrong",
+				valign = "center",
+				width = "20%",
+				height = "100%",
+				bgimage = "panels/square.png",
+				textAlignment = "center",
+				borderWidth = 1,
+				borderColor = "@border",
+			},
+			{
+				selectors = {'boonsBanesLabel', 'selected'},
+				bgcolor = "@fgStrong",
+				color = "@bg",
+				bold = true,
+			},
+			{
+				selectors = {'boonsBanesLabel', 'hover', '~selected', 'parent:active'},
+				bgcolor = "@fgStrong",
+				color = "@bg",
+				brightness = 0.9,
+			},
+			{
+				selectors = {'modifierPanel'},
+				bgcolor = "@bgAlt",
+			},
+			{
+				selectors = {'modifierPanel', 'good'},
+				bgcolor = "@success",
+			},
+			{
+				selectors = {'modifierPanel', 'bad'},
+				bgcolor = "@warning",
 			},
 		}
 

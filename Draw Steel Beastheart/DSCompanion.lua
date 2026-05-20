@@ -8,6 +8,36 @@ function creature:IsCompanion()
     return false
 end
 
+--- Return the beastheart's sticky name override for a given companion type,
+--- or nil if none is set. Names are stored keyed by bestiary GUID so that
+--- switching companion species swaps the active name without losing the
+--- name set for the other species.
+--- @param companionType string bestiary id of an AnimalCompanion
+--- @return string|nil
+function creature:GetCompanionName(companionType)
+    if companionType == nil or companionType == "" then
+        return nil
+    end
+    local stored = self:try_get("companionNames", {})[companionType]
+    if stored == nil or stored == "" then
+        return nil
+    end
+    return stored
+end
+
+--- Write the beastheart's sticky name override for a given companion type.
+--- Empty/nil name clears the override (next spawn falls back to the bestiary
+--- stat block's default name). Caller is responsible for wrapping this in
+--- ModifyProperties when invoked on a live token.
+--- @param companionType string bestiary id of an AnimalCompanion
+--- @param name string|nil
+function creature:SetCompanionName(companionType, name)
+    if companionType == nil or companionType == "" then
+        return
+    end
+    self:get_or_add("companionNames", {})[companionType] = name
+end
+
 function creature:GetCompanionToken()
     local companionid = self.companionid
     if not companionid then
@@ -277,6 +307,35 @@ function AnimalCompanion:RefreshToken(token)
                     if not capturedSummoner.valid then return end
                     capturedSummoner.properties:ReleaseCompanion(capturedSummoner)
                 end)
+            end
+        end
+
+        -- Sync any in-session rename of this companion back onto the
+        -- beastheart's per-type sticky name map, so a despawn/recall (or
+        -- session reload) reapplies the player's chosen name. Guarded by the
+        -- controlling client flag and a tmp cache of the last value we wrote,
+        -- so this is a no-op on every refresh once the name is stable.
+        if (not token.despawned) and summonerToken.canControl then
+            local bestiaryId = self:try_get("companionBestiaryId")
+            local currentName = token.name or ""
+            if bestiaryId ~= nil and self:try_get("_tmp_lastSyncedName") ~= currentName then
+                local storedName = summonerToken.properties:try_get("companionNames", {})[bestiaryId] or ""
+                if storedName ~= currentName then
+                    local capturedSummoner = summonerToken
+                    local capturedBestiaryId = bestiaryId
+                    local capturedName = currentName
+                    dmhub.Schedule(0, function()
+                        if mod.unloaded then return end
+                        if not capturedSummoner.valid then return end
+                        capturedSummoner:ModifyProperties{
+                            description = "Sync companion name",
+                            execute = function()
+                                capturedSummoner.properties:SetCompanionName(capturedBestiaryId, capturedName)
+                            end,
+                        }
+                    end)
+                end
+                self._tmp_lastSyncedName = currentName
             end
         end
     else

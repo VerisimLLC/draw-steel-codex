@@ -43,6 +43,14 @@ local function LinkCompanion(beastheartToken, companionToken, bestiaryId)
     companionToken.properties.initiativeGrouping = InitiativeQueue.GetInitiativeId(beastheartToken)
     companionToken.properties.companionBestiaryId = bestiaryId
     companionToken.partyid = beastheartToken.partyid
+
+    -- Reapply the player's sticky name for this companion type, if any. Stored
+    -- per-bestiary-id on the beastheart by RefreshToken's sync-back pass.
+    local storedName = beastheartToken.properties:GetCompanionName(bestiaryId)
+    if storedName ~= nil then
+        companionToken.name = storedName
+    end
+
     companionToken:UploadToken("Summoned")
 
     beastheartToken:ModifyProperties{

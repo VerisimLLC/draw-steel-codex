@@ -1504,7 +1504,7 @@ ThemeEngine.RegisterTheme{
         },
         {
             selectors = {"row", "headerRow"},
-            bgcolor = "@bg",
+            bgcolor = "@bgAlt",
         },
         {
             selectors = {"label", "parent:headerRow"},

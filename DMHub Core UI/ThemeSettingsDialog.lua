@@ -78,6 +78,21 @@ local function buildPreviewBody()
                 text = "type here...",
             },
         },
+        -- gui.Panel{
+        --     classes = {"formRow"},
+        --     gui.Label{
+        --         classes = {"form"},
+        --         text = "Sample Multiline:",
+        --         valign = "top",
+        --     },
+        --     gui.Input{
+        --         classes = {"form"},
+        --         multiline = true,
+        --         verticalScrollbar = true,
+        --         height = 80,
+        --         text = "type a few lines here...\nthe quick brown fox jumps over the lazy dog",
+        --     },
+        -- },
         gui.Panel{
             classes = {"formRow"},
             gui.Check{
@@ -305,7 +320,7 @@ CreateThemeSettingsDialog = function()
     return gui.Panel{
         classes = {"launchablePanel"},
         styles = ThemeEngine.GetStyles("default", "default"),
-        width = 640,
+        width = 700,
         height = 600,
         flow = "vertical",
         pad = 16,

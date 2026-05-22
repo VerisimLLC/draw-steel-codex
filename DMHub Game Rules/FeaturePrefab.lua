@@ -89,13 +89,13 @@ local SetPrefab = function(tableName, prefabPanel, prefabid)
 
 	--the name of the prefab.
 	children[#children+1] = gui.Panel{
-		classes = {'formPanel'},
+		classes = {"formStackedRow"},
 		gui.Label{
-			text = 'Name:',
-			valign = 'center',
-			minWidth = 240,
+			classes = {"formStacked"},
+			text = "Name:",
 		},
 		gui.Input{
+			classes = {"formStacked"},
 			text = prefab.name,
 			change = function(element)
 				prefab.name = element.text
@@ -106,20 +106,17 @@ local SetPrefab = function(tableName, prefabPanel, prefabid)
 
 	--prefab details/notes.
 	children[#children+1] = gui.Panel{
-		classes = {'formPanel'},
-		height = 'auto',
+		classes = {"formStackedRow"},
 		gui.Label{
+			classes = {"formStacked"},
 			text = "Notes:",
-			valign = "center",
-			minWidth = 240,
 		},
 		gui.Input{
+			classes = {"formStacked", "multiline"},
 			text = prefab.details,
+			height = 60,
+			textAlignment = "topLeft",
 			multiline = true,
-			minHeight = 50,
-			height = 'auto',
-			width = 400,
-			textAlignment = "topleft",
 			change = function(element)
 				prefab.details = element.text
 				UploadPrefab()
@@ -145,43 +142,12 @@ function CharacterFeaturePrefabs.CreateEditor()
 			end,
 		},
 		vscroll = true,
-		classes = 'class-panel',
-		styles = {
-			{
-				halign = "left",
-			},
-			{
-				classes = {'class-panel'},
-				width = 1200,
-				height = '90%',
-				halign = 'left',
-				flow = 'vertical',
-				pad = 20,
-			},
-			{
-				classes = {'label'},
-				color = 'white',
-				fontSize = 22,
-				width = 'auto',
-				height = 'auto',
-			},
-			{
-				classes = {'input'},
-				width = 200,
-				height = 26,
-				fontSize = 18,
-				color = 'white',
-			},
-			{
-				classes = {'formPanel'},
-				flow = 'horizontal',
-				width = 'auto',
-				height = 'auto',
-				halign = 'left',
-				vmargin = 2,
-			},
-
-		},
+		width = 1200,
+		height = "90%",
+		halign = "left",
+		flow = "vertical",
+		pad = 20,
+		borderBox = true,
 	}
 
 	return prefabPanel

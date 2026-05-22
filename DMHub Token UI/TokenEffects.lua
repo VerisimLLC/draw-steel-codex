@@ -447,4 +447,104 @@ Commands.RegisterMacro{
     end,
 }
 
+--Ash-themed teleport effects, built on the "Ash_*_vfx" particle prefabs in TokenEffectIndex
+--(the dice studio FX prefabs reused here). In v1 a single descriptor plays at all four
+--TokenEffectEvent points (TeleportDepart / TeleportArrive / Transformation / Destruction);
+--once CharacterAppearance gains per-event bindings, each of these will be able to pair a
+--different prefab per event. Pick one of these by setting appearance.teleportEffect.
+
+dmhub.teleportEffects:Register{
+    id = "ashteleport",
+    kind = "particle",
+    particleName = "Ash_TeleportLine_vfx",
+    scale = 1.0,
+    duration = 0.8,
+    soundEvent = "Ability.Teleport_Generic",
+    light = {
+        enabled = true,
+        color = "#ff7733",
+        radius = 2.0,
+        innerRadius = 0.1,
+        duration = 0.6,
+    },
+}
+
+dmhub.teleportEffects:Register{
+    id = "ashdisappear",
+    kind = "particle",
+    particleName = "Ash_Disappear_vfx",
+    scale = 1.0,
+    duration = 0.8,
+    soundEvent = "Ability.Teleport_Generic",
+    light = {
+        enabled = true,
+        color = "#ff5522",
+        radius = 2.0,
+        innerRadius = 0.1,
+        duration = 0.6,
+    },
+}
+
+dmhub.teleportEffects:Register{
+    id = "ashreappear",
+    kind = "particle",
+    particleName = "Ash_Reappear_vfx",
+    scale = 1.0,
+    duration = 0.8,
+    soundEvent = "Ability.Teleport_Generic",
+    light = {
+        enabled = true,
+        color = "#ffaa55",
+        radius = 2.5,
+        innerRadius = 0.1,
+        duration = 0.6,
+    },
+}
+
+dmhub.teleportEffects:Register{
+    id = "ashexit",
+    kind = "particle",
+    particleName = "Ash_Exit_vfx",
+    scale = 1.0,
+    duration = 0.8,
+    soundEvent = "Ability.Teleport_Generic",
+    light = {
+        enabled = true,
+        color = "#cc3311",
+        radius = 2.0,
+        innerRadius = 0.1,
+        duration = 0.7,
+    },
+}
+
+dmhub.teleportEffects:Register{
+    id = "ashappear",
+    kind = "particle",
+    particleName = "Ash_Appearance_vfx",
+    scale = 1.0,
+    duration = 0.8,
+    soundEvent = "Ability.Teleport_Generic",
+    light = {
+        enabled = true,
+        color = "#ffcc77",
+        radius = 2.5,
+        innerRadius = 0.1,
+        duration = 0.6,
+    },
+}
+
+--Travel effect, meant for the travelEffect field of a timed teleport (not as a depart/arrive
+--effect on its own). Uses the dice "travel tail" prefab, which draws a trailing wisp as it is
+--moved along the teleport path by CharacterToken.TeleportTimedCo.
+dmhub.teleportEffects:Register{
+    id = "ashtravel",
+    kind = "particle",
+    particleName = "Ash_TravelTail_vfx",
+    scale = 1.0,
+    duration = 1.0,
+    --World simulation: Ash_TravelTail_vfx emits rate-over-distance, which only emits in World
+    --simulation space. It also makes the wisp trail in place as the effect is moved along the path.
+    worldSimulation = true,
+}
+
 print("IMAGEXXX::", mod.images.doubleslashbw)

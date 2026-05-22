@@ -13,6 +13,13 @@ function CharacterAppearance:GetOffTokenPortraitId()
 	-- dummy implementation for documentation purposes only
 end
 
+--- GetEffectForEvent
+--- @param ev any
+--- @return string
+function CharacterAppearance:GetEffectForEvent(ev)
+	-- dummy implementation for documentation purposes only
+end
+
 --- Equals
 --- @param other any
 --- @return boolean

@@ -1,0 +1,2 @@
+--- @class TokenEffectLight 
+TokenEffectLight = {}

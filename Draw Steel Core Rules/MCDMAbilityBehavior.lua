@@ -1846,6 +1846,210 @@ function ActivatedAbilityDrawSteelCommandBehavior.FormatRuleValidation(rule)
     end
 end
 
+----------------------------------------------------------------
+-- Diagnostician: vocabulary cache + compendium suppression set
+----------------------------------------------------------------
+-- Editor-only support for the power roll preview's chip strip.
+-- The chip strip tells authors WHY a clause didn't parse (typo,
+-- missing duration, unknown damage type, unrecognized segment)
+-- rather than only colouring white-vs-grey. The vocab built here
+-- is the lookup table that powers near-miss matching and the
+-- compendium-pattern suppression that keeps prose-shaped tokens
+-- the importer already knows about quiet.
+--
+-- Built lazily; cache invalidates on refreshTables and rebuilds
+-- on next read. Mirrors the g_tierTextCache pattern used by the
+-- power roll renderer.
+
+-- English connectives, modals, and number words that show up in
+-- pattern strings but should never be did-you-mean targets or
+-- suppression keywords. They'd produce nonsense suggestions
+-- (e.g. "thr" -> "the") and don't carry mechanical meaning.
+local g_diagnosticStopwords = {
+    ["a"] = true, ["an"] = true, ["the"] = true, ["and"] = true,
+    ["or"] = true, ["of"] = true, ["to"] = true, ["in"] = true,
+    ["is"] = true, ["are"] = true, ["be"] = true, ["by"] = true,
+    ["on"] = true, ["at"] = true, ["as"] = true, ["do"] = true,
+    ["if"] = true, ["it"] = true, ["its"] = true, ["new"] = true,
+    ["up"] = true, ["has"] = true, ["have"] = true, ["had"] = true,
+    ["was"] = true, ["were"] = true, ["been"] = true, ["being"] = true,
+    ["can"] = true, ["could"] = true, ["should"] = true, ["would"] = true,
+    ["may"] = true, ["might"] = true, ["must"] = true, ["will"] = true,
+    ["into"] = true, ["onto"] = true, ["out"] = true, ["off"] = true,
+    ["you"] = true, ["your"] = true, ["yours"] = true,
+    ["with"] = true, ["from"] = true, ["for"] = true,
+    ["all"] = true, ["any"] = true, ["but"] = true, ["not"] = true,
+    ["each"] = true, ["this"] = true, ["that"] = true, ["these"] = true,
+    ["those"] = true, ["them"] = true, ["they"] = true, ["their"] = true,
+    ["one"] = true, ["two"] = true, ["three"] = true, ["four"] = true,
+    ["five"] = true, ["six"] = true, ["seven"] = true, ["eight"] = true,
+    ["nine"] = true, ["ten"] = true,
+}
+
+-- Pull alphabetic word runs out of a regex pattern string. Strips
+-- regex syntax (group names, character classes, escapes) and keeps
+-- only lowercase ASCII letter runs that are not stopwords. Length
+-- floor of 3 lets through short mechanical tokens like "eot"
+-- without dragging in two-letter connectives.
+--
+-- We also strip letters trailing a character class because patterns
+-- like "[Gg]ain" or "[MARIPmarip]+" represent a single
+-- case-insensitive match plus its spelling tail; extracting the
+-- bare tail ("ain", "marip") would produce nonsense vocab.
+local function ExtractDiagnosticWordsFromPattern(pattern, sink)
+    if type(pattern) ~= "string" then
+        return
+    end
+    local cleaned = pattern
+    cleaned = cleaned:gsub("%(%?<[^>]+>", "(") -- named-group identifiers
+    cleaned = cleaned:gsub("%b[][%a]*", " ")   -- char classes + spelling tail
+    cleaned = cleaned:gsub("\\%a", " ")        -- escape sequences (\s \d ...)
+    cleaned = string.lower(cleaned)
+    for word in cleaned:gmatch("[a-z]+") do
+        if #word >= 3 and not g_diagnosticStopwords[word] then
+            sink[word] = true
+        end
+    end
+end
+
+local g_diagnosticVocabCache = nil
+local g_diagnosticCompendiumKeywordCache = nil
+
+local function BuildDiagnosticVocab()
+    local vocab = {
+        damageTypes = {},
+        conditions = {},
+        riderNames = {},
+        keywords = {},
+        searchTokens = {},
+    }
+
+    local seen = {}
+
+    local addToken = function(word, kind)
+        if word == nil or word == "" then return end
+        word = string.lower(word)
+        if g_diagnosticStopwords[word] then return end
+        if #word < 3 then return end
+        local existingKind = seen[word]
+        if existingKind ~= nil then
+            -- Prefer the more specific kind (damageType > condition > rider > keyword)
+            -- so the chip phrasing matches the most useful category.
+            return
+        end
+        seen[word] = kind
+        vocab.searchTokens[#vocab.searchTokens+1] = {word = word, kind = kind}
+    end
+
+    -- 1. Damage types from the rules table (populated by DamageTypes.lua
+    --    on refreshTables). Falls back gracefully if not yet built.
+    local damageTypeList = rules and rules.damageTypesAvailable or nil
+    if type(damageTypeList) == "table" then
+        for _,name in ipairs(damageTypeList) do
+            local n = string.lower(name)
+            vocab.damageTypes[n] = true
+            addToken(n, "damageType")
+        end
+    end
+
+    -- 2. Conditions: every entry in the conditions table, keyed by
+    --    its lowercased display name. We capture indefiniteDuration
+    --    so Kind 2 (missing duration) can skip prone/grabbed/etc.
+    local conditionsTable = dmhub.GetTable(CharacterCondition.tableName) or {}
+    for _,entry in unhidden_pairs(conditionsTable) do
+        local n = string.lower(entry.name or "")
+        if n ~= "" then
+            vocab.conditions[n] = {
+                indefiniteDuration = entry:try_get("indefiniteDuration", false),
+            }
+            -- Add each whitespace-separated word of the condition name
+            -- to the search tokens (most are single-word, but defensive).
+            for word in n:gmatch("[a-z]+") do
+                addToken(word, "condition")
+            end
+        end
+    end
+
+    -- 3. Riders: importer-pattern friendly labels. Multi-word entries
+    --    are kept whole for prefix display, plus each constituent word
+    --    enters the search pool.
+    local ridersTable = dmhub.GetTable(CharacterCondition.ridersTableName) or {}
+    for _,entry in unhidden_pairs(ridersTable) do
+        local label = entry:try_get("powerTableText", "")
+        local n = string.lower(label)
+        if n ~= "" then
+            vocab.riderNames[n] = true
+            for word in n:gmatch("[a-z]+") do
+                addToken(word, "rider")
+            end
+        end
+    end
+
+    -- 4. Built-in mechanical keywords: walk g_rulePatterns and lift
+    --    literal alphabetic words out of each pattern. Catches things
+    --    like push/pull/slide/teleport/shift/jump/swap that aren't in
+    --    any data table.
+    for _,entry in ipairs(g_rulePatterns) do
+        local patterns = entry.pattern
+        if type(patterns) == "string" then
+            ExtractDiagnosticWordsFromPattern(patterns, vocab.keywords)
+        elseif type(patterns) == "table" then
+            for _,p in ipairs(patterns) do
+                ExtractDiagnosticWordsFromPattern(p, vocab.keywords)
+            end
+        end
+    end
+    for word in pairs(vocab.keywords) do
+        addToken(word, "keyword")
+    end
+
+    return vocab
+end
+
+local function BuildDiagnosticCompendiumKeywords()
+    -- Literal alphabetic word tokens scraped from every active
+    -- importerPowerTableEffects pattern. The importer table is the
+    -- codebase's curated custom-vocabulary list, so anything that
+    -- appears here is treated as known prose for the suppression
+    -- check on Kind 4 (Unknown segment).
+    local keywords = {}
+    local rulesTable = dmhub.GetTable("importerPowerTableEffects") or {}
+    for _,entry in unhidden_pairs(rulesTable) do
+        local importMatch = entry:try_get("importMatch", nil)
+        if type(importMatch) == "string" and importMatch ~= "" then
+            ExtractDiagnosticWordsFromPattern(string.lower(importMatch), keywords)
+        end
+    end
+    return keywords
+end
+
+--- Returns the cached diagnostic vocabulary. Rebuilds on first
+--- call after refreshTables.
+--- @return table
+function ActivatedAbilityDrawSteelCommandBehavior.GetDiagnosticVocab()
+    if g_diagnosticVocabCache == nil then
+        g_diagnosticVocabCache = BuildDiagnosticVocab()
+    end
+    return g_diagnosticVocabCache
+end
+
+--- Returns the cached compendium-pattern keyword suppression set.
+--- Tokens in this set are treated as authored prose and silence the
+--- Unknown-segment diagnostic for the segment they appear in.
+--- @return table<string, boolean>
+function ActivatedAbilityDrawSteelCommandBehavior.GetCompendiumDiagnosticKeywords()
+    if g_diagnosticCompendiumKeywordCache == nil then
+        g_diagnosticCompendiumKeywordCache = BuildDiagnosticCompendiumKeywords()
+    end
+    return g_diagnosticCompendiumKeywordCache
+end
+
+dmhub.RegisterEventHandler("refreshTables", function(keys)
+    if mod.unloaded then return end
+    g_diagnosticVocabCache = nil
+    g_diagnosticCompendiumKeywordCache = nil
+end)
+
 function ActivatedAbilityDrawSteelCommandBehavior:EditorItems(parentPanel)
 	local result = {}
 	self:ApplyToEditor(parentPanel, result)

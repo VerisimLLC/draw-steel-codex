@@ -12,13 +12,13 @@ local SetGlobalRuleMod = function(tableName, ruleModPanel, ruleModid)
 
 	--the name of the ruleMod.
 	children[#children+1] = gui.Panel{
-		classes = {'formPanel'},
+		classes = {"formStackedRow"},
 		gui.Label{
-			text = 'Name:',
-			valign = 'center',
-			minWidth = 240,
+			classes = {"formStacked"},
+			text = "Name:",
 		},
 		gui.Input{
+			classes = {"formStacked"},
 			text = ruleMod.name,
 			change = function(element)
 				ruleMod.name = element.text
@@ -29,13 +29,13 @@ local SetGlobalRuleMod = function(tableName, ruleModPanel, ruleModid)
 
 	--who the mod applies to.
 	children[#children+1] = gui.Panel{
-		classes = {"formPanel"},
+		classes = {"formStackedRow"},
 		gui.Label{
-			text = 'Apply To:',
-			valign = 'center',
-			minWidth = 240,
+			classes = {"formStacked"},
+			text = "Apply To:",
 		},
 		gui.Dropdown{
+			classes = {"formStacked"},
 			options = GlobalRuleMod.ApplyOptions,
 			idChosen = ruleMod:GetApplyID(),
 			change = function(element)
@@ -49,6 +49,7 @@ local SetGlobalRuleMod = function(tableName, ruleModPanel, ruleModid)
 	}
 
 	children[#children+1] = ruleMod:GetClassLevel():CreateEditor(ruleMod, 0, {
+		lmargin = 12,
 		change = function(element)
 			ruleModPanel:FireEvent("change")
 			UploadGlobalRuleMod()
@@ -66,43 +67,12 @@ function GlobalRuleMod.CreateEditor()
 			end,
 		},
 		vscroll = true,
-		classes = 'class-panel',
-		styles = {
-			{
-				halign = "left",
-			},
-			{
-				classes = {'class-panel'},
-				width = 1200,
-				height = '90%',
-				halign = 'left',
-				flow = 'vertical',
-				pad = 20,
-			},
-			{
-				classes = {'label'},
-				color = 'white',
-				fontSize = 22,
-				width = 'auto',
-				height = 'auto',
-			},
-			{
-				classes = {'input'},
-				width = 200,
-				height = 26,
-				fontSize = 18,
-				color = 'white',
-			},
-			{
-				classes = {'formPanel'},
-				flow = 'horizontal',
-				width = 'auto',
-				height = 'auto',
-				halign = 'left',
-				vmargin = 2,
-			},
-
-		},
+		width = 1200,
+		height = "90%",
+		halign = "left",
+		flow = "vertical",
+		pad = 20,
+		borderBox = true,
 	}
 
 	return ruleModPanel

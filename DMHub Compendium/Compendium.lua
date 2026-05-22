@@ -3715,10 +3715,12 @@ end
 
 local ShowImagesPanel = function(parentPanel, imageType)
 	local imagesPanel = gui.Panel{
-		classes = 'mainContentPanel',
-		styles = {
-			LibraryStyles,
-		},
+		width = 1200,
+		height = "95%",
+		halign = "left",
+		flow = "vertical",
+		pad = 20,
+		borderBox = true,
 	}
 
 	local itemsListPanel = nil
@@ -3736,13 +3738,13 @@ local ShowImagesPanel = function(parentPanel, imageType)
 
 			--the guid of the item.
 			children[#children+1] = gui.Panel{
-				classes = {'formPanel'},
+				classes = {'formStackedRow'},
 				gui.Label{
+					classes = {'formStacked'},
 					text = 'ID (dev only):',
-					valign = 'center',
-					minWidth = 100,
 				},
 				gui.Input{
+					classes = {'formStacked'},
 					text = data.id,
 					change = function(element)
 						element.text = data.id
@@ -3753,13 +3755,13 @@ local ShowImagesPanel = function(parentPanel, imageType)
 
 		--name/description
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {'formStackedRow'},
 			gui.Label{
+				classes = {'formStacked'},
 				text = 'Name:',
-				valign = 'center',
-				minWidth = 100,
 			},
 			gui.Input{
+				classes = {'formStacked'},
 				text = data.description,
 				change = function(element)
 					data.description = element.text
@@ -3770,13 +3772,13 @@ local ShowImagesPanel = function(parentPanel, imageType)
 
 		--ordering
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {'formStackedRow'},
 			gui.Label{
+				classes = {'formStacked'},
 				text = 'Ordering:',
-				valign = 'center',
-				minWidth = 100,
 			},
 			gui.Input{
+				classes = {'formStacked'},
 				text = tostring(data.ord),
 				change = function(element)
 					data.ord = tonumber(element.text) or 0
@@ -3787,13 +3789,13 @@ local ShowImagesPanel = function(parentPanel, imageType)
 
 		--zoom.
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {'formStackedRow'},
 			gui.Label{
+				classes = {'formStacked'},
 				text = 'Zoom:',
-				valign = 'center',
-				minWidth = 100,
 			},
 			gui.Input{
+				classes = {'formStacked'},
 				text = tostring(data.tokenZoom),
 				change = function(element)
 					data.tokenZoom = tonumber(element.text) or 0
@@ -3804,15 +3806,13 @@ local ShowImagesPanel = function(parentPanel, imageType)
 
 		--show the image.
 		children[#children+1] = gui.Panel{
+			classes = {"image", "bordered"},
 			id = "tokenFrameImage",
 			width = 256,
 			height = 256,
 			halign = "left",
 			bgimage = id,
-			bgcolor = "white",
 			vmargin = 10,
-			borderColor = "white",
-			borderWidth = 1,
 			imageLoaded = function(element)
 				if element.bgsprite == nil then
 					return

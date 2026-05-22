@@ -4587,6 +4587,244 @@ end
     on the preview tooltip, instrument its EditorItems change handlers the
     same way -- see ActivatedAbilityPowerRollBehavior:EditorItems.
 ]]
+
+--[[
+    Diagnostician chip strip
+    ----------------------------------------------------------------------
+    Editor-only surface that sits in its own panel beneath the ability
+    card. Reads structured findings out of
+    ActivatedAbilityDrawSteelCommandBehavior.DiagnoseTierText for each
+    power-roll tier and composes human-readable chips using the locked
+    copy strings from the project doc.
+
+    Status gating (Bronze+ collapse, Kind 4 suppression at Bronze+) lands
+    in a subsequent chunk; this MVP always renders every finding for every
+    status.
+
+    Chip copy templates (always tier-prefixed per the locked decision;
+    each <token> placeholder renders as bold-italic in the chip):
+      * damageType_unknown + suggestion:
+          "Tier N: Damage type <token> isn't recognized - did you mean <suggestion>?"
+      * damageType_unknown alone:
+          "Tier N: Damage type <token> isn't recognized."
+      * duration_missing:
+          "Tier N: Condition <condition> needs a duration - try (save ends), (EoT), or (EoE)."
+      * near_miss:
+          "Tier N: Did you mean <suggestion> in <segment>?"
+      * unknown_segment:
+          "Tier N: <segment> isn't being interpreted as a rule."
+
+    Em-dashes from the mockup are rendered as " - " (single ASCII hyphen)
+    because Lua source files in this project must stay ASCII.
+
+    Token emphasis uses <b><i>...</i></b> rather than backticks: backticks
+    trigger TextMeshPro code-span rendering inside DMHub which
+    letter-spaces every character ("fier" -> "f  i  e  r"). The
+    triggered ability editor hit the same problem and settled on
+    italics; we add bold on top for chip readability.
+]]
+local function _diagnosticComposeChipText(finding, tierIndex)
+    if finding == nil or finding.kind == nil then return nil end
+    local prefix = string.format("Tier %d: ", tierIndex)
+    if finding.kind == "damageType_unknown" then
+        if finding.token == nil or finding.token == "" then return nil end
+        if finding.suggestion ~= nil and finding.suggestion ~= "" then
+            return string.format("%sDamage type <b><i>%s</i></b> isn't recognized - did you mean <b><i>%s</i></b>?",
+                prefix, finding.token, finding.suggestion)
+        end
+        return string.format("%sDamage type <b><i>%s</i></b> isn't recognized.",
+            prefix, finding.token)
+    elseif finding.kind == "duration_missing" then
+        if finding.condition == nil or finding.condition == "" then return nil end
+        return string.format("%sCondition <b><i>%s</i></b> needs a duration - try <b><i>(save ends)</i></b>, <b><i>(EoT)</i></b>, or <b><i>(EoE)</i></b>.",
+            prefix, finding.condition)
+    elseif finding.kind == "near_miss" then
+        if finding.suggestion == nil or finding.segment == nil then return nil end
+        return string.format("%sDid you mean <b><i>%s</i></b> in <b><i>%s</i></b>?",
+            prefix, finding.suggestion, finding.segment)
+    elseif finding.kind == "unknown_segment" then
+        if finding.segment == nil or finding.segment == "" then return nil end
+        return string.format("%s<b><i>%s</i></b> isn't being interpreted as a rule.",
+            prefix, finding.segment)
+    end
+    return nil
+end
+
+-- Build a single chip panel for one finding. Severity drives the left
+-- border colour: warning (gold) for Kinds 1/2/3, neutral (muted) for
+-- Kind 4. Returns nil for malformed findings (logged and skipped per
+-- the agreed Chunk 3 contract).
+local function _diagnosticBuildChip(finding, tierIndex)
+    local text = _diagnosticComposeChipText(finding, tierIndex)
+    if text == nil then
+        print(string.format("PowerRollDiagnostics:: dropping malformed finding (kind=%s, tier=%d)",
+            tostring(finding and finding.kind), tierIndex))
+        return nil
+    end
+
+    local borderColor = "@warning"
+    if finding.severity == "neutral" then
+        borderColor = "@border"
+    end
+
+    local tooltipPreview = finding.tooltipPreview
+    local hover = nil
+    if tooltipPreview ~= nil and tooltipPreview ~= "" then
+        hover = gui.Tooltip(string.format("Try: %s", tooltipPreview))
+    end
+
+    return gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        halign = "left",
+        valign = "top",
+        hpad = 10,
+        vpad = 6,
+        border = {x1 = 3, x2 = 0, y1 = 0, y2 = 0},
+        borderColor = borderColor,
+        bgimage = true,
+        bgcolor = "@bg",
+        borderBox = true,
+        hover = hover,
+        gui.Label{
+            width = "100%",
+            height = "auto",
+            color = "@fg",
+            fontSize = 13,
+            textWrap = true,
+            markdown = true,
+            text = text,
+        },
+    }
+end
+
+-- Construct the full diagnostics strip for the ability's power roll
+-- tiers. Returns nil when the ability has no power-roll behaviour at
+-- all -- the strip only makes sense as commentary on a tier table.
+local function _diagnosticBuildStrip(ability)
+    if ability == nil then return nil end
+
+    -- Find the power-roll behaviour the same way Render() does so the
+    -- strip mirrors what the preview card shows.
+    local powerTableBehavior = nil
+    for _, behavior in ipairs(ability:try_get("behaviors", {})) do
+        if behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
+            powerTableBehavior = behavior
+            break
+        end
+    end
+    if powerTableBehavior == nil or powerTableBehavior.tiers == nil then
+        return nil
+    end
+
+    -- Diagnose each tier. Errors in the engine drop the strip silently
+    -- (logged) so a single bug never poisons the editor preview.
+    local tierFindings = {}
+    local totalFindings = 0
+    for i, tierText in ipairs(powerTableBehavior.tiers) do
+        local ok, findings = pcall(ActivatedAbilityDrawSteelCommandBehavior.DiagnoseTierText, tierText)
+        if not ok then
+            print(string.format("PowerRollDiagnostics:: DiagnoseTierText errored on tier %d: %s", i, tostring(findings)))
+            return nil
+        end
+        tierFindings[i] = findings or {}
+        totalFindings = totalFindings + #tierFindings[i]
+    end
+
+    local rollupText
+    local indicatorClass
+    if totalFindings == 0 then
+        rollupText = "No issues"
+        indicatorClass = "bgSuccess"
+    elseif totalFindings == 1 then
+        rollupText = "1 issue"
+        indicatorClass = "bgWarning"
+    else
+        rollupText = string.format("%d issues", totalFindings)
+        indicatorClass = "bgWarning"
+    end
+
+    local rollupRow = gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "horizontal",
+        valign = "center",
+        halign = "left",
+        hpad = 12,
+        vpad = 8,
+        borderBox = true,
+        gui.Panel{
+            classes = {indicatorClass},
+            width = 8,
+            height = 8,
+            cornerRadius = 4,
+            valign = "center",
+            halign = "left",
+            bgimage = true,
+        },
+        gui.Label{
+            width = "auto",
+            height = "auto",
+            lmargin = 10,
+            valign = "center",
+            halign = "left",
+            color = totalFindings == 0 and "@success" or "@fg",
+            fontSize = 13,
+            bold = totalFindings > 0,
+            text = rollupText,
+        },
+    }
+
+    local chipChildren = {}
+    if totalFindings > 0 then
+        for tierIndex, findings in ipairs(tierFindings) do
+            for _, finding in ipairs(findings) do
+                local chip = _diagnosticBuildChip(finding, tierIndex)
+                if chip ~= nil then
+                    chipChildren[#chipChildren+1] = chip
+                end
+            end
+        end
+    end
+
+    local stripChildren = { rollupRow }
+    if #chipChildren > 0 then
+        stripChildren[#stripChildren+1] = gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            hpad = 8,
+            vpad = 4,
+            valign = "top",
+            halign = "left",
+            border = {x1 = 0, x2 = 0, y1 = 1, y2 = 0},
+            borderColor = "@border",
+            bgimage = true,
+            bgcolor = "clear",
+            borderBox = true,
+            -- Children rebuilt fresh on every preview refresh; never
+            -- pre-built and reassigned (panel_children_rebuild memory).
+            children = chipChildren,
+        }
+    end
+
+    return gui.Panel{
+        classes = {"bordered"},
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        valign = "top",
+        halign = "left",
+        tmargin = 8,
+        bgimage = true,
+        bgcolor = "@bgAlt",
+        borderColor = "@border",
+        borderBox = true,
+        children = stripChildren,
+    }
+end
+
 local function _makePreview(ability)
     local previewSlot
     previewSlot = gui.Panel{
@@ -4629,7 +4867,13 @@ local function _makePreview(ability)
             })
             if ok and cardOrErr ~= nil then
                 fixTooltipAlignment(cardOrErr)
-                element.children = {
+                -- Diagnostics strip lives in its own panel beneath the
+                -- card (sibling, not embedded) so it's clear it isn't
+                -- part of what the player sees. nil when the ability
+                -- has no power-roll behaviour, in which case we just
+                -- render the card alone.
+                local diagnosticsPanel = _diagnosticBuildStrip(ability)
+                local children = {
                     gui.Panel{
                         width = "100%",
                         height = "auto",
@@ -4641,6 +4885,10 @@ local function _makePreview(ability)
                         children = { cardOrErr },
                     },
                 }
+                if diagnosticsPanel ~= nil then
+                    children[#children+1] = diagnosticsPanel
+                end
+                element.children = children
             else
                 element.children = {
                     gui.Label{

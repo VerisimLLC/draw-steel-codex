@@ -4702,8 +4702,25 @@ end
 -- Construct the full diagnostics strip for the ability's power roll
 -- tiers. Returns nil when the ability has no power-roll behaviour at
 -- all -- the strip only makes sense as commentary on a tier table.
-local function _diagnosticBuildStrip(ability)
+--
+-- options (optional):
+--   collapsed = bool|nil   - explicit collapse state. nil means
+--                            "use the status-based default": Bronze+
+--                            collapses by default, Unimplemented
+--                            expands. The caller threads this through
+--                            an upvalue so the user's click choice
+--                            survives preview refreshes.
+--   onToggle = function    - called with the new collapsed boolean
+--                            when the user clicks the rollup row.
+--
+-- Implementation-status gating (per the spec):
+--   * Bronze+ : filter out every Kind 4 (unknown_segment) finding -
+--     the author has signed off, so prose-shaped tail text isn't
+--     called out anymore. Default state is collapsed.
+--   * Unimplemented : show every kind. Default state is expanded.
+local function _diagnosticBuildStrip(ability, options)
     if ability == nil then return nil end
+    options = options or {}
 
     -- Find the power-roll behaviour the same way Render() does so the
     -- strip mirrors what the preview card shows.
@@ -4718,8 +4735,14 @@ local function _diagnosticBuildStrip(ability)
         return nil
     end
 
+    local implementationStatus = ability:try_get("implementation", 1)
+    local isBronzePlus = implementationStatus >= gui.ImplementationStatus.Bronze
+
     -- Diagnose each tier. Errors in the engine drop the strip silently
     -- (logged) so a single bug never poisons the editor preview.
+    -- Kind 4 (unknown_segment) findings are filtered out at Bronze+:
+    -- the author has signed off so prose-shaped tail text isn't
+    -- called out anymore.
     local tierFindings = {}
     local totalFindings = 0
     for i, tierText in ipairs(powerTableBehavior.tiers) do
@@ -4728,8 +4751,14 @@ local function _diagnosticBuildStrip(ability)
             print(string.format("PowerRollDiagnostics:: DiagnoseTierText errored on tier %d: %s", i, tostring(findings)))
             return nil
         end
-        tierFindings[i] = findings or {}
-        totalFindings = totalFindings + #tierFindings[i]
+        local kept = {}
+        for _, finding in ipairs(findings or {}) do
+            if not (isBronzePlus and finding.kind == "unknown_segment") then
+                kept[#kept+1] = finding
+            end
+        end
+        tierFindings[i] = kept
+        totalFindings = totalFindings + #kept
     end
 
     local rollupText
@@ -4745,39 +4774,22 @@ local function _diagnosticBuildStrip(ability)
         indicatorClass = "bgWarning"
     end
 
-    local rollupRow = gui.Panel{
-        width = "100%",
-        height = "auto",
-        flow = "horizontal",
-        valign = "center",
-        halign = "left",
-        hpad = 12,
-        vpad = 8,
-        borderBox = true,
-        gui.Panel{
-            classes = {indicatorClass},
-            width = 8,
-            height = 8,
-            cornerRadius = 4,
-            valign = "center",
-            halign = "left",
-            bgimage = true,
-        },
-        gui.Label{
-            width = "auto",
-            height = "auto",
-            lmargin = 10,
-            valign = "center",
-            halign = "left",
-            color = totalFindings == 0 and "@success" or "@fg",
-            fontSize = 13,
-            bold = totalFindings > 0,
-            text = rollupText,
-        },
-    }
+    -- Initial collapse state: explicit options.collapsed wins, otherwise
+    -- fall back to the status-based default. With zero findings there
+    -- are no chips to hide so the collapsed/expanded distinction is
+    -- moot (no chevron rendered).
+    local collapsed
+    if options.collapsed ~= nil then
+        collapsed = options.collapsed
+    else
+        collapsed = isBronzePlus
+    end
+    local hasExpandableChips = totalFindings > 0
 
+    -- Build the chip list (visible iff not collapsed). Children built
+    -- fresh per preview refresh per the panel_children_rebuild memory.
     local chipChildren = {}
-    if totalFindings > 0 then
+    if hasExpandableChips then
         for tierIndex, findings in ipairs(tierFindings) do
             for _, finding in ipairs(findings) do
                 local chip = _diagnosticBuildChip(finding, tierIndex)
@@ -4788,9 +4800,14 @@ local function _diagnosticBuildStrip(ability)
         end
     end
 
-    local stripChildren = { rollupRow }
+    local chipListPanel
     if #chipChildren > 0 then
-        stripChildren[#stripChildren+1] = gui.Panel{
+        -- The global "collapsed" class registered by DefaultStyles
+        -- already maps to engine `collapsed = 1` (which hides the
+        -- panel and removes it from layout). Apply it inline for
+        -- the initial state; SetClass toggles it on user click.
+        chipListPanel = gui.Panel{
+            classes = collapsed and {"collapsed"} or {},
             width = "100%",
             height = "auto",
             flow = "vertical",
@@ -4803,10 +4820,88 @@ local function _diagnosticBuildStrip(ability)
             bgimage = true,
             bgcolor = "clear",
             borderBox = true,
-            -- Children rebuilt fresh on every preview refresh; never
-            -- pre-built and reassigned (panel_children_rebuild memory).
             children = chipChildren,
         }
+    end
+
+    -- Chevron only appears when there are chips to expand/collapse.
+    -- Follows the established {triangle} convention from
+    -- DefaultStyles.lua:1340 / CharacterSheetSpells.lua:1380:
+    --   collapsed -> closed (rotate=90, points right)
+    --   expanded  -> open   (rotate=0, points down)
+    -- Rotation is driven by a class flip ("ds-diag-chev-expanded")
+    -- with rules defined inline. Class-based switching is more
+    -- reliable than runtime mutation of selfStyle.rotate, which
+    -- in earlier testing produced inconsistent visual rotation
+    -- after a collapse-expand-collapse cycle.
+    local chevronPanel
+    if hasExpandableChips then
+        chevronPanel = gui.Panel{
+            classes = collapsed and {"triangle"} or {"triangle", "ds-diag-chev-expanded"},
+            halign = "left",
+            styles = {
+                { selectors = {"triangle"}, rotate = 90 },
+                { selectors = {"triangle", "ds-diag-chev-expanded"}, rotate = 0 },
+            },
+        }
+    end
+
+    -- Rollup row: (chevron when expandable) + indicator dot + label.
+    -- Chevron leads per the established disclosure layout.
+    -- Click handler on the row acts as the expand/collapse toggle.
+    local rollupChildren = {}
+    if chevronPanel ~= nil then
+        rollupChildren[#rollupChildren+1] = chevronPanel
+    end
+    rollupChildren[#rollupChildren+1] = gui.Panel{
+        classes = {indicatorClass},
+        width = 8,
+        height = 8,
+        cornerRadius = 4,
+        valign = "center",
+        halign = "left",
+        bgimage = true,
+    }
+    rollupChildren[#rollupChildren+1] = gui.Label{
+        width = "auto",
+        height = "auto",
+        lmargin = 10,
+        valign = "center",
+        halign = "left",
+        color = totalFindings == 0 and "@success" or "@fg",
+        fontSize = 13,
+        bold = totalFindings > 0,
+        text = rollupText,
+    }
+
+    local rollupRow
+    rollupRow = gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "horizontal",
+        valign = "center",
+        halign = "left",
+        hpad = 12,
+        vpad = 8,
+        borderBox = true,
+        click = hasExpandableChips and function(element)
+            collapsed = not collapsed
+            if chipListPanel ~= nil then
+                chipListPanel:SetClass("collapsed", collapsed)
+            end
+            if chevronPanel ~= nil then
+                chevronPanel:SetClass("ds-diag-chev-expanded", not collapsed)
+            end
+            if options.onToggle then
+                options.onToggle(collapsed)
+            end
+        end or nil,
+        children = rollupChildren,
+    }
+
+    local stripChildren = { rollupRow }
+    if chipListPanel ~= nil then
+        stripChildren[#stripChildren+1] = chipListPanel
     end
 
     return gui.Panel{
@@ -4826,6 +4921,13 @@ local function _diagnosticBuildStrip(ability)
 end
 
 local function _makePreview(ability)
+    -- Diagnostics strip collapse state lives here so a tier edit
+    -- doesn't reset whatever the author clicked. When implementation
+    -- status changes (e.g. Unimplemented -> Bronze) we reset to the
+    -- new status's default per the locked decision.
+    local diagnosticsCollapsed = nil
+    local diagnosticsLastStatus = nil
+
     local previewSlot
     previewSlot = gui.Panel{
         id = "previewSlot",
@@ -4871,8 +4973,20 @@ local function _makePreview(ability)
                 -- card (sibling, not embedded) so it's clear it isn't
                 -- part of what the player sees. nil when the ability
                 -- has no power-roll behaviour, in which case we just
-                -- render the card alone.
-                local diagnosticsPanel = _diagnosticBuildStrip(ability)
+                -- render the card alone. Status changes reset the
+                -- collapse state to the new status's default per the
+                -- locked Chunk 4 decision.
+                local currentStatus = ability:try_get("implementation", 1)
+                if diagnosticsLastStatus ~= currentStatus then
+                    diagnosticsCollapsed = nil
+                    diagnosticsLastStatus = currentStatus
+                end
+                local diagnosticsPanel = _diagnosticBuildStrip(ability, {
+                    collapsed = diagnosticsCollapsed,
+                    onToggle = function(newCollapsed)
+                        diagnosticsCollapsed = newCollapsed
+                    end,
+                })
                 local children = {
                     gui.Panel{
                         width = "100%",

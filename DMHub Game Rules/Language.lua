@@ -61,13 +61,13 @@ local SetLanguage = function(tableName, languagePanel, langid)
 	if devmode() then
         --the id of the language.
         children[#children+1] = gui.Panel{
-            classes = {'formPanel'},
+            classes = {"formStackedRow"},
             gui.Label{
-                text = 'ID:',
-                valign = 'center',
-                minWidth = 240,
+                classes = {"formStacked"},
+                text = "ID:",
             },
             gui.Input{
+                classes = {"formStacked"},
                 text = language.id,
                 editable = false,
             },
@@ -76,13 +76,13 @@ local SetLanguage = function(tableName, languagePanel, langid)
 
 	--the name of the language.
 	children[#children+1] = gui.Panel{
-		classes = {'formPanel'},
+		classes = {"formStackedRow"},
 		gui.Label{
-			text = 'Name:',
-			valign = 'center',
-			minWidth = 240,
+			classes = {"formStacked"},
+			text = "Name:",
 		},
 		gui.Input{
+			classes = {"formStacked"},
 			text = language.name,
 			change = function(element)
 				language.name = element.text
@@ -93,13 +93,13 @@ local SetLanguage = function(tableName, languagePanel, langid)
 
 	--the group of the language
 	children[#children+1] = gui.Panel{
-		classes = {'formPanel'},
+		classes = {"formStackedRow"},
 		gui.Label{
-			text = 'Group:',
-			valign = 'center',
-			minWidth = 240,
+			classes = {"formStacked"},
+			text = "Group:",
 		},
 		gui.Input{
+			classes = {"formStacked"},
 			text = language.group,
 			change = function(element)
 				language.group = element.text
@@ -110,13 +110,13 @@ local SetLanguage = function(tableName, languagePanel, langid)
 
 		--language speakers
 	children[#children+1] = gui.Panel{
-		classes = {'formPanel'},
+		classes = {"formStackedRow"},
 		gui.Label{
-			text = 'Native Speakers:',
-			valign = 'center',
-			minWidth = 240,
+			classes = {"formStacked"},
+			text = "Native Speakers:",
 		},
 		gui.Input{
+			classes = {"formStacked"},
 			text = language.speakers,
 			change = function(element)
 				language.speakers = element.text
@@ -127,20 +127,17 @@ local SetLanguage = function(tableName, languagePanel, langid)
 
 	--language description..
 	children[#children+1] = gui.Panel{
-		classes = {'formPanel'},
-		height = 'auto',
+		classes = {"formStackedRow"},
 		gui.Label{
+			classes = {"formStacked"},
 			text = "Description:",
-			valign = "center",
-			minWidth = 240,
 		},
 		gui.Input{
+			classes = {"formStacked"},
+			height = 80,
 			text = language.description,
 			multiline = true,
-			minHeight = 50,
-			height = 'auto',
-			width = 400,
-			textAlignment = "topleft",
+			textAlignment = "topLeft",
 			change = function(element)
 				language.description = element.text
 				UploadLanguage()
@@ -166,13 +163,13 @@ local SetLanguage = function(tableName, languagePanel, langid)
     }
 
     children[#children+1] = gui.Panel{
-        classes = {"formPanel"},
+        classes = {"formStackedRow"},
         gui.Label{
-            classes = {"formLabel"},
+            classes = {"formStacked"},
             text = "Commonality:",
         },
         gui.Input{
-            classes = {"formInput"},
+            classes = {"formStacked"},
             text = language.commonality,
             change = function(element)
                 language.commonality = tonumber(element.text)
@@ -196,43 +193,12 @@ function Language.CreateEditor()
 			end,
 		},
 		vscroll = true,
-		classes = 'class-panel',
-		styles = {
-			{
-				halign = "left",
-			},
-			{
-				classes = {'class-panel'},
-				width = 1200,
-				height = '90%',
-				halign = 'left',
-				flow = 'vertical',
-				pad = 20,
-			},
-			{
-				classes = {'label'},
-				color = 'white',
-				fontSize = 22,
-				width = 'auto',
-				height = 'auto',
-			},
-			{
-				classes = {'input'},
-				width = 200,
-				height = 26,
-				fontSize = 18,
-				color = 'white',
-			},
-			{
-				classes = {'formPanel'},
-				flow = 'horizontal',
-				width = 'auto',
-				height = 'auto',
-				halign = 'left',
-				vmargin = 2,
-			},
-
-		},
+		width = 1200,
+		height = "90%",
+		halign = "left",
+		flow = "vertical",
+		pad = 20,
+		borderBox = true,
 	}
 
 	return languageEditor

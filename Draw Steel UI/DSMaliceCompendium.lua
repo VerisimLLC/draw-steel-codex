@@ -92,7 +92,7 @@ CreateEditorPanel = function(key, monsterGroup)
         width = 800,
         height = "90%",
         vscroll = true,
-
+        hmargin = 12,
 
         destroy = function()
             if m_dirty then
@@ -149,10 +149,12 @@ CreateEditorPanel = function(key, monsterGroup)
                 local children = {}
                 for i,ability in ipairs(monsterGroup.maliceAbilities) do
                     children[#children+1] = gui.Panel{
+                        classes = {"row", cond(i % 2 == 0, "evenRow", "oddRow")},
                         flow = "vertical",
                         width = 600,
                         height = "auto",
-                        vpad = 5,
+                        borderBox = true,
+                        pad = 12,
                         
                         gui.Panel{
                             width = "100%",
@@ -160,7 +162,7 @@ CreateEditorPanel = function(key, monsterGroup)
                             flow = "horizontal",
 
                             gui.Label{
-                                classes = {"sizeM", "bold"},
+                                classes = {"sizeS", "bold"},
                                 width = 200,
                                 height = 20,
                                 text = ability.name,
@@ -179,6 +181,7 @@ CreateEditorPanel = function(key, monsterGroup)
                             gui.Dropdown{
                                 width = 60,
                                 height = 22,
+                                lmargin = 4,
                                 valign = "center",
                                 idChosen = tostring(ability:try_get("minLevel", 1)),
                                 options = (function()
@@ -195,10 +198,8 @@ CreateEditorPanel = function(key, monsterGroup)
                             },
 
                             gui.Button{
-                                classes = {"settingsButton"},
+                                classes = {"settingsButton", "sizeXs"},
                                 halign = "right",
-                                width = 15,
-                                height = 15,
                                 x = -15,
                                 press = function(element)
                                     m_dirty = true
@@ -213,11 +214,9 @@ CreateEditorPanel = function(key, monsterGroup)
                             },
 
                             gui.Button{
-                                classes = {"deleteButton"},
+                                classes = {"deleteButton", "sizeXs"},
                                 halign = "right",
                                 hpad = 5,
-                                width = 15,
-                                height = 15,
                                 press = function(element)
                                     table.remove(monsterGroup.maliceAbilities, i)
                                     dmhub.SetAndUploadTableItem(MonsterGroup.tableName, monsterGroup)
@@ -228,7 +227,7 @@ CreateEditorPanel = function(key, monsterGroup)
                         },
 
                         gui.DocumentDisplay{
-                            width = 600,
+                            width = "100%",
                             height = "auto",
                             fontSize = 16,
                             text = ability.description,

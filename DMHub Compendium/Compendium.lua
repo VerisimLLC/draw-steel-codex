@@ -1262,24 +1262,13 @@ end
 local ShowResourcesPanel = function(parentPanel)
 
 	local resourcePanel = gui.Panel{
-		classes = 'resource-panel',
+		width = 1200,
 		height = "90%",
+		halign = "left",
+		flow = "vertical",
+		pad = 20,
+		borderBox = true,
 		vscroll = true,
-
-		styles = {
-			{
-				classes = {'resource-panel'},
-				width = 1200,
-				height = '100%',
-				halign = 'left',
-				flow = 'vertical',
-				pad = 20,
-			},
-			LibraryStyles,
-
-
-		},
-
 	}
 
 	local SetResource = function(resourceid)
@@ -1295,13 +1284,13 @@ local ShowResourcesPanel = function(parentPanel)
 		if devmode() then
 		
 			children[#children+1] = gui.Panel{
-				classes = {'formPanel'},
+				classes = {"formStackedRow"},
 				gui.Label{
-					text = 'Guid:',
-					valign = 'center',
-					minWidth = 100,
+					classes = {"formStacked"},
+					text = "Guid:",
 				},
 				gui.Input{
+					classes = {"formStacked"},
 					text = resource.id,
 				},
 			}
@@ -1309,13 +1298,13 @@ local ShowResourcesPanel = function(parentPanel)
 
 		--the name of the resource.
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {"formStackedRow"},
 			gui.Label{
-				text = 'Name:',
-				valign = 'center',
-				minWidth = 100,
+				classes = {"formStacked"},
+				text = "Name:",
 			},
 			gui.Input{
+				classes = {"formStacked"},
 				text = resource.name,
 				change = function(element)
 					resource.name = element.text
@@ -1326,37 +1315,34 @@ local ShowResourcesPanel = function(parentPanel)
 
 		--the grouping of the resource.
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {"formStackedRow"},
 			gui.Label{
-				text = 'Grouping:',
-				valign = 'center',
-				minWidth = 100,
+				classes = {"formStacked"},
+				text = "Grouping:",
 			},
-            gui.Dropdown{
-                options = CharacterResource.groupingOptions,
-                idChosen = resource.grouping,
-				width = 200,
-				height = 40,
-				fontSize = 20,
+			gui.Dropdown{
+				classes = {"formStacked"},
+				options = CharacterResource.groupingOptions,
+				idChosen = resource.grouping,
 				change = function(element)
-                    resource.grouping = element.idChosen
+					resource.grouping = element.idChosen
 					UploadResource()
-                end,
-
-            },
+				end,
+			},
 		}
 
 		--whether the resource displays quantity.
-		children[#children+1] = gui.Check{
-			text = "Use in Quantity",
-			halign = "left",
-			fontSize = 22,
-			value = resource.useQuantity,
-			linger = gui.Tooltip("When a spell or ability uses this resource you will specify how many to use."),
-			change = function(element)
-				resource.useQuantity = element.value
-				UploadResource()
-			end,
+		children[#children+1] = gui.Panel{
+			classes = {"formStackedRow"},
+			gui.Check{
+				text = "Use in Quantity",
+				value = resource.useQuantity,
+				linger = gui.Tooltip("When a spell or ability uses this resource you will specify how many to use."),
+				change = function(element)
+					resource.useQuantity = element.value
+					UploadResource()
+				end,
+			},
 		}
 
 		local quantityLabelPreview = gui.Label{
@@ -1377,38 +1363,34 @@ local ShowResourcesPanel = function(parentPanel)
 		local textColorPanel
 
 		--whether the resource comes in large quantities and should be shown using numbers.
-		children[#children+1] = gui.Check{
-			text = "Large Quantities",
-			halign = "left",
-			fontSize = 22,
-			value = resource.largeQuantity,
-			linger = gui.Tooltip("This resource can come in large quantities and will display as a number instead of individual icons."),
-			change = function(element)
-				resource.largeQuantity = element.value
-				UploadResource()
-				quantityLabelPreview:FireEvent("create")
-				textColorPanel:FireEvent("create")
-			end,
+		children[#children+1] = gui.Panel{
+			classes = {"formStackedRow"},
+			gui.Check{
+				text = "Large Quantities",
+				value = resource.largeQuantity,
+				linger = gui.Tooltip("This resource can come in large quantities and will display as a number instead of individual icons."),
+				change = function(element)
+					resource.largeQuantity = element.value
+					UploadResource()
+					quantityLabelPreview:FireEvent("create")
+					textColorPanel:FireEvent("create")
+				end,
+			},
 		}
 
 		textColorPanel = gui.Panel{
-			classes = {'formPanel', cond(resource.largeQuantity, nil, "collapsed-anim")},
+			classes = {"formStackedRow", cond(resource.largeQuantity, nil, "collapseAnim")},
 			create = function(element)
-				element:SetClass("collapsed-anim", not resource.largeQuantity)
+				element:SetClass("collapseAnim", not resource.largeQuantity)
 			end,
 			gui.Label{
-				text = 'Text Color:',
-				valign = "center",
-				minWidth = 200,
-				width = 'auto',
-				height = 'auto',
+				classes = {"formStacked"},
+				text = "Text Color:",
 			},
 			gui.Dropdown{
+				classes = {"formStacked"},
 				options = { { id = "light", text = "Light" }, { id = "dark", text = "Dark" }},
 				idChosen = resource.textColor,
-				width = 200,
-				height = 40,
-				fontSize = 20,
 				change = function(element)
 					resource.textColor = element.idChosen
 					UploadResource()
@@ -1420,16 +1402,17 @@ local ShowResourcesPanel = function(parentPanel)
 		children[#children+1] = textColorPanel
 
 		--whether the resource is a reaction action, allowing an ability using it to be used as a reaction.
-		children[#children+1] = gui.Check{
-			text = "Is Reaction",
-			halign = "left",
-			fontSize = 22,
-			value = resource.isreaction,
-			linger = gui.Tooltip("Abilities that use this resource as their action can have trigger conditions causing them to trigger."),
-			change = function(element)
-				resource.isreaction = element.value
-				UploadResource()
-			end,
+		children[#children+1] = gui.Panel{
+			classes = {"formStackedRow"},
+			gui.Check{
+				text = "Is Reaction",
+				value = resource.isreaction,
+				linger = gui.Tooltip("Abilities that use this resource as their action can have trigger conditions causing them to trigger."),
+				change = function(element)
+					resource.isreaction = element.value
+					UploadResource()
+				end,
+			},
 		}
 
 		local largeIconEditor = gui.IconEditor{
@@ -1448,18 +1431,19 @@ local ShowResourcesPanel = function(parentPanel)
 		largeIconEditor:SetClass("collapsed", not resource.hasLargeDisplay)
 
 		--whether the resource is a reaction action, allowing an ability using it to be used as a reaction.
-		children[#children+1] = gui.Check{
-			text = "Has Large Display",
-			halign = "left",
-			fontSize = 22,
-			value = resource.hasLargeDisplay,
-			linger = gui.Tooltip("If checked, this resource will have a large version of the icon to display when a large dialog displays the resource."),
-			change = function(element)
-				resource.hasLargeDisplay = element.value
-				UploadResource()
+		children[#children+1] = gui.Panel{
+			classes = {"formStackedRow"},
+			gui.Check{
+				text = "Has Large Display",
+				value = resource.hasLargeDisplay,
+				linger = gui.Tooltip("If checked, this resource will have a large version of the icon to display when a large dialog displays the resource."),
+				change = function(element)
+					resource.hasLargeDisplay = element.value
+					UploadResource()
 
-				largeIconEditor:SetClass("collapsed", not resource.hasLargeDisplay)
-			end,
+					largeIconEditor:SetClass("collapsed", not resource.hasLargeDisplay)
+				end,
+			},
 		}
 
 		local currentDisplayMode = 'normal'
@@ -1467,7 +1451,8 @@ local ShowResourcesPanel = function(parentPanel)
 		--the resource's icon.
 		local iconEditor = gui.IconEditor{
 			library = 'resources',
-			margin = 80,
+			vmargin = 12,
+			hmargin = 80,
 			width = 128,
 			height = 128,
 			halign = "left",
@@ -1505,13 +1490,10 @@ local ShowResourcesPanel = function(parentPanel)
 
 		--color is the same for all display modes.
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {"formStackedRow"},
 			gui.Label{
-				text = 'Color:',
-				valign = "center",
-				minWidth = 200,
-				width = 'auto',
-				height = 'auto',
+				classes = {"formStacked"},
+				text = "Color:",
 			},
 			gui.ColorPicker{
 				width = 32,
@@ -1533,20 +1515,15 @@ local ShowResourcesPanel = function(parentPanel)
 		}
 
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {"formStackedRow"},
 			gui.Label{
-				text = 'Blend:',
-				valign = "center",
-				minWidth = 200,
-				width = 'auto',
-				height = 'auto',
+				classes = {"formStacked"},
+				text = "Blend:",
 			},
 			gui.Dropdown{
+				classes = {"formStacked"},
 				options = { { id = "normal", text = "Normal" }, { id = "add", text = "Add" }},
 				idChosen = resource.display.normal.blend or 'normal',
-				width = 200,
-				height = 40,
-				fontSize = 20,
 				change = function(element)
 					for k,displayMode in pairs(resource.display) do
 						displayMode.blend = cond(element.idChosen == 'add', 'add', nil)
@@ -1597,20 +1574,15 @@ local ShowResourcesPanel = function(parentPanel)
 
 		--the display mode we are editing.
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {"formStackedRow"},
 			gui.Label{
-				text = 'Display Type:',
-				valign = "center",
-				minWidth = 200,
-				width = 'auto',
-				height = 'auto',
+				classes = {"formStacked"},
+				text = "Display Type:",
 			},
 			gui.Dropdown{
+				classes = {"formStacked"},
 				options = CharacterResource.displayModeOptions,
 				idChosen = currentDisplayMode,
-				width = 200,
-				height = 40,
-				fontSize = 20,
 				change = function(element)
 					currentDisplayMode = element.idChosen
 					sliders[1].data.setValueNoEvent(resource.display[currentDisplayMode]['hueshift'])
@@ -1622,72 +1594,59 @@ local ShowResourcesPanel = function(parentPanel)
 		}
 
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {"formStackedRow"},
 			gui.Label{
-				text = 'Hue:',
-				valign = "center",
-				minWidth = 200,
-				width = 'auto',
-				height = 'auto',
+				classes = {"formStacked"},
+				text = "Hue:",
 			},
 			sliders[1],
 		}
 
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {"formStackedRow"},
 			gui.Label{
-				text = 'Saturation:',
-				valign = "center",
-				minWidth = 200,
-				width = 'auto',
-				height = 'auto',
+				classes = {"formStacked"},
+				text = "Saturation:",
 			},
 			sliders[2],
 		}
 
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {"formStackedRow"},
 			gui.Label{
-				text = 'Brightness:',
-				valign = "center",
-				minWidth = 200,
-				width = 'auto',
-				height = 'auto',
+				classes = {"formStacked"},
+				text = "Brightness:",
 			},
 			sliders[3],
 		}
 
 		--can the resource go negative
-		children[#children+1] = gui.Check{
-			text = "May Be Negative",
-			halign = "left",
-			fontSize = 22,
-			value = resource.mayBeNegative,
-			linger = gui.Tooltip("If checked, this resource may become negative"),
-			change = function(element)
-				resource.mayBeNegative = element.value
-				UploadResource()
-			end,
+		children[#children+1] = gui.Panel{
+			classes = {"formStackedRow"},
+			gui.Check{
+				text = "May Be Negative",
+				value = resource.mayBeNegative,
+				linger = gui.Tooltip("If checked, this resource may become negative"),
+				change = function(element)
+					resource.mayBeNegative = element.value
+					UploadResource()
+				end,
+			},
 		}
 
 
 
 		--the resource's refresh frequency.
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {"formStackedRow"},
 			gui.Label{
-				text = 'Refresh:',
-				valign = "center",
-				minWidth = 200,
-				width = 'auto',
-				height = 'auto',
+				classes = {"formStacked"},
+				text = "Refresh:",
 			},
 			gui.Dropdown{
+				classes = {"formStacked"},
 				options = CharacterResource.usageLimitOptions,
 				idChosen = resource.usageLimit,
-				width = 200,
-				height = 40,
-				fontSize = 20,
 				change = function(element)
 					resource.usageLimit = element.idChosen
 					UploadResource()
@@ -1698,13 +1657,16 @@ local ShowResourcesPanel = function(parentPanel)
 		}
 
         if resource.usageLimit == "unbounded" or resource.usageLimit == "global" then
-            children[#children+1] = gui.Check{
-                text = "Clear Outside of Combat",
-                value = resource.clearOutsideOfCombat,
-                change = function(element)
-                    resource.clearOutsideOfCombat = element.value
-                    UploadResource()
-                end,
+            children[#children+1] = gui.Panel{
+                classes = {"formStackedRow"},
+                gui.Check{
+                    text = "Clear Outside of Combat",
+                    value = resource.clearOutsideOfCombat,
+                    change = function(element)
+                        resource.clearOutsideOfCombat = element.value
+                        UploadResource()
+                    end,
+                },
             }
         end
 
@@ -1775,20 +1737,15 @@ local ShowResourcesPanel = function(parentPanel)
 		})
 
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {"formStackedRow"},
 			gui.Label{
-				text = 'Improves Upon:',
-				valign = "center",
-				minWidth = 200,
-				width = 'auto',
-				height = 'auto',
+				classes = {"formStacked"},
+				text = "Improves Upon:",
 			},
 			gui.Dropdown{
+				classes = {"formStacked"},
 				options = resourceChoices,
 				idChosen = resource.levelsFrom,
-				width = 200,
-				height = 40,
-				fontSize = 20,
 				change = function(element)
 					resource.levelsFrom = element.idChosen
 					UploadResource()

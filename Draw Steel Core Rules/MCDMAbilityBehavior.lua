@@ -373,7 +373,8 @@ local g_rulePatterns = {
     {
         pattern = {"^(?<damage>[0-9 d+-]+)\\s*(?<type>[a-z]+)?\\s?damage(?<mods>(\\s*\\((?:half|no damage)\\))*)",
             "^(?<damage>[0-9]+)\\s+(?<type>[a-z]+)\\s+damage(?<mods>(\\s*\\((?:half|no damage)\\))*)",
-            "^(?<damage>[0-9]+)\\s*\\+\\s*(?<bonus>[a-z, ]+ or [a-z]+ )(?<type>[a-z]+)\\s*damage(?<mods>(\\s*\\((?:half|no damage)\\))*)",
+            "^(?<damage>[0-9]+)\\s*\\+\\s*(?<bonus>[MARIPmarip, ]+ or [MARIPmarip]+)(\\s+(?<type>[a-z]+))?\\s*damage(?<mods>(\\s*\\((?:half|no damage)\\))*)",
+            "^(?<damage>[0-9]+)\\s*\\+\\s*(?<bonus>[MARIPmarip])(?![a-z])(\\s+(?<type>[a-z]+))?\\s*damage(?<mods>(\\s*\\((?:half|no damage)\\))*)",
         },
         execute = ExecuteDamage,
         isdamage = true,
@@ -1641,7 +1642,13 @@ function ActivatedAbilityDrawSteelCommandBehavior.ValidateRule(rule)
 
         local result = string.sub(rule, #bestMatchInfo.all + 1)
         --print("Rule:: validate matched pattern: (" .. bestMatchInfo.all .. "); rule = (" .. rule .. "); result = (" .. result .. ")")
-        return AddGate(result)
+        --Mirror runtime ExecuteCommandInternal: optionally strip a leading separator and revalidate
+        --the tail so subsequent clauses don't show grey when they actually fire at runtime.
+        local matchBody = regex.MatchGroups(result, "^ *[;,] *(?<body>.+)$")
+        if matchBody ~= nil then
+            result = matchBody.body
+        end
+        return AddGate(ActivatedAbilityDrawSteelCommandBehavior.ValidateRule(result))
     end
 
     --built in rule matches. Matched after we check compendium-defined patterns.

@@ -1,23 +1,5 @@
 local mod = dmhub.GetModLoading()
 
-local AddButton = function(options)
-    local args = {
-        style = {
-            width = 32,
-            height = 32,
-            halign = 'right',
-            valign = 'top',
-        },
-    }
-
-    for k,v in pairs(options) do
-        args[k] = v
-    end
-
-    return gui.AddButton(args)
-end
-
-
 local SetDeity = function(tableName, deityPanel, deityId)
     local deityTable = dmhub.GetTable(tableName) or {}
     local deity = deityTable[deityId]
@@ -35,13 +17,13 @@ local SetDeity = function(tableName, deityPanel, deityId)
 
     -- Name Input
     children[#children+1] = gui.Panel{
-        classes = {'formPanel'},
+        classes = {"formStackedRow"},
         gui.Label{
-            text = 'Name:',
-            valign = 'center',
-            minWidth = 240,
+            classes = {"formStacked"},
+            text = "Name:",
         },
         gui.Input{
+            classes = {"formStacked"},
             text = deity.name or "",
             change = function(element)
                 deity.name = element.text
@@ -52,13 +34,13 @@ local SetDeity = function(tableName, deityPanel, deityId)
 
     -- Group Input
     children[#children+1] = gui.Panel{
-        classes = {'formPanel'},
+        classes = {"formStackedRow"},
         gui.Label{
-            text = 'Group:',
-            valign = 'center',
-            minWidth = 240,
+            classes = {"formStacked"},
+            text = "Group:",
         },
         gui.Input{
+            classes = {"formStacked"},
             text = deity.group or "",
             change = function(element)
                 deity.group = element.text
@@ -69,22 +51,17 @@ local SetDeity = function(tableName, deityPanel, deityId)
 
     -- Description Input
     children[#children+1] = gui.Panel{
-        classes = {'formPanel'},
-        height = 'auto',
+        classes = {"formStackedRow"},
         gui.Label{
+            classes = {"formStacked"},
             text = "Description:",
-            valign = "center",
-            minWidth = 240,
         },
         gui.Input{
+            classes = {"formStacked"},
             text = deity.description or "",
             multiline = true,
-            minHeight = 50,
-            maxHeight = 400,
-            vscroll = true,
-            height = 'auto',
-            width = 400,
-            textAlignment = "topleft",
+            height = 60,
+            textAlignment = "topLeft",
             characterLimit = 4096,
             change = function(element)
                 deity.description = element.text
@@ -94,92 +71,31 @@ local SetDeity = function(tableName, deityPanel, deityId)
     }
 
     children[#children+1] = gui.Panel{
-        classes = {"formPanel"},
+        classes = {"formStackedRow"},
         gui.Label{
-            classes = {"formLabel"},
+            classes = {"formStacked"},
             text = "Domains:",
-            minWidth = 240,
         },
-    }
-
-    
-    children[#children+1] = gui.Panel{
-        id = "domainDropdown",
-        classes = {"formPanel"},
-        gui.Dropdown{
-            width = 300,
-            height = 32,
-            valign = "center",
-            fontSize = 18,
-            idChosen = "none",
-            options = DeityDomain.GetDropdownListWithAdd(deity:GetDomains()),
-            valign = "bottom",
-            change = function(element)
-                if element.idChosen ~= "none" then
-                    deity:AddDomain(element.idChosen)
-                    dmhub.SetAndUploadTableItem(tableName, deity)
+        gui.Multiselect{
+            classes = {"formStacked"},
+            addItemText = "Add Domain...",
+            value = (function()
+                local v = {}
+                for _,id in ipairs(deity:GetDomains()) do
+                    v[id] = true
                 end
-                element:FireEvent("refreshList")
-            end,
-
-            refreshList = function(element)
-                element.options = DeityDomain.GetDropdownListWithAdd(deity:GetDomains())
-                element.idChosen = "none"
-            end,
-        }
-    }
-
-    -- Domains List
-    children[#children+1] = gui.Panel{
-        width = "auto",
-        height = "auto", 
-        flow = "vertical",
-        monitorAssets = true,
-        create = function(element)
-            element:FireEvent("refreshAssets")
-        end,
-        refreshAssets = function(element)
-            -- Always get fresh deity data
-            local currentDeity = dmhub.GetTable(tableName)[deityId]
-            if not currentDeity then return end
-            
-            local domainTable = dmhub.GetTable(DeityDomain.tableName) or {}
-            local domainChildren = {}
-            for i, id in ipairs(currentDeity:GetDomains()) do
-                local domain = domainTable[id]
-                --Will remove in future
-                if domain == nil then
-                    if id.typeName == "DeityDomain" then
-                        currentDeity.domainList = {}
-                        break
-                    end
-                    goto continue_domain
+                return v
+            end)(),
+            options = DeityDomain.GetDropdownList(),
+            change = function(element, val)
+                local newDomains = {}
+                for id,_ in pairs(val) do
+                    newDomains[#newDomains+1] = id
                 end
-                --
-
-                domainChildren[#domainChildren+1] = gui.Panel{
-                    classes = {"formPanel"},
-                    gui.Label{
-                        text = domain.name,
-                        valign = "center",
-                        width = 180,
-                        fontSize = 16,
-                    },
-                    gui.CloseButton{
-                        uiscale = 0.7,
-                        valign = "center",
-                        click = function()
-                            Deity.DeleteDomainById(currentDeity, id)
-                            dmhub.SetAndUploadTableItem(tableName, currentDeity)
-                            element:Get('domainDropdown').children[1]:FireEvent("refreshList")
-                        end
-                    }
-                }
-                ::continue_domain::
-            end
-
-            element.children = domainChildren
-        end,
+                deity.domainList = newDomains
+                UploadDeity()
+            end,
+        },
     }
 
     deityPanel.children = children
@@ -194,42 +110,12 @@ local CreateDeityEditor = function()
             end,
         },
         vscroll = true,
-        classes = 'class-panel',
-        styles = {
-            {
-                halign = "left",
-            },
-            {
-                classes = {'class-panel'},
-                width = 1200,
-                height = '90%',
-                halign = 'left',
-                flow = 'vertical',
-                pad = 20,
-            },
-            {
-                classes = {'label'},
-                color = 'white',
-                fontSize = 22,
-                width = 'auto',
-                height = 'auto',
-            },
-            {
-                classes = {'input'},
-                width = 200,
-                height = 26,
-                fontSize = 18,
-                color = 'white',
-            },
-            {
-                classes = {'formPanel'},
-                flow = 'horizontal',
-                width = 'auto',
-                height = 'auto',
-                halign = 'left',
-                vmargin = 2,
-            },
-        },
+        width = 1200,
+        height = "90%",
+        halign = "left",
+        flow = "vertical",
+        pad = 20,
+        borderBox = true,
     }
 
     return deityEditor
@@ -317,13 +203,13 @@ local SetDomain = function(tableName, domainPanel, domainId)
 
     -- Name Input
     children[#children+1] = gui.Panel{
-        classes = {'formPanel'},
+        classes = {"formStackedRow"},
         gui.Label{
-            text = 'Name:',
-            valign = 'center',
-            minWidth = 240,
+            classes = {"formStacked"},
+            text = "Name:",
         },
         gui.Input{
+            classes = {"formStacked"},
             text = domain.name or "",
             change = function(element)
                 domain.name = element.text
@@ -344,52 +230,12 @@ local CreateDomainEditor = function()
             end,
         },
         vscroll = true,
-        classes = 'class-panel',
-        styles = {
-            {
-                halign = "left",
-            },
-            {
-                classes = {'class-panel'},
-            },
-        },
-        vscroll = true,
-        classes = 'class-panel',
-        styles = {
-            {
-                halign = "left",
-            },
-            {
-                classes = {'class-panel'},
-                width = 1200,
-                height = '90%',
-                halign = 'left',
-                flow = 'vertical',
-                pad = 20,
-            },
-            {
-                classes = {'label'},
-                color = 'white',
-                fontSize = 22,
-                width = 'auto',
-                height = 'auto',
-            },
-            {
-                classes = {'input'},
-                width = 200,
-                height = 26,
-                fontSize = 18,
-                color = 'white',
-            },
-            {
-                classes = {'formPanel'},
-                flow = 'horizontal',
-                width = 'auto',
-                height = 'auto',
-                halign = 'left',
-                vmargin = 2,
-            },
-        },
+        width = 1200,
+        height = "90%",
+        halign = "left",
+        flow = "vertical",
+        pad = 20,
+        borderBox = true,
     }
 
     return domainEditor

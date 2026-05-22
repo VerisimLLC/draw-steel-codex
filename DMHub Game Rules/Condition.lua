@@ -508,11 +508,11 @@ local SetData = function(tableName, conditionPanel, condid)
 			classes = {"formStacked"},
 			addItemText = "Add Underlying Condition...",
 			value = (function()
-				local value = {}
+				local v = {}
 				for id,_ in pairs(condition:GetUnderlyingConditions()) do
-					value[#value+1] = id
+					v[id] = true
 				end
-				return value
+				return v
 			end)(),
 			options = (function()
 				local options = {}
@@ -526,11 +526,7 @@ local SetData = function(tableName, conditionPanel, condid)
 				return options
 			end)(),
 			change = function(element, val)
-				local newSet = {}
-				for _,id in ipairs(val) do
-					newSet[id] = true
-				end
-				condition.underlying = newSet
+				condition.underlying = val
 				UploadCondition()
 			end,
 		},

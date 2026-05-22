@@ -16,7 +16,7 @@ function DamageType.CreateNew()
 	return DamageType.new{
 		iconid = "ui-icons/skills/1.png",
 		display = {
-			bgcolor = '#ffffffff',
+			bgcolor = "white",
 			hueshift = 0,
 			saturation = 1,
 			brightness = 1,
@@ -103,13 +103,13 @@ local SetDamageType = function(tableName, damageTypePanel, damageid)
 
 	--the name of the damageType.
 	children[#children+1] = gui.Panel{
-		classes = {'formPanel'},
+		classes = {"formStackedRow"},
 		gui.Label{
-			text = 'Name:',
-			valign = 'center',
-			minWidth = 240,
+			classes = {"formStacked"},
+			text = "Name:",
 		},
 		gui.Input{
+			classes = {"formStacked"},
 			text = damageType.name,
 			change = function(element)
 				damageType.name = element.text
@@ -121,7 +121,7 @@ local SetDamageType = function(tableName, damageTypePanel, damageid)
 	--the damageType's icon.
 	local iconEditor = gui.IconEditor{
 		library = "ongoingEffects",
-		bgcolor = damageType.display['bgcolor'] or '#ffffffff',
+		bgcolor = damageType.display['bgcolor'] or "white",
 		margin = 20,
 		width = 64,
 		height = 64,
@@ -139,13 +139,11 @@ local SetDamageType = function(tableName, damageTypePanel, damageid)
 	}
 
 	local iconColorPicker = gui.ColorPicker{
-		value = damageType.display['bgcolor'] or '#ffffffff',
+		value = damageType.display['bgcolor'] or "white",
 		hmargin = 8,
 		width = 24,
 		height = 24,
 		valign = 'center',
-		borderWidth = 2,
-		borderColor = '#999999ff',
 
 		confirm = function(element)
 			iconEditor.selfStyle.bgcolor = element.value
@@ -169,13 +167,16 @@ local SetDamageType = function(tableName, damageTypePanel, damageid)
 
 	children[#children+1] = iconPanel
 
-	children[#children+1] = gui.Check{
-		text = "Is Category",
-		value = damageType.iscategory,
-		change = function(element)
-			damageType.iscategory = element.value
-			UploadDamageType()
-		end,
+	children[#children+1] = gui.Panel{
+		classes = {"formStackedRow"},
+		gui.Check{
+			text = "Is Category",
+			value = damageType.iscategory,
+			change = function(element)
+				damageType.iscategory = element.value
+				UploadDamageType()
+			end,
+		},
 	}
 
 	local categories = {
@@ -196,13 +197,13 @@ local SetDamageType = function(tableName, damageTypePanel, damageid)
 
 	if #categories > 1 then
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {"formStackedRow"},
 			gui.Label{
-				text = 'Category:',
-				valign = 'center',
-				minWidth = 240,
+				classes = {"formStacked"},
+				text = "Category:",
 			},
 			gui.Dropdown{
+				classes = {"formStacked"},
 				idChosen = damageType.category,
 				options = categories,
 				change = function(element)
@@ -236,43 +237,12 @@ function DamageType.CreateEditor()
 			end
 		end,
 		vscroll = true,
-		classes = 'class-panel',
-		styles = {
-			{
-				halign = "left",
-			},
-			{
-				classes = {'class-panel'},
-				width = 1200,
-				height = '90%',
-				halign = 'left',
-				flow = 'vertical',
-				pad = 20,
-			},
-			{
-				classes = {'label'},
-				color = 'white',
-				fontSize = 22,
-				width = 'auto',
-				height = 'auto',
-			},
-			{
-				classes = {'input'},
-				width = 200,
-				height = 26,
-				fontSize = 18,
-				color = 'white',
-			},
-			{
-				classes = {'formPanel'},
-				flow = 'horizontal',
-				width = 'auto',
-				height = 'auto',
-				halign = 'left',
-				vmargin = 2,
-			},
-
-		},
+		width = 1200,
+		height = "90%",
+		halign = "left",
+		flow = "vertical",
+		pad = 20,
+		borderBox = true,
 	}
 
 	return damageTypePanel

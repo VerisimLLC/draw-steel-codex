@@ -165,6 +165,7 @@ function GameHud.CreateRollOnTableDialog(self)
 		events = {
 			click = function(element)
 				rollDiceButton:SetClass("collapsed", true)
+				m_rolls = {}
 
 				m_hasClose = true
 
@@ -172,9 +173,47 @@ function GameHud.CreateRollOnTableDialog(self)
 				if m_options.creature ~= nil then
 					tokenid = dmhub.LookupTokenId(m_options.creature)
 				end
-                
+
                 m_options.rollProperties.tableRef = m_options.tableRef
                 print("ROLL PROPERTIES:", json(m_options.rollProperties))
+
+				-- Hook for external mods to intercept table rolls
+				if RollDialog.OnBeforeTableRoll then
+					local rollFormula = m_table:CalculateRollInfo().roll
+					local hookResult = RollDialog.OnBeforeTableRoll({
+						roll = rollFormula,
+						description = string.format("Roll on %s", m_table.name),
+						creature = m_options.creature,
+						tokenid = tokenid,
+						properties = m_options.rollProperties,
+						tableRef = m_options.tableRef,
+						tableName = m_table.name,
+						guid = m_guid,
+						completeWithResult = function(total)
+							local syntheticRollInfo = {
+								total = total,
+								boons = 0,
+								banes = 0,
+								rolls = {},
+								properties = m_options.rollProperties,
+							}
+							local rowIndex = m_table:RowIndexFromDiceResult(total)
+							tablePanel:FireEvent("previewRoll", rowIndex)
+							proceedButton:SetClass("collapsed", false)
+							gui.SetFocus(proceedButton)
+							proceedButton.data.onclick = function()
+								if m_options.completeRoll ~= nil then
+									m_options.completeRoll(syntheticRollInfo)
+								end
+								tablePanel:FireEvent("completeRoll", syntheticRollInfo)
+							end
+						end,
+					})
+					if hookResult == "intercept" then
+						chat.PreviewChat{''}
+						return
+					end
+				end
 
 				dmhub.Roll{
 					guid = m_guid,

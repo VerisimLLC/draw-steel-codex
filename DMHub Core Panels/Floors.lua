@@ -1679,12 +1679,11 @@ CreateLayersList = function(parentFloor)
 
 		listPanel,
 
-		gui.AddButton{
+		gui.Button{
+			classes = {"addButton", "sizeS"},
 			halign = 'right',
 			valign = 'bottom',
 			margin = 0,
-            width = 8,
-            height = 8,
 			click = function(element)
 				game.currentMap:CreateFloor{
                     parentFloor = parentFloor.floorid

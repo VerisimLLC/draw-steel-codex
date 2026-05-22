@@ -2467,7 +2467,9 @@ function ActivatedAbility:Cast(casterToken, targets, options)
         end
     end
 
-    if options.chatMessage == nil and self:ShowChatMessageOnCast() then
+    --options.dismiss is set only for a dismissed triggered ability: it runs
+    --its On Dismiss behaviors silently, with no "executing" chat message.
+    if options.chatMessage == nil and (not options.dismiss) and self:ShowChatMessageOnCast() then
         local abilityClone = table.shallow_copy(self)
         setmetatable(abilityClone, getmetatable(self))
         abilityClone.invoker = nil

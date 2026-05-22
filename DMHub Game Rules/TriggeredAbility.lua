@@ -165,6 +165,16 @@ TriggeredAbility.TargetTypes = {
         condition = function(ability)
             return ability.trigger == "casterendturnaura"
         end,
+    },
+    {
+        -- "Targets of Triggering Ability": the triggered ability operates on
+        -- whoever the triggering ability targeted (read from symbols.cast).
+        -- Only meaningful for ability-use triggers, which carry a Cast.
+        id = "casttargets",
+        text = "Targets of Triggering Ability",
+        condition = function(ability)
+            return ability.trigger == "useability" or ability.trigger == "finishability" or ability.trigger == "castsignature"
+        end,
     }
 }
 
@@ -696,6 +706,53 @@ TriggeredAbility.RegisterTrigger{
     }
 }
 
+-- Fired on the bearer of an ongoing effect when they fail a save check against
+-- that effect (a save that did NOT remove the effect). Fires once per failed
+-- save per effect, so a creature with multiple save_ends effects rolling one
+-- save per effect will see this trigger fire once per failure.
+--
+-- Authors put a CharacterModifier {behavior=trigger, triggeredAbility={trigger=savefail,...}}
+-- inside an ongoing effect's modifiers[] and filter on EffectName in
+-- conditionFormula to scope the handler to the specific effect.
+--
+-- Symbols installed when the trigger fires:
+--   EffectName (text)    - the ongoing effect's display name (e.g. "Stoned")
+--   Caster (creature)    - original applier of the ongoing effect when
+--                          casterTracking is enabled and the caster token is
+--                          still resolvable; otherwise the bearer (Self) is
+--                          installed so Caster.X formulas still resolve safely.
+--   SaveRoll (number)    - the actual save roll total that failed.
+TriggeredAbility.RegisterTrigger{
+    id = "savefail",
+    text = "Fail Save vs Ongoing Effect",
+    symbols = {
+        {
+            name = "EffectName",
+            type = "text",
+            desc = "The display name of the ongoing effect being saved against. Use to scope the handler to one specific effect, e.g. EffectName = \"Stoned\".",
+            prose = "the effect name",
+        },
+        {
+            name = "Caster",
+            type = "creature",
+            desc = "The original applier of the ongoing effect when caster tracking is enabled; otherwise the bearer of the effect.",
+            prose = "the caster",
+        },
+        {
+            name = "SaveRoll",
+            type = "number",
+            desc = "The total of the save roll that failed.",
+            prose = "the save roll",
+        },
+    },
+    examples = {
+        {
+            script = "EffectName = \"Stoned\"",
+            text = "The triggered ability only fires when the bearer fails a save against the Stoned ongoing effect.",
+        },
+    },
+}
+
 table.sort(TriggeredAbility.triggers, function(a,b) return a.text < b.text end)
 
 function TriggeredAbility.GetTriggerDropdownOptions(includeNone)
@@ -763,6 +820,18 @@ function TriggeredAbility:subjectHasRequiredCondition(subject, caster)
     else
         return conditionCaster ~= false
     end
+end
+
+--- @return boolean True if this ability has at least one behavior flagged to
+--- run when the triggered-ability prompt is dismissed (runOnDismiss). When
+--- false, dismissing the trigger is a pure no-op.
+function TriggeredAbility:HasDismissBehaviors()
+    for _,behavior in ipairs(self.behaviors) do
+        if behavior.runOnDismiss then
+            return true
+        end
+    end
+    return false
 end
 
 --auraControllerToken: token controlling an aura this is triggered from, or can be nil for a regular trigger attached to the creature it's triggering on.
@@ -1049,6 +1118,20 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 			}
 		}
 
+	elseif self.targetType == 'casttargets' then
+		--"Targets of Triggering Ability": build the target list from the Cast
+		--object carried by the trigger event. Ability-use triggers (useability,
+		--finishability, castsignature) pass symbols.cast, letting a triggered
+		--ability operate on whoever the triggering ability targeted.
+		targets = {}
+		local triggeringCast = symbols and symbols.cast
+		if triggeringCast ~= nil then
+			for _,castTarget in ipairs(triggeringCast:try_get("targets", {})) do
+				if castTarget.token ~= nil and castTarget.token.valid then
+					targets[#targets+1] = { loc = castTarget.token.loc, token = castTarget.token }
+				end
+			end
+		end
 	else
 		targets = {
 			{
@@ -1068,11 +1151,14 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 
 	local executeTrigger = function(isDismiss)
 
-		argOptions.dismiss = isDismiss == true
-		local options = { symbols = symbols, alreadyPaid = argOptions.alreadyPaid, dismiss = isDismiss == true }
+		local isDismissExec = isDismiss == true
+		argOptions.dismiss = isDismissExec
+		local options = { symbols = symbols, alreadyPaid = argOptions.alreadyPaid, dismiss = isDismissExec }
 		local needCoroutine = self:CastInstantPortion(casterToken, targets, options)
 		if not needCoroutine then
-			if not options.alreadyPaid then
+			--A dismissed trigger never costs resources, even when On Dismiss
+			--behaviors run -- the player declined to use the reaction.
+			if not options.alreadyPaid and not isDismissExec then
 				self:ConsumeResources(casterToken, {
 					costOverride = options.costOverride,
 				})
@@ -1092,8 +1178,13 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 
 		--For the coroutine path, consume resources upfront if behaviors
 		--may not call CommitToPaying (e.g. triggers without damage/invoke behaviors).
+		--A dismissed trigger never costs resources -- even when On Dismiss
+		--behaviors run -- so mark it paid without actually charging anything,
+		--which also stops the downstream Cast/CastCoroutine payment steps.
 		if not argOptions.alreadyPaid then
-			self:ConsumeResources(casterToken, {})
+			if not isDismissExec then
+				self:ConsumeResources(casterToken, {})
+			end
 			argOptions.alreadyPaid = true
 		end
 
@@ -1294,6 +1385,12 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 
 			local accepted = trigger ~= nil and trigger.triggered
 			local dismissed = (not accepted) and (wasDismissed or (trigger ~= nil and trigger.dismissed))
+			--A dismissed trigger only runs the cast pipeline when the ability
+			--actually has On Dismiss behaviors to execute. Without them,
+			--dismissing is a pure no-op: no cost, no chat message, no events.
+			if dismissed and not self:HasDismissBehaviors() then
+				dismissed = false
+			end
 			if accepted or dismissed then
                 local removes = {}
                 for i, target in ipairs(targets) do
@@ -1330,7 +1427,12 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 				local isDismiss = dismissed
 				dmhub.Schedule(0.01, function() --make execute in the main thread with a schedule.
 					executeTrigger(isDismiss)
-					casterToken.properties:DispatchEvent("finishability", {usedability = self})
+					--A dismissed trigger only executes its On Dismiss behaviors;
+					--it does not count as "using" the ability, so skip the
+					--finishability event (which can chain other triggers).
+					if not isDismiss then
+						casterToken.properties:DispatchEvent("finishability", {usedability = self})
+					end
 				end)
 			end
 		end)

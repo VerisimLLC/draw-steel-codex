@@ -2058,7 +2058,9 @@ CharacterModifier.TypeInfo.power = {
                 },
 
                 gui.Panel{
-                    classes = {"formLabel"},
+                    width = "auto",
+                    height = "auto",
+                    halign = "left",
                     flow = "vertical",
                     create = function(element)
                         local children = {}

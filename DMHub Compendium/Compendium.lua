@@ -3176,10 +3176,12 @@ end
 
 local ShowImageFoldersPanel = function(parentPanel)
 	local imagesPanel = gui.Panel{
-		classes = 'mainContentPanel',
-		styles = {
-			LibraryStyles,
-		},
+		width = 1200,
+		height = "95%",
+		halign = "left",
+		flow = "vertical",
+		pad = 20,
+		borderBox = true,
 	}
 
 	local itemsListPanel = nil
@@ -3197,13 +3199,13 @@ local ShowImageFoldersPanel = function(parentPanel)
 
 			--the guid of the item.
 			children[#children+1] = gui.Panel{
-				classes = {'formPanel'},
+				classes = {'formStackedRow'},
 				gui.Label{
+					classes = {'formStacked'},
 					text = 'ID (dev only):',
-					valign = 'center',
-					minWidth = 100,
 				},
 				gui.Input{
+					classes = {'formStacked'},
 					text = data.guid,
 				},
 			}
@@ -3211,13 +3213,13 @@ local ShowImageFoldersPanel = function(parentPanel)
 
 		--name/description
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {'formStackedRow'},
 			gui.Label{
+				classes = {'formStacked'},
 				text = 'Name:',
-				valign = 'center',
-				minWidth = 100,
 			},
 			gui.Input{
+				classes = {'formStacked'},
 				text = data.name,
 				change = function(element)
 					data.name = element.text
@@ -3228,14 +3230,14 @@ local ShowImageFoldersPanel = function(parentPanel)
 		}
 
 		children[#children+1] = gui.Panel{
-			classes = {"formPanel"},
+			classes = {"formStackedRow"},
 			gui.Label{
+				classes = {'formStacked'},
 				text = "Image Type:",
-				valign = "center",
-				minWidth = 100,
 			},
 
 			gui.Dropdown{
+				classes = {'formStacked'},
 				idChosen = data.imageType,
 				change = function(element)
 					data.imageType = element.idChosen
@@ -3255,27 +3257,29 @@ local ShowImageFoldersPanel = function(parentPanel)
 		}
 
 		--gm only.
-		children[#children+1] = gui.Check{
-			text = "Hidden from Players",
-			halign = "left",
-			fontSize = 22,
-			value = data.gmonly,
-			change = function(element)
-				data.gmonly = element.value
-				UploadData()
-			end,
+		children[#children+1] = gui.Panel{
+			classes = {"formStackedRow"},
+			gui.Check{
+				text = "Hidden from Players",
+				value = data.gmonly,
+				change = function(element)
+					data.gmonly = element.value
+					UploadData()
+				end,
+			},
 		}
 
 		if dmhub.isAdminAccount then
 			children[#children+1] = gui.Panel{
-				classes = {"formPanel"},
+				classes = {"formStackedRow"},
 
 				gui.Label{
-					classes = {"formLabel"},
+					classes = {"formStacked"},
 					text = "Artist:",
 				},
 
 				gui.Dropdown{
+					classes = {"formStacked"},
 
 					create = function(element)
 						local options = {}

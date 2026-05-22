@@ -264,6 +264,16 @@ ActivatedAbilityCast.helpSymbols = {
         desc = "The amount of damage dealt by forced movement collisions to creatures targeted by this ability.",
         examples = {"Forced Movement Damage Dealt to Targets > 0"},
     },
+
+    anytargethas = {
+        name = "Any Target Has",
+        type = "function",
+        desc = "Returns true if any target of this ability has the named ongoing effect or condition. An optional second argument restricts the check to conditions applied by a specific creature.",
+        examples = {
+            "Any Target Has(\"Mark\")",
+            "Any Target Has(\"Mark\", Triggerer)",
+        },
+    },
 }
 
 ActivatedAbilityCast.lookupSymbols = {
@@ -321,6 +331,53 @@ ActivatedAbilityCast.lookupSymbols = {
                     for i,t in ipairs(c.targets) do
                         if t.token ~= nil and t.token.charid == tok.charid then
                             return true
+                        end
+                    end
+                end
+            end
+
+            return false
+        end
+    end,
+
+    -- Returns true if any target of this cast has the named ongoing effect or condition.
+    -- An optional second argument (a creature) restricts the check to conditions applied
+    -- by that specific creature, e.g. Cast.AnyTargetHas("Mark", Triggerer).
+    anytargethas = function(c)
+        return function(condname, caster)
+            condname = string.lower(condname)
+
+            -- Coerce GoblinScript creature argument to a properties table
+            if type(caster) == "function" then
+                caster = caster("self")
+            end
+
+            local ongoingEffectsTable = GetTableCached("characterOngoingEffects")
+            local conditionsTable = GetTableCached(CharacterCondition.tableName)
+
+            for _, target in ipairs(c.targets) do
+                if target.token ~= nil and target.token.valid then
+                    local ongoingEffects = target.token.properties:ActiveOngoingEffects()
+                    for _, effectInfo in ipairs(ongoingEffects) do
+                        local ongoingEffectInfo = ongoingEffectsTable[effectInfo.ongoingEffectid]
+                        if ongoingEffectInfo ~= nil then
+                            local cond = conditionsTable[ongoingEffectInfo.condition]
+                            local nameMatches = (cond ~= nil and string.lower(cond.name) == condname)
+                                            or string.lower(ongoingEffectInfo.name) == condname
+                            if nameMatches then
+                                if caster == nil then
+                                    return true
+                                end
+                                -- Check that the caster of this condition matches the provided creature
+                                if effectInfo:try_get("casterInfo") ~= nil then
+                                    local condCasterTok = dmhub.GetTokenById(effectInfo.casterInfo.tokenid)
+                                    local casterTok = dmhub.LookupToken(caster)
+                                    if condCasterTok ~= nil and casterTok ~= nil
+                                       and condCasterTok.charid == casterTok.charid then
+                                        return true
+                                    end
+                                end
+                            end
                         end
                     end
                 end

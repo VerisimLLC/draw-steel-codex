@@ -306,34 +306,41 @@ local function CreateEditPanel(tableName)
                     text = "Expression:",
                 },
 
-                gui.Input{
-                    classes = {"formStacked"},
+                gui.Panel{
+                    flow = "horizontal",
+                    width = "100%",
                     height = "auto",
-                    multiline = true,
-                    maxHeight = 200,
-                    setdata = function(element, item)
-                        element:FireEvent("testCasesChanged")
-                    end,
-                    testCasesChanged = function(element)
-                        if m_item ~= nil and m_item:has_key("importMatch") then
-                            local pattern = CreateMatchPattern("monster", m_item.importMatch)
-                            element.text = pattern
-                        end
-                    end,
-                },
 
-                gui.Button{
-                    classes = {"copyButton"},
-                    width = 10,
-                    height = 10,
-                    click = function(element)
-                        dmhub.CopyToClipboard(element.parent.children[2].text)
-                    end,
+                    gui.Input{
+                        classes = {"formStacked"},
+                        width = "100%-24",
+                        height = "auto",
+                        multiline = true,
+                        maxHeight = 200,
+                        setdata = function(element, item)
+                            element:FireEvent("testCasesChanged")
+                        end,
+                        testCasesChanged = function(element)
+                            if m_item ~= nil and m_item:has_key("importMatch") then
+                                local pattern = CreateMatchPattern("monster", m_item.importMatch)
+                                element.text = pattern
+                            end
+                        end,
+                    },
+
+                    gui.Button{
+                        classes = {"copyButton", "sizeS"},
+                        valign = "center",
+                        click = function(element)
+                            dmhub.CopyToClipboard(element.parent.children[1].text)
+                        end,
+                    },
                 },
 
             },
 
             gui.Panel{
+                classes = {"formStackedRow"},
                 width = 800,
                 height = "auto",
                 flow = "vertical",
@@ -344,12 +351,16 @@ local function CreateEditPanel(tableName)
 
                     for i,testCase in ipairs(testCases) do
                         children[i] = children[i] or gui.Panel{
+                            classes = {"row", cond(i % 2 == 0, "evenRow", "oddRow")},
                             flow = "horizontal",
                             width = "100%",
+                            height = "auto",
+                            vpad = 4,
 
                             gui.Input{
                                 width = 600,
                                 halign = "left",
+                                valign = "center",
                                 multiline = true,
                                 height = "auto",
                                 maxHeight = 200,
@@ -374,6 +385,8 @@ local function CreateEditPanel(tableName)
                                 width = 140,
                                 height = "auto",
                                 halign = "left",
+                                valign = "center",
+                                lmargin = 12,
                                 settest = function(element, testCase)
                                     element:FireEvent("runtest", testCase.text)
                                 end,
@@ -389,9 +402,8 @@ local function CreateEditPanel(tableName)
                             },
 
                             gui.Button{
-                                classes = {"deleteButton"},
-                                width = 16,
-                                height = 16,
+                                classes = {"deleteButton", "sizeS"},
+                                valign = "center",
                                 click = function(element)
                                     local testCases = m_item:try_get("testCases") or {}
                                     table.remove(testCases, i)
@@ -416,7 +428,8 @@ local function CreateEditPanel(tableName)
             },
 
             gui.Button{
-                classes = {"sizeS"},
+                classes = {"sizeM"},
+                width = 160,
                 text = "Add Test Case",
                 click = function(element)
                     m_item.testCases = m_item:try_get("testCases") or {}

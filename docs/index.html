@@ -1,0 +1,517 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Knowledge Atlas &middot; Draw Steel &amp; DMHub</title>
+    <meta
+      name="description"
+      content="Interactive Understand-Anything knowledge graphs for the Draw Steel Codex, the DMHub engine, the companion app, and a unified cross-repo atlas."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --ink: #090b10;
+        --ink-2: #0f131c;
+        --ink-3: #141a26;
+        --line: rgba(233, 161, 60, 0.14);
+        --line-soft: rgba(255, 255, 255, 0.07);
+        --text: #ece7d9;
+        --muted: #8a92a3;
+        --faint: #5b6273;
+
+        --amber: #e9a13c;
+        --steel: #6fa6d6;
+        --teal: #4fc0a6;
+        --rose: #d98a9a;
+
+        --display: "DM Serif Display", Georgia, serif;
+        --body: "Hanken Grotesk", system-ui, sans-serif;
+        --mono: "JetBrains Mono", ui-monospace, monospace;
+
+        --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+      }
+
+      * { box-sizing: border-box; }
+
+      html { scroll-behavior: smooth; }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--ink);
+        color: var(--text);
+        font-family: var(--body);
+        font-weight: 400;
+        line-height: 1.55;
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+        overflow-x: hidden;
+      }
+
+      /* ----- atmosphere ----- */
+      .bg {
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+      }
+      .bg::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+          radial-gradient(120% 90% at 12% -10%, rgba(233, 161, 60, 0.10), transparent 55%),
+          radial-gradient(120% 90% at 90% 0%, rgba(111, 166, 214, 0.10), transparent 50%),
+          radial-gradient(140% 120% at 50% 120%, rgba(79, 192, 166, 0.06), transparent 60%);
+      }
+      .bg::after {
+        /* fine blueprint grid */
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-image:
+          linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+        background-size: 64px 64px;
+        mask-image: radial-gradient(120% 100% at 50% 0%, #000 35%, transparent 85%);
+      }
+      #graph {
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        opacity: 0.5;
+        pointer-events: none;
+      }
+      /* film grain */
+      .grain {
+        position: fixed;
+        inset: -50%;
+        z-index: 1;
+        pointer-events: none;
+        opacity: 0.04;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+        animation: grain 7s steps(6) infinite;
+      }
+      @keyframes grain {
+        0%, 100% { transform: translate(0, 0); }
+        20% { transform: translate(-4%, 3%); }
+        40% { transform: translate(3%, -5%); }
+        60% { transform: translate(-2%, 2%); }
+        80% { transform: translate(4%, -2%); }
+      }
+
+      /* ----- layout ----- */
+      .wrap {
+        position: relative;
+        z-index: 2;
+        max-width: 1120px;
+        margin: 0 auto;
+        padding: clamp(2.5rem, 6vw, 6rem) clamp(1.25rem, 5vw, 3rem) 4rem;
+      }
+
+      /* ----- hero ----- */
+      header { margin-bottom: clamp(3rem, 7vw, 5.5rem); }
+
+      .kicker {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.7rem;
+        font-family: var(--mono);
+        font-size: 0.72rem;
+        letter-spacing: 0.32em;
+        text-transform: uppercase;
+        color: var(--amber);
+        margin-bottom: 1.6rem;
+      }
+      .kicker .dot {
+        width: 7px; height: 7px; border-radius: 50%;
+        background: var(--amber);
+        box-shadow: 0 0 12px 1px var(--amber);
+        animation: pulse 2.4s var(--ease) infinite;
+      }
+      @keyframes pulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.4; transform: scale(0.7); }
+      }
+
+      h1 {
+        font-family: var(--display);
+        font-weight: 400;
+        font-size: clamp(2.9rem, 9vw, 6.2rem);
+        line-height: 0.96;
+        letter-spacing: -0.01em;
+        margin: 0 0 1.4rem;
+      }
+      h1 em {
+        font-style: italic;
+        background: linear-gradient(100deg, var(--amber), var(--rose) 45%, var(--steel));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+
+      .lede {
+        max-width: 46ch;
+        font-size: clamp(1.02rem, 1.6vw, 1.22rem);
+        color: var(--muted);
+      }
+      .lede strong { color: var(--text); font-weight: 600; }
+
+      .meta-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem 1.6rem;
+        margin-top: 2rem;
+        font-family: var(--mono);
+        font-size: 0.74rem;
+        letter-spacing: 0.12em;
+        color: var(--faint);
+        text-transform: uppercase;
+      }
+      .meta-row span { display: inline-flex; align-items: center; gap: 0.5rem; }
+      .meta-row span::before {
+        content: ""; width: 5px; height: 5px;
+        background: var(--line); transform: rotate(45deg);
+      }
+
+      /* ----- card grid ----- */
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.1rem;
+      }
+
+      .card {
+        --accent: var(--amber);
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        gap: 0.9rem;
+        padding: 1.7rem 1.8rem 1.9rem;
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 60%),
+          var(--ink-2);
+        border: 1px solid var(--line-soft);
+        border-radius: 14px;
+        text-decoration: none;
+        color: inherit;
+        overflow: hidden;
+        isolation: isolate;
+        transition: transform 0.5s var(--ease), border-color 0.4s var(--ease),
+          box-shadow 0.5s var(--ease);
+      }
+      /* accent wash that grows on hover */
+      .card::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        background: radial-gradient(120% 90% at 0% 0%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 60%);
+        opacity: 0;
+        transition: opacity 0.5s var(--ease);
+      }
+      /* top hairline in accent */
+      .card::after {
+        content: "";
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, var(--accent), transparent 70%);
+        transform: scaleX(0);
+        transform-origin: left;
+        transition: transform 0.6s var(--ease);
+      }
+      .card:hover,
+      .card:focus-visible {
+        transform: translateY(-6px);
+        border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+        box-shadow: 0 24px 60px -28px color-mix(in srgb, var(--accent) 60%, #000);
+        outline: none;
+      }
+      .card:hover::before,
+      .card:focus-visible::before { opacity: 1; }
+      .card:hover::after,
+      .card:focus-visible::after { transform: scaleX(1); }
+
+      .card-top {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+      }
+      .num {
+        font-family: var(--display);
+        font-size: 2.4rem;
+        line-height: 1;
+        color: var(--accent);
+        opacity: 0.85;
+      }
+      .tag {
+        font-family: var(--mono);
+        font-size: 0.68rem;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--muted);
+        border: 1px solid var(--line-soft);
+        border-radius: 999px;
+        padding: 0.32rem 0.7rem;
+      }
+      .card h2 {
+        font-family: var(--display);
+        font-weight: 400;
+        font-size: 1.7rem;
+        line-height: 1.1;
+        margin: 0;
+      }
+      .card p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+      .open {
+        margin-top: auto;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-family: var(--mono);
+        font-size: 0.74rem;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--text);
+      }
+      .open .arrow {
+        transition: transform 0.4s var(--ease);
+        color: var(--accent);
+      }
+      .card:hover .open .arrow,
+      .card:focus-visible .open .arrow { transform: translateX(6px); }
+
+      /* feature (unified) card spans full width */
+      .card.feature {
+        grid-column: 1 / -1;
+        flex-direction: row;
+        align-items: center;
+        gap: 2rem;
+        padding: 2.2rem 2.2rem;
+      }
+      .card.feature .num { font-size: 3.4rem; }
+      .card.feature .feature-body { display: flex; flex-direction: column; gap: 0.7rem; }
+      .card.feature h2 { font-size: 2.1rem; }
+      .card.feature p { max-width: 60ch; }
+      .card.feature::after {
+        background: linear-gradient(90deg, var(--amber), var(--rose) 40%, var(--steel) 75%, var(--teal));
+      }
+      .card.feature .num {
+        background: linear-gradient(135deg, var(--amber), var(--steel));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+
+      /* ----- footer ----- */
+      footer {
+        margin-top: 3.5rem;
+        padding-top: 1.6rem;
+        border-top: 1px solid var(--line-soft);
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 1rem;
+        font-family: var(--mono);
+        font-size: 0.72rem;
+        letter-spacing: 0.1em;
+        color: var(--faint);
+        text-transform: uppercase;
+      }
+      footer a { color: var(--muted); text-decoration: none; }
+      footer a:hover { color: var(--amber); }
+
+      /* ----- entrance animation ----- */
+      .reveal {
+        opacity: 0;
+        transform: translateY(22px);
+        animation: rise 0.85s var(--ease) forwards;
+      }
+      @keyframes rise {
+        to { opacity: 1; transform: none; }
+      }
+      .d1 { animation-delay: 0.05s; }
+      .d2 { animation-delay: 0.14s; }
+      .d3 { animation-delay: 0.23s; }
+      .d4 { animation-delay: 0.32s; }
+      .d5 { animation-delay: 0.41s; }
+      .d6 { animation-delay: 0.5s; }
+      .d7 { animation-delay: 0.6s; }
+
+      @media (prefers-reduced-motion: reduce) {
+        .reveal { animation: none; opacity: 1; transform: none; }
+        .grain, .kicker .dot { animation: none; }
+        #graph { display: none; }
+        html { scroll-behavior: auto; }
+      }
+
+      @media (max-width: 720px) {
+        .grid { grid-template-columns: 1fr; }
+        .card.feature { flex-direction: column; align-items: flex-start; gap: 1rem; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="bg" aria-hidden="true"></div>
+    <canvas id="graph" aria-hidden="true"></canvas>
+    <div class="grain" aria-hidden="true"></div>
+
+    <main class="wrap">
+      <header>
+        <span class="kicker reveal d1"><span class="dot"></span> Understand Anything &mdash; Code Cartography</span>
+        <h1 class="reveal d2">Knowledge<br /><em>Atlas</em></h1>
+        <p class="lede reveal d3">
+          Interactive code graphs for <strong>Draw Steel</strong> on <strong>DMHub</strong>.
+          Each map traces how a codebase actually fits together &mdash; modules, types,
+          and the edges between them. Pick a territory to explore.
+        </p>
+        <div class="meta-row reveal d4">
+          <span>4 graphs</span>
+          <span>self-contained</span>
+          <span>generated from source</span>
+        </div>
+      </header>
+
+      <section class="grid" aria-label="Knowledge graphs">
+        <a class="card reveal d4" style="--accent: var(--amber)" href="./codex.html">
+          <div class="card-top">
+            <span class="num">01</span>
+            <span class="tag">draw-steel-codex &middot; lua</span>
+          </div>
+          <h2>Draw Steel Codex</h2>
+          <p>
+            The MCDM game-system mod that runs inside DMHub &mdash; abilities, rules,
+            character builder, themed UI panels, and the monster importers.
+          </p>
+          <span class="open">Open graph <span class="arrow">&rarr;</span></span>
+        </a>
+
+        <a class="card reveal d5" style="--accent: var(--steel)" href="./engine.html">
+          <div class="card-top">
+            <span class="num">02</span>
+            <span class="tag">dmhub &middot; engine</span>
+          </div>
+          <h2>DMHub Engine</h2>
+          <p>
+            The virtual-tabletop engine beneath the mod &mdash; rendering, networking,
+            serialization, and the Lua host that loads the codex.
+          </p>
+          <span class="open">Open graph <span class="arrow">&rarr;</span></span>
+        </a>
+
+        <a class="card reveal d6" style="--accent: var(--teal)" href="./companion.html">
+          <div class="card-top">
+            <span class="num">03</span>
+            <span class="tag">companion &middot; app</span>
+          </div>
+          <h2>Companion App</h2>
+          <p>
+            The player-facing companion application and the shared surfaces it
+            uses to talk to a live DMHub session.
+          </p>
+          <span class="open">Open graph <span class="arrow">&rarr;</span></span>
+        </a>
+
+        <a class="card feature reveal d7" style="--accent: var(--rose)" href="./unified.html">
+          <span class="num">04</span>
+          <div class="feature-body">
+            <span class="tag">cross-repo &middot; unified</span>
+            <h2>Unified Atlas</h2>
+            <p>
+              All repositories woven into a single graph. Follow a thread from a tap
+              in the companion app, through an engine call, into the Lua that resolves
+              it &mdash; the whole system in one view.
+            </p>
+            <span class="open">Open the unified graph <span class="arrow">&rarr;</span></span>
+          </div>
+        </a>
+      </section>
+
+      <footer class="reveal d7">
+        <span>Draw Steel Codex &middot; Knowledge Atlas</span>
+        <span><a href="https://github.com/VerisimLLC/draw-steel-codex">github.com/VerisimLLC/draw-steel-codex</a></span>
+      </footer>
+    </main>
+
+    <script>
+      // Living node-graph backdrop -- a quiet nod to the maps themselves.
+      (function () {
+        var reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
+        if (reduce.matches) return;
+
+        var canvas = document.getElementById("graph");
+        var ctx = canvas.getContext("2d");
+        var nodes = [];
+        var W, H, dpr;
+
+        function resize() {
+          dpr = Math.min(window.devicePixelRatio || 1, 2);
+          W = canvas.width = innerWidth * dpr;
+          H = canvas.height = innerHeight * dpr;
+          canvas.style.width = innerWidth + "px";
+          canvas.style.height = innerHeight + "px";
+          var count = Math.round((innerWidth * innerHeight) / 26000);
+          count = Math.max(28, Math.min(80, count));
+          nodes = [];
+          for (var i = 0; i < count; i++) {
+            nodes.push({
+              x: Math.random() * W,
+              y: Math.random() * H,
+              vx: (Math.random() - 0.5) * 0.18 * dpr,
+              vy: (Math.random() - 0.5) * 0.18 * dpr,
+              r: (Math.random() * 1.4 + 0.6) * dpr,
+            });
+          }
+        }
+
+        var LINK = 150;
+        function frame() {
+          ctx.clearRect(0, 0, W, H);
+          var maxd = LINK * dpr;
+          for (var i = 0; i < nodes.length; i++) {
+            var n = nodes[i];
+            n.x += n.vx; n.y += n.vy;
+            if (n.x < 0 || n.x > W) n.vx *= -1;
+            if (n.y < 0 || n.y > H) n.vy *= -1;
+            for (var j = i + 1; j < nodes.length; j++) {
+              var m = nodes[j];
+              var dx = n.x - m.x, dy = n.y - m.y;
+              var d = Math.sqrt(dx * dx + dy * dy);
+              if (d < maxd) {
+                var a = (1 - d / maxd) * 0.5;
+                ctx.strokeStyle = "rgba(233,161,60," + a * 0.55 + ")";
+                ctx.lineWidth = dpr * 0.6;
+                ctx.beginPath();
+                ctx.moveTo(n.x, n.y);
+                ctx.lineTo(m.x, m.y);
+                ctx.stroke();
+              }
+            }
+          }
+          for (var k = 0; k < nodes.length; k++) {
+            var p = nodes[k];
+            ctx.fillStyle = "rgba(236,231,217,0.55)";
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          requestAnimationFrame(frame);
+        }
+
+        resize();
+        addEventListener("resize", resize, { passive: true });
+        requestAnimationFrame(frame);
+      })();
+    </script>
+  </body>
+</html>

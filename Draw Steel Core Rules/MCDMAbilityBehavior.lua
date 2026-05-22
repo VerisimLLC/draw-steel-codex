@@ -1920,7 +1920,8 @@ local function BuildDiagnosticVocab()
         damageTypes = {},
         conditions = {},
         riderNames = {},
-        keywords = {},
+        keywords = {},          -- built-in g_rulePatterns keywords
+        importerKeywords = {},  -- importerPowerTableEffects keywords
         searchTokens = {},
     }
 
@@ -2003,21 +2004,46 @@ local function BuildDiagnosticVocab()
         addToken(word, "keyword")
     end
 
-    return vocab
-end
-
-local function BuildDiagnosticCompendiumKeywords()
-    -- Literal alphabetic word tokens scraped from every active
-    -- importerPowerTableEffects pattern. The importer table is the
-    -- codebase's curated custom-vocabulary list, so anything that
-    -- appears here is treated as known prose for the suppression
-    -- check on Kind 4 (Unknown segment).
-    local keywords = {}
+    -- 5. Importer-curated mechanical vocabulary. Lifted from every
+    --    active importerPowerTableEffects pattern. These are the
+    --    custom words the importer recognises (illuminated,
+    --    shapechanged, stamina, surge, ...) plus generic connective
+    --    glue (target, save, ends). For Kind 1 near-miss we want
+    --    them all - a typo like "illumnated" should correct to
+    --    "illuminated" regardless of whether the word is custom or
+    --    glue. For Kind 4 suppression we separately filter to just
+    --    the custom vocabulary (see BuildDiagnosticCompendiumKeywords).
     local rulesTable = dmhub.GetTable("importerPowerTableEffects") or {}
     for _,entry in unhidden_pairs(rulesTable) do
         local importMatch = entry:try_get("importMatch", nil)
         if type(importMatch) == "string" and importMatch ~= "" then
-            ExtractDiagnosticWordsFromPattern(string.lower(importMatch), keywords)
+            ExtractDiagnosticWordsFromPattern(string.lower(importMatch), vocab.importerKeywords)
+        end
+    end
+    for word in pairs(vocab.importerKeywords) do
+        addToken(word, "importerKeyword")
+    end
+
+    return vocab
+end
+
+local function BuildDiagnosticCompendiumKeywords()
+    -- Kind 4 suppression set: the importer-curated tokens MINUS any
+    -- token the built-in g_rulePatterns already know about. The
+    -- intent is "tokens the IMPORTER curated beyond what the
+    -- built-in parser knows" - so generic connective glue like
+    -- "target"/"save"/"ends" (which the built-in patterns also use)
+    -- is NOT in the suppression set, even though it appears in
+    -- importer regexes too. Without this subtraction every importer
+    -- pattern containing "target" would silence prose like "the
+    -- target erupts in flame" simply because "target" is too common.
+    local vocab = ActivatedAbilityDrawSteelCommandBehavior.GetDiagnosticVocab()
+    local importer = vocab.importerKeywords or {}
+    local builtin = vocab.keywords or {}
+    local keywords = {}
+    for word in pairs(importer) do
+        if not builtin[word] then
+            keywords[word] = true
         end
     end
     return keywords
@@ -2049,6 +2075,380 @@ dmhub.RegisterEventHandler("refreshTables", function(keys)
     g_diagnosticVocabCache = nil
     g_diagnosticCompendiumKeywordCache = nil
 end)
+
+----------------------------------------------------------------
+-- Diagnostician: parsed-segment walker + DiagnoseTierText engine
+----------------------------------------------------------------
+-- WalkParsedSegments re-runs the same parser flow as ValidateRule
+-- but yields each successfully-matched segment alongside the final
+-- unparsed tail. DiagnoseTierText consumes that output and produces
+-- structured findings (one per actionable issue) for the chip
+-- strip UI to format. No string assembly happens here - chip copy
+-- lives with the UI - so this layer stays a pure data transform.
+
+-- Standard two-row DP Levenshtein with early abort when the running
+-- minimum exceeds maxDist. Returns maxDist+1 on bail.
+local function LevenshteinDistance(a, b, maxDist)
+    if a == b then return 0 end
+    local la, lb = #a, #b
+    if math.abs(la - lb) > maxDist then return maxDist + 1 end
+    local prev, curr = {}, {}
+    for j = 0, lb do prev[j] = j end
+    for i = 1, la do
+        curr[0] = i
+        local rowMin = curr[0]
+        local ai = a:sub(i, i)
+        for j = 1, lb do
+            local cost = ai == b:sub(j, j) and 0 or 1
+            local v = prev[j] + 1
+            local v2 = curr[j-1] + 1
+            if v2 < v then v = v2 end
+            local v3 = prev[j-1] + cost
+            if v3 < v then v = v3 end
+            curr[j] = v
+            if v < rowMin then rowMin = v end
+        end
+        if rowMin > maxDist then return maxDist + 1 end
+        prev, curr = curr, prev
+    end
+    return prev[lb]
+end
+
+-- Find the closest vocab token to `word` within Levenshtein 1, or
+-- Levenshtein 2 when the vocab word is >= 6 chars (the spec rule
+-- from the project doc). Optionally filter by kind to scope the
+-- search - e.g. Kind 3 only wants damage-type suggestions.
+-- Returns {word, kind, distance} or nil.
+local function FindNearMiss(word, kindFilter)
+    if word == nil or #word < 3 then return nil end
+    local vocab = ActivatedAbilityDrawSteelCommandBehavior.GetDiagnosticVocab()
+    local tokens = vocab.searchTokens
+    if tokens == nil then return nil end
+
+    local best = nil
+    local bestDist = 3
+    for _,entry in ipairs(tokens) do
+        if kindFilter == nil or entry.kind == kindFilter then
+            local maxAllowed = 1
+            if #entry.word >= 6 then maxAllowed = 2 end
+            local d = LevenshteinDistance(word, entry.word, maxAllowed)
+            if d <= maxAllowed and d > 0 and d < bestDist then
+                bestDist = d
+                best = entry
+            end
+        end
+    end
+
+    if best == nil then return nil end
+    return {word = best.word, kind = best.kind, distance = bestDist}
+end
+
+-- Tokenise a segment into lowercase alphabetic word runs (>= 3
+-- chars). Used to scan the unparsed tail for near-miss matches and
+-- to drive the compendium suppression check.
+local function TokeniseSegment(segment)
+    local words = {}
+    if type(segment) ~= "string" then return words end
+    for word in string.lower(segment):gmatch("[a-z]+") do
+        if #word >= 3 then
+            words[#words+1] = word
+        end
+    end
+    return words
+end
+
+-- Does the segment carry a duration suffix? Matches (save ends),
+-- (EoT), (EoE) and their lowercase forms, with or without
+-- surrounding whitespace. Mirrors the duration tokens recognised
+-- by g_rulePatterns at lines 543, 651, 1271 etc.
+local function SegmentHasDurationSuffix(segment)
+    if type(segment) ~= "string" then return false end
+    local lowered = string.lower(segment)
+    if lowered:find("%(%s*save%s+ends%s*%)") then return true end
+    if lowered:find("%(%s*eot%s*%)") then return true end
+    if lowered:find("%(%s*eoe%s*%)") then return true end
+    return false
+end
+
+--- Walk the parsed structure of `rule` the same way ValidateRule
+--- does. Returns a list of segment records:
+---   {kind = "gate" | "importer" | "builtin" | "unparsed",
+---    text = string,           -- the matched (or unparsed) text
+---    match = nil | table,     -- regex match groups when matched
+---    entry = nil | table,     -- the g_rulePatterns/importer entry
+---    pattern = nil | string}  -- which alternative pattern hit
+--- @param rule string
+--- @return table
+function ActivatedAbilityDrawSteelCommandBehavior.WalkParsedSegments(rule)
+    local segments = {}
+    if type(rule) ~= "string" or rule == "" then return segments end
+    rule = string.lower(rule)
+
+    -- Pull the potency gate off the front exactly the way
+    -- ValidateRule does - the diagnostician treats it as already-
+    -- understood structure, not a candidate for chips.
+    local gateMatch = regex.MatchGroups(rule, "^(?<head>.*?)(?<gate>(<color=[^>]+>)?(<uppercase>)?[marip](</uppercase>)? ?< ?\\[?(-?[0-9]+|weak|average|strong)\\]?(</color>)?,? )(?<tail>[^;]*)(?<rest>;.*)?$")
+    if gateMatch ~= nil then
+        segments[#segments+1] = {kind = "gate", text = gateMatch.gate, match = gateMatch}
+        rule = gateMatch.head .. gateMatch.tail .. (gateMatch.rest or "")
+    end
+
+    local guard = 64
+    while rule ~= "" and guard > 0 do
+        guard = guard - 1
+        local advanced = false
+
+        -- 1. Importer table (highest priority, longest match wins).
+        local bestMatchInfo = nil
+        local bestPatternEntry = nil
+        local rulesTable = dmhub.GetTable("importerPowerTableEffects") or {}
+        for _,patternEntry in unhidden_pairs(rulesTable) do
+            local abilityMatch, matchInfo = patternEntry:MatchMCDMEffect(nil, "Ability", rule)
+            if abilityMatch ~= nil then
+                if matchInfo == nil then
+                    -- Full-match (no captures) - treat as the whole rule.
+                    bestMatchInfo = {all = rule}
+                    bestPatternEntry = patternEntry
+                    break
+                end
+                if bestMatchInfo == nil or (matchInfo.all and #matchInfo.all > #(bestMatchInfo.all or "")) then
+                    bestMatchInfo = matchInfo
+                    bestPatternEntry = patternEntry
+                end
+            end
+        end
+
+        if bestMatchInfo ~= nil and bestMatchInfo.all ~= nil then
+            segments[#segments+1] = {
+                kind = "importer",
+                text = bestMatchInfo.all,
+                match = bestMatchInfo,
+                entry = bestPatternEntry,
+            }
+            rule = string.sub(rule, #bestMatchInfo.all + 1)
+            local sep = regex.MatchGroups(rule, "^ *[;,] *(?<body>.+)$")
+            if sep ~= nil then rule = sep.body end
+            advanced = true
+        end
+
+        if not advanced then
+            -- 2. Built-in g_rulePatterns.
+            for _,entry in ipairs(g_rulePatterns) do
+                local patterns = entry.pattern
+                if type(patterns) == "string" then patterns = {patterns} end
+                for _,p in ipairs(patterns) do
+                    local match = regex.MatchGroups(rule, p)
+                    if match ~= nil and (entry.validate == nil or entry.validate(entry, match)) then
+                        segments[#segments+1] = {
+                            kind = "builtin",
+                            text = match.all,
+                            match = match,
+                            entry = entry,
+                            pattern = p,
+                        }
+                        rule = string.sub(rule, #(match.all or rule) + 1)
+                        local sepMatch = regex.MatchGroups(rule, "^( *, *| *and *| *then *| *; *)")
+                        if sepMatch == nil then
+                            sepMatch = regex.MatchGroups(rule, "^ ")
+                        end
+                        if sepMatch ~= nil then
+                            rule = string.sub(rule, #sepMatch.all + 1)
+                        end
+                        advanced = true
+                        break
+                    end
+                end
+                if advanced then break end
+            end
+        end
+
+        if not advanced then
+            -- Nothing recognised the head of the remaining rule.
+            -- Capture the rest as the unparsed tail and stop.
+            if string.find(rule, "%S") then
+                segments[#segments+1] = {kind = "unparsed", text = rule}
+            end
+            break
+        end
+    end
+
+    return segments
+end
+
+-- Inspect a parsed `builtin` damage segment for an unknown damage
+-- type. Returns a finding or nil. When a near-miss exists the
+-- finding combines Kind 3 with Kind 1; otherwise it's bare Kind 3.
+local function DiagnoseDamageSegment(segment, vocab)
+    if segment.match == nil then return nil end
+    local damageType = segment.match.type
+    if damageType == nil or damageType == "" then return nil end
+    damageType = string.lower(damageType)
+    if vocab.damageTypes[damageType] then return nil end
+
+    local nearMiss = FindNearMiss(damageType, "damageType")
+    return {
+        kind = "damageType_unknown",
+        severity = "warning",
+        token = damageType,
+        suggestion = nearMiss and nearMiss.word or nil,
+        segment = segment.text,
+        -- Build the suggested-rewrite preview by swapping in the
+        -- suggested damage type; the UI uses this for the tooltip.
+        tooltipPreview = nearMiss and (segment.text:gsub(damageType, nearMiss.word, 1)) or nil,
+    }
+end
+
+-- Inspect the unparsed tail for Kinds 1/2/4. Diagnostic order:
+--   1. Kind 2 (missing duration)  - high-confidence
+--   2. Kind 1 (did-you-mean)      - high-confidence
+--   3. Kind 4 (unknown segment)   - catch-all, subject to compendium suppression
+-- Kinds 1/2 always fire when their conditions are met, even if the
+-- segment also contains importer-curated tokens, because a clear
+-- typo or missing duration is a real issue regardless of surrounding
+-- glue. Compendium suppression applies ONLY to Kind 4: if any token
+-- in the segment is in the importer-curated vocabulary, we trust
+-- the importer's pattern set and stay silent on the catch-all.
+local function DiagnoseUnparsedSegment(segment, vocab, compendiumKeywords, knownWordsLookup)
+    local findings = {}
+    local text = segment.text
+    if type(text) ~= "string" or string.find(text, "%S") == nil then
+        return findings
+    end
+
+    local words = TokeniseSegment(text)
+    if #words == 0 then
+        return findings
+    end
+
+    -- Kind 2: Missing duration. Fires if any tokenised word is a
+    -- known condition that does NOT carry the indefiniteDuration
+    -- flag, and no duration suffix follows.
+    local hasDuration = SegmentHasDurationSuffix(text)
+    if not hasDuration then
+        for _,w in ipairs(words) do
+            local condInfo = vocab.conditions[w]
+            if condInfo and not condInfo.indefiniteDuration then
+                findings[#findings+1] = {
+                    kind = "duration_missing",
+                    severity = "warning",
+                    condition = w,
+                    segment = text,
+                }
+                break -- one duration chip per segment is enough
+            end
+        end
+    end
+
+    -- Kind 1: Did-you-mean. Walk tokens; first near-miss wins.
+    -- Skip tokens that are already in the vocab (known words) or
+    -- already covered by a duration finding (same word). The
+    -- knownWordsLookup is the union of every vocab bucket so we
+    -- don't suggest typo corrections for words that legitimately
+    -- live in vocab (e.g. rider-name components like "tail").
+    local kind1Word = nil
+    local kind1Suggestion = nil
+    local conditionAlreadyFlagged = nil
+    if #findings > 0 and findings[1].kind == "duration_missing" then
+        conditionAlreadyFlagged = findings[1].condition
+    end
+    for _,w in ipairs(words) do
+        if w ~= conditionAlreadyFlagged and not knownWordsLookup[w] then
+            local nm = FindNearMiss(w, nil)
+            if nm ~= nil then
+                kind1Word = w
+                kind1Suggestion = nm.word
+                break
+            end
+        end
+    end
+
+    if kind1Word ~= nil then
+        findings[#findings+1] = {
+            kind = "near_miss",
+            severity = "warning",
+            token = kind1Word,
+            suggestion = kind1Suggestion,
+            segment = text,
+            -- Tooltip preview swaps the typo for its suggestion
+            -- in the original segment so the author sees the
+            -- corrected form.
+            tooltipPreview = text:gsub(kind1Word, kind1Suggestion, 1),
+        }
+        return findings
+    end
+
+    -- Kind 4: Unknown segment. Catch-all when Kinds 1/2 didn't
+    -- fire. Compendium suppression applies here only: if the tail
+    -- contains an importer-curated token (the post-subtraction set
+    -- built in BuildDiagnosticCompendiumKeywords - excludes generic
+    -- glue like "target"/"save"/"ends") we treat it as known prose
+    -- and stay silent. Bronze+ will also suppress Kind 4 via the
+    -- status gating layer.
+    if #findings == 0 then
+        for _,w in ipairs(words) do
+            if compendiumKeywords[w] then
+                return findings
+            end
+        end
+        findings[#findings+1] = {
+            kind = "unknown_segment",
+            severity = "neutral",
+            segment = text,
+        }
+    end
+
+    return findings
+end
+
+--- Run the diagnostician over a single tier rule string. Returns
+--- a list of finding records the chip-strip UI can render. The
+--- engine doesn't filter by implementation status - status gating
+--- (Bronze+ collapse + Kind 4 suppression) is the caller's job.
+---
+--- Finding shape:
+---   {
+---     kind = "damageType_unknown" | "duration_missing"
+---          | "near_miss"          | "unknown_segment",
+---     severity = "warning" | "neutral",
+---     -- one or more of these slots filled depending on kind:
+---     token = string,           -- offending word (1, 3)
+---     suggestion = string,      -- near-miss target (1, optionally 3)
+---     condition = string,       -- condition word (2)
+---     segment = string,         -- the segment text the chip refers to
+---     tooltipPreview = string,  -- rewritten clause for tooltip (1, 3+1)
+---   }
+--- @param rule string
+--- @return table[]
+function ActivatedAbilityDrawSteelCommandBehavior.DiagnoseTierText(rule)
+    local findings = {}
+    if type(rule) ~= "string" or rule == "" then return findings end
+
+    local vocab = ActivatedAbilityDrawSteelCommandBehavior.GetDiagnosticVocab()
+    local compendiumKeywords = ActivatedAbilityDrawSteelCommandBehavior.GetCompendiumDiagnosticKeywords()
+
+    -- Flat membership set: word -> true for every searchToken in
+    -- the vocab. Used by the unparsed-segment diagnosis to skip
+    -- known words before running expensive near-miss lookup.
+    local knownWordsLookup = {}
+    for _,t in ipairs(vocab.searchTokens) do
+        knownWordsLookup[t.word] = true
+    end
+
+    local segments = ActivatedAbilityDrawSteelCommandBehavior.WalkParsedSegments(rule)
+    for _,segment in ipairs(segments) do
+        if segment.kind == "builtin" and segment.entry and segment.entry.isdamage then
+            local f = DiagnoseDamageSegment(segment, vocab)
+            if f ~= nil then findings[#findings+1] = f end
+        elseif segment.kind == "unparsed" then
+            local segFindings = DiagnoseUnparsedSegment(segment, vocab, compendiumKeywords, knownWordsLookup)
+            for _,f in ipairs(segFindings) do
+                findings[#findings+1] = f
+            end
+        end
+    end
+
+    return findings
+end
 
 function ActivatedAbilityDrawSteelCommandBehavior:EditorItems(parentPanel)
 	local result = {}

@@ -22,6 +22,7 @@
 --- @field showText boolean Gets or sets whether dice face text/numbers are displayed in the studio.
 --- @field surfaceMaterialName nil|string Gets the name of the current surface material override, or nil if none is set.
 --- @field material nil|DiceMaterialLua Gets or sets the surface material override for the dice. Set to nil to clear.
+--- @field hideBaseMaterial boolean Whether the base dice material is hidden entirely so that only the custom surface material is shown. When true, the engraved face numbers and the border cage are not rendered. Has no visible effect unless a surface material is set.
 --- @field finishVideoEffect DiceVideoEffect Gets the video effect played when dice finish rolling.
 --- @field availableMaterials DiceMaterialLua[] Gets a list of all available dice materials.
 DiceStudioLua = {}

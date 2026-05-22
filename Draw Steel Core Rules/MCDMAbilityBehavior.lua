@@ -1884,6 +1884,31 @@ local g_diagnosticStopwords = {
     ["one"] = true, ["two"] = true, ["three"] = true, ["four"] = true,
     ["five"] = true, ["six"] = true, ["seven"] = true, ["eight"] = true,
     ["nine"] = true, ["ten"] = true,
+    -- Additional common English words that surfaced as Kind 1 false
+    -- positives during the Silver+ compendium sweep. Most are
+    -- modals, pronouns, or quantifiers that share short edit
+    -- distance with mechanical vocab (e.g. "can" -> "cant",
+    -- "other" -> "another", "whose" -> "choose").
+    ["can"] = true, ["cant"] = true,
+    ["other"] = true, ["others"] = true,
+    ["whose"] = true, ["whom"] = true, ["who"] = true,
+    ["which"] = true, ["whether"] = true,
+    ["both"] = true, ["either"] = true, ["neither"] = true,
+    ["some"] = true, ["many"] = true, ["most"] = true, ["least"] = true,
+    ["more"] = true, ["less"] = true, ["also"] = true, ["just"] = true,
+    ["only"] = true, ["even"] = true, ["very"] = true, ["yet"] = true,
+    ["already"] = true, ["again"] = true, ["still"] = true,
+    ["here"] = true, ["there"] = true, ["where"] = true, ["when"] = true,
+    ["how"] = true, ["why"] = true, ["what"] = true,
+    ["per"] = true, ["because"] = true, ["since"] = true, ["while"] = true,
+    ["after"] = true, ["before"] = true, ["above"] = true, ["below"] = true,
+    ["between"] = true, ["among"] = true, ["near"] = true, ["far"] = true,
+    ["does"] = true, ["did"] = true, ["doing"] = true, ["done"] = true,
+    ["make"] = true, ["made"] = true, ["makes"] = true, ["making"] = true,
+    ["take"] = true, ["takes"] = true, ["taken"] = true, ["taking"] = true,
+    ["see"] = true, ["seen"] = true, ["sees"] = true, ["saw"] = true,
+    ["get"] = true, ["gets"] = true, ["got"] = true, ["gotten"] = true,
+    ["use"] = true, ["uses"] = true, ["used"] = true, ["using"] = true,
 }
 
 -- Pull alphabetic word runs out of a regex pattern string. Strips
@@ -2008,11 +2033,12 @@ local function BuildDiagnosticVocab()
     --    active importerPowerTableEffects pattern. These are the
     --    custom words the importer recognises (illuminated,
     --    shapechanged, stamina, surge, ...) plus generic connective
-    --    glue (target, save, ends). For Kind 1 near-miss we want
-    --    them all - a typo like "illumnated" should correct to
-    --    "illuminated" regardless of whether the word is custom or
-    --    glue. For Kind 4 suppression we separately filter to just
-    --    the custom vocabulary (see BuildDiagnosticCompendiumKeywords).
+    --    glue (target, save, ends). Added to searchTokens so they
+    --    populate knownWordsLookup (Kind 1 won't try to near-miss
+    --    them), but FindNearMiss filters out non-curated kinds at
+    --    suggestion time so these tokens are never returned as
+    --    suggestions - too noisy. See vocab.ongoingEffects below
+    --    for the curated counterpart pulled from a real data table.
     local rulesTable = dmhub.GetTable("importerPowerTableEffects") or {}
     for _,entry in unhidden_pairs(rulesTable) do
         local importMatch = entry:try_get("importMatch", nil)
@@ -2024,29 +2050,45 @@ local function BuildDiagnosticVocab()
         addToken(word, "importerKeyword")
     end
 
+    -- 6. Ongoing effects: single-word names from the
+    --    characterOngoingEffects table - illuminated, shapechanged,
+    --    burning, foesense, rage, hidden, etc. Multi-word names
+    --    (e.g. "Burning Ash Target") are skipped because they're
+    --    encounter-specific instances rather than reusable
+    --    mechanical vocabulary. This bucket is the durable
+    --    high-confidence near-miss target for custom mechanics:
+    --    typing "illumnated" suggests "illuminated" because the
+    --    name exists as a data record, not because it appears in
+    --    an importer regex.
+    vocab.ongoingEffects = {}
+    local ongoingTable = dmhub.GetTable("characterOngoingEffects") or {}
+    for _, entry in unhidden_pairs(ongoingTable) do
+        local name = entry:try_get("name", "")
+        if type(name) == "string" and name ~= "" then
+            local lowered = string.lower(name)
+            if lowered:match("^[a-z]+$") then
+                vocab.ongoingEffects[lowered] = true
+                addToken(lowered, "ongoingEffect")
+            end
+        end
+    end
+
     return vocab
 end
 
 local function BuildDiagnosticCompendiumKeywords()
-    -- Kind 4 suppression set: the importer-curated tokens MINUS any
-    -- token the built-in g_rulePatterns already know about. The
-    -- intent is "tokens the IMPORTER curated beyond what the
-    -- built-in parser knows" - so generic connective glue like
-    -- "target"/"save"/"ends" (which the built-in patterns also use)
-    -- is NOT in the suppression set, even though it appears in
-    -- importer regexes too. Without this subtraction every importer
-    -- pattern containing "target" would silence prose like "the
-    -- target erupts in flame" simply because "target" is too common.
-    local vocab = ActivatedAbilityDrawSteelCommandBehavior.GetDiagnosticVocab()
-    local importer = vocab.importerKeywords or {}
-    local builtin = vocab.keywords or {}
-    local keywords = {}
-    for word in pairs(importer) do
-        if not builtin[word] then
-            keywords[word] = true
-        end
-    end
-    return keywords
+    -- Compendium suppression was scoped out during Chunk 5 testing.
+    -- The original spec intended to silence Kind 4 on tails that
+    -- mention importer-curated mechanic words ("illuminated",
+    -- "shapechanged", ...), but in practice every variant of the
+    -- importer-pattern subtraction or frequency filter let generic
+    -- English glue ("until", "ally", "within") into the set,
+    -- silencing legitimate Kind 4 chips. Bronze+ status gating
+    -- already wholesale-suppresses Kind 4, and Unimplemented authors
+    -- want max feedback, so the suppression set has been emptied.
+    -- The cache key and callers stay in place so the spec section
+    -- can be revisited later without code churn.
+    return {}
 end
 
 --- Returns the cached diagnostic vocabulary. Rebuilds on first
@@ -2086,30 +2128,53 @@ end)
 -- strip UI to format. No string assembly happens here - chip copy
 -- lives with the UI - so this layer stays a pure data transform.
 
--- Standard two-row DP Levenshtein with early abort when the running
--- minimum exceeds maxDist. Returns maxDist+1 on bail.
+-- Damerau-Levenshtein (Optimal String Alignment variant) with early
+-- abort when the running minimum exceeds maxDist. Standard
+-- Levenshtein treats adjacent-letter transpositions as TWO edits,
+-- which under-fires on common typing typos like "fier" -> "fire"
+-- (a single transposition of "ie" -> "ie") because their distance
+-- is 2 and the threshold for short vocab words (< 6 chars) is 1.
+-- The OSA variant counts a transposition as one edit, so "fier"
+-- correctly near-misses "fire" at distance 1. Three rows tracked
+-- (prev2, prev, curr) so the transposition step can look back one
+-- extra row. Same O(m*n) time, O(min(m,n)) space. Returns maxDist+1
+-- on early bail.
 local function LevenshteinDistance(a, b, maxDist)
     if a == b then return 0 end
     local la, lb = #a, #b
     if math.abs(la - lb) > maxDist then return maxDist + 1 end
+    local prev2 = {}
     local prev, curr = {}, {}
     for j = 0, lb do prev[j] = j end
+    local prevA = ""
     for i = 1, la do
         curr[0] = i
         local rowMin = curr[0]
         local ai = a:sub(i, i)
+        local prevB = ""
         for j = 1, lb do
-            local cost = ai == b:sub(j, j) and 0 or 1
+            local bj = b:sub(j, j)
+            local cost = ai == bj and 0 or 1
             local v = prev[j] + 1
             local v2 = curr[j-1] + 1
             if v2 < v then v = v2 end
             local v3 = prev[j-1] + cost
             if v3 < v then v = v3 end
+            if i > 1 and j > 1 and ai == prevB and prevA == bj then
+                local vt = prev2[j-2] + 1
+                if vt < v then v = vt end
+            end
             curr[j] = v
             if v < rowMin then rowMin = v end
+            prevB = bj
         end
         if rowMin > maxDist then return maxDist + 1 end
-        prev, curr = curr, prev
+        -- Rotate rows: prev2 <- prev, prev <- curr, curr <- prev2 (reuse).
+        local tmp = prev2
+        prev2 = prev
+        prev = curr
+        curr = tmp
+        prevA = ai
     end
     return prev[lb]
 end
@@ -2118,7 +2183,37 @@ end
 -- Levenshtein 2 when the vocab word is >= 6 chars (the spec rule
 -- from the project doc). Optionally filter by kind to scope the
 -- search - e.g. Kind 3 only wants damage-type suggestions.
+-- High-confidence vocab kinds that FindNearMiss is allowed to
+-- suggest. Limiting suggestions to these kinds eliminates a large
+-- class of false positives where a generic word in the
+-- pattern-extracted "keyword"/"importerKeyword" buckets (e.g.
+-- "cant", "another", "choose", "net", "end") was offered as a
+-- correction for a common English word in author prose. These four
+-- kinds are all derived from curated data tables - damage types,
+-- conditions, condition riders, single-word ongoing-effect names -
+-- so they don't drift as new content lands. New importer patterns
+-- can add words that authors should know about, but those words
+-- typically have a corresponding ongoing-effect record we'll pick
+-- up anyway.
+local g_diagnosticHighConfidenceKinds = {
+    damageType = true,
+    condition = true,
+    rider = true,
+    ongoingEffect = true,
+}
+
 -- Returns {word, kind, distance} or nil.
+--
+-- Threshold is Damerau-Levenshtein distance 1 across the board.
+-- The earlier "distance 2 allowed for vocab words >= 6 chars" rule
+-- caught the spec-cited "fier" -> "fire" case but also produced
+-- cross-word false positives at distance 2 (charges -> charmed,
+-- whose -> choose, other -> another) where the input is a real
+-- English word that happens to be 2 edits from a curated mechanic.
+-- The Damerau variant counts adjacent transpositions as a single
+-- edit, so "fier" -> "fire" stays detected (it's a transposition).
+-- Genuine distance-2 typos (two unrelated edits in one word) are
+-- rare enough that the false-positive reduction is worth the loss.
 local function FindNearMiss(word, kindFilter)
     if word == nil or #word < 3 then return nil end
     local vocab = ActivatedAbilityDrawSteelCommandBehavior.GetDiagnosticVocab()
@@ -2126,13 +2221,12 @@ local function FindNearMiss(word, kindFilter)
     if tokens == nil then return nil end
 
     local best = nil
-    local bestDist = 3
+    local bestDist = 2
     for _,entry in ipairs(tokens) do
-        if kindFilter == nil or entry.kind == kindFilter then
-            local maxAllowed = 1
-            if #entry.word >= 6 then maxAllowed = 2 end
-            local d = LevenshteinDistance(word, entry.word, maxAllowed)
-            if d <= maxAllowed and d > 0 and d < bestDist then
+        if g_diagnosticHighConfidenceKinds[entry.kind]
+                and (kindFilter == nil or entry.kind == kindFilter) then
+            local d = LevenshteinDistance(word, entry.word, 1)
+            if d == 1 and d < bestDist then
                 bestDist = d
                 best = entry
             end
@@ -2147,10 +2241,16 @@ end
 -- chars). Used to scan the unparsed tail for near-miss matches and
 -- to drive the compendium suppression check.
 local function TokeniseSegment(segment)
+    -- Stopword filter applied here as well as during vocab build:
+    -- without it, words that are in g_diagnosticStopwords (like
+    -- "and", "all", "not", number words) still get tokenised and
+    -- hit FindNearMiss, producing false-positive Kind 1 chips
+    -- ("and -> end", "all -> ally", "five -> fire") on legitimate
+    -- prose.
     local words = {}
     if type(segment) ~= "string" then return words end
     for word in string.lower(segment):gmatch("[a-z]+") do
-        if #word >= 3 then
+        if #word >= 3 and not g_diagnosticStopwords[word] then
             words[#words+1] = word
         end
     end
@@ -2177,12 +2277,60 @@ end
 ---    match = nil | table,     -- regex match groups when matched
 ---    entry = nil | table,     -- the g_rulePatterns/importer entry
 ---    pattern = nil | string}  -- which alternative pattern hit
+-- Strip characteristic-bonus shorthand (e.g. "3 + M damage" or
+-- "3 + M or A damage") down to just the base number, mirroring
+-- runtime NormalizeDamageRuleTextForCreature but with no caster.
+-- The runtime substitutes the actual attribute value before pattern
+-- matching, which means the damage regex sees a clean number. The
+-- diagnostician walks patterns without a caster context, so we have
+-- to perform the same erasure here - otherwise Pattern A captures
+-- the bonus letter ("m"/"a"/"r"/"i"/"p") as if it were a damage
+-- type, producing a spurious Kind 3 "Damage type m isn't recognized"
+-- chip on every characteristic-bonus tier.
+local function NormalizeRuleForDiagnostic(rule)
+    -- Multi-attribute form: "N + M or A" / "N + M, A or I"
+    local matchCharBonus = regex.MatchGroups(rule,
+        "^(?<prefix>.*?)(?<number>[0-9]+)\\s*\\+\\s*(?<attr>[MARIPmarip, ]+,? or [MARIPmarip]+)(\\s*(?<suffix>.*)|(?<suffix>[;,].*))?$")
+    if matchCharBonus == nil then
+        -- Single-attribute form: "N + M"
+        matchCharBonus = regex.MatchGroups(rule,
+            "^(?<prefix>.*?)(?<number>[0-9]+)\\s*\\+\\s*(?<attr>[MARIPmarip](?![A-Za-z]))(\\s*(?<suffix>.*)|(?<suffix>[;,].*))?$")
+    end
+    if matchCharBonus ~= nil then
+        return matchCharBonus.prefix .. matchCharBonus.number .. " " .. (matchCharBonus.suffix or "")
+    end
+    return rule
+end
+
+-- The "#" sigil in tier text is the author's opt-out-of-parsing
+-- marker. DisplayRuleTextForCreature renders everything from " #"
+-- (or a leading "#") with an invisible alpha tag at runtime, so the
+-- substantive parser never sees that tail - it's typically prose
+-- the author is automating via behaviours (InflictCondition, aura
+-- effects, custom behaviour). The diagnostician has to honour the
+-- same rule or it generates spurious chips on every # block (e.g.
+-- "slowed needs a duration" when the author is applying slowed via
+-- an aura, not via the rule text).
+--
+-- We truncate AT the "#" (not before its preceding space) so the
+-- gate prefix's required trailing space stays intact - otherwise
+-- "p < average, #prose" would strip to "p < average," and the gate
+-- regex (which demands "?, " or "? " trailing) would fail.
+local function StripHashStopMarker(rule)
+    local hashIdx = string.find(rule, "#", 1, true)
+    if hashIdx == nil then return rule end
+    if hashIdx == 1 then return "" end
+    return string.sub(rule, 1, hashIdx - 1)
+end
+
 --- @param rule string
 --- @return table
 function ActivatedAbilityDrawSteelCommandBehavior.WalkParsedSegments(rule)
     local segments = {}
     if type(rule) ~= "string" or rule == "" then return segments end
     rule = string.lower(rule)
+    rule = NormalizeRuleForDiagnostic(rule)
+    rule = StripHashStopMarker(rule)
 
     -- Pull the potency gate off the front exactly the way
     -- ValidateRule does - the diagnostician treats it as already-
@@ -2427,11 +2575,45 @@ function ActivatedAbilityDrawSteelCommandBehavior.DiagnoseTierText(rule)
     local compendiumKeywords = ActivatedAbilityDrawSteelCommandBehavior.GetCompendiumDiagnosticKeywords()
 
     -- Flat membership set: word -> true for every searchToken in
-    -- the vocab. Used by the unparsed-segment diagnosis to skip
-    -- known words before running expensive near-miss lookup.
+    -- the vocab, PLUS common English plural variants of each. Used
+    -- by the unparsed-segment diagnosis to skip known words before
+    -- running expensive near-miss lookup. The plural-variant pass
+    -- prevents Kind 1 false-positives on singular/plural pairs
+    -- where only one form is in vocab (e.g. "roll" in vocab but
+    -- "rolls" not - the author's "ability rolls" would otherwise
+    -- near-miss to "roll"). Heuristic plural forms covered:
+    --   add "s"                  : roll -> rolls
+    --   strip "y", add "ies"     : ally -> allies
+    --   add "es" after sibilant  : bonus -> bonuses, witch -> witches
+    -- Reverse direction also covered: if the plural is in vocab,
+    -- accept the singular too.
     local knownWordsLookup = {}
+    local function markKnown(w)
+        if w == nil or w == "" then return end
+        knownWordsLookup[w] = true
+    end
     for _,t in ipairs(vocab.searchTokens) do
-        knownWordsLookup[t.word] = true
+        local w = t.word
+        markKnown(w)
+        -- Forward plurals (vocab has singular; accept plural input)
+        markKnown(w .. "s")
+        if w:sub(-1) == "y" then
+            markKnown(w:sub(1, -2) .. "ies")
+        end
+        local tail2 = w:sub(-2)
+        if tail2 == "ch" or tail2 == "sh" or w:sub(-1) == "s" or w:sub(-1) == "x" or w:sub(-1) == "z" then
+            markKnown(w .. "es")
+        end
+        -- Reverse direction (vocab has plural; accept singular input)
+        if w:sub(-1) == "s" and #w > 3 then
+            markKnown(w:sub(1, -2))
+        end
+        if w:sub(-3) == "ies" and #w > 4 then
+            markKnown(w:sub(1, -4) .. "y")
+        end
+        if w:sub(-2) == "es" and #w > 4 then
+            markKnown(w:sub(1, -3))
+        end
     end
 
     local segments = ActivatedAbilityDrawSteelCommandBehavior.WalkParsedSegments(rule)

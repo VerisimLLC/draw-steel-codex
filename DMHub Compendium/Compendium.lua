@@ -853,18 +853,12 @@ end
 local ShowCustomAttributesPanel = function(parentPanel)
 
 	local attrPanel = gui.Panel{
-		classes = 'attr-panel',
-		styles = {
-			{
-				classes = {'attr-panel'},
-				width = 1200,
-				height = '100%',
-				halign = 'left',
-				flow = 'vertical',
-				pad = 20,
-			},
-			LibraryStyles,
-		},
+		width = 1200,
+		height = "100%",
+		halign = "left",
+		flow = "vertical",
+		pad = 20,
+		borderBox = true,
 	}
 
 	local SetAttribute = function(attrid)

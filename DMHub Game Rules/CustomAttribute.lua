@@ -485,13 +485,13 @@ function CustomAttribute:GenerateEditor(options)
 	if devmode() then
 		--the category of the attribute.
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {"formStackedRow"},
 			gui.Label{
-				text = 'GUID:',
-				valign = 'center',
-				minWidth = 100,
+				classes = {"formStacked"},
+				text = "GUID:",
 			},
 			gui.Input{
+				classes = {"formStacked"},
 				text = self.id,
 				editable = false,
 			},
@@ -500,13 +500,13 @@ function CustomAttribute:GenerateEditor(options)
 
 	--the category of the attribute.
 	children[#children+1] = gui.Panel{
-		classes = {'formPanel'},
+		classes = {"formStackedRow"},
 		gui.Label{
-			text = 'Category:',
-			valign = 'center',
-			minWidth = 100,
+			classes = {"formStacked"},
+			text = "Category:",
 		},
 		gui.Input{
+			classes = {"formStacked"},
 			text = self.category,
 			change = function(element)
                 element.text = trim(element.text)
@@ -521,13 +521,13 @@ function CustomAttribute:GenerateEditor(options)
 
 	--the name of the attribute.
 	children[#children+1] = gui.Panel{
-		classes = {'formPanel'},
+		classes = {"formStackedRow"},
 		gui.Label{
-			text = 'Name:',
-			valign = 'center',
-			minWidth = 100,
+			classes = {"formStacked"},
+			text = "Name:",
 		},
 		gui.Input{
+			classes = {"formStacked"},
 			text = self.name,
 			change = function(element)
 				self.name = element.text
@@ -539,16 +539,13 @@ function CustomAttribute:GenerateEditor(options)
 	--the type of the attribute.
 
 	children[#children+1] = gui.Panel{
-		classes = {'formPanel'},
+		classes = {"formStackedRow"},
 		gui.Label{
-			text = 'Type:',
-			valign = 'center',
-			minWidth = 100,
+			classes = {"formStacked"},
+			text = "Type:",
 		},
 		gui.Dropdown{
-			width = 200,
-			height = 40,
-			fontSize = 20,
+			classes = {"formStacked"},
 			options = self.types,
 			idChosen = self.attributeType,
 			change = function(element)
@@ -580,16 +577,13 @@ function CustomAttribute:GenerateEditor(options)
 
 	--the class for the attribute. Hidden until we fix this and make it work.
 	children[#children+1] = gui.Panel{
-		classes = {'formPanel', 'collapsed'},
+		classes = {"formStackedRow", "collapsed"},
 		gui.Label{
-			text = 'Class:',
-			valign = 'center',
-			minWidth = 100,
+			classes = {"formStacked"},
+			text = "Class:",
 		},
 		gui.Dropdown{
-			width = 200,
-			height = 40,
-			fontSize = 20,
+			classes = {"formStacked"},
 			options = classOptions,
 			idChosen = self.classid,
 			change = function(element)
@@ -600,17 +594,17 @@ function CustomAttribute:GenerateEditor(options)
 	}
 
 	children[#children+1] = gui.Panel{
-		classes = {"formPanel", cond(self.attributeType ~= "number", "collapsed-anim")},
+		classes = {"formStackedRow", cond(self.attributeType ~= "number", "collapseAnim")},
 		refreshType = function(element)
-			element:SetClass("collapsed-anim", self.attributeType ~= "number")
+			element:SetClass("collapseAnim", self.attributeType ~= "number")
 		end,
 		gui.Label{
+			classes = {"formStacked"},
 			text = "Base Value:",
-			valign = "center",
-			minWidth = 100,
 		},
 
 		gui.GoblinScriptInput{
+			classes = {"formStacked"},
 			value = self.baseValue,
 			change = function(element)
 				self.baseValue = element.value
@@ -627,76 +621,78 @@ function CustomAttribute:GenerateEditor(options)
 	}
 
 	children[#children+1] = gui.Panel{
-		classes = {cond(self.attributeType ~= "stringset", "collapsed-anim")},
-		flow = "vertical",
-		width = 400,
-		height = "auto",
-
-		styles = {
-			{
-				selectors = {"optionLabel"},
-				width = 300,
-				height = "auto",
-				fontSize = 16,
-			}
-		},
-
-		data = {
-			labelPanels = {}
-		},
+		classes = {"formStackedRow", cond(self.attributeType ~= "stringset", "collapseAnim")},
 
 		refreshType = function(element)
-			element:SetClass("collapsed-anim", self.attributeType ~= "stringset")
+			element:SetClass("collapseAnim", self.attributeType ~= "stringset")
 		end,
 
-		create = function(element)
-			element:FireEvent("refreshSet")
-		end,
+		gui.Label{
+			classes = {"formStacked"},
+			text = "Strings:",
+		},
 
-		refreshSet = function(element)
-			if self.attributeType ~= "stringset" then
-				return
-			end
+		gui.Panel{
+			flow = "horizontal",
+			wrap = true,
+			width = "100%",
+			height = "auto",
 
-			local currentChildren = element.children
-			local children = {}
-			local labelPanels = element.data.labelPanels
-			local newLabelPanels = {}
+			data = {
+				labelPanels = {}
+			},
 
-			for _,val in ipairs(self:GetPossibleStringValues()) do
-				local label = labelPanels[val] or gui.Label{
-					classes = {"optionLabel"},
-					text = val,
+			create = function(element)
+				element:FireEvent("refreshSet")
+			end,
 
-					gui.DeleteItemButton{
-						halign = "right",
-						width = 12,
-						height = 12,
-						click = function(element)
-							self:RemovePossibleStringValue(val)
-							resultPanel:FireEventTree("refreshSet")
-							resultPanel:FireEvent("change")
-						end,
+			refreshSet = function(element)
+				if self.attributeType ~= "stringset" then
+					return
+				end
+
+				local labelPanels = element.data.labelPanels
+				local newLabelPanels = {}
+				local newChildren = {}
+				local sorted = {}
+				for _,v in ipairs(self:GetPossibleStringValues()) do
+					sorted[#sorted+1] = v
+				end
+				table.sort(sorted, function(a,b) return a < b end)
+
+				for _,val in ipairs(sorted) do
+					local chip = labelPanels[val] or gui.Panel{
+						classes = {"multiselectChip"},
+						gui.Label{
+							classes = {"multiselectChipText"},
+							text = val,
+						},
+						gui.Panel{
+							classes = {"multiselectChipRemove"},
+							press = function()
+								self:RemovePossibleStringValue(val)
+								resultPanel:FireEventTree("refreshSet")
+								resultPanel:FireEvent("change")
+							end,
+							gui.Label{
+								classes = {"multiselectChipRemove"},
+								text = "X",
+							},
+						},
 					}
-				}
 
-				newLabelPanels[val] = label
-				children[#children+1] = label
-			end
+					newLabelPanels[val] = chip
+					newChildren[#newChildren+1] = chip
+				end
 
-			table.sort(children, function(a,b) return a.text < b.text end)
-			
-			children[#children+1] = currentChildren[#currentChildren]
-
-			element.data.labelPanels = newLabelPanels
-
-			element.children = children
-		end,
+				element.data.labelPanels = newLabelPanels
+				element.children = newChildren
+			end,
+		},
 
 		gui.Input{
 			width = 300,
 			height = 22,
-			fontSize = 16,
 			placeholderText = "Enter possible value...",
 			change = function(element)
 				if element.text == "" or self:HasPossibleStringValue(element.text) then
@@ -717,19 +713,14 @@ function CustomAttribute:GenerateEditor(options)
 	}
 
     children[#children+1] = gui.Panel{
-        classes = {"formPanel"},
+        classes = {"formStackedRow"},
         gui.Label{
-            classes = {"formLabel"},
+            classes = {"formStacked"},
             text = "Documentation:",
         },
         gui.Input{
-            width = 400,
-            textAlignment = "topleft",
-            halign = "left",
-            classes = {"formInput"},
+            classes = {"formStacked"},
             multiline = true,
-            height = "auto",
-            minHeight = 60,
             characterLimit = 512,
             text = self:try_get("documentation", ""),
             change = function(element)

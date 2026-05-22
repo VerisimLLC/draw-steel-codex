@@ -3394,10 +3394,12 @@ end
 
 local ShowImageAtlasPanel = function(parentPanel)
 	local imagesPanel = gui.Panel{
-		classes = 'mainContentPanel',
-		styles = {
-			LibraryStyles,
-		},
+		width = 1200,
+		height = "95%",
+		halign = "left",
+		flow = "vertical",
+		pad = 20,
+		borderBox = true,
 	}
 
 	local itemsListPanel = nil
@@ -3415,13 +3417,13 @@ local ShowImageAtlasPanel = function(parentPanel)
 
 			--the guid of the item.
 			children[#children+1] = gui.Panel{
-				classes = {'formPanel'},
+				classes = {'formStackedRow'},
 				gui.Label{
+					classes = {'formStacked'},
 					text = 'ID (dev only):',
-					valign = 'center',
-					minWidth = 100,
 				},
 				gui.Input{
+					classes = {'formStacked'},
 					text = data.id,
 					change = function(element)
 						element.text = data.id
@@ -3432,13 +3434,13 @@ local ShowImageAtlasPanel = function(parentPanel)
 
 		--name/description
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {'formStackedRow'},
 			gui.Label{
+				classes = {'formStacked'},
 				text = 'Name:',
-				valign = 'center',
-				minWidth = 100,
 			},
 			gui.Input{
+				classes = {'formStacked'},
 				text = data.description,
 				change = function(element)
 					data.description = element.text
@@ -3448,51 +3450,57 @@ local ShowImageAtlasPanel = function(parentPanel)
 		}
 
 		children[#children+1] = gui.Panel{
-			classes = {"formPanel"},
+			classes = {"formStackedRow"},
 			gui.Label{
+				classes = {"formStacked"},
 				text = "Tiling:",
-				valign = "center",
-				minWidth = 100,
 			},
-			gui.Input{
-				text = tostring(data.xdiv),
-				valign = "center",
-				width = 20,
-				characterLimit = 2,
-				placeholderText = "",
-				change = function(element)
-					local n = tonumber(element.text)
-					if n == nil or round(n) ~= n or n < 1 or n > 16 then
-						element.text = tostring(data.xdiv)
-						return
-					end
+			gui.Panel{
+				flow = "horizontal",
+				width = "auto",
+				height = "auto",
+				halign = "left",
+				gui.Input{
+					text = tostring(data.xdiv),
+					valign = "center",
+					width = 20,
+					characterLimit = 2,
+					placeholderText = "",
+					change = function(element)
+						local n = tonumber(element.text)
+						if n == nil or round(n) ~= n or n < 1 or n > 16 then
+							element.text = tostring(data.xdiv)
+							return
+						end
 
-					data.xdiv = n
-					UploadData()
-				end,
-			},
-			gui.Label{
-				text = "x",
-				valign = "center",
-				textAlignment = "center",
-				width = 10,
-			},
-			gui.Input{
-				text = tostring(data.ydiv),
-				valign = "center",
-				width = 20,
-				characterLimit = 2,
-				placeholderText = "",
-				change = function(element)
-					local n = tonumber(element.text)
-					if n == nil or round(n) ~= n or n < 1 or n > 16 then
-						element.text = tostring(data.ydiv)
-						return
-					end
+						data.xdiv = n
+						UploadData()
+					end,
+				},
+				gui.Label{
+					text = "x",
+					valign = "center",
+					textAlignment = "center",
+					width = 10,
+					hmargin = 12,
+				},
+				gui.Input{
+					text = tostring(data.ydiv),
+					valign = "center",
+					width = 20,
+					characterLimit = 2,
+					placeholderText = "",
+					change = function(element)
+						local n = tonumber(element.text)
+						if n == nil or round(n) ~= n or n < 1 or n > 16 then
+							element.text = tostring(data.ydiv)
+							return
+						end
 
-					data.ydiv = n
-					UploadData()
-				end,
+						data.ydiv = n
+						UploadData()
+					end,
+				},
 			},
 		}
 
@@ -3501,15 +3509,13 @@ local ShowImageAtlasPanel = function(parentPanel)
 
 		--show the image.
 		children[#children+1] = gui.Panel{
+			classes = {"image", "bordered"},
 			id = "tokenFrameImage",
 			width = 512,
 			height = 512,
 			halign = "left",
 			bgimage = id,
-			bgcolor = "white",
 			vmargin = 10,
-			borderColor = "white",
-			borderWidth = 1,
 			thinkTime = 0.2,
 			think = function(element)
 				local x = data.xdiv
@@ -3531,10 +3537,10 @@ local ShowImageAtlasPanel = function(parentPanel)
 							local children = {}
 							for i=1,x-1 do
 								children[#children+1] = gui.Panel{
+									classes = {"image"},
 									width = 1,
 									height = "100%",
 									lmargin = 512/x,
-									bgcolor = "white",
 									bgimage = "panels/square.png",
 									halign = "left",
 								}
@@ -3551,10 +3557,10 @@ local ShowImageAtlasPanel = function(parentPanel)
 							local children = {}
 							for i=1,y-1 do
 								children[#children+1] = gui.Panel{
+									classes = {"image"},
 									width = "100%",
 									height = 1,
 									tmargin = 512/y,
-									bgcolor = "white",
 									bgimage = "panels/square.png",
 									valign = "top",
 								}
@@ -3595,10 +3601,8 @@ local ShowImageAtlasPanel = function(parentPanel)
 			end,
 		}
 
-		children[#children+1] = gui.PrettyButton{
-			width = 200,
-			height = 50,
-			fontSize = 24,
+		children[#children+1] = gui.Button{
+			classes = {"sizeL"},
 			text = "DELETE",
 			halign = "right",
 			click = function(element)
@@ -3839,10 +3843,8 @@ local ShowImagesPanel = function(parentPanel, imageType)
 			end,
 		}
 
-		children[#children+1] = gui.PrettyButton{
-			width = 200,
-			height = 50,
-			fontSize = 24,
+		children[#children+1] = gui.Button{
+			classes = {"sizeL"},
 			text = "DELETE",
 			halign = "right",
 			click = function(element)

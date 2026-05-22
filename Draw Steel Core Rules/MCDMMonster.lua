@@ -167,10 +167,24 @@ function monster:FillFreeStrikes(options, result)
     end
 
     local melee = buildFreeStrike("Melee Free Strike", "Melee", 1)
-    if melee ~= nil then result[#result+1] = melee end
+    if melee ~= nil then
+        --Append the flagged-power-modifier applicator AFTER the damage
+        --behavior so it lands as a post-strike effect (e.g. Bleeding (EoT)
+        --on the target). Skipped if the symbol isn't registered yet, which
+        --can happen during early load.
+        if ActivatedAbilityApplyFreeStrikePowerRollModifiersBehavior ~= nil then
+            ActivatedAbilityApplyFreeStrikePowerRollModifiersBehavior.AppendToFreeStrike(melee)
+        end
+        result[#result+1] = melee
+    end
 
     local ranged = buildFreeStrike("Ranged Free Strike", "Ranged", 5)
-    if ranged ~= nil then result[#result+1] = ranged end
+    if ranged ~= nil then
+        if ActivatedAbilityApplyFreeStrikePowerRollModifiersBehavior ~= nil then
+            ActivatedAbilityApplyFreeStrikePowerRollModifiersBehavior.AppendToFreeStrike(ranged)
+        end
+        result[#result+1] = ranged
+    end
 end
 
 function creature:MakeFreeStrikeAttack(attackerToken, targetToken, symbols)

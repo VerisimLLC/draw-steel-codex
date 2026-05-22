@@ -1579,6 +1579,141 @@ end
 ActivatedAbilityTableRollBehavior.ExecuteCommand = ActivatedAbilityDrawSteelCommandBehavior.ExecuteCommand
 ActivatedAbilityTableRollBehavior.ExecuteCommandInternal = ActivatedAbilityDrawSteelCommandBehavior.ExecuteCommandInternal
 
+--- @class ActivatedAbilityApplyFreeStrikePowerRollModifiersBehavior:ActivatedAbilityBehavior
+--- Runs as the final step of a free strike. Walks the caster's active power-roll
+--- modifiers, picks any flagged with applyToFreeStrikes=true and a non-empty
+--- addText, evaluates their activationCondition + keyword filters against the
+--- free-strike ability+target, and applies each surviving addText as a Power
+--- Table Effect (same engine path as ActivatedAbilityDrawSteelCommandBehavior's
+--- rule). This bridges the gap that free strikes resolve as flat damage and
+--- never enter the power-roll modifier pipeline.
+ActivatedAbilityApplyFreeStrikePowerRollModifiersBehavior = RegisterGameType("ActivatedAbilityApplyFreeStrikePowerRollModifiersBehavior", "ActivatedAbilityBehavior")
+
+ActivatedAbilityApplyFreeStrikePowerRollModifiersBehavior.summary = 'Apply Flagged Power Modifiers (Free Strike)'
+
+ActivatedAbility.RegisterType
+{
+    id = 'apply_free_strike_power_modifiers',
+    text = 'Apply Flagged Power Modifiers (Free Strike)',
+    hidden = true, --internal: not exposed in the user-facing behavior picker.
+    createBehavior = function()
+        return ActivatedAbilityApplyFreeStrikePowerRollModifiersBehavior.new{
+        }
+    end
+}
+
+function ActivatedAbilityApplyFreeStrikePowerRollModifiersBehavior:SummarizeBehavior(ability, creatureLookup)
+    return "Apply Flagged Power Modifiers (Free Strike)"
+end
+
+function ActivatedAbilityApplyFreeStrikePowerRollModifiersBehavior:Cast(ability, casterToken, targets, options)
+    if casterToken == nil or not casterToken.valid then
+        return
+    end
+    if casterToken.properties == nil then
+        return
+    end
+    if targets == nil or #targets == 0 then
+        return
+    end
+
+    --commandHelper is the Lua "self" we'll borrow from to invoke
+    --ExecuteCommand. ExecuteCommand only reads its rule argument and self's
+    --type info, so a transient instance is fine.
+    local commandHelper = ActivatedAbilityDrawSteelCommandBehavior.new{}
+
+    local activeModifiers = casterToken.properties:GetActiveModifiers()
+    for _,modEntry in ipairs(activeModifiers) do
+        local modifier = modEntry.mod
+        if modifier ~= nil and modifier.behavior == "power" and modifier:try_get("applyToFreeStrikes", false) then
+            local addText = trim(modifier:try_get("addText", ""))
+            if addText ~= "" then
+                --Apply the same keyword filter the standard power-modifier
+                --pipeline uses (see hintPowerRoll). matchAnyKeywords semantics
+                --are preserved. rollType == "all" intentionally skips this in
+                --the standard pipeline; replicate that.
+                local keywordsOk = true
+                local keywords = modifier:try_get("keywords")
+                if keywords ~= nil and modifier:try_get("rollType", "ability_power_roll") ~= "all" then
+                    local totalCount = 0
+                    local matchCount = 0
+                    for keyword,_ in pairs(keywords) do
+                        if keyword ~= "_luaTable" then
+                            totalCount = totalCount + 1
+                            if ability:HasKeyword(keyword) then
+                                matchCount = matchCount + 1
+                            end
+                        end
+                    end
+                    if totalCount > 0 and matchCount < totalCount and (matchCount == 0 or not modifier:try_get("matchAnyKeywords", false)) then
+                        keywordsOk = false
+                    end
+                end
+
+                if keywordsOk and modifier:PassesFilter(casterToken.properties) then
+                    --Activation condition: matches the symbol shape used by
+                    --power.hintPowerRoll so authors can keep one expression
+                    --(Self.X / Caster.X / Target.X / Ability.X) consistent
+                    --across the full-ability path and the free-strike path.
+                    local activationOk = true
+                    local activationCondition = modifier:try_get("activationCondition", true)
+                    if activationCondition == false then
+                        activationOk = false
+                    elseif activationCondition ~= true then
+                        local firstTarget = (targets[1] and targets[1].token) or nil
+                        local firstTargetProps = (firstTarget ~= nil and firstTarget.valid) and firstTarget.properties or nil
+                        local lookupFunction = casterToken.properties:LookupSymbol(modifier:AppendSymbols{
+                            ability = GenerateSymbols(ability),
+                            target = GenerateSymbols(firstTargetProps),
+                            caster = GenerateSymbols(casterToken.properties),
+                            self = GenerateSymbols(casterToken.properties),
+                            cast = options.symbols and options.symbols.cast,
+                            title = "",
+                        })
+                        activationOk = GoblinScriptTrue(ExecuteGoblinScript(activationCondition, lookupFunction, 0, "Free Strike Power Modifier Activation Condition"))
+                    end
+
+                    if activationOk then
+                        --Apply per-target: interpolate addText with the
+                        --target installed as a symbol so Target.X formulas
+                        --resolve correctly, then dispatch via the same
+                        --ExecuteCommand path "Power Table Effect" rules use.
+                        for _,target in ipairs(targets) do
+                            local targetToken = target.token
+                            if targetToken ~= nil and targetToken.valid then
+                                local ruleSymbols = table.shallow_copy(options.symbols or {})
+                                ruleSymbols.target = GenerateSymbols(targetToken.properties)
+                                ruleSymbols.caster = GenerateSymbols(casterToken.properties)
+                                ruleSymbols.self = GenerateSymbols(casterToken.properties)
+                                ruleSymbols.ability = GenerateSymbols(ability)
+                                local lookupFunction2 = casterToken.properties:LookupSymbol(modifier:AppendSymbols(ruleSymbols))
+                                local interpolated = StringInterpolateGoblinScript(addText, lookupFunction2)
+                                if interpolated ~= nil and trim(interpolated) ~= "" then
+                                    print("FreeStrikeMods:: applying '" .. tostring(interpolated) .. "' from modifier '" .. tostring(modifier:try_get("name", "?")) .. "' to " .. creature.GetTokenDescription(targetToken))
+                                    commandHelper:ExecuteCommand(ability, casterToken, targetToken, options, interpolated)
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
+
+function ActivatedAbilityApplyFreeStrikePowerRollModifiersBehavior.AppendToFreeStrike(freeStrikeAbility)
+    if freeStrikeAbility == nil or freeStrikeAbility.behaviors == nil then
+        return
+    end
+    --Guard against double-add if a caller invokes this twice on the same clone.
+    for _,b in ipairs(freeStrikeAbility.behaviors) do
+        if b.typeName == "ActivatedAbilityApplyFreeStrikePowerRollModifiersBehavior" then
+            return
+        end
+    end
+    freeStrikeAbility.behaviors[#freeStrikeAbility.behaviors+1] = ActivatedAbilityApplyFreeStrikePowerRollModifiersBehavior.new{}
+end
+
 function ActivatedAbilityDrawSteelCommandBehavior.ValidateRule(rule)
 
     --print("Rule:: Validating rule(" .. rule .. ")")

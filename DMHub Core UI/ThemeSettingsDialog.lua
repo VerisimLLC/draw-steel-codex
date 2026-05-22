@@ -235,15 +235,52 @@ local function buildPreviewBody()
     }
 end
 
+-- Drive a CrossFade from 1 -> 0 over `duration` seconds. Caller hands us a
+-- transition handle that has already captured the snapshot; we just animate
+-- the dissolve and Destroy() when done.
+local function fadeOut(transition, duration)
+    local startTime = dmhub.Time()
+    local tick
+    tick = function()
+        if mod.unloaded then
+            transition:Destroy()
+            return
+        end
+        local t = (dmhub.Time() - startTime) / duration
+        if t >= 1 then
+            transition:CrossFade(0)
+            transition:Destroy()
+            return
+        end
+        transition:CrossFade(1 - t)
+        dmhub.Schedule(0.01, tick)
+    end
+    dmhub.Schedule(0.01, tick)
+end
+
 CreateThemeSettingsDialog = function()
     -- Pending picker values; start at the user's currently-active selection.
     local selectedThemeId  = ThemeEngine.GetActiveTheme()
     local selectedSchemeId = ThemeEngine.GetActiveColorScheme()
 
+    local resultPanel
     local previewPanel
+
+    -- Capture the current preview chrome, swap styles + body underneath, then
+    -- crossfade the snapshot away so the change reads as a transition.
     local function refreshPreview()
-        previewPanel.styles   = ThemeEngine.GetStyles(selectedThemeId, selectedSchemeId)
-        previewPanel.children = buildPreviewBody()
+        -- Defer a frame so the dropdown finishes committing before snapshot.
+        dmhub.Schedule(0.02, function()
+            if mod.unloaded then return end
+            resultPanel:FireEventTree("refreshPreview")
+            local transition
+            transition = dmhub.StartScreenTransition(function()
+                if mod.unloaded then return end
+                previewPanel.styles   = ThemeEngine.GetStyles(selectedThemeId, selectedSchemeId)
+                previewPanel.children = buildPreviewBody()
+                fadeOut(transition, 0.45)
+            end)
+        end)
     end
 
     previewPanel = gui.Panel{
@@ -300,30 +337,66 @@ CreateThemeSettingsDialog = function()
         },
 
         gui.Button{
-            classes = {"sizeS"},
+            -- Hidden whenever the pending picker selection already equals the
+            -- live active selection; refreshPreview event toggles that.
+            classes = {"sizeS", "hidden"},
             text = "Apply",
             valign = "top",
             tmargin = 28,
-            click = function()
-                ThemeEngine.SetActiveTheme(selectedThemeId)
-                ThemeEngine.SetActiveColorScheme(selectedSchemeId)
-                track("theme_change", {
-                    theme = selectedThemeId,
-                    themeName = nameForId(ThemeEngine.ListThemes(), selectedThemeId),
-                    colorScheme = selectedSchemeId,
-                    colorSchemeName = nameForId(ThemeEngine.ListColorSchemes(), selectedSchemeId),
-                })
+
+            refreshPreview = function(element)
+                element:SetClass("hidden",
+                    selectedThemeId  == ThemeEngine.GetActiveTheme() and
+                    selectedSchemeId == ThemeEngine.GetActiveColorScheme())
+            end,
+
+            press = function(element)
+                element:SetClass("hidden", true)
+                dmhub.Schedule(0.02, function()
+                    if mod.unloaded then return end
+                    local transition
+                    transition = dmhub.StartScreenTransition(function()
+                        if mod.unloaded then return end
+                        ThemeEngine.SetActiveTheme(selectedThemeId)
+                        ThemeEngine.SetActiveColorScheme(selectedSchemeId)
+                        track("theme_change", {
+                            theme = selectedThemeId,
+                            themeName = nameForId(ThemeEngine.ListThemes(), selectedThemeId),
+                            colorScheme = selectedSchemeId,
+                            colorSchemeName = nameForId(ThemeEngine.ListColorSchemes(), selectedSchemeId),
+                        })
+                        fadeOut(transition, 0.6)
+                    end)
+                end)
             end,
         },
     }
 
-    return gui.Panel{
+    resultPanel = gui.Panel{
         classes = {"launchablePanel"},
-        styles = ThemeEngine.GetStyles("default", "default"),
+        -- Dialog chrome follows the active scheme; the create handler below
+        -- re-resolves styles after Apply so the host repaints live.
+        styles = ThemeEngine.GetStyles(),
         width = 700,
         height = 600,
         flow = "vertical",
         pad = 16,
+
+        data = {},
+
+        create = function(element)
+            element.data.themeSub = ThemeEngine.OnThemeChanged(mod, function()
+                if element.valid then
+                    element.styles = ThemeEngine.GetStyles()
+                end
+            end)
+        end,
+        destroy = function(element)
+            if element.data.themeSub ~= nil then
+                element.data.themeSub:Deregister()
+                element.data.themeSub = nil
+            end
+        end,
 
         gui.Label{
             classes = {"sizeXl", "bold"},
@@ -338,4 +411,6 @@ CreateThemeSettingsDialog = function()
         pickerRow,
         previewPanel,
     }
+
+    return resultPanel
 end

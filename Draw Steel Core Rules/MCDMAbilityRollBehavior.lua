@@ -2501,7 +2501,8 @@ function RollPropertiesPowerTable:CustomPanel(message)
 
     local m_diceFinished = false
 
-    local tbl = gui.Table{
+    local tbl
+    tbl = gui.Table{
         width = "100%",
         height = "auto",
         halign = "center",

@@ -1175,6 +1175,23 @@ local function CreateActionBar()
         flow = "horizontal",
         bmargin = 8,
 
+        data = {},
+
+        create = function(element)
+            element.data.themeListener = ThemeEngine.OnThemeChanged(mod, function()
+                if element.valid then
+                    element.styles = { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(Styles.ActionBar) }
+                end
+            end)
+        end,
+
+        destroy = function(element)
+            if element.data.themeListener ~= nil then
+                element.data.themeListener:Deregister()
+                element.data.themeListener = nil
+            end
+        end,
+
         refresh = function(element)
             if #g_casterTokenStack == 0 then
                 g_token = dmhub.selectedOrPrimaryTokens[1]
@@ -2737,6 +2754,20 @@ local function CreateShiftController()
             { id = false, text = "Not Shifting" },
         },
         value = g_shifting,
+        data = {},
+        create = function(element)
+            element.data.themeListener = ThemeEngine.OnThemeChanged(mod, function()
+                if element.valid then
+                    element.styles = ThemeEngine.GetStyles()
+                end
+            end)
+        end,
+        destroy = function(element)
+            if element.data.themeListener ~= nil then
+                element.data.themeListener:Deregister()
+                element.data.themeListener = nil
+            end
+        end,
         beginCasting = function(element)
 
             if g_token ~= nil and (g_token.properties:CalculateNamedCustomAttribute("Shift Disabled") or 0) > 0 then
@@ -2770,6 +2801,7 @@ local function CreateShiftController()
 
         slider,
     }
+
     return resultPanel
 end
 

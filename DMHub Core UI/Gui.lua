@@ -3315,7 +3315,7 @@ function gui.AudioEditor(args)
 				}
 
 				local playButton
-				playButton = gui.Button{
+				playButton = gui.IconButton{
 					icon = "ui-icons/AudioPlayButton.png",
 					classes = {"sizeM"},
 					valign = "center",

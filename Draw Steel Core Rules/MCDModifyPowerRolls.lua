@@ -2273,6 +2273,39 @@ CharacterModifier.TypeInfo.power = {
                 },
             }
 
+            --Optional opt-in: also fire the "Add to Table" rule on the owning
+            --creature's free strikes (which resolve as flat damage and skip
+            --the power-roll modifier pipeline). The activation condition and
+            --keyword filters above still gate the modifier per free strike.
+            --Hidden when addText is empty since there's nothing to add.
+            local addTextTrimmed = trim(modifier:try_get("addText", ""))
+            local hideApplyToFreeStrikes = (modifier.rollType == "project_roll") or (addTextTrimmed == "")
+            children[#children+1] = gui.Panel{
+                classes = {"formPanel", cond(hideApplyToFreeStrikes, "collapsed-anim")},
+                gui.Label{
+                    classes = {"formLabel"},
+                    text = "",
+                },
+                gui.Check{
+                    styles = ThemeEngine.GetStyles(),
+                    style = {
+                        height = 30,
+                        width = 260,
+                        fontSize = 18,
+                        halign = "left",
+                    },
+                    text = "Also Apply to Monster Free Strikes",
+                    value = modifier:try_get("applyToFreeStrikes", false),
+                    hover = function(element)
+                        gui.Tooltip("When checked, this modifier's 'Add to Table' rule will also fire when the creature uses a free strike (monster or companion). The modifier's activation condition and keyword filters still gate it.")(element)
+                    end,
+                    change = function(element)
+                        modifier.applyToFreeStrikes = element.value
+                        Refresh()
+                    end,
+                },
+            }
+
             children[#children+1] = gui.Panel{
                 classes = {"formPanel", "formPanel-inline", cond(modifier.rollType == "project_roll", "collapsed-anim")},
                 gui.Label{

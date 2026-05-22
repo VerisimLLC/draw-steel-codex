@@ -1,5 +1,7 @@
 local mod = dmhub.GetModLoading()
 
+local g_rampageResourceId = "9f418676-96be-402b-92da-0f50294146b3"
+
 RegisterGameType("AnimalCompanion", "monster")
 
 creature.companionid = false
@@ -70,6 +72,30 @@ creature.RegisterSymbol {
         type = "creature",
         desc = "The animal companion summoned by this creature (Beastheart class), if any. Use Caster.Companion.X / Self.Companion.X to read companion stats.",
         seealso = {"Summoner"},
+    },
+}
+
+--GoblinScript symbol used by Beastheart-companion features to gate effects
+--on the companion being in its rampaging state. Per the Beastheart rules
+--("Rampage"), a companion is rampaging when its Rampage stat is 8 or more.
+--Returns false for any non-AnimalCompanion creature (and false when the
+--companion has no Rampage resource yet, so it never errors mid-summon /
+--for fresh tokens).
+creature.RegisterSymbol {
+    symbol = "rampaging",
+    lookup = function(c)
+        if not c:IsCompanion() then
+            return false
+        end
+        local quantity = c:GetUnboundedResourceQuantity(g_rampageResourceId) or 0
+        return quantity >= 8
+    end,
+    help = {
+        name = "Rampaging",
+        type = "boolean",
+        desc = "True when this creature is an animal companion whose Rampage stat is 8 or more (per the Beastheart Rampage rule). False for any other creature.",
+        examples = {"Self.Rampaging", "Caster.Companion.Rampaging"},
+        seealso = {"Companion"},
     },
 }
 
@@ -191,6 +217,14 @@ function AnimalCompanion:FillFreeStrikes(options, result)
         ability.description = string.format("%s damage", freeStrikeDamage)
     else
         ability.description = string.format("%s %s damage", freeStrikeDamage, damageType)
+    end
+
+    --Same wiring as monster:FillFreeStrikes: append the flagged
+    --power-modifier applicator after the damage behavior so that
+    --modifiers like "Tear You to Ribbons" (Bleeding (EoT) when rampaging)
+    --land on companion free strikes too.
+    if ActivatedAbilityApplyFreeStrikePowerRollModifiersBehavior ~= nil then
+        ActivatedAbilityApplyFreeStrikePowerRollModifiersBehavior.AppendToFreeStrike(ability)
     end
 
     result[#result+1] = ability
@@ -672,8 +706,6 @@ function AnimalCompanion:PostProcessInvokedAbility(ability)
 
     return ability
 end
-
-local g_rampageResourceId = "9f418676-96be-402b-92da-0f50294146b3"
 
 local function CreateCharacterDisplayPanel(element)
     local m_token = nil

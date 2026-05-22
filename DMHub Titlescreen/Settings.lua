@@ -2589,6 +2589,7 @@ setting{
 	section = "GameStrictRules",
 }
 
+
 setting{
     id = "strict:inventory",
     description = "Strict Inventory Management",

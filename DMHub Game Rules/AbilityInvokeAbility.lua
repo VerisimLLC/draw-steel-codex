@@ -401,7 +401,7 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                             print("INVOKE:: Auto-target enabled for", abilityClone.name)
                         end
 
-                        if self.targeting == "formula" then
+                        if self.targeting == "formula" or self.targeting == "prompt_inherit" then
                             options.targetingFormula = self:try_get("targetingFormula", "")
                         end
 
@@ -524,9 +524,25 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
             if targeting == "prompt_inherit" then
                 local allowedtargets = {}
                 local inheritedTargets = options.targets or {}
+                --Optional subset filter: a GoblinScript formula evaluated per
+                --inherited target. Targets that fail are excluded so the player
+                --can only pick from the filtered subset. Sees Target and Caster;
+                --PassesPotency is a creature function, so a formula like
+                --Target.PassesPotency("M", Caster.Average) works with no ability.
+                local subsetFilter = options.targetingFormula
                 for _, target in ipairs(inheritedTargets) do
                     if target.token ~= nil then
-                        allowedtargets[target.token.charid] = true
+                        local passesFilter = true
+                        if subsetFilter ~= nil and trim(subsetFilter) ~= "" then
+                            local filterSymbols = {
+                                target = GenerateSymbols(target.token.properties),
+                                caster = GenerateSymbols(casterToken.properties),
+                            }
+                            passesFilter = GoblinScriptTrue(ExecuteGoblinScript(subsetFilter, invokerToken.properties:LookupSymbol(filterSymbols), 0, "Invoke Subset Filter"))
+                        end
+                        if passesFilter then
+                            allowedtargets[target.token.charid] = true
+                        end
                     end
                 end
                 symbols.allowedtargets = allowedtargets
@@ -882,7 +898,7 @@ function ActivatedAbilityInvokeAbilityBehavior:EditorItems(parentPanel)
     targetingFormulaPanel = gui.Panel{
         classes = {"formPanel"},
         create = function(element)
-            element:SetClass("collapsed", self.targeting ~= "formula")
+            element:SetClass("collapsed", self.targeting ~= "formula" and self.targeting ~= "prompt_inherit")
         end,
         refreshTargeting = function(element)
             element:FireEventTree("create")
@@ -890,6 +906,9 @@ function ActivatedAbilityInvokeAbilityBehavior:EditorItems(parentPanel)
         gui.Label{
             classes = {"formLabel"},
             text = "Targeting Formula:",
+            create = function(element)
+                element.text = cond(self.targeting == "prompt_inherit", "Subset Filter:", "Targeting Formula:")
+            end,
         },
         gui.GoblinScriptInput{
             classes = {"formInput"},
@@ -898,7 +917,7 @@ function ActivatedAbilityInvokeAbilityBehavior:EditorItems(parentPanel)
                 self.targetingFormula = element.value
             end,
             documentation = {
-                help = "This GoblinScript is used to determine which targets may be targeted by this ability.",
+                help = "For 'Creatures Matching Formula' targeting, selects which creatures are targeted. For 'Prompt Player (Inherit)' targeting, an optional filter narrowing the inherited target subset -- leave blank for no filter. Sees Target and Caster; e.g. Target.PassesPotency(\"M\", Caster.Average).",
                 output = "boolean",
                 subject = creature.helpSymbols,
 				subjectDescription = "The creature invoking the ability",

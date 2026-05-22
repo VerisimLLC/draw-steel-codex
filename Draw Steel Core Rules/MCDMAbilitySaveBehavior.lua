@@ -141,8 +141,43 @@ function ActivatedAbilitySaveBehavior:RollSaveInTimeline(ability, casterToken, t
             rollComplete = true
 
             local saveEnds = ExecuteGoblinScript("Save Ends", targetCreature:LookupSymbol(options.symbols or {}), 6, "Save Ends threshold")
-            if rollInfo.total >= saveEnds then
+            local passed = rollInfo.total >= saveEnds
+            if passed then
                 self:PurgeSaveItem(targetToken, item)
+            elseif item.type == "ongoingEffect" then
+                -- Failed save against an ongoing effect that did NOT end (the
+                -- effect persists). Fire the savefail trigger so handlers
+                -- inside the effect's modifiers[] can react (e.g. Stoned
+                -- inflicts corruption damage on each failed save).
+                --
+                -- Resolve Caster from the effect instance's casterInfo; if
+                -- caster-tracking is not enabled or the original caster token
+                -- is gone, fall back to the bearer (targetCreature) so
+                -- Caster.X formulas still evaluate to something safe rather
+                -- than 0.
+                local casterSymbol = targetCreature
+                local effectInstance = nil
+                for _, inst in ipairs(targetCreature:ActiveOngoingEffects()) do
+                    if inst.id == item.instanceId then
+                        effectInstance = inst
+                        break
+                    end
+                end
+                if effectInstance ~= nil then
+                    local casterInfo = effectInstance:try_get("casterInfo")
+                    if casterInfo ~= nil and type(casterInfo.tokenid) == "string" then
+                        local casterTok = dmhub.GetTokenById(casterInfo.tokenid)
+                        if casterTok ~= nil and casterTok.valid and casterTok.properties ~= nil then
+                            casterSymbol = casterTok.properties
+                        end
+                    end
+                end
+
+                targetCreature:DispatchEvent("savefail", {
+                    effectname = item.name,
+                    caster = casterSymbol,
+                    saveroll = rollInfo.total,
+                })
             end
 
             -- Fire custom triggers matching the standard save ability behavior.

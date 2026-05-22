@@ -1,6 +1,7 @@
 --- @class dmhub The main interface to dmhub.
 --- @field version string The current version of the DMHub engine.
 --- @field commandLineArguments string[] The command line arguments passed to the app.
+--- @field teleportEffects any Registry of token effects (teleport / transformation / destruction visuals).
 --- @field systemHardwareRating number The power level of the system hardware. 1 or greater is a relatively high power system.
 --- @field gameLoadingProgress number Game loading progress. nil = not loading a game. 0 = just started loading, 1 = fully loaded.
 --- @field whiteLabel WhiteLabel The current 'white label' version of the engine this is. May be 'dmhub' or 'mcdm'
@@ -350,6 +351,12 @@ end
 --- SaveImageDialog: Open a system file dialog inviting the user to save a file as an image. The named texture will be saved.
 --- @field options {texture: string, error: (fun(message: string): nil)}
 function dmhub.SaveImageDialog(options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- StartScreenTransition: Begin a screen transition: captures a snapshot of the current screen into a RenderTexture and renders it as a fullscreen overlay on top of all UI. Returns a handle whose CrossFade(alpha) controls the snapshot's visibility (1 -> fully obscuring the live screen, 0 -> revealing it underneath). Call Destroy() on the handle when finished to free the RenderTexture. The snapshot is captured at the next end-of-frame; the handle's `ready` flag is true once it has been captured. The optional `onReady` function is invoked at that moment -- apply the visual change you want to fade *to* inside that callback (or after `ready` is true), then drive CrossFade(alpha) from 1 down to 0.
+--- ScreenTransitionLua
+function dmhub.StartScreenTransition(onReady)
 	-- dummy implementation for documentation purposes only
 end
 

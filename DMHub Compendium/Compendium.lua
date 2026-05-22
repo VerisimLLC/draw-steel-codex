@@ -2905,39 +2905,12 @@ end
 local ShowEquipmentCategoriesPanel = function(parentPanel)
 
 	local equipmentCatPanel = gui.Panel{
-		classes = 'equip-cat-panel',
-		styles = {
-			{
-				classes = {'equip-cat-panel'},
-				width = 1200,
-				height = '100%',
-				halign = 'left',
-				flow = 'vertical',
-				pad = 20,
-			},
-			{
-				classes = {'label'},
-				color = 'white',
-				fontSize = 22,
-				width = 'auto',
-				height = 'auto',
-			},
-			{
-				classes = {'input'},
-				width = 200,
-				height = 26,
-				fontSize = 18,
-				color = 'white',
-			},
-			{
-				classes = {'formPanel'},
-				flow = 'horizontal',
-				width = 'auto',
-				height = 'auto',
-				halign = 'left',
-				vmargin = 2,
-			}
-		},
+		width = 1200,
+		height = "100%",
+		halign = "left",
+		flow = "vertical",
+		pad = 20,
+		borderBox = true,
 	}
 
 	local SetId = function(id)
@@ -2950,28 +2923,26 @@ local ShowEquipmentCategoriesPanel = function(parentPanel)
 		local children = {}
 
         children[#children+1] = gui.Panel{
-            classes = {"formPanel", "devonly"},
+            classes = {"formStackedRow", "devonly"},
 			gui.Label{
-				text = 'GUID:',
-				valign = 'center',
-				minWidth = 100,
+				classes = {"formStacked"},
+				text = "GUID:",
 			},
             gui.Input{
-                classes = {"formInput"},
+                classes = {"formStacked"},
                 text = data.id,
-                width = 300,
             },
         }
 
 		--the name of the item.
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {"formStackedRow"},
 			gui.Label{
-				text = 'Name:',
-				valign = 'center',
-				minWidth = 100,
+				classes = {"formStacked"},
+				text = "Name:",
 			},
 			gui.Input{
+				classes = {"formStacked"},
 				text = data.name,
 				change = function(element)
 					data.name = element.text
@@ -2999,18 +2970,15 @@ local ShowEquipmentCategoriesPanel = function(parentPanel)
 
 		--the superset of this item.
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {"formStackedRow"},
 			gui.Label{
-				text = 'Parent Category:',
-				valign = 'center',
-				minWidth = 100,
+				classes = {"formStacked"},
+				text = "Parent Category:",
 			},
 			gui.Dropdown{
+				classes = {"formStacked"},
 				options = supersets,
 				idChosen = data:try_get("superset", "none"),
-				width = 200,
-				height = 40,
-				fontSize = 20,
 
 				change = function(element)
 					local val = element.idChosen
@@ -3026,13 +2994,13 @@ local ShowEquipmentCategoriesPanel = function(parentPanel)
 
 		--the editor type this category uses
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {"formStackedRow"},
 			gui.Label{
-				text = 'Editor Type:',
-				valign = 'center',
-				minWidth = 100,
+				classes = {"formStacked"},
+				text = "Editor Type:",
 			},
 			gui.Dropdown{
+				classes = {"formStacked"},
 				options = {
 					{
 						id = "Weapon",
@@ -3052,9 +3020,6 @@ local ShowEquipmentCategoriesPanel = function(parentPanel)
 					},
 				},
 				idChosen = data.editorType,
-				width = 200,
-				height = 40,
-				fontSize = 20,
 
 				change = function(element)
 					data.editorType = element.idChosen
@@ -3063,161 +3028,35 @@ local ShowEquipmentCategoriesPanel = function(parentPanel)
 			},
 		}
 
-		--whether this type of item can have proficiency.
-		children[#children+1] = gui.Check{
-			text = "Has Proficiency",
-			halign = "left",
-			fontSize = 22,
-			value = data.allowProficiency,
-			change = function(element)
-				data.allowProficiency = element.value
-				UploadData()
-			end,
+		local checkboxes = {
+			{ text = "Has Proficiency", field = "allowProficiency" },
+			{ text = "Individual Items have Proficiency", field = "allowIndividualProficiency" },
+			{ text = "Unarmored", field = "isUnarmored" },
+			{ text = "Tools", field = "isTool" },
+			{ text = "Martial Weapons", field = "isMartial" },
+			{ text = "Melee Weapons", field = "isMelee" },
+			{ text = "Ranged Weapons", field = "isRanged" },
+			{ text = "Is Ammunition", field = "isAmmo" },
+			{ text = "Is Light Source", field = "isLightSource" },
+			{ text = "Sold in Quantity", field = "isQuantity" },
+			{ text = "Is Treasure", field = "isTreasure" },
+			{ text = "Is Artifact", field = "isArtifact" },
+			{ text = "Equipment Packs", field = "isPacks" },
 		}
-
-		--whether individual items in this category have proficiency
-		children[#children+1] = gui.Check{
-			text = "Individual Items have Proficiency",
-			halign = "left",
-			fontSize = 22,
-			value = data.allowIndividualProficiency,
-			change = function(element)
-				data.allowIndividualProficiency = element.value
-				UploadData()
-			end,
-		}
-
-		--whether items in this category are unarmored
-		children[#children+1] = gui.Check{
-			text = "Unarmored",
-			halign = "left",
-			fontSize = 22,
-			value = data.isUnarmored,
-			change = function(element)
-				data.isUnarmored = element.value
-				UploadData()
-			end,
-		}
-
-		--whether items in this category are tools
-		children[#children+1] = gui.Check{
-			text = "Tools",
-			halign = "left",
-			fontSize = 22,
-			value = data.isTool,
-			change = function(element)
-				data.isTool = element.value
-				UploadData()
-			end,
-		}
-
-		--whether items in this category are martial weapons
-		children[#children+1] = gui.Check{
-			text = "Martial Weapons",
-			halign = "left",
-			fontSize = 22,
-			value = data.isMartial,
-			change = function(element)
-				data.isMartial = element.value
-				UploadData()
-			end,
-		}
-
-		--whether items in this category are melee weapons
-		children[#children+1] = gui.Check{
-			text = "Melee Weapons",
-			halign = "left",
-			fontSize = 22,
-			value = data.isMelee,
-			change = function(element)
-				data.isMelee = element.value
-				UploadData()
-			end,
-		}
-
-		--whether items in this category are ranged weapons
-		children[#children+1] = gui.Check{
-			text = "Ranged Weapons",
-			halign = "left",
-			fontSize = 22,
-			value = data.isRanged,
-			change = function(element)
-				data.isRanged = element.value
-				UploadData()
-			end,
-		}
-
-		--whether items in this category are ammunition for other weapons.
-		children[#children+1] = gui.Check{
-			text = "Is Ammunition",
-			halign = "left",
-			fontSize = 22,
-			value = data.isAmmo,
-			change = function(element)
-				data.isAmmo = element.value
-				UploadData()
-			end,
-		}
-
-		--whether items in this category are light sources.
-		children[#children+1] = gui.Check{
-			text = "Is Light Source",
-			halign = "left",
-			fontSize = 22,
-			value = data.isLightSource,
-			change = function(element)
-				data.isLightSource = element.value
-				UploadData()
-			end,
-		}
-
-		--whether items in this category come in mass quantities.
-		children[#children+1] = gui.Check{
-			text = "Sold in Quantity",
-			halign = "left",
-			fontSize = 22,
-			value = data.isQuantity,
-			change = function(element)
-				data.isQuantity = element.value
-				UploadData()
-			end,
-		}
-
-		--whether items in this category are considered treasure.
-		children[#children+1] = gui.Check{
-			text = "Is Treasure",
-			halign = "left",
-			fontSize = 22,
-			value = data.isTreasure,
-			change = function(element)
-				data.isTreasure = element.value
-				UploadData()
-			end,
-		}
-
-		--whether items in this category are artifacts (equip in leveled treasure slots, no project fields).
-		children[#children+1] = gui.Check{
-			text = "Is Artifact",
-			halign = "left",
-			fontSize = 22,
-			value = data:try_get("isArtifact", false),
-			change = function(element)
-				data.isArtifact = element.value
-				UploadData()
-			end,
-		}
-
-		--whether items in this category are packs of items.
-		children[#children+1] = gui.Check{
-			text = "Equipment Packs",
-			halign = "left",
-			fontSize = 22,
-			value = data.isPacks,
-			change = function(element)
-				data.isPacks = element.value
-				UploadData()
-			end,
-		}
+		table.sort(checkboxes, function(a,b) return a.text < b.text end)
+		for _,cb in ipairs(checkboxes) do
+			children[#children+1] = gui.Panel{
+				classes = {"formStackedRow"},
+				gui.Check{
+					text = cb.text,
+					value = data:try_get(cb.field, false),
+					change = function(element)
+						data[cb.field] = element.value
+						UploadData()
+					end,
+				},
+			}
+		end
 
 
 

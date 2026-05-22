@@ -3966,10 +3966,12 @@ local ShowEmojiPanel = function(parentPanel, emojiType)
 	game.Refresh()
 
 	local emojiPanel = gui.Panel{
-		classes = 'mainContentPanel',
-		styles = {
-			LibraryStyles,
-		},
+		width = 1200,
+		height = "95%",
+		halign = "left",
+		flow = "vertical",
+		pad = 20,
+		borderBox = true,
 		destroy = function(element)
 			game.currentMap:DestroyPreviewFloor(previewFloor)
 			game.Refresh()
@@ -4012,13 +4014,14 @@ local ShowEmojiPanel = function(parentPanel, emojiType)
 
 			--the guid of the item.
 			children[#children+1] = gui.Panel{
-				classes = {'formPanel'},
+				classes = {'formStackedRow'},
+				width = "30%",
 				gui.Label{
+					classes = {'formStacked'},
 					text = 'ID (dev only):',
-					valign = 'center',
-					minWidth = 100,
 				},
 				gui.Input{
+					classes = {'formStacked'},
 					text = data.id,
 					change = function(element)
 						element.text = data.id
@@ -4029,13 +4032,14 @@ local ShowEmojiPanel = function(parentPanel, emojiType)
 
 		--the name of the item.
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {'formStackedRow'},
+			width = "30%",
 			gui.Label{
+				classes = {'formStacked'},
 				text = 'Name:',
-				valign = 'center',
-				minWidth = 100,
 			},
 			gui.Input{
+				classes = {'formStacked'},
 				text = data.description,
 				change = function(element)
 					data.description = element.text
@@ -4046,13 +4050,14 @@ local ShowEmojiPanel = function(parentPanel, emojiType)
 
 		--the category of the item.
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {'formStackedRow'},
+			width = "30%",
 			gui.Label{
+				classes = {'formStacked'},
 				text = 'Category:',
-				valign = 'center',
-				minWidth = 100,
 			},
 			gui.Dropdown{
+				classes = {'formStacked'},
 				options = {
 					{
 						id = "Emoji",
@@ -4091,13 +4096,14 @@ local ShowEmojiPanel = function(parentPanel, emojiType)
 
 		--the x value of the item.
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {'formStackedRow'},
+			width = "30%",
 			gui.Label{
+				classes = {'formStacked'},
 				text = 'x:',
-				valign = 'center',
-				minWidth = 100,
 			},
 			gui.Input{
+				classes = {'formStacked'},
 				text = data.x,
 				change = function(element)
 					data.x = element.text
@@ -4108,13 +4114,14 @@ local ShowEmojiPanel = function(parentPanel, emojiType)
 
 		--the y value of the item.
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {'formStackedRow'},
+			width = "30%",
 			gui.Label{
+				classes = {'formStacked'},
 				text = 'y:',
-				valign = 'center',
-				minWidth = 100,
 			},
 			gui.Input{
+				classes = {'formStacked'},
 				text = data.y,
 				change = function(element)
 					data.y = element.text
@@ -4125,13 +4132,13 @@ local ShowEmojiPanel = function(parentPanel, emojiType)
 
 		--the width of the item.
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {'formStackedRow'},
 			gui.Label{
+				classes = {'formStacked'},
 				text = 'Width:',
-				valign = 'center',
-				minWidth = 100,
 			},
 			gui.Input{
+				classes = {'formStacked'},
 				text = data.displayWidth,
 				change = function(element)
 					data.displayWidth = element.text
@@ -4142,13 +4149,13 @@ local ShowEmojiPanel = function(parentPanel, emojiType)
 
 		--the height of the item.
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {'formStackedRow'},
 			gui.Label{
+				classes = {'formStacked'},
 				text = 'Height:',
-				valign = 'center',
-				minWidth = 100,
 			},
 			gui.Input{
+				classes = {'formStacked'},
 				text = data.displayHeight,
 				change = function(element)
 					data.displayHeight = element.text
@@ -4159,13 +4166,13 @@ local ShowEmojiPanel = function(parentPanel, emojiType)
 
 		--the blend mode of the item.
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {'formStackedRow'},
 			gui.Label{
+				classes = {'formStacked'},
 				text = 'Blend:',
-				valign = 'center',
-				minWidth = 100,
 			},
 			gui.Dropdown{
+				classes = {'formStacked'},
 				options = {
 					{
 						id = "blend",
@@ -4185,20 +4192,21 @@ local ShowEmojiPanel = function(parentPanel, emojiType)
 			},
 		}
 
-		children[#children+1] = gui.Check{
-			text = "Looping",
-			halign = "left",
-			fontSize = 22,
-			value = data.looping,
-			change = function(element)
-				data.looping = element.value
-				data.fadetime = cond(data.looping, 0.5)
-				data.styles[2].transitionTime = cond(data.looping, 0.5, 0)
-				data.styles[3].transitionTime = cond(data.looping, 0.5, 0)
+		children[#children+1] = gui.Panel{
+			classes = {"formStackedRow"},
+			gui.Check{
+				text = "Looping",
+				value = data.looping,
+				change = function(element)
+					data.looping = element.value
+					data.fadetime = cond(data.looping, 0.5)
+					data.styles[2].transitionTime = cond(data.looping, 0.5, 0)
+					data.styles[3].transitionTime = cond(data.looping, 0.5, 0)
 
-				UploadData()
-				element.parent:FireEventTree("refreshLoop")
-			end,
+					UploadData()
+					emojiPanel:FireEventTree("refreshLoop")
+				end,
+			},
 		}
 
 		local finishEmojiOptions = {
@@ -4217,18 +4225,17 @@ local ShowEmojiPanel = function(parentPanel, emojiType)
 		end
 
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {'formStackedRow'},
 			gui.Label{
+				classes = {'formStacked'},
 				text = 'Finish:',
-				valign = 'center',
-				minWidth = 100,
 			},
 			gui.Dropdown{
-				classes = {cond(not data.looping, "collapsed-anim")},
+				classes = {"formStacked", cond(not data.looping, "collapseAnim")},
 				options = finishEmojiOptions,
 				idChosen = data.finishEmoji or "none",
 				refreshLoop = function(element)
-					element:SetClass("collapsed-anim", not data.looping)
+					element:SetClass("collapseAnim", not data.looping)
 				end,
 
 				change  = function(element)
@@ -4239,26 +4246,28 @@ local ShowEmojiPanel = function(parentPanel, emojiType)
 		}
 
 
-		children[#children+1] = gui.Check{
-			text = "Mask",
-			halign = "left",
-			fontSize = 22,
-			value = data.mask,
-			change = function(element)
-				data.mask = element.value
-				UploadData()
-			end,
+		children[#children+1] = gui.Panel{
+			classes = {"formStackedRow"},
+			gui.Check{
+				text = "Mask",
+				value = data.mask,
+				change = function(element)
+					data.mask = element.value
+					UploadData()
+				end,
+			},
 		}
 
-		children[#children+1] = gui.Check{
-			text = "Behind Token",
-			halign = "left",
-			fontSize = 22,
-			value = data.behind,
-			change = function(element)
-				data.behind = element.value
-				UploadData()
-			end,
+		children[#children+1] = gui.Panel{
+			classes = {"formStackedRow"},
+			gui.Check{
+				text = "Behind Token",
+				value = data.behind,
+				change = function(element)
+					data.behind = element.value
+					UploadData()
+				end,
+			},
 		}
 
 		local childEmojiPanel = gui.Panel{
@@ -4280,12 +4289,14 @@ local ShowEmojiPanel = function(parentPanel, emojiType)
 							halign = "left",
 							flow = "horizontal",
 							gui.Label{
+								classes = {"sizeL"},
 								width = 180,
 								height = 30,
-								fontSize = 20,
 								text = childEmoji.description,
 							},
-							gui.CloseButton{
+							gui.Button{
+								classes = {"closeButton"},
+								valign = "center",
 								click = function(element)
 									local items = data.childEmoji
 									table.remove(items, index)
@@ -4333,8 +4344,6 @@ local ShowEmojiPanel = function(parentPanel, emojiType)
 			idChosen = "choose",
 			halign = "left",
 			width = 200,
-			height = 40,
-			fontSize = 20,
 			change = function(element)
 				if element.idChosen ~= "choose" then
 					local items = data.childEmoji
@@ -4431,12 +4440,10 @@ local ShowEmojiPanel = function(parentPanel, emojiType)
 		--]]
 
 		children[#children+1] = gui.Button{
+			classes = {"sizeL"},
 			text = "Delete",
 			halign = "left",
 			valign = "bottom",
-			width = 140,
-			height = 40,
-			fontSize = 22,
 			click = function(element)
 				data:Delete()
 				UploadData()
@@ -4447,8 +4454,8 @@ local ShowEmojiPanel = function(parentPanel, emojiType)
 			width = "auto",
 			height = "auto",
 			floating = true,
-			x = 400,
-			halign = "left",
+			-- x = -40,
+			halign = "right",
 			valign = "top",
 			flow = "vertical",
 

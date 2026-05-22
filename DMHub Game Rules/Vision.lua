@@ -94,23 +94,14 @@ function VisionType.CreateEditor()
             end,
         },
 
-        styles = {
-            Compendium.Styles,
-            {
-                classes = {"formLabel"},
-                minWidth = 100,
-                valign = "center",
-            },
-
-        },
-
         gui.Panel{
-            classes = {"formPanel"},
+            classes = {"formStackedRow"},
             gui.Label{
-                classes = {"formLabel"},
+                classes = {"formStacked"},
                 text = "Name:",
             },
             gui.Input{
+                classes = {"formStacked"},
                 text = "",
                 characterLimit = 24,
                 vision = function(element)
@@ -124,12 +115,13 @@ function VisionType.CreateEditor()
         },
 
         gui.Panel{
-            classes = {"formPanel"},
+            classes = {"formStackedRow"},
             gui.Label{
-                classes = {"formLabel"},
+                classes = {"formStacked"},
                 text = "Vision:",
             },
             gui.Dropdown{
+                classes = {"formStacked"},
                 options = VisionType.availableTypes,
                 vision = function(element)
                     element.idChosen = m_vision.type
@@ -141,40 +133,49 @@ function VisionType.CreateEditor()
             }
         },
 
-        gui.Check{
-            text = "Penetrates Solid",
+        gui.Panel{
+            classes = {"formStackedRow"},
+            gui.Check{
+                text = "Penetrates Solid",
 
-            vision = function(element)
-                element.value = m_vision.penetrateWalls
-            end,
-            change = function(element)
-                m_vision.penetrateWalls = element.value
-                Upload()
-            end,
+                vision = function(element)
+                    element.value = m_vision.penetrateWalls
+                end,
+                change = function(element)
+                    m_vision.penetrateWalls = element.value
+                    Upload()
+                end,
+            },
         },
 
-        gui.Check{
-            text = "Respect Field of View",
+        gui.Panel{
+            classes = {"formStackedRow"},
+            gui.Check{
+                text = "Respect Field of View",
 
-            vision = function(element)
-                element.value = m_vision.fieldOfView
-            end,
-            change = function(element)
-                m_vision.fieldOfView = element.value
-                Upload()
-            end,
+                vision = function(element)
+                    element.value = m_vision.fieldOfView
+                end,
+                change = function(element)
+                    m_vision.fieldOfView = element.value
+                    Upload()
+                end,
+            },
         },
 
-        gui.Check{
-            text = "Always Show on Character Sheet",
+        gui.Panel{
+            classes = {"formStackedRow"},
+            gui.Check{
+                text = "Always Show on Character Sheet",
 
-            vision = function(element)
-                element.value = m_vision.alwaysShowOnCharacterSheet
-            end,
-            change = function(element)
-                m_vision.alwaysShowOnCharacterSheet = element.value
-                Upload()
-            end,
+                vision = function(element)
+                    element.value = m_vision.alwaysShowOnCharacterSheet
+                end,
+                change = function(element)
+                    m_vision.alwaysShowOnCharacterSheet = element.value
+                    Upload()
+                end,
+            },
         },
 
     }

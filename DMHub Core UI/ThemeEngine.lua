@@ -72,7 +72,7 @@ local _activeSchemeSetting = setting{
 -- at load time sees them. The creator UI is only reachable when logged in, so
 -- there is always an account to read from / write to.
 local _userSchemesSetting = setting{
-    id = "themeengine.userschemes",
+    id = "themeengine_userschemes",
     storage = "account",
     default = "[]",
 }

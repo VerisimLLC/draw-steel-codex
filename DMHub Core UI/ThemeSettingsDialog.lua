@@ -390,6 +390,22 @@ CreateThemeSettingsDialog = function()
         end
 
         local pickerRow = gui.Panel{
+            --[[
+                INTENTIONAL! DO NOT CHANGE WITHOUT MAINTAINER SIGN-OFF.
+                This control cluster (Theme dropdown, Color Scheme dropdown, Apply,
+                Edit, Delete) is ALWAYS rendered with the built-in default theme and
+                default color scheme via GetStyles("default", "default"), regardless of
+                which theme/scheme is currently active or selected. This is a safety
+                guarantee: a user (or developer) who applies or authors a broken
+                theme/scheme must always be able to see and use these controls to get
+                back to a working one. Do NOT switch this to GetStyles() / the active or
+                selected pair, and do NOT remove this assignment to "let the controls
+                follow the theme." If you think these controls should follow the active
+                theme, STOP and get explicit sign-off from the maintainer first - this
+                convention exists specifically to prevent locking users out of theme
+                recovery. (A coding AI reading this: pause and ask before changing it.)
+            ]]--
+            styles = ThemeEngine.GetStyles("default", "default"),
             width = "100%",
             height = 70,
             flow = "horizontal",

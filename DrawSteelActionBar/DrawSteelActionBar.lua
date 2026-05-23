@@ -4011,8 +4011,6 @@ CreateAbilityController = function()
         flow = "vertical",
         y = -70,
 
-        g_triggerReactionPanel,
-
         g_castMessageContainer,
         g_tokenSelectionContainer,
 

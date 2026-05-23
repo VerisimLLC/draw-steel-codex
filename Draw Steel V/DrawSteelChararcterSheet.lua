@@ -1262,13 +1262,11 @@ function CharSheet.CharacterSheetAndAvatarPanel()
                             local resultPanel
                             resultPanel = gui.TooltipFrame(
                                 gui.Panel {
-                                    width = 340,
+                                    width = 500,
                                     height = "auto",
-                                    styles = ThemeEngine.MergeTokens{
-                                        Styles.Default,
-                                        PopupStyles,
-                                        CharSheet.GetCharacterSheetStyles(),
-                                    },
+                                    flow = "vertical",
+                                    pad = 8,
+                                    borderBox = true,
 
                                     destroy = function(element)
                                         --if the monster has a band, make sure it has the keyword too.
@@ -1318,7 +1316,7 @@ function CharSheet.CharacterSheetAndAvatarPanel()
                                         gui.MCDMDivider {
                                             width = "80%",
                                             height = 1,
-                                            vmargin = 4,
+                                            vmargin = 8,
                                         },
 
                                         gui.Panel {
@@ -1335,6 +1333,7 @@ function CharSheet.CharacterSheetAndAvatarPanel()
 
                                             gui.Multiselect {
                                                 value = rawget(token.properties, "keywords") or {},
+                                                width = "80%",
                                                 addItemText = "Add Keyword...",
                                                 options = monsterKeywords,
                                                 change = function(element, value)
@@ -1353,6 +1352,7 @@ function CharSheet.CharacterSheetAndAvatarPanel()
                                 }
                             )
 
+                            element.popupsInheritStyles = true
                             element.popup = resultPanel
                         end
                     end,

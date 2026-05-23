@@ -853,18 +853,12 @@ end
 local ShowCustomAttributesPanel = function(parentPanel)
 
 	local attrPanel = gui.Panel{
-		classes = 'attr-panel',
-		styles = {
-			{
-				classes = {'attr-panel'},
-				width = 1200,
-				height = '100%',
-				halign = 'left',
-				flow = 'vertical',
-				pad = 20,
-			},
-			LibraryStyles,
-		},
+		width = 1200,
+		height = "100%",
+		halign = "left",
+		flow = "vertical",
+		pad = 20,
+		borderBox = true,
 	}
 
 	local SetAttribute = function(attrid)
@@ -1268,24 +1262,13 @@ end
 local ShowResourcesPanel = function(parentPanel)
 
 	local resourcePanel = gui.Panel{
-		classes = 'resource-panel',
+		width = 1200,
 		height = "90%",
+		halign = "left",
+		flow = "vertical",
+		pad = 20,
+		borderBox = true,
 		vscroll = true,
-
-		styles = {
-			{
-				classes = {'resource-panel'},
-				width = 1200,
-				height = '100%',
-				halign = 'left',
-				flow = 'vertical',
-				pad = 20,
-			},
-			LibraryStyles,
-
-
-		},
-
 	}
 
 	local SetResource = function(resourceid)
@@ -1301,13 +1284,13 @@ local ShowResourcesPanel = function(parentPanel)
 		if devmode() then
 		
 			children[#children+1] = gui.Panel{
-				classes = {'formPanel'},
+				classes = {"formStackedRow"},
 				gui.Label{
-					text = 'Guid:',
-					valign = 'center',
-					minWidth = 100,
+					classes = {"formStacked"},
+					text = "Guid:",
 				},
 				gui.Input{
+					classes = {"formStacked"},
 					text = resource.id,
 				},
 			}
@@ -1315,13 +1298,13 @@ local ShowResourcesPanel = function(parentPanel)
 
 		--the name of the resource.
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {"formStackedRow"},
 			gui.Label{
-				text = 'Name:',
-				valign = 'center',
-				minWidth = 100,
+				classes = {"formStacked"},
+				text = "Name:",
 			},
 			gui.Input{
+				classes = {"formStacked"},
 				text = resource.name,
 				change = function(element)
 					resource.name = element.text
@@ -1332,37 +1315,34 @@ local ShowResourcesPanel = function(parentPanel)
 
 		--the grouping of the resource.
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {"formStackedRow"},
 			gui.Label{
-				text = 'Grouping:',
-				valign = 'center',
-				minWidth = 100,
+				classes = {"formStacked"},
+				text = "Grouping:",
 			},
-            gui.Dropdown{
-                options = CharacterResource.groupingOptions,
-                idChosen = resource.grouping,
-				width = 200,
-				height = 40,
-				fontSize = 20,
+			gui.Dropdown{
+				classes = {"formStacked"},
+				options = CharacterResource.groupingOptions,
+				idChosen = resource.grouping,
 				change = function(element)
-                    resource.grouping = element.idChosen
+					resource.grouping = element.idChosen
 					UploadResource()
-                end,
-
-            },
+				end,
+			},
 		}
 
 		--whether the resource displays quantity.
-		children[#children+1] = gui.Check{
-			text = "Use in Quantity",
-			halign = "left",
-			fontSize = 22,
-			value = resource.useQuantity,
-			linger = gui.Tooltip("When a spell or ability uses this resource you will specify how many to use."),
-			change = function(element)
-				resource.useQuantity = element.value
-				UploadResource()
-			end,
+		children[#children+1] = gui.Panel{
+			classes = {"formStackedRow"},
+			gui.Check{
+				text = "Use in Quantity",
+				value = resource.useQuantity,
+				linger = gui.Tooltip("When a spell or ability uses this resource you will specify how many to use."),
+				change = function(element)
+					resource.useQuantity = element.value
+					UploadResource()
+				end,
+			},
 		}
 
 		local quantityLabelPreview = gui.Label{
@@ -1383,38 +1363,34 @@ local ShowResourcesPanel = function(parentPanel)
 		local textColorPanel
 
 		--whether the resource comes in large quantities and should be shown using numbers.
-		children[#children+1] = gui.Check{
-			text = "Large Quantities",
-			halign = "left",
-			fontSize = 22,
-			value = resource.largeQuantity,
-			linger = gui.Tooltip("This resource can come in large quantities and will display as a number instead of individual icons."),
-			change = function(element)
-				resource.largeQuantity = element.value
-				UploadResource()
-				quantityLabelPreview:FireEvent("create")
-				textColorPanel:FireEvent("create")
-			end,
+		children[#children+1] = gui.Panel{
+			classes = {"formStackedRow"},
+			gui.Check{
+				text = "Large Quantities",
+				value = resource.largeQuantity,
+				linger = gui.Tooltip("This resource can come in large quantities and will display as a number instead of individual icons."),
+				change = function(element)
+					resource.largeQuantity = element.value
+					UploadResource()
+					quantityLabelPreview:FireEvent("create")
+					textColorPanel:FireEvent("create")
+				end,
+			},
 		}
 
 		textColorPanel = gui.Panel{
-			classes = {'formPanel', cond(resource.largeQuantity, nil, "collapsed-anim")},
+			classes = {"formStackedRow", cond(resource.largeQuantity, nil, "collapseAnim")},
 			create = function(element)
-				element:SetClass("collapsed-anim", not resource.largeQuantity)
+				element:SetClass("collapseAnim", not resource.largeQuantity)
 			end,
 			gui.Label{
-				text = 'Text Color:',
-				valign = "center",
-				minWidth = 200,
-				width = 'auto',
-				height = 'auto',
+				classes = {"formStacked"},
+				text = "Text Color:",
 			},
 			gui.Dropdown{
+				classes = {"formStacked"},
 				options = { { id = "light", text = "Light" }, { id = "dark", text = "Dark" }},
 				idChosen = resource.textColor,
-				width = 200,
-				height = 40,
-				fontSize = 20,
 				change = function(element)
 					resource.textColor = element.idChosen
 					UploadResource()
@@ -1426,16 +1402,17 @@ local ShowResourcesPanel = function(parentPanel)
 		children[#children+1] = textColorPanel
 
 		--whether the resource is a reaction action, allowing an ability using it to be used as a reaction.
-		children[#children+1] = gui.Check{
-			text = "Is Reaction",
-			halign = "left",
-			fontSize = 22,
-			value = resource.isreaction,
-			linger = gui.Tooltip("Abilities that use this resource as their action can have trigger conditions causing them to trigger."),
-			change = function(element)
-				resource.isreaction = element.value
-				UploadResource()
-			end,
+		children[#children+1] = gui.Panel{
+			classes = {"formStackedRow"},
+			gui.Check{
+				text = "Is Reaction",
+				value = resource.isreaction,
+				linger = gui.Tooltip("Abilities that use this resource as their action can have trigger conditions causing them to trigger."),
+				change = function(element)
+					resource.isreaction = element.value
+					UploadResource()
+				end,
+			},
 		}
 
 		local largeIconEditor = gui.IconEditor{
@@ -1454,18 +1431,19 @@ local ShowResourcesPanel = function(parentPanel)
 		largeIconEditor:SetClass("collapsed", not resource.hasLargeDisplay)
 
 		--whether the resource is a reaction action, allowing an ability using it to be used as a reaction.
-		children[#children+1] = gui.Check{
-			text = "Has Large Display",
-			halign = "left",
-			fontSize = 22,
-			value = resource.hasLargeDisplay,
-			linger = gui.Tooltip("If checked, this resource will have a large version of the icon to display when a large dialog displays the resource."),
-			change = function(element)
-				resource.hasLargeDisplay = element.value
-				UploadResource()
+		children[#children+1] = gui.Panel{
+			classes = {"formStackedRow"},
+			gui.Check{
+				text = "Has Large Display",
+				value = resource.hasLargeDisplay,
+				linger = gui.Tooltip("If checked, this resource will have a large version of the icon to display when a large dialog displays the resource."),
+				change = function(element)
+					resource.hasLargeDisplay = element.value
+					UploadResource()
 
-				largeIconEditor:SetClass("collapsed", not resource.hasLargeDisplay)
-			end,
+					largeIconEditor:SetClass("collapsed", not resource.hasLargeDisplay)
+				end,
+			},
 		}
 
 		local currentDisplayMode = 'normal'
@@ -1473,7 +1451,8 @@ local ShowResourcesPanel = function(parentPanel)
 		--the resource's icon.
 		local iconEditor = gui.IconEditor{
 			library = 'resources',
-			margin = 80,
+			vmargin = 12,
+			hmargin = 80,
 			width = 128,
 			height = 128,
 			halign = "left",
@@ -1511,13 +1490,10 @@ local ShowResourcesPanel = function(parentPanel)
 
 		--color is the same for all display modes.
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {"formStackedRow"},
 			gui.Label{
-				text = 'Color:',
-				valign = "center",
-				minWidth = 200,
-				width = 'auto',
-				height = 'auto',
+				classes = {"formStacked"},
+				text = "Color:",
 			},
 			gui.ColorPicker{
 				width = 32,
@@ -1539,20 +1515,15 @@ local ShowResourcesPanel = function(parentPanel)
 		}
 
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {"formStackedRow"},
 			gui.Label{
-				text = 'Blend:',
-				valign = "center",
-				minWidth = 200,
-				width = 'auto',
-				height = 'auto',
+				classes = {"formStacked"},
+				text = "Blend:",
 			},
 			gui.Dropdown{
+				classes = {"formStacked"},
 				options = { { id = "normal", text = "Normal" }, { id = "add", text = "Add" }},
 				idChosen = resource.display.normal.blend or 'normal',
-				width = 200,
-				height = 40,
-				fontSize = 20,
 				change = function(element)
 					for k,displayMode in pairs(resource.display) do
 						displayMode.blend = cond(element.idChosen == 'add', 'add', nil)
@@ -1603,20 +1574,15 @@ local ShowResourcesPanel = function(parentPanel)
 
 		--the display mode we are editing.
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {"formStackedRow"},
 			gui.Label{
-				text = 'Display Type:',
-				valign = "center",
-				minWidth = 200,
-				width = 'auto',
-				height = 'auto',
+				classes = {"formStacked"},
+				text = "Display Type:",
 			},
 			gui.Dropdown{
+				classes = {"formStacked"},
 				options = CharacterResource.displayModeOptions,
 				idChosen = currentDisplayMode,
-				width = 200,
-				height = 40,
-				fontSize = 20,
 				change = function(element)
 					currentDisplayMode = element.idChosen
 					sliders[1].data.setValueNoEvent(resource.display[currentDisplayMode]['hueshift'])
@@ -1628,72 +1594,59 @@ local ShowResourcesPanel = function(parentPanel)
 		}
 
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {"formStackedRow"},
 			gui.Label{
-				text = 'Hue:',
-				valign = "center",
-				minWidth = 200,
-				width = 'auto',
-				height = 'auto',
+				classes = {"formStacked"},
+				text = "Hue:",
 			},
 			sliders[1],
 		}
 
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {"formStackedRow"},
 			gui.Label{
-				text = 'Saturation:',
-				valign = "center",
-				minWidth = 200,
-				width = 'auto',
-				height = 'auto',
+				classes = {"formStacked"},
+				text = "Saturation:",
 			},
 			sliders[2],
 		}
 
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {"formStackedRow"},
 			gui.Label{
-				text = 'Brightness:',
-				valign = "center",
-				minWidth = 200,
-				width = 'auto',
-				height = 'auto',
+				classes = {"formStacked"},
+				text = "Brightness:",
 			},
 			sliders[3],
 		}
 
 		--can the resource go negative
-		children[#children+1] = gui.Check{
-			text = "May Be Negative",
-			halign = "left",
-			fontSize = 22,
-			value = resource.mayBeNegative,
-			linger = gui.Tooltip("If checked, this resource may become negative"),
-			change = function(element)
-				resource.mayBeNegative = element.value
-				UploadResource()
-			end,
+		children[#children+1] = gui.Panel{
+			classes = {"formStackedRow"},
+			gui.Check{
+				text = "May Be Negative",
+				value = resource.mayBeNegative,
+				linger = gui.Tooltip("If checked, this resource may become negative"),
+				change = function(element)
+					resource.mayBeNegative = element.value
+					UploadResource()
+				end,
+			},
 		}
 
 
 
 		--the resource's refresh frequency.
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {"formStackedRow"},
 			gui.Label{
-				text = 'Refresh:',
-				valign = "center",
-				minWidth = 200,
-				width = 'auto',
-				height = 'auto',
+				classes = {"formStacked"},
+				text = "Refresh:",
 			},
 			gui.Dropdown{
+				classes = {"formStacked"},
 				options = CharacterResource.usageLimitOptions,
 				idChosen = resource.usageLimit,
-				width = 200,
-				height = 40,
-				fontSize = 20,
 				change = function(element)
 					resource.usageLimit = element.idChosen
 					UploadResource()
@@ -1704,13 +1657,16 @@ local ShowResourcesPanel = function(parentPanel)
 		}
 
         if resource.usageLimit == "unbounded" or resource.usageLimit == "global" then
-            children[#children+1] = gui.Check{
-                text = "Clear Outside of Combat",
-                value = resource.clearOutsideOfCombat,
-                change = function(element)
-                    resource.clearOutsideOfCombat = element.value
-                    UploadResource()
-                end,
+            children[#children+1] = gui.Panel{
+                classes = {"formStackedRow"},
+                gui.Check{
+                    text = "Clear Outside of Combat",
+                    value = resource.clearOutsideOfCombat,
+                    change = function(element)
+                        resource.clearOutsideOfCombat = element.value
+                        UploadResource()
+                    end,
+                },
             }
         end
 
@@ -1781,20 +1737,15 @@ local ShowResourcesPanel = function(parentPanel)
 		})
 
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {"formStackedRow"},
 			gui.Label{
-				text = 'Improves Upon:',
-				valign = "center",
-				minWidth = 200,
-				width = 'auto',
-				height = 'auto',
+				classes = {"formStacked"},
+				text = "Improves Upon:",
 			},
 			gui.Dropdown{
+				classes = {"formStacked"},
 				options = resourceChoices,
 				idChosen = resource.levelsFrom,
-				width = 200,
-				height = 40,
-				fontSize = 20,
 				change = function(element)
 					resource.levelsFrom = element.idChosen
 					UploadResource()
@@ -2911,39 +2862,12 @@ end
 local ShowEquipmentCategoriesPanel = function(parentPanel)
 
 	local equipmentCatPanel = gui.Panel{
-		classes = 'equip-cat-panel',
-		styles = {
-			{
-				classes = {'equip-cat-panel'},
-				width = 1200,
-				height = '100%',
-				halign = 'left',
-				flow = 'vertical',
-				pad = 20,
-			},
-			{
-				classes = {'label'},
-				color = 'white',
-				fontSize = 22,
-				width = 'auto',
-				height = 'auto',
-			},
-			{
-				classes = {'input'},
-				width = 200,
-				height = 26,
-				fontSize = 18,
-				color = 'white',
-			},
-			{
-				classes = {'formPanel'},
-				flow = 'horizontal',
-				width = 'auto',
-				height = 'auto',
-				halign = 'left',
-				vmargin = 2,
-			}
-		},
+		width = 1200,
+		height = "100%",
+		halign = "left",
+		flow = "vertical",
+		pad = 20,
+		borderBox = true,
 	}
 
 	local SetId = function(id)
@@ -2956,28 +2880,26 @@ local ShowEquipmentCategoriesPanel = function(parentPanel)
 		local children = {}
 
         children[#children+1] = gui.Panel{
-            classes = {"formPanel", "devonly"},
+            classes = {"formStackedRow", "devonly"},
 			gui.Label{
-				text = 'GUID:',
-				valign = 'center',
-				minWidth = 100,
+				classes = {"formStacked"},
+				text = "GUID:",
 			},
             gui.Input{
-                classes = {"formInput"},
+                classes = {"formStacked"},
                 text = data.id,
-                width = 300,
             },
         }
 
 		--the name of the item.
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {"formStackedRow"},
 			gui.Label{
-				text = 'Name:',
-				valign = 'center',
-				minWidth = 100,
+				classes = {"formStacked"},
+				text = "Name:",
 			},
 			gui.Input{
+				classes = {"formStacked"},
 				text = data.name,
 				change = function(element)
 					data.name = element.text
@@ -3005,18 +2927,15 @@ local ShowEquipmentCategoriesPanel = function(parentPanel)
 
 		--the superset of this item.
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {"formStackedRow"},
 			gui.Label{
-				text = 'Parent Category:',
-				valign = 'center',
-				minWidth = 100,
+				classes = {"formStacked"},
+				text = "Parent Category:",
 			},
 			gui.Dropdown{
+				classes = {"formStacked"},
 				options = supersets,
 				idChosen = data:try_get("superset", "none"),
-				width = 200,
-				height = 40,
-				fontSize = 20,
 
 				change = function(element)
 					local val = element.idChosen
@@ -3032,13 +2951,13 @@ local ShowEquipmentCategoriesPanel = function(parentPanel)
 
 		--the editor type this category uses
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {"formStackedRow"},
 			gui.Label{
-				text = 'Editor Type:',
-				valign = 'center',
-				minWidth = 100,
+				classes = {"formStacked"},
+				text = "Editor Type:",
 			},
 			gui.Dropdown{
+				classes = {"formStacked"},
 				options = {
 					{
 						id = "Weapon",
@@ -3058,9 +2977,6 @@ local ShowEquipmentCategoriesPanel = function(parentPanel)
 					},
 				},
 				idChosen = data.editorType,
-				width = 200,
-				height = 40,
-				fontSize = 20,
 
 				change = function(element)
 					data.editorType = element.idChosen
@@ -3069,161 +2985,35 @@ local ShowEquipmentCategoriesPanel = function(parentPanel)
 			},
 		}
 
-		--whether this type of item can have proficiency.
-		children[#children+1] = gui.Check{
-			text = "Has Proficiency",
-			halign = "left",
-			fontSize = 22,
-			value = data.allowProficiency,
-			change = function(element)
-				data.allowProficiency = element.value
-				UploadData()
-			end,
+		local checkboxes = {
+			{ text = "Has Proficiency", field = "allowProficiency" },
+			{ text = "Individual Items have Proficiency", field = "allowIndividualProficiency" },
+			{ text = "Unarmored", field = "isUnarmored" },
+			{ text = "Tools", field = "isTool" },
+			{ text = "Martial Weapons", field = "isMartial" },
+			{ text = "Melee Weapons", field = "isMelee" },
+			{ text = "Ranged Weapons", field = "isRanged" },
+			{ text = "Is Ammunition", field = "isAmmo" },
+			{ text = "Is Light Source", field = "isLightSource" },
+			{ text = "Sold in Quantity", field = "isQuantity" },
+			{ text = "Is Treasure", field = "isTreasure" },
+			{ text = "Is Artifact", field = "isArtifact" },
+			{ text = "Equipment Packs", field = "isPacks" },
 		}
-
-		--whether individual items in this category have proficiency
-		children[#children+1] = gui.Check{
-			text = "Individual Items have Proficiency",
-			halign = "left",
-			fontSize = 22,
-			value = data.allowIndividualProficiency,
-			change = function(element)
-				data.allowIndividualProficiency = element.value
-				UploadData()
-			end,
-		}
-
-		--whether items in this category are unarmored
-		children[#children+1] = gui.Check{
-			text = "Unarmored",
-			halign = "left",
-			fontSize = 22,
-			value = data.isUnarmored,
-			change = function(element)
-				data.isUnarmored = element.value
-				UploadData()
-			end,
-		}
-
-		--whether items in this category are tools
-		children[#children+1] = gui.Check{
-			text = "Tools",
-			halign = "left",
-			fontSize = 22,
-			value = data.isTool,
-			change = function(element)
-				data.isTool = element.value
-				UploadData()
-			end,
-		}
-
-		--whether items in this category are martial weapons
-		children[#children+1] = gui.Check{
-			text = "Martial Weapons",
-			halign = "left",
-			fontSize = 22,
-			value = data.isMartial,
-			change = function(element)
-				data.isMartial = element.value
-				UploadData()
-			end,
-		}
-
-		--whether items in this category are melee weapons
-		children[#children+1] = gui.Check{
-			text = "Melee Weapons",
-			halign = "left",
-			fontSize = 22,
-			value = data.isMelee,
-			change = function(element)
-				data.isMelee = element.value
-				UploadData()
-			end,
-		}
-
-		--whether items in this category are ranged weapons
-		children[#children+1] = gui.Check{
-			text = "Ranged Weapons",
-			halign = "left",
-			fontSize = 22,
-			value = data.isRanged,
-			change = function(element)
-				data.isRanged = element.value
-				UploadData()
-			end,
-		}
-
-		--whether items in this category are ammunition for other weapons.
-		children[#children+1] = gui.Check{
-			text = "Is Ammunition",
-			halign = "left",
-			fontSize = 22,
-			value = data.isAmmo,
-			change = function(element)
-				data.isAmmo = element.value
-				UploadData()
-			end,
-		}
-
-		--whether items in this category are light sources.
-		children[#children+1] = gui.Check{
-			text = "Is Light Source",
-			halign = "left",
-			fontSize = 22,
-			value = data.isLightSource,
-			change = function(element)
-				data.isLightSource = element.value
-				UploadData()
-			end,
-		}
-
-		--whether items in this category come in mass quantities.
-		children[#children+1] = gui.Check{
-			text = "Sold in Quantity",
-			halign = "left",
-			fontSize = 22,
-			value = data.isQuantity,
-			change = function(element)
-				data.isQuantity = element.value
-				UploadData()
-			end,
-		}
-
-		--whether items in this category are considered treasure.
-		children[#children+1] = gui.Check{
-			text = "Is Treasure",
-			halign = "left",
-			fontSize = 22,
-			value = data.isTreasure,
-			change = function(element)
-				data.isTreasure = element.value
-				UploadData()
-			end,
-		}
-
-		--whether items in this category are artifacts (equip in leveled treasure slots, no project fields).
-		children[#children+1] = gui.Check{
-			text = "Is Artifact",
-			halign = "left",
-			fontSize = 22,
-			value = data:try_get("isArtifact", false),
-			change = function(element)
-				data.isArtifact = element.value
-				UploadData()
-			end,
-		}
-
-		--whether items in this category are packs of items.
-		children[#children+1] = gui.Check{
-			text = "Equipment Packs",
-			halign = "left",
-			fontSize = 22,
-			value = data.isPacks,
-			change = function(element)
-				data.isPacks = element.value
-				UploadData()
-			end,
-		}
+		table.sort(checkboxes, function(a,b) return a.text < b.text end)
+		for _,cb in ipairs(checkboxes) do
+			children[#children+1] = gui.Panel{
+				classes = {"formStackedRow"},
+				gui.Check{
+					text = cb.text,
+					value = data:try_get(cb.field, false),
+					change = function(element)
+						data[cb.field] = element.value
+						UploadData()
+					end,
+				},
+			}
+		end
 
 
 
@@ -3386,10 +3176,12 @@ end
 
 local ShowImageFoldersPanel = function(parentPanel)
 	local imagesPanel = gui.Panel{
-		classes = 'mainContentPanel',
-		styles = {
-			LibraryStyles,
-		},
+		width = 1200,
+		height = "95%",
+		halign = "left",
+		flow = "vertical",
+		pad = 20,
+		borderBox = true,
 	}
 
 	local itemsListPanel = nil
@@ -3407,13 +3199,13 @@ local ShowImageFoldersPanel = function(parentPanel)
 
 			--the guid of the item.
 			children[#children+1] = gui.Panel{
-				classes = {'formPanel'},
+				classes = {'formStackedRow'},
 				gui.Label{
+					classes = {'formStacked'},
 					text = 'ID (dev only):',
-					valign = 'center',
-					minWidth = 100,
 				},
 				gui.Input{
+					classes = {'formStacked'},
 					text = data.guid,
 				},
 			}
@@ -3421,13 +3213,13 @@ local ShowImageFoldersPanel = function(parentPanel)
 
 		--name/description
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {'formStackedRow'},
 			gui.Label{
+				classes = {'formStacked'},
 				text = 'Name:',
-				valign = 'center',
-				minWidth = 100,
 			},
 			gui.Input{
+				classes = {'formStacked'},
 				text = data.name,
 				change = function(element)
 					data.name = element.text
@@ -3438,14 +3230,14 @@ local ShowImageFoldersPanel = function(parentPanel)
 		}
 
 		children[#children+1] = gui.Panel{
-			classes = {"formPanel"},
+			classes = {"formStackedRow"},
 			gui.Label{
+				classes = {'formStacked'},
 				text = "Image Type:",
-				valign = "center",
-				minWidth = 100,
 			},
 
 			gui.Dropdown{
+				classes = {'formStacked'},
 				idChosen = data.imageType,
 				change = function(element)
 					data.imageType = element.idChosen
@@ -3465,27 +3257,29 @@ local ShowImageFoldersPanel = function(parentPanel)
 		}
 
 		--gm only.
-		children[#children+1] = gui.Check{
-			text = "Hidden from Players",
-			halign = "left",
-			fontSize = 22,
-			value = data.gmonly,
-			change = function(element)
-				data.gmonly = element.value
-				UploadData()
-			end,
+		children[#children+1] = gui.Panel{
+			classes = {"formStackedRow"},
+			gui.Check{
+				text = "Hidden from Players",
+				value = data.gmonly,
+				change = function(element)
+					data.gmonly = element.value
+					UploadData()
+				end,
+			},
 		}
 
 		if dmhub.isAdminAccount then
 			children[#children+1] = gui.Panel{
-				classes = {"formPanel"},
+				classes = {"formStackedRow"},
 
 				gui.Label{
-					classes = {"formLabel"},
+					classes = {"formStacked"},
 					text = "Artist:",
 				},
 
 				gui.Dropdown{
+					classes = {"formStacked"},
 
 					create = function(element)
 						local options = {}
@@ -3600,10 +3394,12 @@ end
 
 local ShowImageAtlasPanel = function(parentPanel)
 	local imagesPanel = gui.Panel{
-		classes = 'mainContentPanel',
-		styles = {
-			LibraryStyles,
-		},
+		width = 1200,
+		height = "95%",
+		halign = "left",
+		flow = "vertical",
+		pad = 20,
+		borderBox = true,
 	}
 
 	local itemsListPanel = nil
@@ -3621,13 +3417,13 @@ local ShowImageAtlasPanel = function(parentPanel)
 
 			--the guid of the item.
 			children[#children+1] = gui.Panel{
-				classes = {'formPanel'},
+				classes = {'formStackedRow'},
 				gui.Label{
+					classes = {'formStacked'},
 					text = 'ID (dev only):',
-					valign = 'center',
-					minWidth = 100,
 				},
 				gui.Input{
+					classes = {'formStacked'},
 					text = data.id,
 					change = function(element)
 						element.text = data.id
@@ -3638,13 +3434,13 @@ local ShowImageAtlasPanel = function(parentPanel)
 
 		--name/description
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {'formStackedRow'},
 			gui.Label{
+				classes = {'formStacked'},
 				text = 'Name:',
-				valign = 'center',
-				minWidth = 100,
 			},
 			gui.Input{
+				classes = {'formStacked'},
 				text = data.description,
 				change = function(element)
 					data.description = element.text
@@ -3654,51 +3450,57 @@ local ShowImageAtlasPanel = function(parentPanel)
 		}
 
 		children[#children+1] = gui.Panel{
-			classes = {"formPanel"},
+			classes = {"formStackedRow"},
 			gui.Label{
+				classes = {"formStacked"},
 				text = "Tiling:",
-				valign = "center",
-				minWidth = 100,
 			},
-			gui.Input{
-				text = tostring(data.xdiv),
-				valign = "center",
-				width = 20,
-				characterLimit = 2,
-				placeholderText = "",
-				change = function(element)
-					local n = tonumber(element.text)
-					if n == nil or round(n) ~= n or n < 1 or n > 16 then
-						element.text = tostring(data.xdiv)
-						return
-					end
+			gui.Panel{
+				flow = "horizontal",
+				width = "auto",
+				height = "auto",
+				halign = "left",
+				gui.Input{
+					text = tostring(data.xdiv),
+					valign = "center",
+					width = 20,
+					characterLimit = 2,
+					placeholderText = "",
+					change = function(element)
+						local n = tonumber(element.text)
+						if n == nil or round(n) ~= n or n < 1 or n > 16 then
+							element.text = tostring(data.xdiv)
+							return
+						end
 
-					data.xdiv = n
-					UploadData()
-				end,
-			},
-			gui.Label{
-				text = "x",
-				valign = "center",
-				textAlignment = "center",
-				width = 10,
-			},
-			gui.Input{
-				text = tostring(data.ydiv),
-				valign = "center",
-				width = 20,
-				characterLimit = 2,
-				placeholderText = "",
-				change = function(element)
-					local n = tonumber(element.text)
-					if n == nil or round(n) ~= n or n < 1 or n > 16 then
-						element.text = tostring(data.ydiv)
-						return
-					end
+						data.xdiv = n
+						UploadData()
+					end,
+				},
+				gui.Label{
+					text = "x",
+					valign = "center",
+					textAlignment = "center",
+					width = 10,
+					hmargin = 12,
+				},
+				gui.Input{
+					text = tostring(data.ydiv),
+					valign = "center",
+					width = 20,
+					characterLimit = 2,
+					placeholderText = "",
+					change = function(element)
+						local n = tonumber(element.text)
+						if n == nil or round(n) ~= n or n < 1 or n > 16 then
+							element.text = tostring(data.ydiv)
+							return
+						end
 
-					data.ydiv = n
-					UploadData()
-				end,
+						data.ydiv = n
+						UploadData()
+					end,
+				},
 			},
 		}
 
@@ -3707,15 +3509,13 @@ local ShowImageAtlasPanel = function(parentPanel)
 
 		--show the image.
 		children[#children+1] = gui.Panel{
+			classes = {"image", "bordered"},
 			id = "tokenFrameImage",
 			width = 512,
 			height = 512,
 			halign = "left",
 			bgimage = id,
-			bgcolor = "white",
 			vmargin = 10,
-			borderColor = "white",
-			borderWidth = 1,
 			thinkTime = 0.2,
 			think = function(element)
 				local x = data.xdiv
@@ -3737,10 +3537,10 @@ local ShowImageAtlasPanel = function(parentPanel)
 							local children = {}
 							for i=1,x-1 do
 								children[#children+1] = gui.Panel{
+									classes = {"image"},
 									width = 1,
 									height = "100%",
 									lmargin = 512/x,
-									bgcolor = "white",
 									bgimage = "panels/square.png",
 									halign = "left",
 								}
@@ -3757,10 +3557,10 @@ local ShowImageAtlasPanel = function(parentPanel)
 							local children = {}
 							for i=1,y-1 do
 								children[#children+1] = gui.Panel{
+									classes = {"image"},
 									width = "100%",
 									height = 1,
 									tmargin = 512/y,
-									bgcolor = "white",
 									bgimage = "panels/square.png",
 									valign = "top",
 								}
@@ -3801,10 +3601,8 @@ local ShowImageAtlasPanel = function(parentPanel)
 			end,
 		}
 
-		children[#children+1] = gui.PrettyButton{
-			width = 200,
-			height = 50,
-			fontSize = 24,
+		children[#children+1] = gui.Button{
+			classes = {"sizeL"},
 			text = "DELETE",
 			halign = "right",
 			click = function(element)
@@ -3917,10 +3715,12 @@ end
 
 local ShowImagesPanel = function(parentPanel, imageType)
 	local imagesPanel = gui.Panel{
-		classes = 'mainContentPanel',
-		styles = {
-			LibraryStyles,
-		},
+		width = 1200,
+		height = "95%",
+		halign = "left",
+		flow = "vertical",
+		pad = 20,
+		borderBox = true,
 	}
 
 	local itemsListPanel = nil
@@ -3938,13 +3738,13 @@ local ShowImagesPanel = function(parentPanel, imageType)
 
 			--the guid of the item.
 			children[#children+1] = gui.Panel{
-				classes = {'formPanel'},
+				classes = {'formStackedRow'},
 				gui.Label{
+					classes = {'formStacked'},
 					text = 'ID (dev only):',
-					valign = 'center',
-					minWidth = 100,
 				},
 				gui.Input{
+					classes = {'formStacked'},
 					text = data.id,
 					change = function(element)
 						element.text = data.id
@@ -3955,13 +3755,13 @@ local ShowImagesPanel = function(parentPanel, imageType)
 
 		--name/description
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {'formStackedRow'},
 			gui.Label{
+				classes = {'formStacked'},
 				text = 'Name:',
-				valign = 'center',
-				minWidth = 100,
 			},
 			gui.Input{
+				classes = {'formStacked'},
 				text = data.description,
 				change = function(element)
 					data.description = element.text
@@ -3972,13 +3772,13 @@ local ShowImagesPanel = function(parentPanel, imageType)
 
 		--ordering
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {'formStackedRow'},
 			gui.Label{
+				classes = {'formStacked'},
 				text = 'Ordering:',
-				valign = 'center',
-				minWidth = 100,
 			},
 			gui.Input{
+				classes = {'formStacked'},
 				text = tostring(data.ord),
 				change = function(element)
 					data.ord = tonumber(element.text) or 0
@@ -3989,13 +3789,13 @@ local ShowImagesPanel = function(parentPanel, imageType)
 
 		--zoom.
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {'formStackedRow'},
 			gui.Label{
+				classes = {'formStacked'},
 				text = 'Zoom:',
-				valign = 'center',
-				minWidth = 100,
 			},
 			gui.Input{
+				classes = {'formStacked'},
 				text = tostring(data.tokenZoom),
 				change = function(element)
 					data.tokenZoom = tonumber(element.text) or 0
@@ -4006,15 +3806,13 @@ local ShowImagesPanel = function(parentPanel, imageType)
 
 		--show the image.
 		children[#children+1] = gui.Panel{
+			classes = {"image", "bordered"},
 			id = "tokenFrameImage",
 			width = 256,
 			height = 256,
 			halign = "left",
 			bgimage = id,
-			bgcolor = "white",
 			vmargin = 10,
-			borderColor = "white",
-			borderWidth = 1,
 			imageLoaded = function(element)
 				if element.bgsprite == nil then
 					return
@@ -4045,10 +3843,8 @@ local ShowImagesPanel = function(parentPanel, imageType)
 			end,
 		}
 
-		children[#children+1] = gui.PrettyButton{
-			width = 200,
-			height = 50,
-			fontSize = 24,
+		children[#children+1] = gui.Button{
+			classes = {"sizeL"},
 			text = "DELETE",
 			halign = "right",
 			click = function(element)
@@ -4176,10 +3972,12 @@ local ShowEmojiPanel = function(parentPanel, emojiType)
 	game.Refresh()
 
 	local emojiPanel = gui.Panel{
-		classes = 'mainContentPanel',
-		styles = {
-			LibraryStyles,
-		},
+		width = 1200,
+		height = "95%",
+		halign = "left",
+		flow = "vertical",
+		pad = 20,
+		borderBox = true,
 		destroy = function(element)
 			game.currentMap:DestroyPreviewFloor(previewFloor)
 			game.Refresh()
@@ -4222,13 +4020,14 @@ local ShowEmojiPanel = function(parentPanel, emojiType)
 
 			--the guid of the item.
 			children[#children+1] = gui.Panel{
-				classes = {'formPanel'},
+				classes = {'formStackedRow'},
+				width = "30%",
 				gui.Label{
+					classes = {'formStacked'},
 					text = 'ID (dev only):',
-					valign = 'center',
-					minWidth = 100,
 				},
 				gui.Input{
+					classes = {'formStacked'},
 					text = data.id,
 					change = function(element)
 						element.text = data.id
@@ -4239,13 +4038,14 @@ local ShowEmojiPanel = function(parentPanel, emojiType)
 
 		--the name of the item.
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {'formStackedRow'},
+			width = "30%",
 			gui.Label{
+				classes = {'formStacked'},
 				text = 'Name:',
-				valign = 'center',
-				minWidth = 100,
 			},
 			gui.Input{
+				classes = {'formStacked'},
 				text = data.description,
 				change = function(element)
 					data.description = element.text
@@ -4256,13 +4056,14 @@ local ShowEmojiPanel = function(parentPanel, emojiType)
 
 		--the category of the item.
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {'formStackedRow'},
+			width = "30%",
 			gui.Label{
+				classes = {'formStacked'},
 				text = 'Category:',
-				valign = 'center',
-				minWidth = 100,
 			},
 			gui.Dropdown{
+				classes = {'formStacked'},
 				options = {
 					{
 						id = "Emoji",
@@ -4301,13 +4102,14 @@ local ShowEmojiPanel = function(parentPanel, emojiType)
 
 		--the x value of the item.
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {'formStackedRow'},
+			width = "30%",
 			gui.Label{
+				classes = {'formStacked'},
 				text = 'x:',
-				valign = 'center',
-				minWidth = 100,
 			},
 			gui.Input{
+				classes = {'formStacked'},
 				text = data.x,
 				change = function(element)
 					data.x = element.text
@@ -4318,13 +4120,14 @@ local ShowEmojiPanel = function(parentPanel, emojiType)
 
 		--the y value of the item.
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {'formStackedRow'},
+			width = "30%",
 			gui.Label{
+				classes = {'formStacked'},
 				text = 'y:',
-				valign = 'center',
-				minWidth = 100,
 			},
 			gui.Input{
+				classes = {'formStacked'},
 				text = data.y,
 				change = function(element)
 					data.y = element.text
@@ -4335,13 +4138,13 @@ local ShowEmojiPanel = function(parentPanel, emojiType)
 
 		--the width of the item.
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {'formStackedRow'},
 			gui.Label{
+				classes = {'formStacked'},
 				text = 'Width:',
-				valign = 'center',
-				minWidth = 100,
 			},
 			gui.Input{
+				classes = {'formStacked'},
 				text = data.displayWidth,
 				change = function(element)
 					data.displayWidth = element.text
@@ -4352,13 +4155,13 @@ local ShowEmojiPanel = function(parentPanel, emojiType)
 
 		--the height of the item.
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {'formStackedRow'},
 			gui.Label{
+				classes = {'formStacked'},
 				text = 'Height:',
-				valign = 'center',
-				minWidth = 100,
 			},
 			gui.Input{
+				classes = {'formStacked'},
 				text = data.displayHeight,
 				change = function(element)
 					data.displayHeight = element.text
@@ -4369,13 +4172,13 @@ local ShowEmojiPanel = function(parentPanel, emojiType)
 
 		--the blend mode of the item.
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {'formStackedRow'},
 			gui.Label{
+				classes = {'formStacked'},
 				text = 'Blend:',
-				valign = 'center',
-				minWidth = 100,
 			},
 			gui.Dropdown{
+				classes = {'formStacked'},
 				options = {
 					{
 						id = "blend",
@@ -4395,20 +4198,21 @@ local ShowEmojiPanel = function(parentPanel, emojiType)
 			},
 		}
 
-		children[#children+1] = gui.Check{
-			text = "Looping",
-			halign = "left",
-			fontSize = 22,
-			value = data.looping,
-			change = function(element)
-				data.looping = element.value
-				data.fadetime = cond(data.looping, 0.5)
-				data.styles[2].transitionTime = cond(data.looping, 0.5, 0)
-				data.styles[3].transitionTime = cond(data.looping, 0.5, 0)
+		children[#children+1] = gui.Panel{
+			classes = {"formStackedRow"},
+			gui.Check{
+				text = "Looping",
+				value = data.looping,
+				change = function(element)
+					data.looping = element.value
+					data.fadetime = cond(data.looping, 0.5)
+					data.styles[2].transitionTime = cond(data.looping, 0.5, 0)
+					data.styles[3].transitionTime = cond(data.looping, 0.5, 0)
 
-				UploadData()
-				element.parent:FireEventTree("refreshLoop")
-			end,
+					UploadData()
+					emojiPanel:FireEventTree("refreshLoop")
+				end,
+			},
 		}
 
 		local finishEmojiOptions = {
@@ -4427,18 +4231,17 @@ local ShowEmojiPanel = function(parentPanel, emojiType)
 		end
 
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {'formStackedRow'},
 			gui.Label{
+				classes = {'formStacked'},
 				text = 'Finish:',
-				valign = 'center',
-				minWidth = 100,
 			},
 			gui.Dropdown{
-				classes = {cond(not data.looping, "collapsed-anim")},
+				classes = {"formStacked", cond(not data.looping, "collapseAnim")},
 				options = finishEmojiOptions,
 				idChosen = data.finishEmoji or "none",
 				refreshLoop = function(element)
-					element:SetClass("collapsed-anim", not data.looping)
+					element:SetClass("collapseAnim", not data.looping)
 				end,
 
 				change  = function(element)
@@ -4449,26 +4252,28 @@ local ShowEmojiPanel = function(parentPanel, emojiType)
 		}
 
 
-		children[#children+1] = gui.Check{
-			text = "Mask",
-			halign = "left",
-			fontSize = 22,
-			value = data.mask,
-			change = function(element)
-				data.mask = element.value
-				UploadData()
-			end,
+		children[#children+1] = gui.Panel{
+			classes = {"formStackedRow"},
+			gui.Check{
+				text = "Mask",
+				value = data.mask,
+				change = function(element)
+					data.mask = element.value
+					UploadData()
+				end,
+			},
 		}
 
-		children[#children+1] = gui.Check{
-			text = "Behind Token",
-			halign = "left",
-			fontSize = 22,
-			value = data.behind,
-			change = function(element)
-				data.behind = element.value
-				UploadData()
-			end,
+		children[#children+1] = gui.Panel{
+			classes = {"formStackedRow"},
+			gui.Check{
+				text = "Behind Token",
+				value = data.behind,
+				change = function(element)
+					data.behind = element.value
+					UploadData()
+				end,
+			},
 		}
 
 		local childEmojiPanel = gui.Panel{
@@ -4490,12 +4295,14 @@ local ShowEmojiPanel = function(parentPanel, emojiType)
 							halign = "left",
 							flow = "horizontal",
 							gui.Label{
+								classes = {"sizeL"},
 								width = 180,
 								height = 30,
-								fontSize = 20,
 								text = childEmoji.description,
 							},
-							gui.CloseButton{
+							gui.Button{
+								classes = {"closeButton"},
+								valign = "center",
 								click = function(element)
 									local items = data.childEmoji
 									table.remove(items, index)
@@ -4543,8 +4350,6 @@ local ShowEmojiPanel = function(parentPanel, emojiType)
 			idChosen = "choose",
 			halign = "left",
 			width = 200,
-			height = 40,
-			fontSize = 20,
 			change = function(element)
 				if element.idChosen ~= "choose" then
 					local items = data.childEmoji
@@ -4641,12 +4446,10 @@ local ShowEmojiPanel = function(parentPanel, emojiType)
 		--]]
 
 		children[#children+1] = gui.Button{
+			classes = {"sizeL"},
 			text = "Delete",
 			halign = "left",
 			valign = "bottom",
-			width = 140,
-			height = 40,
-			fontSize = 22,
 			click = function(element)
 				data:Delete()
 				UploadData()
@@ -4657,8 +4460,8 @@ local ShowEmojiPanel = function(parentPanel, emojiType)
 			width = "auto",
 			height = "auto",
 			floating = true,
-			x = 400,
-			halign = "left",
+			-- x = -40,
+			halign = "right",
 			valign = "top",
 			flow = "vertical",
 

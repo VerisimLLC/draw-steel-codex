@@ -564,10 +564,9 @@ function CustomDocument:CreateInterface(args)
     local m_bubbleLockIcon = nil
     if args.bubbleIcon then
         m_bubbleLockIcon = gui.Panel {
-            classes = {"buttonIcon"},
+            classes = {"buttonIcon", "image"},
             width = 20,
             height = 20,
-            bgimage = "panels/square.png",
             valign = "center",
             lmargin = 8,
             linger = gui.Tooltip("Unlock to allow dragging on the map"),

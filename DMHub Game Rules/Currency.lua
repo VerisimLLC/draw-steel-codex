@@ -112,13 +112,13 @@ local SetData = function(tableName, currencyPanel, condid)
 
 	--the name of the currency.
 	children[#children+1] = gui.Panel{
-		classes = {'formPanel'},
+		classes = {"formStackedRow"},
 		gui.Label{
-			text = 'Name:',
-			valign = 'center',
-			minWidth = 240,
+			classes = {"formStacked"},
+			text = "Name:",
 		},
 		gui.Input{
+			classes = {"formStacked"},
 			text = currency.name,
 			change = function(element)
 				currency.name = element.text
@@ -132,7 +132,7 @@ local SetData = function(tableName, currencyPanel, condid)
 
 	--if the currency is money.
 	children[#children+1] = gui.Panel{
-		classes = {'formPanel'},
+		classes = {"formStackedRow"},
 		gui.Check{
 			text = "Money",
 			value = currency.money,
@@ -145,7 +145,7 @@ local SetData = function(tableName, currencyPanel, condid)
 
 	--if we auto-convert to this currency.
 	children[#children+1] = gui.Panel{
-		classes = {'formPanel'},
+		classes = {"formStackedRow"},
 		gui.Check{
 			text = "Auto-convert to this denomination",
 			value = currency.autoconvert,
@@ -159,16 +159,16 @@ local SetData = function(tableName, currencyPanel, condid)
 
 
 	local valuePanel = gui.Panel{
-		classes = {'formPanel', cond(currency.standard == currency.id, "collapsed")},
+		classes = {"formStackedRow", cond(currency.standard == currency.id, "collapsed")},
 		showValue = function(element)
 			element:SetClass("collapsed", currency.standard == currency.id)
 		end,
 		gui.Label{
+			classes = {"formStacked"},
 			text = "Value:",
-			valign = 'center',
-			minWidth = 240,
 		},
 		gui.Input{
+			classes = {"formStacked"},
 			text = tostring(currency.value),
 			change = function(element)
 				local val = tonumber(element.text)
@@ -183,13 +183,13 @@ local SetData = function(tableName, currencyPanel, condid)
 	}
 
 	local weightPanel = gui.Panel{
-		classes = {'formPanel'},
+		classes = {"formStackedRow"},
 		gui.Label{
+			classes = {"formStacked"},
 			text = "Weight:",
-			valign = 'center',
-			minWidth = 240,
 		},
 		gui.Input{
+			classes = {"formStacked"},
 			text = tostring(currency.weight),
 			change = function(element)
 				local val = tonumber(element.text)
@@ -205,13 +205,13 @@ local SetData = function(tableName, currencyPanel, condid)
 
 	--the standard for this currency.
 	children[#children+1] = gui.Panel{
-		classes = {'formPanel'},
+		classes = {"formStackedRow"},
 		gui.Label{
-			text = 'Standard:',
-			valign = 'center',
-			minWidth = 240,
+			classes = {"formStacked"},
+			text = "Standard:",
 		},
 		gui.Dropdown{
+			classes = {"formStacked"},
 			options = possibleStandards,
 			idChosen = currency.standard,
 			calculateStandards = function(element)
@@ -231,8 +231,8 @@ local SetData = function(tableName, currencyPanel, condid)
 
 	--the currency's icon.
 	local iconEditor = gui.IconEditor{
+		classes = {"image"},
 		library = "currency",
-		bgcolor = "white",
 		margin = 20,
 		width = 64,
 		height = 64,
@@ -241,8 +241,6 @@ local SetData = function(tableName, currencyPanel, condid)
 		change = function(element)
 			currency.iconid = element.value
 			UploadCurrency()
-		end,
-		create = function(element)
 		end,
 	}
 
@@ -258,20 +256,17 @@ local SetData = function(tableName, currencyPanel, condid)
 
 	--currency details.
 	children[#children+1] = gui.Panel{
-		classes = {'formPanel'},
-		height = 'auto',
+		classes = {"formStackedRow"},
 		gui.Label{
+			classes = {"formStacked"},
 			text = "Details:",
-			valign = "center",
-			minWidth = 240,
 		},
 		gui.Input{
+			classes = {"formStacked"},
 			text = currency.details,
 			multiline = true,
-			minHeight = 50,
-			height = 'auto',
-			width = 400,
-			textAlignment = "topleft",
+			height = 60,
+			textAlignment = "topLeft",
 			change = function(element)
 				currency.details = element.text
 				UploadCurrency()
@@ -291,43 +286,12 @@ function Currency.CreateEditor()
 			end,
 		},
 		vscroll = true,
-		classes = 'class-panel',
-		styles = {
-			{
-				halign = "left",
-			},
-			{
-				classes = {'class-panel'},
-				width = 1200,
-				height = '90%',
-				halign = 'left',
-				flow = 'vertical',
-				pad = 20,
-			},
-			{
-				classes = {'label'},
-				color = 'white',
-				fontSize = 22,
-				width = 'auto',
-				height = 'auto',
-			},
-			{
-				classes = {'input'},
-				width = 200,
-				height = 26,
-				fontSize = 18,
-				color = 'white',
-			},
-			{
-				classes = {'formPanel'},
-				flow = 'horizontal',
-				width = 'auto',
-				height = 'auto',
-				halign = 'left',
-				vmargin = 2,
-			},
-
-		},
+		width = 1200,
+		height = "90%",
+		halign = "left",
+		flow = "vertical",
+		pad = 20,
+		borderBox = true,
 	}
 
 	return currencyPanel

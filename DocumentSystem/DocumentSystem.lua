@@ -1514,10 +1514,8 @@ function CustomDocument.GetOrCreateTabbedViewer()
     refreshTabVisibility = function(element)
         local tabs = element.data.tabs
         local offset = element.data.scrollOffset
-        local rw = tabButtonsPanel.renderedWidth
-        local panelWidth = (rw ~= nil and rw >= dialogWidth - 60) and rw or (dialogWidth - 60)
 
-        -- Find active tab index
+        -- Active tab index and paging-arrow enable state (independent of measurement).
         local activeIdx = 0
         for i, tab in ipairs(tabs) do
             if tab.tabId == element.data.activeTabId then
@@ -1525,13 +1523,44 @@ function CustomDocument.GetOrCreateTabbedViewer()
                 break
             end
         end
+        tabScrollLeft:SetClass("disabled", activeIdx <= 1)
+        tabScrollLeft.interactable = activeIdx > 1
+        tabScrollRight:SetClass("disabled", activeIdx >= #tabs or #tabs <= 1)
+        tabScrollRight.interactable = (#tabs > 1 and activeIdx < #tabs)
+
+        -- Available width for the tab strip = bar width minus the arrow/close cluster.
+        -- tabButtonsPanel is auto-width, so its renderedWidth is the content (sum of
+        -- tabs), not the container; measure the full bar and subtract the arrows.
+        -- Before the first layout pass every panel reports a placeholder width, so
+        -- defer until we have a real measurement (the viewer's think re-runs this).
+        local barWidth = tabBar.renderedWidth or 0
+        local arrowsWidth = tabArrowsPanel.renderedWidth or 0
+        local panelWidth = barWidth - arrowsWidth - 12
+        if panelWidth < 200 then
+            for _, tab in ipairs(tabs) do
+                tab.tabButton:SetClass("collapsed", false)
+            end
+            element.data.visibleCount = #tabs
+            return
+        end
+
+        -- Per-tab width, caching the last real measurement so collapsed tabs (which
+        -- report ~0 since they take no space) don't distort the fit calculation.
+        local function tabWidth(tab)
+            local w = tab.tabButton.renderedWidth
+            if w and w > 1 then
+                tab.lastWidth = w
+                return w
+            end
+            return tab.lastWidth or TAB_MAX_WIDTH
+        end
 
         -- Compute how many tabs fit starting from a given offset
         local function countVisible(fromOffset)
             local count = 0
             local used = 0
             for i = fromOffset + 1, #tabs do
-                local w = tabs[i].tabButton.renderedWidth or TAB_MAX_WIDTH
+                local w = tabWidth(tabs[i])
                 if used + w > panelWidth and count > 0 then
                     break
                 end
@@ -1568,11 +1597,6 @@ function CustomDocument.GetOrCreateTabbedViewer()
         for i, tab in ipairs(tabs) do
             tab.tabButton:SetClass("collapsed", i - 1 < offset or i - 1 >= offset + visibleCount)
         end
-
-        tabScrollLeft:SetClass("disabled", activeIdx <= 1)
-        tabScrollLeft.interactable = activeIdx > 1
-        tabScrollRight:SetClass("disabled", activeIdx >= #tabs or #tabs <= 1)
-        tabScrollRight.interactable = (#tabs > 1 and activeIdx < #tabs)
 
         element.data.visibleCount = visibleCount
     end
@@ -1666,6 +1690,21 @@ function CustomDocument.GetOrCreateTabbedViewer()
         escape = function(element)
             if element.data.activeTabId then
                 element:FireEvent("closeTab", element.data.activeTabId)
+            end
+        end,
+
+        -- Re-run tab visibility once layout has produced real widths (the synchronous
+        -- add/switch calls run before the first layout pass, when every panel reports a
+        -- placeholder width), and again whenever the bar/arrows resize or the tab count
+        -- changes. The signature guard keeps this from doing work on idle frames.
+        thinkTime = 0.1,
+        think = function(element)
+            local bw = math.floor(tabBar.renderedWidth or 0)
+            local aw = math.floor(tabArrowsPanel.renderedWidth or 0)
+            local sig = bw .. ":" .. aw .. ":" .. #element.data.tabs
+            if sig ~= element.data.visSig and (bw - aw) > 200 then
+                element.data.visSig = sig
+                refreshTabVisibility(element)
             end
         end,
 

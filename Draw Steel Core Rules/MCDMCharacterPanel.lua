@@ -121,8 +121,9 @@ local g_edsSetting = setting{
 -- at load (below) to populate the tables, and again whenever the theme changes.
 function TacPanel.BuildStyles()
 TacPanelStyles.TacPanel = ThemeEngine.MergeTokens{
-    {   -- Outline-button wrapper border (icon button outline).
+    {   -- Outline-button wrapper: themed surface + border (icon button outline).
         selectors = {"tpOutline"},
+        bgcolor = "@bgAlt",
         borderColor = "@fgMuted",
     },
     {   -- Outer tac panel. Applies margin, padding, alignment, bottom border.
@@ -1867,7 +1868,6 @@ function TacPanel.Portrait()
             lmargin = 4,
             pad = 4,
             bgimage = true,
-            bgcolor = "black",
             border = 1,
             cornerRadius = 4,
             btn,
@@ -3251,7 +3251,7 @@ function TacPanel.HealthBar()
     }
 
     local icon = gui.Panel{
-        bgcolor = "white",
+        classes = {"bgInverse"},
         width = 12,
         height = 12,
         valign = "center",
@@ -3260,10 +3260,7 @@ function TacPanel.HealthBar()
         lmargin = 50,
     }
     local label = gui.Label{
-        fontFace = "@number",
-        fontSize = 16,
-        bold = true,
-        color = "white",
+        classes = {"fg", "sizeS", "number", "bold"},
         halign = "center",
         valign = "center",
         width = "auto",
@@ -3283,13 +3280,12 @@ function TacPanel.HealthBar()
     }
 
     resultPanel = gui.Panel{
+        classes = {"bordered"},
         width = "100%-8",
         flow = "horizontal",
         halign = "center",
         height = 20,
-        bgimage = true,
-        borderColor = "white",
-        borderWidth = 1,
+        cornerRadius = 0,
         bgcolor = "clear",
         fill,
         tempFill,
@@ -3323,7 +3319,7 @@ function TacPanel.HealthBar()
             if token == nil or not token.valid or token.properties == nil then
                 return
             end
-            
+
             local newToken = token.charid ~= m_tokenid
             m_tokenid = token.charid
 
@@ -3341,6 +3337,11 @@ function TacPanel.HealthBar()
             fill:SetClass("winded", m_bloodied)
             fill:SetClass("dying", m_dying)
 
+            -- Border tracks the same healthy/winded/dying state as the fill.
+            element:SetClass("borderSuccess", not m_bloodied and not m_dying)
+            element:SetClass("borderWarning", m_bloodied and not m_dying)
+            element:SetClass("borderDanger", m_dying)
+
             if m_dead then
                 label.text = "DEAD"
                 icon.bgimage = "ui-icons/Pin_Boss.png"
@@ -3354,7 +3355,6 @@ function TacPanel.HealthBar()
                 label.text = string.format("<b>%d/%d</b>", m_currentHP, m_maxHP)
                 icon.bgimage = "drawsteel/Icon_STA_Healthy.png"
             end
-
 
             m_animTempTarget = m_tempHP
 
@@ -4665,15 +4665,6 @@ end
 --- health bar.
 --- @return Panel
 function TacPanel.Summoner()
-    local g_squadHealthGradient = gui.Gradient{
-        point_a = {x = 0, y = 0},
-        point_b = {x = 1, y = 0},
-        stops = {
-            { position = 0, color = "#880000" },
-            { position = 1, color = "#cc0000" },
-        },
-    }
-
     local function BuildSquadRow(squadName, info, liveTokens, sq)
         local portraits = {}
         for _, tok in ipairs(liveTokens) do
@@ -4701,19 +4692,16 @@ function TacPanel.Summoner()
                 flow = "horizontal",
 
                 gui.Label{
+                    classes = {"sizeS", "bold", "fg"},
                     text = squadName,
-                    fontSize = 14,
-                    bold = true,
-                    color = "white",
                     width = "auto",
                     height = "auto",
                     halign = "left",
                 },
 
                 gui.Label{
+                    classes = {"sizeS", "fg"},
                     text = string.format("%d / %d", sq.liveMinions or #liveTokens, #info.charids),
-                    fontSize = 14,
-                    color = "white",
                     width = "auto",
                     height = "auto",
                     halign = "right",
@@ -4730,24 +4718,21 @@ function TacPanel.Summoner()
             },
 
             gui.Panel{
+                classes = {"fillBar", "bordered"},
                 width = 175,
                 height = 14,
                 halign = "left",
-                bgimage = true,
-                bgcolor = "#222222",
-                border = 1,
-                borderColor = "#000000",
 
                 gui.Panel{
+                    classes = {"fillBarFill"},
                     interactable = false,
                     width = string.format("%.02f%%", initialPct * 100),
                     height = "100%",
                     halign = "left",
-                    bgimage = true,
-                    bgcolor = "white",
-                    gradient = g_squadHealthGradient,
+                    -- fillBarFill paints a theme-independent grayscale shade; the
+                    -- bgcolor tint carries each squad's own color (or @accent if none).
                     selfStyle = {
-                        hueshift = (sq.color ~= nil) and core.Color(sq.color).hue or 0,
+                        bgcolor = sq.color,
                     },
                     data = {
                         fillLast = initialPct,
@@ -4784,12 +4769,13 @@ function TacPanel.Summoner()
 
                         if sq.color ~= fill.data.colorLast then
                             fill.data.colorLast = sq.color
-                            fill.selfStyle.hueshift = (sq.color ~= nil) and core.Color(sq.color).hue or 0
+                            fill.selfStyle.bgcolor = sq.color
                         end
                     end,
                 },
 
                 gui.Label{
+                    classes = {"bold", "fg"},
                     interactable = false,
                     floating = true,
                     halign = "center",
@@ -4797,8 +4783,6 @@ function TacPanel.Summoner()
                     width = "auto",
                     height = "auto",
                     fontSize = 11,
-                    bold = true,
-                    color = "white",
                     textAlignment = "center",
                     text = string.format("%d / %d",
                         math.max(0, (sq.maximum_health or 0) - (sq.damage_taken or 0)),
@@ -4861,11 +4845,11 @@ function TacPanel.Summoner()
             flow = "vertical",
             vmargin = 4,
 
-            gui.PrettyButton{
+            gui.Button{
+                classes = {"sizeM"},
                 halign = "center",
                 width = 175,
                 height = 40,
-                fontSize = 16,
                 text = "Sacrifice Minions",
                 hover = function(element)
                     element.tooltip = gui.Tooltip("You can willingly sacrifice one or more of your minions to reduce the cost of a heroic ability by 1 or more.")
@@ -4956,20 +4940,18 @@ function TacPanel.Summoner()
             },
 
             gui.Label{
+                classes = {"fg", "bgAlt", "sizeXs"},
                 width = "100%",
                 height = "auto",
-                tmargin = 8,
                 hpad = 4,
-                color = "white",
-                fontSize = 14,
                 halign = "left",
                 textAlignment = "topleft",
                 markdown = true,
-                text = "### <u>Your Minion Squads</u>\n"
-                    .. "- Move Action\n"
-                    .. "- Maneuver or Main Action\n\n"
-                    .. "If a minion has a signature ability, apply one instance of the effects to each target.\n\n"
-                    .. "Each additional minion that strikes the target adds their free strike value to the action.",
+                text = "<u>**Your Minion Squads**</u>\n"
+                    .. "* Move Action\n"
+                    .. "* Maneuver or Main Action\n"
+                    .. "* If a minion has a signature ability, apply one instance of the effects to each target.\n"
+                    .. "* Each additional minion that strikes the target adds their free strike value to the action.",
             },
         },
     }
@@ -5144,17 +5126,18 @@ function TacPanel.OtherResourceRow(token, resource, quantity, styleCache)
 
         -- name label
         gui.Label{
+            classes = {"sizeS"},
             width = "100%-116",
             height = "auto",
             halign = "left",
             valign = "center",
             hmargin = 6,
-            fontSize = 14,
             text = displayName,
         },
 
         -- remaining / max input
         gui.Input{
+            classes = {"sizeM"},
             width = 70,
             height = 22,
             halign = "right",
@@ -5163,8 +5146,6 @@ function TacPanel.OtherResourceRow(token, resource, quantity, styleCache)
             characterLimit = 9,
             selectAllOnFocus = true,
             placeholderText = "--",
-            fontFace = "@number",
-            fontSize = 16,
             textAlignment = "center",
             bgcolor = "clear",
             border = 0,
@@ -6052,7 +6033,7 @@ function TacPanel.MultiEdit()
             local eds = g_edsSetting:Get()
 
             if ev <= eds/2 then
-                edsDescription = "<color=#66ff66>Trivial</color>"
+                edsDescription = "<color=@success>Trivial</color>"
             elseif ev <= eds then
                 local val = ev
                 while val % 5 ~= 0 do
@@ -6060,17 +6041,17 @@ function TacPanel.MultiEdit()
                 end
 
                 if val - eds/2 >= eds - val then
-                    edsDescription = "<color=#ffff66>Standard</color>"
+                    edsDescription = "<color=@warning>Standard</color>"
                 else
-                    edsDescription = "<color=#66ff66>Easy</color>"
+                    edsDescription = "<color=@success>Easy</color>"
                 end
             elseif ev <= eds + 10 then
-                edsDescription = "<color=#ff6666>Hard</color>"
+                edsDescription = "<color=@danger>Hard</color>"
             else
-                edsDescription = "<color=#990000>Extreme</color>"
+                edsDescription = "<color=@danger>Extreme</color>"
             end
 
-            element.text = string.format("%d monsters selected, EV: %d (<b>%s</b>)", #monsterTokens, ev, edsDescription)
+            element.text = ThemeEngine.ResolveTokens(string.format("%d monsters selected, EV: %d (<b>%s</b>)", #monsterTokens, ev, edsDescription))
         end,
     },
     }
@@ -7093,17 +7074,10 @@ function TacPanel.AddConditionMenu(args)
                         end,
                     },
 
-                    gui.Panel{
-                        width = 20,
-                        height = 20,
+                    gui.Button{
+                        classes = {"deleteButton", "sizeXs"},
                         halign = "left",
                         valign = "center",
-                        hmargin = 2,
-                        bgimage = true,
-                        bgcolor = "clear",
-                        border = 1,
-                        borderColor = ThemeEngine.ResolveTokens("@danger"),
-                        cornerRadius = 3,
                         linger = function(el)
                             gui.Tooltip("Remove custom aura")(el)
                         end,
@@ -7118,16 +7092,6 @@ function TacPanel.AddConditionMenu(args)
                             primaryToken:UpdateAuras()
                             rebuildCustomAuras()
                         end,
-                        gui.Label{
-                            text = "X",
-                            width = "100%",
-                            height = "100%",
-                            halign = "center",
-                            valign = "center",
-                            textAlignment = "center",
-                            fontSize = 12,
-                            color = ThemeEngine.ResolveTokens("@fg"),
-                        },
                     },
                 }
             end
@@ -7430,10 +7394,9 @@ function TacPanel.PersistentAbilities()
             end
             if totalCost > 2 then
                 children[#children+1] = gui.Label{
-                    classes = {"danger"},
+                    classes = {"danger", "sizeXs"},
                     width = "100%",
                     height = "auto",
-                    fontSize = 12,
                     text = "Too many persistent abilities. You must end some.",
                 }
             end
@@ -8140,6 +8103,11 @@ CharacterPanel.CreateCharacterDetailsPanel = function(m_token)
     return RegisterRoot(resultPanel)
 end
 
+-- DEAD CODE: DecorateHitpointsPanel / DecoratePortraitPanel have no callers
+-- anywhere in the repo. Commented out pending removal. Uses a level-1 long
+-- bracket (--[==[ ]==]) because the body contains a [[...]] string literal that
+-- would otherwise close a plain --[[ ]] comment early.
+--[==[
 --- Build the floating "spend a Recovery" diamond overlaid on the portrait's
 --- hitpoints area (heroes / retainers / companions only).
 --- @return Panel
@@ -8833,6 +8801,7 @@ function CharacterPanel.DecoratePortraitPanel(token)
 		}
 	}
 end
+]==]
 
 local multiEditBaseFunction = CharacterPanel.CreateMultiEdit
 

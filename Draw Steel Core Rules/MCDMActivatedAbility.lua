@@ -2433,25 +2433,28 @@ local function BuildSquadAdjacency(squadTokens, squadTargetsPerToken, targets, t
     return adjacency
 end
 
--- Augmenting-path bipartite matching. Finds a maximum matching of minions to
--- targets in O(n^2 * m) time, replacing the previous O(n!) permutation search.
+-- Augmenting-path bipartite matching with per-minion capacity. Finds a
+-- maximum matching of target slots to minions where each minion may claim
+-- up to capacityPerMinion slots. Runs in O(n^2 * m * capacity) time.
 -- Minions are processed in order so earlier indices (the caster) get priority.
 -- committedTargets is an optional table of targetIdx -> minionIdx for
--- assignments that should be preserved. The algorithm seeds the matching with
--- these and only runs augmenting paths for unmatched targets, so committed
--- assignments are only displaced as a last resort.
+-- assignments that should be preserved. Commitments lock the specific
+-- (target, minion) pairing -- a minion can still gain or lose its OTHER
+-- (uncommitted) slots during augmentation.
+-- capacityPerMinion defaults to 1 for backwards compatibility.
 -- Returns matchOfTarget[targetIdx] = minionIdx for each matched target.
-local function BipartiteMatch(adjacency, nMinions, nTargets, committedTargets)
+local function BipartiteMatch(adjacency, nMinions, nTargets, committedTargets, capacityPerMinion)
+    capacityPerMinion = capacityPerMinion or 1
     local matchOfTarget = {} -- matchOfTarget[targetIdx] = minionIdx or nil
-    local matchOfMinion = {} -- reverse map: minionIdx -> targetIdx or nil
-    local committedMinions = {} -- set of minion indices that must not be displaced
+    local assignmentCount = {} -- assignmentCount[minionIdx] = number of slots held
+    local committedTargetSet = {} -- set of target indices whose pairing must not be displaced
 
     -- Seed with committed assignments.
     if committedTargets ~= nil then
         for targetIdx, minionIdx in pairs(committedTargets) do
             matchOfTarget[targetIdx] = minionIdx
-            matchOfMinion[minionIdx] = targetIdx
-            committedMinions[minionIdx] = true
+            assignmentCount[minionIdx] = (assignmentCount[minionIdx] or 0) + 1
+            committedTargetSet[targetIdx] = true
         end
     end
 
@@ -2460,13 +2463,18 @@ local function BipartiteMatch(adjacency, nMinions, nTargets, committedTargets)
             if not visited[targetIdx] then
                 visited[targetIdx] = true
                 local holder = matchOfTarget[targetIdx]
-                -- Never displace a committed minion.
-                if holder == nil or (not committedMinions[holder] and augment(holder, visited)) then
-                    if holder ~= nil then
-                        matchOfMinion[holder] = nil
-                    end
+                if holder == nil then
                     matchOfTarget[targetIdx] = minionIdx
-                    matchOfMinion[minionIdx] = targetIdx
+                    assignmentCount[minionIdx] = (assignmentCount[minionIdx] or 0) + 1
+                    return true
+                elseif holder ~= minionIdx and (not committedTargetSet[targetIdx])
+                    and augment(holder, visited) then
+                    -- holder gained a new slot via the recursive augment; now
+                    -- release this slot to minionIdx so holder's net count is
+                    -- unchanged.
+                    assignmentCount[holder] = assignmentCount[holder] - 1
+                    matchOfTarget[targetIdx] = minionIdx
+                    assignmentCount[minionIdx] = (assignmentCount[minionIdx] or 0) + 1
                     return true
                 end
             end
@@ -2474,10 +2482,10 @@ local function BipartiteMatch(adjacency, nMinions, nTargets, committedTargets)
         return false
     end
 
-    -- Only run augmenting paths for minions not already committed.
+    -- Fill each minion up to its capacity.
     for minionIdx = 1, nMinions do
-        if matchOfMinion[minionIdx] == nil then
-            augment(minionIdx, {})
+        while (assignmentCount[minionIdx] or 0) < capacityPerMinion do
+            if not augment(minionIdx, {}) then break end
         end
     end
 
@@ -2488,6 +2496,10 @@ end
 -- are added so that existing minion-to-target pairings are preserved.
 local g_prevTargetingRays = nil
 
+-- Captured here (before the GetNumTargets wrapper below) so squad coordination
+-- can read the per-minion (un-multiplied) target count.
+local g_baseNumTargetsFunction = ActivatedAbility.GetNumTargets
+
 ---@param casterToken CharacterToken The token that is casting the ability.
 ---@param range number The range of the ability.
 ---@param symbols table<string, any> The symbols for the ability.
@@ -2495,6 +2507,11 @@ local g_prevTargetingRays = nil
 ---@return table<{a: CharacterToken, b: CharacterToken}>[]|nil The possible targeting combinations of minions to targets.
 function ActivatedAbility:GetTargetingRays(casterToken, range, symbols, targets)
     if self:UsesSquadCoordination(casterToken) then
+        -- Per-minion target count from the un-wrapped GetNumTargets, so we get
+        -- the raw ability value rather than the squad-multiplied total.
+        local perMinion = g_baseNumTargetsFunction(self, casterToken, symbols)
+        if perMinion == nil or perMinion < 1 then perMinion = 1 end
+
         local locations = {}
         local squad = casterToken.properties._tmp_minionSquad
         local squadTokens = {}
@@ -2569,10 +2586,12 @@ function ActivatedAbility:GetTargetingRays(casterToken, range, symbols, targets)
             end
 
             committedTargets = {}
+            local commitsPerMinion = {}
             for _, prev in ipairs(g_prevTargetingRays) do
                 local mIdx = minionIdToIdx[prev.a.id]
                 local tIdx = targetIdToIdx[prev.b.charid]
-                if mIdx ~= nil and tIdx ~= nil then
+                if mIdx ~= nil and tIdx ~= nil
+                    and (commitsPerMinion[mIdx] or 0) < perMinion then
                     -- Only commit if the minion can still reach this target.
                     local stillValid = false
                     for _, adjTarget in ipairs(adjacency[mIdx]) do
@@ -2584,17 +2603,20 @@ function ActivatedAbility:GetTargetingRays(casterToken, range, symbols, targets)
 
                     if stillValid then
                         committedTargets[tIdx] = mIdx
-                        -- Remove from lookup so the next minion attacking the same
-                        -- target gets a fresh slot rather than double-committing.
+                        -- Remove the target slot from the lookup so the next
+                        -- prev ray for the same creature gets a different slot
+                        -- rather than colliding on this one. The minion stays
+                        -- in the lookup so it can claim more slots up to
+                        -- perMinion (tracked via commitsPerMinion).
                         targetIdToIdx[prev.b.charid] = nil
-                        minionIdToIdx[prev.a.id] = nil
+                        commitsPerMinion[mIdx] = (commitsPerMinion[mIdx] or 0) + 1
                     end
                 end
             end
         end
 
         -- Try with locked commitments first to keep assignments stable.
-        local matchOfTarget = BipartiteMatch(adjacency, #squadTokens, #targets, committedTargets)
+        local matchOfTarget = BipartiteMatch(adjacency, #squadTokens, #targets, committedTargets, perMinion)
 
         -- Count how many targets got a minion under the constrained match.
         local constrainedCount = 0
@@ -2608,7 +2630,7 @@ function ActivatedAbility:GetTargetingRays(casterToken, range, symbols, targets)
         -- match that can reassign anyone. Keep the unconstrained result only
         -- when it covers strictly more targets, so stable pairings survive.
         if constrainedCount < #targets then
-            local unconstrained = BipartiteMatch(adjacency, #squadTokens, #targets)
+            local unconstrained = BipartiteMatch(adjacency, #squadTokens, #targets, nil, perMinion)
             local unconstrainedCount = 0
             for j = 1, #targets do
                 if unconstrained[j] ~= nil then
@@ -2621,21 +2643,25 @@ function ActivatedAbility:GetTargetingRays(casterToken, range, symbols, targets)
             end
         end
 
-        -- The player chose how many minions to commit per target via repeated clicks
-        local minionUsed = {}
+        -- The player chose how many minions to commit per target via repeated clicks.
+        -- Fill any unmatched target slots, allowing a minion to be picked again
+        -- while it still has remaining capacity (assignments < perMinion).
+        local minionAssignmentCount = {}
         for j = 1, #targets do
             if matchOfTarget[j] ~= nil then
-                minionUsed[matchOfTarget[j]] = true
+                local m = matchOfTarget[j]
+                minionAssignmentCount[m] = (minionAssignmentCount[m] or 0) + 1
             end
         end
         for j = 1, #targets do
             if matchOfTarget[j] == nil then
                 for i = 1, #squadTokens do
                     local tok = squadTokens[i]
-                    if not minionUsed[i] and tok ~= nil and tok.valid
+                    if (minionAssignmentCount[i] or 0) < perMinion
+                        and tok ~= nil and tok.valid
                         and (not tok.properties:IsDead()) then
                         matchOfTarget[j] = i
-                        minionUsed[i] = true
+                        minionAssignmentCount[i] = (minionAssignmentCount[i] or 0) + 1
                         break
                     end
                 end
@@ -2676,23 +2702,22 @@ function ActivatedAbility:GetTargetingRays(casterToken, range, symbols, targets)
                     end
                 end
             end
-            -- Pull in an unmatched minion: for each slot, if a
-            -- currently-unused squad member is closer to that slot's
-            -- target than the assigned minion.
+            -- Pull in a minion that has spare capacity: for each slot, if a
+            -- squad member with assignments < perMinion is closer to that
+            -- slot's target than the assigned minion, swap them in.
             for j = 1, #targets do
                 local current = matchOfTarget[j]
                 if current ~= nil then
                     local currentDist = squadDistance(current, j)
                     for i = 1, #squadTokens do
                         if i ~= current then
-                            local assignedElsewhere = false
+                            local iAssignmentCount = 0
                             for jj = 1, #targets do
                                 if matchOfTarget[jj] == i then
-                                    assignedElsewhere = true
-                                    break
+                                    iAssignmentCount = iAssignmentCount + 1
                                 end
                             end
-                            if not assignedElsewhere then
+                            if iAssignmentCount < perMinion then
                                 local tok = squadTokens[i]
                                 if tok ~= nil and tok.valid
                                     and (not tok.properties:IsDead()) then
@@ -2876,10 +2901,11 @@ local g_numTargetsFunction = ActivatedAbility.GetNumTargets
 function ActivatedAbility:GetNumTargets(casterToken, symbols)
     local result = g_numTargetsFunction(self, casterToken, symbols)
 
-    if (not mod.unloaded) and casterToken ~= nil and result == 1 and self:UsesSquadStrike(casterToken) then
+    if (not mod.unloaded) and casterToken ~= nil and result >= 1 and self:UsesSquadStrike(casterToken) then
         --minion signature abilities and free strikes can target one enemy per active
-        --(non-skipped) squad member. For Maneuver-or-Action squads, also exclude
-        --minions that have already broken off for an individual maneuver this turn.
+        --(non-skipped) squad member, multiplied by the ability's own per-minion
+        --target count. For Maneuver-or-Action squads, also exclude minions that
+        --have already broken off for an individual maneuver this turn.
         local squad = casterToken.properties._tmp_minionSquad
         if casterToken.properties:HasManeuverOrActionRule() and squad ~= nil and squad.tokens ~= nil then
             local count = 0
@@ -2892,10 +2918,10 @@ function ActivatedAbility:GetNumTargets(casterToken, symbols)
                 end
             end
             if count < 1 then count = 1 end
-            return count
+            return count * result
         end
 
-        return squad.activeMinions or squad.liveMinions
+        return (squad.activeMinions or squad.liveMinions) * result
     end
 
     return result

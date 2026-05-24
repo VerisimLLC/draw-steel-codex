@@ -856,11 +856,16 @@ CreateGameRecorderPanel = function()
     local m_lastSavedPath = nil    -- path from the last successful complete(path)
     local m_lastError = nil        -- last error message, shown until next start
     local m_recordingWithUI = false -- whether the active recording includes UI
+    local m_autoScope = nil        -- nil | "turn" | "round"
+    local m_autoRemaining = 0      -- turn/round ENDS remaining before auto-stop
+    local m_autoLastId = nil       -- last observed turn-id / round-id
+    local m_autoCount = 1          -- how many turns/rounds to record (user-entered)
 
     -- forward declarations for panels referenced by helpers/handlers
     local resultPanel
     local m_bodyPanel
     local m_pillPanel
+    local ClearAuto
 
     local function BuildOptions()
         local options = {}
@@ -900,6 +905,7 @@ CreateGameRecorderPanel = function()
     end
 
     local function StopAndSave()
+        ClearAuto()
         if not recorder.recording then
             return
         end
@@ -916,6 +922,7 @@ CreateGameRecorderPanel = function()
     end
 
     local function DiscardRecording()
+        ClearAuto()
         if not recorder.recording then
             return
         end
@@ -930,6 +937,78 @@ CreateGameRecorderPanel = function()
         local secs = os.time() - m_startTime
         if secs < 0 then secs = 0 end
         return string.format("%02d:%02d", math.floor(secs / 60), secs % 60)
+    end
+
+    local function CombatActive()
+        local q = dmhub.initiativeQueue
+        return q ~= nil and (not q.hidden) and q.gameMode == "combat"
+    end
+
+    local function CurrentTurnId()
+        local q = dmhub.initiativeQueue
+        if q == nil then return nil end
+        return q:GetTurnId()
+    end
+
+    local function CurrentRoundId()
+        local q = dmhub.initiativeQueue
+        if q == nil then return nil end
+        return q:GetRoundId()
+    end
+
+    local function StartAuto(scope, count)
+        if recorder.recording or not CombatActive() then
+            return
+        end
+        m_autoScope = scope
+        m_autoRemaining = count
+        if scope == "round" then
+            m_autoLastId = CurrentRoundId()
+        else
+            -- May be nil if no turn is active yet; we record from now and wait
+            -- for one to begin (a nil->id transition is not counted as an end).
+            m_autoLastId = CurrentTurnId()
+        end
+        StartRecording()
+    end
+
+    ClearAuto = function()
+        m_autoScope = nil
+        m_autoRemaining = 0
+        m_autoLastId = nil
+    end
+
+    -- Stop an active auto-recording when its turn/round boundary passes, or
+    -- when combat ends. Called from both refreshGame (immediate) and think
+    -- (reliable 0.25s safety net, in case the monitorGame path does not fire).
+    local function CheckAutoStop()
+        if m_autoScope == nil or not recorder.recording then
+            return
+        end
+        if not CombatActive() then
+            -- combat ended entirely; save whatever we captured so far
+            StopAndSave()
+            return
+        end
+        local currentId
+        if m_autoScope == "round" then
+            currentId = CurrentRoundId()
+        else
+            currentId = CurrentTurnId()
+        end
+        if currentId ~= m_autoLastId then
+            -- A transition occurred. Count it as one "end" only if a real
+            -- turn/round was in progress (previous id non-nil). A nil->id
+            -- transition means a turn/round just STARTED (the wait-for-turn
+            -- case), which is not an end.
+            if m_autoLastId ~= nil then
+                m_autoRemaining = m_autoRemaining - 1
+            end
+            m_autoLastId = currentId
+            if m_autoRemaining <= 0 then
+                StopAndSave()
+            end
+        end
     end
 
     local function ToggleRow(labelText, settingObj)
@@ -1241,6 +1320,158 @@ CreateGameRecorderPanel = function()
         }
     end
 
+    local function AutoRecordZone()
+        local btnRow
+        btnRow = gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            halign = "left",
+            vmargin = 2,
+            data = { combat = nil },
+            thinkTime = 0.25,
+            create = function(element)
+                element:FireEvent("think")
+            end,
+            think = function(element)
+                local combat = CombatActive()
+                if element.data.combat == combat then
+                    return
+                end
+                element.data.combat = combat
+                if combat then
+                    element.children = {
+                        gui.Panel{
+                            width = "auto",
+                            height = "auto",
+                            flow = "horizontal",
+                            valign = "center",
+                            vmargin = 2,
+                            gui.Label{
+                                text = "Count:",
+                                width = "auto",
+                                height = "auto",
+                                halign = "left",
+                                valign = "center",
+                                fontSize = 13,
+                                color = "#cccccc",
+                            },
+                            gui.Input{
+                                width = 44,
+                                height = 22,
+                                fontSize = 13,
+                                halign = "left",
+                                lmargin = 6,
+                                text = tostring(m_autoCount),
+                                characterLimit = 3,
+                                editlag = 0.1,
+                                edit = function(el)
+                                    local n = tonumber(el.text)
+                                    if n ~= nil and n >= 1 then
+                                        m_autoCount = math.floor(n)
+                                    end
+                                end,
+                            },
+                        },
+                        gui.Panel{
+                            width = "auto",
+                            height = "auto",
+                            flow = "horizontal",
+                            vmargin = 2,
+                            gui.Button{
+                                text = "Record turns",
+                                width = 120,
+                                height = 28,
+                                fontSize = 13,
+                                hmargin = 4,
+                                click = function()
+                                    StartAuto("turn", m_autoCount)
+                                end,
+                            },
+                            gui.Button{
+                                text = "Record rounds",
+                                width = 130,
+                                height = 28,
+                                fontSize = 13,
+                                hmargin = 4,
+                                click = function()
+                                    StartAuto("round", m_autoCount)
+                                end,
+                            },
+                        },
+                    }
+                else
+                    element.children = {
+                        gui.Label{
+                            width = "auto",
+                            height = "auto",
+                            halign = "left",
+                            valign = "center",
+                            fontSize = 12,
+                            color = "#777777",
+                            text = "Start combat to enable auto-record.",
+                        },
+                    }
+                end
+            end,
+        }
+
+        return gui.Panel{
+            classes = {"recorder-zone"},
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            borderWidth = 1,
+            borderColor = "#555555",
+            cornerRadius = 6,
+            pad = 8,
+            borderBox = true,
+            vmargin = 4,
+            gui.Label{
+                width = "auto",
+                height = "auto",
+                halign = "left",
+                fontSize = 10,
+                uppercase = true,
+                color = "#999999",
+                text = "Auto-record (combat)",
+            },
+            gui.Label{
+                width = "100%",
+                height = "auto",
+                halign = "left",
+                fontSize = 10,
+                color = "#888888",
+                textWrap = true,
+                vmargin = 1,
+                text = "Records from now until this many turn/round ends. 1 = until the current one ends.",
+            },
+            btnRow,
+            gui.Label{
+                width = "100%",
+                height = "auto",
+                halign = "left",
+                fontSize = 10,
+                color = "#66dd66",
+                text = "",
+                thinkTime = 0.5,
+                think = function(element)
+                    if m_autoScope == nil or not recorder.recording then
+                        element.text = ""
+                    elseif m_autoScope == "turn" and m_autoLastId == nil then
+                        element.text = "Waiting for a turn to start..."
+                    else
+                        local unit = m_autoScope
+                        if m_autoRemaining ~= 1 then
+                            unit = unit .. "s"
+                        end
+                        element.text = string.format("Auto-recording: %d %s remaining.", m_autoRemaining, unit)
+                    end
+                end,
+            },
+        }
+    end
+
     local function RecPill()
         m_pillPanel = gui.Panel{
             classes = {"collapsed"},
@@ -1300,6 +1531,7 @@ CreateGameRecorderPanel = function()
         StatusZone(),
         OptionsZone(),
         AdvancedZone(),
+        AutoRecordZone(),
         FooterZone(),
     }
 
@@ -1307,8 +1539,13 @@ CreateGameRecorderPanel = function()
         width = "100%",
         height = "auto",
         flow = "vertical",
+        monitorGame = "/initiativeQueue",
+        refreshGame = function(element)
+            CheckAutoStop()
+        end,
         thinkTime = 0.25,
         think = function(element)
+            CheckAutoStop()
             local collapsedToPill = (recorder.recording == true) and m_recordingWithUI
             m_bodyPanel:SetClass("collapsed", collapsedToPill)
             m_pillPanel:SetClass("collapsed", not collapsedToPill)

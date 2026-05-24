@@ -32,12 +32,13 @@ This codebase has **no command-line test runner** - codex Lua is verified live i
 
 ## File Structure
 
+> **REVISION 2026-05-24 (host file changed):** Registering a brand-new Lua file through DMHub's mod system proved unreliable in this environment, so the feature is being implemented by **appending to `Development Utilities/DevTools.lua`** (already registered and loaded) instead of a new `GameRecorderPanel.lua`. **Everywhere a task below says `GameRecorderPanel.lua`, read `Development Utilities/DevTools.lua` (append to the END of the file).** Reuse DevTools.lua's existing `local mod = dmhub.GetModLoading()` and its `track(...)` helper - do NOT redefine them. **Task 1's file-creation/registration steps are obsolete**; instead append the Task 1 Step 2 skeleton (minus its own `local mod`/`track`) to the end of DevTools.lua.
+
 | File | Responsibility |
 |---|---|
-| `Development Utilities/GameRecorderPanel.lua` (**new**) | The entire feature: settings, panel registration, recording control, auto-record monitor, REC pill. |
-| `main.lua` (**modify**) | One `require` line so the new file loads. |
+| `Development Utilities/DevTools.lua` (**modify - append**) | The entire feature: settings, panel registration, recording control, auto-record monitor, REC pill. Appended after the existing "Development Info" panel; reuses the file's existing `mod` and `track`. |
 
-Per the codex "do not create new Lua files" rule, the file must be **created and registered through the DMHub module system by the user** (Task 1). Placing it on disk alone will not load it.
+No `main.lua` change and no new file - DevTools.lua is already required and loaded.
 
 ---
 

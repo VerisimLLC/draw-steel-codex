@@ -499,7 +499,12 @@ local function CreateMonsterEntry(nodeid)
                     return
                 end
 
-                local panel = monsterEntry:Render { width = 800 }
+                local lockedHeight = math.floor(dmhub.screenDimensionsBelowTitlebar.y * 0.6)
+                local panel = monsterEntry:Render {
+                    width = 800,
+                    maxHeight = lockedHeight,
+                    vscroll = true,
+                }
 
                 if panel ~= nil then
                     element.tooltip = gui.TooltipFrame(
@@ -507,11 +512,53 @@ local function CreateMonsterEntry(nodeid)
                         {
                             halign = dock.data.TooltipAlignment(),
                             valign = "center",
-                            vscroll = true,
-                            maxHeight = dmhub.screenDimensionsBelowTitlebar.y - 20,
+                            interactable = true,
                         }
                     )
                 end
+            end,
+
+            --When ctrl is held, defer hiding the tooltip until ctrl is released.
+            --Mirrors the CharacterPanel.HideAbility pattern in Timeline/AbilitySidebar.lua.
+            dehover = function(element)
+                if not dmhub.modKeys["ctrl"] then
+                    return
+                end
+
+                local dock = element:FindParentWithClass("dock")
+                local monsterEntry = assets.monsters[nodeid]
+                if monsterEntry == nil then
+                    return
+                end
+
+                local lockedHeight = math.floor(dmhub.screenDimensionsBelowTitlebar.y * 0.6)
+                local panel = monsterEntry:Render {
+                    width = 800,
+                    maxHeight = lockedHeight,
+                    vscroll = true,
+                }
+                if panel == nil then
+                    return
+                end
+
+                element.popup = gui.TooltipFrame(
+                    panel,
+                    {
+                        halign = dock.data.TooltipAlignment(),
+                        valign = "center",
+                        interactable = true,
+                    }
+                )
+
+                dmhub.Coroutine(function()
+                    while dmhub.modKeys["ctrl"] do
+                        coroutine.yield(0.1)
+                    end
+                    if mod.unloaded then return end
+                    if element.valid then
+                        element.popup = nil
+                    end
+                end)
             end,
 
             beginDrag = function(element)

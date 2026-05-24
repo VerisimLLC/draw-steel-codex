@@ -795,6 +795,27 @@ local g_audioSetting = setting{
     default = true,
 }
 
+local g_fpsSetting = setting{
+    id = "recorder:fps",
+    description = "Game Recorder: fps override (blank = default)",
+    storage = "preference",
+    default = "",
+}
+
+local g_widthSetting = setting{
+    id = "recorder:width",
+    description = "Game Recorder: width override (blank = default)",
+    storage = "preference",
+    default = "",
+}
+
+local g_heightSetting = setting{
+    id = "recorder:height",
+    description = "Game Recorder: height override (blank = default)",
+    storage = "preference",
+    default = "",
+}
+
 local CreateGameRecorderPanel
 
 DockablePanel.Register{
@@ -834,9 +855,12 @@ CreateGameRecorderPanel = function()
     local m_startTime = nil        -- os.time() at recording start, or nil when idle
     local m_lastSavedPath = nil    -- path from the last successful complete(path)
     local m_lastError = nil        -- last error message, shown until next start
+    local m_recordingWithUI = false -- whether the active recording includes UI
 
     -- forward declarations for panels referenced by helpers/handlers
     local resultPanel
+    local m_bodyPanel
+    local m_pillPanel
 
     local function BuildOptions()
         local options = {}
@@ -850,6 +874,18 @@ CreateGameRecorderPanel = function()
             m_lastError = msg
             m_startTime = nil
         end
+        local fps = tonumber(g_fpsSetting:Get())
+        if fps ~= nil and fps > 0 then
+            options.fps = math.floor(fps)
+        end
+        local width = tonumber(g_widthSetting:Get())
+        if width ~= nil and width > 0 then
+            options.width = math.floor(width)
+        end
+        local height = tonumber(g_heightSetting:Get())
+        if height ~= nil and height > 0 then
+            options.height = math.floor(height)
+        end
         return options
     end
 
@@ -858,6 +894,7 @@ CreateGameRecorderPanel = function()
             return
         end
         m_lastError = nil
+        m_recordingWithUI = g_includeUISetting:Get()
         m_startTime = os.time()
         recorder:BeginRecording(BuildOptions())
     end
@@ -895,6 +932,51 @@ CreateGameRecorderPanel = function()
         return string.format("%02d:%02d", math.floor(secs / 60), secs % 60)
     end
 
+    local function ToggleRow(labelText, settingObj)
+        local indicator
+        local row
+        local function Apply()
+            local on = (settingObj:Get() == true)
+            indicator.text = on and "[X]" or "[  ]"
+            indicator.color = on and "#66dd66" or "#888888"
+        end
+        indicator = gui.Label{
+            width = 30,
+            height = "auto",
+            halign = "left",
+            valign = "center",
+            fontSize = 15,
+            bold = true,
+            text = "[  ]",
+        }
+        row = gui.Panel{
+            width = "auto",
+            height = "auto",
+            flow = "horizontal",
+            halign = "left",
+            valign = "center",
+            vmargin = 2,
+            create = function(element)
+                Apply()
+            end,
+            click = function(element)
+                settingObj:Set(not (settingObj:Get() == true))
+                Apply()
+            end,
+            indicator,
+            gui.Label{
+                width = "auto",
+                height = "auto",
+                halign = "left",
+                valign = "center",
+                fontSize = 14,
+                color = "#dddddd",
+                text = labelText,
+            },
+        }
+        return row
+    end
+
     local function OptionsZone()
         return gui.Panel{
             classes = {"recorder-zone"},
@@ -916,28 +998,8 @@ CreateGameRecorderPanel = function()
                 color = "#999999",
                 text = "Options",
             },
-            gui.Check{
-                text = "Include UI",
-                value = g_includeUISetting:Get(),
-                fontSize = 14,
-                width = "auto",
-                height = "auto",
-                halign = "left",
-                change = function(element)
-                    g_includeUISetting:Set(element.value)
-                end,
-            },
-            gui.Check{
-                text = "Record audio",
-                value = g_audioSetting:Get(),
-                fontSize = 14,
-                width = "auto",
-                height = "auto",
-                halign = "left",
-                change = function(element)
-                    g_audioSetting:Set(element.value)
-                end,
-            },
+            ToggleRow("Include UI", g_includeUISetting),
+            ToggleRow("Record audio", g_audioSetting),
         }
     end
 
@@ -1096,7 +1158,133 @@ CreateGameRecorderPanel = function()
         }
     end
 
-    resultPanel = gui.Panel{
+    local function AdvancedZone()
+        local fieldsPanel
+
+        local function NumberInput(labelText, settingObj)
+            return gui.Panel{
+                width = "100%",
+                height = "auto",
+                flow = "horizontal",
+                valign = "center",
+                vmargin = 2,
+                gui.Label{
+                    text = labelText,
+                    width = 70,
+                    height = "auto",
+                    halign = "left",
+                    fontSize = 13,
+                    color = "#cccccc",
+                },
+                gui.Input{
+                    width = 80,
+                    height = 20,
+                    fontSize = 13,
+                    halign = "left",
+                    placeholderText = "default",
+                    text = settingObj:Get(),
+                    characterLimit = 5,
+                    editlag = 0.2,
+                    edit = function(element)
+                        settingObj:Set(element.text)
+                    end,
+                },
+            }
+        end
+
+        fieldsPanel = gui.Panel{
+            classes = {"collapsed"},
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            gui.Label{
+                width = "100%",
+                height = "auto",
+                halign = "left",
+                fontSize = 10,
+                color = "#888888",
+                textWrap = true,
+                vmargin = 2,
+                text = "Leave blank to use engine defaults: 30 FPS; size = window size when 'Include UI' is on, 1920x1080 for board-only.",
+            },
+            NumberInput("FPS", g_fpsSetting),
+            NumberInput("Width", g_widthSetting),
+            NumberInput("Height", g_heightSetting),
+        }
+
+        return gui.Panel{
+            classes = {"recorder-zone"},
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            borderWidth = 1,
+            borderColor = "#555555",
+            cornerRadius = 6,
+            pad = 8,
+            borderBox = true,
+            vmargin = 4,
+            gui.Label{
+                width = "auto",
+                height = "auto",
+                halign = "left",
+                fontSize = 12,
+                color = "#bbbbbb",
+                text = "> Advanced",
+                data = { expanded = false },
+                click = function(element)
+                    element.data.expanded = not element.data.expanded
+                    element.text = (element.data.expanded and "v Advanced") or "> Advanced"
+                    fieldsPanel:SetClass("collapsed", not element.data.expanded)
+                end,
+            },
+            fieldsPanel,
+        }
+    end
+
+    local function RecPill()
+        m_pillPanel = gui.Panel{
+            classes = {"collapsed"},
+            width = "auto",
+            height = "auto",
+            flow = "horizontal",
+            valign = "center",
+            halign = "center",
+            borderWidth = 1,
+            borderColor = "#aa3333",
+            bgcolor = "#000000aa",
+            cornerRadius = 6,
+            pad = 6,
+            borderBox = true,
+            gui.Label{
+                width = "auto",
+                height = "auto",
+                halign = "left",
+                valign = "center",
+                fontSize = 14,
+                bold = true,
+                color = "#ee3344",
+                text = "REC  00:00",
+                hmargin = 4,
+                thinkTime = 0.25,
+                think = function(element)
+                    element.text = "REC  " .. FormatElapsed()
+                end,
+            },
+            gui.Button{
+                text = "Stop",
+                width = 70,
+                height = 26,
+                fontSize = 13,
+                hmargin = 4,
+                click = function()
+                    StopAndSave()
+                end,
+            },
+        }
+        return m_pillPanel
+    end
+
+    m_bodyPanel = gui.Panel{
         width = "100%",
         height = "auto",
         flow = "vertical",
@@ -1111,7 +1299,22 @@ CreateGameRecorderPanel = function()
         },
         StatusZone(),
         OptionsZone(),
+        AdvancedZone(),
         FooterZone(),
+    }
+
+    resultPanel = gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        thinkTime = 0.25,
+        think = function(element)
+            local collapsedToPill = (recorder.recording == true) and m_recordingWithUI
+            m_bodyPanel:SetClass("collapsed", collapsedToPill)
+            m_pillPanel:SetClass("collapsed", not collapsedToPill)
+        end,
+        RecPill(),
+        m_bodyPanel,
     }
 
     return resultPanel

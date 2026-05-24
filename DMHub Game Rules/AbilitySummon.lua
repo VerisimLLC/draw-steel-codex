@@ -1200,9 +1200,6 @@ function ActivatedAbilitySummonBehavior.PromptPlacementLoc(casterToken, rangeTil
         gui.TooltipFrame(pickerContent, { vmargin = 85 }),
 
         mappress = function(element, loc, point)
-            if not isInRange(loc) then
-                return
-            end
             if commitWithSquadSelection ~= nil then
                 local r = commitWithSquadSelection()
                 if r == nil then

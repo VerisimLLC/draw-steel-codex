@@ -208,9 +208,9 @@ Movement speed symbols are generated dynamically from `creature.movementTypeInfo
 | Symbol | Type | Description | Source |
 |---|---|---|---|
 | Distance | function | `Distance(Target)` -- distance in squares to another creature. | Creature.lua (helpSymbols) |
-| Count Nearby Enemies | function | `CountNearbyEnemies(5)` -- live enemies in range. Accepts group names, feature names, creatures to exclude. | Creature.lua (helpSymbols) |
-| Count Nearby Friends | function | `CountNearbyFriends(5)` -- live allies in range. Same filters. | Creature.lua (helpSymbols) |
-| Count Nearby Creatures | function | `CountNearbyCreatures(5)` -- all live creatures in range. Accepts "ally", "enemy", group/feature/creature filters. | Creature.lua (helpSymbols) |
+| Count Nearby Enemies | function | `CountNearbyEnemies(5)` -- live enemies in range. Accepts group names, feature names, creatures to exclude. An optional numeric arg is a max altitude delta in tiles (e.g. `CountNearbyEnemies(1, 1)`). | Creature.lua (helpSymbols) |
+| Count Nearby Friends | function | `CountNearbyFriends(5)` -- live allies in range. Same filters. Optional numeric arg is altitude-delta tiles. | Creature.lua (helpSymbols) |
+| Count Nearby Creatures | function | `CountNearbyCreatures(5)` -- all live creatures in range. Accepts "ally", "enemy", group/feature/creature filters. Optional numeric arg is altitude-delta tiles. | Creature.lua (helpSymbols) |
 | Count Riders | function | `CountRiders("goblin", "crafty")` -- riders matching filter criteria. | Creature.lua (helpSymbols) |
 | Passes Potency | function | `PassesPotency(characteristicId, value)` -- true if creature passes potency check. | MCDMCreature.lua |
 | AdjacentAlliesWithFeature | function | `AdjacentAlliesWithFeature("FeatureName")` -- count of adjacent allies with named feature. | MCDMSymbols.lua |

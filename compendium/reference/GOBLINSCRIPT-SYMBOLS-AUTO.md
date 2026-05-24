@@ -217,9 +217,9 @@ entry (`Creature.lua:8290-8317`).
 | Symbol | Type | Source |
 |---|---|---|
 | `Distance` | function | `Creature.lua:7188`, `lookup 7833` -- `Distance(Target)` in squares. |
-| `Count Nearby Enemies` | function | `Creature.lua:7195`, `lookup 7846` -- accepts distance + filter args (group names, feature names, creatures-to-exclude). |
-| `Count Nearby Friends` | function | `Creature.lua:7202`, `lookup 7850` |
-| `Count Nearby Creatures` | function | `Creature.lua:7209`, `lookup 7854` -- `"ally"` and `"enemy"` work as filter args. |
+| `Count Nearby Enemies` | function | `Creature.lua:7195`, `lookup 7846` -- accepts distance + filter args (group names, feature names, creatures-to-exclude). An optional numeric arg = max altitude delta in tiles. |
+| `Count Nearby Friends` | function | `Creature.lua:7202`, `lookup 7850` -- optional numeric arg = max altitude delta in tiles. |
+| `Count Nearby Creatures` | function | `Creature.lua:7209`, `lookup 7854` -- `"ally"` and `"enemy"` work as filter args. Optional numeric arg = max altitude delta in tiles. |
 | `Count Riders` | function | `Creature.lua:7216`, `lookup 7856` |
 | `AdjacentAlliesWithFeature` | function | `MCDMSymbols.lua:3` -- `AdjacentAlliesWithFeature("FeatureName")` -> count. |
 | `Passes Potency` | function | `MCDMCreature.lua:1466` -- `Passes Potency("M", 5)`; `M`/`A`/`R`/`I`/`P` first letter. |

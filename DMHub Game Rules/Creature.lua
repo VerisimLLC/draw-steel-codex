@@ -7212,22 +7212,22 @@ creature.helpSymbols = {
 	countnearbyenemies = {
 		name = "Count Nearby Enemies",
 		type = "function",
-		desc = "A function which is shown a distance in squares and tells us the number of live enemy creatures within that distance of this creature. This can be given additional parameters after the distance to filter the criteria. Criteria can incldue monster groups and the names of features. Creatures can also be provided as parameters and those specific creatures will be excluded from the match.",
-		examples = {"OBJ.Count Nearby Enemies(1)", "OBJ.Count Nearby Enemies(5, \"Goblin\")", "OBJ.Count Nearby Enemies(10, \"ally\")", "OBJ.Count Nearby Enemies(5, \"enemy\", \"Goblin\")"},
+		desc = "A function which is shown a distance in squares and tells us the number of live enemy creatures within that distance of this creature. This can be given additional parameters after the distance to filter the criteria. Criteria can incldue monster groups and the names of features. Creatures can also be provided as parameters and those specific creatures will be excluded from the match. Additional parameters can also include a number, which acts as a maximum altitude difference in tiles between this creature and the nearby creature.",
+		examples = {"OBJ.Count Nearby Enemies(1)", "OBJ.Count Nearby Enemies(1, 1)", "OBJ.Count Nearby Enemies(5, \"Goblin\")", "OBJ.Count Nearby Enemies(10, \"ally\")", "OBJ.Count Nearby Enemies(5, \"enemy\", \"Goblin\")"},
 	},
 
 	countnearbyfriends = {
 		name = "Count Nearby Friends",
 		type = "function",
-		desc = "A function which is shown a distance in squares and tells us the number of live allied creatures within that distance of this creature. This can be given additional parameters after the distance to filter the criteria. Criteria can incldue monster groups and the names of features. Creatures can also be provided as parameters and those specific creatures will be excluded from the match.",
-		examples = {"OBJ.Count Nearby Friends(5)"},
+		desc = "A function which is shown a distance in squares and tells us the number of live allied creatures within that distance of this creature. This can be given additional parameters after the distance to filter the criteria. Criteria can incldue monster groups and the names of features. Creatures can also be provided as parameters and those specific creatures will be excluded from the match. Additional parameters can also include a number, which acts as a maximum altitude difference in tiles between this creature and the nearby creature.",
+		examples = {"OBJ.Count Nearby Friends(5)", "OBJ.Count Nearby Friends(1, 1)"},
 	},
 
 	countnearbycreatures = {
 		name = "Count Nearby Creatures",
 		type = "function",
-		desc = "A function which is shown a distance in squares and tells us the number of live creatures within that distance of this creature. This can be given additional parameters after the distance to filter the criteria. 'ally' and 'enemy' work, as do monster groups and the names of features. Creatures can also be provided as parameters and those specific creatures will be excluded from the match.",
-		examples = {"OBJ.Count Nearby Creatures(5)", "OBJ.Count Nearby Creatures(1, \"Enemy\", \"Goblin\") > 2"},
+		desc = "A function which is shown a distance in squares and tells us the number of live creatures within that distance of this creature. This can be given additional parameters after the distance to filter the criteria. 'ally' and 'enemy' work, as do monster groups and the names of features. Creatures can also be provided as parameters and those specific creatures will be excluded from the match. Additional parameters can also include a number, which acts as a maximum altitude difference in tiles between this creature and the nearby creature.",
+		examples = {"OBJ.Count Nearby Creatures(5)", "OBJ.Count Nearby Creatures(1, \"Enemy\", \"Goblin\") > 2", "OBJ.Count Nearby Creatures(1, 1, \"Enemy\")"},
 	},
 
 	countriders = {
@@ -7483,6 +7483,11 @@ local function NearbyTokenMatchesCriteria(token, nearby, criteria)
         elseif type(criteria[j]) == "table" then
             --finding a creature means we exclude it from possible targets.
             matches = (criteria[j] ~= nearby.properties)
+        elseif type(criteria[j]) == "number" then
+            --maximum altitude delta in tiles between this creature and the nearby creature.
+            local selfAlt = token.altitudeInDeciTiles or 0
+            local nearbyAlt = nearby.altitudeInDeciTiles or 0
+            matches = math.abs(selfAlt - nearbyAlt) <= criteria[j] * 10
         end
 
         if not matches then

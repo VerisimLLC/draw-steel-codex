@@ -775,3 +775,124 @@ DockablePanel.Register{
         }
     end,
 }
+
+-- ============================================================
+-- Game Recorder panel (developer-only). Wraps the engine `recorder` global.
+-- Reuses this file's existing `mod` and `track`.
+-- ============================================================
+
+local g_includeUISetting = setting{
+    id = "recorder:includeUI",
+    description = "Game Recorder: include UI in capture",
+    storage = "preference",
+    default = true,
+}
+
+local g_audioSetting = setting{
+    id = "recorder:audio",
+    description = "Game Recorder: record audio",
+    storage = "preference",
+    default = true,
+}
+
+local CreateGameRecorderPanel
+
+DockablePanel.Register{
+    name = "Game Recorder",
+    icon = mod.images.chatIcon,
+    minHeight = 200,
+    vscroll = true,
+    devonly = true,
+    folder = "Development Tools",
+    content = function()
+        track("panel_open", {
+            panel = "Game Recorder",
+            dailyLimit = 30,
+        })
+        return CreateGameRecorderPanel()
+    end,
+}
+
+CreateGameRecorderPanel = function()
+    if recorder == nil then
+        return gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            gui.Label{
+                width = "auto",
+                height = "auto",
+                halign = "left",
+                fontSize = 14,
+                color = "#cccccc",
+                text = "Game Recorder is unavailable in this build (developer/admin only).",
+            },
+        }
+    end
+
+    local resultPanel
+
+    local function OptionsZone()
+        return gui.Panel{
+            classes = {"recorder-zone"},
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            borderWidth = 1,
+            borderColor = "#555555",
+            cornerRadius = 6,
+            pad = 8,
+            borderBox = true,
+            vmargin = 4,
+            gui.Label{
+                width = "auto",
+                height = "auto",
+                halign = "left",
+                fontSize = 10,
+                uppercase = true,
+                color = "#999999",
+                text = "Options",
+            },
+            gui.Check{
+                text = "Include UI",
+                value = g_includeUISetting:Get(),
+                fontSize = 14,
+                width = "auto",
+                height = "auto",
+                halign = "left",
+                change = function(element)
+                    g_includeUISetting:Set(element.value)
+                end,
+            },
+            gui.Check{
+                text = "Record audio",
+                value = g_audioSetting:Get(),
+                fontSize = 14,
+                width = "auto",
+                height = "auto",
+                halign = "left",
+                change = function(element)
+                    g_audioSetting:Set(element.value)
+                end,
+            },
+        }
+    end
+
+    resultPanel = gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        gui.Label{
+            width = "auto",
+            height = "auto",
+            halign = "left",
+            fontSize = 16,
+            bold = true,
+            vmargin = 2,
+            text = "Game Recorder",
+        },
+        OptionsZone(),
+    }
+
+    return resultPanel
+end

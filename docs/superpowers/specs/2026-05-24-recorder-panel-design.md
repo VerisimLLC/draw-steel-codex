@@ -7,6 +7,8 @@
 - `dmhubclient/docs/superpowers/specs/2026-05-23-dev-turn-recorder-design.md` (the `recorder` primitive; this panel is its section 11 "player-facing clip UI" + "auto turn-bracketing" follow-ups)
 - `dmhubclient/docs/superpowers/specs/2026-05-24-recorder-audio-design.md` (the `audio` option)
 
+> **As-built revision (2026-05-24):** Implemented and shipped. Notable changes from the original design: (1) the panel was appended to `Development Utilities/DevTools.lua` rather than a new file (registering a new codex file via DMHub's mod UI proved unreliable - see the plan's revision note); (2) the Include-UI / Record-audio toggles use a custom `[X]`/`[ ]` clickable row instead of `gui.Check` (the default checkbox state was not legible); (3) auto-record now takes a **Count** of turns/rounds (see section 5), generalizing the original "this turn/round"; (4) button show/hide is driven by rebuilding a parent panel's children, because a `think` / `SetClass("collapsed")` placed directly on a `gui.Button` did not reliably toggle visibility; (5) the engine's on-screen "REC" overlay (`GameRecorder.cs` OnGUI) was removed as a small companion C# change - committed and pushed, but not yet built (the engine has unrelated pre-existing compile errors).
+
 ## 1. Goal & Scope
 
 Give developers a dockable on-screen window to drive the existing dev-only `recorder` global, instead of only the F9 hotkey / raw Lua calls. Add the ability to auto-bracket a recording to the current combat turn or round.
@@ -21,7 +23,7 @@ Everything here is **Lua-only**, built on the recorder API that already ships. N
 - **Advanced** expander (collapsed by default): resolution (`width`/`height`) and `fps` overrides; when untouched, the engine defaults apply.
 - **Live status:** idle vs `REC mm:ss` elapsed, driven by `recorder.recording`.
 - **Last saved:** read-only path from the `complete(path)` callback + an "Open folder" affordance (the engine already reveals the Recordings folder on save).
-- **Auto-record:** "Record this turn" / "Record this round" - start immediately, auto-stop at the end of the current turn / round.
+- **Auto-record:** a **Count** field (default 1) plus "Record turns" / "Record rounds" buttons. Records from the moment of click until that many turn/round *ends* (1 = until the current turn/round ends). If no turn is active yet, recording starts and the status shows "Waiting for a turn to start..."; auto-stops after the Nth end, or if combat ends.
 - **REC pill:** while recording with Include-UI on, the panel collapses to a small draggable `REC mm:ss` + Stop pill so it does not dominate the captured frame; it restores on stop.
 
 ### Out of scope (future, each needs an engine change -> separate spec)
@@ -70,23 +72,23 @@ Vertical flow of labelled zones (matches the approved mockup):
    - "Record audio" checkbox -> `audio` setting.
    - **Advanced** disclosure (collapsed): FPS input + width/height inputs. Empty/unchanged -> omit from the options table so engine defaults apply.
 3. **Auto-record (combat) zone:**
-   - "Record this turn" and "Record this round" buttons.
-   - Disabled (greyed, non-interactive) when combat is not active. A short hint explains why when disabled.
+   - A **Count** number input (default 1) and "Record turns" / "Record rounds" buttons that record that many turn/round ends.
+   - When combat is not active, the buttons are replaced by a hint ("Start combat to enable auto-record."). A live status line shows "Waiting for a turn to start..." or "Auto-recording: N turns/rounds remaining." while active.
 4. **Footer:** `Last saved: <filename>` (from the last `complete(path)`), with an "Open folder" affordance. Empty until the first save this session.
 
 ### REC pill (Include-UI captures)
 When recording starts with `includeUI == true`, the panel body collapses to a compact draggable pill showing `REC mm:ss` + a Stop button, so the panel does not fill the captured frame. On stop/cancel the panel restores to full layout. With `includeUI == false` (board-only capture, panel not in frame) the panel may stay expanded; collapsing is harmless either way, so the pill behaviour keys off `includeUI`.
 
-## 5. Auto-record (current turn / current round)
+## 5. Auto-record (count of turns / rounds)
 
-**Semantics (corrected):** start *now*, stop at the end of the current unit.
+**Semantics:** record from the moment of click until N turn (or round) *ends*. The **Count** input (default 1) sets N; 1 = until the current turn/round ends.
 
-- **Record this turn:** on click, snapshot `id0 = queue:GetTurnId()`, call the normal start path immediately, and mark auto-stop scope = "turn". When `monitorGame` `refreshGame` fires and `queue:GetTurnId() ~= id0` (the turn changed) - or the queue becomes inactive (nil / hidden / non-combat) or `currentTurn == false` - stop and save.
-- **Record this round:** identical, snapshotting `GetRoundId()`; stop when `GetRoundId()` changes (round incremented) or combat goes inactive.
-- No "armed and waiting" state - recording is live from the click. Manual **Stop**/**Cancel** still work and clear the auto-stop scope.
-- The auto-record buttons are disabled unless combat is active at click time.
+- **Record turns / Record rounds:** on click, capture the current `GetTurnId()` (or `GetRoundId()`) as the last-seen id, set the remaining-ends counter to N, and start recording immediately.
+- **Counting ends:** each time the observed id changes *away from a non-nil value*, one turn/round has ended -> decrement the counter. A `nil -> id` transition is a turn/round *starting* (the wait-for-turn case) and is NOT counted. When the counter reaches 0, stop and save. If combat goes inactive (queue nil / hidden / non-combat), stop and save whatever was captured.
+- **Wait-for-turn:** if no turn is active at click time (`GetTurnId()` is nil, e.g. the choosing-turn moment), recording still starts from now and the status shows "Waiting for a turn to start..."; counting begins once a real turn is in progress. (Round-ids are always non-nil during combat, so rounds never wait.) This also avoids the zero-length-recording save error that an instant nil-baseline stop would cause.
+- Manual **Stop**/**Cancel** clear the auto counter. The auto-record buttons exist only while combat is active.
 
-**Detection:** a sub-panel (or the root panel) carries `monitorGame = "/initiativeQueue"`; its `refreshGame` reads `dmhub.initiativeQueue`, compares the stored snapshot id against the current id, and triggers the stop when they differ. **Monitoring is panel-scoped** - it only runs while the panel is open/docked. Acceptable: you have the panel open to use the recorder. If the panel is closed mid-auto-recording, treat teardown like a normal stop-and-save (see section 6).
+**Detection:** the root panel carries `monitorGame = "/initiativeQueue"` (its `refreshGame` runs the end-check immediately on any turn/round change) AND runs the same check from its `think` loop (~0.25s) as a reliable safety net, since the `monitorGame` path was not independently verified. Both call one shared `CheckAutoStop` helper. **Monitoring is panel-scoped** - it runs while the panel is open/docked. If the panel is closed mid-recording, teardown does a normal stop-and-save (see section 6).
 
 ## 6. Lifecycle & error handling
 
@@ -111,7 +113,7 @@ When recording starts with `includeUI == true`, the panel body collapses to a co
 3. Toggle Include UI off -> recording is board-only (no overlay UI); on -> overlay UI present.
 4. Toggle Record audio: `ffmpeg -i clip.mp4` shows an audio stream when on, none when off.
 5. Advanced: set FPS/resolution -> output reflects them; cleared -> engine defaults.
-6. During combat, "Record this turn" starts immediately and auto-stops at the end of that turn (one turn captured); same for "Record this round" across one round.
+6. During combat, set Count=1 and "Record turns" -> records until the current turn ends; Count=2 -> until two turn-ends. "Record rounds" stops at round-ends. Clicking with no active turn shows "Waiting for a turn to start..." then records the turn (no save error).
 7. Outside combat, the auto-record buttons are disabled.
 8. While recording with Include UI on, the panel collapses to the REC pill and restores on stop.
 9. Cancel discards without saving (no new file).

@@ -1127,3 +1127,13 @@ Run through the spec's verification list end to end in one session:
 - **`monitorGame = "/initiativeQueue"`** is from research and is the one open risk; Task 6 Step 5 includes a fallback check. No codex panel currently uses this path, so verify it fires before relying on it.
 - **`os.time()`** gives 1-second timer resolution, which is fine for a recording clock. Do not switch to a higher-resolution engine clock unless needed.
 - Keep everything ASCII; run `mcp__dmhub__get_console_log` after every reload - a non-ASCII byte or a forward-reference mistake will show up there immediately.
+
+## As-built notes (2026-05-24, shipped)
+
+The feature shipped with these differences from the task steps above. The authoritative implementation is `Development Utilities/DevTools.lua` on `main` (commits `96834a87`, `3f51f6ec`, `b9e292a9`, `726e0742`, `431515bf`) plus the engine change in `dmhubclient` (`ac011457b`).
+
+- **Host file:** appended to `DevTools.lua` (reusing its `mod` + `track`), not a new `GameRecorderPanel.lua` (see the File Structure revision note).
+- **Option toggles:** Include-UI / Record-audio are a custom `[X]`/`[ ]` clickable row, not `gui.Check` - the default checkbox state was not legible and the `form` class added too much padding.
+- **Button show/hide (status row + auto-record row):** driven by rebuilding a parent `gui.Panel`'s `children` on state change (with `create = function(e) e:FireEvent("think") end` for initial state). A `think` / `SetClass("collapsed", ...)` placed directly on a `gui.Button` did NOT reliably toggle it; `gui.Label`/`gui.Panel` think + collapsed and `gui.Button` click all work fine.
+- **Auto-record = Count of N (supersedes Task 6's single turn/round):** a **Count** input (default 1) plus "Record turns" / "Record rounds". Recording starts immediately and stops after N turn/round *ends*. State: `m_autoScope` / `m_autoRemaining` / `m_autoLastId` / `m_autoCount`. `CheckAutoStop` decrements the counter when the observed id changes away from a non-nil value (a `nil -> id` transition is a start, not an end - giving the "Waiting for a turn to start..." behaviour and avoiding a zero-length-recording save error), and runs from BOTH `refreshGame` (monitorGame) and `think` (0.25s safety net).
+- **Engine REC overlay removed:** the `GameRecorder.cs` OnGUI "REC" label was removed (`ac011457b`) since the panel shows recording state. The engine did not build (pre-existing missing `TokenEffect*` types), so it takes effect once the engine compiles + builds + the app restarts.

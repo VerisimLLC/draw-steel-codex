@@ -1,5 +1,9 @@
 local mod = dmhub.GetModLoading()
 
+--- Standard analytics helper; no-ops when telemetry is disabled, otherwise
+--- stamps the common id/version fields onto `fields` and fires the event.
+--- @param eventType string
+--- @param fields table Event-specific fields (mutated with id fields)
 local function track(eventType, fields)
     if dmhub.GetSettingValue("telemetry_enabled") == false then
         return
@@ -117,6 +121,10 @@ local g_edsSetting = setting{
 -- at load (below) to populate the tables, and again whenever the theme changes.
 function TacPanel.BuildStyles()
 TacPanelStyles.TacPanel = ThemeEngine.MergeTokens{
+    {   -- Outline-button wrapper border (icon button outline).
+        selectors = {"tpOutline"},
+        borderColor = "@fgMuted",
+    },
     {   -- Outer tac panel. Applies margin, padding, alignment, bottom border.
         selectors = {"panel", "tacpanel"},
         width = "98%",
@@ -152,27 +160,42 @@ TacPanelStyles.TacPanel = ThemeEngine.MergeTokens{
         color = "@fgMuted",
     },
     -- Collapsible title bar
-    { selectors = {"panel", "tp-title-bar"},
-      width = "100%", height = "auto",
-      halign = "left", valign = "top",
-      flow = "horizontal", vpad = 0 },
+    {
+        selectors = {"panel", "tp-title-bar"},
+        width = "100%",
+        height = "auto",
+        halign = "left",
+        valign = "top",
+        flow = "horizontal",
+        vpad = 0,
+    },
     -- Collapse arrow
-    { selectors = {"tp-expando"},
-      hmargin = 8, halign = "right", valign = "center",
-      color = "@fgMuted" },
+    {
+        selectors = {"tp-expando"},
+        hmargin = 8,
+        halign = "right",
+        valign = "center",
+        color = "@fgMuted",
+    },
     -- Drag handle
-    { selectors = {"tp-drag-handle"},
-      bgimage = "icons/icon_common/icon_common_4.png",
-      bgcolor = "@fgMuted",
-      width = 14, height = 14,
-      halign = "left", valign = "center",
-      hmargin = 4 },
-    { selectors = {"panel", "tp-title-bar", "drag-target-hover"},
-      tmargin = 4,
-      vpad = 4,
-      border = { x1 = 0, x2 = 0, y1 = 0, y2 = 4 },
-      borderColor = "@fg",
-      bgimage = true,},
+    {
+        selectors = {"tp-drag-handle"},
+        bgimage = "icons/icon_common/icon_common_4.png",
+        bgcolor = "@fgMuted",
+        width = 14,
+        height = 14,
+        halign = "left",
+        valign = "center",
+        hmargin = 4,
+    },
+    {
+        selectors = {"panel", "tp-title-bar", "drag-target-hover"},
+        tmargin = 4,
+        vpad = 4,
+        border = { x1 = 0, x2 = 0, y1 = 0, y2 = 4 },
+        borderColor = "@fg",
+        bgimage = true,
+    },
 }
 TacPanelStyles.Tooltip = ThemeEngine.MergeTokens{
     {
@@ -264,6 +287,11 @@ TacPanelStyles.SummaryInfo = ThemeEngine.MergeTokens{
 
 }
 TacPanelStyles.ControlButtons = ThemeEngine.MergeTokens{
+    {   -- bgcolor-only @danger tint (e.g. the "add to combat" icon button).
+        -- Unlike bgDanger this does NOT set bgimage, so the icon survives.
+        selectors = {"combatTint"},
+        bgcolor = "@danger",
+    },
     {
         selectors = {"toggle-btn"},
         halign = "left",
@@ -693,7 +721,7 @@ TacPanelStyles.Stamina = ThemeEngine.MergeTokens{
         borderColor = "@accent",
         flow = "horizontal",
     },
-    {   -- Temp HP value (Newzald 12pt white)
+    {
         selectors = {"label", "temp-stam-value"},
         width = "auto",
         height = "auto",
@@ -704,7 +732,7 @@ TacPanelStyles.Stamina = ThemeEngine.MergeTokens{
         fontSize = TacPanelSizes.Fonts.tempStamValue,
         color = "@fg",
     },
-    {   -- "TEMP" descriptor (Berling 10pt, border color)
+    {
         selectors = {"label", "temp-stam-label"},
         width = "auto",
         height = "auto",
@@ -939,7 +967,7 @@ TacPanelStyles.HeroicResources = ThemeEngine.MergeTokens{
         height = "auto",
         halign = "left",
         valign = "center",
-        fontFace = "Newzald",
+        fontFace = "@number",
         fontSize = TacPanelSizes.Fonts.hrChipValue,
         color = "@fg",
     },
@@ -1088,151 +1116,295 @@ TacPanelStyles.SkillsLanguages = ThemeEngine.MergeTokens{
 }
 TacPanelStyles.Notes = ThemeEngine.MergeTokens{
     -- Individual note label (markdown, same pattern as skillslangs)
-    { selectors = {"label", "note-entry"},
-      width = "94%", height = "auto",
-      halign = "left", valign = "top",
-      tmargin = 4, lmargin = 6,
-      fontSize = TacPanelSizes.Fonts.skillsLangs,
-      color = "@fg" },
+    {
+        selectors = {"label", "note-entry"},
+        width = "94%",
+        height = "auto",
+        halign = "left",
+        valign = "top",
+        tmargin = 4,
+        lmargin = 6,
+        fontSize = TacPanelSizes.Fonts.skillsLangs,
+        color = "@fg",
+    },
 }
 TacPanelStyles.CollapsibleEntry = ThemeEngine.MergeTokens{
     -- Outer entry panel: horizontal so arrow + text sit side by side
-    { selectors = {"panel", "ce-entry"},
-      width = "94%", height = "auto",
-      halign = "left", valign = "top",
-      flow = "horizontal",
-      tmargin = 4, lmargin = 6 },
+    {
+        selectors = {"panel", "ce-entry"},
+        width = "94%",
+        height = "auto",
+        halign = "left",
+        valign = "top",
+        flow = "horizontal",
+        tmargin = 4,
+        lmargin = 6,
+    },
     -- Collapse arrow (left side, top-aligned with first line of text)
-    { selectors = {"ce-expando"},
-      halign = "left", valign = "top",
-      tmargin = 3,
-      color = "@fgMuted" },
+    {
+        selectors = {"ce-expando"},
+        halign = "left",
+        valign = "top",
+        tmargin = 3,
+        color = "@fgMuted",
+    },
     -- Text label (expanded: CREAM base with inline color markup for title)
-    { selectors = {"label", "ce-text"},
-      width = "100%-20", height = "auto",
-      halign = "left", valign = "top",
-      lmargin = 4,
-      fontSize = TacPanelSizes.Fonts.skillsLangs,
-      color = "@fg" },
+    {
+        selectors = {"label", "ce-text"},
+        width = "100%-20",
+        height = "auto",
+        halign = "left",
+        valign = "top",
+        lmargin = 4,
+        fontSize = TacPanelSizes.Fonts.skillsLangs,
+        color = "@fg",
+    },
     -- Text label (collapsed: title only, MUTED)
-    { selectors = {"label", "ce-text", "ce-collapsed"},
-      color = "@fgMuted" },
+    {
+        selectors = {"label", "ce-text", "ce-collapsed"},
+        color = "@fgMuted",
+    },
 }
 TacPanelStyles.MultiEdit = ThemeEngine.MergeTokens{
     -- Row containers
-    { selectors = {"panel", "me-actions"},
-      width = "100%", height = "auto",
-      flow = "horizontal", halign = "center", tmargin = 4 },
-    { selectors = {"panel", "me-icon-row"},
-      width = "auto", height = "auto",
-      flow = "horizontal", halign = "left", lmargin = 6, tmargin = 4 },
+    {
+        selectors = {"panel", "me-actions"},
+        width = "100%",
+        height = "auto",
+        flow = "horizontal",
+        halign = "center",
+        tmargin = 4,
+    },
+    {
+        selectors = {"panel", "me-icon-row"},
+        width = "auto",
+        height = "auto",
+        flow = "horizontal",
+        halign = "left",
+        lmargin = 6,
+        tmargin = 4,
+    },
 
     -- Heal/Damage input boxes
-    { selectors = {"panel", "me-input-box"},
-      width = "30%", height = 28, halign = "center", valign = "center",
-      bgimage = true,
-      border = 1, cornerRadius = 4, hmargin = 2 },
+    {
+        selectors = {"panel", "me-input-box"},
+        width = "30%",
+        height = 28,
+        halign = "center",
+        valign = "center",
+        bgimage = true,
+        border = 1,
+        cornerRadius = 4,
+        hmargin = 2,
+    },
     {
         selectors = {"panel", "me-input-box", "heal"},
         borderColor = "@success",
     },
     {
         selectors = {"panel", "me-input-box", "damage"},
-        borderColor = "@danger"
+        borderColor = "@danger",
     },
-    { selectors = {"input", "me-input"},
-      width = "100%", height = "100%",
-      bgcolor = "clear", borderWidth = 0, borderColor = "clear",
-      pad = 0, margin = 0,
-      fontSize = 12, color = "@fg",
-      bold = true, textAlignment = "center" },
+    {
+        selectors = {"input", "me-input"},
+        width = "100%",
+        height = "100%",
+        bgcolor = "clear",
+        borderWidth = 0,
+        borderColor = "clear",
+        pad = 0,
+        margin = 0,
+        fontSize = 12,
+        color = "@fg",
+        bold = true,
+        textAlignment = "center",
+    },
 
     -- Add Condition button
-    { selectors = {"panel", "me-condition-btn"},
-      width = "30%", height = 28, halign = "center", valign = "center",
-      bgimage = true,
-      border = 1, borderColor = "@fgMuted",
-      cornerRadius = 4, hmargin = 2 },
-    { selectors = {"panel", "me-condition-btn", "hover"},
-      brightness = 1.3, transitionTime = 0.2 },
-    { selectors = {"label", "me-condition-btn"},
-      width = "100%", height = "100%",
-      halign = "center", valign = "center", textAlignment = "center",
-      fontSize = 12, color = "@fg", bold = true },
+    {
+        selectors = {"panel", "me-condition-btn"},
+        width = "30%",
+        height = 28,
+        halign = "center",
+        valign = "center",
+        bgimage = true,
+        border = 1,
+        borderColor = "@fgMuted",
+        cornerRadius = 4,
+        hmargin = 2,
+    },
+    {
+        selectors = {"panel", "me-condition-btn", "hover"},
+        brightness = 1.3,
+        transitionTime = 0.2,
+    },
+    {
+        selectors = {"label", "me-condition-btn"},
+        width = "100%",
+        height = "100%",
+        halign = "center",
+        valign = "center",
+        textAlignment = "center",
+        fontSize = 12,
+        color = "@fg",
+        bold = true,
+    },
 
     -- Icon button outline wrapper
-    { selectors = {"panel", "me-icon-wrap"},
-      width = "auto", height = "auto",
-      halign = "left", valign = "top",
-      lmargin = 4, pad = 4,
-      bgimage = true, bgcolor = "clear",
-      border = 1, borderColor = "@ftPending", cornerRadius = 4 },
+    {
+        selectors = {"panel", "me-icon-wrap"},
+        width = "auto",
+        height = "auto",
+        halign = "left",
+        valign = "top",
+        lmargin = 4,
+        pad = 4,
+        bgimage = true,
+        bgcolor = "clear",
+        border = 1,
+        borderColor = "@fgPending",
+        cornerRadius = 4,
+    },
 
     -- Squad chip
-    { selectors = {"panel", "me-squad-row"},
-      width = "auto", height = 28,
-      halign = "left", flow = "horizontal",
-      tmargin = 4, lmargin = 6, hpad = 6, vpad = 3,
-      bgimage = true,
-      border = 1, borderColor = "@fgPending",
-      cornerRadius = 4 },
-    { selectors = {"label", "me-squad-label"},
-      width = "auto", height = "auto", valign = "center",
-      fontSize = 12, color = "@fgPending" },
+    {
+        selectors = {"panel", "me-squad-row"},
+        width = "auto",
+        height = 28,
+        halign = "left",
+        flow = "horizontal",
+        tmargin = 4,
+        lmargin = 6,
+        hpad = 6,
+        vpad = 3,
+        bgimage = true,
+        border = 1,
+        borderColor = "@fgPending",
+        cornerRadius = 4,
+    },
+    {
+        selectors = {"label", "me-squad-label"},
+        width = "auto",
+        height = "auto",
+        valign = "center",
+        fontSize = 12,
+        color = "@fgPending",
+    },
 
     -- EDS chip
-    { selectors = {"panel", "me-eds-chip"},
-      width = "auto", height = 28,
-      halign = "left", flow = "horizontal",
-      hpad = 6, vpad = 3,
-      bgimage = true,
-      border = 1, borderColor = "@fgPending",
-      cornerRadius = 4 },
-    { selectors = {"label", "me-eds-label"},
-      width = "auto", height = "auto", valign = "center",
-      fontSize = 12, color = "@fgMuted" },
-    { selectors = {"label", "me-eds-input"},
-      width = 50, height = "auto", valign = "center",
-      fontSize = 12, color = "@fg" },
+    {
+        selectors = {"panel", "me-eds-chip"},
+        width = "auto",
+        height = 28,
+        halign = "left",
+        flow = "horizontal",
+        hpad = 6,
+        vpad = 3,
+        bgimage = true,
+        border = 1,
+        borderColor = "@fgPending",
+        cornerRadius = 4,
+    },
+    {
+        selectors = {"label", "me-eds-label"},
+        width = "auto",
+        height = "auto",
+        valign = "center",
+        fontSize = 12,
+        color = "@fgMuted",
+    },
+    {
+        selectors = {"label", "me-eds-input"},
+        width = 50,
+        height = "auto",
+        valign = "center",
+        fontSize = 12,
+        color = "@fg",
+    },
 
     -- EV result chip
-    { selectors = {"panel", "me-ev-chip"},
-      width = "auto", height = 28,
-      halign = "left", flow = "horizontal",
-      lmargin = 4, hpad = 6, vpad = 3,
-      bgimage = true,
-      border = 1, borderColor = "@fgPending",
-      cornerRadius = 4 },
-    { selectors = {"label", "me-ev-result"},
-      width = "auto", height = "auto", valign = "center",
-      fontSize = 12, color = "@fg" },
+    {
+        selectors = {"panel", "me-ev-chip"},
+        width = "auto",
+        height = 28,
+        halign = "left",
+        flow = "horizontal",
+        lmargin = 4,
+        hpad = 6,
+        vpad = 3,
+        bgimage = true,
+        border = 1,
+        borderColor = "@fgPending",
+        cornerRadius = 4,
+    },
+    {
+        selectors = {"label", "me-ev-result"},
+        width = "auto",
+        height = "auto",
+        valign = "center",
+        fontSize = 12,
+        color = "@fg",
+    },
 }
 TacPanelStyles.Routines = ThemeEngine.MergeTokens{
+    -- Visibility-toggle dot tint.
+    {
+        selectors = {"visDot"},
+        bgcolor = "@fg",
+    },
     -- Container for routine chips
-    { selectors = {"panel", "rt-container"},
-      width = "100%", height = "auto",
-      flow = "horizontal", halign = "left" },
+    {
+        selectors = {"panel", "rt-container"},
+        width = "100%",
+        height = "auto",
+        flow = "horizontal",
+        halign = "left",
+    },
 
     -- Routine chip (unselected = dim)
-    { selectors = {"panel", "rt-chip"},
-      width = "auto", height = 28,
-      flow = "horizontal", hpad = 8, vpad = 3,
-      bgimage = true,
-      border = 1, borderColor = "@fgPending",
-      cornerRadius = 4, lmargin = 6, tmargin = 4 },
-    { selectors = {"panel", "rt-chip", "hover"},
-      brightness = 1.3, transitionTime = 0.2 },
-    { selectors = {"panel", "rt-chip", "selected"},
-      borderColor = "@border" },
+    {
+        selectors = {"panel", "rt-chip"},
+        width = "auto",
+        height = 28,
+        flow = "horizontal",
+        hpad = 8,
+        vpad = 3,
+        bgimage = true,
+        border = 1,
+        borderColor = "@fgPending",
+        cornerRadius = 4,
+        lmargin = 6,
+        tmargin = 4,
+    },
+    {
+        selectors = {"panel", "rt-chip", "hover"},
+        brightness = 1.3,
+        transitionTime = 0.2,
+    },
+    {
+        selectors = {"panel", "rt-chip", "selected"},
+        borderColor = "@border",
+    },
 
     -- Routine chip label
-    { selectors = {"label", "rt-chip"},
-      width = "auto", height = "auto", valign = "center",
-      fontSize = 12, color = "@fgMuted" },
-    { selectors = {"label", "rt-chip", "parent:selected"},
-      color = "@fgStrong" },
+    {
+        selectors = {"label", "rt-chip"},
+        width = "auto",
+        height = "auto",
+        valign = "center",
+        fontSize = 12,
+        color = "@fgMuted",
+    },
+    {
+        selectors = {"label", "rt-chip", "parent:selected"},
+        color = "@fgStrong",
+    },
 }
 TacPanelStyles.Conditions = ThemeEngine.MergeTokens{
+    {   -- Visibility-toggle dot tint.
+        selectors = {"visDot"},
+        bgcolor = "@fg",
+    },
     {
         selectors = {"panel", "conditions"},
         height = "auto",
@@ -1448,29 +1620,57 @@ TacPanelStyles.AddConditionMenu = ThemeEngine.MergeTokens{
 }
 TacPanelStyles.Resistances = ThemeEngine.MergeTokens{
     -- Container: side-by-side
-    { selectors = {"panel", "res-container"},
-      width = "100%", height = "auto", flow = "horizontal",
-      halign = "center", tmargin = 4 },
+    {
+        selectors = {"panel", "res-container"},
+        width = "100%",
+        height = "auto",
+        flow = "horizontal",
+        halign = "center",
+        tmargin = 4,
+    },
 
     -- Weakness box
-    { selectors = {"label", "res-box", "weakness"},
-      width = "47%", height = "auto", halign = "center",
-      fontSize = TacPanelSizes.Fonts.resEntry,
-      bold = false, color = "@fg", bgimage = true,
-      border = 1, borderColor = "@danger",
-      cornerRadius = 4, hpad = 6, vpad = 4, hmargin = 4 },
+    {
+        selectors = {"label", "res-box", "weakness"},
+        width = "47%",
+        height = "auto",
+        halign = "center",
+        fontSize = TacPanelSizes.Fonts.resEntry,
+        bold = false,
+        color = "@fg",
+        bgimage = true,
+        border = 1,
+        borderColor = "@danger",
+        cornerRadius = 4,
+        hpad = 6,
+        vpad = 4,
+        hmargin = 4,
+    },
 
     -- Immunity box
-    { selectors = {"label", "res-box", "immunity"},
-      width = "47%", height = "auto", halign = "center",
-      fontSize = TacPanelSizes.Fonts.resEntry,
-      bold = false, color = "@fg", bgimage = true,
-      border = 1, borderColor = "@success",
-      cornerRadius = 4, hpad = 6, vpad = 4, hmargin = 4 },
+    {
+        selectors = {"label", "res-box", "immunity"},
+        width = "47%",
+        height = "auto",
+        halign = "center",
+        fontSize = TacPanelSizes.Fonts.resEntry,
+        bold = false,
+        color = "@fg",
+        bgimage = true,
+        border = 1,
+        borderColor = "@success",
+        cornerRadius = 4,
+        hpad = 6,
+        vpad = 4,
+        hmargin = 4,
+    },
 }
 
 -- Health bar fill: grayscale shading (from the OOTB fillBarFill class) tinted
 -- by a themed bgcolor per state. Held here so it re-resolves with the scheme.
+-- Very purposefully using success / warning / danger for the colors because
+-- those are what are documented in the theme documentation apply to these
+-- tiers of stamina.
 TacPanelStyles.HealthFill = ThemeEngine.MergeTokens{
     {
         selectors = {"fillBarFill", "healthFill"},
@@ -1524,6 +1724,9 @@ end
 -- whole tac-panel subtree. Inline ThemeEngine.ResolveTokens(...) sites are
 -- intentionally NOT reactive.
 local g_roots = {}
+--- Track a tac-panel root so the OnThemeChanged handler can reassign its styles.
+--- @param root Panel
+--- @return Panel root The same panel, for inline use
 local function RegisterRoot(root)
     g_roots[#g_roots + 1] = root
     return root
@@ -1549,6 +1752,13 @@ local HERO_TOKEN_TOOLTIP = [[**Hero Tokens**
 * You can spend 2 hero tokens to regain Stamina equal to your Recovery value without spending a Recovery.
 ]]
 
+--- Build a linger handler that shows an attribute's base value and each
+--- modification in a tooltip.
+--- @param tokenInfo table Holds the live `.token`
+--- @param name string Attribute display name
+--- @param GetBaseFunction fun(c: any): number
+--- @param DescribeModificationsFunction fun(c: any): table[]
+--- @return fun(element: Panel)
 local function GenerateAttributeCalculationTooltip(tokenInfo, name, GetBaseFunction, DescribeModificationsFunction)
     return function(element)
         local m_token = tokenInfo.token
@@ -1586,12 +1796,21 @@ local function GenerateAttributeCalculationTooltip(tokenInfo, name, GetBaseFunct
     end
 end
 
+--- As GenerateAttributeCalculationTooltip, for a named custom attribute.
+--- @param tokenInfo table Holds the live `.token`
+--- @param name string Custom attribute name
+--- @return fun(element: Panel)
 local function GenerateCustomAttributeCalculationTooltip(tokenInfo, name)
     return GenerateAttributeCalculationTooltip(tokenInfo, name,
         function(c) return c:BaseNamedCustomAttribute(name) end,
         function(c) return c:DescribeModificationsToNamedCustomAttribute(name) end)
 end
 
+--- Shrink a font size so `len` characters fit where `maxChars` fit at baseSize.
+--- @param baseSize integer The largest size the font might be
+--- @param maxChars integer The number of characters the max size can fit
+--- @param len integer The length of the text to display
+--- @return integer fontSize
 local function _fitFontSize(baseSize, maxChars, len)
     if len <= maxChars then return baseSize end
     return math.max(12, math.floor(baseSize * maxChars / len))
@@ -1642,7 +1861,7 @@ function TacPanel.Portrait()
             params = nil
         end
         local args = {
-            classes = {"container"},
+            classes = {"container", "tpOutline"},
             halign = "left",
             valign = "top",
             lmargin = 4,
@@ -1650,7 +1869,6 @@ function TacPanel.Portrait()
             bgimage = true,
             bgcolor = "black",
             border = 1,
-            borderColor = ThemeEngine.ResolveTokens("@fgMuted"),
             cornerRadius = 4,
             btn,
         }
@@ -1734,12 +1952,11 @@ function TacPanel.Portrait()
             vmargin = 4,
             outlineButton(
                 gui.EnhIconButton{
-                    classes = {"toggle-btn"},
+                    classes = {"toggle-btn", "combatTint"},
                     hoverCursor = "pressbutton",
                     bgimage = "panels/initiative/initiative-icon.png",
                     width = TacPanelSizes.VisionBtn.size,
                     height = TacPanelSizes.VisionBtn.size,
-                    bgcolor = ThemeEngine.ResolveTokens("@danger"),
                     data = { token = nil },
                     refreshCharacter = function(element, token)
                         element.data.token = token
@@ -2890,7 +3107,7 @@ function TacPanel.RecoveriesBox()
             text = "RECOVERIES",
         },
         gui.Panel{
-            classes = {"container"},
+            classes = {"container", "borderSuccess"},
             height = "100% available",
             width = "100%+8",
             valign = "top",
@@ -2899,10 +3116,9 @@ function TacPanel.RecoveriesBox()
             bgimage = true,
             bgcolor = "clear",
             border = {x1 = 0, y1 = 0, x2 = 0, y2 = 1},
-            borderColor = ThemeEngine.ResolveTokens("@success"),
             flow = "horizontal",
             gui.Panel{
-                classes = {"container"},
+                classes = {"container", "borderSuccess"},
                 height = "100%+2",
                 width = "40%",
                 valign = "top",
@@ -2910,7 +3126,6 @@ function TacPanel.RecoveriesBox()
                 bgimage = true,
                 bgcolor = "clear",
                 border = {x1 = 0, y1 = 0, x2 = 1, y2 = 0},
-                borderColor = ThemeEngine.ResolveTokens("@success"),
                 gui.Label{
                     classes = {"recovery-value"},
                     text = "+0",
@@ -3045,7 +3260,7 @@ function TacPanel.HealthBar()
         lmargin = 50,
     }
     local label = gui.Label{
-        fontFace = "Newzald",
+        fontFace = "@number",
         fontSize = 16,
         bold = true,
         color = "white",
@@ -4341,14 +4556,16 @@ function TacPanel.Routines()
                             gui.Panel{
                                 valign = "center",
                                 halign = "right",
-                                width = "auto", height = "auto",
+                                width = "auto",
+                                height = "auto",
                                 bgimage = true,
                                 bgcolor = "clear",
-                                pad = 3, lmargin = 4,
+                                pad = 3,
+                                lmargin = 4,
                                 gui.VisibilityPanel{
+                                    classes = {"visDot"},
                                     opacity = 1,
                                     visible = true,
-                                    bgcolor = ThemeEngine.ResolveTokens("@fg"),
                                     width = 12,
                                     height = 12,
                                     press = function(element)
@@ -4444,6 +4661,9 @@ function TacPanel.Routines()
     }
 end
 
+--- Display the summoner's squads, each a row of minion portraits with a shared
+--- health bar.
+--- @return Panel
 function TacPanel.Summoner()
     local g_squadHealthGradient = gui.Gradient{
         point_a = {x = 0, y = 0},
@@ -4757,6 +4977,8 @@ end
 
 local g_heroicResourceDisplays = {}
 
+--- Register a heroic-resource display box (shown in the summary token boxes).
+--- @param entry {id: string, create: fun(): Panel, ord: number}
 function TacPanel.RegisterHeroicResourceDisplay(entry)
     g_heroicResourceDisplays[entry.id] = entry
 end
@@ -4927,9 +5149,7 @@ function TacPanel.OtherResourceRow(token, resource, quantity, styleCache)
             halign = "left",
             valign = "center",
             hmargin = 6,
-            fontFace = "Berling",
             fontSize = 14,
-            color = ThemeEngine.ResolveTokens("@fg"),
             text = displayName,
         },
 
@@ -4943,10 +5163,9 @@ function TacPanel.OtherResourceRow(token, resource, quantity, styleCache)
             characterLimit = 9,
             selectAllOnFocus = true,
             placeholderText = "--",
-            fontFace = "Newzald",
+            fontFace = "@number",
             fontSize = 16,
             textAlignment = "center",
-            color = ThemeEngine.ResolveTokens("@fg"),
             bgcolor = "clear",
             border = 0,
             text = string.format("%d/%d", remaining, quantity or 0),
@@ -5462,11 +5681,10 @@ function TacPanel.MultiEdit()
             element:SetClass("collapsed", hasNonCombatant == false)
         end,
         gui.EnhIconButton{
-            classes = {"toggle-btn"},
+            classes = {"toggle-btn", "combatTint"},
             bgimage = "panels/initiative/initiative-icon.png",
             width = TacPanelSizes.VisionBtn.size,
             height = TacPanelSizes.VisionBtn.size,
-            bgcolor = ThemeEngine.ResolveTokens("@danger"),
             press = function(element)
                 Commands.rollinitiative()
             end,
@@ -5954,9 +6172,12 @@ function TacPanel.MultiEdit()
 
         -- EDS + EV row
         gui.Panel{
-            width = "100%", height = "auto",
-            flow = "horizontal", halign = "left",
-            tmargin = 4, lmargin = 6,
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            halign = "left",
+            tmargin = 4,
+            lmargin = 6,
 
             -- EDS chip
             gui.Panel{
@@ -6349,6 +6570,9 @@ function TacPanel.AuraChip(auraInstance, token)
     }
 end
 
+--- Append a chip for each aura the creature emits/controls to `chips`.
+--- @param token CharacterToken
+--- @param chips Panel[] Appended in place
 local function FillAurasEmittingPanels(token, chips)
     if token == nil or not token.valid or token.properties == nil then
         return
@@ -6388,14 +6612,16 @@ local function FillAurasEmittingPanels(token, chips)
         chipChildren[#chipChildren+1] = gui.Panel{
             valign = "center",
             halign = "right",
-            width = "auto", height = "auto",
+            width = "auto",
+            height = "auto",
             bgimage = true,
             bgcolor = "clear",
-            pad = 3, lmargin = 4,
+            pad = 3,
+            lmargin = 4,
             gui.VisibilityPanel{
+                classes = {"visDot"},
                 opacity = 1,
                 visible = not token.properties:GetAuraDisplaySetting(aura.name).hide,
-                bgcolor = ThemeEngine.ResolveTokens("@fg"),
                 width = 12,
                 height = 12,
                 press = function(element)
@@ -6551,6 +6777,9 @@ local function FillAurasEmittingPanels(token, chips)
     end
 end
 
+--- Open the "Add Condition" pop-up (conditions, status effects, a custom
+--- condition input, and custom auras) on args.button, applied to args.tokens.
+--- @param args {tokens: CharacterToken[], button: Panel}
 function TacPanel.AddConditionMenu(args)
     local m_tokens = args.tokens
     local m_button = args.button
@@ -6896,7 +7125,6 @@ function TacPanel.AddConditionMenu(args)
                             halign = "center",
                             valign = "center",
                             textAlignment = "center",
-                            -- fontFace = "Berling",
                             fontSize = 12,
                             color = ThemeEngine.ResolveTokens("@fg"),
                         },
@@ -7202,10 +7430,10 @@ function TacPanel.PersistentAbilities()
             end
             if totalCost > 2 then
                 children[#children+1] = gui.Label{
+                    classes = {"danger"},
                     width = "100%",
                     height = "auto",
                     fontSize = 12,
-                    color = ThemeEngine.ResolveTokens("@danger"),
                     text = "Too many persistent abilities. You must end some.",
                 }
             end
@@ -7333,10 +7561,15 @@ function TacPanel.Conditions()
     }
 end
 
+--- Stub: conditions are rendered inline by the Conditions section now.
+--- @param token CharacterToken
+--- @return nil
 CharacterPanel.CreateConditionsPanel = function(token)
     return nil
 end
 
+--- Build the vision "lookup" distance slider (hidden unless the token may look).
+--- @return Panel
 function CharacterPanel.CreateLookupPanel()
     local m_slider = nil
     local m_maxLookup = -1
@@ -7413,6 +7646,8 @@ function CharacterPanel.CreateLookupPanel()
     }
 end
 
+--- Open the condition-search pop-up on args.button, applied to args.tokens.
+--- @param args {tokens: CharacterToken[], button: Panel}
 function CharacterPanel.AddConditionMenu(args)
     local m_tokens = args.tokens
     local m_button = args.button
@@ -7767,10 +8002,15 @@ function TacPanel.RegisterSection(id, factory, opts)
     table.insert(TACPANEL_DEFAULT_ORDER, insertAt, id)
 end
 
+--- Per-user preference key for the saved section order.
+--- @return string
 function TacPanel.KeyName()
     return string.format("tacpanel_order:%s", dmhub.userid or "default")
 end
 
+--- The saved section order, falling back to the default order and appending any
+--- newly-registered sections.
+--- @return string[] Section ids in display order
 function TacPanel.GetOrder()
     local saved = dmhub.GetPref(TacPanel.KeyName())
     if saved == nil or type(saved) ~= "string" then
@@ -7797,11 +8037,16 @@ function TacPanel.GetOrder()
     return order
 end
 
+--- Persist the section order to the user's preferences.
+--- @param order string[] Section ids in display order
 function TacPanel.SaveOrder(order)
     local key = TacPanel.KeyName()
     dmhub.SetPref(key, table.concat(order, ","))
 end
 
+--- Build the vertical container of all registered sections (saved order, with
+--- drag-to-reorder).
+--- @return Panel
 function TacPanel.SectionsContainer()
     local sectionPanels = {}
     for _, id in ipairs(TACPANEL_DEFAULT_ORDER) do
@@ -7868,6 +8113,10 @@ function TacPanel.SectionsContainer()
     return container
 end
 
+--- Build the full single-character tac panel (all registered sections). A theme
+--- reactivity root.
+--- @param m_token CharacterToken
+--- @return Panel
 CharacterPanel.CreateCharacterDetailsPanel = function(m_token)
 
     local m_effectEntryPanels = {}
@@ -7891,6 +8140,9 @@ CharacterPanel.CreateCharacterDetailsPanel = function(m_token)
     return RegisterRoot(resultPanel)
 end
 
+--- Build the floating "spend a Recovery" diamond overlaid on the portrait's
+--- hitpoints area (heroes / retainers / companions only).
+--- @return Panel
 function CharacterPanel.DecorateHitpointsPanel()
 	local recoveryid = nil
 	local recoveryInfo = nil
@@ -8135,6 +8387,9 @@ function CharacterPanel.DecorateHitpointsPanel()
 	}
 end
 
+--- Build the overlay decorations drawn on top of a token portrait.
+--- @param token CharacterToken
+--- @return Panel
 function CharacterPanel.DecoratePortraitPanel(token)
 	local m_token = token
 	return gui.Panel{
@@ -8581,6 +8836,8 @@ end
 
 local multiEditBaseFunction = CharacterPanel.CreateMultiEdit
 
+--- Build the multi-token edit panel. A theme reactivity root.
+--- @return Panel
 CharacterPanel.CreateMultiEdit = function()
 	if mod.unloaded then
 		return multiEditBaseFunction()
@@ -8589,7 +8846,11 @@ CharacterPanel.CreateMultiEdit = function()
 	return RegisterRoot(TacPanel.MultiEdit())
 end
 
-
+--- Populate `element` with the party's member panes, grouped by folder.
+--- @param element Panel Container to fill
+--- @param party any The party object
+--- @param partyMembers string[] Character ids
+--- @param memberPanes table<string, Panel> Reusable panes keyed by charid
 CharacterPanel.PopulatePartyMembers = function(element, party, partyMembers, memberPanes)
 
 	local m_folderPanels = element.data.folderPanels or {}
@@ -8727,21 +8988,18 @@ CharacterPanel.PopulatePartyMembers = function(element, party, partyMembers, mem
 	return newMemberPanes
 end
 
-
-
-
-
 --important attributes beyond characteristics
 --e.g. things like stability etc.
 
-
+--- Build the compact side-panel display for one token (Summary + Stamina). A
+--- theme reactivity root.
+--- @param token CharacterToken
+--- @return Panel
 function CharacterPanel.SingleCharacterDisplaySidePanel(token)
-
 
 	local characterDisplaySidebar
 
 	local conditionsPanel = CharacterPanel.CreateConditionsPanel(token)
-
 
 	characterDisplaySidebar = gui.Panel{
 		id = 'sidebar',

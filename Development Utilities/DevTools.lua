@@ -830,7 +830,70 @@ CreateGameRecorderPanel = function()
         }
     end
 
+    -- transient recording state (panel-local; never serialized)
+    local m_startTime = nil        -- os.time() at recording start, or nil when idle
+    local m_lastSavedPath = nil    -- path from the last successful complete(path)
+    local m_lastError = nil        -- last error message, shown until next start
+
+    -- forward declarations for panels referenced by helpers/handlers
     local resultPanel
+
+    local function BuildOptions()
+        local options = {}
+        options.ui = g_includeUISetting:Get()
+        options.audio = g_audioSetting:Get()
+        options.complete = function(path)
+            m_lastSavedPath = path
+            m_startTime = nil
+        end
+        options.error = function(msg)
+            m_lastError = msg
+            m_startTime = nil
+        end
+        return options
+    end
+
+    local function StartRecording()
+        if recorder.recording then
+            return
+        end
+        m_lastError = nil
+        m_startTime = os.time()
+        recorder:BeginRecording(BuildOptions())
+    end
+
+    local function StopAndSave()
+        if not recorder.recording then
+            return
+        end
+        recorder:EndRecording{
+            complete = function(path)
+                m_lastSavedPath = path
+                m_startTime = nil
+            end,
+            error = function(msg)
+                m_lastError = msg
+                m_startTime = nil
+            end,
+        }
+    end
+
+    local function DiscardRecording()
+        if not recorder.recording then
+            return
+        end
+        recorder:CancelRecording()
+        m_startTime = nil
+    end
+
+    local function FormatElapsed()
+        if m_startTime == nil then
+            return "00:00"
+        end
+        local secs = os.time() - m_startTime
+        if secs < 0 then secs = 0 end
+        return string.format("%02d:%02d", math.floor(secs / 60), secs % 60)
+    end
 
     local function OptionsZone()
         return gui.Panel{
@@ -878,6 +941,152 @@ CreateGameRecorderPanel = function()
         }
     end
 
+    local function StatusZone()
+        return gui.Panel{
+            classes = {"recorder-zone"},
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            borderWidth = 1,
+            borderColor = "#aa3333",
+            cornerRadius = 6,
+            pad = 8,
+            borderBox = true,
+            vmargin = 4,
+            halign = "center",
+
+            -- live status line: "Idle" or "REC mm:ss"
+            gui.Label{
+                width = "auto",
+                height = "auto",
+                halign = "center",
+                fontSize = 15,
+                bold = true,
+                color = "#dddddd",
+                text = "Idle",
+                thinkTime = 0.25,
+                think = function(element)
+                    if recorder.recording then
+                        element.text = "REC  " .. FormatElapsed()
+                        element.color = "#ee3344"
+                    elseif m_lastError ~= nil then
+                        element.text = "Error: " .. m_lastError
+                        element.color = "#eebb33"
+                    else
+                        element.text = "Idle"
+                        element.color = "#dddddd"
+                    end
+                end,
+            },
+
+            -- button row: Start (idle) / Stop + Cancel (recording)
+            gui.Panel{
+                width = "100%",
+                height = "auto",
+                flow = "horizontal",
+                halign = "center",
+                vmargin = 4,
+
+                gui.Button{
+                    text = "Start Recording",
+                    width = 150,
+                    height = 30,
+                    fontSize = 14,
+                    hmargin = 4,
+                    thinkTime = 0.25,
+                    think = function(element)
+                        element:SetClass("collapsed", recorder.recording)
+                    end,
+                    click = function()
+                        StartRecording()
+                    end,
+                },
+                gui.Button{
+                    text = "Stop",
+                    width = 80,
+                    height = 30,
+                    fontSize = 14,
+                    hmargin = 4,
+                    thinkTime = 0.25,
+                    think = function(element)
+                        element:SetClass("collapsed", not recorder.recording)
+                    end,
+                    click = function()
+                        StopAndSave()
+                    end,
+                },
+                gui.Button{
+                    text = "Cancel",
+                    width = 80,
+                    height = 30,
+                    fontSize = 14,
+                    hmargin = 4,
+                    thinkTime = 0.25,
+                    think = function(element)
+                        element:SetClass("collapsed", not recorder.recording)
+                    end,
+                    click = function()
+                        DiscardRecording()
+                    end,
+                },
+            },
+        }
+    end
+
+    local function FooterZone()
+        return gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            valign = "center",
+            vmargin = 4,
+            gui.Label{
+                width = "auto",
+                height = "auto",
+                halign = "left",
+                valign = "center",
+                fontSize = 11,
+                color = "#999999",
+                maxWidth = 220,
+                textWrap = false,
+                text = "Last saved: (none yet)",
+                think = function(element)
+                    if m_lastSavedPath ~= nil then
+                        element.text = "Last saved: " .. m_lastSavedPath
+                    else
+                        element.text = "Last saved: (none yet)"
+                    end
+                end,
+                thinkTime = 0.5,
+            },
+            gui.Button{
+                text = "Open folder",
+                width = 90,
+                height = 22,
+                fontSize = 11,
+                hmargin = 6,
+                halign = "right",
+                valign = "center",
+                thinkTime = 0.5,
+                think = function(element)
+                    element:SetClass("collapsed", m_lastSavedPath == nil)
+                end,
+                click = function()
+                    if m_lastSavedPath == nil then return end
+                    local dir = string.match(m_lastSavedPath, "^(.*)[/\\][^/\\]*$")
+                    if dir ~= nil then
+                        -- NOTE: dmhub.OpenURL is domain-restricted; a file:// URL may be
+                        -- rejected. If this button does nothing, leave the footer purely
+                        -- informational - the engine already reveals the Recordings folder
+                        -- in the OS file browser when a recording is saved. See the spec's
+                        -- Open Questions (section 9).
+                        dmhub.OpenURL("file://" .. dir)
+                    end
+                end,
+            },
+        }
+    end
+
     resultPanel = gui.Panel{
         width = "100%",
         height = "auto",
@@ -891,7 +1100,9 @@ CreateGameRecorderPanel = function()
             vmargin = 2,
             text = "Game Recorder",
         },
+        StatusZone(),
         OptionsZone(),
+        FooterZone(),
     }
 
     return resultPanel

@@ -979,56 +979,65 @@ CreateGameRecorderPanel = function()
                 end,
             },
 
-            -- button row: Start (idle) / Stop + Cancel (recording)
+            -- button row: Start (idle) <-> Stop + Cancel (recording).
+            -- Rebuild the row's children on state change. Per-button
+            -- SetClass("collapsed", ...) did not reliably show/hide gui.Button,
+            -- so we swap which buttons exist instead (proven children= pattern).
             gui.Panel{
                 width = "100%",
                 height = "auto",
                 flow = "horizontal",
                 halign = "center",
                 vmargin = 4,
-
-                gui.Button{
-                    text = "Start Recording",
-                    width = 150,
-                    height = 30,
-                    fontSize = 14,
-                    hmargin = 4,
-                    thinkTime = 0.25,
-                    think = function(element)
-                        element:SetClass("collapsed", recorder.recording)
-                    end,
-                    click = function()
-                        StartRecording()
-                    end,
-                },
-                gui.Button{
-                    text = "Stop",
-                    width = 80,
-                    height = 30,
-                    fontSize = 14,
-                    hmargin = 4,
-                    thinkTime = 0.25,
-                    think = function(element)
-                        element:SetClass("collapsed", not recorder.recording)
-                    end,
-                    click = function()
-                        StopAndSave()
-                    end,
-                },
-                gui.Button{
-                    text = "Cancel",
-                    width = 80,
-                    height = 30,
-                    fontSize = 14,
-                    hmargin = 4,
-                    thinkTime = 0.25,
-                    think = function(element)
-                        element:SetClass("collapsed", not recorder.recording)
-                    end,
-                    click = function()
-                        DiscardRecording()
-                    end,
-                },
+                data = { rec = nil },
+                create = function(element)
+                    element:FireEvent("think")
+                end,
+                thinkTime = 0.25,
+                think = function(element)
+                    local rec = (recorder.recording == true)
+                    if element.data.rec == rec then
+                        return
+                    end
+                    element.data.rec = rec
+                    if rec then
+                        element.children = {
+                            gui.Button{
+                                text = "Stop",
+                                width = 90,
+                                height = 30,
+                                fontSize = 14,
+                                hmargin = 4,
+                                click = function()
+                                    StopAndSave()
+                                end,
+                            },
+                            gui.Button{
+                                text = "Cancel",
+                                width = 90,
+                                height = 30,
+                                fontSize = 14,
+                                hmargin = 4,
+                                click = function()
+                                    DiscardRecording()
+                                end,
+                            },
+                        }
+                    else
+                        element.children = {
+                            gui.Button{
+                                text = "Start Recording",
+                                width = 150,
+                                height = 30,
+                                fontSize = 14,
+                                hmargin = 4,
+                                click = function()
+                                    StartRecording()
+                                end,
+                            },
+                        }
+                    end
+                end,
             },
         }
     end

@@ -112,6 +112,10 @@ local g_edsSetting = setting{
     storage = "game",
 }
 
+-- All TacPanelStyles.* tables live inside BuildStyles so they can be re-resolved
+-- against the active theme/color scheme on an OnThemeChanged event. Called once
+-- at load (below) to populate the tables, and again whenever the theme changes.
+function TacPanel.BuildStyles()
 TacPanelStyles.TacPanel = ThemeEngine.MergeTokens{
     {   -- Outer tac panel. Applies margin, padding, alignment, bottom border.
         selectors = {"panel", "tacpanel"},
@@ -1340,34 +1344,6 @@ TacPanelStyles.Conditions = ThemeEngine.MergeTokens{
         fontSize = TacPanelSizes.Fonts.condRemove,
         color = "@fg",
     },
-    {   -- Add condition button
-        selectors = {"panel", "cond-add"},
-        width = 22,
-        height = 22,
-        halign = "left",
-        valign = "center",
-        margin = 2,
-        bgimage = true,
-        bgcolor = "clear",
-        border = 1,
-        borderColor = "@fg",
-        cornerRadius = 4,
-    },
-    {
-        selectors = {"panel", "cond-add", "hover"},
-        brightness = 1.5,
-        transitionTime = 0.2,
-    },
-    {
-        selectors = {"label", "cond-add"},
-        width = "100%",
-        height = "100%",
-        halign = "center",
-        valign = "center",
-        textAlignment = "center",
-        fontSize = TacPanelSizes.Fonts.condAdd,
-        color = "@fg",
-    },
     {   -- "No conditions" placeholder
         selectors = {"label", "cond-empty"},
         width = "auto",
@@ -1492,6 +1468,78 @@ TacPanelStyles.Resistances = ThemeEngine.MergeTokens{
       border = 1, borderColor = "@success",
       cornerRadius = 4, hpad = 6, vpad = 4, hmargin = 4 },
 }
+
+-- Health bar fill: grayscale shading (from the OOTB fillBarFill class) tinted
+-- by a themed bgcolor per state. Held here so it re-resolves with the scheme.
+TacPanelStyles.HealthFill = ThemeEngine.MergeTokens{
+    {
+        selectors = {"fillBarFill", "healthFill"},
+        bgcolor = "@success",
+    },
+    {
+        selectors = {"healthFill", "winded"},
+        transitionTime = 0.4,
+        bgcolor = "@warning",
+    },
+    {
+        selectors = {"healthFill", "dying"},
+        transitionTime = 0.4,
+        bgcolor = "@danger",
+    },
+}
+
+end
+
+TacPanel.BuildStyles()
+
+-- The union of every in-tree section style table. Applied once at each tac-panel
+-- root (RegisterRoot) so descendants are styled purely by their classes via the
+-- cascade -- nothing below needs its own `styles`. Popup-only tables (Tooltip,
+-- AddConditionMenu) are applied directly by those popups, which re-root out of
+-- the tree and so are not reached by a root cascade.
+function TacPanel.AllStyles()
+    return TacPanel.MergeStyles{
+        TacPanelStyles.TacPanel,
+        TacPanelStyles.Portrait,
+        TacPanelStyles.SummaryInfo,
+        TacPanelStyles.ControlButtons,
+        TacPanelStyles.TokenBox,
+        TacPanelStyles.Stamina,
+        TacPanelStyles.HealthFill,
+        TacPanelStyles.Resistances,
+        TacPanelStyles.CharacteristicsPanel,
+        TacPanelStyles.MovementPanel,
+        TacPanelStyles.HeroicResources,
+        TacPanelStyles.SkillsLanguages,
+        TacPanelStyles.Notes,
+        TacPanelStyles.CollapsibleEntry,
+        TacPanelStyles.MultiEdit,
+        TacPanelStyles.Routines,
+        TacPanelStyles.Conditions,
+    }
+end
+
+-- Theme reactivity: on a theme/color-scheme switch, re-resolve the style tables
+-- and reassign each live root's `.styles`, which re-runs the cascade over the
+-- whole tac-panel subtree. Inline ThemeEngine.ResolveTokens(...) sites are
+-- intentionally NOT reactive.
+local g_roots = {}
+local function RegisterRoot(root)
+    g_roots[#g_roots + 1] = root
+    return root
+end
+
+ThemeEngine.OnThemeChanged(mod, function()
+    TacPanel.BuildStyles()
+    local live = {}
+    for _, r in ipairs(g_roots) do
+        if r ~= nil and r.valid then
+            r.styles = TacPanel.AllStyles()
+            live[#live + 1] = r
+        end
+    end
+    g_roots = live
+end)
 
 -- Big text
 local HERO_TOKEN_TOOLTIP = [[**Hero Tokens**
@@ -1650,7 +1698,6 @@ function TacPanel.Portrait()
     end
 
     return gui.Panel{
-        styles = TacPanelStyles.Portrait,
         classes = {"portrait-frame"},
         refreshCharacter = function(element, token)
             local bg = token.portraitBackground
@@ -1679,7 +1726,6 @@ function TacPanel.Portrait()
 
         -- Control buttons at bottom of portrait
         gui.Panel{
-            styles = TacPanelStyles.ControlButtons,
             classes = {"container"},
             flow = "horizontal",
             floating = true,
@@ -1873,7 +1919,6 @@ end
 --- @return Panel
 function TacPanel.HeroTokenBox()
     return gui.Panel{
-        styles = TacPanelStyles.TokenBox,
         classes = {"tokenbox", "hero-tokens", "collapsed"},
         data = {
             token = nil,
@@ -2005,7 +2050,6 @@ end
 --- @return Panel
 function TacPanel.SurgesBox()
     return gui.Panel{
-        styles = TacPanelStyles.TokenBox,
         classes = {"tokenbox", "surges", "collapsed"},
         data = { token = nil },
 
@@ -2104,7 +2148,6 @@ end
 --- @return Panel
 function TacPanel.VictoriesBox()
     return gui.Panel{
-        styles = TacPanelStyles.TokenBox,
         classes = {"tokenbox", "victories"},
 
         -- Row 1: title
@@ -2168,7 +2211,6 @@ end
 --- @return Panel
 function TacPanel.HeroicResourcesBox()
     return gui.Panel{
-        styles = TacPanelStyles.TokenBox,
         classes = {"tokenbox", "heroic-resources"},
         data = { token = nil },
 
@@ -2285,7 +2327,6 @@ end
 function TacPanel.Summary()
 
     return gui.Panel{
-        styles = TacPanelStyles.TacPanel,
         classes = {"tacpanel"},
         -- Main arrangement - 3 columns
         gui.Panel{
@@ -2297,7 +2338,6 @@ function TacPanel.Summary()
 
             -- Col2: Name etc.
             gui.Panel{
-                styles = TacPanelStyles.SummaryInfo,
                 classes = {"summary-info"},
                 width = TacPanelSizes.Panels.summaryNames,
                 refreshCharacter = function(element, token)
@@ -2983,23 +3023,7 @@ function TacPanel.HealthBar()
         halign = "left",
         lmargin = 1,
         bgimage = true,
-        bgcolor = "white",
-
-        styles = {
-            {
-                gradient = Styles.healthGradient,
-            },
-            {
-                selectors = {"winded"},
-                transitionTime = 0.4,
-                gradient = Styles.bloodiedGradient,
-            },
-            {
-                selectors = {"dying"},
-                transitionTime = 0.4,
-                gradient = Styles.damagedGradient,
-            },
-        },
+        classes = {"fillBarFill", "healthFill"},
     }
 
     local tempFill = gui.Panel{
@@ -3008,8 +3032,7 @@ function TacPanel.HealthBar()
         valign = "center",
         halign = "left",
         bgimage = true,
-        bgcolor = "white",
-        gradient = Styles.tempGradient,
+        classes = {"fillBarFill"},
     }
 
     local icon = gui.Panel{
@@ -3217,7 +3240,6 @@ end
 --- @return Panel
 function TacPanel.Resistances()
     return gui.Panel{
-        styles = TacPanelStyles.Resistances,
         classes = {"res-container", "collapsed"},
 
         refreshCharacter = function(element, token)
@@ -3314,7 +3336,6 @@ function TacPanel.Stamina()
         title = "STAMINA",
         altBg = false,
         gui.Panel{
-            styles = TacPanelStyles.Stamina,
             classes = {"stamina-controls"},
             TacPanel.HarmBox(),
             TacPanel.StaminaBox(),
@@ -3648,7 +3669,6 @@ end
 --- @return Panel
 function TacPanel.MovementPanel()
     return gui.Panel{
-        styles = TacPanelStyles.MovementPanel,
         classes = {"movement-panel"},
         TacPanel.SpeedBox(),
         TacPanel.DisengageBox(),
@@ -3728,7 +3748,6 @@ function TacPanel.CharacteristicsPanel()
     end
 
     return gui.Panel{
-        styles = TacPanelStyles.CharacteristicsPanel,
         classes = {"characteristics-panel"},
         children = children,
     }
@@ -3870,7 +3889,6 @@ end
 --- @return Panel
 function TacPanel.GrowingHRTable()
     return gui.Panel{
-        styles = TacPanelStyles.HeroicResources,
         classes = {"growing-resources", "collapsed"},
         data = { token = nil, rows = {}, collapsed = false },
         refreshCharacter = function(element, token)
@@ -3969,7 +3987,6 @@ end
 --- @return Panel
 function TacPanel.CollapsiblePanel(args)
     local title = args.title or ""
-    local extraStyles = args.styles or {}
     local extraClasses = args.classes or {}
     local extraData = args.data or {}
     local altBg = args.altBg ~= false
@@ -3992,12 +4009,6 @@ function TacPanel.CollapsiblePanel(args)
     if altBg then classes[#classes+1] = "alt-bg" end
     for _,c in ipairs(extraClasses) do
         classes[#classes+1] = c
-    end
-
-    -- Build merged styles
-    local allStyles = {TacPanelStyles.TacPanel}
-    for _,s in ipairs(extraStyles) do
-        allStyles[#allStyles+1] = s
     end
 
     -- Title bar (always child[1]): drag handle icon, title label, collapse arrow
@@ -4061,7 +4072,6 @@ function TacPanel.CollapsiblePanel(args)
 
     -- Build the outer panel args: titleBar (child[1]), contentPanel (child[2])
     local panelArgs = {
-        styles = TacPanel.MergeStyles(allStyles),
         classes = classes,
         data = data,
         titleBar,
@@ -4106,7 +4116,6 @@ function TacPanel.CollapsibleEntry(args)
     end
 
     local entry = gui.Panel{
-        styles = TacPanelStyles.CollapsibleEntry,
         classes = classes,
         data = {
             collapsed = collapsed, prefKey = prefKey,
@@ -4231,7 +4240,6 @@ end
 function TacPanel.Routines()
     return TacPanel.CollapsiblePanel{
         sectionId = "routines",
-        styles = {TacPanelStyles.Routines},
         classes = {"collapsed"},
         altBg = false,
         title = "ROUTINES",
@@ -4816,7 +4824,6 @@ function TacPanel.HeroicResources()
                 children = displays,
             },
             gui.Panel{
-                styles = TacPanelStyles.HeroicResources,
                 classes = {"hr-gains"},
                 data = { token = nil, panels = {} },
                 refreshCharacter = function(element, token)
@@ -5099,7 +5106,6 @@ function TacPanel.SkillLanguages()
         altBg = false,
         title = "SKILLS & LANGUAGES",
         gui.Panel{
-            styles = TacPanelStyles.SkillsLanguages,
             width = "100%",
             height = "auto",
             flow = "vertical",
@@ -5166,7 +5172,6 @@ end
 function TacPanel.Features()
     return TacPanel.CollapsiblePanel{
         sectionId = "features",
-        styles = {TacPanelStyles.Notes},
         classes = {"collapsed"},
         altBg = false,
         title = "FEATURES",
@@ -5243,7 +5248,6 @@ end
 function TacPanel.Notes()
     return TacPanel.CollapsiblePanel{
         sectionId = "notes",
-        styles = {TacPanelStyles.Notes},
         classes = {"collapsed"},
         altBg = false,
         title = "NOTES",
@@ -5310,7 +5314,6 @@ end
 function TacPanel.Perks()
     return TacPanel.CollapsiblePanel{
         sectionId = "perks",
-        styles = {TacPanelStyles.Notes},
         classes = {"collapsed"},
         altBg = false,
         title = "PERKS",
@@ -5855,7 +5858,7 @@ function TacPanel.MultiEdit()
     }
 
     return gui.Panel{
-        styles = {TacPanelStyles.TacPanel, TacPanelStyles.MultiEdit, TacPanelStyles.ControlButtons},
+        styles = TacPanel.AllStyles(),
         classes = {"tacpanel", "alt-bg", "collapsed"},
         tokens = function(element, tokens)
             m_tokens = tokens
@@ -6902,13 +6905,11 @@ function TacPanel.AddConditionMenu(args)
             end
         end
 
-        items[#items + 1] = gui.Panel{
-            classes = {"panel", "cond-add"},
+        items[#items + 1] = gui.Button{
+            classes = {"addButton", "sizeXs"},
             halign = "left",
             lmargin = 8,
             tmargin = 4,
-            width = "auto",
-            height = 24,
             linger = function(el)
                 gui.Tooltip("Add a custom aura")(el)
             end,
@@ -6963,20 +6964,14 @@ function TacPanel.AddConditionMenu(args)
                 primaryToken:UpdateAuras()
                 rebuildCustomAuras()
             end,
-            gui.Label{
-                classes = {"label", "cond-add"},
-                text = "+",
-                width = "auto",
-                height = 16,
-                valign = "center",
-            },
         }
 
         customAurasContent.children = items
     end
 
+    m_button.popupsInheritStyles = true
     m_button.popup = gui.Panel{
-        styles = {ThemeEngine.MergeStyles{Styles.Default}, TacPanelStyles.AddConditionMenu},
+        styles = TacPanelStyles.AddConditionMenu, --ThemeEngine.MergeStyles(TacPanelStyles.AddConditionMenu),
         classes = {"dialog"},
         floating = true,
         vscroll = true,
@@ -7096,7 +7091,6 @@ end
 function TacPanel.PersistentAbilities()
     return TacPanel.CollapsiblePanel{
         sectionId = "persistentabilities",
-        styles = {TacPanelStyles.Conditions},
         classes = {"collapsed"},
         altBg = false,
         title = "PERSISTENT ABILITIES",
@@ -7241,7 +7235,7 @@ function TacPanel.Conditions()
 
     -- Add button first
     local m_addButton = gui.Button{
-        classes = {"addButton"} , --{"panel", "cond-add"},
+        classes = {"addButton"} ,
         press = function(element)
             TacPanel.AddConditionMenu{
                 tokens = {m_token},
@@ -7255,7 +7249,6 @@ function TacPanel.Conditions()
 
     return TacPanel.CollapsiblePanel{
         sectionId = "conditions",
-        styles = {TacPanelStyles.Conditions},
         altBg = false,
         title = "AURAS, CONDITIONS, & EFFECTS",
         data = { token = nil },
@@ -7559,11 +7552,10 @@ function CharacterPanel.AddConditionMenu(args)
 
     table.sort(statusEffectOptions, function(a, b) return a.text < b.text end)
 
+    m_button.popupsInheritStyles = true
     m_button.popup = gui.TooltipFrame(
         gui.Panel {
             styles = ThemeEngine.MergeTokens{
-                Styles.Default,
-
                 {
                     selectors = {"conditionSuboption"},
                     textAlignment = "center",
@@ -7884,6 +7876,7 @@ CharacterPanel.CreateCharacterDetailsPanel = function(m_token)
     local resultPanel = nil
 
     resultPanel = gui.Panel{
+        styles = TacPanel.AllStyles(),
         width = "100%",
         height = "auto",
         flow = "vertical",
@@ -7895,7 +7888,7 @@ CharacterPanel.CreateCharacterDetailsPanel = function(m_token)
         TacPanel.SectionsContainer(),
     }
 
-    return resultPanel
+    return RegisterRoot(resultPanel)
 end
 
 function CharacterPanel.DecorateHitpointsPanel()
@@ -8593,7 +8586,7 @@ CharacterPanel.CreateMultiEdit = function()
 		return multiEditBaseFunction()
 	end
 
-	return TacPanel.MultiEdit()
+	return RegisterRoot(TacPanel.MultiEdit())
 end
 
 
@@ -8752,6 +8745,7 @@ function CharacterPanel.SingleCharacterDisplaySidePanel(token)
 
 	characterDisplaySidebar = gui.Panel{
 		id = 'sidebar',
+		styles = TacPanel.AllStyles(),
 
 		width = "auto",
 		height = "auto",
@@ -8787,5 +8781,5 @@ function CharacterPanel.SingleCharacterDisplaySidePanel(token)
         TacPanel.Stamina(),
 	}
 
-	return characterDisplaySidebar
+	return RegisterRoot(characterDisplaySidebar)
 end

@@ -945,7 +945,7 @@ local CreateEditorPanel = function(fieldInfo, displayInfo, options, valueIndex, 
 
 		local minValue = fieldInfo.fieldList[1].arguments[1] or 0
 		local maxValue = fieldInfo.fieldList[1].arguments[2] or 1
-		local labelFormat = "%.1f"
+		local labelFormat = "%.2f"
 
 		if maxValue >= 100 then
 			labelFormat = "%d"
@@ -953,8 +953,8 @@ local CreateEditorPanel = function(fieldInfo, displayInfo, options, valueIndex, 
 
 		local fieldOptions = fieldInfo.fieldList[1].options
 
-		local sliderWidth = options.sliderWidth or 240
-		local labelWidth = options.labelWidth or 40
+		local sliderWidth = options.sliderWidth or 220
+		local labelWidth = options.labelWidth or 60
 		editorPanel = gui.Slider{
 			value = fieldInfo.fieldList[1]:GetValue(valueIndex),
 			minValue = minValue,
@@ -1170,7 +1170,7 @@ local CreateEditorPanel = function(fieldInfo, displayInfo, options, valueIndex, 
 			hmargin = 4,
 			height = cond(multiline, "auto", 24),
 			minHeight = 24,
-			width = 260,
+			width = 180,
 			events = {
 				change = function(element)
 					local groupid = dmhub.GenerateGuid()
@@ -1346,6 +1346,7 @@ local CreateFieldEditor = function(fieldInfo, options)
 							floating = true,
 							halign = "right",
 							valign = "center",
+                            rmargin = 16,
 							escapeActivates = false,
 							click = function(element)
 								local groupid = dmhub.GenerateGuid()

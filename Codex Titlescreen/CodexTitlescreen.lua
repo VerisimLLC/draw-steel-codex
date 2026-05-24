@@ -1276,6 +1276,22 @@ local function CreateGameEditor(options)
                 },
 
                 gui.Button {
+                    text = "Restore Old Version...",
+                    halign = "left",
+                    valign = "bottom",
+                    fontSize = 16,
+                    height = 32,
+                    width = 180,
+                    -- PITR rollback is only wired up for Durable-Object-backed
+                    -- games (release + staging). Local games don't run the
+                    -- rollback endpoints, and Firebase games don't have PITR.
+                    hidden = m_game.storage ~= 1 and m_game.storage ~= 2,
+                    press = function(element)
+                        RunRestoreOldVersionDialog(element.root, m_game)
+                    end,
+                },
+
+                gui.Button {
                     text = "Delete Game",
                     halign = "right",
                     valign = "bottom",
@@ -1443,6 +1459,514 @@ function RunMigrateToDOModal(root, game)
             if closeBtn ~= nil then closeBtn.interactable = true end
         end,
     })
+end
+
+-- Show the "Restore Old Version..." dialog. Lets the user pick a point in
+-- the past (preset duration or custom day/time) OR a previously-saved
+-- named bookmark, then performs a Cloudflare PITR rollback via
+-- lobby:PerformRollback. The two-call rollback/finalize round-trip is
+-- handled inside the C# bridge; this dialog only drives the target
+-- selection and surfaces progress.
+--
+-- Cloudflare's PITR window is 30 days, so durations longer than that are
+-- rejected up front with a friendly error message.
+function RunRestoreOldVersionDialog(root, game)
+    local DURATION_OPTIONS = {
+        { id = "5m",    text = "5 minutes ago",  seconds = 5 * 60 },
+        { id = "10m",   text = "10 minutes ago", seconds = 10 * 60 },
+        { id = "20m",   text = "20 minutes ago", seconds = 20 * 60 },
+        { id = "30m",   text = "30 minutes ago", seconds = 30 * 60 },
+        { id = "1h",    text = "1 hour ago",     seconds = 60 * 60 },
+        { id = "2h",    text = "2 hours ago",    seconds = 2 * 60 * 60 },
+        { id = "3h",    text = "3 hours ago",    seconds = 3 * 60 * 60 },
+        { id = "4h",    text = "4 hours ago",    seconds = 4 * 60 * 60 },
+        { id = "6h",    text = "6 hours ago",    seconds = 6 * 60 * 60 },
+        { id = "8h",    text = "8 hours ago",    seconds = 8 * 60 * 60 },
+        { id = "12h",   text = "12 hours ago",   seconds = 12 * 60 * 60 },
+        { id = "18h",   text = "18 hours ago",   seconds = 18 * 60 * 60 },
+        { id = "1d",    text = "1 day ago",      seconds = 86400 },
+        { id = "2d",    text = "2 days ago",     seconds = 2 * 86400 },
+        { id = "3d",    text = "3 days ago",     seconds = 3 * 86400 },
+        { id = "4d",    text = "4 days ago",     seconds = 4 * 86400 },
+        { id = "5d",    text = "5 days ago",     seconds = 5 * 86400 },
+        { id = "6d",    text = "6 days ago",     seconds = 6 * 86400 },
+        { id = "7d",    text = "7 days ago",     seconds = 7 * 86400 },
+        { id = "2w",    text = "2 weeks ago",    seconds = 14 * 86400 },
+        { id = "3w",    text = "3 weeks ago",    seconds = 21 * 86400 },
+        { id = "4w",    text = "4 weeks ago",    seconds = 28 * 86400 },
+        { id = "custom",text = "Custom time...", seconds = nil },
+    }
+    local MAX_AGE_SECONDS = 30 * 86400
+
+    local m_selectedDurationId = "5m"
+    local m_customDate = nil           -- table {year, month, day, hour, min} when "custom" picked
+    local m_selectedBookmarkId = nil   -- numeric id from the bookmarks list (overrides duration)
+
+    local configurePanel
+    local progressPanel
+    local progressLabel
+    local statusLabel
+    local closeButton
+    local submitButton
+    local customDateRow
+    local bookmarksList
+    local modal
+
+    -- Build the date input row. Returns the row panel + a closure that
+    -- reads the current values into a table {year, month, day, hour, min}
+    -- or returns nil + error string if invalid.
+    local function MakeCustomDateRow()
+        local nowTbl = os.date("*t")
+        local yearInput, monthInput, dayInput, hourInput, minInput
+
+        local function makeNumberInput(initial, w)
+            return gui.Input {
+                classes = { "formInput" },
+                text = tostring(initial),
+                fontSize = 16,
+                width = w,
+                height = 28,
+                halign = "left",
+                vmargin = 0,
+                hmargin = 4,
+            }
+        end
+
+        yearInput  = makeNumberInput(nowTbl.year,  64)
+        monthInput = makeNumberInput(nowTbl.month, 40)
+        dayInput   = makeNumberInput(nowTbl.day,   40)
+        hourInput  = makeNumberInput(nowTbl.hour,  40)
+        minInput   = makeNumberInput(nowTbl.min,   40)
+
+        local function readCustomDate()
+            local y = tonumber(yearInput.text)
+            local mo = tonumber(monthInput.text)
+            local d = tonumber(dayInput.text)
+            local h = tonumber(hourInput.text)
+            local mi = tonumber(minInput.text)
+            if y == nil or mo == nil or d == nil or h == nil or mi == nil then
+                return nil, "Please enter numbers in every date/time field."
+            end
+            if mo < 1 or mo > 12 then return nil, "Month must be between 1 and 12." end
+            if d < 1 or d > 31 then return nil, "Day must be between 1 and 31." end
+            if h < 0 or h > 23 then return nil, "Hour must be between 0 and 23." end
+            if mi < 0 or mi > 59 then return nil, "Minute must be between 0 and 59." end
+            return { year = y, month = mo, day = d, hour = h, min = mi }
+        end
+
+        local panel = gui.Panel {
+            width = "80%",
+            height = "auto",
+            halign = "center",
+            flow = "horizontal",
+            vmargin = 6,
+            classes = { "hidden" },
+
+            gui.Label { text = "Year",  width = "auto", height = "auto", fontSize = 14, valign = "center" },
+            yearInput,
+            gui.Label { text = "Mo",    width = "auto", height = "auto", fontSize = 14, valign = "center", hmargin = 4 },
+            monthInput,
+            gui.Label { text = "Day",   width = "auto", height = "auto", fontSize = 14, valign = "center", hmargin = 4 },
+            dayInput,
+            gui.Label { text = "Hour",  width = "auto", height = "auto", fontSize = 14, valign = "center", hmargin = 4 },
+            hourInput,
+            gui.Label { text = "Min",   width = "auto", height = "auto", fontSize = 14, valign = "center", hmargin = 4 },
+            minInput,
+        }
+        return panel, readCustomDate
+    end
+
+    local readCustomDate
+    customDateRow, readCustomDate = MakeCustomDateRow()
+
+    -- Build the list of named bookmarks (filled in by an async call after
+    -- the dialog opens). Each row is clickable and selects that bookmark
+    -- as the rollback target; selecting a row clears the duration choice.
+    bookmarksList = gui.Panel {
+        width = "80%",
+        height = 140,
+        halign = "center",
+        flow = "vertical",
+        vscroll = true,
+        bgimage = "panels/square.png",
+        bgcolor = "#00000040",
+        cornerRadius = 4,
+        borderWidth = 1,
+        borderColor = "#444444",
+
+        gui.Label {
+            id = "bookmarksLoading",
+            text = "Loading saved bookmarks...",
+            width = "auto",
+            height = "auto",
+            halign = "center",
+            valign = "center",
+            fontSize = 14,
+            color = "#888888",
+        },
+    }
+
+    local function FormatBookmarkTimestamp(ms)
+        if ms == nil then return "?" end
+        local secs = math.floor(ms / 1000)
+        return os.date("%Y-%m-%d %H:%M:%S", secs)
+    end
+
+    local function PopulateBookmarks(rows, err)
+        if bookmarksList == nil or not bookmarksList.valid then return end
+        local newChildren = {}
+        if err ~= nil then
+            newChildren[#newChildren + 1] = gui.Label {
+                text = "Could not load bookmarks: " .. tostring(err),
+                width = "auto",
+                height = "auto",
+                halign = "center",
+                fontSize = 14,
+                color = "#ff8888",
+            }
+        elseif rows == nil or #rows == 0 then
+            newChildren[#newChildren + 1] = gui.Label {
+                text = "No saved bookmarks for this game.",
+                width = "auto",
+                height = "auto",
+                halign = "center",
+                fontSize = 14,
+                color = "#888888",
+            }
+        else
+            for _, bm in ipairs(rows) do
+                local bmId = bm.id
+                local kind = bm.kind or "user"
+                local label = string.format("%s  -  %s%s",
+                    bm.name or "(unnamed)",
+                    FormatBookmarkTimestamp(bm.createdAt),
+                    kind == "auto-undo" and "  [auto-undo]" or "")
+                local row
+                row = gui.Panel {
+                    width = "95%",
+                    height = 24,
+                    halign = "left",
+                    flow = "horizontal",
+                    hpad = 6,
+                    borderBox = true,
+                    bgimage = "panels/square.png",
+                    bgcolor = "clear",
+                    styles = {
+                        { selectors = { "hover" }, bgcolor = "#ffffff20" },
+                        { selectors = { "selected" }, bgcolor = "#5588cc60" },
+                    },
+                    click = function(element)
+                        -- Clear duration selection, mark this row selected.
+                        m_selectedBookmarkId = bmId
+                        m_selectedDurationId = nil
+                        if bookmarksList ~= nil and bookmarksList.valid then
+                            for _, child in ipairs(bookmarksList.children) do
+                                child:SetClass("selected", child == element)
+                            end
+                        end
+                        if statusLabel ~= nil and statusLabel.valid then
+                            statusLabel.text = "Bookmark selected. Press Submit to roll back."
+                            statusLabel.color = "#88ccff"
+                        end
+                    end,
+
+                    gui.Label {
+                        -- interactable=false so the click reaches the row
+                        -- Panel above instead of being swallowed by the label.
+                        interactable = false,
+                        text = label,
+                        width = "auto",
+                        height = "auto",
+                        fontSize = 14,
+                        valign = "center",
+                        color = kind == "auto-undo" and "#aaaaff" or Styles.textColor,
+                    },
+                }
+                newChildren[#newChildren + 1] = row
+            end
+        end
+        bookmarksList.children = newChildren
+    end
+
+    -- Build the timestamp (in ms since epoch) that we'll roll back to,
+    -- given the current dialog state. Returns (ms, nil) on success or
+    -- (nil, errorString) on validation failure.
+    local function ResolveTimestampMs()
+        local opt = nil
+        for _, o in ipairs(DURATION_OPTIONS) do
+            if o.id == m_selectedDurationId then opt = o break end
+        end
+        if opt == nil then
+            return nil, "Pick a rollback time."
+        end
+        local nowSecs = os.time()
+        if opt.id == "custom" then
+            local date, err = readCustomDate()
+            if date == nil then return nil, err end
+            local targetSecs = os.time(date)
+            if targetSecs == nil then
+                return nil, "Could not parse that date. Try different values."
+            end
+            if targetSecs >= nowSecs then
+                return nil, "Custom time must be in the past."
+            end
+            if (nowSecs - targetSecs) > MAX_AGE_SECONDS then
+                return nil, "Rollback can only go back up to 30 days."
+            end
+            return targetSecs * 1000, nil
+        else
+            local targetSecs = nowSecs - opt.seconds
+            return targetSecs * 1000, nil
+        end
+    end
+
+    -- Submit handler. Builds the rollback options table and kicks off
+    -- lobby:PerformRollback. Hides the configure controls, shows the
+    -- progress panel until completion.
+    local function DoSubmit()
+        local options
+        if m_selectedBookmarkId ~= nil then
+            options = {
+                bookmarkId = m_selectedBookmarkId,
+                note = "Rollback initiated from settings dialog",
+            }
+        else
+            local ms, err = ResolveTimestampMs()
+            if ms == nil then
+                statusLabel.text = err or "Invalid selection"
+                statusLabel.color = "#ff8888"
+                return
+            end
+            options = {
+                timestampMs = ms,
+                note = "Rollback initiated from settings dialog",
+            }
+        end
+
+        configurePanel:SetClass("hidden", true)
+        progressPanel:SetClass("hidden", false)
+        progressLabel.text = "Starting rollback..."
+        progressLabel.color = Styles.textColor
+        submitButton:SetClass("hidden", true)
+        closeButton.interactable = false
+        closeButton.text = "Close"
+
+        options.progress = function(status, pct)
+            if progressLabel ~= nil and progressLabel.valid then
+                progressLabel.text = string.format("%s (%d%%)", status, math.floor((pct or 0) * 100))
+            end
+        end
+        options.complete = function(success, detail)
+            if progressLabel ~= nil and progressLabel.valid then
+                if success then
+                    progressLabel.text = "Rollback complete!"
+                    progressLabel.color = "#88ff88"
+                else
+                    progressLabel.text = "Rollback failed: " .. tostring(detail or "unknown error")
+                    progressLabel.color = "#ff8888"
+                end
+            end
+            if closeButton ~= nil and closeButton.valid then
+                closeButton.interactable = true
+            end
+        end
+
+        lobby:PerformRollback(game.gameid, options)
+    end
+
+    local explanation = gui.Label {
+        text = "This restores the game to an earlier point in time using Cloudflare's " ..
+               "point-in-time recovery. Choose how far back to go (up to 30 days) or " ..
+               "pick a saved bookmark. Any changes made since that point will be lost. " ..
+               "An 'undo' bookmark of the current state will be saved automatically so " ..
+               "you can recover from a mistaken rollback.",
+        width = "80%",
+        height = "auto",
+        halign = "center",
+        textAlignment = "left",
+        fontSize = 14,
+        vmargin = 8,
+    }
+
+    local durationDropdown = gui.Dropdown {
+        styles = ThemeEngine.GetStyles("default", "default"),
+        width = "80%",
+        height = 32,
+        halign = "center",
+        fontSize = 16,
+        options = DURATION_OPTIONS,
+        idChosen = m_selectedDurationId,
+        change = function(element)
+            m_selectedDurationId = element.idChosen
+            m_selectedBookmarkId = nil
+            customDateRow:SetClass("hidden", element.idChosen ~= "custom")
+            if bookmarksList ~= nil and bookmarksList.valid then
+                for _, child in ipairs(bookmarksList.children) do
+                    child:SetClass("selected", false)
+                end
+            end
+        end,
+    }
+
+    statusLabel = gui.Label {
+        text = "",
+        width = "80%",
+        height = "auto",
+        halign = "center",
+        fontSize = 14,
+        color = "#ff8888",
+        vmargin = 4,
+    }
+
+    configurePanel = gui.Panel {
+        width = "100%",
+        height = "auto",
+        halign = "center",
+        flow = "vertical",
+        vmargin = 4,
+
+        explanation,
+
+        gui.Label {
+            text = "Roll back to:",
+            width = "80%", height = "auto", halign = "center",
+            fontSize = 16, textAlignment = "left", tmargin = 4,
+        },
+        durationDropdown,
+        customDateRow,
+
+        gui.Label {
+            text = "Or restore to a saved bookmark (click a row, then press Submit):",
+            width = "80%", height = "auto", halign = "center",
+            fontSize = 16, textAlignment = "left", tmargin = 12,
+        },
+        bookmarksList,
+
+        statusLabel,
+    }
+
+    progressLabel = gui.Label {
+        text = "",
+        width = "80%",
+        height = "auto",
+        halign = "center",
+        valign = "center",
+        textAlignment = "center",
+        fontSize = 18,
+        color = Styles.textColor,
+    }
+
+    progressPanel = gui.Panel {
+        width = "100%",
+        height = "auto",
+        halign = "center",
+        valign = "center",
+        flow = "vertical",
+        classes = { "hidden" },
+
+        progressLabel,
+    }
+
+    submitButton = gui.Button {
+        text = "Submit",
+        halign = "center",
+        height = 40,
+        width = 140,
+        fontSize = 20,
+        bold = true,
+        hmargin = 8,
+        click = function(element)
+            DoSubmit()
+        end,
+    }
+
+    closeButton = gui.Button {
+        text = "Cancel",
+        halign = "center",
+        height = 40,
+        width = 140,
+        fontSize = 18,
+        hmargin = 8,
+        escapeActivates = true,
+        click = function(element)
+            modal:DestroySelf()
+        end,
+    }
+
+    modal = gui.Panel {
+        floating = true,
+        width = "100%",
+        height = "100%",
+        bgcolor = "clear",
+        bgimage = true,
+        styles = {
+            Styles.Default,
+            Styles.Panel,
+            gui.Style {
+                selectors = { "input" },
+                width = "auto",
+                fontSize = 16,
+                borderWidth = 1,
+                borderColor = Styles.textColor,
+            },
+        },
+
+        gui.Panel {
+            classes = { "framedPanel" },
+            bgimage = true,
+            width = 800,
+            height = 900,
+            halign = "center",
+            valign = "center",
+            flow = "vertical",
+
+            gui.Label {
+                classes = { "dialogTitle" },
+                text = "Restore Old Version",
+                halign = "center",
+                valign = "top",
+                width = "auto",
+                height = "auto",
+                fontSize = 32,
+                textAlignment = "center",
+            },
+
+            gui.Divider {
+                tmargin = 4,
+                bmargin = 8,
+            },
+
+            configurePanel,
+            progressPanel,
+
+            gui.Panel {
+                width = "80%",
+                height = "auto",
+                halign = "center",
+                valign = "bottom",
+                flow = "horizontal",
+                vmargin = 16,
+                submitButton,
+                closeButton,
+            },
+
+            gui.CloseButton {
+                floating = true,
+                halign = "right",
+                valign = "top",
+                press = function(element)
+                    modal:DestroySelf()
+                end,
+            },
+        },
+    }
+
+    root:AddChild(modal)
+
+    -- Fire off the bookmark list query. Callback resolves asynchronously.
+    lobby:ListRollbackBookmarks(game.gameid, function(rows, err)
+        PopulateBookmarks(rows, err)
+    end)
 end
 
 -- Show a modal dialog that runs MigrateGameToStagingDurableObjects for the

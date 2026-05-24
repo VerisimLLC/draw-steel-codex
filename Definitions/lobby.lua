@@ -22,6 +22,20 @@ function lobby:MigrateGameToDurableObjects(gameid, options)
 	-- dummy implementation for documentation purposes only
 end
 
+--- ListRollbackBookmarks: List rollback bookmarks for a Durable-Object-backed game. The callback receives (bookmarks, error). On success bookmarks is a list of {id, name, bookmark, createdAt, kind, note, createdBy} tables; on failure bookmarks is nil and error is a string.
+--- @param gameid string The id of the game.
+--- @param callback function Callback receiving (bookmarks, error).
+function lobby:ListRollbackBookmarks(gameid, callback)
+	-- dummy implementation for documentation purposes only
+end
+
+--- PerformRollback: Roll back a Durable-Object-backed game to a prior point in time using Cloudflare PITR. Options must include exactly one rollback target: 'name' (string), 'bookmarkId' (number), 'bookmark' (string), or 'timestampMs' (number). Optional fields: 'note' (string), 'progress' (function(status, pct)), 'complete' (function(success, errorOrUndoBookmark)).
+--- @param gameid string The id of the game.
+--- @param options table Target + callbacks.
+function lobby:PerformRollback(gameid, options)
+	-- dummy implementation for documentation purposes only
+end
+
 --- MigrateGameToStagingDurableObjects: Migrate an existing Firebase-backed game to the staging Cloudflare Durable Object. Same semantics as MigrateGameToDurableObjects, but targets the staging Worker rather than release. Options table can contain 'progress' (function called with status and progress 0-1) and 'complete' (function called with success bool and optional error string).
 --- @param gameid string The id of the game to migrate.
 --- @param options table Options with optional 'progress' and 'complete' callback fields.

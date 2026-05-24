@@ -84,6 +84,67 @@ for _,choice in ipairs(g_triggerChoices) do
     g_idToTriggerChoice[choice.id] = choice
 end
 
+--Apply the controlling creature's Modify Abilities modifiers to the trigger's
+--effective range. Only the "range" attribute flows through (other Modify
+--Abilities aspects don't apply to triggers, by design).
+--
+--Keyword filter: the Modify Abilities mod's keyword set must be a subset of the
+--trigger's powerRollModifier.keywords (the keywords describing what abilities
+--the trigger reacts to). Empty keyword filter matches every trigger.
+--
+--filterAbility GoblinScript: if set on the Modify Abilities mod, the mod is
+--skipped -- triggers aren't abilities, so the filter can't be evaluated.
+local function ComputeTriggerRange(modifier, creature)
+    local range = modifier.range
+    if range == nil or range == "" then
+        return range
+    end
+
+    local triggerKeywords = modifier.powerRollModifier:try_get("keywords", {})
+
+    local modifiers = creature:GetActiveModifiers()
+    for _, modContext in ipairs(modifiers) do
+        local m = modContext.mod
+        if m.behavior == "modifyability"
+            and m:try_get("filterAbility", "") == ""
+            and m:try_get("applyToPowerRollTriggers", true) then
+            local pass = true
+            for kw, _ in pairs(m:try_get("keywords", {})) do
+                if not triggerKeywords[kw] then
+                    pass = false
+                    break
+                end
+            end
+
+            if pass then
+                for _, attr in ipairs(m:try_get("attributes", {})) do
+                    if attr.id == "range" then
+                        local value = dmhub.EvalGoblinScript(attr.value,
+                            GenerateSymbols(creature), "Calculate Trigger Range Modifier")
+                        local val = nil
+                        if attr.operation == "Set" then
+                            val = tonumber(value)
+                        elseif attr.operation == "Multiply" then
+                            val = tonum(range) * tonum(value)
+                        else
+                            if type(range) == "string" and tonumber(range) == nil then
+                                val = string.format("(%s) + (%s)", range, value)
+                            else
+                                val = tonum(range) + tonum(value)
+                            end
+                        end
+                        if val ~= nil then
+                            range = val
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    return range
+end
+
 CharacterModifier.RegisterType("powertabletrigger", "Power Roll Trigger")
 
 CharacterModifier.TypeInfo.powertabletrigger = {
@@ -158,9 +219,10 @@ CharacterModifier.TypeInfo.powertabletrigger = {
         end
 
         if not selfIsTarget and self.range ~= "" then
-            --range check.
+            --range check (with Modify Abilities range mods applied).
+            local effectiveRange = ComputeTriggerRange(self, token.properties)
             local distance = token:Distance(triggerTarget)
-            if tonumber(distance) > ExecuteGoblinScript(self.range, token.properties:LookupSymbol{}, 0) then
+            if tonumber(distance) > ExecuteGoblinScript(effectiveRange, token.properties:LookupSymbol{}, 0) then
                 return
             end
         end
@@ -296,9 +358,10 @@ CharacterModifier.TypeInfo.powertabletrigger = {
         end
 
         if not selfIsTarget and self.range ~= "" then
-            --range check.
+            --range check (with Modify Abilities range mods applied).
+            local effectiveRange = ComputeTriggerRange(self, token.properties)
             local distance = token:Distance(triggerTarget)
-            if tonumber(distance) > ExecuteGoblinScript(self.range, token.properties:LookupSymbol{}, 0) then
+            if tonumber(distance) > ExecuteGoblinScript(effectiveRange, token.properties:LookupSymbol{}, 0) then
                 return false
             end
         end

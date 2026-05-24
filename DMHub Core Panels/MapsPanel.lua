@@ -311,6 +311,9 @@ local CreateMapNode = function(map)
 		classes = {"row", "map", "hoverable"},
 		flow = "vertical",
 		draggable = true,
+        vmargin = 0,
+        tmargin = 0,
+        bmargin = 0,
 
 		refreshMaps = function(element)
 			element:SetClass("selected", map.valid and map.id == game.currentMapId)

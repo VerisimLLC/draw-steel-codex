@@ -6,7 +6,7 @@
 --- @field blend string Video blend mode: 'add' or 'alpha'.
 --- @field hsv LuaVector4 HSV colour shift applied to a video effect.
 --- @field particleName string For kind == 'particle': name of the ParticleSystem in TokenEffectIndex.particles.
---- @field worldSimulation boolean For kind == 'particle': force World simulation space so particles trail in place as the effect is moved (needed for a teleport travelEffect).
+--- @field worldSimulation boolean For kind == 'particle': force World simulation space so particles trail in place as the effect is moved. Needed for a teleport travelEffect, especially rate-over-distance emitters.
 --- @field tint Color Tint colour applied to the effect.
 --- @field scale number Scale multiplier applied on top of the per-call scale.
 --- @field soundEvent string Optional sound-event id fed to audio.FireSoundEvent. Empty = silent.

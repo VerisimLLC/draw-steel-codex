@@ -1748,6 +1748,7 @@ function gui.Slider(args)
 			classes = {"sliderLabel"},
 			editable = true,
 			format = formatStr,
+            textWrap = false,
 			style = {
 				halign = 'right',
 				valign = 'center',

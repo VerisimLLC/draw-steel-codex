@@ -8679,12 +8679,61 @@ end
 --}
 --
 --- @return {modifier: CharacterModifier, available: boolean, resources: string, ability: TriggeredAbility}
+--Run the creature's Modify Abilities pass on a single ability, mirroring the
+--per-ability loop in GetActivatedAbilities (MCDMCreature.lua) so triggered
+--abilities pick up the same modifications as activated ones. Returns the
+--(possibly cloned) ability, or nil if a modifier rejected it.
+--
+--context: optional. "triggered" filters out modifyability mods that have
+--applyToTriggeredAbilities = false (defaults true for back-compat).
+function creature:ApplyAbilityModifiers(ability, modifiers, context)
+	modifiers = modifiers or self:GetActiveModifiers()
+	for _,mod in ipairs(modifiers) do
+		local skip = false
+		if context == "triggered"
+			and mod.mod.behavior == "modifyability"
+			and not mod.mod:try_get("applyToTriggeredAbilities", true) then
+			skip = true
+		end
+
+		if not skip then
+			ability = mod.mod:ModifyAbility(mod, self, ability)
+			if ability == nil then
+				return nil
+			end
+
+			local variations = ability:GetVariations()
+			if variations ~= nil then
+				for i = 1,#variations do
+					mod.mod:ModifyAbility(mod, self, variations[i])
+				end
+			end
+		end
+	end
+	return ability
+end
+
 function creature:GetTriggeredAbilities()
 	local mods = self:GetActiveModifiers()
 	local result = {}
 
 	for i,mod in ipairs(mods) do
 		mod.mod:FillTriggeredAbilities(mod, self, result)
+	end
+
+	local j = 1
+	for i = 1,#result do
+		local entry = result[i]
+		local modified = self:ApplyAbilityModifiers(entry.ability, mods, "triggered")
+		if modified ~= nil then
+			entry.ability = modified
+			result[j] = entry
+			j = j + 1
+		end
+	end
+	while j <= #result do
+		result[j] = nil
+		j = j + 1
 	end
 
 	return result

@@ -16,6 +16,7 @@ gui.KeywordSelector = function(args)
             children[#children+1] = gui.Panel{
                 classes = {"formPanel"},
                 data = {ord = keyword},
+                flow = "none",
                 width = 200,
                 height = 14,
                 minHeight = 14,
@@ -29,6 +30,7 @@ gui.KeywordSelector = function(args)
                 gui.DeleteItemButton{
                     width = 12,
                     height = 12,
+                    valign = "center",
                     halign = "right",
                     click = function(element)
                         keywords[keyword] = nil

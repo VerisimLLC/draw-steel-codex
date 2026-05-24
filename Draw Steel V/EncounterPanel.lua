@@ -303,6 +303,39 @@ local function createGroupPanel(encounter)
                             for monsterid, quantity in pairs(group.monsters) do
                                 local monster = assets.monsters[monsterid]
 
+                                local squadSizeLabel
+                                if monster ~= nil and monster.properties.minion then
+                                    squadSizeLabel = gui.Label{
+                                        text = string.format(" (Squads of %d)", group.squadSize or 4),
+                                        classes = {"link"},
+                                        fontSize = 12,
+                                        valign = "center",
+                                        create = function (element)
+                                            element:FireEvent("refresh", quantity)
+                                        end,
+                                        press = function(element)
+                                            group.squadSize = (group.squadSize or 4) + 4
+                                            if group.squadSize > element.data.quantity then
+                                                group.squadSize = 4
+                                            end
+
+                                            element:FireEvent("refresh", element.data.quantity)
+                                        end,
+                                        refresh = function(element, newQuantity)
+                                            element.data.quantity = newQuantity
+                                            if newQuantity < 8 then
+                                                element:SetClass("hidden", true)
+                                                return
+                                            else
+                                                element:SetClass("hidden", false)
+                                            end
+
+                                            element.text = string.format(" (Squads of %d)", group.squadSize or 4)
+                                        end,
+                                    }
+                                end
+
+
                                 panels[#panels + 1] = gui.Panel {
 
                                     flow = "horizontal",
@@ -336,6 +369,10 @@ local function createGroupPanel(encounter)
                                             end
 
                                             self.text = group.monsters[monsterid]
+
+                                            if squadSizeLabel ~= nil then
+                                                squadSizeLabel:FireEvent("refresh", group.monsters[monsterid])
+                                            end
                                         end
 
                                     },
@@ -346,9 +383,9 @@ local function createGroupPanel(encounter)
                                         height = "auto",
                                         fontSize = 16,
                                         text = string.format("X %s", creature.GetTokenDescription(monster)),
-
                                     },
 
+                                    squadSizeLabel,
                                 }
                             end
 

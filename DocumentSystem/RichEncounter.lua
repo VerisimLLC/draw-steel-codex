@@ -205,25 +205,33 @@ function RichEncounter.CreateDisplay(self)
             self.spawns = {}
             for _,group in ipairs(self.encounter:CloneForNumberOfHeroes().groups) do
                 local minionName = nil
+                local nsquads = 1
                 for monsterid,quantity in pairs(group.monsters) do
                     local monster = assets.monsters[monsterid]
                     if monster ~= nil and monster.properties:IsMonster() and monster.properties.minion then
                         minionName = monster.properties.monster_type
+                        if quantity >= 8 then
+                            nsquads = math.ceil(quantity / (group.squadSize or 4))
+                        end
                         break
                     end
                 end
 
-                local squadName = nil
+                local squadNames = nil
+                local nminions = 0
 
                 if minionName ~= nil then
                     --find a name for the squad.
-                    squadName = monster.FindFreshSquadName(minionName)
+                    squadNames = {}
+                    for i=1,nsquads do
+                        squadNames[#squadNames+1] = monster.FindFreshSquadName(minionName)
+                    end
                 end
 
                 local groupid = dmhub.GenerateGuid()
                 local index = 1
+                local nsquad = 1
                 for monsterid,quantity in pairs(group.monsters) do
-                    print("SPAWN:: SPAWNING", monsterid, quantity)
 
                     for i=1,quantity do
                         local loc = (group.spawnlocs or {})[index] or (group.spawnlocs or {})[1]
@@ -267,8 +275,13 @@ function RichEncounter.CreateDisplay(self)
                                 end
                             end
 
-                            if squadName ~= nil then
-                                token.properties.minionSquad = squadName
+                            if squadNames~= nil then
+
+                                token.properties.minionSquad = squadNames[nsquad]
+                                nsquad = nsquad + 1
+                                if nsquad > #squadNames then
+                                    nsquad = 1
+                                end
                             end
 
                             token:UploadToken()
@@ -343,7 +356,6 @@ function RichEncounter.CreateDisplay(self)
         create = function(element)
             if element.data.monitorid == nil then
                 element.data.monitorid = dmhub.RegisterEventHandler("spawnFromBestiary", function(charids)
-                    print("SPAWN::", element:HasClass("focus"), charids)
                     if not element:HasClass("focus") then
                         return
                     end
@@ -355,7 +367,6 @@ function RichEncounter.CreateDisplay(self)
                         self._tmp_document:Upload()
                     end
 
-                    print("SPAWN:: QUEUE:", dmhub.initiativeQueue ~= nil and not dmhub.initiativeQueue.hidden)
                 end)
 
             end

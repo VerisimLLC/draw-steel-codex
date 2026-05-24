@@ -742,8 +742,11 @@ function monster.OnCreateFromBestiary(self, token, groupid)
         g_groupIndex = g_groupIndex + 1
     end
 
+    local minionName = nil
+
     --get the encounter this is being spawned from (if any).
     local assignToSquad = self.minion
+    local numSquads = 1
     local encounter = dmhub.GetSelectedEncounter()
     if encounter ~= nil and (encounter.groups or {})[g_groupIndex] ~= nil then
         local group = encounter.groups[g_groupIndex]
@@ -752,14 +755,17 @@ function monster.OnCreateFromBestiary(self, token, groupid)
             self.minHeroes = group.minHeroes
         end
 
-        if not assignToSquad then
-            --see if this is grouped with minions in which case make it a captain.
-            for monsterid, _ in pairs(group.monsters or {}) do
-                local monsterInfo = assets.monsters[monsterid]
-                if monsterInfo ~= nil and monsterInfo.properties:IsMonster() and monsterInfo.properties.minion then
-                    assignToSquad = true
-                    break
+        --see if this is grouped with minions in which case make it a captain.
+        for monsterid, quantity in pairs(group.monsters or {}) do
+            local monsterInfo = assets.monsters[monsterid]
+            if monsterInfo ~= nil and monsterInfo.properties:IsMonster() and monsterInfo.properties.minion then
+                assignToSquad = true
+                minionName = monsterInfo.properties.monster_type
+
+                if quantity >= 8 and (group.squadSize or 4) < quantity then
+                    numSquads = math.ceil(quantity / (group.squadSize or 4))
                 end
+                break
             end
         end
     end
@@ -777,10 +783,16 @@ function monster.OnCreateFromBestiary(self, token, groupid)
 
         --try to assign our minion to a fresh squad of undamaged minions.
         if g_lastSquadId == nil then
-            g_lastSquadId = monster.FindFreshSquadName(self.monster_type)
+            g_lastSquadId = {}
+            for i=1,numSquads do
+                g_lastSquadId[i] = monster.FindFreshSquadName(minionName or self.monster_type)
+            end
         end
 
-        self.minionSquad = g_lastSquadId
+        self.minionSquad = g_lastSquadId[1]
+        local squadid = g_lastSquadId[1]
+        table.remove(g_lastSquadId, 1)
+        g_lastSquadId[#g_lastSquadId + 1] = squadid
     end
 
     g_lastGroupId = groupid
@@ -795,7 +807,6 @@ function monster.FindFreshSquadName(monster_type)
             g_minionSquadTables[squadid] = {
                 name = squadid,
             }
-            g_lastSquadId = squadid
             g_lastSquadMonsterType = monster_type
             g_lastSquadGameUpdate = dmhub.gameupdateid
             --this is a fresh squad to put our minion into.

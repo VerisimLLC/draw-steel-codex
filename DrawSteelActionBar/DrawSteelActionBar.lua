@@ -2245,6 +2245,11 @@ end
 -- per-creature line-of-effect cap on either token (e.g. Dazzled). LoE limits
 -- are stored as a square count, so they're scaled to dmhub units to match
 -- range. Returns nil only if range is also nil.
+--
+-- Altitude difference between source and target eats into the horizontal reach
+-- the arrow can show: each square of vertical separation removes one square
+-- from the effective horizontal range, so the arrow greys earlier (and is
+-- entirely grey when altitude alone exceeds the range).
 local function EffectiveArrowRange(sourceToken, targetToken, range)
     local function loeUnits(tok)
         if tok == nil or tok.properties == nil then return nil end
@@ -2260,6 +2265,10 @@ local function EffectiveArrowRange(sourceToken, targetToken, range)
     end
     if targetUnits ~= nil and (effective == nil or targetUnits < effective) then
         effective = targetUnits
+    end
+    if effective ~= nil and sourceToken ~= nil and targetToken ~= nil then
+        local altDiffUnits = math.abs(sourceToken.altitude - targetToken.altitude) * dmhub.unitsPerSquare
+        effective = math.max(0, effective - altDiffUnits)
     end
     return effective
 end
@@ -2298,10 +2307,16 @@ local function AddModifierLabelsToMarker(markers, sourceToken, targetToken, abil
     -- fires when distance >= range + unitsPerSquare (i.e. `not (range+1 > d)`).
     -- Use the same boundary here so a "just out of range" target (distance
     -- exactly range + 1 square, the common Chebyshev-grid case) still gets
-    -- the label.
-    if range ~= nil and targetToken:Distance(sourceToken) >= range + dmhub.unitsPerSquare then
-        markers:AddLabel("Out of Range", "forbidden")
-        return
+    -- the label. Altitude separation counts against the same range budget,
+    -- so a target on the same floor-plan tile but well above/below is still
+    -- flagged as out of range.
+    if range ~= nil then
+        local horizDist = targetToken:Distance(sourceToken)
+        local altDiffUnits = math.abs(sourceToken.altitude - targetToken.altitude) * dmhub.unitsPerSquare
+        if horizDist + altDiffUnits >= range + dmhub.unitsPerSquare then
+            markers:AddLabel("Out of Range", "forbidden")
+            return
+        end
     end
 
     local modifiers = sourceToken.properties:DescribeModifiersOnTarget(ability, targetToken)
@@ -5911,12 +5926,19 @@ local function CalculateSpellTargetFocusing(symbols)
                         end
                     end
 
-                    --vertical range check: targets at a different altitude beyond the ability's range are out of range.
+                    --altitude range check: altitude separation eats into the same range budget as
+                    --horizontal distance, so a target that is fine on the 2D check can still be out
+                    --of range once the vertical separation is added in. Mirrors EffectiveArrowRange
+                    --and AddModifierLabelsToMarker so the arrow greying, the "Out of Range" label
+                    --and the strict-targeting block all agree.
                     if failReason == nil and spell.targetType ~= "areatemplate" and (not g_token.properties.minion) then
-                        local verticalDist = math.abs(g_token.altitude - targetToken.altitude) * dmhub.unitsPerSquare
-                        if verticalDist >= range + dmhub.unitsPerSquare then
-                            local altDiff = math.abs(g_token.altitude - targetToken.altitude)
-                            failReason = string.format("Out of range (altitude difference: %d)", altDiff)
+                        local altDiff = math.abs(g_token.altitude - targetToken.altitude)
+                        if altDiff > 0 then
+                            local horizDist = targetToken:Distance(casterLocOverride or g_token)
+                            local altDiffUnits = altDiff * dmhub.unitsPerSquare
+                            if horizDist + altDiffUnits >= range + dmhub.unitsPerSquare then
+                                failReason = string.format("Out of range (altitude difference: %d)", altDiff)
+                            end
                         end
                     end
 

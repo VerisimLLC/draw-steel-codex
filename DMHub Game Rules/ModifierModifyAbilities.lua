@@ -590,7 +590,7 @@ CharacterModifier.TypeInfo.modifyability = {
 			local children = {}
 
 			if not modifier:try_get("unconditional") then
-				children[#children+1] = modifier:FilterConditionEditor("filterAbility")
+				children[#children+1] = modifier:FilterConditionEditor("filterAbility", Refresh)
 			end
 
 			children[#children+1] = gui.Panel{
@@ -625,6 +625,32 @@ CharacterModifier.TypeInfo.modifyability = {
                     Refresh()
                 end,
             }
+
+            children[#children+1] = gui.Check{
+				styles = ThemeEngine.GetStyles(),
+                text = "Apply to Triggered Abilities",
+                value = modifier:try_get("applyToTriggeredAbilities", true),
+                change = function(element)
+                    modifier.applyToTriggeredAbilities = element.value
+                    Refresh()
+                end,
+            }
+
+            --Power roll triggers can't honor the filterAbility GoblinScript
+            --(no ability to evaluate it against), so hide the toggle when a
+            --filter is set. Re-renders on the next Refresh() after the filter
+            --field changes.
+            if modifier:try_get("filterAbility", "") == "" then
+                children[#children+1] = gui.Check{
+                    styles = ThemeEngine.GetStyles(),
+                    text = "Apply to Power Roll Triggers",
+                    value = modifier:try_get("applyToPowerRollTriggers", true),
+                    change = function(element)
+                        modifier.applyToPowerRollTriggers = element.value
+                        Refresh()
+                    end,
+                }
+            end
 
 			local actions = DeepCopy(CharacterResource.GetActionOptions())
 			actions[#actions+1] = {

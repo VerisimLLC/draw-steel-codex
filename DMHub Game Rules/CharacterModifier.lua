@@ -2740,7 +2740,11 @@ function CharacterModifier:PriorityEditor()
 
 end
 
-function CharacterModifier:FilterConditionEditor(fieldName)
+--onChange: optional callback invoked after the field is updated. Editors that
+--render conditionally on the filter value (e.g. Modify Abilities hides its
+--"Apply to Power Roll Triggers" toggle when filterAbility is set) can pass
+--their Refresh() to live-update when the user edits the GoblinScript.
+function CharacterModifier:FilterConditionEditor(fieldName, onChange)
 	fieldName = fieldName or "filterCondition"
 
 	local documentation = nil
@@ -2799,6 +2803,9 @@ function CharacterModifier:FilterConditionEditor(fieldName)
 					self[fieldName] = nil
 				else
 					self[fieldName] = element.value
+				end
+				if onChange ~= nil then
+					onChange()
 				end
 			end,
 
@@ -3782,7 +3789,12 @@ function CharacterModifier:TriggerEvent(creature, eventName, info, modContext, d
 				info[k] = v
 			end
 		end
-		self.triggeredAbility:Trigger(self, creature, info, nil, modContext, {debugLog = debugLog, remote = (localFilter == "skipLocal")})
+
+		--apply the creature's Modify Abilities pass so an auto-fired trigger
+		--respects the same modifications as the manual-cast / display version
+		--(GetActivatedAbilities{manualTriggers=true} already does this).
+		local ability = creature:ApplyAbilityModifiers(self.triggeredAbility, nil, "triggered") or self.triggeredAbility
+		ability:Trigger(self, creature, info, nil, modContext, {debugLog = debugLog, remote = (localFilter == "skipLocal")})
 		return true
 	end
 

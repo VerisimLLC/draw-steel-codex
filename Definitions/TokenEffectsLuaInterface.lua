@@ -2,7 +2,7 @@
 TokenEffectsLuaInterface = {}
 
 --- Register: Register a new token effect from a table definition.
---- @param table table The effect properties (id, kind, video|particleName, scale, blend, playbackSpeed, hsv, tint, soundEvent, duration, light).
+--- @param table table The effect properties (id, kind, video|particleName, worldSimulation, scale, blend, playbackSpeed, hsv, tint, soundEvent, duration, light, delay, windup, travelTime, travelEffect).
 function TokenEffectsLuaInterface:Register(table)
 	-- dummy implementation for documentation purposes only
 end

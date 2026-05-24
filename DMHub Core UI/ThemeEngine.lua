@@ -65,6 +65,22 @@ local _activeSchemeSetting = setting{
     default = "default",
 }
 
+-- User-created color schemes are persisted (as a JSON array) on the user's
+-- account, so they follow the user across machines, separate from the built-in
+-- schemes registered by DefaultStyles.lua. The account object (and thus this
+-- setting) loads as a unit before the codex mod runs, so LoadUserColorSchemes()
+-- at load time sees them. The creator UI is only reachable when logged in, so
+-- there is always an account to read from / write to.
+local _userSchemesSetting = setting{
+    id = "themeengine_userschemes",
+    storage = "account",
+    default = "[]",
+}
+
+-- Reserved scheme id used by the theme-creator UI for its live preview while
+-- the user is still editing (before they save).
+local PREVIEW_SCHEME_ID = "__usercreate_preview__"
+
 local _cache = {}                -- "themeId|schemeId" -> resolved styles array
 local _loggedUnresolved = {}     -- set of "domain:name" keys already logged
 
@@ -628,6 +644,171 @@ function ThemeEngine.RestoreActiveSelection()
     _fireThemeChanged()
 end
 
+-- =============================================================================
+-- Public API -- User-created color schemes (persisted per-user)
+-- =============================================================================
+
+-- The color tokens the theme-creator UI exposes for editing. Status colors
+-- (success / info / warning / danger) and implStatus* are intentionally left
+-- out so they stay semantically consistent across schemes.
+ThemeEngine.userColorKeys = {
+    "bg", "bgAlt", "bgInverse",
+    "fg", "fgStrong", "fgMuted", "fgInverse",
+    "border", "borderInverse",
+    "accent", "accentHover",
+    "disabled",
+}
+
+-- Hard cap on how many custom color schemes a user may create. Enforced as a
+-- backstop in SaveUserColorScheme and gated in the creator UI (the "Create
+-- New..." entry is hidden once the user is at the cap).
+ThemeEngine.maxUserColorSchemes = 6
+
+-- Upsert a user color scheme directly into the registry, bypassing the
+-- duplicate-id guard and the in-use deregister refusal so an existing custom
+-- scheme can be edited in place. Clears the resolved-styles cache.
+local function _upsertUserDef(def)
+    _colorSchemes[def.id] = {
+        id = def.id,
+        name = def.name,
+        description = def.description or "Custom color scheme.",
+        colors = def.colors or {},
+        gradients = {},
+    }
+    _cache = {}
+end
+
+--- Returns the array of persisted user color-scheme defs ({id, name, colors}).
+--- Guarded against missing / malformed stored data.
+--- @return table[]
+function ThemeEngine.GetUserColorSchemes()
+    local raw = _userSchemesSetting:Get()
+    if type(raw) ~= "string" or raw == "" then
+        return {}
+    end
+    local parsed = dmhub.FromJson(raw)
+    if not parsed.success or type(parsed.result) ~= "table" then
+        return {}
+    end
+    return parsed.result
+end
+
+--- True if id names a user-created (deletable) scheme, as opposed to a built-in.
+--- @param id string
+--- @return boolean
+function ThemeEngine.IsUserColorScheme(id)
+    for _, d in ipairs(ThemeEngine.GetUserColorSchemes()) do
+        if d.id == id then
+            return true
+        end
+    end
+    return false
+end
+
+--- Returns the fully-resolved color table for a scheme (the merged
+--- [default, scheme] colors). Used to seed a new custom theme from the
+--- currently-chosen palette. Unknown / nil ids resolve to the default palette.
+--- @param schemeId string|nil
+--- @return table map of token -> hex
+function ThemeEngine.GetColorSchemeColors(schemeId)
+    return _buildColorTable(schemeId)
+end
+
+--- Persist and (re-)register a user color scheme. If a def with the same id
+--- already exists it is overwritten (edit in place, always allowed). Adding a
+--- NEW scheme beyond ThemeEngine.maxUserColorSchemes is refused. Fires the
+--- theme-changed event so any open UI reflects the new colors immediately.
+--- @param def table { id, name, description?, colors }
+--- @return boolean saved -- false if the per-user cap was hit (new schemes only)
+function ThemeEngine.SaveUserColorScheme(def)
+    local list = ThemeEngine.GetUserColorSchemes()
+    local replaced = false
+    for i, d in ipairs(list) do
+        if d.id == def.id then
+            list[i] = def
+            replaced = true
+            break
+        end
+    end
+    if not replaced then
+        if #list >= ThemeEngine.maxUserColorSchemes then
+            -- At the cap; refuse to add a new scheme. Editing an existing one
+            -- (the replaced branch above) is always allowed.
+            return false
+        end
+        list[#list + 1] = def
+    end
+    _userSchemesSetting:Set(dmhub.ToJson(list))
+    _upsertUserDef(def)
+    _fireThemeChanged()
+    return true
+end
+
+--- Remove a user color scheme. If it was the active scheme, the active
+--- selection falls back to default. No-op for the default scheme.
+--- @param id string
+function ThemeEngine.DeleteUserColorScheme(id)
+    if id == DEFAULT_SCHEME_ID then
+        return
+    end
+    local list = ThemeEngine.GetUserColorSchemes()
+    local out = {}
+    for _, d in ipairs(list) do
+        if d.id ~= id then
+            out[#out + 1] = d
+        end
+    end
+    _userSchemesSetting:Set(dmhub.ToJson(out))
+
+    _colorSchemes[id] = nil
+    _cache = {}
+
+    if _activeSchemeId == id then
+        ThemeEngine.SetActiveColorScheme(DEFAULT_SCHEME_ID)
+    end
+    _fireThemeChanged()
+end
+
+--- Register every persisted user color scheme. Called once at load (from
+--- DefaultStyles.lua) before RestoreActiveSelection so a saved active scheme
+--- pick resolves to the real scheme rather than falling back to default.
+function ThemeEngine.LoadUserColorSchemes()
+    for _, def in ipairs(ThemeEngine.GetUserColorSchemes()) do
+        if type(def) == "table" and type(def.id) == "string" then
+            _upsertUserDef(def)
+        end
+    end
+end
+
+-- =============================================================================
+-- Public API -- Live preview scheme (used by the theme-creator UI)
+-- =============================================================================
+
+--- Register / update a transient color scheme used only for previewing
+--- in-progress edits. Returns its reserved id so the caller can pass it to
+--- GetStyles(themeId, schemeId). Clears the cache so the preview re-resolves.
+--- @param colors table map of token -> hex
+--- @return string previewSchemeId
+function ThemeEngine.SetPreviewColorScheme(colors)
+    _colorSchemes[PREVIEW_SCHEME_ID] = {
+        id = PREVIEW_SCHEME_ID,
+        name = "Preview",
+        description = "Transient preview scheme.",
+        colors = colors or {},
+        gradients = {},
+    }
+    _cache = {}
+    return PREVIEW_SCHEME_ID
+end
+
+--- Remove the transient preview scheme. Safe to call when none exists.
+function ThemeEngine.ClearPreviewColorScheme()
+    if _colorSchemes[PREVIEW_SCHEME_ID] ~= nil then
+        _colorSchemes[PREVIEW_SCHEME_ID] = nil
+        _cache = {}
+    end
+end
+
 --- Register a callback to run whenever the active theme or active color scheme changes.
 --- The callback receives no arguments. The returned entry has a `Deregister()` method
 --- for explicit unsubscribe; the handler is also automatically removed when the caller's
@@ -639,30 +820,40 @@ function ThemeEngine.OnThemeChanged(callingMod, callback)
     return EventUtils.RegisterGlobalEventHandler(callingMod, THEME_CHANGED_EVENT, callback)
 end
 
---- List registered themes for UI pickers.
+-- Ids beginning with "__" are reserved for internal / transient registrations
+-- (e.g. the creator's live-preview scheme) and must never surface in UI pickers.
+local function _isInternalId(id)
+    return type(id) == "string" and string.sub(id, 1, 2) == "__"
+end
+
+--- List registered themes for UI pickers. Internal "__"-prefixed ids are skipped.
 --- @return table[] themes Array of { id, name, description }
 function ThemeEngine.ListThemes()
     local out = {}
     for _, theme in pairs(_themes) do
-        out[#out + 1] = {
-            id = theme.id,
-            name = theme.name,
-            description = theme.description,
-        }
+        if not _isInternalId(theme.id) then
+            out[#out + 1] = {
+                id = theme.id,
+                name = theme.name,
+                description = theme.description,
+            }
+        end
     end
     return out
 end
 
---- List registered color schemes for UI pickers.
+--- List registered color schemes for UI pickers. Internal "__"-prefixed ids are skipped.
 --- @return table[] schemes Array of { id, name, description }
 function ThemeEngine.ListColorSchemes()
     local out = {}
     for _, scheme in pairs(_colorSchemes) do
-        out[#out + 1] = {
-            id = scheme.id,
-            name = scheme.name,
-            description = scheme.description,
-        }
+        if not _isInternalId(scheme.id) then
+            out[#out + 1] = {
+                id = scheme.id,
+                name = scheme.name,
+                description = scheme.description,
+            }
+        end
     end
     return out
 end

@@ -2627,6 +2627,94 @@ ThemeEngine.RegisterColorScheme{
     },
 }
 
+-- =============================================================================
+-- My Favorite Colors color scheme
+--
+-- A springtime garden at dusk: dark leaf-shadow surfaces so the blooms pop,
+-- new-leaf cream-green body text, a sunlit pale-yellow for headings, and a
+-- vivid blossom-pink accent with rose-pink chrome -- budding flowers
+-- everywhere. Status colors stay semantic (and conveniently supply the
+-- leaf-green and pollen-yellow the brief asks for).
+-- =============================================================================
+
+ThemeEngine.RegisterColorScheme{
+    id          = "my-favorite-colors",
+    name        = "My Favorite Colors",
+    description = "Springtime garden at dusk: dark surfaces with blossom-pink, leaf-green, and pollen-yellow.",
+    colors = {
+        -- Surfaces (dark garden soil / leaf shadow so the blooms pop)
+        bg            = "#10140D",
+        bgAlt         = "#1C231A",
+        bgInverse     = "#F6DCE7",
+
+        -- Foreground / text (new-leaf green body, sunlit yellow highlight)
+        fg            = "#DCE6C4",
+        fgStrong      = "#F4F1D2",
+        fgMuted       = "#90A074",
+        fgPending     = "#6C7A56",
+        fgInverse     = "#1A0F16",
+
+        -- Borders (rose-pink rim -- flower edges across the chrome)
+        border        = "#C97FA8",
+        borderInverse = "#3A2A33",
+
+        -- Accent + interactive (vivid blossom pink)
+        accent        = "#E85C9E",
+        accentHover   = "#F58CBE",
+
+        -- Status (kept semantic; success/info already read as spring green/yellow)
+        success       = "#6BA84F",
+        info          = "#E9C868",
+        warning       = "#E08A2E",
+        danger        = "#C73131",
+
+        -- Disabled
+        disabled      = "#2A3328",
+    },
+    gradients = {
+        -- Diagonal dusk wash: a hint of twilight plum at the top-left
+        -- settling into deep leaf shadow at the bottom-right.
+        surfaceLinear = {
+            point_a = {x = 0, y = 0},
+            point_b = {x = 1, y = 1},
+            stops = {
+                {position = 0, color = "#2A1C2E"},
+                {position = 1, color = "#080C06"},
+            },
+        },
+        -- Soft warm vignette: the centre lifts toward green-gold, like late
+        -- sun through the canopy, then falls back to the surface.
+        surfaceRadial = {
+            type = "radial",
+            point_a = {x = 0.5, y = 0.5},
+            point_b = {x = 0.5, y = 1.0},
+            stops = {
+                {position = -0.01, color = "#28311C"},
+                {position = 0.00,  color = "#28311C"},
+                {position = 0.25,  color = "#1E2818"},
+                {position = 0.50,  color = "#171F12"},
+                {position = 0.75,  color = "#12180D"},
+                {position = 1.00,  color = "#10140D"},
+            },
+        },
+        -- Title-bar track: dark stem-green on the left blooming into deep
+        -- rose on the right.
+        barTrack = {
+            point_a = {x = -0.02, y = 0},
+            point_b = {x = 1.02,  y = 0},
+            stops = {
+                {position = 0, color = "#10140D"},
+                {position = 1, color = "#7E2E58"},
+            },
+        },
+    },
+}
+
+-- Register any user-created custom schemes (persisted per-user on this machine)
+-- so they exist before the active selection is restored -- otherwise a saved
+-- active pick of a custom scheme would fall back to default.
+ThemeEngine.LoadUserColorSchemes()
+
 -- After schemes and themes are registered, restore the user's
 -- saved selections (defaults to "default" / "default" if they
 -- haven't picked anything yet).

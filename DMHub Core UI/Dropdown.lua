@@ -91,6 +91,10 @@ function gui.Dropdown(args)
 	local npopup = 0
  
 	local m_idToIndex = {}
+	-- Maps a submenu CHILD option's id to its display text, so the collapsed
+	-- dropdown label can resolve a submenu selection. m_idToIndex only covers
+	-- top-level options (submenu children are not in m_options).
+	local m_idToText = {}
 
 	local m_keybinds = nil
 
@@ -109,8 +113,12 @@ function gui.Dropdown(args)
 			element:FireEvent("refreshDropdown")
 		end,
 		refreshDropdown = function(element)
-			if textOverride == nil and m_idChosen ~= nil and m_idToIndex[m_idChosen] ~= nil then
+			if textOverride ~= nil then
+				element.text = textOverride
+			elseif m_idChosen ~= nil and m_idToIndex[m_idChosen] ~= nil then
 				element.text = m_options[m_idToIndex[m_idChosen]].text
+			elseif m_idChosen ~= nil and m_idToText[m_idChosen] ~= nil then
+				element.text = m_idToText[m_idChosen]
 			else
 				element.text = textOverride or textDefault
 			end
@@ -421,6 +429,7 @@ function gui.Dropdown(args)
 			local hasCopy = false
 			m_options = op
 			m_idToIndex = {}
+			m_idToText = {}
 
 			local keybinds = nil
  
@@ -441,6 +450,10 @@ function gui.Dropdown(args)
 			
 				if m_options[i].submenu == nil then
 					m_idToIndex[m_options[i].id] = i
+				else
+					for _,subOption in ipairs(m_options[i].submenu) do
+						m_idToText[subOption.id] = subOption.text
+					end
 				end
 
 				if m_options[i].keybind ~= nil then

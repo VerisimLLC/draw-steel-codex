@@ -164,7 +164,7 @@ local ShowObjectTooltip = function(element)
 					children = {
 						gridPanel,
 						gui.Panel{
-							bgimage = node.thumbnailId,
+							bgimageStreamed = node.thumbnailId,
 							selfStyle = {
 								width = imageDim,
 								height = imageDim,
@@ -458,7 +458,7 @@ local function CreateObjectEntry(nodeid, parentElement, options)
 
 
 	local objImagePanel = gui.Panel{
-		bgimage = node.thumbnailId,
+		bgimageStreamed = node.thumbnailId,
 
 		bgcolor = 'white',
 		halign = 'center',
@@ -608,7 +608,7 @@ local function CreateObjectEntry(nodeid, parentElement, options)
 
 			refreshAssets = function(element)
 				node = assets:GetObjectNode(nodeid)
-				objImagePanel.bgimage = node.thumbnailId
+				objImagePanel.bgimageStreamed = node.thumbnailId
 
 				if element:HasClass('focus') then
 					element:FireEvent('focus')
@@ -798,7 +798,6 @@ local function CreateObjectEntry(nodeid, parentElement, options)
 
             --make it so when you mouse over an object in the palette, instances on the map highlight.
 			hover = function(element)
-				ShowObjectTooltip(element)
                 local nhighlights = 0
 
                 local objects = game.currentFloor.objects
@@ -811,6 +810,13 @@ local function CreateObjectEntry(nodeid, parentElement, options)
                 end
 
                 element.data.nhighlights = nhighlights
+			end,
+
+			--Defer the tooltip preview until the user dwells on the entry, since each tooltip
+			--can load a multi-megapixel thumbnail texture and a fast scan of the palette would
+			--otherwise exhaust GPU memory.
+			linger = function(element)
+				ShowObjectTooltip(element)
 			end,
 
 			dehover = function(element)

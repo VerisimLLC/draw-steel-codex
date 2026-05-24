@@ -205,18 +205,44 @@ CharacterModifier.RegisterAbilityModifier
 		text = "Range",
 		operations = { "Add", "Multiply", "Set" },
 		set = function(modifier, creature, ability, operation, value)
-			local val = nil
+			-- Burst abilities use ability.range as burst radius, not as a distance.
+			-- The "Burst Size" attribute handles those.
+			if ability.targetType == "all" then
+				return true
+			end
+
 			value = dmhub.EvalGoblinScript(value, GenerateSymbols(creature, modifier:try_get("_tmp_symbols")), "Calculate Range Modifier")
+
+			-- For line abilities, "range" means the within-distance (ability.lineDistance),
+			-- not the line length (ability.range). Cube abilities already store their
+			-- within-distance in ability.range, so no special case is needed there.
+			if ability.targetType == "line" then
+				local cur = ability.lineDistance
+				if operation == "Set" then
+					ability.lineDistance = tonumber(value)
+				elseif operation == "Multiply" then
+					ability.lineDistance = tonum(cur) * tonum(value)
+				else
+					if type(cur) == "string" and tonumber(cur) == nil then
+						ability.lineDistance = string.format("(%s) + (%s)", cur, value)
+					else
+						ability.lineDistance = tonum(cur) + tonum(value)
+					end
+				end
+				return true
+			end
+
+			local val = nil
 			if operation == "Set" then
 				val = tonumber(value)
 			elseif operation == "Multiply" then
 				val = tonum(ability.range) * tonum(value)
 			else
-                if type(ability.range) == "string" and tonumber(ability.range) == nil then
-                    val = string.format("(%s) + (%s)", ability.range, value)
-                else
-				    val = tonum(ability.range) + tonum(value)
-                end
+				if type(ability.range) == "string" and tonumber(ability.range) == nil then
+					val = string.format("(%s) + (%s)", ability.range, value)
+				else
+					val = tonum(ability.range) + tonum(value)
+				end
 			end
 
 			if val ~= nil then
@@ -284,6 +310,162 @@ CharacterModifier.RegisterAbilityModifier
 			return true
 		end,
 	}
+
+CharacterModifier.RegisterAbilityModifier
+	{
+		id = "burstsize",
+		text = "Burst Size",
+		operations = { "Add", "Multiply", "Set" },
+		set = function(modifier, creature, ability, operation, value)
+			if ability.targetType ~= "all" then
+				return true
+			end
+			local val = nil
+			value = dmhub.EvalGoblinScript(value, GenerateSymbols(creature, modifier:try_get("_tmp_symbols")), "Calculate Burst Size Modifier")
+			if operation == "Set" then
+				val = tonumber(value)
+			elseif operation == "Multiply" then
+				val = tonum(ability.range) * tonum(value)
+			else
+				if type(ability.range) == "string" and tonumber(ability.range) == nil then
+					val = string.format("(%s) + (%s)", ability.range, value)
+				else
+					val = tonum(ability.range) + tonum(value)
+				end
+			end
+
+			if val ~= nil then
+				ability.range = val
+			end
+			return true
+		end,
+		documentation = {
+			help = "This GoblinScript is applied to the burst radius of burst-type (Area: All) abilities this modifier affects.",
+			output = "number",
+			examples = {
+				{
+					script = "1",
+					text = "1 is added to the burst radius.",
+				},
+				{
+					script = "2 when level > 5",
+					text = "2 is added to the burst radius when the creature is above level 5.",
+				},
+			},
+			subject = creature.helpSymbols,
+			subjectDescription = "The creature that is affected by this modifier",
+			symbols = {
+				ability = {
+					name = "Ability",
+					type = "ability",
+					desc = "The ability being modified",
+				},
+			},
+		},
+	}
+
+CharacterModifier.RegisterAbilityModifier
+	{
+		id = "cubeedge",
+		text = "Cube Edge",
+		operations = { "Add", "Multiply", "Set" },
+		set = function(modifier, creature, ability, operation, value)
+			if ability.targetType ~= "cube" then
+				return true
+			end
+			local val = nil
+			value = dmhub.EvalGoblinScript(value, GenerateSymbols(creature, modifier:try_get("_tmp_symbols")), "Calculate Cube Edge Modifier")
+			local currentRadius = ability:try_get("radius")
+			if operation == "Set" then
+				val = tonumber(value)
+			elseif operation == "Multiply" then
+				val = tonum(currentRadius) * tonum(value)
+			else
+				if type(currentRadius) == "string" and tonumber(currentRadius) == nil then
+					val = string.format("(%s) + (%s)", currentRadius, value)
+				else
+					val = tonum(currentRadius) + tonum(value)
+				end
+			end
+
+			if val ~= nil then
+				ability.radius = val
+			end
+			return true
+		end,
+		documentation = {
+			help = "This GoblinScript is applied to the edge length of cube-type abilities this modifier affects.",
+			output = "number",
+			examples = {
+				{
+					script = "1",
+					text = "1 is added to the cube edge length.",
+				},
+				{
+					script = "2 when level > 5",
+					text = "2 is added to the cube edge length when the creature is above level 5.",
+				},
+			},
+			subject = creature.helpSymbols,
+			subjectDescription = "The creature that is affected by this modifier",
+			symbols = {
+				ability = {
+					name = "Ability",
+					type = "ability",
+					desc = "The ability being modified",
+				},
+			},
+		},
+	}
+
+CharacterModifier.RegisterAbilityModifier
+{
+	id = "linedimensions",
+	text = "Line Dimensions",
+	operations = { "Add", "Multiply", "Set" },
+	set = function(modifier, creature, ability, attr)
+		if ability.targetType ~= "line" then
+			return true
+		end
+		local symbols = GenerateSymbols(creature, modifier:try_get("_tmp_symbols"))
+		local operation = attr.operation or "Add"
+
+		local lengthValue = attr.lengthValue or ""
+		if lengthValue ~= "" then
+			local length = tonum(dmhub.EvalGoblinScript(lengthValue, symbols, "Calculate Line Length Modifier"))
+			if operation == "Set" then
+				ability.range = length
+			elseif operation == "Multiply" then
+				ability.range = tonum(ability.range) * length
+			else
+				if type(ability.range) == "string" and tonumber(ability.range) == nil then
+					ability.range = string.format("(%s) + (%s)", ability.range, lengthValue)
+				else
+					ability.range = tonum(ability.range) + length
+				end
+			end
+		end
+
+		local widthValue = attr.widthValue or ""
+		if widthValue ~= "" then
+			local width = tonum(dmhub.EvalGoblinScript(widthValue, symbols, "Calculate Line Width Modifier"))
+			local currentRadius = ability:try_get("radius")
+			if operation == "Set" then
+				ability.radius = width
+			elseif operation == "Multiply" then
+				ability.radius = tonum(currentRadius) * width
+			else
+				if type(currentRadius) == "string" and tonumber(currentRadius) == nil then
+					ability.radius = string.format("(%s) + (%s)", currentRadius, widthValue)
+				else
+					ability.radius = tonum(currentRadius) + width
+				end
+			end
+		end
+
+		return true
+	end,
+}
 
 CharacterModifier.RegisterAbilityModifier
 	{
@@ -527,7 +709,7 @@ CharacterModifier.TypeInfo.modifyability = {
 		for i,attr in ipairs(modifier.attributes) do
 			local info = abilityModifierOptionsById[attr.id]
 			if info ~= nil then
-				if attr.id == "targettype" or attr.id == "modkeywords" or attr.id == "reasonfilter" or attr.id == "modproperties" then
+				if attr.id == "targettype" or attr.id == "modkeywords" or attr.id == "reasonfilter" or attr.id == "modproperties" or attr.id == "linedimensions" then
 					info.set(modifier, creature, ability, attr)
 				else
 					info.set(modifier, creature, ability, attr.operation, attr.value, attr.condition)
@@ -1060,6 +1242,93 @@ CharacterModifier.TypeInfo.modifyability = {
 										attr.properties = value
 										Refresh()
 									end,
+								},
+							}
+						elseif attr.id == "linedimensions" then
+							local lineLengthDoc = {
+								domains = modifier:Domains(),
+								help = "This GoblinScript is applied to the length of line-type abilities this modifier affects.",
+								output = "number",
+								examples = {
+									{
+										script = "1",
+										text = "1 is added to the line length.",
+									},
+									{
+										script = "2 when level > 5",
+										text = "2 is added to the line length when the creature is above level 5.",
+									},
+								},
+								subject = creature.helpSymbols,
+								subjectDescription = "The creature that is affected by this modifier",
+								symbols = {
+									ability = {
+										name = "Ability",
+										type = "ability",
+										desc = "The ability being modified",
+									},
+								},
+							}
+							local lineWidthDoc = {
+								domains = modifier:Domains(),
+								help = "This GoblinScript is applied to the width of line-type abilities this modifier affects.",
+								output = "number",
+								examples = {
+									{
+										script = "1",
+										text = "1 is added to the line width.",
+									},
+									{
+										script = "2 when level > 5",
+										text = "2 is added to the line width when the creature is above level 5.",
+									},
+								},
+								subject = creature.helpSymbols,
+								subjectDescription = "The creature that is affected by this modifier",
+								symbols = {
+									ability = {
+										name = "Ability",
+										type = "ability",
+										desc = "The ability being modified",
+									},
+								},
+							}
+							children[#children+1] = gui.Panel{
+								classes = {"formPanel"},
+								height = "auto",
+								gui.Label{
+									classes = {"formLabel"},
+									text = "Length:",
+								},
+								gui.GoblinScriptInput{
+									height = "auto",
+									width = 360,
+									fontSize = 16,
+									value = attr.lengthValue or "",
+									change = function(element)
+										modifier.attributes[i].lengthValue = element.value
+										Refresh()
+									end,
+									documentation = lineLengthDoc,
+								},
+							}
+							children[#children+1] = gui.Panel{
+								classes = {"formPanel"},
+								height = "auto",
+								gui.Label{
+									classes = {"formLabel"},
+									text = "Width:",
+								},
+								gui.GoblinScriptInput{
+									height = "auto",
+									width = 360,
+									fontSize = 16,
+									value = attr.widthValue or "",
+									change = function(element)
+										modifier.attributes[i].widthValue = element.value
+										Refresh()
+									end,
+									documentation = lineWidthDoc,
 								},
 							}
 						else

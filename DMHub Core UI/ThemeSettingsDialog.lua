@@ -47,8 +47,7 @@ local function buildSortedOptions(list)
     return rest
 end
 
-local function buildThemeOptions()  return buildSortedOptions(ThemeEngine.ListThemes())       end
-local function buildSchemeOptions() return buildSortedOptions(ThemeEngine.ListColorSchemes()) end
+local function buildThemeOptions()  return buildSortedOptions(ThemeEngine.ListThemes()) end
 
 -- Resolve a registered id to its display name; falls back to the id itself
 -- if no match (defensive -- selected ids come from these same lists).
@@ -383,11 +382,34 @@ CreateThemeSettingsDialog = function()
             end,
         }
 
-        local schemeOptions = buildSchemeOptions()
-        -- Offer "Create New..." only while under the per-user scheme cap.
-        if #ThemeEngine.GetUserColorSchemes() < ThemeEngine.maxUserColorSchemes then
-            schemeOptions[#schemeOptions + 1] = { id = "__create_new__", text = "+ Create New..." }
+        -- Top level: Default + built-in schemes (A-Z). User-created schemes go
+        -- under a "My Schemes" submenu so they don't interleave with built-ins.
+        local builtinSchemes = {}
+        for _, s in ipairs(ThemeEngine.ListColorSchemes()) do
+            if not ThemeEngine.IsUserColorScheme(s.id) then
+                builtinSchemes[#builtinSchemes + 1] = s
+            end
         end
+        local schemeOptions = buildSortedOptions(builtinSchemes)
+
+        -- "My Schemes (N/max)" submenu: the user's own schemes (A-Z), with
+        -- "+ Create New..." pinned at the bottom while under the per-user cap.
+        -- The count surfaces the cap right where user schemes live.
+        local userSchemes = ThemeEngine.GetUserColorSchemes()
+        local mySchemes = {}
+        for _, d in ipairs(userSchemes) do
+            mySchemes[#mySchemes + 1] = { id = d.id, text = d.name }
+        end
+        table.sort(mySchemes, function(a, b)
+            return string.lower(a.text) < string.lower(b.text)
+        end)
+        if #userSchemes < ThemeEngine.maxUserColorSchemes then
+            mySchemes[#mySchemes + 1] = { id = "__create_new__", text = "+ Create New..." }
+        end
+        schemeOptions[#schemeOptions + 1] = {
+            text = string.format("My Schemes (%d/%d)", #userSchemes, ThemeEngine.maxUserColorSchemes),
+            submenu = mySchemes,
+        }
 
         local pickerRow = gui.Panel{
             --[[

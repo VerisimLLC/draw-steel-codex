@@ -254,7 +254,7 @@ function MonsterAI:FindValidTargetsOfStrike(token, ability, loc, range)
         local enemy = self.enemyTokens[i]
         local canTarget = ability:TargetPassesFilter(token, enemy, {})
         if canTarget and enemy.properties:HasNamedCondition("Hidden") and ability:HasKeyword("Strike") then
-            local ignoreRange = token.properties:CalculateNamedCustomAttribute("Ignore Hidden at Range") or 0
+            local ignoreRange = token.properties:CalculateNamedCustomAttribute("Ignore Hidden Within Range") or 0
             if ignoreRange <= 0 or token:Distance(enemy) > ignoreRange + dmhub.unitsPerSquare then
                 canTarget = false
             end

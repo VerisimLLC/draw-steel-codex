@@ -5935,7 +5935,7 @@ local function CalculateSpellTargetFocusing(symbols)
                 end
 
                 if canTarget and targetToken.properties:HasNamedCondition("Hidden") and g_currentAbility:HasKeyword("Strike") then
-                    local ignoreRange = g_token.properties:CalculateNamedCustomAttribute("Ignore Hidden at Range") or 0
+                    local ignoreRange = g_token.properties:CalculateNamedCustomAttribute("Ignore Hidden Within Range") or 0
                     local bypass = false
                     if ignoreRange > 0 then
                         local dist = g_token:Distance(targetToken)

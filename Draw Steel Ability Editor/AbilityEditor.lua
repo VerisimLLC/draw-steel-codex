@@ -4587,7 +4587,347 @@ end
     on the preview tooltip, instrument its EditorItems change handlers the
     same way -- see ActivatedAbilityPowerRollBehavior:EditorItems.
 ]]
+
+--[[
+    Diagnostician chip strip
+    ----------------------------------------------------------------------
+    Editor-only surface that sits in its own panel beneath the ability
+    card. Reads structured findings out of
+    ActivatedAbilityDrawSteelCommandBehavior.DiagnoseTierText for each
+    power-roll tier and composes human-readable chips using the locked
+    copy strings from the project doc.
+
+    Status gating (Bronze+ collapse, Kind 4 suppression at Bronze+) lands
+    in a subsequent chunk; this MVP always renders every finding for every
+    status.
+
+    Chip copy templates (always tier-prefixed per the locked decision;
+    each <token> placeholder renders as bold-italic in the chip):
+      * damageType_unknown + suggestion:
+          "Tier N: Damage type <token> isn't recognized - did you mean <suggestion>?"
+      * damageType_unknown alone:
+          "Tier N: Damage type <token> isn't recognized."
+      * duration_missing:
+          "Tier N: Condition <condition> needs a duration - try (save ends), (EoT), or (EoE)."
+      * near_miss:
+          "Tier N: Did you mean <suggestion> in <segment>?"
+      * unknown_segment:
+          "Tier N: <segment> isn't being interpreted as a rule."
+
+    Em-dashes from the mockup are rendered as " - " (single ASCII hyphen)
+    because Lua source files in this project must stay ASCII.
+
+    Token emphasis uses <b><i>...</i></b> rather than backticks: backticks
+    trigger TextMeshPro code-span rendering inside DMHub which
+    letter-spaces every character ("fier" -> "f  i  e  r"). The
+    triggered ability editor hit the same problem and settled on
+    italics; we add bold on top for chip readability.
+]]
+local function _diagnosticComposeChipText(finding, tierIndex)
+    if finding == nil or finding.kind == nil then return nil end
+    local prefix = string.format("Tier %d: ", tierIndex)
+    if finding.kind == "damageType_unknown" then
+        if finding.token == nil or finding.token == "" then return nil end
+        if finding.suggestion ~= nil and finding.suggestion ~= "" then
+            return string.format("%sDamage type <b><i>%s</i></b> isn't recognized - did you mean <b><i>%s</i></b>?",
+                prefix, finding.token, finding.suggestion)
+        end
+        return string.format("%sDamage type <b><i>%s</i></b> isn't recognized.",
+            prefix, finding.token)
+    elseif finding.kind == "duration_missing" then
+        if finding.condition == nil or finding.condition == "" then return nil end
+        return string.format("%sCondition <b><i>%s</i></b> needs a duration - try <b><i>(save ends)</i></b>, <b><i>(EoT)</i></b>, or <b><i>(EoE)</i></b>.",
+            prefix, finding.condition)
+    elseif finding.kind == "near_miss" then
+        if finding.suggestion == nil or finding.segment == nil then return nil end
+        return string.format("%sDid you mean <b><i>%s</i></b> in <b><i>%s</i></b>?",
+            prefix, finding.suggestion, finding.segment)
+    elseif finding.kind == "unknown_segment" then
+        if finding.segment == nil or finding.segment == "" then return nil end
+        return string.format("%s<b><i>%s</i></b> isn't being interpreted as a rule.",
+            prefix, finding.segment)
+    end
+    return nil
+end
+
+-- Build a single chip panel for one finding. Severity drives the left
+-- border colour: warning (gold) for Kinds 1/2/3, neutral (muted) for
+-- Kind 4. Returns nil for malformed findings (logged and skipped per
+-- the agreed Chunk 3 contract).
+local function _diagnosticBuildChip(finding, tierIndex)
+    local text = _diagnosticComposeChipText(finding, tierIndex)
+    if text == nil then
+        print(string.format("PowerRollDiagnostics:: dropping malformed finding (kind=%s, tier=%d)",
+            tostring(finding and finding.kind), tierIndex))
+        return nil
+    end
+
+    local borderColor = "@warning"
+    if finding.severity == "neutral" then
+        borderColor = "@border"
+    end
+
+    local tooltipPreview = finding.tooltipPreview
+    local hover = nil
+    if tooltipPreview ~= nil and tooltipPreview ~= "" then
+        hover = gui.Tooltip(string.format("Try: %s", tooltipPreview))
+    end
+
+    return gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        halign = "left",
+        valign = "top",
+        hpad = 10,
+        vpad = 6,
+        border = {x1 = 3, x2 = 0, y1 = 0, y2 = 0},
+        borderColor = borderColor,
+        bgimage = true,
+        bgcolor = "@bg",
+        borderBox = true,
+        hover = hover,
+        gui.Label{
+            width = "100%",
+            height = "auto",
+            color = "@fg",
+            fontSize = 13,
+            textWrap = true,
+            markdown = true,
+            text = text,
+        },
+    }
+end
+
+-- Construct the full diagnostics strip for the ability's power roll
+-- tiers. Returns nil when the ability has no power-roll behaviour at
+-- all -- the strip only makes sense as commentary on a tier table.
+--
+-- options (optional):
+--   collapsed = bool|nil   - explicit collapse state. nil means
+--                            "use the status-based default": Bronze+
+--                            collapses by default, Unimplemented
+--                            expands. The caller threads this through
+--                            an upvalue so the user's click choice
+--                            survives preview refreshes.
+--   onToggle = function    - called with the new collapsed boolean
+--                            when the user clicks the rollup row.
+--
+-- Implementation-status gating (per the spec):
+--   * Bronze+ : filter out every Kind 4 (unknown_segment) finding -
+--     the author has signed off, so prose-shaped tail text isn't
+--     called out anymore. Default state is collapsed.
+--   * Unimplemented : show every kind. Default state is expanded.
+local function _diagnosticBuildStrip(ability, options)
+    if ability == nil then return nil end
+    options = options or {}
+
+    -- Find the power-roll behaviour the same way Render() does so the
+    -- strip mirrors what the preview card shows.
+    local powerTableBehavior = nil
+    for _, behavior in ipairs(ability:try_get("behaviors", {})) do
+        if behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
+            powerTableBehavior = behavior
+            break
+        end
+    end
+    if powerTableBehavior == nil or powerTableBehavior.tiers == nil then
+        return nil
+    end
+
+    local implementationStatus = ability:try_get("implementation", 1)
+    local isBronzePlus = implementationStatus >= gui.ImplementationStatus.Bronze
+
+    -- Diagnose each tier. Errors in the engine drop the strip silently
+    -- (logged) so a single bug never poisons the editor preview.
+    -- Kind 4 (unknown_segment) findings are filtered out at Bronze+:
+    -- the author has signed off so prose-shaped tail text isn't
+    -- called out anymore.
+    local tierFindings = {}
+    local totalFindings = 0
+    for i, tierText in ipairs(powerTableBehavior.tiers) do
+        local ok, findings = pcall(ActivatedAbilityDrawSteelCommandBehavior.DiagnoseTierText, tierText)
+        if not ok then
+            print(string.format("PowerRollDiagnostics:: DiagnoseTierText errored on tier %d: %s", i, tostring(findings)))
+            return nil
+        end
+        local kept = {}
+        for _, finding in ipairs(findings or {}) do
+            if not (isBronzePlus and finding.kind == "unknown_segment") then
+                kept[#kept+1] = finding
+            end
+        end
+        tierFindings[i] = kept
+        totalFindings = totalFindings + #kept
+    end
+
+    local rollupText
+    local indicatorClass
+    if totalFindings == 0 then
+        rollupText = "No issues"
+        indicatorClass = "bgSuccess"
+    elseif totalFindings == 1 then
+        rollupText = "1 issue"
+        indicatorClass = "bgWarning"
+    else
+        rollupText = string.format("%d issues", totalFindings)
+        indicatorClass = "bgWarning"
+    end
+
+    -- Initial collapse state: explicit options.collapsed wins, otherwise
+    -- fall back to the status-based default. With zero findings there
+    -- are no chips to hide so the collapsed/expanded distinction is
+    -- moot (no chevron rendered).
+    local collapsed
+    if options.collapsed ~= nil then
+        collapsed = options.collapsed
+    else
+        collapsed = isBronzePlus
+    end
+    local hasExpandableChips = totalFindings > 0
+
+    -- Build the chip list (visible iff not collapsed). Children built
+    -- fresh per preview refresh per the panel_children_rebuild memory.
+    local chipChildren = {}
+    if hasExpandableChips then
+        for tierIndex, findings in ipairs(tierFindings) do
+            for _, finding in ipairs(findings) do
+                local chip = _diagnosticBuildChip(finding, tierIndex)
+                if chip ~= nil then
+                    chipChildren[#chipChildren+1] = chip
+                end
+            end
+        end
+    end
+
+    local chipListPanel
+    if #chipChildren > 0 then
+        -- The global "collapsed" class registered by DefaultStyles
+        -- already maps to engine `collapsed = 1` (which hides the
+        -- panel and removes it from layout). Apply it inline for
+        -- the initial state; SetClass toggles it on user click.
+        chipListPanel = gui.Panel{
+            classes = collapsed and {"collapsed"} or {},
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            hpad = 8,
+            vpad = 4,
+            valign = "top",
+            halign = "left",
+            border = {x1 = 0, x2 = 0, y1 = 1, y2 = 0},
+            borderColor = "@border",
+            bgimage = true,
+            bgcolor = "clear",
+            borderBox = true,
+            children = chipChildren,
+        }
+    end
+
+    -- Chevron only appears when there are chips to expand/collapse.
+    -- Follows the established {triangle} convention from
+    -- DefaultStyles.lua:1340 / CharacterSheetSpells.lua:1380:
+    --   collapsed -> closed (rotate=90, points right)
+    --   expanded  -> open   (rotate=0, points down)
+    -- Rotation is driven by a class flip ("ds-diag-chev-expanded")
+    -- with rules defined inline. Class-based switching is more
+    -- reliable than runtime mutation of selfStyle.rotate, which
+    -- in earlier testing produced inconsistent visual rotation
+    -- after a collapse-expand-collapse cycle.
+    local chevronPanel
+    if hasExpandableChips then
+        chevronPanel = gui.Panel{
+            classes = collapsed and {"triangle"} or {"triangle", "ds-diag-chev-expanded"},
+            halign = "left",
+            styles = {
+                { selectors = {"triangle"}, rotate = 90 },
+                { selectors = {"triangle", "ds-diag-chev-expanded"}, rotate = 0 },
+            },
+        }
+    end
+
+    -- Rollup row: (chevron when expandable) + indicator dot + label.
+    -- Chevron leads per the established disclosure layout.
+    -- Click handler on the row acts as the expand/collapse toggle.
+    local rollupChildren = {}
+    if chevronPanel ~= nil then
+        rollupChildren[#rollupChildren+1] = chevronPanel
+    end
+    rollupChildren[#rollupChildren+1] = gui.Panel{
+        classes = {indicatorClass},
+        width = 8,
+        height = 8,
+        cornerRadius = 4,
+        valign = "center",
+        halign = "left",
+        bgimage = true,
+    }
+    rollupChildren[#rollupChildren+1] = gui.Label{
+        width = "auto",
+        height = "auto",
+        lmargin = 10,
+        valign = "center",
+        halign = "left",
+        color = totalFindings == 0 and "@success" or "@fg",
+        fontSize = 13,
+        bold = totalFindings > 0,
+        text = rollupText,
+    }
+
+    local rollupRow
+    rollupRow = gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "horizontal",
+        valign = "center",
+        halign = "left",
+        hpad = 12,
+        vpad = 8,
+        borderBox = true,
+        click = hasExpandableChips and function(element)
+            collapsed = not collapsed
+            if chipListPanel ~= nil then
+                chipListPanel:SetClass("collapsed", collapsed)
+            end
+            if chevronPanel ~= nil then
+                chevronPanel:SetClass("ds-diag-chev-expanded", not collapsed)
+            end
+            if options.onToggle then
+                options.onToggle(collapsed)
+            end
+        end or nil,
+        children = rollupChildren,
+    }
+
+    local stripChildren = { rollupRow }
+    if chipListPanel ~= nil then
+        stripChildren[#stripChildren+1] = chipListPanel
+    end
+
+    return gui.Panel{
+        classes = {"bordered"},
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        valign = "top",
+        halign = "left",
+        tmargin = 8,
+        bgimage = true,
+        bgcolor = "@bgAlt",
+        borderColor = "@border",
+        borderBox = true,
+        children = stripChildren,
+    }
+end
+
 local function _makePreview(ability)
+    -- Diagnostics strip collapse state lives here so a tier edit
+    -- doesn't reset whatever the author clicked. When implementation
+    -- status changes (e.g. Unimplemented -> Bronze) we reset to the
+    -- new status's default per the locked decision.
+    local diagnosticsCollapsed = nil
+    local diagnosticsLastStatus = nil
+
     local previewSlot
     previewSlot = gui.Panel{
         id = "previewSlot",
@@ -4629,7 +4969,25 @@ local function _makePreview(ability)
             })
             if ok and cardOrErr ~= nil then
                 fixTooltipAlignment(cardOrErr)
-                element.children = {
+                -- Diagnostics strip lives in its own panel beneath the
+                -- card (sibling, not embedded) so it's clear it isn't
+                -- part of what the player sees. nil when the ability
+                -- has no power-roll behaviour, in which case we just
+                -- render the card alone. Status changes reset the
+                -- collapse state to the new status's default per the
+                -- locked Chunk 4 decision.
+                local currentStatus = ability:try_get("implementation", 1)
+                if diagnosticsLastStatus ~= currentStatus then
+                    diagnosticsCollapsed = nil
+                    diagnosticsLastStatus = currentStatus
+                end
+                local diagnosticsPanel = _diagnosticBuildStrip(ability, {
+                    collapsed = diagnosticsCollapsed,
+                    onToggle = function(newCollapsed)
+                        diagnosticsCollapsed = newCollapsed
+                    end,
+                })
+                local children = {
                     gui.Panel{
                         width = "100%",
                         height = "auto",
@@ -4641,6 +4999,10 @@ local function _makePreview(ability)
                         children = { cardOrErr },
                     },
                 }
+                if diagnosticsPanel ~= nil then
+                    children[#children+1] = diagnosticsPanel
+                end
+                element.children = children
             else
                 element.children = {
                     gui.Label{

@@ -1890,12 +1890,9 @@ local showShareModuleDialog = function(options)
 
 	local rightPublishingPanel
 
-	local pastePreviewImageButton = gui.PrettyButton{
+	local pastePreviewImageButton = gui.Button{
 		text = 'Paste Image',
-		classes = {cond(dmhub.HaveImageInClipboard(), nil, 'collapsed')},
-		width = 160,
-		height = 40,
-		fontSize = 14,
+		classes = {"sizeL", cond(dmhub.HaveImageInClipboard(), nil, 'collapsed')},
 		halign = "center",
 		click = function(element)
 			if not dmhub.HaveImageInClipboard() then
@@ -4378,13 +4375,11 @@ mod.shared.ShowExportDialog = function()
 	local settingsContainer
 
 	local exportButton
-	exportButton = gui.PrettyButton{
+	exportButton = gui.Button{
+		classes = {"sizeL"},
 		text = 'Export Map',
-		width = 240,
-		height = 70,
 		halign = 'center',
 		valign = 'center',
-		fontSize = 28,
 		events = {
 			click = function(element)
 				if exportType == "image" then
@@ -4429,7 +4424,6 @@ mod.shared.ShowExportDialog = function()
 						complete = function()
 							settingsContainer.children = {
 								gui.Label{
-									fontSize = 14,
 									text = "Export Complete",
 									width = "auto",
 									height = "auto",
@@ -4616,6 +4610,7 @@ mod.shared.ShowExportDialog = function()
 		},
 		gui.Input{
 			width = 100,
+			hmargin = 8,
 			text = tostring(tourWidth),
 			change = function(element)
 				if tonumber(element.text) == nil then
@@ -4633,6 +4628,7 @@ mod.shared.ShowExportDialog = function()
 		},
 		gui.Input{
 			width = 100,
+			hmargin = 8,
 			text = tostring(tourHeight),
 			change = function(element)
 				if tonumber(element.text) == nil then
@@ -4658,6 +4654,8 @@ mod.shared.ShowExportDialog = function()
 
 		gui.Dropdown{
 			idChosen = hz,
+			width = 200,
+			hmargin = 8,
 			options = {
 				{
 					id = "60",
@@ -4679,9 +4677,10 @@ mod.shared.ShowExportDialog = function()
 		},
 
 		gui.Input{
+			classes = {"sizeS"},
+			hmargin = 8,
 			width = 40,
 			height = 22,
-			fontSize = 18,
 			text = tostring(duration),
 			change = function(element)
 				local val = tonumber(element.text)
@@ -4699,8 +4698,6 @@ mod.shared.ShowExportDialog = function()
 			text = "seconds",
 			width = "auto",
 			height = "auto",
-			color = "white",
-			fontSize = 18,
 		},
 	}
 
@@ -4708,17 +4705,17 @@ mod.shared.ShowExportDialog = function()
 		width = "auto",
 		height = "auto",
 		flow = "horizontal",
+		tmargin = 8,
 		gui.Label{
 			text = "Pixels-per-tile:",
 			width = 'auto',
 			height = 'auto',
-			color = 'white',
-			fontSize = 18,
 		},
 		gui.Input{
+			classes = {"sizeS"},
 			width = 40,
 			height = 22,
-			fontSize = 18,
+			lmargin = 8,
 			text = tostring(MapExport.ppu),
 			change = function(element)
 				MapExport.ppu = tonumber(element.text)
@@ -4731,16 +4728,17 @@ mod.shared.ShowExportDialog = function()
 		width = "auto",
 		height = "auto",
 		flow = "horizontal",
+		tmargin = 20,
 		gui.Label{
 			text = "Export Type:",
 			width = 'auto',
 			height = 'auto',
-			color = 'white',
-			fontSize = 18,
 		},
 
 		gui.Dropdown{
 			idChosen = exportType,
+			lmargin = 8,
+			width = 200,
 			options = {
 				{
 					id = "image",
@@ -4793,6 +4791,7 @@ mod.shared.ShowExportDialog = function()
 
 	local previewImage
 	previewImage = gui.Panel{
+		classes = {"bordered"},
 		bgimage = '#MapExport',
 		autosizeimage = true,
 		maxWidth = 600,
@@ -4802,8 +4801,6 @@ mod.shared.ShowExportDialog = function()
 		halign = "center",
 		valign = "center",
 		bgcolor = "white",
-		borderWidth = 2,
-		borderColor = "black",
 	}
 
 	local previewImageContainer = gui.Panel{
@@ -4819,17 +4816,6 @@ mod.shared.ShowExportDialog = function()
 		height = "auto",
 		flow = "vertical",
 
-		styles = {
-			{
-				selectors = {"label"},
-				color = "white",
-				fontSize = 18,
-				width = "auto",
-				height = "auto",
-			}
-
-		},
-
 		exportTypePanel,
 		videoSettingsPanel,
 		tourSettingsPanel,
@@ -4842,96 +4828,18 @@ mod.shared.ShowExportDialog = function()
 	local dialogPanel = gui.Panel{
 		id = 'ShareDialog',
 		classes = {'framedPanel'},
-		styles = {
-			Styles.Default,
-			Styles.Panel,
-			{
-				selectors = {'framedPanel'},
-				width = 1000,
-				height = 900,
-				flow = 'none',
-			},
-			{
-				selectors = {'content-panel'},
-				width = '90%',
-				height = '80%',
-				valign = 'top',
-				halign = 'center',
-				flow = 'vertical',
-				vmargin = 20,
-			},
-			{
-				selectors = {'form-entry'},
-				width = '60%',
-				height = 40,
-				valign = 'top',
-				halign = 'center',
-				flow = 'horizontal',
-				vmargin = 8,
-			},
-			{
-				selectors = {'formLabel'},
-				width = '40%',
-				height = 40,
-				fontSize = 18,
-				color = '@fgStrong',
-			},
-			{
-				selectors = {'dropdown'},
-				width = 200,
-				height = 40,
-				fontSize = 18,
-				color = '@fgStrong',
-			},
-			{
-				selectors = {'dropdown-option'},
-				priority = 20,
-				width = 200,
-				height = 40,
-				fontSize = 18,
-				color = '@fgStrong',
-			},
-			{
-				selectors = {'input'},
-				fontSize = 18,
-				width = 200,
-				height = 24,
-			},
-			{
-				selectors = {'share-input'},
-				textAlignment = 'left',
-				width = 400,
-				height = 24,
-				fontSize = 20,
-			},
-			{
-				selectors = {'description-input'},
-				textAlignment = 'topleft',
-				valign = 'top',
-				width = '60%',
-				height = 100,
-				vmargin = 8,
-			},
-			{
-				selectors = {'status-label'},
-				fontSize = 20,
-				width = 'auto',
-				height = 'auto',
-				valign = 'center',
-				halign = 'center',
-				maxWidth = 400,
-				color = '@fgStrong',
-			},
-			{
-				selectors = {'share-panel'},
-				flow = 'vertical',
-				height = 'auto',
-				width = '100%',
-			},
-		},
+		styles = ThemeEngine.GetStyles(),
+		width = 1000,
+		height = 900,
+		flow = 'none',
 
 		gui.Panel{
-			classes = {'content-panel'},
+			width = '90%',
+			height = '80%',
+			valign = 'top',
+			halign = 'center',
+			flow = 'vertical',
+			vmargin = 20,
 
 			previewImageContainer,
 			settingsContainer,
@@ -4939,14 +4847,17 @@ mod.shared.ShowExportDialog = function()
 		},
 
 		gui.Panel{
-			classes = {'modal-button-panel'},
+			width = '100%-50',
+			height = 100,
+			valign = 'bottom',
+			halign = 'center',
+			flow = 'horizontal',
 
-			gui.PrettyButton{
+			gui.Button{
+				classes = {"sizeM"},
 				text = 'Close',
 				escapeActivates = true,
 				escapePriority = EscapePriority.EXIT_DIALOG,
-				width = 140,
-				height = 60,
 				halign = 'right',
 				events = {
 					click = function(element)

@@ -432,7 +432,7 @@ dmhub.AddCustomTranslationString = function(labelTarget, str)
 			width = 800,
 			height = 40,
 			vmargin = 80,
-			gui.PrettyButton{
+			gui.Button{
 				halign = "center",
 				text = "Confirm",
 				click = function(element)
@@ -446,7 +446,7 @@ dmhub.AddCustomTranslationString = function(labelTarget, str)
 					gui.CloseModal()
 				end,
 			},
-			gui.PrettyButton{
+			gui.Button{
 				halign = "center",
 				text = "Cancel",
 				click = function(element)

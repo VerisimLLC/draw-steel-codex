@@ -7075,7 +7075,7 @@ function TacPanel.AddConditionMenu(args)
                     },
 
                     gui.Button{
-                        classes = {"deleteButton", "sizeXs"},
+                        classes = {"deleteButton", "sizeS"},
                         halign = "left",
                         valign = "center",
                         linger = function(el)
@@ -7163,7 +7163,7 @@ function TacPanel.AddConditionMenu(args)
 
     m_button.popupsInheritStyles = true
     m_button.popup = gui.Panel{
-        styles = TacPanelStyles.AddConditionMenu, --ThemeEngine.MergeStyles(TacPanelStyles.AddConditionMenu),
+        styles = TacPanelStyles.AddConditionMenu,
         classes = {"dialog"},
         floating = true,
         vscroll = true,

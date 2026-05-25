@@ -572,7 +572,7 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                                         valign = "bottom",
                                         vmargin = 24,
                                         flow = "horizontal",
-                                        gui.PrettyButton {
+                                        gui.Button {
                                             halign = "left",
                                             text = "Cancel",
                                             width = 180,
@@ -580,7 +580,7 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                                                 gui.CloseModal()
                                             end,
                                         },
-                                        gui.PrettyButton {
+                                        gui.Button {
                                             classes = { "hidden" },
                                             id = "addToJournalButton",
                                             halign = "right",
@@ -800,7 +800,7 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                 valign = "bottom",
                 vmargin = 24,
                 flow = "horizontal",
-                gui.PrettyButton {
+                gui.Button {
                     halign = "left",
                     text = "Cancel",
                     width = 180,
@@ -808,7 +808,7 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                         gui.CloseModal()
                     end,
                 },
-                gui.PrettyButton {
+                gui.Button {
                     id = "addBookmarkButton",
                     halign = "right",
                     text = cond(options.bookmark ~= nil, "Update", "Add"),
@@ -2139,10 +2139,8 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                         end,
 
                         gui.Label {
-                            fontSize = 16,
+                            classes = {"sizeS"},
                             minFontSize = 10,
-                            width = 60,
-                            height = 20,
                             page = function(element)
                                 if m_searchResults ~= nil and m_searchResults[m_searchIndex] ~= nil then
                                     element.text = string.format("%d/%d", m_searchIndex, #m_searchResults)
@@ -2152,8 +2150,9 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                             end,
                         },
 
-                        gui.PagingArrow {
-                            facing = -1,
+                        gui.Button {
+                            classes = {"pagingArrow", "sizeS"},
+                            lmargin = 20,
                             page = function(element)
                                 element:SetClass("hidden",
                                     not (m_searchResults ~= nil and m_searchResults[m_searchIndex] ~= nil))
@@ -2167,8 +2166,9 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                             end,
                         },
 
-                        gui.PagingArrow {
-                            facing = 1,
+                        gui.Button {
+                            classes = {"pagingArrow", "right", "sizeS"},
+                            lmargin = 4,
                             page = function(element)
                                 element:SetClass("hidden",
                                     not (m_searchResults ~= nil and m_searchResults[m_searchIndex] ~= nil))
@@ -2184,9 +2184,8 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                     },
                 },
 
-
-
-                gui.PagingArrow {
+                gui.Button {
+                    classes = {"pagingArrow", "sizeS"},
                     hmargin = 4,
                     facing = -1,
                     press = function(element)
@@ -2196,17 +2195,18 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                     end,
                 },
                 gui.Label {
-                    fontSize = 14,
+                    classes = {"sizeXs"},
+                    hmargin = 4,
                     width = "auto",
                     height = "auto",
                     text = "Page",
                 },
                 gui.Input {
-                    fontSize = 14,
-                    characterLimit = 4,
+                    classes = {"sizeXs"},
                     width = 20,
-                    height = 20,
+                    characterLimit = 4,
                     textAlignment = "right",
+                    hmargin = 4,
                     page = function(element)
                         element.text = document.summary.pageLabels[m_npage + 1] or string.format("%d", m_npage + 1)
                     end,
@@ -2227,12 +2227,14 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                     end,
                 },
                 gui.Label {
-                    fontSize = 14,
+                    classes = {"sizeXs"},
                     width = "auto",
                     height = "auto",
-                    text = "/" .. (document.summary.pageLabels[#document.summary.pageLabels] or string.format("%d", document.summary.npages)),
+                    hmargin = "4",
+                    text = "/ " .. (document.summary.pageLabels[#document.summary.pageLabels] or string.format("%d", document.summary.npages)),
                 },
-                gui.PagingArrow {
+                gui.Button {
+                    classes = {"pagingArrow", "right", "sizeS"},
                     hmargin = 4,
                     facing = 1,
                     press = function(element)
@@ -2249,16 +2251,16 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                     width = "auto",
                     hmargin = 32,
                     gui.Label {
-                        fontSize = 14,
+                        classes = {"sizeXs"},
                         width = "auto",
                         height = "auto",
                         text = "Zoom:",
                     },
 
                     gui.Input {
+                        classes = {"sizeXs"},
                         width = 28,
-                        height = 20,
-                        fontSize = 14,
+                        hmargin = 4,
                         valign = "center",
                         text = string.format("%d", round(m_zoom * 100)),
                         change = function(element)
@@ -2287,19 +2289,18 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                     },
 
                     gui.Label {
-                        fontSize = 14,
+                        classes = {"sizeXs"},
                         width = "auto",
                         height = "auto",
                         text = "%",
                     },
 
-                    gui.Panel {
-                        bgcolor = Styles.textColor,
-                        bgimage = "icons/icon_tool/icon_tool_41.png",
+                    gui.Button {
+                        -- bgcolor = Styles.textColor,
+                        classes = {"sizeXs"},
+                        icon = "icons/icon_tool/icon_tool_41.png",
                         lmargin = 16,
                         halign = "right",
-                        width = 16,
-                        height = 16,
                         press = function(element)
                             element.parent:FireEventTree("command", "zoomout")
                         end,
@@ -2310,12 +2311,11 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                             },
                         },
                     },
-                    gui.Panel {
-                        bgcolor = Styles.textColor,
-                        bgimage = "icons/icon_tool/icon_tool_40.png",
+                    gui.Button {
+                        -- bgcolor = Styles.textColor,
+                        classes = {"sizeXs"},
+                        icon = "icons/icon_tool/icon_tool_40.png",
                         halign = "right",
-                        width = 16,
-                        height = 16,
                         press = function(element)
                             element.parent:FireEventTree("command", "zoomin")
                         end,
@@ -2328,11 +2328,10 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                     },
                 },
 
-                gui.SettingsButton {
+                gui.Button {
+                    classes = {"settingsButton", "sizeS"},
                     halign = "right",
                     valign = "center",
-                    width = 16,
-                    height = 16,
                     floating = true,
                     hmargin = -32,
 
@@ -2348,14 +2347,12 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                         local dialog
                         dialog = gui.Panel {
                             width = 600,
-                            height = 800,
+                            height = 200,
                             classes = { "framedPanel" },
-                            styles = {
-                                Styles.Panel,
-                                Styles.Default,
-                            },
+                            styles = ThemeEngine.GetStyles(),
                             halign = "center",
                             valign = "center",
+                            flow = "vertical",
 
                             destroy = function()
                                 if element ~= nil and element.valid and element.data.settingsDialog == dialog then
@@ -2363,7 +2360,8 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                                 end
                             end,
 
-                            gui.CloseButton {
+                            gui.Button {
+                                classes = {"closeButton"},
                                 floating = true,
                                 halign = "right",
                                 valign = "top",
@@ -2373,7 +2371,7 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                             },
 
                             gui.Label {
-                                classes = { "title" },
+                                classes = { "dialogTitle" },
                                 width = "auto",
                                 height = "auto",
                                 text = "PDF Settings",
@@ -2382,7 +2380,7 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                             },
 
                             gui.Panel {
-                                tmargin = 200,
+                                tmargin = 60,
                                 floating = true,
                                 valign = "top",
                                 halign = "center",

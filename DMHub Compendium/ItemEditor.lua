@@ -1559,9 +1559,8 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
 					['collapsed'] = (document.type ~= 'Gear' or document:try_get('consumable') == nil),
 				},
 
-				child = gui.PrettyButton{
-					width = 240,
-					height = 60,
+				child = gui.Button{
+					classes = {"sizeL"},
 					text = "Consumable Ability",
 					click = function(element)
 						element.root:AddChild(document.consumable:ShowEditActivatedAbilityDialog())
@@ -2266,13 +2265,11 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
 				end,
 			},
 
-			gui.PrettyButton{
+			gui.Button{
+				classes = {"sizeM", cond((not document:try_get("displayOnToken", true)) or ((not document:CanWield()) and (not document:try_get("equipOnBelt", false))), "collapsed")},
 				width = 160,
 				height = 50,
 				text = "Edit Object",
-				classes = {
-					['collapsed'] = (not document:try_get("displayOnToken", true)) or ((not document:CanWield()) and (not document:try_get("equipOnBelt", false)))
-				},
 				refresh = function(element)
 					element:SetClass("collapsed", (not document:try_get("displayOnToken", true)) or ((not document:CanWield()) and (not document:try_get("equipOnBelt", false))))
 				end,

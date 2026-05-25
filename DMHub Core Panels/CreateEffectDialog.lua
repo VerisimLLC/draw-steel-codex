@@ -558,13 +558,11 @@ mod.shared.CreateEffectsLayerTexture = function()
 
 		children = {
 
-			gui.PrettyButton{
+			gui.Button{
 				text = 'Create Brush',
-				classes = {'hidden'},
+				classes = {"sizeXl", 'hidden'},
 				style = {
 					margin = 0,
-					width = 200,
-					height = 60,
 					halign = 'center',
 					valign = 'center',
 				},
@@ -587,12 +585,11 @@ mod.shared.CreateEffectsLayerTexture = function()
 				}
 			},
 
-			gui.PrettyButton{
+			gui.Button{
 				text = 'Close',
+				classes = {"sizeXl"},
 				style = {
 					margin = 0,
-					width = 200,
-					height = 60,
 					halign = 'center',
 					valign = 'center',
 				},

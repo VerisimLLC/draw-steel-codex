@@ -178,10 +178,7 @@ local function ImportPDFDialog(path)
         height = 800,
         pad = 8,
         flow = "vertical",
-        styles = {
-            Styles.Default,
-            Styles.Panel,
-        },
+        styles = ThemeEngine.GetStyles(),
 
         destroy = function(element)
             if g_modalDialog == element then
@@ -213,20 +210,19 @@ local function ImportPDFDialog(path)
             width = "auto",
             height = "auto",
             gui.Label {
+                classes = { "sizeS" },
                 width = "auto",
                 height = "auto",
-                fontSize = 14,
                 create = function(element)
                     element.text = string.format("This file is %.1fMB\nBandwidth remaining this month: %.1fMB", pathSize,
                         allowedSize)
-                    element:SetClass("error", allowedSize < pathSize)
+                    element:SetClass("danger", allowedSize < pathSize)
                 end,
             },
             gui.Label {
-                classes = { "link" },
+                classes = { "link", "sizeS" },
                 width = "auto",
                 height = "auto",
-                fontSize = 14,
                 text = "Support us on Patreon for more bandwidth.",
                 click = function(element)
                     dmhub.OpenRegisteredURL("Patreon")
@@ -234,11 +230,10 @@ local function ImportPDFDialog(path)
             },
         },
 
-        gui.PrettyButton {
+        gui.Button {
+            classes = { "sizeL" },
             valign = "bottom",
             halign = "center",
-            width = 240,
-            height = 40,
             text = "Import Document",
             click = function(element)
                 gui.CloseModal()
@@ -277,7 +272,8 @@ local function ImportPDFDialog(path)
             end,
         },
 
-        gui.CloseButton {
+        gui.Button {
+            classes = { "closeButton" },
             halign = "right",
             valign = "top",
             floating = true,

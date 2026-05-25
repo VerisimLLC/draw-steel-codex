@@ -58,14 +58,16 @@ function CharacterModifier:FillCompanionModifiers(context, creature, companion, 
     end
 end
 
--- Mirror of "Modify Companion" in the companion -> summoner direction. A
--- "Modify Summoner" CharacterModifier sits on a companion stat block (e.g.,
--- the bear's Strong Like Bear trait) and contributes modifiers back to the
--- beastheart. Per the Companion rules, "you" inside a companion stat block
--- refers to the beastheart, so traits worded that way need a way to reach
--- the partner. Dispatch is via FillSummonerModifiers on CharacterModifier
--- and is invoked from character:FillTemporalActiveModifiers in
--- DSCompanion.lua.
+-- Mirror of "Modify Companion" in the summon -> summoner direction. A
+-- "Modify Summoner" CharacterModifier sits on a summoned creature's stat
+-- block (e.g., the bear's Strong Like Bear trait) and contributes modifiers
+-- back to whoever summoned it. Per the Companion rules, "you" inside a
+-- companion stat block refers to the beastheart, but this is fully generic
+-- now: any creature linked by token.summonerid -- beastheart companions,
+-- AbilitySummon results, etc. -- routes through the same dispatch.
+-- FillSummonerModifiers on CharacterModifier is invoked from
+-- creature:FillTemporalActiveModifiers in DMHub Game Rules/Creature.lua
+-- (parallel to the mount/rider hook).
 
 CharacterModifier.RegisterType("modsummoner", "Modify Summoner")
 

@@ -3985,6 +3985,9 @@ function gui.SearchInput(options)
 			classes = {"searchInputIcon"},
 			bgimage = "icons/icon_tool/icon_tool_42.png",
 			floating = true,
+            width = 16,
+            height = 16,
+            valign = "center",
 			x = -20,
 		},
 	}

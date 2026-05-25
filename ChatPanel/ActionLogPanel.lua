@@ -909,7 +909,7 @@ CreateChatPanel = function()
 				width = '100%',
 				height = 'auto',
 				color = '@fgStrong',
-				fontSize = '40%',
+				fontSize = '100%',
 				vmargin = 2,
 			},
             {

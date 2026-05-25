@@ -180,9 +180,77 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
                 casterToken.properties._tmp_suppressTeleportEvent = true
             end
 
+            --Custom attribute "Force Bring Grabbed Creature": if the teleporting
+            --creature has it set, gather the list of creatures it is currently
+            --grabbing BEFORE we teleport (so we know their pre-teleport positions
+            --for the "closest adjacent" placement heuristic). We do the actual
+            --bring-along teleports AFTER the caster has moved.
+            local bringGrabbed = casterToken.properties:CalculateNamedCustomAttribute("Force Bring Grabbed Creature") > 0
+            local grabbedToBring = nil
+            if bringGrabbed then
+                local g_grabbedid = "70504ebe-3899-41d3-9f60-74b52ce35e39"
+                grabbedToBring = {}
+                casterToken.properties:VisitConditionCasterSource(function(condid, grabbedTok)
+                    if condid == g_grabbedid and grabbedTok ~= nil and grabbedTok.valid then
+                        grabbedToBring[#grabbedToBring+1] = grabbedTok
+                    end
+                end)
+            end
+
         	casterToken:Teleport(destLoc.withGroundAltitude)
 
             casterToken.properties._tmp_suppressTeleportEvent = nil
+
+            --After the caster teleports, bring along any grabbed creatures.
+            --Placement: closest legal adjacent square (within radius 1 of caster's
+            --new position) to each grabbed creature's pre-teleport location, with
+            --first-come-first-served reservation so two grabbed creatures don't
+            --land on the same square. If no legal square exists for a creature,
+            --it is left behind (its own teleport-trigger / forcemove distance
+            --check will then end the grab normally).
+            if grabbedToBring ~= nil and #grabbedToBring > 0 then
+                local adjacentLocs = casterToken:GetLocsWithinRadius(1)
+                local reserved = {}
+                for _,grabbedTok in ipairs(grabbedToBring) do
+                    if grabbedTok.valid then
+                        local prevLoc = grabbedTok.loc
+                        local bestLoc = nil
+                        local bestDist = nil
+                        for _,candidate in ipairs(adjacentLocs) do
+                            local key = candidate.xyfloorOnly.str
+                            if not reserved[key] then
+                                --Don't drop them on top of the caster's own occupied tiles.
+                                local occupants = game.GetTokensAtLoc(candidate) or {}
+                                local blocked = false
+                                for _,occ in ipairs(occupants) do
+                                    if occ.id ~= grabbedTok.id then
+                                        blocked = true
+                                        break
+                                    end
+                                end
+                                if not blocked then
+                                    local d = candidate:DistanceInTiles(prevLoc)
+                                    if bestDist == nil or d < bestDist then
+                                        bestDist = d
+                                        bestLoc = candidate
+                                    end
+                                end
+                            end
+                        end
+
+                        if bestLoc ~= nil then
+                            reserved[bestLoc.xyfloorOnly.str] = true
+                            --Suppress the grabbed creature's own teleport trigger
+                            --(which would end the Grabbed condition per the
+                            --"if you teleport while Grappled, the condition
+                            --ends" rule) just for this forced relocation.
+                            grabbedTok.properties._tmp_suppressTeleportEvent = true
+                            grabbedTok:Teleport(bestLoc.withGroundAltitude)
+                            grabbedTok.properties._tmp_suppressTeleportEvent = nil
+                        end
+                    end
+                end
+            end
         elseif movementType == "jump" then
             print("JUMP:: TARGET =", targets[1].loc.floor)
 		    local path = casterToken:Move(targets[#targets].loc, { ignoreFalling = true, straightline = true, moveThroughFriends = true, ignorecreatures = true, maxCost = 30000, movementType = "jump" })

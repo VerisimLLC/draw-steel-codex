@@ -1420,8 +1420,9 @@ CreateEditor = function(panelArgs)
 				textAlignment = "left",
 			},
 			{
-				selectors = {"fileName", "nomatch"},
+				selectors = {"nomatch"},
 				color = "@fgMuted",
+				opacity = 0.4,
 				priority = 2,
 			},
 			{

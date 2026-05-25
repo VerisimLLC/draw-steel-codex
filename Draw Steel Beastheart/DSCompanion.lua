@@ -173,6 +173,27 @@ function AnimalCompanion:CharacterLevel()
     return monster.CharacterLevel(self)
 end
 
+-- The GoblinScript symbol "Level" for monsters is backed by
+-- monster.lookupSymbols.level -> c:SpellcastingLevel() (see Monster.lua), which
+-- falls through to self.cr (always 1 on a companion stat block). Without this
+-- override the GoblinScript "Level" symbol on a companion always reads as 1,
+-- breaking any companion ability or modifier formula that scales on level
+-- (damage scaling, prereqs, level-gated rampage rows, etc.). Delegate to the
+-- summoner's CharacterLevel so the symbol follows the same summoner-aware path
+-- used by CharacterLevel(). The Lua-side monster:Level() helper also reads
+-- self.cr directly; override it too so any Lua callers stay consistent.
+function AnimalCompanion:SpellcastingLevel()
+    local summoner = self:SummonerToken()
+    if summoner ~= nil and summoner.properties ~= nil then
+        return summoner.properties:CharacterLevel()
+    end
+    return monster.SpellcastingLevel(self)
+end
+
+function AnimalCompanion:Level()
+    return self:CharacterLevel()
+end
+
 -- Free strikes for animal companions are derived (1 + Might modifier) per the
 -- Beastheart rules, so the character sheet displays them read-only and the
 -- monster-side stored opportunityAttack string is ignored for companions.

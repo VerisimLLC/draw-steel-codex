@@ -16,33 +16,22 @@ local CreateFloorPanel = function(index, floorInfo)
         end,
     }
 
-	local dialogPanelRoofLayerOptions = gui.Panel{
-		classes = cond(floorInfo.roof, nil, "collapsed"),
+	--Canopy-only sub-panel. Shown when the layer type is "Canopy"; collapsed for plain roofs.
+	--Plain roofs render fully transparent wherever the player has vision and fully opaque
+	--elsewhere -- no tunable cutaway. Canopy adds the vision multiplier + cutaway controls
+	--for tree-foliage / partial-cover roof setups.
+	local dialogPanelCanopyOptions = gui.Panel{
+		classes = cond(floorInfo.canopy, nil, "collapsed"),
 		width = "auto",
 		height = "auto",
 		flow = "vertical",
-
-		gui.Check{
-			text = "Hide roof when players are inside",
-			value = not floorInfo.roofShowWhenInside,
-			style = {
-				height = 20,
-				width = "40%",
-			},
-			events = {
-				change = function(element)
-					floorInfo.roofShowWhenInside = not element.value
-				end,
-				linger = gui.Tooltip("This layer will be hidden when players are inside."),
-			},
-		},
 
 		gui.Panel{
 			classes = {"formPanel"},
 			gui.Label{
 				classes = {"form"},
 				text = "Vision Multiplier:",
-				linger = gui.Tooltip("The vision multiplier allows players to see further on the roof layer than they can on other layers."),
+				linger = gui.Tooltip("The vision multiplier allows players to see further on the canopy layer than they can on other layers."),
 			},
 
 			gui.Slider{
@@ -73,7 +62,7 @@ local CreateFloorPanel = function(index, floorInfo)
 			gui.Label{
 				classes = {"form"},
 				text = "Cutaway Radius:",
-				linger = gui.Tooltip("The cutaway radius is the distance to which we prefer to show the radius the player is on if they have vision of it instead of the roof layer. For roofs of buildings you most likely want this to be 100%, but for tree foliage you might want it lower than 100%. The lower it is the more elements on the roof layer will occlude vision."),
+				linger = gui.Tooltip("The cutaway radius (in tiles) around any token with vision. Pixels of the canopy within this distance of a token are cut away to reveal the layer below. Set negative to disable the cutaway entirely (the canopy will always be fully shown). For tree foliage, try a small value like 6-10."),
 			},
 
 			gui.Slider{
@@ -83,10 +72,10 @@ local CreateFloorPanel = function(index, floorInfo)
 					valign = "center",
 				},
 				sliderWidth = 100,
-				minValue = 0.0,
-				maxValue = 1.0,
+				minValue = -1,
+				maxValue = 40,
 				labelWidth = 60,
-				labelFormat = "rawpercent",
+				labelFormat = "%d",
 				value = floorInfo.roofVisionExclusion,
 				events = {
 					change = function(element)
@@ -104,7 +93,7 @@ local CreateFloorPanel = function(index, floorInfo)
 			gui.Label{
 				classes = {"form"},
 				text = "Cutaway Fade:",
-				linger = gui.Tooltip("The roof cutaway fade controls how quickly vision fades from showing the layer the player is on to the roof layer."),
+				linger = gui.Tooltip("Width (in tiles) of the smooth fade band at the outer edge of the cutaway. Larger values give a softer transition back to the full canopy; a fade of 0 produces a hard edge."),
 			},
 
 			gui.Slider{
@@ -114,9 +103,9 @@ local CreateFloorPanel = function(index, floorInfo)
 					valign = "center",
 				},
 				sliderWidth = 100,
-				labelFormat = "rawpercent",
-				minValue = 0.0,
-				maxValue = 1.0,
+				labelFormat = "%.1f",
+				minValue = 0,
+				maxValue = 2,
 				labelWidth = 60,
 				value = floorInfo.roofVisionExclusionFade,
 				events = {
@@ -135,7 +124,7 @@ local CreateFloorPanel = function(index, floorInfo)
 			gui.Label{
 				classes = {"form"},
 				text = "Minimum Opacity:",
-				linger = gui.Tooltip("The minimum opacity that the roof layer will have when it is cut away to show the layer the player is on."),
+				linger = gui.Tooltip("The minimum opacity that the canopy layer will have within the cutaway zone. 0 means fully transparent at the token; raise it to keep some of the canopy visible even directly above a token."),
 			},
 
 			gui.Slider{
@@ -161,6 +150,40 @@ local CreateFloorPanel = function(index, floorInfo)
 			},
 		},
 	}
+
+	local dialogPanelRoofLayerOptions = gui.Panel{
+		classes = cond(floorInfo.roof, nil, "collapsed"),
+		width = "auto",
+		height = "auto",
+		flow = "vertical",
+
+		gui.Check{
+			text = "Hide roof when players are inside",
+			value = not floorInfo.roofShowWhenInside,
+			style = {
+				height = 20,
+				width = "40%",
+			},
+			events = {
+				change = function(element)
+					floorInfo.roofShowWhenInside = not element.value
+				end,
+				linger = gui.Tooltip("This layer will be hidden when players are inside."),
+			},
+		},
+
+		dialogPanelCanopyOptions,
+	}
+
+	local function CurrentLayerType()
+		if floorInfo.canopy then
+			return "canopy"
+		elseif floorInfo.roof then
+			return "roof"
+		else
+			return "floor"
+		end
+	end
 
     return gui.Panel{
         classes = {"floorPanel", "offscreen"},
@@ -195,21 +218,32 @@ local CreateFloorPanel = function(index, floorInfo)
 
         gui.Panel{
             classes = {"floorConfig"},
-            gui.Check{
-                text = "Roof",
-                value = floorInfo.roof,
-				style = {
-					height = 14,
-                    -- fontSize = 12,
-                    -- color = "#bbbbbbff",
-				},
-				events = {
-					change = function(element)
-						floorInfo.roof = element.value
-                        dialogPanelRoofLayerOptions:SetClass("collapsed", not floorInfo.roof)
-					end,
-					linger = gui.Tooltip("A roof layer will be displayed for players who are on a floor beneath it. It will only be displayed in areas they can't see."),
-				},
+            gui.Dropdown{
+                height = 18,
+                fontSize = 14,
+                width = 100,
+                valign = "center",
+                options = {
+                    {id = "floor", text = "Floor"},
+                    {id = "roof", text = "Roof"},
+                    {id = "canopy", text = "Canopy"},
+                },
+                idChosen = CurrentLayerType(),
+                change = function(element)
+                    local id = element.idChosen
+                    if id == "floor" then
+                        floorInfo.roof = false
+                        floorInfo.canopy = false
+                    elseif id == "roof" then
+                        floorInfo.roof = true
+                        floorInfo.canopy = false
+                    elseif id == "canopy" then
+                        floorInfo.roof = true
+                        floorInfo.canopy = true
+                    end
+                    dialogPanelRoofLayerOptions:SetClass("collapsed", not floorInfo.roof)
+                    dialogPanelCanopyOptions:SetClass("collapsed", not floorInfo.canopy)
+                end,
             },
 
             dialogPanelRoofLayerOptions,

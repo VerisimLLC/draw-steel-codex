@@ -108,6 +108,8 @@ local SettingsPanelHeight = 30
 
 CreateMapSettings = function()
 
+	local stackedOpts = {stacked = true}
+
 	local contentPanel = gui.Panel{
 		id = "mapSettingsPanel",
 		flow = "vertical",
@@ -116,27 +118,20 @@ CreateMapSettings = function()
 			width = '100%',
 			height = 'auto',
 		},
-        styles = {
-            {
-                selectors = {"dropdown"},
-                priority = 5,
-                width = 200,
-            }
-        },
 		children = {
-			CreateSettingsEditor("map:playerviewable"),
-			CreateSettingsEditor('gridcolor'),
-			CreateSettingsEditorsForSection('vision'),
+			CreateSettingsEditor("map:playerviewable", stackedOpts),
+			CreateSettingsEditor('gridcolor', stackedOpts),
+			CreateSettingsEditorsForSection('vision', stackedOpts),
 
-			CreateSettingsEditor("maplayout:tiletype"),
-			CreateSettingsEditor("maplayout:stagger"),
-			CreateSettingsEditor("maplayout:tilewidth"),
-			CreateSettingsEditor("maplayout:tileheight"),
-			CreateSettingsEditor("maplayout:hexslant"),
+			CreateSettingsEditor("maplayout:tiletype", stackedOpts),
+			CreateSettingsEditor("maplayout:stagger", stackedOpts),
+			CreateSettingsEditor("maplayout:tilewidth", stackedOpts),
+			CreateSettingsEditor("maplayout:tileheight", stackedOpts),
+			CreateSettingsEditor("maplayout:hexslant", stackedOpts),
 
-			CreateSettingsEditor("editor:showpathfinding"),
-			CreateSettingsEditor("canlookup"),
-			CreateSettingsEditor("maxlookup"),
+			CreateSettingsEditor("editor:showpathfinding", stackedOpts),
+			CreateSettingsEditor("canlookup", stackedOpts),
+			CreateSettingsEditor("maxlookup", stackedOpts),
 		},
 	}
 

@@ -43,6 +43,45 @@ setting{
 }
 
 setting{
+    id = "canopy:defaultradius",
+    description = "Default Canopy Cutaway Radius",
+    help = "Fallback cutaway radius (in tiles) used when a canopy-flagged object has no canopy layer above it. Set negative to disable the fallback cutaway.",
+    storage = "game",
+    section = "Map",
+    editor = "slider",
+    format = "F0",
+    default = 3,
+    min = -1,
+    max = 40,
+}
+
+setting{
+    id = "canopy:defaultfade",
+    description = "Default Canopy Cutaway Fade",
+    help = "Fallback cutaway fade width (in tiles) used when a canopy-flagged object has no canopy layer above it.",
+    storage = "game",
+    section = "Map",
+    editor = "slider",
+    format = "F1",
+    default = 1,
+    min = 0,
+    max = 2,
+}
+
+setting{
+    id = "canopy:defaultminopacity",
+    description = "Default Canopy Minimum Opacity",
+    help = "Fallback minimum opacity used when a canopy-flagged object has no canopy layer above it. 0 means fully transparent at the token.",
+    storage = "game",
+    section = "Map",
+    editor = "slider",
+    format = "F2",
+    default = 0,
+    min = 0,
+    max = 1,
+}
+
+setting{
     id = "usesystemcursor",
     description = "Use System Cursor",
     help = "When enabled, DMHub uses your operating system's default mouse cursor instead of custom themed cursors. Useful on macOS where the custom cursors can appear oversized on Retina displays.",

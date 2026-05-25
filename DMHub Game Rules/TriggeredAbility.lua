@@ -706,36 +706,41 @@ TriggeredAbility.RegisterTrigger{
     }
 }
 
--- Fired on the bearer of an ongoing effect when they fail a save check against
--- that effect (a save that did NOT remove the effect). Fires once per failed
--- save per effect, so a creature with multiple save_ends effects rolling one
--- save per effect will see this trigger fire once per failure.
+-- Fired on the bearer of an ongoing effect OR a save-ends condition when
+-- they fail a save check against that effect/condition (a save that did
+-- NOT remove it). Fires once per failed save per source, so a creature
+-- with multiple save_ends sources rolling one save per source will see
+-- this trigger fire once per failure.
 --
 -- Authors put a CharacterModifier {behavior=trigger, triggeredAbility={trigger=savefail,...}}
--- inside an ongoing effect's modifiers[] and filter on EffectName in
--- conditionFormula to scope the handler to the specific effect.
+-- inside the ongoing effect's or condition's modifiers[] and filter on
+-- EffectName in conditionFormula to scope the handler to the specific
+-- source.
 --
 -- Symbols installed when the trigger fires:
---   EffectName (text)    - the ongoing effect's display name (e.g. "Stoned")
---   Caster (creature)    - original applier of the ongoing effect when
---                          casterTracking is enabled and the caster token is
---                          still resolvable; otherwise the bearer (Self) is
---                          installed so Caster.X formulas still resolve safely.
+--   EffectName (text)    - the display name of the ongoing effect OR
+--                          condition being saved against (e.g. "Stoned").
+--   Caster (creature)    - original applier of the effect/condition when
+--                          caster tracking is enabled (casterTracking on
+--                          ongoing effects, trackCaster on conditions)
+--                          and the caster token is still resolvable;
+--                          otherwise the bearer (Self) is installed so
+--                          Caster.X formulas still resolve safely.
 --   SaveRoll (number)    - the actual save roll total that failed.
 TriggeredAbility.RegisterTrigger{
     id = "savefail",
-    text = "Fail Save vs Ongoing Effect",
+    text = "Fail Saving Throw",
     symbols = {
         {
             name = "EffectName",
             type = "text",
-            desc = "The display name of the ongoing effect being saved against. Use to scope the handler to one specific effect, e.g. EffectName = \"Stoned\".",
+            desc = "The display name of the ongoing effect or condition being saved against. Use to scope the handler to one specific source, e.g. EffectName = \"Stoned\".",
             prose = "the effect name",
         },
         {
             name = "Caster",
             type = "creature",
-            desc = "The original applier of the ongoing effect when caster tracking is enabled; otherwise the bearer of the effect.",
+            desc = "The original applier of the effect or condition when caster tracking is enabled; otherwise the bearer.",
             prose = "the caster",
         },
         {
@@ -748,7 +753,7 @@ TriggeredAbility.RegisterTrigger{
     examples = {
         {
             script = "EffectName = \"Stoned\"",
-            text = "The triggered ability only fires when the bearer fails a save against the Stoned ongoing effect.",
+            text = "The triggered ability only fires when the bearer fails a save against the Stoned condition.",
         },
     },
 }

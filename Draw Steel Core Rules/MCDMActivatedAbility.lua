@@ -690,11 +690,17 @@ function ActivatedAbility:Render(options, params)
             if modifier:try_get("rollRequirement", "none") ~= "none" then
                 return
             end
-            local hint = modifier:HintModifyPowerRolls(modContext, creatureProperties, "ability_power_roll", {
+            -- Check displayCondition first (cheaper gate, avoids evaluating
+            -- activationCondition when the modifier should not be shown at all).
+            local rollOptions = {
                 ability = self,
                 caster = creatureProperties,
                 target = nullTarget,
-            })
+            }
+            if not modifier:ShouldShowInPowerRollDialog(modContext, creatureProperties, "ability_power_roll", rollOptions) then
+                return
+            end
+            local hint = modifier:HintModifyPowerRolls(modContext, creatureProperties, "ability_power_roll", rollOptions)
             if hint == nil or not hint.result then
                 return
             end

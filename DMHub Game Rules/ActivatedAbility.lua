@@ -5422,3 +5422,18 @@ dmhub.RegisterEventHandler("refreshTables", function(keys)
 		}
 	end
 end)
+
+--Reset-turn / backup-restore teardown. Fires on every client whenever a
+--minor- backupid lands (CombatCheckpoint.Restore). Sets the abort flag on
+--every live cast coroutine so CastCoroutine breaks at the next behavior
+--boundary and unwinds through FinishCast (which marks the chat message
+--"aborted"). Also clears any unsubmitted dice preview.
+dmhub.RegisterEventHandler("restoreFromBackup", function()
+    for co, info in pairs(ActivatedAbility.coroutineStorage) do
+        if coroutine.status(co) ~= "dead" and info.options ~= nil then
+            info.options.abort = true
+            info.options.stopProcessing = true
+        end
+    end
+    dmhub.CancelCurrentRoll()
+end)

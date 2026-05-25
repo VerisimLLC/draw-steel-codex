@@ -5575,6 +5575,37 @@ CreateAbilityController = function()
 
                 if g_currentAbility.targetType == 'emptyspace' or g_currentAbility.targetType == 'emptyspacefriend' or g_currentAbility.targetType == 'anyspace' then
                     print(string.format("XFLOOR:: mappress building emptyspace target loc.floor=%s", tostring(loc and loc.floor or "nil")))
+
+                    --For multi-target emptyspace/anyspace abilities, clicking an already
+                    --selected space deselects it instead of adding a duplicate.
+                    if (g_currentAbility.targetType == 'emptyspace' or g_currentAbility.targetType == 'anyspace')
+                        and g_currentAbility:GetNumTargets(g_token, g_currentSymbols) > 1 and loc ~= nil then
+                        local deselectedIndex = nil
+                        for i, t in ipairs(targets) do
+                            if t.loc ~= nil and t.loc.str == loc.str then
+                                deselectedIndex = i
+                                break
+                            end
+                        end
+                        if deselectedIndex ~= nil then
+                            local removed = targets[deselectedIndex]
+                            table.remove(targets, deselectedIndex)
+                            if removed.marker ~= nil then
+                                removed.marker:Destroy()
+                                for i = #g_radiusMarkers, 1, -1 do
+                                    if g_radiusMarkers[i] == removed.marker then
+                                        table.remove(g_radiusMarkers, i)
+                                        break
+                                    end
+                                end
+                            end
+                            local promptText = g_currentAbility:PromptText(g_token, targets, g_currentSymbols)
+                            g_castMessage.data.promptText = promptText
+                            g_castMessage:FireEvent("refresh")
+                            return
+                        end
+                    end
+
                     targets[#targets + 1] = { loc = loc }
                 else
                     for k, target in pairs(g_pointForceTargets) do
@@ -5595,6 +5626,11 @@ CreateAbilityController = function()
                 if (g_currentAbility.targetType == 'emptyspace' or g_currentAbility.targetType == 'anyspace') and #targets < numTargets then
                     --allow selection of more targets.
                     AddCustomAreaMarker({ loc }, 'white')
+                    --Remember the marker for this target so we can destroy it
+                    --if the same space is later clicked to deselect.
+                    if #targets > 0 and targets[#targets].loc ~= nil and targets[#targets].loc.str == loc.str then
+                        targets[#targets].marker = g_radiusMarkers[#g_radiusMarkers]
+                    end
 
                     if g_currentAbility.targeting == "Contiguous" or g_currentAbility.targeting == "contiguous_wall" then
                         --targeting must be contiguous of current targets.
@@ -6267,4 +6303,14 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
 end
 
 RegisterCustomActionBar(CreateActionBar)
+
+--On reset-turn / backup-restore, cancel any in-progress cast on this client.
+--cancelCasting is the same event the escape key fires; it runs the full action
+--bar cleanup (HideAbility, RemoveTokenTargeting, ClearPointTargeting, clears
+--g_currentAbility, collapses cast controls, clears LoS markers, etc.).
+dmhub.RegisterEventHandler("restoreFromBackup", function()
+    if g_currentAbility ~= nil and g_abilityController ~= nil and g_abilityController.valid then
+        g_abilityController:FireEvent("cancelCasting")
+    end
+end)
 --RegisterCustomActionBar(nil)

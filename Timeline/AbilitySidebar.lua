@@ -1552,3 +1552,20 @@ function CharacterPanel.HideAbility(ability)
 
     return false
 end
+
+--On reset-turn / backup-restore, tear down any open embedded roll dialog.
+--dialog.data.Cancel() runs the dialog's own CancelRollDialog -> cancelRoll
+--callback -> RelinquishPanel, which is the same path used when the user
+--clicks the cancel button. Cast coroutines blocked in AcquireAbilityRollDialog's
+--queue loop wake up via the relinquish flag.
+dmhub.RegisterEventHandler("restoreFromBackup", function()
+    local dialog = CharacterPanel.FindEmbeddedRollDialog()
+    --Guard on IsShown: dialog.data.Cancel does not self-check the hidden state,
+    --and the captured cancelRoll closure is not cleared after a normal close,
+    --so calling Cancel on a stale-hidden dialog could re-fire it.
+    if dialog ~= nil and dialog.valid and dialog.data ~= nil
+       and dialog.data.Cancel ~= nil and dialog.data.IsShown ~= nil
+       and dialog.data.IsShown() then
+        dialog.data.Cancel()
+    end
+end)

@@ -457,6 +457,21 @@ function GameHud.CreateRollOnTableDialog(self)
 				OnShow()
                 resultPanel:FireEventTree("show", m_options)
             end,
+
+            --External teardown entry point used by the restoreFromBackup event
+            --handler. Mirrors the cancelButton's click logic: when the roll has
+            --already happened (m_hasClose), just hide without re-firing the
+            --cancel callback; when the dialog is still pre-roll, run the full
+            --CancelRollDialog path.
+            Cancel = function()
+                if resultPanel:HasClass('hidden') then return end
+                if m_hasClose then
+                    resultPanel:SetClass('hidden', true)
+                    OnHide()
+                else
+                    CancelRollDialog()
+                end
+            end,
         },
 
 		gui.Panel{
@@ -606,3 +621,24 @@ function RollOnTableProperties:CustomPanel(message)
         },
     }
 end
+
+--On reset-turn / backup-restore, close the roll-on-table dialog and the
+--main roll dialog (DSRollDialog). The embedded ability-roll dialog is
+--handled in AbilitySidebar.lua.
+dmhub.RegisterEventHandler("restoreFromBackup", function()
+    local hud = GameHud.instance
+    if hud == nil then return end
+
+    if hud.rollOnTableDialog ~= nil and hud.rollOnTableDialog.valid
+       and hud.rollOnTableDialog.data ~= nil and hud.rollOnTableDialog.data.Cancel ~= nil then
+        hud.rollOnTableDialog.data.Cancel()
+    end
+
+    --rollDialog.Cancel does not self-guard against the hidden state, so check
+    --IsShown first to avoid re-firing a stale cancelRoll closure.
+    if hud.rollDialog ~= nil and hud.rollDialog.valid
+       and hud.rollDialog.data ~= nil and hud.rollDialog.data.Cancel ~= nil
+       and hud.rollDialog.data.IsShown ~= nil and hud.rollDialog.data.IsShown() then
+        hud.rollDialog.data.Cancel()
+    end
+end)

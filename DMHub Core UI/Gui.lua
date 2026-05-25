@@ -518,10 +518,21 @@ function gui.SimpleIconButton(options)
 end
 
 
+local throttleCloseDeprecated = 0
 --- An "x" button for closing out dialogs.
 --- @param options PanelArgs
 --- @return Panel
 function gui.CloseButton(options)
+	if devmode() and dmhub.Time() - throttleCloseDeprecated >= 60 then
+		throttleCloseDeprecated = dmhub.Time()
+		local caller = debug.getinfo(2, "Sl")
+		local location = "unknown location"
+		if caller ~= nil then
+			location = string.format("%s:%d", caller.short_src, caller.currentline)
+		end
+		SendTitledChatMessage(string.format("gui.CloseButton() - use gui.Button() instead. See theming guide. Called from %s", location), "deprecated", "#cc6666")
+	end
+
 	local args = {
 		classes = {'close-button', "closeButton"},
 		bgimage = 'ui-icons/close.png',
@@ -638,10 +649,21 @@ function gui.DeleteItemButton(options)
 	return gui.Panel(args)
 end
 
+local throttleCopyDeprecated = 0
 --- A "copy" button for copying items to the clipboard.
 --- @param options PanelArgs
 --- @return Panel
 function gui.CopyButton(options)
+	if devmode() and dmhub.Time() - throttleCopyDeprecated >= 60 then
+		throttleCopyDeprecated = dmhub.Time()
+		local caller = debug.getinfo(2, "Sl")
+		local location = "unknown location"
+		if caller ~= nil then
+			location = string.format("%s:%d", caller.short_src, caller.currentline)
+		end
+		SendTitledChatMessage(string.format("gui.CopyButton() - use gui.Button() instead. See theming guide. Called from %s", location), "deprecated", "#cc6666")
+	end
+
 	local args = {
 		classes = {"iconButton"},
 		bgimage = "icons/icon_app/icon_app_108.png",
@@ -907,10 +929,21 @@ local prettyButtonStyles = {
 	},
 }
 
+local throttleFancyDeprecated = 0
 --- A fancy looking button
 --- @param options PanelArgs
 --- @return Panel
 function gui.FancyButton(options)
+	if devmode() and dmhub.Time() - throttleFancyDeprecated >= 60 then
+		throttleFancyDeprecated = dmhub.Time()
+		local caller = debug.getinfo(2, "Sl")
+		local location = "unknown location"
+		if caller ~= nil then
+			location = string.format("%s:%d", caller.short_src, caller.currentline)
+		end
+		SendTitledChatMessage(string.format("gui.FancyButton() - use gui.Button() instead. See theming guide. Called from %s", location), "deprecated", "#cc6666")
+	end
+
 	options = DeepCopy(options or {})
 
 	local text = options.text or ''

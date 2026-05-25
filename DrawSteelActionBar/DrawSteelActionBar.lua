@@ -1208,7 +1208,9 @@ local function CreateActionBar()
 
             g_creature = g_token.properties
 
-            if g_creature:try_get("treatAsObject", false) then
+            --Hide the bar when the selected token is a fixture/object, EXCEPT
+            --while an invoked cast is driving us (g_casterTokenStack non-empty).
+            if g_creature:try_get("treatAsObject", false) and #g_casterTokenStack == 0 then
                 element:SetClass("hidden", true)
                 element:HaltEventPropagation()
                 element:FireEventTree("closemenu")

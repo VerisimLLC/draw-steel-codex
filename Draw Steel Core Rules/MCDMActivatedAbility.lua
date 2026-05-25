@@ -656,11 +656,40 @@ function ActivatedAbility:Render(options, params)
         local rollProperties = RollPropertiesPowerTable.new{
             tiers = normalizedTiers,
         }
+        -- Pre-compute what the ability's tiers contain so note parts can be
+        -- filtered to only show information relevant to this ability.
+        -- hasDamage: any normalized tier contains the word "damage".
+        -- hasPotency: any raw tier contains a potency gate (" < ").
+        -- tiersDamageTypes: set of specific damage type words present in tiers.
+        local tiersAllText = table.concat(normalizedTiers, " "):lower()
+        local hasDamage = tiersAllText:find("damage") ~= nil
+        local hasPotency = false
+        for _, t in ipairs(ptBehavior.tiers) do
+            if t:find(" < ") then hasPotency = true break end
+        end
+        local tiersDamageTypes = {}
+        for damageType in tiersAllText:gmatch("(%a+)%s+damage") do
+            tiersDamageTypes[damageType] = true
+        end
+
         -- A minimal "null target" object: GenerateSymbols returns a non-nil
         -- function from it, which prevents AppendSymbols from substituting any
         -- stale target left in _tmp_symbols from a previous real roll.
         local nullTarget = {lookupSymbols = {}}
         local function tryApply(modifier, modContext)
+            -- Skip modifiers whose activation condition references the target.
+            -- Without a real target we cannot evaluate target-relative conditions
+            -- (e.g. High Ground, Hidden, Flanking) and the null-target defaults
+            -- produce false positives.
+            local ac = modifier:try_get("activationCondition", false)
+            if type(ac) == "string" and ac:lower():find("target") then
+                return
+            end
+            -- Skip modifiers with a Roll Requirement (edge, bane, surges, etc.)
+            -- since we have no roll info at display time.
+            if modifier:try_get("rollRequirement", "none") ~= "none" then
+                return
+            end
             local hint = modifier:HintModifyPowerRolls(modContext, creatureProperties, "ability_power_roll", {
                 ability = self,
                 caster = creatureProperties,
@@ -673,21 +702,112 @@ function ActivatedAbility:Render(options, params)
             -- Build a note describing what this modifier does.
             if notes ~= nil then
                 local noteParts = {}
+                local lookupFn = creatureProperties:LookupSymbol(modifier:AppendSymbols{
+                    triggerer = nil,
+                    target = GenerateSymbols(nullTarget),
+                })
                 local damageModifier = modifier:try_get("damageModifier", "")
-                if damageModifier ~= "" then
-                    local lookupFn = creatureProperties:LookupSymbol(modifier:AppendSymbols{
-                        triggerer = nil,
-                        target = GenerateSymbols(nullTarget),
-                    })
+                if damageModifier ~= "" and hasDamage then
                     local dmgVal = safe_toint(dmhub.EvalGoblinScript(damageModifier, lookupFn, "Power Roll Damage display"))
                     if dmgVal ~= nil and dmgVal ~= 0 then
                         dmgVal = round(dmgVal)
-                        noteParts[#noteParts+1] = string.format("%s%d damage", dmgVal > 0 and "+" or "", dmgVal)
+                        local damageModifierType = modifier:try_get("damageModifierType", "none")
+                        if damageModifierType ~= "none" then
+                            noteParts[#noteParts+1] = string.format("%s%d %s damage", dmgVal > 0 and "+" or "", dmgVal, damageModifierType)
+                        else
+                            noteParts[#noteParts+1] = string.format("%s%d damage", dmgVal > 0 and "+" or "", dmgVal)
+                        end
                     end
                 end
-                local potencymod = tonumber(modifier:try_get("potencymod", "none"))
-                if potencymod ~= nil and potencymod ~= 0 then
-                    noteParts[#noteParts+1] = string.format("%s%d potency", potencymod > 0 and "+" or "", potencymod)
+                if hasPotency then
+                    local potencymod = tonumber(modifier:try_get("potencymod", "none"))
+                    if potencymod ~= nil and potencymod ~= 0 then
+                        noteParts[#noteParts+1] = string.format("%s%d potency", potencymod > 0 and "+" or "", potencymod)
+                    end
+                end
+                local damageTypeMappings = modifier:try_get("damageTypeMappings")
+                if damageTypeMappings ~= nil and hasDamage then
+                    if damageTypeMappings["all"] ~= nil then
+                        noteParts[#noteParts+1] = string.format("all damage becomes %s", damageTypeMappings["all"])
+                    else
+                        for k, v in sorted_pairs(damageTypeMappings) do
+                            if tiersDamageTypes[k:lower()] then
+                                noteParts[#noteParts+1] = string.format("%s damage becomes %s", k, v)
+                            end
+                        end
+                    end
+                end
+                local replacePattern = trim(modifier:try_get("replacePattern", ""))
+                local replaceWith = trim(modifier:try_get("replaceText", ""))
+                if replacePattern ~= "" and replaceWith ~= "" then
+                    -- Use tiersAllText (a pre-modification string snapshot) so the
+                    -- search is not defeated by the replacement having already run.
+                    if tiersAllText:find(replacePattern:lower(), 1, true) then
+                        local dest = StringInterpolateGoblinScript(replaceWith, lookupFn)
+                        local t1, t2, t3 = dest:match("^(.-)%s*//%s*(.-)%s*//%s*(.-)%s*$")
+                        local destStr
+                        if t1 ~= nil then
+                            local function ts(t) return trim(t) ~= "" and ('"' .. trim(t) .. '"') or "-" end
+                            destStr = string.format("%s/%s/%s", ts(t1), ts(t2), ts(t3))
+                        else
+                            destStr = '"' .. dest .. '"'
+                        end
+                        noteParts[#noteParts+1] = string.format('"%s" -> %s', replacePattern, destStr)
+                    end
+                end
+                local addText = trim(modifier:try_get("addText", ""))
+                if addText ~= "" then
+                    local interpolated = StringInterpolateGoblinScript(addText, lookupFn)
+                    -- Split "A // B // C" tier notation; fall back to the raw text for N/N/N numeric format.
+                    local t1, t2, t3 = interpolated:match("^(.-)%s*//%s*(.-)%s*//%s*(.-)%s*$")
+                    local tierNote
+                    if t1 ~= nil then
+                        local function tierStr(t) return trim(t) ~= "" and ('"' .. trim(t) .. '"') or "-" end
+                        tierNote = string.format("adds: %s/%s/%s", tierStr(t1), tierStr(t2), tierStr(t3))
+                    else
+                        tierNote = "adds: " .. interpolated
+                    end
+                    noteParts[#noteParts+1] = tierNote
+                end
+                for _, adjustment in ipairs(modifier:try_get("adjustments", {})) do
+                    local adjType = adjustment.type or ""
+                    if adjType ~= "" and tiersAllText:find(adjType, 1, true) then
+                        local adjVal = safe_toint(dmhub.EvalGoblinScript(tostring(adjustment.value or 1), lookupFn, "Adjustment display"))
+                        if adjVal ~= nil and adjVal ~= 0 then
+                            noteParts[#noteParts+1] = string.format("%s%d %s", adjVal > 0 and "+" or "", adjVal, adjType)
+                        end
+                    end
+                end
+                local rfm = modifier:try_get("replaceForcedMovement")
+                if rfm ~= nil and rfm.from ~= nil and rfm.to ~= nil then
+                    if rfm.from == "any" then
+                        local presentTypes = {}
+                        for _, mt in ipairs({"push", "pull", "slide"}) do
+                            if tiersAllText:find(mt, 1, true) then
+                                presentTypes[#presentTypes+1] = mt
+                            end
+                        end
+                        if #presentTypes > 0 then
+                            noteParts[#noteParts+1] = string.format("%s -> %s", table.concat(presentTypes, "/"), rfm.to)
+                        end
+                    elseif tiersAllText:find(rfm.from, 1, true) then
+                        noteParts[#noteParts+1] = string.format("%s -> %s", rfm.from, rfm.to)
+                    end
+                end
+                local modtype = modifier:try_get("modtype", "none")
+                if modtype ~= "none" then
+                    local modTypeInfo = ActivatedAbilityPowerRollBehavior.s_modificationTypesById[modtype]
+                    if modTypeInfo ~= nil and not modTypeInfo.hideText then
+                        local rollModText
+                        if modTypeInfo.mod:match("^[+-]%d+$") then
+                            rollModText = modTypeInfo.mod .. " to roll"
+                        elseif modTypeInfo.mod:match("edge") or modTypeInfo.mod:match("bane") then
+                            rollModText = modTypeInfo.text .. " on roll"
+                        else
+                            rollModText = modTypeInfo.text
+                        end
+                        noteParts[#noteParts+1] = rollModText
+                    end
                 end
                 if #noteParts > 0 then
                     notes[#notes+1] = string.format("%s: %s", modifier.name, table.concat(noteParts, ", "))
@@ -917,11 +1037,15 @@ function ActivatedAbility:Render(options, params)
             end
         end
 
+        local hasDamageDisplay = displayTiers ~= nil and table.concat(displayTiers, " "):lower():find("damage") ~= nil
         for _, entry in ipairs(self:try_get("modificationLog", {})) do
-            tokenDependentChildren[#tokenDependentChildren + 1] = gui.Label {
-                text = entry,
-                classes = { "info" },
-            }
+            -- Skip kit damage notes on abilities that have no rolled damage.
+            if not entry:lower():find("damage") or hasDamageDisplay then
+                tokenDependentChildren[#tokenDependentChildren + 1] = gui.Label {
+                    text = entry,
+                    classes = { "info" },
+                }
+            end
         end
 
         local seenRules = {}

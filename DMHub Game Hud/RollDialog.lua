@@ -1181,7 +1181,7 @@ function GameHud.CreateRollDialog(self)
 		OnHide()
 	end
 
-	rollDiceButton = gui.PrettyButton{
+	rollDiceButton = gui.Button{
 				text = 'Roll Dice',
 				style = {
 					width = 200,
@@ -1198,7 +1198,7 @@ function GameHud.CreateRollDialog(self)
 				}
 			}
 
-	cancelButton = gui.PrettyButton{
+	cancelButton = gui.Button{
 				text = 'Cancel',
 				escapeActivates = true,
 				escapePriority = EscapePriority.EXIT_ROLL_DIALOG,

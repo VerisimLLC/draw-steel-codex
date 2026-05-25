@@ -1916,9 +1916,9 @@ CharacterModifier.TypeInfo.trigger = {
 
                 end,
             }
-			children[#children+1] = gui.PrettyButton{
+			children[#children+1] = gui.Button{
+				classes = {"sizeL"},
 				width = 200,
-				height = 50,
 				text = "Edit Ability",
 				click = function(element)
 					local fn = function(element, modifier, savefn)
@@ -2040,9 +2040,9 @@ CharacterModifier.TypeInfo.activated = {
                     modifier.suppressOthers = element.value
                 end,
             }
-			children[#children+1] = gui.PrettyButton{
+			children[#children+1] = gui.Button{
+				classes = {"sizeL"},
 				width = 200,
-				height = 50,
 				text = "Edit Ability",
 				click = function(element)
 					local fn = function(element, modifier, savefn)

@@ -500,10 +500,10 @@ local SettingsEditors = {
 	end,
 
 	buttonincrement = function(var)
-		local button = gui.PrettyButton{
+		local button = gui.Button{
+			classes = {"sizeL"},
 			text = var.description,
 			width = 260,
-			height = 48,
 			events = {
 				click = function(element)
 					dmhub.SetSettingValue(var.id, dmhub.GetSettingValue(var.id)+1)

@@ -1223,7 +1223,7 @@ function ShowRequireRollDialog(args)
 			},
 		},
 
-		gui.PrettyButton{
+		gui.Button{
 			text = 'Submit',
 			floating = true,
 			halign = 'right',
@@ -1300,7 +1300,7 @@ function GameHud:ShowRollSummaryDialog(actionid, resultTable)
 
 	local iscomplete = false
 
-	local closeButton = gui.PrettyButton{
+	local closeButton = gui.Button{
 			text = 'Cancel',
 			floating = true,
 			halign = 'right',

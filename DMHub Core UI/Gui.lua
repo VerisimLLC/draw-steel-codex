@@ -968,7 +968,13 @@ local PrettyButtonBackgroundStyles = {
 --- A pretty looking button
 --- @param options PanelArgs
 --- @return Panel
+local throttlePBDeprecated = 0
 function gui.PrettyButton(args)
+	-- print(string.format("THC:: time: [%d], throttle: [%d]", dmhub.Time(), throttlePBDeprecated))
+	if devmode() and dmhub.Time() - throttlePBDeprecated >= 60 then
+		throttlePBDeprecated = dmhub.Time()
+		SendTitledChatMessage("gui.PrettyButton() - use gui.Button() instead. See theming guide.", "deprecated", "#cc6666")
+	end
 	local classes = args.classes or {}
 	if type(classes) == "string" then
 		classes = {classes}
@@ -976,55 +982,6 @@ function gui.PrettyButton(args)
 	classes[#classes+1] = "prettyButton"
 	args.classes = classes
 	return gui.Button(args)
-
---local mainPanel = gui.Panel({
---	bgimage = 'panels/ButtonBackground.png',
---	interactable = false,
---	style = {
---		width = '100%',
---		height = '100%',
---		bgslice = 12,
---		margin = 0,
---	},
-
---	children = {
---		gui.Panel{
---			bgimage = 'panels/ButtonForegroundRed.png',
---			styles = PrettyButtonBackgroundStyles,
-
---			children = {
---				gui.Label{
---					classes = {'pretty-button-label'},
---					text = args.text or 'TEXT',
---					fontSize = args.fontSize or "100%",
---					settext = function(element, t)
---						element.text = t
---					end,
---				}
---			}
---		}
---	}
---})
-
---local style = DeepCopy(args.style) or {}
-
---style.margin = style.margin or 0
---style.pad = style.pad or 0
---style.flow = 'none'
---style.bgcolor = style.bgcolor or 'white'
-
---local options = DeepCopy(args)
---if type(options.classes) == "string" then
---	options.classes = {options.classes}
---end
---options.classes = options.classes or {}
---options.classes[#options.classes+1] = 'pretty-button'
---options.text = nil
---options.style = style
---options.children = { mainPanel }
---options.interactable = false
-
---return gui.Panel(options)
 end
 
 -- diamond

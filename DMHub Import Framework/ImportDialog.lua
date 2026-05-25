@@ -31,7 +31,6 @@ CreateImportAssetsDialog = function(args)
 
     import:ClearState()
 
-
     local textImport
     local textImportButton = gui.Button{
         classes = {"hidden"},
@@ -44,7 +43,6 @@ CreateImportAssetsDialog = function(args)
             dialogPanel:FireEventTree("refreshImport")
         end,
     }
-
 
     textImport = gui.Input{
         width = 500,
@@ -97,7 +95,8 @@ CreateImportAssetsDialog = function(args)
             dialogPanel:FireEventTree("refreshImport")
         end,
         
-        gui.PrettyButton{
+        gui.Button{
+            classes = {"sizeL"},
             text = "Choose Files...",
             minWidth = 260,
             halign = "center",
@@ -149,7 +148,8 @@ CreateImportAssetsDialog = function(args)
             dialogPanel:FireEventTree("refreshImport")
         end,
         
-        gui.PrettyButton{
+        gui.Button{
+            classes = {"sizeL"},
             text = "Choose Files...",
             minWidth = 260,
             halign = "center",
@@ -168,7 +168,8 @@ CreateImportAssetsDialog = function(args)
             end,
         },
         
-        gui.PrettyButton{
+        gui.Button{
+            classes = {"sizeL"},
             text = "Choose Folder...",
             minWidth = 260,
             halign = "center",
@@ -218,7 +219,8 @@ CreateImportAssetsDialog = function(args)
             dialogPanel:FireEventTree("refreshImport")
         end,
         
-        gui.PrettyButton{
+        gui.Button{
+            classes = {"sizeL"},
             text = "Choose Files...",
             minWidth = 260,
             halign = "center",
@@ -237,8 +239,9 @@ CreateImportAssetsDialog = function(args)
                 }
             end,
         },
-        
-        gui.PrettyButton{
+
+        gui.Button{
+            classes = {"sizeL"},
             text = "Choose Folder...",
             minWidth = 260,
             halign = "center",
@@ -251,7 +254,6 @@ CreateImportAssetsDialog = function(args)
                     prompt = "Choose folder to import...",
                     open = function(folderPath, files)
                         filesImportPanel:FireEvent("openFiles", files)
-
                     end,
                 }
             end,
@@ -331,8 +333,7 @@ CreateImportAssetsDialog = function(args)
             },
 
             gui.Button{
-                classes = {"hidden"},
-                height = 28,
+                classes = {"sizeL", "hidden"},
                 width = 160,
                 text = "Submit",
                 url = function(element, url)
@@ -401,8 +402,6 @@ CreateImportAssetsDialog = function(args)
 
     local importerDropdown = gui.Dropdown{
         width = 240,
-        height = 28,
-        fontSize = 18,
         options = importerOptions,
         idChosen = importerid,
         create = function(element)
@@ -435,8 +434,6 @@ CreateImportAssetsDialog = function(args)
         },
         importerDropdown,
     }
-
-
 
     local contentPanel = gui.Panel{
         classes = "collapsed",
@@ -753,7 +750,7 @@ CreateImportAssetsDialog = function(args)
 
     local logPanel = gui.Panel{
         vscroll = true,
-        height = 160,
+        height = 240,
         width = 400,
         flow = "vertical",
         floating = true,
@@ -789,9 +786,6 @@ CreateImportAssetsDialog = function(args)
         end,
     }
 
-
-
-
     local statusMessage = gui.Label{
         classes = {"collapsed"},
         halign = "left",
@@ -816,8 +810,8 @@ CreateImportAssetsDialog = function(args)
         end,
     }
 
-    local completeButton = gui.PrettyButton{
-        classes = {"hidden"},
+    local completeButton = gui.Button{
+        classes = {"sizeL", "hidden"},
         halign = "center",
         valign = "bottom",
         text = "Finish",
@@ -900,8 +894,8 @@ CreateImportAssetsDialog = function(args)
         end,
     }
 
-    local importButton = gui.PrettyButton{
-        classes = {"hidden"},
+    local importButton = gui.Button{
+        classes = {"sizeL", "hidden"},
         halign = "center",
         valign = "bottom",
         text = "Import",

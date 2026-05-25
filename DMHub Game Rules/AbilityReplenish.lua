@@ -487,10 +487,10 @@ function ActivatedAbilityReplenishBehavior:Cast(ability, casterToken, targets, o
 
                         },
 
-                        gui.Divider{
+                        gui.MCDMDivider{
                         },
 
-                        gui.PrettyButton{
+                        gui.Button{
                             text = "Confirm",
                             click = function()
                                 finished = true

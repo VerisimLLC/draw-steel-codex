@@ -7,7 +7,7 @@ TokenUI.ClearAllIcons()
 --this registers a setting in DMHub. We want this setting to control whether the wounded icon shows.
 local woundedIconSetting = setting{
 	id = "showwoundedicon",
-	description = "Show wounded icon",
+	description = "Show winded icon",
 	editor = "check",
 	default = true,
 

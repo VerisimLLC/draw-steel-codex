@@ -277,6 +277,28 @@ local function CreateJoinGameModal(tokenToImport)
 
     local m_password = ""
 
+    -- Dialog-internal layout rules: every label is 80%-wide, left-aligned,
+    -- 16pt; every input fills 80%-16 to leave room for the border. Theme
+    -- tokens for font/color/border come from the {label} / {input} base
+    -- rules that GetStyles() ships -- we only override geometry here.
+    local m_dialogStylesExtras = {
+        {
+            selectors = { "label" },
+            width = "80%",
+            height = "auto",
+            textAlignment = "left",
+            halign = "center",
+            fontSize = 16,
+            vmargin = 4,
+        },
+        {
+            selectors = { "input" },
+            width = "80%-16",
+            halign = "center",
+            fontSize = 16,
+        },
+    }
+
     resultPanel = gui.Panel {
         width = "100%",
         height = "100%",
@@ -284,34 +306,25 @@ local function CreateJoinGameModal(tokenToImport)
         bgcolor = "clear",
         floating = true,
         gui.Panel {
-            styles = {
-                Styles.Default,
-                Styles.Panel,
-                gui.Style {
-                    selectors = { "label" },
-                    width = "80%",
-                    height = "auto",
-                    textAlignment = "left",
-                    halign = "center",
-                    fontSize = 16,
-                    vmargin = 4,
-                },
-                gui.Style {
-                    selectors = { "input" },
-                    width = "80%-16",
-                    halign = "center",
-                    fontSize = 16,
-                    borderWidth = 1,
-                    borderColor = Styles.textColor,
-                },
-            },
+            styles = ThemeEngine.MergeStyles(m_dialogStylesExtras),
             classes = { "framedPanel" },
-            bgimage = true,
             width = 800,
             height = 900,
             halign = "center",
             valign = "center",
             flow = "vertical",
+
+            -- Live re-theming: MergeStyles is a one-shot snapshot; subscribe
+            -- so the dialog recolors when the active theme/scheme changes
+            -- without requiring re-open. Guard with .valid so the callback
+            -- no-ops after the dialog closes.
+            create = function(element)
+                ThemeEngine.OnThemeChanged(mod, function()
+                    if element.valid then
+                        element.styles = ThemeEngine.MergeStyles(m_dialogStylesExtras)
+                    end
+                end)
+            end,
 
             gui.Label {
                 classes = { "dialogTitle" },
@@ -334,7 +347,6 @@ local function CreateJoinGameModal(tokenToImport)
             },
 
             gui.Input {
-                classes = { "formInput" },
                 text = "",
                 placeholderText = "Enter Invite Code...",
                 fontSize = 18,
@@ -686,7 +698,8 @@ local function CreateJoinGameModal(tokenToImport)
                 end,
             },
 
-            gui.CloseButton {
+            gui.Button {
+                classes = { "closeButton" },
                 floating = true,
                 halign = "right",
                 valign = "top",
@@ -725,6 +738,28 @@ local function CreateGameEditor(options)
 
     local m_uploadCoverArt = nil
 
+    -- Dialog-internal layout rules: every label is 80%-wide, left-aligned,
+    -- 16pt; every input fills 80%-16 to leave room for the border. Theme
+    -- tokens for font/color/border come from the {label} / {input} base
+    -- rules that GetStyles() ships -- we only override geometry here.
+    local m_dialogStylesExtras = {
+        {
+            selectors = { "label" },
+            width = "80%",
+            height = "auto",
+            textAlignment = "left",
+            halign = "center",
+            fontSize = 16,
+            vmargin = 4,
+        },
+        {
+            selectors = { "input" },
+            width = "80%-16",
+            halign = "center",
+            fontSize = 16,
+        },
+    }
+
     print("CREATE EDITOR")
 
     resultPanel = gui.Panel {
@@ -734,34 +769,25 @@ local function CreateGameEditor(options)
         bgcolor = "clear",
         floating = true,
         gui.Panel {
-            styles = {
-                Styles.Default,
-                Styles.Panel,
-                gui.Style {
-                    selectors = { "label" },
-                    width = "80%",
-                    height = "auto",
-                    textAlignment = "left",
-                    halign = "center",
-                    fontSize = 16,
-                    vmargin = 4,
-                },
-                gui.Style {
-                    selectors = { "input" },
-                    width = "80%-16",
-                    halign = "center",
-                    fontSize = 16,
-                    borderWidth = 1,
-                    borderColor = Styles.textColor,
-                },
-            },
+            styles = ThemeEngine.MergeStyles(m_dialogStylesExtras),
             classes = { "framedPanel" },
-            bgimage = true,
             width = 800,
             height = 900,
             halign = "center",
             valign = "center",
             flow = "vertical",
+
+            -- Live re-theming: MergeStyles is a one-shot snapshot; subscribe
+            -- so the dialog recolors when the active theme/scheme changes
+            -- without requiring re-open. Guard with .valid so the callback
+            -- no-ops after the dialog closes.
+            create = function(element)
+                ThemeEngine.OnThemeChanged(mod, function()
+                    if element.valid then
+                        element.styles = ThemeEngine.MergeStyles(m_dialogStylesExtras)
+                    end
+                end)
+            end,
 
             gui.Label {
                 classes = { "dialogTitle" },
@@ -784,7 +810,6 @@ local function CreateGameEditor(options)
             },
 
             gui.Input {
-                classes = { "formInput" },
                 text = m_game.description,
                 placeholderText = "Enter Campaign Name",
                 fontSize = 22,
@@ -800,7 +825,6 @@ local function CreateGameEditor(options)
             },
 
             gui.Input {
-                classes = { "formInput" },
                 text = m_game.descriptionDetails,
                 placeholderText = "Enter Campaign Details",
                 fontSize = 16,
@@ -844,34 +868,40 @@ local function CreateGameEditor(options)
                                     local modal
                                     modal = gui.Panel {
                                         classes = { "framedPanel" },
-                                        styles = {
-                                            Styles.Default,
-                                            Styles.Panel,
-                                        },
+                                        styles = ThemeEngine.GetStyles(),
                                         width = 600,
                                         height = 600,
                                         floating = true,
                                         halign = "center",
                                         valign = "center",
-                                        bgimage = true,
+
+                                        create = function(element)
+                                            ThemeEngine.OnThemeChanged(mod, function()
+                                                if element.valid then
+                                                    element.styles = ThemeEngine.GetStyles()
+                                                end
+                                            end)
+                                        end,
 
                                         gui.Label {
-                                            classes = { "title" },
+                                            classes = { "modalTitle" },
                                             text = "Error Uploading Cover Art",
                                         },
 
                                         gui.Label {
-                                            classes = { "dialogMessage" },
+                                            classes = { "modalMessage" },
                                             text = message,
                                         },
 
                                         gui.Panel {
-                                            classes = { "dialogButtonsPanel" },
+                                            width = "auto",
+                                            height = "auto",
+                                            halign = "center",
+                                            valign = "bottom",
+                                            vmargin = 16,
                                             gui.Button {
-                                                classes = { "dialogButton" },
                                                 text = "Close",
                                                 halign = "center",
-                                                scale = 0.7,
                                                 click = function(element)
                                                     modal:DestroySelf()
                                                 end,
@@ -1010,7 +1040,7 @@ local function CreateGameEditor(options)
                                 else
                                     if progressLabel.valid then
                                         progressLabel.text = "Deployment failed: " .. (err or "unknown error")
-                                        progressLabel.selfStyle.color = "red"
+                                        progressLabel:SetClass("danger", true)
                                     end
                                     if progressBar.valid then progressBar:SetClass("hidden", true) end
                                     if deployButton.valid then deployButton:SetClass("hidden", false) end
@@ -1019,7 +1049,7 @@ local function CreateGameEditor(options)
                         }
                     end
 
-                    deployButton = gui.PrettyButton {
+                    deployButton = gui.Button {
                         text = "Deploy Online",
                         width = 360,
                         height = 36,
@@ -1058,13 +1088,18 @@ local function CreateGameEditor(options)
                 end)()
             )) or (
                 gui.Panel {
-                    styles = {
+                    -- Custom invite-code panel: themed @border for the frame
+                    -- and @fg for the icon tint. The {bordered} class would
+                    -- skip cornerRadius + beveledcorners, so we keep this as
+                    -- a per-instance MergeStyles block routed through the
+                    -- parent ThemeEngine cascade.
+                    styles = ThemeEngine.MergeStyles{
                         {
                             selectors = { "infoPanel" },
                             bgimage = "panels/square.png",
                             bgcolor = "clear",
                             height = 60,
-                            borderColor = Styles.textColor,
+                            borderColor = "@border",
                             borderWidth = 2,
                             cornerRadius = 8,
                             beveledcorners = true,
@@ -1089,7 +1124,7 @@ local function CreateGameEditor(options)
                             selectors = { "infoIcon" },
                             height = "70%",
                             width = "100% height",
-                            bgcolor = Styles.textColor,
+                            bgcolor = "@fg",
                             halign = "left",
                             valign = "center",
                             hmargin = 16,
@@ -1136,7 +1171,6 @@ local function CreateGameEditor(options)
             ),
 
             gui.Label {
-                classes = { "fieldLabel" },
                 tmargin = 8,
                 text = "Password:",
             },
@@ -1193,20 +1227,22 @@ local function CreateGameEditor(options)
                             height = 240,
                             halign = "center",
                             valign = "center",
-                            bgimage = true,
                             flow = "vertical",
-                            styles = {
-                                Styles.Default,
-                                Styles.Panel,
-                            },
+                            styles = ThemeEngine.GetStyles(),
+
+                            create = function(element)
+                                ThemeEngine.OnThemeChanged(mod, function()
+                                    if element.valid then
+                                        element.styles = ThemeEngine.GetStyles()
+                                    end
+                                end)
+                            end,
 
                             gui.Label {
+                                classes = { "modalTitle" },
                                 text = "Migrating to Durable Objects",
                                 width = "auto",
-                                height = "auto",
-                                halign = "center",
                                 fontSize = 24,
-                                valign = "top",
                                 vmargin = 12,
                             },
 
@@ -1260,10 +1296,10 @@ local function CreateGameEditor(options)
                                 if statusLabel ~= nil and statusLabel.valid then
                                     if success then
                                         statusLabel.text = "Migration complete!"
-                                        statusLabel.color = "#88ff88"
+                                        statusLabel:SetClass("success", true)
                                     else
                                         statusLabel.text = string.format("Migration failed: %s", err or "unknown")
-                                        statusLabel.color = "#ff8888"
+                                        statusLabel:SetClass("danger", true)
                                     end
                                 end
                                 local closeBtn = modal:Get("closeMigrationBtn")
@@ -1307,30 +1343,26 @@ local function CreateGameEditor(options)
                             height = 600,
                             halign = "center",
                             valign = "center",
-                            bgimage = true,
                             flow = "none",
-                            styles = {
-                                Styles.Default,
-                                Styles.Panel,
-                            },
+                            styles = ThemeEngine.GetStyles(),
+
+                            create = function(element)
+                                ThemeEngine.OnThemeChanged(mod, function()
+                                    if element.valid then
+                                        element.styles = ThemeEngine.GetStyles()
+                                    end
+                                end)
+                            end,
 
                             gui.Label {
+                                classes = { "modalTitle" },
                                 text = "Delete Game?",
-                                width = "auto",
-                                height = "auto",
-                                halign = "center",
-                                fontSize = 28,
-                                valign = "top",
                                 vmargin = 8,
                             },
 
                             gui.Label {
+                                classes = { "modalMessage" },
                                 text = "Do you really want to delete this game?",
-                                width = "auto",
-                                height = "auto",
-                                halign = "center",
-                                valign = "center",
-                                fontSize = 16,
                             },
 
                             gui.Panel {
@@ -1375,7 +1407,8 @@ local function CreateGameEditor(options)
                 }
             },
 
-            gui.CloseButton {
+            gui.Button {
+                classes = { "closeButton" },
                 floating = true,
                 halign = "right",
                 valign = "top",
@@ -1510,6 +1543,7 @@ function RunRestoreOldVersionDialog(root, game)
     local submitButton
     local customDateRow
     local bookmarksList
+    local bookmarksSection
     local modal
 
     -- Build the date input row. Returns the row panel + a closure that
@@ -1521,7 +1555,6 @@ function RunRestoreOldVersionDialog(root, game)
 
         local function makeNumberInput(initial, w)
             return gui.Input {
-                classes = { "formInput" },
                 text = tostring(initial),
                 fontSize = 16,
                 width = w,
@@ -1583,18 +1616,22 @@ function RunRestoreOldVersionDialog(root, game)
     -- the dialog opens). Each row is clickable and selects that bookmark
     -- as the rollback target; selecting a row clears the duration choice.
     bookmarksList = gui.Panel {
+        -- {bordered} supplies bgimage = true + 1px @border frame; we override
+        -- the corner radius for the rounded-pocket look. The translucent
+        -- black bgcolor stays inline as a deliberate keep -- there's no
+        -- theme token for "inset pocket overlay," it's an aesthetic shadow
+        -- under the scroll region.
+        classes = { "bordered" },
         width = "80%",
         height = 140,
         halign = "center",
         flow = "vertical",
         vscroll = true,
-        bgimage = "panels/square.png",
         bgcolor = "#00000040",
         cornerRadius = 4,
-        borderWidth = 1,
-        borderColor = "#444444",
 
         gui.Label {
+            classes = { "fgMuted" },
             id = "bookmarksLoading",
             text = "Loading saved bookmarks...",
             width = "auto",
@@ -1602,7 +1639,6 @@ function RunRestoreOldVersionDialog(root, game)
             halign = "center",
             valign = "center",
             fontSize = 14,
-            color = "#888888",
         },
     }
 
@@ -1614,24 +1650,33 @@ function RunRestoreOldVersionDialog(root, game)
 
     local function PopulateBookmarks(rows, err)
         if bookmarksList == nil or not bookmarksList.valid then return end
+        -- A 404 from the bookmarks endpoint means the server has no bookmark
+        -- store for this game -- not a real error, just "no bookmarks." Hide
+        -- the whole bookmark section so the user only sees the duration picker.
+        if err ~= nil and string.find(tostring(err), "HTTP 404", 1, true) ~= nil then
+            if bookmarksSection ~= nil and bookmarksSection.valid then
+                bookmarksSection:SetClass("hidden", true)
+            end
+            return
+        end
         local newChildren = {}
         if err ~= nil then
             newChildren[#newChildren + 1] = gui.Label {
+                classes = { "danger" },
                 text = "Could not load bookmarks: " .. tostring(err),
                 width = "auto",
                 height = "auto",
                 halign = "center",
                 fontSize = 14,
-                color = "#ff8888",
             }
         elseif rows == nil or #rows == 0 then
             newChildren[#newChildren + 1] = gui.Label {
+                classes = { "fgMuted" },
                 text = "No saved bookmarks for this game.",
                 width = "auto",
                 height = "auto",
                 halign = "center",
                 fontSize = 14,
-                color = "#888888",
             }
         else
             for _, bm in ipairs(rows) do
@@ -1643,6 +1688,11 @@ function RunRestoreOldVersionDialog(root, game)
                     kind == "auto-undo" and "  [auto-undo]" or "")
                 local row
                 row = gui.Panel {
+                    -- {hoverable} brightens the row on hover (token-free,
+                    -- theme-tracking). The selected-state fill stays as a
+                    -- translucent accent overlay -- there is no theme token
+                    -- for a "row highlight tint" so it is a deliberate keep.
+                    classes = { "hoverable" },
                     width = "95%",
                     height = 24,
                     halign = "left",
@@ -1652,7 +1702,6 @@ function RunRestoreOldVersionDialog(root, game)
                     bgimage = "panels/square.png",
                     bgcolor = "clear",
                     styles = {
-                        { selectors = { "hover" }, bgcolor = "#ffffff20" },
                         { selectors = { "selected" }, bgcolor = "#5588cc60" },
                     },
                     click = function(element)
@@ -1666,20 +1715,23 @@ function RunRestoreOldVersionDialog(root, game)
                         end
                         if statusLabel ~= nil and statusLabel.valid then
                             statusLabel.text = "Bookmark selected. Press Submit to roll back."
-                            statusLabel.color = "#88ccff"
+                            statusLabel:SetClass("danger", false)
+                            statusLabel:SetClass("info", true)
                         end
                     end,
 
                     gui.Label {
                         -- interactable=false so the click reaches the row
                         -- Panel above instead of being swallowed by the label.
+                        -- Auto-undo bookmarks get the themed `info` accent so
+                        -- they stand out from regular user bookmarks.
+                        classes = { kind == "auto-undo" and "info" or nil },
                         interactable = false,
                         text = label,
                         width = "auto",
                         height = "auto",
                         fontSize = 14,
                         valign = "center",
-                        color = kind == "auto-undo" and "#aaaaff" or Styles.textColor,
                     },
                 }
                 newChildren[#newChildren + 1] = row
@@ -1734,7 +1786,8 @@ function RunRestoreOldVersionDialog(root, game)
             local ms, err = ResolveTimestampMs()
             if ms == nil then
                 statusLabel.text = err or "Invalid selection"
-                statusLabel.color = "#ff8888"
+                statusLabel:SetClass("info", false)
+                statusLabel:SetClass("danger", true)
                 return
             end
             options = {
@@ -1746,7 +1799,8 @@ function RunRestoreOldVersionDialog(root, game)
         configurePanel:SetClass("hidden", true)
         progressPanel:SetClass("hidden", false)
         progressLabel.text = "Starting rollback..."
-        progressLabel.color = Styles.textColor
+        progressLabel:SetClass("success", false)
+        progressLabel:SetClass("danger", false)
         submitButton:SetClass("hidden", true)
         closeButton.interactable = false
         closeButton.text = "Close"
@@ -1760,10 +1814,12 @@ function RunRestoreOldVersionDialog(root, game)
             if progressLabel ~= nil and progressLabel.valid then
                 if success then
                     progressLabel.text = "Rollback complete!"
-                    progressLabel.color = "#88ff88"
+                    progressLabel:SetClass("danger", false)
+                    progressLabel:SetClass("success", true)
                 else
                     progressLabel.text = "Rollback failed: " .. tostring(detail or "unknown error")
-                    progressLabel.color = "#ff8888"
+                    progressLabel:SetClass("success", false)
+                    progressLabel:SetClass("danger", true)
                 end
             end
             if closeButton ~= nil and closeButton.valid then
@@ -1789,7 +1845,6 @@ function RunRestoreOldVersionDialog(root, game)
     }
 
     local durationDropdown = gui.Dropdown {
-        styles = ThemeEngine.GetStyles("default", "default"),
         width = "80%",
         height = 32,
         halign = "center",
@@ -1814,7 +1869,6 @@ function RunRestoreOldVersionDialog(root, game)
         height = "auto",
         halign = "center",
         fontSize = 14,
-        color = "#ff8888",
         vmargin = 4,
     }
 
@@ -1835,12 +1889,22 @@ function RunRestoreOldVersionDialog(root, game)
         durationDropdown,
         customDateRow,
 
-        gui.Label {
-            text = "Or restore to a saved bookmark (click a row, then press Submit):",
-            width = "80%", height = "auto", halign = "center",
-            fontSize = 16, textAlignment = "left", tmargin = 12,
+        -- Header + list grouped so they can be hidden together if the server
+        -- has no bookmark store for this game (404 on /admin/bookmarks/...).
+        gui.Panel {
+            width = "100%",
+            height = "auto",
+            halign = "center",
+            flow = "vertical",
+            create = function(element) bookmarksSection = element end,
+
+            gui.Label {
+                text = "Or restore to a saved bookmark (click a row, then press Submit):",
+                width = "80%", height = "auto", halign = "center",
+                fontSize = 16, textAlignment = "left", tmargin = 12,
+            },
+            bookmarksList,
         },
-        bookmarksList,
 
         statusLabel,
     }
@@ -1853,7 +1917,6 @@ function RunRestoreOldVersionDialog(root, game)
         valign = "center",
         textAlignment = "center",
         fontSize = 18,
-        color = Styles.textColor,
     }
 
     progressPanel = gui.Panel {
@@ -1893,27 +1956,38 @@ function RunRestoreOldVersionDialog(root, game)
         end,
     }
 
+    -- Dialog-internal extras: the date-number inputs need auto width and
+    -- 16pt sizing; the {input} theme rule provides border/font/color via
+    -- @tokens, so we only override geometry here.
+    local m_dialogStylesExtras = {
+        {
+            selectors = { "input" },
+            width = "auto",
+            fontSize = 16,
+        },
+    }
+
     modal = gui.Panel {
         floating = true,
         width = "100%",
         height = "100%",
         bgcolor = "clear",
         bgimage = true,
-        styles = {
-            Styles.Default,
-            Styles.Panel,
-            gui.Style {
-                selectors = { "input" },
-                width = "auto",
-                fontSize = 16,
-                borderWidth = 1,
-                borderColor = Styles.textColor,
-            },
-        },
+        styles = ThemeEngine.MergeStyles(m_dialogStylesExtras),
+
+        -- Live re-theming: MergeStyles is a one-shot snapshot; subscribe so
+        -- the dialog recolors when the active theme/scheme changes. Guard
+        -- with .valid so the callback no-ops after the dialog closes.
+        create = function(element)
+            ThemeEngine.OnThemeChanged(mod, function()
+                if element.valid then
+                    element.styles = ThemeEngine.MergeStyles(m_dialogStylesExtras)
+                end
+            end)
+        end,
 
         gui.Panel {
             classes = { "framedPanel" },
-            bgimage = true,
             width = 800,
             height = 900,
             halign = "center",
@@ -1950,7 +2024,8 @@ function RunRestoreOldVersionDialog(root, game)
                 closeButton,
             },
 
-            gui.CloseButton {
+            gui.Button {
+                classes = { "closeButton" },
                 floating = true,
                 halign = "right",
                 valign = "top",
@@ -2414,6 +2489,12 @@ local function MakeGamePanel(gameIndex)
             end,
 
             gui.Panel {
+                -- playCampaignButton class supplies the @fg bgcolor tint
+                -- via the Campaigns column's MergeStyles extras (multiplies
+                -- the button.png texture with the active scheme's @fg).
+                -- Hover/press brightness multipliers stay local to this
+                -- panel.
+                classes = { "playCampaignButton" },
                 styles = {
                     {
                         selectors = { "~hovergame" },
@@ -2432,7 +2513,6 @@ local function MakeGamePanel(gameIndex)
                 },
 
                 bgimage = "panels/titlescreen/button.png",
-                bgcolor = "white",
 
                 height = 131 * 0.4,
                 width = 632 * 0.4,
@@ -2443,7 +2523,7 @@ local function MakeGamePanel(gameIndex)
                 bmargin = 3,
 
                 hover = function ()
-                    
+
                     audio.FireSoundEvent("Mouse.Hover")
 
                 end,
@@ -2455,10 +2535,13 @@ local function MakeGamePanel(gameIndex)
                 end,
 
                 gui.Label {
+                    -- playCampaignLabel class supplies @fgInverse text
+                    -- color via the Campaigns column's MergeStyles extras
+                    -- (contrasts against the @fg-tinted button below).
+                    classes = { "playCampaignLabel" },
                     text = "PLAY CAMPAIGN",
                     fontSize = 18,
                     fontFace = "newzald",
-                    color = "white",
                     halign = "center",
                     valign = "center",
                     width = "auto",
@@ -2550,12 +2633,12 @@ local function MakeGamePanel(gameIndex)
                 },
 
                 gui.Label {
+                    classes = { "fgMuted" },
                     refreshGames = function(element)
                         element:SetClass("collapsed", m_game.owner == dmhub.loginUserid)
                         element.text = string.format(tr("<i>directed by</i> <b>%s</b>"), m_game.ownerDisplayName)
                     end,
                     fontSize = 14,
-                    color = "grey",
                     tmargin = -8,
                     halign = "left",
                     valign = "top",
@@ -2567,6 +2650,7 @@ local function MakeGamePanel(gameIndex)
                 },
 
                 gui.Label {
+                    classes = { "info" },
                     hidden = not dmhub.GetSettingValue("dev"),
                     refreshGames = function(element)
                         local storage = m_game.storage
@@ -2583,7 +2667,6 @@ local function MakeGamePanel(gameIndex)
                         element.text = string.format("Backend: %s", backend)
                     end,
                     fontSize = 12,
-                    color = "#b8d4ff",
                     halign = "left",
                     valign = "top",
                     width = "auto",
@@ -2613,16 +2696,18 @@ local function MakeGamePanel(gameIndex)
                 },
 
                 gui.Label {
+                    -- gameIdPill class supplies @fg text color, @border
+                    -- frame, and @surfaceLinear gradient via the Campaigns
+                    -- column's MergeStyles extras. The rule re-resolves on
+                    -- theme/scheme change via the column's OnThemeChanged.
+                    classes = { "gameIdPill" },
                     textAlignment = "center",
-                    color = "white",
                     fontSize = 14,
                     bold = true,
                     width = 360,
                     height = 36,
                     bgimage = true,
-                    bgcolor = "white",
-                    gradient = Styles.RichBlackGradient,
-                    borderColor = "white",
+                    bgcolor = "white",                 -- image-tint-neutral so the gradient paints
                     borderWidth = 1,
                     beveledcorners = true,
                     cornerRadius = 10,
@@ -2642,9 +2727,13 @@ local function MakeGamePanel(gameIndex)
 
                             local gameid = m_game.gameid
                             if g_streamerModeSetting:Get() then
-                                gameid = string.format(
-                                    "<alpha=#FF><mark=#FFFFFF><color=#FFFFFF>%s</alpha></mark></color>",
-                                    string.rep("*", #m_game.gameid))
+                                -- Mask the gameid with asterisks tinted to
+                                -- @fg so the obscured text adapts to scheme.
+                                -- ResolveTokens substitutes the literal hex
+                                -- of the active @fg into the markup string.
+                                gameid = ThemeEngine.ResolveTokens(string.format(
+                                    "<alpha=#FF><mark=@fg><color=@fg>%s</alpha></mark></color>",
+                                    string.rep("*", #m_game.gameid)))
                             end
                             element.text = gameid
                         end
@@ -2657,11 +2746,13 @@ local function MakeGamePanel(gameIndex)
                     end,
 
                     gui.Panel {
+                        -- gameIdPillIcon class supplies @fg tint via the
+                        -- Campaigns column's MergeStyles extras.
+                        classes = { "gameIdPillIcon" },
                         halign = "left",
                         valign = "center",
                         height = "50%",
                         width = "100% height",
-                        bgcolor = "white",
                         hmargin = 12,
                         bgimage = "icons/icon_app/icon_app_108.png",
                     },
@@ -2669,13 +2760,13 @@ local function MakeGamePanel(gameIndex)
 
                 -- "Invite Players" button that replaces the gameid-copy label
                 -- for local games. Clicking it starts the promote-to-DO flow.
-                gui.PrettyButton {
+                gui.Button {
                     text = "Invite Players",
                     width = 360,
                     height = 36,
                     fontSize = 18,
                     valign = "bottom",
-                    y = -24,
+                    y = -16,
                     hmargin = 4,
                     refreshGames = function(element)
                         element:SetClass("collapsed", m_game == nil or m_game.storage ~= 3)
@@ -2691,7 +2782,8 @@ local function MakeGamePanel(gameIndex)
 
         },
 
-        gui.SettingsButton {
+        gui.Button {
+            classes = { "settingsButton" },
             styles = {
                 {
                     selectors = { "~hovergame" },
@@ -2722,7 +2814,8 @@ local function MakeGamePanel(gameIndex)
             end,
         },
 
-        gui.DeleteItemButton {
+        gui.Button {
+            classes = { "deleteButton" },
             styles = {
                 {
                     selectors = { "~titlescreenPlayer" },
@@ -2750,30 +2843,26 @@ local function MakeGamePanel(gameIndex)
                     height = 600,
                     halign = "center",
                     valign = "center",
-                    bgimage = true,
                     flow = "none",
-                    styles = {
-                        Styles.Default,
-                        Styles.Panel,
-                    },
+                    styles = ThemeEngine.GetStyles(),
+
+                    create = function(element)
+                        ThemeEngine.OnThemeChanged(mod, function()
+                            if element.valid then
+                                element.styles = ThemeEngine.GetStyles()
+                            end
+                        end)
+                    end,
 
                     gui.Label {
+                        classes = { "modalTitle" },
                         text = "Leave Game?",
-                        width = "auto",
-                        height = "auto",
-                        halign = "center",
-                        fontSize = 28,
-                        valign = "top",
                         vmargin = 8,
                     },
 
                     gui.Label {
+                        classes = { "modalMessage" },
                         text = "Do you really want to leave this game?",
-                        width = "auto",
-                        height = "auto",
-                        halign = "center",
-                        valign = "center",
-                        fontSize = 16,
                     },
 
                     gui.Panel {
@@ -3176,18 +3265,25 @@ function CreateGameDialog()
         bgcolor = "clear",
         floating = true,
         gui.Panel {
-            styles = {
-                Styles.Default,
-                Styles.Panel,
-            },
-
+            styles = ThemeEngine.GetStyles(),
             classes = { "framedPanel" },
-            bgimage = true,
             width = 800,
             height = 900,
             halign = "center",
             valign = "center",
             flow = "vertical",
+
+            -- Live re-theming: GetStyles() is a one-shot snapshot; subscribe
+            -- so the dialog recolors when the active theme/scheme changes
+            -- without requiring re-open. Guard with .valid so the callback
+            -- no-ops after the dialog closes.
+            create = function(element)
+                ThemeEngine.OnThemeChanged(mod, function()
+                    if element.valid then
+                        element.styles = ThemeEngine.GetStyles()
+                    end
+                end)
+            end,
 
             gui.Label {
                 classes = { "dialogTitle" },
@@ -3215,7 +3311,6 @@ function CreateGameDialog()
             },
 
             gui.Dropdown {
-                styles = ThemeEngine.GetStyles("default", "default"),
                 width = "80%",
                 height = 32,
                 halign = "center",
@@ -3278,7 +3373,6 @@ function CreateGameDialog()
                     rmargin = 8,
                 },
                 gui.Dropdown {
-                    styles = ThemeEngine.GetStyles("default", "default"),
                     width = 200,
                     height = 28,
                     fontSize = 16,
@@ -3313,7 +3407,8 @@ function CreateGameDialog()
                 end,
             },
 
-            gui.CloseButton {
+            gui.Button {
+                classes = { "closeButton" },
                 floating = true,
                 halign = "right",
                 valign = "top",
@@ -3380,6 +3475,10 @@ local function MakeHeroPanel(heroIndex)
         end,
 
         gui.Panel {
+            -- viewHeroButton class supplies @fg bgcolor tint (multiplies
+            -- the narrow button.png texture). Hover/press brightness
+            -- multipliers stay local. Mirror of playCampaignButton.
+            classes = { "viewHeroButton" },
             styles = {
                 {
                     selectors = { "~hoverchar" },
@@ -3398,7 +3497,6 @@ local function MakeHeroPanel(heroIndex)
             },
 
             bgimage = "panels/titlescreen/button-narrow.png",
-            bgcolor = "white",
 
             height = 131 * 0.4,
             width = 336 * 0.4,
@@ -3417,10 +3515,13 @@ local function MakeHeroPanel(heroIndex)
             end,
 
             gui.Label {
+                -- viewHeroLabel class supplies @fgStrong text color
+                -- for contrast against the dark center of the tinted
+                -- button.png below.
+                classes = { "viewHeroLabel" },
                 text = "VIEW",
                 fontSize = 18,
                 fontFace = "newzald",
-                color = "white",
                 halign = "center",
                 valign = "center",
                 width = "auto",
@@ -3502,11 +3603,13 @@ local function MakeHeroPanel(heroIndex)
     }
 
     local playingInCampaignBanner = gui.Panel {
-        classes = { "collapsed", "banner" },
+        -- playingInCampaignBanner class supplies @bgAlt bgcolor via the
+        -- Heroes column's MergeStyles extras. The {banner} class stays
+        -- for the existing hover-brightness rules below.
+        classes = { "collapsed", "banner", "playingInCampaignBanner" },
         width = "94%",
         height = "20% width",
         bgimage = true,
-        bgcolor = "#2a211b",
         valign = "bottom",
         halign = "center",
         flow = "horizontal",
@@ -3547,18 +3650,18 @@ local function MakeHeroPanel(heroIndex)
             height = "100%",
             flow = "vertical",
             gui.Label {
+                classes = { "playingInCampaignBannerTitle" },
                 text = "Playing in Campaign",
                 fontSize = 16,
                 minFontSize = 8,
-                color = "white",
                 width = "auto",
                 height = "auto",
                 valign = "center",
             },
             gui.Label {
+                classes = { "playingInCampaignBannerName" },
                 fontSize = 16,
                 minFontSize = 8,
-                color = "#bc9b7b",
                 valign = "center",
                 textWrap = false,
                 maxWidth = "100%",
@@ -3573,8 +3676,8 @@ local function MakeHeroPanel(heroIndex)
         }
     }
 
-    local deleteButton = gui.DeleteItemButton {
-        classes = { "parentHover", "hiddenWithNoCharacter" },
+    local deleteButton = gui.Button {
+        classes = { "deleteButton", "parentHover", "hiddenWithNoCharacter" },
         floating = true,
         width = 16,
         height = 16,
@@ -3587,46 +3690,38 @@ local function MakeHeroPanel(heroIndex)
             modal = gui.Panel {
                 classes = { "framedPanel" },
                 floating = true,
-                styles = {
-                    Styles.Default,
-                    Styles.Panel,
-                },
+                styles = ThemeEngine.GetStyles(),
                 width = 600,
                 height = 600,
                 halign = "center",
                 valign = "center",
-                bgimage = true,
+
+                create = function(element)
+                    ThemeEngine.OnThemeChanged(mod, function()
+                        if element.valid then
+                            element.styles = ThemeEngine.GetStyles()
+                        end
+                    end)
+                end,
 
                 gui.Label {
-                    classes = { "title" },
+                    classes = { "modalTitle" },
                     text = "Delete Character?",
                     vmargin = 8,
-                    halign = "center",
-                    valign = "top",
-                    bold = true,
-                    fontSize = 28,
-                    width = "auto",
-                    height = "auto",
                 },
 
                 gui.Label {
-                    fontSize = 16,
-                    width = "80%",
-                    height = "auto",
-                    halign = "center",
-                    valign = "center",
+                    classes = { "modalMessage" },
                     text = "Do you want to delete this character? This action cannot be undone.",
                 },
 
                 gui.Panel {
-                    classes = { "dialogButtonsPanel" },
                     halign = "center",
                     valign = "bottom",
                     flow = "horizontal",
                     width = "80%",
                     height = "auto",
                     gui.Button {
-                        classes = { "dialogButton" },
                         text = "Cancel",
                         fontSize = 24,
                         halign = "center",
@@ -3635,7 +3730,6 @@ local function MakeHeroPanel(heroIndex)
                         end,
                     },
                     gui.Button {
-                        classes = { "dialogButton" },
                         text = "Delete",
                         fontSize = 24,
                         halign = "center",
@@ -4324,8 +4418,11 @@ function CreateTitlescreen(dialog, options)
             },
 
             gui.Button {
+                -- Scoped ThemeEngine cascade so the {button} class picks up
+                -- @bg/@border/@fg tokens (matches the Dropdown pattern in this
+                -- file). The parent titlescreen root still uses Styles.Default.
+                styles = ThemeEngine.GetStyles("default", "default"),
                 classes = { "hideOnStartingScreen", "hideOnSelectionScreen" },
-                fontSize = 16,
                 halign = "left",
                 valign = "top",
                 floating = true,
@@ -4333,7 +4430,7 @@ function CreateTitlescreen(dialog, options)
                 width = "auto",
                 height = "auto",
                 pad = 6,
-                borderWidth = 1,
+                borderBox = true,
                 hmargin = 8,
                 vmargin = 24,
                 captureEscape = true,
@@ -4884,8 +4981,61 @@ function CreateTitlescreen(dialog, options)
 
                     flow = "horizontal",
 
-                    gui.Panel {
+                    (function()
+                        -- Heroes column extras layered on top of the base
+                        -- theme via MergeStyles. Mirrors the Campaigns column
+                        -- pattern: shared header-icon rule + per-card VIEW
+                        -- button rules + banner rules. Re-themes live via
+                        -- the column's OnThemeChanged below.
+                        local m_heroesExtras = {
+                            -- + icon in the HEROES header strip (mirror of
+                            -- Campaigns' headerActionIcon rule; we redefine
+                            -- here because we're a separate cascade root).
+                            {
+                                selectors = { "panel", "headerActionIcon" },
+                                bgcolor = "@fg",
+                            },
+                            {
+                                selectors = { "panel", "headerActionIcon", "parent:hover" },
+                                bgcolor = "@fgInverse",
+                            },
+                            -- VIEW button on each hero card: same scheme as
+                            -- PLAY CAMPAIGN -- button.png (narrow variant)
+                            -- multiplied by @fg, label in @fgStrong for
+                            -- contrast against the dark button center.
+                            {
+                                selectors = { "panel", "viewHeroButton" },
+                                bgcolor = "@fg",
+                            },
+                            {
+                                selectors = { "label", "viewHeroLabel" },
+                                color = "@fgStrong",
+                            },
+                            -- "Playing in Campaign" banner: dark themed
+                            -- surface with a strong title and accent-colored
+                            -- campaign name. @info reads warm-gold in default
+                            -- (close to the legacy #bc9b7b) and adapts.
+                            {
+                                selectors = { "panel", "playingInCampaignBanner" },
+                                bgcolor = "@bgAlt",
+                            },
+                            {
+                                selectors = { "label", "playingInCampaignBannerTitle" },
+                                color = "@fgStrong",
+                            },
+                            {
+                                selectors = { "label", "playingInCampaignBannerName" },
+                                color = "@info",
+                            },
+                        }
+
+                        return gui.Panel {
                         classes = { "hideOnDirector" },
+
+                        -- Scoped ThemeEngine cascade for the Heroes column,
+                        -- mirrors the Campaigns column. Catches the HEROES
+                        -- header strip and the 8 hero cards below.
+                        styles = ThemeEngine.MergeStyles(m_heroesExtras),
 
                         bgimage = true,
                         bgcolor = "clear",
@@ -4894,6 +5044,17 @@ function CreateTitlescreen(dialog, options)
                         halign = "center",
 
                         flow = "vertical",
+
+                        -- Live re-theming: MergeStyles is a one-shot
+                        -- snapshot; subscribe so the column recolors when
+                        -- the active theme/scheme changes.
+                        create = function(element)
+                            ThemeEngine.OnThemeChanged(mod, function()
+                                if element.valid then
+                                    element.styles = ThemeEngine.MergeStyles(m_heroesExtras)
+                                end
+                            end)
+                        end,
 
                         gui.Panel {
 
@@ -4940,20 +5101,16 @@ function CreateTitlescreen(dialog, options)
                                     press = CreateHero,
 
                                     gui.Panel {
+                                        -- See Campaigns column: headerActionIcon
+                                        -- class supplies @fg rest / @fgInverse
+                                        -- hover via the Heroes column's
+                                        -- MergeStyles extras.
+                                        classes = { "headerActionIcon" },
                                         width = "80%",
                                         height = "80%",
                                         halign = "center",
                                         valign = "center",
                                         bgimage = "ui-icons/Plus.png",
-                                        styles = {
-                                            {
-                                                bgcolor = Styles.textColor,
-                                            },
-                                            {
-                                                selectors = { "parent:hover" },
-                                                bgcolor = Styles.backgroundColor,
-                                            },
-                                        }
                                     },
 
                                 },
@@ -5058,7 +5215,8 @@ function CreateTitlescreen(dialog, options)
                             MakeHeroPanel(7),
                             MakeHeroPanel(8),
                         },
-                    },
+                    }
+                    end)(),
 
                     gui.Panel {
 
@@ -5073,7 +5231,72 @@ function CreateTitlescreen(dialog, options)
 
                     },
 
-                    gui.Panel {
+                    (function()
+                        -- Column-scoped extras layered on top of the base
+                        -- theme via MergeStyles. The gameid invite-code pill
+                        -- in MakeGamePanel adopts these (4 instances; class
+                        -- routing lets them re-theme live via the column's
+                        -- OnThemeChanged below rather than each pill carrying
+                        -- its own subscription).
+                        local m_campaignsExtras = {
+                            -- Pill background: @surfaceLinear matches the
+                            -- framedPanel sheen (closest theme analogue to the
+                            -- legacy rich-black gradient). @border for the
+                            -- frame, @fg for the text.
+                            {
+                                selectors = { "label", "gameIdPill" },
+                                color = "@fg",
+                                borderColor = "@border",
+                                gradient = "@surfaceLinear",
+                            },
+                            -- App icon inside the pill: tinted to @fg so it
+                            -- matches the pill text.
+                            {
+                                selectors = { "panel", "gameIdPillIcon" },
+                                bgcolor = "@fg",
+                            },
+                            -- + / search icons in the CAMPAIGNS header.
+                            -- These need an explicit class so the rule beats
+                            -- the base {panel} rule (DefaultStyles.lua:223)
+                            -- on specificity -- otherwise the icon paints
+                            -- @bg (same as the button background) and reads
+                            -- invisible at rest.
+                            {
+                                selectors = { "panel", "headerActionIcon" },
+                                bgcolor = "@fg",
+                            },
+                            {
+                                selectors = { "panel", "headerActionIcon", "parent:hover" },
+                                bgcolor = "@fgInverse",
+                            },
+                            -- PLAY CAMPAIGN button on each game card: the
+                            -- panels/titlescreen/button.png texture is
+                            -- multiplied by @fg so it tints with the active
+                            -- scheme. The button.png has a dark center
+                            -- (designed for light text), so the label sits
+                            -- on top in @fgStrong (the lightest foreground
+                            -- token) -- @fgInverse would be near-black-on-
+                            -- dark and disappear. Hover/press brightness
+                            -- multipliers stay on the panel itself.
+                            {
+                                selectors = { "panel", "playCampaignButton" },
+                                bgcolor = "@fg",
+                            },
+                            {
+                                selectors = { "label", "playCampaignLabel" },
+                                color = "@fgStrong",
+                            },
+                        }
+
+                        return gui.Panel {
+
+                        -- Scoped ThemeEngine cascade for the Campaigns
+                        -- column: themes the CAMPAIGNS header strip and the
+                        -- 4 game cards (MakeGamePanel) below. The
+                        -- titlescreen root above us is still legacy
+                        -- Styles.Default; this root catches everything in
+                        -- the column without altering anything else.
+                        styles = ThemeEngine.MergeStyles(m_campaignsExtras),
 
                         width = "44%",
                         height = "100%",
@@ -5081,17 +5304,23 @@ function CreateTitlescreen(dialog, options)
 
                         flow = "vertical",
 
+                        -- Live re-theming: MergeStyles is a one-shot
+                        -- snapshot; subscribe so the column recolors when
+                        -- the active theme/scheme changes. Guard with
+                        -- .valid so the callback no-ops if the column has
+                        -- been destroyed.
                         create = function(element)
                             element:FireEvent("think")
+                            ThemeEngine.OnThemeChanged(mod, function()
+                                if element.valid then
+                                    element.styles = ThemeEngine.MergeStyles(m_campaignsExtras)
+                                end
+                            end)
                         end,
 
                         data = {
                             updateid = -1,
                         },
-
-                        create = function(element)
-                            --element:FireEvent("refreshLobby")
-                        end,
 
                         refreshLobby = function(element)
                             local orderedGames = {}
@@ -5153,20 +5382,17 @@ function CreateTitlescreen(dialog, options)
                                     end,
 
                                     gui.Panel {
+                                        -- headerActionIcon class supplies
+                                        -- @fg rest / @fgInverse hover via
+                                        -- the Campaigns column's MergeStyles
+                                        -- extras (class selector beats the
+                                        -- base {panel} rule on specificity).
+                                        classes = { "headerActionIcon" },
                                         width = "80%",
                                         height = "80%",
                                         halign = "center",
                                         valign = "center",
                                         bgimage = "ui-icons/Plus.png",
-                                        styles = {
-                                            {
-                                                bgcolor = Styles.textColor,
-                                            },
-                                            {
-                                                selectors = { "parent:hover" },
-                                                bgcolor = Styles.backgroundColor,
-                                            },
-                                        }
                                     },
 
                                 },
@@ -5190,20 +5416,17 @@ function CreateTitlescreen(dialog, options)
                                     end,
 
                                     gui.Panel {
+                                        -- See the + button above:
+                                        -- headerActionIcon class supplies
+                                        -- @fg rest / @fgInverse hover via
+                                        -- the Campaigns column's
+                                        -- MergeStyles extras.
+                                        classes = { "headerActionIcon" },
                                         width = "80%",
                                         height = "80%",
                                         halign = "center",
                                         valign = "center",
                                         bgimage = "icons/icon_tool/icon_tool_42.png",
-                                        styles = {
-                                            {
-                                                bgcolor = Styles.textColor,
-                                            },
-                                            {
-                                                selectors = { "parent:hover" },
-                                                bgcolor = Styles.backgroundColor,
-                                            },
-                                        }
                                     },
 
                                 },
@@ -5216,7 +5439,8 @@ function CreateTitlescreen(dialog, options)
                         MakeGamePanel(2),
                         MakeGamePanel(3),
                         MakeGamePanel(4),
-                    },
+                    }
+                    end)(),
 
                     --paging panel
                     gui.Panel {

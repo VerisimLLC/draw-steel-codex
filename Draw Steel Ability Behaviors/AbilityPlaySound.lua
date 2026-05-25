@@ -188,10 +188,9 @@ function ActivatedAbilityPlaySoundBehavior:EditorItems(parentPanel)
         },
     }
 
-    result[#result+1] = gui.PrettyButton {
+    result[#result+1] = gui.Button {
+        classes = {"sizeM"},
         width = 160,
-        height = 40,
-        fontSize = 14,
         text = "Preview Sound",
         click = function(element)
             if self.mode == "custom" then

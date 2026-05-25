@@ -874,7 +874,7 @@ function CharacterBuilder._makeSelectButton(options)
         end
     end
 
-    return gui.PrettyButton(opts)
+    return gui.Button(opts)
 end
 
 --- Sort an array of child panels by .data.order, preserving unordered items at start/end

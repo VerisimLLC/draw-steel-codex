@@ -2301,7 +2301,9 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 			--"75% height" width formula breaks "auto" sizing on the parent.
 			local containerW = 480
 			local containerH = 80
-			local baseFactor = 0.75
+			--Cards default to 90% of the side container's height (~20% bigger than
+			--the previous 75% baseline). The centered card uses its own size.
+			local baseFactor = 0.9
 			local aspect = CardWidthPercent * 0.01
 			local desiredH = containerH * baseFactor
 			local desiredW = desiredH * aspect

@@ -634,10 +634,88 @@ function ActivatedAbility:Render(options, params)
         end
     end
 
+    -- Apply active Modify Power Roll modifiers to a deep copy of the power-table
+    -- tiers for display purposes. Each tier is fully pre-evaluated first
+    -- (damage expressions, potency markers, GoblinScript) so that the regexes
+    -- inside modifyRollProperties can match plain numeric values. Characteristic
+    -- and potency notes plus one note per applicable modifier are appended to the
+    -- optional `notes` table. Resistance rolls and cases with no token are
+    -- returned unmodified.
+    local function applyModsToTiers(ptBehavior, notes)
+        if creatureProperties == nil or ptBehavior:try_get("resistanceRoll", false) then
+            return ptBehavior.tiers
+        end
+        -- Fully evaluate each tier (damage expressions, potency markers, GoblinScript)
+        -- so that modifyRollProperties regexes can match plain numeric values.
+        -- Characteristic and potency notes are collected into the notes table here;
+        -- the caller's subsequent DisplayRuleTextForCreature pass is then a no-op.
+        local normalizedTiers = {}
+        for i, t in ipairs(ptBehavior.tiers) do
+            normalizedTiers[i] = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(creatureProperties, t, notes, true)
+        end
+        local rollProperties = RollPropertiesPowerTable.new{
+            tiers = normalizedTiers,
+        }
+        -- A minimal "null target" object: GenerateSymbols returns a non-nil
+        -- function from it, which prevents AppendSymbols from substituting any
+        -- stale target left in _tmp_symbols from a previous real roll.
+        local nullTarget = {lookupSymbols = {}}
+        local function tryApply(modifier, modContext)
+            local hint = modifier:HintModifyPowerRolls(modContext, creatureProperties, "ability_power_roll", {
+                ability = self,
+                caster = creatureProperties,
+                target = nullTarget,
+            })
+            if hint == nil or not hint.result then
+                return
+            end
+            modifier:ModifyRollProperties(modContext, creatureProperties, rollProperties, nil)
+            -- Build a note describing what this modifier does.
+            if notes ~= nil then
+                local noteParts = {}
+                local damageModifier = modifier:try_get("damageModifier", "")
+                if damageModifier ~= "" then
+                    local lookupFn = creatureProperties:LookupSymbol(modifier:AppendSymbols{
+                        triggerer = nil,
+                        target = GenerateSymbols(nullTarget),
+                    })
+                    local dmgVal = safe_toint(dmhub.EvalGoblinScript(damageModifier, lookupFn, "Power Roll Damage display"))
+                    if dmgVal ~= nil and dmgVal ~= 0 then
+                        dmgVal = round(dmgVal)
+                        noteParts[#noteParts+1] = string.format("%s%d damage", dmgVal > 0 and "+" or "", dmgVal)
+                    end
+                end
+                local potencymod = tonumber(modifier:try_get("potencymod", "none"))
+                if potencymod ~= nil and potencymod ~= 0 then
+                    noteParts[#noteParts+1] = string.format("%s%d potency", potencymod > 0 and "+" or "", potencymod)
+                end
+                if #noteParts > 0 then
+                    notes[#notes+1] = string.format("%s: %s", modifier.name, table.concat(noteParts, ", "))
+                end
+            end
+        end
+        -- Modifiers from features, ongoing effects, auras, etc.
+        for _, mod in ipairs(creatureProperties:GetActiveModifiers()) do
+            tryApply(mod.mod, mod)
+        end
+        -- Modifiers embedded directly in this ability's own behaviors.
+        for _, behavior in ipairs(self.behaviors) do
+            if behavior.typeName == "ActivatedAbilityModifyPowerRollBehavior"
+                    and behavior:IsFiltered(self, params.token, params) == false then
+                local filterCond = trim(behavior.modifier:try_get("filterCondition", ""))
+                if filterCond == "" or dmhub.EvalGoblinScript(filterCond, creatureProperties:LookupSymbol(), "Filter condition for power roll display") then
+                    tryApply(behavior.modifier, {mod = behavior.modifier})
+                end
+            end
+        end
+        return rollProperties.tiers
+    end
+
     local powerRollLabel = nil
     local powerRollTable = nil
 
     local rulesNotes = {}
+    local displayTiers = powerTableBehavior ~= nil and applyModsToTiers(powerTableBehavior, rulesNotes) or nil
 
     if powerTableBehavior ~= nil then
         local c = nil
@@ -689,7 +767,7 @@ function ActivatedAbility:Render(options, params)
 
         local rows = {}
 
-        for i, entry in ipairs(powerTableBehavior.tiers) do
+        for i, entry in ipairs(displayTiers) do
             rows[#rows + 1] = gui.TableRow {
                 width = "100%",
                 height = "auto",
@@ -1078,7 +1156,7 @@ function ActivatedAbility:Render(options, params)
 
                     width = "80%",
                     height = "auto",
-                    text = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(creatureProperties, powerTableBehavior.tiers[1], {}, self:try_get("implementation", 1) >= gui.ImplementationStatus.Bronze),
+                    text = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(creatureProperties, displayTiers[1], {}, self:try_get("implementation", 1) >= gui.ImplementationStatus.Bronze),
                     fontSize = 16,
                     halign = "left",
                     valign = "center",
@@ -1121,7 +1199,7 @@ function ActivatedAbility:Render(options, params)
 
                     width = "80%",
                     height = "auto",
-                    text = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(creatureProperties, powerTableBehavior.tiers[2], {}, self:try_get("implementation", 1) >= gui.ImplementationStatus.Bronze),
+                    text = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(creatureProperties, displayTiers[2], {}, self:try_get("implementation", 1) >= gui.ImplementationStatus.Bronze),
                     fontSize = 16,
                     halign = "left",
                     valign = "center",
@@ -1161,7 +1239,7 @@ function ActivatedAbility:Render(options, params)
 
                     width = "80%",
                     height = "auto",
-                    text = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(creatureProperties, powerTableBehavior.tiers[3], {}, self:try_get("implementation", 1) >= gui.ImplementationStatus.Bronze),
+                    text = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(creatureProperties, displayTiers[3], {}, self:try_get("implementation", 1) >= gui.ImplementationStatus.Bronze),
                     fontSize = 16,
                     halign = "left",
                     valign = "center",

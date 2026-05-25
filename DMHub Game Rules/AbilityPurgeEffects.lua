@@ -2225,9 +2225,8 @@ function ActivatedAbilityPurgeEffectsBehavior:EditorItems(parentPanel)
                                 text = conditionsTable[cond].name,
                                 vmargin = 4,
 
-                                gui.DeleteItemButton{
-                                    width = 16,
-                                    height = 16,
+                                gui.Button{
+                                    classes = {"deleteButton", "sizeS"},
                                     floating = true,
                                     halign = 'right',
                                     valign = 'center',

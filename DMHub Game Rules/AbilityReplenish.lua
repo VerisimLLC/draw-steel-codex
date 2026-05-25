@@ -648,9 +648,8 @@ function ActivatedAbilityReplenishBehavior:EditorItems(parentPanel)
                         text = resourceInfo.name,
                     },
 
-                    gui.DeleteItemButton{
-                        width = 12,
-                        height = 12,
+                    gui.Button{
+                        classes = {"deleteButton", "sizeXs"},
                         click = function(element)
                             local options = self:try_get("resourceOptions", {})
                             table.remove(options, index)

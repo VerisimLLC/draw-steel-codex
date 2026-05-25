@@ -676,10 +676,21 @@ function gui.CopyButton(options)
 	return gui.Panel(args)
 end
 
+local throttleSettingsDeprecated = 0
 --- A "gear" settings button.
 --- @param options PanelArgs
 --- @return Panel
 function gui.SettingsButton(options)
+	if devmode() and dmhub.Time() - throttleSettingsDeprecated >= 60 then
+		throttleSettingsDeprecated = dmhub.Time()
+		local caller = debug.getinfo(2, "Sl")
+		local location = "unknown location"
+		if caller ~= nil then
+			location = string.format("%s:%d", caller.short_src, caller.currentline)
+		end
+		SendTitledChatMessage(string.format("gui.SettingsButton() - use gui.Button() instead. See theming guide. Called from %s", location), "deprecated", "#cc6666")
+	end
+
 	local args = {
 		classes = {'iconButton', "settingsButton"},
 		bgimage = 'ui-icons/skills/98.png',

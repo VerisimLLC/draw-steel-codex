@@ -196,9 +196,8 @@ local CreateFeatureSummary = function(feature, featuresList, index, parentPanel,
 			end,
 		},
 
-		gui.SettingsButton{
-			width = 16,
-			height = 16,
+		gui.Button{
+			classes = {"settingsButton", "sizeXs"},
 			halign = "right",
 			valign = "center",
 			hmargin = 12,

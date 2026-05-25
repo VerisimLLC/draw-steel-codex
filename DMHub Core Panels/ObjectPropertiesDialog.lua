@@ -2411,11 +2411,10 @@ local CreateObjectEditor = function(nodes, options)
 
 				},
 
-				gui.DeleteItemButton{
+				gui.Button{
+					classes = {"deleteButton", "sizeXs"},
 					halign = "right",
 					valign = "top",
-					width = 12,
-					height = 12,
 					click = function(element)
 						if options.recreate ~= nil then
 							local newNodes = {}

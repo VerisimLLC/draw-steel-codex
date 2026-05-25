@@ -1353,6 +1353,7 @@ function CharSheet.CreateCharacterSheet(params)
 		},
 
 		gui.Panel{
+			styles = ThemeEngine.GetStyles(),
 			flow = "horizontal",
 			floating = true,
 			width = "auto",

@@ -559,9 +559,8 @@ ShowShopPanel = function(parentPanel)
                                     end,
                                 },
 
-                                gui.DeleteItemButton{
-                                    width = 16,
-                                    height = 16,
+                                gui.Button{
+                                    classes = {"deleteButton", "sizeS"},
                                     halign = "right",
                                     valign = "top",
                                     floating = true,

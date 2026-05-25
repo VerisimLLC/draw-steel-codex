@@ -662,9 +662,8 @@ CharacterModifier.TypeInfo.d20 = {
 							classes = {'formLabel'},
 							width = 200,
 							height = 30,
-							gui.DeleteItemButton{
-								width = 16,
-								height = 16,
+							gui.Button{
+								classes = {"delete", "sizeS"},
 								valign = 'center',
 								halign = 'right',
 								click = function(element)

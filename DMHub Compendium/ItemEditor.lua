@@ -1034,7 +1034,8 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
 								end,
 							},
 
-							gui.DeleteItemButton{
+							gui.Button{
+								classes = {"deleteButton"},
 								press = function(element)
 									table.remove(document.packItems, i)
 									Refresh()

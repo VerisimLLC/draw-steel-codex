@@ -184,9 +184,8 @@ local CreateFeatureSummary = function(feature, featuresList, index, parentPanel,
 			end,
 		},
 
-		gui.SettingsButton{
-			width = 16,
-			height = 16,
+		gui.Button{
+			classes = {"settingsButton"},
 			halign = "right",
 			hmargin = 12,
 			click = function(element)
@@ -196,10 +195,9 @@ local CreateFeatureSummary = function(feature, featuresList, index, parentPanel,
 			end,
 		},
 
-		gui.DeleteItemButton{
+		gui.Button{
+			classes = {"deleteButton"},
 			halign = "right",
-			width = 16,
-			height = 16,
 			click = function(element)
 				table.remove(featuresList, index)
 				parentPanel:FireEvent("change")
@@ -307,10 +305,9 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
         pointsCostPanel,
         importedLabel,
 
-		gui.DeleteItemButton{
+		gui.Button{
+			classes = {"deleteButton", "sizeS"},
 			halign = "right",
-			width = 16,
-			height = 16,
 			click = function(element)
 				resultPanel:FireEvent("delete")
 			end,
@@ -445,14 +442,12 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
                         end,
                     },
 
-                    gui.DeleteItemButton{
-                        classes = cond(#currentTags == 1, {"hidden"}),
+                    gui.Button{
+                        classes = {"deleteButton", "sizeXs", cond(#currentTags == 1, "hidden")},
                         floating = true,
                         halign = "right",
                         valign = "center",
                         x = 16,
-                        width = 12,
-                        height = 12,
                         click = function(element)
                             local newTags = {}
                             for _,t in ipairs(currentTags) do
@@ -1067,9 +1062,8 @@ local SetClass = function(tableName, classPanel, classid)
 						color = 'white',
 						halign = 'left',
 					},
-					gui.DeleteItemButton{
-						width = 20,
-						height = 20,
+					gui.Button{
+						classes = {"deleteButton"},
 						halign = 'right',
 						click = function(element)
 							table.remove(class.savingThrows, index)
@@ -1187,557 +1181,6 @@ local SetClass = function(tableName, classPanel, classid)
 
 end
 
---[==[ DEAD_CODE - overridden by Draw Steel UI\DSClassEditor.lua:1141
-function Class.CreateLevelEditor(children, class, UploadClass, startLevel, finishLevel)
-
-	for i=startLevel,GameSystem.numLevels do
-		local text
-		if i == 0 then
-			text = "Proficiencies for Primary Class"
-		elseif i == -1 then
-			text = "Proficiencies for Multiclass"
-		else
-			text = string.format("Level %d", i)
-		end
-
-		local tri = gui.Panel{
-			classes = {"triangle"},
-			height = "30%",
-			width = "100% height",
-			styles = Styles.triangleStyles,
-		}
-
-		local classLevel = class:GetLevel(i)
-
-		local summaryLabel = gui.Label{
-			fontSize = 20,
-			color = "white",
-			halign = "left",
-			valign = "center",
-			width = "auto",
-			height = "auto",
-			text = cond(#classLevel.features > 0, string.format("(%d %s)", #classLevel.features, cond(#classLevel.features > 1, "features", "feature")), ''),
-			update = function(element)
-				element.text = cond(#classLevel.features > 0, string.format("(%d %s)", #classLevel.features, cond(#classLevel.features > 1, "features", "feature")), '')
-			end,
-		}
-
-		local editorPanel = classLevel:CreateEditor(class, i, {
-			classes = {"collapsed-anim"},
-			hmargin = 40,
-			change = function(element)
-				class:ForceDomains()
-				UploadClass()
-				summaryLabel:FireEvent("update")
-			end,
-		})
-
-		local header = gui.Panel{
-			classes = {"header"},
-			height = 30,
-			width = "100%",
-			flow = "horizontal",
-			bgimage = "panels/square.png",
-			styles = {
-				{
-					selectors = {"header"},
-					bgcolor = "black",
-				},
-				{
-					selectors = {"header","hover"},
-					bgcolor = "#664444ff",
-				},
-			},
-			tri,
-			gui.Label{
-                classes = {"searchableLabel"},
-				hmargin = 8,
-				fontSize = 20,
-				halign = "left",
-				valign = "center",
-				width = "auto",
-				height = "auto",
-				text = text,
-			},
-
-			summaryLabel,
-
-			click = function(element)
-				editorPanel:SetClass("collapsed-anim", not editorPanel:HasClass("collapsed-anim"))
-				tri:SetClass("expanded", not editorPanel:HasClass("collapsed-anim"))
-			end,
-
-            searchCompendium = function(element, text)
-                if text == "" then
-                    element:SetClassTree("searching", false)
-                    element:SetClassTree("matchSearch", false)
-                    return
-                end
-
-                element:SetClassTree("searching", true)
-                element:SetClassTree("matchSearch", SearchTableHasMatch(classLevel, text))
-            end,
-
-		}
-
-		local panel = gui.Panel{
-			height = 'auto',
-			width = 1100,
-			flow = 'vertical',
-			halign = "left",
-
-			header,
-			editorPanel,
-		}
-
-		children[#children+1] = panel
-	end
-end
---]==]
-
---[==[ DEAD_CODE - overridden by Draw Steel UI\DSClassEditor.lua:1242
-function Class.CreateEditor()
-    local m_search = ""
-	local classPanel
-	classPanel = gui.Panel{
-		data = {
-			SetClass = function(tableName, classid)
-				SetClass(tableName, classPanel, classid)
-                if m_search ~= "" then
-                    classPanel:FireEventTree("searchCompendium", m_search)
-                end
-			end,
-		},
-        
-        searchCompendium = function(element, text)
-            m_search = text
-        end,
-
-        thinkTime = 1,
-        think = function(element)
-            if classPanel.data.DoUploadIfNeeded ~= nil and classPanel.data.dataChanged ~= nil and classPanel.aliveTime - classPanel.data.dataChanged > 20 then
-                classPanel.data.DoUploadIfNeeded()
-            end
-        end,
-
-        destroy = function(element)
-            if classPanel.data.DoUploadIfNeeded ~= nil then
-                classPanel.data.DoUploadIfNeeded()
-            end
-        end,
-
-		vscroll = true,
-		classes = 'class-panel',
-		styles = {
-			{
-				halign = "left",
-			},
-			{
-				classes = {'class-panel'},
-				width = 1200,
-				height = '90%',
-				halign = 'left',
-				flow = 'vertical',
-				pad = 20,
-			},
-			{
-				classes = {'label'},
-				color = 'white',
-				fontSize = 22,
-				width = 'auto',
-				height = 'auto',
-			},
-			{
-				classes = {'input'},
-				width = 200,
-				height = 26,
-				fontSize = 18,
-				color = 'white',
-			},
-			{
-				classes = {'formPanel'},
-				flow = 'horizontal',
-				width = 'auto',
-				height = 'auto',
-				halign = 'left',
-				vmargin = 2,
-			},
-
-			Styles.ImplementationIcon,
-		},
-	}
-
-	return classPanel
-end
---]==]
-
---[==[ DEAD_CODE - overridden by Draw Steel UI\DSClassEditor.lua:1291
-function CharacterChoice:CreateEditor(class, params)
-	return nil
-end
---]==]
-
---[==[ DEAD_CODE - overridden by Draw Steel UI\DSClassEditor.lua:1295
-function CharacterFeatureChoice:CreateEditor(classOrRace, params)
-	params = params or {}
-
-
-	local resultPanel
-
-	local args = {
-		width = "100%",
-		height = 'auto',
-		flow = 'vertical',
-		vpad = 4,
-
-		paste = function(element, item, index)
-			if item.typeName == "CharacterFeature" or item.typename == "CharacterFeatureList" then
-				item = DeepCopy(item)
-				item:VisitRecursive(function(a) a.source = classOrRace:FeatureSourceName() end)
-				item:VisitRecursive(function(a) a.guid = dmhub.GenerateGuid() end)
-				table.insert(self.options, index, item)
-				resultPanel:FireEvent('create')
-				resultPanel:FireEvent('change')
-			end
-		end,
-
-		create = function(element)
-			local children = {}
-
-			children[#children+1] = gui.Panel{
-				classes = {"formPanel"},
-				gui.Label{
-					classes = {"formLabel"},
-					text = "Choices:",
-					valign = "center",
-				},
-				gui.GoblinScriptInput{
-					width = 180,
-					value = self.numChoices,
-					change = function(element)
-						self.numChoices = element.value
-						resultPanel:FireEvent('create')
-						resultPanel:FireEvent('change')
-					end,
-
-					documentation = {
-						help = string.format("This GoblinScript is used to determine the number of choices the character gets for this creature."),
-						output = "number",
-						examples = {
-							{
-								script = "1",
-								text = "One option may be chosen",
-							},
-							{
-								script = "Max(1, Intelligence Modifier)",
-								text = "A number of options equal to your intelligence modifier may be chosen (At least 1).",
-							},
-						},
-						subject = creature.helpSymbols,
-						subjectDescription = "The creature that possesses this feature",
-						--symbols = self:HelpAdditionalSymbols(),
-					},
-
-				},
-			}
-
-			children[#children+1] = gui.Check{
-				text = "Allow Duplicate Choices",
-				classes = {cond(tonumber(self.numChoices) ~= 1, nil, "hidden")},
-				value = self.allowDuplicateChoices,
-				change = function(element)
-					self.allowDuplicateChoices = element.value
-					resultPanel:FireEvent('change')
-				end,
-			}
-
-			children[#children+1] = gui.Check{
-				text = "Choices Cost Points",
-				classes = {cond(tonumber(self.numChoices) ~= 1, nil, "collapsed")},
-				value = self.costsPoints,
-				change = function(element)
-					self.costsPoints = element.value
-					resultPanel:FireEvent('create')
-					resultPanel:FireEvent('change')
-				end,
-			}
-
-			children[#children+1] = gui.Input{
-				width = 200,
-				height = 24,
-				fontSize = 20,
-				characterLimit = 32,
-				placeholderText = "Enter name of points...",
-				classes = {cond(tonumber(self.numChoices) ~= 1 and self.costsPoints, nil, "collapsed")},
-				text = self.pointsName,
-				change = function(element)
-					self.pointsName = element.text
-					resultPanel:FireEvent('change')
-				end,
-			}
-
-			for i,feature in ipairs(self.options) do
-				local index = i
-				if feature.typeName == 'CharacterFeature' then
-					children[#children+1] = CreateFeatureSummary(feature, self.options, index, resultPanel, nil, {points = self.costsPoints})
-				else
-					children[#children+1] = CreateChoiceEditor(feature, self.options, index, resultPanel, classOrRace, {
-                        points = self.costsPoints,
-						change = function(element)
-							resultPanel:FireEvent("change")
-						end,
-						delete = function(element)
-							table.remove(self.options, i)
-							resultPanel:FireEvent("change")
-							resultPanel:FireEvent("create")
-						end,
-					})
-				end
-			end
-
-			local featureOptions = {
-					{
-						id = 'none',
-						text = 'Add Option...',
-					},
-					{
-						id = 'feature',
-						text = 'Single Feature',
-					},
-					{
-						id = 'multiple',
-						text = 'Multiple Features',
-					},
-					{
-						id = 'choice',
-						text = 'Choice',
-					},
-					{
-						id = 'feat',
-						text = 'Choice of a Feat',
-					},
-					{
-						id = 'onefeat',
-						text = 'Specific Feat',
-					},
-				}
-
-			local clipboardItem = dmhub.GetInternalClipboard()
-			if clipboardItem ~= nil and (clipboardItem.typeName == 'CharacterFeature' or clipboardItem.typeName == 'CharacterFeatureChoice') then
-				featureOptions[#featureOptions+1] = {
-					id = "paste",
-					text = "Paste " .. clipboardItem.name,
-				}
-			end
-
-			CharacterFeaturePrefabs.FillDropdownOptions(featureOptions)
-
-
-			children[#children+1] = gui.Dropdown{
-
-				idChosen = 'none',
-				options = featureOptions,
-
-				width = 160,
-				height = 30,
-				fontSize = 16,
-				
-				change = function(element)
-					if element.idChosen == 'feature' then
-						self.options[#self.options+1] = CharacterFeature.Create{
-							source = classOrRace:FeatureSourceName(),
-							canHavePrerequisites = true,
-						}
-						resultPanel:FireEvent("change", self)
-					elseif element.idChosen == 'choice' then
-						self.options[#self.options+1] = CharacterFeatureChoice.CreateNew{
-						}
-						resultPanel:FireEvent("change", self)
-					elseif element.idChosen == 'multiple' then
-						self.options[#self.options+1] = CharacterFeatureList.CreateNew{
-						}
-						resultPanel:FireEvent("change", self)
-					elseif element.idChosen == 'feat' then
-						self.options[#self.options+1] = CharacterFeatChoice.CreateNew{
-						}
-						resultPanel:FireEvent("change", self)
-					elseif element.idChosen == 'onefeat' then
-						self.options[#self.options+1] = CharacterSingleFeat.CreateNew{
-						}
-						resultPanel:FireEvent("change", self)
-					elseif element.idChosen == 'paste' then
-						local clone = DeepCopy(clipboardItem)
-						clone:VisitRecursive(function(a) a.source = classOrRace:FeatureSourceName() end)
-						clone:VisitRecursive(function(a) a.guid = dmhub.GenerateGuid() end)
-						self.options[#self.options+1] = clone
-						resultPanel:FireEvent("change", self)
-					else
-						local prefab = CharacterFeaturePrefabs.FindPrefab(element.idChosen)
-						if prefab ~= nil then
-							local clone = DeepCopy(prefab)
-							clone.prefab = element.idChosen
-							clone:VisitRecursive(function(a) a.source = classOrRace:FeatureSourceName() end)
-							clone:VisitRecursive(function(a) a.guid = dmhub.GenerateGuid() end)
-							self.options[#self.options+1] = clone
-							resultPanel:FireEvent("change", self)
-						end
-					end
-
-					--recreate this panel.
-					resultPanel:FireEvent("create")
-				end
-			}
-
-			children[#children+1] = gui.Panel{
-				bgimage = "panels/square.png",
-				width = 300,
-				height = 1,
-				bgcolor = "#999999",
-				vmargin = 8,
-			}
-
-			element.children = children
-		end,
-	}
-
-	for k,p in pairs(params) do
-		args[k] = p
-	end
-
-	resultPanel = gui.Panel(args)
-	return resultPanel
-end
---]==]
-
---[==[ DEAD_CODE - overridden by Draw Steel UI\DSClassEditor.lua:1607
-function CharacterSubclassChoice:CreateEditor(class, params)
-	params = params or {}
-
-	local resultPanel
-
-	local args = {
-		width = 400,
-		height = 'auto',
-		flow = 'vertical',
-		vpad = 4,
-
-		create = function(element)
-			local children = {}
-			local subclassesTable = dmhub.GetTable("subclasses") or {}
-			for k,subclass in pairs(subclassesTable) do
-				if subclass.primaryClassId == self.classid and subclass:try_get("hidden", false) == false then
-					children[#children+1] = gui.Panel{
-						width = '100%',
-						height = 20,
-
-						gui.Label{
-							text = subclass.name,
-							height = 'auto',
-							width = 'auto',
-							minWidth = 200,
-							fontSize = 16,
-							color = 'white',
-							valign = 'center',
-						},
-					}
-				end
-			end
-
---		local subclassesTable = dmhub.GetTable("subclasses") or {}
---		for i,option in ipairs(self.options) do
---			local index = i
---			local subclass = subclassesTable[option]
---			if subclass ~= nil then
---				children[#children+1] = gui.Panel{
---					width = '100%',
---					height = 20,
---					flow = 'horizontal',
---
---					gui.Label{
---						text = subclass.name,
---						height = 'auto',
---						width = 'auto',
---						minWidth = 200,
---						fontSize = 16,
---						color = 'white',
---						valign = 'center',
---					},
---
---					gui.DeleteItemButton{
---						width = 16,
---						height = 16,
---						valign = 'center',
---						click = function(element)
---							table.remove(self.options, index)
---							resultPanel:FireEvent('create')
---							resultPanel:FireEvent('change')
---						end,
---					},
---				}
---			end
---		end
---
---		local options = {
---			{
---				id = 'none',
---				text = 'Add Choice...',
---			}
---		}
---
---		for k,subclass in pairs(subclassesTable) do
---			local alreadyHas = false
---			for i,option in ipairs(self.options) do
---				if option == k then
---					alreadyHas = true
---				end
---			end
---
---			if alreadyHas == false then
---				options[#options+1] = {
---					id = k,
---					text = subclass.name,
---				}
---			end
---		end
---
---		local dropdown = gui.Dropdown{
---			options = options,
---			idChosen = 'none',
---			width = 160,
---			height = 30,
---			fontSize = 16,
---			change = function(element)
---				if element.idChosen ~= 'none' then
---					self.options[#self.options+1] = element.idChosen
---					resultPanel:FireEvent('create')
---					resultPanel:FireEvent('change')
---				end
---			end,
---		}
---
---		children[#children+1] = dropdown
-
-			element.children = children
-		end,
-	}
-
-	for k,p in pairs(params) do
-		args[k] = p
-	end
-
-	resultPanel = gui.Panel(args)
-
-	return resultPanel
-end
---]==]
-
---[==[ DEAD_CODE - overridden by Draw Steel UI\DSClassEditor.lua:1727
-function CharacterFeatureList:CreateEditor(class, params)
-	local subpanel = ClassLevel.CreateEditor(self, class, -1, params)
-	return subpanel
-end
---]==]
-
 mod.shared.StartingEquipmentEditor = function(options)
 
 	local RefreshChildren
@@ -1807,11 +1250,10 @@ mod.shared.StartingEquipmentEditor = function(options)
 					width = "auto",
 					height = "auto",
 
-					gui.DeleteItemButton{
+					gui.Button{
+						classes = {"deleteButton", "sizeS"},
 						floating = true,
 						x = 32,
-						width = 16,
-						height = 16,
 						valign = "top",
 						halign = "right",
 						click = function(element)
@@ -1831,11 +1273,10 @@ mod.shared.StartingEquipmentEditor = function(options)
 						width = "auto",
 						height = "auto",
 
-						gui.DeleteItemButton{
+						gui.Button{
+							classes = {"deleteButton", "sizeS"},
 							floating = true,
 							x = 16,
-							width = 16,
-							height = 16,
 							valign = "top",
 							halign = "right",
 							click = function(element)

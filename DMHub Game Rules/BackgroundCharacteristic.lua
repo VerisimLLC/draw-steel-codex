@@ -134,12 +134,11 @@ function BackgroundCharacteristic.EmbedEditor(parentFeature, children, onchange)
 						textAlignment = "left",
 						text = string.format("Characteristic: %s", characteristic:Name()),
 					},
-					gui.DeleteItemButton{
+					gui.Button{
+						classes = {"deleteButton", "sizeS"},
 						halign = "right",
 						valign = "center",
 						hmargin = 4,
-						width = 16,
-						height = 16,
 						requireConfirm = true,
 						click = function(element)
 							m_expandedCharacteristics = {}

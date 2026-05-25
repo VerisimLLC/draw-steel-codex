@@ -130,7 +130,7 @@ Please try to avoid using the following controls, using the suggested alternativ
 | gui.Border, gui.PrettyBorder | gui.Panel{ classes = { bordered }} |
 | gui.CloseButton | gui.Button{ classes = { closeButton }} |
 | gui.CopyButton | gui.Button{ classes = { copyButton }} |
-| gui.DeleteButton | gui.Button{ classes = { deleteButton }} |
+| gui.DeleteItemButton | gui.Button{ classes = { deleteButton }} |
 | gui.FancyButton | gui.Button |
 | gui.HudIconButton | gui.Button{ classes = { sizeM }, icon = "image" } |
 | gui.IconButton | gui.Button{ icon = iconName } |

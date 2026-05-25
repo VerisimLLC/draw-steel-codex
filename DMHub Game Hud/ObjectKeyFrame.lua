@@ -87,10 +87,9 @@ function KeyFrameComponent.CreatePropertiesEditor(component)
                             end,
                         },
 
-                        gui.DeleteItemButton{
+                        gui.Button{
+                            classes = {"deleteButton", "sizeXs"},
                             halign = "right",
-                            width = 12,
-                            height = 12,
                             click = function(element)
                                 component:DeleteKeyFrame(i)
 

@@ -531,9 +531,8 @@ CreateKeybindsSettingsPanel = function()
                                     element.text = "Press key..."
                                     element.captureEscape = true
                                     element.children = {
-                                        gui.DeleteItemButton{
-                                            width = 16,
-                                            height = 16,
+                                        gui.Button{
+                                            classes = {"deleteButton", "sizeS"},
                                             halign = "right",
                                             valign = "top",
                                             press = function(element)
@@ -683,9 +682,8 @@ function Keybinds.ShowBindPopup(args)
                     element.text = "Press key..."
                     element.captureEscape = true
                     element.children = {
-                        gui.DeleteItemButton{
-                            width = 16,
-                            height = 16,
+                        gui.Button{
+                            classes = {"deleteButton", "sizeS"},
                             halign = "right",
                             valign = "top",
                             press = function(element)

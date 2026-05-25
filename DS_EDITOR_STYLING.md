@@ -75,7 +75,7 @@ gui.Panel{
 gui.Panel{
     classes = {"formPanel", "formPanel-inline"},
     gui.Label{ classes = {"formLabel"}, text = info.text },
-    gui.DeleteItemButton{ ... },
+    gui.Button{ classes = {"deleteButton"}, ... },
 }
 ```
 

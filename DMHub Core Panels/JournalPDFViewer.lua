@@ -176,12 +176,11 @@ local function SmartImporterPanel(doc)
 
             local panel
 
-            local deleteButton = gui.DeleteItemButton {
+            local deleteButton = gui.Button {
+                classes = {"deleteButton", "sizeXs"},
                 halign = "right",
                 valign = "top",
                 floating = true,
-                width = 12,
-                height = 12,
                 click = function(element)
                     m_cancel = true
                     panel:DestroySelf()

@@ -397,7 +397,8 @@ function GameHud:CreateDocumentDialog()
         children = { titlePanel, documentPanel },
     }
 
-    local closeButton = gui.CloseButton {
+    local closeButton = gui.Button{
+        classes = {"closeButton"},
         escapeActivates = true,
         valign = 'top',
         halign = 'right',

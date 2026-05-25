@@ -920,7 +920,8 @@ mod.shared.ShowBrushEditor = function(brushid, startingValues)
 
 		children = {
 			dialogPanel,
-			gui.CloseButton{
+			gui.Button{
+            	classes = {"closeButton"},
 				floating = true,
 				valign = "top",
 				halign = "right",

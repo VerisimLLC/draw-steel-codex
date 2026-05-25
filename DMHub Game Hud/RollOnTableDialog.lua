@@ -134,7 +134,8 @@ function GameHud.CreateRollOnTableDialog(self)
 		end,
 	}
 
-	local cancelButton = gui.CloseButton{
+	local cancelButton = gui.Button{
+		classes = {"closeButton"},
 		floating = true,
 		halign = "right",
 		valign = "top",

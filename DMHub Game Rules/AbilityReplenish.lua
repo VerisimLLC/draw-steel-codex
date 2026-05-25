@@ -419,7 +419,8 @@ function ActivatedAbilityReplenishBehavior:Cast(ability, casterToken, targets, o
                         RecalculateResources()
                     end,
 
-                    gui.CloseButton{
+                    gui.Button{
+                        classes = {"closeButton"},
                         floating = true,
                         halign = "right",
                         valign = "top",

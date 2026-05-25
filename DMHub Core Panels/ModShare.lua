@@ -2726,7 +2726,8 @@ local showShareModuleDialog = function(options)
 		statusLabel,
 		moduleCodePanel,
 
-		gui.CloseButton{
+		gui.Button{
+            classes = {"closeButton"},
 			halign = "right",
 			valign = "top",
 			floating = true,
@@ -2951,7 +2952,8 @@ mod.shared.ShowShareDialog = function()
 		},
 
 
-		gui.CloseButton{
+		gui.Button{
+            classes = {"closeButton"},
 			halign = "right",
 			valign = "top",
 			floating = true,
@@ -3823,7 +3825,8 @@ mod.shared.ShowDownloadShareDialog = function()
 
 		installPanel,
 
-		gui.CloseButton{
+		gui.Button{
+            classes = {"closeButton"},
 			halign = "right",
 			valign = "top",
 			floating = true,
@@ -4332,8 +4335,8 @@ mod.shared.ShowDownloadShareDialog = function()
 			moduleDisplayPanel,
 		},
 
-
-		gui.CloseButton{
+		gui.Button{
+            classes = {"closeButton"},
 			halign = "right",
 			valign = "top",
 			floating = true,

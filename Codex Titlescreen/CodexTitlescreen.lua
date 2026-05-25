@@ -3209,7 +3209,8 @@ function CreateGameLoadingScreen(moduleInfo, backend)
                 end,
             },
 
-            gui.CloseButton {
+            gui.Button{
+				classes = {"closeButton"},
                 floating = true,
                 halign = "right",
                 valign = "top",

@@ -1238,17 +1238,8 @@ local function ImportMapWizard(options)
 
 		contentPanel,
 
-	--gui.ProgressBar{
-	--	width = "80%",
-	--	height = 64,
-	--	value = 0,
-	--	thinkTime = 0.1,
-	--	think = function(element)
-	--		element.value = element.value + 0.01
-	--	end,
-	--},
-
-		gui.CloseButton{
+		gui.Button{
+            classes = {"closeButton"},
 			halign = "right",
 			valign = "top",
 			floating = true,

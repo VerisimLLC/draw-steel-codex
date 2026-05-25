@@ -6093,9 +6093,7 @@ function openTestTriggerPopout(ability, initialState, reopen)
         valign = "center",
         -- Modal-layer escape priority so Esc closes the top-of-stack
         -- modal (this popout) rather than fighting with the editor's
-        -- own EXIT_MODAL_DIALOG handler. The deprecated gui.CloseButton's
-        -- default was EXIT_DIALOG which would never fire while a modal is
-        -- open; we set EXIT_MODAL_DIALOG explicitly here.
+        -- own EXIT_MODAL_DIALOG handler.
         escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
         press = function()
             if popoutRoot ~= nil and popoutRoot.valid then
@@ -6154,15 +6152,8 @@ function openTestTriggerPopout(ability, initialState, reopen)
                     valign = "center",
                     wrap = true,
                 },
-                gui.Panel{
-                    -- Mini dismiss X (reuses gui.CloseButton classes for
-                    -- the icon + hover styling without the modal-escape
-                    -- semantics; this is a banner-local action, not a
-                    -- dialog-level close).
-                    classes = { "close-button", "closeButton" },
-                    bgimage = "ui-icons/close.png",
-                    width = 14,
-                    height = 14,
+                gui.Button{
+                    classes = { "close-button", "closeButton", "sizeXs" },
                     halign = "right",
                     valign = "center",
                     press = function()

@@ -197,7 +197,8 @@ local function ImportAudioWizard()
 	--	end,
 	--},
 
-		gui.CloseButton{
+		gui.Button{
+            classes = {"closeButton"},
 			halign = "right",
 			valign = "top",
 			floating = true,

@@ -1263,6 +1263,7 @@ function CharSheet.CreateCharacterSheet(params)
 		bgimage = "panels/square.png",
 
 		styles = {
+			ThemeEngine.GetStyles(),
 			Styles.Default,
 			Styles.Panel,
 			{
@@ -1273,7 +1274,6 @@ function CharSheet.CreateCharacterSheet(params)
 			CharSheet.GetCharacterSheetStyles(),
 		},
 		--theme = "charsheet.Main",
-		flow = "none",
 		width = "100%",
 		height = "100%",
 		halign = "center",
@@ -1361,24 +1361,26 @@ function CharSheet.CreateCharacterSheet(params)
 			halign = "right",
 			valign = "top",
 
-			gui.Panel{
-				classes = {"iconButton"},
-				bgimage = "panels/square.png",
-				bgcolor = "black",
+			gui.Button{
+				classes = {"sizeL"},
+				icon = "drawsteel/Icons_Nav_MinWindow.png",
 				valign = "center",
-				borderColor = Styles.textColor,
-				borderWidth = 4,
-				width = 24,
-				height = 24,
+				setResizeIcon = function(element)
+					local isWindowed = dmhub.GetSettingValue("sheet:windowed")
+					element:Get("characterSheetHarness"):SetClass("windowed", isWindowed)
+					element:FireEvent("setIcon", isWindowed and "drawsteel/Icons_Nav_MaxWindow.png" or "drawsteel/Icons_Nav_MinWindow.png")
+				end,
+				create = function(element)
+					element:FireEvent("setResizeIcon")
+				end,
 				click = function(element)
 					dmhub.SetSettingValue("sheet:windowed", not dmhub.GetSettingValue("sheet:windowed"))
-					element:Get("characterSheetHarness"):SetClass("windowed", dmhub.GetSettingValue("sheet:windowed"))
+					element:FireEvent("setResizeIcon")
 				end,
 			},
 
-			gui.CloseButton{
-				width = 32,
-				height = 32,
+			gui.Button{
+				classes = {"closeButton", "sizeL"},
 				valign = "center",
 				escapePriority = EscapePriority.EXIT_CHARACTER_SHEET,
 				click = function(element)

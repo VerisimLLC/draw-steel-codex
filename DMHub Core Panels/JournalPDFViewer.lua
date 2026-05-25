@@ -2187,7 +2187,6 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                 gui.Button {
                     classes = {"pagingArrow", "sizeS"},
                     hmargin = 4,
-                    facing = -1,
                     press = function(element)
                         m_npage = m_npage - 1
                         m_searchResults = nil
@@ -2203,7 +2202,7 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                 },
                 gui.Input {
                     classes = {"sizeXs"},
-                    width = 20,
+                    width = 40,
                     characterLimit = 4,
                     textAlignment = "right",
                     hmargin = 4,
@@ -2236,7 +2235,6 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                 gui.Button {
                     classes = {"pagingArrow", "right", "sizeS"},
                     hmargin = 4,
-                    facing = 1,
                     press = function(element)
                         m_npage = m_npage + 1
                         m_searchResults = nil
@@ -2259,7 +2257,7 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
 
                     gui.Input {
                         classes = {"sizeXs"},
-                        width = 28,
+                        width = 40,
                         hmargin = 4,
                         valign = "center",
                         text = string.format("%d", round(m_zoom * 100)),
@@ -2545,13 +2543,10 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page)
                 element:SetClass("hidden", true)
             end,
 
-            gui.Panel {
-                classes = { "iconButton" },
-                bgimage = "ui-icons/icon-scale.png",
-                bgcolor = Styles.textColor,
+            gui.Button {
+                classes = { "sizeXs" },
+                icon = "ui-icons/icon-scale.png",
                 valign = "center",
-                width = 16,
-                height = 16,
                 rmargin = 6,
                 linger = function(element)
                     gui.Tooltip("Pop out window")(element)
@@ -2568,27 +2563,29 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page)
                 end,
             },
 
-            gui.Panel {
-                classes = { "iconButton" },
-                bgimage = "panels/square.png",
-                bgcolor = "black",
+            gui.Button {
+                classes = { "sizeXs" },
+                icon = "drawsteel/Icons_Nav_MinWindow.png",
                 valign = "center",
                 linger = function(element)
                     gui.Tooltip("Maximize window")(element)
                 end,
-                borderColor = Styles.textColor,
-                borderWidth = 2,
-                width = 12,
-                height = 12,
+                setResizeIcon = function(element)
+                    local isWindowed = g_journalWindowedSetting:Get()
+                    dialogPanel:SetClass("windowed", isWindowed)
+                    element:FireEvent("setIcon", isWindowed and "drawsteel/Icons_Nav_MaxWindow.png" or "drawsteel/Icons_Nav_MinWindow.png")
+                end,
+                create = function(element)
+                    element:FireEvent("setResizeIcon")
+                end,
                 click = function(element)
-                    dialogPanel:SetClass("windowed", not dialogPanel:HasClass("windowed"))
-                    g_journalWindowedSetting:Set(dialogPanel:HasClass("windowed"))
+                    g_journalWindowedSetting:Set(not g_journalWindowedSetting:Get())
+                    element:FireEvent("setResizeIcon")
                 end,
             },
 
-            gui.CloseButton {
-                width = 16,
-                height = 16,
+            gui.Button{
+                classes = {"closeButton", "sizeXs"},
                 valign = "center",
                 escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
                 press = function(element)

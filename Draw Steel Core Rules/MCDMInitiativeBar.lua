@@ -1491,55 +1491,6 @@ function GameHud.CreateInitiativeBar(self, info)
 			mainInitiativeBar,
 			choiceInitiativeBar,
 			respiteBar,
-
-			--button to close the initiative queue.
-			--[[gui.CloseButton({
-				escapeActivates = false,
-
-				events = {
-					refresh = function(element)
-						--only show this if initiative is currently actually active.
-						element:SetClass('hidden', info.initiativeQueue == nil or info.initiativeQueue.hidden)
-					end,
-
-					--when clicked we destroy the initiative queue by setting it to nil and upload changes. This will
-					--remove the initiative queue completely from player view.
-					click = function(element)
-						if info.initiativeQueue ~= nil then
-							UploadDayNightInfo()
-							info.initiativeQueue.hidden = true
-							info.UploadInitiative()
-
-							for initiativeid,_ in pairs(info.initiativeQueue.entries) do
-								local tokens = self:GetTokensForInitiativeId(info, initiativeid)
-								for _,tok in ipairs(tokens) do
-									tok.properties:DispatchEvent("endcombat", {})
-								end
-							end
-
-
-						end
-					end
-				},
-
-				selfStyle = {
-					halign = 'center',
-					valign = 'top',
-					x = 0,
-					y = 35,
-					width = 20,
-					height = 20,
-				},
-
-				styles = {
-					{
-						--only show the close initiative button to the DM, so for players hide it.
-						selectors = {'player'},
-						hidden = 1,
-					},
-				}
-			}),]]
-
 		},
 	})
 end
@@ -2902,10 +2853,8 @@ function GameHud.CreateInitiativeEntry(self, info, initiativeid, options)
 	--Pressed -> cancels the turn (sends us back to the choose-next-turn state).
 	if CanControlInitiative() then
 
-		closeButton = gui.CloseButton({
-			classes = {"revertTurnButton"},
-			width = 18,
-			height = 18,
+		closeButton = gui.Button{
+            classes = {"closeButton", "revertTurnButton"},
 			halign = "right",
 			valign = "top",
 			hmargin = 2,
@@ -2940,7 +2889,7 @@ function GameHud.CreateInitiativeEntry(self, info, initiativeid, options)
 					end
 				end,
 			},
-		})
+		}
 	end
 
 	local playerColor = "black"

@@ -778,7 +778,8 @@ function CreateFollowerEditorDialog(follower, options)
         height = "auto",
         children = {
             namePanel,
-            gui.CloseButton {
+            gui.Button{
+                classes = {"closeButton"},
                 halign = "right",
                 valign = "top",
                 press = function()

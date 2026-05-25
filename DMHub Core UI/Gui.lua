@@ -246,11 +246,12 @@ function gui.Button(options)
 		-- and the icon can be insetted independently (e.g. 90% when bordered).
 		-- Kind-class buttons (addButton, deleteButton, ...) leave bgimage nil
 		-- and let `{panel, buttonIcon, parent:kindName}` rules paint it.
-		args[#args+1] = gui.Panel{
+		local iconPanel = gui.Panel{
 			classes = {"buttonIcon"},
 			bgcolor = options.color,
 			bgimage = options.icon,
 		}
+		args[#args+1] = iconPanel
 
 		-- Apply kind-config defaults BEFORE merging options so callers can
 		-- still override (e.g. pass their own escapeActivates = false).
@@ -282,6 +283,16 @@ function gui.Button(options)
 			if k ~= "icon" and k ~= "color" then
 				args[k] = v
 			end
+		end
+
+		-- setIcon: swap the glyph at runtime. The image lives on the inner
+		-- buttonIcon child, not on the outer iconButton the caller holds, so
+		-- callers fire this event instead of assigning bgimage on `element`.
+		-- Usage: element:FireEvent("setIcon", "path/to/icon.png")
+		-- Assigned after the options merge so the framework's setIcon is
+		-- authoritative and cannot be silently clobbered by a caller.
+		args.setIcon = function(_, iconPath)
+			iconPanel.bgimage = iconPath
 		end
 
 		-- Confirmation wrap: when the caller supplied `requireConfirm = true`

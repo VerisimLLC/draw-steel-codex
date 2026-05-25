@@ -4347,7 +4347,8 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 
 			searchInput,
 
-			gui.CloseButton{
+			gui.Button{
+            	classes = {"closeButton"},
 				escapeActivates = true,
 				escapePriority = EscapePriority.DMHUB_POPUP,
 				click = function(element)
@@ -6441,7 +6442,8 @@ function GameHud:ShowActionBarEditDialog(creature, actionBar, pagingPanels)
 
 		pagesParent,
 
-		gui.CloseButton{
+		gui.Button{
+            classes = {"closeButton"},
 			halign = "right",
 			valign = "top",
 			floating = true,

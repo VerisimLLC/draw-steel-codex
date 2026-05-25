@@ -49,7 +49,8 @@ local JournalStyles = {
 
 function GameHud:JournalPanel()
 	local result = nil
-	local createItemButton = gui.AddButton{
+	local createItemButton = gui.Button{
+		classes = {"addButton"},
 		margin = 8,
 		linger = function(element)
 			gui.Tooltip("Add a new journal entry")(element)

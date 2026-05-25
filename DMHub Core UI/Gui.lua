@@ -440,10 +440,20 @@ function gui.DiamondButton(options)
 	return gui.Panel(params)
 end
 
+local throttleAddDeprecated = 0
 --- A little "plus" button for adding new items.
 --- @param options PanelArgs
 --- @return Panel
 function gui.AddButton(options)
+	if devmode() and dmhub.Time() - throttleAddDeprecated >= 60 then
+		throttleAddDeprecated = dmhub.Time()
+		local caller = debug.getinfo(2, "Sl")
+		local location = "unknown location"
+		if caller ~= nil then
+			location = string.format("%s:%d", caller.short_src, caller.currentline)
+		end
+		SendTitledChatMessage(string.format("gui.AddButton() - use gui.Button() instead. See theming guide. Called from %s", location), "deprecated", "#cc6666")
+	end
 
 	local args = {
 		classes = {'plusButton', "addButton"},
@@ -970,10 +980,14 @@ local PrettyButtonBackgroundStyles = {
 --- @return Panel
 local throttlePBDeprecated = 0
 function gui.PrettyButton(args)
-	-- print(string.format("THC:: time: [%d], throttle: [%d]", dmhub.Time(), throttlePBDeprecated))
 	if devmode() and dmhub.Time() - throttlePBDeprecated >= 60 then
 		throttlePBDeprecated = dmhub.Time()
-		SendTitledChatMessage("gui.PrettyButton() - use gui.Button() instead. See theming guide.", "deprecated", "#cc6666")
+		local caller = debug.getinfo(2, "Sl")
+		local location = "unknown location"
+		if caller ~= nil then
+			location = string.format("%s:%d", caller.short_src, caller.currentline)
+		end
+		SendTitledChatMessage(string.format("gui.PrettyButton() - use gui.Button() instead. See theming guide. Called from %s", location), "deprecated", "#cc6666")
 	end
 	local classes = args.classes or {}
 	if type(classes) == "string" then
@@ -999,27 +1013,25 @@ function gui.Diamond(options)
 	options.editable = nil
 
 	local fill = 
-				gui.Panel{
-				
-					classes = {cond(options.value, "on")},
-					width = 20,
-					height = 20,
-					halign = "center",
-					valign = "center",
-					bgimage = "panels/square.png",
-				
-					styles = {
-						{
-							bgcolor = "clear",
-						},
-						
-						{
-							selectors = {"on"},
-							transitionTime = 0.15,
-							bgcolor = options.fillColor or Styles.textColor,
-						},
-					},
-				}
+		gui.Panel{
+			classes = {cond(options.value, "on")},
+			width = 20,
+			height = 20,
+			halign = "center",
+			valign = "center",
+			bgimage = "panels/square.png",
+
+			styles = {
+				{
+					bgcolor = "clear",
+				},
+				{
+					selectors = {"on"},
+					transitionTime = 0.15,
+					bgcolor = options.fillColor or Styles.textColor,
+				},
+			},
+		}
 				
 	options.fillColor = nil
 	options.value = nil
@@ -1198,7 +1210,6 @@ function gui.Check(args)
 	resultPanel = gui.Panel(options)
 	return resultPanel
 end
-
 
 local PercentSliderStyles = {
 	gui.Style{

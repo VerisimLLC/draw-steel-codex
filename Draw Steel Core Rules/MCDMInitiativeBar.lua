@@ -1210,35 +1210,6 @@ function GameHud.CreateInitiativeBar(self, info)
 	local addCharacters
 	local addMonsters
 
-	--[[if dmhub.isDM then
-
-		addCharacters = gui.AddButton{
-			halign = "left",
-			valign = "center",
-			floating = true,
-			x = -60,
-			width = 24,
-			height = 24,
-			hover = gui.Tooltip("Add Character to initiative"),
-			click = function(element)
-				AddInitiativeEntryPanel(element, info, true)
-			end,
-		}
-
-		addMonsters = gui.AddButton{
-			halign = "right",
-			valign = "center",
-			floating = true,
-			x = 60,
-			width = 24,
-			height = 24,
-			hover = gui.Tooltip("Add Monster to initiative"),
-			click = function(element)
-				AddInitiativeEntryPanel(element, info, false)
-			end,
-		}
-	end]]
-
 	--The parent / top-level initiative bar.
 	return gui.Panel({
 		floating = true,

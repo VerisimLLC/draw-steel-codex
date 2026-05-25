@@ -2136,9 +2136,8 @@ CharacterModifier.TypeInfo.power = {
                             children[#children+1] = panel
                         end
 
-                        children[#children+1] = gui.AddButton{
-                            width = 16,
-                            height = 16,
+                        children[#children+1] = gui.Button{
+                            classes = {"addButton", "sizeXs"},
                             halign = "left",
                             click = function(element)
                                 adjustments[#adjustments+1] = {

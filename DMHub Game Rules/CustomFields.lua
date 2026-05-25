@@ -209,7 +209,8 @@ function CustomFieldCollection.CreateEditor(dataType)
             end,
         },
 
-        gui.AddButton{
+        gui.Button{
+            classes = {"addButton"},
             halign = "right",
             valign = "bottom",
             click = function(element)

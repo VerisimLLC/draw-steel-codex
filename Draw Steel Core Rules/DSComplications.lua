@@ -84,7 +84,10 @@ local function ShowComplicationsPanel(contentPanel)
 		},
 
 		itemsListPanel,
-        gui.AddButton{
+        gui.Button{
+            classes = {"addButton"},
+            valign = "top",
+            halign = "right",
             click = function(element)
                 local newComplication = CharacterComplication.new{}
                 dmhub.SetAndUploadTableItem(CharacterComplication.tableName, newComplication)

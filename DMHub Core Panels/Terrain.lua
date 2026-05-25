@@ -403,9 +403,8 @@ CreateTerrainEditor = function(options)
         }
     end
 
-    local addTerrainButton = gui.AddButton{
-        width = terrainDim,
-        height = terrainDim,
+    local addTerrainButton = gui.Button{
+        classes = {"addButton"},
 
         events = {
             hover = gui.Tooltip('Create New ' .. options.title .. ' from an image'),
@@ -421,9 +420,8 @@ CreateTerrainEditor = function(options)
 
     local createTextureButton = nil
     if options.hasCreateTexture then
-        createTextureButton = gui.AddButton{
-            width = terrainDim,
-            height = terrainDim,
+        createTextureButton = gui.Button{
+        classes = {"addButton"},
 
             events = {
                 hover = gui.Tooltip('Build an effects brush from objects'),
@@ -920,9 +918,8 @@ CreateBuildingEditor = function()
 
     local floorDim = 64
 
-    local addWallButton = gui.AddButton{
-        width = floorDim,
-        height = floorDim,
+    local addWallButton = gui.Button{
+        classes = {"addButton"},
 
         events = {
             hover = gui.Tooltip('Create New Wall'),
@@ -932,9 +929,8 @@ CreateBuildingEditor = function()
         },
     }
 
-    local addFloorButton = gui.AddButton{
-        width = floorDim,
-        height = floorDim,
+    local addFloorButton = gui.Button{
+        classes = {"addButton"},
 
         events = {
             hover = gui.Tooltip('Create New Floor Tileset'),

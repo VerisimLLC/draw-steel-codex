@@ -134,7 +134,7 @@ Please try to avoid using the following controls, using the suggested alternativ
 | gui.FancyButton | gui.Button |
 | gui.HudIconButton | gui.Button{ classes = { sizeM }, icon = "image" } |
 | gui.IconButton | gui.Button{ icon = iconName } |
-| gui.PagingButton | gui.Button{ classes = { pagingArrow }} (left, default) / gui.Button{ classes = { pagingArrow, right }} (right) |
+| gui.PagingArrow | gui.Button{ classes = { pagingArrow }} (left, default) / gui.Button{ classes = { pagingArrow, right }} (right) |
 | gui.PrettyButton | gui.Button |
 | gui.SetEditor | gui.Multiselect |
 | gui.SettingsButton | gui.Button{ classes = { settingsButton }} |

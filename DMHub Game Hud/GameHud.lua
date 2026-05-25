@@ -292,7 +292,8 @@ function GameHud:CreateToolbarPanel()
 		local geticon = item.geticon
 		local getdisabled = item.getdisabled
 		local button
-		button = gui.HudIconButton{
+		button = gui.Button{
+			classes = {"sizeM"},
 			icon = item.icon,
 			monitor = item.setting,
 			events = {
@@ -421,9 +422,8 @@ function GameHud:CreateToolbarPanel()
 
 	DeserializeToolbar()
 
-
-
-    local addButton = gui.HudIconButton{
+    local addButton = gui.Button{
+		classes = {"sizeM"},
         icon = "ui-icons/Plus.png",
 		popupPositioning = "panel",
 
@@ -1224,7 +1224,8 @@ function GameHud:DMGameControlsPanel()
 		}
 	end
 
-	local dmIlluminationButton = gui.HudIconButton{
+	local dmIlluminationButton = gui.Button{
+		classes = {"sizeM"},
 		icon = "icons/icon_device/icon_device_57.png",
 		create = function(element)
 			element:SetClass('deselected', not dmhub.GetSettingValue("dmillumination"))

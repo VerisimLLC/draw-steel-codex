@@ -1200,12 +1200,11 @@ function GameHud.CreateEmbeddedRollDialog()
 
     local RecalculateMultiTargets
 
-    local rerollFudgedButton = gui.HudIconButton {
+    local rerollFudgedButton = gui.Button {
+        classes = {"sizeL"},
         icon = "panels/hud/clockwise-rotation.png",
         halign = "right",
         valign = "center",
-        width = 32,
-        height = 32,
         press = function(element)
             CalculateRollText()
         end,

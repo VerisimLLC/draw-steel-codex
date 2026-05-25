@@ -687,47 +687,6 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                                 m_dragPanel:SetClass("hidden", true)
                             end,
                         },
-                        --[[
-                        gui.HudIconButton{
-                            icon = "game-icons/cloud-upload.png",
-                            width = 24,
-                            height = 24,
-                            linger = gui.Tooltip("Import this statblock into your compendium."),
-                            swallowPress = true,
-                            create = function(element)
-                                document:TextInRect(m_npage, args.x1*document.summary.pageWidth, args.y2*document.summary.pageHeight, args.x2*document.summary.pageWidth, args.y1*document.summary.pageHeight, function(text)
-                                    if text == nil or text == "" then
-                                        element:SetClass("disabled", true)
-                                        element.events.linger = gui.Tooltip("No importable content found.")
-                                    end
-                                end)
-                            end,
-                            click = function(element)
-                                if element:HasClass("disabled") then
-                                    return
-                                end
-                                m_dragPanel.children = {}
-
-                                m_importer = true
-                                m_importerPanel:FireEvent("activate", m_importer)
-
-                                local npage = m_npage
-                                local dragPanel = m_dragPanel
-                                document:TextInRect(m_npage, args.x1*document.summary.pageWidth, args.y2*document.summary.pageHeight, args.x2*document.summary.pageWidth, args.y1*document.summary.pageHeight, function(text)
-                                    m_importerPanel:FireEventTree("import", text, dragPanel, string.format("pdf:%s&page=%d&area=%f,%f,%f,%f", doc.id, npage, args.x1, args.y1, args.x2, args.y2))
-                                end)
-
-                                m_dragPanel:SetClass("importing", true)
-
-                                local parentPanel = m_dragPanel.parent
-                                m_dragPanel = CreateDragPanel()
-
-                                local panels = parentPanel.children
-                                panels[#panels+1] = m_dragPanel
-                                parentPanel.children = panels
-                            end,
-                        },
-                        ]]
 
                     }
                 }

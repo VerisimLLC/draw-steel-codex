@@ -704,10 +704,21 @@ function gui.SettingsButton(options)
 	return gui.Panel(args)
 end
 
+local throttleHudIconDeprecated = 0
 --- A little icon button to show in the hud.
 --- @param options PanelArgs
 --- @return Panel
 function gui.HudIconButton(options)
+	if devmode() and dmhub.Time() - throttleHudIconDeprecated >= 60 then
+		throttleHudIconDeprecated = dmhub.Time()
+		local caller = debug.getinfo(2, "Sl")
+		local location = "unknown location"
+		if caller ~= nil then
+			location = string.format("%s:%d", caller.short_src, caller.currentline)
+		end
+		SendTitledChatMessage(string.format("gui.HudIconButton() - use gui.Button() instead. See theming guide. Called from %s", location), "deprecated", "#cc6666")
+	end
+
 	local args = {
 		classes = {"hudIconButton"},
 		children = {
@@ -795,10 +806,21 @@ local iconButtonIconStyleFlipped = gui.Style{
 	scale = {x = -1, y = 1},
 }
 
+local throttleIconButtonDeprecated = 0
 --- A small button with an icon on it.
 --- @param args PanelArgs
 --- @return Panel
 function gui.IconButton(args)
+	if devmode() and dmhub.Time() - throttleIconButtonDeprecated >= 60 then
+		throttleIconButtonDeprecated = dmhub.Time()
+		local caller = debug.getinfo(2, "Sl")
+		local location = "unknown location"
+		if caller ~= nil then
+			location = string.format("%s:%d", caller.short_src, caller.currentline)
+		end
+		SendTitledChatMessage(string.format("gui.IconButton() - use gui.Button() instead. See theming guide. Called from %s", location), "deprecated", "#cc6666")
+	end
+
 	local iconPanel = gui.Panel{
 						bgimage = args.icon,
 						styles = {
@@ -3943,10 +3965,21 @@ local g_pagingArrowStyles = {
 --- @class PagingArrowArgs:PanelArgs
 --- @field facing nil|-1|1 Choose if the arrow faces left or right.
 
+local throttlePagingArrowDeprecated = 0
 --- An arrow suitable for paging through different sections.
 --- @param options PagingArrowArgs
 --- @return Panel
 function gui.PagingArrow(options)
+	if devmode() and dmhub.Time() - throttlePagingArrowDeprecated >= 60 then
+		throttlePagingArrowDeprecated = dmhub.Time()
+		local caller = debug.getinfo(2, "Sl")
+		local location = "unknown location"
+		if caller ~= nil then
+			location = string.format("%s:%d", caller.short_src, caller.currentline)
+		end
+		SendTitledChatMessage(string.format("gui.PagingArrow() - use gui.Button() instead. See theming guide. Called from %s", location), "deprecated", "#cc6666")
+	end
+
 	local facing = options.facing or 1
 	options.facing = nil
 	local args = {

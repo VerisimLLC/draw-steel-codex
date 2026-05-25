@@ -1263,7 +1263,6 @@ function CharSheet.CreateCharacterSheet(params)
 		bgimage = "panels/square.png",
 
 		styles = {
-			ThemeEngine.GetStyles(),
 			Styles.Default,
 			Styles.Panel,
 			{

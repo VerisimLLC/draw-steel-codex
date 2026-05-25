@@ -332,8 +332,8 @@ function ActivatedAbilityReplenishBehavior:Cast(ability, casterToken, targets, o
                         width = "auto",
                         height = 160,
 
-                        gui.PagingArrow{
-                            facing = -1,
+                        gui.Button{
+                            classes = {"pagingArrow"},
                             height = "30%",
                             refreshResources = function(element)
                                 element:SetClass("hidden", resourceidToQuantity[resourceid] <= 0)
@@ -390,8 +390,8 @@ function ActivatedAbilityReplenishBehavior:Cast(ability, casterToken, targets, o
                             }
                         },
 
-                        gui.PagingArrow{
-                            facing = 1,
+                        gui.Button{
+                            classes = {"pagingArrow", "right"},
                             height = "30%",
                             refreshResources = function(element)
                                 element:SetClass("hidden", resourceidToQuantity[resourceid] >= quantity)

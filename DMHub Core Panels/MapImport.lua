@@ -834,8 +834,8 @@ mod.shared.ImportMapDialog = function(paths, options)
             valign = "top",
             halign = "center",
 
-            gui.PagingArrow{
-                facing = -1,
+            gui.Button{
+                classes = {"pagingArrow", "sizeXl"},
                 height = 24,
                 press = function(element)
                     layerIndex = layerIndex-1
@@ -858,8 +858,8 @@ mod.shared.ImportMapDialog = function(paths, options)
                 end,
             },
 
-            gui.PagingArrow{
-                facing = 1,
+            gui.Button{
+                classes = {"pagingArrow", "sizeXl", "right"},
                 height = 24,
                 press = function(element)
                     layerIndex = layerIndex+1

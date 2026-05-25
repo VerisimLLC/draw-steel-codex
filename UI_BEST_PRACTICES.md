@@ -119,7 +119,7 @@ gui.CollapseArrow{
 }
 ```
 
-**gui.PagingArrow** -- left/right paging arrow. Property: `facing` (-1 for left, 1 for right).
+**gui.PagingArrow** -- DEPRECATED. Use gui.Button{ classes = {"pagingArrow", ["left" | "right"]}, instead. Left is default.
 
 ### Display Controls
 

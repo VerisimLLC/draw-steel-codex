@@ -86,12 +86,9 @@ mod.shared.CreateEffectsLayerTexture = function()
 							end,
 						}
 					},
-					gui.IconButton{
+					gui.Button{
+						classes = {"sizeL"},
 						icon = 'game-icons/clockwise-rotation.png',
-						style = {
-							width = 24,
-							height = 24,
-						},
 						events = {
 							click = function(element)
 								seed = math.random(1000)

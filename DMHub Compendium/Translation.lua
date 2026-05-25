@@ -280,8 +280,8 @@ function Translation.CreateEditor()
 			height = 32,
 			flow = "horizontal",
 
-			gui.PagingArrow{
-				facing = -1,
+			gui.Button{
+				classes = {"pagingArrow"},
 				page = function(element)
 					element:SetClass("hidden", pagenum == 1)
 				end,
@@ -302,8 +302,8 @@ function Translation.CreateEditor()
 				end,
 			},
 
-			gui.PagingArrow{
-				facing = 1,
+			gui.Button{
+				classes = {"pagingArrow", "right"},
 				page = function(element)
 					element:SetClass("hidden", pagenum == GetNumPages())
 				end,

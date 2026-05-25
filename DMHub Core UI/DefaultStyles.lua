@@ -1187,6 +1187,10 @@ ThemeEngine.RegisterTheme{
             selectors = {"panel", "buttonIcon", "parent:settingsButton"},
             bgimage = "panels/gamescreen/settings.png",
         },
+        {
+            selectors = {"panel", "buttonIcon", "parent:customiseAbilityButton"},
+            bgimage = "ui-icons/pencil.png",
+        },
         -- pagingArrow: the canonical previous/next paging chevron.
         -- Use `gui.Button{ classes = {"pagingArrow"} }` for the left arrow and
         -- `gui.Button{ classes = {"pagingArrow", "right"} }` for the right

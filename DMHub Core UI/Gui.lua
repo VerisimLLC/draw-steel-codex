@@ -200,6 +200,7 @@ gui.iconButtonClasses = {
 	},
 	pagingArrow = {},
 	settingsButton = {},
+	customiseAbilityButton = {},
 }
 
 --- Create a button. Three render shapes:

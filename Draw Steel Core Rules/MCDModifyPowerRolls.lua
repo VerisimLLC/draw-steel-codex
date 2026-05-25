@@ -2603,3 +2603,733 @@ function CharacterModifier:BuffOrDebuff(context)
         return typeInfo.buffOrDebuff(self, context)
     end
 end
+
+-- ============================================================
+-- ABILITY CUSTOMISATION (CORE)
+-- Allows players to personalise each ability on their character:
+--   * Rename the ability (display only; original name preserved for GoblinScript)
+--   * Override flavour text
+--   * Add character speech variations (spoken when the ability is cast)
+--   * Add a flat damage bonus and/or potency bonus (via ModifyPowerRoll)
+--   * Adjust range fields based on the ability's targeting type
+--
+-- Data is stored per-character in creature.abilityCustomisations,
+-- keyed by the lower-cased original ability name.  The dialog is opened
+-- from the character sheet via ActivatedAbility:ShowCustomisationDialog.
+-- ============================================================
+
+-- Default field on creature: per-ability customisation overrides.
+-- Keyed by lower-cased original ability name; values are plain tables.
+creature.abilityCustomisations = {}
+
+-- ---------------------------------------------------------------------------
+-- CharacterModifier type: abilitycustomisation
+-- ---------------------------------------------------------------------------
+CharacterModifier.RegisterType('abilitycustomisation', 'Ability Customisation')
+
+CharacterModifier.TypeInfo.abilitycustomisation = {
+    init = function(modifier)
+    end,
+
+    -- willModifyAbility is only called from SynthesizeAbilities (cast-spell
+    -- behavior) and is not on the hot path for GetActivatedAbilities.
+    -- Return true conservatively; all gate logic lives in modifyAbility.
+    willModifyAbility = function(modifier, creature, ability)
+        return true
+    end,
+
+    modifyAbility = function(modifier, creature, ability)
+        local customisations = modifier:try_get("_tmp_customisations")
+        if customisations == nil then return ability end
+
+        -- Key by original name in case another modifier renamed the ability first.
+        local key = string.lower(ability.name)
+        local origName = ability:try_get("_tmp_originalName")
+        if origName ~= nil then key = string.lower(origName) end
+
+        local data = customisations[key]
+        if data == nil then return ability end
+
+        local displayName     = data.displayName      or ""
+        local flavorText      = data.flavorText        or ""
+        local variations      = data.variations        or {}
+        local damageBonus     = data.damageBonus       or 0
+        local potencyBonus    = data.potencyBonus      or 0
+        local rangeBonus      = data.rangeBonus        or 0
+        local burstBonus      = data.burstBonus        or 0
+        local cubeBonus       = data.cubeBonus         or 0
+        local cubeWithinBonus = data.cubeWithinBonus   or 0
+        local lineLengthBonus = data.lineLengthBonus   or 0
+        local lineWidthBonus  = data.lineWidthBonus    or 0
+        local lineWithinBonus = data.lineWithinBonus   or 0
+
+        local hasChange =
+            displayName ~= "" or flavorText ~= "" or #variations > 0
+            or damageBonus ~= 0 or potencyBonus ~= 0
+            or rangeBonus ~= 0 or burstBonus ~= 0
+            or cubeBonus ~= 0 or cubeWithinBonus ~= 0
+            or lineLengthBonus ~= 0 or lineWidthBonus ~= 0 or lineWithinBonus ~= 0
+        if not hasChange then return ability end
+
+        ability = ability:MakeTemporaryClone()
+
+        -- Display name override (original preserved for GoblinScript).
+        if displayName ~= "" then
+            ability._tmp_originalName = ability:try_get("_tmp_originalName") or ability.name
+            ability.name = displayName
+        end
+
+        -- Flavor text override.
+        if flavorText ~= "" then
+            ability.flavor = flavorText
+        end
+
+        -- Character speech (spoken when cast; applyto="caster" targets self).
+        if #variations > 0 then
+            local speechBehavior = ActivatedAbilityCharacterSpeechBehavior.new{
+                applyto    = "caster",
+                variations = DeepCopy(variations),
+            }
+            ability.behaviors[#ability.behaviors+1] = speechBehavior
+        end
+
+        -- Damage / potency via ActivatedAbilityModifyPowerRollBehavior.
+        if damageBonus ~= 0 or potencyBonus ~= 0 then
+            local behaviorGuid = dmhub.GenerateGuid()
+            local powerMod = CharacterModifier.new{
+                guid        = dmhub.GenerateGuid(),
+                sourceguid  = behaviorGuid,
+                name        = "Ability Customisation",
+                description = "",
+                behavior    = "power",
+                domains     = {},
+            }
+            CharacterModifier.TypeInfo.power.init(powerMod)
+            powerMod.rollType            = "ability_power_roll"
+            powerMod.activationCondition = true
+            if damageBonus ~= 0 then
+                powerMod.damageModifier = tostring(damageBonus)
+            end
+            if potencyBonus ~= 0 then
+                powerMod.potencymod = tostring(potencyBonus)
+            end
+            ability.behaviors[#ability.behaviors+1] = ActivatedAbilityModifyPowerRollBehavior.new{
+                guid     = behaviorGuid,
+                modifier = powerMod,
+            }
+        end
+
+        -- Range adjustments (spinner values are in squares; convert to world units).
+        local ups = dmhub.unitsPerSquare
+        local tt  = ability:try_get("targetType", "")
+        if tt == "all" then
+            -- Burst: radius is stored in ability.range.
+            if burstBonus ~= 0 then
+                ability.range = (ability.range or ups) + burstBonus * ups
+            end
+        elseif tt == "cube" then
+            -- Cube: edge size in ability.radius, within distance in ability.range.
+            if cubeBonus ~= 0 then
+                ability.radius = (ability.radius or ups) + cubeBonus * ups
+            end
+            if cubeWithinBonus ~= 0 then
+                ability.range = (ability.range or ups) + cubeWithinBonus * ups
+            end
+        elseif tt == "line" then
+            -- Line: length in ability.range, width in ability.radius,
+            --       within in ability.lineDistance (squares, not world units).
+            if lineLengthBonus ~= 0 then
+                ability.range = (ability.range or ups) + lineLengthBonus * ups
+            end
+            if lineWidthBonus ~= 0 then
+                ability.radius = (ability.radius or ups) + lineWidthBonus * ups
+            end
+            if lineWithinBonus ~= 0 then
+                ability.lineDistance = (ability.lineDistance or 1) + lineWithinBonus
+            end
+        else
+            -- Melee, ranged, self, etc.: standard range field.
+            if rangeBonus ~= 0 then
+                ability.range = (ability.range or ups) + rangeBonus * ups
+            end
+        end
+
+        return ability
+    end,
+
+    createEditor = function(modifier, element)
+        -- Customisation is accessed through ShowCustomisationDialog, not an
+        -- inline modifier editor.  Nothing needed here.
+    end,
+}
+
+-- ---------------------------------------------------------------------------
+-- Inject the customisation modifier into every creature's modifier pipeline
+-- whenever creature.abilityCustomisations is non-empty.
+-- ---------------------------------------------------------------------------
+creature.RegisterFeatureCalculation{
+    id = "abilitycustomisation_core",
+    FillFeatures = function(c, features)
+        local customisations = c:try_get("abilityCustomisations") or {}
+        if next(customisations) == nil then return end
+
+        local modifier = CharacterModifier.new{
+            guid     = "abilitycustomisation_core",
+            name     = "Ability Customisation",
+            behavior = "abilitycustomisation",
+        }
+        -- _tmp_ prefix: transient, not serialized.  Rebuilt each cycle.
+        modifier._tmp_customisations = customisations
+
+        local pseudoFeature = {
+            FillModifiers = function(self, creature, result)
+                result[#result+1] = { mod = modifier }
+            end,
+        }
+        features[#features+1] = pseudoFeature
+    end,
+}
+
+-- ---------------------------------------------------------------------------
+-- Compatibility patches
+-- Guards prevent double-application when the external
+-- Character_Ability_Customisation_e94f mod is also installed.
+-- ---------------------------------------------------------------------------
+
+-- Patch 1: GoblinScript Ability.Name returns the pre-rename name.
+if not rawget(_G, "g_abilityCust_namePatchApplied") then
+    _G.g_abilityCust_namePatchApplied = true
+    local _origLookupName = ActivatedAbility.lookupSymbols.name
+    ActivatedAbility.lookupSymbols.name = function(c)
+        local orig = c:try_get("_tmp_originalName")
+        if orig ~= nil then return orig end
+        return _origLookupName(c)
+    end
+end
+
+-- Patch 2: Named invoke lookup can find renamed abilities by temporarily
+-- restoring original names during GetActivatedAbilities.
+if not rawget(_G, "g_abilityCust_invokePatchApplied") then
+    _G.g_abilityCust_invokePatchApplied = true
+
+    local g_invokeLookupActive = false
+
+    local _origGetActivatedAbilities = creature.GetActivatedAbilities
+    function creature:GetActivatedAbilities(options)
+        local abilities = _origGetActivatedAbilities(self, options)
+        if g_invokeLookupActive then
+            for _, ab in ipairs(abilities) do
+                local orig = ab:try_get("_tmp_originalName")
+                if orig ~= nil then ab.name = orig end
+            end
+        end
+        return abilities
+    end
+
+    local _origInvokeCast = ActivatedAbilityInvokeAbilityBehavior.Cast
+    function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, targets, options)
+        local wasActive = g_invokeLookupActive
+        if self.abilityType == "named" then g_invokeLookupActive = true end
+        local result = _origInvokeCast(self, ability, casterToken, targets, options)
+        g_invokeLookupActive = wasActive
+        return result
+    end
+
+    local _origInvocationInvoke = AbilityInvocation.Invoke
+    function AbilityInvocation:Invoke()
+        local wasActive = g_invokeLookupActive
+        if self.abilityType == "named" then g_invokeLookupActive = true end
+        local result = _origInvocationInvoke(self)
+        g_invokeLookupActive = wasActive
+        return result
+    end
+end
+
+-- Patch 3: Fire CharacterSpeech even when the token has no language set.
+-- ActivatedAbilityCharacterSpeechBehavior is defined in AbilityCharacterSpeech.lua
+-- which loads AFTER this file, so we defer the method replacement to the first
+-- game-update frame (by which time all mods have finished loading).
+dmhub.Schedule(0, function()
+    if mod.unloaded then return end
+    if not rawget(_G, "g_abilityCust_speechPatchApplied") then
+        _G.g_abilityCust_speechPatchApplied = true
+        function ActivatedAbilityCharacterSpeechBehavior:Cast(ability, casterToken, targets, options)
+            if #self.variations == 0 then return end
+            for _, target in ipairs(targets) do
+                local tok = target.token
+                if tok ~= nil and tok.valid then
+                    if not self:has_key("_tmp_shuffle") or #self._tmp_shuffle == 0 then
+                        self._tmp_shuffle = DeepCopy(self.variations)
+                        for i = 1, #self._tmp_shuffle do
+                            local swap = math.random(1, #self._tmp_shuffle)
+                            self._tmp_shuffle[i], self._tmp_shuffle[swap] =
+                                self._tmp_shuffle[swap], self._tmp_shuffle[i]
+                        end
+                    end
+                    local text = self._tmp_shuffle[#self._tmp_shuffle]
+                    self._tmp_shuffle[#self._tmp_shuffle] = nil
+                    local language = tok.properties:CurrentlySpokenLanguage()
+                    tok:ModifyProperties{
+                        description = "Speech",
+                        undoable    = false,
+                        execute     = function()
+                            tok.properties:CharacterSpeech{
+                                text   = text,
+                                langid = language,
+                            }
+                        end,
+                    }
+                end
+            end
+        end
+    end
+end)
+
+-- ---------------------------------------------------------------------------
+-- Dialog: ActivatedAbility:ShowCustomisationDialog(token, parentPanel)
+-- Opens a floating editor for personalising this ability on the given token.
+-- Returns the dialog panel; caller should call parentPanel:AddChild(dialog).
+-- ---------------------------------------------------------------------------
+
+-- Helper: a horizontal row with an optional label and a tightly-packed
+-- [-] [value] [+] spinner group.  getValue/setValue are zero-argument closures.
+-- Returns a table { panel = <Panel>, sync = <function> } so callers can
+-- force-refresh the displayed value (e.g. from a Reset button).
+local function MakeSpinner(labelText, getValue, setValue)
+    local valueLabel
+    local function SyncLabel()
+        if valueLabel ~= nil and valueLabel.valid then
+            valueLabel.text = tostring(getValue())
+        end
+    end
+
+    valueLabel = gui.Label{
+        classes       = {"sizeM"},
+        text          = tostring(getValue()),
+        width         = 36,
+        height        = 22,
+        valign        = "center",
+        textAlignment = "Center",
+    }
+
+    -- Pack [-] [value] [+] into a tight sub-panel so they stay together.
+    local spinGroup = gui.Panel{
+        flow   = "horizontal",
+        width  = "auto",
+        height = "auto",
+        gui.Button{
+            text   = "-",
+            width  = 22,
+            height = 22,
+            press  = function()
+                setValue(getValue() - 1)
+                SyncLabel()
+            end,
+        },
+        valueLabel,
+        gui.Button{
+            text   = "+",
+            width  = 22,
+            height = 22,
+            press  = function()
+                setValue(getValue() + 1)
+                SyncLabel()
+            end,
+        },
+    }
+
+    local rowChildren = {}
+    if labelText ~= nil and labelText ~= "" then
+        rowChildren[#rowChildren+1] = gui.Label{
+            classes = {"formLabel"},
+            text    = labelText,
+        }
+    end
+    rowChildren[#rowChildren+1] = spinGroup
+
+    local row = gui.Panel{
+        classes = {"formPanel"},
+        width   = "100%",
+    }
+    row.children = rowChildren
+    return { panel = row, sync = SyncLabel }
+end
+
+function ActivatedAbility:ShowCustomisationDialog(token, parentPanel)
+    -- Use the original ability name (before any prior rename) as the storage key.
+    local abilityOrigName = self:try_get("_tmp_originalName") or self.name
+    local abilityKey      = string.lower(abilityOrigName)
+
+    -- Load current saved data for this ability (may be empty/absent).
+    local srcData = (token.properties:try_get("abilityCustomisations") or {})[abilityKey] or {}
+
+    -- Working copy -- all edits stay here until "Save & Close" is pressed.
+    local wd = {
+        displayName      = srcData.displayName      or "",
+        flavorText       = srcData.flavorText        or "",
+        variations       = DeepCopy(srcData.variations       or {}),
+        damageBonus      = srcData.damageBonus       or 0,
+        potencyBonus     = srcData.potencyBonus      or 0,
+        rangeBonus       = srcData.rangeBonus        or 0,
+        burstBonus       = srcData.burstBonus        or 0,
+        cubeBonus        = srcData.cubeBonus         or 0,
+        cubeWithinBonus  = srcData.cubeWithinBonus   or 0,
+        lineLengthBonus  = srcData.lineLengthBonus   or 0,
+        lineWidthBonus   = srcData.lineWidthBonus    or 0,
+        lineWithinBonus  = srcData.lineWithinBonus   or 0,
+    }
+
+    local targetType = self:try_get("targetType", "")
+
+    -- Forward declarations (closures below capture these upvalues).
+    local dialog
+    local variationsContainer
+    local variationsInner
+    local RebuildVariations
+
+    local function CloseDialog()
+        if dialog ~= nil and dialog.valid then
+            dialog:DestroySelf()
+        end
+        dialog = nil
+    end
+
+    local function SaveAndClose()
+        local isEmpty =
+            wd.displayName == "" and wd.flavorText == ""
+            and #wd.variations == 0
+            and wd.damageBonus == 0 and wd.potencyBonus == 0
+            and wd.rangeBonus == 0 and wd.burstBonus == 0
+            and wd.cubeBonus == 0 and wd.cubeWithinBonus == 0
+            and wd.lineLengthBonus == 0 and wd.lineWidthBonus == 0
+            and wd.lineWithinBonus == 0
+        token:ModifyProperties{
+            description = "Customize Ability",
+            execute = function()
+                local cust = DeepCopy(
+                    token.properties:try_get("abilityCustomisations") or {}
+                )
+                if isEmpty then
+                    cust[abilityKey] = nil
+                else
+                    cust[abilityKey] = wd
+                end
+                token.properties.abilityCustomisations = cust
+            end,
+        }
+        CloseDialog()
+    end
+
+    -- Helper: build the list of variation input panels from wd.variations.
+    -- Called at initial dialog build time AND by RebuildVariations after the
+    -- dialog exists (e.g. when the user adds or removes a variation entry).
+    local function BuildVariationChildren()
+        local vChildren = {}
+        for i, entry in ipairs(wd.variations) do
+            local idx = i
+            vChildren[#vChildren+1] = gui.Panel{
+                classes = {"formPanel"},
+                width   = "100%",
+                gui.Input{
+                    classes     = {"formInput"},
+                    width       = 360,
+                    height      = "auto",
+                    minHeight   = 20,
+                    maxHeight   = 140,
+                    halign      = "left",
+                    multiline   = true,
+                    text        = entry,
+                    change      = function(element)
+                        wd.variations[idx] = element.text
+                    end,
+                },
+                gui.Button{
+                    classes = {"deleteButton"},
+                    width   = 16,
+                    height  = 16,
+                    press   = function()
+                        table.remove(wd.variations, idx)
+                        RebuildVariations()
+                    end,
+                },
+            }
+        end
+        -- Empty input for adding new variations.
+        vChildren[#vChildren+1] = gui.Panel{
+            classes = {"formPanel"},
+            width   = "100%",
+            gui.Input{
+                classes         = {"formInput"},
+                width           = 380,
+                height          = "auto",
+                minHeight       = 20,
+                maxHeight       = 140,
+                halign          = "left",
+                multiline       = true,
+                placeholderText = "Add new speech variation...",
+                change          = function(element)
+                    if element.text ~= "" then
+                        wd.variations[#wd.variations+1] = element.text
+                        RebuildVariations()
+                    end
+                end,
+            },
+        }
+        return vChildren
+    end
+
+    -- RebuildVariations is only called AFTER the dialog exists (user interaction).
+    -- By that point variationsInner is already parented, so setting its children
+    -- does NOT cause variationsContainer to drift in the dialog's child list.
+    RebuildVariations = function()
+        variationsInner.children = BuildVariationChildren()
+    end
+
+    -- Build the initial children BEFORE creating variationsInner so we can
+    -- pass them via the panel constructor (integer keys) rather than via the
+    -- .children setter.  Setting .children on an unparented panel before it
+    -- is used as a constructor argument triggers a DMHub internal ordering
+    -- side-effect that mis-sorts variationsContainer within the dialog.
+    local initVChildren = BuildVariationChildren()
+    local variationsInnerProps = {
+        flow   = "vertical",
+        width  = "100%",
+        height = "auto",
+    }
+    for i, child in ipairs(initVChildren) do
+        variationsInnerProps[i] = child
+    end
+    variationsInner = gui.Panel(variationsInnerProps)
+
+    -- Static outer wrapper: the header label never changes, so the whole
+    -- variationsContainer is stable in the dialog's child list.
+    variationsContainer = gui.Panel{
+        width  = "100%",
+        height = "auto",
+        flow   = "vertical",
+        gui.Label{
+            classes = {"bold"},
+            text    = "Character Speech",
+            width   = "100%",
+            vmargin = 4,
+        },
+        variationsInner,
+    }
+
+    -- Collect all spinner sync functions so ResetAll can refresh them.
+    local spinnerSyncs = {}
+
+    -- Build range spinners based on the ability's targeting type.
+    local rangeRows = {}
+    rangeRows[#rangeRows+1] = gui.Label{
+        classes = {"bold"},
+        text    = "Range",
+        width   = "100%",
+        vmargin = 4,
+    }
+    if targetType == "all" then
+        local s = MakeSpinner("Burst Size Bonus:",
+            function() return wd.burstBonus end, function(v) wd.burstBonus = v end)
+        spinnerSyncs[#spinnerSyncs+1] = s.sync
+        rangeRows[#rangeRows+1] = s.panel
+    elseif targetType == "cube" then
+        local s1 = MakeSpinner("Cube Size Bonus:",
+            function() return wd.cubeBonus end, function(v) wd.cubeBonus = v end)
+        local s2 = MakeSpinner("Within Bonus:",
+            function() return wd.cubeWithinBonus end, function(v) wd.cubeWithinBonus = v end)
+        spinnerSyncs[#spinnerSyncs+1] = s1.sync
+        spinnerSyncs[#spinnerSyncs+1] = s2.sync
+        rangeRows[#rangeRows+1] = s1.panel
+        rangeRows[#rangeRows+1] = s2.panel
+    elseif targetType == "line" then
+        local s1 = MakeSpinner("Length Bonus:",
+            function() return wd.lineLengthBonus end, function(v) wd.lineLengthBonus = v end)
+        local s2 = MakeSpinner("Width Bonus:",
+            function() return wd.lineWidthBonus end, function(v) wd.lineWidthBonus = v end)
+        local s3 = MakeSpinner("Within Bonus:",
+            function() return wd.lineWithinBonus end, function(v) wd.lineWithinBonus = v end)
+        spinnerSyncs[#spinnerSyncs+1] = s1.sync
+        spinnerSyncs[#spinnerSyncs+1] = s2.sync
+        spinnerSyncs[#spinnerSyncs+1] = s3.sync
+        rangeRows[#rangeRows+1] = s1.panel
+        rangeRows[#rangeRows+1] = s2.panel
+        rangeRows[#rangeRows+1] = s3.panel
+    else
+        local s = MakeSpinner("Range Bonus:",
+            function() return wd.rangeBonus end, function(v) wd.rangeBonus = v end)
+        spinnerSyncs[#spinnerSyncs+1] = s.sync
+        rangeRows[#rangeRows+1] = s.panel
+    end
+
+    -- Forward-declare input panel refs so ResetAll can clear their text.
+    local displayNameInput
+    local flavorTextInput
+
+    local function ResetAll()
+        wd.displayName      = ""
+        wd.flavorText       = ""
+        wd.variations       = {}
+        wd.damageBonus      = 0
+        wd.potencyBonus     = 0
+        wd.rangeBonus       = 0
+        wd.burstBonus       = 0
+        wd.cubeBonus        = 0
+        wd.cubeWithinBonus  = 0
+        wd.lineLengthBonus  = 0
+        wd.lineWidthBonus   = 0
+        wd.lineWithinBonus  = 0
+        -- Refresh spinner value labels.
+        for _, sync in ipairs(spinnerSyncs) do sync() end
+        -- Clear text inputs.
+        if displayNameInput ~= nil and displayNameInput.valid then
+            displayNameInput.text = ""
+        end
+        if flavorTextInput ~= nil and flavorTextInput.valid then
+            flavorTextInput.text = ""
+        end
+        -- Rebuild the speech variations section.
+        RebuildVariations()
+    end
+
+    -- Damage & potency spinners.
+    local dmgSpinner = MakeSpinner("Damage Bonus:",
+        function() return wd.damageBonus end, function(v) wd.damageBonus = v end)
+    local potSpinner = MakeSpinner("Potency Bonus:",
+        function() return wd.potencyBonus end, function(v) wd.potencyBonus = v end)
+    spinnerSyncs[#spinnerSyncs+1] = dmgSpinner.sync
+    spinnerSyncs[#spinnerSyncs+1] = potSpinner.sync
+
+    -- Assemble the dialog child list.
+    local dChildren = {}
+
+    -- Title row.
+    dChildren[#dChildren+1] = gui.Panel{
+        width   = "100%",
+        height  = 36,
+        flow    = "horizontal",
+        halign  = "center",
+        valign  = "center",
+        gui.Label{
+            classes = {"bold", "sizeXl"},
+            text    = "Customize: " .. abilityOrigName,
+        },
+        gui.Button{
+            classes  = {"closeButton"},
+            floating = true,
+            halign   = "right",
+            valign   = "center",
+            rmargin  = 4,
+            press    = CloseDialog,
+        },
+    }
+
+    -- Display name.
+    displayNameInput = gui.Input{
+        classes         = {"formInput"},
+        width           = 330,
+        height          = 26,
+        lmargin         = 16,
+        halign          = "right",
+        text            = wd.displayName,
+        placeholderText = "Leave blank to keep original name",
+        change          = function(element)
+            wd.displayName = element.text
+        end,
+    }
+    dChildren[#dChildren+1] = gui.Panel{
+        classes = {"formPanel"},
+        width   = "100%",
+        gui.Label{ classes = {"formLabel"}, text = "Display Name:" },
+        displayNameInput,
+    }
+
+    -- Flavor text.
+    flavorTextInput = gui.Input{
+        classes         = {"formInput"},
+        width           = 330,
+        height          = "auto",
+        minHeight       = 26,
+        maxHeight       = 140,
+        lmargin         = 16,
+        halign          = "right",
+        multiline       = true,
+        text            = wd.flavorText,
+        placeholderText = "Leave blank to keep original flavor text",
+        change          = function(element)
+            wd.flavorText = element.text
+        end,
+    }
+
+    dChildren[#dChildren+1] = gui.Panel{
+        classes = {"formPanel"},
+        width   = "100%",
+        gui.Label{ classes = {"formLabel"}, text = "Flavor Text:" },
+        flavorTextInput,
+    }
+
+    -- Damage & potency section header.
+    dChildren[#dChildren+1] = gui.Label{
+        classes = {"bold"},
+        text    = "Damage & Potency",
+        width   = "100%",
+        vmargin = 4,
+    }
+    dChildren[#dChildren+1] = dmgSpinner.panel
+    dChildren[#dChildren+1] = potSpinner.panel
+
+    -- Range rows.
+    for _, row in ipairs(rangeRows) do
+        dChildren[#dChildren+1] = row
+    end
+
+    -- Speech variations (pre-populated above; always second-to-last).
+    dChildren[#dChildren+1] = variationsContainer
+
+    -- Action buttons.
+    dChildren[#dChildren+1] = gui.Panel{
+        width   = "100%",
+        height  = 50,
+        halign  = "center",
+        flow    = "horizontal",
+        vmargin = 8,
+        gui.Button{
+            text   = "Save & Close",
+            width  = 170,
+            height = 34,
+            press  = SaveAndClose,
+        },
+        gui.Button{
+            text   = "Cancel",
+            width  = 120,
+            height = 34,
+            press  = CloseDialog,
+        },
+        gui.Button{
+            text    = "Reset All",
+            width   = 110,
+            height  = 34,
+            lmargin = 12,
+            press   = ResetAll,
+        },
+    }
+
+    -- Construct the dialog panel from the assembled children list.
+    local dialogProps = {
+        styles    = ThemeEngine.GetStyles(),
+        classes   = {"framedPanel"},
+        floating  = true,
+        halign    = "center",
+        valign    = "center",
+        width     = 540,
+        height    = "auto",
+        flow      = "vertical",
+        pad       = 16,
+        borderBox = true,
+    }
+    for i, child in ipairs(dChildren) do
+        dialogProps[i] = child
+    end
+    dialog = gui.Panel(dialogProps)
+
+    return dialog
+end

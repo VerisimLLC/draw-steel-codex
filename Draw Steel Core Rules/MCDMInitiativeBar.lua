@@ -2821,6 +2821,10 @@ function GameHud.CreateInitiativeEntry(self, info, initiativeid, options)
 			valign = "top",
 			hmargin = 2,
 			vmargin = 2,
+			-- The closeButton kind class auto-binds Escape (escapeActivates=true).
+			-- Reverting the current turn from a stray Escape press is far too
+			-- destructive, so opt this specific button out of escape activation.
+			escapeActivates = false,
 
 			styles = {
 				{

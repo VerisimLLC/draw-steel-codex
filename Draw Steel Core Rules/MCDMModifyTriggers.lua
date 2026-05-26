@@ -617,9 +617,8 @@ CharacterModifier.TypeInfo.modifytrigger = {
                             text = info.text,
                             bold = true,
                         },
-                        gui.DeleteItemButton{
-                            width = 16,
-                            height = 16,
+                        gui.Button{
+                            classes = {"deleteButton", "sizeS"},
                             valign = "center",
                             halign = "right",
                             click = function(element)

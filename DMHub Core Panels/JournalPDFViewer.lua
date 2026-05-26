@@ -176,12 +176,11 @@ local function SmartImporterPanel(doc)
 
             local panel
 
-            local deleteButton = gui.DeleteItemButton {
+            local deleteButton = gui.Button {
+                classes = {"deleteButton", "sizeXs"},
                 halign = "right",
                 valign = "top",
                 floating = true,
-                width = 12,
-                height = 12,
                 click = function(element)
                     m_cancel = true
                     panel:DestroySelf()
@@ -572,7 +571,7 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                                         valign = "bottom",
                                         vmargin = 24,
                                         flow = "horizontal",
-                                        gui.PrettyButton {
+                                        gui.Button {
                                             halign = "left",
                                             text = "Cancel",
                                             width = 180,
@@ -580,7 +579,7 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                                                 gui.CloseModal()
                                             end,
                                         },
-                                        gui.PrettyButton {
+                                        gui.Button {
                                             classes = { "hidden" },
                                             id = "addToJournalButton",
                                             halign = "right",
@@ -687,47 +686,6 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                                 m_dragPanel:SetClass("hidden", true)
                             end,
                         },
-                        --[[
-                        gui.HudIconButton{
-                            icon = "game-icons/cloud-upload.png",
-                            width = 24,
-                            height = 24,
-                            linger = gui.Tooltip("Import this statblock into your compendium."),
-                            swallowPress = true,
-                            create = function(element)
-                                document:TextInRect(m_npage, args.x1*document.summary.pageWidth, args.y2*document.summary.pageHeight, args.x2*document.summary.pageWidth, args.y1*document.summary.pageHeight, function(text)
-                                    if text == nil or text == "" then
-                                        element:SetClass("disabled", true)
-                                        element.events.linger = gui.Tooltip("No importable content found.")
-                                    end
-                                end)
-                            end,
-                            click = function(element)
-                                if element:HasClass("disabled") then
-                                    return
-                                end
-                                m_dragPanel.children = {}
-
-                                m_importer = true
-                                m_importerPanel:FireEvent("activate", m_importer)
-
-                                local npage = m_npage
-                                local dragPanel = m_dragPanel
-                                document:TextInRect(m_npage, args.x1*document.summary.pageWidth, args.y2*document.summary.pageHeight, args.x2*document.summary.pageWidth, args.y1*document.summary.pageHeight, function(text)
-                                    m_importerPanel:FireEventTree("import", text, dragPanel, string.format("pdf:%s&page=%d&area=%f,%f,%f,%f", doc.id, npage, args.x1, args.y1, args.x2, args.y2))
-                                end)
-
-                                m_dragPanel:SetClass("importing", true)
-
-                                local parentPanel = m_dragPanel.parent
-                                m_dragPanel = CreateDragPanel()
-
-                                local panels = parentPanel.children
-                                panels[#panels+1] = m_dragPanel
-                                parentPanel.children = panels
-                            end,
-                        },
-                        ]]
 
                     }
                 }
@@ -800,7 +758,7 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                 valign = "bottom",
                 vmargin = 24,
                 flow = "horizontal",
-                gui.PrettyButton {
+                gui.Button {
                     halign = "left",
                     text = "Cancel",
                     width = 180,
@@ -808,7 +766,7 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                         gui.CloseModal()
                     end,
                 },
-                gui.PrettyButton {
+                gui.Button {
                     id = "addBookmarkButton",
                     halign = "right",
                     text = cond(options.bookmark ~= nil, "Update", "Add"),
@@ -2139,10 +2097,8 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                         end,
 
                         gui.Label {
-                            fontSize = 16,
+                            classes = {"sizeS"},
                             minFontSize = 10,
-                            width = 60,
-                            height = 20,
                             page = function(element)
                                 if m_searchResults ~= nil and m_searchResults[m_searchIndex] ~= nil then
                                     element.text = string.format("%d/%d", m_searchIndex, #m_searchResults)
@@ -2152,8 +2108,9 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                             end,
                         },
 
-                        gui.PagingArrow {
-                            facing = -1,
+                        gui.Button {
+                            classes = {"pagingArrow", "sizeS"},
+                            lmargin = 20,
                             page = function(element)
                                 element:SetClass("hidden",
                                     not (m_searchResults ~= nil and m_searchResults[m_searchIndex] ~= nil))
@@ -2167,8 +2124,9 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                             end,
                         },
 
-                        gui.PagingArrow {
-                            facing = 1,
+                        gui.Button {
+                            classes = {"pagingArrow", "right", "sizeS"},
+                            lmargin = 4,
                             page = function(element)
                                 element:SetClass("hidden",
                                     not (m_searchResults ~= nil and m_searchResults[m_searchIndex] ~= nil))
@@ -2184,11 +2142,9 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                     },
                 },
 
-
-
-                gui.PagingArrow {
+                gui.Button {
+                    classes = {"pagingArrow", "sizeS"},
                     hmargin = 4,
-                    facing = -1,
                     press = function(element)
                         m_npage = m_npage - 1
                         m_searchResults = nil
@@ -2196,17 +2152,18 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                     end,
                 },
                 gui.Label {
-                    fontSize = 14,
+                    classes = {"sizeXs"},
+                    hmargin = 4,
                     width = "auto",
                     height = "auto",
                     text = "Page",
                 },
                 gui.Input {
-                    fontSize = 14,
+                    classes = {"sizeXs"},
+                    width = 40,
                     characterLimit = 4,
-                    width = 20,
-                    height = 20,
                     textAlignment = "right",
+                    hmargin = 4,
                     page = function(element)
                         element.text = document.summary.pageLabels[m_npage + 1] or string.format("%d", m_npage + 1)
                     end,
@@ -2227,14 +2184,15 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                     end,
                 },
                 gui.Label {
-                    fontSize = 14,
+                    classes = {"sizeXs"},
                     width = "auto",
                     height = "auto",
-                    text = "/" .. (document.summary.pageLabels[#document.summary.pageLabels] or string.format("%d", document.summary.npages)),
+                    hmargin = "4",
+                    text = "/ " .. (document.summary.pageLabels[#document.summary.pageLabels] or string.format("%d", document.summary.npages)),
                 },
-                gui.PagingArrow {
+                gui.Button {
+                    classes = {"pagingArrow", "right", "sizeS"},
                     hmargin = 4,
-                    facing = 1,
                     press = function(element)
                         m_npage = m_npage + 1
                         m_searchResults = nil
@@ -2249,16 +2207,16 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                     width = "auto",
                     hmargin = 32,
                     gui.Label {
-                        fontSize = 14,
+                        classes = {"sizeXs"},
                         width = "auto",
                         height = "auto",
                         text = "Zoom:",
                     },
 
                     gui.Input {
-                        width = 28,
-                        height = 20,
-                        fontSize = 14,
+                        classes = {"sizeXs"},
+                        width = 40,
+                        hmargin = 4,
                         valign = "center",
                         text = string.format("%d", round(m_zoom * 100)),
                         change = function(element)
@@ -2287,19 +2245,18 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                     },
 
                     gui.Label {
-                        fontSize = 14,
+                        classes = {"sizeXs"},
                         width = "auto",
                         height = "auto",
                         text = "%",
                     },
 
-                    gui.Panel {
-                        bgcolor = Styles.textColor,
-                        bgimage = "icons/icon_tool/icon_tool_41.png",
+                    gui.Button {
+                        -- bgcolor = Styles.textColor,
+                        classes = {"sizeXs"},
+                        icon = "icons/icon_tool/icon_tool_41.png",
                         lmargin = 16,
                         halign = "right",
-                        width = 16,
-                        height = 16,
                         press = function(element)
                             element.parent:FireEventTree("command", "zoomout")
                         end,
@@ -2310,12 +2267,11 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                             },
                         },
                     },
-                    gui.Panel {
-                        bgcolor = Styles.textColor,
-                        bgimage = "icons/icon_tool/icon_tool_40.png",
+                    gui.Button {
+                        -- bgcolor = Styles.textColor,
+                        classes = {"sizeXs"},
+                        icon = "icons/icon_tool/icon_tool_40.png",
                         halign = "right",
-                        width = 16,
-                        height = 16,
                         press = function(element)
                             element.parent:FireEventTree("command", "zoomin")
                         end,
@@ -2328,11 +2284,10 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                     },
                 },
 
-                gui.SettingsButton {
+                gui.Button {
+                    classes = {"settingsButton", "sizeS"},
                     halign = "right",
                     valign = "center",
-                    width = 16,
-                    height = 16,
                     floating = true,
                     hmargin = -32,
 
@@ -2348,14 +2303,12 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                         local dialog
                         dialog = gui.Panel {
                             width = 600,
-                            height = 800,
+                            height = 200,
                             classes = { "framedPanel" },
-                            styles = {
-                                Styles.Panel,
-                                Styles.Default,
-                            },
+                            styles = ThemeEngine.GetStyles(),
                             halign = "center",
                             valign = "center",
+                            flow = "vertical",
 
                             destroy = function()
                                 if element ~= nil and element.valid and element.data.settingsDialog == dialog then
@@ -2363,7 +2316,8 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                                 end
                             end,
 
-                            gui.CloseButton {
+                            gui.Button {
+                                classes = {"closeButton"},
                                 floating = true,
                                 halign = "right",
                                 valign = "top",
@@ -2373,7 +2327,7 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                             },
 
                             gui.Label {
-                                classes = { "title" },
+                                classes = { "dialogTitle" },
                                 width = "auto",
                                 height = "auto",
                                 text = "PDF Settings",
@@ -2382,7 +2336,7 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                             },
 
                             gui.Panel {
-                                tmargin = 200,
+                                tmargin = 60,
                                 floating = true,
                                 valign = "top",
                                 halign = "center",
@@ -2547,13 +2501,10 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page)
                 element:SetClass("hidden", true)
             end,
 
-            gui.Panel {
-                classes = { "iconButton" },
-                bgimage = "ui-icons/icon-scale.png",
-                bgcolor = Styles.textColor,
+            gui.Button {
+                classes = { "sizeXs" },
+                icon = "ui-icons/icon-scale.png",
                 valign = "center",
-                width = 16,
-                height = 16,
                 rmargin = 6,
                 linger = function(element)
                     gui.Tooltip("Pop out window")(element)
@@ -2570,27 +2521,29 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page)
                 end,
             },
 
-            gui.Panel {
-                classes = { "iconButton" },
-                bgimage = "panels/square.png",
-                bgcolor = "black",
+            gui.Button {
+                classes = { "sizeXs" },
+                icon = "drawsteel/Icons_Nav_MinWindow.png",
                 valign = "center",
                 linger = function(element)
                     gui.Tooltip("Maximize window")(element)
                 end,
-                borderColor = Styles.textColor,
-                borderWidth = 2,
-                width = 12,
-                height = 12,
+                setResizeIcon = function(element)
+                    local isWindowed = g_journalWindowedSetting:Get()
+                    dialogPanel:SetClass("windowed", isWindowed)
+                    element:FireEvent("setIcon", isWindowed and "drawsteel/Icons_Nav_MaxWindow.png" or "drawsteel/Icons_Nav_MinWindow.png")
+                end,
+                create = function(element)
+                    element:FireEvent("setResizeIcon")
+                end,
                 click = function(element)
-                    dialogPanel:SetClass("windowed", not dialogPanel:HasClass("windowed"))
-                    g_journalWindowedSetting:Set(dialogPanel:HasClass("windowed"))
+                    g_journalWindowedSetting:Set(not g_journalWindowedSetting:Get())
+                    element:FireEvent("setResizeIcon")
                 end,
             },
 
-            gui.CloseButton {
-                width = 16,
-                height = 16,
+            gui.Button{
+                classes = {"closeButton", "sizeXs"},
                 valign = "center",
                 escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
                 press = function(element)

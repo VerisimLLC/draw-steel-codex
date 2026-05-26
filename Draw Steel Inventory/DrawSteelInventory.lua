@@ -3089,7 +3089,7 @@ function GameHud.CreateAddItemDialog(self, options)
 			},
 
 			children = {
-				gui.PrettyButton{
+				gui.Button{
 					text = 'Create',
 					style = {
 						height = 60,
@@ -3109,7 +3109,7 @@ function GameHud.CreateAddItemDialog(self, options)
 						end,
 					},
 				},
-				gui.PrettyButton{
+				gui.Button{
 					text = 'Cancel',
                     escapeActivates = true,
                     escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
@@ -3139,7 +3139,7 @@ function GameHud.CreateAddItemDialog(self, options)
 			},
 
 			children = {
-				gui.PrettyButton{
+				gui.Button{
 					text = 'Close',
 					fontSize = 24,
 					hpad = 10,

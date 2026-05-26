@@ -107,10 +107,9 @@ CreateInspectorPanel = function()
                             element.text = val
                         end,
 
-                        gui.DeleteItemButton{
+                        gui.Button{
+                            classes = {"deleteButton", "sizeXs"},
                             halign = "right",
-                            width = 12,
-                            height = 12,
                             valign = "center",
                             click = function(element)
                                 for i=1, #customEntriesList do

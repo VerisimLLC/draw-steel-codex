@@ -3046,8 +3046,8 @@ local CreateCharSheetSpells = function()
 		halign = "center",
 		flow = "horizontal",
 
-		gui.PagingArrow{
-			facing = -1,
+		gui.Button{
+			classes = {"pagingArrow"},
 			click = function(element)
 				m_page = max(1, m_page-1)
 				RenderSpellList()
@@ -3056,8 +3056,8 @@ local CreateCharSheetSpells = function()
 
 		pageLabel,
 
-		gui.PagingArrow{
-			facing = 1,
+		gui.Button{
+			classes = {"pagingArrow", "right"},
 			click = function(element)
 				m_page = min(NumPages(), m_page+1)
 				RenderSpellList()

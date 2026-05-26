@@ -559,9 +559,8 @@ ShowShopPanel = function(parentPanel)
                                     end,
                                 },
 
-                                gui.DeleteItemButton{
-                                    width = 16,
-                                    height = 16,
+                                gui.Button{
+                                    classes = {"deleteButton", "sizeS"},
                                     halign = "right",
                                     valign = "top",
                                     floating = true,
@@ -612,9 +611,9 @@ ShowShopPanel = function(parentPanel)
                     end,
                 },
 
-                gui.PrettyButton{
+                gui.Button{
+                    classes = {"sizeL"},
                     width = 190,
-                    height = 54,
                     text = "Upload Images",
                     data = {
                         requests = 0,
@@ -770,9 +769,9 @@ ShowShopPanel = function(parentPanel)
                     end,
                 },
 
-                gui.PrettyButton{
+                gui.Button{
+                    classes = {"sizeL"},
                     width = 190,
-                    height = 54,
                     text = "Add Gift Code",
                     click = function(element)
                         shop:AdminCreateGiftCode(dmhub.GenerateGuid(), {

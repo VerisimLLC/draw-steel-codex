@@ -292,7 +292,8 @@ function GameHud:CreateToolbarPanel()
 		local geticon = item.geticon
 		local getdisabled = item.getdisabled
 		local button
-		button = gui.HudIconButton{
+		button = gui.Button{
+			classes = {"sizeM"},
 			icon = item.icon,
 			monitor = item.setting,
 			events = {
@@ -421,9 +422,8 @@ function GameHud:CreateToolbarPanel()
 
 	DeserializeToolbar()
 
-
-
-    local addButton = gui.HudIconButton{
+    local addButton = gui.Button{
+		classes = {"sizeM"},
         icon = "ui-icons/Plus.png",
 		popupPositioning = "panel",
 
@@ -713,9 +713,6 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
 
 
 	gamehud.rollDialog = gamehud:CreateRollDialog()
-	gamehud.rollOnTableDialog = gamehud:CreateRollOnTableDialog()
-
-	gamehud.rollDialog.data.rollOnTableDialog = gamehud.rollOnTableDialog
 
 	gamehud.inventoryDialog = gamehud:CreateInventoryDialog{
 		rearrange = true, --the user can rearrange the items in the inventory by dragging it.
@@ -999,13 +996,13 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
 			gamehud:CreateFrozenLabel(),
 			gamehud:CreateDocks(),
             gamehud:CreateAbilityDisplayPanel(),
+            gamehud:CreateStandaloneRollHost(),
 			gamehud:CreateDocumentsPanel(),
 			mainDialogPanel,
 			gamehud.shopPanel,
 			gamehud:ModalDialogPanel(),
 			gamehud:CreatePopupPanel(),
 			gamehud:CreateRollResultPanel(),
-			gamehud.rollOnTableDialog,
 			gamehud.rollDialog,
 
 			FullscreenDisplay.Create{belowui = false},
@@ -1079,6 +1076,36 @@ end
 function GameHud:InitAbilityDisplayPanel(abilityDisplayPanel)
 end
 --]==]
+
+--Host for the embedded roll dialog when there is no ability context.
+--Positioned on the right like the ability sidebar; real init lives in
+--Timeline\AbilitySidebar.lua.
+function GameHud:CreateStandaloneRollHost()
+    self.standaloneRollHostPanel = gui.Panel{
+        styles = ThemeEngine.GetStyles(),
+        width = 540,
+        height = "auto",
+        rmargin = 364,
+        halign = "right",
+        valign = "center",
+        flow = "vertical",
+        interactable = true,
+    }
+
+    ThemeEngine.OnThemeChanged(mod, function()
+        if self.standaloneRollHostPanel ~= nil and self.standaloneRollHostPanel.valid then
+            self.standaloneRollHostPanel.styles = ThemeEngine.GetStyles()
+        end
+    end)
+
+    self:InitStandaloneRollHost(self.standaloneRollHostPanel)
+
+    return self.standaloneRollHostPanel
+end
+
+--Stub overridden by Timeline\AbilitySidebar.lua.
+function GameHud:InitStandaloneRollHost(panel)
+end
 
 --return the presented dialog doc, if it exists and matches the given dialogid.
 function GameHud.GetPresentDialogDoc(dialogid)
@@ -1224,7 +1251,8 @@ function GameHud:DMGameControlsPanel()
 		}
 	end
 
-	local dmIlluminationButton = gui.HudIconButton{
+	local dmIlluminationButton = gui.Button{
+		classes = {"sizeM"},
 		icon = "icons/icon_device/icon_device_57.png",
 		create = function(element)
 			element:SetClass('deselected', not dmhub.GetSettingValue("dmillumination"))

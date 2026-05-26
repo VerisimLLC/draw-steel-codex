@@ -222,17 +222,14 @@ mod.shared.InventoryCompendiumEditor = function(categories)
 										end,
                                     },
 
-
-
 									gui.ImplementationStatusIcon{
 										refreshInventory = function(element)
 											element:FireEvent("implementation", item:try_get("implementation", 1))
 										end,
 									},
 
-									gui.SettingsButton{
-										width = 16,
-										height = 16,
+									gui.Button{
+										classes = {"settingsButton", "sizeXs"},
 										click = function(element)
 									        gamehud.createItemDialog.data.show(resultPanel, item)
 										end,

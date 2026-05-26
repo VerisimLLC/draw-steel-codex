@@ -109,11 +109,11 @@ function ShowNetworkStatus(dialog, operations)
 				end,
 			},
 
-			gui.FancyButton{
+			gui.Button{
+				classes = {"sizeXxl"},
 				halign = "center",
 				valign = "center",
 				width = 200,
-				height = 60,
 				text = "Close",
 
 				click = function(element)

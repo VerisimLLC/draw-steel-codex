@@ -141,10 +141,10 @@ mod.shared.EditTilesheetAssetDialog = function(tileid, startingValues)
 		},
 
 		children = {
-			gui.PrettyButton{
+			gui.Button{
+				classes = {"sizeL"},
 				text = 'Save & Close',
 				width = 200,
-				height = 80,
 
 				events = {
 					click = function(element)

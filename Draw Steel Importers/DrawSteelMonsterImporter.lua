@@ -93,20 +93,10 @@ MCDMImporter = {
                         elseif type(entry) == "string" then
                             inputPanel:AddChild(gui.Label{
                                 text = entry,
-                                gui.CopyButton{
-                                    styles = {
-                                        {
-                                            opacity = 0,
-                                        },
-                                        {
-                                            selectors = {"parent:hover"},
-                                            opacity = 1,
-                                        }
-                                    },
+                                gui.Button{
+                                    classes = {"copyButton", "sizeXxs"},
                                     halign = "right",
                                     valign = "center",
-                                    width = 12,
-                                    height = 12,
                                     click = function(element)
                                         gui.Tooltip{text = "Copied to Clipboard", valign = "top", borderWidth = 0}(element)
                                         dmhub.CopyToClipboard(entry)

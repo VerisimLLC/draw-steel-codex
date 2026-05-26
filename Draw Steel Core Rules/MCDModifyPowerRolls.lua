@@ -1077,11 +1077,10 @@ CharacterModifier.TypeInfo.power = {
                             height = 30,
                             width = 160,
                             halign = "left",
-                            gui.DeleteItemButton{
+                            gui.Button{
+                                classes = {"deleteButton", "sizeXs"},
                                 halign = "right",
                                 valign = "center",
-                                height = 12,
-                                width = 12,
                                 click = function()
                                     table.remove(skills, i)
                                     Refresh()
@@ -1938,10 +1937,9 @@ CharacterModifier.TypeInfo.power = {
                     width = "auto",
                     height = "auto",
                     fontSize = 14,
-                    gui.DeleteItemButton{
+                    gui.Button{
+                        classes = {"deleteItemButton", "sizeXxs"},
                         x = 12,
-                        width = 8,
-                        height = 8,
                         halign = "right",
                         valign = "center",
                         press = function()
@@ -2121,9 +2119,8 @@ CharacterModifier.TypeInfo.power = {
                                     },
                                 },
 
-                                gui.DeleteItemButton{
-                                    width = 12,
-                                    height = 12,
+                                gui.Button{
+                                    classes = {"deleteButton", "sizeXs"},
                                     valign = "center",
                                     lmargin = 8,
                                     click = function()
@@ -2136,9 +2133,8 @@ CharacterModifier.TypeInfo.power = {
                             children[#children+1] = panel
                         end
 
-                        children[#children+1] = gui.AddButton{
-                            width = 16,
-                            height = 16,
+                        children[#children+1] = gui.Button{
+                            classes = {"addButton", "sizeXs"},
                             halign = "left",
                             click = function(element)
                                 adjustments[#adjustments+1] = {
@@ -2369,11 +2365,10 @@ CharacterModifier.TypeInfo.power = {
                 }
 
                 if modifier:try_get("hasTriggerBefore", false) then
-                    children[#children+1] = gui.PrettyButton{
+                    children[#children+1] = gui.Button{
+                        classes = {"sizeL"},
                         halign = "left",
                         width = 220,
-                        height = 50,
-                        fontSize = 24,
                         text = "Edit Trigger",
                         click = function(element)
                             local fn = function(element, modifier, savefn)
@@ -2444,11 +2439,10 @@ CharacterModifier.TypeInfo.power = {
 			}
 
 			if modifier:try_get("hasCustomTrigger", false) then
-				children[#children+1] = gui.PrettyButton{
+				children[#children+1] = gui.Button{
+                    classes = {"sizeL"},
 					halign = "left",
 					width = 220,
-					height = 50,
-					fontSize = 24,
 					text = "Edit Trigger",
 					click = function(element)
                         local fn = function(element, modifier, savefn)

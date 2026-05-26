@@ -84,8 +84,7 @@ local CreateGameScreen = function(titlescreen)
     local m_gameBackgroundContainer = nil
 
 
-    local m_exitButton = gui.HudIconButton{
-
+    local m_exitButton = gui.Button{
 		icon = "game-icons/exit-door.png",
 		style = {
 			halign = "left",

@@ -876,6 +876,7 @@ local _mergeStylesHashIds = {}
 local _mergeStylesNextId = 1
 
 local function _reportGetStylesCache()
+    if true then return end
     local total = _getStylesHits + _getStylesMisses
     if total > 0 and total % _getStylesReportEvery == 0 then
         print(string.format(

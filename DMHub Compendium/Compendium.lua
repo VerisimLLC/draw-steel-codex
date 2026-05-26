@@ -1136,7 +1136,8 @@ local ShowSkillsPanel = function(parentPanel)
 								end
 							end,
 						},
-						gui.CloseButton{
+						gui.Button{
+							classes = {"closeButton"},
 							valign = "center",
 							click = function(element)
 								local itemPanel = element.parent
@@ -5321,7 +5322,8 @@ Compendium = {
 				editor,
 			},
 
-			gui.CloseButton{
+			gui.Button{
+				classes = {"closeButton"},
 				halign = "right",
 				valign = "top",
 				floating = true,

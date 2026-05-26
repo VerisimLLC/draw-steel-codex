@@ -257,8 +257,8 @@ function CharSheet.RaceChoicePanel(options)
             }
         },
 
-        gui.PagingArrow {
-            facing = -1,
+        gui.Button {
+            classes = {"pagingArrow"},
             press = function(element)
                 if GetTargetIndex() > 1 then
                     SetTargetIndex(GetTargetIndex() - 1)
@@ -304,8 +304,8 @@ function CharSheet.RaceChoicePanel(options)
             },
         },
 
-        gui.PagingArrow {
-            facing = 1,
+        gui.Button {
+            classes = {"pagingArrow", "right"},
             press = function(element)
                 if GetTargetIndex() < #racePanels then
                     SetTargetIndex(GetTargetIndex() + 1)

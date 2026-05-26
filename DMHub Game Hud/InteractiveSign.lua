@@ -16,7 +16,8 @@ SignInteractive.displayText = "This is a sign"
 
 function SignInteractive:Interact(controller, token)
     return gui.Label{
-        gui.CloseButton{
+        gui.Button{
+            classes = {"closeButton"},
             halign = "right",
             valign = "top",
             floating = true,
@@ -57,7 +58,8 @@ function SignInteractive:Edit(controller)
             element:DestroySelf()
         end,
 
-        gui.CloseButton{
+        gui.Button{
+            classes = {"closeButton"},
             halign = "right",
             valign = "top",
             floating = true,

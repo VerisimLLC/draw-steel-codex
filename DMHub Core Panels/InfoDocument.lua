@@ -366,12 +366,11 @@ function GameHud:CreateDocumentDialog()
                                     end,
                                 },
                             },
-                            gui.DeleteItemButton {
+                            gui.Button {
+                                classes = {"deleteButton", "sizeS"},
                                 floating = true,
-                                width = 16,
                                 rmargin = 4,
                                 tmargin = 4,
-                                height = 16,
                                 halign = "right",
                                 valign = "top",
 
@@ -397,7 +396,8 @@ function GameHud:CreateDocumentDialog()
         children = { titlePanel, documentPanel },
     }
 
-    local closeButton = gui.CloseButton {
+    local closeButton = gui.Button{
+        classes = {"closeButton"},
         escapeActivates = true,
         valign = 'top',
         halign = 'right',

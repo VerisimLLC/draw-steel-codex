@@ -3209,7 +3209,8 @@ function CreateGameLoadingScreen(moduleInfo, backend)
                 end,
             },
 
-            gui.CloseButton {
+            gui.Button{
+				classes = {"closeButton"},
                 floating = true,
                 halign = "right",
                 valign = "top",
@@ -5444,6 +5445,8 @@ function CreateTitlescreen(dialog, options)
 
                     --paging panel
                     gui.Panel {
+                        styles = ThemeEngine.GetStyles(),
+                        classes = {"bgAlt"},
                         floating = true,
                         minWidth = 100,
                         width = "auto",
@@ -5453,9 +5456,7 @@ function CreateTitlescreen(dialog, options)
                         valign = "bottom",
                         rmargin = 20,
                         y = 68,
-                        bgimage = true,
-                        bgcolor = "black",
-                        opacity = 0.9,
+                        opacity = 0.8,
                         refreshGames = function(element, games, baseIndex)
                             if GetNumPages() <= 1 then
                                 element:SetClass("hidden", true)
@@ -5464,9 +5465,8 @@ function CreateTitlescreen(dialog, options)
                             end
                         end,
 
-                        gui.PagingArrow {
-                            facing = -1,
-                            height = 24,
+                        gui.Button {
+                            classes = {"pagingArrow", "sizeL"},
                             valign = "center",
                             halign = "center",
                             refreshGames = function(element, games, baseIndex)
@@ -5497,9 +5497,8 @@ function CreateTitlescreen(dialog, options)
                             end,
                         },
 
-                        gui.PagingArrow {
-                            facing = 1,
-                            height = 24,
+                        gui.Button {
+                            classes = {"pagingArrow", "right", "sizeL"},
                             halign = "center",
                             valign = "center",
                             refreshGames = function(element)

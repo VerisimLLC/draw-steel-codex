@@ -2733,7 +2733,8 @@ local function CreateShopScreenInternal(arguments)
 			},
 
 			--close button in top left.
-			gui.CloseButton{
+			gui.Button{
+				classes = {"closeButton"},
 				halign = "left",
 				valign = "top",
 
@@ -2909,7 +2910,8 @@ function CreateShopScreen(arguments)
 							bgcolor = "#bbbbbbff",
 							gui.LoadingIndicator{},
 
-							gui.CloseButton{
+							gui.Button{
+								classes = {"closeButton"},
 								halign = "left",
 								valign = "top",
 								floating = true,

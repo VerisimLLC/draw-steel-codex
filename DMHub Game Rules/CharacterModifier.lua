@@ -1207,9 +1207,8 @@ CharacterModifier.TypeInfo.resistance = {
                                 fontSize = 14,
                                 color = Styles.textColor,
                             },
-                            gui.DeleteItemButton{
-                                width = 12,
-                                height = 12,
+                            gui.Button{
+								classes = {"deleteButton", "sizeXs"},
                                 halign = "right",
                                 click = function(element)
                                     modifier.resistances[1].keywords[keyword] = nil
@@ -1421,9 +1420,8 @@ CharacterModifier.TypeInfo.conditionimmunity = {
 						classes = {'formLabel'},
 						width = 200,
 						height = 30,
-						gui.DeleteItemButton{
-							width = 16,
-							height = 16,
+						gui.Button{
+							classes = {"deleteButton", "sizeS"},
 							valign = 'center',
 							halign = 'right',
 							click = function(element)
@@ -1916,9 +1914,9 @@ CharacterModifier.TypeInfo.trigger = {
 
                 end,
             }
-			children[#children+1] = gui.PrettyButton{
+			children[#children+1] = gui.Button{
+				classes = {"sizeL"},
 				width = 200,
-				height = 50,
 				text = "Edit Ability",
 				click = function(element)
 					local fn = function(element, modifier, savefn)
@@ -2040,9 +2038,9 @@ CharacterModifier.TypeInfo.activated = {
                     modifier.suppressOthers = element.value
                 end,
             }
-			children[#children+1] = gui.PrettyButton{
+			children[#children+1] = gui.Button{
+				classes = {"sizeL"},
 				width = 200,
-				height = 50,
 				text = "Edit Ability",
 				click = function(element)
 					local fn = function(element, modifier, savefn)

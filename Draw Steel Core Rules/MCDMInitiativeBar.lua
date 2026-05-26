@@ -1210,35 +1210,6 @@ function GameHud.CreateInitiativeBar(self, info)
 	local addCharacters
 	local addMonsters
 
-	--[[if dmhub.isDM then
-
-		addCharacters = gui.AddButton{
-			halign = "left",
-			valign = "center",
-			floating = true,
-			x = -60,
-			width = 24,
-			height = 24,
-			hover = gui.Tooltip("Add Character to initiative"),
-			click = function(element)
-				AddInitiativeEntryPanel(element, info, true)
-			end,
-		}
-
-		addMonsters = gui.AddButton{
-			halign = "right",
-			valign = "center",
-			floating = true,
-			x = 60,
-			width = 24,
-			height = 24,
-			hover = gui.Tooltip("Add Monster to initiative"),
-			click = function(element)
-				AddInitiativeEntryPanel(element, info, false)
-			end,
-		}
-	end]]
-
 	--The parent / top-level initiative bar.
 	return gui.Panel({
 		floating = true,
@@ -1520,55 +1491,6 @@ function GameHud.CreateInitiativeBar(self, info)
 			mainInitiativeBar,
 			choiceInitiativeBar,
 			respiteBar,
-
-			--button to close the initiative queue.
-			--[[gui.CloseButton({
-				escapeActivates = false,
-
-				events = {
-					refresh = function(element)
-						--only show this if initiative is currently actually active.
-						element:SetClass('hidden', info.initiativeQueue == nil or info.initiativeQueue.hidden)
-					end,
-
-					--when clicked we destroy the initiative queue by setting it to nil and upload changes. This will
-					--remove the initiative queue completely from player view.
-					click = function(element)
-						if info.initiativeQueue ~= nil then
-							UploadDayNightInfo()
-							info.initiativeQueue.hidden = true
-							info.UploadInitiative()
-
-							for initiativeid,_ in pairs(info.initiativeQueue.entries) do
-								local tokens = self:GetTokensForInitiativeId(info, initiativeid)
-								for _,tok in ipairs(tokens) do
-									tok.properties:DispatchEvent("endcombat", {})
-								end
-							end
-
-
-						end
-					end
-				},
-
-				selfStyle = {
-					halign = 'center',
-					valign = 'top',
-					x = 0,
-					y = 35,
-					width = 20,
-					height = 20,
-				},
-
-				styles = {
-					{
-						--only show the close initiative button to the DM, so for players hide it.
-						selectors = {'player'},
-						hidden = 1,
-					},
-				}
-			}),]]
-
 		},
 	})
 end
@@ -2030,56 +1952,6 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
         drawSteelBubble,
 		monsterContainer,
 		centerContainer,
-
-		--The 'End Turn' button which is pressed to end the current token's turn. It is only shown to the DM
-		--and to players if it is currently their turn (their token is first in the initiative queue).
-		--[[gui.FancyButton({
-			floating = true,
-			bgimage = 'panels/square.png',
-			text = 'End Turn',
-			y = 30,
-			halign = "center",
-			valign = "bottom",
-			width = 120,
-			height = 36,
-			fontSize = 20,
-			events = {
-				click = function(element)
-					self:NextInitiative()
-					info.UploadInitiative()
-				end,
-
-				refresh = function(element)
-					if info.initiativeQueue == nil or info.initiativeQueue.hidden or (not self:has_key('currentInitiativeId')) or info.initiativeQueue.currentTurn == false or info.initiativeQueue:ChoosingTurn() then
-
-						--If there is no initiative then hide the button.
-						element:AddClass('hidden')
-					else
-						--Find the list of tokens for the first entry in the initiative queue. If we have control of any of them show
-						--the button, otherwise don't.
-						local tokens = self:GetTokensForInitiativeId(info, self.currentInitiativeId)
-						local foundControllable = false
-						for i,tok in ipairs(tokens) do
-							if tok.canControl then
-								foundControllable = true
-								break
-							end
-						end
-
-						--note that the dm always shows entries, and doesn't auto-remove entries since they might be for a different map.
-						if foundControllable or dmhub.isDM then
-							element:RemoveClass('hidden')
-						else
-							element:AddClass('hidden')
-						end
-					end
-				end,
-                
-
-			},
-		}),]]
-
-
 
 		refresh = function(element)
 
@@ -2943,10 +2815,8 @@ function GameHud.CreateInitiativeEntry(self, info, initiativeid, options)
 	--Pressed -> cancels the turn (sends us back to the choose-next-turn state).
 	if CanControlInitiative() then
 
-		closeButton = gui.CloseButton({
-			classes = {"revertTurnButton"},
-			width = 18,
-			height = 18,
+		closeButton = gui.Button{
+            classes = {"closeButton", "revertTurnButton"},
 			halign = "right",
 			valign = "top",
 			hmargin = 2,
@@ -2981,7 +2851,7 @@ function GameHud.CreateInitiativeEntry(self, info, initiativeid, options)
 					end
 				end,
 			},
-		})
+		}
 	end
 
 	local playerColor = "black"

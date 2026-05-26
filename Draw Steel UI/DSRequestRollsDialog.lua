@@ -513,9 +513,12 @@ function GameHud:RequireRollListenerPanel()
                                     if check:has_key("rollProperties") then
                                         rollProperties = check.rollProperties
                                     elseif check:has_key("tableRef") then
-										rollProperties = RollProperties.new{}
-										rollProperties.tableRef = check.tableRef
-									end
+                                        --Must be the RollOnTableProperties subclass so
+                                        --the action log renders table rows; base
+                                        --RollProperties has no table-aware CustomPanel.
+                                        rollProperties = RollOnTableProperties.new{}
+                                        rollProperties.tableRef = check.tableRef
+                                    end
 
 									local autoroll = nil
 									if autoRollId == k then

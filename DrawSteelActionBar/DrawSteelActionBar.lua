@@ -1208,7 +1208,9 @@ local function CreateActionBar()
 
             g_creature = g_token.properties
 
-            if g_creature:try_get("treatAsObject", false) then
+            --Hide the bar when the selected token is a fixture/object, EXCEPT
+            --while an invoked cast is driving us (g_casterTokenStack non-empty).
+            if g_creature:try_get("treatAsObject", false) and #g_casterTokenStack == 0 then
                 element:SetClass("hidden", true)
                 element:HaltEventPropagation()
                 element:FireEventTree("closemenu")
@@ -3579,14 +3581,11 @@ CreateAbilityController = function()
         end,
     }
 
-    g_castButton = gui.PrettyButton {
+    g_castButton = gui.Button {
+        classes = {"sizeL", "bold", "collapsed"},
         halign = "center",
         width = 140,
-        height = 50,
-        fontSize = 24,
-        bold = true,
         text = "Confirm",
-        classes = { 'collapsed' },
         press = function(element)
             if g_currentAbility == nil then return end
             if g_abilityController == nil then return end
@@ -3811,13 +3810,11 @@ CreateAbilityController = function()
         end,
     }
 
-    g_skipButton = gui.PrettyButton {
+    g_skipButton = gui.Button {
+        classes = {"sizeM", "collapsed"},
         width = 80,
-        height = 30,
-        fontSize = 14,
         text = "Skip",
         halign = "center",
-        classes = { 'collapsed' },
         press = function(element)
             if g_abilityController == nil then return end
             g_abilityController:FireEvent("cancelCasting")

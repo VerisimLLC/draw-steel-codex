@@ -311,8 +311,8 @@ function gui.IconEditor(args)
 			flow = "horizontal",
 
 			children = {
-				gui.PagingArrow{
-					facing = -1,
+				gui.Button{
+					classes = {"pagingArrow"},
 					hmargin = 40,
 					refreshSearch = function(element)
 						element:SetClass("hidden", npage == 1)
@@ -379,8 +379,8 @@ function gui.IconEditor(args)
 					},
 				},
 
-				gui.PagingArrow{
-					facing = 1,
+				gui.Button{
+					classes = {"pagingArrow", "right"},
 					hmargin = 40,
 					refreshSearch = function(element)
 						element:SetClass("hidden", npage == GetNumPages())

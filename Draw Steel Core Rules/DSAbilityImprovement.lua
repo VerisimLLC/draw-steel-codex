@@ -173,9 +173,8 @@ CharacterModifier.TypeInfo.abilityimprovement = {
                             width = 400,
                             text = info.text,
                         },
-                        gui.DeleteItemButton{
-                            width = 16,
-                            height = 16,
+                        gui.Button{
+                            classes = {"deleteButton", "sizeS"},
                             valign = "center",
                             halign = "right",
                             click = function(element)

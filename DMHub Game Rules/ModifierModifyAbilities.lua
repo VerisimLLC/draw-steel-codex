@@ -885,9 +885,8 @@ CharacterModifier.TypeInfo.modifyability = {
 							width = 400,
 							text = info.text,
 						},
-						gui.DeleteItemButton{
-							width = 16,
-							height = 16,
+						gui.Button{
+							clasess = {"deleteButton", "sizeS"},
 							valign = 'center',
 							halign = 'right',
 							click = function(element)
@@ -1126,10 +1125,9 @@ CharacterModifier.TypeInfo.modifyability = {
 										},
 									},
 
-									gui.DeleteItemButton{
+									gui.Button{
+										classes = {"deleteButton", "sizeS"},
 										halign = "right",
-										width = 16,
-										height = 16,
 										click = function(element)
 											table.remove(reasonedFilters, filterIndex)
 											Refresh()

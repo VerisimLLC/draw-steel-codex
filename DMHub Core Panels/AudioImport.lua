@@ -16,15 +16,15 @@ local function ProgressPanel()
 		},
 
 		gui.Label{
+			classes = {"sizeM"},
 			text = "Importing...",
 			width = "auto",
 			height = "auto",
-			fontSize = 16,
 			margin = 6,
 
             error = function(element, str)
                 element.text = str
-                element.selfStyle.color = "red"
+                element:SetClass("danger", true)
             end,
 
             finished = function(element)
@@ -88,8 +88,10 @@ local function ImportAudioWizard()
 		end,
 
 		gui.Panel{
-			classes = "dropArea",
-			bgimage = "panels/square.png",
+			classes = {"bordered", "hoverable"},
+			width = "80%",
+			height = "60%",
+			valign = "center",
 
 			dragAndDropExtensions = {".ogg", ".mp3", ".wav", ".flac"},
 
@@ -97,27 +99,8 @@ local function ImportAudioWizard()
 				contentPanel:FireEvent("processFiles", paths)
 			end,
 
-			styles = {
-				{
-					width = "80%",
-					height = "60%",
-					valign = "center",
-					selectors = {"dropArea"},
-					bgcolor = "#ffffff33",
-					borderColor = "white",
-					borderWidth = 6,
-					cornerRadius = 16,
-				},
-				{
-					selectors = {"dropArea","hover"},
-					bgcolor = "#ffffff99",
-				}
-
-			},
-
 			gui.Label{
-				color = "white",
-				fontSize = 24,
+				classes = {"sizeXl"},
 				width = "auto",
 				height = "auto",
 				halign = "center",
@@ -127,21 +110,20 @@ local function ImportAudioWizard()
 		},
 
 		gui.Label{
+			classes = {"sizeM"},
 			valign = "center",
 			halign = "center",
-			fontSize = 16,
-			color = "white",
 			width = "auto",
 			height = "auto",
 			text = "-or-",
 		},
 
-		gui.FancyButton{
+		gui.Button{
+			classes = {"sizeXxl"},
 			text = "Choose Files",
-			width = 320,
-			height = 70,
+			-- width = 320,
+			-- height = 70,
 			click = function(element)
-
 				dmhub.OpenFileDialog{
 					id = "AudioPath",
 					extensions = {"ogg", "mp3", "wav", "flac"},
@@ -166,10 +148,7 @@ local function ImportAudioWizard()
 		height = 800,
 		pad = 8,
 		flow = "vertical",
-		styles = {
-			Styles.Default,
-			Styles.Panel,
-		},
+		styles = ThemeEngine.GetStyles(),
 
 		destroy = function(element)
 		end,
@@ -187,17 +166,8 @@ local function ImportAudioWizard()
 
 		contentPanel,
 
-	--gui.ProgressBar{
-	--	width = "80%",
-	--	height = 64,
-	--	value = 0,
-	--	thinkTime = 0.1,
-	--	think = function(element)
-	--		element.value = element.value + 0.01
-	--	end,
-	--},
-
-		gui.CloseButton{
+		gui.Button{
+            classes = {"closeButton"},
 			halign = "right",
 			valign = "top",
 			floating = true,

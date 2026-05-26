@@ -27,9 +27,8 @@ gui.KeywordSelector = function(args)
                     fontSize = 14,
                     color = Styles.textColor,
                 },
-                gui.DeleteItemButton{
-                    width = 12,
-                    height = 12,
+                gui.Button{
+                    classes = {"deleteButton", "sizeXs"},
                     valign = "center",
                     halign = "right",
                     click = function(element)

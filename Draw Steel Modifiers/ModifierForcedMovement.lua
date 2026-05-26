@@ -37,7 +37,8 @@ CharacterModifier.TypeInfo.forcedmovement = {
                             classes = {'formLabel'},
                             text = string.format("%s -> %s", moveType.from, moveType.to),
                         },
-                        gui.DeleteItemButton{
+                        gui.Button{
+                            classes = {"deleteButton"},
                             halign = "right",
                             click = function()
                                 table.remove(modifier.movementTypes, i)

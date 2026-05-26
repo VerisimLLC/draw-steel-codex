@@ -387,14 +387,11 @@ function Hud:UploadDialog(options)
 
 	}
 
-	local closeButton = gui.IconButton{
+	local closeButton = gui.Button{
+		classes = {"closeButton", "sizeL"},
 		icon = 'ui-icons/close.png',
-		style = {
-			halign = 'right',
-			valign = 'top',
-			width = 24,
-			height = 24,
-		},
+		halign = 'right',
+		valign = 'top',
 		events = {
 			click = function(element)
 				self:CloseModal()

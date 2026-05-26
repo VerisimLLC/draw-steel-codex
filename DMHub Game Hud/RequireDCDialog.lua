@@ -426,7 +426,10 @@ function GameHud:RequireRollListenerPanel()
 									end
 									
 									if check:has_key("tableRef") then
-										rollProperties = RollProperties.new{}
+										--Must be the RollOnTableProperties subclass so
+										--the action log renders table rows; base
+										--RollProperties has no table-aware CustomPanel.
+										rollProperties = RollOnTableProperties.new{}
 										rollProperties.tableRef = check.tableRef
 									elseif check:has_key('dc') then
 										rollProperties = GameSystem.GetRollProperties(check.type, check.dc)
@@ -1223,7 +1226,7 @@ function ShowRequireRollDialog(args)
 			},
 		},
 
-		gui.PrettyButton{
+		gui.Button{
 			text = 'Submit',
 			floating = true,
 			halign = 'right',
@@ -1300,7 +1303,7 @@ function GameHud:ShowRollSummaryDialog(actionid, resultTable)
 
 	local iscomplete = false
 
-	local closeButton = gui.PrettyButton{
+	local closeButton = gui.Button{
 			text = 'Cancel',
 			floating = true,
 			halign = 'right',

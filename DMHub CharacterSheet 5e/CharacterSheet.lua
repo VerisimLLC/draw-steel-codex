@@ -2235,10 +2235,8 @@ local EditResistanceEntry = function(creature, resistanceEntry, params)
 				},
 			}),
 
-			gui.DeleteItemButton{
-				width = 16,
-				height = 16,
-
+			gui.Button{
+				classes = {"deleteButton", "sizeS"},
 				click = function(element)
 					creature:DeleteResistance(resistanceEntry)
 					resultPanel:FireEvent("change")
@@ -2292,9 +2290,8 @@ function CharSheet.CharacterSheetEditLanguagesPopup(element, info)
 						textAlignment = "left",
 						halign = "center",
 
-						gui.DeleteItemButton{
-							width = 16,
-							height = 16,
+						gui.Button{
+							classes = {"deleteButton", "sizeS"},
 							halign = "right",
 							valign = "center",
 							click = function(element)
@@ -2328,9 +2325,8 @@ function CharSheet.CharacterSheetEditLanguagesPopup(element, info)
 						CharacterSheet.instance:FireEvent('refreshAll')
 					end,
 
-					gui.DeleteItemButton{
-						width = 16,
-						height = 16,
+					gui.Button{
+						classes = {"deleteButton", "sizeS"},
 						halign = "right",
 						valign = "center",
 						click = function(element)
@@ -2983,9 +2979,8 @@ function CharSheet.CharacterSheetEditResistancesPopup(element, info)
 				fontSize = 20,
 				width = 240,
 
-				gui.DeleteItemButton{
-					width = 16,
-					height = 16,
+				gui.Button{
+					classes = {"deleteButton", "sizeS"},
 					halign = "right",
 					valign = "center",
 					click = function(element)
@@ -3123,13 +3118,11 @@ function CharSheet.CharacterSheetConditions()
 						local iconPanel = gui.Panel{
 							classes = {'ongoingEffectIconPanel'},
 						}
-						local closeButton = gui.DeleteItemButton{
-							width = 16,
-							height = 16,
+						local closeButton = gui.Button{
+							classes = {"deleteButton", "sizeS", 'hidden-unless-parent-hover'},
 							halign = 'right',
 							valign = 'top',
 							floating = true,
-							classes = {'hidden-unless-parent-hover'},
 							click = function(element)
 								creature:RemoveOngoingEffect(activeOngoingEffects[index].ongoingEffectid)
 								CharacterSheet.instance:FireEvent('refreshAll')
@@ -5603,9 +5596,8 @@ function CharSheet.FeaturesPanel()
 								end,
 
 								label,
-								gui.DeleteItemButton{
-									width = 24,
-									height = 24,
+								gui.Button{
+									classes = {"deleteButton", "sizeL"},
 									halign = "right",
 									click = function(element)
 										local creature = CharacterSheet.instance.data.info.token.properties
@@ -5730,9 +5722,8 @@ function CharSheet.FeaturesPanel()
 								end,
 
 								label,
-								gui.DeleteItemButton{
-									width = 24,
-									height = 24,
+								gui.Button{
+									classes = {"deleteButton", "sizeL"},
 									halign = "right",
 									click = function(element)
 										local creature = CharacterSheet.instance.data.info.token.properties
@@ -5872,9 +5863,8 @@ function CharSheet.FeaturesNotesPanel()
 						end
 					end,
 				},
-				gui.DeleteItemButton{
-					width = 24,
-					height = 24,
+				gui.Button{
+					classes = {"deleteButton", "sizeL"},
 					halign = "right",
 					click = function(element)
 						resultPanel:FireEvent("delete")

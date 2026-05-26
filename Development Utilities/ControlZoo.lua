@@ -295,10 +295,12 @@ LaunchablePanel.Register {
 
                 ControlEntry {
                     name = "Delete Button",
-                    snippet = [[gui.DeleteItemButton{
+                    snippet = [[gui.Button{
+    classes = {"deleteButton"},
     click = function() end,
 }]],
-                    control = gui.DeleteItemButton {
+                    control = gui.Button {
+                        classes = {"deleteButton"},
                         halign = "center",
                         valign = "center",
                         click = function()

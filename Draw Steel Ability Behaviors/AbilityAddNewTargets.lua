@@ -167,9 +167,9 @@ function ActivatedAbilityAddNewTargetsBehavior:EditorItems(parentPanel)
 		end,
 	}
 
-	result[#result+1] = gui.PrettyButton{
+	result[#result+1] = gui.Button{
+		classes = {"sizeL"},
 		width = 200,
-		height = 50,
 		text = "Edit Targeting",
 		click = function(element)
 			element.root:AddChild(self.targetingAbility:ShowEditActivatedAbilityDialog{hideEffectsSection = true})

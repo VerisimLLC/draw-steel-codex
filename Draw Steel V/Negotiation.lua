@@ -401,9 +401,8 @@ CreateNegotiationDialog = function(options)
 
 					},
 
-					gui.AddButton {
-
-						classes = { "hideForPlayers" },
+					gui.Button {
+						classes = { "addButton", "hideForPlayers" },
 						halign = "center",
 						tmargin = 5,
 						tooltip = "Add Motivation",
@@ -664,12 +663,8 @@ CreateNegotiationDialog = function(options)
 
 					},
 
-
-
-
-					gui.AddButton {
-
-						classes = { "hideForPlayers" },
+					gui.Button {
+						classes = { "addButton", "hideForPlayers" },
 						halign = "center",
 						tmargin = 5,
 						tooltip = "Add Pitfall",

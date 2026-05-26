@@ -845,12 +845,11 @@ CharacterModifier.TypeInfo.powertabletrigger = {
                     tmargin = 16,
                     width = "auto",
                     height = "auto",
-                    gui.DeleteItemButton{
+                    gui.Button{
+                        classes = {"deleteButton", "sizeXs"},
                         halign = "right",
                         valign = "center",
                         x = 30,
-                        width = 12,
-                        height = 12,
                         requireConfirm = true,
                         press = function()
                             local items = modifier:try_get("additionalCostModifiers", {})

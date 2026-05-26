@@ -5220,6 +5220,24 @@ function creature:FillTemporalActiveModifiers(result)
         end
     end
 
+    --any creature that considers this one its summoner (via token.summonerid)
+    --can contribute modsummoner-style modifiers back onto us. Symmetric to the
+    --mount/rider hook above but in the summon->summoner direction. The recursion
+    --guard inside creature:GetActiveModifiers (_tmp_calculatingActiveModifiers)
+    --breaks the cycle when summoner and summon ask each other for modifiers
+    --mid-calculation (e.g., beastheart <-> companion via modcompanion/modsummoner).
+    if tok ~= nil and tok.valid and tok.charid ~= nil and CharacterModifier.FillSummonerModifiers ~= nil then
+        local myCharId = tok.charid
+        for _,summonTok in ipairs(dmhub.GetTokens()) do
+            if summonTok.valid and summonTok.summonerid == myCharId and summonTok.properties ~= nil then
+                local summonCreature = summonTok.properties
+                for _,summonMod in ipairs(summonCreature:GetActiveModifiers()) do
+                    summonMod.mod:FillSummonerModifiers(summonMod, summonCreature, self, result)
+                end
+            end
+        end
+    end
+
 	local temporaryEffects = self:try_get("_tmp_temporaryEffects", {})
 	for i,effect in ipairs(temporaryEffects) do
 		for i,mod in ipairs(effect.modifiers) do

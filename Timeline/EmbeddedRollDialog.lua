@@ -1200,12 +1200,11 @@ function GameHud.CreateEmbeddedRollDialog()
 
     local RecalculateMultiTargets
 
-    local rerollFudgedButton = gui.HudIconButton {
+    local rerollFudgedButton = gui.Button {
+        classes = {"sizeL"},
         icon = "panels/hud/clockwise-rotation.png",
         halign = "right",
         valign = "center",
-        width = 32,
-        height = 32,
         press = function(element)
             CalculateRollText()
         end,
@@ -3655,6 +3654,636 @@ function GameHud.CreateEmbeddedRollDialog()
 
     local showDialogDuringRoll = false
 
+    --Table-roll mode: when ShowDialog gets options.tableRef we collapse
+    --mainPanel and show tableModePanel instead -- a title + optional choice
+    --picker + table rows + dice/proceed/cancel buttons. Modifier/trigger/
+    --multi-target/tier UI doesn't apply to table rolls.
+    local m_tableRoll_state = {
+        options = nil,
+        guid = nil,
+        table = nil,
+        tableRef = nil,
+        rolls = nil,
+        diceFaces = nil,
+        hasClosed = false,
+        lastRollInfo = nil,
+        lastRollProperties = nil,
+    }
+
+    local m_tableRoll_titleLabel = gui.Label{
+        halign = "center",
+        valign = "top",
+        textAlignment = "center",
+        tmargin = 6,
+        bmargin = 4,
+        fontSize = 22,
+        bold = true,
+        width = "auto",
+        height = "auto",
+        color = Styles.textColor,
+    }
+
+    --Forward-declared so closures below capture them as proper upvalues.
+    local m_tableRoll_table
+    local m_tableRoll_diceButton
+    local m_tableRoll_proceedButton
+    local m_tableRoll_choicePanel
+    local tableModePanel
+    local DoTableRoll
+    local SetProceedForRollInfo
+    local OverrideToRow
+    local OnShowTable
+    local OnHideTable
+
+    local function PopulateTableRollRows()
+        local t = m_tableRoll_state.table
+        if t == nil then
+            m_tableRoll_table.children = {}
+            return
+        end
+        local rollInfo = t:CalculateRollInfo()
+        local rows = {}
+        for i, row in ipairs(t.rows) do
+            local text = row.value:ToString()
+            local creature = m_tableRoll_state.options ~= nil and m_tableRoll_state.options.creature
+            if creature ~= nil then
+                text = StringInterpolateGoblinScript(text, creature)
+            end
+
+            local rangeText = "-"
+            if rollInfo ~= nil then
+                local range = rollInfo.rollRanges[i]
+                if range ~= nil and not range.invalid then
+                    if range.min == range.max then
+                        rangeText = tostring(range.min)
+                    else
+                        rangeText = string.format("%d-%d", range.min, range.max)
+                    end
+                end
+            end
+
+            local hideRow = t.visibility == "hidden" or (t.visibility == "reveal" and row.revealed == false)
+            local secretText
+            if hideRow then
+                secretText = gui.Label{
+                    classes = { "tableRollCell" },
+                    width = "auto",
+                    height = "auto",
+                    text = "???",
+                    showSecret = function(element)
+                        element:SetClass("secret", true)
+                    end,
+                }
+            end
+
+            local rowIndex = i
+            local rowPanel = gui.TableRow{
+                --Click to override result post-roll; no-op before roll completes.
+                press = function(element)
+                    if OverrideToRow ~= nil then
+                        OverrideToRow(rowIndex)
+                    end
+                end,
+                children = {
+                    gui.Label{
+                        classes = { "tableRollCell", "rangeCell" },
+                        width = 60,
+                        hpad = 4,
+                        text = rangeText,
+                    },
+                    gui.MarkdownLabel{
+                        classes = { "tableRollCell", cond(hideRow, "secret") },
+                        width = 420,
+                        height = "auto",
+                        text = text,
+                        secretText,
+                        showSecret = function(element)
+                            element:SetClass("secret", false)
+                        end,
+                    },
+                },
+            }
+
+            rows[#rows+1] = rowPanel
+        end
+
+        m_tableRoll_table.children = rows
+        m_tableRoll_table.data.previewIndex = nil
+    end
+
+    m_tableRoll_table = gui.Table{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        halign = "center",
+        valign = "top",
+        styles = {
+            Styles.Table,
+            {
+                selectors = { "row" },
+                bgimage = "panels/square.png",
+                height = "auto",
+                width = "100%",
+            },
+            {
+                selectors = { "row", "evenRow" },
+                bgcolor = "#222222ff",
+            },
+            {
+                selectors = { "row", "oddRow" },
+                bgcolor = "#444444ff",
+            },
+            {
+                selectors = { "row", "previewHighlight" },
+                bgcolor = Styles.textColor,
+                brightness = 0.4,
+            },
+            {
+                selectors = { "row", "highlighted" },
+                bgcolor = Styles.textColor,
+            },
+            {
+                selectors = { "row", "flash" },
+                brightness = 3,
+                transitionTime = 0.3,
+            },
+            --Hover-brighten rows once "rollComplete" is set to advertise override.
+            {
+                selectors = { "row", "parent:rollComplete", "hover" },
+                brightness = 1.3,
+            },
+            {
+                selectors = { "tableRollCell" },
+                height = "auto",
+                minHeight = 18,
+                textWrap = true,
+                fontSize = 14,
+                textAlignment = "left",
+                color = Styles.textColor,
+                valign = "center",
+            },
+            {
+                selectors = { "tableRollCell", "parent:highlighted" },
+                color = "black",
+            },
+            {
+                selectors = { "tableRollCell", "parent:previewHighlight" },
+                color = "black",
+            },
+            {
+                selectors = { "tableRollCell", "secret" },
+                color = "clear",
+                transitionTime = 0.5,
+            },
+        },
+
+        data = {
+            previewIndex = nil,
+        },
+
+        previewRoll = function(element, index)
+            local rowsList = element.children
+            if element.data.previewIndex ~= nil and element.data.previewIndex <= #rowsList then
+                rowsList[element.data.previewIndex]:SetClass("previewHighlight", false)
+            end
+
+            if index ~= nil and index >= 1 and index <= #rowsList then
+                rowsList[index]:SetClass("previewHighlight", true)
+                element.data.previewIndex = index
+            end
+        end,
+
+        completeRollHighlight = function(element, rollInfo)
+            local rowsList = element.children
+            if element.data.previewIndex ~= nil and element.data.previewIndex <= #rowsList then
+                rowsList[element.data.previewIndex]:SetClass("previewHighlight", false)
+            end
+
+            local t = m_tableRoll_state.table
+            if t == nil then return end
+
+            local rowIndex = t:RowIndexFromDiceResult(rollInfo.total)
+            if rowIndex ~= nil and rowIndex >= 1 and rowIndex <= #rowsList then
+                rowsList[rowIndex]:SetClass("highlighted", true)
+                rowsList[rowIndex]:PulseClass("flash")
+
+                if t.visibility == "reveal" and m_tableRoll_state.tableRef ~= nil then
+                    t.rows[rowIndex].revealed = true
+                    m_tableRoll_state.tableRef:TryUpload(t)
+                    rowsList[rowIndex]:FireEventTree("showSecret")
+                end
+            end
+        end,
+    }
+
+    local function SelectTableRef(tableRef)
+        m_tableRoll_state.tableRef = tableRef
+        m_tableRoll_state.table = tableRef:GetTable()
+        PopulateTableRollRows()
+    end
+
+    --Wire Proceed to call completeRoll with the given rollInfo, then close.
+    --Used by the dmhub.Roll complete callback, the OnBeforeTableRoll synthetic
+    --path, and the override flow.
+    SetProceedForRollInfo = function(rollInfo)
+        m_tableRoll_proceedButton:SetClass("collapsed", false)
+        gui.SetFocus(m_tableRoll_proceedButton)
+        local options = m_tableRoll_state.options
+        m_tableRoll_proceedButton.data.onclick = function()
+            if options ~= nil and options.completeRoll ~= nil then
+                options.completeRoll(rollInfo)
+            end
+            if rollInfo.rolls ~= nil then
+                for _, roll in ipairs(rollInfo.rolls) do
+                    local events = chat.DiceEvents(roll.guid)
+                    if events ~= nil then events:Unlisten(tableModePanel) end
+                end
+            end
+            resultPanel:SetClass("hidden", true)
+            OnHideTable()
+        end
+    end
+
+    --Override the rolled result to point at a different row. No-op until the
+    --original roll has completed. Mirrors the power-roll tier override.
+    OverrideToRow = function(rowIndex)
+        local last = m_tableRoll_state.lastRollInfo
+        local t = m_tableRoll_state.table
+        if last == nil or t == nil then return end
+        if rowIndex == nil or rowIndex < 1 or rowIndex > #t.rows then return end
+
+        local rollInfo = t:CalculateRollInfo()
+        if rollInfo == nil then return end
+        local range = rollInfo.rollRanges[rowIndex]
+        if range == nil or range.invalid then return end
+
+        local rowsList = m_tableRoll_table.children
+        for _, r in ipairs(rowsList) do
+            r:SetClass("highlighted", false)
+        end
+
+        if rowIndex <= #rowsList then
+            rowsList[rowIndex]:SetClass("highlighted", true)
+            rowsList[rowIndex]:PulseClass("flash")
+
+            if t.visibility == "reveal" and m_tableRoll_state.tableRef ~= nil then
+                t.rows[rowIndex].revealed = true
+                m_tableRoll_state.tableRef:TryUpload(t)
+                rowsList[rowIndex]:FireEventTree("showSecret")
+            end
+        end
+
+        --Synthetic rollInfo: only .total drives row/outcome lookup; preserve
+        --the rest so callers reading rolls/boons/banes still see natural dice.
+        --Built field-by-field because the real rollInfo is a C++ wrapper that
+        --pairs() can't iterate.
+        local synthetic = {
+            total = range.min,
+            boons = last.boons,
+            banes = last.banes,
+            rolls = last.rolls,
+            properties = last.properties,
+        }
+
+        --Push override to chat so the action log re-renders with the new row.
+        --RollOnTableProperties:GetOutcome and :CustomPanel both honor
+        --overrideRollTotal.
+        if m_tableRoll_state.lastRollProperties ~= nil then
+            m_tableRoll_state.lastRollProperties.overrideRollTotal = range.min
+            m_tableRoll_state.lastRollProperties.overrideMessage =
+                string.format("%s overrode the result", dmhub.userDisplayName)
+
+            if type(last) == "userdata" then
+                last:UploadProperties(m_tableRoll_state.lastRollProperties)
+            end
+        end
+
+        SetProceedForRollInfo(synthetic)
+    end
+
+    --Bespoke show/hide instead of the dialog's generic OnShow/OnHide because
+    --those push chat.events, which traps downstream Cast-continuation chat
+    --output (e.g. "gained heroic resource") in the preview stack.
+    local m_tableRoll_listening = false
+    OnShowTable = function()
+        if not m_tableRoll_listening then
+            chat.events:Listen(resultPanel)
+            m_tableRoll_listening = true
+        end
+    end
+    OnHideTable = function()
+        if m_tableRoll_listening then
+            chat.PreviewChat('')
+            chat.events:Unlisten(resultPanel)
+            m_tableRoll_listening = false
+        end
+    end
+
+    local function ChoicePanelPress(element)
+        for _, child in ipairs(element.parent.children) do
+            child:SetClass("selected", child == element)
+        end
+        if element.data.tableRef ~= nil then
+            SelectTableRef(element.data.tableRef)
+        end
+    end
+
+    m_tableRoll_choicePanel = gui.Panel{
+        styles = Styles.AdvantageBar,
+        classes = { "advantage-bar" },
+        valign = "top",
+        halign = "center",
+        tmargin = 12,
+        initChoices = function(element)
+            local t = m_tableRoll_state.table
+            if t == nil or not t:IsChoice() then
+                element:SetClassTree("hidden", true)
+                element.children = {}
+                return
+            end
+
+            element:SetClassTree("hidden", false)
+
+            local children = {}
+            for _, row in ipairs(t.rows) do
+                local str = row.value.items[1]:ToString()
+                local ref = nil
+                for _, item in ipairs(row.value.items) do
+                    ref = item:TableRef()
+                    if ref ~= nil then break end
+                end
+
+                children[#children+1] = gui.Label{
+                    classes = { "advantage-element" },
+                    data = {
+                        tableRef = ref,
+                    },
+                    text = str,
+                    press = ChoicePanelPress,
+                }
+            end
+
+            element.children = children
+            if #children > 0 then
+                ChoicePanelPress(children[1])
+            end
+        end,
+    }
+
+    m_tableRoll_diceButton = gui.UserDice{
+        width = 64,
+        height = 64,
+        halign = "center",
+        valign = "center",
+        tmargin = 12,
+        events = {
+            click = function(element)
+                element:SetClass("collapsed", true)
+                DoTableRoll()
+            end,
+        },
+    }
+
+    m_tableRoll_proceedButton = gui.PrettyButton{
+        classes = { "collapsed" },
+        text = "Proceed",
+        halign = "center",
+        valign = "center",
+        tmargin = 12,
+        width = 140,
+        height = 30,
+        fontSize = 20,
+        data = {
+            onclick = nil,
+        },
+        events = {
+            press = function(element)
+                if element.data.onclick ~= nil then
+                    element.data.onclick()
+                end
+            end,
+            enter = function(element)
+                element:FireEvent("press")
+            end,
+        },
+    }
+
+    local m_tableRoll_cancelButton = gui.PrettyButton{
+        text = "Cancel",
+        halign = "center",
+        valign = "center",
+        tmargin = 4,
+        width = 140,
+        height = 30,
+        fontSize = 20,
+        escapeActivates = true,
+        escapePriority = EscapePriority.EXIT_ROLL_DIALOG,
+        events = {
+            press = function(element)
+                if not m_tableRoll_state.hasClosed and cancelRoll ~= nil then
+                    cancelRoll()
+                end
+                resultPanel:SetClass("hidden", true)
+                OnHideTable()
+            end,
+        },
+    }
+
+    --{panel, dialog} pulls in the ThemeEngine's standard dialog framing
+    --(gradient surface + border) so the roller is visible against the HUD.
+    tableModePanel = gui.Panel{
+        classes = { "collapsed", "panel", "dialog" },
+        width = "100%",
+        height = "auto",
+        halign = "center",
+        valign = "center",
+        flow = "vertical",
+        pad = 12,
+        borderBox = true,
+
+        m_tableRoll_titleLabel,
+        m_tableRoll_choicePanel,
+        gui.Panel{
+            tmargin = 10,
+            width = "100%",
+            height = "auto",
+            maxHeight = 520,
+            halign = "center",
+            valign = "top",
+            vscroll = true,
+            m_tableRoll_table,
+        },
+        m_tableRoll_diceButton,
+        m_tableRoll_proceedButton,
+        m_tableRoll_cancelButton,
+
+        diceface = function(element, guid, num)
+            if m_tableRoll_state.rolls == nil or m_tableRoll_state.diceFaces == nil then
+                return
+            end
+
+            m_tableRoll_state.diceFaces[guid] = num
+            local total = 0
+            for _, roll in ipairs(m_tableRoll_state.rolls) do
+                local face = m_tableRoll_state.diceFaces[roll.guid]
+                if face == nil then return end
+                total = total + face
+
+                if roll.partnerguid ~= nil then
+                    local pface = m_tableRoll_state.diceFaces[roll.partnerguid]
+                    if pface == nil then return end
+                    total = total + pface
+                end
+            end
+
+            local t = m_tableRoll_state.table
+            if t ~= nil then
+                m_tableRoll_table:FireEvent("previewRoll", t:RowIndexFromDiceResult(total))
+            end
+        end,
+    }
+
+    DoTableRoll = function()
+        local options = m_tableRoll_state.options
+        local t = m_tableRoll_state.table
+        if options == nil or t == nil then return end
+
+        m_tableRoll_state.diceFaces = {}
+        m_tableRoll_state.rolls = nil
+        m_tableRoll_state.hasClosed = true
+
+        local tokenid = nil
+        if options.creature ~= nil then
+            tokenid = dmhub.LookupTokenId(options.creature)
+        end
+
+        local rollInfo = t:CalculateRollInfo()
+        if rollInfo == nil then return end
+
+        local rollProperties = options.rollProperties or RollOnTableProperties.new{
+            tableRef = m_tableRoll_state.tableRef,
+        }
+        rollProperties.tableRef = m_tableRoll_state.tableRef
+
+        --External-mod hook preserved from the legacy modal.
+        if RollDialog.OnBeforeTableRoll then
+            local hookResult = RollDialog.OnBeforeTableRoll({
+                roll = rollInfo.roll,
+                description = string.format("Roll on %s", t.name),
+                creature = options.creature,
+                tokenid = tokenid,
+                properties = rollProperties,
+                tableRef = m_tableRoll_state.tableRef,
+                tableName = t.name,
+                guid = m_tableRoll_state.guid,
+                completeWithResult = function(total)
+                    local syntheticRollInfo = {
+                        total = total,
+                        boons = 0,
+                        banes = 0,
+                        rolls = {},
+                        properties = rollProperties,
+                    }
+                    m_tableRoll_state.lastRollInfo = syntheticRollInfo
+                    m_tableRoll_state.lastRollProperties = rollProperties
+                    m_tableRoll_table:FireEvent("completeRollHighlight", syntheticRollInfo)
+                    m_tableRoll_table:SetClass("rollComplete", true)
+                    SetProceedForRollInfo(syntheticRollInfo)
+                end,
+            })
+            if hookResult == "intercept" then
+                chat.PreviewChat('')
+                return
+            end
+        end
+
+        dmhub.Roll{
+            guid = m_tableRoll_state.guid,
+            description = string.format("Roll on %s", t.name),
+            tokenid = tokenid,
+            roll = rollInfo.roll,
+            silent = false,
+            dmonly = false,
+            creature = options.creature,
+            properties = rollProperties,
+
+            begin = function(rollInfoArg)
+                m_tableRoll_state.diceFaces = {}
+                m_tableRoll_state.rolls = rollInfoArg.rolls
+                for _, roll in ipairs(rollInfoArg.rolls) do
+                    local events = chat.DiceEvents(roll.guid)
+                    if events ~= nil then events:Listen(tableModePanel) end
+                    if roll.partnerguid ~= nil then
+                        local pe = chat.DiceEvents(roll.partnerguid)
+                        if pe ~= nil then pe:Listen(tableModePanel) end
+                    end
+                end
+            end,
+
+            complete = function(rollInfoArg)
+                m_tableRoll_state.lastRollInfo = rollInfoArg
+                m_tableRoll_state.lastRollProperties = rollProperties
+                --Highlight result immediately and enable click-to-override.
+                m_tableRoll_table:FireEvent("completeRollHighlight", rollInfoArg)
+                m_tableRoll_table:SetClass("rollComplete", true)
+                SetProceedForRollInfo(rollInfoArg)
+            end,
+        }
+
+        chat.PreviewChat('')
+    end
+
+    local function ShowTableDialog(options)
+        m_tableRoll_state.options = options
+        m_tableRoll_state.guid = dmhub.GenerateGuid()
+        m_tableRoll_state.tableRef = options.tableRef
+        m_tableRoll_state.table = options.tableRef:GetTable()
+        m_tableRoll_state.hasClosed = false
+        m_tableRoll_state.diceFaces = nil
+        m_tableRoll_state.rolls = nil
+        m_tableRoll_state.lastRollInfo = nil
+        m_tableRoll_state.lastRollProperties = nil
+        m_tableRoll_table:SetClass("rollComplete", false)
+
+        --Outer-closure cancelRoll is read by the cancel button.
+        cancelRoll = options.cancelRoll
+
+        resultPanel:SetClassTree("rolling", false)
+        resultPanel:SetClassTree("finishedRolling", false)
+        resultPanel:SetClassTree("rollPending", false)
+
+        mainPanel:SetClass("collapsed", true)
+        tableModePanel:SetClass("collapsed", false)
+
+        --Widen the dialog for table mode (default 340 fits the 360 ability
+        --sidebar; standalone host is wider).
+        resultPanel.width = 520
+
+        local t = m_tableRoll_state.table
+        if t ~= nil then
+            m_tableRoll_titleLabel.text = string.format("Roll on %s", t.name)
+        else
+            m_tableRoll_titleLabel.text = "Roll on Table"
+        end
+
+        --Choice tables populate their rows via the choice picker's first-pick
+        --callback; non-choice tables need a direct populate.
+        m_tableRoll_choicePanel:FireEvent("initChoices")
+        if t == nil or not t:IsChoice() then
+            PopulateTableRollRows()
+        end
+
+        m_tableRoll_diceButton:SetClass("collapsed", false)
+        m_tableRoll_proceedButton:SetClass("collapsed", true)
+        m_tableRoll_proceedButton.data.onclick = nil
+
+        resultPanel:SetClass("hidden", false)
+        OnShowTable()
+        gui.SetFocus(m_tableRoll_diceButton)
+
+        return m_tableRoll_state.guid
+    end
+
     resultPanel = gui.Panel {
         classes = { 'hidden', "embeddedRollDialog" },
         width = 340,
@@ -3664,10 +4293,18 @@ function GameHud.CreateEmbeddedRollDialog()
 
         styles = styles,
 
+        --Allow the user to drag the roll box around (useful in table mode).
+        draggable = true,
+        drag = function(element)
+            element.x = element.xdrag
+            element.y = element.ydrag
+        end,
+
         captureEscape = true,
         escapePriority = EscapePriority.EXIT_ROLL_DIALOG,
 
         mainPanel,
+        tableModePanel,
 
         data = {
 
@@ -3840,9 +4477,7 @@ function GameHud.CreateEmbeddedRollDialog()
                 end
 
                 if options.tableRef ~= nil then
-                    --delegate table rolls to the specialized dialog for them.
-                    print("RollDialog:: Delegating to RollOnTableDialog for", options.tableRef)
-                    return resultPanel.data.rollOnTableDialog.data.ShowDialog(options)
+                    return ShowTableDialog(options)
                 end
 
                 showDialogDuringRoll = options.showDialogDuringRoll

@@ -718,7 +718,8 @@ ShowClippingProperties = function(asset)
             text = "Clipping Properties",
         },
 
-		gui.CloseButton{
+		gui.Button{
+            classes = {"closeButton"},
 			halign = "right",
 			valign = "top",
 			floating = true,

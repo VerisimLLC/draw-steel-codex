@@ -246,11 +246,12 @@ function gui.Button(options)
 		-- and the icon can be insetted independently (e.g. 90% when bordered).
 		-- Kind-class buttons (addButton, deleteButton, ...) leave bgimage nil
 		-- and let `{panel, buttonIcon, parent:kindName}` rules paint it.
-		args[#args+1] = gui.Panel{
+		local iconPanel = gui.Panel{
 			classes = {"buttonIcon"},
 			bgcolor = options.color,
 			bgimage = options.icon,
 		}
+		args[#args+1] = iconPanel
 
 		-- Apply kind-config defaults BEFORE merging options so callers can
 		-- still override (e.g. pass their own escapeActivates = false).
@@ -282,6 +283,16 @@ function gui.Button(options)
 			if k ~= "icon" and k ~= "color" then
 				args[k] = v
 			end
+		end
+
+		-- setIcon: swap the glyph at runtime. The image lives on the inner
+		-- buttonIcon child, not on the outer iconButton the caller holds, so
+		-- callers fire this event instead of assigning bgimage on `element`.
+		-- Usage: element:FireEvent("setIcon", "path/to/icon.png")
+		-- Assigned after the options merge so the framework's setIcon is
+		-- authoritative and cannot be silently clobbered by a caller.
+		args.setIcon = function(_, iconPath)
+			iconPanel.bgimage = iconPath
 		end
 
 		-- Confirmation wrap: when the caller supplied `requireConfirm = true`
@@ -440,10 +451,20 @@ function gui.DiamondButton(options)
 	return gui.Panel(params)
 end
 
+local throttleAddDeprecated = 0
 --- A little "plus" button for adding new items.
 --- @param options PanelArgs
 --- @return Panel
 function gui.AddButton(options)
+	if devmode() and dmhub.Time() - throttleAddDeprecated >= 60 then
+		throttleAddDeprecated = dmhub.Time()
+		local caller = debug.getinfo(2, "Sl")
+		local location = "unknown location"
+		if caller ~= nil then
+			location = string.format("%s:%d", caller.short_src, caller.currentline)
+		end
+		SendTitledChatMessage(string.format("gui.AddButton() - use gui.Button() instead. See theming guide. Called from %s", location), "deprecated", "#cc6666")
+	end
 
 	local args = {
 		classes = {'plusButton', "addButton"},
@@ -497,10 +518,21 @@ function gui.SimpleIconButton(options)
 end
 
 
+local throttleCloseDeprecated = 0
 --- An "x" button for closing out dialogs.
 --- @param options PanelArgs
 --- @return Panel
 function gui.CloseButton(options)
+	if devmode() and dmhub.Time() - throttleCloseDeprecated >= 60 then
+		throttleCloseDeprecated = dmhub.Time()
+		local caller = debug.getinfo(2, "Sl")
+		local location = "unknown location"
+		if caller ~= nil then
+			location = string.format("%s:%d", caller.short_src, caller.currentline)
+		end
+		SendTitledChatMessage(string.format("gui.CloseButton() - use gui.Button() instead. See theming guide. Called from %s", location), "deprecated", "#cc6666")
+	end
+
 	local args = {
 		classes = {'close-button', "closeButton"},
 		bgimage = 'ui-icons/close.png',
@@ -617,10 +649,21 @@ function gui.DeleteItemButton(options)
 	return gui.Panel(args)
 end
 
+local throttleCopyDeprecated = 0
 --- A "copy" button for copying items to the clipboard.
 --- @param options PanelArgs
 --- @return Panel
 function gui.CopyButton(options)
+	if devmode() and dmhub.Time() - throttleCopyDeprecated >= 60 then
+		throttleCopyDeprecated = dmhub.Time()
+		local caller = debug.getinfo(2, "Sl")
+		local location = "unknown location"
+		if caller ~= nil then
+			location = string.format("%s:%d", caller.short_src, caller.currentline)
+		end
+		SendTitledChatMessage(string.format("gui.CopyButton() - use gui.Button() instead. See theming guide. Called from %s", location), "deprecated", "#cc6666")
+	end
+
 	local args = {
 		classes = {"iconButton"},
 		bgimage = "icons/icon_app/icon_app_108.png",
@@ -633,10 +676,21 @@ function gui.CopyButton(options)
 	return gui.Panel(args)
 end
 
+local throttleSettingsDeprecated = 0
 --- A "gear" settings button.
 --- @param options PanelArgs
 --- @return Panel
 function gui.SettingsButton(options)
+	if devmode() and dmhub.Time() - throttleSettingsDeprecated >= 60 then
+		throttleSettingsDeprecated = dmhub.Time()
+		local caller = debug.getinfo(2, "Sl")
+		local location = "unknown location"
+		if caller ~= nil then
+			location = string.format("%s:%d", caller.short_src, caller.currentline)
+		end
+		SendTitledChatMessage(string.format("gui.SettingsButton() - use gui.Button() instead. See theming guide. Called from %s", location), "deprecated", "#cc6666")
+	end
+
 	local args = {
 		classes = {'iconButton', "settingsButton"},
 		bgimage = 'ui-icons/skills/98.png',
@@ -661,10 +715,21 @@ function gui.SettingsButton(options)
 	return gui.Panel(args)
 end
 
+local throttleHudIconDeprecated = 0
 --- A little icon button to show in the hud.
 --- @param options PanelArgs
 --- @return Panel
 function gui.HudIconButton(options)
+	if devmode() and dmhub.Time() - throttleHudIconDeprecated >= 60 then
+		throttleHudIconDeprecated = dmhub.Time()
+		local caller = debug.getinfo(2, "Sl")
+		local location = "unknown location"
+		if caller ~= nil then
+			location = string.format("%s:%d", caller.short_src, caller.currentline)
+		end
+		SendTitledChatMessage(string.format("gui.HudIconButton() - use gui.Button() instead. See theming guide. Called from %s", location), "deprecated", "#cc6666")
+	end
+
 	local args = {
 		classes = {"hudIconButton"},
 		children = {
@@ -752,10 +817,21 @@ local iconButtonIconStyleFlipped = gui.Style{
 	scale = {x = -1, y = 1},
 }
 
+local throttleIconButtonDeprecated = 0
 --- A small button with an icon on it.
 --- @param args PanelArgs
 --- @return Panel
 function gui.IconButton(args)
+	if devmode() and dmhub.Time() - throttleIconButtonDeprecated >= 60 then
+		throttleIconButtonDeprecated = dmhub.Time()
+		local caller = debug.getinfo(2, "Sl")
+		local location = "unknown location"
+		if caller ~= nil then
+			location = string.format("%s:%d", caller.short_src, caller.currentline)
+		end
+		SendTitledChatMessage(string.format("gui.IconButton() - use gui.Button() instead. See theming guide. Called from %s", location), "deprecated", "#cc6666")
+	end
+
 	local iconPanel = gui.Panel{
 						bgimage = args.icon,
 						styles = {
@@ -886,10 +962,21 @@ local prettyButtonStyles = {
 	},
 }
 
+local throttleFancyDeprecated = 0
 --- A fancy looking button
 --- @param options PanelArgs
 --- @return Panel
 function gui.FancyButton(options)
+	if devmode() and dmhub.Time() - throttleFancyDeprecated >= 60 then
+		throttleFancyDeprecated = dmhub.Time()
+		local caller = debug.getinfo(2, "Sl")
+		local location = "unknown location"
+		if caller ~= nil then
+			location = string.format("%s:%d", caller.short_src, caller.currentline)
+		end
+		SendTitledChatMessage(string.format("gui.FancyButton() - use gui.Button() instead. See theming guide. Called from %s", location), "deprecated", "#cc6666")
+	end
+
 	options = DeepCopy(options or {})
 
 	local text = options.text or ''
@@ -968,7 +1055,17 @@ local PrettyButtonBackgroundStyles = {
 --- A pretty looking button
 --- @param options PanelArgs
 --- @return Panel
+local throttlePBDeprecated = 0
 function gui.PrettyButton(args)
+	if devmode() and dmhub.Time() - throttlePBDeprecated >= 60 then
+		throttlePBDeprecated = dmhub.Time()
+		local caller = debug.getinfo(2, "Sl")
+		local location = "unknown location"
+		if caller ~= nil then
+			location = string.format("%s:%d", caller.short_src, caller.currentline)
+		end
+		SendTitledChatMessage(string.format("gui.PrettyButton() - use gui.Button() instead. See theming guide. Called from %s", location), "deprecated", "#cc6666")
+	end
 	local classes = args.classes or {}
 	if type(classes) == "string" then
 		classes = {classes}
@@ -976,55 +1073,6 @@ function gui.PrettyButton(args)
 	classes[#classes+1] = "prettyButton"
 	args.classes = classes
 	return gui.Button(args)
-
---local mainPanel = gui.Panel({
---	bgimage = 'panels/ButtonBackground.png',
---	interactable = false,
---	style = {
---		width = '100%',
---		height = '100%',
---		bgslice = 12,
---		margin = 0,
---	},
-
---	children = {
---		gui.Panel{
---			bgimage = 'panels/ButtonForegroundRed.png',
---			styles = PrettyButtonBackgroundStyles,
-
---			children = {
---				gui.Label{
---					classes = {'pretty-button-label'},
---					text = args.text or 'TEXT',
---					fontSize = args.fontSize or "100%",
---					settext = function(element, t)
---						element.text = t
---					end,
---				}
---			}
---		}
---	}
---})
-
---local style = DeepCopy(args.style) or {}
-
---style.margin = style.margin or 0
---style.pad = style.pad or 0
---style.flow = 'none'
---style.bgcolor = style.bgcolor or 'white'
-
---local options = DeepCopy(args)
---if type(options.classes) == "string" then
---	options.classes = {options.classes}
---end
---options.classes = options.classes or {}
---options.classes[#options.classes+1] = 'pretty-button'
---options.text = nil
---options.style = style
---options.children = { mainPanel }
---options.interactable = false
-
---return gui.Panel(options)
 end
 
 -- diamond
@@ -1042,27 +1090,25 @@ function gui.Diamond(options)
 	options.editable = nil
 
 	local fill = 
-				gui.Panel{
-				
-					classes = {cond(options.value, "on")},
-					width = 20,
-					height = 20,
-					halign = "center",
-					valign = "center",
-					bgimage = "panels/square.png",
-				
-					styles = {
-						{
-							bgcolor = "clear",
-						},
-						
-						{
-							selectors = {"on"},
-							transitionTime = 0.15,
-							bgcolor = options.fillColor or Styles.textColor,
-						},
-					},
-				}
+		gui.Panel{
+			classes = {cond(options.value, "on")},
+			width = 20,
+			height = 20,
+			halign = "center",
+			valign = "center",
+			bgimage = "panels/square.png",
+
+			styles = {
+				{
+					bgcolor = "clear",
+				},
+				{
+					selectors = {"on"},
+					transitionTime = 0.15,
+					bgcolor = options.fillColor or Styles.textColor,
+				},
+			},
+		}
 				
 	options.fillColor = nil
 	options.value = nil
@@ -1241,7 +1287,6 @@ function gui.Check(args)
 	resultPanel = gui.Panel(options)
 	return resultPanel
 end
-
 
 local PercentSliderStyles = {
 	gui.Style{
@@ -3931,10 +3976,21 @@ local g_pagingArrowStyles = {
 --- @class PagingArrowArgs:PanelArgs
 --- @field facing nil|-1|1 Choose if the arrow faces left or right.
 
+local throttlePagingArrowDeprecated = 0
 --- An arrow suitable for paging through different sections.
 --- @param options PagingArrowArgs
 --- @return Panel
 function gui.PagingArrow(options)
+	if devmode() and dmhub.Time() - throttlePagingArrowDeprecated >= 60 then
+		throttlePagingArrowDeprecated = dmhub.Time()
+		local caller = debug.getinfo(2, "Sl")
+		local location = "unknown location"
+		if caller ~= nil then
+			location = string.format("%s:%d", caller.short_src, caller.currentline)
+		end
+		SendTitledChatMessage(string.format("gui.PagingArrow() - use gui.Button() instead. See theming guide. Called from %s", location), "deprecated", "#cc6666")
+	end
+
 	local facing = options.facing or 1
 	options.facing = nil
 	local args = {

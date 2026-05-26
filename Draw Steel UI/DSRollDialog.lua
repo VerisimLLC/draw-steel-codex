@@ -2639,9 +2639,12 @@ function GameHud.CreateRollDialog(self)
                 end
 
                 if options.tableRef ~= nil then
-                    --delegate table rolls to the specialized dialog for them.
-                    print("RollDialog:: Delegating to RollOnTableDialog for", options.tableRef)
-                    return resultPanel.data.rollOnTableDialog.data.ShowDialog(options)
+                    --Route table rolls to the embedded timeline roller.
+                    local dialog = CharacterPanel.EmbedDialogStandalone()
+                    if dialog ~= nil and dialog.data ~= nil and dialog.data.ShowDialog ~= nil then
+                        return dialog.data.ShowDialog(options)
+                    end
+                    return
                 end
 
                 showDialogDuringRoll = options.showDialogDuringRoll

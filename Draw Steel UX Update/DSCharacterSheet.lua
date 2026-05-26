@@ -2980,9 +2980,8 @@ function DSCharacterSheet.FeaturesPanel()
 								end,
 
 								label,
-								gui.DeleteItemButton{
-									width = 24,
-									height = 24,
+								gui.Button{
+									classes = {"deleteButton", "sizeL"},
 									halign = "right",
 									click = function(element)
 										local creature = CharacterSheet.instance.data.info.token.properties
@@ -3107,9 +3106,8 @@ function DSCharacterSheet.FeaturesPanel()
 								end,
 
 								label,
-								gui.DeleteItemButton{
-									width = 24,
-									height = 24,
+								gui.Button{
+									classes = {"deleteButton", "sizeL"},
 									halign = "right",
 									click = function(element)
 										local creature = CharacterSheet.instance.data.info.token.properties
@@ -4224,9 +4222,8 @@ function DSCharacterSheet.FeaturesNotesPanel()
 						end
 					end,
 				},
-				gui.DeleteItemButton{
-					width = 24,
-					height = 24,
+				gui.Button{
+					classes = {"deletebutton", "sizeL"},
 					halign = "right",
 					click = function(element)
 						resultPanel:FireEvent("delete")
@@ -4294,7 +4291,8 @@ function DSCharacterSheet.FeaturesNotesPanel()
 		return resultPanel
 	end
 
-	local addNotesButton = gui.AddButton{
+	local addNotesButton = gui.Button{
+		classes = {"addButton"},
 		hmargin = 15,
 		halign = "right",
 		linger = function(element)

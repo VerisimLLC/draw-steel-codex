@@ -316,27 +316,16 @@ function AnimalCompanion:FillTemporalActiveModifiers(result)
     end
 end
 
--- Mirror of modifyCompanion in the opposite direction: any modifier on the
--- companion whose behavior implements modifySummoner contributes modifiers
--- back onto the beastheart. Used by traits like the bear's Strong Like Bear,
--- whose stat-block "you" refers to the beastheart per the Companion rules.
--- The recursion guard inside creature:GetActiveModifiers
--- (_tmp_calculatingActiveModifiers) breaks the cycle when each side asks the
--- other for modifiers mid-calculation.
-local g_characterFillTemporalActiveModifiersBase = character.FillTemporalActiveModifiers
-function character:FillTemporalActiveModifiers(result)
-    g_characterFillTemporalActiveModifiersBase(self, result)
-
-    if mod.unloaded then return end
-
-    local companionToken = self:GetCompanionToken()
-    if companionToken == nil then return end
-
-    local companionCreature = companionToken.properties
-    for _,companionMod in ipairs(companionCreature:GetActiveModifiers()) do
-        companionMod.mod:FillSummonerModifiers(companionMod, companionCreature, self, result)
-    end
-end
+-- The mirror direction -- companion -> summoner via modsummoner -- is
+-- dispatched generically for ALL creature types from
+-- creature:FillTemporalActiveModifiers in DMHub Game Rules/Creature.lua. That
+-- hook scans dmhub.GetTokens() for any token whose summonerid points at this
+-- creature's token (so it picks up the beastheart's companion via the
+-- summonerid set in DSBeastheart.lua, plus any other summon created via
+-- AbilitySummon, AbilityCompanion, or table-roll summons). The recursion guard
+-- inside creature:GetActiveModifiers (_tmp_calculatingActiveModifiers) breaks
+-- the cycle when summoner and summon ask each other for modifiers
+-- mid-calculation.
 
 function AnimalCompanion:RefreshToken(token)
     monster.RefreshToken(self, token)

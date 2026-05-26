@@ -304,13 +304,12 @@ local function ShowFloorSettings(floor)
 		gui.Panel{
 			classes = {'modal-button-panel'},
 
-			gui.PrettyButton{
+			gui.Button{
+				classes = {"sizeM"},
 				text = 'Close',
 				escapeActivates = true,
 				escapePriority = EscapePriority.EXIT_DIALOG,
 				style = {
-					width = 140,
-					height = 60,
 					halign = 'right',
 					fontSize = 36,
 				},

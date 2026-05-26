@@ -511,9 +511,21 @@ end
 
 
 --- Calculates the movement cost to climb a height difference.
+--- Positive heightDifference is an ascent (with one tile of free climb at the
+--- base, matching normal walking onto a step). Negative heightDifference is a
+--- descent (climbing down): every tile down costs movement, with no free tile.
 --- @param heightDifference number
 --- @return number
 function creature:CostToClimb(heightDifference)
+    if heightDifference < 0 then
+        local descent = -heightDifference
+        if self:CanClimb() then
+            return descent
+        else
+            return descent*2
+        end
+    end
+
     heightDifference = heightDifference - 1
     if heightDifference <= 0 then
         return 0

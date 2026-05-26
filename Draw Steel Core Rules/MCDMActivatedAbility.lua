@@ -2899,7 +2899,7 @@ end
 local g_numTargetsFunction = ActivatedAbility.GetNumTargets
 
 function ActivatedAbility:GetNumTargets(casterToken, symbols)
-    local result = g_numTargetsFunction(self, casterToken, symbols)
+    local result = g_numTargetsFunction(self, casterToken, symbols) or 0
 
     if (not mod.unloaded) and casterToken ~= nil and result >= 1 and self:UsesSquadStrike(casterToken) then
         --minion signature abilities and free strikes can target one enemy per active

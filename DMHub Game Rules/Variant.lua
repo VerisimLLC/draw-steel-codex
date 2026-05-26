@@ -501,10 +501,8 @@ function Variant:CreateEditor(options)
 		children = {
 			childElement,
 			quantityLabel,
-			gui.DeleteItemButton{
-
-				width = 16,
-				height = 16,
+			gui.Button{
+				classes = {"deleteButton", "sizeS"},
 				halign = "right",
 				valign = "center",
 				click = function(element)

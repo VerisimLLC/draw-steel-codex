@@ -1077,11 +1077,10 @@ CharacterModifier.TypeInfo.power = {
                             height = 30,
                             width = 160,
                             halign = "left",
-                            gui.DeleteItemButton{
+                            gui.Button{
+                                classes = {"deleteButton", "sizeXs"},
                                 halign = "right",
                                 valign = "center",
-                                height = 12,
-                                width = 12,
                                 click = function()
                                     table.remove(skills, i)
                                     Refresh()
@@ -1938,10 +1937,9 @@ CharacterModifier.TypeInfo.power = {
                     width = "auto",
                     height = "auto",
                     fontSize = 14,
-                    gui.DeleteItemButton{
+                    gui.Button{
+                        classes = {"deleteItemButton", "sizeXxs"},
                         x = 12,
-                        width = 8,
-                        height = 8,
                         halign = "right",
                         valign = "center",
                         press = function()
@@ -2121,9 +2119,8 @@ CharacterModifier.TypeInfo.power = {
                                     },
                                 },
 
-                                gui.DeleteItemButton{
-                                    width = 12,
-                                    height = 12,
+                                gui.Button{
+                                    classes = {"deleteButton", "sizeXs"},
                                     valign = "center",
                                     lmargin = 8,
                                     click = function()

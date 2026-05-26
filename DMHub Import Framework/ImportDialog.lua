@@ -714,12 +714,11 @@ CreateImportAssetsDialog = function(args)
                                 },
                             },
 
-                            gui.DeleteItemButton{
+                            gui.Button{
+                                classes = {"deleteButton", "sizeS"},
                                 floating = true,
                                 halign = "right",
                                 valign = "top",
-                                width = 16,
-                                height = 16,
                                 click = function(element)
                                     panel:SetClassTree("exclude", not panel:HasClass("exclude"))
                                     import:SetImportRemoved(key, panel:HasClass("exclude"))

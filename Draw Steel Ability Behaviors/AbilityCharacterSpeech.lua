@@ -90,9 +90,8 @@ function ActivatedAbilityCharacterSpeechBehavior:EditorItems(parentPanel)
                     end,
                 },
 
-                gui.DeleteItemButton{
-                    width = 12,
-                    height = 12,
+                gui.Button{
+                    classes = {"deleteButton", "sizeXs"},
                     press = function()
                         table.remove(self.variations, i)
                         Refresh()

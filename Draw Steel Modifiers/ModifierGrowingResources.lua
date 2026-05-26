@@ -54,7 +54,8 @@ CharacterModifier.TypeInfo.growingresources = {
                             Refresh()
                         end,
                     },
-                    gui.DeleteItemButton{
+                    gui.Button{
+                        classes = {"deleteButton"},
                         click = function(element)
                             table.remove(modifier.progression, i)
                             Refresh()

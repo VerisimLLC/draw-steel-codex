@@ -2248,10 +2248,12 @@ end
 -- are stored as a square count, so they're scaled to dmhub units to match
 -- range. Returns nil only if range is also nil.
 --
--- Altitude difference between source and target eats into the horizontal reach
--- the arrow can show: each square of vertical separation removes one square
--- from the effective horizontal range, so the arrow greys earlier (and is
--- entirely grey when altitude alone exceeds the range).
+-- Draw Steel uses "free diagonals" -- Chebyshev distance in 3D, where the
+-- distance between two points is max(|dx|, |dy|, |dz|). So altitude separation
+-- by itself does not eat into horizontal reach; it only matters when it alone
+-- exceeds the range, at which point the target is out of range entirely
+-- regardless of horizontal distance. Return 0 in that case so the arrow greys
+-- fully.
 local function EffectiveArrowRange(sourceToken, targetToken, range)
     local function loeUnits(tok)
         if tok == nil or tok.properties == nil then return nil end
@@ -2270,7 +2272,9 @@ local function EffectiveArrowRange(sourceToken, targetToken, range)
     end
     if effective ~= nil and sourceToken ~= nil and targetToken ~= nil then
         local altDiffUnits = math.abs(sourceToken.altitude - targetToken.altitude) * dmhub.unitsPerSquare
-        effective = math.max(0, effective - altDiffUnits)
+        if altDiffUnits >= effective + dmhub.unitsPerSquare then
+            effective = 0
+        end
     end
     return effective
 end
@@ -2307,15 +2311,14 @@ local function AddModifierLabelsToMarker(markers, sourceToken, targetToken, abil
 
     -- Match the validity check in CalculateSpellTargetFocusing: failReason
     -- fires when distance >= range + unitsPerSquare (i.e. `not (range+1 > d)`).
-    -- Use the same boundary here so a "just out of range" target (distance
-    -- exactly range + 1 square, the common Chebyshev-grid case) still gets
-    -- the label. Altitude separation counts against the same range budget,
-    -- so a target on the same floor-plan tile but well above/below is still
-    -- flagged as out of range.
+    -- Draw Steel "free diagonals" makes the 3D distance Chebyshev:
+    -- max(horizDist, altDiff). A target on the same floor-plan tile but well
+    -- above/below is out of range only when the altitude separation alone
+    -- exceeds range; otherwise the horizontal distance is what matters.
     if range ~= nil then
         local horizDist = targetToken:Distance(sourceToken)
         local altDiffUnits = math.abs(sourceToken.altitude - targetToken.altitude) * dmhub.unitsPerSquare
-        if horizDist + altDiffUnits >= range + dmhub.unitsPerSquare then
+        if math.max(horizDist, altDiffUnits) >= range + dmhub.unitsPerSquare then
             markers:AddLabel("Out of Range", "forbidden")
             return
         end
@@ -5959,17 +5962,17 @@ local function CalculateSpellTargetFocusing(symbols)
                         end
                     end
 
-                    --altitude range check: altitude separation eats into the same range budget as
-                    --horizontal distance, so a target that is fine on the 2D check can still be out
-                    --of range once the vertical separation is added in. Mirrors EffectiveArrowRange
-                    --and AddModifierLabelsToMarker so the arrow greying, the "Out of Range" label
-                    --and the strict-targeting block all agree.
+                    --altitude range check under Draw Steel "free diagonals": the 3D distance is
+                    --Chebyshev -- max(horizDist, altDiff) -- so altitude only takes a target out
+                    --of range when it alone exceeds the range. Mirrors EffectiveArrowRange and
+                    --AddModifierLabelsToMarker so arrow greying, the "Out of Range" label, and
+                    --the strict-targeting block all agree.
                     if failReason == nil and spell.targetType ~= "areatemplate" and (not g_token.properties.minion) then
                         local altDiff = math.abs(g_token.altitude - targetToken.altitude)
                         if altDiff > 0 then
                             local horizDist = targetToken:Distance(casterLocOverride or g_token)
                             local altDiffUnits = altDiff * dmhub.unitsPerSquare
-                            if horizDist + altDiffUnits >= range + dmhub.unitsPerSquare then
+                            if math.max(horizDist, altDiffUnits) >= range + dmhub.unitsPerSquare then
                                 failReason = string.format("Out of range (altitude difference: %d)", altDiff)
                             end
                         end

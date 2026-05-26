@@ -1,7 +1,7 @@
 --- @class dmhub The main interface to dmhub.
 --- @field version string The current version of the DMHub engine.
 --- @field commandLineArguments string[] The command line arguments passed to the app.
---- @field teleportEffects any Registry of token effects (teleport / transformation / destruction visuals).
+--- @field tokenAnimations TokenAnimationsLuaInterface Registry of token animations (RegisterTeleport / RegisterDeath / RegisterTransformation).
 --- @field systemHardwareRating number The power level of the system hardware. 1 or greater is a relatively high power system.
 --- @field gameLoadingProgress number Game loading progress. nil = not loading a game. 0 = just started loading, 1 = fully loaded.
 --- @field whiteLabel WhiteLabel The current 'white label' version of the engine this is. May be 'dmhub' or 'mcdm'

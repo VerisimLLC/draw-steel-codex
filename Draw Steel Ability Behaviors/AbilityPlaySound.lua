@@ -128,6 +128,7 @@ function ActivatedAbilityPlaySoundBehavior:EditorItems(parentPanel)
         gui.AudioEditor {
             width = 64,
             height = 64,
+            halign = "left",
             value = self.soundAsset ~= "" and self.soundAsset or nil,
             change = function(element)
                 self.soundAsset = element.value or ""
@@ -151,6 +152,7 @@ function ActivatedAbilityPlaySoundBehavior:EditorItems(parentPanel)
             sliderWidth = 140,
             labelWidth = 50,
             value = self.volume,
+            halign = "left",
             minValue = 0,
             maxValue = 2,
             formatFunction = function(num)

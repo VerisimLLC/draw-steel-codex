@@ -70,8 +70,10 @@
 --- @field portraitFrameHueShift number 
 --- @field portraitFrameSaturation number 
 --- @field portraitFrameBrightness number 
---- @field portraitFrame nil|string 
---- @field offTokenPortrait string 
+--- @field portraitFrame nil|string
+--- @field teleportAnimation string The id of the registered token animation (see dmhub.tokenAnimations:RegisterTeleport) played when this token teleports. Empty string -> no animation, logical teleport only.
+--- @field animation CharacterTokenAnimationLua The per-token animation interface used inside a token-animation callback.
+--- @field offTokenPortrait string
 --- @field inspectPortrait string Up-close 'inspect' variant of offTokenPortrait. For tokens rendering via a spine animation this returns the '#spineinspect:tokenid' image id, which renders a separate live spine portrait framed with the registry's inspectZoom / inspectXOffset / inspectYOffset (independent of the regular portrait* fields). For non-spine tokens this returns the same value as offTokenPortrait, so callers can use it uniformly.
 --- @field portrait string 
 --- @field hasSpineAnimation boolean True if this token currently has an active spine animation (i.e. its portraitid resolved to a spine registry entry and the spine renderer was instantiated).

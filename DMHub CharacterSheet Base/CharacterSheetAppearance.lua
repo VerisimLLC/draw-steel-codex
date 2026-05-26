@@ -4,6 +4,15 @@ print("CHECKPOINT:: CREATE APPEARANCE")
 local g_previewToken = nil
 local g_previewTokenId = nil
 
+--Dev gate for the Teleportation animation picker on the character sheet. Off by default so
+--the average player doesn't see it; flip on with /set dev:customizeteleport true.
+local g_customizeTeleportSetting = setting{
+    id = "dev:customizeteleport",
+    description = "Show the Teleportation animation picker on the character sheet.",
+    default = false,
+    storage = "preference",
+}
+
 local AppearanceStyles = {
     {
         selectors = { "#appearancePanel" },
@@ -2055,6 +2064,58 @@ function CharSheet.AppearancePanel()
                     else
                         element.idChosen = light
                     end
+                end,
+            }
+        },
+
+        gui.Panel {
+            vmargin = 16,
+            flow = "horizontal",
+            halign = "center",
+            valign = "top",
+            width = 400,
+            height = 24,
+            --Gated behind the dev:customizeteleport setting -- on every sheet refresh we
+            --re-check the setting so flipping it via /set takes effect on the next sheet open.
+            refreshAppearance = function(element, info)
+                element:SetClass("collapsed", not g_customizeTeleportSetting:Get())
+            end,
+            gui.Label {
+                classes = {"sizeM"},
+                text = "Teleportation:",
+                width = "auto",
+                height = "auto",
+                halign = "left",
+                valign = "center",
+            },
+            gui.Dropdown {
+                width = 180,
+                valign = "center",
+                halign = "right",
+                options = {},
+                change = function(element)
+                    local info = CharacterSheet.instance.data.info
+                    info.token.teleportAnimation = element.idChosen or ""
+                    info.token:UploadAppearance()
+                    CharacterSheet.instance:FireEvent("refreshAll")
+                end,
+                refreshAppearance = function(element, info)
+                    local options = {}
+                    local registry = dmhub.tokenAnimations and dmhub.tokenAnimations.teleportAnimations
+                    if registry ~= nil then
+                        for id, entry in pairs(registry) do
+                            options[#options+1] = { id = id, text = entry.name or id }
+                        end
+                    end
+                    table.sort(options, function(a, b) return a.text < b.text end)
+                    element.options = options
+
+                    --Mirror the engine's fallback: a token with no explicit teleportAnimation
+                    --plays the "default" entry. Show that as the selected option so the dropdown
+                    --doesn't read as "(Invalid)" for never-set tokens.
+                    local current = info.token.teleportAnimation or ""
+                    if current == "" then current = "default" end
+                    element.idChosen = current
                 end,
             }
         }

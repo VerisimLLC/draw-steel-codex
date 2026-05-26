@@ -447,104 +447,70 @@ Commands.RegisterMacro{
     end,
 }
 
---Ash-themed teleport effects, built on the "Ash_*_vfx" particle prefabs in TokenEffectIndex
---(the dice studio FX prefabs reused here). In v1 a single descriptor plays at all four
---TokenEffectEvent points (TeleportDepart / TeleportArrive / Transformation / Destruction);
---once CharacterAppearance gains per-event bindings, each of these will be able to pair a
---different prefab per event. Pick one of these by setting appearance.teleportEffect.
+--Teleport animations. Each entry is a Lua function that the engine calls locally on every
+--client when a token with appearance.teleportAnimation == this id teleports. The function
+--receives (token, targetLoc, opts) and orchestrates the visual via `token.animation`. See
+--CharacterTokenAnimationLua for the primitive surface (Light / Billboard / PlayEffect / Tween
+--/ SetVisible) and engine docs for the opts table (crossMap / fromLoc / fromMap).
+--
+--The engine moves the token's logical position to targetLoc immediately. The animation owns
+--only the rendered position via the visual offset; on coroutine exit the engine snaps the
+--rendered position back to the logical position. A well-behaved animation ends with the
+--visual already at targetLoc (via anim:Tween{translate=targetLoc, duration=...}) so the
+--handoff is smooth.
 
-dmhub.teleportEffects:Register{
+--Default: classic teleport.webm at source + delayed teleport.webm at destination, with a
+--purple light burst at each end and a short hold before the visual snaps to the destination.
+dmhub.tokenAnimations:RegisterTeleport{
+    id = "default",
+    name = "Default",
+    animation = function(token, targetLoc, opts)
+        audio.FireSoundEvent("Ability.Teleport_Generic")
+        local anim = token.animation
+
+        anim:Light{
+            color = "#7300ff", radius = 2.0, innerRadius = 0.1,
+            duration = 1.0, fadein = 0.1, fadeout = 0.1,
+        }
+        anim:Billboard{ video = "teleport.webm", blend = "add", scale = 1.3 }
+        anim:Billboard{ video = "teleport.webm", blend = "add", scale = 1.3,
+                        pos = targetLoc, delay = 0.2 }
+
+        sleep(0.4)
+        anim:Tween{ duration = 0, translate = targetLoc }
+
+        anim:Light{
+            color = "#7300ff", radius = 2.0, innerRadius = 0.1,
+            duration = 1.0, fadein = 0.1, fadeout = 0.1,
+        }
+    end,
+}
+
+--Ash teleport: token poofs into ash at the source, an invisible travel phase follows with a
+--trailing wisp, then the token reappears at the destination.
+dmhub.tokenAnimations:RegisterTeleport{
     id = "ashteleport",
-    kind = "particle",
-    particleName = "Ash_TeleportLine_vfx",
-    scale = 1.0,
-    duration = 0.8,
-    soundEvent = "Ability.Teleport_Generic",
-    light = {
-        enabled = true,
-        color = "#ff7733",
-        radius = 2.0,
-        innerRadius = 0.1,
-        duration = 0.6,
-    },
-}
+    name = "Ash Teleport",
+    animation = function(token, targetLoc, opts)
+        audio.FireSoundEvent("Ability.Teleport_Generic")
+        local anim = token.animation
 
-dmhub.teleportEffects:Register{
-    id = "ashdisappear",
-    kind = "particle",
-    particleName = "Ash_Disappear_vfx",
-    scale = 1.0,
-    duration = 0.8,
-    soundEvent = "Ability.Teleport_Generic",
-    light = {
-        enabled = true,
-        color = "#ff5522",
-        radius = 2.0,
-        innerRadius = 0.1,
-        duration = 0.6,
-    },
-}
+        anim:PlayEffect{ id = "Ash_Disappear_vfx" }
+        anim:Light{ color = "#ff7733", radius = 2.0, innerRadius = 0.1, duration = 0.6 }
 
-dmhub.teleportEffects:Register{
-    id = "ashreappear",
-    kind = "particle",
-    particleName = "Ash_Reappear_vfx",
-    scale = 1.0,
-    duration = 0.8,
-    soundEvent = "Ability.Teleport_Generic",
-    light = {
-        enabled = true,
-        color = "#ffaa55",
-        radius = 2.5,
-        innerRadius = 0.1,
-        duration = 0.6,
-    },
-}
+        sleep(0.3)
 
-dmhub.teleportEffects:Register{
-    id = "ashexit",
-    kind = "particle",
-    particleName = "Ash_Exit_vfx",
-    scale = 1.0,
-    duration = 0.8,
-    soundEvent = "Ability.Teleport_Generic",
-    light = {
-        enabled = true,
-        color = "#cc3311",
-        radius = 2.0,
-        innerRadius = 0.1,
-        duration = 0.7,
-    },
-}
+        anim:SetVisible(false)
+        local trail = anim:PlayEffect{ id = "Ash_TravelTail_vfx", looping = true }
+        anim:Tween{ translate = targetLoc, duration = 0.8 }
+        sleep(0.8)
+        trail:Stop()
 
-dmhub.teleportEffects:Register{
-    id = "ashappear",
-    kind = "particle",
-    particleName = "Ash_Appearance_vfx",
-    scale = 1.0,
-    duration = 0.8,
-    soundEvent = "Ability.Teleport_Generic",
-    light = {
-        enabled = true,
-        color = "#ffcc77",
-        radius = 2.5,
-        innerRadius = 0.1,
-        duration = 0.6,
-    },
-}
-
---Travel effect, meant for the travelEffect field of a timed teleport (not as a depart/arrive
---effect on its own). Uses the dice "travel tail" prefab, which draws a trailing wisp as it is
---moved along the teleport path by CharacterToken.TeleportTimedCo.
-dmhub.teleportEffects:Register{
-    id = "ashtravel",
-    kind = "particle",
-    particleName = "Ash_TravelTail_vfx",
-    scale = 1.0,
-    duration = 1.0,
-    --World simulation: Ash_TravelTail_vfx emits rate-over-distance, which only emits in World
-    --simulation space. It also makes the wisp trail in place as the effect is moved along the path.
-    worldSimulation = true,
+        anim:SetVisible(true)
+        anim:PlayEffect{ id = "Ash_Appearance_vfx" }
+        anim:Light{ color = "#ffcc77", radius = 2.5, innerRadius = 0.1, duration = 0.6 }
+        sleep(1)
+    end,
 }
 
 print("IMAGEXXX::", mod.images.doubleslashbw)

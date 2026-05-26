@@ -2307,6 +2307,11 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 			local aspect = CardWidthPercent * 0.01
 			local desiredH = containerH * baseFactor
 			local desiredW = desiredH * aspect
+			--Cards in the same bucket pack with the normal hmargin (4px between them).
+			--At the boundary between hadTurn and unmoved we add bucketGapExtra extra
+			--pixels of left margin on the first card of the second bucket so there's
+			--a visible separation between "already moved" and "ready" cards.
+			local bucketGapExtra = 8
 			local FitCards = function(cards, isplayer)
 				local n = #cards
 				if n == 0 then return end
@@ -2317,13 +2322,18 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 				end
 				local finalW = finalH * aspect
 				local halign = cond(isplayer, "right", "left")
+				local prevBucket = nil
 				for _,card in ipairs(cards) do
+					local bucket = card:HasClass("hadTurn") and "hadTurn" or "unmoved"
+					local isBoundary = prevBucket ~= nil and prevBucket ~= bucket
+					prevBucket = bucket
 					card.selfStyle.height = finalH
 					card.selfStyle.width = finalW
 					card.selfStyle.valign = "center"
 					card.parent.selfStyle.height = finalH
 					card.parent.selfStyle.width = finalW
 					card.parent.selfStyle.halign = halign
+					card.parent.selfStyle.lmargin = isBoundary and (2 + bucketGapExtra) or nil
 				end
 			end
 			FitCards(playerCards, true)
@@ -2385,7 +2395,9 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 				pcall(function()
 					container.data.hadTurnSegment.selfStyle.width = hadTurnW
 					container.data.unmovedSegment.selfStyle.width = unmovedW
-					container.data.segmentSpacer.selfStyle.width = showBoth and (2 * cardHMargin) or 0
+					--Spacer matches the card-to-card visible gap: 4px normal + bucketGapExtra
+					--at the bucket boundary, so the bar's break lines up with the card gap.
+					container.data.segmentSpacer.selfStyle.width = showBoth and (2 * cardHMargin + bucketGapExtra) or 0
 					container.data.bar:SetClass("active", active)
 					--Labels use parent:active to show themselves; parent is the segment.
 					container.data.hadTurnSegment:SetClass("active", active)

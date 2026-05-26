@@ -21,6 +21,7 @@
 --- @field shareLighting any 
 --- @field shareVision any 
 --- @field roof any 
+--- @field canopy any 
 --- @field roofShowWhenInside any 
 --- @field visionMultiplierNoUpload number 
 --- @field visionMultiplier number 

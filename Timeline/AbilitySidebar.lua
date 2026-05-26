@@ -1295,6 +1295,52 @@ function CharacterPanel.EmbedDialogInAbility()
     return dialog
 end
 
+--Mount the embedded roll dialog in the standalone host (for roll-table and
+--other non-ability rolls). Returns the dialog so the caller can ShowDialog.
+function CharacterPanel.EmbedDialogStandalone()
+    if (not GameHud.instance) or (not GameHud.instance.standaloneRollHost) then
+        return nil
+    end
+
+    local dialog = GameHud.CreateEmbeddedRollDialog()
+    GameHud.instance.standaloneRollHost:FireEvent("embedRollDialog", dialog)
+    return dialog
+end
+
+--Built as an inner panel because gui.Panel only registers event handlers
+--passed at construction; assigning them on an existing panel is a no-op.
+function GameHud:InitStandaloneRollHost(hostPanel)
+    local innerPanel
+    innerPanel = gui.Panel{
+        width = "100%",
+        height = "auto",
+        halign = "center",
+        valign = "center",
+        flow = "vertical",
+
+        embedRollDialog = function(element, dialog)
+            element.children = { dialog }
+        end,
+
+        --Poll to clear the mounted dialog after it hides itself. No
+        --upward-traveling close event exists to listen for.
+        thinkTime = 0.25,
+        think = function(element)
+            local child = element.children[1]
+            if child ~= nil and ((not child.valid) or child:HasClass("hidden")) then
+                element.children = {}
+            end
+        end,
+    }
+
+    hostPanel.children = { innerPanel }
+    self.standaloneRollHost = innerPanel
+end
+
+if GameHud.instance and rawget(GameHud.instance, "standaloneRollHostPanel") ~= nil then
+    GameHud.instance:InitStandaloneRollHost(GameHud.instance.standaloneRollHostPanel)
+end
+
 local g_abilityLocked = false
 
 function CharacterPanel.UnlockDisplayAbility()
@@ -1567,5 +1613,19 @@ dmhub.RegisterEventHandler("restoreFromBackup", function()
        and dialog.data.Cancel ~= nil and dialog.data.IsShown ~= nil
        and dialog.data.IsShown() then
         dialog.data.Cancel()
+    end
+
+    --Tear down any dialog mounted in the standalone roll host.
+    if GameHud.instance ~= nil and GameHud.instance.standaloneRollHost ~= nil
+       and GameHud.instance.standaloneRollHost.valid then
+        local host = GameHud.instance.standaloneRollHost
+        for _, child in ipairs(host.children) do
+            if child.valid and child.data ~= nil
+               and child.data.Cancel ~= nil and child.data.IsShown ~= nil
+               and child.data.IsShown() then
+                child.data.Cancel()
+            end
+        end
+        host.children = {}
     end
 end)

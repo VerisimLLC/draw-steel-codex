@@ -37,6 +37,7 @@ dmhub.TokenVisionUpdated = function()
         end
 
         visionPerspectivePanel = gui.Panel{
+            styles = ThemeEngine.GetStyles(),
             classes = {"framedPanel"},
 
             halign = "left",
@@ -48,10 +49,6 @@ dmhub.TokenVisionUpdated = function()
             hmargin = 16,
 
             flow = "vertical",
-
-            styles = {
-                Styles.Panel,
-            },
 
             draggable = true,
             drag = function(element)
@@ -105,7 +102,6 @@ dmhub.TokenVisionUpdated = function()
             },
 
             gui.Panel{
-                width = "90%",
                 width = "auto",
                 height = "auto",
                 flow = "horizontal",

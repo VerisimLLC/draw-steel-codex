@@ -432,6 +432,27 @@ audio.SoundEvent{
 
 
 
+--TO DO
+--UI Palette Change
+
+audio.SoundEvent{
+    name = "Notify.PalleteChange_Preview",
+    mixgroup = "ui",
+    sounds = {"Notify_PaletteChange_Preview_v1_01.wav"},
+    volume = 0.05,
+    pitchRand = 0.05,
+    ignoreDuplicates = 1,
+}
+
+audio.SoundEvent{
+    name = "Notify.PalleteChange_Apply",
+    mixgroup = "ui",
+    sounds = {"Notify_PaletteChange_Apply_v1_01.wav"},
+    volume = 0.1,
+    pitchRand = 0.05,
+    ignoreDuplicates = 1,
+}
+
 
 
 

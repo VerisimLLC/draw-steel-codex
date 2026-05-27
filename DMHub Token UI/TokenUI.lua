@@ -1547,9 +1547,16 @@ function CreateTokenHud(token)
     if token.isObject then
         objectStyles = {
             {
-                selectors = {"~targeting"},
                 opacity = 0,
-            }
+            },
+            {
+                selectors = {"targeting"},
+                opacity = 1,
+            },
+            {
+                selectors = {"damaged"},
+                opacity = 1,
+            },
         }
     end
 
@@ -2061,6 +2068,10 @@ function CreateTokenHud(token)
 			refresh = function(element)
                 if token.properties == nil then
                     return
+                end
+
+                if token.isObject then
+                    element:SetClassTree("damaged", (rawget(token.properties, "damage_taken") or 0) > 0)
                 end
 
                 local damageEntries = token.properties:GetAndRemoveDamageEntries()

@@ -122,7 +122,7 @@ audio.SoundEvent{
 --Implemented: plays when a player is prompted to do a dice roll.
 audio.SoundEvent{
     name = "Notify.Diceroll",
-    mixgroup = "ui",
+    mixgroup = "dice",
     sounds = {"Notify_DiceRoll_v3_01.wav","Notify_DiceRoll_v3_02.wav","Notify_DiceRoll_v3_03.wav"},
     volume = 0.5,
     pitchRand = 0.2,
@@ -707,10 +707,38 @@ audio.SoundEvent{
     volume = 0.3,
 }
 
+--TO IMPLEMENT
+
+--Generic numglow when numbers glow afer a power roll. one sound call for each die
+
+audio.SoundEvent{
+    name = "Dice.Numglow_Generic",
+    mixgroup = "dice",
+    sounds = {"dice/Dice_NumGlow_Generic_01.wav","dice/Dice_NumGlow_Generic_02.wav","dice/Dice_NumGlow_Generic_03.wav"},
+    volume = 0.01,
+    ignoreDuplicates = 0.01,
+}
 
 
+--Back ash version of numglow
+audio.SoundEvent{
+    name = "Dice.Numglow_BlackAsh",
+    mixgroup = "dice",
+    sounds = {"dice/cust/Dice_NumGlow_BlackAsh_01.wav","dice/cust/Dice_NumGlow_BlackAsh_02.wav","dice/cust/Dice_NumGlow_BlackAsh_03.wav","dice/cust/Dice_NumGlow_BlackAsh_04.wav","dice/cust/Dice_NumGlow_BlackAsh_05.wav"},
+    volume = 0.1,
+    pitchRand = 0.1,
+    ignoreDuplicates = 0.01,
+}
 
-
+--when black ash dice teleport at end of roll. one sound call for each die
+audio.SoundEvent{
+    name = "Dice.Teleport_BlackAsh",
+    mixgroup = "dice",
+    sounds = {"dice/cust/Dice_Teleport_BlackAsh_01.wav","dice/cust/Dice_Teleport_BlackAsh_02.wav","dice/cust/Dice_Teleport_BlackAsh_03.wav","dice/cust/Dice_Teleport_BlackAsh_04.wav","dice/cust/Dice_Teleport_BlackAsh_05.wav"},
+    volume = 0.2,
+    pitchRand = 0.1,
+    ignoreDuplicates = 0.01,
+}
 
 
 
@@ -899,6 +927,26 @@ audio.SoundEvent{
     sounds = {"obj/Obj_Lever_Pull_Open_01.wav"},
     volume = 0.3,
 }
+
+
+
+
+
+
+--EMOTES
+
+--To implement: cat purr when petting large cats
+
+audio.SoundEvent{
+    name = "Emote_Catpurr_Large",
+    mixgroup = "gameplay",
+    sounds = {"emote/Emote_CatPurr_Large_01.wav","emote/Emote_CatPurr_Large_02.wav","emote/Emote_CatPurr_Large_03.wav","emote/Emote_CatPurr_Large_04.wav"},
+    volume = 0.3,
+    pitchRand = 0.3,
+    ignoreDuplicates = 1,
+}
+
+
 
 
 
@@ -1120,7 +1168,7 @@ end
 Commands.RegisterMacro{
     name = "downloadaudio",
     summary = "download audio assets",
-    doc = "Usage: /downloadaudio\nDownloads audio assets for development.",
+    doc = "Usage: /downloadaudio/nDownloads audio assets for development.",
     command = function()
         audio.DevDownloadAudio()
     end,

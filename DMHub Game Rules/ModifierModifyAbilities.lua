@@ -886,7 +886,7 @@ CharacterModifier.TypeInfo.modifyability = {
 							text = info.text,
 						},
 						gui.Button{
-							clasess = {"deleteButton", "sizeS"},
+							classes = {"deleteButton", "sizeXs"},
 							valign = 'center',
 							halign = 'right',
 							click = function(element)

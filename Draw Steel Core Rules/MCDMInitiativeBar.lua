@@ -2949,8 +2949,19 @@ function GameHud.CreateInitiativeEntry(self, info, initiativeid, options)
                         text = "Revert Turn",
                         click = function()
                             element.popup = nil
-                            q:CancelTurn(initiativeid)
-                            info.UploadInitiative()
+                            --Prefer the full checkpoint restore captured by the
+                            --combat settings button so heroic resources, stamina,
+                            --and other start-of-turn side effects are undone too.
+                            --CancelTurn alone only rewinds the initiative pointer.
+                            local settingsButton = self:try_get("combatSettingsButton")
+                            local checkpoint = settingsButton ~= nil and settingsButton.data.checkpoint or nil
+                            if checkpoint ~= nil then
+                                checkpoint:Restore()
+                                audio.DispatchSoundEvent("Notify.Director_Undo")
+                            else
+                                q:CancelTurn(initiativeid)
+                                info.UploadInitiative()
+                            end
                         end,
                     }
                 elseif q:EntryUnmoved(entry) then

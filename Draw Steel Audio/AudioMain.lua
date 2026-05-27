@@ -124,7 +124,7 @@ audio.SoundEvent{
     name = "Notify.Diceroll",
     mixgroup = "dice",
     sounds = {"Notify_DiceRoll_v3_01.wav","Notify_DiceRoll_v3_02.wav","Notify_DiceRoll_v3_03.wav"},
-    volume = 0.5,
+    volume = 0.25,
     pitchRand = 0.2,
     ignoreDuplicates = 1,
 
@@ -761,6 +761,15 @@ audio.SoundEvent{
     ignoreDuplicates = 0.01,
 }
 
+--when black ash dice disappear at end of roll. one sound call for each die
+audio.SoundEvent{
+    name = "Dice.Remove_BlackAsh",
+    mixgroup = "dice",
+    sounds = {"dice/cust/Dice_Remove_BlackAsh_01.wav","dice/cust/Dice_Remove_BlackAsh_02.wav","dice/cust/Dice_Remove_BlackAsh_03.wav","dice/cust/Dice_Remove_BlackAsh_04.wav","dice/cust/Dice_Remove_BlackAsh_05.wav"},
+    volume = 0.01,
+    pitchRand = 0.1,
+    ignoreDuplicates = 0.01,
+}
 
 
 
@@ -780,7 +789,7 @@ audio.SoundEvent{
         if speed > 10 then
             soundEvent = "DiceImp.Hard"
             volume = 0.6 + (speed - 8) * 0.1
-        elseif speed > 3 then
+        elseif speed > 4 then
             soundEvent = "DiceImp.Mild"
             volume = 0.6 + (speed - 1) * 0.1
         else
@@ -816,6 +825,40 @@ audio.SoundEvent{
     volume = 0.1,
     pitchRand = 0.1,
 }
+
+--TO DO
+--Black Ash Dice Impacts
+
+audio.SoundEvent{
+    name = "DiceImp.Hard_BlackAsh",
+    mixgroup = "dice",
+    sounds = {"dice/cust/DiceImp_BlackAsh_Hard_v1_01.wav","dice/cust/DiceImp_BlackAsh_Hard_v1_02.wav","dice/cust/DiceImp_BlackAsh_Hard_v1_03.wav","dice/cust/DiceImp_BlackAsh_Hard_v1_04.wav","dice/cust/DiceImp_BlackAsh_Hard_v1_05.wav","dice/cust/DiceImp_BlackAsh_Hard_v1_06.wav"},
+    volume = 0.05,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Mild_BlackAsh",
+    mixgroup = "dice",
+    sounds = {"dice/cust/DiceImp_BlackAsh_Mild_v1_01.wav","dice/cust/DiceImp_BlackAsh_Mild_v1_02.wav","dice/cust/DiceImp_BlackAsh_Mild_v1_03.wav","dice/cust/DiceImp_BlackAsh_Mild_v1_04.wav","dice/cust/DiceImp_BlackAsh_Mild_v1_05.wav","dice/cust/DiceImp_BlackAsh_Mild_v1_06.wav"},
+    volume = 0.15,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Soft_BlackAsh",
+    mixgroup = "dice",
+    sounds = {"dice/cust/DiceImp_BlackAsh_Soft_v1_01.wav","dice/cust/DiceImp_BlackAsh_Soft_v1_02.wav","dice/cust/DiceImp_BlackAsh_Soft_v1_03.wav","dice/cust/DiceImp_BlackAsh_Soft_v1_04.wav","dice/cust/DiceImp_BlackAsh_Soft_v1_05.wav","dice/cust/DiceImp_BlackAsh_Soft_v1_06.wav"},
+    volume = 0.25,
+    pitchRand = 0.1,
+}
+
+
+
+
+
+
+
 
 
 

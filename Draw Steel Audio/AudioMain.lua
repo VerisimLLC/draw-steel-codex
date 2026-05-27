@@ -933,14 +933,14 @@ audio.SoundEvent{
 
 
 
---EMOTES
+--Tokens
 
 --To implement: cat purr when petting large cats
 
 audio.SoundEvent{
-    name = "Emote_Catpurr_Large",
+    name = "Token_Catpurr_Large",
     mixgroup = "gameplay",
-    sounds = {"emote/Emote_CatPurr_Large_01.wav","emote/Emote_CatPurr_Large_02.wav","emote/Emote_CatPurr_Large_03.wav","emote/Emote_CatPurr_Large_04.wav"},
+    sounds = {"Token/Token_CatPurr_Large_01.wav","Token/Token_CatPurr_Large_02.wav","Token/Token_CatPurr_Large_03.wav","Token/Token_CatPurr_Large_04.wav"},
     volume = 0.3,
     pitchRand = 0.3,
     ignoreDuplicates = 1,

@@ -1280,12 +1280,60 @@ local function CreateVillainActionDrawer(slotKey, slotNumeral)
             element:SetClassTree("available", not consumed)
         end,
 
+        hover = function(element)
+            if m_token == nil or m_ability == nil or not m_token.valid then return end
+
+            local text
+            if VillainActionState.HasUsed(m_token.charid, slotKey) then
+                text = (m_ability.name or "This Villain Action") .. " has already been used this encounter."
+            elseif CharacterResource.GetVillainActions() <= 0 then
+                text = "You have already used a Villain Action this round."
+            else
+                -- Chunk 5 will replace this with a full ability preview card.
+                text = m_ability.name or ""
+            end
+
+            gui.Tooltip{text = text}(element)
+        end,
+
         click = function(element)
-            -- Chunk 4 will replace this with: pan + banner + off-turn cast.
-            print("Villain Action stub press:",
-                slotKey,
-                m_token and m_token.name or "?",
-                m_ability and m_ability.name or "?")
+            if m_token == nil or m_ability == nil or not m_token.valid then return end
+
+            -- Gate: drawer is unavailable if this VA is already consumed
+            -- this encounter, or if the per-round VA budget is spent.
+            -- The hover tooltip above explains which gate is blocking.
+            if VillainActionState.HasUsed(m_token.charid, slotKey) then return end
+            if CharacterResource.GetVillainActions() <= 0 then return end
+
+            -- Pan camera to the caster (fire-and-forget; near-instant).
+            dmhub.CenterOnToken(m_token.charid, {smooth=true})
+
+            -- Build subtitle from the villainAction field with roman numerals.
+            local subtitle = m_ability:try_get("villainAction") or ""
+            subtitle = string.gsub(subtitle, "3", "III")
+            subtitle = string.gsub(subtitle, "2", "II")
+            subtitle = string.gsub(subtitle, "1", "I")
+
+            DramaticBanner.Show{
+                tokenid = m_token.charid,
+                text = m_ability.name or "",
+                subtitle = subtitle,
+            }
+
+            -- After the banner finishes, invoke the ability off-turn via
+            -- the action bar's invokeAbility event. This pushes the caster
+            -- onto the action bar's caster stack and runs the normal cast
+            -- pipeline (target selection, behaviors) without advancing the
+            -- initiative queue's currentTurn.
+            local token = m_token
+            local ability = m_ability
+            local delay = DramaticBanner.TimeUntilDone() + 0.2
+            dmhub.Schedule(delay, function()
+                if mod.unloaded then return end
+                if token == nil or not token.valid then return end
+                if gamehud == nil or gamehud.actionBarPanel == nil then return end
+                gamehud.actionBarPanel:FireEventTree("invokeAbility", token, ability, {}, nil, {})
+            end)
         end,
     }
 end

@@ -2787,6 +2787,31 @@ function ActivatedAbility.CastCoroutine(self, casterToken, targets, options)
 
 	print("CastCoroutine::", self.name, "end behaviors")
 
+	-- Villain Action consumption: any ability marked with the `villainAction`
+	-- field that runs to completion (not aborted) marks itself as used for
+	-- the encounter and spends the per-round VA budget. This fires regardless
+	-- of how the cast was invoked (Villain Action strip, action bar menu,
+	-- /act command, AI), so the strip's state stays accurate.
+	--
+	-- Wrapped in pcall so a transient doc-transaction failure or any other
+	-- runtime issue here can't take down the surrounding cast cleanup
+	-- (which is what frees dmhub.blockTokenSelection, pops the caster
+	-- stack, etc.).
+	if not options.abort then
+		local villainAction = self:try_get("villainAction")
+		if villainAction ~= nil and villainAction ~= "" and casterToken ~= nil and casterToken.valid and VillainActionState ~= nil then
+			local ok, err = pcall(function()
+				VillainActionState.MarkUsed(casterToken.charid, villainAction)
+				if CharacterResource.GetVillainActions() > 0 then
+					CharacterResource.SetVillainActions(0, "Villain Action used")
+				end
+			end)
+			if not ok then
+				print("Villain Action consumption hook failed:", tostring(err))
+			end
+		end
+	end
+
     if restoreTargets ~= nil then
         options.symbols.cast.targets = restoreTargets
     end

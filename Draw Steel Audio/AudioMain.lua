@@ -576,10 +576,14 @@ audio.SoundEvent{
 }
 
 audio.SoundEvent{
-    name = "Ability.Shapeshift_Wolf_Start",
+    name = "Ability.Shapeshift_Bear_Start",
     mixgroup = "gameplay",
-    sounds = {"abl/shapeshift/Abl_Shapeshift_Start_Wolf_v1_01.wav","abl/shapeshift/Abl_Shapeshift_Start_Wolf_v1_02.wav","abl/shapeshift/Abl_Shapeshift_Start_Wolf_v1_03.wav"},
+    play = function(sound)
+    audio.FireSoundEvent("Ability.Shapeshift_Generic_Start")
+    end,
+    sounds = {"abl/shapeshift/Abl_Shapeshift_Start_Bear_v1_01.wav","abl/shapeshift/Abl_Shapeshift_Start_Bear_v1_02.wav","abl/shapeshift/Abl_Shapeshift_Start_Bear_v1_03.wav"},
     volume = 0.2,
+    delay = 0.75,
     pitchRand = 0.05,
     ignoreDuplicates = 0.1,
 }
@@ -587,8 +591,12 @@ audio.SoundEvent{
 audio.SoundEvent{
     name = "Ability.Shapeshift_Crow_Start",
     mixgroup = "gameplay",
+    play = function(sound)
+    audio.FireSoundEvent("Ability.Shapeshift_Generic_Start")
+    end,
     sounds = {"abl/shapeshift/Abl_Shapeshift_Start_Crow_v1_01.wav","abl/shapeshift/Abl_Shapeshift_Start_Crow_v1_02.wav","abl/shapeshift/Abl_Shapeshift_Start_Crow_v1_03.wav"},
-    volume = 0.2,
+    volume = 0.1,
+    delay = 0.75,
     pitchRand = 0.05,
     ignoreDuplicates = 0.1,
 }
@@ -596,19 +604,27 @@ audio.SoundEvent{
 audio.SoundEvent{
     name = "Ability.Shapeshift_Rat_Start",
     mixgroup = "gameplay",
+    play = function(sound)
+    audio.FireSoundEvent("Ability.Shapeshift_Generic_Start")
+    end,
     sounds = {"abl/shapeshift/Abl_Shapeshift_Start_Rat_v1_01.wav","abl/shapeshift/Abl_Shapeshift_Start_Rat_v1_02.wav"},
     volume = 0.1,
+    delay = 0.75,
     pitchRand = 0.05,
     ignoreDuplicates = 0.1,
-   
+    
     
 }
 
 audio.SoundEvent{
     name = "Ability.Shapeshift_Wolf_Start",
     mixgroup = "gameplay",
+    play = function(sound)
+    audio.FireSoundEvent("Ability.Shapeshift_Generic_Start")
+    end,
     sounds = {"abl/shapeshift/Abl_Shapeshift_Start_Wolf_v1_01.wav","abl/shapeshift/Abl_Shapeshift_Start_Wolf_v1_02.wav","abl/shapeshift/Abl_Shapeshift_Start_Wolf_v1_03.wav"},
     volume = 0.2,
+    delay = 0.75,
     pitchRand = 0.05,
     ignoreDuplicates = 0.1,
 }

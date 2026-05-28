@@ -987,6 +987,383 @@ local function AddInitiativeEntryPanel (element, info, playerControlled)
 	)
 end
 
+-- =====================================================================
+-- Villain Action strip
+-- A director-only horizontal panel that sits above the initiative bar
+-- when an encounter contains a Leader or Solo monster with abilities
+-- whose `villainAction` field is set. Three drawer buttons, one per
+-- VA slot (I / II / III). Buttons grey out when consumed this encounter
+-- (chunk 5 will add per-round budget gating + flash + tooltips).
+-- Click handlers are stubbed in this chunk; chunk 4 wires pan + banner
+-- + off-turn cast.
+-- =====================================================================
+
+-- Return { ["Villain Action 1"] = ability, ... } for a token, or nil.
+local function GetVillainActionAbilities(token)
+    if token == nil or token.properties == nil then return nil end
+    local abilities = token.properties:GetActivatedAbilities()
+    if abilities == nil then return nil end
+    local result
+    for _, ab in ipairs(abilities) do
+        local key = ab:try_get("villainAction")
+        if key ~= nil and key ~= "" then
+            result = result or {}
+            result[key] = ab
+        end
+    end
+    return result
+end
+
+-- Find the first token in the active encounter that owns a villainAction
+-- ability. Multi-creature handling is chunk 6.
+local function FindVillainActionOwnerInEncounter()
+    local q = dmhub.initiativeQueue
+    if q == nil or q.hidden then return nil end
+    if GameHud.instance == nil or GameHud.instance.initiativeInterface == nil then return nil end
+    for initiativeid, _ in pairs(q.entries) do
+        local tokens = GameHud.instance:GetTokensForInitiativeId(GameHud.instance.initiativeInterface, initiativeid)
+        for _, tok in ipairs(tokens or {}) do
+            if GetVillainActionAbilities(tok) ~= nil then
+                return tok
+            end
+        end
+    end
+    return nil
+end
+
+-- Hand-rolled strip + drawers. Visual cues borrow the actionBarDrawer
+-- aesthetic (uppercase title, beveled corners, @border / @disabled
+-- transition for consumed state).
+local g_vaStripStyles = {
+    -- Strip is a transparent layout container; no chrome on the wrapper
+    -- itself. Header label sits above, drawer row sits below.
+    {
+        selectors = {"villainActionStrip"},
+        bgcolor = "clear",
+        vmargin = 4,
+    },
+
+    -- Label row above the drawers. Plain text labels, no panel chrome.
+    {
+        selectors = {"vaStripLabelRow"},
+        flow = "horizontal",
+        width = "auto",
+        height = "auto",
+        halign = "center",
+        valign = "top",
+        bmargin = 4,
+    },
+    -- Header text: VILLAIN ACTIONS (uppercase) and the creature name in
+    -- Title Case. Both use @fgStrong so the subheader stays readable; the
+    -- case difference does the visual differentiation work.
+    {
+        selectors = {"vaStripHeader"},
+        fontSize = 16,
+        bold = true,
+        color = "@fgStrong",
+        uppercase = true,
+        width = "auto",
+        height = "auto",
+    },
+    {
+        selectors = {"vaStripSeparator"},
+        fontSize = 16,
+        bold = true,
+        color = "@fgStrong",
+        width = "auto",
+        height = "auto",
+        hmargin = 8,
+    },
+    {
+        selectors = {"vaStripSubHeader"},
+        fontSize = 16,
+        color = "@fgStrong",
+        width = "auto",
+        height = "auto",
+    },
+
+    -- Drawer row container - horizontal flow, hugs content.
+    {
+        selectors = {"vaDrawerRow"},
+        flow = "horizontal",
+        width = "auto",
+        height = "auto",
+        halign = "center",
+        valign = "top",
+    },
+
+    -- Individual drawer: cloned from Styles.ActionBar's actionBarDrawer rule
+    -- so the rendered chrome (beveled corners, raised feel, border contrast)
+    -- is identical. Height bumped to 48 (vs the action bar's ~41) so the
+    -- two-line title+ability-name layout has breathing room.
+    {
+        selectors = {"vaDrawer"},
+        width = 205,
+        height = 48,
+        halign = "center",
+        valign = "bottom",
+        bgimage = true,
+        bgcolor = "@bg",
+        flow = "vertical",
+        cornerRadius = 10,
+        beveledcorners = true,
+        borderColor = "@border",
+        borderWidth = 2,
+        hmargin = 4,
+    },
+    {
+        selectors = {"vaDrawer", "~available"},
+        borderColor = "@disabled",
+        transitionTime = 0.2,
+    },
+    {
+        selectors = {"vaDrawer", "available", "hover"},
+        brightness = 1.5,
+        transitionTime = 0.1,
+    },
+    -- Roman numeral. Stacked tight with the ability name to keep the
+    -- accent line below clear of the text. tmargin adds breathing room
+    -- between the drawer's top border and the numeral.
+    {
+        selectors = {"vaDrawerTitle"},
+        fontSize = 16,
+        bold = true,
+        color = "@fgStrong",
+        width = "100%",
+        height = 18,
+        textAlignment = "center",
+        tmargin = 4,
+    },
+    {
+        selectors = {"vaDrawerTitle", "parent:~available"},
+        color = "@fgMuted",
+    },
+    -- Ability name immediately under the numeral.
+    {
+        selectors = {"vaDrawerSummary"},
+        fontSize = 12,
+        bold = true,
+        color = "@fg",
+        width = "100%",
+        height = 14,
+        textAlignment = "center",
+        tmargin = -2,
+    },
+    {
+        selectors = {"vaDrawerSummary", "parent:~available"},
+        color = "@fgMuted",
+    },
+
+    -- Filled diamond at the top of the drawer + horizontal accent lines on
+    -- either side that dip around the diamond outline. This is the visual
+    -- that gives the action bar drawer its "raised" look (a bright accent
+    -- line along the top inner edge plus the bevel cut around the diamond).
+    -- All hide when the drawer is ~available.
+    {
+        selectors = {"vaDrawerDiamond"},
+        bgcolor = "@accent",
+        bgimage = true,
+        width = 12,
+        height = 12,
+    },
+    {
+        selectors = {"vaDrawer", "~available"},
+        borderColor = "@disabled",
+    },
+    {
+        selectors = {"vaDrawerDiamond", "~available"},
+        scale = 0,
+        transitionTime = 0.2,
+    },
+    {
+        selectors = {"vaDrawerDiamondAccent", "~available"},
+        scale = { x = 1, y = 0 },
+        transitionTime = 0.2,
+    },
+    {
+        selectors = {"vaDrawerDiamondAccentLine"},
+        bgcolor = "@accent",
+    },
+    {
+        selectors = {"vaDrawerDiamondAccentDot"},
+        borderColor = "@accent",
+        bgcolor = "clear",
+    },
+}
+
+local function CreateVillainActionDrawer(slotKey, slotNumeral)
+    local m_token = nil
+    local m_ability = nil
+
+    local summaryLabel = gui.Label{
+        classes = {"vaDrawerSummary"},
+        text = "",
+    }
+
+    return gui.Panel{
+        classes = {"vaDrawer", "available"},
+
+        -- Floating diamond at the BOTTOM edge - pokes down into open space
+        -- under the strip. Visible when available, hidden when used.
+        gui.Panel{
+            classes = {"vaDrawerDiamond"},
+            floating = true,
+            halign = "center",
+            valign = "bottom",
+            bmargin = -6,
+            rotate = 45,
+        },
+
+        -- Accent strip along the bottom inner edge with a diamond-outline
+        -- notch tracing the upper edge of the floating diamond. Mirrors the
+        -- action bar's top-edge raised treatment, flipped to the bottom.
+        gui.Panel{
+            classes = {"vaDrawerDiamondAccent"},
+            width = "100%-20",
+            height = 6,
+            floating = true,
+            bmargin = 5,
+            halign = "center",
+            valign = "bottom",
+
+            gui.Panel{
+                classes = {"vaDrawerDiamondAccentLine"},
+                width = "50%-6",
+                halign = "left",
+                valign = "bottom",
+                height = 1,
+                bgimage = true,
+            },
+            gui.Panel{
+                classes = {"vaDrawerDiamondAccentLine"},
+                width = "50%-6",
+                halign = "right",
+                valign = "bottom",
+                height = 1,
+                bgimage = true,
+            },
+            -- Border on the bottom + right edges. When the square is
+            -- rotated 45 degrees those edges become the two diagonals
+            -- forming a v shape (chevron pointing down), tracing the
+            -- upper edge of the diamond from above.
+            gui.Panel{
+                classes = {"vaDrawerDiamondAccentDot"},
+                halign = "center",
+                valign = "bottom",
+                y = 5,
+                width = 10,
+                height = 10,
+                rotate = 45,
+                border = { x1 = 0, y1 = 0, x2 = 1, y2 = 1 },
+                bgimage = true,
+            },
+        },
+
+        gui.Label{
+            classes = {"vaDrawerTitle"},
+            text = slotNumeral,
+        },
+        summaryLabel,
+
+        refreshVA = function(element, token, ability)
+            m_token = token
+            m_ability = ability
+            local hasAbility = ability ~= nil
+            element:SetClass("collapsed", not hasAbility)
+            if not hasAbility then return end
+
+            summaryLabel.text = ability.name or ""
+
+            local consumed = VillainActionState.HasUsed(token.charid, slotKey)
+            -- SetClassTree propagates the available/~available state to the
+            -- diamond child so its `~available` style rule fires.
+            element:SetClassTree("available", not consumed)
+        end,
+
+        click = function(element)
+            -- Chunk 4 will replace this with: pan + banner + off-turn cast.
+            print("Villain Action stub press:",
+                slotKey,
+                m_token and m_token.name or "?",
+                m_ability and m_ability.name or "?")
+        end,
+    }
+end
+
+local function CreateVillainActionStrip(self, info)
+    local drawer1 = CreateVillainActionDrawer("Villain Action 1", "I")
+    local drawer2 = CreateVillainActionDrawer("Villain Action 2", "II")
+    local drawer3 = CreateVillainActionDrawer("Villain Action 3", "III")
+
+    local headerLabel = gui.Label{
+        classes = {"vaStripHeader"},
+        text = "VILLAIN ACTIONS",
+    }
+    local subHeaderLabel = gui.Label{
+        classes = {"vaStripSubHeader"},
+        text = "",
+    }
+
+    return gui.Panel{
+        classes = {"villainActionStrip"},
+        styles = { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(g_vaStripStyles) },
+        flow = "vertical",
+        width = "auto",
+        height = "auto",
+        halign = "center",
+        valign = "top",
+
+        -- Label row: "VILLAIN ACTIONS . Demon Chorogaunt" as plain text.
+        gui.Panel{
+            classes = {"vaStripLabelRow"},
+            headerLabel,
+            gui.Label{ classes = {"vaStripSeparator"}, text = "-" },
+            subHeaderLabel,
+        },
+
+        -- Drawer row: 3 floating drawers side-by-side.
+        gui.Panel{
+            classes = {"vaDrawerRow"},
+            drawer1, drawer2, drawer3,
+        },
+
+        monitorGame = VillainActionState.GetDocPath(),
+        refreshGame = function(element)
+            element:FireEvent("refresh")
+        end,
+
+        refresh = function(element)
+            if not dmhub.isDM then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            local owner = FindVillainActionOwnerInEncounter()
+            if owner == nil then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            local vaMap = GetVillainActionAbilities(owner)
+            if vaMap == nil then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            element:SetClass("collapsed", false)
+            subHeaderLabel.text = owner.name or ""
+
+            drawer1:FireEvent("refreshVA", owner, vaMap["Villain Action 1"])
+            drawer2:FireEvent("refreshVA", owner, vaMap["Villain Action 2"])
+            drawer3:FireEvent("refreshVA", owner, vaMap["Villain Action 3"])
+        end,
+
+        create = function(element)
+            element:FireEvent("refresh")
+        end,
+    }
+end
+
 --Create the initiative bar.
 --   self: the GameHud object
 --   info: the dmhub info object which gives us access to important game information. Some parameters we use here:
@@ -1211,17 +1588,16 @@ function GameHud.CreateInitiativeBar(self, info)
 	local addMonsters
 
 	--The parent / top-level initiative bar.
-	return gui.Panel({
-		floating = true,
-		selfStyle = {
-			valign = 'top',
-			halign = 'center',
-		},
-
+	-- Strip out the floating + selfStyle from the inner panel; the wrapper
+	-- below owns positioning so the VA strip can stack above it in vertical flow.
+	-- halign='center' kept on the inner so it stays horizontally centred inside
+	-- the wrapper (the wrapper itself is auto-width, hugging widest child).
+	local innerInitiativeBar = gui.Panel({
 		className = 'initiative-panel',
         height = 200,
         width = 500,
         tmargin = 0,
+        halign = 'center',
 
 		styles = {
 			{
@@ -1493,6 +1869,25 @@ function GameHud.CreateInitiativeBar(self, info)
 			respiteBar,
 		},
 	})
+
+	-- Wrapper: stacks the VillainActionStrip above the initiative bar so the
+	-- bar gets pushed down when a Leader/Solo with villain actions is in
+	-- the encounter, and returns to its original spot otherwise.
+	return gui.Panel{
+		floating = true,
+		selfStyle = {
+			valign = 'top',
+			halign = 'center',
+		},
+		width = "auto",
+		height = "auto",
+		flow = "vertical",
+		halign = "center",
+		valign = "top",
+
+		CreateVillainActionStrip(self, info),
+		innerInitiativeBar,
+	}
 end
 
 function GameHud.CreateInitiativeBarChoicePanel(self, info)

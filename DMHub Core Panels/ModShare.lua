@@ -860,7 +860,7 @@ local function GatherAllAssetsChildren(children, knownAssetsInCore)
 
 				numChildren = #children
 
-				table.sort(children, function(a,b) return (a.data.folderid or "") < (b.data.folderid or "") or (a.data.folderid == b.data.folderid and a.data.ord < b.data.ord) end)
+				table.sort(children, function(a,b) return a.data.ord < b.data.ord end)
 				local currentFolder = nil
 				local newChildren = {}
 				for _,child in ipairs(children) do

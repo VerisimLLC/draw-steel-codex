@@ -1189,6 +1189,28 @@ local g_vaStripStyles = {
         borderColor = "@accent",
         bgcolor = "clear",
     },
+
+    -- Flashing nudge: when it's between turns and the director can fire
+    -- a VA, the available drawers' whole surface pulses to @danger (red).
+    -- The pulse is driven by the "on" class toggled on the strip every
+    -- thinkTime; scoped via the compound selector so non-flashing drawers
+    -- are unaffected.
+    {
+        selectors = {"vaDrawer", "flashing"},
+        borderColor = "@danger",
+    },
+    {
+        selectors = {"vaDrawer", "flashing", "on"},
+        bgcolor = "@danger",
+        transitionTime = 0.7,
+        easing = "easeInOutSine",
+    },
+    {
+        selectors = {"vaDrawer", "flashing", "~on"},
+        bgcolor = "@bg",
+        transitionTime = 0.7,
+        easing = "easeInOutSine",
+    },
 }
 
 local function CreateVillainActionDrawer(slotKey, slotNumeral)
@@ -1283,17 +1305,23 @@ local function CreateVillainActionDrawer(slotKey, slotNumeral)
         hover = function(element)
             if m_token == nil or m_ability == nil or not m_token.valid then return end
 
-            local text
             if VillainActionState.HasUsed(m_token.charid, slotKey) then
-                text = (m_ability.name or "This Villain Action") .. " has already been used this encounter."
+                gui.Tooltip{
+                    text = (m_ability.name or "This Villain Action") .. " has already been used this encounter.",
+                }(element)
             elseif CharacterResource.GetVillainActions() <= 0 then
-                text = "You have already used a Villain Action this round."
+                gui.Tooltip{
+                    text = "You have already used a Villain Action this round.",
+                }(element)
             else
-                -- Chunk 5 will replace this with a full ability preview card.
-                text = m_ability.name or ""
+                -- Full ability preview card for available drawers.
+                local tooltip = CreateAbilityTooltip(m_ability, {token = m_token, width = 480})
+                if tooltip ~= nil then
+                    element.tooltip = tooltip
+                else
+                    gui.Tooltip{text = m_ability.name or ""}(element)
+                end
             end
-
-            gui.Tooltip{text = text}(element)
         end,
 
         click = function(element)
@@ -1380,6 +1408,21 @@ local function CreateVillainActionStrip(self, info)
             element:FireEvent("refresh")
         end,
 
+        -- Track the last active turn-holder so we can suppress the
+        -- "end-of-turn" flash when the just-finished turn was the VA
+        -- owner's own (rules: VAs fire at the end of any *other*
+        -- creature's turn). lastActiveTurnRound records WHICH round that
+        -- capture happened in, so we can suppress flash across the round
+        -- boundary too -- a new round resets the "just-ended-turn"
+        -- relevance. previousCurrentTurn / previousRound let think detect
+        -- transitions and trigger refresh accordingly.
+        data = {
+            lastActiveTurn = nil,
+            lastActiveTurnRound = nil,
+            previousCurrentTurn = nil,
+            previousRound = nil,
+        },
+
         refresh = function(element)
             if not dmhub.isDM then
                 element:SetClass("collapsed", true)
@@ -1401,9 +1444,67 @@ local function CreateVillainActionStrip(self, info)
             element:SetClass("collapsed", false)
             subHeaderLabel.text = owner.name or ""
 
+            -- Flash gating. Pulse only when ALL of:
+            --   - it's between turns (currentTurn == false)
+            --   - the per-round VA budget is unspent
+            --   - a turn actually ended IN THE CURRENT ROUND (not a
+            --     leftover from a previous round, e.g. just after NextRound)
+            --   - the just-finished turn wasn't the VA owner's own
+            --
+            -- currentTurn is an initiative ID, NOT a charid. We compare
+            -- against owner's initiative ID via InitiativeQueue.GetInitiativeId.
+            local q = dmhub.initiativeQueue
+            local currentTurn = q and q.currentTurn
+            local currentRound = q and q.round
+            local betweenTurns = (currentTurn == false)
+            local justFinished = element.data.lastActiveTurn
+            if currentTurn ~= false and currentTurn ~= nil then
+                element.data.lastActiveTurn = currentTurn
+                element.data.lastActiveTurnRound = currentRound
+            end
+            local ownerInitiativeId = InitiativeQueue.GetInitiativeId(owner)
+            local selfTurnJustEnded = (justFinished ~= nil and ownerInitiativeId ~= nil and justFinished == ownerInitiativeId)
+            local turnEndedThisRound = (justFinished ~= nil and element.data.lastActiveTurnRound == currentRound)
+            local budgetAvailable = CharacterResource.GetVillainActions() > 0
+            local stripCanFlash = betweenTurns and budgetAvailable and turnEndedThisRound and (not selfTurnJustEnded)
+
+            -- Per-drawer flash: drawer must also be available (not consumed
+            -- this encounter and the ability slot is actually filled).
+            local function drawerShouldFlash(slot)
+                local ab = vaMap[slot]
+                if ab == nil then return false end
+                if VillainActionState.HasUsed(owner.charid, slot) then return false end
+                return stripCanFlash
+            end
+
+            drawer1:SetClass("flashing", drawerShouldFlash("Villain Action 1"))
+            drawer2:SetClass("flashing", drawerShouldFlash("Villain Action 2"))
+            drawer3:SetClass("flashing", drawerShouldFlash("Villain Action 3"))
+
             drawer1:FireEvent("refreshVA", owner, vaMap["Villain Action 1"])
             drawer2:FireEvent("refreshVA", owner, vaMap["Villain Action 2"])
             drawer3:FireEvent("refreshVA", owner, vaMap["Villain Action 3"])
+        end,
+
+        -- Pulse driver + currentTurn change detector. Every 0.7s:
+        --   1. Toggle the "on" class on the subtree for the brightness pulse
+        --      (only flashing drawers react via the compound selector).
+        --   2. Read currentTurn off the live queue; if it changed since the
+        --      last tick, fire refresh so flash gating + self-suppression
+        --      stay accurate. The shared-doc monitor alone doesn't fire on
+        --      initiative changes, so this poll fills the gap.
+        thinkTime = 0.7,
+        think = function(element)
+            element:SetClassTree("on", not element:HasClass("on"))
+
+            local q = dmhub.initiativeQueue
+            local currentTurn = q and q.currentTurn
+            local currentRound = q and q.round
+            if currentTurn ~= element.data.previousCurrentTurn or currentRound ~= element.data.previousRound then
+                element.data.previousCurrentTurn = currentTurn
+                element.data.previousRound = currentRound
+                element:FireEvent("refresh")
+            end
         end,
 
         create = function(element)

@@ -1014,21 +1014,25 @@ local function GetVillainActionAbilities(token)
     return result
 end
 
--- Find the first token in the active encounter that owns a villainAction
--- ability. Multi-creature handling is chunk 6.
-local function FindVillainActionOwnerInEncounter()
+-- Returns all tokens in the active encounter that own villainAction
+-- abilities. Deduped by charid and sorted by name for stable display.
+local function FindAllVillainActionOwnersInEncounter()
     local q = dmhub.initiativeQueue
-    if q == nil or q.hidden then return nil end
-    if GameHud.instance == nil or GameHud.instance.initiativeInterface == nil then return nil end
+    if q == nil or q.hidden then return {} end
+    if GameHud.instance == nil or GameHud.instance.initiativeInterface == nil then return {} end
+    local result = {}
+    local seen = {}
     for initiativeid, _ in pairs(q.entries) do
         local tokens = GameHud.instance:GetTokensForInitiativeId(GameHud.instance.initiativeInterface, initiativeid)
         for _, tok in ipairs(tokens or {}) do
-            if GetVillainActionAbilities(tok) ~= nil then
-                return tok
+            if tok.valid and not seen[tok.charid] and GetVillainActionAbilities(tok) ~= nil then
+                seen[tok.charid] = true
+                result[#result+1] = tok
             end
         end
     end
-    return nil
+    table.sort(result, function(a, b) return (a.name or "") < (b.name or "") end)
+    return result
 end
 
 -- Hand-rolled strip + drawers. Visual cues borrow the actionBarDrawer
@@ -1090,6 +1094,31 @@ local g_vaStripStyles = {
         height = "auto",
         halign = "center",
         valign = "top",
+    },
+
+    -- Owner portrait. Aligned left of the drawer row at the same height
+    -- as a drawer so the strip reads as one row. bgcolor=white is
+    -- image-tint-neutral so the creature portrait paints at its native
+    -- colours. Border is straight-edged (no corner radius / bevel) so the
+    -- portrait reads as a distinct creature card, not another drawer.
+    -- Clickable when multiple VA owners are in the encounter (the
+    -- "cyclable" class is toggled by refresh).
+    {
+        selectors = {"vaOwnerPortrait"},
+        width = 48,
+        height = 48,
+        halign = "center",
+        valign = "center",
+        hmargin = 8,
+        bgcolor = "white",
+        borderColor = "@border",
+        borderWidth = 2,
+        cornerRadius = 0,
+    },
+    {
+        selectors = {"vaOwnerPortrait", "cyclable", "hover"},
+        brightness = 1.5,
+        transitionTime = 0.1,
     },
 
     -- Individual drawer: cloned from Styles.ActionBar's actionBarDrawer rule
@@ -1380,6 +1409,41 @@ local function CreateVillainActionStrip(self, info)
         text = "",
     }
 
+    -- Owners list refreshed every refresh tick; portrait click reads it.
+    local m_owners = {}
+
+    local portraitPanel = gui.Panel{
+        classes = {"vaOwnerPortrait"},
+        refreshPortrait = function(element, token, isMulti)
+            if token == nil then
+                element.bgimage = nil
+            else
+                -- Match the initiative bar pattern: prefer the creature
+                -- portrait (offTokenPortrait) and crop with the per-aspect
+                -- rect so the framing is correct.
+                local portrait = token.offTokenPortrait
+                element.bgimage = portrait
+                if portrait ~= token.portrait and not token.popoutPortrait then
+                    element.selfStyle.imageRect = nil
+                else
+                    element.selfStyle.imageRect = token:GetPortraitRectForAspect(1.0, portrait)
+                end
+            end
+            element:SetClass("cyclable", isMulti)
+        end,
+        click = function(element)
+            if #m_owners <= 1 then return end
+            local strip = element:FindParentWithClass("villainActionStrip")
+            if strip == nil then return end
+            strip.data.activeOwnerIndex = (strip.data.activeOwnerIndex % #m_owners) + 1
+            strip:FireEvent("refresh")
+        end,
+        hover = function(element)
+            if #m_owners <= 1 then return end
+            gui.Tooltip{text = "Click to change Villain"}(element)
+        end,
+    }
+
     return gui.Panel{
         classes = {"villainActionStrip"},
         styles = { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(g_vaStripStyles) },
@@ -1389,7 +1453,7 @@ local function CreateVillainActionStrip(self, info)
         halign = "center",
         valign = "top",
 
-        -- Label row: "VILLAIN ACTIONS . Demon Chorogaunt" as plain text.
+        -- Label row: "VILLAIN ACTIONS - Demon Chorogaunt" or with "(1/2)" suffix when multi.
         gui.Panel{
             classes = {"vaStripLabelRow"},
             headerLabel,
@@ -1397,9 +1461,10 @@ local function CreateVillainActionStrip(self, info)
             subHeaderLabel,
         },
 
-        -- Drawer row: 3 floating drawers side-by-side.
+        -- Drawer row: portrait on the left, then the 3 drawers.
         gui.Panel{
             classes = {"vaDrawerRow"},
+            portraitPanel,
             drawer1, drawer2, drawer3,
         },
 
@@ -1408,15 +1473,13 @@ local function CreateVillainActionStrip(self, info)
             element:FireEvent("refresh")
         end,
 
-        -- Track the last active turn-holder so we can suppress the
-        -- "end-of-turn" flash when the just-finished turn was the VA
-        -- owner's own (rules: VAs fire at the end of any *other*
-        -- creature's turn). lastActiveTurnRound records WHICH round that
-        -- capture happened in, so we can suppress flash across the round
-        -- boundary too -- a new round resets the "just-ended-turn"
-        -- relevance. previousCurrentTurn / previousRound let think detect
-        -- transitions and trigger refresh accordingly.
+        -- activeOwnerIndex selects which VA owner the strip currently shows
+        -- when 2+ Leader/Solo with VAs are in the encounter. Click on the
+        -- portrait cycles. lastActiveTurn / lastActiveTurnRound /
+        -- previousCurrentTurn / previousRound power the flash gating; see
+        -- the refresh and think handlers below for the state-machine.
         data = {
+            activeOwnerIndex = 1,
             lastActiveTurn = nil,
             lastActiveTurnRound = nil,
             previousCurrentTurn = nil,
@@ -1429,12 +1492,18 @@ local function CreateVillainActionStrip(self, info)
                 return
             end
 
-            local owner = FindVillainActionOwnerInEncounter()
-            if owner == nil then
+            m_owners = FindAllVillainActionOwnersInEncounter()
+            if #m_owners == 0 then
                 element:SetClass("collapsed", true)
                 return
             end
 
+            -- Clamp activeOwnerIndex (creatures may have left the encounter).
+            if element.data.activeOwnerIndex < 1 or element.data.activeOwnerIndex > #m_owners then
+                element.data.activeOwnerIndex = 1
+            end
+
+            local owner = m_owners[element.data.activeOwnerIndex]
             local vaMap = GetVillainActionAbilities(owner)
             if vaMap == nil then
                 element:SetClass("collapsed", true)
@@ -1442,7 +1511,16 @@ local function CreateVillainActionStrip(self, info)
             end
 
             element:SetClass("collapsed", false)
-            subHeaderLabel.text = owner.name or ""
+
+            -- Header text: append "(i/N)" when multiple VA owners exist so
+            -- the cycle affordance is discoverable.
+            if #m_owners > 1 then
+                subHeaderLabel.text = string.format("%s (%d/%d)", owner.name or "", element.data.activeOwnerIndex, #m_owners)
+            else
+                subHeaderLabel.text = owner.name or ""
+            end
+
+            portraitPanel:FireEvent("refreshPortrait", owner, #m_owners > 1)
 
             -- Flash gating. Pulse only when ALL of:
             --   - it's between turns (currentTurn == false)

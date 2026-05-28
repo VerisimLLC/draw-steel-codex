@@ -553,6 +553,72 @@ audio.SoundEvent{
 
 
 
+--TODO
+--Shapeshift
+
+
+audio.SoundEvent{
+    name = "Ability.Shapeshift_Generic_Start",
+    mixgroup = "gameplay",
+    sounds = {"abl/shapeshift/Abl_Shapeshift_Start_Generic_Whoosh_v1_01.wav"},
+    volume = 0.2,
+    pitchRand = 0.05,
+    ignoreDuplicates = 0.1,
+}
+
+audio.SoundEvent{
+    name = "Ability.Shapeshift_Generic_End",
+    mixgroup = "gameplay",
+    sounds = {"abl/shapeshift/Abl_Shapeshift_End_Generic_Whoosh_v1_01.wav"},
+    volume = 0.2,
+    pitchRand = 0.05,
+    ignoreDuplicates = 0.1,
+}
+
+audio.SoundEvent{
+    name = "Ability.Shapeshift_Wolf_Start",
+    mixgroup = "gameplay",
+    sounds = {"abl/shapeshift/Abl_Shapeshift_Start_Wolf_v1_01.wav","abl/shapeshift/Abl_Shapeshift_Start_Wolf_v1_02.wav","abl/shapeshift/Abl_Shapeshift_Start_Wolf_v1_03.wav"},
+    volume = 0.2,
+    pitchRand = 0.05,
+    ignoreDuplicates = 0.1,
+}
+
+audio.SoundEvent{
+    name = "Ability.Shapeshift_Crow_Start",
+    mixgroup = "gameplay",
+    sounds = {"abl/shapeshift/Abl_Shapeshift_Start_Crow_v1_01.wav","abl/shapeshift/Abl_Shapeshift_Start_Crow_v1_02.wav","abl/shapeshift/Abl_Shapeshift_Start_Crow_v1_03.wav"},
+    volume = 0.2,
+    pitchRand = 0.05,
+    ignoreDuplicates = 0.1,
+}
+
+audio.SoundEvent{
+    name = "Ability.Shapeshift_Rat_Start",
+    mixgroup = "gameplay",
+    sounds = {"abl/shapeshift/Abl_Shapeshift_Start_Rat_v1_01.wav","abl/shapeshift/Abl_Shapeshift_Start_Rat_v1_02.wav"},
+    volume = 0.1,
+    pitchRand = 0.05,
+    ignoreDuplicates = 0.1,
+   
+    
+}
+
+audio.SoundEvent{
+    name = "Ability.Shapeshift_Wolf_Start",
+    mixgroup = "gameplay",
+    sounds = {"abl/shapeshift/Abl_Shapeshift_Start_Wolf_v1_01.wav","abl/shapeshift/Abl_Shapeshift_Start_Wolf_v1_02.wav","abl/shapeshift/Abl_Shapeshift_Start_Wolf_v1_03.wav"},
+    volume = 0.2,
+    pitchRand = 0.05,
+    ignoreDuplicates = 0.1,
+}
+
+
+
+
+
+
+
 
 --Implemented: plays when landing after a fall.
 audio.SoundEvent{

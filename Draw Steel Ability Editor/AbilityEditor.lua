@@ -573,13 +573,14 @@ local function _editorStyles()
             valign = "center",
         },
         -- "More options" CollapseArrow row (Targeting section foldout).
-        -- Text + chevron together, centered in column.
+        -- Text + chevron together, left-aligned to sit flush with the
+        -- other section headers / field rows in the column.
         {
             selectors = {"nae-more-options-row"},
             width = "auto",
             height = "auto",
             flow = "horizontal",
-            halign = "center",
+            halign = "left",
             valign = "center",
             tmargin = 12,
             bmargin = 4,
@@ -3678,9 +3679,16 @@ local function _buildTargetingSection(ability, fireChange)
     --------------------------------------------------------------------------
     -- "More options" CollapseArrow
     --------------------------------------------------------------------------
+    -- Default-expanded when the ability already has ability/reasoned filters
+    -- so authors can see active filter state without hunting for it. Plain
+    -- collapsed default otherwise.
+    local hasFilters =
+        #ability:try_get("abilityFilters", {}) > 0 or
+        #ability:try_get("reasonedFilters", {}) > 0
+
     local moreOptionsContent
     moreOptionsContent = gui.Panel{
-        classes = {"nae-field-subgroup", "collapsed-anim"},
+        classes = {"nae-field-subgroup", cond(hasFilters, nil, "collapsed-anim")},
         flow = "vertical",
         width = "100%",
         height = "auto",
@@ -3709,7 +3717,7 @@ local function _buildTargetingSection(ability, fireChange)
 
     local moreOptionsChevron
     moreOptionsChevron = gui.Panel{
-        classes = {"nae-more-options-chevron", "nae-collapsed"},
+        classes = {"nae-more-options-chevron", cond(hasFilters, nil, "nae-collapsed")},
     }
     children[#children + 1] = gui.Panel{
         classes = {"nae-more-options-row"},

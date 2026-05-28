@@ -93,16 +93,6 @@ local function buildStyles()
         priority = 3,
         halign = "left",
     }
-    -- The shared "More options" row in the Targeting stack (AbilityEditor.lua
-    -- ~line 563) uses halign="center" by default so the New Ability Editor
-    -- shows it as a centered fold-out. Inside the Triggered Ability Editor
-    -- we want it flush-left like every other Setup-section field row, per
-    -- 2026-04-24 design feedback. Scoped priority beats the base halign.
-    styles[#styles + 1] = {
-        selectors = {"nae-more-options-row"},
-        priority = 3,
-        halign = "left",
-    }
     -- Note: the classic TargetTypeEditor's abilityFilterPanel (DMHub Compendium
     -- ActivatedAbilityEditor.lua line ~1825) has no halign and no class hook,
     -- so its "Add Ability Filter" button still renders centered. Same story

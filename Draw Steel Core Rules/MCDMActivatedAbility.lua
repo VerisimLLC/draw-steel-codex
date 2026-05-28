@@ -2263,6 +2263,17 @@ end
 
 --Returns true if this ability, when cast by a minion in a squad, should be coordinated across the squad
 function ActivatedAbility:UsesSquadCoordination(casterToken)
+    --An invoke that opted out of squad coordination forces this off regardless of the
+    --usual signature/free-strike/keyword rules. See ActivatedAbilityInvokeAbilityBehavior.
+    --The caster-side depth counter catches the case where the abilityClone gets cloned,
+    --bifurcated, or synthesized into a fresh ability that wouldn't carry the field.
+    if self:try_get("disableSquadCoordination", false) then
+        return false
+    end
+    if casterToken ~= nil and casterToken.properties ~= nil
+        and (casterToken.properties:try_get("_tmp_disableSquadCoordinationDepth", 0) or 0) > 0 then
+        return false
+    end
     if casterToken == nil or not casterToken.properties.minion then
         return false
     end

@@ -989,13 +989,16 @@ end
 
 -- =====================================================================
 -- Villain Action strip
--- A director-only horizontal panel that sits above the initiative bar
--- when an encounter contains a Leader or Solo monster with abilities
--- whose `villainAction` field is set. Three drawer buttons, one per
--- VA slot (I / II / III). Buttons grey out when consumed this encounter
--- (chunk 5 will add per-round budget gating + flash + tooltips).
--- Click handlers are stubbed in this chunk; chunk 4 wires pan + banner
--- + off-turn cast.
+-- A director-only panel that floats in the monster-side band of the
+-- initiative bar when the active encounter contains a Leader or Solo
+-- (or any monster) with abilities whose `villainAction` field is set.
+-- Three drawer buttons, one per VA slot (I / II / III), each showing
+-- the ability name. Drawers grey out when consumed this encounter and
+-- the whole strip is gated by the per-round VA budget. Available drawers
+-- pulse between turns to nudge the director; clicking one pans the camera
+-- to the owner, plays a Dramatic Banner, then casts the ability off-turn.
+-- When more than one VA owner is present the portrait acts as a selector
+-- to cycle between them.
 -- =====================================================================
 
 -- Return { ["Villain Action 1"] = ability, ... } for a token, or nil.
@@ -1411,9 +1414,6 @@ local function CreateVillainActionStrip(self, info)
         text = "",
     }
 
-    -- Owners list refreshed every refresh tick; portrait click reads it.
-    local m_owners = {}
-
     local portraitPanel = gui.Panel{
         classes = {"vaOwnerPortrait"},
         refreshPortrait = function(element, token, isMulti)
@@ -1434,14 +1434,16 @@ local function CreateVillainActionStrip(self, info)
             element:SetClass("cyclable", isMulti)
         end,
         click = function(element)
-            if #m_owners <= 1 then return end
             local strip = element:FindParentWithClass("villainActionStrip")
             if strip == nil then return end
-            strip.data.activeOwnerIndex = (strip.data.activeOwnerIndex % #m_owners) + 1
+            local count = strip.data.ownerCount or 0
+            if count <= 1 then return end
+            strip.data.activeOwnerIndex = (strip.data.activeOwnerIndex % count) + 1
             strip:FireEvent("refresh")
         end,
         hover = function(element)
-            if #m_owners <= 1 then return end
+            local strip = element:FindParentWithClass("villainActionStrip")
+            if strip == nil or (strip.data.ownerCount or 0) <= 1 then return end
             gui.Tooltip{text = "Click to change Villain"}(element)
         end,
     }
@@ -1459,7 +1461,6 @@ local function CreateVillainActionStrip(self, info)
         height = "auto",
         halign = "right",
         valign = "top",
-        x = 0,
         y = 100,
 
         -- Label row: "VILLAIN ACTIONS - Demon Chorogaunt" or with "(1/2)" suffix when multi.
@@ -1483,16 +1484,21 @@ local function CreateVillainActionStrip(self, info)
         end,
 
         -- activeOwnerIndex selects which VA owner the strip currently shows
-        -- when 2+ Leader/Solo with VAs are in the encounter. Click on the
-        -- portrait cycles. lastActiveTurn / lastActiveTurnRound /
-        -- previousCurrentTurn / previousRound power the flash gating; see
-        -- the refresh and think handlers below for the state-machine.
+        -- when 2+ Leader/Solo with VAs are in the encounter (ownerCount is
+        -- the size of that list, read by the portrait selector handlers).
+        -- lastActiveTurn / lastActiveTurnRound / previousCurrentTurn /
+        -- previousRound power the flash gating; anyFlashing lets think skip
+        -- the pulse work when nothing is flashing. See the refresh and think
+        -- handlers below for the state-machine.
         data = {
             activeOwnerIndex = 1,
+            ownerCount = 0,
+            anyFlashing = false,
             lastActiveTurn = nil,
             lastActiveTurnRound = nil,
             previousCurrentTurn = nil,
             previousRound = nil,
+            themeListener = nil,
         },
 
         refresh = function(element)
@@ -1501,20 +1507,23 @@ local function CreateVillainActionStrip(self, info)
                 return
             end
 
-            m_owners = FindAllVillainActionOwnersInEncounter()
-            if #m_owners == 0 then
+            local owners = FindAllVillainActionOwnersInEncounter()
+            element.data.ownerCount = #owners
+            if #owners == 0 then
+                element.data.anyFlashing = false
                 element:SetClass("collapsed", true)
                 return
             end
 
             -- Clamp activeOwnerIndex (creatures may have left the encounter).
-            if element.data.activeOwnerIndex < 1 or element.data.activeOwnerIndex > #m_owners then
+            if element.data.activeOwnerIndex < 1 or element.data.activeOwnerIndex > #owners then
                 element.data.activeOwnerIndex = 1
             end
 
-            local owner = m_owners[element.data.activeOwnerIndex]
+            local owner = owners[element.data.activeOwnerIndex]
             local vaMap = GetVillainActionAbilities(owner)
             if vaMap == nil then
+                element.data.anyFlashing = false
                 element:SetClass("collapsed", true)
                 return
             end
@@ -1523,13 +1532,13 @@ local function CreateVillainActionStrip(self, info)
 
             -- Header text: append "(i/N)" when multiple VA owners exist so
             -- the cycle affordance is discoverable.
-            if #m_owners > 1 then
-                subHeaderLabel.text = string.format("%s (%d/%d)", owner.name or "", element.data.activeOwnerIndex, #m_owners)
+            if #owners > 1 then
+                subHeaderLabel.text = string.format("%s (%d/%d)", owner.name or "", element.data.activeOwnerIndex, #owners)
             else
                 subHeaderLabel.text = owner.name or ""
             end
 
-            portraitPanel:FireEvent("refreshPortrait", owner, #m_owners > 1)
+            portraitPanel:FireEvent("refreshPortrait", owner, #owners > 1)
 
             -- Flash gating. Pulse only when ALL of:
             --   - it's between turns (currentTurn == false)
@@ -1564,9 +1573,14 @@ local function CreateVillainActionStrip(self, info)
                 return stripCanFlash
             end
 
-            drawer1:SetClass("flashing", drawerShouldFlash("Villain Action 1"))
-            drawer2:SetClass("flashing", drawerShouldFlash("Villain Action 2"))
-            drawer3:SetClass("flashing", drawerShouldFlash("Villain Action 3"))
+            local flash1 = drawerShouldFlash("Villain Action 1")
+            local flash2 = drawerShouldFlash("Villain Action 2")
+            local flash3 = drawerShouldFlash("Villain Action 3")
+            element.data.anyFlashing = flash1 or flash2 or flash3
+
+            drawer1:SetClass("flashing", flash1)
+            drawer2:SetClass("flashing", flash2)
+            drawer3:SetClass("flashing", flash3)
 
             drawer1:FireEvent("refreshVA", owner, vaMap["Villain Action 1"])
             drawer2:FireEvent("refreshVA", owner, vaMap["Villain Action 2"])
@@ -1574,15 +1588,17 @@ local function CreateVillainActionStrip(self, info)
         end,
 
         -- Pulse driver + currentTurn change detector. Every 0.7s:
-        --   1. Toggle the "on" class on the subtree for the brightness pulse
-        --      (only flashing drawers react via the compound selector).
-        --   2. Read currentTurn off the live queue; if it changed since the
+        --   1. Read currentTurn off the live queue; if it changed since the
         --      last tick, fire refresh so flash gating + self-suppression
         --      stay accurate. The shared-doc monitor alone doesn't fire on
         --      initiative changes, so this poll fills the gap.
+        --   2. Toggle the "on" class on the subtree for the brightness pulse,
+        --      but only when something is actually flashing (otherwise the
+        --      subtree walk is wasted work).
+        -- Players never have the strip, so bail immediately for them.
         thinkTime = 0.7,
         think = function(element)
-            element:SetClassTree("on", not element:HasClass("on"))
+            if not dmhub.isDM then return end
 
             local q = dmhub.initiativeQueue
             local currentTurn = q and q.currentTurn
@@ -1592,10 +1608,29 @@ local function CreateVillainActionStrip(self, info)
                 element.data.previousRound = currentRound
                 element:FireEvent("refresh")
             end
+
+            if element.data.anyFlashing then
+                element:SetClassTree("on", not element:HasClass("on"))
+            end
         end,
 
         create = function(element)
+            -- Re-resolve themed styles when the user switches theme / scheme
+            -- (MergeTokens captures a one-shot snapshot). Mirrors the action
+            -- bar's live re-theming hookup.
+            element.data.themeListener = ThemeEngine.OnThemeChanged(mod, function()
+                if element.valid then
+                    element.styles = { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(g_vaStripStyles) }
+                end
+            end)
             element:FireEvent("refresh")
+        end,
+
+        destroy = function(element)
+            if element.data.themeListener ~= nil then
+                element.data.themeListener:Deregister()
+                element.data.themeListener = nil
+            end
         end,
     }
 end

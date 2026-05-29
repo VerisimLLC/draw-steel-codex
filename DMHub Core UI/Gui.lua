@@ -456,7 +456,7 @@ local throttleAddDeprecated = 0
 --- @param options PanelArgs
 --- @return Panel
 function gui.AddButton(options)
-	if devmode() and dmhub.Time() - throttleAddDeprecated >= 60 then
+	if false and devmode() and dmhub.Time() - throttleAddDeprecated >= 60 then
 		throttleAddDeprecated = dmhub.Time()
 		local caller = debug.getinfo(2, "Sl")
 		local location = "unknown location"
@@ -523,7 +523,7 @@ local throttleCloseDeprecated = 0
 --- @param options PanelArgs
 --- @return Panel
 function gui.CloseButton(options)
-	if devmode() and dmhub.Time() - throttleCloseDeprecated >= 60 then
+	if false and devmode() and dmhub.Time() - throttleCloseDeprecated >= 60 then
 		throttleCloseDeprecated = dmhub.Time()
 		local caller = debug.getinfo(2, "Sl")
 		local location = "unknown location"
@@ -654,7 +654,7 @@ local throttleCopyDeprecated = 0
 --- @param options PanelArgs
 --- @return Panel
 function gui.CopyButton(options)
-	if devmode() and dmhub.Time() - throttleCopyDeprecated >= 60 then
+	if false and devmode() and dmhub.Time() - throttleCopyDeprecated >= 60 then
 		throttleCopyDeprecated = dmhub.Time()
 		local caller = debug.getinfo(2, "Sl")
 		local location = "unknown location"
@@ -681,7 +681,7 @@ local throttleSettingsDeprecated = 0
 --- @param options PanelArgs
 --- @return Panel
 function gui.SettingsButton(options)
-	if devmode() and dmhub.Time() - throttleSettingsDeprecated >= 60 then
+	if false and devmode() and dmhub.Time() - throttleSettingsDeprecated >= 60 then
 		throttleSettingsDeprecated = dmhub.Time()
 		local caller = debug.getinfo(2, "Sl")
 		local location = "unknown location"
@@ -720,7 +720,7 @@ local throttleHudIconDeprecated = 0
 --- @param options PanelArgs
 --- @return Panel
 function gui.HudIconButton(options)
-	if devmode() and dmhub.Time() - throttleHudIconDeprecated >= 60 then
+	if false and devmode() and dmhub.Time() - throttleHudIconDeprecated >= 60 then
 		throttleHudIconDeprecated = dmhub.Time()
 		local caller = debug.getinfo(2, "Sl")
 		local location = "unknown location"
@@ -822,7 +822,7 @@ local throttleIconButtonDeprecated = 0
 --- @param args PanelArgs
 --- @return Panel
 function gui.IconButton(args)
-	if devmode() and dmhub.Time() - throttleIconButtonDeprecated >= 60 then
+	if false and devmode() and dmhub.Time() - throttleIconButtonDeprecated >= 60 then
 		throttleIconButtonDeprecated = dmhub.Time()
 		local caller = debug.getinfo(2, "Sl")
 		local location = "unknown location"
@@ -967,7 +967,7 @@ local throttleFancyDeprecated = 0
 --- @param options PanelArgs
 --- @return Panel
 function gui.FancyButton(options)
-	if devmode() and dmhub.Time() - throttleFancyDeprecated >= 60 then
+	if false and devmode() and dmhub.Time() - throttleFancyDeprecated >= 60 then
 		throttleFancyDeprecated = dmhub.Time()
 		local caller = debug.getinfo(2, "Sl")
 		local location = "unknown location"
@@ -1057,7 +1057,7 @@ local PrettyButtonBackgroundStyles = {
 --- @return Panel
 local throttlePBDeprecated = 0
 function gui.PrettyButton(args)
-	if devmode() and dmhub.Time() - throttlePBDeprecated >= 60 then
+	if false and devmode() and dmhub.Time() - throttlePBDeprecated >= 60 then
 		throttlePBDeprecated = dmhub.Time()
 		local caller = debug.getinfo(2, "Sl")
 		local location = "unknown location"
@@ -3981,7 +3981,7 @@ local throttlePagingArrowDeprecated = 0
 --- @param options PagingArrowArgs
 --- @return Panel
 function gui.PagingArrow(options)
-	if devmode() and dmhub.Time() - throttlePagingArrowDeprecated >= 60 then
+	if false and devmode() and dmhub.Time() - throttlePagingArrowDeprecated >= 60 then
 		throttlePagingArrowDeprecated = dmhub.Time()
 		local caller = debug.getinfo(2, "Sl")
 		local location = "unknown location"

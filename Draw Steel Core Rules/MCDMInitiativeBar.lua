@@ -1059,10 +1059,11 @@ local g_vaStripStyles = {
     },
     -- Header text: VILLAIN ACTIONS (uppercase) and the creature name in
     -- Title Case. Both use @fgStrong so the subheader stays readable; the
-    -- case difference does the visual differentiation work.
+    -- case difference does the visual differentiation work. Compact sizes
+    -- for the right-side band placement.
     {
         selectors = {"vaStripHeader"},
-        fontSize = 16,
+        fontSize = 12,
         bold = true,
         color = "@fgStrong",
         uppercase = true,
@@ -1071,16 +1072,16 @@ local g_vaStripStyles = {
     },
     {
         selectors = {"vaStripSeparator"},
-        fontSize = 16,
+        fontSize = 12,
         bold = true,
         color = "@fgStrong",
         width = "auto",
         height = "auto",
-        hmargin = 8,
+        hmargin = 6,
     },
     {
         selectors = {"vaStripSubHeader"},
-        fontSize = 16,
+        fontSize = 12,
         color = "@fgStrong",
         width = "auto",
         height = "auto",
@@ -1105,11 +1106,11 @@ local g_vaStripStyles = {
     -- "cyclable" class is toggled by refresh).
     {
         selectors = {"vaOwnerPortrait"},
-        width = 48,
-        height = 48,
+        width = 40,
+        height = 40,
         halign = "center",
         valign = "center",
-        hmargin = 8,
+        hmargin = 6,
         bgcolor = "white",
         borderColor = "@border",
         borderWidth = 2,
@@ -1121,24 +1122,23 @@ local g_vaStripStyles = {
         transitionTime = 0.1,
     },
 
-    -- Individual drawer: cloned from Styles.ActionBar's actionBarDrawer rule
-    -- so the rendered chrome (beveled corners, raised feel, border contrast)
-    -- is identical. Height bumped to 48 (vs the action bar's ~41) so the
-    -- two-line title+ability-name layout has breathing room.
+    -- Individual drawer: compact variant for the right-side band placement.
+    -- Cloned from Styles.ActionBar's actionBarDrawer chrome (beveled corners,
+    -- raised feel, border contrast) but shrunk toward the monster-card scale.
     {
         selectors = {"vaDrawer"},
-        width = 205,
-        height = 48,
+        width = 132,
+        height = 40,
         halign = "center",
         valign = "bottom",
         bgimage = true,
         bgcolor = "@bg",
         flow = "vertical",
-        cornerRadius = 10,
+        cornerRadius = 8,
         beveledcorners = true,
         borderColor = "@border",
         borderWidth = 2,
-        hmargin = 4,
+        hmargin = 3,
     },
     {
         selectors = {"vaDrawer", "~available"},
@@ -1155,13 +1155,13 @@ local g_vaStripStyles = {
     -- between the drawer's top border and the numeral.
     {
         selectors = {"vaDrawerTitle"},
-        fontSize = 16,
+        fontSize = 13,
         bold = true,
         color = "@fgStrong",
         width = "100%",
-        height = 18,
+        height = 15,
         textAlignment = "center",
-        tmargin = 4,
+        tmargin = 2,
     },
     {
         selectors = {"vaDrawerTitle", "parent:~available"},
@@ -1170,13 +1170,13 @@ local g_vaStripStyles = {
     -- Ability name immediately under the numeral.
     {
         selectors = {"vaDrawerSummary"},
-        fontSize = 12,
+        fontSize = 10,
         bold = true,
         color = "@fg",
         width = "100%",
-        height = 14,
+        height = 12,
         textAlignment = "center",
-        tmargin = -2,
+        tmargin = -1,
     },
     {
         selectors = {"vaDrawerSummary", "parent:~available"},
@@ -1220,17 +1220,19 @@ local g_vaStripStyles = {
     },
 
     -- Flashing nudge: when it's between turns and the director can fire
-    -- a VA, the available drawers' whole surface pulses to @danger (red).
-    -- The pulse is driven by the "on" class toggled on the strip every
+    -- a VA, the available drawers' whole surface pulses to @accent. The
+    -- pulse is driven by the "on" class toggled on the strip every
     -- thinkTime; scoped via the compound selector so non-flashing drawers
-    -- are unaffected.
+    -- are unaffected. (Tokenised rather than a hardcoded red so it tracks
+    -- the active scheme / the in-progress re-theme. Swap @accent -> @bgAlt
+    -- here for a subtler pulse.)
     {
         selectors = {"vaDrawer", "flashing"},
-        borderColor = "@danger",
+        borderColor = "@accent",
     },
     {
         selectors = {"vaDrawer", "flashing", "on"},
-        bgcolor = "@danger",
+        bgcolor = "@accent",
         transitionTime = 0.7,
         easing = "easeInOutSine",
     },
@@ -1447,11 +1449,18 @@ local function CreateVillainActionStrip(self, info)
     return gui.Panel{
         classes = {"villainActionStrip"},
         styles = { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(g_vaStripStyles) },
+        -- Floating + right-aligned within the choicePanel's 1140-wide space
+        -- so the strip sits in the monster-side band, dropped just below the
+        -- monster cards (which occupy the top ~80px). Floating so it never
+        -- reflows the bar / round tracker. x/y are tuning offsets.
+        floating = true,
         flow = "vertical",
         width = "auto",
         height = "auto",
-        halign = "center",
+        halign = "right",
         valign = "top",
+        x = 0,
+        y = 100,
 
         -- Label row: "VILLAIN ACTIONS - Demon Chorogaunt" or with "(1/2)" suffix when multi.
         gui.Panel{
@@ -1815,16 +1824,17 @@ function GameHud.CreateInitiativeBar(self, info)
 	local addMonsters
 
 	--The parent / top-level initiative bar.
-	-- Strip out the floating + selfStyle from the inner panel; the wrapper
-	-- below owns positioning so the VA strip can stack above it in vertical flow.
-	-- halign='center' kept on the inner so it stays horizontally centred inside
-	-- the wrapper (the wrapper itself is auto-width, hugging widest child).
-	local innerInitiativeBar = gui.Panel({
+	return gui.Panel({
+		floating = true,
+		selfStyle = {
+			valign = 'top',
+			halign = 'center',
+		},
+
 		className = 'initiative-panel',
         height = 200,
         width = 500,
         tmargin = 0,
-        halign = 'center',
 
 		styles = {
 			{
@@ -2096,25 +2106,6 @@ function GameHud.CreateInitiativeBar(self, info)
 			respiteBar,
 		},
 	})
-
-	-- Wrapper: stacks the VillainActionStrip above the initiative bar so the
-	-- bar gets pushed down when a Leader/Solo with villain actions is in
-	-- the encounter, and returns to its original spot otherwise.
-	return gui.Panel{
-		floating = true,
-		selfStyle = {
-			valign = 'top',
-			halign = 'center',
-		},
-		width = "auto",
-		height = "auto",
-		flow = "vertical",
-		halign = "center",
-		valign = "top",
-
-		CreateVillainActionStrip(self, info),
-		innerInitiativeBar,
-	}
 end
 
 function GameHud.CreateInitiativeBarChoicePanel(self, info)
@@ -2574,6 +2565,12 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
         drawSteelBubble,
 		monsterContainer,
 		centerContainer,
+
+		-- Villain Action strip: mounted in the choicePanel's 1140-wide
+		-- coordinate space so it right-aligns into the monster-side band,
+		-- below the monster cards. Floating so it never reflows the bar /
+		-- round tracker.
+		CreateVillainActionStrip(self, info),
 
 		refresh = function(element)
 

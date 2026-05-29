@@ -778,7 +778,8 @@ CreateFolderContentsPanel = function(journalPanel, folderid)
                                 if #bookmarksSorted == 0 then
                                     element.data.bookmarks = nil
                                     local children = element.children
-                                    children = { children[1] }
+                                    --keep the two structural children: the floating drag spacer at [1] and the heading row at [2].
+                                    children = { children[1], children[2] }
                                     element.children = children
                                     return
                                 end
@@ -905,6 +906,10 @@ CreateFolderContentsPanel = function(journalPanel, folderid)
                                     children[#children + 1] = existingBookmark
                                 end
 
+                                --keep the two structural children ahead of the bookmark panels: the floating
+                                --drag spacer at [1] and the heading row at [2]. Inserting at index 1 in this
+                                --order leaves the final list as { spacer, heading, ...bookmarks }.
+                                table.insert(children, 1, element.children[2])
                                 table.insert(children, 1, element.children[1])
 
                                 element.data.bookmarks = newBookmarks

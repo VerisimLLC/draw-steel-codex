@@ -1079,10 +1079,12 @@ function RollInitiativeChatMessage.Create(initiativeQueue, tokens, playerids, mo
     local tokensByInitiative = {}
     for _,tok in ipairs(tokens) do
         local initiativeid = InitiativeQueue.GetInitiativeId(tok)
-        if tokensByInitiative[initiativeid] == nil then
-            tokensByInitiative[initiativeid] = tok
-        else
-            tokensByInitiative[initiativeid] = creature.GetSeniorToken{tokensByInitiative[initiativeid], tok}
+        if initiativeid ~= nil then
+            if tokensByInitiative[initiativeid] == nil then
+                tokensByInitiative[initiativeid] = tok
+            else
+                tokensByInitiative[initiativeid] = creature.GetSeniorToken{tokensByInitiative[initiativeid], tok}
+            end
         end
     end
 

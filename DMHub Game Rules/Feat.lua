@@ -342,7 +342,7 @@ function CharacterFeatChoice:_cache()
                     unique = true, --this means there will be checking in the builder so if we already have this id selected somewhere it won't be shown here.
                     prerequisite = cond(feat.prerequisite ~= "", feat.prerequisite),
                     hidden = feat:try_get("hidden"),
-					modifierInfo = feat.modifierInfo,
+					modifierInfo = feat:try_get("modifierInfo"),
                 }
 				if feat:try_get("hidden", false) == false then
 					optCache[#optCache+1] = {
@@ -351,7 +351,7 @@ function CharacterFeatChoice:_cache()
 						description = feat.description,
 						unique = true,
 						prerequisite = cond(feat.prerequisite ~= "", feat.prerequisite),
-						modifierInfo = feat.modifierInfo,
+						modifierInfo = feat:try_get("modifierInfo"),
 					}
 				end
                 break

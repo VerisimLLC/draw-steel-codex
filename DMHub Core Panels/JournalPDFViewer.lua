@@ -1548,7 +1548,7 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                             return
                         end
 
-                        CopyToClipboard(layout.text)
+                        CopyToClipboard(layout.text:Substring(1, layout.text.Length))
                     end,
                 }
 

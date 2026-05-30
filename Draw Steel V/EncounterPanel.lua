@@ -322,6 +322,13 @@ local function createGroupPanel(encounter)
                                             element:FireEvent("refresh", element.data.quantity)
                                         end,
                                         refresh = function(element, newQuantity)
+                                            --'refresh' is also a global tree-wide broadcast fired with no args
+                                            --(GameHud.Refresh -> sheet:FireEventTree('refresh')); fall back to the
+                                            --last known quantity so a stray broadcast doesn't compare nil < 8.
+                                            newQuantity = newQuantity or element.data.quantity
+                                            if newQuantity == nil then
+                                                return
+                                            end
                                             element.data.quantity = newQuantity
                                             if newQuantity < 8 then
                                                 element:SetClass("hidden", true)

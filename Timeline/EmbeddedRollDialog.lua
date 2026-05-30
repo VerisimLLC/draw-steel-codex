@@ -574,13 +574,13 @@ function GameHud.CreateEmbeddedRollDialog()
                 str = str .. " HALF"
             end
 
-            creature.UploadExpectedCreatureDamage(hint.charid, resultPanel.data.rollid, str)
+            _G.creature.UploadExpectedCreatureDamage(hint.charid, resultPanel.data.rollid, str)
         end
     end
 
     local RemoveTargetHints = function()
         for _, hint in ipairs(targetHints or {}) do
-            creature.UploadExpectedCreatureDamage(hint.charid, resultPanel.data.rollid, nil)
+            _G.creature.UploadExpectedCreatureDamage(hint.charid, resultPanel.data.rollid, nil)
         end
     end
 

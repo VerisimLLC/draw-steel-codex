@@ -107,7 +107,7 @@ local function ComputeTriggerRange(modifier, creature)
         local m = modContext.mod
         if m.behavior == "modifyability"
             and m:try_get("filterAbility", "") == ""
-            and m:try_get("applyToPowerRollTriggers", true) then
+            and m:try_get("applyToPowerRollTriggers", false) then
             local pass = true
             for kw, _ in pairs(m:try_get("keywords", {})) do
                 if not triggerKeywords[kw] then

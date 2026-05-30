@@ -811,7 +811,7 @@ CharacterModifier.TypeInfo.modifyability = {
             children[#children+1] = gui.Check{
 				styles = ThemeEngine.GetStyles(),
                 text = "Apply to Triggered Abilities",
-                value = modifier:try_get("applyToTriggeredAbilities", true),
+                value = modifier:try_get("applyToTriggeredAbilities", false),
                 change = function(element)
                     modifier.applyToTriggeredAbilities = element.value
                     Refresh()
@@ -826,7 +826,7 @@ CharacterModifier.TypeInfo.modifyability = {
                 children[#children+1] = gui.Check{
                     styles = ThemeEngine.GetStyles(),
                     text = "Apply to Power Roll Triggers",
-                    value = modifier:try_get("applyToPowerRollTriggers", true),
+                    value = modifier:try_get("applyToPowerRollTriggers", false),
                     change = function(element)
                         modifier.applyToPowerRollTriggers = element.value
                         Refresh()

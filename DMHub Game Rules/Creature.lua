@@ -8719,15 +8719,15 @@ end
 --abilities pick up the same modifications as activated ones. Returns the
 --(possibly cloned) ability, or nil if a modifier rejected it.
 --
---context: optional. "triggered" filters out modifyability mods that have
---applyToTriggeredAbilities = false (defaults true for back-compat).
+--context: optional. "triggered" filters out modifyability mods that do not
+--have applyToTriggeredAbilities set (defaults false; must be opted in).
 function creature:ApplyAbilityModifiers(ability, modifiers, context)
 	modifiers = modifiers or self:GetActiveModifiers()
 	for _,mod in ipairs(modifiers) do
 		local skip = false
 		if context == "triggered"
 			and mod.mod.behavior == "modifyability"
-			and not mod.mod:try_get("applyToTriggeredAbilities", true) then
+			and not mod.mod:try_get("applyToTriggeredAbilities", false) then
 			skip = true
 		end
 

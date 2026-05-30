@@ -5519,7 +5519,7 @@ CreateAbilityController = function()
                 return
             end
 
-            if g_token == nil then return end
+            if g_token == nil or not g_token.valid then return end
             if g_currentAbility == nil then return end
 
             local shape = g_currentAbility.targetType

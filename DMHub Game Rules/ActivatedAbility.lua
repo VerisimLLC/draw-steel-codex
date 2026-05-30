@@ -2234,7 +2234,7 @@ function ActivatedAbility:FinishCast(casterToken, options)
 
 	GameSystem.OnEndCastActivatedAbility(casterToken, self, options)
 
-	if self:CountsAsRegularAbilityCast() then
+	if self:CountsAsRegularAbilityCast() and casterToken ~= nil and casterToken.valid and casterToken.properties ~= nil then
         casterToken.properties:DispatchEvent("finishability", {usedability = self, cast = options.symbols and options.symbols.cast})
     end
 end

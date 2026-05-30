@@ -2406,7 +2406,8 @@ function GameHud:NextInitiative(oncomplete)
 
 	--End the turn in initiative queue data and upload the changes.
 	if self:has_key('currentInitiativeId') then
-		local tokens = self:GetTokensForInitiativeId(info, self.currentInitiativeId)
+		local currentInitiativeId = self.currentInitiativeId
+		local tokens = self:GetTokensForInitiativeId(info, currentInitiativeId)
         
 
         --we have to dispatch end turn BEFORE we change to the next turn,
@@ -2427,7 +2428,7 @@ function GameHud:NextInitiative(oncomplete)
         --TODO: maybe a mechanism for counting in process abilities/coroutines and
         --waiting for them to finish before we start the next turn?
         dmhub.Schedule(0.1, function()
-            local newRound = info.initiativeQueue:NextTurn(self.currentInitiativeId)
+            local newRound = info.initiativeQueue:NextTurn(currentInitiativeId)
 
             if newRound then
                 self:NewRound()

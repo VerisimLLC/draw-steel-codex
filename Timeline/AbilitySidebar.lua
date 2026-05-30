@@ -1572,11 +1572,12 @@ function CharacterPanel.UpdateAbilitySharing(data)
 end
 
 function CharacterPanel.HideAbility(ability)
-    if (not GameHud.instance) or (not rawget(GameHud.instance, "abilityDisplay")) then
+    local hud = rawget(GameHud, "instance")
+    if (not hud) or (not rawget(hud, "abilityDisplay")) then
         return
     end
 
-    local panel = GameHud.instance.abilityDisplay
+    local panel = hud.abilityDisplay
 
     local ctrl = dmhub.modKeys['ctrl'] or false
     if ctrl then

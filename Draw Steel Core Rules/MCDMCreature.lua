@@ -3841,6 +3841,28 @@ function creature:ShowCharacteristicRollDialog(attrid)
     local syntheticAbility = ActivatedAbility.Create{ isTest = true, name = title }
     local token = dmhub.LookupToken(self)
 
+    --Give the test roll a synthetic single-target (the roller itself) so the
+    --post-roll edge/bane -> tier refresh pipeline runs. That pipeline is plumbed
+    --entirely through RecalculateMultiTargets -> "recalculatedMultiTargets" ->
+    --message:UploadProperties, which bails when m_multitargets is nil. Without
+    --this, applying banes/edges after the dice land does not update the displayed
+    --tier (it only works before the roll, where the boons are baked into the
+    --formula). markLineOfSight is intentionally left unset so no targeting-ray
+    --labels are drawn, and CalculateMultiTargets is omitted so this static
+    --single-target array is preserved across recalculations.
+    local multitargets = nil
+    if token ~= nil then
+        multitargets = {
+            {
+                token = token,
+                boons = 0,
+                banes = 0,
+                modifiers = modifiers,
+                triggers = {},
+            },
+        }
+    end
+
     local displaying = false
     if token ~= nil then
         CharacterPanel.UnlockDisplayAbility()
@@ -3862,6 +3884,8 @@ function creature:ShowCharacteristicRollDialog(attrid)
             type = rollType,
             roll = roll,
             modifiers = modifiers,
+            multitargets = multitargets,
+            targetCreature = cond(multitargets ~= nil, self, nil),
             showDialogDuringRoll = true,
             amendable = true,
 

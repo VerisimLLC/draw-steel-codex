@@ -2020,6 +2020,50 @@ function GameHud.CreateEmbeddedRollDialog()
             end
             element.text = tostring(total)
         end,
+
+        -- After the roll, edges/banes applied via the boon bar adjust the total by
+        -- +/-2 (a single net edge/bane) but the dice are already settled, so the
+        -- label is never refreshed by diceface. Recompute here when the multitarget
+        -- recalculation fires (the boon-bar press triggers RecalculateMultiTargets).
+        -- This mirrors CalculateMultitargetsFromRollProperties: take the dice total
+        -- as rolled (which already includes the roll-time boon bonus) and re-apply
+        -- the current target's post-roll boon/bane delta. A double edge/bane shifts
+        -- the tier rather than the total, so GetRollModFromEdgesAndBanes returns 0
+        -- for it and the displayed total correctly stays put.
+        recalculatedMultiTargets = function(element)
+            if not element:HasClass("finishedRolling") then
+                return
+            end
+            if m_rollInfo == nil then
+                return
+            end
+
+            local natRoll = m_rollInfo.naturalRoll or 0
+            local correctedTotal
+            if natRoll > 0 and m_rollNonDiceModifier ~= nil then
+                correctedTotal = natRoll + m_rollNonDiceModifier
+            else
+                correctedTotal = m_rollInfo.total or 0
+            end
+
+            local rollBoons = m_rollInfo.boons or 0
+            local rollBanes = m_rollInfo.banes or 0
+
+            local targetBoons = 0
+            local targetBanes = 0
+            local idx = GetCurrentMultiTarget()
+            if idx ~= nil and m_multitargets[idx] ~= nil then
+                targetBoons = m_multitargets[idx].boons or 0
+                targetBanes = m_multitargets[idx].banes or 0
+            end
+
+            local baseBonus = ActivatedAbilityPowerRollBehavior.GetRollModFromEdgesAndBanes(rollBoons, rollBanes)
+            local effBonus = ActivatedAbilityPowerRollBehavior.GetRollModFromEdgesAndBanes(
+                math.min(rollBoons + targetBoons, 2),
+                math.min(rollBanes + targetBanes, 2))
+
+            element.text = tostring(correctedTotal + (effBonus - baseBonus))
+        end,
     }
 
     m_rollResults = gui.Panel{

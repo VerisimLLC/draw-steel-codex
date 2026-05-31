@@ -506,6 +506,17 @@ local g_rulePatterns = {
                 invoker = casterToken.properties,
                 promptOverride = description,
                 forcedMovementThroughCreatures = ability:try_get("forcedMovementThroughCreatures", false),
+                --This invoke relocates the TARGET (the pushed/pulled/slid creature),
+                --which becomes the caster of the forced-movement clone. InvokeAbility
+                --copies the parent ability's keywords onto the clone, so a forced
+                --movement from a Strike (e.g. Null's Magnetic Strike) carries the
+                --"Strike" keyword. If the target is a minion in a squad, that makes
+                --UsesSquadCoordination/UsesSquadStrike fire on the relocate clone and
+                --GetNumTargets multiply by the squad's minion count -- so the action
+                --bar waits for N target spaces and the destination click never
+                --confirms the pull. Forced movement is always per-target, never a
+                --squad-coordinated action, so opt out explicitly.
+                disableSquadCoordination = true,
             }
 
             if stability > 0 then

@@ -229,6 +229,10 @@ ShowShopPanel = function(parentPanel)
                         id = "Bundle",
                         text = "Bundle",
                     },
+                    {
+                        id = "AnimatedTokens",
+                        text = "Animated Tokens",
+                    },
                 },
 
                 item = function(element, item)
@@ -459,6 +463,97 @@ ShowShopPanel = function(parentPanel)
                     element.text = string.format("Bundle Value: $%d.%02d in %d items", dollars, cents, count)
                 end,
             }
+        },
+
+        --animated tokens editor. Like the bundle editor, an AnimatedTokens item grants a
+        --SET of animated tokens (by spine registry name, e.g. "lightbender"), so this is a
+        --multi-select list (add via dropdown, remove via delete button) rather than the
+        --single-asset dropdown the Dice type uses.
+        gui.Panel{
+            width = "auto",
+            height = "auto",
+            flow = "vertical",
+            item = function(element, item)
+                element:SetClass("collapsed", item.itemType ~= "AnimatedTokens")
+            end,
+
+            gui.Panel{
+                width = "auto",
+                height = "auto",
+                flow = "vertical",
+                item = function(element, item)
+                    if item.itemType ~= "AnimatedTokens" then
+                        return
+                    end
+
+                    local children = {}
+
+                    for k,_ in pairs(item.animatedTokens) do
+                        children[#children+1] = gui.Panel{
+                            width = "auto",
+                            height = "auto",
+                            flow = "horizontal",
+
+                            gui.Label{
+                                text = k,
+                                width = 400,
+                                height = "auto",
+                                hmargin = 16,
+                                fontSize = 14,
+                            },
+
+                            gui.DeleteItemButton{
+                                width = 16,
+                                height = 16,
+                                click = function(element)
+                                    local tokens = m_item.animatedTokens
+                                    tokens[k] = nil
+                                    m_item.animatedTokens = tokens
+                                    m_item:Upload()
+                                    editingPanel:FireEventTree("item", m_item)
+                                end,
+                            }
+                        }
+                    end
+
+                    element.children = children
+                end,
+            },
+
+            gui.Dropdown{
+                textOverride = "Add Animated Token...",
+                idChosen = "none",
+                hasSearch = true,
+                lmargin = 10,
+                width = 320,
+                create = function(element)
+                    local options = {}
+                    for _,entry in ipairs(spine.listEntries()) do
+                        options[#options+1] = {
+                            id = entry.id,
+                            text = entry.text,
+                        }
+                    end
+
+                    table.sort(options, function(a,b) return a.text < b.text end)
+
+                    element.options = options
+                end,
+
+                change = function(element)
+                    if element.idChosen == "none" then
+                        return
+                    end
+
+                    local tokens = m_item.animatedTokens
+                    tokens[element.idChosen] = true
+                    m_item.animatedTokens = tokens
+                    m_item:Upload()
+                    editingPanel:FireEventTree("item", m_item)
+
+                    element.idChosen = "none"
+                end,
+            },
         },
 
 

@@ -472,8 +472,8 @@ dmhub.tokenAnimations:RegisterTeleport{
             color = "#7300ff", radius = 2.0, innerRadius = 0.1,
             duration = 1.0, fadein = 0.1, fadeout = 0.1,
         }
-        anim:Billboard{ video = "teleport.webm", blend = "add", scale = 1.3 }
-        anim:Billboard{ video = "teleport.webm", blend = "add", scale = 1.3,
+        anim:Billboard{ video = "teleport.webm", blend = "add", scale = 1.8 }
+        anim:Billboard{ video = "teleport.webm", blend = "add", scale = 1.8,
                         pos = targetLoc, delay = 0.2 }
 
         sleep(0.4)
@@ -483,6 +483,8 @@ dmhub.tokenAnimations:RegisterTeleport{
             color = "#7300ff", radius = 2.0, innerRadius = 0.1,
             duration = 1.0, fadein = 0.1, fadeout = 0.1,
         }
+        anim:Billboard{ video = "teleport.webm", blend = "add", scale = 1.8 }
+        sleep(1)
     end,
 }
 
@@ -492,23 +494,25 @@ dmhub.tokenAnimations:RegisterTeleport{
     id = "ashteleport",
     name = "Ash Teleport",
     animation = function(token, targetLoc, opts)
-        audio.FireSoundEvent("Ability.Teleport_Generic")
+        audio.FireSoundEvent("Dice.Teleport_BlackAsh")
         local anim = token.animation
 
         anim:PlayEffect{ id = "Ash_Disappear_vfx" }
-        anim:Light{ color = "#ff7733", radius = 2.0, innerRadius = 0.1, duration = 0.6 }
+        anim:Light{ color = "#993377", radius = 2.0, innerRadius = 0.1, duration = 0.3, fadein = 0.1, fadeout = 0.1 }
 
         sleep(0.3)
 
         anim:SetVisible(false)
-        local trail = anim:PlayEffect{ id = "Ash_TravelTail_vfx", looping = true }
-        anim:Tween{ translate = targetLoc, duration = 0.8 }
-        sleep(0.8)
+        local trail = anim:PlayEffect{ id = "FloorSmokeTrail_vfx", looping = true }
+        anim:Tween{ translate = targetLoc, duration = 0.4 }
+        sleep(0.4)
         trail:Stop()
 
-        anim:SetVisible(true)
+        audio.FireSoundEvent("Dice.Remove_BlackAsh")
         anim:PlayEffect{ id = "Ash_Appearance_vfx" }
-        anim:Light{ color = "#ffcc77", radius = 2.5, innerRadius = 0.1, duration = 0.6 }
+        anim:Light{ color = "#993377", radius = 2.0, innerRadius = 0.1, duration = 0.6, fadein = 0.1, fadeout = 0.1 }
+        sleep(0.2)
+        anim:SetVisible(true)
         sleep(1)
     end,
 }

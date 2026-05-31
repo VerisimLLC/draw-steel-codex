@@ -582,7 +582,7 @@ TokenHud.RegisterPanel{
 				italics = false,
 				events = {
 					refresh = function(element)
-						if token.properties ~= nil and (token.canControl or not token.namePrivate) then
+						if token.properties ~= nil and (token.canControl or not token.namePrivate) and token.initiativeStatus ~= "ActiveAndReady" then
                             local textColor = nil
                             local squad = token.properties:MinionSquad()
                             if squad ~= nil then

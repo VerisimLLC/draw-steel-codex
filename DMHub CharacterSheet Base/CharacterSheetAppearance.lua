@@ -1333,6 +1333,25 @@ function CharSheet.AvatarSelectionPanel()
 
                 children = { popoutAvatar, },
 
+                rightClick = function(element)
+                    if not dmhub.GetSettingValue("dev") then return end
+                    element.popup = gui.ContextMenu{
+                        entries = {
+                            {
+                                text = "Open URL",
+                                click = function()
+                                    element.popup = nil
+                                    local imageid = element.value
+                                    if (imageid == nil or imageid == "") and popoutAvatar.bgimage ~= nil and popoutAvatar.bgimage ~= "" then
+                                        imageid = popoutAvatar.bgimage
+                                    end
+                                    dmhub.OpenImageAssetURL(imageid)
+                                end,
+                            }
+                        },
+                    }
+                end,
+
                 thinkTime = 0.2,
                 think = function(element)
                     element:FireEvent("imageLoaded")
@@ -1424,6 +1443,19 @@ function CharSheet.AvatarSelectionPanel()
                     dmhub.SetSettingValue("playercolor", element.value)
                 end,
             },
+        },
+
+        gui.Label{
+            classes = {"link"},
+            fontSize = 16,
+            text = "TitanCraft Token Builder",
+            width = "auto",
+            height = "auto",
+            halign = "center",
+            valign = "bottom",
+            click = function(element)
+                dmhub.OpenURL("https://titancraft.com/?ref=codex")
+            end,
         },
 
     }

@@ -114,6 +114,15 @@ local g_streamerModeSetting = setting {
 
 local g_gamePageSetting = g_playerGamePageSetting
 
+-- Maximum number of games a user may participate in at once. Admin
+-- accounts get a higher cap (48); everyone else is limited to 24.
+local function MaxGamesAllowed()
+    if dmhub.isAdminAccount then
+        return 48
+    end
+    return 24
+end
+
 local function TooManyGamesDialog(element)
     local modal
     modal = gui.Panel {
@@ -2467,7 +2476,7 @@ local function MakeGamePanel(gameIndex)
             m_game = orderedGames[index]
             if m_game == nil then
                 element:SetClass("hidden", true)
-                addGameButton:SetClass("hidden", #lobby.games >= 24)
+                addGameButton:SetClass("hidden", #lobby.games >= MaxGamesAllowed())
                 element:HaltEventPropagation()
                 return
             end
@@ -3960,7 +3969,7 @@ function CreateTitlescreen(dialog, options)
         end,
 
         titlescreenCreateGame = function(element, tokenToImport)
-            if #lobby.games >= 24 then
+            if #lobby.games >= MaxGamesAllowed() then
                 TooManyGamesDialog(element)
                 return
             end
@@ -5373,7 +5382,7 @@ function CreateTitlescreen(dialog, options)
                                     y = -10,
 
                                     press = function(element)
-                                        if #lobby.games >= 24 then
+                                        if #lobby.games >= MaxGamesAllowed() then
                                             TooManyGamesDialog(element)
 
                                             return

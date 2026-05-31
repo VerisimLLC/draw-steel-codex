@@ -1299,7 +1299,6 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
             trigger = triggers[guid]
 
             local turnid = casterToken.properties:GetResourceRefreshId("turn")
-            local starttime = dmhub.Time()
 
 			local sustain = true
 			local gameupdate = dmhub.ngameupdate
@@ -1307,16 +1306,16 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
             local expireAt = nil
             local wasDismissed = false
 
+            --missingSince records when the trigger entry first went missing from
+            --availableTriggers. The recovery grace period is measured from this
+            --point rather than from coroutine start, so a long-lived trigger
+            --still gets a full window to recover from a transient frame where
+            --GetAvailableTriggers rebuilds its table and momentarily omits us.
+            local missingSince = nil
+
 			while trigger ~= nil and (not trigger.triggered) and (not trigger.dismissed) and sustain do
 				coroutine.yield()
 
-				--Hold on to the previous trigger reference so we can detect
-				--dismissal-by-clear: when the player clicks dismiss, the
-				--ActiveTrigger has clearOnDismiss=true, so DispatchAvailableTrigger
-				--immediately removes the entry from availableTriggers and the
-				--refetch below returns nil, losing the dismissed flag we'd
-				--otherwise have observed.
-				local prevTrigger = trigger
 				trigger = nil
                 if casterToken == nil or (not casterToken.valid) then
                     break
@@ -1333,21 +1332,38 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
                 local triggers = casterToken.properties:GetAvailableTriggers() or {}
                 trigger = triggers[guid]
 
-                --Detect dismissal: either the new copy carries dismissed=true,
-                --or it's gone entirely (cleared by DispatchAvailableTrigger
-                --via clearOnDismiss).
+                if trigger == nil then
+                    if missingSince == nil then
+                        missingSince = dmhub.Time()
+                    end
+                else
+                    missingSince = nil
+                end
+
+                --Detect dismissal. A genuine dismiss/clear sets
+                --_tmp_clearedTriggers[guid] (every dismiss path routes through
+                --ClearAvailableTrigger, which sets it). That flag is what
+                --distinguishes a real dismissal from a transient frame where the
+                --entry is momentarily absent. Never infer dismissal from a bare
+                --nil read -- doing so used to tear the coroutine down while the
+                --panel entry was still (or again) present, leaving an
+                --unresponsive panel.
                 if trigger ~= nil and trigger.dismissed then
                     wasDismissed = true
-                elseif prevTrigger ~= nil and trigger == nil and sustain then
+                elseif trigger == nil and casterToken.valid and casterToken.properties:try_get("_tmp_clearedTriggers", {})[guid] then
                     wasDismissed = true
                 end
 
-                --give at least 5 seconds to recover if the trigger is not found.
-                --Skip the recovery wait if we already know the trigger was dismissed
-                while trigger == nil and (not wasDismissed) and dmhub.Time() < starttime+5 and casterToken.valid do
+                --Give the trigger time to recover if it is transiently not found,
+                --measured from when it went missing. Skip the wait if we already
+                --know it was dismissed.
+                while trigger == nil and (not wasDismissed) and dmhub.Time() < (missingSince or dmhub.Time()) + 5 and casterToken.valid do
 
                     local triggers = casterToken.properties:GetAvailableTriggers() or {}
                     trigger = triggers[guid]
+                    if trigger ~= nil then
+                        missingSince = nil
+                    end
 
 				    coroutine.yield()
                 end
@@ -1359,17 +1375,30 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
                 if trigger and gameupdate ~= dmhub.ngameupdate then
                     gameupdate = dmhub.ngameupdate
 
-                    if not self:CanAfford(casterToken) then
-                        sustain = false
-                    end
-
-                    if trim(self.conditionFormula) ~= "" then
-                        local condition = ExecuteGoblinScript(self.conditionFormula,
-                            casterToken.properties:LookupSymbol(symbols), 0, "Trigger condition")
-                        if tonumber(condition) == 0 then
-                            --we no longer sustain the trigger condition
+                    --This block evaluates user-authored GoblinScript, which can
+                    --throw. We cannot wrap the whole loop in pcall (this runtime
+                    --forbids yielding across a pcall boundary), so we protect the
+                    --throwing calls here: on error we stop sustaining, which
+                    --drops out of the loop into the guaranteed cleanup below
+                    --rather than escaping the coroutine and stranding the panel.
+                    local ok, err = pcall(function()
+                        if not self:CanAfford(casterToken) then
                             sustain = false
                         end
+
+                        if trim(self.conditionFormula) ~= "" then
+                            local condition = ExecuteGoblinScript(self.conditionFormula,
+                                casterToken.properties:LookupSymbol(symbols), 0, "Trigger condition")
+                            if tonumber(condition) == 0 then
+                                --we no longer sustain the trigger condition
+                                sustain = false
+                            end
+                        end
+                    end)
+
+                    if not ok then
+                        printf("Error evaluating trigger sustain condition: %s", tostring(err))
+                        sustain = false
                     end
                 end
             end
@@ -1378,12 +1407,19 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
                 casterToken = dmhub.GetTokenById(tokid)
             end
 
-			if trigger ~= nil and casterToken ~= nil and casterToken.valid then
+			--Guaranteed cleanup: remove the panel entry by guid on EVERY exit
+			--path (triggered, dismissed, sustain lost, caster invalid, transient
+			--nil read). The panel renders straight from availableTriggers, so if
+			--we exit without clearing, the entry lingers (until the 60s age-out)
+			--with no coroutine watching it -- clickable but unresponsive. Clear by
+			--guid rather than by the (possibly nil) trigger reference, since some
+			--exits leave trigger nil while the entry is still present.
+			if casterToken ~= nil and casterToken.valid then
 				casterToken:ModifyProperties{
 					description = "Clear Trigger",
 					undoable = false,
 					execute = function()
-						casterToken.properties:ClearAvailableTrigger(trigger)
+						casterToken.properties:ClearAvailableTrigger({id = guid})
 					end,
 				}
 			end

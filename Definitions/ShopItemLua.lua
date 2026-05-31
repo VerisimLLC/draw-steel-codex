@@ -7,8 +7,10 @@
 --- @field autoInstall boolean Whether this module auto-installs when purchased.
 --- @field hasBundle boolean True if this shop item includes a bundle of other items.
 --- @field bundle table<string, boolean> A table of bundled item IDs mapped to true. Read/write.
+--- @field hasAnimatedTokens boolean True if this is an AnimatedTokens item that grants one or more animated tokens.
+--- @field animatedTokens table<string, boolean> A table of animated-token spine registry names (e.g. 'lightbender') mapped to true, granted by this item. Read/write. Only meaningful for AnimatedTokens-type items.
 --- @field images string[] List of image asset identifiers for this shop item's gallery.
---- @field itemType string The type of this shop item as a string ('Dice', 'Module', 'Bundle', 'Bandwidth', 'None').
+--- @field itemType string The type of this shop item as a string ('Dice', 'Module', 'Bundle', 'Bandwidth', 'AnimatedTokens', 'None').
 --- @field assetid string The underlying asset identifier this item grants access to.
 --- @field units number The number of units for quantity-based items (e.g. bandwidth).
 --- @field onsale boolean True if this item is currently on sale.

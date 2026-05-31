@@ -52,11 +52,54 @@ local CreateMapNodePanel
 local CreateMapFolderPanel
 local CreateMapFolderChildPanel
 
+-- Per-open-dialog state shared with the file-local Create*View helpers.
+-- Set by showShareModuleDialog before any panel construction runs and reset
+-- to nil after the dialog closes. The hiddenEntries map (assetid -> true)
+-- comes from moduleInstance.publishingProperties.hiddenEntries and is the
+-- source of truth while the dialog is open.
+local g_dialogState = nil
+
 local createCheck = function(element)
 	element:FireEventOnParents("createasset", element)
 
+	-- If this entry was previously hidden via the right-click menu, hide it
+	-- on creation and exclude it from the per-section counts.
+	if g_dialogState ~= nil and element.data.assetid ~= nil
+		and g_dialogState.hiddenEntries[element.data.assetid] then
+		element:SetClass("silent", true)
+		element:SetClass("collapsed", true)
+	end
+
 	--debug show guid of object.
 	--element.data.SetText(element.data.GetText() .. " " .. element.data.assetid)
+end
+
+-- rightClick handler attached to each gui.Check row. Opens a context menu
+-- offering to hide this entry from the publish dialog permanently.
+local rightClickHide = function(element)
+	if g_dialogState == nil then return end
+	local assetid = element.data.assetid
+	if assetid == nil then return end
+	local displayName = element.data.displayName or "this entry"
+
+	element.popup = gui.ContextMenu{
+		width = 320,
+		entries = {
+			{
+				text = string.format("Hide \"%s\" from this dialog", displayName),
+				click = function()
+					element.popup = nil
+					g_dialogState.hiddenEntries[assetid] = true
+					element:SetClass("silent", true)
+					element:SetClass("collapsed", true)
+					if g_dialogState.onChange ~= nil then
+						g_dialogState.onChange()
+					end
+				end,
+			},
+		},
+		click = function() element.popup = nil end,
+	}
 end
 
 local changeCheck = function(element)
@@ -157,6 +200,7 @@ CreateMapNodePanel = function(map)
 		change = changeCheck,
 		count = countCheck,
 		linger = checkTooltip,
+		rightClick = rightClickHide,
 		includedAssets = includedAssets,
 		collectManifest = collectManifestCheck,
 		selection = function(element, t)
@@ -348,6 +392,7 @@ local CreateCharacterFolderChildPanel = function()
 			change = changeCheck,
 			count = countCheck,
 			linger = checkTooltip,
+			rightClick = rightClickHide,
 			includedAssets = includedAssets,
 			collectManifest = collectManifestCheck,
 			selection = selectionCheck,
@@ -680,6 +725,7 @@ local CreateObjectTableView = function(tableName, knownAssetsInCore)
 						change = changeCheck,
 						count = countCheck,
 						linger = checkTooltip,
+						rightClick = rightClickHide,
 						includedAssets = includedAssets,
 						collectManifest = collectManifestCheck,
 						selection = selectionCheck,
@@ -842,6 +888,7 @@ local function GatherAllAssetsChildren(children, knownAssetsInCore)
 							change = changeCheck,
 							count = countCheck,
 							linger = checkTooltip,
+							rightClick = rightClickHide,
 							includedAssets = includedAssets,
 							collectManifest = collectManifestCheck,
 							selection = selectionCheck,
@@ -1002,6 +1049,7 @@ local function CreateCodeModView(modid, modInfo)
 		change = changeCheck,
 		count = countCheck,
 		linger = checkTooltip,
+		rightClick = rightClickHide,
 		includedAssets = includedAssets,
 		collectManifest = collectManifestCheck,
 		selection = selectionCheck,
@@ -1031,6 +1079,7 @@ local function CreateModuleDependencyView(moduleInstance)
 		change = changeCheck,
 		count = countCheck,
 		linger = checkTooltip,
+		rightClick = rightClickHide,
 		includedAssets = includedAssets,
 		collectManifest = collectManifestCheck,
 		selection = selectionCheck,
@@ -1100,6 +1149,7 @@ local function CreateImageLibraryView(assetid, imageLibrary, coreImageLibrary)
 		change = changeCheck,
 		count = countCheck,
 		linger = checkTooltip,
+		rightClick = rightClickHide,
 		includedAssets = includedAssets,
 		selection = selectionCheck,
 		collectManifest = collectManifestCheck,
@@ -1536,6 +1586,23 @@ local showShareModuleDialog = function(options)
 	if moduleInstance.publishingProperties.includedAssets ~= nil then
 		includedAssets = DeepCopy(moduleInstance.publishingProperties.includedAssets)
 	end
+
+	-- Per-asset hide list. Populated from publishingProperties so prior hides
+	-- persist across dialog opens; the right-click "Hide this entry" menu
+	-- adds to this map and invokes g_dialogState.onChange to persist.
+	local hiddenEntries = {}
+	if moduleInstance.publishingProperties.hiddenEntries ~= nil then
+		hiddenEntries = DeepCopy(moduleInstance.publishingProperties.hiddenEntries)
+	end
+
+	g_dialogState = {
+		hiddenEntries = hiddenEntries,
+		moduleInstance = moduleInstance,
+		isNewModule = isNewModule,
+		-- Bound later once dialogPanel is constructed. We use a forwarding
+		-- closure so the body can reference dialogPanel by upvalue.
+		onChange = function() end,
+	}
 
 
 	if moduleInstance.authorid == nil or moduleInstance.authorid == "" then
@@ -2407,6 +2474,64 @@ local showShareModuleDialog = function(options)
 	mapFolderHierarchy = CreateMapFolderPanel(game.rootMapFolder, true, folderOptions)
 
 
+	local assetsCustomStyles = {
+		{
+			classes = {"row"},
+			height = 24,
+			width = "100%",
+			halign = "left",
+			valign = "top",
+			flow = "horizontal",
+			bgcolor = "@bg",
+		},
+		{
+			classes = {"row", "map"},
+			height = "auto",
+			minHeight = 24,
+		},
+		{
+			classes = {"row", "hover"},
+			transitionTime = 0.1,
+			bgcolor = "@bgInverse",
+		},
+		{
+			classes = {"row", "dragging"},
+			bgcolor = "@bgInverse",
+		},
+		{
+			classes = {"label", "parent:row", "parent:hover"},
+			color = "@fgInverse",
+		},
+		{
+			classes = {"label", "parent:row", "parent:dragging"},
+			color = "@fgInverse",
+		},
+		{
+			classes = {"checkboxLabel", "parent:row", "parent:hover"},
+			color = "@fgInverse",
+		},
+		{
+			classes = {"checkboxLabel", "parent:row", "parent:dragging"},
+			color = "@fgInverse",
+		},
+		{
+			classes = {"label"},
+			halign = "left",
+			width = "auto",
+			height = "auto",
+			fontSize = 16,
+			margin = 4,
+			color = "@fg",
+		},
+		{
+			classes = {"checkbox-label"},
+			width = "auto",
+			maxWidth = 310,
+			textOverflow = "truncate",
+			textWrap = false,
+		},
+	}
+
 	assetsPanel = gui.Panel{
 		height = "auto",
 		width = 300,
@@ -2414,47 +2539,7 @@ local showShareModuleDialog = function(options)
 		flow = "vertical",
 		valign = "top",
 
-		styles = {
-			{
-				classes = {"row"},
-				height = 24,
-				width = "100%",
-				halign = "left",
-				valign = "top",
-				flow = "horizontal",
-				bgcolor = "#00000044",
-			},
-			{
-				classes = {"row", "map"},
-				height = "auto",
-				minHeight = 24,
-			},
-			{
-				classes = {"row", "hover"},
-				transitionTime = 0.1,
-				bgcolor = "#88000077",
-			},
-			{
-				classes = {"row", "dragging"},
-				bgcolor = "#88000077",
-			},
-			{
-				classes = {"label"},
-				halign = "left",
-				width = "auto",
-				height = "auto",
-				fontSize = 16,
-				margin = 4,
-				color = "#aaaaaa",
-			},
-			{
-				classes = {"checkbox-label"},
-				width = "auto",
-				maxWidth = 310,
-				textOverflow = "truncate",
-				textWrap = false,
-			},
-		},
+		styles = ThemeEngine.MergeTokens(assetsCustomStyles),
 
 
 
@@ -2641,6 +2726,20 @@ local showShareModuleDialog = function(options)
 			},
 	}
 
+	-- Bind the hidden-entries onChange now that dialogPanel/moduleInstance
+	-- are both reachable by upvalue. Persisting to publishingProperties +
+	-- (for existing modules) uploading immediately makes the hide survive a
+	-- dialog close without finishing the publish flow.
+	g_dialogState.onChange = function()
+		moduleInstance.publishingProperties.hiddenEntries = hiddenEntries
+		if not isNewModule then
+			moduleInstance:Upload{}
+		end
+		if dialogPanel ~= nil then
+			dialogPanel:FireEventTree("updatecounts")
+		end
+	end
+
 	dialogPanel = gui.Panel{
 		id = 'ShareDialog',
 		classes = {"framedPanel"},
@@ -2649,6 +2748,10 @@ local showShareModuleDialog = function(options)
 		styles = ThemeEngine.MergeStyles(dialogCustomStyles),
 
 		thinkTime = 0.1,
+
+		destroy = function(element)
+			g_dialogState = nil
+		end,
 
 		think = function(element)
 			if m_dependenciesDirty then
@@ -2753,6 +2856,9 @@ local showShareModuleDialog = function(options)
 	ThemeEngine.OnThemeChanged(mod, function()
 		if dialogPanel ~= nil and dialogPanel.valid then
 			dialogPanel.styles = ThemeEngine.MergeStyles(dialogCustomStyles)
+		end
+		if assetsPanel ~= nil and assetsPanel.valid then
+			assetsPanel.styles = ThemeEngine.MergeTokens(assetsCustomStyles)
 		end
 	end)
 end

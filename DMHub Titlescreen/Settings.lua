@@ -92,6 +92,16 @@ setting{
 }
 
 setting{
+    id = "p2p:forcewebsocketrelay",
+    description = "Force Server-Relayed Peer Connections",
+    help = "Routes all direct (peer-to-peer) traffic -- token drags, pings, live cursors -- through the game server over your existing connection instead of trying a direct UDP link to other players. Turn this on if peer connections never establish (e.g. a firewall, restrictive NAT, or ISP is blocking UDP). The app also switches to this automatically when it detects the peer link can't be reached, so you normally won't need to set it by hand. Only applies to games on the new server backend.",
+    storage = "preference",
+    section = "General",
+    editor = "check",
+    default = false,
+}
+
+setting{
     id = "redactdirectorlocation",
     description = "Redact Director Location",
     help = "When on, directors' rich-status/location is hidden in the Heroes and User Status panels for everyone in the game; only Online/Away/Offline is shown for director users.",

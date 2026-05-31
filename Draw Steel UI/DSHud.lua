@@ -95,6 +95,10 @@ function GameHud.TokenMoving(self, token, path)
         statusText = statusText .. "\n" .. tr("<color=#ff0000>This path requires climbing.</color>")
     end
 
+    if path.fallDistance > 0 and not path.forced and not path.teleport then
+        statusText = statusText .. "\n" .. string.format(tr("<color=#ff0000>You will fall %d squares. Hold shift to climb down instead.</color>"), path.fallDistance)
+    end
+
 	if path.teleport then
         local distance = path.origin:DistanceInTiles(path.destination)
 		text = string.format(tr('Teleport: %d %s'), distance, string.lower(MeasurementSystem.UnitName()))

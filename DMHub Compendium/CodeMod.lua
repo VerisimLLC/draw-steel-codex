@@ -1346,7 +1346,7 @@ CreateEditor = function(panelArgs)
 		return gui.Label{
 			classes = {"tab", cond(panel:HasClass("collapsed"), nil, "selected")},
 			text = text,
-			click = function(element)
+			press = function(element)
 				for _,el in ipairs(element.parent.children) do
 					el:FireEvent("selected", el == element)
 				end

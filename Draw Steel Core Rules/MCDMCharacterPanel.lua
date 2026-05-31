@@ -1983,6 +1983,7 @@ function TacPanel.Portrait()
                 }
             ),
             outlineButton(gui.Panel{
+                id = "char-panel-light-btn",
                 classes = {"toggle-btn", "light-btn"},
                 hoverCursor = "pressbutton",
                 width = TacPanelSizes.VisionBtn.size,

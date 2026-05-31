@@ -379,6 +379,103 @@ Commands.RegisterMacro{
 }
 
 Commands.RegisterMacro{
+    name = "tipsclear",
+    summary = "clear learned tips",
+    doc = "Wipes the local user's record of which tips have been learned/dismissed so they will show again.",
+    command = function(str)
+        Tip.ResetAll()
+        print("Tips reset; eligible tips will re-display.")
+    end,
+}
+
+Commands.RegisterMacro{
+    name = "exportrenderedtoken",
+    summary = "export the selected token to PNG",
+    doc = "Usage: /exportrenderedtoken [padding] [resolution]\nRenders the currently selected token (frame + character/spine art) on a transparent background and prompts you to save it as a PNG.\n  padding: how much extra room around the token (default 1.5, min 1.0).\n  resolution: square output size in pixels (default 1024).",
+    command = function(str)
+        local tokens = dmhub.selectedTokens
+        if tokens == nil or #tokens == 0 then
+            print("/exportrenderedtoken: no token selected; click a token first.")
+            return
+        end
+        local args = Commands.SplitArgs(str or "")
+        local padding = tonumber(args[1])
+        local resolution = tonumber(args[2])
+        dmhub.ExportTokenImage{
+            token = tokens[1],
+            padding = padding,
+            resolution = resolution,
+            error = function(msg) print(msg) end,
+        }
+    end,
+}
+
+Commands.RegisterMacro{
+    name = "tipsperf",
+    summary = "benchmark tip-system overhead",
+    doc = "Usage: /tipsperf [iterations]\nTimes the tip driver and its hot subroutines over N iterations (default 2000) and prints per-op costs in microseconds.",
+    command = function(str)
+        local n = tonumber(str) or 2000
+        local gh = GameHud.instance
+        if gh == nil then print("No GameHud.instance") return end
+
+        --Snapshot live state so the timed ops behave identically regardless
+        --of any tip currently showing.
+        local savedActive = gh:try_get("activeTipId")
+        local savedScan = gh:try_get("_tipLastScan")
+        local savedState = gh:try_get("_tipState")
+
+        local registrySize = 0
+        for _ in pairs(Tip.registry) do registrySize = registrySize + 1 end
+
+        --1) Just the modal-block check (panel tree walk).
+        local sw1 = dmhub.Stopwatch()
+        for i = 1, n do gh:_TipIsBlockedByDialog() end
+        local ms1 = sw1.milliseconds
+
+        --2) Full driver tick with NO active tip (scan path forced by
+        --   resetting _tipLastScan each iteration so the scan actually runs).
+        gh.activeTipId = nil
+        gh._tipState = nil
+        local sw2 = dmhub.Stopwatch()
+        for i = 1, n do
+            gh._tipLastScan = nil
+            gh:_TipDriverTick()
+            --Driver may have picked a tip; reset so next iter re-scans.
+            gh.activeTipId = nil
+            gh._tipState = nil
+        end
+        local ms2 = sw2.milliseconds
+
+        --3) Just the registry scan loop (each tip's eligible() once).
+        local sw3 = dmhub.Stopwatch()
+        for i = 1, n do
+            for _, spec in pairs(Tip.registry) do
+                if not Tip.IsLearned(spec.id) and spec.eligible ~= nil then
+                    pcall(spec.eligible)
+                end
+            end
+        end
+        local ms3 = sw3.milliseconds
+
+        --Restore.
+        gh.activeTipId = savedActive
+        gh._tipLastScan = savedScan
+        gh._tipState = savedState
+
+        local function us(totalMs) return (totalMs * 1000) / n end
+
+        print(string.format("Tip perf (%d iterations, %d tips registered):", n, registrySize))
+        print(string.format("  ModalBlockCheck:  total %dms, avg %.2f us/call", ms1, us(ms1)))
+        print(string.format("  Full driver tick (no active, scan path forced):"))
+        print(string.format("                    total %dms, avg %.2f us/call", ms2, us(ms2)))
+        print(string.format("  Registry scan (eligible() x %d tips per iter):", registrySize))
+        print(string.format("                    total %dms, avg %.2f us/call", ms3, us(ms3)))
+        print(string.format("At thinkTime=0.25 (4Hz), full-tick cost = %.4f%% of one core.", us(ms2) * 4 / 10000))
+    end,
+}
+
+Commands.RegisterMacro{
     name = "slowstartlevel",
     summary = "set tutorial level",
     doc = "Usage: /slowstartlevel <level number>\nSets heroes on current map to a specific 'tutorial' level.",

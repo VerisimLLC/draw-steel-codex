@@ -35,6 +35,22 @@ local g_powerRollTypes = {
     },
 }
 
+--Resolves the value of the characteristic used for a power roll, or nil when
+--the roll uses no characteristic (so callers leave the GoblinScript symbol
+--absent). Tests and resistance rolls carry the characteristic id directly in
+--options.attribute; ability rolls keep their characteristic in the roll formula
+--(e.g. "2d10 + Reason"), resolved via the ability itself.
+local function ResolveRollCharacteristic(creature, options)
+    local attrid = options.attribute
+    if attrid ~= nil and attrid ~= "none" then
+        return creature:AttributeMod(attrid)
+    end
+    if options.ability ~= nil and options.ability.GetRollCharacteristicValue ~= nil then
+        return options.ability:GetRollCharacteristicValue(creature)
+    end
+    return nil
+end
+
 local function RollTypeMatches(modifier, rollType, options)
     if modifier.rollType == "all" and rollType ~= "enemy_ability_power_roll" then
         return true
@@ -298,11 +314,22 @@ CharacterModifier.TypeInfo.power = {
             }
         end
 
-		local lookupFunction = creature:LookupSymbol(self:AppendSymbols{
+		local powerRollSymbols = self:AppendSymbols{
 			ability = GenerateSymbols(options.ability),
 			target = GenerateSymbols(options.target),
             title = options.title or "",
-		})
+		}
+
+		--Expose the value of the characteristic used for this roll (e.g. 2 for a
+		--Might +2 roll, -1 for an Agility -1 roll). Left absent when the roll uses
+		--no characteristic so a condition can tell "no characteristic" apart from
+		--"characteristic of 0".
+		local rollCharacteristic = ResolveRollCharacteristic(creature, options)
+		if rollCharacteristic ~= nil then
+			powerRollSymbols.rollcharacteristic = rollCharacteristic
+		end
+
+		local lookupFunction = creature:LookupSymbol(powerRollSymbols)
 
         print("POWER ROLL:: OPTIONS:", options)
 
@@ -378,13 +405,22 @@ CharacterModifier.TypeInfo.power = {
         end
 
         if self.displayCondition ~= "" then
-            local lookupFunction = creature:LookupSymbol(self:AppendSymbols{
+            local displaySymbols = self:AppendSymbols{
                 ability = GenerateSymbols(options.ability),
                 target = GenerateSymbols(options.target),
                 caster = GenerateSymbols(options.caster),
                 cast = options.symbols and GenerateSymbols(options.symbols.cast),
                 title = options.title or "",
-            })
+            }
+
+            --See hintPowerRoll: expose the characteristic value used for this
+            --roll, absent when the roll uses no characteristic.
+            local rollCharacteristic = ResolveRollCharacteristic(creature, options)
+            if rollCharacteristic ~= nil then
+                displaySymbols.rollcharacteristic = rollCharacteristic
+            end
+
+            local lookupFunction = creature:LookupSymbol(displaySymbols)
 
             if not GoblinScriptTrue(ExecuteGoblinScript(self.displayCondition, lookupFunction, 0, "Power Roll Activation Condition")) then
                 return false
@@ -1367,6 +1403,11 @@ CharacterModifier.TypeInfo.power = {
                     type = "text",
                     desc = "The title of the roll",
                     examples = "Recall Lore Test to Recall Location of Amulet",
+                }
+                helpSymbols.rollcharacteristic = {
+                    name = "Roll Characteristic",
+                    type = "number",
+                    desc = "The value of the characteristic used for this roll, e.g. 2 for a Might +2 roll. Absent if the roll uses no characteristic.",
                 }
 
                 children[#children+1] = gui.GoblinScriptInput{

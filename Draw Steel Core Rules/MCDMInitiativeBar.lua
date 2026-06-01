@@ -987,6 +987,654 @@ local function AddInitiativeEntryPanel (element, info, playerControlled)
 	)
 end
 
+-- =====================================================================
+-- Villain Action strip
+-- A director-only panel that floats in the monster-side band of the
+-- initiative bar when the active encounter contains a Leader or Solo
+-- (or any monster) with abilities whose `villainAction` field is set.
+-- Three drawer buttons, one per VA slot (I / II / III), each showing
+-- the ability name. Drawers grey out when consumed this encounter and
+-- the whole strip is gated by the per-round VA budget. Available drawers
+-- pulse between turns to nudge the director; clicking one pans the camera
+-- to the owner, plays a Dramatic Banner, then casts the ability off-turn.
+-- When more than one VA owner is present the portrait acts as a selector
+-- to cycle between them.
+-- =====================================================================
+
+-- Return { ["Villain Action 1"] = ability, ... } for a token, or nil.
+local function GetVillainActionAbilities(token)
+    if token == nil or token.properties == nil then return nil end
+    local abilities = token.properties:GetActivatedAbilities()
+    if abilities == nil then return nil end
+    local result
+    for _, ab in ipairs(abilities) do
+        local key = ab:try_get("villainAction")
+        if key ~= nil and key ~= "" then
+            result = result or {}
+            result[key] = ab
+        end
+    end
+    return result
+end
+
+-- Returns all tokens in the active encounter that own villainAction
+-- abilities. Deduped by charid and sorted by name for stable display.
+local function FindAllVillainActionOwnersInEncounter()
+    local q = dmhub.initiativeQueue
+    if q == nil or q.hidden then return {} end
+    if GameHud.instance == nil or GameHud.instance.initiativeInterface == nil then return {} end
+    local result = {}
+    local seen = {}
+    for initiativeid, _ in pairs(q.entries) do
+        local tokens = GameHud.instance:GetTokensForInitiativeId(GameHud.instance.initiativeInterface, initiativeid)
+        for _, tok in ipairs(tokens or {}) do
+            if tok.valid and not seen[tok.charid] and GetVillainActionAbilities(tok) ~= nil then
+                seen[tok.charid] = true
+                result[#result+1] = tok
+            end
+        end
+    end
+    table.sort(result, function(a, b) return (a.name or "") < (b.name or "") end)
+    return result
+end
+
+-- Hand-rolled strip + drawers. Visual cues borrow the actionBarDrawer
+-- aesthetic (uppercase title, beveled corners, @border / @disabled
+-- transition for consumed state).
+local g_vaStripStyles = {
+    -- Strip is a transparent layout container; no chrome on the wrapper
+    -- itself. Header label sits above, drawer row sits below.
+    {
+        selectors = {"villainActionStrip"},
+        bgcolor = "clear",
+        vmargin = 4,
+    },
+
+    -- Label row above the drawers. Plain text labels, no panel chrome.
+    {
+        selectors = {"vaStripLabelRow"},
+        flow = "horizontal",
+        width = "auto",
+        height = "auto",
+        halign = "center",
+        valign = "top",
+        bmargin = 4,
+    },
+    -- Header text: VILLAIN ACTIONS (uppercase) and the creature name in
+    -- Title Case. Both use @fgStrong so the subheader stays readable; the
+    -- case difference does the visual differentiation work. Compact sizes
+    -- for the right-side band placement.
+    {
+        selectors = {"vaStripHeader"},
+        fontSize = 12,
+        bold = true,
+        color = "@fgStrong",
+        uppercase = true,
+        width = "auto",
+        height = "auto",
+    },
+    {
+        selectors = {"vaStripSeparator"},
+        fontSize = 12,
+        bold = true,
+        color = "@fgStrong",
+        width = "auto",
+        height = "auto",
+        hmargin = 6,
+    },
+    {
+        selectors = {"vaStripSubHeader"},
+        fontSize = 12,
+        color = "@fgStrong",
+        width = "auto",
+        height = "auto",
+    },
+
+    -- Drawer row container - horizontal flow, hugs content.
+    {
+        selectors = {"vaDrawerRow"},
+        flow = "horizontal",
+        width = "auto",
+        height = "auto",
+        halign = "center",
+        valign = "top",
+    },
+
+    -- Owner portrait. Aligned left of the drawer row at the same height
+    -- as a drawer so the strip reads as one row. bgcolor=white is
+    -- image-tint-neutral so the creature portrait paints at its native
+    -- colours. Border is straight-edged (no corner radius / bevel) so the
+    -- portrait reads as a distinct creature card, not another drawer.
+    -- Clickable when multiple VA owners are in the encounter (the
+    -- "cyclable" class is toggled by refresh).
+    {
+        selectors = {"vaOwnerPortrait"},
+        width = 40,
+        height = 40,
+        halign = "center",
+        valign = "center",
+        hmargin = 6,
+        bgcolor = "white",
+        borderColor = "@border",
+        borderWidth = 2,
+        cornerRadius = 0,
+    },
+    {
+        selectors = {"vaOwnerPortrait", "cyclable", "hover"},
+        brightness = 1.5,
+        transitionTime = 0.1,
+    },
+
+    -- Individual drawer: compact variant for the right-side band placement.
+    -- Cloned from Styles.ActionBar's actionBarDrawer chrome (beveled corners,
+    -- raised feel, border contrast) but shrunk toward the monster-card scale.
+    {
+        selectors = {"vaDrawer"},
+        width = 132,
+        height = 40,
+        halign = "center",
+        valign = "bottom",
+        bgimage = true,
+        bgcolor = "@bg",
+        flow = "vertical",
+        cornerRadius = 8,
+        beveledcorners = true,
+        borderColor = "@border",
+        borderWidth = 2,
+        hmargin = 3,
+    },
+    {
+        selectors = {"vaDrawer", "~available"},
+        borderColor = "@disabled",
+        transitionTime = 0.2,
+    },
+    {
+        selectors = {"vaDrawer", "available", "hover"},
+        brightness = 1.5,
+        transitionTime = 0.1,
+    },
+    -- Roman numeral. Stacked tight with the ability name to keep the
+    -- accent line below clear of the text. tmargin adds breathing room
+    -- between the drawer's top border and the numeral.
+    {
+        selectors = {"vaDrawerTitle"},
+        fontSize = 13,
+        bold = true,
+        color = "@fgStrong",
+        width = "100%",
+        height = 15,
+        textAlignment = "center",
+        tmargin = 2,
+    },
+    {
+        selectors = {"vaDrawerTitle", "parent:~available"},
+        color = "@fgMuted",
+    },
+    -- Ability name immediately under the numeral.
+    {
+        selectors = {"vaDrawerSummary"},
+        fontSize = 10,
+        bold = true,
+        color = "@fg",
+        width = "100%",
+        height = 12,
+        textAlignment = "center",
+        tmargin = -1,
+    },
+    {
+        selectors = {"vaDrawerSummary", "parent:~available"},
+        color = "@fgMuted",
+    },
+
+    -- Filled diamond at the top of the drawer + horizontal accent lines on
+    -- either side that dip around the diamond outline. This is the visual
+    -- that gives the action bar drawer its "raised" look (a bright accent
+    -- line along the top inner edge plus the bevel cut around the diamond).
+    -- All hide when the drawer is ~available.
+    {
+        selectors = {"vaDrawerDiamond"},
+        bgcolor = "@accent",
+        bgimage = true,
+        width = 12,
+        height = 12,
+    },
+    {
+        selectors = {"vaDrawer", "~available"},
+        borderColor = "@disabled",
+    },
+    {
+        selectors = {"vaDrawerDiamond", "~available"},
+        scale = 0,
+        transitionTime = 0.2,
+    },
+    {
+        selectors = {"vaDrawerDiamondAccent", "~available"},
+        scale = { x = 1, y = 0 },
+        transitionTime = 0.2,
+    },
+    {
+        selectors = {"vaDrawerDiamondAccentLine"},
+        bgcolor = "@accent",
+    },
+    {
+        selectors = {"vaDrawerDiamondAccentDot"},
+        borderColor = "@accent",
+        bgcolor = "clear",
+    },
+
+    -- Flashing nudge: when it's between turns and the director can fire
+    -- a VA, the available drawers' whole surface pulses to @accent. The
+    -- pulse is driven by the "on" class toggled on the strip every
+    -- thinkTime; scoped via the compound selector so non-flashing drawers
+    -- are unaffected. (Tokenised rather than a hardcoded red so it tracks
+    -- the active scheme / the in-progress re-theme. Swap @accent -> @bgAlt
+    -- here for a subtler pulse.)
+    {
+        selectors = {"vaDrawer", "flashing"},
+        borderColor = "@accent",
+    },
+    {
+        selectors = {"vaDrawer", "flashing", "on"},
+        bgcolor = "@accent",
+        transitionTime = 0.7,
+        easing = "easeInOutSine",
+    },
+    {
+        selectors = {"vaDrawer", "flashing", "~on"},
+        bgcolor = "@bg",
+        transitionTime = 0.7,
+        easing = "easeInOutSine",
+    },
+}
+
+local function CreateVillainActionDrawer(slotKey, slotNumeral)
+    local m_token = nil
+    local m_ability = nil
+
+    local summaryLabel = gui.Label{
+        classes = {"vaDrawerSummary"},
+        text = "",
+    }
+
+    return gui.Panel{
+        classes = {"vaDrawer", "available"},
+
+        -- Floating diamond at the BOTTOM edge - pokes down into open space
+        -- under the strip. Visible when available, hidden when used.
+        gui.Panel{
+            classes = {"vaDrawerDiamond"},
+            floating = true,
+            halign = "center",
+            valign = "bottom",
+            bmargin = -6,
+            rotate = 45,
+        },
+
+        -- Accent strip along the bottom inner edge with a diamond-outline
+        -- notch tracing the upper edge of the floating diamond. Mirrors the
+        -- action bar's top-edge raised treatment, flipped to the bottom.
+        gui.Panel{
+            classes = {"vaDrawerDiamondAccent"},
+            width = "100%-20",
+            height = 6,
+            floating = true,
+            bmargin = 5,
+            halign = "center",
+            valign = "bottom",
+
+            gui.Panel{
+                classes = {"vaDrawerDiamondAccentLine"},
+                width = "50%-6",
+                halign = "left",
+                valign = "bottom",
+                height = 1,
+                bgimage = true,
+            },
+            gui.Panel{
+                classes = {"vaDrawerDiamondAccentLine"},
+                width = "50%-6",
+                halign = "right",
+                valign = "bottom",
+                height = 1,
+                bgimage = true,
+            },
+            -- Border on the bottom + right edges. When the square is
+            -- rotated 45 degrees those edges become the two diagonals
+            -- forming a v shape (chevron pointing down), tracing the
+            -- upper edge of the diamond from above.
+            gui.Panel{
+                classes = {"vaDrawerDiamondAccentDot"},
+                halign = "center",
+                valign = "bottom",
+                y = 5,
+                width = 10,
+                height = 10,
+                rotate = 45,
+                border = { x1 = 0, y1 = 0, x2 = 1, y2 = 1 },
+                bgimage = true,
+            },
+        },
+
+        gui.Label{
+            classes = {"vaDrawerTitle"},
+            text = slotNumeral,
+        },
+        summaryLabel,
+
+        refreshVA = function(element, token, ability)
+            m_token = token
+            m_ability = ability
+            local hasAbility = ability ~= nil
+            element:SetClass("collapsed", not hasAbility)
+            if not hasAbility then return end
+
+            summaryLabel.text = ability.name or ""
+
+            local consumed = VillainActionState.HasUsed(token.charid, slotKey)
+            -- SetClassTree propagates the available/~available state to the
+            -- diamond child so its `~available` style rule fires.
+            element:SetClassTree("available", not consumed)
+        end,
+
+        hover = function(element)
+            if m_token == nil or m_ability == nil or not m_token.valid then return end
+
+            if VillainActionState.HasUsed(m_token.charid, slotKey) then
+                gui.Tooltip{
+                    text = (m_ability.name or "This Villain Action") .. " has already been used this encounter.",
+                }(element)
+            elseif CharacterResource.GetVillainActions() <= 0 then
+                gui.Tooltip{
+                    text = "You have already used a Villain Action this round.",
+                }(element)
+            else
+                -- Full ability preview card for available drawers.
+                local tooltip = CreateAbilityTooltip(m_ability, {token = m_token, width = 480})
+                if tooltip ~= nil then
+                    element.tooltip = tooltip
+                else
+                    gui.Tooltip{text = m_ability.name or ""}(element)
+                end
+            end
+        end,
+
+        click = function(element)
+            if m_token == nil or m_ability == nil or not m_token.valid then return end
+
+            -- Gate: drawer is unavailable if this VA is already consumed
+            -- this encounter, or if the per-round VA budget is spent.
+            -- The hover tooltip above explains which gate is blocking.
+            if VillainActionState.HasUsed(m_token.charid, slotKey) then return end
+            if CharacterResource.GetVillainActions() <= 0 then return end
+
+            -- Pan camera to the caster (fire-and-forget; near-instant).
+            dmhub.CenterOnToken(m_token.charid, {smooth=true})
+
+            -- Build subtitle from the villainAction field with roman numerals.
+            local subtitle = m_ability:try_get("villainAction") or ""
+            subtitle = string.gsub(subtitle, "3", "III")
+            subtitle = string.gsub(subtitle, "2", "II")
+            subtitle = string.gsub(subtitle, "1", "I")
+
+            DramaticBanner.Show{
+                tokenid = m_token.charid,
+                text = m_ability.name or "",
+                subtitle = subtitle,
+            }
+
+            -- After the banner finishes, invoke the ability off-turn via
+            -- the action bar's invokeAbility event. This pushes the caster
+            -- onto the action bar's caster stack and runs the normal cast
+            -- pipeline (target selection, behaviors) without advancing the
+            -- initiative queue's currentTurn.
+            local token = m_token
+            local ability = m_ability
+            local delay = DramaticBanner.TimeUntilDone() + 0.2
+            dmhub.Schedule(delay, function()
+                if mod.unloaded then return end
+                if token == nil or not token.valid then return end
+                if gamehud == nil or gamehud.actionBarPanel == nil then return end
+                gamehud.actionBarPanel:FireEventTree("invokeAbility", token, ability, {}, nil, {})
+            end)
+        end,
+    }
+end
+
+local function CreateVillainActionStrip(self, info)
+    local drawer1 = CreateVillainActionDrawer("Villain Action 1", "I")
+    local drawer2 = CreateVillainActionDrawer("Villain Action 2", "II")
+    local drawer3 = CreateVillainActionDrawer("Villain Action 3", "III")
+
+    local headerLabel = gui.Label{
+        classes = {"vaStripHeader"},
+        text = "VILLAIN ACTIONS",
+    }
+    local subHeaderLabel = gui.Label{
+        classes = {"vaStripSubHeader"},
+        text = "",
+    }
+
+    local portraitPanel = gui.Panel{
+        classes = {"vaOwnerPortrait"},
+        refreshPortrait = function(element, token, isMulti)
+            if token == nil then
+                element.bgimage = nil
+            else
+                -- Match the initiative bar pattern: prefer the creature
+                -- portrait (offTokenPortrait) and crop with the per-aspect
+                -- rect so the framing is correct.
+                local portrait = token.offTokenPortrait
+                element.bgimage = portrait
+                if portrait ~= token.portrait and not token.popoutPortrait then
+                    element.selfStyle.imageRect = nil
+                else
+                    element.selfStyle.imageRect = token:GetPortraitRectForAspect(1.0, portrait)
+                end
+            end
+            element:SetClass("cyclable", isMulti)
+        end,
+        click = function(element)
+            local strip = element:FindParentWithClass("villainActionStrip")
+            if strip == nil then return end
+            local count = strip.data.ownerCount or 0
+            if count <= 1 then return end
+            strip.data.activeOwnerIndex = (strip.data.activeOwnerIndex % count) + 1
+            strip:FireEvent("refresh")
+        end,
+        hover = function(element)
+            local strip = element:FindParentWithClass("villainActionStrip")
+            if strip == nil or (strip.data.ownerCount or 0) <= 1 then return end
+            gui.Tooltip{text = "Click to change Villain"}(element)
+        end,
+    }
+
+    return gui.Panel{
+        classes = {"villainActionStrip"},
+        styles = { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(g_vaStripStyles) },
+        -- Floating + right-aligned within the choicePanel's 1140-wide space
+        -- so the strip sits in the monster-side band, dropped just below the
+        -- monster cards (which occupy the top ~80px). Floating so it never
+        -- reflows the bar / round tracker. x/y are tuning offsets.
+        floating = true,
+        flow = "vertical",
+        width = "auto",
+        height = "auto",
+        halign = "right",
+        valign = "top",
+        y = 100,
+
+        -- Label row: "VILLAIN ACTIONS - Demon Chorogaunt" or with "(1/2)" suffix when multi.
+        gui.Panel{
+            classes = {"vaStripLabelRow"},
+            headerLabel,
+            gui.Label{ classes = {"vaStripSeparator"}, text = "-" },
+            subHeaderLabel,
+        },
+
+        -- Drawer row: portrait on the left, then the 3 drawers.
+        gui.Panel{
+            classes = {"vaDrawerRow"},
+            portraitPanel,
+            drawer1, drawer2, drawer3,
+        },
+
+        monitorGame = VillainActionState.GetDocPath(),
+        refreshGame = function(element)
+            element:FireEvent("refresh")
+        end,
+
+        -- activeOwnerIndex selects which VA owner the strip currently shows
+        -- when 2+ Leader/Solo with VAs are in the encounter (ownerCount is
+        -- the size of that list, read by the portrait selector handlers).
+        -- lastActiveTurn / lastActiveTurnRound / previousCurrentTurn /
+        -- previousRound power the flash gating; anyFlashing lets think skip
+        -- the pulse work when nothing is flashing. See the refresh and think
+        -- handlers below for the state-machine.
+        data = {
+            activeOwnerIndex = 1,
+            ownerCount = 0,
+            anyFlashing = false,
+            lastActiveTurn = nil,
+            lastActiveTurnRound = nil,
+            previousCurrentTurn = nil,
+            previousRound = nil,
+            themeListener = nil,
+        },
+
+        refresh = function(element)
+            if not dmhub.isDM then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            local owners = FindAllVillainActionOwnersInEncounter()
+            element.data.ownerCount = #owners
+            if #owners == 0 then
+                element.data.anyFlashing = false
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            -- Clamp activeOwnerIndex (creatures may have left the encounter).
+            if element.data.activeOwnerIndex < 1 or element.data.activeOwnerIndex > #owners then
+                element.data.activeOwnerIndex = 1
+            end
+
+            local owner = owners[element.data.activeOwnerIndex]
+            local vaMap = GetVillainActionAbilities(owner)
+            if vaMap == nil then
+                element.data.anyFlashing = false
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            element:SetClass("collapsed", false)
+
+            -- Header text: append "(i/N)" when multiple VA owners exist so
+            -- the cycle affordance is discoverable.
+            if #owners > 1 then
+                subHeaderLabel.text = string.format("%s (%d/%d)", owner.name or "", element.data.activeOwnerIndex, #owners)
+            else
+                subHeaderLabel.text = owner.name or ""
+            end
+
+            portraitPanel:FireEvent("refreshPortrait", owner, #owners > 1)
+
+            -- Flash gating. Pulse only when ALL of:
+            --   - it's between turns (currentTurn == false)
+            --   - the per-round VA budget is unspent
+            --   - a turn actually ended IN THE CURRENT ROUND (not a
+            --     leftover from a previous round, e.g. just after NextRound)
+            --   - the just-finished turn wasn't the VA owner's own
+            --
+            -- currentTurn is an initiative ID, NOT a charid. We compare
+            -- against owner's initiative ID via InitiativeQueue.GetInitiativeId.
+            local q = dmhub.initiativeQueue
+            local currentTurn = q and q.currentTurn
+            local currentRound = q and q.round
+            local betweenTurns = (currentTurn == false)
+            local justFinished = element.data.lastActiveTurn
+            if currentTurn ~= false and currentTurn ~= nil then
+                element.data.lastActiveTurn = currentTurn
+                element.data.lastActiveTurnRound = currentRound
+            end
+            local ownerInitiativeId = InitiativeQueue.GetInitiativeId(owner)
+            local selfTurnJustEnded = (justFinished ~= nil and ownerInitiativeId ~= nil and justFinished == ownerInitiativeId)
+            local turnEndedThisRound = (justFinished ~= nil and element.data.lastActiveTurnRound == currentRound)
+            local budgetAvailable = CharacterResource.GetVillainActions() > 0
+            local stripCanFlash = betweenTurns and budgetAvailable and turnEndedThisRound and (not selfTurnJustEnded)
+
+            -- Per-drawer flash: drawer must also be available (not consumed
+            -- this encounter and the ability slot is actually filled).
+            local function drawerShouldFlash(slot)
+                local ab = vaMap[slot]
+                if ab == nil then return false end
+                if VillainActionState.HasUsed(owner.charid, slot) then return false end
+                return stripCanFlash
+            end
+
+            local flash1 = drawerShouldFlash("Villain Action 1")
+            local flash2 = drawerShouldFlash("Villain Action 2")
+            local flash3 = drawerShouldFlash("Villain Action 3")
+            element.data.anyFlashing = flash1 or flash2 or flash3
+
+            drawer1:SetClass("flashing", flash1)
+            drawer2:SetClass("flashing", flash2)
+            drawer3:SetClass("flashing", flash3)
+
+            drawer1:FireEvent("refreshVA", owner, vaMap["Villain Action 1"])
+            drawer2:FireEvent("refreshVA", owner, vaMap["Villain Action 2"])
+            drawer3:FireEvent("refreshVA", owner, vaMap["Villain Action 3"])
+        end,
+
+        -- Pulse driver + currentTurn change detector. Every 0.7s:
+        --   1. Read currentTurn off the live queue; if it changed since the
+        --      last tick, fire refresh so flash gating + self-suppression
+        --      stay accurate. The shared-doc monitor alone doesn't fire on
+        --      initiative changes, so this poll fills the gap.
+        --   2. Toggle the "on" class on the subtree for the brightness pulse,
+        --      but only when something is actually flashing (otherwise the
+        --      subtree walk is wasted work).
+        -- Players never have the strip, so bail immediately for them.
+        thinkTime = 0.7,
+        think = function(element)
+            if not dmhub.isDM then return end
+
+            local q = dmhub.initiativeQueue
+            local currentTurn = q and q.currentTurn
+            local currentRound = q and q.round
+            if currentTurn ~= element.data.previousCurrentTurn or currentRound ~= element.data.previousRound then
+                element.data.previousCurrentTurn = currentTurn
+                element.data.previousRound = currentRound
+                element:FireEvent("refresh")
+            end
+
+            if element.data.anyFlashing then
+                element:SetClassTree("on", not element:HasClass("on"))
+            end
+        end,
+
+        create = function(element)
+            -- Re-resolve themed styles when the user switches theme / scheme
+            -- (MergeTokens captures a one-shot snapshot). Mirrors the action
+            -- bar's live re-theming hookup.
+            element.data.themeListener = ThemeEngine.OnThemeChanged(mod, function()
+                if element.valid then
+                    element.styles = { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(g_vaStripStyles) }
+                end
+            end)
+            element:FireEvent("refresh")
+        end,
+
+        destroy = function(element)
+            if element.data.themeListener ~= nil then
+                element.data.themeListener:Deregister()
+                element.data.themeListener = nil
+            end
+        end,
+    }
+end
+
 --Create the initiative bar.
 --   self: the GameHud object
 --   info: the dmhub info object which gives us access to important game information. Some parameters we use here:
@@ -1952,6 +2600,12 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
         drawSteelBubble,
 		monsterContainer,
 		centerContainer,
+
+		-- Villain Action strip: mounted in the choicePanel's 1140-wide
+		-- coordinate space so it right-aligns into the monster-side band,
+		-- below the monster cards. Floating so it never reflows the bar /
+		-- round tracker.
+		CreateVillainActionStrip(self, info),
 
 		refresh = function(element)
 

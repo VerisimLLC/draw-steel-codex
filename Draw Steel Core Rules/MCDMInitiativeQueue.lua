@@ -102,6 +102,12 @@ InitiativeQueueEntry.turnsTaken = 0
 --Create a new empty initiative queue. Called when the DM starts initiative.
 function InitiativeQueue.Create()
 	local playersGoFirst = math.random(1, 2) == 1
+
+	-- New encounter -> clear per-encounter villain action consumption.
+	if VillainActionState ~= nil then
+		VillainActionState.ResetAll()
+	end
+
 	return InitiativeQueue.new{
 		guid = dmhub.GenerateGuid(),
         playersGoFirst = playersGoFirst,

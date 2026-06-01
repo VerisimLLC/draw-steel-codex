@@ -312,20 +312,27 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
             width = "100%",
             height = "auto",
             flow = "vertical",
-            bgcolor = Styles.RichBlack02,
+            classes = {"bg"},
             bgimage = true,
-            styles = {
+            styles = ThemeEngine.MergeStyles{
                 {
                     selectors = {"row"},
-                    bgcolor = Styles.RichBlack02,
+                    bgcolor = "@bg",
                 },
                 {
                     selectors = {"row", "highlight"},
-                    bgcolor = Styles.textColor,
+                    bgcolor = "@accent",
                 },
                 {
                     selectors = {"label", "highlight"},
-                    color = "black",
+                    color = "@fgInverse",
+                },
+                {
+                    --Hovered rows fill with the light @accentHover gold, so the
+                    --tier text must flip to the dark inverse color to stay legible
+                    --(mirrors the {label, highlight} rule above for the accent fill).
+                    selectors = {"label", "hover"},
+                    color = "@fgInverse",
                 },
                 {
                     selectors = {"row", "flash"},
@@ -334,7 +341,7 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
                 },
                 {
                     selectors = {"row", "selectable", "hover"},
-                    bgcolor = "#ff7777",
+                    bgcolor = "@accentHover",
                     brightness = 2,
                     transitionTime = 0.1,
                 }
@@ -2267,7 +2274,10 @@ function RollPropertiesPowerTable:GetOutcome(rollInfo)
     local tier = DiceResultToTier(rollInfo)
     return {
         outcome = string.format("Tier %d", tier),
-        color = "white",
+        --This is a data color consumed inline by roll-result labels (not a
+        --cascade rule), so resolve the @fg token to the active scheme's hex
+        --at call time rather than shipping a literal token string.
+        color = ThemeEngine.ResolveTokens("@fg"),
     }
 end
 
@@ -2791,12 +2801,9 @@ function RollPropertiesPowerTable:CustomPanel(message)
                         end
 
                         local panel = m_modifiersPanelCache[key] or gui.Panel{
-                            classes = {"modifierPanel"},
+                            classes = {"modifierPanel", "bordered"},
                             width = 60,
                             height = 40,
-                            bgimage = true,
-                            borderColor = "white",
-                            borderWidth = 1,
                             cornerRadius = 4,
                             hmargin = 2,
                             halign = "left",

@@ -1982,7 +1982,10 @@ function ActivatedAbilityDrawSteelCommandBehavior.FormatRuleValidation(rule)
             return string.format("%s<alpha=#00><alpha=#ff>%s%s", before, matchLiteral.whitespace, matchLiteral.text)
         end
 
-        local result = string.format("%s<alpha=#55>%s", before, displayText)
+        --Dim non-rule (unvalidated) text so it reads as "not recognized as a
+        --rule" without becoming illegible. #99 is ~60% alpha; #55 (~33%) washed
+        --out badly on light themed fills (e.g. the accent-gold power-roll rows).
+        local result = string.format("%s<alpha=#99>%s", before, displayText)
 
        --print("Rule:: Validation: result = ", result)
         --print(string.format("Rule:: Validation: rule = (%s); text = (%s); before = (%s); result = (%s)", rule, text, before, result))

@@ -15,6 +15,12 @@ function lobby:EnterLobbyGame(callback)
 	-- dummy implementation for documentation purposes only
 end
 
+--- SetVisibleGames: Declares the set of games currently shown on screen. The engine keeps a live metadata subscription open only for these games (plus always-on games such as the lobby); games scrolled off-screen keep their last-fetched snapshot but stop receiving live updates. Pass a Lua array of game id strings. All of the user's games are still loaded once at startup, so the full lobby list, search, and pagination keep working regardless of what is reported here.
+--- @param gameids string[] Array of game id strings currently visible on screen.
+function lobby:SetVisibleGames(gameids)
+	-- dummy implementation for documentation purposes only
+end
+
 --- MigrateGameToDurableObjects: Migrate an existing Firebase-backed game to Cloudflare Durable Objects. Options table can contain 'progress' (function called with status and progress 0-1) and 'complete' (function called with success bool and optional error string).
 --- @param gameid string The id of the game to migrate.
 --- @param options table Options with optional 'progress' and 'complete' callback fields.
@@ -51,6 +57,7 @@ function lobby:CloneGameToLocal(gameid, options)
 end
 
 --- CreateGame: Creates a new game with the given options table. The options table may contain 'create' and 'error' callback functions. Rate-limited to one creation every 3 seconds.
+--- Recognized option keys include: description, descriptionDetails, coverart, startingModule (starter-map module id; "" for none), backend ("local"|"durableobjects"|"durableobjects-staging"|"firebase"), and noSystemModule (boolean; when true the game is created with no auto-injected system/rules module).
 --- @param options table Options with optional 'create' and 'error' callback fields.
 function lobby:CreateGame(options)
 	-- dummy implementation for documentation purposes only

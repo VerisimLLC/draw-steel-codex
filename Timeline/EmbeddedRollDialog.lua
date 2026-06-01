@@ -21,7 +21,9 @@ end
 local g_activeRoll = nil
 local g_activeRollArgs = nil
 
-local g_timelineHighlightColor = Styles.Gold03
+-- The roll-dialog highlight surface tracks the active scheme accent. Used as a
+-- bgcolor token inside ThemeEngine.MergeTokens(...) style blocks so it resolves.
+local g_timelineHighlightColor = "@accent"
 
 local g_settingTriggerDelay = setting{
     id = "rolltriggerdelay",
@@ -614,7 +616,7 @@ function GameHud.CreateEmbeddedRollDialog()
                 collapsed = 1,
             }
         },
-        classes = {"tab", "shownWhenRollingOrFinished"},
+        classes = {"tab", "bgAccent", "shownWhenRollingOrFinished"},
         x = -39,
         floating = true,
         valign = "top",
@@ -622,7 +624,6 @@ function GameHud.CreateEmbeddedRollDialog()
         height = 166*0.8,
         width = 33*0.8,
         bgimage = ActivatedAbility.TabBGImage(),
-        bgcolor = Styles.Gold03,
 
         gui.Label{
             color = "black",
@@ -1503,7 +1504,7 @@ function GameHud.CreateEmbeddedRollDialog()
             }
         },
 
-        classes = {"tab"},
+        classes = {"tab", "bgAccent"},
         x = -39,
         floating = true,
         valign = "top",
@@ -1511,7 +1512,6 @@ function GameHud.CreateEmbeddedRollDialog()
         height = 166*0.8,
         width = 33*0.8,
         bgimage = ActivatedAbility.TabBGImage(),
-        bgcolor = Styles.Gold03,
 
         gui.Label{
             color = "black",
@@ -1923,7 +1923,7 @@ function GameHud.CreateEmbeddedRollDialog()
         classes = {"triggersContainer"},
         bgimage = true,
 
-        styles = {
+        styles = ThemeEngine.MergeTokens{
             {
                 selectors = {"triggersContainer"},
                 bgcolor = "clear",
@@ -2073,7 +2073,7 @@ function GameHud.CreateEmbeddedRollDialog()
         halign = "left",
         valign = "top",
         bgimage = true,
-        styles = {
+        styles = ThemeEngine.MergeTokens{
             {
                 selectors = {"resultsPanel"},
                 bgcolor = "clear",
@@ -3251,7 +3251,7 @@ function GameHud.CreateEmbeddedRollDialog()
                 height = "auto",
                 flow = "vertical",
                 bgimage = true,
-                styles = {
+                styles = ThemeEngine.MergeTokens{
                     {
                         selectors = {"rollPanel"},
                         bgcolor = g_timelineHighlightColor,
@@ -3269,7 +3269,7 @@ function GameHud.CreateEmbeddedRollDialog()
                 --tab panel
                 gui.Panel{
 
-                    classes = {"tab", "collapsedWhenRolling"},
+                    classes = {"tab", "bgAccent", "collapsedWhenRolling"},
                     x = -39,
                     floating = true,
                     valign = "top",
@@ -3277,7 +3277,6 @@ function GameHud.CreateEmbeddedRollDialog()
                     height = 176*0.8,
                     width = 33*0.8,
                     bgimage = ActivatedAbility.TabBGImage(),
-                    bgcolor = Styles.Gold03,
 
                     gui.Label{
                         color = "black",

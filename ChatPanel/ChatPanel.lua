@@ -273,6 +273,7 @@ CreateChatPanel = function()
 		hideObjectsOutOfScroll = true,
 		hpad = 6,
 		height = "100% available",
+        width = "100%-12",
 
 
 		styles = {

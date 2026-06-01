@@ -34,6 +34,13 @@
 --- @field dragThreshold number (Default: 4) How many pixels the panel has to be dragged before it's considered dragging. This is only relevant if @see draggable is true.
 --- @field dragDelta Vector2 The pixels the mouse has moved since the drag operation began. Will return (0,0) if the panel is not currently begin dragged..
 --- @field playbackSpeed any 
+--- @field videoDuration number (Read-only) The duration in seconds of the video currently shown in this panel's bgimage, or 0 if there is no video (or it is still loading).
+--- @field videoTime number The current playback position in seconds of the video shown in this panel's bgimage. Setting this seeks the video (if the video supports seeking -- see @see videoCanSeek). No-op when there is no video.
+--- @field videoPlaying boolean (Read-only) True if the panel's video is currently playing (initialised and not paused).
+--- @field videoCanSeek boolean (Read-only) True if the panel's video supports seeking/scrubbing (see @see videoTime).
+--- @field videoLooping boolean Whether the panel's video loops when it reaches the end.
+--- @field videoVolume number The audio volume (0..1) of the panel's video. Only has an effect when the video was created with the AUDIO suffix flag and has an audio track; a no-op otherwise.
+--- @field videoMuted boolean Whether the panel's video audio is muted. No-op for videos without an audio track.
 --- @field xdrag number The pixels the panel has been translated horizontally by dragging. 0 if the panel is not currently being dragged.
 --- @field ydrag number The pixels the panel has been translated vertically by dragging. 0 if the panel is not currently being dragged.
 --- @field enabled boolean (Read-only) This is true if the panel is displayed and active. It's false if the panel is collapsed, hidden, or is being destroyed.
@@ -206,6 +213,18 @@ end
 --- @param other Panel
 --- @return boolean
 function Panel:IsDescendantOf(other)
+	-- dummy implementation for documentation purposes only
+end
+
+--- PlayVideo: Resumes/starts playback of the video currently shown in this panel's bgimage. No-op when there is no video.
+--- @return nil
+function Panel:PlayVideo()
+	-- dummy implementation for documentation purposes only
+end
+
+--- PauseVideo: Pauses the video currently shown in this panel's bgimage (the last frame stays visible). No-op when there is no video.
+--- @return nil
+function Panel:PauseVideo()
 	-- dummy implementation for documentation purposes only
 end
 
@@ -398,6 +417,10 @@ end
 --- @field dragThreshold nil|number (Default: 4) How many pixels the panel has to be dragged before it's considered dragging. This is only relevant if @see draggable is true.
 --- @field dragDelta nil|Vector2 The pixels the mouse has moved since the drag operation began. Will return (0,0) if the panel is not currently begin dragged..
 --- @field playbackSpeed nil|any 
+--- @field videoTime nil|number The current playback position in seconds of the video shown in this panel's bgimage. Setting this seeks the video (if the video supports seeking -- see @see videoCanSeek). No-op when there is no video.
+--- @field videoLooping nil|boolean Whether the panel's video loops when it reaches the end.
+--- @field videoVolume nil|number The audio volume (0..1) of the panel's video. Only has an effect when the video was created with the AUDIO suffix flag and has an audio track; a no-op otherwise.
+--- @field videoMuted nil|boolean Whether the panel's video audio is muted. No-op for videos without an audio track.
 --- @field xdrag nil|number The pixels the panel has been translated horizontally by dragging. 0 if the panel is not currently being dragged.
 --- @field ydrag nil|number The pixels the panel has been translated vertically by dragging. 0 if the panel is not currently being dragged.
 --- @field events nil|PanelEventArgs The events that are registered for this panel. When the event with the key in the table is fired on the panel that function is called. The panel itself is always passed as the first argument, and then any other arguments to the event are passed. Some standard events include 'create', 'hover', 'dehover', 'click', 'press'. Some events are also enabled based on other arguments such as 'refreshAssets' and 'think'. @see thinkTime. You can also fire a user-defined event using @see FireEvent and @see FireEventTree

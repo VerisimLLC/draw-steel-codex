@@ -517,4 +517,31 @@ dmhub.tokenAnimations:RegisterTeleport{
     end,
 }
 
-print("IMAGEXXX::", mod.images.doubleslashbw)
+--Ash teleport: token poofs into ash at the source, an invisible travel phase follows with a
+--trailing wisp, then the token reappears at the destination.
+dmhub.tokenAnimations:RegisterTeleport{
+    id = "testteleport",
+    name = "Test Teleport",
+    animation = function(token, targetLoc, opts)
+        audio.FireSoundEvent("Dice.Teleport_BlackAsh")
+        local anim = token.animation
+
+        anim:PlayEffect{ id = "Effect_03_ChargeFire", scale = 0.1, rotation = {x = 0, y = 0, z = 0} }
+        anim:Light{ color = "#993377", radius = 2.0, innerRadius = 0.1, duration = 0.3, fadein = 0.1, fadeout = 0.1 }
+
+        sleep(0.3)
+
+        anim:SetVisible(false)
+        local trail = anim:PlayEffect{ id = "FloorSmokeTrail_vfx", looping = true }
+        anim:Tween{ translate = targetLoc, duration = 0.4 }
+        sleep(0.4)
+        trail:Stop()
+
+        audio.FireSoundEvent("Dice.Remove_BlackAsh")
+        anim:PlayEffect{ id = "Effect_03_FireCross", scale = 0.1, rotation = {x = 0, y = 0, z = 0} }
+        anim:Light{ color = "#993377", radius = 2.0, innerRadius = 0.1, duration = 0.6, fadein = 0.1, fadeout = 0.1 }
+        sleep(0.2)
+        anim:SetVisible(true)
+        sleep(5)
+    end,
+}

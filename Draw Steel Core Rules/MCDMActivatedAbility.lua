@@ -10,38 +10,12 @@ local g_settingTargetObjects = setting {
     storage = "preference",
 }
 
-local g_hoverableGradient = gui.Gradient {
-    point_a = { x = 0, y = 0 },
-    point_b = { x = 1, y = 1 },
-    stops = {
-        {
-            position = 0,
-            color = Styles.backgroundColor,
-        },
-        {
-            position = 12,
-            color = Styles.textColor,
-        },
-    },
-}
-
-local g_highlightGradient = gui.Gradient {
-    point_a = { x = 0, y = 0 },
-    point_b = { x = 1, y = 1 },
-    stops = {
-        {
-            position = 0,
-            color = Styles.backgroundColor,
-        },
-        {
-            position = 4,
-            color = Styles.textColor,
-        },
-    },
-}
-
+-- Custom rules for the spellInfo / roll-dialog panel. Plain rule tables (NOT
+-- gui.Style objects) because they are routed through ThemeEngine.MergeStyles,
+-- which iterates each rule with pairs() to resolve @tokens. All colors use
+-- scheme @tokens so the panel tracks the active color scheme.
 SpellRenderStyles = {
-    gui.Style {
+    {
         selectors = "#spellInfo",
         width = "100%",
         height = 'auto',
@@ -49,37 +23,34 @@ SpellRenderStyles = {
         halign = 'left',
         valign = 'center',
     },
-    gui.Style {
+    {
         selectors = { "hoverable", "#spellInfo" },
-        bgcolor = "white",
-        gradient = g_hoverableGradient,
+        bgcolor = "@bgAlt",
     },
-    gui.Style {
+    {
         selectors = { "hoverable", "hovered", "#spellInfo" },
-        gradient = g_highlightGradient,
+        brightness = 1.5,
         transitionTime = 0.2,
     },
 
-    gui.Style {
+    {
         selectors = { "heading", "hovered" },
         brightness = 3,
     },
 
-    gui.Style {
+    {
         classes = { "label" },
         fontSize = 14,
-        color = 'white',
+        color = '@fg',
         width = '100%',
-        textAlignment = "left",
         height = 'auto',
         halign = 'left',
-
         textAlignment = 'left',
     },
 
-    gui.Style {
+    {
         classes = { "label", "#spellName" },
-        color = 'white',
+        color = '@fg',
         bgimage = "panels/square.png",
         bgcolor = "clear",
         fontSize = 14,
@@ -92,18 +63,18 @@ SpellRenderStyles = {
         fontWeight = "black",
     },
 
-    gui.Style {
+    {
         classes = { "subheading" },
-        color = '#bb6666',
+        color = '@danger',
         fontSize = 24,
         bold = true,
     },
 
-    gui.Style {
+    {
         classes = { "label", "#spellSummary" },
 
         italics = true,
-        color = 'white',
+        color = '@fgMuted',
         fontSize = 12,
         width = 'auto',
         height = 'auto',
@@ -111,111 +82,164 @@ SpellRenderStyles = {
         valign = 'top',
     },
 
-    gui.Style {
+    {
         classes = { "divider" },
 
         bgimage = 'panels/square.png',
-        bgcolor = '#666666',
-        halign = "left",
+        bgcolor = '@border',
         width = '100%',
         height = 1,
         halign = 'center',
         valign = 'top',
         vmargin = 4,
     },
-    gui.Style {
+    {
         classes = { "description" },
-        color = 'white',
+        color = '@fg',
         width = '96%',
     },
-    gui.Style {
+    {
         classes = { "label", "highlight" },
-        color = 'black',
+        color = '@fgInverse',
     },
-    gui.Style {
+    {
         classes = { "abilitySection" },
         bgimage = true,
         bgcolor = "clear",
     },
-    gui.Style {
+    {
         classes = { "abilitySection", "highlight" },
-        bgcolor = Styles.Gold03,
-        color = "black",
+        bgcolor = "@accent",
+        color = "@fgInverse",
+    },
+
+    -- Decorative accent line: border tint with an alpha falloff gradient.
+    {
+        selectors = { "fadeLine" },
+        bgcolor = "@border",
+    },
+
+    -- MCDM tab graphics: tab background tinted to the scheme accent. NOTE the
+    -- tab art (TabBGImage) is a gold-baked PNG, so the accent tint multiplies
+    -- rather than cleanly recolors; a white-silhouette asset would tint cleanly.
+    {
+        selectors = { "goldTab" },
+        bgcolor = "@accent",
+    },
+    {
+        selectors = { "goldTabLabel" },
+        color = "@fgInverse",
     },
 
     -- Implementation chip styles
-    gui.Style {
+    {
         classes = { "implementationChip" },
         height = "auto",
         width = "auto",
         lmargin = 3,
         fontSize = 14,
         bgimage = "panels/square.png",
-        --borderColor = "blue",
         bgcolor = "clear",
         bold = false,
-        --border = 1,
-        --cornerRadius = 2,
-        color = "black",
+        color = "@fg",
         valign = "top",
     },
-    gui.Style {
+    {
         classes = { "implementationChip", "wontimplement" },
-        --bgcolor = Styles.ImplementationStatusColors[0],
-        color = Styles.ImplementationStatusColors[0],
+        color = "@implStatus0",
     },
-    gui.Style {
+    {
         classes = { "implementationChip", "unimplemented" },
-        --bgcolor = Styles.ImplementationStatusColors[1],
-        color = Styles.ImplementationStatusColors[1],
+        color = "@implStatus1",
     },
-    gui.Style {
+    {
         classes = { "implementationChip", "bronze" },
-        --bgcolor = Styles.ImplementationStatusColors[2],
-        color = Styles.ImplementationStatusColors[2],
+        color = "@implStatus2",
     },
-    gui.Style {
+    {
         classes = { "implementationChip", "silver" },
-        --bgcolor = Styles.ImplementationStatusColors[3],
-        color = Styles.ImplementationStatusColors[3],
+        color = "@implStatus3",
     },
-    gui.Style {
+    {
         classes = { "implementationChip", "gold" },
-        --bgcolor = Styles.ImplementationStatusColors[4],
-        color = Styles.ImplementationStatusColors[4],
+        color = "@implStatus4",
     },
-    gui.Style {
+    {
         classes = { "implementationDiamond", "wontimplemented" },
-        bgcolor = Styles.ImplementationStatusColors[0],
-
+        bgcolor = "@implStatus0",
     },
-    gui.Style {
+    {
         classes = { "implementationDiamond", "unimplemented" },
-        bgcolor = Styles.ImplementationStatusColors[1],
-
+        bgcolor = "@implStatus1",
     },
-    gui.Style {
+    {
         classes = { "implementationDiamond", "bronze" },
-        bgcolor = Styles.ImplementationStatusColors[2],
-
+        bgcolor = "@implStatus2",
     },
-    gui.Style {
+    {
         classes = { "implementationDiamond", "silver" },
-        bgcolor = Styles.ImplementationStatusColors[3],
-
+        bgcolor = "@implStatus3",
     },
-    gui.Style {
+    {
         classes = { "implementationDiamond", "gold" },
-        bgcolor = Styles.ImplementationStatusColors[4],
-
+        bgcolor = "@implStatus4",
     },
 
 }
 
+-- Themed style rules for the ability-improvement pills (routed through
+-- ThemeEngine.MergeStyles at render time so they track the active scheme).
+local g_improvementPillStyles = {
+    {
+        selectors = { "improvementPill" },
+        borderColor = "@border",
+        borderWidth = 2,
+        cornerRadius = 5,
+        width = "auto",
+        height = "auto",
+        pad = 4,
+        flow = "horizontal",
+        bgimage = true,
+        bgcolor = "@bgAlt",
+        tmargin = 4,
+    },
+    {
+        selectors = { "improvementPill", "~selected" },
+        borderColor = "@borderInverse",
+    },
+    {
+        selectors = { "improvementLabel" },
+        opacity = 0.95,
+        color = "@fg",
+        fontSize = 16,
+        width = "auto",
+        height = "auto",
+        valign = "center",
+    },
+    {
+        selectors = { "improvementLabel", "~selected" },
+        color = "@fgMuted",
+    },
+    {
+        selectors = { "improvementLabel", "unaffordable", "selected" },
+        color = "@danger",
+    },
+    {
+        selectors = { "improvementLabel", "parent:hover" },
+        brightness = 1.5,
+    },
+    {
+        selectors = { "improvementPill", "hover" },
+        brightness = 1.5,
+    },
+}
+
+-- Semantic damage-type tints, resolved through ThemeEngine.ResolveTokens at the
+-- markup site so they follow the active color scheme.
 local g_damageTypeColors = {
-    sonic = "#ff0088",
-    fire = "#ff8888",
-    lightning = "#ff8800",
+    sonic = "@info",
+    fire = "@danger",
+    lightning = "@warning",
 }
 
 ActivatedAbility.KeywordRemappings = {
@@ -708,7 +732,7 @@ function ActivatedAbility:Render(options, params)
             roll = string.format("%s %s", roll, attackBehavior.damageType)
         end
 
-        local damageColor = g_damageTypeColors[attackBehavior.damageType] or "#ffffff"
+        local damageColor = ThemeEngine.ResolveTokens(g_damageTypeColors[attackBehavior.damageType] or "@fg")
 
         local triangleBlack = nil
         if not string.find(roll, "2d6") then
@@ -750,13 +774,12 @@ function ActivatedAbility:Render(options, params)
         local cost = self:GetCost(params.token)
         if cost.outOfAmmo then
             tokenDependentChildren[#tokenDependentChildren + 1] = gui.Label {
-                color = "#ffaaaa",
+                classes = { "danger" },
                 text = "Out of Ammo",
             }
         end
 
         if cost.moveCost ~= nil then
-            local labelColor = cond(cost.cannotMove, "#ffaaaa", "#aaaaaa")
             local text = string.format("Consumes %s %s of movement",
                 MeasurementSystem.NativeToDisplayString(cost.moveCost), MeasurementSystem.Abbrev())
             if params.token.properties:CurrentMovementSpeed() <= 0 then
@@ -764,7 +787,7 @@ function ActivatedAbility:Render(options, params)
             end
 
             tokenDependentChildren[#tokenDependentChildren + 1] = gui.Label {
-                color = labelColor,
+                classes = { cond(cost.cannotMove, "danger", nil) },
                 text = text,
             }
         end
@@ -819,7 +842,7 @@ function ActivatedAbility:Render(options, params)
         for _, entry in ipairs(self:try_get("modificationLog", {})) do
             tokenDependentChildren[#tokenDependentChildren + 1] = gui.Label {
                 text = entry,
-                color = "#aaaaff",
+                classes = { "info" },
             }
         end
 
@@ -829,7 +852,7 @@ function ActivatedAbility:Render(options, params)
                 seenRules[entry] = true
                 tokenDependentChildren[#tokenDependentChildren + 1] = gui.Label {
                     text = entry,
-                    color = "#aaaaff",
+                    classes = { "info" },
                 }
             end
         end
@@ -857,29 +880,13 @@ function ActivatedAbility:Render(options, params)
     end
 
     if self:try_get("modifyDescriptions") ~= nil then
+        local infoHex = ThemeEngine.ResolveTokens("@info")
         for _, desc in ipairs(self.modifyDescriptions) do
-            description = string.format("%s\n<color=#aaaaff>%s</color>", description, desc)
+            description = string.format("%s\n<color=%s>%s</color>", description, infoHex, desc)
         end
     end
 
     local costText = ""
-
-    local headingColor = "#843030"
-
-
-
-    if params.token ~= nil and params.token.properties ~= nil then
-        local knownRefreshTypes = { rest = true, encounter = true, day = true }
-        --look for a cost with a description, this means an ability that has a specific limit per refresh type.
-        local costInfo = self:GetCost(params.token)
-        for i, entry in ipairs(costInfo.details) do
-            if entry.description ~= nil and knownRefreshTypes[entry.refreshType] then
-                --costText is disabled for now. We show recharge instead.
-                --costText = string.format(" [%s/%s]", tostring(entry.maxCharges), entry.refreshType)
-                headingColor = "#5e4a43"
-            end
-        end
-    end
 
     local resourceTable = dmhub.GetTable(CharacterResource.tableName)
 
@@ -918,10 +925,6 @@ function ActivatedAbility:Render(options, params)
         actionText = "Free"
     else
         actionText = resourceInfo.name
-    end
-
-    if actionText == "Maneuver" then
-        headingColor = "#303084"
     end
 
 
@@ -1040,7 +1043,6 @@ function ActivatedAbility:Render(options, params)
         powerRollQueenPanel = gui.Panel {
 
             bgimage = true,
-            bgcolor = "blue",
             width = "100%",
             height = "auto",
             tmargin = 5,
@@ -1203,8 +1205,9 @@ function ActivatedAbility:Render(options, params)
     end
 
     if self:has_key("modifyDescriptions") then
+        local infoHex = ThemeEngine.ResolveTokens("@info")
         for _, desc in ipairs(self.modifyDescriptions) do
-            descriptionString = string.format("%s\n<color=#aaaaff>%s</color>", descriptionString, desc)
+            descriptionString = string.format("%s\n<color=%s>%s</color>", descriptionString, infoHex, desc)
         end
     end
 
@@ -1221,10 +1224,9 @@ function ActivatedAbility:Render(options, params)
     if suppressMessage ~= nil then
         suppressPanel = gui.Label {
             bgimage = true,
-            bgcolor = "#C73131", --forbidden color.
+            classes = { "bgDanger" },
             width = "100%",
             height = "auto",
-            color = "white",
             fontSize = 14,
             hpad = 16,
             vpad = 4,
@@ -1235,7 +1237,7 @@ function ActivatedAbility:Render(options, params)
     --king panel
     local args = {
         id = 'spellInfo',
-        styles = SpellRenderStyles,
+        styles = ThemeEngine.MergeStyles(SpellRenderStyles),
         hpad = 0,
         vpad = 0,
 
@@ -1301,7 +1303,6 @@ function ActivatedAbility:Render(options, params)
                             fontSize = 24,
                             fontFace = "Newzald",
                             fontWeight = "Light",
-                            color = "white",
                             text = string.format("<b>%s</b>%s <size=18>%s</size>", self.name, meleeOrRangedVariantText, costString),
                             height = "auto",
                             markdown = true,
@@ -1317,7 +1318,7 @@ function ActivatedAbility:Render(options, params)
                             gui.Label {
 
                                 text = string.format("<b>%s</b>", self:AbilityTypeDescription()),
-                                color = "red",
+                                classes = { "danger" },
                                 textAlignment = "left",
                                 width = "auto",
                                 height = "auto",
@@ -1436,7 +1437,6 @@ function ActivatedAbility:Render(options, params)
 
                 text = string.format("<i>%s</i>", self:try_get("flavor", "")),
                 textAlignment = "left",
-                color = "#CBCCCA",
                 width = "100%",
                 height = "auto",
                 bgimage = true,
@@ -1448,9 +1448,9 @@ function ActivatedAbility:Render(options, params)
             --divider line between top and bottom info
             gui.Panel {
 
+                classes = { "divider" },
                 tmargin = 8,
                 bgimage = true,
-                bgcolor = "#CBCCCA",
                 opacity = 1,
                 width = "100%",
                 height = 1.5,
@@ -1538,7 +1538,7 @@ function ActivatedAbility:Render(options, params)
                         }
                     },
 
-                    classes = { "tab" },
+                    classes = { "tab", "goldTab" },
                     x = -46,
                     floating = true,
                     valign = "top",
@@ -1546,10 +1546,9 @@ function ActivatedAbility:Render(options, params)
                     height = 136 * 0.8,
                     width = 33 * 0.8,
                     bgimage = ActivatedAbility.TabBGImage(),
-                    bgcolor = Styles.Gold03,
 
                     gui.Label {
-                        color = "black",
+                        classes = { "goldTabLabel" },
                         width = "auto",
                         height = "auto",
                         fontSize = 22,
@@ -1672,50 +1671,7 @@ function ActivatedAbility:Render(options, params)
                         local m_value = capturedEntry.checked
                         local pillPanel
                         pillPanel = gui.Panel{
-                            styles = {
-                                gui.Style{
-                                    classes = {"improvementPill"},
-                                    borderColor = Styles.Gold04,
-                                    borderWidth = 2,
-                                    cornerRadius = 5,
-                                    width = "auto",
-                                    height = "auto",
-                                    pad = 4,
-                                    flow = "horizontal",
-                                    bgimage = true,
-                                    bgcolor = Styles.RichBlack03,
-                                    tmargin = 4,
-                                },
-                                gui.Style{
-                                    classes = {"improvementPill", "~selected"},
-                                    borderColor = "#777777",
-                                },
-                                gui.Style{
-                                    classes = {"improvementLabel"},
-                                    opacity = 0.95,
-                                    color = "white",
-                                    fontSize = 16,
-                                    width = "auto",
-                                    height = "auto",
-                                    valign = "center",
-                                },
-                                gui.Style{
-                                    classes = {"improvementLabel", "~selected"},
-                                    color = "#777777",
-                                },
-                                gui.Style{
-                                    classes = {"improvementLabel", "unaffordable", "selected"},
-                                    color = "#ff6666",
-                                },
-                                gui.Style{
-                                    selectors = {"improvementLabel", "parent:hover"},
-                                    brightness = 1.5,
-                                },
-                                gui.Style{
-                                    classes = {"improvementPill", "hover"},
-                                    brightness = 1.5,
-                                },
-                            },
+                            styles = ThemeEngine.MergeStyles(g_improvementPillStyles),
                             classes = {"improvementPill"},
                             press = function(el)
                                 m_value = not m_value
@@ -1942,7 +1898,7 @@ function ActivatedAbility:Render(options, params)
                         }
                     },
 
-                    classes = { "tab" },
+                    classes = { "tab", "goldTab" },
                     x = -46,
                     floating = true,
                     valign = "top",
@@ -1950,10 +1906,9 @@ function ActivatedAbility:Render(options, params)
                     height = 136 * 0.8,
                     width = 33 * 0.8,
                     bgimage = ActivatedAbility.TabBGImage(),
-                    bgcolor = Styles.Gold03,
 
                     gui.Label {
-                        color = "black",
+                        classes = { "goldTabLabel" },
                         width = "auto",
                         height = "auto",
                         fontSize = 22,
@@ -1987,7 +1942,7 @@ function ActivatedAbility:Render(options, params)
                 valign = "top",
                 width = "100%",
                 height = "auto",
-                bgcolor = "blue",
+                bgcolor = "clear",
                 bgimage = true,
 
                 gui.Panel {
@@ -2020,13 +1975,13 @@ function ActivatedAbility:Render(options, params)
         --border line right panel
         gui.Panel {
 
+            classes = { "fadeLine" },
             floating = true,
             valign = "top",
             halign = "left",
             height = 1.2,
             width = 500,
             bgimage = true,
-            bgcolor = 'white',
             gradient = gui.Gradient {
                 point_a = { x = 0, y = 0 },
                 point_b = { x = 1, y = 0 },
@@ -2048,13 +2003,13 @@ function ActivatedAbility:Render(options, params)
         --border line down panel
         gui.Panel {
 
+            classes = { "fadeLine" },
             floating = true,
             valign = "top",
             halign = "left",
             height = 200,
             width = 1.2,
             bgimage = true,
-            bgcolor = 'white',
             gradient = gui.Gradient {
                 point_a = { x = 0, y = 1 },
                 point_b = { x = 0, y = 0 },
@@ -2076,6 +2031,7 @@ function ActivatedAbility:Render(options, params)
         --tab panel
         gui.Panel {
 
+            classes = { "goldTab" },
             floating = true,
             valign = "top",
             halign = "left",
@@ -2084,7 +2040,6 @@ function ActivatedAbility:Render(options, params)
             height = 106 * 0.8,
             width = 33 * 0.8,
             bgimage = mod.images.tabbg,
-            bgcolor = Styles.Gold03,
             embedRollDialog = function(element)
                 element:SetClass("collapsed", true)
             end,
@@ -2225,7 +2180,8 @@ function ActivatedAbility:DescribeTarget(casterToken)
     end
 
     if self:has_key("targetAdditionalCriteria") then
-        result = string.format("%s <color=#aaaaaa>%s</color>", result, self.targetAdditionalCriteria)
+        local mutedHex = ThemeEngine.ResolveTokens("@fgMuted")
+        result = string.format("%s <color=%s>%s</color>", result, mutedHex, self.targetAdditionalCriteria)
     end
 
     return result

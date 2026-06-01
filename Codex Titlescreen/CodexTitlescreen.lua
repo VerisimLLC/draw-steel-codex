@@ -3235,7 +3235,11 @@ function CreateGameLoadingScreen(moduleInfo, backend)
         description = moduleInfo.text,
         descriptionDetails = moduleInfo.descriptionDetails,
         coverart = moduleInfo.coverart,
-        startingModule = moduleInfo.id,
+        -- The "No Module" option carries an explicit empty startingModule (an
+        -- empty string is truthy in Lua, so it wins over the id fallback) plus
+        -- noSystemModule = true to suppress the mcdm-drawsteel injection.
+        startingModule = moduleInfo.startingModule or moduleInfo.id,
+        noSystemModule = moduleInfo.noSystemModule == true,
         backend = backend or "local",
         create = function(gameid)
             if resultPanel == nil or not resultPanel.valid then
@@ -3256,9 +3260,30 @@ function CreateGameLoadingScreen(moduleInfo, backend)
 end
 
 function CreateGameDialog()
-    local m_moduleid = g_moduleOptions[1].id
+    -- Build the module list for this dialog. Admins get an extra "No Module"
+    -- option that creates an empty game with no starter map and no system
+    -- (mcdm-drawsteel) module -- it enters a blank map with zero modules.
+    -- startingModule = "" tells C# to skip the starter-map install;
+    -- noSystemModule = true tells C# to set GameDetails.noSystemModule so the
+    -- system module is never injected.
+    local m_moduleOptions = {}
+    for _, module in ipairs(g_moduleOptions) do
+        m_moduleOptions[#m_moduleOptions + 1] = module
+    end
+    if dmhub.isAdminAccount then
+        m_moduleOptions[#m_moduleOptions + 1] = {
+            id = "__nomodule__",
+            text = "No Module (Admin)",
+            descriptionDetails = "Admin only: create an empty game with no starting map and no game-system module. The game enters a blank map with zero modules installed.",
+            coverart = "panels/square.png",
+            startingModule = "",
+            noSystemModule = true,
+        }
+    end
+
+    local m_moduleid = m_moduleOptions[1].id
     local GetModule = function()
-        for i, module in ipairs(g_moduleOptions) do
+        for i, module in ipairs(m_moduleOptions) do
             if module.id == m_moduleid then
                 return module
             end
@@ -3325,7 +3350,7 @@ function CreateGameDialog()
                 height = 32,
                 halign = "center",
                 fontSize = 20,
-                options = g_moduleOptions,
+                options = m_moduleOptions,
                 idChosen = m_moduleid,
                 change = function(element)
                     m_moduleid = element.idChosen
@@ -4001,6 +4026,10 @@ function CreateTitlescreen(dialog, options)
 
         beginLoading = function(element)
             print("EVENT::: beginLoading")
+            -- Leaving the titlescreen to enter a game: drop the live metadata
+            -- monitors for the page's games (they'll be re-established from
+            -- refreshLobby when we return).
+            lobby:SetVisibleGames({})
             if element.data.searchHandler ~= nil then
                 TopBar.UninstallSearchHandler(element.data.searchHandler)
                 element.data.searchHandler = nil
@@ -5331,6 +5360,24 @@ function CreateTitlescreen(dialog, options)
                         data = {
                             updateid = -1,
                         },
+
+                        -- Report the games on the current page to the engine so
+                        -- it keeps a live metadata subscription open only for
+                        -- what's visible (the other games were pulled once at
+                        -- startup). Fires on every list rebuild (refreshLobby)
+                        -- and page change, since both broadcast refreshGames.
+                        refreshGames = function(element, games, baseIndex)
+                            games = games or {}
+                            baseIndex = baseIndex or 0
+                            local visible = {}
+                            for i = 1, 4 do
+                                local g = games[baseIndex + i]
+                                if g ~= nil then
+                                    visible[#visible + 1] = g.gameid
+                                end
+                            end
+                            lobby:SetVisibleGames(visible)
+                        end,
 
                         refreshLobby = function(element)
                             local orderedGames = {}

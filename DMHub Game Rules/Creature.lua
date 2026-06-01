@@ -347,8 +347,15 @@ end
 --- The creature's movement type.
 --- @return string
 function creature:CurrentMoveType()
+    --The ground move type (walk vs swim) is derived from the token's position, so the cache must
+    --expire whenever the token could have moved. Invalidate() clears it, but that path is gated to
+    --once per dmhub.ngameupdate (see RefreshToken) and is skipped when another refresh already ran
+    --this tick -- which left the swim/walk icon stale by one move when entering/leaving water. Stamp
+    --the cache with dmhub.ngameupdate and recompute whenever the stamp is out of date: ngameupdate
+    --only advances on a game-state change (every move is one) and never while idle, so this recomputes
+    --exactly when the position could have changed and is otherwise free.
     local groundMoveType = rawget(self, "_tmp_groundMoveType")
-    if groundMoveType == nil then
+    if groundMoveType == nil or rawget(self, "_tmp_groundMoveTypeUpdate") ~= dmhub.ngameupdate then
         local token = dmhub.LookupToken(self)
         groundMoveType = "walk"
         if token ~= nil then
@@ -356,6 +363,7 @@ function creature:CurrentMoveType()
             local preferWater = false -- self:GetSpeed("swim") >= self:GetSpeed("walk")
             groundMoveType = token:GetGroundMoveType(preferWater)
             self._tmp_groundMoveType = groundMoveType
+            self._tmp_groundMoveTypeUpdate = dmhub.ngameupdate
         end
     end
 

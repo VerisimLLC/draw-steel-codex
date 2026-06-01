@@ -395,6 +395,20 @@ CharacterModifier.TypeInfo.powertabletrigger = {
             end
         end
 
+        local abilityFilter = self:try_get("abilityFilter", "")
+        if abilityFilter ~= "" then
+            local filter = ExecuteGoblinScript(abilityFilter, token.properties:LookupSymbol{
+                caster = casterToken.properties,
+                target = targetToken.properties,
+                triggerer = token.properties,
+                ability = ability,
+                cast = symbols.cast,
+            }, 0)
+            if not GoblinScriptTrue(filter) then
+                return false
+            end
+        end
+
         local targetFilter = self:try_get("targetFilter", "")
         if targetFilter ~= "" then
             local filter = ExecuteGoblinScript(targetFilter, token.properties:LookupSymbol{
@@ -737,6 +751,67 @@ CharacterModifier.TypeInfo.powertabletrigger = {
                     },
                 }
 
+            end
+
+            if modifier.trigger ~= "casting" then
+                children[#children+1] = gui.Panel{
+                    classes = {"formPanel"},
+                    gui.Label{
+                        classes = {"formLabel"},
+                        text = "Ability Filter:",
+                    },
+                    gui.GoblinScriptInput{
+                        value = modifier:try_get("abilityFilter", ""),
+                        change = function(element)
+                            modifier.abilityFilter = element.value
+                            Refresh()
+                        end,
+                        documentation = {
+                            domains = modifier:Domains(),
+                            help = "This GoblinScript is used to filter which abilities can fire this trigger. Leave blank to allow all abilities.",
+                            output = "boolean",
+                            examples = {
+                                {
+                                    script = 'Ability.Keywords has "Melee"',
+                                    text = "Only melee abilities can fire this trigger.",
+                                },
+                                {
+                                    script = 'Ability.Keywords has "Strike"',
+                                    text = "Only strikes can fire this trigger.",
+                                },
+                            },
+                            subject = creature.helpSymbols,
+                            subjectDescription = "The creature who the modifying trigger comes from.",
+                            symbols = {
+                                {
+                                    name = "Caster",
+                                    type = "creature",
+                                    desc = "The creature who is casting the ability.",
+                                },
+                                {
+                                    name = "Target",
+                                    type = "creature",
+                                    desc = "The target of the ability.",
+                                },
+                                {
+                                    name = "Triggerer",
+                                    type = "creature",
+                                    desc = "The creature who triggered the ability.",
+                                },
+                                {
+                                    name = "Ability",
+                                    type = "ability",
+                                    desc = "The ability being cast.",
+                                },
+                                {
+                                    name = "Cast",
+                                    type = "spellcast",
+                                    desc = "The cast context of the ability being cast.",
+                                },
+                            }
+                        }
+                    },
+                }
             end
 
             if modifier.targetType ~= "self" then

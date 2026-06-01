@@ -253,6 +253,10 @@ function InitiativeQueue.GetInitiativeId(token)
         return nil
     end
 
+    --initiativeGrouping wins so the DM can deliberately put several squads (or a
+    --squad plus other tokens) on a single shared initiative. Forming a squad
+    --clears initiativeGrouping on its members so they fall through to the shared
+    --squad id below unless explicitly grouped again.
     if token.properties.initiativeGrouping then
         return token.properties.initiativeGrouping
     end

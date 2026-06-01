@@ -134,6 +134,9 @@ DrawSteelMinion.FormSquad = function(tokens)
                 combine = true,
                 execute = function()
                     tok.properties.minionSquad = newName
+                    --clear any stale initiativeGrouping from how this minion was
+                    --spawned so the squad becomes its authoritative initiative group.
+                    tok.properties.initiativeGrouping = false
                     if tok.properties.minion then
                         tok.properties.damage_taken = nil
                         tok.properties.damage_taken_seq = nil
@@ -142,8 +145,10 @@ DrawSteelMinion.FormSquad = function(tokens)
                 end,
             }
         elseif tok.valid then
-            --make this a captain of the squad.
+            --make this a captain of the squad. Clear any leftover initiativeGrouping
+            --so the captain falls through to the shared squad initiative as well.
             tok.properties.minionSquad = newName
+            tok.properties.initiativeGrouping = false
         end
     end
 end

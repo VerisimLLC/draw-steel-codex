@@ -315,6 +315,8 @@ function RichEncounter.CreateDisplay(self)
                 if group.minHeroes == nil or numHeroes >= group.minHeroes then
                     local spawnIndex = 1
                     for monsterid,quantity in pairs(group.monsters) do
+                        --match the adjusted count used at spawn time so token ids stay aligned.
+                        quantity = Encounter.AdjustedMonsterQuantity(group, monsterid, quantity, numHeroes)
             print("SPAWN:: DESPAWNING monsterid =", monsterid, quantity)
                         for i=1,quantity do
                             local tokenid = charids[index]

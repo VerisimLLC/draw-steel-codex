@@ -110,12 +110,49 @@ function Encounter.MainMonster(encounter)
     return mainmonster
 end
 
+--Returns the number of monsters of the given type that should actually be placed
+--for a group at a given number of heroes, applying any per-monster-type balancing
+--adjustment configured on the group. Clamped to >= 0. This is the single source of
+--truth shared by CloneForNumberOfHeroes (placement/EV/describe) and RichEncounter's
+--despawn index walk, so spawn and despawn stay aligned.
+function Encounter.AdjustedMonsterQuantity(group, monsterid, baseQuantity, numHeroes)
+    local balancing = group.balancing
+    local heroBalancing = balancing ~= nil and balancing[numHeroes] or nil
+    if heroBalancing ~= nil and heroBalancing.monsters ~= nil then
+        local delta = heroBalancing.monsters[monsterid]
+        if type(delta) == "number" and delta ~= 0 then
+            local quantity = baseQuantity + delta
+            if quantity < 0 then
+                quantity = 0
+            end
+            return quantity
+        end
+    end
+    return baseQuantity
+end
+
 function Encounter.CloneForNumberOfHeroes(self, numHeroes)
     numHeroes = numHeroes or g_numHeroesSetting:Get()
     local encounter = DeepCopy(self)
     for i = #encounter.groups, 1, -1 do
-        if encounter.groups[i].minHeroes ~= nil and encounter.groups[i].minHeroes > numHeroes then
+        local group = encounter.groups[i]
+        if group.minHeroes ~= nil and group.minHeroes > numHeroes then
             table.remove(encounter.groups, i)
+        else
+            --apply per-monster-type count adjustments configured for this number of heroes.
+            local monsterids = {}
+            for monsterid, _ in pairs(group.monsters) do
+                monsterids[#monsterids + 1] = monsterid
+            end
+
+            for _, monsterid in ipairs(monsterids) do
+                local quantity = Encounter.AdjustedMonsterQuantity(group, monsterid, group.monsters[monsterid], numHeroes)
+                if quantity <= 0 then
+                    group.monsters[monsterid] = nil
+                else
+                    group.monsters[monsterid] = quantity
+                end
+            end
         end
     end
 
@@ -576,13 +613,132 @@ local function createGroupPanel(encounter)
                             local balancing = group.balancing or {}
                             for _, i in ipairs({ 3, 4, 5, 6, 7 }) do
                                 balancing[i] = balancing[i] or {}
+                                balancing[i].monsters = balancing[i].monsters or {}
                             end
 
                             local balancingBaseline = DeepCopy(balancing)
                             local children = {}
 
                             for _, i in ipairs({ 3, 4, 5, 6, 7 }) do
-                                local info = balancing[i]
+                                local heroCount = i
+                                local info = balancing[heroCount]
+
+                                local rightChildren = {
+                                    gui.Panel {
+                                        halign = "right",
+                                        flow = "horizontal",
+                                        width = "auto",
+                                        height = "auto",
+                                        vmargin = 4,
+                                        gui.Label {
+                                            fontSize = 12,
+                                            text = "Stamina:",
+                                            width = "auto",
+                                            height = "auto",
+                                            hmargin = 4,
+                                        },
+                                        gui.Input {
+                                            classes = { "form" },
+                                            fontSize = 12,
+                                            width = 50,
+                                            height = 12,
+                                            hmargin = 4,
+                                            text = info.stamina or "",
+                                            characterLimit = 4,
+                                            change = function(element)
+                                                local val = tonumber(element.text)
+                                                if val ~= nil then
+                                                    balancing[heroCount].stamina = val
+                                                else
+                                                    balancing[heroCount].stamina = nil
+                                                end
+
+                                                element.text = balancing[heroCount].stamina or ""
+                                            end,
+                                        }
+                                    },
+
+                                    gui.Check {
+                                        classes = { "form" },
+                                        text = "Disable Solo Action",
+                                        height = 14,
+                                        minWidth = 100,
+                                        value = balancing[heroCount].disableSolo or false,
+                                        halign = "right",
+                                        fontSize = 10,
+                                        change = function(element)
+                                            balancing[heroCount].disableSolo = element.value
+                                        end,
+                                    },
+                                }
+
+                                --per-monster-type count adjustments for this number of heroes.
+                                for monsterid, baseQuantity in pairs(group.monsters) do
+                                    local monster = assets.monsters[monsterid]
+                                    local monsterName = (monster ~= nil and creature.GetTokenDescription(monster)) or "Unknown"
+                                    local quantity = baseQuantity
+
+                                    local valueLabel
+                                    valueLabel = gui.Label {
+                                        fontSize = 11,
+                                        width = "auto",
+                                        height = "auto",
+                                        valign = "center",
+                                        hmargin = 3,
+                                        text = string.format("%+d %s", balancing[heroCount].monsters[monsterid] or 0, monsterName),
+                                    }
+
+                                    local function adjust(delta)
+                                        local cur = (balancing[heroCount].monsters[monsterid] or 0) + delta
+                                        --never let the adjusted count drop below zero monsters.
+                                        if quantity + cur < 0 then
+                                            cur = -quantity
+                                        end
+                                        if cur == 0 then
+                                            balancing[heroCount].monsters[monsterid] = nil
+                                        else
+                                            balancing[heroCount].monsters[monsterid] = cur
+                                        end
+                                        valueLabel.text = string.format("%+d %s", cur, monsterName)
+                                    end
+
+                                    rightChildren[#rightChildren + 1] = gui.Panel {
+                                        halign = "right",
+                                        flow = "horizontal",
+                                        width = "auto",
+                                        height = "auto",
+                                        vmargin = 1,
+
+                                        valueLabel,
+
+                                        gui.Label {
+                                            classes = { "link" },
+                                            fontSize = 14,
+                                            text = "[-]",
+                                            width = "auto",
+                                            height = "auto",
+                                            valign = "center",
+                                            hmargin = 2,
+                                            press = function()
+                                                adjust(-1)
+                                            end,
+                                        },
+
+                                        gui.Label {
+                                            classes = { "link" },
+                                            fontSize = 14,
+                                            text = "[+]",
+                                            width = "auto",
+                                            height = "auto",
+                                            valign = "center",
+                                            hmargin = 2,
+                                            press = function()
+                                                adjust(1)
+                                            end,
+                                        },
+                                    }
+                                end
+
                                 children[#children + 1] = gui.Panel {
                                     flow = "horizontal",
                                     width = "100%",
@@ -592,59 +748,14 @@ local function createGroupPanel(encounter)
                                         height = "auto",
                                         fontSize = 12,
                                         valign = "center",
-                                        text = string.format("%d Heroes", i),
+                                        text = string.format("%d Heroes", heroCount),
                                     },
 
                                     gui.Panel {
-                                        width = 180,
+                                        width = 250,
                                         flow = "vertical",
                                         height = "auto",
-                                        gui.Panel {
-                                            halign = "right",
-                                            flow = "horizontal",
-                                            width = "auto",
-                                            height = "auto",
-                                            vmargin = 4,
-                                            gui.Label {
-                                                fontSize = 12,
-                                                text = "Stamina:",
-                                                width = "auto",
-                                                height = "auto",
-                                                hmargin = 4,
-                                            },
-                                            gui.Input {
-                                                classes = { "form" },
-                                                fontSize = 12,
-                                                width = 50,
-                                                height = 12,
-                                                hmargin = 4,
-                                                text = info.stamina or "",
-                                                characterLimit = 4,
-                                                change = function(element)
-                                                    local val = tonumber(element.text)
-                                                    if val ~= nil then
-                                                        balancing[i].stamina = val
-                                                    else
-                                                        balancing[i].stamina = nil
-                                                    end
-
-                                                    element.text = balancing[i].stamina or ""
-                                                end,
-                                            }
-                                        },
-
-                                        gui.Check {
-                                            classes = { "form" },
-                                            text = "Disable Solo Action",
-                                            height = 14,
-                                            minWidth = 100,
-                                            value = balancing[i].disableSolo or false,
-                                            halign = "right",
-                                            fontSize = 10,
-                                            change = function(element)
-                                                balancing[i].disableSolo = element.value
-                                            end,
-                                        },
+                                        children = rightChildren,
                                     },
                                 }
                             end
@@ -652,7 +763,7 @@ local function createGroupPanel(encounter)
                             local panel = gui.Panel {
                                 -- styles = ThemeEngine.GetStyles(),
                                 classes = { "dialog" },
-                                width = 260,
+                                width = 350,
                                 height = "auto",
                                 flow = "vertical",
                                 hpad = 6,

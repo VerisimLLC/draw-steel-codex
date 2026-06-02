@@ -292,12 +292,15 @@ function DramaticBanner.Create()
     -- Content revealed between the swords: the token portrait and the
     -- title / subtitle text.
     ------------------------------------------------------------------
-    -- Portrait uses the standard 3:4 (width:height) aspect ratio, with
-    -- its edges faded out so it blends softly into the band.
+    -- Portrait fills the band vertically (minus 16px) at the standard portrait
+    -- aspect (width = portraitWidthPercentOfHeight% of height, i.e. 3:4), and
+    -- crops its image to that aspect via imageRect in playBanner -- exactly the
+    -- recipe the character panel's portrait-body uses -- so it is never
+    -- stretched. Its edges fade out so it blends softly into the band.
     local portraitPanel = gui.Panel{
         interactable = false,
-        width = 300,
-        height = 400,
+        height = "100%-16",
+        width = string.format("%f%% height", Styles.portraitWidthPercentOfHeight),
         halign = "center",
         valign = "center",
         bgcolor = "white",
@@ -350,11 +353,13 @@ function DramaticBanner.Create()
         children = { titleLabel, accentRule, subtitleLabel },
     }
 
-    -- Portrait + text, revealed between the parting swords.
+    -- Portrait + text, revealed between the parting swords. Height is fixed to
+    -- the reveal layer so the portrait's "100%-16" height resolves against the
+    -- band rather than collapsing against an auto-height parent.
     local contentGroup = gui.Panel{
         interactable = false,
         width = "auto",
-        height = "auto",
+        height = "100%",
         halign = "center",
         valign = "center",
         flow = "horizontal",
@@ -517,7 +522,18 @@ function DramaticBanner.Create()
             -- it is off-map.
             portraitPanel:SetClass("collapsed", not hasPortrait)
             if hasPortrait then
-                portraitPanel.bgimage = token.inspectPortrait
+                -- Same logic as the character panel's portrait-body: crop the
+                -- image to the portrait aspect via imageRect so it fills the
+                -- frame without stretching. Spine portraits frame themselves
+                -- (inspectPortrait returns a live '#spineinspect:' render), so
+                -- they are shown un-cropped.
+                local portrait = token.inspectPortrait
+                portraitPanel.bgimage = portrait
+                if token.hasSpineAnimation then
+                    portraitPanel.selfStyle.imageRect = nil
+                else
+                    portraitPanel.selfStyle.imageRect = token:GetPortraitRectForAspect(Styles.portraitWidthPercentOfHeight*0.01, portrait)
+                end
             end
 
             if d.data.sound then

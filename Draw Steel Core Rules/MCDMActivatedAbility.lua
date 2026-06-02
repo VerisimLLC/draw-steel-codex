@@ -2353,7 +2353,13 @@ function ActivatedAbility:CanTargetAdditionalTimes(casterToken, symbols, targets
     end
 
     if self:UsesSquadStrike(casterToken) then
-        --signature abilities can 'stack' targeting up to three times.
+        --signature abilities can 'stack' targeting up to three times. Summoner
+        --minions and similar bypass this via the "Ignore Minion Target Limit"
+        --custom attribute, letting any number of minions hit the same creature.
+        if casterToken.properties:CalculateNamedCustomAttribute("Ignore Minion Target Limit") > 0 then
+            return true
+        end
+
         local currentTimes = 0
         for _, target in ipairs(targets) do
             if target == targetToken.id then

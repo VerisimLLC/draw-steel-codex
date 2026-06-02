@@ -628,7 +628,7 @@ function ActivatedAbilityRecoverySelectionBehavior:Cast(ability, casterToken, ta
         description = "Change Heroic Resource",
         execute = function()
             local cost = calcCost()
-            casterToken.properties:ConsumeResource(CharacterResource.heroicResourceId, "unbounded", cost)
+            casterToken.properties:ConsumeResource(CharacterResource.heroicResourceId, "unbounded", cost + 1)
         end,
     }
 

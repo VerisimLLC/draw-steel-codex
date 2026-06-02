@@ -1,3 +1,4 @@
+print("Draw Steel Monster Importer Script Loading...")
 local mod = dmhub.GetModLoading()
 
 local function escapeNonAsciiChars(inputString)
@@ -13,7 +14,8 @@ MCDMImporter = {
         text = text:gsub("\xE2\x80\x99", "'") -- Replace right curly apostrophe
         text = text:gsub("\xE2\x80\x9C", '"') -- Replace double quotes
         text = text:gsub("\xE2\x80\x9D", '"') -- Replace double quotes
-        text = text:gsub("\xEF\xBF\xBD", "'") -- The replacement character.
+        text = text:gsub("\xEF\xBF\xBD", "'") -- The replacement character
+        text = text:gsub("\xCA\xBC", "'") -- Replace U+02BC MODIFIER LETTER APOSTROPHE with regular apostrophe
         text = text:gsub("\r", "") --get rid of evil \r
         text = escapeNonAsciiChars(text)
 
@@ -21,6 +23,10 @@ MCDMImporter = {
         text = text:gsub("%%EF%%B8%%8F", ":shield:")
         text = text:gsub("%%E2%%9A%%A1", ":surge:")
         text = text:gsub("%%E2%%80%%A6", "...")
+        text = text:gsub("%%CA%%BC", "'") -- Replace encoded U+02BC MODIFIER LETTER APOSTROPHE
+
+        -- Replace encoded modifier apostrophe using regex
+        text = regex.ReplaceAll(text, "%CA%BC", "'")
 
         --replace non-breaking spaces.
         text = regex.ReplaceAll(text, "(%C2%A0)+$", "")
@@ -55,6 +61,14 @@ MCDMImporter = {
                     {
                         selectors = {"impl"},
                         color = "yellow",
+                    },
+                    {
+                        selectors = {"override"},
+                        color = "#ff8800",
+                    },
+                    {
+                        selectors = {"good"},
+                        color = "#00ff00",
                     },
                 },
 
@@ -192,6 +206,8 @@ local function StatusToColor(status)
         color = "#ffff00"
     elseif status == "good" then
         color = "#00ff00"
+    elseif status == "override" then
+        color = "#ff8800"
     end
     return color
 end
@@ -214,6 +230,10 @@ end
 
 local function FormatImpl(msg)
     return { status = "impl", message = msg }
+end
+
+local function FormatOverride(msg)
+    return { status = "override", message = msg }
 end
 
 
@@ -517,8 +537,6 @@ MCDMImporter.ParseMonsterAbility = function(bestiaryEntry, lines, knownAbilities
                 line = string.format("%s<b>%s</b> %s %s", matchBoldGate.head, matchBoldGate.malice, matchBoldGate.gate, matchBoldGate.tail)
             end
 
-            print("ABILITY:: MATCH", abilityHeaderMatch.name, "GATE", matchBoldGate ~= nil, "LINE", lines[i], "BECOMES", line)
-
             local count = 0
             local remaining = line
             while trim(remaining) ~= "" and count < 5 do
@@ -527,9 +545,6 @@ MCDMImporter.ParseMonsterAbility = function(bestiaryEntry, lines, knownAbilities
                 --first try to match effect or malice which would take the entire line.
                 local effectMatch = regex.MatchGroups(remaining, "^\\s*<b>\\s*Effect\\s*</b>\\s*(?<value>.*)$")
                 local maliceMatch = regex.MatchGroups(remaining, "^\\s*<b>(?<malice>[0-9]+\\+? Malice)\\s*</b>\\s*(?<value>.*)$")
-                if regex.MatchGroups(remaining, "Effect") ~= nil then
-                    print("EffectMatch", effectMatch ~= nil, remaining)
-                end
                 if effectMatch ~= nil then
                     attributes["effect"] = trim(regex.ReplaceAll(effectMatch.value, "</?b>", ""))
                     remaining = ""
@@ -572,8 +587,13 @@ MCDMImporter.ParseMonsterAbility = function(bestiaryEntry, lines, knownAbilities
             powerRollEffects[i] = regex.ReplaceAll(powerRollEffects[i], "</?b>", "")
         end
 
-        print("Lisa: ", bestiaryEntry.name, powerRollEffects)
-        
+        -- Capitalize attribute abbreviations in potency patterns (e.g., "i<2" -> "I<2")
+        for i = 1, #powerRollEffects do
+            powerRollEffects[i] = string.gsub(powerRollEffects[i], "([marip])(<)", function(attr, lt)
+                return string.upper(attr) .. lt
+            end)
+        end
+
         if #powerRollEffects ~= 3 then
             import:Log(FormatError("Could not find all three power roll effects."))
             hasErrors = true
@@ -914,8 +934,6 @@ end
 
 
 MCDMImporter.ParseCreatureAbilities = function(bestiaryEntry, inputLines, knownAbilities, abilitiesOutput)
-    print("Lisa: ")
-
     local lines = {}
     for _,line in ipairs(inputLines) do
         local splitLines = splitByTabsIntoAttributes(line)
@@ -1032,7 +1050,6 @@ MCDMImporter.ParseCreatureAbilities = function(bestiaryEntry, inputLines, knownA
                     currentAbility.roll = GameSystem.BaseAttackRoll .. " + Power Roll Bonus"
 
                 end
-                print("Lisa: ", bestiaryEntry.name, "Tier: ", rollTierMatch.rule)
                 currentAbility.tiers[#currentAbility.tiers+1] = rollTierMatch.rule
             else
 
@@ -1185,6 +1202,9 @@ MCDMImporter.ParseCreatureAbilities = function(bestiaryEntry, inputLines, knownA
                     --handle [Psionic/Magic] as just Magic
                     if string.lower(keyword) == "[psionic/magic]" then
                         keyword = "Magic"
+                    elseif keyword ~= "" then
+                        -- Capitalize first letter
+                        keyword = keyword:sub(1, 1):upper() .. keyword:sub(2)
                     end
 
                     if keyword ~= "" then
@@ -1232,7 +1252,6 @@ MCDMImporter.ParseCreatureAbilities = function(bestiaryEntry, inputLines, knownA
 
 
         if ability.roll ~= nil or ability.tiers ~= nil then
-            print("Lisa: ", ability.name, ability.tiers)
             if ability.roll == nil or ability.tiers == nil or #ability.tiers ~= 3 then
                 abilityErrors[#abilityErrors+1] = FormatStatus("Could not recognize power roll format.", "error")
             else
@@ -1671,7 +1690,19 @@ local function ParseMonsterTrait(name, text)
 end
 
 MCDMImporter.ImportText = function(importer, text)
+    import:Log("[DS-JSON] Starting ImportText...")
     local options = import.options or {}
+
+    -- Fail safe: Check if this is JSON content and redirect
+    local firstChar = string.sub(text, 1, 1)
+    import:Log("[DS-JSON] First character: " .. tostring(firstChar))
+    if text:match("^%s*{") then
+        import:Log("[DS-JSON] Detected JSON, redirecting to JSON Importer...")
+        MCDMImporter.ImportJSON(importer, text)
+        import:Log("[DS-JSON] Returned from JSON Importer")
+        return
+    end
+    import:Log("[DS-JSON] Not JSON, processing as text...")
 
     --makes it easier to parse if we have a newline at the end.
     if not string.ends_with(text, "\n") then
@@ -2273,7 +2304,14 @@ MCDMImporter.ImportText = function(importer, text)
                     print("MONSTER:: IMPORTED MONSTER:", bestiaryEntry.name)
 
                     import:StoreLogFromBookmark(bookmark, bestiaryEntry)
-                    import:ImportMonster(bestiaryEntry)
+                    import:Log("-")
+                    import:Log(bestiaryEntry.name .. " (Level " .. tostring(m.cr) .. ")")
+                    local success = import:ImportMonster(bestiaryEntry)
+                    if success == false then
+                        import:Log(FormatError("FAILED to import: Item may be locked/overridden. Check if '" .. bestiaryEntry.name .. "' is marked as 'overridden' in the compendium."))
+                    else
+                        import:Log(FormatSuccess("Imported"))
+                    end
                 end
             end
         end
@@ -2307,7 +2345,1221 @@ import.Register{
 
     renderLog = MCDMImporter.renderLog,
 
+
     text = function(importer, text)
         MCDMImporter.ImportText(importer, text)
     end,
 }
+
+-- Simple JSON parser for basic structures
+local function parseJSON(jsonStr)
+    local pos = 1
+
+    local function skipWhitespace()
+        while pos <= #jsonStr and jsonStr:match("^%s", pos) do
+            pos = pos + 1
+        end
+    end
+
+    local function parseValue()
+        skipWhitespace()
+
+        local char = jsonStr:sub(pos, pos)
+
+        -- Parse null
+        if jsonStr:sub(pos, pos + 3) == "null" then
+            pos = pos + 4
+            return nil
+        end
+
+        -- Parse boolean
+        if jsonStr:sub(pos, pos + 3) == "true" then
+            pos = pos + 4
+            return true
+        end
+        if jsonStr:sub(pos, pos + 4) == "false" then
+            pos = pos + 5
+            return false
+        end
+
+        -- Parse number
+        if char == "-" or char:match("%d") then
+            local numStr = ""
+            if char == "-" then
+                numStr = numStr .. char
+                pos = pos + 1
+            end
+            while pos <= #jsonStr and jsonStr:sub(pos, pos):match("[%d.]") do
+                numStr = numStr .. jsonStr:sub(pos, pos)
+                pos = pos + 1
+            end
+            return tonumber(numStr)
+        end
+
+        -- Parse string
+        if char == '"' then
+            pos = pos + 1
+            local str = ""
+            while pos <= #jsonStr and jsonStr:sub(pos, pos) ~= '"' do
+                if jsonStr:sub(pos, pos) == "\\" then
+                    pos = pos + 1
+                    local escapeChar = jsonStr:sub(pos, pos)
+                    if escapeChar == "n" then str = str .. "\n"
+                    elseif escapeChar == "t" then str = str .. "\t"
+                    elseif escapeChar == "r" then str = str .. "\r"
+                    elseif escapeChar == '"' then str = str .. '"'
+                    elseif escapeChar == "\\" then str = str .. "\\"
+                    elseif escapeChar == "/" then str = str .. "/"
+                    elseif escapeChar == "b" then str = str .. "\b"
+                    elseif escapeChar == "f" then str = str .. "\f"
+                    else str = str .. escapeChar end
+                    pos = pos + 1
+                else
+                    str = str .. jsonStr:sub(pos, pos)
+                    pos = pos + 1
+                end
+            end
+            pos = pos + 1 -- Skip closing quote
+            return str
+        end
+
+        -- Parse array
+        if char == "[" then
+            pos = pos + 1
+            local arr = {}
+            skipWhitespace()
+            if jsonStr:sub(pos, pos) ~= "]" then
+                while pos <= #jsonStr do
+                    table.insert(arr, parseValue())
+                    skipWhitespace()
+                    if jsonStr:sub(pos, pos) == "," then
+                        pos = pos + 1
+                        skipWhitespace()
+                    else
+                        break
+                    end
+                end
+            end
+            skipWhitespace()
+            pos = pos + 1 -- Skip closing bracket
+            return arr
+        end
+
+        -- Parse object
+        if char == "{" then
+            pos = pos + 1
+            local obj = {}
+            skipWhitespace()
+            if jsonStr:sub(pos, pos) ~= "}" then
+                while pos <= #jsonStr do
+                    skipWhitespace()
+                    -- Parse key
+                    if jsonStr:sub(pos, pos) ~= '"' then
+                        break
+                    end
+                    local key = parseValue()
+                    skipWhitespace()
+                    -- Expect colon
+                    if jsonStr:sub(pos, pos) ~= ":" then
+                        break
+                    end
+                    pos = pos + 1
+                    skipWhitespace()
+                    -- Parse value
+                    obj[key] = parseValue()
+                    skipWhitespace()
+                    if jsonStr:sub(pos, pos) == "," then
+                        pos = pos + 1
+                        skipWhitespace()
+                    else
+                        break
+                    end
+                end
+            end
+            skipWhitespace()
+            pos = pos + 1 -- Skip closing brace
+            return obj
+        end
+
+        return nil
+    end
+
+    return parseValue()
+end
+
+MCDMImporter.ImportJSON = function(importer, jsonContent)
+    import:Log("[DS-JSON] Starting JSON Import...")
+    import:Log("[DS-JSON] Content type: " .. type(jsonContent))
+    import:Log("[DS-JSON] Content length: " .. tostring(#jsonContent))
+    local options = import.options or {}
+
+    local data = nil
+    
+    -- Check if content is already a table (parsed by system) or string
+    if type(jsonContent) == "table" then
+        import:Log("[DS-JSON] Received table data, using directly.")
+        data = jsonContent
+    else
+        import:Log("[DS-JSON] Received string data, attempting parse. Length: " .. tostring(#jsonContent))
+
+        -- Try various JSON parsers using pcall to avoid uninitialized variable errors
+        local parsed = false
+
+        -- Try cjson
+        if not parsed then
+            import:Log("[DS-JSON] Trying cjson...")
+            local status, res = pcall(function()
+                -- Use _G to safely check global variables
+                return (_G.cjson and _G.cjson.decode and _G.cjson.decode(jsonContent)) or nil
+            end)
+            if status and res and type(res) == "table" then
+                data = res
+                parsed = true
+                import:Log(FormatStatus("[DS-JSON] cjson.decode succeeded!", "success"))
+            end
+        end
+
+        -- Try json.decode
+        if not parsed then
+            import:Log("[DS-JSON] Trying json.decode...")
+            local status, res = pcall(function()
+                return (type(_G.json) == "table" and _G.json.decode and _G.json.decode(jsonContent)) or nil
+            end)
+            if status and res and type(res) == "table" then
+                data = res
+                parsed = true
+                import:Log(FormatStatus("[DS-JSON] json.decode succeeded!", "success"))
+            end
+        end
+
+        -- Try dkjson
+        if not parsed then
+            import:Log("[DS-JSON] Trying dkjson...")
+            local status, res = pcall(function()
+                return (_G.dkjson and _G.dkjson.decode and _G.dkjson.decode(jsonContent)) or nil
+            end)
+            if status and res and type(res) == "table" then
+                data = res
+                parsed = true
+                import:Log(FormatStatus("[DS-JSON] dkjson.decode succeeded!", "success"))
+            end
+        end
+
+        -- Try custom JSON parser as fallback
+        if not parsed then
+            import:Log("[DS-JSON] Trying custom parseJSON...")
+            local status, res = pcall(function()
+                return parseJSON(jsonContent)
+            end)
+            if status and res and type(res) == "table" then
+                data = res
+                parsed = true
+                import:Log(FormatStatus("[DS-JSON] Custom parseJSON succeeded!", "success"))
+            else
+                import:Log(FormatStatus("[DS-JSON] Custom parseJSON failed: " .. tostring(res), "error"))
+            end
+        end
+
+        if not parsed then
+            import:Log(FormatStatus("[DS-JSON] ERROR: No JSON parser could parse the content", "error"))
+            -- Log first 500 chars of content for debugging
+            local contentPreview = string.sub(jsonContent, 1, 500)
+            import:Log(FormatError("[DS-JSON] Content preview: " .. contentPreview))
+            return
+        end
+    end
+
+
+    if data == nil then
+        import:Log(FormatStatus("[DS-JSON] Data is nil after parse.", "error"))
+        return
+    end
+
+    import:Log("[DS-JSON] Data type: " .. type(data))
+    import:Log("[DS-JSON] Data.type value: " .. tostring(data.type))
+    import:Log("[DS-JSON] Data.items exists: " .. tostring(data.items ~= nil))
+
+    if data.type ~= "npc" then
+        import:Log("-")
+        import:Log(tostring(data.name or "Unknown"))
+        import:Log(FormatError("Not an NPC (type: " .. tostring(data.type) .. ")"))
+        return
+    end
+
+    local bookmark = import:BookmarkLog()
+
+    local monsterEntries = {}
+    local importReport = {}
+
+    local bestiaryEntry
+    local isExisting = false
+    if options.replaceExisting ~= false then
+        bestiaryEntry = import:GetExistingItem("monster", data.name)
+        if bestiaryEntry ~= nil then
+            isExisting = true
+            import:Log("[DS-JSON] Found existing monster, will update it")
+        end
+    end
+
+    if bestiaryEntry ~= nil and bestiaryEntry.properties:try_get("import", {}).override then
+        local report = {}
+        report[#report+1] = bestiaryEntry.name
+        report[#report+1] = "Monster"
+        report[#report+1] = "OVERRIDE"
+
+        local cr = bestiaryEntry.properties:try_get("cr", 1)
+        if cr <= 3 then
+            report[#report+1] = "1"
+        elseif cr <= 6 then
+            report[#report+1] = "2"
+        elseif cr <= 9 then
+            report[#report+1] = "3"
+        else
+            report[#report+1] = "4"
+        end
+
+        importReport[#importReport+1] = report
+
+        for _,a in ipairs(bestiaryEntry.properties:try_get("innateActivatedAbilities", {})) do
+            local report = {}
+            report[#report+1] = bestiaryEntry.name
+            report[#report+1] = a.name
+
+            local statusOptions = {"Unimplemented", "Partial", "Implemented", "Won't Implement"}
+            local implementation = a:try_get("implementation", 1)
+            implementation = statusOptions[implementation] or "Unknown"
+            report[#report+1] = implementation
+
+            importReport[#importReport+1] = report
+        end
+
+        import:Log("-")
+        import:Log(FormatStatus(bestiaryEntry.name, "override"))
+        local overrideMsg = FormatOverride("Override - will not be imported")
+        import:Log(overrideMsg)
+        return importReport
+    end
+
+    if bestiaryEntry == nil then
+        bestiaryEntry = import:CreateMonster()
+        bestiaryEntry.properties = monster.CreateNew()
+    else
+        -- Reset properties for existing monster to clear old data
+        bestiaryEntry.properties = monster.CreateNew()
+    end
+
+    bestiaryEntry.name = MCDMImporter.ReplaceSpecialCharactersWithASCII(data.name)
+    import:Log("[DS-JSON] Importing Monster: " .. bestiaryEntry.name)
+
+    local m = bestiaryEntry.properties
+    m.name = bestiaryEntry.name  -- Also set the name on the properties object
+    m.monster_type = bestiaryEntry.name  -- Set monster_type for proper identification
+
+    -- Core Stats
+    if data.system and data.system.stamina then
+        m.max_hitpoints = data.system.stamina.max
+        m.max_hitpoints_roll = tostring(data.system.stamina.max)
+    end
+    
+    if data.system and data.system.combat then
+        m.stability = data.system.combat.stability
+        m.cr = data.system.monster and data.system.monster.level or 1
+        
+        -- Size
+        if data.system.combat.size then
+            local sizeValue = data.system.combat.size.value or ""
+            local sizeLetter = data.system.combat.size.letter or ""
+            if tonumber(sizeValue) and tonumber(sizeValue) > 1 then
+                m.creatureSize = tostring(sizeValue)
+            else
+                m.creatureSize = tostring(sizeValue) .. sizeLetter
+            end
+        end
+    end
+
+
+    -- Attributes (Characteristics)
+    if data.system and data.system.characteristics then
+        m.attributes["mgt"] = { baseValue = data.system.characteristics.might and data.system.characteristics.might.value or 0 }
+        m.attributes["agl"] = { baseValue = data.system.characteristics.agility and data.system.characteristics.agility.value or 0 }
+        m.attributes["rea"] = { baseValue = data.system.characteristics.reason and data.system.characteristics.reason.value or 0 }
+        m.attributes["inu"] = { baseValue = data.system.characteristics.intuition and data.system.characteristics.intuition.value or 0 }
+        m.attributes["prs"] = { baseValue = data.system.characteristics.presence and data.system.characteristics.presence.value or 0 }
+    end
+
+    -- Movement
+    if data.system and data.system.movement then
+        m.walkingSpeed = data.system.movement.value or 6
+        m.movementSpeeds = {}
+        if data.system.movement.types then
+            for _, moveType in ipairs(data.system.movement.types) do
+                if moveType ~= "walk" then
+                    if moveType == "fly" then m.movementSpeeds.fly = m.walkingSpeed
+                    elseif moveType == "climb" then m.movementSpeeds.climb = m.walkingSpeed
+                    elseif moveType == "swim" then m.movementSpeeds.swim = m.walkingSpeed
+                    elseif moveType == "burrow" then m.movementSpeeds.burrow = m.walkingSpeed
+                    elseif moveType == "teleport" then m.movementSpeeds.teleport = m.walkingSpeed
+                    end
+                end
+            end
+        end
+    end
+
+    -- EV & Role
+    if data.system and data.system.monster then
+        m.ev = data.system.monster.ev
+
+        -- Role: Combine organization + role with title case
+        -- Skip role if it duplicates organization (e.g., both "solo" → "Solo" not "Solo Solo")
+        local org = data.system.monster.organization or ""
+        local role = data.system.monster.role or ""
+        local roleStr = ""
+        if org ~= "" then
+            roleStr = org:sub(1, 1):upper() .. org:sub(2)
+        end
+        if role ~= "" and role:lower() ~= org:lower() then
+            if roleStr ~= "" then
+                roleStr = roleStr .. " " .. role:sub(1, 1):upper() .. role:sub(2)
+            else
+                roleStr = role:sub(1, 1):upper() .. role:sub(2)
+            end
+        end
+        m.role = roleStr
+
+        -- Keywords
+        m.keywords = {}
+        local firstKeyword = nil
+        if data.system.monster.keywords then
+            for _, kw in ipairs(data.system.monster.keywords) do
+                if kw and kw ~= "" then
+                    -- Capitalize first letter
+                    local capitalizedKw = kw:sub(1, 1):upper() .. kw:sub(2)
+                    m.keywords[capitalizedKw] = true
+                    if firstKeyword == nil then
+                        firstKeyword = capitalizedKw
+                    end
+                end
+            end
+        end
+
+        m.opportunityAttack = data.system.monster.freeStrike
+
+        -- Monster category (folder name from Foundry data, e.g. "Angulotls", "Demons")
+        -- This drives MonsterGroup lookup for malice abilities
+        if data.system.monster.folder and data.system.monster.folder ~= "" then
+            m.monster_category = data.system.monster.folder
+            import:Log("[DS-JSON] Monster Category: " .. m.monster_category)
+        else
+            m.monster_category = firstKeyword or "Monster"
+            import:Log("[DS-JSON] Monster Category (fallback): " .. m.monster_category)
+        end
+
+        -- Minion flag
+        if data.system.monster.organization and regex.MatchGroups(data.system.monster.organization, "[Mm]inion") ~= nil then
+            m.minion = true
+        end
+    end
+
+    -- Immunities & Weaknesses
+    m.resistances = {}
+    local damageData = data.system and data.system.damage
+    if damageData then
+        local damageTypesTable = dmhub.GetTable(DamageType.tableName) or {}
+
+        local ParseDamageEntries = function(entries, multiplier)
+            if entries == nil then
+                return
+            end
+
+            for key, value in pairs(entries) do
+                if type(value) == "number" and value > 0 then
+                    local damageType = "all"
+                    local matchDamage = false
+                    local keywords = nil
+
+                    for k, v in pairs(damageTypesTable) do
+                        if (not v:try_get("hidden")) and string.lower(v.name) == string.lower(key) then
+                            matchDamage = true
+                            damageType = string.lower(v.name)
+                        end
+                    end
+
+                    if not matchDamage then
+                        if string.lower(key) ~= "damage" and string.lower(key) ~= "all" then
+                            keywords = {}
+                            keywords[string.lower(key)] = true
+                        end
+                    end
+
+                    m.resistances[#m.resistances + 1] = ResistanceEntry.new{
+                        keywords = keywords,
+                        damageType = damageType,
+                        apply = "Damage Reduction",
+                        dr = value * multiplier,
+                    }
+
+                    import:Log(FormatSuccess("[DS-JSON] Resistance: " .. key .. " = " .. tostring(value * multiplier)))
+                end
+            end
+        end
+
+        ParseDamageEntries(damageData.immunities, 1)
+        ParseDamageEntries(damageData.weaknesses, -1)
+    end
+
+    -- Items (Features and Abilities)
+    local creatureTraits = {}
+    m.innateActivatedAbilities = {}
+    local villainActionCount = 0
+
+    local pendingBandAbilities = {}
+
+    import:Log("[DS-JSON] Checking items... data.items exists: " .. tostring(data.items ~= nil))
+    if data.items then
+        import:Log("[DS-JSON] Found " .. tostring(#data.items) .. " items to process")
+        for idx, item in ipairs(data.items) do
+            import:Log("[DS-JSON] Item " .. idx .. ": type=" .. tostring(item.type) .. ", name=" .. tostring(item.name))
+            if item.type == "feature" then
+                -- Parse Trait
+                local traitName = MCDMImporter.ReplaceSpecialCharactersWithASCII(item.name or "Unknown Trait")
+                local traitDesc = (item.system and item.system.description and item.system.description.value) or ""
+                -- Replace special characters and apostrophes FIRST
+                traitDesc = MCDMImporter.ReplaceSpecialCharactersWithASCII(traitDesc)
+                -- Then clean html and damage tags from desc
+                traitDesc = regex.ReplaceAll(traitDesc, "<[^>]+>", "")
+                traitDesc = regex.ReplaceAll(traitDesc, "\\[\\[/damage ([^\\]]+)\\]\\]\\{([^}]+)\\}", "$2")
+                traitDesc = regex.ReplaceAll(traitDesc, "\\[\\[/damage ([\\dd+\\-\\s]+?)\\s+([^\\]]+)\\]\\]", "$1 $2")
+                traitDesc = regex.ReplaceAll(traitDesc, "\\[\\[/damage ([^\\]]+)\\]\\]", "$1")
+                traitDesc = regex.ReplaceAll(traitDesc, "\\[\\[/heal ([^\\]]+?) temporary\\]\\]", "$1 temporary Stamina")
+                traitDesc = regex.ReplaceAll(traitDesc, "\\[\\[/heal ([^\\]]+)\\]\\]", "$1 Stamina")
+                traitDesc = regex.ReplaceAll(traitDesc, "@UUID\\[[^\\]]*\\]\\{([^}]+)\\}", "$1")
+                -- Clean [[/apply ...]] and [[/Apply ...]] enricher tags
+                traitDesc = regex.ReplaceAll(traitDesc, "\\[\\[/[Aa]pply [^\\]]+\\]\\]\\{([^}]+)\\}", "$1") -- With display text: use it
+                traitDesc = regex.ReplaceAll(traitDesc, "\\[\\[/[Aa]pply ([a-z]+) save\\]\\]", "$1 (save ends)") -- Named condition + save
+                traitDesc = regex.ReplaceAll(traitDesc, "\\[\\[/[Aa]pply ([a-z]+) turn\\]\\]", "$1 (EoT)") -- Named condition + turn
+                traitDesc = regex.ReplaceAll(traitDesc, "\\[\\[/[Aa]pply ([a-z]+) encounter\\]\\]", "$1 (encounter)") -- Named condition + encounter
+                traitDesc = regex.ReplaceAll(traitDesc, "\\[\\[/[Aa]pply ([a-z]+) respite\\]\\]", "$1 (respite)") -- Named condition + respite
+                traitDesc = regex.ReplaceAll(traitDesc, "\\[\\[/[Aa]pply ([a-z]+)\\]\\]", "$1") -- Named condition, no duration
+                traitDesc = regex.ReplaceAll(traitDesc, "\\[\\[/[Aa]pply [^\\]]+\\]\\]", "") -- Raw IDs without display text: strip
+
+                -- Handle "With Captain" feature separately - set m.withCaptain instead of adding as trait
+                local dsid = item.system and item.system._dsid
+                if dsid == "with-captain" then
+                    -- Extract the With Captain text, stripping the "With Captain:" prefix if present
+                    local withCaptainText = regex.ReplaceAll(traitDesc, "^\\s*With Captain:\\s*", "")
+                    withCaptainText = trim(withCaptainText)
+                    if withCaptainText ~= "" then
+                        m.withCaptain = withCaptainText
+                        import:Log(FormatSuccess("[DS-JSON] With Captain: " .. withCaptainText))
+                    end
+                    goto continue_feature
+                end
+
+                -- Check for known trait match similar to text importer
+                local featureGuid = dmhub.GenerateGuid()
+                local feature = CharacterFeature.new{
+                    guid = featureGuid,
+                    name = traitName,
+                    description = traitDesc,
+                    domains = {
+                        [string.format("CharacterFeature:%s", featureGuid)] = true,
+                    },
+                    source = "Trait",
+                    modifiers = {},
+                }
+
+                -- Attempt to match standard traits
+                local matchedTrait = false
+                local traitsTemplates = dmhub.GetTable("importerMonsterTraits") or {}
+                for k,v in unhidden_pairs(traitsTemplates) do
+                    local trait = v:MatchMCDMMonsterTrait(nil, traitName, traitDesc)
+                    if trait ~= nil then
+                        feature.implementation = trait:try_get("implementation")
+                        feature.modifiers = DeepCopy(trait.modifiers)
+                        matchedTrait = true
+                        import:Log(FormatSuccess("Matched known trait: " .. v.name))
+                        break
+                    end
+                end
+
+                creatureTraits[#creatureTraits+1] = feature
+
+                ::continue_feature::
+
+            elseif item.type == "ability" then
+                -- Parse Ability
+                local abSystem = item.system
+                if abSystem == nil then
+                    import:Log(FormatError("[DS-JSON] Ability '" .. tostring(item.name) .. "' has no system data, skipping"))
+                    goto continue_ability
+                end
+                local abilityName = MCDMImporter.ReplaceSpecialCharactersWithASCII(item.name or "Unknown Ability")
+                abilityName = string.gsub(abilityName, " and ", " & ")
+                local newAbility = ActivatedAbility.Create{
+                    name = abilityName,
+                    keywords = {},
+                    flavor = (abSystem.story and abSystem.story ~= "") and abSystem.story or "",
+                    behaviors = {},
+                    categorization = "Action", -- Default
+                }
+                newAbility.targetType = "target"
+
+                -- Action resource IDs
+                local actionId = "d19658a2-4d7b-4504-af9e-1a5410fb17fd"
+                local maneuverId = "a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b"
+                local triggeredId = "b9bc06dd-80f1-4f33-bc55-25c114e3300c"
+
+                -- Categorization
+                if abSystem.type == "maneuver" then
+                    newAbility.categorization = "Maneuver"
+                    newAbility.actionResourceId = maneuverId
+                elseif abSystem.type == "triggered" then
+                    newAbility.categorization = "Triggered Action"
+                    newAbility.actionResourceId = triggeredId
+                elseif abSystem.type == "villain" then
+                    newAbility.categorization = "Villain Action"
+                    villainActionCount = villainActionCount + 1
+                    newAbility.villainAction = "Villain Action " .. villainActionCount
+                    newAbility.usageLimitOptions = {
+                        charges = "1",
+                        multicharge = false,
+                        resourceRefreshType = "encounter",
+                        resourceid = dmhub.GenerateGuid(),
+                    }
+                elseif abSystem.category == "heroic" then newAbility.categorization = "Heroic Ability"
+                elseif abSystem.type == "main" then
+                    newAbility.categorization = "Action"
+                    newAbility.actionResourceId = actionId
+                end
+
+                -- Check for signature category explicitly
+                if abSystem.category == "signature" then
+                    newAbility.categorization = "Signature Ability"
+                    newAbility.actionResourceId = newAbility.actionResourceId or actionId
+                end
+
+                -- Skip abilities from class abilities (Actor) compendium - imported separately
+                local compendiumSource = item._stats and item._stats.compendiumSource or ""
+                if string.match(compendiumSource, "^Actor%.") then
+                    import:Log("[DS-JSON] Skipping compendium ability: " .. abilityName .. " (source: " .. compendiumSource .. ")")
+                    goto continue_ability
+                end
+
+                -- Detect band abilities (heroic category from monster-features) - collect for MonsterGroup
+                if string.find(compendiumSource, "monster-features") then
+                    if abSystem.category == "heroic" then
+                        -- Build description with same cleanup as other abilities
+                        local desc = ""
+                        if abSystem.effect then
+                            if abSystem.effect.before and abSystem.effect.before ~= "" then
+                                desc = desc .. abSystem.effect.before .. "\n"
+                            end
+                            if abSystem.effect.after and abSystem.effect.after ~= "" then
+                                desc = desc .. abSystem.effect.after
+                            end
+                        end
+                        desc = MCDMImporter.ReplaceSpecialCharactersWithASCII(desc)
+                        desc = regex.ReplaceAll(desc, "<[^>]+>", "")
+                        desc = regex.ReplaceAll(desc, "\\[\\[/damage (.-)\\]\\]\\{(.-)\\}", "$2")
+                        desc = regex.ReplaceAll(desc, "\\[\\[/damage ([\\dd+\\-\\s]+?)\\s+([^\\]]+)\\]\\]", "$1 $2 damage")
+                        desc = regex.ReplaceAll(desc, "\\[\\[/heal ([^\\]]+?) temporary\\]\\]", "$1 temporary Stamina")
+                        desc = regex.ReplaceAll(desc, "\\[\\[/heal ([^\\]]+)\\]\\]", "$1 Stamina")
+                        desc = regex.ReplaceAll(desc, "@UUID\\[[^\\]]*\\]\\{([^}]+)\\}", "$1")
+                        desc = regex.ReplaceAll(desc, "\\[\\[/[Aa]pply [^\\]]+\\]\\]\\{([^}]+)\\}", "$1")
+                        desc = regex.ReplaceAll(desc, "\\[\\[/[Aa]pply ([a-z]+) save\\]\\]", "$1 (save ends)")
+                        desc = regex.ReplaceAll(desc, "\\[\\[/[Aa]pply ([a-z]+) turn\\]\\]", "$1 (EoT)")
+                        desc = regex.ReplaceAll(desc, "\\[\\[/[Aa]pply ([a-z]+) encounter\\]\\]", "$1 (encounter)")
+                        desc = regex.ReplaceAll(desc, "\\[\\[/[Aa]pply ([a-z]+) respite\\]\\]", "$1 (respite)")
+                        desc = regex.ReplaceAll(desc, "\\[\\[/[Aa]pply ([a-z]+)\\]\\]", "$1")
+                        desc = regex.ReplaceAll(desc, "\\[\\[/[Aa]pply [^\\]]+\\]\\]", "")
+
+                        pendingBandAbilities[#pendingBandAbilities+1] = {
+                            name = abilityName,
+                            description = desc,
+                            resource = tonumber(abSystem.resource),
+                        }
+                        import:Log("[DS-JSON] Collected band ability for MonsterGroup: " .. abilityName .. " (malice: " .. tostring(abSystem.resource) .. ")")
+                    else
+                        import:Log("[DS-JSON] Skipping non-band monster-features ability: " .. abilityName .. " (source: " .. compendiumSource .. ")")
+                    end
+                    goto continue_ability
+                end
+
+                -- Action Resource ID
+                local actionNameMap = {
+                    ["villain"] = "action",
+                    ["main"] = "action",
+                    ["maneuver"] = "maneuver",
+                    ["triggered"] = "triggered action",
+                    ["free"] = "free action",
+                    ["freeTriggered"] = "free triggered action",
+                }
+                local actionName = actionNameMap[abSystem.type] or "action"
+                local resourcesTable = dmhub.GetTable(CharacterResource.tableName)
+                for k, resourceInfo in pairs(resourcesTable) do
+                    if string.starts_with(actionName, string.lower(resourceInfo.name)) then
+                        newAbility.actionResourceId = k
+                    end
+                end
+
+                -- Keywords
+                if abSystem.keywords and #abSystem.keywords > 0 then
+                    for _, k in ipairs(abSystem.keywords) do
+                        -- Capitalize first letter
+                        local capitalizedK = k:sub(1, 1):upper() .. k:sub(2)
+                        newAbility.keywords[capitalizedK] = true
+                    end
+                end
+
+                -- Distance / Range
+                local dist = abSystem.distance
+                if dist then
+                    newAbility.range = dist.primary or 1
+                    if dist.type == "melee" then
+                        -- Default is melee range 1 usually
+                    elseif dist.type == "ranged" then
+                        -- Range is the primary value
+                    elseif dist.type == "burst" then
+                        newAbility.targetType = "all"
+                        newAbility.range = dist.primary
+                        newAbility.numTargets = 1
+                    elseif dist.type == "meleeRanged" then
+                         newAbility.meleeRange = dist.primary
+                         newAbility.range = dist.secondary
+                    end
+                end
+
+                -- Target
+                local targetObj = abSystem.target
+                if targetObj then
+                    newAbility.numTargets = targetObj.value or 1
+                    -- target.type mapping: 'creatureObject', 'ally', 'special', 'enemyObject'
+                    if string.find(targetObj.type or "", "ally") then
+                        newAbility.targetFilter = "not Enemy"
+                    elseif string.find(targetObj.type or "", "enemy") then
+                         newAbility.targetFilter = "Enemy"
+                    end
+                end
+                
+                -- Power Rolls
+                if abSystem.power and abSystem.power.roll then
+                    -- Characteristics
+                     local rollFormula = abSystem.power.roll.formula or ""
+
+                    local hasPowerRoll = false
+                    local powerRollEffects = {}
+                    
+                    if abSystem.power.effects then
+                        -- The effects object keys are random IDs, we need to sort or find them.
+                        -- Usually tier1, tier2, tier3.
+                        local characteristicToAttributeMap = {
+                            ["might"] = "mgt",
+                            ["agility"] = "agl",
+                            ["reason"] = "rea",
+                            ["intuition"] = "inu",
+                            ["presence"] = "prs"
+                        }
+
+                        local characteristicNameMap = {
+                            ["might"] = "Might",
+                            ["agility"] = "Agility",
+                            ["reason"] = "Reason",
+                            ["intuition"] = "Intuition",
+                            ["presence"] = "Presence"
+                        }
+
+                        -- Find the highest attribute score across all characteristics
+                        local highestAttributeScore = 0
+                        for _, attrKey in pairs(characteristicToAttributeMap) do
+                            if m.attributes[attrKey] then
+                                local attrValue = m.attributes[attrKey].baseValue or 0
+                                if attrValue > highestAttributeScore then
+                                    highestAttributeScore = attrValue
+                                end
+                            end
+                        end
+
+                        for _, eff in pairs(abSystem.power.effects) do
+                            if eff.type == "damage" and eff.damage then
+                                hasPowerRoll = true
+                                for tierNum = 1, 3 do
+                                    local tierKey = "tier" .. tierNum
+                                    local tierData = eff.damage[tierKey]
+                                    local damageText = ""
+                                    if tierData and tierData.value then
+                                        local dmgTypes = ""
+                                        if tierData.types and #tierData.types > 0 then
+                                            dmgTypes = table.concat(tierData.types, "/") .. " "
+                                        end
+                                        damageText = tierData.value .. " " .. dmgTypes .. "damage"
+                                    end
+                                    if damageText ~= "" then
+                                        if powerRollEffects[tierNum] and powerRollEffects[tierNum] ~= "" then
+                                            powerRollEffects[tierNum] = damageText .. "; " .. powerRollEffects[tierNum]
+                                        else
+                                            powerRollEffects[tierNum] = damageText
+                                        end
+                                    end
+                                end
+                            elseif eff.type == "applied" and eff.applied then
+                                hasPowerRoll = true
+                                -- Handle applied effects (conditions, etc.)
+                                -- Find the first non-empty display text to use as a template
+                                local baseDisplay = ""
+                                for tierNum = 1, 3 do
+                                    local tierKey = "tier" .. tierNum
+                                    if eff.applied[tierKey] and eff.applied[tierKey].display and eff.applied[tierKey].display ~= "" then
+                                        baseDisplay = eff.applied[tierKey].display
+                                        break
+                                    end
+                                end
+
+                                -- Find first valid characteristic to use as fallback for tiers with empty characteristic
+                                local inheritedCharacteristic = ""
+                                for tierNum = 1, 3 do
+                                    local tierKey = "tier" .. tierNum
+                                    if eff.applied[tierKey] and eff.applied[tierKey].potency and eff.applied[tierKey].potency.characteristic and eff.applied[tierKey].potency.characteristic ~= "" and eff.applied[tierKey].potency.characteristic ~= "none" then
+                                        inheritedCharacteristic = eff.applied[tierKey].potency.characteristic
+                                        break
+                                    end
+                                end
+
+                                -- Process each tier
+                                for tierNum = 1, 3 do
+                                    local tierKey = "tier" .. tierNum
+                                    if eff.applied[tierKey] then
+                                        local tierData = eff.applied[tierKey]
+
+                                        -- Skip this tier if it has no display text AND no effects defined
+                                        -- (empty display + empty effects = no condition on this tier)
+                                        local hasEffects = tierData.effects and type(tierData.effects) == "table" and next(tierData.effects) ~= nil
+                                        local hasDisplay = tierData.display and tierData.display ~= ""
+                                        if not hasDisplay and not hasEffects then
+                                            goto continue_applied_tier
+                                        end
+
+                                        local display = hasDisplay and tierData.display or baseDisplay
+
+                                        -- Always strip {{potency}} template from display text
+                                        display = display:gsub("{{potency}}%s*", "")
+
+                                        -- Calculate and prepend characteristic with potency value
+                                        local charName = (tierData.potency and tierData.potency.characteristic and tierData.potency.characteristic ~= "none" and tierData.potency.characteristic ~= "") and tierData.potency.characteristic or inheritedCharacteristic
+                                        if tierData.potency and tierData.potency.value and charName ~= "" then
+                                            local charFullName = characteristicNameMap[charName] or "?"
+
+                                            -- Calculate potency value based on highest attribute score
+                                            local potencyValue = highestAttributeScore
+                                            if tierData.potency.value == "@potency.average" then
+                                                potencyValue = highestAttributeScore - 1
+                                            elseif tierData.potency.value == "@potency.weak" then
+                                                potencyValue = highestAttributeScore - 2
+                                            end
+
+                                            -- Prepend characteristic and value to display (e.g., "M<0")
+                                            display = charFullName:sub(1, 1) .. "<" .. potencyValue .. " " .. display
+                                        end
+
+                                        -- If display is still empty, build from effect name and end condition
+                                        if display == "" and eff.name and eff.name ~= "" then
+                                            local endType = ""
+                                            if tierData.effects then
+                                                for _, ce in pairs(tierData.effects) do
+                                                    if ce["end"] and ce["end"] ~= "" then
+                                                        local endLabels = {save = "save ends", turn = "EoT", encounter = "EoE"}
+                                                        endType = endLabels[ce["end"]] or ce["end"]
+                                                        break
+                                                    end
+                                                end
+                                            end
+                                            if endType ~= "" then
+                                                display = string.lower(eff.name) .. " (" .. endType .. ")"
+                                            else
+                                                display = string.lower(eff.name)
+                                            end
+                                        end
+
+                                        -- Append to powerRollEffects
+                                        if display ~= "" then
+                                            if powerRollEffects[tierNum] and powerRollEffects[tierNum] ~= "" then
+                                                powerRollEffects[tierNum] = powerRollEffects[tierNum] .. "; " .. display
+                                            else
+                                                powerRollEffects[tierNum] = display
+                                            end
+                                        end
+                                        ::continue_applied_tier::
+                                    end
+                                end
+                            elseif eff.type == "forced" and eff.forced then
+                                hasPowerRoll = true
+                                local forceName = (eff.name and eff.name ~= "") and string.lower(eff.name) or "push"
+                                for tierNum = 1, 3 do
+                                    local tierKey = "tier" .. tierNum
+                                    local tierData = eff.forced[tierKey]
+                                    if tierData and tierData.distance and tierData.distance ~= "" then
+                                        local forcedText = tierData.distance .. " " .. forceName
+                                        if powerRollEffects[tierNum] and powerRollEffects[tierNum] ~= "" then
+                                            powerRollEffects[tierNum] = powerRollEffects[tierNum] .. "; " .. forcedText
+                                        else
+                                            powerRollEffects[tierNum] = forcedText
+                                        end
+                                    end
+                                end
+                            elseif eff.type == "other" and eff.other then
+                                hasPowerRoll = true
+                                for tierNum = 1, 3 do
+                                    local tierKey = "tier" .. tierNum
+                                    if eff.other[tierKey] and eff.other[tierKey].display and eff.other[tierKey].display ~= "" then
+                                        local display = eff.other[tierKey].display
+                                        if powerRollEffects[tierNum] and powerRollEffects[tierNum] ~= "" then
+                                            powerRollEffects[tierNum] = powerRollEffects[tierNum] .. "; " .. display
+                                        else
+                                            powerRollEffects[tierNum] = display
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+
+                    if hasPowerRoll then
+                        import:Log("[DS-JSON] Getting standard ability for power roll...")
+                        local abilityPowerRoll = MCDMImporter.GetStandardAbility("Ability Power Roll")
+                        import:Log("[DS-JSON] Got standard ability: " .. tostring(abilityPowerRoll ~= nil))
+                        if abilityPowerRoll then
+                             for _,behavior in ipairs(abilityPowerRoll.behaviors) do
+                                local b = DeepCopy(behavior)
+                                b.tiers = powerRollEffects
+                                if abSystem.power.roll and abSystem.power.roll.characteristics and #abSystem.power.roll.characteristics > 0 then
+                                    local nameMap = {might = "Might", agility = "Agility", reason = "Reason", intuition = "Intuition", presence = "Presence"}
+                                    local charNames = {}
+                                    for _, charKey in ipairs(abSystem.power.roll.characteristics) do
+                                        charNames[#charNames+1] = nameMap[charKey] or charKey
+                                    end
+                                    b.roll = GameSystem.BaseAttackRoll .. " + " .. table.concat(charNames, " or ")
+                                else
+                                    b.roll = GameSystem.BaseAttackRoll .. " + Power Roll Bonus"
+                                end
+                                newAbility.behaviors[#newAbility.behaviors+1] = b
+                            end
+                        end
+                    end
+                end
+                
+                -- Effects / Description
+                local desc = ""
+                if abSystem.effect then
+                    if abSystem.effect.before and abSystem.effect.before ~= "" then
+                        desc = desc .. abSystem.effect.before .. "\n"
+                    end
+                    if abSystem.effect.after and abSystem.effect.after ~= "" then
+                        desc = desc .. abSystem.effect.after
+                    end
+                end
+
+                -- Replace special characters and apostrophes FIRST
+                desc = MCDMImporter.ReplaceSpecialCharactersWithASCII(desc)
+                -- Then clean HTML
+                newAbility.description = regex.ReplaceAll(desc, "<[^>]+>", "")
+                newAbility.description = regex.ReplaceAll(newAbility.description, "\\[\\[/damage (.-)\\]\\]\\{(.-)\\}", "$2") -- Simplify damage tags [[/damage 2]]{2 damage} -> 2 damage
+                newAbility.description = regex.ReplaceAll(newAbility.description, "\\[\\[/damage ([\\dd+\\-\\s]+?)\\s+([^\\]]+)\\]\\]", "$1 $2 damage") -- Simplify [[/damage 2d6 lightning]] -> 2d6 lightning damage
+                newAbility.description = regex.ReplaceAll(newAbility.description, "\\[\\[/heal ([^\\]]+?) temporary\\]\\]", "$1 temporary Stamina") -- Simplify [[/heal 10 temporary]] -> 10 temporary Stamina
+                newAbility.description = regex.ReplaceAll(newAbility.description, "\\[\\[/heal ([^\\]]+)\\]\\]", "$1 Stamina") -- Simplify [[/heal 4]] -> 4 Stamina
+                newAbility.description = regex.ReplaceAll(newAbility.description, "@UUID\\[[^\\]]*\\]\\{([^}]+)\\}", "$1") -- Replace @UUID[...]{Display Name} -> Display Name
+                -- Clean [[/apply ...]] and [[/Apply ...]] enricher tags
+                newAbility.description = regex.ReplaceAll(newAbility.description, "\\[\\[/[Aa]pply [^\\]]+\\]\\]\\{([^}]+)\\}", "$1") -- With display text: use it
+                newAbility.description = regex.ReplaceAll(newAbility.description, "\\[\\[/[Aa]pply ([a-z]+) save\\]\\]", "$1 (save ends)") -- Named condition + save
+                newAbility.description = regex.ReplaceAll(newAbility.description, "\\[\\[/[Aa]pply ([a-z]+) turn\\]\\]", "$1 (EoT)") -- Named condition + turn
+                newAbility.description = regex.ReplaceAll(newAbility.description, "\\[\\[/[Aa]pply ([a-z]+) encounter\\]\\]", "$1 (encounter)") -- Named condition + encounter
+                newAbility.description = regex.ReplaceAll(newAbility.description, "\\[\\[/[Aa]pply ([a-z]+) respite\\]\\]", "$1 (respite)") -- Named condition + respite
+                newAbility.description = regex.ReplaceAll(newAbility.description, "\\[\\[/[Aa]pply ([a-z]+)\\]\\]", "$1") -- Named condition, no duration
+                newAbility.description = regex.ReplaceAll(newAbility.description, "\\[\\[/[Aa]pply [^\\]]+\\]\\]", "") -- Raw IDs without display text: strip
+
+
+                -- Resource Cost (Malice/Heroic)
+                if abSystem.resource then
+                    if newAbility.categorization == "Heroic Ability" then
+                        newAbility.resourceCost = CharacterResource.heroicResourceId
+                        newAbility.resourceNumber = tonumber(abSystem.resource)
+                    else
+                        newAbility.resourceCost = CharacterResource.maliceResourceId
+                        newAbility.resourceNumber = tonumber(abSystem.resource)
+                    end
+                end
+                
+                if abSystem.source and abSystem.source.page then
+                    newAbility.sourceReference = SourceReference.new{
+                        page = tonumber(abSystem.source.page) or 1,
+                        docid = abSystem.source.book == "Monsters" and "cc66844a-04d0-49a0-8687-65ef83b15363" or "none",
+                    }
+                end
+
+                if newAbility:try_get("implementation") == nil then
+                    newAbility.implementation = 2
+                end
+
+                m.innateActivatedAbilities[#m.innateActivatedAbilities+1] = newAbility
+
+                -- Add per-ability report entry
+                local abilityReport = {}
+                abilityReport[#abilityReport+1] = bestiaryEntry.name
+                abilityReport[#abilityReport+1] = newAbility.name
+
+                local statusOptions = {"Unimplemented", "Partial", "Implemented", "Won't Implement"}
+                local implementation = newAbility:try_get("implementation", 1)
+                implementation = statusOptions[implementation] or "Unknown"
+                abilityReport[#abilityReport+1] = implementation
+
+                importReport[#importReport+1] = abilityReport
+
+                ::continue_ability::
+            end
+        end
+    end
+
+    m.characterFeatures = creatureTraits
+
+    -- Trait names (from feature items)
+    m.traitNames = {}
+    for _, feature in ipairs(creatureTraits) do
+        m.traitNames[#m.traitNames+1] = feature.name
+    end
+
+    -- With Captain effect (from actor-level effects array, fallback only)
+    -- Items with _dsid="with-captain" are the canonical source (set above).
+    -- Only use actor-level effects if we didn't already get a value from items.
+    if m.withCaptain == nil and data.effects then
+        for _, effect in ipairs(data.effects) do
+            if effect.name and string.lower(effect.name):find("with.*captain") then
+                local desc = effect.description or ""
+                -- Strip HTML tags
+                desc = regex.ReplaceAll(desc, "<[^>]+>", "")
+                desc = trim(desc)
+                if desc ~= "" then
+                    m.withCaptain = desc
+                    import:Log("[DS-JSON] With Captain (from actor effect): " .. desc)
+                else
+                    import:Log("[DS-JSON] With Captain: (empty actor effect description, skipping)")
+                end
+                break
+            end
+        end
+    end
+
+    -- Languages (from system.biography.languages)
+    if data.system and data.system.biography and data.system.biography.languages then
+        local langTable = dmhub.GetTable(Language.tableName) or {}
+        local creatureLanguages = {}
+        local customLanguages = {}
+        for _, langName in ipairs(data.system.biography.languages) do
+            local found = false
+            for langid, langInfo in pairs(langTable) do
+                if string.lower(langInfo.name) == string.lower(langName) then
+                    creatureLanguages[langid] = true
+                    found = true
+                    break
+                end
+            end
+            if not found then
+                customLanguages[#customLanguages+1] = langName
+            end
+        end
+        m.innateLanguages = creatureLanguages
+        if #customLanguages > 0 then
+            m.customInnateLanguage = string.join(customLanguages, ",")
+        end
+        import:Log("[DS-JSON] Languages: " .. tostring(#data.system.biography.languages) .. " entries")
+    end
+
+    -- Comprehensive import log
+    import:Log("=== [DS-JSON] IMPORT SUMMARY ===")
+    import:Log("[DS-JSON] Monster Name: " .. tostring(bestiaryEntry.name))
+    import:Log("[DS-JSON] HP: " .. tostring(m.max_hitpoints))
+    import:Log("[DS-JSON] Size: " .. tostring(m.creatureSize))
+    import:Log("[DS-JSON] Speed: " .. tostring(m.walkingSpeed))
+    import:Log("[DS-JSON] Stability: " .. tostring(m.stability))
+    import:Log("[DS-JSON] EV: " .. tostring(m.ev))
+    import:Log("[DS-JSON] Role: " .. tostring(m.role))
+    import:Log("[DS-JSON] Keywords count: " .. (m.keywords and #m.keywords or "nil"))
+
+    import:Log("[DS-JSON] Attributes:")
+    import:Log("[DS-JSON]   Might: " .. tostring(m.attributes["mgt"] and m.attributes["mgt"].baseValue or "nil"))
+    import:Log("[DS-JSON]   Agility: " .. tostring(m.attributes["agl"] and m.attributes["agl"].baseValue or "nil"))
+    import:Log("[DS-JSON]   Reason: " .. tostring(m.attributes["rea"] and m.attributes["rea"].baseValue or "nil"))
+    import:Log("[DS-JSON]   Intuition: " .. tostring(m.attributes["inu"] and m.attributes["inu"].baseValue or "nil"))
+    import:Log("[DS-JSON]   Presence: " .. tostring(m.attributes["prs"] and m.attributes["prs"].baseValue or "nil"))
+
+    import:Log("[DS-JSON] Abilities imported: " .. tostring(#m.innateActivatedAbilities))
+    for i, ability in ipairs(m.innateActivatedAbilities) do
+        import:Log("[DS-JSON]   " .. i .. ". " .. ability.name .. " (cat: " .. ability.categorization .. ")")
+    end
+
+    import:Log("[DS-JSON] Features imported: " .. tostring(#creatureTraits))
+    for i, feature in ipairs(creatureTraits) do
+        import:Log("[DS-JSON]   " .. i .. ". " .. feature.name)
+    end
+    import:Log("=== [DS-JSON] END SUMMARY ===")
+
+    -- Import Log / Storing
+    local report = {}
+    report[#report+1] = bestiaryEntry.name
+    report[#report+1] = "Monster"
+    report[#report+1] = "JSON IMPORT"
+    local cr = m.cr or 1
+    if cr <= 3 then
+        report[#report+1] = "1"
+    elseif cr <= 6 then
+        report[#report+1] = "2"
+    elseif cr <= 9 then
+        report[#report+1] = "3"
+    else
+        report[#report+1] = "4"
+    end
+    importReport[#importReport+1] = report
+
+    bestiaryEntry.properties.import = {
+        type = "draw-steel-json",
+        data = jsonContent,
+    }
+
+    -- Monster folder and group setup (for malice ability lookup)
+    local folderName = m:try_get("monster_category")
+    if folderName ~= nil and folderName ~= "" and folderName ~= "Monster" then
+        local folder = import:GetExistingItem("monsterFolder", folderName)
+        if folder == nil then
+            folder = import:CreateMonsterFolder(folderName)
+            import:ImportMonsterFolder(folder)
+            import:Log("[DS-JSON] Created monster folder: " .. folderName)
+        end
+        bestiaryEntry.parentFolder = folder.id
+
+        -- Find or create MonsterGroup for malice ability association
+        local monsterGroup = import:GetExistingItem(MonsterGroup.tableName, folderName)
+        if monsterGroup == nil then
+            monsterGroup = MonsterGroup.CreateNew{
+                name = folderName,
+            }
+            import:ImportAsset(MonsterGroup.tableName, monsterGroup)
+            import:Log("[DS-JSON] Created monster group: " .. folderName)
+        end
+        m.groupid = monsterGroup.id
+
+        -- Add pending band abilities to the MonsterGroup
+        if #pendingBandAbilities > 0 then
+            local addedCount = 0
+            for _, bandAb in ipairs(pendingBandAbilities) do
+                -- Deduplicate by name
+                local exists = false
+                for _, existing in ipairs(monsterGroup.maliceAbilities) do
+                    if existing.name == bandAb.name then
+                        exists = true
+                        break
+                    end
+                end
+                if not exists then
+                    local a = MaliceAbility.Create{
+                        name = bandAb.name,
+                    }
+                    a.description = bandAb.description
+                    a.resourceCost = CharacterResource.maliceResourceId
+                    a.resourceNumber = bandAb.resource
+                    monsterGroup.maliceAbilities[#monsterGroup.maliceAbilities+1] = a
+                    addedCount = addedCount + 1
+                    import:Log(FormatSuccess("[DS-JSON] Added band malice ability to " .. folderName .. ": " .. bandAb.name .. " (malice: " .. tostring(bandAb.resource) .. ")"))
+                end
+            end
+            if addedCount > 0 then
+                import:ImportAsset(MonsterGroup.tableName, monsterGroup)
+                import:Log("[DS-JSON] Re-uploaded monster group with " .. addedCount .. " new malice abilities")
+            end
+        end
+    end
+
+    import:StoreLogFromBookmark(bookmark, bestiaryEntry)
+    import:Log("-")
+    import:Log(bestiaryEntry.name .. " (Level " .. tostring(m.cr) .. ")")
+    local success = import:ImportMonster(bestiaryEntry)
+    if success == false then
+        import:Log(FormatError("FAILED to import: Item may be locked/overridden. Check if '" .. bestiaryEntry.name .. "' is marked as 'overridden' in the compendium."))
+    else
+        import:Log(FormatSuccess("Imported"))
+    end
+
+end
+
+MCDMImporter.ImportFolder = function(importer, folderPath)
+    import:Log("[DS-JSON] Starting folder import from: " .. tostring(folderPath))
+
+    local jsonFiles = {}
+    local fileSystem = dmhub.GetFileSystem()
+    if not fileSystem then
+        import:Log(FormatError("[DS-JSON] File system not available"))
+        return
+    end
+
+    -- List all files in the folder
+    local files = fileSystem:ListFiles(folderPath)
+    if not files then
+        import:Log(FormatError("[DS-JSON] Could not read folder: " .. folderPath))
+        return
+    end
+
+    -- Filter for JSON files
+    for _, fileName in ipairs(files) do
+        if string.match(fileName, "%.json$") then
+            table.insert(jsonFiles, fileName)
+        end
+    end
+
+    import:Log("[DS-JSON] Found " .. tostring(#jsonFiles) .. " JSON files")
+
+    -- Import each file
+    for _, fileName in ipairs(jsonFiles) do
+        local filePath = folderPath .. "/" .. fileName
+        import:Log("[DS-JSON] Importing: " .. fileName)
+
+        local content = fileSystem:ReadFile(filePath)
+        if content then
+            MCDMImporter.ImportJSON(importer, content)
+        else
+            import:Log(FormatError("[DS-JSON] Failed to read file: " .. fileName))
+        end
+    end
+
+    import:Log("[DS-JSON] Folder import completed")
+end
+
+import.Register{
+    id = "draw-steel-json",
+    description = "Draw Steel JSON (Foundry)",
+    input = "files",
+    extensions = {"json"},
+    priority = 300,
+
+    renderLog = MCDMImporter.renderLog,
+
+    json = function(importer, content, filename)
+        import:Log("[DS-JSON] Direct handler called!")
+        MCDMImporter.ImportJSON(importer, content)
+    end,
+
+    text = function(importer, content)
+        import:Log("[DS-JSON] Text handler called, redirecting to JSON parser...")
+        MCDMImporter.ImportJSON(importer, content)
+    end,
+}
+
+import.Register{
+    id = "draw-steel-json-folder",
+    description = "Draw Steel JSON Folder (Foundry)",
+    input = "folder",
+    priority = 300,
+
+    renderLog = MCDMImporter.renderLog,
+
+    folder = function(importer, folderPath)
+        import:Log("[DS-JSON] Folder handler called!")
+        MCDMImporter.ImportFolder(importer, folderPath)
+    end
+}
+

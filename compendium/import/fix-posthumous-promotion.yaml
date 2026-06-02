@@ -1,0 +1,27 @@
+# importerAbilityEffects entry for Posthumous Promotion
+# Matches: "If the target has a loyalty collar, they are reduced to 0 Stamina."
+# Covers all 10 War Dog variants + Ground Commander's "Highest" variant
+__typeName: ActivatedAbility
+_table: importerAbilityEffects
+id: 6839bf48-f87c-43cd-8f64-a0b35943a5c7
+guid: 6839bf48-f87c-43cd-8f64-a0b35943a5c7
+name: "Posthumous Promotion - Loyalty Collar Kill"
+description: ""
+iconid: "ui-icons/skills/1.png"
+abilityType: none
+targetType: self
+numTargets: "1"
+repeatTargets: false
+range: 5
+modifiers: []
+display:
+  bgcolor: "#ffffffff"
+  hueshift: 0
+  saturation: 1
+  brightness: 1
+keywords: {}
+importMatchType: rules
+importMatch: "(if |any )?(<<monster>>|target|targets?) (has|who has|with) a loyalty collar,? (they |is )?(are |)(reduced to 0 stamina|killed)"
+behaviors:
+- __typeName: ActivatedAbilitySetStaminaBehavior
+  roll: "0"

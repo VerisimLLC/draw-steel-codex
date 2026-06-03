@@ -3663,7 +3663,17 @@ function gui.AudioEditor(args)
 				height = 30,
 				search = function(element, text)
 					searchText = text
-					soundIds = dmhub.SearchSounds(text)
+					--dmhub.SearchSounds returns hidden (deleted) assets too,
+					--so filter them out — otherwise a just-deleted sound is
+					--handed straight back by the refresh and never disappears.
+					local visible = {}
+					for _,id in ipairs(dmhub.SearchSounds(text)) do
+						local asset = assets.audioTable[id]
+						if asset ~= nil and not asset.hidden then
+							visible[#visible+1] = id
+						end
+					end
+					soundIds = visible
 					table.insert(soundIds, 1, "none")
 					npage = 1
 					popupPanel:FireEventTree('refreshSearch')

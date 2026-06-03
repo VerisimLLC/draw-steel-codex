@@ -3153,6 +3153,10 @@ local MakeSpectrumSamplePanel = function()
 	}
 end
 
+--Sounds uploaded during this session, newest first. Floated to the top of
+--the audio picker so a just-uploaded clip isn't buried on the last page.
+local g_recentAudioUploads = {}
+
 --- Creates a panel for picking an audio asset. Use the 'value' field to query the assetid of the audio selected.
 --- @param args PanelArgs
 --- @return Panel
@@ -3433,32 +3437,6 @@ function gui.AudioEditor(args)
 					end,
 				}
 
-				local deleteButton
-				deleteButton = gui.DeleteItemButton{
-					width = 18,
-					height = 18,
-					valign = "center",
-					halign = "right",
-					hmargin = 8,
-					requireConfirm = true,
-					click = function(element)
-						if audioAsset == nil then
-							return
-						end
-						local deletedId = audioAsset.id
-						audioAsset.hidden = true
-						audioAsset:Upload()
-						--if we just deleted the sound that was selected, clear it
-						--so the picker isn't pointing at a now-hidden asset.
-						if value == deletedId then
-							value = nil
-							resultPanel:FireEvent("change", value)
-							resultPanel:FireEventTree("changeValue", value)
-						end
-						RefreshList()
-					end,
-				}
-
 				local entryPanel = gui.Panel{
 					classes = {"audioEntry"},
 					flow = "horizontal",
@@ -3479,6 +3457,120 @@ function gui.AudioEditor(args)
 						resultPanel.popup = nil
 					end,
 
+					--right-click a sound to delete it (with confirmation),
+					--mirroring DMHub's audio manager. The 'none' row has no asset.
+					rightClick = function(element)
+						if audioAsset == nil then
+							return
+						end
+						local assetId = audioAsset.id
+						local assetName = audioAsset.description or ""
+						element.popup = gui.ContextMenu{
+							width = 180,
+							entries = {
+								{
+									text = "Rename",
+									click = function()
+										element.popup = nil
+
+										local renameInput = gui.Input{
+											width = 220,
+											height = 30,
+											text = assetName,
+											hasFocus = true,
+										}
+
+										element.popup = gui.Panel{
+											classes = {"framedPanel"},
+											styles = ThemeEngine.GetStyles(),
+											flow = "vertical",
+											width = 260,
+											height = "auto",
+											pad = 12,
+											gui.Label{
+												classes = {"sizeM"},
+												text = "Rename sound",
+												width = "auto",
+												height = "auto",
+												vmargin = 4,
+											},
+											renameInput,
+											gui.Panel{
+												flow = "horizontal",
+												width = "auto",
+												height = "auto",
+												halign = "right",
+												tmargin = 8,
+												gui.Button{
+													classes = {"sizeM"},
+													text = "Cancel",
+													width = 90,
+													height = 36,
+													hmargin = 4,
+													click = function()
+														element.popup = nil
+													end,
+												},
+												gui.Button{
+													classes = {"sizeM"},
+													text = "Save",
+													width = 90,
+													height = 36,
+													hmargin = 4,
+													click = function()
+														local newName = renameInput.text
+														element.popup = nil
+														local asset = assets.audioTable[assetId]
+														if asset ~= nil and newName ~= nil and newName ~= "" then
+															asset.description = newName
+															asset:Upload()
+														end
+														RefreshList()
+													end,
+												},
+											},
+										}
+									end,
+								},
+								{
+									text = "Delete",
+									click = function()
+										element.popup = nil
+										gui.ModalMessage{
+											title = "Confirm Delete",
+											message = string.format('Delete the sound "%s"?', assetName),
+											options = {
+												{
+													text = "Cancel",
+													execute = function()
+														gui.CloseModal()
+													end,
+												},
+												{
+													text = "Delete",
+													execute = function()
+														gui.CloseModal()
+														if value == assetId then
+															value = nil
+															resultPanel:FireEvent("change", value)
+															resultPanel:FireEventTree("changeValue", value)
+														end
+														local asset = assets.audioTable[assetId]
+														if asset ~= nil then
+															asset.hidden = true
+															asset:Upload()
+														end
+														RefreshList()
+													end,
+												},
+											},
+										}
+									end,
+								},
+							},
+						}
+					end,
+
 					styles = ThemeEngine.MergeTokens{
 						{ selectors = {"audioEntry"}, bgcolor = "clear" },
 						{ selectors = {"audioEntry", "hover"}, bgcolor = "@bgAlt" },
@@ -3489,13 +3581,11 @@ function gui.AudioEditor(args)
 							if id == "none" then
 								audioAsset = nil
 								playButton:SetClass("hidden", true)
-								deleteButton:SetClass("hidden", true)
 								label.text = "(No Sound)"
 							else
 								audioAsset = assets.audioTable[id]
 								label.text = audioAsset.description
 								playButton:SetClass("hidden", false)
-								deleteButton:SetClass("hidden", false)
 							end
 						end,
 					},
@@ -3503,8 +3593,6 @@ function gui.AudioEditor(args)
 					label,
 
 					playButton,
-
-					deleteButton,
 
 				}
 
@@ -3666,14 +3754,39 @@ function gui.AudioEditor(args)
 					--dmhub.SearchSounds returns hidden (deleted) assets too,
 					--so filter them out — otherwise a just-deleted sound is
 					--handed straight back by the refresh and never disappears.
+					local visibleSet = {}
 					local visible = {}
 					for _,id in ipairs(dmhub.SearchSounds(text)) do
 						local asset = assets.audioTable[id]
 						if asset ~= nil and not asset.hidden then
+							visibleSet[id] = true
 							visible[#visible+1] = id
 						end
 					end
-					soundIds = visible
+
+					--base order: alphabetical by name.
+					table.sort(visible, function(a, b)
+						local da = assets.audioTable[a].description or ""
+						local db = assets.audioTable[b].description or ""
+						return string.lower(da) < string.lower(db)
+					end)
+
+					--float this session's uploads to the top, newest first.
+					local ordered = {}
+					local pinned = {}
+					for _,id in ipairs(g_recentAudioUploads) do
+						if visibleSet[id] and not pinned[id] then
+							pinned[id] = true
+							ordered[#ordered+1] = id
+						end
+					end
+					for _,id in ipairs(visible) do
+						if not pinned[id] then
+							ordered[#ordered+1] = id
+						end
+					end
+
+					soundIds = ordered
 					table.insert(soundIds, 1, "none")
 					npage = 1
 					popupPanel:FireEventTree('refreshSearch')
@@ -3725,6 +3838,9 @@ function gui.AudioEditor(args)
 											operation.progress = 1
 											operation:Update()
 										end
+
+										--remember this upload so it sorts to the top of the picker.
+										table.insert(g_recentAudioUploads, 1, id)
 
 										--set this asset as the chosen one.
 										value = id

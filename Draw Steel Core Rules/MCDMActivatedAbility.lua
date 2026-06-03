@@ -653,6 +653,11 @@ function ActivatedAbility:Render(options, params)
         for i, t in ipairs(ptBehavior.tiers) do
             normalizedTiers[i] = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(creatureProperties, t, notes, true)
         end
+        -- Snapshot pre-modifier tier text for diff highlighting later.
+        local originalTiers = {}
+        for i, t in ipairs(normalizedTiers) do
+            originalTiers[i] = t
+        end
         local rollProperties = RollPropertiesPowerTable.new{
             tiers = normalizedTiers,
         }
@@ -832,6 +837,55 @@ function ActivatedAbility:Render(options, params)
                 if filterCond == "" or dmhub.EvalGoblinScript(filterCond, creatureProperties:LookupSymbol(), "Filter condition for power roll display") then
                     tryApply(behavior.modifier, {mod = behavior.modifier})
                 end
+            end
+        end
+        -- Colorize changed portions of each tier using a character-level diff
+        -- with word-boundary snapping.
+        local accentHex = nil
+        local function isAlnum(b)
+            return (b >= 48 and b <= 57) or (b >= 65 and b <= 90) or (b >= 97 and b <= 122)
+        end
+        for i = 1, #normalizedTiers do
+            local orig = originalTiers[i]
+            local modified = normalizedTiers[i]
+            if orig ~= modified then
+                if accentHex == nil then
+                    accentHex = ThemeEngine.ResolveTokens("@accent")
+                end
+                -- Find first differing character, then snap back to the start
+                -- of the current word so tokens are never split mid-character.
+                -- e.g. "1 damage" -> "11 damage": firstDiff=2, but "1" is
+                -- alphanumeric so we snap back to 1, highlighting the full "11".
+                local firstDiff = 1
+                local minLen = math.min(#orig, #modified)
+                while firstDiff <= minLen and orig:byte(firstDiff) == modified:byte(firstDiff) do
+                    firstDiff = firstDiff + 1
+                end
+                while firstDiff > 1 and isAlnum(modified:byte(firstDiff - 1)) do
+                    firstDiff = firstDiff - 1
+                end
+                -- Only trim a common suffix when there is a substantial shared
+                -- prefix (firstDiff >= 4). Without this, strings that diverge
+                -- early (e.g. "Push 1" -> "slide 2; Shift 1") would have their
+                -- trailing coincidental suffix ("1") excluded from the highlight.
+                local modEnd = #modified
+                if firstDiff >= 4 then
+                    local origEnd = #orig
+                    while origEnd >= firstDiff and modEnd >= firstDiff
+                          and orig:byte(origEnd) == modified:byte(modEnd) do
+                        origEnd = origEnd - 1
+                        modEnd = modEnd - 1
+                    end
+                    -- Snap modEnd forward to end of current word.
+                    while modEnd < #modified and isAlnum(modified:byte(modEnd + 1)) do
+                        modEnd = modEnd + 1
+                    end
+                end
+                normalizedTiers[i] = modified:sub(1, firstDiff - 1)
+                    .. string.format("<color=%s>", accentHex)
+                    .. modified:sub(firstDiff, modEnd)
+                    .. "</color>"
+                    .. modified:sub(modEnd + 1)
             end
         end
         return rollProperties.tiers
@@ -1049,7 +1103,7 @@ function ActivatedAbility:Render(options, params)
             if not entry:lower():find("damage") or hasDamageDisplay then
                 tokenDependentChildren[#tokenDependentChildren + 1] = gui.Label {
                     text = entry,
-                    classes = { "info" },
+                    color = ThemeEngine.ResolveTokens("@accent"),
                 }
             end
         end
@@ -1060,7 +1114,7 @@ function ActivatedAbility:Render(options, params)
                 seenRules[entry] = true
                 tokenDependentChildren[#tokenDependentChildren + 1] = gui.Label {
                     text = entry,
-                    classes = { "info" },
+                    color = ThemeEngine.ResolveTokens("@accent"),
                 }
             end
         end
@@ -1271,7 +1325,7 @@ function ActivatedAbility:Render(options, params)
 
                     bgimage = true,
                     bgcolor = "clear",
-                    width = "auto",
+                    width = 65,
                     height = "auto",
                     maxHeight = 22,
                     text = "!",
@@ -1314,7 +1368,7 @@ function ActivatedAbility:Render(options, params)
 
                     bgimage = true,
                     bgcolor = "clear",
-                    width = "auto",
+                    width = 65,
                     height = "auto",
                     maxHeight = 22,
                     text = "@",
@@ -1354,7 +1408,7 @@ function ActivatedAbility:Render(options, params)
 
                     bgimage = true,
                     bgcolor = "clear",
-                    width = "auto",
+                    width = 65,
                     height = "auto",
                     maxHeight = 22,
                     text = "#",

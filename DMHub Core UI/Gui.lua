@@ -3346,6 +3346,10 @@ function gui.AudioEditor(args)
 		press = function(element)
 
 			local popupPanel = nil
+			local searchText = ''
+			-- Reassigned once searchInput exists; lets a row trigger a full
+			-- re-search (so a just-deleted sound drops out of the list).
+			local RefreshList = function() end
 
 			local CreateEntry = function()
 
@@ -3357,16 +3361,43 @@ function gui.AudioEditor(args)
 					textAlignment = "left",
 					width = "auto",
 					height = "auto",
+					lmargin = 14,
+					interactable = false,
+				}
+
+				--Green "play" chip: a solid accent background with the icon
+				--centered on top. The filled chip guarantees contrast against
+				--the row (a flat tinted icon blended into the background), and
+				--it's matched to the trash button's footprint.
+				local playIcon = gui.Panel{
+					bgimage = "ui-icons/AudioPlayButton.png",
+					bgcolor = "white",
+					width = "62%",
+					height = "62%",
+					halign = "center",
+					valign = "center",
 					interactable = false,
 				}
 
 				local playButton
-				playButton = gui.IconButton{
-					icon = "ui-icons/AudioPlayButton.png",
-					classes = {"sizeM"},
+				playButton = gui.Panel{
+					width = 20,
+					height = 20,
+					cornerRadius = 10,
 					valign = "center",
 					halign = "right",
-					vmargin = 4,
+					hmargin = 6,
+					bgcolor = "#43b06f",
+					borderWidth = 1,
+					borderColor = "#cdeedd",
+					styles = {
+						{ selectors = {"hover"}, bgcolor = "#5fd98c", brightness = 1.15, transitionTime = 0.1 },
+						{ selectors = {"press"}, brightness = 0.6 },
+					},
+
+					children = {
+						playIcon,
+					},
 
 					think = function(element)
 						if playingEvent == nil then
@@ -3376,7 +3407,7 @@ function gui.AudioEditor(args)
 
 						if not playingEvent.playing then
 							playingEvent = nil
-							playButton.data.SetIcon("ui-icons/AudioPlayButton.png")
+							playIcon.bgimage = "ui-icons/AudioPlayButton.png"
 							element.thinkTime = nil
 						end
 					end,
@@ -3385,11 +3416,11 @@ function gui.AudioEditor(args)
 						if playingEvent ~= nil then
 							playingEvent:Stop()
 							playingEvent = nil
-							playButton.data.SetIcon("ui-icons/AudioPlayButton.png")
+							playIcon.bgimage = "ui-icons/AudioPlayButton.png"
 							element.thinkTime = nil
 						elseif audioAsset ~= nil then
 							playingEvent = audioAsset:Play()
-							playButton.data.SetIcon("panels/square.png")
+							playIcon.bgimage = "panels/square.png"
 							element.thinkTime = 0.1
 						end
 					end,
@@ -3402,12 +3433,38 @@ function gui.AudioEditor(args)
 					end,
 				}
 
+				local deleteButton
+				deleteButton = gui.DeleteItemButton{
+					width = 18,
+					height = 18,
+					valign = "center",
+					halign = "right",
+					hmargin = 8,
+					requireConfirm = true,
+					click = function(element)
+						if audioAsset == nil then
+							return
+						end
+						local deletedId = audioAsset.id
+						audioAsset.hidden = true
+						audioAsset:Upload()
+						--if we just deleted the sound that was selected, clear it
+						--so the picker isn't pointing at a now-hidden asset.
+						if value == deletedId then
+							value = nil
+							resultPanel:FireEvent("change", value)
+							resultPanel:FireEventTree("changeValue", value)
+						end
+						RefreshList()
+					end,
+				}
+
 				local entryPanel = gui.Panel{
 					classes = {"audioEntry"},
 					flow = "horizontal",
 					halign = "center",
 					width = "90%",
-					height = 40,
+					height = 44,
 					cornerRadius = 8,
 					bgimage = true,
 					click = function(element)
@@ -3430,12 +3487,15 @@ function gui.AudioEditor(args)
 					data = {
 						SetId = function(id)
 							if id == "none" then
+								audioAsset = nil
 								playButton:SetClass("hidden", true)
+								deleteButton:SetClass("hidden", true)
 								label.text = "(No Sound)"
 							else
 								audioAsset = assets.audioTable[id]
 								label.text = audioAsset.description
 								playButton:SetClass("hidden", false)
+								deleteButton:SetClass("hidden", false)
 							end
 						end,
 					},
@@ -3443,6 +3503,8 @@ function gui.AudioEditor(args)
 					label,
 
 					playButton,
+
+					deleteButton,
 
 				}
 
@@ -3473,8 +3535,8 @@ function gui.AudioEditor(args)
 				wrap = true,
 				margin = 0,
 				pad = 0,
-				width = 400,
-				height = rows*40,
+				width = 560,
+				height = rows*44,
 				tmargin = 12,
 				halign = 'center',
 
@@ -3600,12 +3662,19 @@ function gui.AudioEditor(args)
 				width = 200,
 				height = 30,
 				search = function(element, text)
+					searchText = text
 					soundIds = dmhub.SearchSounds(text)
 					table.insert(soundIds, 1, "none")
 					npage = 1
 					popupPanel:FireEventTree('refreshSearch')
 				end,
 			}
+
+			--now searchInput exists: a row's delete can re-run the search to
+			--rebuild the list without the (now hidden) deleted sound.
+			RefreshList = function()
+				searchInput:FireEvent('search', searchText)
+			end
 
 			local uploadButton = gui.Button{
 				classes = {"sizeM"},

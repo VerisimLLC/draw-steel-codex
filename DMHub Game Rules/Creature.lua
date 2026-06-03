@@ -5258,6 +5258,27 @@ function creature:FillTemporalActiveModifiers(result)
         end
     end
 
+    --the summoner->summon direction. If this creature is itself a summon (its
+    --token.summonerid points at another creature), pull any modsummoner
+    --modifiers whose mode == "summons" from that summoner and apply their
+    --nested modifiers DOWN onto us. Mirror of the summon->summoner scan above.
+    --Re-evaluated every FillTemporalActiveModifiers, so minions summoned after
+    --the modifier was applied pick it up on their next refresh. The recursion
+    --guard inside creature:GetActiveModifiers (_tmp_calculatingActiveModifiers)
+    --breaks the cycle when summoner and summon ask each other for modifiers.
+    if tok ~= nil and tok.valid and tok.summonerid ~= nil and CharacterModifier.FillSummonsModifiers ~= nil then
+        --summonerid is a CHARACTER id (matched against token.charid in the scan
+        --above), so resolve it via GetCharacterById, which returns a token-like
+        --object exposing .properties (see the "summoner" GoblinScript symbol).
+        local summonerToken = dmhub.GetCharacterById(tok.summonerid)
+        if summonerToken ~= nil and summonerToken.properties ~= nil then
+            local summonerCreature = summonerToken.properties
+            for _,summonerMod in ipairs(summonerCreature:GetActiveModifiers()) do
+                summonerMod.mod:FillSummonsModifiers(summonerMod, summonerCreature, self, result)
+            end
+        end
+    end
+
 	local temporaryEffects = self:try_get("_tmp_temporaryEffects", {})
 	for i,effect in ipairs(temporaryEffects) do
 		for i,mod in ipairs(effect.modifiers) do

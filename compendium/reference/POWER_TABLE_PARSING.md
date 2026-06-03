@@ -76,14 +76,22 @@ Recognized conditions: `bleeding`, `dazed`, `frightened`, `frightened of you`,
 Also matches ANY condition with `powertable = true` in the `charConditions` table,
 and any condition rider from the `conditionRiders` table.
 
-### Prone and Grabbed (bare)
+### Bare conditions (no duration suffix)
 
 ```
 prone                               -- applies prone (EoE duration)
 grabbed                             -- applies grabbed (EoE duration)
+<any indefinite-duration condition> -- applies with no set duration (EoE)
 prone and can't stand (save ends)   -- prone + cannot stand rider
 prone can't stand (eot)             -- same, without "and"
 ```
+
+A bare condition name (no `(...)` suffix) only applies for conditions flagged
+`indefiniteDuration = true` in `charConditions` (e.g. `grabbed`). Such conditions
+are always applied with no set duration regardless of any typed suffix, matching
+the manual "Add Condition" menu. Conditions that require a duration are NOT
+applied from a bare name -- they must carry an `(eot)` / `(save ends)` / `(eoe)`
+suffix.
 
 ### Condition State Changes
 

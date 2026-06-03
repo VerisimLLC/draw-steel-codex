@@ -1279,10 +1279,33 @@ dmhub.RegisterEventHandler("refreshTables", function(keys)
     g_applyConditionIndex = g_applyConditionIndex or #g_rulePatterns + 1
 
     g_rulePatterns[g_applyConditionIndex] = {
-        pattern = "^(?<condition>" .. GetTableNameRegex(CharacterCondition.tableName, "powertable") .. ") \\((?<duration>eot|EoT|save ends|eoe)?\\)",
+        -- The "(duration)" suffix is optional. A bare condition name with no
+        -- parenthetical is only accepted for indefinite-duration conditions
+        -- (e.g. "Grabbed"), enforced by validate below; conditions that need a
+        -- duration must still carry a "(eot)" / "(save ends)" / "(eoe)" suffix.
+        pattern = "^(?<condition>" .. GetTableNameRegex(CharacterCondition.tableName, "powertable") .. ")(?<parens> \\((?<duration>eot|EoT|save ends|eoe)?\\))?",
+        validate = function(entry, match)
+            -- A parenthetical was present (even an empty "()"): always allow,
+            -- preserving the prior behavior where parens were mandatory.
+            if match.parens ~= nil and match.parens ~= "" then
+                return true
+            end
+
+            -- Bare name with no parens: only valid for an indefinite-duration
+            -- condition. Otherwise reject so a more specific rule (or none) is
+            -- used, matching the old behavior where bare names did not apply.
+            local cond = match.condition
+            local conditionsTable = dmhub.GetTable(CharacterCondition.tableName)
+            for _, v in unhidden_pairs(conditionsTable) do
+                if string.lower(v.name) == cond then
+                    return v.indefiniteDuration == true
+                end
+            end
+            return false
+        end,
         execute = function(behavior, ability, casterToken, targetToken, options, match)
             ability:CommitToPaying(casterToken, options)
-            local duration = string.lower(match.duration)
+            local duration = string.lower(match.duration or "")
             if string.starts_with(duration, "save") then
                 duration = "save"
             end
@@ -1295,9 +1318,16 @@ dmhub.RegisterEventHandler("refreshTables", function(keys)
                     local conditionsTable = dmhub.GetTable(CharacterCondition.tableName)
                     for k, v in unhidden_pairs(conditionsTable) do
                         if string.lower(v.name) == cond then
+                            -- Indefinite-duration conditions ignore any typed
+                            -- duration and apply with no set duration (eoe),
+                            -- matching the manual "Add Condition" menu.
+                            local appliedDuration = duration
+                            if v.indefiniteDuration then
+                                appliedDuration = "eoe"
+                            end
                             local riders = ability:GetRidersForCondition(k, casterToken, targetToken, options)
                             targetToken.properties:InflictCondition(k, {
-                                duration = duration,
+                                duration = appliedDuration,
                                 sourceDescription = string.format("Inflicted by %s's <b>%s</b> ability", creature.GetTokenDescription(casterToken), ability.name),
                                 riders = riders,
                                 casterInfo = {

@@ -5939,7 +5939,7 @@ local function CalculateSpellTargetFocusing(symbols)
                     local bypass = false
                     if ignoreRange > 0 then
                         local dist = g_token:Distance(targetToken)
-                        if dist <= ignoreRange + dmhub.unitsPerSquare then
+                        if dist <= ignoreRange then
                             bypass = true
                         end
                     end

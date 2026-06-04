@@ -4136,6 +4136,31 @@ function creature.TakeDamage(self, amount, note, info)
             amount = math.min(self:SingleMinionMaxStamina(), amount)
         end
 
+        --Summoner "excess damage" rule: when an attack overkills the squad's shared Stamina pool
+        --(there is leftover damage after the last minion in the squad dies), the summoner takes a
+        --flat 2 + their level. currentHp is the pool remaining before this hit, so currentHp > 0 and
+        --amount > currentHp means this blow both empties the pool and has excess. Gated by the
+        --"Minion Summoner Overflow" custom attribute so only summoner squads use it.
+        if (self:CalculateNamedCustomAttribute("Minion Summoner Overflow") or 0) > 0 then
+            local currentHp = self:CurrentHitpoints()
+            if currentHp > 0 and amount > currentHp then
+                local selfToken = dmhub.LookupToken(self)
+                if selfToken ~= nil and selfToken.summonerid then
+                    local summonerToken = dmhub.GetTokenById(selfToken.summonerid)
+                    if summonerToken ~= nil and summonerToken.valid then
+                        local overflowDamage = 2 + summonerToken.properties:CharacterLevel()
+                        summonerToken:ModifyProperties {
+                            description = "Squad destroyed (excess damage)",
+                            combine = true,
+                            execute = function()
+                                summonerToken.properties:TakeDamage(overflowDamage, "Squad destroyed (excess damage)")
+                            end,
+                        }
+                    end
+                end
+            end
+        end
+
         self:SetCurrentHitpoints(self:CurrentHitpoints() - amount, note)
 
         self.minionDamageTime = ServerTimestamp()
@@ -4281,7 +4306,6 @@ function creature.TakeDamage(self, amount, note, info)
         eventArg.edges = info.cast.boonsApplied
         eventArg.banes = info.cast.banesApplied
         for _, target in ipairs(info.cast.targets or {}) do
-            print("Target::", json(target))
             if target.token ~= nil and target.token.properties == self then
                 eventArg.numberofattackers = target.numAttackers or 1
             end

@@ -1377,6 +1377,11 @@ TriggeredAbility.RegisterTrigger{
             type = "boolean",
             desc = "True if the damage has an attacker.",
         },
+        numberofattackers = {
+            name = "Number of Attackers",
+            type = "number",
+            desc = "The number of attackers involved in this damage event.",
+        },
         hasability = {
             name = "HasAbility",
             type = "boolean",
@@ -1477,6 +1482,11 @@ TriggeredAbility.RegisterTrigger{
             name = "Cast",
             type = "spellcast",
             desc = "The cast context of the ability that dealt the damage. Only valid if HasCast is true.",
+        },
+        {       
+            name = "Number of Attackers",
+            type = "number",
+            desc = "The number of attackers involved in this damage event.",
         },
     }
 }

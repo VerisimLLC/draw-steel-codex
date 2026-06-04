@@ -4156,6 +4156,11 @@ function creature.TakeDamage(self, amount, note, info)
         if info.cast then
             eventArg.edges = info.cast.boonsApplied
             eventArg.banes = info.cast.banesApplied
+            for _, target in ipairs(info.cast.targets or {}) do
+                if target.token ~= nil and target.token.properties == self then
+                    eventArg.numberofattackers = target.numAttackers or 1
+                end
+            end
         end
         if (not info.doesNotTrigger) and amount > 0 then
             print("LOSEHITPOINTS:: DO LOSE", info.doesNotTrigger)
@@ -4192,6 +4197,7 @@ function creature.TakeDamage(self, amount, note, info)
                 --Acolyte patron damage marker. Top-level bare symbol PatronDamage
                 --in trigger formulas (matches how gainresource exposes Quantity).
                 patrondamage = eventArg.patrondamage,
+                numberofattackers = eventArg.numberofattackers,
             }
             attacker:DispatchEvent("dealdamage", args)
         end
@@ -4262,6 +4268,7 @@ function creature.TakeDamage(self, amount, note, info)
         --we don't ever regard us as attacking ourselves. This would make conditions doing damage to us trigger an attack on ourselves.
         eventArg.attacker = nil
     end
+    print("Info::", json(info))
     eventArg.damage = amount
     eventArg.rawdamage = info.rawdamage
     eventArg.damageimmunity = info.damageImmunity and info.damageImmunity.dr ~= nil
@@ -4273,6 +4280,12 @@ function creature.TakeDamage(self, amount, note, info)
     if info.cast then
         eventArg.edges = info.cast.boonsApplied
         eventArg.banes = info.cast.banesApplied
+        for _, target in ipairs(info.cast.targets or {}) do
+            print("Target::", json(target))
+            if target.token ~= nil and target.token.properties == self then
+                eventArg.numberofattackers = target.numAttackers or 1
+            end
+        end
     end
 
     if (not info.doesNotTrigger) and original_amount > 0 then
@@ -4390,6 +4403,7 @@ function creature.TakeDamage(self, amount, note, info)
             --Acolyte patron damage marker. Top-level bare symbol PatronDamage
             --in trigger formulas (matches how gainresource exposes Quantity).
             patrondamage = eventArg.patrondamage,
+            numberofattackers = eventArg.numberofattackers,
         }
         attacker:DispatchEvent("dealdamage", args)
     end

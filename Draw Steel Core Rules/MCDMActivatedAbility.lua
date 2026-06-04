@@ -1325,7 +1325,7 @@ function ActivatedAbility:Render(options, params)
 
                     bgimage = true,
                     bgcolor = "clear",
-                    width = 65,
+                    width = "auto",
                     height = "auto",
                     maxHeight = 22,
                     text = "!",
@@ -1368,7 +1368,7 @@ function ActivatedAbility:Render(options, params)
 
                     bgimage = true,
                     bgcolor = "clear",
-                    width = 65,
+                    width = "auto",
                     height = "auto",
                     maxHeight = 22,
                     text = "@",
@@ -1408,7 +1408,7 @@ function ActivatedAbility:Render(options, params)
 
                     bgimage = true,
                     bgcolor = "clear",
-                    width = 65,
+                    width = "auto",
                     height = "auto",
                     maxHeight = 22,
                     text = "#",

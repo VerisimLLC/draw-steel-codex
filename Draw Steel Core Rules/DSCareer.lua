@@ -159,6 +159,7 @@ local SetBackground = function(tableName, backgroundPanel, backgroundid)
 			height = "auto",
 			minHeight = 30,
 			maxHeight = 300,
+			characterLimit = 2000,
 			vscroll = true,
 			textAlignment = "topleft",
 			placeholderText = "Enter career description...",

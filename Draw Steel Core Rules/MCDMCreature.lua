@@ -1502,6 +1502,44 @@ creature.RegisterSymbol {
 }
 
 creature.RegisterSymbol {
+    symbol = "livingsquadmembers",
+    lookup = function(c)
+        --resolve the squad this creature belongs to. Minions report their squad
+        --via MinionSquad(); a captain is not a minion but still tracks its squad
+        --via the minionSquad property (so MinionSquad() also resolves for them).
+        local squadid = c:MinionSquad()
+        if squadid == nil and c:has_key("_tmp_minionSquad") then
+            squadid = c._tmp_minionSquad.name
+        end
+
+        if squadid == nil then
+            return 0
+        end
+
+        --Count fresh rather than reading the cached _tmp_minionSquad.liveMinions.
+        --That cache is only recomputed by a living minion's RefreshSquadInfo (gated
+        --once per game-update), so when the LAST minion dies there is no surviving
+        --minion left to refresh it and the cache stays frozen at its prior value.
+        --Enumerating live squad tokens here is always accurate at evaluation time.
+        local count = 0
+        local tokens = dmhub.GetTokens { haveProperties = true }
+        for _, tok in ipairs(tokens) do
+            if tok.valid and tok.properties.minion and tok.properties:MinionSquad() == squadid and (not tok.properties:IsDead()) then
+                count = count + 1
+            end
+        end
+
+        return count
+    end,
+    help = {
+        name = "Living Squad Members",
+        type = "number",
+        desc = "If this creature is a minion (or the captain of a squad), the number of members in its squad that are currently alive. Returns 0 if this creature is not part of a squad.",
+        seealso = { "SquadLiveMembers", "HasCaptain", "Minion" },
+    }
+}
+
+creature.RegisterSymbol {
     symbol = "takenturnthisround",
     lookup = function(c)
         local q = dmhub.initiativeQueue
@@ -4156,6 +4194,16 @@ function creature.TakeDamage(self, amount, note, info)
                                 summonerToken.properties:TakeDamage(overflowDamage, "Squad destroyed (excess damage)")
                             end,
                         }
+
+                        --Announce the excess damage in the action log, reusing the damage
+                        --behavior's chat message card (caster portrait + detail + "N damage").
+                        chat.SendCustom(ActivatedAbilityDamageChatMessage.new{
+                            amount = overflowDamage,
+                            damageType = "",
+                            chatMessage = "Squad destroyed (excess damage)",
+                            casterid = summonerToken.charid,
+                            targetids = {},
+                        })
                     end
                 end
             end

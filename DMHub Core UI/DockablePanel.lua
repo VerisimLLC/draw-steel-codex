@@ -793,6 +793,10 @@ CreateDockablePanelTabbedContainer = function(options)
 			end,
 
 			rightClick = function(element)
+				local isLastInDock = not dock.data.floating and #dock.data.GetChildren() <= 1
+				if isLastInDock then
+					return
+				end
 				element.popup = gui.ContextMenu{
 					halign = "right",
 					valign = "bottom",
@@ -800,7 +804,6 @@ CreateDockablePanelTabbedContainer = function(options)
 						{
 							text = "Close",
 							click = function()
-
 								element.popup = nil
 								resultPanel:DestroySelf()
 								dock:FireEvent("fitChildren")
@@ -1233,33 +1236,35 @@ CreateDockablePanelTabbedContainer = function(options)
 				DockablePanel.Serialize()
 			end,
 			rightClick = function(element)
+				local isLastInDock = not dock.data.floating and #dock.data.GetChildren() <= 1 and #panelInstances <= 1
+				local entries = {}
+				if not isLastInDock then
+					entries[#entries+1] = {
+						text = "Close",
+						click = function()
+							element.popup = nil
+							element:FireEvent("close")
+						end,
+					}
+				end
+				entries[#entries+1] = {
+					text = "Detach",
+					click = function()
+						element.popup = nil
+						local panelInstance = DetachPanelInstance(element)
+						if panelInstance ~= nil then
+							local newPanel = CreateDockablePanelTabbedContainer{
+								panelInstances = {panelInstance},
+							}
+							dock:FireEvent("addPanel", newPanel)
+							DockablePanel.Serialize()
+						end
+					end,
+				}
 				element.popup = gui.ContextMenu{
 					halign = "right",
 					valign = "bottom",
-					entries = {
-						{
-							text = "Close",
-							click = function()
-								element.popup = nil
-								element:FireEvent("close")
-							end,
-						},
-						{
-							text = "Detach",
-							click = function()
-								element.popup = nil
-								local panelInstance = DetachPanelInstance(element)
-								if panelInstance ~= nil then
-									local newPanel = CreateDockablePanelTabbedContainer{
-										panelInstances = {panelInstance},
-									}
-
-									dock:FireEvent("addPanel", newPanel)
-									DockablePanel.Serialize()
-								end
-							end,
-						},
-					},
+					entries = entries,
 				}
 			end,
 			button,

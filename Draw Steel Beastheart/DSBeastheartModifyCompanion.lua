@@ -60,23 +60,22 @@ end
 
 -- Mirror of "Modify Companion" in the summon -> summoner direction. A
 -- "Modify Summoner" CharacterModifier sits on a summoned creature's stat
--- block (e.g., the bear's Strong Like Bear trait) and contributes modifiers
--- back to whoever summoned it. Per the Companion rules, "you" inside a
--- companion stat block refers to the beastheart, but this is fully generic
--- now: any creature linked by token.summonerid -- beastheart companions,
--- AbilitySummon results, etc. -- routes through the same dispatch.
--- FillSummonerModifiers on CharacterModifier is invoked from
--- creature:FillTemporalActiveModifiers in DMHub Game Rules/Creature.lua
--- (parallel to the mount/rider hook).
 
 CharacterModifier.RegisterType("modsummoner", "Modify Summoner")
 
+-- The "Modify Summoner" modifier supports two directions, selected by the
+-- `mode` field:
+--   "summoner" (DEFAULT)
+--   "summons": the modifier sits on a SUMMONER
+CharacterModifier.modsummonerDefaultMode = "summoner"
+
 CharacterModifier.TypeInfo.modsummoner = {
     init = function(modifier)
+        modifier.mode = "summoner"
         modifier.feature = CharacterFeature.Create{
             name = "Summoner",
-            description = "Modify the companion's beastheart",
-            source = "Beastheart",
+            description = "Modify the summoner's properties",
+            source = "Summoner",
         }
     end,
 
@@ -88,10 +87,38 @@ CharacterModifier.TypeInfo.modsummoner = {
         end
     end,
 
+    --pushes nested modifiers DOWN onto a single summon. Invoked once per summon
+    --from the summon's own FillTemporalActiveModifiers (see Creature.lua).
+    modifySummons = function(modifier, summoner, summon, targetModifiers)
+        for _,childMod in ipairs(modifier.feature.modifiers) do
+            targetModifiers[#targetModifiers+1] = {
+                mod = childMod,
+            }
+        end
+    end,
+
     createEditor = function(modifier, element)
         local children = {}
 
         children[#children+1] = modifier:FilterConditionEditor()
+
+        children[#children+1] = gui.Panel{
+            classes = {"formPanel"},
+            gui.Label{
+                classes = {"formLabel"},
+                text = "Direction:",
+            },
+            gui.Dropdown{
+                options = {
+                    { id = "summoner", text = "Modify Summoner" },
+                    { id = "summons", text = "Modify Summons" },
+                },
+                idChosen = modifier:try_get("mode", "summoner"),
+                change = function(element)
+                    modifier.mode = element.idChosen
+                end,
+            },
+        }
 
         children[#children+1] = gui.Button{
             classes = {"sizeM"},
@@ -115,7 +142,32 @@ CharacterModifier.TypeInfo.modsummoner = {
 function CharacterModifier:FillSummonerModifiers(context, creature, summoner, modifiers)
     local typeInfo = CharacterModifier.TypeInfo[self.behavior] or {}
     if typeInfo.modifySummoner ~= nil then
+        --only the summon->summoner direction. Modifiers explicitly set to the
+        --summons direction must NOT push upward. A nil mode is treated as the
+        --legacy "summoner" default for backward compatibility.
+        if self:try_get("mode", "summoner") ~= "summoner" then
+            return
+        end
         self:InstallSymbolsFromContext(context)
         typeInfo.modifySummoner(self, creature, summoner, modifiers)
+    end
+end
+
+--- Dispatcher invoked from a SUMMON's creature:FillTemporalActiveModifiers
+--- (DMHub Game Rules/Creature.lua). Each of the summoner's active modifiers is
+--- asked, in turn, whether it pushes modifiers DOWN onto this summon. Only
+--- modsummoner modifiers whose mode == "summons" contribute.
+--- @param context table Modifier context (the entry from GetActiveModifiers).
+--- @param summoner creature The summoner's properties.
+--- @param summon creature The summon's properties (the creature being modified).
+--- @param modifiers table The summon's accumulating modifier list.
+function CharacterModifier:FillSummonsModifiers(context, summoner, summon, modifiers)
+    local typeInfo = CharacterModifier.TypeInfo[self.behavior] or {}
+    if typeInfo.modifySummons ~= nil then
+        if self:try_get("mode", "summoner") ~= "summons" then
+            return
+        end
+        self:InstallSymbolsFromContext(context)
+        typeInfo.modifySummons(self, summoner, summon, modifiers)
     end
 end

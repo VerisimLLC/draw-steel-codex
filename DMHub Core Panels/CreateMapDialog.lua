@@ -1,5 +1,51 @@
 local mod = dmhub.GetModLoading()
 
+local function ComponentTypeMatches(value, componentType)
+    if value == nil then
+        return false
+    end
+
+    local text = tostring(value)
+    return text == componentType or text == ("ObjectComponent" .. componentType)
+end
+
+local function ComponentField(component, field)
+    local ok, value = pcall(function()
+        return component[field]
+    end)
+    if ok then
+        return value
+    end
+
+    return nil
+end
+
+local function ComponentMatches(component, key, componentType)
+    if ComponentTypeMatches(key, componentType) then
+        return true
+    end
+
+    return ComponentTypeMatches(ComponentField(component, "name"), componentType)
+        or ComponentTypeMatches(ComponentField(component, "type"), componentType)
+        or ComponentTypeMatches(ComponentField(component, "componentType"), componentType)
+        or ComponentTypeMatches(ComponentField(component, "@class"), componentType)
+end
+
+local function ObjectNodeHasComponent(id, componentType)
+    local node = id and assets:GetObjectNode(id)
+    if node == nil or node.components == nil then
+        return false
+    end
+
+    for key, component in pairs(node.components) do
+        if ComponentMatches(component, key, componentType) then
+            return true
+        end
+    end
+
+    return false
+end
+
 mod.shared.ShowCreateMapDialog = function()
 
     local selectedMap = nil
@@ -186,18 +232,11 @@ mod.shared.ShowCreateMapDialog = function()
                         local mapType = selectedMap.data.type
 
                         gui.CloseModal()
-                        dmhub.Debug("TILE TYPE: " .. tileType)
 
                         if mapType == "import" then
                             mod.shared.ImportMap{
                                 tileType = tileType,
                                 nofade = true,
-                                --SheetMapImport.cs controls the contents of info. Alternatively, AssetLua.cs:ImportUniversalVTT.
-                                --Will include
-                                --objids: asset objids of the map objects created.
-                                --width/height.
-                                --mapSettings (optional): map of settings to set when entering the map.
-                                --uvttData (optional): list of json uvtt data which we can use to build the map.
                                 finish = function(info)
                                     mod.shared.FinishMapImport(m_mapName, info)
                                 end,
@@ -222,10 +261,6 @@ mod.shared.ShowCreateMapDialog = function()
                                 end
 
                                 dmhub.SetSettingValue("maplayout:tiletype", tileType)
-
-                                printf("SETTING: Set: %s vs %s", dmhub.GetSettingValue("maplayout:tiletype"), tileType)
-
-
                             end)
 
                         end
@@ -263,12 +298,12 @@ local function isClockwise(polygon)
 end
 
 mod.shared.ImportMapToFloorCo = function(info)
-
-    print("IMPORT:: IMPORTING:", info, info.floor.name, info.primaryFloor.name)
+    if info == nil or info.floor == nil or info.primaryFloor == nil then
+        return
+    end
 
     local obj = info.floor:SpawnObjectLocal(info.objid)
     if obj == nil then
-        printf("IMPORT:: Could not spawn object with id = %s", info.objid)
         return
     end
 
@@ -276,258 +311,890 @@ mod.shared.ImportMapToFloorCo = function(info)
     obj.y = 0
     obj:Upload()
 
-    local pointsEqual = function(a,b)
-        return a.x == b.x and a.y == b.y
+    if type(info.uvttData) ~= "table" then
+        return
     end
 
-    if info.uvttData ~= nil then
-        dmhub.Debug("HAS UVTT DATA")
-        local maxcount = 0
-        while (obj.area == nil or (obj.area.x1 == 0 and obj.area.x2 == 0)) and maxcount < 20 do
-            coroutine.yield(0.1)
-            maxcount = maxcount + 1
+    local function pointsEqual(a, b)
+        return a ~= nil and b ~= nil
+            and tonumber(a.x) == tonumber(b.x)
+            and tonumber(a.y) == tonumber(b.y)
+    end
+
+    local function gridSize(data)
+        local result = 100
+        if type(data.grid) == "table" then
+            result = tonumber(data.grid.size) or 100
+        elseif data.grid ~= nil then
+            result = tonumber(data.grid) or 100
+        end
+        if result == 0 then
+            result = 100
+        end
+        return result
+    end
+
+    local function safeColor(value, defaultValue)
+        local text = tostring(value or defaultValue or "ffffff")
+        if string.sub(text, 1, 1) ~= "#" then
+            text = "#" .. text
         end
 
-        --wait a few frames to make sure the object is in sync.
-        maxcount = 0
-        while maxcount < 60 do
-            coroutine.yield(0.01)
-            maxcount = maxcount + 1
+        local ok, result = pcall(function() return core.Color(text) end)
+        if ok then
+            return result
         end
 
-        local area = obj.area
-        if area ~= nil then
+        return core.Color("#ffffff")
+    end
 
-            local data = info.uvttData
+    local function portalObjectScale(nodeId, segmentLength)
+        local node = nodeId and assets:GetObjectNode(nodeId)
+        local imageId = node and (node.image or node.thumbnailId or node.imageId)
+        local info = imageId and gui.TryGetImageDimensions(imageId)
+        local width = info and tonumber(info.width)
+        local height = info and tonumber(info.height)
+        local ppu = info and tonumber(info.ppu)
 
-            local portals = data.portals
-            local line_of_sight = data.line_of_sight
-            local convertedFromFoundry = false
+        if width ~= nil and height ~= nil and ppu ~= nil and ppu > 0 then
+            -- Object instance scale is absolute for the image. The asset node's
+            -- default scale is already consumed by normal spawning behavior and
+            -- would make imported portals too small if applied again here.
+            local nativeLongAxisTiles = math.max(width, height) / ppu
+            if nativeLongAxisTiles > 0 then
+                return segmentLength / nativeLongAxisTiles
+            end
+        end
 
-            if line_of_sight == nil and data.walls ~= nil then
-                --foundry format walls.
-                convertedFromFoundry = true
-                line_of_sight = {}
-                portals = {}
+        return segmentLength
+    end
 
-                for i,wall in ipairs(data.walls) do
-                    local points = wall.c
+    local maxcount = 0
+    while (obj.area == nil or (obj.area.x1 == 0 and obj.area.x2 == 0)) and maxcount < 20 do
+        coroutine.yield(0.1)
+        maxcount = maxcount + 1
+    end
 
-                    if points ~= nil and type(points) == "table" and #points == 4 then
-                        line_of_sight[#line_of_sight+1] = {
-                            {x = points[1]/data.grid, y = points[2]/data.grid},
-                            {x = points[3]/data.grid, y = points[4]/data.grid},
-                        }
+    for i = 1, 60 do
+        coroutine.yield(0.01)
+    end
 
-                        if wall.door == 1 then
-                            portals[#portals+1] = {
-                                bounds = {
-                                    {x = points[1]/data.grid, y = points[2]/data.grid},
-                                    {x = points[3]/data.grid, y = points[4]/data.grid},
-                                },
-                                closed = true,
-                            }
+    local area = obj.area
+    if area == nil then
+        return
+    end
+
+    local data = info.uvttData
+    local choices = info.assetChoices or {}
+    local function importAsset(choiceValue, settingId, fallback)
+        local value = choiceValue
+        if value == nil or value == "" then
+            value = dmhub.GetSettingValue(settingId)
+        end
+        if value == nil or value == "" then
+            value = fallback
+        end
+        return value
+    end
+
+    local wallAsset       = choices.wallAssetId        or dmhub.GetSettingValue("mapimport:wall_asset_id")
+    local objectWallAsset = choices.objectWallAssetId  or dmhub.GetSettingValue("mapimport:object_wall_asset_id")
+    local terrainWallAsset = importAsset(choices.terrainWallAssetId, "mapimport:terrain_wall_asset_id", objectWallAsset)
+    local invisibleWallAsset = importAsset(choices.invisibleWallAssetId, "mapimport:invisible_wall_asset_id", objectWallAsset)
+    local transparentWindowWallAsset = importAsset(choices.transparentWindowWallAssetId, "mapimport:transparent_window_wall_asset_id", objectWallAsset)
+    local unrecognizedWallAsset = choices.unrecognizedWallAssetId or dmhub.GetSettingValue("mapimport:unrecognized_wall_asset_id") or wallAsset
+    local doornode        = choices.doorObjectId       or dmhub.GetSettingValue("mapimport:door_object_id")
+    local windownode      = choices.windowObjectId     or dmhub.GetSettingValue("mapimport:window_object_id")
+    local secretDoorNode  = choices.secretDoorObjectId or dmhub.GetSettingValue("mapimport:secret_door_object_id")
+    local lightnodeChoice = choices.lightObjectId      or dmhub.GetSettingValue("mapimport:light_object_id")
+    local function normalizeMode(value, defaultValue, allowed)
+        local mode = tostring(value or defaultValue)
+        if allowed[mode] == true then
+            return mode
+        end
+        return defaultValue
+    end
+
+    local function importMode(choiceKey, settingId, defaultValue, allowed)
+        local mode = choices[choiceKey]
+        if mode == nil then
+            mode = dmhub.GetSettingValue(settingId)
+        end
+        return normalizeMode(mode, defaultValue, allowed)
+    end
+
+    local function legacyImportMode(choiceKey, legacyChoiceKey, settingId, legacySettingId, defaultValue, allowed)
+        local mode = choices[choiceKey]
+        if mode == nil then
+            mode = choices[legacyChoiceKey]
+        end
+        if mode == nil then
+            mode = dmhub.GetSettingValue(settingId)
+        end
+        if mode == nil or mode == "" then
+            mode = dmhub.GetSettingValue(legacySettingId)
+        end
+        return normalizeMode(mode, defaultValue, allowed)
+    end
+
+    local function appendList(result, source)
+        if type(source) == "table" then
+            for _, item in ipairs(source) do
+                result[#result+1] = item
+            end
+        end
+    end
+
+    local function mergedFoundryInvisibleWalls(data)
+        local result = {}
+        appendList(result, type(data) == "table" and data.foundry_invisible_walls or nil)
+        appendList(result, type(data) == "table" and data.foundry_movement_walls or nil)
+        return result
+    end
+
+    local function hasEntries(list)
+        return type(list) == "table" and #list > 0
+    end
+
+    local function optionalList(list)
+        if hasEntries(list) then
+            return list
+        end
+        return nil
+    end
+
+    local wallModeAllowed = {wall = true, none = true}
+    local assetModeAllowed = {asset = true, none = true}
+    local windowModeAllowed = {asset = true, movement_wall = true, none = true}
+    local structuralWallMode = importMode("structuralWallMode", "mapimport:structural_wall_mode", "wall", wallModeAllowed)
+    local objectWallMode = importMode("objectWallMode", "mapimport:object_wall_mode", "wall", wallModeAllowed)
+    local terrainWallMode = importMode("terrainWallMode", "mapimport:terrain_wall_mode", "wall", wallModeAllowed)
+    local invisibleWallMode = legacyImportMode("invisibleWallMode", "movementWallMode", "mapimport:invisible_wall_mode", "mapimport:movement_wall_mode", "wall", wallModeAllowed)
+    local unrecognizedWallMode = importMode("unrecognizedWallMode", "mapimport:unrecognized_wall_mode", "none", wallModeAllowed)
+    local doorMode = importMode("doorMode", "mapimport:door_mode", "asset", assetModeAllowed)
+    local windowMode = importMode("windowMode", "mapimport:window_mode", "asset", windowModeAllowed)
+    local secretDoorMode = importMode("secretDoorMode", "mapimport:secret_door_mode", "asset", assetModeAllowed)
+    local lightMode = importMode("lightMode", "mapimport:light_mode", "asset", assetModeAllowed)
+    if choices.unrecognizedWallMode == nil and choices.includeUnrecognizedWalls ~= nil then
+        unrecognizedWallMode = cond(choices.includeUnrecognizedWalls == true, "wall", "none")
+    end
+    local flipFoundryTerrainWalls = choices.flipFoundryTerrainWalls == true
+    if choices.flipFoundryTerrainWalls == nil then
+        flipFoundryTerrainWalls = dmhub.GetSettingValue("mapimport:flip_foundry_terrain_walls") == true
+    end
+    local nudgeX = tonumber(choices.alignmentOffsetX) or 0
+    local nudgeY = tonumber(choices.alignmentOffsetY) or 0
+    if nudgeX ~= 0 or nudgeY ~= 0 then
+        area = {
+            x1 = area.x1 + nudgeX,
+            x2 = area.x2 + nudgeX,
+            y1 = area.y1 - nudgeY,
+            y2 = area.y2 - nudgeY,
+        }
+    end
+
+    local function executeWalls(points, wallid, closed)
+        if #points == 0 or wallid == nil or wallid == "" then
+            return
+        end
+
+        info.primaryFloor:ExecutePolygonOperation{
+            points = points,
+            tileid = nil,
+            wallid = wallid,
+            erase = false,
+            closed = closed,
+        }
+    end
+
+    local function appendWorldPoint(points, p)
+        if type(p) ~= "table" then
+            return false
+        end
+
+        local x = tonumber(p.x)
+        local y = tonumber(p.y)
+        if x == nil or y == nil then
+            return false
+        end
+
+        points[#points+1] = area.x1 + x
+        points[#points+1] = area.y2 - y
+        return true
+    end
+
+    local function copySegments(lineSet)
+        local segments = {}
+        if type(lineSet) ~= "table" then
+            return segments
+        end
+
+        for _, segment in ipairs(lineSet) do
+            if type(segment) == "table" and #segment >= 2 then
+                local copy = {}
+                for _, p in ipairs(segment) do
+                    if type(p) == "table" and tonumber(p.x) ~= nil and tonumber(p.y) ~= nil then
+                        copy[#copy+1] = {x = tonumber(p.x), y = tonumber(p.y)}
+                    end
+                end
+                if #copy >= 2 then
+                    segments[#segments+1] = copy
+                end
+            end
+        end
+
+        return segments
+    end
+
+    local function processLineSet(lineSet, wallid, objectWalls)
+        local segments = copySegments(lineSet)
+        local segmentsDeleted = {}
+        local changes = true
+        local ncount = 0
+
+        while (not objectWalls) and changes and ncount < 50 do
+            changes = false
+            ncount = ncount + 1
+
+            for i, segment in ipairs(segments) do
+                if segmentsDeleted[i] == nil then
+                    for j, nextSegment in ipairs(segments) do
+                        if i ~= j and segmentsDeleted[j] == nil and pointsEqual(segment[#segment], nextSegment[1]) then
+                            for _, point in ipairs(nextSegment) do
+                                segment[#segment+1] = point
+                            end
+
+                            segmentsDeleted[j] = true
+                            changes = true
                         end
                     end
                 end
             end
+        end
 
-            local wallAsset = "-MGADhKw0vw30yXNF2-e"
-            local objectWallAsset = "eae7f3fe-d278-455c-853a-ac43f948c743"
-            for i,line_of_sight in ipairs({data.line_of_sight, data.objects_line_of_sight}) do
-                local objectWalls = (i == 2)
-
-                if line_of_sight ~= nil then
-
-            print("LINE_OF_SIGHT::", line_of_sight)
-
-
-
-                    --uvtt format walls.
-                    local segments = DeepCopy(line_of_sight)
-                    local segmentsDeleted = {}
-
-                    local changes = true
-                    local ncount = 0
-
-                    while (not objectWalls) and changes and ncount < 50 do
-                        changes = false
-                        ncount = ncount+1
-                    
-                        for i,segment in ipairs(segments) do
-                            if segmentsDeleted[i] == nil then
-                                for j,nextSegment in ipairs(segments) do
-                                    if i ~= j and segmentsDeleted[j] == nil and pointsEqual(segment[#segment], nextSegment[1]) then
-                                        for _,point in ipairs(nextSegment) do
-                                            segment[#segment+1] = point
-                                        end
-
-                                        segmentsDeleted[j] = true
-                                        changes = true
-                                    end
-                                end
-                            end
-                        end
-                    end
-
-                    print("SEGMENTS::", segments)
-
-                    local polygons = {}
-                    for i,seg in ipairs(segments) do
-                        if segmentsDeleted[i] == nil then
-                            if objectWalls and (not isClockwise(seg)) and pointsEqual(seg[1], seg[#seg]) then
-                                local objectPoints = {}
-                                for j=#seg,1,-1 do
-                                    objectPoints[#objectPoints+1] = seg[j]
-                                end
-                                polygons[#polygons+1] = objectPoints
-                            else
-                                polygons[#polygons+1] = seg
-                            end
-                        end
-                    end
-
-                    print("POLYGONS::", polygons)
-
-                    local pointsList = {}
-                    local objectsPointsList = {}
-
-                    for j,poly in ipairs(polygons) do
-                        local points = {}
-
-                        local isObject = objectWalls and pointsEqual(poly[1], poly[#poly])
-
-                        for i,p in ipairs(poly) do
-                            if (not isObject) or i ~= #poly then
-                                points[#points+1] = area.x1 + tonumber(p.x)
-                                points[#points+1] = area.y2 - tonumber(p.y)
-
-                                if j == 1 and i == 1 then
-                                    print("FIRST::", #polygons, #poly, points, "FROM", area.x1, area.y2, p.x, p.y, "isobject =", isObject)
-                                end
-                            end
-                        end
-
-                        if not isObject then
-                            pointsList[#pointsList+1] = points
-                        else
-                            objectsPointsList[#objectsPointsList+1] = points
-                        end
-                    end
-
-                    if #pointsList > 0 then
-                        print("POLY::", area, pointsList)
-                        info.primaryFloor:ExecutePolygonOperation{
-                            points = pointsList,
-                            tileid = nil,
-                            wallid = wallAsset,
-                            erase = false,
-                            closed = false,
-                        }
-                    end
-
-                    if #objectsPointsList > 0 then
-                        print("POLY::", objectsPointsList)
-                        info.primaryFloor:ExecutePolygonOperation{
-                            points = objectsPointsList,
-                            tileid = nil,
-                            wallid = objectWallAsset,
-                            erase = false,
-                            closed = true,
-                        }
-                    end
-
-                end
-            end
-
-            local windownode = "-MDd3Knydcq2WsjStef2"
-            local doornode = "-MfWx0b2IlyApLQwasYg"
-            if portals ~= nil then
-                for i,portal in ipairs(portals) do
-                    local bounds = portal.bounds
-                    if bounds ~= nil and #bounds == 2 then
-                        --add a wall in here.
-                        local points = {area.x1 + tonumber(bounds[1].x), area.y2 - tonumber(bounds[1].y),
-                                        area.x1 + tonumber(bounds[2].x), area.y2 - tonumber(bounds[2].y)}
-
-                        if not convertedFromFoundry then
-                            info.primaryFloor:ExecutePolygonOperation{
-                                points = {points},
-                                tileid = nil,
-                                wallid = "-MGADhKw0vw30yXNF2-e",
-                                erase = false,
-                                closed = false,
-                            }
-                        end
-
-                        local obj = info.primaryFloor:SpawnObjectLocal(cond(portal.closed, doornode, windownode))
-                        obj.x = area.x1 + tonumber(bounds[1].x)
-                        obj.y = area.y2 - tonumber(bounds[1].y)
-
-                        --note y axis is intentionally inverted.
-                        local delta = core.Vector2(bounds[2].x - bounds[1].x, bounds[1].y - bounds[2].y)
-
-                        obj.rotation = delta.angle + 90
-                        obj.scale = delta.length*cond(portal.closed, 0.7, 1)
-
-                        dmhub.Debug(string.format("SPAWN_OBJ: %f, %f", obj.x, obj.y))
-                        obj:Upload()
+        local pointsList = {}
+        local objectPointsList = {}
+        for i, seg in ipairs(segments) do
+            if segmentsDeleted[i] == nil then
+                local poly = seg
+                if objectWalls and pointsEqual(seg[1], seg[#seg]) and not isClockwise(seg) then
+                    poly = {}
+                    for j = #seg, 1, -1 do
+                        poly[#poly+1] = seg[j]
                     end
                 end
-            end
 
-            --lights can be in either of these formats:
-            -- uvtt: (here units are in tiles)
-            -- { position: { x: number, y: number }, range: number, intensity: number, color: string, shadows: boolean }
-            -- foundry: (here units are in pixels)
-            -- { x: number, y: number, dim: number, bright: number, tintColor: string, tintAlpha: number }
-@if MCDM
-            local lightnode = "2339211c-c35a-4e0a-a5fa-79d2e446bd3b"
-@else
-            local lightnode = "-MGBXtOnKAXNhhLK89_9"
-@end
-            if data.lights ~= nil then -- always use any lights regardless of baked_lighting setting? --and (data.environment == nil or not data.environment.baked_lighting) then
-                for i,light in ipairs(data.lights) do
-                    local obj = info.floor:SpawnObjectLocal(lightnode)
-                    local component = obj:GetComponent("Light")
+                local isObject = objectWalls and pointsEqual(poly[1], poly[#poly])
+                local points = {}
+                for j, p in ipairs(poly) do
+                    if (not isObject) or j ~= #poly then
+                        appendWorldPoint(points, p)
+                    end
+                end
 
-                    if light.position ~= nil then
-                        --uvtt format.
-                        obj.x = area.x1 + light.position.x
-                        obj.y = area.y2 - light.position.y
-
-                        component:SetProperty("radius", tonumber(light.range))
-                        component:SetProperty("intensity", ((tonumber(light.intensity) or 1)*0.5)^0.5)
-                        component:SetProperty("castsShadows", light.shadows)
-                        component:SetProperty("color", core.Color("#" .. light.color))
+                if #points >= 4 then
+                    if isObject then
+                        objectPointsList[#objectPointsList+1] = points
                     else
-                        --foundry format.
-                        obj.x = area.x1 + light.x/data.grid
-                        obj.y = area.y2 - light.y/data.grid
-
-
-                        component:SetProperty("radius", light.dim)
-                        component:SetProperty("intensity", (light.tintAlpha or 0.1)*3)
-                        component:SetProperty("color", core.Color(light.tintColor or "#ffffff"))
-                        printf("ADDED LIGHT: %s", json(light))
+                        pointsList[#pointsList+1] = points
                     end
-
-                    obj:Upload()
                 end
             end
+        end
 
-            if data.environment ~= nil then
-                if data.environment.ambient_light ~= nil then
-                    local ambientColor = core.Color("#" .. data.environment.ambient_light)
-                    dmhub.SetSettingValue("undergroundillumination", ambientColor.value)
+        executeWalls(pointsList, wallid, false)
+        executeWalls(objectPointsList, wallid, true)
+    end
+
+    local function lineSetHasSegments(lineSet)
+        if type(lineSet) ~= "table" then
+            return false
+        end
+
+        for _, segment in ipairs(lineSet) do
+            if type(segment) == "table" and #segment >= 2 then
+                return true
+            end
+        end
+
+        return false
+    end
+
+    local function splitOpenClosedLineSet(lineSet)
+        local openLines = {}
+        local closedLines = {}
+        if type(lineSet) ~= "table" then
+            return openLines, closedLines
+        end
+
+        for _, segment in ipairs(lineSet) do
+            if type(segment) == "table" and #segment >= 2 then
+                if pointsEqual(segment[1], segment[#segment]) then
+                    closedLines[#closedLines+1] = segment
                 else
-                    dmhub.SetSettingValue("undergroundillumination", 1.0)
+                    openLines[#openLines+1] = segment
+                end
+            end
+        end
+
+        return openLines, closedLines
+    end
+
+    local function buildPolylines(walls)
+        local out = {}
+        if type(walls) ~= "table" then
+            return out
+        end
+
+        for _, wall in ipairs(walls) do
+            if type(wall) == "table" and type(wall.points) == "table" and #wall.points >= 2 then
+                local pts = {}
+                for _, p in ipairs(wall.points) do
+                    appendWorldPoint(pts, p)
+                end
+                if #pts >= 4 then
+                    out[#out+1] = pts
+                end
+            end
+        end
+
+        return out
+    end
+
+    local function reverseLine(line)
+        local result = {}
+        for i = #line, 1, -1 do
+            result[#result+1] = line[i]
+        end
+        return result
+    end
+
+    local function buildWallLineSet(walls)
+        local out = {}
+        if type(walls) ~= "table" then
+            return out
+        end
+
+        for _, wall in ipairs(walls) do
+            local sourcePoints = type(wall) == "table" and wall.points or nil
+            if type(sourcePoints) == "table" and #sourcePoints >= 2 then
+                local pts = {}
+                for _, p in ipairs(sourcePoints) do
+                    if type(p) == "table" and tonumber(p.x) ~= nil and tonumber(p.y) ~= nil then
+                        pts[#pts+1] = {x = tonumber(p.x), y = tonumber(p.y)}
+                    end
+                end
+                if #pts >= 2 then
+                    out[#out+1] = pts
+                end
+            end
+        end
+
+        return out
+    end
+
+    local function foundrySenseName(value)
+        value = tonumber(value)
+        if value == 0 then return "None" end
+        if value == 10 then return "Limited" end
+        if value == 20 then return "Normal" end
+        if value == 30 then return "Proximity" end
+        if value == 40 then return "Distance" end
+        return tostring(value)
+    end
+
+    local function foundryDoorName(value)
+        value = tonumber(value)
+        if value == 0 then return "Wall" end
+        if value == 1 then return "Door" end
+        if value == 2 then return "SecretDoor" end
+        return tostring(value)
+    end
+
+    local function foundryDirectionName(value)
+        value = tonumber(value)
+        if value == 0 then return "Both" end
+        if value == 1 then return "Left" end
+        if value == 2 then return "Right" end
+        return tostring(value)
+    end
+
+    local function foundryDoorStateName(value)
+        value = tonumber(value)
+        if value == 0 then return "Closed" end
+        if value == 1 then return "Open" end
+        if value == 2 then return "Locked" end
+        return tostring(value)
+    end
+
+    local function foundryWallFlags(wall)
+        local door = tonumber(wall.door) or 0
+        local sight = tonumber(wall.sight) or 20
+        local move = tonumber(wall.move) or 20
+        local light = tonumber(wall.light) or 20
+        local sound = tonumber(wall.sound) or 20
+        local dir = tonumber(wall.dir) or 0
+        local ds = tonumber(wall.ds) or 0
+        local threshold = type(wall.threshold) == "table" and wall.threshold or nil
+
+        local sense = {
+            door = door,
+            door_name = foundryDoorName(door),
+            sight = sight,
+            sight_name = foundrySenseName(sight),
+            move = move,
+            move_name = foundrySenseName(move),
+            light = light,
+            light_name = foundrySenseName(light),
+            sound = sound,
+            sound_name = foundrySenseName(sound),
+        }
+        if threshold ~= nil then
+            sense.threshold = threshold
+        end
+
+        return {
+            foundry_direction = dir,
+            foundry_direction_name = foundryDirectionName(dir),
+            foundry_door_state = ds,
+            foundry_door_state_name = foundryDoorStateName(ds),
+            foundry_sense = sense,
+        }
+    end
+
+    local function foundryWallEntry(p1, p2, wall)
+        local threshold = type(wall.threshold) == "table" and wall.threshold or nil
+        local entry = {
+            points = {p1, p2},
+            sense = {
+                door = foundryDoorName(tonumber(wall.door) or 0),
+                sight = foundrySenseName(tonumber(wall.sight) or 20),
+                move = foundrySenseName(tonumber(wall.move) or 20),
+                light = foundrySenseName(tonumber(wall.light) or 20),
+                sound = foundrySenseName(tonumber(wall.sound) or 20),
+            },
+            flags = foundryWallFlags(wall),
+        }
+        if threshold ~= nil then
+            entry.threshold = threshold
+        end
+        return entry
+    end
+
+    local function foundryPortal(p1, p2, wall, closed, secret)
+        local flags = foundryWallFlags(wall)
+        local portal = {
+            bounds = {p1, p2},
+            closed = closed,
+            flags = flags,
+            foundryDoorState = flags.foundry_door_state,
+            foundryDoorStateName = flags.foundry_door_state_name,
+            foundryDirection = flags.foundry_direction,
+            foundryDirectionName = flags.foundry_direction_name,
+        }
+        if secret == true then
+            portal.secret = true
+        end
+        return portal
+    end
+
+    local function processFoundryTerrainWalls(walls, wallid, flipOpen)
+        local segments = buildWallLineSet(walls)
+        local segmentsDeleted = {}
+        local changes = true
+        local ncount = 0
+
+        while changes and ncount < 50 do
+            changes = false
+            ncount = ncount + 1
+
+            for i, segment in ipairs(segments) do
+                if segmentsDeleted[i] == nil then
+                    for j, nextSegment in ipairs(segments) do
+                        if i ~= j and segmentsDeleted[j] == nil and pointsEqual(segment[#segment], nextSegment[1]) then
+                            for _, point in ipairs(nextSegment) do
+                                segment[#segment+1] = point
+                            end
+
+                            segmentsDeleted[j] = true
+                            changes = true
+                        end
+                    end
+                end
+            end
+        end
+
+        local pointsList = {}
+        local closedPointsList = {}
+        for i, seg in ipairs(segments) do
+            if segmentsDeleted[i] == nil then
+                local poly = seg
+                local closed = pointsEqual(poly[1], poly[#poly])
+                if closed and not isClockwise(poly) then
+                    poly = reverseLine(poly)
+                elseif (not closed) and flipOpen then
+                    poly = reverseLine(poly)
+                end
+
+                local points = {}
+                for j, p in ipairs(poly) do
+                    if (not closed) or j ~= #poly then
+                        appendWorldPoint(points, p)
+                    end
+                end
+
+                if #points >= 4 then
+                    if closed then
+                        closedPointsList[#closedPointsList+1] = points
+                    else
+                        pointsList[#pointsList+1] = points
+                    end
+                end
+            end
+        end
+
+        executeWalls(pointsList, wallid, false)
+        executeWalls(closedPointsList, wallid, true)
+    end
+
+    local function readPortalSegment(portal)
+        local bounds = type(portal) == "table" and portal.bounds or nil
+        if type(bounds) ~= "table" or #bounds ~= 2 then
+            return nil
+        end
+
+        local b1 = type(bounds[1]) == "table" and bounds[1] or nil
+        local b2 = type(bounds[2]) == "table" and bounds[2] or nil
+        local x1 = b1 and tonumber(b1.x) or nil
+        local y1 = b1 and tonumber(b1.y) or nil
+        local x2 = b2 and tonumber(b2.x) or nil
+        local y2 = b2 and tonumber(b2.y) or nil
+
+        if x1 == nil or y1 == nil or x2 == nil or y2 == nil then
+            return nil
+        end
+
+        local dx = x2 - x1
+        local dy = y2 - y1
+        return {
+            portal = portal,
+            x1 = x1,
+            y1 = y1,
+            x2 = x2,
+            y2 = y2,
+            closed = portal.closed == true,
+            secret = portal.secret == true,
+            length = math.sqrt(dx*dx + dy*dy),
+        }
+    end
+
+    local function endpointsEqual(ax, ay, bx, by)
+        return math.abs(ax - bx) <= 0.0001 and math.abs(ay - by) <= 0.0001
+    end
+
+    local function portalSegmentsTouch(a, b)
+        return endpointsEqual(a.x1, a.y1, b.x1, b.y1)
+            or endpointsEqual(a.x1, a.y1, b.x2, b.y2)
+            or endpointsEqual(a.x2, a.y2, b.x1, b.y1)
+            or endpointsEqual(a.x2, a.y2, b.x2, b.y2)
+    end
+
+    local function collapsedPortalFromGroup(group)
+        local minX = group[1].x1
+        local maxX = group[1].x1
+        local minY = group[1].y1
+        local maxY = group[1].y1
+        local best = group[1]
+        local closed = false
+        local secret = false
+
+        for _, segment in ipairs(group) do
+            minX = math.min(minX, segment.x1, segment.x2)
+            maxX = math.max(maxX, segment.x1, segment.x2)
+            minY = math.min(minY, segment.y1, segment.y2)
+            maxY = math.max(maxY, segment.y1, segment.y2)
+            closed = closed or segment.closed
+            secret = secret or segment.secret
+            if segment.length > best.length then
+                best = segment
+            end
+        end
+
+        local centerX = (minX + maxX) / 2
+        local centerY = (minY + maxY) / 2
+        local width = maxX - minX
+        local height = maxY - minY
+        local p1, p2
+
+        if width >= height then
+            if best.x1 <= best.x2 then
+                p1 = {x = minX, y = centerY}
+                p2 = {x = maxX, y = centerY}
+            else
+                p1 = {x = maxX, y = centerY}
+                p2 = {x = minX, y = centerY}
+            end
+        else
+            if best.y1 <= best.y2 then
+                p1 = {x = centerX, y = minY}
+                p2 = {x = centerX, y = maxY}
+            else
+                p1 = {x = centerX, y = maxY}
+                p2 = {x = centerX, y = minY}
+            end
+        end
+
+        return {
+            bounds = {p1, p2},
+            closed = closed,
+            secret = secret,
+        }
+    end
+
+    local function collapseConnectedPortals(portalList)
+        local segments = {}
+        if type(portalList) ~= "table" then
+            return segments
+        end
+
+        for _, portal in ipairs(portalList) do
+            local segment = readPortalSegment(portal)
+            if segment ~= nil then
+                segments[#segments+1] = segment
+            end
+        end
+
+        local result = {}
+        local used = {}
+        for i, segment in ipairs(segments) do
+            if used[i] == nil then
+                local group = {segment}
+                used[i] = true
+
+                local changed = true
+                while changed do
+                    changed = false
+                    for j, candidate in ipairs(segments) do
+                        if used[j] == nil and candidate.closed == segment.closed and candidate.secret == segment.secret then
+                            for _, member in ipairs(group) do
+                                if portalSegmentsTouch(member, candidate) then
+                                    group[#group+1] = candidate
+                                    used[j] = true
+                                    changed = true
+                                    break
+                                end
+                            end
+                        end
+                    end
+                end
+
+                if #group >= 3 then
+                    result[#result+1] = collapsedPortalFromGroup(group)
+                else
+                    for _, candidate in ipairs(group) do
+                        result[#result+1] = candidate.portal
+                    end
+                end
+            end
+        end
+
+        return result
+    end
+
+    local structuralLines = data.line_of_sight
+    local objectLines = data.objects_line_of_sight
+    local portals = type(data.portals) == "table" and data.portals or nil
+    local foundryTerrainWalls = type(data.foundry_terrain_walls) == "table" and data.foundry_terrain_walls or nil
+    local foundryInvisibleWalls = optionalList(mergedFoundryInvisibleWalls(data))
+    local foundryUnrecognizedWalls = type(data.foundry_unrecognized_walls) == "table" and data.foundry_unrecognized_walls or nil
+    local convertedFromFoundry = false
+    local objectOnlyLineOfSight = false
+
+    if type(structuralLines) ~= "table" and type(data.walls) == "table" then
+        convertedFromFoundry = true
+        structuralLines = {}
+        portals = {}
+        foundryTerrainWalls = {}
+        foundryInvisibleWalls = {}
+        foundryUnrecognizedWalls = {}
+
+        local foundryGrid = gridSize(data)
+        for _, wall in ipairs(data.walls) do
+            local points = type(wall) == "table" and wall.c or nil
+            if type(points) == "table" and #points == 4 then
+                local x1 = tonumber(points[1])
+                local y1 = tonumber(points[2])
+                local x2 = tonumber(points[3])
+                local y2 = tonumber(points[4])
+                if x1 ~= nil and y1 ~= nil and x2 ~= nil and y2 ~= nil then
+                    local p1 = {x = x1 / foundryGrid, y = y1 / foundryGrid}
+                    local p2 = {x = x2 / foundryGrid, y = y2 / foundryGrid}
+                    local door = tonumber(wall.door) or 0
+                    local move = tonumber(wall.move) or 20
+                    local sight = tonumber(wall.sight) or 20
+                    local light = tonumber(wall.light) or 20
+                    local dir = tonumber(wall.dir) or 0
+                    local threshold = type(wall.threshold) == "table" and wall.threshold or nil
+                    local windowLike = threshold ~= nil
+                        and threshold.light ~= nil and threshold.sight ~= nil
+                        and light ~= move and sight ~= move
+
+                    if (door == 0 or door == 2) and windowLike then
+                        portals[#portals+1] = foundryPortal(p1, p2, wall, false, false)
+                    elseif door == 1 then
+                        portals[#portals+1] = foundryPortal(p1, p2, wall, true, false)
+                    elseif door == 2 then
+                        portals[#portals+1] = foundryPortal(p1, p2, wall, true, true)
+                    elseif door ~= 0 or dir ~= 0 then
+                        foundryUnrecognizedWalls[#foundryUnrecognizedWalls+1] = foundryWallEntry(p1, p2, wall)
+                    elseif door == 0 and sight == 20 and move == 20 then
+                        structuralLines[#structuralLines+1] = {p1, p2}
+                    elseif door == 0 and sight == 10 and move == 20 then
+                        foundryTerrainWalls[#foundryTerrainWalls+1] = foundryWallEntry(p1, p2, wall)
+                    elseif door == 0 and sight == 0 and move == 20 then
+                        foundryInvisibleWalls[#foundryInvisibleWalls+1] = foundryWallEntry(p1, p2, wall)
+                    else
+                        foundryUnrecognizedWalls[#foundryUnrecognizedWalls+1] = foundryWallEntry(p1, p2, wall)
+                    end
                 end
             end
         end
     end
 
+    if (not convertedFromFoundry)
+            and (not lineSetHasSegments(structuralLines))
+            and lineSetHasSegments(objectLines) then
+        objectOnlyLineOfSight = true
+        structuralLines, objectLines = splitOpenClosedLineSet(objectLines)
+    end
 
+    if structuralWallMode == "wall" then
+        processLineSet(structuralLines, wallAsset, false)
+    end
+    if objectWallMode == "wall" then
+        processLineSet(objectLines, objectWallAsset, true)
+    end
+    if terrainWallMode == "wall" then
+        processFoundryTerrainWalls(foundryTerrainWalls, terrainWallAsset, flipFoundryTerrainWalls)
+    end
+    if invisibleWallMode == "wall" then
+        processFoundryTerrainWalls(foundryInvisibleWalls, invisibleWallAsset, flipFoundryTerrainWalls)
+    end
+    if unrecognizedWallMode == "wall" then
+        executeWalls(buildPolylines(foundryUnrecognizedWalls), unrecognizedWallAsset, false)
+    end
+
+    if portals ~= nil then
+        local portalsToSpawn = portals
+        if objectOnlyLineOfSight then
+            portalsToSpawn = collapseConnectedPortals(portals)
+        end
+        for _, portal in ipairs(portalsToSpawn) do
+            local bounds = type(portal) == "table" and portal.bounds or nil
+            if type(bounds) == "table" and #bounds == 2 then
+                local b1 = type(bounds[1]) == "table" and bounds[1] or nil
+                local b2 = type(bounds[2]) == "table" and bounds[2] or nil
+                local x1 = b1 and tonumber(b1.x) or nil
+                local y1 = b1 and tonumber(b1.y) or nil
+                local x2 = b2 and tonumber(b2.x) or nil
+                local y2 = b2 and tonumber(b2.y) or nil
+
+                if x1 ~= nil and y1 ~= nil and x2 ~= nil and y2 ~= nil then
+                    local points = {area.x1 + x1, area.y2 - y1, area.x1 + x2, area.y2 - y2}
+                    local portalKind = "window"
+                    if portal.closed then
+                        portalKind = cond(portal.secret == true, "secret", "door")
+                    end
+                    local portalMode = windowMode
+                    if portalKind == "door" then
+                        portalMode = doorMode
+                    elseif portalKind == "secret" then
+                        portalMode = secretDoorMode
+                    end
+
+                    if portalMode == "asset" and not convertedFromFoundry and not objectOnlyLineOfSight then
+                        executeWalls({points}, wallAsset, false)
+                    elseif portalKind == "window" and portalMode == "movement_wall" then
+                        executeWalls({points}, transparentWindowWallAsset, false)
+                    end
+
+                    local nodeId = windownode
+                    if portal.closed then
+                        nodeId = cond(portal.secret == true, secretDoorNode, doornode)
+                    end
+
+                    if portalMode == "asset" and nodeId ~= nil and nodeId ~= "" then
+                        local portalObj = info.primaryFloor:SpawnObjectLocal(nodeId)
+                        if portalObj ~= nil then
+                            local flags = type(portal.flags) == "table" and portal.flags or nil
+                            local foundryDoorState = portal.foundryDoorState or (flags and flags.foundry_door_state)
+                            -- TODO: Apply Foundry open/locked door state when DMHub exposes a door-state API.
+                            local delta = core.Vector2(x2 - x1, y1 - y2)
+                            portalObj.x = area.x1 + ((x1 + x2) / 2)
+                            portalObj.y = area.y2 - ((y1 + y2) / 2)
+                            portalObj.rotation = delta.angle + (tonumber(dmhub.GetSettingValue("mapimport:portal_rotation_offset")) or 90)
+                            portalObj.scale = portalObjectScale(nodeId, delta.length)
+                            portalObj:Upload()
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+@if MCDM
+    local lightnode = lightnodeChoice or "2339211c-c35a-4e0a-a5fa-79d2e446bd3b"
+@else
+    local lightnode = lightnodeChoice or "-MGBXtOnKAXNhhLK89_9"
+@end
+    if lightMode == "asset" and type(data.lights) == "table" and ObjectNodeHasComponent(lightnode, "Light") then
+        local foundryGrid = gridSize(data)
+        for _, light in ipairs(data.lights) do
+            if type(light) == "table" then
+                local x, y, radius, intensity, color, shadows
+                if type(light.position) == "table" then
+                    x = tonumber(light.position.x)
+                    y = tonumber(light.position.y)
+                    radius = tonumber(light.range) or 0
+                    intensity = ((tonumber(light.intensity) or 1) * 0.5) ^ 0.5
+                    color = safeColor(light.color, "ffffff")
+                    shadows = light.shadows
+                    if shadows == nil then
+                        shadows = true
+                    end
+                else
+                    x = tonumber(light.x) and (tonumber(light.x) / foundryGrid) or nil
+                    y = tonumber(light.y) and (tonumber(light.y) / foundryGrid) or nil
+                    radius = tonumber(light.dim) or tonumber(light.bright) or 0
+                    intensity = (tonumber(light.tintAlpha) or 0.1) * 3
+                    color = safeColor(light.tintColor, "#ffffff")
+                    shadows = true
+                end
+
+                if x ~= nil and y ~= nil then
+                    local lightObj = info.primaryFloor:SpawnObjectLocal(lightnode)
+                    local component = lightObj and lightObj:GetComponent("Light")
+                    if component ~= nil then
+                        lightObj.x = area.x1 + x
+                        lightObj.y = area.y2 - y
+                        component:SetProperty("radius", radius)
+                        component:SetProperty("intensity", intensity)
+                        component:SetProperty("castsShadows", shadows)
+                        component:SetProperty("color", color)
+                        lightObj:Upload()
+                    end
+                end
+            end
+        end
+    end
+
+    if type(data.environment) == "table" then
+        if data.environment.ambient_light ~= nil then
+            dmhub.SetSettingValue("undergroundillumination", safeColor(data.environment.ambient_light, "ffffff").value)
+        else
+            dmhub.SetSettingValue("undergroundillumination", 1.0)
+        end
+    end
 end
 
 mod.shared.FinishMapImport = function(mapName, info)
@@ -552,7 +1219,6 @@ mod.shared.FinishMapImport = function(mapName, info)
         floors = floors,
     }
     dmhub.Coroutine(function()
-        dmhub.Debug("INSTANCE OBJECT START")
         while game.GetMap(guid) == nil do
             coroutine.yield(0.05)
         end
@@ -563,15 +1229,11 @@ mod.shared.FinishMapImport = function(mapName, info)
         local w = math.floor(info.width + 0.5)
         local h = math.floor(info.height + 0.5)
 
-        printf("DIMENSIONS:: %s / %s", json(info.width), json(info.height))
-
         -- Final safety net: the import dialog clamps user input, but if any
         -- code path slips a huge value through, refuse to write it. See
         -- MAX_MAP_TILES_PER_AXIS in MapImport.lua for the full rationale.
         local MAX_DIM = 2000
         if w > MAX_DIM or h > MAX_DIM then
-            dmhub.Debug(string.format("CreateMap: clamping dimensions %dx%d -> %dx%d (import-path safety net)",
-                w, h, math.min(w, MAX_DIM), math.min(h, MAX_DIM)))
             w = math.min(w, MAX_DIM)
             h = math.min(h, MAX_DIM)
         end
@@ -594,7 +1256,6 @@ mod.shared.FinishMapImport = function(mapName, info)
         map:Upload()
 
         map:Travel()
-        dmhub.Debug("INSTANCE OBJECT NEXT")
 
         while game.currentMapId ~= guid do
             coroutine.yield(0.05)
@@ -609,7 +1270,6 @@ mod.shared.FinishMapImport = function(mapName, info)
         if settings ~= nil then
             for k,v in pairs(settings) do
                 dmhub.SetSettingValue(k, v)
-                printf("SETTING: Set %s -> %s", json(k), json(v))
             end
         end
 
@@ -635,6 +1295,7 @@ mod.shared.FinishMapImport = function(mapName, info)
                 floor = targetFloor,
                 primaryFloor = floor,
                 uvttData = uvttData,
+                assetChoices = info.assetChoices,
             }
         end
 

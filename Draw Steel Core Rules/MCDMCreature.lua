@@ -1502,6 +1502,44 @@ creature.RegisterSymbol {
 }
 
 creature.RegisterSymbol {
+    symbol = "livingsquadmembers",
+    lookup = function(c)
+        --resolve the squad this creature belongs to. Minions report their squad
+        --via MinionSquad(); a captain is not a minion but still tracks its squad
+        --via the minionSquad property (so MinionSquad() also resolves for them).
+        local squadid = c:MinionSquad()
+        if squadid == nil and c:has_key("_tmp_minionSquad") then
+            squadid = c._tmp_minionSquad.name
+        end
+
+        if squadid == nil then
+            return 0
+        end
+
+        --Count fresh rather than reading the cached _tmp_minionSquad.liveMinions.
+        --That cache is only recomputed by a living minion's RefreshSquadInfo (gated
+        --once per game-update), so when the LAST minion dies there is no surviving
+        --minion left to refresh it and the cache stays frozen at its prior value.
+        --Enumerating live squad tokens here is always accurate at evaluation time.
+        local count = 0
+        local tokens = dmhub.GetTokens { haveProperties = true }
+        for _, tok in ipairs(tokens) do
+            if tok.valid and tok.properties.minion and tok.properties:MinionSquad() == squadid and (not tok.properties:IsDead()) then
+                count = count + 1
+            end
+        end
+
+        return count
+    end,
+    help = {
+        name = "Living Squad Members",
+        type = "number",
+        desc = "If this creature is a minion (or the captain of a squad), the number of members in its squad that are currently alive. Returns 0 if this creature is not part of a squad.",
+        seealso = { "SquadLiveMembers", "HasCaptain", "Minion" },
+    }
+}
+
+creature.RegisterSymbol {
     symbol = "takenturnthisround",
     lookup = function(c)
         local q = dmhub.initiativeQueue
@@ -4136,6 +4174,41 @@ function creature.TakeDamage(self, amount, note, info)
             amount = math.min(self:SingleMinionMaxStamina(), amount)
         end
 
+        --Summoner "excess damage" rule: when an attack overkills the squad's shared Stamina pool
+        --(there is leftover damage after the last minion in the squad dies), the summoner takes a
+        --flat 2 + their level. currentHp is the pool remaining before this hit, so currentHp > 0 and
+        --amount > currentHp means this blow both empties the pool and has excess. Gated by the
+        --"Minion Summoner Overflow" custom attribute so only summoner squads use it.
+        if (self:CalculateNamedCustomAttribute("Minion Summoner Overflow") or 0) > 0 then
+            local currentHp = self:CurrentHitpoints()
+            if currentHp > 0 and amount > currentHp then
+                local selfToken = dmhub.LookupToken(self)
+                if selfToken ~= nil and selfToken.summonerid then
+                    local summonerToken = dmhub.GetTokenById(selfToken.summonerid)
+                    if summonerToken ~= nil and summonerToken.valid then
+                        local overflowDamage = 2 + summonerToken.properties:CharacterLevel()
+                        summonerToken:ModifyProperties {
+                            description = "Squad destroyed (excess damage)",
+                            combine = true,
+                            execute = function()
+                                summonerToken.properties:TakeDamage(overflowDamage, "Squad destroyed (excess damage)")
+                            end,
+                        }
+
+                        --Announce the excess damage in the action log, reusing the damage
+                        --behavior's chat message card (caster portrait + detail + "N damage").
+                        chat.SendCustom(ActivatedAbilityDamageChatMessage.new{
+                            amount = overflowDamage,
+                            damageType = "",
+                            chatMessage = "Squad destroyed (excess damage)",
+                            casterid = summonerToken.charid,
+                            targetids = {},
+                        })
+                    end
+                end
+            end
+        end
+
         self:SetCurrentHitpoints(self:CurrentHitpoints() - amount, note)
 
         self.minionDamageTime = ServerTimestamp()
@@ -4156,6 +4229,11 @@ function creature.TakeDamage(self, amount, note, info)
         if info.cast then
             eventArg.edges = info.cast.boonsApplied
             eventArg.banes = info.cast.banesApplied
+            for _, target in ipairs(info.cast.targets or {}) do
+                if target.token ~= nil and target.token.properties == self then
+                    eventArg.numberofattackers = target.numAttackers or 1
+                end
+            end
         end
         if (not info.doesNotTrigger) and amount > 0 then
             print("LOSEHITPOINTS:: DO LOSE", info.doesNotTrigger)
@@ -4192,6 +4270,7 @@ function creature.TakeDamage(self, amount, note, info)
                 --Acolyte patron damage marker. Top-level bare symbol PatronDamage
                 --in trigger formulas (matches how gainresource exposes Quantity).
                 patrondamage = eventArg.patrondamage,
+                numberofattackers = eventArg.numberofattackers,
             }
             attacker:DispatchEvent("dealdamage", args)
         end
@@ -4262,6 +4341,7 @@ function creature.TakeDamage(self, amount, note, info)
         --we don't ever regard us as attacking ourselves. This would make conditions doing damage to us trigger an attack on ourselves.
         eventArg.attacker = nil
     end
+    print("Info::", json(info))
     eventArg.damage = amount
     eventArg.rawdamage = info.rawdamage
     eventArg.damageimmunity = info.damageImmunity and info.damageImmunity.dr ~= nil
@@ -4273,6 +4353,11 @@ function creature.TakeDamage(self, amount, note, info)
     if info.cast then
         eventArg.edges = info.cast.boonsApplied
         eventArg.banes = info.cast.banesApplied
+        for _, target in ipairs(info.cast.targets or {}) do
+            if target.token ~= nil and target.token.properties == self then
+                eventArg.numberofattackers = target.numAttackers or 1
+            end
+        end
     end
 
     if (not info.doesNotTrigger) and original_amount > 0 then
@@ -4390,6 +4475,7 @@ function creature.TakeDamage(self, amount, note, info)
             --Acolyte patron damage marker. Top-level bare symbol PatronDamage
             --in trigger formulas (matches how gainresource exposes Quantity).
             patrondamage = eventArg.patrondamage,
+            numberofattackers = eventArg.numberofattackers,
         }
         attacker:DispatchEvent("dealdamage", args)
     end

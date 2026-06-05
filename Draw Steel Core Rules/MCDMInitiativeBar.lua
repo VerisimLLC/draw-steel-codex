@@ -3521,12 +3521,23 @@ function GameHud.CreateInitiativeEntry(self, info, initiativeid, options)
 	local m_bossTurnsPanel = nil
     local m_containerPanel = nil
 
+	--Players can normally only drag initiative cards when they have full control of
+	--the initiative bar (the DM, or the "players control initiative" setting). As a
+	--special case we also let a player drag a hero card they control onto the center
+	--"Drag Hero Here" slot to claim that hero's turn. The drop itself is gated by
+	--selectinitiative (choosing-turn + players' turn + entry unmoved + player entry),
+	--so dragging at the wrong time is a harmless no-op. Reassigning an entry between
+	--containers stays DM-only.
+	local canControlInit = CanControlInitiative()
+	local canPlayerClaimTurn = (not canControlInit) and token ~= nil and token.canControl
+	local canDragEntry = canControlInit or canPlayerClaimTurn
+
 	--this is the initiative entry panel.
 	return gui.Panel({
 
 		classes = {"initiativeEntryPanel"},
 
-		draggable = CanControlInitiative(),
+		draggable = canDragEntry,
 		drag = function(element, target)
 			if target == nil then
 				return
@@ -3541,6 +3552,11 @@ function GameHud.CreateInitiativeEntry(self, info, initiativeid, options)
 				return
 			end
 
+			--Reassigning an entry between containers is a DM-only reorganization.
+			if not canControlInit then
+				return
+			end
+
 			if not target:HasClass("initiativeEntryContainer") then
 				return
 			end
@@ -3552,7 +3568,18 @@ function GameHud.CreateInitiativeEntry(self, info, initiativeid, options)
 			end
 		end,
 		canDragOnto = function(element, target)
-			if target ~= nil and (target:HasClass("initiativeEntryContainer") or target:HasClass("initiativeCenterContainer")) then
+			if target == nil then
+				return false
+			end
+
+			--Anyone allowed to drag can drop on the center slot to claim a turn.
+			if target:HasClass("initiativeCenterContainer") then
+				return true
+			end
+
+			--Only DMs (or when players control initiative) may move an entry between
+			--containers by dropping on another entry container.
+			if canControlInit and target:HasClass("initiativeEntryContainer") then
 				return true
 			end
 

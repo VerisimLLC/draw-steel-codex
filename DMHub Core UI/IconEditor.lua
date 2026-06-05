@@ -125,6 +125,16 @@ function gui.IconEditor(args)
                         dmhub.OpenImageAssetURL(resultPanel.value)
                     end,
                 }
+
+                entries[#entries+1] = {
+                    text = "Copy Image ID",
+                    click = function()
+                        element.popup = nil
+                        if resultPanel.value ~= nil then
+                            dmhub.CopyToClipboard(resultPanel.value)
+                        end
+                    end,
+                }
             end
 
 			element.popup = gui.ContextMenu{

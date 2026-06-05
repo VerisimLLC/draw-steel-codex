@@ -1584,6 +1584,618 @@ Commands.RegisterMacro{
     end,
 }
 
+-- /buildchar: parse a freeform description of a hero and report how it was
+-- interpreted (class -> level -> subclass -> ancestry -> kit -> class/subclass
+-- choices). For now this only PRINTS its interpretation to chat; it does not yet
+-- build the character. The matcher does greedy longest-contiguous-run matching of
+-- the typed words against each candidate's name words, so fragments like
+-- "Black Ash" bind to "College of Black Ash" and multi-word names with filler
+-- words like "Cloak and Dagger" match as a unit.
+do
+    local STOP = { ["of"] = true, ["the"] = true, ["and"] = true, ["a"] = true, ["an"] = true }
+
+    -- Lowercase a string and split it into alphanumeric word tokens.
+    local function BuildChar_SplitWords(s)
+        local t = {}
+        for w in string.gmatch(string.lower(s), "[%w]+") do
+            t[#t + 1] = w
+        end
+        return t
+    end
+
+    -- Longest L such that words[i..i+L-1] (all currently unused) appears as a
+    -- contiguous run somewhere within candWords.
+    -- With prefix=false, each input word must equal the candidate word. With
+    -- prefix=true, an input word may instead be a prefix of the candidate word
+    -- (e.g. "chrono" matches "chronopathy"); prefix matches require a non-stopword
+    -- of at least 3 characters so short/common fragments don't match spuriously.
+    local function BuildChar_ContiguousMatchLen(words, used, i, candWords, prefix)
+        local best = 0
+        for s = 1, #candWords do
+            local L = 0
+            while true do
+                local iw, cw = words[i + L], candWords[s + L]
+                if iw == nil or cw == nil or used[i + L] then
+                    break
+                end
+                local matched = (iw == cw)
+                if (not matched) and prefix and (not STOP[iw]) and #iw >= 3
+                    and string.sub(cw, 1, #iw) == iw then
+                    matched = true
+                end
+                if not matched then
+                    break
+                end
+                L = L + 1
+            end
+            if L > best then
+                best = L
+            end
+        end
+        return best
+    end
+
+    -- Find the single best candidate match over the unused words. Prefers a
+    -- longer matched run, then higher coverage of the candidate's own name. A
+    -- matched run must include at least one non-stopword so "and"/"of" alone
+    -- never anchors a match. Returns { cand, i, len, coverage } or nil.
+    --
+    -- Exact matches always win: only when no candidate matches exactly does it
+    -- retry allowing start-of-word (prefix) matches, so e.g. "Talent Chrono"
+    -- resolves the Chronopathy subclass once exact matches are exhausted.
+    local function BuildChar_BestMatch(words, used, candidates)
+        local function scan(prefix)
+            local best = nil
+            for _, cand in ipairs(candidates) do
+                for i = 1, #words do
+                    if not used[i] then
+                        local L = BuildChar_ContiguousMatchLen(words, used, i, cand.words, prefix)
+                        if L > 0 then
+                            local hasSig = false
+                            for t = 0, L - 1 do
+                                if not STOP[words[i + t]] then
+                                    hasSig = true
+                                    break
+                                end
+                            end
+                            if hasSig then
+                                local coverage = L / #cand.words
+                                if best == nil or L > best.len or (L == best.len and coverage > best.coverage) then
+                                    best = { cand = cand, i = i, len = L, coverage = coverage }
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+            return best
+        end
+        return scan(false) or scan(true)
+    end
+
+    local function BuildChar_Consume(used, m)
+        for t = 0, m.len - 1 do
+            used[m.i + t] = true
+        end
+    end
+
+    -- Build a candidate list from a data table. filter(v, k) -> bool selects rows.
+    local function BuildChar_Candidates(tbl, filter)
+        local out = {}
+        for k, v in pairs(tbl) do
+            if (not rawget(v, "hidden")) and (filter == nil or filter(v, k)) then
+                out[#out + 1] = { id = k, name = v.name, obj = v, words = BuildChar_SplitWords(v.name) }
+            end
+        end
+        return out
+    end
+
+    -- Collect every CharacterFeatureChoice option offered by a class (or subclass)
+    -- up to the given level, as match candidates.
+    local function BuildChar_AddChoiceOptions(classObj, level, out)
+        if classObj == nil then
+            return
+        end
+        local fill = {}
+        classObj:FillLevelsUpTo(level, false, "nonprimary", fill)
+        for _, lv in ipairs(fill) do
+            for _, feat in ipairs(lv:try_get("features", {})) do
+                if feat.typeName == "CharacterFeatureChoice" then
+                    for _, opt in ipairs(feat:try_get("options", {})) do
+                        local optName = opt:try_get("name", "")
+                        out[#out + 1] = {
+                            id = opt:try_get("guid", "?"),
+                            name = optName,
+                            choiceName = feat:try_get("name", "?"),
+                            choiceGuid = feat:try_get("guid", "?"),
+                            words = BuildChar_SplitWords(optName),
+                        }
+                    end
+                end
+            end
+        end
+    end
+
+    -- Find the guid of the CharacterSubclassChoice in a class's levels up to the
+    -- given level (this is the levelChoices key under which the chosen subclass id
+    -- is recorded). Returns nil if the class has no subclass choice yet.
+    local function BuildChar_FindSubclassChoiceGuid(classObj, level)
+        if classObj == nil then
+            return nil
+        end
+        local fill = {}
+        classObj:FillLevelsUpTo(level, false, "nonprimary", fill)
+        for _, lv in ipairs(fill) do
+            for _, feat in ipairs(lv:try_get("features", {})) do
+                if feat.typeName == "CharacterSubclassChoice" then
+                    return feat:try_get("guid")
+                end
+            end
+        end
+        return nil
+    end
+
+    -- Shorten a subclass name to its distinctive part for use in a token name,
+    -- e.g. "College of Black Ash" -> "Black Ash", "Order of the Mortal Coil" ->
+    -- "Mortal Coil". Names without a "<word> of ..." prefix are returned as-is.
+    local function BuildChar_ShortSubclass(name)
+        return string.match(name, "^%a+ of [Tt]he (.+)$")
+            or string.match(name, "^%a+ of (.+)$")
+            or name
+    end
+
+    -- Normalize a single choice's selectable options to a list of { id, name },
+    -- regardless of which option-enumeration method the choice type implements.
+    local function BuildChar_OptionList(feature, hero, readLc)
+        local out = {}
+        if CharacterBuilder._hasFn(feature, "GetEntries") then
+            for _, e in ipairs(feature:GetEntries(hero) or {}) do
+                local g = e:try_get("guid")
+                if g and not e:try_get("hidden", false) then
+                    out[#out + 1] = { id = g, name = e:try_get("name", "?") }
+                end
+            end
+        elseif CharacterBuilder._hasFn(feature, "GetOptions") then
+            for _, o in ipairs(feature:GetOptions(readLc, hero) or {}) do
+                if o.guid and not o.hidden then
+                    out[#out + 1] = { id = o.guid, name = o.name or "?" }
+                end
+            end
+        elseif CharacterBuilder._hasFn(feature, "Choices") then
+            for _, c in ipairs(feature:Choices(1, readLc[feature.guid] or {}, hero) or {}) do
+                if c.id and not c.hidden then
+                    out[#out + 1] = { id = c.id, name = c.text or "?" }
+                end
+            end
+        end
+        return out
+    end
+
+    -- Randomly fill every still-unfilled choice on the hero (subclass, skills,
+    -- heroic abilities, perks, ancestry traits, and any subclass-revealed
+    -- choices). Iterates to a fixpoint so that choices unlocked by an earlier
+    -- random pick (e.g. a subclass's own abilities) also get filled. Must run
+    -- inside a ModifyProperties execute. Returns a list of "Choice -> Option"
+    -- description strings for reporting. Selections already present (the user's
+    -- explicitly matched choices) are left untouched.
+    local function BuildChar_RandomFillUnchosen(hero)
+        local picks = {}
+        local lcWrite = hero:get_or_add("levelChoices", {})
+        for _ = 1, 6 do
+            local filledAny = false
+            for _, entry in ipairs(hero:GetClassFeaturesAndChoicesWithDetails()) do
+                local f = entry.feature
+                local isChoice = CharacterBuilder._hasFn(f, "GetEntries")
+                    or CharacterBuilder._hasFn(f, "GetOptions")
+                    or CharacterBuilder._hasFn(f, "Choices")
+                if isChoice then
+                    local guid = f:try_get("guid")
+                    if guid then
+                        local selected = lcWrite[guid] or {}
+                        local need = f:NumChoices(hero) - #selected
+                        if need > 0 then
+                            local opts = BuildChar_OptionList(f, hero, hero:GetLevelChoices() or {})
+                            local taken = {}
+                            for _, s in ipairs(selected) do
+                                taken[s] = true
+                            end
+                            local pool = {}
+                            for _, o in ipairs(opts) do
+                                if not taken[o.id] then
+                                    pool[#pool + 1] = o
+                                end
+                            end
+                            local newsel = {}
+                            for _, s in ipairs(selected) do
+                                newsel[#newsel + 1] = s
+                            end
+                            while need > 0 and #pool > 0 do
+                                local o = table.remove(pool, math.random(1, #pool))
+                                newsel[#newsel + 1] = o.id
+                                picks[#picks + 1] = f:try_get("name", "?") .. " -> " .. o.name
+                                need = need - 1
+                                filledAny = true
+                            end
+                            lcWrite[guid] = newsel
+                        end
+                    end
+                end
+            end
+            if not filledAny then
+                break
+            end
+        end
+
+        -- Kit is NOT stored in levelChoices (it lives in the top-level kitid /
+        -- kitid2 fields), so the loop above never sees it. Fill it here via the
+        -- builder's synthetic CharacterKitChoice, which knows the kit types this
+        -- class/subclass allows. Runs after the loop so any randomly-chosen
+        -- subclass that changes the kit allowance is already in place, and honors
+        -- a kit the user already set (GetSelected reflects kitid/kitid2).
+        --
+        -- CanHaveKits / KitTypesAllowed are derived from GetActiveModifiers, which
+        -- is cached per game-update frame. Since the class was set earlier in this
+        -- same execute (and may have been cached empty before that), Invalidate()
+        -- forces those modifiers to recompute so the kit allowance is current.
+        hero:Invalidate()
+        if hero:CanHaveKits() then
+            local kitChoice = CharacterKitChoice.CreateNew(hero)
+            if kitChoice ~= nil then
+                local selected = kitChoice:GetSelected(hero)
+                local taken = {}
+                for _, s in ipairs(selected) do
+                    taken[s] = true
+                end
+                local pool = {}
+                for _, o in ipairs(kitChoice:GetOptions() or {}) do
+                    if o.guid and not taken[o.guid] then
+                        pool[#pool + 1] = o
+                    end
+                end
+                local need = kitChoice:NumChoices(hero) - #selected
+                while need > 0 and #pool > 0 do
+                    local o = table.remove(pool, math.random(1, #pool))
+                    kitChoice:SaveSelection(hero, { id = o.guid })
+                    picks[#picks + 1] = "Kit -> " .. (o.name or "?")
+                    need = need - 1
+                end
+            end
+        end
+
+        return picks
+    end
+
+    Commands.RegisterMacro{
+        name = "buildchar",
+        summary = "build the selected hero from a description",
+        doc = "Usage: /buildchar <class> [level N] [subclass] [ancestry] [kit] [ability choices...]\n" ..
+            "Builds the SELECTED character token from a freeform description, e.g.\n" ..
+            "/buildchar Shadow Black Ash Cloak and Dagger. With no token selected, spawns a\n" ..
+            "new hero in the middle of the view and builds onto it.\n" ..
+            "Matching priority: class -> level -> subclass -> ancestry -> kit -> class/subclass choices.\n" ..
+            "Sets class/level, subclass, ancestry, kit and the named ability choices, then posts a\n" ..
+            "summary to chat. Add the word 'random' to fill all remaining unfilled choices (subclass,\n" ..
+            "skills, heroic abilities, perks, ancestry traits, kit) with random valid picks.\n" ..
+            "Characteristics are defaulted only if the token has none yet. The token is renamed to a\n" ..
+            "brief description (e.g. \"Lv3 Devil Shadow (Black Ash)\") and given the class portrait.",
+        command = function(str)
+            str = trim(str or "")
+            if str == "" then
+                chat.Send("/buildchar: type a description, e.g. /buildchar Shadow Black Ash Cloak and Dagger")
+                return
+            end
+
+            -- Pull out an explicit level ("level N" / "lvl N"); default to 1.
+            local lower = string.lower(str)
+            local level = 1
+            local lvl = string.match(lower, "level%s+(%d+)") or string.match(lower, "lvl%s+(%d+)")
+            if lvl then
+                level = tonumber(lvl)
+            end
+            local cleaned = string.gsub(lower, "level%s+%d+", " ")
+            cleaned = string.gsub(cleaned, "lvl%s+%d+", " ")
+
+            local words = BuildChar_SplitWords(cleaned)
+            local used = {}
+
+            -- "random" keyword: fill all remaining unfilled choices randomly.
+            -- Consume the word so it is not reported as unmatched.
+            local wantRandom = false
+            for i, w in ipairs(words) do
+                if w == "random" then
+                    wantRandom = true
+                    used[i] = true
+                end
+            end
+
+            local classes = dmhub.GetTable("classes")
+            local subs = dmhub.GetTable("subclasses")
+            local races = dmhub.GetTable("races")
+            local kits = dmhub.GetTable("kits")
+
+            -- Class (base classes only).
+            local classMatch = BuildChar_BestMatch(words, used,
+                BuildChar_Candidates(classes, function(v) return not v.isSubclass end))
+            local classObj = nil
+            if classMatch then
+                BuildChar_Consume(used, classMatch)
+                classObj = classMatch.cand.obj
+            end
+
+            -- Subclass (scoped to the matched class).
+            local subMatch = nil
+            if classObj then
+                subMatch = BuildChar_BestMatch(words, used,
+                    BuildChar_Candidates(subs, function(v) return v.primaryClassId == classMatch.cand.id end))
+                if subMatch then
+                    BuildChar_Consume(used, subMatch)
+                end
+            end
+
+            -- Ancestry.
+            local raceMatch = BuildChar_BestMatch(words, used, BuildChar_Candidates(races))
+            if raceMatch then
+                BuildChar_Consume(used, raceMatch)
+            end
+
+            -- Kit.
+            local kitMatch = BuildChar_BestMatch(words, used, BuildChar_Candidates(kits))
+            if kitMatch then
+                BuildChar_Consume(used, kitMatch)
+            end
+
+            -- Class/subclass ability (and other feature) choices. Match as many
+            -- as the leftover words support.
+            local choiceCands = {}
+            BuildChar_AddChoiceOptions(classObj, level, choiceCands)
+            if subMatch then
+                BuildChar_AddChoiceOptions(subMatch.cand.obj, level, choiceCands)
+            end
+
+            local chosen = {}
+            while true do
+                local m = BuildChar_BestMatch(words, used, choiceCands)
+                if m == nil then
+                    break
+                end
+                BuildChar_Consume(used, m)
+                chosen[#chosen + 1] = m.cand
+            end
+
+            -- Need at least a class to build anything.
+            if classObj == nil then
+                chat.Send("/buildchar: could not recognize a class in \"" .. str ..
+                    "\". Start with a class name, e.g. /buildchar Shadow Black Ash.")
+                return
+            end
+
+            local subclassChoiceGuid = nil
+            if subMatch then
+                subclassChoiceGuid = BuildChar_FindSubclassChoiceGuid(classObj, level)
+            end
+
+            -- Apply the build to a token (the selected one, or a freshly spawned
+            -- hero). Outside the character sheet, so ModifyProperties.
+            local function doBuild(token)
+            local defaultedAttrs = false
+            local randomPicks = nil
+            token:ModifyProperties{
+                description = "Build " .. classObj.name .. " via /buildchar",
+                execute = function()
+                    local props = token.properties
+
+                    -- Characteristics: only default when every characteristic is
+                    -- still absent or zero (the freshly-created-token signature), so
+                    -- re-running /buildchar never clobbers a tuned build. Use the
+                    -- class's own array/locked-characteristic system (the same path
+                    -- the builder uses) so locked primaries -- e.g. a Censor's
+                    -- Presence locked at 2 -- are respected rather than overwritten.
+                    local attrs = props:get_or_add("attributes", {})
+                    local hasAttrs = false
+                    for _, id in ipairs(creature.attributeIds) do
+                        local a = attrs[id]
+                        if a ~= nil and (a.baseValue or 0) ~= 0 then
+                            hasAttrs = true
+                            break
+                        end
+                    end
+                    if not hasAttrs then
+                        local bc = classObj:try_get("baseCharacteristics")
+                        if bc and bc.arrays then
+                            -- Pick array 1 (one high score). Locked characteristics
+                            -- are filled from baseCharacteristics by
+                            -- CalculateBaseAttributes; the remaining ones are
+                            -- assigned the array slots in attribute order.
+                            local ab = { array = 1 }
+                            local slot = 1
+                            for _, attrid in ipairs(creature.attributeIds) do
+                                if bc[attrid] == nil then
+                                    ab[attrid] = slot
+                                    slot = slot + 1
+                                end
+                            end
+                            props.attributeBuild = ab
+                            classObj:CalculateBaseAttributes(props)
+                        else
+                            for id, v in pairs({ mgt = 2, agl = 2, rea = 1, inu = 1, prs = -1 }) do
+                                attrs[id] = { baseValue = v }
+                            end
+                        end
+                        defaultedAttrs = true
+                    end
+
+                    -- Class + level (replace any existing class).
+                    local classes = props:get_or_add("classes", {})
+                    for i = #classes, 1, -1 do
+                        classes[i] = nil
+                    end
+                    classes[1] = { classid = classMatch.cand.id, level = level }
+
+                    -- Ancestry and kit.
+                    if raceMatch then
+                        props.raceid = raceMatch.cand.id
+                    end
+                    if kitMatch then
+                        props.kitid = kitMatch.cand.id
+                    end
+
+                    -- Subclass + ability choices (levelChoices).
+                    local lc = props:get_or_add("levelChoices", {})
+                    if subMatch and subclassChoiceGuid then
+                        lc[subclassChoiceGuid] = { subMatch.cand.id }
+                    end
+                    for _, c in ipairs(chosen) do
+                        lc[c.choiceGuid] = { c.id }
+                    end
+
+                    -- "random": fill everything still unchosen. Runs last so it
+                    -- only touches choices the user did not explicitly name, and
+                    -- so the class/subclass are already set when it enumerates.
+                    if wantRandom then
+                        randomPicks = BuildChar_RandomFillUnchosen(props)
+                    end
+                end,
+            }
+
+            -- Name the token from the final build (reads back subclass/ancestry so
+            -- random picks are reflected) and apply the class portrait. Name and
+            -- portrait are appearance fields, set on the token then uploaded.
+            local props = token.properties
+            local nameParts = { "Lv" .. level }
+            if props:try_get("raceid") then
+                local r = races[props.raceid]
+                if r then
+                    nameParts[#nameParts + 1] = r.name
+                end
+            end
+            nameParts[#nameParts + 1] = classObj.name
+            local generatedName = table.concat(nameParts, " ")
+            local finalSubs = props:GetSubclasses() or {}
+            if finalSubs[1] then
+                generatedName = generatedName .. " (" .. BuildChar_ShortSubclass(finalSubs[1].name) .. ")"
+            end
+            token.name = generatedName
+
+            local classPortrait = classObj:try_get("portraitid", "")
+            if classPortrait ~= "" then
+                token.portrait = classPortrait
+            end
+            token:UploadAppearance()
+
+            -- Report what was built.
+            local lines = {}
+            lines[#lines + 1] = "**/buildchar** built " .. (token.name or "the selected token")
+            lines[#lines + 1] = "Class: " .. classObj.name .. " -- Level " .. level
+            if subMatch then
+                if subclassChoiceGuid then
+                    lines[#lines + 1] = "Subclass: " .. subMatch.cand.name
+                else
+                    lines[#lines + 1] = "Subclass: " .. subMatch.cand.name ..
+                        " (matched, but this class has no subclass choice at level " .. level .. " -- not set)"
+                end
+            end
+            if raceMatch then
+                lines[#lines + 1] = "Ancestry: " .. raceMatch.cand.name
+            end
+            if kitMatch then
+                lines[#lines + 1] = "Kit: " .. kitMatch.cand.name
+            end
+            for _, c in ipairs(chosen) do
+                lines[#lines + 1] = "Choice [" .. c.choiceName .. "]: " .. c.name
+            end
+            if defaultedAttrs then
+                local labels = { mgt = "M", agl = "A", rea = "R", inu = "I", prs = "P" }
+                local parts = {}
+                for _, id in ipairs(creature.attributeIds) do
+                    parts[#parts + 1] = labels[id] .. tostring(props:GetAttribute(id):Value())
+                end
+                lines[#lines + 1] = "Characteristics: defaulted (" .. table.concat(parts, " ") ..
+                    ") -- adjust on the sheet."
+            end
+            if randomPicks and #randomPicks > 0 then
+                lines[#lines + 1] = "Randomly chose " .. #randomPicks .. ":"
+                for _, p in ipairs(randomPicks) do
+                    lines[#lines + 1] = "  " .. p
+                end
+            elseif wantRandom then
+                lines[#lines + 1] = "Random: nothing left to fill."
+            end
+            local leftover = {}
+            for i, w in ipairs(words) do
+                if not used[i] then
+                    leftover[#leftover + 1] = w
+                end
+            end
+            if #leftover > 0 then
+                lines[#lines + 1] = "Unmatched: " .. table.concat(leftover, " ")
+            end
+
+            chat.Send(table.concat(lines, "\n"))
+            end -- doBuild
+
+            -- Build onto the selected/primary token if there is one; otherwise
+            -- spawn a fresh hero in the middle of the current view and build that.
+            local tokens = dmhub.selectedOrPrimaryTokens or {}
+            if tokens[1] ~= nil then
+                doBuild(tokens[1])
+                return
+            end
+
+            local heroType = nil
+            for _, ct in pairs(dmhub.GetTable(CharacterType.tableName)) do
+                if (not rawget(ct, "hidden")) and ct.name == "Hero" then
+                    heroType = ct
+                    break
+                end
+            end
+            if heroType == nil then
+                chat.Send("/buildchar: no token selected, and could not find the Hero " ..
+                    "character type to spawn one.")
+                return
+            end
+
+            -- World coordinates map 1:1 to Loc tile coordinates, so the camera
+            -- center rounds directly to the middle-of-screen tile.
+            local cam = dmhub.cameraPosition
+            local spawnLoc = core.Loc{
+                x = round(cam.x),
+                y = round(cam.y),
+                floorIndex = game.currentFloorIndex,
+            }
+
+            local charid = game.CreateCharacter("character", heroType)
+            dmhub.Coroutine(function()
+                if mod.unloaded then return end
+                local token
+                for _ = 1, 200 do
+                    coroutine.yield(0.05)
+                    token = dmhub.GetCharacterById(charid)
+                    if token ~= nil then break end
+                end
+                if token == nil then
+                    chat.Send("/buildchar: timed out creating a new token.")
+                    return
+                end
+                if not dmhub.isDM then
+                    token.ownerId = dmhub.userid
+                end
+                token:ModifyProperties{
+                    description = "Create Character",
+                    execute = function()
+                        token.properties.mtime = ServerTimestamp()
+                        token.properties.originalid = charid
+                        token.properties.creatorid = dmhub.userid
+                    end,
+                }
+                token:ChangeLocation(spawnLoc)
+                coroutine.yield(0.1)
+                dmhub.SelectToken(charid)
+                doBuild(token)
+            end)
+        end,
+    }
+end
+
 Commands.RegisterMacro{
     name = "closedocuments",
     summary = "close all documents",

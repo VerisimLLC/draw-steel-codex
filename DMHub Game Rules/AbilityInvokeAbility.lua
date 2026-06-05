@@ -527,6 +527,15 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
     local canceled = false
 
     while not finishedCasting do
+        --The invoker can be deleted/despawned across the yields in this loop (prompt
+        --waits, nested casts): the token reference survives but .valid is false and
+        --.properties is nil. Every line below reads invokerToken.properties (AI control
+        --flags, prompt callback, symbols), so a gone invoker means there is nothing left
+        --to invoke -- end the invoke the same way a direct cancel does (break below).
+        if invokerToken == nil or not invokerToken.valid or invokerToken.properties == nil then
+            break
+        end
+
         local castCount = 0
 
         local invokerCallback = {

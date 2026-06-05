@@ -2202,7 +2202,10 @@ end
 
 --Minion Individual Maneuver rule
 function ActivatedAbility:UsesIndividualManeuver(casterToken)
-    if casterToken == nil or not casterToken.properties.minion then
+    --casterToken.properties can be nil if the caster was destroyed/despawned mid-cast
+    --(token reference survives but .valid is false). A non-minion -- and likewise a
+    --gone caster -- never uses squad coordination / individual maneuver rules.
+    if casterToken == nil or casterToken.properties == nil or not casterToken.properties.minion then
         return false
     end
     if not casterToken.properties:has_key("_tmp_minionSquad") then
@@ -2230,7 +2233,10 @@ function ActivatedAbility:UsesSquadCoordination(casterToken)
         and (casterToken.properties:try_get("_tmp_disableSquadCoordinationDepth", 0) or 0) > 0 then
         return false
     end
-    if casterToken == nil or not casterToken.properties.minion then
+    --casterToken.properties can be nil if the caster was destroyed/despawned mid-cast
+    --(token reference survives but .valid is false). A non-minion -- and likewise a
+    --gone caster -- never uses squad coordination / individual maneuver rules.
+    if casterToken == nil or casterToken.properties == nil or not casterToken.properties.minion then
         return false
     end
     if not casterToken.properties:has_key("_tmp_minionSquad") then

@@ -82,6 +82,14 @@ function ActivatedAbilityDrawSteelCommandBehavior:Cast(ability, casterToken, tar
             end
         end
 
+        --The prompt loop above can yield for a while; the caster may be deleted/
+        --despawned in that window (token reference survives but .valid is false and
+        --.properties is nil). The rule is evaluated against the caster's properties,
+        --so a gone caster means there is nothing to evaluate or execute.
+        if casterToken == nil or not casterToken.valid or casterToken.properties == nil then
+            break
+        end
+
         for _,target in ipairs(targets) do
             if target.token ~= nil then
                 -- Expose Cast (with its memory), Target, Mode, etc. to GoblinScript

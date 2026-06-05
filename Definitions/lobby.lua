@@ -57,7 +57,6 @@ function lobby:CloneGameToLocal(gameid, options)
 end
 
 --- CreateGame: Creates a new game with the given options table. The options table may contain 'create' and 'error' callback functions. Rate-limited to one creation every 3 seconds.
---- Recognized option keys include: description, descriptionDetails, coverart, startingModule (starter-map module id; "" for none), backend ("local"|"durableobjects"|"durableobjects-staging"|"firebase"), and noSystemModule (boolean; when true the game is created with no auto-injected system/rules module).
 --- @param options table Options with optional 'create' and 'error' callback fields.
 function lobby:CreateGame(options)
 	-- dummy implementation for documentation purposes only

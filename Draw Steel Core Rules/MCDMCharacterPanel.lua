@@ -1855,6 +1855,9 @@ local g_companionAppSetting = setting{
 --- @return Panel
 function TacPanel.Portrait()
 
+    -- Portrait control buttons are 15% smaller than the standard vision button.
+    local visionBtnSize = math.floor(TacPanelSizes.VisionBtn.size * 0.85 + 0.5)
+
     local function outlineButton(params)
         local btn
         if type(params) ~= "table" then
@@ -1865,8 +1868,9 @@ function TacPanel.Portrait()
             classes = {"container", "tpOutline"},
             halign = "left",
             valign = "top",
-            lmargin = 4,
-            pad = 4,
+            lmargin = 3,
+            vmargin = 2,
+            pad = 3,
             bgimage = true,
             border = 1,
             cornerRadius = 4,
@@ -1890,8 +1894,8 @@ function TacPanel.Portrait()
             classes = {"toggle-btn"},
             hoverCursor = "pressbutton",
             bgimage = "ui-icons/codex-logo.png",
-            width = TacPanelSizes.VisionBtn.size,
-            height = TacPanelSizes.VisionBtn.size,
+            width = visionBtnSize,
+            height = visionBtnSize,
             data = { token = nil },
             refreshCharacter = function(element, token)
                 element.data.token = token
@@ -1942,52 +1946,23 @@ function TacPanel.Portrait()
         },
 
 
-        -- Control buttons at bottom of portrait
+        -- Control buttons at bottom of portrait. Bound the width to the portrait
+        -- frame and wrap so a 4th+ button drops to a second row within the avatar.
         gui.Panel{
             classes = {"container"},
             flow = "horizontal",
+            wrap = true,
+            width = "100%",
             floating = true,
             halign = "left",
             valign = "bottom",
             vmargin = 4,
-            outlineButton(
-                gui.EnhIconButton{
-                    classes = {"toggle-btn", "combatTint"},
-                    hoverCursor = "pressbutton",
-                    bgimage = "panels/initiative/initiative-icon.png",
-                    width = TacPanelSizes.VisionBtn.size,
-                    height = TacPanelSizes.VisionBtn.size,
-                    data = { token = nil },
-                    refreshCharacter = function(element, token)
-                        element.data.token = token
-                        local q = dmhub.initiativeQueue
-                        if q == nil or q.hidden then
-                            element.parent:SetClass("collapsed", true)
-                            return
-                        end
-                        element.parent:SetClass("collapsed",
-                            token.properties:try_get("_tmp_initiativeStatus") ~= "NonCombatant")
-                    end,
-                    refreshToken = function(element, token)
-                        element:FireEvent("refreshCharacter", token)
-                    end,
-                    setToken = function(element, token)
-                        element:FireEvent("refreshCharacter", token)
-                    end,
-                    press = function(element)
-                        Commands.rollinitiative()
-                    end,
-                    linger = function(element)
-                        gui.Tooltip("Add to combat")(element)
-                    end,
-                }
-            ),
             outlineButton(gui.Panel{
                 id = "char-panel-light-btn",
                 classes = {"toggle-btn", "light-btn"},
                 hoverCursor = "pressbutton",
-                width = TacPanelSizes.VisionBtn.size,
-                height = TacPanelSizes.VisionBtn.size,
+                width = visionBtnSize,
+                height = visionBtnSize,
                 bgimage = "drawsteel/light-off.png",
                 refreshCharacter = function(element, token)
                     local lightOn = token.properties.selectedLoadout == 1
@@ -2007,8 +1982,8 @@ function TacPanel.Portrait()
             outlineButton(gui.Panel{
                 classes = {"toggle-btn", "character-sheet-btn"},
                 hoverCursor = "pressbutton",
-                width = TacPanelSizes.VisionBtn.size,
-                height = TacPanelSizes.VisionBtn.size,
+                width = visionBtnSize,
+                height = visionBtnSize,
                 data = { token = nil },
                 refreshCharacter = function(element, token)
                     element.data.token = token
@@ -2036,8 +2011,8 @@ function TacPanel.Portrait()
                 classes = {"toggle-btn", "light-btn", "collapsed"},
                 hoverCursor = "pressbutton",
                 bgimage = "ui-icons/eye.png",
-                width = TacPanelSizes.VisionBtn.size,
-                height = TacPanelSizes.VisionBtn.size,
+                width = visionBtnSize,
+                height = visionBtnSize,
                 data = { token = nil, maxLookup = 0 },
                 monitor = "lookup",
                 events = {
@@ -2695,6 +2670,36 @@ function TacPanel.Summary()
                 TacPanel.HeroTokenBox(),
                 TacPanel.SurgesBox(),
             }
+        },
+
+        -- Full-width "Add to Combat" button below the avatar area. Visible only
+        -- when there is an active initiative queue and this token is not yet a
+        -- combatant (same semantics as the old initiative icon button).
+        gui.Button{
+            classes = {"sizeM", "collapsed"},
+            width = "100%-12",
+            height = 40,
+            vmargin = 4,
+            lmargin = 4,
+            halign = "left",
+            text = "Add to Combat",
+            data = { token = nil },
+            refreshCharacter = function(element, token)
+                element.data.token = token
+                local q = dmhub.initiativeQueue
+                if q == nil or q.hidden then
+                    element:SetClass("collapsed", true)
+                    return
+                end
+                element:SetClass("collapsed",
+                    token.properties:try_get("_tmp_initiativeStatus") ~= "NonCombatant")
+            end,
+            setToken = function(element, token)
+                element:FireEvent("refreshCharacter", token)
+            end,
+            press = function(element)
+                Commands.rollinitiative()
+            end,
         },
 
     }

@@ -1641,7 +1641,12 @@ function ActivatedAbility:CommitToPaying(casterToken, options)
 end
 
 function ActivatedAbility:FireUseAbility(casterToken, options)
-	if casterToken == nil then return end
+	--The caster can be deleted/despawned during a long-running cast coroutine (roll
+	--dialogs, forced movement, AI yields), in which case the token reference survives
+	--but .valid is false and .properties is nil. Everything below dispatches events to
+	--or mutates the caster's properties, so there's nothing valid to do -- bail out the
+	--same way FinishCast's own caster dispatch is guarded below (see ~line 2237).
+	if casterToken == nil or not casterToken.valid or casterToken.properties == nil then return end
 	if (not options.firedUseAbility) and self:CountsAsRegularAbilityCast() then
 		options.firedUseAbility = true
 
@@ -2857,7 +2862,7 @@ function ActivatedAbility.CastCoroutine(self, casterToken, targets, options)
 		return
 	end
 
-	if self.keywords["Strike"] then
+	if self.keywords["Strike"] and not options.abort then
 		local castInfo = options.symbols.cast
 		for _, target in ipairs(castInfo.targets or {}) do
 			if target.token ~= nil then
@@ -5279,7 +5284,7 @@ local g_helpCasting = {
 
 local g_helpSymbols = {
 	__name = "ability",
-	__sampleFields = {"level", "school"},
+	__sampleFields = {"level"},
 
 
 	name = {

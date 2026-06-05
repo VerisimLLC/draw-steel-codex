@@ -222,7 +222,12 @@ function ActivatedAbilityRemoveCreatureBehavior:Cast(ability, casterToken, targe
     local charids = {}
     for i,target in ipairs(targets) do
 
-        local targetPasses = target.token ~= nil
+        --A target can be destroyed/despawned before we get here (e.g. by an earlier
+        --target in this same loop, or another concurrent cast): the token reference
+        --survives but .valid is false and .properties is nil. Require live properties
+        --before dereferencing them below -- same guard this function already applies
+        --after the wait loop (see the .valid / .properties check further down).
+        local targetPasses = target.token ~= nil and target.token.valid and target.token.properties ~= nil
         if targetPasses and self.waitForAbilitiesToFinish and (not target.token.properties.minion) then
             local castInfo = ActivatedAbility.CurrentCastInfo() or {}
             castInfo.activity = "reaping"

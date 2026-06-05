@@ -4102,7 +4102,13 @@ CreateAbilityController = function()
             args = args or {}
 
             if g_actionBar == nil then return end
-            if g_token == nil then return end
+            --g_token can be non-nil but stale: the selected caster may have been
+            --deleted/despawned (or the selection cleared) before this fires, especially
+            --on the invoke path (FireEventTree "invokeAbility"). The reference survives
+            --but .valid is false and .properties is nil, and everything below reads
+            --g_token.properties (range, movement speed, compel attributes), so there is
+            --no caster to begin a cast for.
+            if g_token == nil or not g_token.valid or g_token.properties == nil then return end
             g_actionBar:FireEventTree("closemenu")
 
             ability = ability:SwitchModes(1)

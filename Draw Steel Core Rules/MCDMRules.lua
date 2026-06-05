@@ -1163,7 +1163,11 @@ TriggeredAbility.RegisterTrigger{
 }
 
 GameSystem.OnEndCastActivatedAbility = function(casterToken, ability, options)
-    if casterToken == nil then return end
+    --The caster may have been deleted/despawned during the cast coroutine: the token
+    --reference survives but .valid is false and .properties is nil. FireUseAbility and
+    --the castsignature dispatch below both operate on the caster's properties, so there
+    --is nothing to do in that case. (Matches the .properties guard in FinishCast.)
+    if casterToken == nil or not casterToken.valid or casterToken.properties == nil then return end
     if not ability:CountsAsRegularAbilityCast() then
         return
     end

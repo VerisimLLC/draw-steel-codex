@@ -2668,4 +2668,4 @@ setting{
     },
 }
 
-dmhub.SetSettingValue("cloudblob:scheme", "gcs") --switch to r2 when ready.
+dmhub.SetSettingValue("cloudblob:scheme", "r2")

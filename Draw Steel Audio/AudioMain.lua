@@ -582,7 +582,7 @@ audio.SoundEvent{
     audio.FireSoundEvent("Ability.Shapeshift_Generic_Start")
     end,
     sounds = {"abl/shapeshift/Abl_Shapeshift_Start_Bear_v1_01.wav","abl/shapeshift/Abl_Shapeshift_Start_Bear_v1_02.wav","abl/shapeshift/Abl_Shapeshift_Start_Bear_v1_03.wav"},
-    volume = 0.2,
+    volume = 1.0,
     delay = 0.75,
     pitchRand = 0.05,
     ignoreDuplicates = 0.1,

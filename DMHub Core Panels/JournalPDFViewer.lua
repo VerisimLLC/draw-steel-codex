@@ -457,7 +457,6 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                 element.y = y1 * imageHeight
                 element.selfStyle.width = (x2 - x1) * imageWidth
                 element.selfStyle.height = (y2 - y1) * imageHeight
-                printf("UPDATE:: %f, %f", element.selfStyle.width, element.selfStyle.height)
             end,
             finish = function(element, parentElement)
                 local mousePoint = parentElement.mousePoint
@@ -473,6 +472,8 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                 y1 = clamp(y1, 0, 1)
                 y2 = clamp(y2, 0, 1)
 
+                print("SELECT::", x1, y1, x2, y2)
+
                 if math.abs(x1 - x2) < 0.02 or math.abs(y1 - y2) < 0.02 then
                     element:FireEvent("hide")
                     return
@@ -480,9 +481,6 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
 
                 element:FireEvent("menu", { x1 = x1, y1 = y1, x2 = x2, y2 = y2 })
 
-                if x1 ~= -328.24 then
-                    return
-                end
             end,
             menu = function(element, args)
                 element.children = {
@@ -1379,6 +1377,204 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                     borderWidth = 1,
                     borderColor = "blue",
                 }
+            },
+
+            --augmentation overlays: image panels that sit on top of the page
+            --and replace parts of it. Data-driven from PDFAugmentations (see
+            --JournalPDFAugmentation.lua). interactable=false so the page text
+            --underneath stays selectable.
+            gui.Panel {
+                id = "pdfAugmentations",
+                floating = true,
+                interactable = false,
+                halign = "left",
+                valign = "top",
+                width = "100%",
+                height = "100%",
+                data = {
+                    panels = {},
+                    dirty = true,
+                    lastW = 0,
+                    lastH = 0,
+                    lastPage = nil,
+                    activeAugs = {},     --augmentations matched on the current page
+                    detectors = {},      --aug id -> gesture detector
+                    gestureName = {},    --aug id -> currently-reported gesture, or nil
+                    graceUntil = {},     --aug id -> off-area grace deadline (dmhub.Time)
+                },
+
+                --fired by RefreshPage on page/zoom change; mark for relayout.
+                page = function(element)
+                    element.data.dirty = true
+                end,
+
+                --small thinkTime so gesture sampling is roughly per-frame; the
+                --relayout below is gated and cheap when nothing changed.
+                thinkTime = 0.01,
+                think = function(element)
+                    local parent = element.parent
+                    if parent == nil then
+                        return
+                    end
+
+                    local w = parent.renderedWidth
+                    local h = parent.renderedHeight
+                    if w <= 0 or h <= 0 then
+                        return
+                    end
+
+                    --(1) Relayout overlays only when the page changed or the
+                    --panel resized (covers zoom and window resize).
+                    if element.data.dirty or w ~= element.data.lastW or h ~= element.data.lastH or m_npage ~= element.data.lastPage then
+                        element.data.dirty = false
+                        element.data.lastW = w
+                        element.data.lastH = h
+                        element.data.lastPage = m_npage
+
+                        --the page number as displayed in the page input box: the
+                        --page label if the PDF has one, else the 1-based index.
+                        local pageShown = document.summary.pageLabels[m_npage + 1] or (m_npage + 1)
+
+                        --O(1) lookup of just this page's augmentations -- no walk
+                        --of the whole registry. GetForPage returns a shared list,
+                        --so shallow-copy it before sorting for render order.
+                        local PDFAug = rawget(_G, "PDFAugmentations")
+                        local pageAugs = (PDFAug ~= nil and PDFAug.GetForPage ~= nil) and PDFAug.GetForPage(doc.description, pageShown) or {}
+                        local matches = {}
+                        for i = 1, #pageAugs do
+                            matches[i] = pageAugs[i]
+                        end
+
+                        --sort ascending by zorder: GUI panels have no z-index
+                        --property, render order is sibling array order (later
+                        --children draw on top), so the highest zorder must land
+                        --last in element.children below.
+                        table.sort(matches, function(a, b)
+                            return (a.zorder or 0) < (b.zorder or 0)
+                        end)
+
+                        local children = {}
+                        for i, aug in ipairs(matches) do
+                            local area = aug.area
+
+                            local p = element.data.panels[i] or gui.Panel {
+                                floating = true,
+                                interactable = false,
+                                halign = "left",
+                                valign = "top",
+                                bgimage = "panels/square.png",
+                            }
+
+                            --area is {x1, y1, x2, y2} normalized, in the same
+                            --convention as the SELECT:: print in the drag handler:
+                            --y is bottom-origin (0 at the bottom of the page, 1 at
+                            --the top), so the panel's top edge maps from y2.
+                            p.selfStyle.x = w * area[1]
+                            p.selfStyle.y = h * (1 - area[4])
+                            p.selfStyle.width = w * (area[3] - area[1])
+                            p.selfStyle.height = h * (area[4] - area[2])
+
+                            p.bgimage = aug.image or "panels/square.png"
+                            p.selfStyle.bgcolor = aug.bgcolor or "white"
+
+                            --pass the blend mode straight through (e.g.
+                            --"premultiplied"); nil resets to the default so a
+                            --pooled panel reused by a non-blended augmentation
+                            --doesn't keep a stale blend.
+                            p.selfStyle.blend = aug.blend
+
+                            p:SetClass("hidden", false)
+                            element.data.panels[i] = p
+                            children[i] = p
+                        end
+
+                        for i = #matches + 1, #element.data.panels do
+                            element.data.panels[i]:SetClass("hidden", true)
+                            children[#children + 1] = element.data.panels[i]
+                        end
+
+                        element.children = children
+                        element.data.activeAugs = matches
+                    end
+
+                    --(2) Gesture detection every tick, for augmentations that
+                    --declare a gesture handler. The cursor position and guards
+                    --come from the parent (pdfViewPanel) because this overlay is
+                    --interactable=false; the augmentation 'area' is normalized
+                    --over the page, the same space as parent.mousePoint.
+                    local PDFAug = rawget(_G, "PDFAugmentations")
+                    if PDFAug == nil or PDFAug.NewGestureDetector == nil then
+                        return
+                    end
+
+                    local now = dmhub.Time()
+                    local mp = parent.mousePoint
+                    local hover = parent:HasClass("hover")
+                    local buttonHeld = parent:GetMouseButton(0) or parent:GetMouseButton(1) or parent:GetMouseButton(2)
+
+                    local relevant = {}
+                    for _, aug in ipairs(element.data.activeAugs) do
+                        if type(aug.gesture) == "function" then
+                            local id = aug.id
+                            relevant[id] = true
+
+                            local area = aug.area
+                            local inside = false
+                            if hover and mp ~= nil then
+                                inside = mp.x >= area[1] and mp.x <= area[3] and mp.y >= area[2] and mp.y <= area[4]
+                            end
+
+                            --a brief grace after the cursor strays off the area
+                            --keeps a stroke that overshoots the box alive; the
+                            --button guard still applies every tick.
+                            if inside then
+                                element.data.graceUntil[id] = now + 0.35
+                            end
+                            local active = (now < (element.data.graceUntil[id] or 0)) and (not buttonHeld)
+
+                            local detector = element.data.detectors[id]
+                            if detector == nil then
+                                detector = PDFAug.NewGestureDetector()
+                                element.data.detectors[id] = detector
+                            end
+
+                            --feed pixel-space position so the detector's pixel
+                            --thresholds (minStrokeDistance etc.) stay meaningful.
+                            local mx, my = 0, 0
+                            if mp ~= nil then
+                                mx = mp.x * w
+                                my = mp.y * h
+                            end
+
+                            local petting = detector:Tick(mx, my, now, active)
+                            local name = petting and "pet" or nil
+                            if name ~= nil then
+                                --continuous stream of calls while the gesture is
+                                --active (acts as a keepalive for the handler).
+                                aug.gesture(name)
+                            elseif element.data.gestureName[id] ~= nil then
+                                --falling edge: signal the end once.
+                                aug.gesture(nil)
+                            end
+                            element.data.gestureName[id] = name
+                        end
+                    end
+
+                    --send a stop (nil) for any augmentation that was mid-gesture
+                    --but is no longer on this page (e.g. the user changed pages).
+                    for id, name in pairs(element.data.gestureName) do
+                        if name ~= nil and not relevant[id] then
+                            element.data.gestureName[id] = nil
+                            if element.data.detectors[id] ~= nil then
+                                element.data.detectors[id]:Reset()
+                            end
+                            local aug = PDFAug.Get(id)
+                            if aug ~= nil and type(aug.gesture) == "function" then
+                                aug.gesture(nil)
+                            end
+                        end
+                    end
+                end,
             },
 
             m_dragPanel,

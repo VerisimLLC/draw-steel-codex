@@ -98,6 +98,76 @@ function DiceStudioLua:GetEventEffectOptions(eventName)
 	-- dummy implementation for documentation purposes only
 end
 
+--- GetEventEffectScale: Gets the uniform scale multiplier of the effect bound to the given event (1 = authored size). Returns 1 if nothing is bound.
+--- @param eventName string
+--- @return number
+function DiceStudioLua:GetEventEffectScale(eventName)
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetEventEffectScale: Sets the uniform scale multiplier for the effect bound to the given event. No-op if nothing is bound.
+--- @param eventName string
+--- @param value number
+function DiceStudioLua:SetEventEffectScale(eventName, value)
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetEventEffectSpeed: Gets the playback-speed multiplier of the effect bound to the given event (1 = authored speed). Returns 1 if nothing is bound.
+--- @param eventName string
+--- @return number
+function DiceStudioLua:GetEventEffectSpeed(eventName)
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetEventEffectSpeed: Sets the playback-speed multiplier (ParticleSystem simulationSpeed) for the effect bound to the given event. No-op if nothing is bound.
+--- @param eventName string
+--- @param value number
+function DiceStudioLua:SetEventEffectSpeed(eventName, value)
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetEventEffectHueShift: Gets the hue-shift amount (0..1, HSV rotation) of the effect bound to the given event. Returns 0 if nothing is bound.
+--- @param eventName string
+--- @return number
+function DiceStudioLua:GetEventEffectHueShift(eventName)
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetEventEffectHueShift: Sets the hue-shift amount (0..1, HSV rotation) for the effect bound to the given event. No-op if nothing is bound.
+--- @param eventName string
+--- @param value number
+function DiceStudioLua:SetEventEffectHueShift(eventName, value)
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetEventEffectBrightness: Gets the brightness multiplier of the effect bound to the given event (1 = authored brightness). Returns 1 if nothing is bound.
+--- @param eventName string
+--- @return number
+function DiceStudioLua:GetEventEffectBrightness(eventName)
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetEventEffectBrightness: Sets the brightness multiplier for the effect bound to the given event. No-op if nothing is bound.
+--- @param eventName string
+--- @param value number
+function DiceStudioLua:SetEventEffectBrightness(eventName, value)
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetEventEffectTint: Gets the multiply tint colour of the effect bound to the given event. Returns white if nothing is bound.
+--- @param eventName string
+--- @return Color
+function DiceStudioLua:GetEventEffectTint(eventName)
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetEventEffectTint: Sets the multiply tint colour for the effect bound to the given event. No-op if nothing is bound.
+--- @param eventName string
+--- @param color Color
+function DiceStudioLua:SetEventEffectTint(eventName, color)
+	-- dummy implementation for documentation purposes only
+end
+
 --- FirePreviewEffect: Test-fires a dice lifecycle event on all currently spawned studio preview dice. For pulses, instantiates the bound one-shot prefab. For state effects (RollWaiting, TravelTail), re-spawns the attached instance so the restart is visible.
 --- @param eventName string  One of: appearance, bouncehit, disappear, reappear, exit, rollwaiting, traveltail.
 function DiceStudioLua:FirePreviewEffect(eventName)

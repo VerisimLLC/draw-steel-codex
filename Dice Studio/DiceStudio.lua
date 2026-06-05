@@ -841,6 +841,8 @@ CreateDiceStudioPanel = function()
 	-- preview ("#particlepreview:<name>") plus the effect name, paginated and searchable -- same
 	-- reusable-tile + refreshSearch + paging pattern as IconEditor. onPick(name) receives the
 	-- chosen name ("" clears the binding); the popup closes itself on pick or close.
+	local g_particleBrowserPage = {}
+
 	local MakeParticleBrowser
 	MakeParticleBrowser = function(owner, eventName, titleText, onPick)
 		local COLS, ROWS = 4, 3
@@ -858,7 +860,7 @@ CreateDiceStudioPanel = function()
 		table.sort(allNames)
 
 		local filtered = {}
-		local npage = 1
+		local npage = g_particleBrowserPage[eventName] or 1
 		local searchText = ""
 
 		local function Filter()
@@ -1000,6 +1002,7 @@ CreateDiceStudioPanel = function()
 				searchText = element.text or ""
 				Filter()
 				npage = 1
+				g_particleBrowserPage[eventName] = 1
 				element.root:FireEventTree("refreshSearch")
 			end,
 		}
@@ -1019,6 +1022,7 @@ CreateDiceStudioPanel = function()
 				click = function(element)
 					if npage > 1 then
 						npage = npage - 1
+						g_particleBrowserPage[eventName] = npage
 						element.root:FireEventTree("refreshSearch")
 					end
 				end,
@@ -1056,6 +1060,7 @@ CreateDiceStudioPanel = function()
                         local maxPage = NumPages()
                         if n > maxPage then n = maxPage end
                         npage = n
+                        g_particleBrowserPage[eventName] = npage
                         element.root:FireEventTree("refreshSearch")
                     end,
                 },
@@ -1080,6 +1085,7 @@ CreateDiceStudioPanel = function()
 				click = function(element)
 					if npage < NumPages() then
 						npage = npage + 1
+						g_particleBrowserPage[eventName] = npage
 						element.root:FireEventTree("refreshSearch")
 					end
 				end,

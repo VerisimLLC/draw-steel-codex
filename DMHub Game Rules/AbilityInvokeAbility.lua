@@ -198,6 +198,7 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
             if target.token ~= nil then
                 print("INVOKE:: CASTING ON TARGET", i, "/", #targets)
 
+                --In a squad coordinated strike, the invoked effect (e.g. a forced-
 
                 --be careful not to put anything in here we don't want to transmit to the database.
                 local symbols = { spellname = options.symbols.spellname or ability.name, charges = options.symbols.charges, cast = options.symbols.cast, forcedMovementOrigin = options.symbols.forcedMovementOrigin }
@@ -230,6 +231,7 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                         standardAbilityParams = self:try_get("standardAbilityParams"),
                         targeting = self.targeting,
                         invokerid = casterToken.id,
+                        invokerid = invokeSource.id,
                         casterid = cond(self.invokeOnCaster, casterToken.id, target.token.id),
                         targetid = target.token.id,
                         subjectid = subjectid,
@@ -418,6 +420,7 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                         print("Invoke:: Execute...")
                         local invokerToken = cond(self.invokeOnCaster, casterToken, target.token)
                         self.ExecuteInvoke(casterToken, abilityClone, invokerToken, self.targeting, symbols, options)
+                        --treat-targets-as-squad: the squad members are the parent
                     end
                 end
 

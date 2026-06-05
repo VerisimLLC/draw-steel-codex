@@ -1618,17 +1618,18 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
 
                 options.powerRollPass = "target"
 
-                --if we have targetPairs that indicate a minion squad attack with a different caster,
-                --we substitute the casterToken.
-                if options.symbols.targetPairs ~= nil then
-                    for i, pair in ipairs(options.symbols.targetPairs) do
-                        if pair.b == targetToken.charid then
-                            local attackerTok = dmhub.GetTokenById(pair.a)
-                            if attackerTok ~= nil then
-                                casterTokenForCommand = attackerTok
-                                options.powerRollPass = nil
-                            end
-                        end
+                --Squad coordinated strike: the non-damage effects (forced movement,
+                --conditions, etc.) are sourced from the MAIN minion for THIS
+                --creature -- the first minion to target it. When a squad splits its
+                --attacks across several creatures, each creature gets its own main
+                --minion. Damage from the other attackers still stacks separately via
+                --the Extra Attacker modifier. (Same lookup the invoke path uses for
+                --nested-invoke effects -- see ActivatedAbilityCast:MainAttackerForTarget.)
+                if options.symbols.cast ~= nil then
+                    local mainAttacker = options.symbols.cast:MainAttackerForTarget(options.symbols, targetToken, casterToken)
+                    if mainAttacker ~= nil and mainAttacker.charid ~= casterToken.charid then
+                        casterTokenForCommand = mainAttacker
+                        options.powerRollPass = nil
                     end
                 end
 

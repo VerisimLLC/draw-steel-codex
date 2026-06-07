@@ -682,7 +682,44 @@ function CreateSettingsScreen(dialog, args)
 
 					SettingGroup{
 						group = "Account",
-						build = function() return {
+						build = function()
+
+							local patreonStatusLabel = gui.Label{
+								fontSize = 14,
+								width = "100%",
+								maxWidth = 600,
+								height = "auto",
+								text = "",
+							}
+
+							local patreonConnectButton = gui.Button{
+								width = 240,
+								height = 40,
+								fontSize = 20,
+								halign = "left",
+								vmargin = 4,
+								text = "Connect Patreon",
+								click = function(element)
+									dmhub.OpenURL("https://codex.mcdm.com/more/account")
+								end,
+							}
+
+							local patreonLinkLabel = gui.Label{
+								markdown = true,
+								links = true,
+								fontSize = 14,
+								maxWidth = 600,
+								width = "auto",
+								height = "auto",
+								text = "",
+								press = function(element)
+									if element.linkHovered ~= nil then
+										dmhub.OpenURL(element.linkHovered)
+									end
+								end,
+							}
+
+							return {
 
 						gui.Panel{
 							flow = "vertical",
@@ -775,7 +812,43 @@ function CreateSettingsScreen(dialog, args)
 									end,
 
 								},
-							}
+							},
+
+							gui.Panel{
+								vmargin = 16,
+								flow = "vertical",
+								width = "100%",
+								height = "auto",
+
+								create = function(element)
+									element:FireEvent("think")
+								end,
+								thinkTime = 0.1,
+								think = function(element)
+									local tierName = PatronTierLabel(dmhub.patronTier)
+									if tierName ~= nil then
+										patreonStatusLabel.text = string.format("Patron tier: %s", tierName)
+										patreonConnectButton:SetClass("collapsed", true)
+										patreonLinkLabel.text = "Manage your membership on <color=#00FFFF><link=https://www.patreon.com/c/dmhub>Patreon</link></color>"
+									else
+										patreonStatusLabel.text = "Link your Patreon account to unlock patron benefits."
+										patreonConnectButton:SetClass("collapsed", false)
+										patreonLinkLabel.text = "Support us on <color=#00FFFF><link=https://www.patreon.com/c/dmhub>Patreon</link></color>"
+									end
+								end,
+
+								gui.Label{
+									bold = true,
+									fontSize = 16,
+									width = "auto",
+									height = "auto",
+									text = "DMHub Patreon",
+								},
+
+								patreonStatusLabel,
+								patreonConnectButton,
+								patreonLinkLabel,
+							},
 						},
 						} end,
 					},

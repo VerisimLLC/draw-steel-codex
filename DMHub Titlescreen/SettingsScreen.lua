@@ -30,6 +30,16 @@ local function PatronTierLabel(tier)
     return g_patronTierLabels[tier] or string.format("Tier %d", tier)
 end
 
+-- Gates the codex Patreon UI behind the same testing flag as the shop. Settings
+-- are keyed by id, so re-declaring "dev:storepreview" here gives read access to
+-- the same persisted preference the title bar uses to expose the Shop/Inventory
+-- menu entries (CodexTitleBar.lua). When off, the Patreon section is hidden.
+local g_devStorePreviewSetting = setting{
+    id = "dev:storepreview",
+    default = false,
+    storage = "preference",
+}
+
 local CreateBetaBranchEditor = function()
 	local branch = dmhub.betaBranch
 	if branch == nil then
@@ -816,6 +826,7 @@ function CreateSettingsScreen(dialog, args)
 
 							gui.Panel{
 								vmargin = 16,
+								classes = { cond(not g_devStorePreviewSetting:Get(), "collapsed") },
 								flow = "vertical",
 								width = "100%",
 								height = "auto",

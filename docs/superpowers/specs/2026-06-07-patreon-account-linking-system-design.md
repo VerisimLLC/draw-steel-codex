@@ -117,6 +117,27 @@ In `DMHub Titlescreen/SettingsScreen.lua`, in the patron-state branch (`patronTi
 - On success: the existing `/Patrons/{uid}` monitor drops `dmhub.patronTier` to 0 and the existing `think` handler flips the section to the non-patron state automatically. No manual UI swap needed.
 - Constraints unchanged from SP1: edit existing file only (no new Lua files), ASCII-only, forward-declare self-referencing locals.
 
+## 8a. Feature gating (codex UI)
+
+The codex Patreon UI - the Account section from SP1 AND the Disconnect button from SP4 - is gated behind the **same testing flag as the shop**: the `dev:storepreview` preference. This is the flag that exposes the Shop/Inventory menu entries in the title bar (`CodexTitleBar.lua:14`; `GetStoreMenuItems()` returns `{}` when off). When the flag is off, the Patreon section is hidden entirely - the feature stays dark until shop testing is enabled.
+
+Implementation in `SettingsScreen.lua`:
+- Re-declare the setting by id near the top of the file (settings are keyed by id, so re-declaring grants read access to the same persisted preference - exactly how `CodexShopScreen.lua:6` shares it):
+  ```lua
+  local g_devStorePreviewSetting = setting{
+      id = "dev:storepreview",
+      default = false,
+      storage = "preference",
+  }
+  ```
+- Gate the Patreon container panel by adding to its declaration:
+  `classes = { cond(not g_devStorePreviewSetting:Get(), "collapsed") },`
+  This mirrors the already-present commented intent at `SettingsScreen.lua:771` (the Subscription block's `hasStoreAccess` gate). `collapsed` makes it invisible and zero-space, like the shop menu hides when off. Evaluated at panel-build time, which matches how the shop menu gating is read (the settings screen rebuilds on open).
+
+Scope: this flag is a codex-local preference, so it gates only the **codex UI**. The backend Cloud Functions (SP2) are inert until called and need no flag; the companion (SP3) gates on its own auth/link state. "Behind the shop flag" therefore means: the codex Patreon section renders only when `dev:storepreview` is on.
+
+**SP1 retrofit:** the already-built SP1 section must be updated with this gate (a small follow-up edit to `SettingsScreen.lua`).
+
 ## 9. Build sequence
 
 SP1 (done) -> **SP2 (backend)** -> SP3 (companion) + SP4 (codex), which can proceed in parallel once SP2's contract is fixed. Each SP is independently shippable. SP4 against the agreed `patreonUnlink` contract is forward-compatible even before SP2 deploys (button is non-functional until the endpoint exists, like SP1's Connect button).

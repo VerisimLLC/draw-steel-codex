@@ -11,6 +11,25 @@ local function track(eventType, fields)
     analytics.Event(fields)
 end
 
+-- DMHub Patreon (patreon.com/c/dmhub) tier int -> display label.
+-- Mirrors draw-steel-companion/src/account/patronTier.js so the desktop app and
+-- the web companion label tiers identically. Returns nil for tier 0 / invalid
+-- (i.e. "not a patron"), so callers can branch on nil.
+local g_patronTierLabels = {
+    [1] = "Whelp",
+    [2] = "Goblin",
+    [3] = "Hobgoblin",
+    [4] = "Bugbear",
+}
+
+local function PatronTierLabel(tier)
+    tier = math.floor(tonumber(tier) or 0)
+    if tier <= 0 then
+        return nil
+    end
+    return g_patronTierLabels[tier] or string.format("Tier %d", tier)
+end
+
 local CreateBetaBranchEditor = function()
 	local branch = dmhub.betaBranch
 	if branch == nil then

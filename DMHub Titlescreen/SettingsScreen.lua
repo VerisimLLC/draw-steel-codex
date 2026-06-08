@@ -729,6 +729,107 @@ function CreateSettingsScreen(dialog, args)
 								end,
 							}
 
+							local patreonDisconnectButton
+							local patreonConfirmPanel
+							local patreonErrorLabel
+							local patreonPatronControls
+
+							patreonErrorLabel = gui.Label{
+								fontSize = 14,
+								color = "#ff6666",
+								width = "auto",
+								height = "auto",
+								text = "",
+								classes = {"collapsed"},
+							}
+
+							patreonConfirmPanel = gui.Panel{
+								flow = "vertical",
+								width = "100%",
+								height = "auto",
+								classes = {"collapsed"},
+
+								gui.Label{
+									text = "Disconnect your Patreon account? You will lose patron benefits until you reconnect.",
+									fontSize = 14,
+									maxWidth = 600,
+									width = "100%",
+									height = "auto",
+								},
+
+								gui.Panel{
+									flow = "horizontal",
+									width = "auto",
+									height = "auto",
+
+									gui.Button{
+										text = "Cancel",
+										width = 180,
+										height = 36,
+										fontSize = 16,
+										halign = "left",
+										vmargin = 4,
+										click = function(element)
+											patreonDisconnectButton:SetClass("collapsed", false)
+											patreonConfirmPanel:SetClass("collapsed", true)
+										end,
+									},
+
+									gui.Button{
+										text = "Confirm Disconnect",
+										width = 180,
+										height = 36,
+										fontSize = 16,
+										halign = "left",
+										vmargin = 4,
+										click = function(element)
+											element.text = "Disconnecting..."
+											element.interactable = false
+											patreonErrorLabel:SetClass("collapsed", true)
+											net.Post{
+												url = dmhub.cloudFunctionsBaseUrl .. "/patreonUnlink",
+												data = {},
+												success = function(data)
+													element.text = "Confirm Disconnect"
+													element.interactable = true
+												end,
+												error = function(msg)
+													element.text = "Confirm Disconnect"
+													element.interactable = true
+													patreonErrorLabel.text = "Disconnect failed: " .. tostring(msg)
+													patreonErrorLabel:SetClass("collapsed", false)
+												end,
+											}
+										end,
+									},
+								},
+
+								patreonErrorLabel,
+							}
+
+							patreonDisconnectButton = gui.Button{
+								text = "Disconnect",
+								width = 240,
+								height = 40,
+								fontSize = 20,
+								halign = "left",
+								vmargin = 4,
+								click = function(element)
+									patreonDisconnectButton:SetClass("collapsed", true)
+									patreonConfirmPanel:SetClass("collapsed", false)
+									patreonErrorLabel:SetClass("collapsed", true)
+								end,
+							}
+
+							patreonPatronControls = gui.Panel{
+								flow = "vertical",
+								width = "100%",
+								height = "auto",
+								classes = {"collapsed"},
+								patreonDisconnectButton,
+								patreonConfirmPanel,
+							}
+
 							return {
 
 						gui.Panel{
@@ -841,10 +942,15 @@ function CreateSettingsScreen(dialog, args)
 										patreonStatusLabel.text = string.format("Patron tier: %s", tierName)
 										patreonConnectButton:SetClass("collapsed", true)
 										patreonLinkLabel.text = "Manage your membership on <color=#00FFFF><link=https://www.patreon.com/c/dmhub>Patreon</link></color>"
+										patreonPatronControls:SetClass("collapsed", false)
 									else
 										patreonStatusLabel.text = "Link your Patreon account to unlock patron benefits."
 										patreonConnectButton:SetClass("collapsed", false)
 										patreonLinkLabel.text = "Support us on <color=#00FFFF><link=https://www.patreon.com/c/dmhub>Patreon</link></color>"
+										patreonPatronControls:SetClass("collapsed", true)
+										patreonDisconnectButton:SetClass("collapsed", false)
+										patreonConfirmPanel:SetClass("collapsed", true)
+										patreonErrorLabel:SetClass("collapsed", true)
 									end
 								end,
 
@@ -859,6 +965,7 @@ function CreateSettingsScreen(dialog, args)
 								patreonStatusLabel,
 								patreonConnectButton,
 								patreonLinkLabel,
+								patreonPatronControls,
 							},
 						},
 						} end,

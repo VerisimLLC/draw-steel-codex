@@ -731,6 +731,7 @@ function CreateSettingsScreen(dialog, args)
 
 							local patreonDisconnectButton
 							local patreonConfirmPanel
+							local patreonConfirmButton
 							local patreonErrorLabel
 							local patreonPatronControls
 
@@ -741,6 +742,36 @@ function CreateSettingsScreen(dialog, args)
 								height = "auto",
 								text = "",
 								classes = {"collapsed"},
+							}
+
+							patreonConfirmButton = gui.Button{
+								text = "Confirm Disconnect",
+								width = 180,
+								height = 36,
+								fontSize = 16,
+								halign = "left",
+								vmargin = 4,
+								click = function(element)
+									element.text = "Disconnecting..."
+									element.interactable = false
+									patreonErrorLabel:SetClass("collapsed", true)
+									net.Post{
+										url = dmhub.cloudFunctionsBaseUrl .. "/patreonUnlink",
+										data = {},
+										success = function(data)
+											element.text = "Disconnected"
+											element.interactable = false
+											-- dmhub.patronTier will drop to 0; the think handler then hides this whole
+											-- section. The think non-patron reset restores this button for any re-link.
+										end,
+										error = function(msg)
+											element.text = "Confirm Disconnect"
+											element.interactable = true
+											patreonErrorLabel.text = "Disconnect failed: " .. tostring(msg)
+											patreonErrorLabel:SetClass("collapsed", false)
+										end,
+									}
+								end,
 							}
 
 							patreonConfirmPanel = gui.Panel{
@@ -775,33 +806,7 @@ function CreateSettingsScreen(dialog, args)
 										end,
 									},
 
-									gui.Button{
-										text = "Confirm Disconnect",
-										width = 180,
-										height = 36,
-										fontSize = 16,
-										halign = "left",
-										vmargin = 4,
-										click = function(element)
-											element.text = "Disconnecting..."
-											element.interactable = false
-											patreonErrorLabel:SetClass("collapsed", true)
-											net.Post{
-												url = dmhub.cloudFunctionsBaseUrl .. "/patreonUnlink",
-												data = {},
-												success = function(data)
-													element.text = "Confirm Disconnect"
-													element.interactable = true
-												end,
-												error = function(msg)
-													element.text = "Confirm Disconnect"
-													element.interactable = true
-													patreonErrorLabel.text = "Disconnect failed: " .. tostring(msg)
-													patreonErrorLabel:SetClass("collapsed", false)
-												end,
-											}
-										end,
-									},
+									patreonConfirmButton,
 								},
 
 								patreonErrorLabel,
@@ -951,6 +956,8 @@ function CreateSettingsScreen(dialog, args)
 										patreonDisconnectButton:SetClass("collapsed", false)
 										patreonConfirmPanel:SetClass("collapsed", true)
 										patreonErrorLabel:SetClass("collapsed", true)
+										patreonConfirmButton.text = "Confirm Disconnect"
+										patreonConfirmButton.interactable = true
 									end
 								end,
 

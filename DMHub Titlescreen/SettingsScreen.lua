@@ -710,7 +710,7 @@ function CreateSettingsScreen(dialog, args)
 								vmargin = 4,
 								text = "Connect Patreon",
 								click = function(element)
-									dmhub.OpenURL("https://codex.mcdm.com/more/account")
+									dmhub.OpenURL("https://draw-steel-codex.com/more/account")
 								end,
 							}
 

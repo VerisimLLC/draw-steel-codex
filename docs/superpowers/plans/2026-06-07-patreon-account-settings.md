@@ -4,7 +4,7 @@
 
 **Goal:** Add a "DMHub Patreon" subsection to Settings -> Account that shows the user's patron tier (from `dmhub.patronTier`) and, for non-patrons, a "Connect Patreon" button that opens the web companion's account page in the browser.
 
-**Architecture:** Pure client-side display. The engine already syncs the tier from `/Patrons/{uid}` into `dmhub.patronTier`; a `think` handler reflects it live. The connect action is a single `dmhub.OpenURL(...)` to `https://codex.mcdm.com/more/account`, where the authenticated browser OAuth link happens. No Firebase, no OAuth, no secrets in the client.
+**Architecture:** Pure client-side display. The engine already syncs the tier from `/Patrons/{uid}` into `dmhub.patronTier`; a `think` handler reflects it live. The connect action is a single `dmhub.OpenURL(...)` to `https://draw-steel-codex.com/more/account`, where the authenticated browser OAuth link happens. No Firebase, no OAuth, no secrets in the client.
 
 **Tech Stack:** DMHub Lua + the `gui.*` panel framework. Single file edited: `DMHub Titlescreen/SettingsScreen.lua`.
 
@@ -130,7 +130,7 @@ new_string:
 								vmargin = 4,
 								text = "Connect Patreon",
 								click = function(element)
-									dmhub.OpenURL("https://codex.mcdm.com/more/account")
+									dmhub.OpenURL("https://draw-steel-codex.com/more/account")
 								end,
 							}
 
@@ -257,7 +257,7 @@ With a non-patron account, confirm:
 - Status line reads: *"Link your Patreon account to unlock patron benefits."*
 - A **"Connect Patreon"** button is visible.
 - A link reads *"Support us on Patreon"*.
-- Clicking **Connect Patreon** opens the system browser to `https://codex.mcdm.com/more/account`.
+- Clicking **Connect Patreon** opens the system browser to `https://draw-steel-codex.com/more/account`.
 - Clicking the **Patreon** link opens `https://www.patreon.com/c/dmhub`.
 
 - [ ] **Step 4: Patron state (`dmhub.patronTier > 0`)**
@@ -277,6 +277,6 @@ If the tier can be changed for the test account while the panel is open, confirm
 
 ## Self-review notes (author)
 
-- **Spec coverage:** location (Account SettingGroup) -> Task 2; data source `dmhub.patronTier` via `think`/`thinkTime=0.1` -> Task 2 Step 3; tier-label map mirroring companion -> Task 1; both states (tier>0 / ==0) -> Task 2 Step 3 + Task 3 Steps 3-4; connect via `dmhub.OpenURL("https://codex.mcdm.com/more/account")` -> Task 2 Step 2; support/manage link to `patreon.com/c/dmhub` -> Task 2 Step 3; DMHub-only scope (no MCDM) -> honored (single tier shown); constraints (no new file, ASCII, forward-decl) -> constraints section + Task steps. All spec sections map to a task.
+- **Spec coverage:** location (Account SettingGroup) -> Task 2; data source `dmhub.patronTier` via `think`/`thinkTime=0.1` -> Task 2 Step 3; tier-label map mirroring companion -> Task 1; both states (tier>0 / ==0) -> Task 2 Step 3 + Task 3 Steps 3-4; connect via `dmhub.OpenURL("https://draw-steel-codex.com/more/account")` -> Task 2 Step 2; support/manage link to `patreon.com/c/dmhub` -> Task 2 Step 3; DMHub-only scope (no MCDM) -> honored (single tier shown); constraints (no new file, ASCII, forward-decl) -> constraints section + Task steps. All spec sections map to a task.
 - **Naming consistency:** `PatronTierLabel` (Task 1) is the exact symbol called in Task 2 Step 3. Element locals `patreonStatusLabel` / `patreonConnectButton` / `patreonLinkLabel` are declared in Edit A and referenced by the same names in Edit B.
 - **No placeholders:** every code step shows complete code; verification steps show exact commands and expected output.

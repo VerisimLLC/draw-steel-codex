@@ -17,7 +17,7 @@ Per the prior brainstorm (`dmhubclient/docs/superpowers/specs/2026-06-01-patreon
 the architecture is:
 
 - **Linking (the Patreon OAuth round-trip) happens in the web companion**
-  (`codex.mcdm.com`), where the browser session is already authenticated
+  (`draw-steel-codex.com`), where the browser session is already authenticated
   (Steam OpenID / handoff) and redirects are natural.
 - **The desktop/codex app only reflects the resulting tier.** The engine
   monitors `/Patrons/{uid}` in Firebase RTDB and exposes the result to Lua as
@@ -73,11 +73,11 @@ so both surfaces label tiers identically. Defined as a local table in
 | `dmhub.patronTier` | Display |
 |---|---|
 | `> 0` | Heading **"DMHub Patreon"**; line *"Patron tier: <Name>"* in an accent color; a muted "Manage on Patreon" link -> `https://www.patreon.com/c/dmhub`. |
-| `0` | Heading **"DMHub Patreon"**; line *"Link your Patreon account to unlock patron benefits."*; a **"Connect Patreon"** button -> `dmhub.OpenURL("https://codex.mcdm.com/more/account")`; a "Support us on Patreon" link -> `https://www.patreon.com/c/dmhub`. |
+| `0` | Heading **"DMHub Patreon"**; line *"Link your Patreon account to unlock patron benefits."*; a **"Connect Patreon"** button -> `dmhub.OpenURL("https://draw-steel-codex.com/more/account")`; a "Support us on Patreon" link -> `https://www.patreon.com/c/dmhub`. |
 
 ## Connect action
 
-`dmhub.OpenURL("https://codex.mcdm.com/more/account")` - the same `dmhub.OpenURL`
+`dmhub.OpenURL("https://draw-steel-codex.com/more/account")` - the same `dmhub.OpenURL`
 already used for the ToS / Privacy links (`SettingsScreen.lua:708`). The browser
 performs the authenticated OAuth link; the desktop app reflects the result
 automatically through `dmhub.patronTier`.

@@ -3235,15 +3235,51 @@ creature.RegisterSymbol {
 
 --override default InflictCondition to include MCDM condition rules.
 
+--Custom in-character speech shown when a creature is immune to a condition.
+--Keyed by lowercased condition name. Conditions not listed fall back to a
+--generic "I can't be <Name>!" line.
+local g_conditionImmunitySpeech = {
+    ["bleeding"] = "I don't bleed like everyone else",
+    ["dazed"] = "You can't daze me!",
+    ["frightened"] = "Nothing frightens me!",
+    ["grabbed"] = "You can't grab me!",
+    ["prone"] = "I'll never be knocked down",
+    ["restrained"] = "You can't tie me down!",
+    ["slowed"] = "I won't be Slowed",
+    ["surprised"] = "Nothing ever surprises me!",
+    ["weakened"] = "I won't be weakened; not by you, not by anybody!",
+}
+
 --- Inflict a condition on a creature. (Or purge the condition using the 'purge' argument.)
 --- @param conditionid string
---- @param args {duration:string, force: nil|boolean, purge: nil|boolean, riders: nil|(string[]), sourceDescription: string, casterInfo:nil|{tokenid:string, timestamp: string|number|nil}, cast: ActivatedAbilityCast}
+--- @param args {duration:string, force: nil|boolean, purge: nil|boolean, silent: nil|boolean, riders: nil|(string[]), sourceDescription: string, casterInfo:nil|{tokenid:string, timestamp: string|number|nil}, cast: ActivatedAbilityCast}
 --- When purge=true and casterInfo is provided, only removes the condition if it was inflicted by that caster.
 function creature:InflictCondition(conditionid, args)
     local immunities = self:GetConditionImmunities()
 
     --this creature is immune to the condition.
     if immunities[conditionid] and (not args.purge) then
+        --give feedback that immunity blocked the condition: the creature "speaks"
+        --in character, e.g. "I can't be Slowed!". Falls back to floating text when
+        --the creature has no spoken language. Skipped when the application is
+        --silent (e.g. internal bookkeeping) via args.silent.
+        if not args.silent then
+            local conditionsTable = dmhub.GetTable(CharacterCondition.tableName)
+            local conditionInfo = conditionsTable[conditionid]
+            if conditionInfo ~= nil then
+                local text = g_conditionImmunitySpeech[string.lower(conditionInfo.name)]
+                    or string.format("I can't be %s!", conditionInfo.name)
+                local language = self:CurrentlySpokenLanguage()
+                if language ~= nil then
+                    self:CharacterSpeech{
+                        text = text,
+                        langid = language,
+                    }
+                else
+                    self:FloatLabel(text, "white")
+                end
+            end
+        end
         return
     end
 

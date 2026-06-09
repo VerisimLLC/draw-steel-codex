@@ -3821,6 +3821,14 @@ function creature:GetAfterRollModifiersForPowerRoll(rollType, options)
     return result
 end
 
+--Tracks creatures with a queued user-initiated roll (a characteristic test or a
+--journal power-table test) that is waiting for the roll gate to clear, so repeat
+--clicks do not stack multiple waiters that would displace each other. File-local
+--on purpose: it resets on every Lua reload, so a flag left set by a waiter
+--coroutine killed mid-wait (e.g. an F5/F4 reload) cannot persist -- unlike a
+--_tmp_ field on the creature, which survives reloads and would pin future clicks.
+local g_pendingQueuedRoll = {}
+
 function creature:RollCustomPowerTableTest(title, characteristics, skills, tiers)
     local attrid = nil
     local bestModifier = nil
@@ -3876,24 +3884,55 @@ function creature:RollCustomPowerTableTest(title, characteristics, skills, tiers
         end
     end
 
-    GameHud.instance.rollDialog.data.ShowDialog {
-        title = title,
-        description = title,
-        creature = self,
+    --Respect the global roll gate. This drives the singleton rollDialog
+    --directly, which only serializes against itself, so without this it would
+    --pop on top of an in-flight embedded/standalone roll (e.g. a start-of-turn
+    --damage or prayer roll). We cannot yield in this synchronous UI handler, so
+    --wait for every surface to clear inside a coroutine before showing. The
+    --pending registry stops repeated link clicks from stacking waiters.
+    if g_pendingQueuedRoll[self] then
+        return
+    end
+    g_pendingQueuedRoll[self] = true
 
-        type = rollType,
-        roll = roll,
-        modifiers = modifiers,
+    dmhub.Coroutine(function()
+        --Wait for every roll surface to clear, with a hard cap so a stuck dialog
+        --can never pin this flag (and thus future clicks) forever.
+        local waited = 0
+        while (not mod.unloaded) and CharacterPanel.AnyRollDialogShown() do
+            coroutine.yield(0.05)
+            waited = waited + 1
+            if waited > 600 then break end
+        end
 
-        rollProperties = rollProperties,
-        PopulateCustom = ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom(rollProperties),
+        g_pendingQueuedRoll[self] = nil
 
-        completeRoll = function(rollInfo)
-        end,
+        --Bail without showing if a reload is underway or we hit the cap with a
+        --roll still up (showing now would overlap). The click is dropped and the
+        --user can retry; nothing stays queued.
+        if mod.unloaded or CharacterPanel.AnyRollDialogShown() then
+            return
+        end
 
-        cancelRoll = function()
-        end,
-    }
+        GameHud.instance.rollDialog.data.ShowDialog {
+            title = title,
+            description = title,
+            creature = self,
+
+            type = rollType,
+            roll = roll,
+            modifiers = modifiers,
+
+            rollProperties = rollProperties,
+            PopulateCustom = ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom(rollProperties),
+
+            completeRoll = function(rollInfo)
+            end,
+
+            cancelRoll = function()
+            end,
+        }
+    end)
 end
 
 function creature:ShowCharacteristicRollDialog(attrid)
@@ -3913,35 +3952,13 @@ function creature:ShowCharacteristicRollDialog(attrid)
     local modifiers = self:GetModifiersForPowerRoll(roll, rollType, { attribute = attrid })
 
     local syntheticAbility = ActivatedAbility.Create{ isTest = true, name = title }
-    local token = dmhub.LookupToken(self)
 
-    --Give the test roll a synthetic single-target (the roller itself) so the
-    --post-roll edge/bane -> tier refresh pipeline runs. That pipeline is plumbed
-    --entirely through RecalculateMultiTargets -> "recalculatedMultiTargets" ->
-    --message:UploadProperties, which bails when m_multitargets is nil. Without
-    --this, applying banes/edges after the dice land does not update the displayed
-    --tier (it only works before the roll, where the boons are baked into the
-    --formula). markLineOfSight is intentionally left unset so no targeting-ray
-    --labels are drawn, and CalculateMultiTargets is omitted so this static
-    --single-target array is preserved across recalculations.
+    --Assigned inside the queue coroutine below (after any in-flight roll clears)
+    --so the displacing steps do not run until it is safe. ShowRollDialog closes
+    --over these upvalues, so they are read at call time, not capture time.
+    local token = nil
     local multitargets = nil
-    if token ~= nil then
-        multitargets = {
-            {
-                token = token,
-                boons = 0,
-                banes = 0,
-                modifiers = modifiers,
-                triggers = {},
-            },
-        }
-    end
-
     local displaying = false
-    if token ~= nil then
-        CharacterPanel.UnlockDisplayAbility()
-        displaying = CharacterPanel.DisplayAbility(token, syntheticAbility, nil, {lock = true, renderAsAbility = true})
-    end
 
     local function ShowRollDialog(dialog)
         if dialog == nil or not dialog.valid then
@@ -4007,15 +4024,73 @@ function creature:ShowCharacteristicRollDialog(attrid)
         }
     end
 
-    local embeddedDialog = CharacterPanel.EmbedDialogInAbility()
-    if embeddedDialog ~= nil then
-        dmhub.Schedule(0.05, function()
-            if mod.unloaded then return end
-            ShowRollDialog(embeddedDialog)
-        end)
-    else
-        ShowRollDialog(nil)
+    --This is a synchronous UI handler (a characteristic click), so we cannot
+    --yield here to queue. Run the displacing steps -- DisplayAbility clears the
+    --embedded panel and EmbedDialogInAbility mounts a fresh dialog -- inside a
+    --coroutine that first waits for every roll surface to clear. Without this,
+    --clicking a characteristic mid-roll destroyed the in-flight dialog (e.g. an
+    --ongoing-damage roll) and silently lost its result. The pending registry
+    --stops repeated clicks from stacking multiple queued waiters.
+    if g_pendingQueuedRoll[self] then
+        return
     end
+    g_pendingQueuedRoll[self] = true
+
+    dmhub.Coroutine(function()
+        --Wait for every roll surface to clear, with a hard cap so a stuck dialog
+        --can never pin this flag (and thus future clicks) forever.
+        local waited = 0
+        while (not mod.unloaded) and CharacterPanel.AnyRollDialogShown() do
+            coroutine.yield(0.05)
+            waited = waited + 1
+            if waited > 600 then break end
+        end
+
+        g_pendingQueuedRoll[self] = nil
+
+        --Bail without showing if a reload is underway or we hit the cap with a
+        --roll still up (showing now would displace/overlap). The click is dropped
+        --and the user can retry; nothing stays queued.
+        if mod.unloaded or CharacterPanel.AnyRollDialogShown() then
+            return
+        end
+
+        token = dmhub.LookupToken(self)
+
+        --Give the test roll a synthetic single-target (the roller itself) so the
+        --post-roll edge/bane -> tier refresh pipeline runs. That pipeline is plumbed
+        --entirely through RecalculateMultiTargets -> "recalculatedMultiTargets" ->
+        --message:UploadProperties, which bails when m_multitargets is nil. Without
+        --this, applying banes/edges after the dice land does not update the displayed
+        --tier (it only works before the roll, where the boons are baked into the
+        --formula). markLineOfSight is intentionally left unset so no targeting-ray
+        --labels are drawn, and CalculateMultiTargets is omitted so this static
+        --single-target array is preserved across recalculations.
+        if token ~= nil then
+            multitargets = {
+                {
+                    token = token,
+                    boons = 0,
+                    banes = 0,
+                    modifiers = modifiers,
+                    triggers = {},
+                },
+            }
+
+            CharacterPanel.UnlockDisplayAbility()
+            displaying = CharacterPanel.DisplayAbility(token, syntheticAbility, nil, {lock = true, renderAsAbility = true})
+        end
+
+        local embeddedDialog = CharacterPanel.EmbedDialogInAbility()
+        if embeddedDialog ~= nil then
+            dmhub.Schedule(0.05, function()
+                if mod.unloaded then return end
+                ShowRollDialog(embeddedDialog)
+            end)
+        else
+            ShowRollDialog(nil)
+        end
+    end)
 end
 
 --hitpoints handling overridden. We include handling of minions.

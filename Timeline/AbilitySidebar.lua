@@ -1283,6 +1283,94 @@ function CharacterPanel.FindEmbeddedRollDialog()
     return embedded
 end
 
+--True if a roll dialog is currently shown in the standalone roll host (table
+--rolls and other non-ability rolls routed through EmbedDialogStandalone). This
+--host carries no cast-coroutine ownership, so it is safe to wait on without
+--risking a self-deadlock from a cast's own embedded dialog.
+function CharacterPanel.StandaloneRollShown()
+    local hud = rawget(GameHud, "instance")
+    if not hud then
+        return false
+    end
+
+    local host = rawget(hud, "standaloneRollHost")
+    if host == nil or not host.valid then
+        return false
+    end
+
+    for _, child in ipairs(host.children) do
+        if child.valid and child.data ~= nil
+           and child.data.IsShown ~= nil and child.data.IsShown() then
+            return true
+        end
+    end
+
+    return false
+end
+
+--True if the embedded ability dialog is occupied -- either visibly shown, or
+--mid-acquisition: created and stamped with a live cast (castCoroutine) that has
+--not relinquished its roll, but whose ShowDialog has not fired yet.
+--
+--AcquireAbilityRollDialog shows a roll in several steps with yields in between
+--(DisplayAbility -> EmbedDialogInAbility -> yield -> the behavior calls
+--ShowDialog), so there is a window where the dialog exists and is owned but
+--IsShown() is still false. Counting only IsShown() there let a concurrent
+--table-roll request (e.g. the Conduit prayer, fired from the action-request
+--listener) slip into that gap and pop alongside the damage roll -- the
+--player-side overlap. This mirrors the "queue behind it" classification in
+--AcquireAbilityRollDialog so the gap is treated as occupied.
+function CharacterPanel.EmbeddedRollInFlight()
+    local embedded = CharacterPanel.FindEmbeddedRollDialog()
+    if embedded == nil or not embedded.valid or embedded.data == nil then
+        return false
+    end
+
+    if embedded.data.IsShown ~= nil and embedded.data.IsShown() then
+        return true
+    end
+
+    --Not yet shown: occupied only while a live cast still owns an unfinished
+    --roll. A relinquished roll, a dead owner, or an untracked lingering panel
+    --is not in flight and must not block (avoids deadlock on leftovers).
+    local ownerco = embedded.data.castCoroutine
+    if ownerco ~= nil and (not embedded.data.rollRelinquished)
+       and coroutine.IsCoroutineWithIdStillRunning(ownerco) then
+        return true
+    end
+
+    return false
+end
+
+--Single source of truth for "is any dice-roll dialog currently in flight?"
+--There are three independent roll surfaces, and each legacy gate only watched
+--one of them -- which let, e.g., a Conduit prayer table roll (standalone host)
+--pop on top of an ongoing-effect damage roll (embedded ability dialog):
+--  1. the legacy singleton gamehud.rollDialog
+--  2. the embedded ability dialog mounted in abilityDisplay
+--  3. any dialog mounted in the standalone roll host (table rolls)
+function CharacterPanel.AnyRollDialogShown()
+    local hud = rawget(GameHud, "instance")
+    if not hud then
+        return false
+    end
+
+    --1. legacy singleton.
+    local singleton = rawget(hud, "rollDialog")
+    if singleton ~= nil and singleton.valid and singleton.data ~= nil
+       and singleton.data.IsShown ~= nil and singleton.data.IsShown() then
+        return true
+    end
+
+    --2. embedded ability dialog (shown or mid-acquisition).
+    if CharacterPanel.EmbeddedRollInFlight() then
+        return true
+    end
+
+    --3. standalone roll host.
+    return CharacterPanel.StandaloneRollShown()
+end
+
 function CharacterPanel.EmbedDialogInAbility()
     if (not GameHud.instance) or (not GameHud.instance.abilityDisplay) then
         return nil
@@ -1429,6 +1517,21 @@ function CharacterPanel.AcquireAbilityRollDialog(token, ability, symbols, displa
 
     local waited = false
     while true do
+        --Queue behind a roll mounted in the standalone host (table rolls etc.).
+        --It carries no cast-coroutine ownership, so we simply wait for it to
+        --clear. Only do this when we can yield; outside a coroutine we cannot
+        --wait, so fall through (matches the embedded not-in-a-coroutine path).
+        if coid ~= nil and (not mod.unloaded) and CharacterPanel.StandaloneRollShown() then
+            if not waited then
+                waited = true
+                print("AcquireRollDialog:: QUEUE behind standalone roll dialog")
+            end
+            coroutine.yield(0.01)
+            --re-evaluate from the top: the standalone roll may have cleared,
+            --or an embedded dialog may now need classifying.
+            goto continue
+        end
+
         local existing = CharacterPanel.FindEmbeddedRollDialog()
         if existing == nil then
             break
@@ -1479,6 +1582,8 @@ function CharacterPanel.AcquireAbilityRollDialog(token, ability, symbols, displa
             print(string.format("AcquireRollDialog:: QUEUE behind dialog castCoroutine=%s", tostring(ownerco)))
         end
         coroutine.yield(0.01)
+
+        ::continue::
     end
 
     --Clear any stale lock so DisplayAbility's displace guard does not refuse us.

@@ -10,9 +10,10 @@
 --- @field coverDocumentId string 
 --- @field coverart any 
 --- @field owned boolean 
---- @field premium boolean 
---- @field published boolean 
---- @field dmhubCanUse boolean 
+--- @field premium boolean
+--- @field published boolean
+--- @field deleted boolean
+--- @field dmhubCanUse boolean
 --- @field publishingProperties any 
 --- @field contentSummary any 
 --- @field isdisabled boolean 
@@ -80,6 +81,13 @@ end
 --- @param properties any
 --- @return nil
 function ModuleLua:UploadModulePublishProperties(properties)
+	-- dummy implementation for documentation purposes only
+end
+
+--- Delete: Soft-deletes this module. Hides it from search and the public index and removes it from the user's published-module lists. Users who already installed it keep access to its content.
+--- @param options any
+--- @return nil
+function ModuleLua:Delete(options)
 	-- dummy implementation for documentation purposes only
 end
 

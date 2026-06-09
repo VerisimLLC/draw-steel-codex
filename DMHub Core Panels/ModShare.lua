@@ -1677,6 +1677,14 @@ local showShareModuleDialog = function(options)
 
 		events = {
 			refreshModule = function(element)
+				if npage == 2 then
+					shareButton.text = cond(moduleInstance.deleted, "Delete Module", cond(isNewModule, "Create Module", "Update Module"))
+				end
+				--Deleting an existing module bypasses the terms-agreement gate.
+				if moduleInstance.deleted then
+					shareButton:SetClass("hidden", false)
+					return
+				end
 				shareButton:SetClass("hidden", npage == 2 and isNewModule and ((not moduleInstance.idvalid) or (not authorIdsAvailable[moduleInstance.authorid])) or (npage == 2 and (not conditionsAgreed)))
 			end,
 
@@ -1685,7 +1693,7 @@ local showShareModuleDialog = function(options)
 				if npage == 2 then
 					assetsPanel:SetClass("collapsed", true)
 					publishingPanel:SetClass("collapsed", false)
-					shareButton.text = cond(isNewModule, "Create Module", "Update Module")
+					shareButton.text = cond(moduleInstance.deleted, "Delete Module", cond(isNewModule, "Create Module", "Update Module"))
 					element:FireEvent("refreshModule")
 					return
 				end
@@ -1696,6 +1704,19 @@ local showShareModuleDialog = function(options)
 
 				contentPanel:SetClass("hidden", true)
 				footerPanel:SetClass("hidden", true)
+
+				if moduleInstance.deleted then
+					statusLabel.text = "Deleting your module..."
+					moduleInstance:Delete{
+						success = function()
+							statusLabel.text = "Your module has been deleted."
+						end,
+						failure = function(msg)
+							statusLabel.text = string.format("Deleting the module failed: %s", msg)
+						end,
+					}
+					return
+				end
 
 				if localCoverArt ~= nil then
 					localCoverArt:Upload()
@@ -2357,13 +2378,20 @@ local showShareModuleDialog = function(options)
 						id = "premium",
 						text = "Premium",
 						hidden = not dmhub.isAdminAccount,
-					}
+					},
+					{
+						--Deleting is only an option for an existing module, not a new one.
+						id = "deleted",
+						text = "Deleted",
+						hidden = isNewModule,
+					},
 				},
-				idChosen = cond(moduleInstance.published, "public", "unlisted"),
+				idChosen = cond(moduleInstance.deleted, "deleted", cond(moduleInstance.published, "public", "unlisted")),
 				events = {
 					change = function(element)
 						moduleInstance.published = element.idChosen == "public"
 						moduleInstance.premium = element.idChosen == "premium"
+						moduleInstance.deleted = element.idChosen == "deleted"
 						dialogPanel:FireEventTree("refreshModule")
 					end
 				}
@@ -2377,7 +2405,9 @@ local showShareModuleDialog = function(options)
 			height = "auto",
 			valign = "top",
 			refreshModule = function(element)
-				if moduleInstance.published then
+				if moduleInstance.deleted then
+					element.text = "This module will be deleted. Users who already installed it into their games will be able to continue to use its contents"
+				elseif moduleInstance.published then
 					element.text = "Others will be able to search for and install your module."
 				elseif moduleInstance.premium then
 					element.text = "Your module will be available in the store. It must have a corresponding store entry to unlock it."

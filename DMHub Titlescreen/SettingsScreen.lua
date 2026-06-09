@@ -735,6 +735,15 @@ function CreateSettingsScreen(dialog, args)
 							local patreonErrorLabel
 							local patreonPatronControls
 
+							local shopifyStatusLabel
+							local shopifyConnectButton
+							local shopifyDisconnectButton
+							local shopifyConfirmPanel
+							local shopifyConfirmButton
+							local shopifyErrorLabel
+							local shopifyRefreshButton
+							local RefreshShopifyStatus
+
 							patreonErrorLabel = gui.Label{
 								fontSize = 14,
 								color = "#ff6666",
@@ -834,6 +843,129 @@ function CreateSettingsScreen(dialog, args)
 								patreonDisconnectButton,
 								patreonConfirmPanel,
 							}
+
+							shopifyStatusLabel = gui.Label{
+								fontSize = 14, width = "100%", maxWidth = 600, height = "auto",
+								text = "Checking Shopify...",
+							}
+
+							shopifyErrorLabel = gui.Label{
+								classes = {"collapsed"},
+								fontSize = 14, color = "#ff6666", width = "auto", height = "auto", text = "",
+							}
+
+							shopifyConnectButton = gui.Button{
+								classes = {"collapsed"},
+								width = 240, height = 40, fontSize = 20, halign = "left", vmargin = 4,
+								text = "Connect Shopify",
+								click = function(element)
+									dmhub.OpenURL("https://draw-steel-codex.com/more/account")
+								end,
+							}
+
+							shopifyDisconnectButton = gui.Button{
+								classes = {"collapsed"},
+								width = 240, height = 40, fontSize = 20, halign = "left", vmargin = 4,
+								text = "Disconnect",
+								click = function(element)
+									shopifyDisconnectButton:SetClass("collapsed", true)
+									shopifyConfirmPanel:SetClass("collapsed", false)
+									shopifyErrorLabel:SetClass("collapsed", true)
+								end,
+							}
+
+							shopifyConfirmButton = gui.Button{
+								width = 180, height = 36, fontSize = 16, halign = "left", vmargin = 4,
+								text = "Confirm Disconnect",
+								click = function(element)
+									element.text = "Disconnecting..."
+									element.interactable = false
+									shopifyErrorLabel:SetClass("collapsed", true)
+									net.Post{
+										url = dmhub.cloudFunctionsBaseUrl .. "/shopifyUnlink",
+										data = {},
+										success = function(data)
+											element.text = "Confirm Disconnect"
+											element.interactable = true
+											shopifyConfirmPanel:SetClass("collapsed", true)
+											RefreshShopifyStatus()
+										end,
+										error = function(msg)
+											element.text = "Confirm Disconnect"
+											element.interactable = true
+											shopifyErrorLabel.text = "Disconnect failed: " .. tostring(msg)
+											shopifyErrorLabel:SetClass("collapsed", false)
+										end,
+									}
+								end,
+							}
+
+							shopifyConfirmPanel = gui.Panel{
+								classes = {"collapsed"},
+								flow = "vertical", width = "auto", height = "auto", vmargin = 4,
+								gui.Label{
+									fontSize = 14, maxWidth = 600, width = "100%", height = "auto",
+									text = "Disconnect your Shopify account?",
+								},
+								gui.Panel{
+									flow = "horizontal", width = "auto", height = "auto",
+									shopifyConfirmButton,
+									gui.Button{
+										width = 120, height = 36, fontSize = 16, halign = "left", vmargin = 4, hmargin = 8,
+										text = "Cancel",
+										click = function(element)
+											shopifyConfirmPanel:SetClass("collapsed", true)
+											shopifyDisconnectButton:SetClass("collapsed", false)
+										end,
+									},
+								},
+							}
+
+							shopifyRefreshButton = gui.Button{
+								classes = {"collapsed"},
+								width = 120, height = 30, fontSize = 14, halign = "left", vmargin = 4,
+								text = "Refresh",
+								click = function(element)
+									RefreshShopifyStatus()
+								end,
+							}
+
+							-- Fetch link status from the backend (Lua cannot read /shopLinks directly).
+							-- Called on panel create, on Refresh, and after a successful disconnect.
+							RefreshShopifyStatus = function()
+								shopifyStatusLabel.text = "Checking Shopify..."
+								shopifyConnectButton:SetClass("collapsed", true)
+								shopifyDisconnectButton:SetClass("collapsed", true)
+								shopifyConfirmPanel:SetClass("collapsed", true)
+								shopifyRefreshButton:SetClass("collapsed", true)
+								shopifyErrorLabel:SetClass("collapsed", true)
+								net.Post{
+									url = dmhub.cloudFunctionsBaseUrl .. "/shopifyStatus",
+									data = {},
+									success = function(data)
+										shopifyRefreshButton:SetClass("collapsed", false)
+										if type(data) ~= "table" or not data.ok then
+											shopifyStatusLabel.text = "Could not load Shopify status."
+											return
+										end
+										if data.linked then
+											shopifyStatusLabel.text = (data.email ~= nil and data.email ~= "")
+												and string.format("Shopify: Connected as %s", data.email)
+												or "Shopify: Connected"
+											shopifyDisconnectButton:SetClass("collapsed", false)
+										else
+											shopifyStatusLabel.text = "Connect your Shopify account to link your purchases."
+											shopifyConnectButton:SetClass("collapsed", false)
+										end
+									end,
+									error = function(msg)
+										shopifyRefreshButton:SetClass("collapsed", false)
+										shopifyStatusLabel.text = "Could not load Shopify status."
+										shopifyErrorLabel.text = "Error: " .. tostring(msg)
+										shopifyErrorLabel:SetClass("collapsed", false)
+									end,
+								}
+							end
 
 							return {
 
@@ -974,6 +1106,30 @@ function CreateSettingsScreen(dialog, args)
 								patreonLinkLabel,
 								patreonPatronControls,
 							},
+
+							gui.Panel{
+								vmargin = 16,
+								classes = { cond(not g_devStorePreviewSetting:Get(), "collapsed") },
+								flow = "vertical",
+								width = "100%",
+								height = "auto",
+
+								create = function(element)
+									RefreshShopifyStatus()
+								end,
+
+								gui.Label{
+									bold = true, fontSize = 16, width = "auto", height = "auto",
+									text = "Shopify",
+								},
+								shopifyStatusLabel,
+								shopifyConnectButton,
+								shopifyDisconnectButton,
+								shopifyConfirmPanel,
+								shopifyRefreshButton,
+								shopifyErrorLabel,
+							},
+
 						},
 						} end,
 					},

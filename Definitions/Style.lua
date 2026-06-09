@@ -5,7 +5,7 @@
 --- @field borderImage string (write-only) the image to use for the panel's border.
 --- @field bgimageReadable boolean Set this to true if the bgimage specified in this style must be readable. This should be used for panels that have alphaHitTest set to true. Avoid setting this since it has performance implications.
 --- @field bgimage string|boolean The image to set as the background of this panel. May set to true to be a white square (same as 'panels/square.png') or false to make no bgimage. If left unset the panel will not have a background image. Note that the background image is the main display of most panels, so if this is not set the panel will be invisible, though its children may still be visible. This can be set to 'panels/square.png' to set to a plain white square image (which can then have further styling set to it). It can also be set to an image uploaded in a mod, e.g. bgimage = mod.images.myicon
---- @field blend "blend"|"add" The blend mode used when drawing the panel.
+--- @field blend "blend"|"add"|"premultiplied" The blend mode used when drawing the panel. "blend" (default) = straight-alpha over; "add" = additive; "premultiplied" = premultiplied-alpha over, for images whose texture is already premultiplied (e.g. spine model renders '#spinemodel:...', so their additive parts composite correctly).
 --- @field soundEvent any 
 --- @field inherit_selectors boolean (Default=false) If set to true, selectors match if they match any parent. If false, the selectors must match the panel itself, and parent panels are not considered.
 --- @field setting nil|string (write-only) if this is set to the id of a setting, then that setting must be true for this style to apply. Otherwise it will be ignored.
@@ -102,7 +102,7 @@ Style = {}
 --- @field borderImage nil|string (write-only) the image to use for the panel's border.
 --- @field bgimageReadable nil|boolean Set this to true if the bgimage specified in this style must be readable. This should be used for panels that have alphaHitTest set to true. Avoid setting this since it has performance implications.
 --- @field bgimage nil|string|boolean The image to set as the background of this panel. May set to true to be a white square (same as 'panels/square.png') or false to make no bgimage. If left unset the panel will not have a background image. Note that the background image is the main display of most panels, so if this is not set the panel will be invisible, though its children may still be visible. This can be set to 'panels/square.png' to set to a plain white square image (which can then have further styling set to it). It can also be set to an image uploaded in a mod, e.g. bgimage = mod.images.myicon
---- @field blend nil|"blend"|"add" The blend mode used when drawing the panel.
+--- @field blend nil|"blend"|"add"|"premultiplied" The blend mode used when drawing the panel. "blend" (default) = straight-alpha over; "add" = additive; "premultiplied" = premultiplied-alpha over, for images whose texture is already premultiplied (e.g. spine model renders '#spinemodel:...', so their additive parts composite correctly).
 --- @field soundEvent nil|any 
 --- @field inherit_selectors nil|boolean (Default=false) If set to true, selectors match if they match any parent. If false, the selectors must match the panel itself, and parent panels are not considered.
 --- @field setting nil|string (write-only) if this is set to the id of a setting, then that setting must be true for this style to apply. Otherwise it will be ignored.

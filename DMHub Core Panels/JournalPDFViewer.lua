@@ -11,6 +11,23 @@ local function track(eventType, fields)
     analytics.Event(fields)
 end
 
+-- Command context for the PDF viewer. While the viewer modal is open we push this
+-- context (dmhub.PushCommandContext) so the left/right arrow keys page through the
+-- document via the pdfprevpage/pdfnextpage commands instead of falling through to
+-- the global 'tokenmove' bindings. The viewer's command handler responds to these.
+-- Because they live in a named context, they only override the arrows while the
+-- viewer is the active modal; everywhere else the arrows still move tokens.
+local PDF_COMMAND_CONTEXT = "journalpdf"
+local g_pdfBindingsInitialized = false
+local function EnsurePdfCommandBindings()
+    if g_pdfBindingsInitialized then
+        return
+    end
+    g_pdfBindingsInitialized = true
+    dmhub.SetCommandBinding("left", "pdfprevpage", PDF_COMMAND_CONTEXT)
+    dmhub.SetCommandBinding("right", "pdfnextpage", PDF_COMMAND_CONTEXT)
+end
+
 setting {
     id = "pdfbrightness",
     description = "Brightness",
@@ -2150,6 +2167,25 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
             RefreshPage()
         end,
 
+        -- Page navigation keyboard shortcuts. While the viewer modal is open the
+        -- 'journalpdf' command context (pushed in ShowPDFViewerDialog) binds the
+        -- left/right arrows to these commands, which are delivered here as 'command'
+        -- events. This fires for the whole active modal tree, so the always-present
+        -- viewer root is the right place to handle it.
+        command = function(element, cmd)
+            if cmd == "pdfprevpage" then
+                m_npage = m_npage - 1
+                m_searchResults = nil
+                m_searchText = nil
+                RefreshPage()
+            elseif cmd == "pdfnextpage" then
+                m_npage = m_npage + 1
+                m_searchResults = nil
+                m_searchText = nil
+                RefreshPage()
+            end
+        end,
+
         --header panel.
         gui.Panel {
             width = "100%",
@@ -2426,16 +2462,6 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                                 m_zoom = clamp(m_zoom + cond(cmd == "zoomout", -0.2, 0.2), 0.05, 8)
                                 element.text = string.format("%d", round(m_zoom * 100)),
                                     RefreshPage()
-                            elseif cmd == "tokenmove -1 0" then
-                                m_npage = m_npage - 1
-                                m_searchResults = nil
-                                m_searchText = nil
-                                RefreshPage()
-                            elseif cmd == "tokenmove 1 0" then
-                                m_npage = m_npage + 1
-                                m_searchResults = nil
-                                m_searchText = nil
-                                RefreshPage()
                             end
                         end,
                     },
@@ -2656,6 +2682,16 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page)
         end,
 
         destroy = function(element)
+            -- Balance the PushCommandContext from when this dialog opened. Keyed on a
+            -- per-element flag (not g_pdfViewerDialog) so it pops exactly once for THIS
+            -- dialog regardless of destroy ordering: 'destroy' is also fired manually on
+            -- the pop-out path, and a reopened-on-a-different-doc dialog may have already
+            -- reassigned g_pdfViewerDialog before this old dialog's destroy runs.
+            if element.data.pdfContextActive then
+                element.data.pdfContextActive = false
+                dmhub.PopCommandContext(PDF_COMMAND_CONTEXT)
+            end
+
             if g_pdfViewerDialog == element then
                 g_pdfViewerDialog = nil
                 GameHud.instance.modalPanel.interactable = true
@@ -2751,6 +2787,13 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page)
     }
 
     g_pdfViewerDialog = dialogPanel
+
+    -- Activate the PDF page-navigation arrow keys for as long as this modal is up.
+    -- The matching PopCommandContext runs in the dialog's destroy handler above,
+    -- gated on this same per-element flag so the push/pop stay balanced.
+    EnsurePdfCommandBindings()
+    dialogPanel.data.pdfContextActive = true
+    dmhub.PushCommandContext(PDF_COMMAND_CONTEXT)
 
     gui.ShowModal(dialogPanel)
     GameHud.instance.modalPanel.interactable = false

@@ -888,6 +888,20 @@ function dmhub.SetCommandBinding(keystroke, cmd, context)
 	-- dummy implementation for documentation purposes only
 end
 
+--- PushCommandContext: Push a command context onto the input stack. While a context is active, command bindings set in that context (via SetCommandBinding with the same context) take priority over global bindings. Each Push must be balanced by a Pop with the same name; pushes/pops are reference counted. Commonly used to give a modal dialog its own keyboard shortcuts that override gameplay keys while it is open.
+--- @param context string
+--- @return nil
+function dmhub.PushCommandContext(context)
+	-- dummy implementation for documentation purposes only
+end
+
+--- PopCommandContext: Pop a command context previously pushed with PushCommandContext. Must be balanced with the matching Push.
+--- @param context string
+--- @return nil
+function dmhub.PopCommandContext(context)
+	-- dummy implementation for documentation purposes only
+end
+
 --- DetectBindableKeystroke: If a bindable keystroke is currently depressed, returns it.
 --- @return nil|string
 function dmhub.DetectBindableKeystroke()

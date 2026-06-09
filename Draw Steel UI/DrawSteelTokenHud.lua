@@ -40,7 +40,34 @@ TokenUI.RegisterIcon{
 	    return (not creature.minion) and creature.damage_taken >= maxhp/2 and creature.damage_taken < maxhp and dmhub.GetSettingValue("showwoundedicon")
     end,
 
-    hoverText = "Winded",
+    --Computed live on hover. Appends any active *conditional* Damage Immunity
+    --modifiers (those with a filter condition, e.g. "while winded"). This lets
+    --traits like Defiant Anger surface in the winded tooltip without needing
+    --their own token icon, keeping the token uncluttered. Permanent/always-on
+    --immunities (no filter) are excluded so they don't spam this tooltip.
+    --GetActiveModifiers only returns modifiers whose filter currently passes,
+    --so anything listed here is genuinely active right now.
+    hoverText = function(creature)
+        local hoverText = "Winded"
+        local extra = {}
+        for _,modInfo in ipairs(creature:GetActiveModifiers()) do
+            local m = modInfo.mod
+            if m.behavior == "resistance" and m:HasFilter() then
+                local desc = m:try_get("description", "")
+                if desc ~= "" then
+                    extra[#extra+1] = string.format("<b>%s</b>\n%s", m.name, desc)
+                else
+                    extra[#extra+1] = string.format("<b>%s</b>", m.name)
+                end
+            end
+        end
+
+        if #extra > 0 then
+            hoverText = hoverText .. "\n\n" .. table.concat(extra, "\n\n")
+        end
+
+        return hoverText
+    end,
 
     --Only show to those who can't see the health bar.
     showToAll = true,

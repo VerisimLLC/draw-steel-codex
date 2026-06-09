@@ -869,6 +869,7 @@ function CreateSettingsScreen(dialog, args)
 								text = "Disconnect",
 								click = function(element)
 									shopifyDisconnectButton:SetClass("collapsed", true)
+									shopifyRefreshButton:SetClass("collapsed", true)
 									shopifyConfirmPanel:SetClass("collapsed", false)
 									shopifyErrorLabel:SetClass("collapsed", true)
 								end,
@@ -916,6 +917,8 @@ function CreateSettingsScreen(dialog, args)
 										click = function(element)
 											shopifyConfirmPanel:SetClass("collapsed", true)
 											shopifyDisconnectButton:SetClass("collapsed", false)
+											shopifyRefreshButton:SetClass("collapsed", false)
+											shopifyErrorLabel:SetClass("collapsed", true)
 										end,
 									},
 								},

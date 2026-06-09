@@ -2993,6 +2993,62 @@ function TacPanel.RecoveriesBox()
         end
     end
 
+    -- Build and show the "spend an ally's shared recovery" context menu on the
+    -- given element. Returns true if a menu was shown (i.e. there is at least
+    -- one bonded ally with a spendable recovery), false otherwise.
+    local function ShowSharingMenu(element, token)
+        if token == nil or not token.valid or token.properties == nil then return false end
+
+        local recoverySharing = token.properties:ShareRecoveriesWith()
+        if recoverySharing == nil then return false end
+
+        local entries = {}
+        for _, otherToken in ipairs(recoverySharing) do
+            if otherToken.charid ~= token.charid then
+                local sharedUsage = otherToken.properties:GetResourceUsage(recoveryid, recoveryInfo.usageLimit) or 0
+                local sharedMax = otherToken.properties:GetResources()[recoveryid] or 0
+                local sharedQuantity = sharedMax - sharedUsage
+                if sharedQuantity > 0 then
+                    local casterToken = token
+                    local sourceToken = otherToken
+                    entries[#entries+1] = {
+                        text = string.format("Spend %s's Recovery (%d/%d)", sourceToken.name, sharedQuantity, sharedMax),
+                        click = function()
+                            element.popup = nil
+                            if casterToken.properties:CurrentHitpoints() >= casterToken.properties:MaxHitpoints() then
+                                return
+                            end
+
+                            local groupid = dmhub.GenerateGuid()
+                            casterToken:ModifyProperties{
+                                description = string.format("Use %s's Recovery", sourceToken.name),
+                                groupid = groupid,
+                                execute = function()
+                                    casterToken.properties:Heal(casterToken.properties:RecoveryAmount(), "Use Recovery")
+                                end,
+                            }
+
+                            sourceToken:ModifyProperties{
+                                description = string.format("%s's Recovery used by %s", sourceToken.name, casterToken.name),
+                                groupid = groupid,
+                                execute = function()
+                                    sourceToken.properties:ConsumeResource(recoveryid, recoveryInfo.usageLimit, 1, "Used Recovery")
+                                end,
+                            }
+                        end,
+                    }
+                end
+            end
+        end
+
+        if #entries == 0 then return false end
+
+        element.popup = gui.ContextMenu{
+            entries = entries,
+        }
+        return true
+    end
+
     return gui.Panel{
         classes = {"stamina-box", "recoveries"},
         hoverCursor = "pressbutton",
@@ -3052,6 +3108,19 @@ function TacPanel.RecoveriesBox()
                 end
             end
 
+            local recoverySharing = token.properties:ShareRecoveriesWith()
+            if recoverySharing ~= nil then
+                lines[#lines+1] = ""
+                lines[#lines+1] = "Can Share Recoveries With:"
+                for _, otherToken in ipairs(recoverySharing) do
+                    if otherToken.charid ~= token.charid then
+                        local sharedUsage = otherToken.properties:GetResourceUsage(recoveryid, recoveryInfo.usageLimit) or 0
+                        local sharedMax = otherToken.properties:GetResources()[recoveryid] or 0
+                        lines[#lines+1] = string.format("%s (%d/%d)", otherToken.name, sharedMax - sharedUsage, sharedMax)
+                    end
+                end
+            end
+
             element.tooltip = TacPanel.Tooltip(table.concat(lines, "\n"))
         end,
         press = function(element)
@@ -3062,6 +3131,9 @@ function TacPanel.RecoveriesBox()
             local quantity = max(0, (token.properties:GetResources()[recoveryid] or 0) - (token.properties:GetResourceUsage(recoveryid, recoveryInfo.usageLimit) or 0))
             if quantity <= 0 then
                 if (not token.properties:IsHero()) or token.properties:GetHeroTokens() < 2 then
+                    -- Out of our own recoveries (and no hero tokens to spend): offer
+                    -- any bonded ally's shared recoveries instead of silently failing.
+                    ShowSharingMenu(element, token)
                     return
                 end
                 useHeroTokens = true
@@ -3107,6 +3179,9 @@ function TacPanel.RecoveriesBox()
                 context = (q ~= nil and not q.hidden and q:try_get("gameMode") == "combat") and "combat" or "rest",
                 dailyLimit = 20,
             })
+        end,
+        rightClick = function(element)
+            ShowSharingMenu(element, element.data.token)
         end,
         gui.Label{
             classes = {"stambox-title", "heal"},

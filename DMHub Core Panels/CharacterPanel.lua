@@ -1570,6 +1570,36 @@ CharacterPanel.CreateCharacterEntry = function(charid, party)
                     }
                 end
 
+                --reset the character to its state in the module it came from.
+                if module.IsCharacterAvailableInModule(charid) then
+                    menuItems[#menuItems + 1] = {
+                        text = "Reset Character",
+
+                        click = function(element)
+                            gamehud:ModalMessage {
+                                title = "Reset Character?",
+                                message = "Are you sure you want to reset this character to its state in the module? Any changes made to it will be lost.",
+                                options = {
+                                    {
+                                        text = "Reset",
+                                        execute = function()
+                                            module.ReinstallCharacter(charid, function(success)
+                                                print("ReinstallCharacter::", success)
+                                            end)
+                                        end,
+                                    },
+                                    {
+                                        text = "Cancel",
+                                        execute = function()
+                                        end,
+                                    },
+                                }
+                            }
+                            parentElement.popup = nil
+                        end,
+                    }
+                end
+
                 --delete the token.
                 menuItems[#menuItems + 1] = {
                     text = "Delete Character",

@@ -21,6 +21,14 @@ local function RefreshDice()
 	dicestudio:UpdateMaterial()
 end
 
+-- Remembers which dice set was last opened in Dice Studio so it reopens on the same
+-- set across sessions. Stored per-user as the dice set's local-file id.
+local g_lastEditedDiceSetSetting = setting{
+	id = "dicestudio:lastedited",
+	default = "",
+	storage = "preference",
+}
+
 -- Favorite particle effects: a per-user set of effect names hearted in the particle picker.
 -- Stored as a map {name = true} in a preference setting; surfaced via the heart toggle on each
 -- browser tile and the /favoriteeffects chat macro.
@@ -806,12 +814,25 @@ CreateDiceStudioPanel = function()
 
 	local localFiles = dicestudio:GetLocalFiles()
 
+	-- Prefer the dice set the user last edited (persisted across sessions), as long as it
+	-- still exists on disk; otherwise fall back to the first available set.
+	local initialDiceChoice = localFiles[1] and localFiles[1].id
+	local savedDiceChoice = dmhub.GetSettingValue("dicestudio:lastedited")
+	if type(savedDiceChoice) == "string" and savedDiceChoice ~= "" then
+		for _,f in ipairs(localFiles) do
+			if f.id == savedDiceChoice then
+				initialDiceChoice = savedDiceChoice
+				break
+			end
+		end
+	end
+
 	local diceDropdown = gui.Dropdown{
 		width = 160,
 		height = 30,
 		fontSize = 14,
 		options = localFiles,
-		idChosen = localFiles[1] and localFiles[1].id,
+		idChosen = initialDiceChoice,
 		create = function(element)
 			if localFiles[1] ~= nil then
 				element:FireEvent("change")
@@ -819,6 +840,7 @@ CreateDiceStudioPanel = function()
 		end,
 		change = function(element)
 			studio:Load(element.idChosen)
+			dmhub.SetSettingValue("dicestudio:lastedited", element.idChosen)
 			RefreshDice()
 			element.root:FireEventTree("newmaterial")
 			element.root:FireEventTree("refreshDice")
@@ -843,15 +865,17 @@ CreateDiceStudioPanel = function()
 	-- chosen name ("" clears the binding); the popup closes itself on pick or close.
 	local g_particleBrowserPage = {}
 
+	-- currentName highlights the tile for the effect this picker is editing (an event can have
+	-- several effects, so it is passed in per-instance rather than read from the event).
 	local MakeParticleBrowser
-	MakeParticleBrowser = function(owner, eventName, titleText, onPick)
+	MakeParticleBrowser = function(owner, eventName, titleText, onPick, currentName)
 		local COLS, ROWS = 4, 3
 		local PAGE = COLS*ROWS
 		local PREVIEW = 144
 		local TILE_W = 174
 		local TILE_H = PREVIEW + 30
 
-		local current = studio:GetEventEffect(eventName)
+		local current = currentName or ""
 
 		local allNames = {}
 		for _,n in ipairs(studio:GetEventEffectOptions(eventName)) do
@@ -998,6 +1022,13 @@ CreateDiceStudioPanel = function()
 			fontSize = 14,
 			editlag = 0.2,
 			halign = "center",
+            edit = function(element)
+				searchText = element.text or ""
+				Filter()
+				npage = 1
+				g_particleBrowserPage[eventName] = 1
+				element.root:FireEventTree("refreshSearch")
+            end,
 			change = function(element)
 				searchText = element.text or ""
 				Filter()
@@ -1140,12 +1171,11 @@ CreateDiceStudioPanel = function()
 		}
 	end
 
-	-- Builds one row of the Particles tree node for a single dice lifecycle event.
-	-- Pulse events get a "Test" button that fires the bound prefab on the current
-	-- studio preview dice via dicestudio:FirePreviewEffect. State events (RollWaiting,
-	-- TravelTail) are already always-attached, so no button. removeFn (optional) adds a
-	-- delete button that unbinds the event and removes its row.
-	local MakeStageEffectRow = function(eventName, label, pulse, removeFn)
+	-- Builds the row for a SINGLE effect instance within an event (an event can bind several).
+	-- Contains the effect picker, a Raw debug button, the per-effect tunables, and a delete
+	-- button. binding is a DiceEventEffectBindingLua wrapper; rebuildFn rebuilds the owning
+	-- event's instance list after a remove changes the count.
+	local MakeEffectInstanceRow = function(eventName, label, binding, rebuildFn)
 		-- The effect picker: a compact button showing the current effect preview thumbnail and
 		-- name; clicking opens the browsable particle picker (MakeParticleBrowser).
 		local previewThumb = gui.Panel{
@@ -1164,7 +1194,7 @@ CreateDiceStudioPanel = function()
 			fontSize = 14,
 		}
 		local function RefreshPreviewButton()
-			local cur = studio:GetEventEffect(eventName)
+			local cur = binding.effectName
 			if cur == "" then
 				previewThumb.bgimage = "panels/square.png"
 				previewThumb.selfStyle.bgcolor = "white"
@@ -1193,25 +1223,21 @@ CreateDiceStudioPanel = function()
 				RefreshPreviewButton()
 			end,
 			click = function(element)
+				-- Picking an effect rebinds this instance; picking "(None)" removes it.
 				element.popup = MakeParticleBrowser(element, eventName, label, function(name)
-					studio:SetEventEffect(eventName, name)
-					element.root:FireEventTree("refreshDice")
-				end)
+					if name == "" then
+						studio:RemoveEventEffect(binding)
+						rebuildFn()
+						RefreshDice()
+					else
+						binding.effectName = name
+						element.root:FireEventTree("refreshDice")
+						RefreshDice()
+					end
+				end, binding.effectName)
 			end,
 		}
 		local controlsChildren = { previewButton }
-		if pulse then
-			controlsChildren[#controlsChildren+1] = gui.Button{
-				text = "Test",
-				width = 50,
-				height = 30,
-				fontSize = 12,
-				hmargin = 4,
-				click = function(element)
-					studio:FirePreviewEffect(eventName)
-				end,
-			}
-		end
 		controlsChildren[#controlsChildren+1] = gui.Button{
 			text = "Raw",
 			width = 50,
@@ -1219,32 +1245,23 @@ CreateDiceStudioPanel = function()
 			fontSize = 12,
 			hmargin = 4,
 			click = function(element)
-				studio:PlayRawEffect(eventName)
+				studio:PlayRawBinding(binding)
+			end,
+		}
+		controlsChildren[#controlsChildren+1] = gui.DeleteItemButton{
+			width = 16,
+			height = 16,
+			valign = "center",
+			hmargin = 4,
+			click = function(element)
+				studio:RemoveEventEffect(binding)
+				rebuildFn()
+				RefreshDice()
 			end,
 		}
 
-		if removeFn ~= nil then
-			controlsChildren[#controlsChildren+1] = gui.DeleteItemButton{
-				width = 16,
-				height = 16,
-				valign = "center",
-				hmargin = 4,
-				click = function(element)
-					removeFn()
-				end,
-			}
-		end
-
-		--True when an effect is actually bound to this event; the tunable sliders below
-		--only have a binding to write to in that case, so the whole block collapses when
-		--"(None)" is selected.
-		local function HasEffect()
-			return studio:GetEventEffect(eventName) ~= ""
-		end
-
-		--A labelled slider bound to one of the per-effect tunables. getFn/setFn close over
-		--eventName so each row drives this event's binding. Re-reads its value on the
-		--newmaterial/refreshDice tree events (fired when the dropdown selection changes).
+		--A labelled slider bound to one of this effect's tunables. getFn/setFn close over the
+		--binding wrapper. Re-reads its value on the newmaterial/refreshDice tree events.
 		local function ParamSlider(slabel, minV, maxV, getFn, setFn)
 			return gui.Panel{
 				classes = {"formPanel"},
@@ -1274,33 +1291,34 @@ CreateDiceStudioPanel = function()
 			}
 		end
 
+		--Tunables collapse while this slot is unbound ("(None)"), since there's nothing to tune.
 		local tunablesPanel = gui.Panel{
 			width = "100%",
 			height = "auto",
 			flow = "vertical",
 			lmargin = 12,
 			create = function(element)
-				element:SetClass("collapsed", not HasEffect())
+				element:SetClass("collapsed", binding.effectName == "")
 			end,
 			newmaterial = function(element)
-				element:SetClass("collapsed", not HasEffect())
+				element:SetClass("collapsed", binding.effectName == "")
 			end,
 			refreshDice = function(element)
-				element:SetClass("collapsed", not HasEffect())
+				element:SetClass("collapsed", binding.effectName == "")
 			end,
 
 			ParamSlider("Scale:", 0.1, 4,
-				function() return studio:GetEventEffectScale(eventName) end,
-				function(v) studio:SetEventEffectScale(eventName, v) end),
+				function() return binding.scale end,
+				function(v) binding.scale = v end),
 			ParamSlider("Speed:", 0.1, 4,
-				function() return studio:GetEventEffectSpeed(eventName) end,
-				function(v) studio:SetEventEffectSpeed(eventName, v) end),
+				function() return binding.speed end,
+				function(v) binding.speed = v end),
 			ParamSlider("Hue:", 0, 1,
-				function() return studio:GetEventEffectHueShift(eventName) end,
-				function(v) studio:SetEventEffectHueShift(eventName, v) end),
+				function() return binding.hueShift end,
+				function(v) binding.hueShift = v end),
 			ParamSlider("Brightness:", 0.1, 4,
-				function() return studio:GetEventEffectBrightness(eventName) end,
-				function(v) studio:SetEventEffectBrightness(eventName, v) end),
+				function() return binding.brightness end,
+				function(v) binding.brightness = v end),
 
 			gui.Panel{
 				classes = {"formPanel"},
@@ -1314,15 +1332,15 @@ CreateDiceStudioPanel = function()
 					borderColor = "white",
 					width = 16,
 					height = 16,
-					value = studio:GetEventEffectTint(eventName),
+					value = binding.tint,
 					newmaterial = function(element)
-						element.value = studio:GetEventEffectTint(eventName)
+						element.value = binding.tint
 					end,
 					refreshDice = function(element)
-						element.value = studio:GetEventEffectTint(eventName)
+						element.value = binding.tint
 					end,
 					change = function(element)
-						studio:SetEventEffectTint(eventName, element.value)
+						binding.tint = element.value
 						RefreshDice()
 					end,
 				},
@@ -1348,15 +1366,48 @@ CreateDiceStudioPanel = function()
 						{ id = "180", text = "180" },
 						{ id = "270", text = "270" },
 					},
-					idChosen = tostring(studio:GetEventEffectXRotation(eventName)),
+					idChosen = tostring(binding.xRotation),
 					newmaterial = function(element)
-						element.idChosen = tostring(studio:GetEventEffectXRotation(eventName))
+						element.idChosen = tostring(binding.xRotation)
 					end,
 					refreshDice = function(element)
-						element.idChosen = tostring(studio:GetEventEffectXRotation(eventName))
+						element.idChosen = tostring(binding.xRotation)
 					end,
 					change = function(element)
-						studio:SetEventEffectXRotation(eventName, tonumber(element.idChosen) or 0)
+						binding.xRotation = tonumber(element.idChosen) or 0
+						RefreshDice()
+					end,
+				},
+			},
+
+			-- Force the effect above or beneath the dice. "Auto" keeps the prefab's
+			-- own TopLayer/BottomLayer convention (the historical behavior).
+			gui.Panel{
+				classes = {"formPanel"},
+				gui.Label{
+					classes = {"formLabel"},
+					halign = "left",
+					text = "Layer:",
+				},
+				gui.Dropdown{
+					width = 120,
+					height = 30,
+					fontSize = 14,
+					halign = "left",
+					options = {
+						{ id = "auto",  text = "Auto" },
+						{ id = "above", text = "Above Dice" },
+						{ id = "below", text = "Below Dice" },
+					},
+					idChosen = binding.layerPlacement,
+					newmaterial = function(element)
+						element.idChosen = binding.layerPlacement
+					end,
+					refreshDice = function(element)
+						element.idChosen = binding.layerPlacement
+					end,
+					change = function(element)
+						binding.layerPlacement = element.idChosen
 						RefreshDice()
 					end,
 				},
@@ -1367,22 +1418,110 @@ CreateDiceStudioPanel = function()
 			width = "100%",
 			height = "auto",
 			flow = "vertical",
+			vmargin = 2,
 
 			gui.Panel{
-				classes = {"formPanel"},
-				gui.Label{
-					classes = {"formLabel"},
-					text = label,
-				},
-				gui.Panel{
-					width = "100%",
-					height = "auto",
-					flow = "horizontal",
-					table.unpack(controlsChildren),
-				},
+				width = "100%",
+				height = "auto",
+				flow = "horizontal",
+				table.unpack(controlsChildren),
 			},
 
 			tunablesPanel,
+		}
+	end
+
+	-- Builds the block for one dice lifecycle event. The header has the event label, a Test
+	-- button (pulse events only) firing the whole event on the preview dice, an "Add Effect"
+	-- button, and (optional) a remove-event button. Below the header is the list of effect
+	-- instances bound to the event -- an event can have several, each its own prefab + tunables.
+	local MakeStageEffectRow = function(eventName, label, pulse, removeEventFn)
+		local instancesPanel
+		local function RebuildInstances()
+			local children = {}
+			for _,binding in ipairs(studio:GetEventEffectList(eventName)) do
+				children[#children+1] = MakeEffectInstanceRow(eventName, label, binding, function()
+					RebuildInstances()
+				end)
+			end
+			instancesPanel.children = children
+		end
+		instancesPanel = gui.Panel{
+			width = "100%",
+			height = "auto",
+			flow = "vertical",
+			lmargin = 12,
+			create = function(element)
+				RebuildInstances()
+			end,
+			newmaterial = function(element)
+				RebuildInstances()
+			end,
+		}
+
+		local headerChildren = {}
+		headerChildren[#headerChildren+1] = gui.Label{
+			classes = {"formLabel"},
+			width = 110,
+			halign = "left",
+			text = label,
+		}
+		if pulse then
+			headerChildren[#headerChildren+1] = gui.Button{
+				text = "Test",
+				width = 50,
+				height = 30,
+				fontSize = 12,
+				hmargin = 4,
+				click = function(element)
+					studio:FirePreviewEffect(eventName)
+				end,
+			}
+		end
+		headerChildren[#headerChildren+1] = gui.Button{
+			text = "Add Effect",
+			width = 90,
+			height = 30,
+			fontSize = 12,
+			hmargin = 4,
+			click = function(element)
+				-- Open the picker; on pick, append a new effect to this event.
+				element.popup = MakeParticleBrowser(element, eventName, label, function(name)
+					if name ~= "" then
+						studio:AddEventEffect(eventName, name)
+						RebuildInstances()
+						RefreshDice()
+					end
+				end, "")
+			end,
+		}
+		if removeEventFn ~= nil then
+			headerChildren[#headerChildren+1] = gui.DeleteItemButton{
+				width = 16,
+				height = 16,
+				valign = "center",
+				hmargin = 4,
+				click = function(element)
+					removeEventFn()
+				end,
+			}
+		end
+
+		return gui.Panel{
+			width = "100%",
+			height = "auto",
+			flow = "vertical",
+			vmargin = 4,
+
+			gui.Panel{
+				classes = {"formPanel"},
+				width = "100%",
+				height = "auto",
+				flow = "horizontal",
+				table.unpack(headerChildren),
+			},
+
+			instancesPanel,
 		}
 	end
 
@@ -1397,8 +1536,9 @@ CreateDiceStudioPanel = function()
 		{ event = "TravelTail",  label = "Travel Tail:",  pulse = false },
 	}
 
-	-- An event row is shown when it has a bound effect OR the user added it this
-	-- session (data.added). Removing a row unbinds the event and hides it again.
+	-- An event block is shown when it has at least one bound effect OR the user added it this
+	-- session (data.added). Once shown it is marked added, so it stays put even after its last
+	-- effect is removed; the block's remove (X) button clears every effect and hides it again.
 	local diceEventRows
 	diceEventRows = gui.Panel{
 		width = "100%",
@@ -1412,21 +1552,29 @@ CreateDiceStudioPanel = function()
 			element:FireEvent("refreshDice")
 		end,
 		newmaterial = function(element)
+			-- A freshly loaded dice set has its own events; drop session-added state and the
+			-- cached blocks so the list rebuilds purely from what the new set has bound.
+			element.data.added = {}
+			element.data.panels = {}
 			element:FireEvent("refreshDice")
 		end,
 		refreshDice = function(element)
 			local children = {}
 			local newPanels = {}
 			for _,info in ipairs(diceEventList) do
-				if element.data.added[info.event] or studio:GetEventEffect(info.event) ~= "" then
+				if element.data.added[info.event] or #studio:GetEventEffectList(info.event) > 0 then
+					-- Mark added so visibility and the Add Event list stay consistent even
+					-- after the event's last effect is removed.
+					element.data.added[info.event] = true
 					local panel = element.data.panels[info.event]
 					if panel == nil then
 						local ev = info.event
 						panel = MakeStageEffectRow(ev, info.label, info.pulse, function()
-							studio:SetEventEffect(ev, "")
+							studio:ClearEventEffects(ev)
 							diceEventRows.data.added[ev] = nil
 							diceEventRows.data.panels[ev] = nil
 							diceEventRows.root:FireEventTree("refreshDice")
+							RefreshDice()
 						end)
 					end
 					newPanels[info.event] = panel
@@ -1439,7 +1587,7 @@ CreateDiceStudioPanel = function()
 	}
 
 	-- "Add Event..." lists only events not already shown; choosing one reveals its
-	-- row so an effect can then be bound to it.
+	-- block so effects can then be added to it.
 	local addDiceEventControl = gui.Dropdown{
 		textOverride = "Add Event...",
 		width = 160,
@@ -1450,7 +1598,7 @@ CreateDiceStudioPanel = function()
 		create = function(element)
 			local choices = {}
 			for _,info in ipairs(diceEventList) do
-				if not (diceEventRows.data.added[info.event] or studio:GetEventEffect(info.event) ~= "") then
+				if not (diceEventRows.data.added[info.event] or #studio:GetEventEffectList(info.event) > 0) then
 					choices[#choices+1] = { id = info.event, text = string.gsub(info.label, ":", "") }
 				end
 			end
@@ -1508,6 +1656,169 @@ CreateDiceStudioPanel = function()
 		},
 
 		dropdownForm,
+
+		-- Admin tool: pull an already-uploaded ("cloud") dice set down to a local file
+		-- so it shows up in the "Dice:" dropdown above. The local copy keeps the cloud
+		-- name and id (see DiceStudioLua.DownloadCloudDice), so editing it and then
+		-- hitting Save/Upload updates the same cloud document. Lives outside dropdownForm
+		-- on purpose -- dropdownForm collapses when there are zero local files, which is
+		-- exactly when you want to download one.
+		gui.Button{
+			text = "Download from Cloud...",
+			width = "62%",
+			height = 24,
+			fontSize = 16,
+			click = function(buttonElement)
+				local cloudDice = dice.GetAllDice()
+				table.sort(cloudDice, function(a, b)
+					return string.lower(a.text) < string.lower(b.text)
+				end)
+
+				if #cloudDice == 0 then
+					gui.ShowModal(gui.Panel{
+						classes = {"framedPanel"},
+						width = 400,
+						height = "auto",
+						halign = "center",
+						valign = "center",
+						flow = "vertical",
+						styles = ThemeEngine.GetStyles(),
+
+						gui.Label{
+							width = "auto",
+							height = "auto",
+							halign = "center",
+							valign = "center",
+							vmargin = 24,
+							color = "white",
+							fontSize = 18,
+							text = "No uploaded dice sets were found.",
+						},
+
+						gui.Panel{
+							width = 360,
+							height = 48,
+							halign = "center",
+							valign = "bottom",
+
+							gui.Button{
+								classes = {"sizeM"},
+								halign = "center",
+								text = "Close",
+								escapeActivates = true,
+								click = function(element)
+									gui.CloseModal()
+								end,
+							},
+						},
+					})
+					return
+				end
+
+				-- Currently-selected cloud dice id; updated by the dropdown below.
+				local chosenId = cloudDice[1].id
+
+				-- framedPanel supplies the themed background + border; ThemeEngine.GetStyles()
+				-- gives the full themed cascade the inner controls (dropdown, sizeM buttons,
+				-- modalTitle) need. A ShowModal dialog is re-rooted at the modal layer, so it
+				-- can't inherit the Dice Studio panel's cascade -- it has to bring its own.
+				gui.ShowModal(gui.Panel{
+					classes = {"framedPanel"},
+					width = 460,
+					height = "auto",
+					halign = "center",
+					valign = "center",
+					flow = "vertical",
+					styles = ThemeEngine.GetStyles(),
+
+					gui.Panel{
+						halign = "center",
+						valign = "top",
+						vmargin = 20,
+						flow = "vertical",
+						width = 400,
+						height = "auto",
+
+						gui.Label{
+							classes = {"modalTitle"},
+							text = "Download Dice Set",
+							halign = "center",
+							width = "auto",
+							height = "auto",
+						},
+
+						gui.Panel{
+							flow = "horizontal",
+							halign = "center",
+							width = "auto",
+							height = 40,
+							valign = "center",
+							vmargin = 12,
+
+							gui.Label{
+								text = "Uploaded:",
+								width = "auto",
+								height = "auto",
+								color = "white",
+								fontSize = 18,
+								valign = "center",
+								hmargin = 8,
+							},
+
+							gui.Dropdown{
+								width = 260,
+								height = 30,
+								fontSize = 14,
+								valign = "center",
+								options = cloudDice,
+								idChosen = chosenId,
+								change = function(element)
+									chosenId = element.idChosen
+								end,
+							},
+						},
+					},
+
+					gui.Panel{
+						width = 400,
+						height = 48,
+						halign = "center",
+						valign = "bottom",
+
+						gui.Button{
+							classes = {"sizeM"},
+							halign = "left",
+							text = "Download",
+							click = function(element)
+								local name = dicestudio:DownloadCloudDice(chosenId)
+								gui.CloseModal()
+								if name == nil then
+									return
+								end
+
+								-- Refresh the local "Dice:" dropdown and select the
+								-- freshly downloaded set, loading it into the editor.
+								localFiles = dicestudio:GetLocalFiles()
+								dropdownForm:SetClass("collapsed", false)
+								diceDropdown.options = localFiles
+								diceDropdown.idChosen = name
+								diceDropdown:FireEvent("change")
+							end,
+						},
+
+						gui.Button{
+							classes = {"sizeM"},
+							halign = "right",
+							text = "Cancel",
+							escapeActivates = true,
+							click = function(element)
+								gui.CloseModal()
+							end,
+						},
+					},
+				})
+			end,
+		},
 
 		gui.Panel{
 			width = "100%",
@@ -1797,35 +2108,46 @@ CreateDiceStudioPanel = function()
 
 			gui.Panel{
 				classes = {"formPanel"},
-				gui.Check{
+				gui.Label{
+					classes = {"formLabel"},
 					halign = "left",
-					text = "Teleporting",
-					value = studio.teleporting,
+					text = "Special Movement:",
+				},
+				gui.Dropdown{
+					width = "100%-24",
+					height = 30,
+					fontSize = 14,
+					options = {
+						{ id = "none",     text = "None" },
+						{ id = "teleport", text = "Teleport" },
+						{ id = "portal",   text = "Portal" },
+					},
+					idChosen = studio.specialMovement,
 					newmaterial = function(element)
-						element.value = studio.teleporting
+						element.idChosen = studio.specialMovement
 					end,
 					change = function(element)
-						studio.teleporting = element.value
+						studio.specialMovement = element.idChosen
 						RefreshDice()
 						element.root:FireEventTree("refreshDice")
 					end,
 				},
 			},
 
-			-- Teleport tunables: only shown while Teleporting is checked.
+			-- Teleport tunables: only shown while mode == teleport.
 			gui.Panel{
 				width = "100%",
 				height = "auto",
 				flow = "vertical",
 
 				create = function(element)
-					element:SetClass("collapsed", not studio.teleporting)
+					element:SetClass("collapsed", studio.specialMovement ~= "teleport")
 				end,
 				refreshDice = function(element)
-					element:SetClass("collapsed", not studio.teleporting)
+					element:SetClass("collapsed", studio.specialMovement ~= "teleport")
 				end,
 				newmaterial = function(element)
-					element:SetClass("collapsed", not studio.teleporting)
+					element:SetClass("collapsed", studio.specialMovement ~= "teleport")
 				end,
 
 				gui.Panel{
@@ -1899,6 +2221,105 @@ CreateDiceStudioPanel = function()
 						end,
 					},
 				},
+			},
+
+			-- Portal effect: only shown while mode == portal. Reuses MakeStageEffectRow so the
+			-- effect picker and its tunables (scale/speed/hue/brightness/tint/rotate) match the
+			-- Particles node exactly. The "Portal" event resolves its catalog from the full
+			-- effect library on the engine side (DiceIndex.GetEventEffectNames).
+			gui.Panel{
+				width = "100%",
+				height = "auto",
+				flow = "vertical",
+
+				create = function(element)
+					element:SetClass("collapsed", studio.specialMovement ~= "portal")
+				end,
+				refreshDice = function(element)
+					element:SetClass("collapsed", studio.specialMovement ~= "portal")
+				end,
+				newmaterial = function(element)
+					element:SetClass("collapsed", studio.specialMovement ~= "portal")
+				end,
+
+				-- Seconds the die must be airborne before its first wall/floor collision sends it
+				-- through a portal; also the lead time the portals are shown before the impact.
+				gui.Panel{
+					classes = {"formPanel"},
+					gui.Label{
+						classes = {"formLabel"},
+						halign = "left",
+						text = "Portal Creation Time:",
+					},
+					gui.Slider{
+						style = { height = 26, width = 240, fontSize = 14 },
+						sliderWidth = 180,
+						labelWidth = 50,
+						minValue = 0,
+						maxValue = 0.5,
+						value = studio.portalCreationTime or 0.1,
+						newmaterial = function(element)
+							element.value = studio.portalCreationTime or 0.1
+						end,
+						change = function(element)
+							studio.portalCreationTime = element.value
+							RefreshDice()
+						end,
+					},
+				},
+
+				-- Duration of the brightness flash the die pulses as it enters the portal. The
+				-- flash peaks exactly at the moment of entry (it begins half this period before).
+				gui.Panel{
+					classes = {"formPanel"},
+					gui.Label{
+						classes = {"formLabel"},
+						halign = "left",
+						text = "Portal Flash Period:",
+					},
+					gui.Slider{
+						style = { height = 26, width = 240, fontSize = 14 },
+						sliderWidth = 180,
+						labelWidth = 50,
+						minValue = 0,
+						maxValue = 1,
+						value = studio.portalFlashPeriod or 0.2,
+						newmaterial = function(element)
+							element.value = studio.portalFlashPeriod or 0.2
+						end,
+						change = function(element)
+							studio.portalFlashPeriod = element.value
+							RefreshDice()
+						end,
+					},
+				},
+
+				-- Peak brightness multiplier of that flash (1 = no flash).
+				gui.Panel{
+					classes = {"formPanel"},
+					gui.Label{
+						classes = {"formLabel"},
+						halign = "left",
+						text = "Portal Flash Intensity:",
+					},
+					gui.Slider{
+						style = { height = 26, width = 240, fontSize = 14 },
+						sliderWidth = 180,
+						labelWidth = 50,
+						minValue = 1,
+						maxValue = 16,
+						value = studio.portalFlashIntensity or 4,
+						newmaterial = function(element)
+							element.value = studio.portalFlashIntensity or 4
+						end,
+						change = function(element)
+							studio.portalFlashIntensity = element.value
+							RefreshDice()
+						end,
+					},
+				},
+
+				MakeStageEffectRow("Portal", "Portal Effect:", true),
 			},
 		},
 

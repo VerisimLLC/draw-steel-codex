@@ -3235,6 +3235,29 @@ local function _buildTargetingSection(ability, fireChange)
                 ability:SetChosenTargetTypeFromDropdown(element.idChosen)
                 fireChange()
             end,
+            refreshAbility = function(element)
+                -- For triggered abilities the valid target types depend on the
+                -- trigger event / subject, so recompute the options whenever the
+                -- ability changes. Only reassign when the set actually changed --
+                -- for non-triggered abilities the list is static, so this is a
+                -- no-op and avoids churn on every edit. idChosen is refreshed
+                -- unconditionally; assigning it does not re-fire 'change'.
+                local options = ability:GetDisplayedTargetTypeOptions()
+                local current = element.options
+                local changed = current == nil or #current ~= #options
+                if not changed then
+                    for i,opt in ipairs(options) do
+                        if current[i].id ~= opt.id then
+                            changed = true
+                            break
+                        end
+                    end
+                end
+                if changed then
+                    element.options = options
+                end
+                element.idChosen = ability:GetChosenTargetTypeInDropdown()
+            end,
         }
     )
 

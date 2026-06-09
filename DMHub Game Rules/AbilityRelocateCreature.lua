@@ -368,6 +368,14 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 
             --make forced movement happen after the movement so they are in the new location.
             if forcemoveEvent ~= nil then
+                --Expose how far the creature was actually moved and whether the forcing
+                --ability had the Melee keyword, so triggered abilities (e.g. the Orc
+                --Chainlock's "Chain Link") can react to melee forced movement and reuse
+                --the distance. path.numSteps is the real distance moved -- it may be less
+                --than requested if the path was blocked. ability is the forced-movement
+                --clone, which InvokeAbility populates with the parent ability's keywords.
+                forcemoveEvent.distance = math.floor((path ~= nil and path.numSteps) or 0)
+                forcemoveEvent.melee = ability.keywords ~= nil and ability.keywords["Melee"] == true
                 casterToken.properties:DispatchEvent("forcemove", forcemoveEvent)
             end
 

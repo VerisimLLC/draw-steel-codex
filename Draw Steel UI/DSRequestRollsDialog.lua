@@ -421,8 +421,12 @@ function GameHud:RequireRollListenerPanel()
 		monitorGame = "/actionRequests",
 
 		refreshGame = function(element)
-			if self.rollDialog.data.IsShown() then
-				if showingRollId == gamehud.rollDialog.data.rollid then
+			--Defer if ANY roll dialog is on screen, not just the legacy singleton.
+			--Otherwise a table roll (e.g. the Conduit prayer, which routes to the
+			--standalone host) pops on top of an in-flight ability/ongoing-effect
+			--roll shown in the embedded dialog. See CharacterPanel.AnyRollDialogShown.
+			if CharacterPanel.AnyRollDialogShown() then
+				if self.rollDialog.data.IsShown() and showingRollId == gamehud.rollDialog.data.rollid then
 					--we requested the current roll dialog that is shown. See if our reason
 					--for doing so has been canceled, in which case we want to close that dialog.
 					if dmhub.GetPlayerActionRequest(rollRequestId) == nil then
@@ -430,7 +434,7 @@ function GameHud:RequireRollListenerPanel()
 					end
 				end
 
-				--we are currently blocked by the roll dialog. Try again in a little while.
+				--we are currently blocked by a roll dialog. Try again in a little while.
 				element:ScheduleEvent("refreshGame", 0.2)
 
 				return
@@ -1589,6 +1593,19 @@ function GameHud:ShowRollSummaryDialog(actionid, resultTable)
 
 			}
 
+			--Shown beside the Take Roll button once the DM takes a roll that is
+			--queued behind another dialog (the listener defers while
+			--CharacterPanel.AnyRollDialogShown). Gives the click a visible effect
+			--even though the actual roll prompt is suppressed until the blocking
+			--dialog is resolved.
+			local waitingLabel = gui.Label{
+				classes = {"sizeS", "hidden"},
+				text = "Waiting...",
+				halign = "right",
+				valign = "center",
+				rmargin = 100,
+			}
+
 			panel = gui.Panel{
 				classes = {"resultPanel", "row", cond(rowIndex % 2 == 1, "evenRow", "oddRow")},
 
@@ -1609,6 +1626,8 @@ function GameHud:ShowRollSummaryDialog(actionid, resultTable)
 						local actionInfo = action.info.tokens[k]
 						if actionInfo ~= nil then
 							removeButton:SetClass("hidden", true)
+							--Hide by default; the queued-Take-Roll branch below re-shows it.
+							waitingLabel:SetClass("hidden", true)
 							if actionInfo.status == 'dialog' then
 								if actionInfo.userid ~= nil then
 									element.text = string.format("%s is preparing to roll...", dmhub.GetDisplayName(actionInfo.userid))
@@ -1658,6 +1677,13 @@ function GameHud:ShowRollSummaryDialog(actionid, resultTable)
 								element.text = 'Waiting...'
 								if againButton ~= nil then
 									againButton:FireEvent("takeroll", true)
+								end
+
+								--The DM took this roll (forceuserid is them) but it has
+								--not been shown yet -- it is queued behind another dialog.
+								--Surface that beside the button so the click reads as acted on.
+								if actionInfo.forceuserid == dmhub.loginUserid then
+									waitingLabel:SetClass("hidden", false)
 								end
 							end
 						end
@@ -1735,6 +1761,8 @@ function GameHud:ShowRollSummaryDialog(actionid, resultTable)
 				againButton,
 
 				removeButton,
+
+				waitingLabel,
 			}
 
 			resultsPanels[#resultsPanels+1] = panel

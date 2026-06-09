@@ -1769,6 +1769,50 @@ function ActivatedAbilityPowerRollBehavior:GetPowerRollDisplay()
     return string.gsub(roll, "2d10", "<b>Power Roll</b>")
 end
 
+--Resolves the value of the characteristic this power roll uses for `caster`,
+--e.g. 5 for a hero whose roll is "2d10 + Reason" with Reason +5, or the higher
+--of the two for "2d10 + Might or Agility". Returns nil when the roll formula
+--names no characteristic (e.g. a flat "2d10 + 3" monster roll) so callers can
+--leave the GoblinScript symbol absent.
+--- @param caster creature
+--- @return number|nil
+function ActivatedAbilityPowerRollBehavior:GetRollCharacteristicValue(caster)
+    local rollFormula = self:try_get("roll", "")
+    if rollFormula == "" then
+        return nil
+    end
+
+    --Replace the dice term with 0 so evaluating the formula yields just the
+    --bonus. GoblinScript resolves "Might or Agility" to the higher of the two
+    --and "Highest Characteristic" to the highest. If no letters remain after
+    --removing the dice, the bonus is a flat number (no characteristic).
+    local bonusFormula = regex.ReplaceAll(rollFormula, "\\d*d\\d+", "0")
+    if regex.MatchGroups(bonusFormula, "(?<c>[a-zA-Z])") == nil then
+        return nil
+    end
+
+    local value = tonumber(dmhub.EvalGoblinScript(bonusFormula, caster:LookupSymbol(), "Roll Characteristic Value"))
+    if value == nil then
+        return nil
+    end
+
+    return round(value)
+end
+
+--Convenience wrapper: returns the characteristic value used by this ability's
+--power roll, or nil. Skips resistance rolls (they roll the target's defending
+--characteristic, not the caster's attacking one).
+--- @param caster creature
+--- @return number|nil
+function ActivatedAbility:GetRollCharacteristicValue(caster)
+    for _,behavior in ipairs(self.behaviors) do
+        if behavior.typeName == "ActivatedAbilityPowerRollBehavior" and not behavior:try_get("resistanceRoll", false) then
+            return behavior:GetRollCharacteristicValue(caster)
+        end
+    end
+    return nil
+end
+
 function ActivatedAbility:GetPowerRollDisplay()
     for _,behavior in ipairs(self.behaviors) do
         local result = behavior:GetPowerRollDisplay()

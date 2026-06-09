@@ -83,6 +83,9 @@ function RichEncounter.CreateDisplay(self)
             --check we have spawn locations for all monsters.
             local canspawn = true
             for _,group in ipairs(self.encounter:CloneForNumberOfHeroes().groups) do
+                --reinforcement groups arrive later and are not placed up front, so
+                --they do not need spawn locations to enable "Place on Map".
+                if group.wave == nil then
                 local nmonsters = 0
                 for monsterid,quantity in pairs(group.monsters) do
                     nmonsters = nmonsters + quantity
@@ -92,6 +95,7 @@ function RichEncounter.CreateDisplay(self)
                     print("SPAWN:: CANNOT SPAWN")
                     canspawn = false
                     --break
+                end
                 end
             end
 
@@ -198,12 +202,21 @@ function RichEncounter.CreateDisplay(self)
 
         spawn = function(element)
             print("FLOOR:: SPAWNING")
+            --Remember this as the readied encounter so the combat-setup dialog can
+            --default its dropdown to it. Cleared when combat actually starts.
+            Encounter.SetReadiedEncounter(self.encounter)
             local initiativeQueue = dmhub.initiativeQueue
             if initiativeQueue ~= nil and initiativeQueue.hidden then
                 initiativeQueue = nil
             end
             self.spawns = {}
             for _,group in ipairs(self.encounter:CloneForNumberOfHeroes().groups) do
+                --Reinforcement groups (assigned to a wave) are not placed up front;
+                --they arrive when their wave triggers, so skip them here.
+                if group.wave ~= nil then
+                    goto continue
+                end
+
                 local minionName = nil
                 local nsquads = 1
                 for monsterid,quantity in pairs(group.monsters) do
@@ -295,6 +308,8 @@ function RichEncounter.CreateDisplay(self)
                         initiativeQueue:SetInitiative(groupid, 0, 0)
                     end
                 end
+
+                ::continue::
             end
 
             self:UploadDocument()
@@ -312,7 +327,9 @@ function RichEncounter.CreateDisplay(self)
             for _,group in ipairs(self.encounter.groups) do
                 group.appearances = {}
                 group.invisibleToPlayers = {}
-                if group.minHeroes == nil or numHeroes >= group.minHeroes then
+                --reinforcement (wave) groups are not placed up front, so they have no
+                --tokens to despawn; skip them to keep the charid index aligned with spawn.
+                if group.wave == nil and (group.minHeroes == nil or numHeroes >= group.minHeroes) then
                     local spawnIndex = 1
                     for monsterid,quantity in pairs(group.monsters) do
                         --match the adjusted count used at spawn time so token ids stay aligned.
@@ -340,10 +357,56 @@ function RichEncounter.CreateDisplay(self)
                 end
             end
 
+            --Also save the positions of any deployed reinforcements (wave groups).
+            --These were not placed by the start-of-encounter spawn above; they were
+            --spawned at runtime by LiveEncounter:DeployWave, which TAGGED each token
+            --with its wave id, group index, and flat spawn slot. We scan the map for
+            --those tags and bank each token's current position into the matching
+            --authored wave group's spawnlocs. Scanning the map (rather than reading the
+            --live encounter) means this works whether or not combat is still active and
+            --regardless of which live encounter is current. Banking into the authored
+            --encounter means the next time the wave deploys it comes up where the DM
+            --left them.
+            local waveCharids = {}
+            local myWaveIds = {}
+            for _,wave in ipairs(self.encounter:try_get("waves", {})) do
+                myWaveIds[wave.id] = true
+            end
+
+            local groupsReset = {}
+            for _,token in ipairs(dmhub.allTokens) do
+                local waveid = token.properties:try_get("encounterWaveId")
+                local gidx = token.properties:try_get("encounterGroupIndex")
+                local slot = token.properties:try_get("encounterSpawnSlot")
+                if waveid ~= nil and gidx ~= nil and slot ~= nil and myWaveIds[waveid] then
+                    local group = self.encounter.groups[gidx]
+                    if group ~= nil and group.wave == waveid then
+                        --clear the group's slots once, the first time we touch it, so
+                        --stale entries from a previous save don't linger.
+                        if not groupsReset[gidx] then
+                            groupsReset[gidx] = true
+                            group.spawnlocs = {}
+                            group.appearances = {}
+                            group.invisibleToPlayers = {}
+                        end
+                        group.spawnlocs[slot] = token.loc
+                        group.invisibleToPlayers[slot] = token.invisibleToPlayers or false
+                        if self.encounter.saveAppearances and token.appearanceChangedFromBestiary then
+                            group.appearances[slot] = token:SerializeAppearanceToString()
+                        else
+                            group.appearances[slot] = false
+                        end
+                        waveCharids[#waveCharids+1] = token.charid
+                    end
+                end
+            end
+
             game.DeleteCharacters(charids)
+            if #waveCharids > 0 then
+                game.DeleteCharacters(waveCharids)
+            end
 
             if self:has_key("_tmp_document") then
-                print("SPAWN:: DOCUMENT UPLOAD")
                 self._tmp_document:Upload()
             end
         end,
@@ -365,9 +428,35 @@ function RichEncounter.CreateDisplay(self)
                     gui.SetFocus(nil)
 
                     self.spawns = charids
-                    if self:has_key("_tmp_document") then
-                        self._tmp_document:Upload()
+
+                    --The engine places ALL of the encounter's monsters here, including
+                    --reinforcement (wave) groups, as plain tokens. Tag the wave-group
+                    --tokens so "Save and Remove" can bank their positions (mirrors the
+                    --tags LiveEncounter:DeployWave applies for the in-combat path).
+                    --The tokens are not always queryable the instant this fires, so
+                    --(like the initiative-queue spawnFromBestiary handler) wait until
+                    --they resolve before tagging.
+                    local attempts = 20
+                    local function tagWhenReady()
+                        if mod.unloaded then return end
+                        local allReady = true
+                        for _,cid in ipairs(charids) do
+                            if dmhub.GetTokenById(cid or "") == nil then
+                                allReady = false
+                                break
+                            end
+                        end
+                        if not allReady and attempts > 0 then
+                            attempts = attempts - 1
+                            dmhub.Schedule(0.1, tagWhenReady)
+                            return
+                        end
+                        self.encounter:TagWaveTokensFromSpawn(charids)
+                        if self:has_key("_tmp_document") then
+                            self._tmp_document:Upload()
+                        end
                     end
+                    tagWhenReady()
 
                 end)
 

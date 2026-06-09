@@ -3,6 +3,9 @@ local mod = dmhub.GetModLoading()
 local g_selectedTokensOpenInitiative = nil
 local g_playerTokensOpenInitiative = nil
 local g_monsterTokensOpenInitiative = nil
+--The Encounter chosen in the combat setup dialog's encounter dropdown, carried to
+--the controller's queue creation. nil means "Custom" (no live encounter).
+local g_selectedEncounterOpenInitiative = nil
 
 local function track(eventType, fields)
     if dmhub.GetSettingValue("telemetry_enabled") == false then
@@ -193,6 +196,39 @@ local function createDrawSteelBanner(options)
                         info.initiativeQueue = InitiativeQueue.Create()
                         info.initiativeQueue.playersGoFirst = m_heroesWin
                         info.initiativeQueue.playersTurn = m_heroesWin
+
+                        --If an encounter was chosen (not "Custom"), attach a live encounter
+                        --built from a deep copy of it. For a Custom combat there is no authored
+                        --encounter, but we still create a basic live encounter so victory can be
+                        --tracked and awarded -- it uses the Encounter defaults (1 Victory reward
+                        --and the "all monsters defeated" victory condition).
+                        if g_selectedEncounterOpenInitiative ~= nil then
+                            info.initiativeQueue.liveEncounter = LiveEncounter.Create(g_selectedEncounterOpenInitiative)
+                        else
+                            local live = LiveEncounter.Create(Encounter.new())
+                            --CountNonMinionMonsters (called in Create) reads the authored monster
+                            --list, which is empty for Custom, so seed onsetMonsterCount from the
+                            --actual non-minion monster tokens entering combat. Without this,
+                            --CheckVictory short-circuits ("no monsters -> nothing to win").
+                            local onsetMonsters = 0
+                            for charid,_ in pairs(g_monsterTokensOpenInitiative or {}) do
+                                local tok = dmhub.GetCharacterById(charid)
+                                if tok ~= nil and tok.valid and tok.properties ~= nil
+                                    and tok.properties:IsMonster() and not tok.properties.minion then
+                                    onsetMonsters = onsetMonsters + 1
+                                end
+                            end
+                            live.onsetMonsterCount = onsetMonsters
+                            info.initiativeQueue.liveEncounter = live
+                        end
+                        --Snapshot the heroes' Recoveries at the onset of combat so the
+                        --victory screen can show how they changed over the fight.
+                        info.initiativeQueue.liveEncounter:RecordOnsetHeroes(g_playerTokensOpenInitiative)
+                        g_selectedEncounterOpenInitiative = nil
+
+                        --Combat has started: the readied encounter is consumed.
+                        Encounter.ClearReadiedEncounter()
+
                         Commands.rollinitiative()
 
                         -- Track encounter_start event
@@ -1713,17 +1749,119 @@ local function ShowCombatSetupDialog(selectedTokens)
         end
     end
 
+    --Heroes are placed into the participating / non-combatant pools immediately based
+    --on the generic selected logic. Monster placement is deferred: which monsters
+    --participate is driven by the chosen encounter (see ApplyEncounterToMonsters), so
+    --we collect the monster groups and assign them once the default encounter is known.
+    local monsterGroups = {}
     for key,group in pairs(groupings) do
         local panel = CreateGroupPanel(group)
-        local pool = cond(group.playerSide, heroesSelectedPool, monstersSelectedPool)
-        if not group.selected then
-            pool = cond(group.playerSide, heroesAvailablePool, monstersAvailablePool)
+        group.panel = panel
+        if group.playerSide then
+            local pool = cond(group.selected, heroesSelectedPool, heroesAvailablePool)
+            pool:FireEventTree("add", panel)
+        else
+            --Park monsters in the non-combatant pool initially; ApplyEncounterToMonsters
+            --moves the ones matching the chosen encounter into the participating pool.
+            monstersAvailablePool:FireEventTree("add", panel)
+            monsterGroups[#monsterGroups + 1] = group
         end
-        pool:FireEventTree("add", panel)
     end
 
     local m_initiativeResult = "roll"
     local m_initiativeLocked = false
+
+    --Scour the current map's journal info bubbles for authored encounters and build
+    --the encounter dropdown options: a "Custom" choice plus one entry per encounter
+    --found.
+    local m_encountersOnMap = Encounter.GetEncountersOnCurrentMap()
+    local m_encounterOptions = { { id = "custom", text = "Custom" } }
+    for i, info in ipairs(m_encountersOnMap) do
+        m_encounterOptions[#m_encounterOptions + 1] = {
+            id = string.format("encounter-%d", i),
+            text = info.name,
+        }
+    end
+
+    --Infer the default encounter for the dropdown: a readied encounter (set by an
+    --encounter's "Place on Map" button) wins; otherwise the first encounter in the
+    --journal document currently open in the tabbed viewer; otherwise Custom.
+    local m_selectedEncounterId = "custom"
+    local defaultEncounterIndex = nil
+
+    local readiedEncounter = Encounter.GetReadiedEncounter()
+    if readiedEncounter ~= nil then
+        for i, info in ipairs(m_encountersOnMap) do
+            if info.encounter == readiedEncounter or info.name == readiedEncounter.name then
+                defaultEncounterIndex = i
+                break
+            end
+        end
+    end
+
+    if defaultEncounterIndex == nil then
+        local openDocId = CustomDocument.GetCurrentJournalDocId()
+        if openDocId ~= nil then
+            for i, info in ipairs(m_encountersOnMap) do
+                if info.docid == openDocId then
+                    defaultEncounterIndex = i
+                    break
+                end
+            end
+        end
+    end
+
+    if defaultEncounterIndex ~= nil then
+        m_selectedEncounterId = string.format("encounter-%d", defaultEncounterIndex)
+    end
+
+    --Map a dropdown option id ("custom" or "encounter-N") back to its entry in
+    --m_encountersOnMap, or nil for Custom.
+    local function ResolveEncounterEntry(encounterId)
+        if encounterId == nil or encounterId == "custom" then
+            return nil
+        end
+        local idx = tonumber(string.match(encounterId, "encounter%-(%d+)"))
+        return idx ~= nil and m_encountersOnMap[idx] or nil
+    end
+
+    --Assign each monster group to the participating "Monsters" pool or to "Non-Combatant
+    --Monsters". When an encounter is chosen, a group participates if it belongs to that
+    --encounter (i.e. it was placed on the map by that encounter, tracked in the
+    --RichEncounter's spawns). With no encounter chosen ("Custom") we fall back to the
+    --generic selected logic, which participates all monsters by default (unless specific
+    --tokens were pre-selected, or their party is flagged non-combatant).
+    local function ApplyEncounterToMonsters(encounterEntry)
+        local matching = nil
+        if encounterEntry ~= nil and encounterEntry.richEncounter ~= nil then
+            matching = {}
+            for _,charid in ipairs(encounterEntry.richEncounter:try_get("spawns", {})) do
+                matching[charid] = true
+            end
+        end
+
+        for _,group in ipairs(monsterGroups) do
+            local participates
+            if matching == nil then
+                participates = group.selected
+            else
+                participates = false
+                for _,tok in ipairs(group.tokens) do
+                    if matching[tok.charid] then
+                        participates = true
+                        break
+                    end
+                end
+            end
+
+            local pool = cond(participates, monstersSelectedPool, monstersAvailablePool)
+            group.panel:Unparent()
+            pool:FireEvent("add", group.panel)
+        end
+    end
+
+    --Initial population using the inferred default encounter.
+    ApplyEncounterToMonsters(ResolveEncounterEntry(m_selectedEncounterId))
 
     local m_reminderPanel = gui.ReminderTextPanel{
         halign = "center",
@@ -1766,6 +1904,30 @@ local function ShowCombatSetupDialog(selectedTokens)
             width = 800,
             height = 800,
             flow = "vertical",
+
+            gui.Panel{
+                width = "auto",
+                height = "auto",
+                flow = "horizontal",
+                halign = "center",
+                valign = "top",
+                vmargin = 8,
+                gui.Label{
+                    text = "Encounter:",
+                    valign = "center",
+                    hmargin = 8,
+                },
+                gui.Dropdown{
+                    width = 240,
+                    options = m_encounterOptions,
+                    idChosen = m_selectedEncounterId,
+                    change = function(element)
+                        m_selectedEncounterId = element.idChosen
+                        ApplyEncounterToMonsters(ResolveEncounterEntry(m_selectedEncounterId))
+                        element.root:FireEventTree("refreshSurprise")
+                    end,
+                },
+            },
 
             gui.Panel{
                 width = "100%",
@@ -1894,6 +2056,11 @@ local function ShowCombatSetupDialog(selectedTokens)
                             end
                         end
                     end
+
+                    --Resolve the chosen encounter (nil for "Custom") and carry it to the
+                    --queue creation that happens once the Draw Steel banner resolves.
+                    local chosenEntry = ResolveEncounterEntry(m_selectedEncounterId)
+                    g_selectedEncounterOpenInitiative = chosenEntry and chosenEntry.encounter or nil
 
                     g_selectedTokensOpenInitiative = tokens
                     if m_initiativeResult == "roll" then

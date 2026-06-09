@@ -6572,6 +6572,8 @@ function creature:ApplyOngoingEffect(ongoingEffectid, duration, casterInfo, opti
 		self:SetTemporaryHitpoints(options.temporary_hitpoints, string.format("Applied %s", ongoingEffect.name), {
 			ongoingeffectid = ongoingEffectid,
 			tempHitpointsEndEffect = options.tempHitpointsEndEffect,
+			--credit the effect's caster as the temp-stamina source (damagePrevention).
+			source = casterInfo ~= nil and casterInfo.tokenid or nil,
 		})
 
 		self:DispatchEvent("gaintempstamina", {})

@@ -416,6 +416,21 @@ local function CreateDrawSteelBubble()
 			}
 
 
+			--(debug) DM/dev-only link to where this encounter's stats live on the
+			--server, mirroring the token right-click "Open Token Data". Only shown
+			--when a live encounter is present, under the same dev/admin gate. Appended
+			--at the end of the menu so it sits below the normal initiative controls.
+			local liveEncounter = dmhub.initiativeQueue:try_get("liveEncounter")
+			if type(liveEncounter) == "table" and (dmhub.GetSettingValue("dev") or dmhub.isAdminAccount) then
+				closeMenu[#closeMenu+1] = {
+					text = "Open Encounter Stats",
+					click = function()
+						self.popup = nil
+						dmhub.OpenDebugConsole(string.format("/initiativeQueues/%s/liveEncounter/stats", game.currentMapId), "game")
+					end,
+				}
+			end
+
 			self.popup = gui.ContextMenu{entries = closeMenu}
 
 
@@ -1059,6 +1074,13 @@ local g_vaStripStyles = {
         halign = "center",
         valign = "top",
         bmargin = 4,
+        hpad = 4,
+        vpad = 4,
+        bgimage = "panels/square.png",
+        bgcolor = "#000000bb",
+        borderWidth = 10,
+        borderColor = "#000000bb",
+        borderFade = true,
     },
     -- Header text: VILLAIN ACTIONS (uppercase) and the creature name in
     -- Title Case. Both use @fgStrong so the subheader stays readable; the
@@ -1451,17 +1473,11 @@ local function CreateVillainActionStrip(self, info)
     return gui.Panel{
         classes = {"villainActionStrip"},
         styles = { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(g_vaStripStyles) },
-        -- Floating + right-aligned within the choicePanel's 1140-wide space
-        -- so the strip sits in the monster-side band, dropped just below the
-        -- monster cards (which occupy the top ~80px). Floating so it never
-        -- reflows the bar / round tracker. x/y are tuning offsets.
-        floating = true,
+        -- A plain container that just sizes to its content; placement is handled by
+        -- the parent container (see the monster-side strip container in the bar).
         flow = "vertical",
         width = "auto",
         height = "auto",
-        halign = "right",
-        valign = "top",
-        y = 100,
 
         -- Label row: "VILLAIN ACTIONS - Demon Chorogaunt" or with "(1/2)" suffix when multi.
         gui.Panel{
@@ -1635,6 +1651,602 @@ local function CreateVillainActionStrip(self, info)
     }
 end
 
+-- A single reinforcement button. Reuses the villain-action drawer chrome
+-- (vaDrawer / vaDrawerTitle / vaDrawerSummary classes) so reinforcements read as
+-- the same family of buttons. Clicking deploys the wave; right-click dismisses it.
+local function CreateReinforcementButton(info, wave)
+    return gui.Panel{
+        classes = {"vaDrawer", "available", "reinforcementButton"},
+        data = { waveid = wave.id },
+
+        gui.Label{
+            classes = {"vaDrawerTitle"},
+            fontSize = 12,
+            minFontSize = 8,
+            text = wave.name,
+        },
+        gui.Label{
+            classes = {"vaDrawerSummary"},
+            text = Encounter.WaveRoundText(wave),
+        },
+
+        hover = function(element)
+            gui.Tooltip{
+                text = string.format("Deploy %s (%s). Right-click to dismiss.", wave.name, Encounter.WaveRoundText(wave)),
+            }(element)
+        end,
+
+        click = function(element)
+            local q = info.initiativeQueue
+            if q == nil then return end
+            local liveEncounter = q:try_get("liveEncounter")
+            if type(liveEncounter) ~= "table" then return end
+
+            liveEncounter:DeployWave(wave.id, q)
+            info.UploadInitiative()
+
+            local strip = element:FindParentWithClass("reinforcementsStrip")
+            if strip ~= nil then
+                strip:FireEvent("refresh")
+            end
+        end,
+
+        rightClick = function(element)
+            element.popup = gui.ContextMenu{
+                entries = {
+                    {
+                        text = "Dismiss",
+                        click = function()
+                            element.popup = nil
+                            local q = info.initiativeQueue
+                            if q == nil then return end
+                            local liveEncounter = q:try_get("liveEncounter")
+                            if type(liveEncounter) ~= "table" then return end
+
+                            liveEncounter:MarkWaveDeployed(wave.id)
+                            info.UploadInitiative()
+
+                            local strip = element:FindParentWithClass("reinforcementsStrip")
+                            if strip ~= nil then
+                                strip:FireEvent("refresh")
+                            end
+                        end,
+                    },
+                },
+            }
+        end,
+    }
+end
+
+-- Reinforcements strip: a DM-only band, mounted just below the villain action
+-- strip, that surfaces a deploy button for each reinforcement wave whose arrival
+-- round has been reached and that has not yet been deployed/dismissed. The set of
+-- live waves lives on the initiative queue's LiveEncounter (see
+-- Draw Steel Core Rules/LIVE_ENCOUNTER.md), so this polls the queue and rebuilds its
+-- buttons only when the available set actually changes.
+local function CreateReinforcementsStrip(self, info)
+    local buttonsRow = gui.Panel{
+        classes = {"vaDrawerRow"},
+    }
+
+    return gui.Panel{
+        classes = {"reinforcementsStrip"},
+        styles = { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(g_vaStripStyles) },
+        -- A plain container that just sizes to its content; placement is handled by
+        -- the parent container (see the monster-side strip container in the bar).
+        flow = "vertical",
+        width = "auto",
+        height = "auto",
+
+        gui.Panel{
+            classes = {"vaStripLabelRow"},
+            gui.Label{
+                classes = {"vaStripHeader"},
+                text = "REINFORCEMENTS",
+            },
+        },
+
+        buttonsRow,
+
+        data = {
+            currentSignature = nil,
+            themeListener = nil,
+        },
+
+        refresh = function(element)
+            if not dmhub.isDM then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            local q = info.initiativeQueue
+            if q == nil or q.hidden then
+                element:SetClass("collapsed", true)
+                element.data.currentSignature = nil
+                return
+            end
+
+            local liveEncounter = q:try_get("liveEncounter")
+            if type(liveEncounter) ~= "table" then
+                element:SetClass("collapsed", true)
+                element.data.currentSignature = nil
+                return
+            end
+
+            local available = liveEncounter:GetAvailableWaves(q.round or 0)
+            if #available == 0 then
+                element:SetClass("collapsed", true)
+                element.data.currentSignature = nil
+                buttonsRow.children = {}
+                return
+            end
+
+            element:SetClass("collapsed", false)
+
+            --Only rebuild the buttons when the available set changes; rebuilding
+            --every poll would destroy event subscriptions and flicker.
+            local sig = ""
+            for _, wave in ipairs(available) do
+                sig = string.format("%s%s|%s;", sig, wave.id, wave.name)
+            end
+            if sig == element.data.currentSignature then
+                return
+            end
+            element.data.currentSignature = sig
+
+            local buttons = {}
+            for _, wave in ipairs(available) do
+                buttons[#buttons + 1] = CreateReinforcementButton(info, wave)
+            end
+            buttonsRow.children = buttons
+        end,
+
+        thinkTime = 0.7,
+        think = function(element)
+            if not dmhub.isDM then return end
+            element:FireEvent("refresh")
+        end,
+
+        create = function(element)
+            element.data.themeListener = ThemeEngine.OnThemeChanged(mod, function()
+                if element.valid then
+                    element.styles = { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(g_vaStripStyles) }
+                end
+            end)
+            element:FireEvent("refresh")
+        end,
+
+        destroy = function(element)
+            if element.data.themeListener ~= nil then
+                element.data.themeListener:Deregister()
+                element.data.themeListener = nil
+            end
+        end,
+    }
+end
+
+-- Eye icon that toggles whether players can see the objective. Mirrors the character
+-- sheet's privacyIcon: closed eye when hidden (director only), open eye ("shown"
+-- class) when revealed to players. @fgStrong is resolved via MergeTokens.
+local g_victoryIconStyles = {
+    {
+        selectors = {"objectiveVisibilityIcon"},
+        valign = "center",
+        width = 14,
+        height = 14,
+        hmargin = 6,
+        bgimage = "ui-icons/eye-closed.png",
+        bgcolor = "@fgStrong",
+    },
+    {
+        selectors = {"objectiveVisibilityIcon", "hover"},
+        brightness = 1.5,
+    },
+    {
+        selectors = {"objectiveVisibilityIcon", "shown"},
+        bgimage = "ui-icons/eye.png",
+    },
+}
+
+-- Boss bar styles: a wide Stamina bar shown below the combat tracker for a Solo
+-- creature (see LiveEncounter:GetBossToken). The frame is a dark rounded slab; the fill
+-- is a red gradient whose pixel width tracks the boss's current/maximum Stamina; the
+-- name floats centered over both. Fixed red palette (not theme-driven) so the boss
+-- always reads as a threat regardless of UI theme.
+local g_bossBarWidth = 600
+local g_bossBarStyles = {
+    {
+        selectors = {"bossBarFrame"},
+        flow = "none",
+        valign = "center",
+        halign = "center",
+        width = g_bossBarWidth,
+        height = 30,
+        bgimage = "panels/square.png",
+        bgcolor = "#000000aa",
+        cornerRadius = 4,
+        borderWidth = 2,
+        borderColor = "#000000bb",
+    },
+    {
+        selectors = {"bossBarFill"},
+        halign = "left",
+        valign = "center",
+        height = "100%",
+        bgimage = "panels/square.png",
+        bgcolor = "white",
+        cornerRadius = 4,
+        gradient = gui.Gradient{
+            type = "linear",
+            point_a = { x = 0, y = 0 },
+            point_b = { x = 0, y = 1 },
+            stops = {
+                { position = 0, color = "#880000" },
+                { position = 0.5, color = "#ff0000" },
+                { position = 1, color = "#880000" },
+            },
+        },
+    },
+    {
+        selectors = {"bossBarName"},
+        width = "100%",
+        height = "auto",
+        halign = "center",
+        valign = "center",
+        textAlignment = "center",
+        fontSize = 16,
+        bold = true,
+        color = "#FFFFFF",
+    },
+}
+
+-- Award Victory strip: a band on the player side, analogous to the Reinforcements
+-- strip on the monster side and sharing its drawer styling. While the encounter is in
+-- progress it shows a short "Objective: Defeat X/Y monsters to win" label (full
+-- reasoning in a hover tooltip) with an eye icon to reveal it to players; once the
+-- configured victory condition is met (LiveEncounter:CheckVictory) the director's view
+-- swaps to a "VICTORY" header + "Award Victory" button. Polls the queue like the
+-- other strips. The objective is director-only until revealed via the eye icon.
+local function CreateAwardVictoryStrip(self, info)
+    local function strFor()
+        return { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(g_vaStripStyles), ThemeEngine.MergeTokens(g_victoryIconStyles) }
+    end
+
+    local awardButton = gui.Panel{
+        classes = {"vaDrawer", "available", "awardVictoryButton"},
+
+        gui.Label{
+            classes = {"vaDrawerTitle"},
+            fontSize = 12,
+            minFontSize = 8,
+            valign = "center",
+            text = "Award Victory",
+        },
+
+        hover = function(element)
+            gui.Tooltip{ text = "The victory condition has been met. Click to award victory." }(element)
+        end,
+
+        click = function(element)
+            local q = info.initiativeQueue
+            local liveEncounter = q and q:try_get("liveEncounter")
+            if type(liveEncounter) ~= "table" then return end
+            --Flip the networked victory flag. Every client polls the live encounter and
+            --switches into the victory state: the initiative bar hides and the
+            --full-screen victory screen (DSVictoryScreen) takes over.
+            liveEncounter.victoryAwarded = true
+            info.UploadInitiative()
+            local strip = element:FindParentWithClass("awardVictoryStrip")
+            if strip ~= nil then
+                strip:FireEvent("refresh")
+            end
+        end,
+    }
+
+    -- Shown while the encounter is in progress: the current objective + progress.
+    local objectiveLabel = gui.Label{
+        classes = {"vaStripSubHeader"},
+        text = "Objective:",
+        hover = function(element)
+            local q = info.initiativeQueue
+            local liveEncounter = q and q:try_get("liveEncounter")
+            if type(liveEncounter) ~= "table" then return end
+            gui.Tooltip{ text = liveEncounter:GetObjectiveTooltip() }(element)
+        end,
+    }
+
+    -- Eye icon: director-only; toggles objectiveVisible on the live encounter so the
+    -- objective also shows on the players' bars.
+    local visibilityIcon = gui.Panel{
+        classes = {"objectiveVisibilityIcon"},
+        swallowPress = true,
+        hover = function(element)
+            gui.Tooltip{ text = "Toggle whether players can see this objective." }(element)
+        end,
+        press = function(element)
+            local q = info.initiativeQueue
+            local liveEncounter = q and q:try_get("liveEncounter")
+            if type(liveEncounter) ~= "table" then return end
+            liveEncounter.objectiveVisible = not liveEncounter:try_get("objectiveVisible", false)
+            info.UploadInitiative()
+            local strip = element:FindParentWithClass("awardVictoryStrip")
+            if strip ~= nil then
+                strip:FireEvent("refresh")
+            end
+        end,
+    }
+
+    local objectivePanel = gui.Panel{
+        classes = {"vaStripLabelRow"},
+        objectiveLabel,
+        visibilityIcon,
+    }
+
+    -- Shown to the director once victory is achieved.
+    local victoryPanel = gui.Panel{
+        flow = "vertical",
+        width = "auto",
+        height = "auto",
+        halign = "left",
+
+        gui.Panel{
+            classes = {"vaStripLabelRow"},
+            gui.Label{
+                classes = {"vaStripHeader"},
+                text = "VICTORY",
+            },
+        },
+
+        gui.Panel{
+            classes = {"vaDrawerRow"},
+            awardButton,
+        },
+    }
+
+    return gui.Panel{
+        classes = {"awardVictoryStrip"},
+        styles = strFor(),
+        -- A plain container that just sizes to its content; placement is handled by
+        -- the parent container (see the player-side strip container in the bar).
+        flow = "vertical",
+        width = "auto",
+        height = "auto",
+
+        objectivePanel,
+        victoryPanel,
+
+        data = { themeListener = nil },
+
+        refresh = function(element)
+            local q = info.initiativeQueue
+            if q == nil or q.hidden then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            local liveEncounter = q:try_get("liveEncounter")
+            --the objective strip is relevant when there are monsters to track, or for the
+            --"Destroy the Thing!" objective (which tracks objects, not monsters, so it can
+            --have no onset monsters at all).
+            local hasObjective = type(liveEncounter) == "table" and (
+                liveEncounter:try_get("onsetMonsterCount", 0) > 0 or
+                (liveEncounter:try_get("victoryCondition") == "destroy_thing" and
+                 liveEncounter:try_get("onsetDestroyObjectCount", 0) > 0))
+            if not hasObjective then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            local isDM = dmhub.isDM
+            local visible = liveEncounter:try_get("objectiveVisible", false)
+            local won = liveEncounter:CheckVictory()
+
+            if not isDM then
+                --players only ever see the objective label, and only when revealed and
+                --not yet won.
+                if not visible or won then
+                    element:SetClass("collapsed", true)
+                    return
+                end
+                element:SetClass("collapsed", false)
+                objectivePanel:SetClass("collapsed", false)
+                victoryPanel:SetClass("collapsed", true)
+                visibilityIcon:SetClass("collapsed", true)
+                objectiveLabel.text = liveEncounter:GetObjectiveText()
+                return
+            end
+
+            --director view.
+            element:SetClass("collapsed", false)
+            objectivePanel:SetClass("collapsed", won)
+            victoryPanel:SetClass("collapsed", not won)
+            visibilityIcon:SetClass("collapsed", won)
+            visibilityIcon:SetClass("shown", visible)
+            if not won then
+                objectiveLabel.text = liveEncounter:GetObjectiveText()
+            end
+        end,
+
+        thinkTime = 0.7,
+        think = function(element)
+            element:FireEvent("refresh")
+        end,
+
+        create = function(element)
+            element.data.themeListener = ThemeEngine.OnThemeChanged(mod, function()
+                if element.valid then
+                    element.styles = strFor()
+                end
+            end)
+            element:FireEvent("refresh")
+        end,
+
+        destroy = function(element)
+            if element.data.themeListener ~= nil then
+                element.data.themeListener:Deregister()
+                element.data.themeListener = nil
+            end
+        end,
+    }
+end
+
+-- Boss bar: a wide Stamina bar shown centered below the combat tracker whenever the
+-- live encounter designates a Solo "boss" creature (LiveEncounter:GetBossToken). The
+-- fill width tracks the boss's current Stamina; an eye icon to its right (director-only)
+-- toggles whether players see it, mirroring the objective strip. Director-only until
+-- revealed; polls the queue like the other strips so it appears/updates without an
+-- explicit refresh trigger.
+local function CreateBossBarStrip(self, info)
+    local function strFor()
+        return { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(g_bossBarStyles), ThemeEngine.MergeTokens(g_victoryIconStyles) }
+    end
+
+    --Stamina fill. Width is set in pixels and eased toward the target as Stamina
+    --changes. Monitors the boss token so a hit updates the bar promptly; the strip's
+    --poll also re-fires it as a fallback.
+    local fill = gui.Panel{
+        classes = {"bossBarFill"},
+        width = g_bossBarWidth,
+        interactable = false,
+        blocksGameInteraction = false,
+        data = { tokenid = nil },
+        refreshGame = function(element)
+            element:FireEvent("refreshFill")
+        end,
+        refreshFill = function(element)
+            local tokenid = element.data.tokenid
+            if tokenid == nil then return end
+            local token = dmhub.GetTokenById(tokenid)
+            if token == nil or token.properties == nil then return end
+            local maxhp = token.properties:MaxHitpoints()
+            local frac = 0
+            if maxhp > 0 then
+                frac = token.properties:CurrentHitpoints() / maxhp
+            end
+            if frac < 0 then frac = 0 end
+            if frac > 1 then frac = 1 end
+            TransitionStyle(element, 0.35, { width = math.floor(g_bossBarWidth * frac) })
+        end,
+    }
+
+    local nameLabel = gui.Label{
+        classes = {"bossBarName"},
+        interactable = false,
+        blocksGameInteraction = false,
+        text = "",
+    }
+
+    local frame = gui.Panel{
+        classes = {"bossBarFrame"},
+        interactable = false,
+        blocksGameInteraction = false,
+        fill,
+        nameLabel,
+    }
+
+    --Eye icon: director-only; toggles bossBarVisible on the live encounter so the boss
+    --bar also shows on the players' bars.
+    local visibilityIcon = gui.Panel{
+        classes = {"objectiveVisibilityIcon"},
+        swallowPress = true,
+        hover = function(element)
+            gui.Tooltip{ text = "Toggle whether players can see the boss bar." }(element)
+        end,
+        press = function(element)
+            local q = info.initiativeQueue
+            local liveEncounter = q and q:try_get("liveEncounter")
+            if type(liveEncounter) ~= "table" then return end
+            liveEncounter.bossBarVisible = not liveEncounter:try_get("bossBarVisible", false)
+            info.UploadInitiative()
+            local strip = element:FindParentWithClass("bossBarStrip")
+            if strip ~= nil then
+                strip:FireEvent("refresh")
+            end
+        end,
+    }
+
+    return gui.Panel{
+        classes = {"bossBarStrip"},
+        styles = strFor(),
+        floating = true,
+        flow = "horizontal",
+        width = "auto",
+        height = "auto",
+        halign = "center",
+        valign = "top",
+        --below the cards and the center round-tracker bubble (which extends to ~146px),
+        --with extra clearance so it doesn't overlap the villain action panel.
+        y = 182,
+
+        frame,
+        visibilityIcon,
+
+        data = { themeListener = nil },
+
+        refresh = function(element)
+            local q = info.initiativeQueue
+            if q == nil or q.hidden then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            local liveEncounter = q:try_get("liveEncounter")
+            if type(liveEncounter) ~= "table" or liveEncounter:try_get("victoryAwarded", false) then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            local bossToken = liveEncounter:GetBossToken()
+            if bossToken == nil then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            local isDM = dmhub.isDM
+            local visible = liveEncounter:try_get("bossBarVisible", false)
+
+            --players only see the bar once it has been revealed.
+            if not isDM and not visible then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            element:SetClass("collapsed", false)
+            visibilityIcon:SetClass("collapsed", not isDM)
+            visibilityIcon:SetClass("shown", visible)
+
+            nameLabel.text = Encounter.GetBossTokenName(bossToken)
+
+            if fill.data.tokenid ~= bossToken.charid then
+                fill.data.tokenid = bossToken.charid
+                fill.monitorGame = bossToken.monitorPath
+            end
+            fill:FireEvent("refreshFill")
+        end,
+
+        thinkTime = 0.7,
+        think = function(element)
+            element:FireEvent("refresh")
+        end,
+
+        create = function(element)
+            element.data.themeListener = ThemeEngine.OnThemeChanged(mod, function()
+                if element.valid then
+                    element.styles = strFor()
+                end
+            end)
+            element:FireEvent("refresh")
+        end,
+
+        destroy = function(element)
+            if element.data.themeListener ~= nil then
+                element.data.themeListener:Deregister()
+                element.data.themeListener = nil
+            end
+        end,
+    }
+end
+
 --Create the initiative bar.
 --   self: the GameHud object
 --   info: the dmhub info object which gives us access to important game information. Some parameters we use here:
@@ -1670,6 +2282,7 @@ function GameHud.CreateInitiativeBar(self, info)
             valign = "center",
             width = 24,
             height = 24,
+            x = 40,
             floating = true,
             classes = {"unavailable"},
 
@@ -1806,6 +2419,23 @@ function GameHud.CreateInitiativeBar(self, info)
                         end
                     end,
                 }
+
+                --Award Victory -- manually flip the networked victory flag so the
+                --full-screen victory screen takes over. The automatic "Award Victory"
+                --strip only appears once the configured victory condition is met; this
+                --lets the director award victory at any point during combat. Hidden
+                --once victory has already been awarded.
+                local liveEncounter = q:try_get("liveEncounter")
+                if type(liveEncounter) == "table" and not liveEncounter:try_get("victoryAwarded", false) then
+                    entries[#entries+1] = {
+                        text = "Award Victory",
+                        click = function()
+                            element.popup = nil
+                            liveEncounter.victoryAwarded = true
+                            dmhub:UploadInitiativeQueue()
+                        end,
+                    }
+                end
 
                 --End Combat.
                 entries[#entries+1] = {
@@ -2080,9 +2710,18 @@ function GameHud.CreateInitiativeBar(self, info)
 					valign = 'top',
 					halign = 'center',
 					textAlignment = 'center',
-					width = 180,
-					height = 24,
-					tmargin = 4,
+                    width = "auto",
+                    minWidth = 180,
+                    maxWidth = 500,
+					height = 30,
+					tmargin = 0,
+                    vpad = 8,
+                    hpad = 8,
+                    bgimage = "panels/square.png",
+                    bgcolor = "#000000bb",
+                    borderWidth = 10,
+                    borderColor = "#000000bb",
+                    borderFade = true,
 
 					refresh = function(element)
 						if info.initiativeQueue == nil or info.initiativeQueue.hidden then
@@ -2092,7 +2731,15 @@ function GameHud.CreateInitiativeBar(self, info)
                                 element.text = info.initiativeQueue:GameModeInfo().text
                             end
 						else
-							element.text = string.format('Round %d', info.initiativeQueue.round)
+							local roundText = string.format('Round %d', info.initiativeQueue.round)
+							local liveEncounter = info.initiativeQueue:try_get("liveEncounter")
+							if type(liveEncounter) == "table" then
+								local name = liveEncounter:GetName()
+								if name ~= nil and name ~= "" then
+									roundText = string.format('%s - %s', name, roundText)
+								end
+							end
+							element.text = roundText
 						end
 					end,
 
@@ -2601,11 +3248,43 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 		monsterContainer,
 		centerContainer,
 
-		-- Villain Action strip: mounted in the choicePanel's 1140-wide
-		-- coordinate space so it right-aligns into the monster-side band,
-		-- below the monster cards. Floating so it never reflows the bar /
+		-- Monster-side strip container: holds the Villain Action strip and the
+		-- Reinforcements strip stacked vertically. This container owns the placement
+		-- (floating, right-aligned into the monster-side band, dropped below the
+		-- monster cards which occupy the top ~80px) so the two strips inside it are
+		-- just plain content-sized containers. Floating so it never reflows the bar /
 		-- round tracker.
-		CreateVillainActionStrip(self, info),
+		gui.Panel{
+			floating = true,
+			flow = "vertical",
+			halign = "right",
+			valign = "top",
+			width = 480,
+			height = "auto",
+			y = 100,
+
+			CreateVillainActionStrip(self, info),
+			CreateReinforcementsStrip(self, info),
+		},
+
+		-- Player-side strip container: mirror of the monster-side container,
+		-- left-aligned, holding the Award Victory strip. Floating so it never
+		-- reflows the bar / round tracker.
+		gui.Panel{
+			floating = true,
+			flow = "vertical",
+			halign = "left",
+			valign = "top",
+			width = 480,
+			height = "auto",
+			y = 100,
+
+			CreateAwardVictoryStrip(self, info),
+		},
+
+		--Boss bar: centered Stamina bar below the tracker for a Solo "boss" creature.
+		--Floating so it never reflows the bar.
+		CreateBossBarStrip(self, info),
 
 		refresh = function(element)
 
@@ -2616,6 +3295,14 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 				return
 			else
 				element:SetClass('hidden', false)
+			end
+
+			--Once victory has been awarded the initiative display is removed; the
+			--full-screen victory screen (DSVictoryScreen) takes over for everyone.
+			local liveEncounterForVictory = initiativeQueue:try_get("liveEncounter")
+			if type(liveEncounterForVictory) == "table" and liveEncounterForVictory:try_get("victoryAwarded", false) then
+				element:SetClass('hidden', true)
+				return
 			end
 
 			self.currentInitiativeId = initiativeQueue.currentTurn or nil
@@ -2988,6 +3675,20 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 
 		disable = function(element)
 			StopAnthem()
+		end,
+
+		--Lightweight poll so the bar is removed promptly when victory is awarded mid-round
+		--(the heavy card refresh above only runs on turn transitions, which don't happen
+		--during the victory moment). Only ever force-hides on victory; the normal show/hide
+		--is owned by refresh.
+		thinkTime = 0.3,
+		think = function(element)
+			local q = info.initiativeQueue
+			if q == nil or q.hidden then return end
+			local live = q:try_get("liveEncounter")
+			if type(live) == "table" and live:try_get("victoryAwarded", false) then
+				element:SetClass("hidden", true)
+			end
 		end,
 
 		--fired when the token playing the anthem changes. Will update the volume of the anthem.
@@ -3523,21 +4224,43 @@ function GameHud.CreateInitiativeEntry(self, info, initiativeid, options)
 
 	--Players can normally only drag initiative cards when they have full control of
 	--the initiative bar (the DM, or the "players control initiative" setting). As a
-	--special case we also let a player drag a hero card they control onto the center
-	--"Drag Hero Here" slot to claim that hero's turn. The drop itself is gated by
-	--selectinitiative (choosing-turn + players' turn + entry unmoved + player entry),
-	--so dragging at the wrong time is a harmless no-op. Reassigning an entry between
+	--special case we also let a non-DM player drag a hero card onto the center
+	--"Drag Hero Here" slot to claim that hero's turn. Reassigning an entry between
 	--containers stays DM-only.
-	local canControlInit = CanControlInitiative()
-	local canPlayerClaimTurn = (not canControlInit) and token ~= nil and token.canControl
-	local canDragEntry = canControlInit or canPlayerClaimTurn
+	--
+	--We make the card draggable under EXACTLY the conditions selectinitiative accepts
+	--the drop (heroes' choose-a-turn phase, an unmoved hero entry) -- NOT token
+	--ownership. In Draw Steel any player picks which hero acts next on the heroes'
+	--turn, and token.canControl is false for hero tokens that aren't player-controlled
+	--(playerControlled=false), which is what was blocking the drag entirely.
+	--
+	--draggable must be recomputed live (see the refresh handler below): the card is
+	--created then cached across refreshes, and eligibility changes as the initiative
+	--phase changes, so a value frozen at creation would be wrong.
+	local CanDragEntry = function()
+		if CanControlInitiative() then
+			return true
+		end
+
+		local q = dmhub.initiativeQueue
+		if q == nil or q.hidden then
+			return false
+		end
+
+		if not (q:ChoosingTurn() and q:IsPlayersTurn() and q:IsEntryPlayer(initiativeid)) then
+			return false
+		end
+
+		local entry = q.entries[initiativeid]
+		return entry ~= nil and q:EntryUnmoved(entry)
+	end
 
 	--this is the initiative entry panel.
 	return gui.Panel({
 
 		classes = {"initiativeEntryPanel"},
 
-		draggable = canDragEntry,
+		draggable = CanDragEntry(),
 		drag = function(element, target)
 			if target == nil then
 				return
@@ -3553,7 +4276,7 @@ function GameHud.CreateInitiativeEntry(self, info, initiativeid, options)
 			end
 
 			--Reassigning an entry between containers is a DM-only reorganization.
-			if not canControlInit then
+			if not CanControlInitiative() then
 				return
 			end
 
@@ -3579,7 +4302,7 @@ function GameHud.CreateInitiativeEntry(self, info, initiativeid, options)
 
 			--Only DMs (or when players control initiative) may move an entry between
 			--containers by dropping on another entry container.
-			if canControlInit and target:HasClass("initiativeEntryContainer") then
+			if CanControlInitiative() and target:HasClass("initiativeEntryContainer") then
 				return true
 			end
 
@@ -3680,6 +4403,11 @@ function GameHud.CreateInitiativeEntry(self, info, initiativeid, options)
 				else
 					element.parent:RemoveClass('collapsed')
 				end
+
+				--Recompute draggability now that token is resolved: a player can drag
+				--a hero card they control onto the center slot to claim its turn, even
+				--though the card was created (and cached) while token was still nil.
+				element.draggable = CanDragEntry()
 
 				local entry = info.initiativeQueue.entries[initiativeid]
 				element:SetClassTree("turntaken", entry ~= nil and entry.round == info.initiativeQueue.round+1)

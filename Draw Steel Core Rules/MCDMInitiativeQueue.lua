@@ -41,6 +41,11 @@ InitiativeQueue.gameMode = "exploration"
 InitiativeQueue.playersGoFirst = true
 InitiativeQueue.playersTurn = false
 
+--The live encounter (a LiveEncounter object, see MCDMEncounter.lua) associated
+--with this initiative queue, or false if there is no live encounter. How the
+--queue actually acquires a LiveEncounter is handled in a subsequent step.
+InitiativeQueue.liveEncounter = false
+
 function InitiativeQueue.RegisterGameMode(info)
     local targetIndex = #InitiativeQueue.GameModes + 1
     for i,mode in ipairs(InitiativeQueue.GameModes) do

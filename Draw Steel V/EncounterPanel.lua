@@ -1,32 +1,5 @@
 local mod = dmhub.GetModLoading()
 
-local g_numHeroesSetting = setting {
-    id = "numheroes",
-    description = "Number of Heroes",
-    help = "This setting will guide balance of encounters you create.",
-    section = "game",
-    editor = "dropdown",
-    default = 4,
-    enum = {
-        {
-            value = 3,
-            text = "Three Heroes",
-        },
-        {
-            value = 4,
-            text = "Four Heroes",
-        },
-        {
-            value = 5,
-            text = "Five Heroes",
-        },
-        {
-            value = 6,
-            text = "Six Heroes",
-        },
-    }
-}
-
 --To go from a monsterid to an actual monster:
 -- local monster = assets.monsters[monsterid]
 
@@ -77,18 +50,9 @@ DockablePanel.Register {
     end,
 }
 
+--Encounter is defined in Draw Steel Core Rules/MCDMEncounter.lua (data + rules).
+--We re-fetch the registered type here so the UI methods below can attach to it.
 Encounter = RegisterGameType('Encounter')
-
-Encounter.name = 'New Encounter'
-
-Encounter.tableName = 'encounters'
-
-Encounter.monsters = {}
-
-Encounter.groups = {}
-
---if true, then when saving an encounter, we save the appearance of the monsters.
-Encounter.saveAppearances = false
 
 EncounterFolder = RegisterGameType('EncounterFolder')
 
@@ -96,115 +60,10 @@ EncounterFolder.tableName = 'encounterfolders'
 
 EncounterFolder.name = 'New Encounter Folder'
 
-function Encounter.MainMonster(encounter)
-    local mainmonster = nil
-    for i, group in ipairs(encounter.groups) do
-        for monsterid, value in pairs(group.monsters) do
-            local monster = assets.monsters[monsterid]
-            if mainmonster == nil or monster.properties:EV() > mainmonster.properties:EV() then
-                mainmonster = monster
-            end
-        end
-    end
-
-    return mainmonster
-end
-
---Returns the number of monsters of the given type that should actually be placed
---for a group at a given number of heroes, applying any per-monster-type balancing
---adjustment configured on the group. Clamped to >= 0. This is the single source of
---truth shared by CloneForNumberOfHeroes (placement/EV/describe) and RichEncounter's
---despawn index walk, so spawn and despawn stay aligned.
-function Encounter.AdjustedMonsterQuantity(group, monsterid, baseQuantity, numHeroes)
-    local balancing = group.balancing
-    local heroBalancing = balancing ~= nil and balancing[numHeroes] or nil
-    if heroBalancing ~= nil and heroBalancing.monsters ~= nil then
-        local delta = heroBalancing.monsters[monsterid]
-        if type(delta) == "number" and delta ~= 0 then
-            local quantity = baseQuantity + delta
-            if quantity < 0 then
-                quantity = 0
-            end
-            return quantity
-        end
-    end
-    return baseQuantity
-end
-
-function Encounter.CloneForNumberOfHeroes(self, numHeroes)
-    numHeroes = numHeroes or g_numHeroesSetting:Get()
-    local encounter = DeepCopy(self)
-    for i = #encounter.groups, 1, -1 do
-        local group = encounter.groups[i]
-        if group.minHeroes ~= nil and group.minHeroes > numHeroes then
-            table.remove(encounter.groups, i)
-        else
-            --apply per-monster-type count adjustments configured for this number of heroes.
-            local monsterids = {}
-            for monsterid, _ in pairs(group.monsters) do
-                monsterids[#monsterids + 1] = monsterid
-            end
-
-            for _, monsterid in ipairs(monsterids) do
-                local quantity = Encounter.AdjustedMonsterQuantity(group, monsterid, group.monsters[monsterid], numHeroes)
-                if quantity <= 0 then
-                    group.monsters[monsterid] = nil
-                else
-                    group.monsters[monsterid] = quantity
-                end
-            end
-        end
-    end
-
-    return encounter
-end
-
-function Encounter.AddMonster(self, monsterid)
-    self.monsters = DeepCopy(self.monsters)
-    self.monsters[monsterid] = (self.monsters[monsterid] or 0) + 1
-end
-
-function Encounter.AddGroup(self)
-    self.groups = DeepCopy(self.groups)
-    self.groups[#self.groups + 1] = { monsters = {} }
-end
-
-function Encounter.CountEDS(self)
-    local EDSTotal = 0
-
-    for i, group in ipairs(self.groups) do
-        for monsterid, quantity in pairs(group.monsters) do
-            local monster = assets.monsters[monsterid]
-
-            if monster.properties.minion then
-                EDSTotal = EDSTotal + round((assets.monsters[monsterid].properties:EV() * quantity) / 4)
-            else
-                EDSTotal = EDSTotal + (assets.monsters[monsterid].properties:EV() * quantity)
-            end
-        end
-    end
-
-    return EDSTotal
-end
-
-function Encounter.Describe(self)
-    local monstersingroups = {}
-
-    for i, group in ipairs(self.groups) do
-        for monsterid, quantity in pairs(group.monsters) do
-            monstersingroups[monsterid] = (monstersingroups[monsterid] or 0) + quantity
-        end
-    end
-
-    local resultString = ""
-
-    for monsterid, quantity in pairs(monstersingroups) do
-        local monster = assets.monsters[monsterid]
-        resultString = resultString .. string.format("%d X %s \n", quantity, creature.GetTokenDescription(monster))
-    end
-
-    return resultString
-end
+--Encounter data/rules methods (MainMonster, AdjustedMonsterQuantity,
+--CloneForNumberOfHeroes, AddMonster, AddGroup, CountEDS, Describe) live in
+--Draw Steel Core Rules/MCDMEncounter.lua. The encounter-creator UI methods
+--(Encounter.Editor / Encounter.CreateEditorDialog) remain below.
 
 local function createSmallMonsterDisplay(monsterid, quantity)
     local monster = assets.monsters[monsterid]
@@ -283,6 +142,52 @@ local function createGroupPanel(encounter)
             local panels = {}
 
             for i, group in ipairs(encounter.groups) do
+                --Once the encounter has waves, offer a dropdown to choose which wave
+                --this group arrives with. Defaults to "Start of Encounter".
+                local waveDropdown
+                if #encounter.waves > 0 then
+                    local waveOptions = { { id = "start", text = "Start of Encounter" } }
+                    for _, wave in ipairs(encounter.waves) do
+                        waveOptions[#waveOptions + 1] = { id = wave.id, text = wave.name }
+                    end
+
+                    --if the group references a wave that has since been deleted, fall
+                    --back to the start of the encounter.
+                    local chosen = group.wave or "start"
+                    local found = false
+                    for _, opt in ipairs(waveOptions) do
+                        if opt.id == chosen then
+                            found = true
+                            break
+                        end
+                    end
+                    if not found then
+                        chosen = "start"
+                        group.wave = nil
+                    end
+
+                    waveDropdown = gui.Dropdown {
+                        classes = { "form" },
+                        floating = true,
+                        halign = "right",
+                        valign = "top",
+                        hmargin = 50,
+                        vmargin = 4,
+                        width = 180,
+                        height = 18,
+                        fontSize = 11,
+                        options = waveOptions,
+                        idChosen = chosen,
+                        change = function(element)
+                            if element.idChosen == "start" then
+                                group.wave = nil
+                            else
+                                group.wave = element.idChosen
+                            end
+                        end,
+                    }
+                end
+
                 panels[#panels + 1] = gui.Panel {
 
                     classes = { "bordered", "bg" },
@@ -605,6 +510,8 @@ local function createGroupPanel(encounter)
                         fontSize = 12,
                         halign = "right",
                         valign = "bottom",
+                        hmargin = 8,
+                        vmargin = 4,
                         flow = "horizontal",
                         width = "auto",
                         height = "auto",
@@ -781,10 +688,14 @@ local function createGroupPanel(encounter)
                         end,
                     },
 
+                    waveDropdown,
+
                     gui.Panel {
                         floating = true,
                         halign = "right",
                         valign = "top",
+                        hmargin = 8,
+                        vmargin = 4,
                         flow = "horizontal",
                         width = 34,
                         height = 16,
@@ -920,6 +831,150 @@ local function createMonsterDisplayPanel(monsterid, quantity)
     }
 end
 
+--Builds the "Waves" management interface for the encounter editor. By default an
+--encounter has no additional waves; the user adds them with the "Add Wave" button.
+--Each wave is listed with an editable name and a dropdown choosing which round it
+--arrives on (rounds 2-6, or "Every round"). onWavesChanged is called whenever the
+--set of waves changes (add/remove/rename) so the per-group wave dropdowns can
+--refresh their options.
+local function createWavePanel(encounter, onWavesChanged)
+    local wavesListPanel
+    local resultPanel
+
+    wavesListPanel = gui.Panel {
+        width = "90%",
+        height = "auto",
+        halign = "center",
+        valign = "top",
+        flow = "vertical",
+
+        update = function(element)
+            local rows = {}
+
+            for i, wave in ipairs(encounter.waves) do
+                rows[#rows + 1] = gui.Panel {
+                    classes = { "bordered", "bg" },
+                    width = "100%",
+                    height = 32,
+                    halign = "center",
+                    valign = "top",
+                    tmargin = 4,
+                    flow = "horizontal",
+
+                    gui.Label {
+                        classes = { "fgStrong", "number" },
+                        width = 22,
+                        height = "100%",
+                        fontSize = 13,
+                        valign = "center",
+                        halign = "left",
+                        lmargin = 4,
+                        textAlignment = "center",
+                        text = string.format("%d", i),
+                    },
+
+                    gui.Input {
+                        classes = { "form" },
+                        width = "44%",
+                        height = 20,
+                        valign = "center",
+                        halign = "left",
+                        lmargin = 4,
+                        fontSize = 12,
+                        text = wave.name,
+                        characterLimit = 24,
+                        change = function(element)
+                            local newname = element.text
+                            if newname == "" then
+                                newname = "Reinforcements"
+                            end
+                            wave.name = newname
+                            element.text = newname
+                            onWavesChanged()
+                        end,
+                    },
+
+                    gui.Dropdown {
+                        classes = { "form" },
+                        width = 110,
+                        height = 20,
+                        valign = "center",
+                        halign = "right",
+                        rmargin = 28,
+                        fontSize = 12,
+                        options = {
+                            { id = "2", text = "Round 2" },
+                            { id = "3", text = "Round 3" },
+                            { id = "4", text = "Round 4" },
+                            { id = "5", text = "Round 5" },
+                            { id = "6", text = "Round 6" },
+                            { id = "every", text = "Every round" },
+                        },
+                        idChosen = tostring(wave.round),
+                        change = function(element)
+                            if element.idChosen == "every" then
+                                wave.round = "every"
+                            else
+                                wave.round = tonumber(element.idChosen)
+                            end
+                        end,
+                    },
+
+                    gui.Button {
+                        classes = { "deleteButton", "sizeXs" },
+                        floating = true,
+                        halign = "right",
+                        valign = "center",
+                        rmargin = 4,
+                        press = function(element)
+                            table.remove(encounter.waves, i)
+                            wavesListPanel:FireEvent("update")
+                            onWavesChanged()
+                        end,
+                    },
+                }
+            end
+
+            element.children = rows
+        end,
+    }
+
+    resultPanel = gui.Panel {
+        width = "100%",
+        height = "auto",
+        halign = "center",
+        valign = "top",
+        flow = "vertical",
+
+        wavesListPanel,
+
+        gui.Panel {
+            width = "90%",
+            height = 40,
+            halign = "center",
+            valign = "top",
+            tmargin = 5,
+
+            gui.Button {
+                classes = { "sizeS" },
+                width = 140,
+                halign = "center",
+                valign = "center",
+                text = "Add Wave",
+                press = function(element)
+                    encounter:AddWave()
+                    wavesListPanel:FireEvent("update")
+                    onWavesChanged()
+                end,
+            },
+        },
+    }
+
+    resultPanel:FireEventTree("update")
+
+    return resultPanel
+end
+
 function Encounter.Editor(self, options)
     local resultPanel
 
@@ -940,9 +995,11 @@ function Encounter.Editor(self, options)
 
     resultPanel = gui.Panel {
 
-        width = "100%",
-        height = "100%",
+        width = "100%-16",
+        height = "100%-16",
         flow = "vertical",
+        hpad = 8,
+        vpad = 8,
 
         gui.Label {
 
@@ -1025,6 +1082,178 @@ function Encounter.Editor(self, options)
 
             },
 
+        },
+
+        gui.Label {
+            classes = { "fgStrong" },
+            text = "Waves:",
+            fontSize = 16,
+            bold = true,
+            halign = "center",
+            valign = "top",
+            tmargin = 8,
+        },
+
+        createWavePanel(self, function()
+            --refresh the group panels so their per-group wave dropdowns pick up the
+            --new/removed/renamed waves.
+            groupPanel:FireEvent("update")
+        end),
+
+        gui.Label {
+            classes = { "fgStrong" },
+            text = "Victory Conditions:",
+            fontSize = 16,
+            bold = true,
+            halign = "center",
+            valign = "top",
+            tmargin = 8,
+        },
+
+        --Both the victory-condition dropdown and (when "Destroy the Thing!" is chosen) the
+        --object-keyword selector live in this single bordered panel.
+        gui.Panel {
+            classes = { "bordered", "bg" },
+            width = "90%",
+            height = "auto",
+            halign = "center",
+            valign = "top",
+            tmargin = 5,
+            vpad = 8,
+            borderBox = true,
+            flow = "vertical",
+
+            gui.Dropdown {
+                classes = { "form" },
+                width = "94%",
+                height = 24,
+                halign = "center",
+                valign = "center",
+                fontSize = 12,
+                options = Encounter.GetVictoryConditions(),
+                idChosen = self:try_get("victoryCondition", "all_defeated"),
+                change = function(element)
+                    self.victoryCondition = element.idChosen
+                    resultPanel:FireEventTree("refreshDestroy")
+                end,
+            },
+
+            --Shown only when the "Destroy the Thing!" victory condition is selected. Lets the
+            --DM pick which Targetable object keyword identifies the "thing" to destroy, or
+            --explains how to add one if the map has no Targetable objects with keywords.
+            gui.Panel {
+                width = "94%",
+                height = "auto",
+                halign = "center",
+                valign = "top",
+                flow = "vertical",
+
+                create = function(element)
+                    element:FireEvent("refreshDestroy")
+                end,
+
+                refreshDestroy = function(element)
+                    local isDestroy = self:try_get("victoryCondition", "all_defeated") == "destroy_thing"
+                    element:SetClass("collapsed", not isDestroy)
+                    if not isDestroy then
+                        element.children = {}
+                        return
+                    end
+
+                    local keywords = Encounter.GetTargetableObjectKeywords()
+
+                    if #keywords == 0 then
+                        element.children = {
+                            gui.Label {
+                                classes = { "fgStrong" },
+                                width = "100%",
+                                height = "auto",
+                                halign = "center",
+                                valign = "top",
+                                tmargin = 8,
+                                fontSize = 12,
+                                textWrap = true,
+                                text = "To select a thing to destroy add an object to the map with the Targetable property and a keyword",
+                            },
+                        }
+                        return
+                    end
+
+                    local options = {}
+                    for _, keyword in ipairs(keywords) do
+                        options[#options + 1] = { id = keyword, text = keyword }
+                    end
+
+                    local chosen = self:try_get("victoryDestroyKeyword")
+                    if chosen == nil or not table.contains(keywords, chosen) then
+                        chosen = keywords[1]
+                        self.victoryDestroyKeyword = chosen
+                    end
+
+                    element.children = {
+                        gui.Dropdown {
+                            classes = { "form" },
+                            width = "100%",
+                            height = 24,
+                            halign = "center",
+                            valign = "center",
+                            tmargin = 8,
+                            fontSize = 12,
+                            options = options,
+                            idChosen = chosen,
+                            change = function(dropdown)
+                                self.victoryDestroyKeyword = dropdown.idChosen
+                            end,
+                        },
+                    }
+                end,
+            },
+        },
+
+        --Number of Victories each hero earns for winning this encounter.
+        gui.Panel {
+            width = "90%",
+            height = 30,
+            halign = "center",
+            valign = "top",
+            tmargin = 5,
+            flow = "horizontal",
+
+            gui.Label {
+                classes = { "fgStrong" },
+                text = "Victories:",
+                fontSize = 14,
+                halign = "left",
+                valign = "center",
+                width = "auto",
+                height = "auto",
+            },
+
+            gui.Input {
+                classes = { "form" },
+                width = 60,
+                height = 24,
+                halign = "left",
+                valign = "center",
+                hmargin = 8,
+                fontSize = 12,
+                numeric = true,
+                characterLimit = 3,
+                text = tostring(self:try_get("victories", 1)),
+                change = function(element)
+                    --validate as a non-negative integer; revert to the stored value on
+                    --bad input.
+                    local n = tonumber(element.text)
+                    if n == nil then
+                        element.text = tostring(self:try_get("victories", 1))
+                        return
+                    end
+                    n = math.floor(n)
+                    if n < 0 then n = 0 end
+                    self.victories = n
+                    element.text = tostring(n)
+                end,
+            },
         },
 
         gui.Panel {
@@ -1305,16 +1534,16 @@ function Encounter.CreateEditorDialog(encounter, options)
 
         halign = "center",
         valign = "center",
-        width = 400,
-        height = 500,
+        width = 800,
+        height = 800,
 
         gui.Panel {
 
             classes = { "dialog" },
 
             halign = "center",
-            width = 360,
-            height = 500,
+            width = "100%",
+            height = "100%",
 
             encounter.Editor(encounter, options),
 

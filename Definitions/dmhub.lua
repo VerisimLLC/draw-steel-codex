@@ -1419,6 +1419,14 @@ function dmhub:UploadInitiativeQueue()
 	-- dummy implementation for documentation purposes only
 end
 
+--- IncrementInitiativeData: Atomically add 'amount' to the numeric value stored at 'path' within the current map's initiative queue (where the live encounter lives). 'path' is relative to the initiative queue root, e.g. 'liveEncounter/stats/<tokenid>/kills' or a nested path 'liveEncounter/stats/<tokenid>/monsterDamage/<monsterid>'. Missing intermediate tables are created by the server. On Durable Object backends the increment is genuinely atomic, so concurrent writers can't lose updates. The resolved value rides back through the normal initiative-queue broadcast, so no local mutation is needed here.
+--- @param path string
+--- @param amount number
+--- @return nil
+function dmhub:IncrementInitiativeData(path, amount)
+	-- dummy implementation for documentation purposes only
+end
+
 --- HaveImageInClipboard: Query if there is a valid image in the system clipboard.
 --- @return boolean
 function dmhub.HaveImageInClipboard()

@@ -237,6 +237,78 @@ Commands.RegisterMacro{
 }
 
 Commands.RegisterMacro{
+    name = "testvictory",
+    summary = "fake a victory screen",
+    doc = "Usage: /testvictory [off]\nSets up a fake active combat whose LiveEncounter has victory awarded, with every hero on the map added to initiative as the victorious heroes -- so the victory screen (DSVictoryScreen) shows for quick iteration. Onset Recoveries are faked +2 above current so the 'X -> Y/Z' change is visible. Pass 'off' (or 'clear') to end the fake combat and dismiss the screen.",
+    completions = function(args, argIndex)
+        if argIndex ~= 1 then return {} end
+        return {{text = "off", summary = "clear the fake victory"}}
+    end,
+    command = function(str)
+        if not dmhub.isDM then
+            print("/testvictory: DM only.")
+            return
+        end
+
+        local info = GameHud.instance.initiativeInterface
+
+        local arg = string.lower(trim(str or ""))
+        if arg == "off" or arg == "clear" then
+            local q = dmhub.initiativeQueue
+            if q ~= nil then
+                local live = q:try_get("liveEncounter")
+                if type(live) == "table" then
+                    live.victoryAwarded = false
+                end
+                q.hidden = true
+                q.gameMode = "exploration"
+                info.UploadInitiative()
+            end
+            print("/testvictory: cleared.")
+            return
+        end
+
+        --Build a fresh active initiative queue containing every hero on the map.
+        local q = InitiativeQueue.Create()
+        q.hidden = false
+        q.playersGoFirst = true
+        q.playersTurn = true
+
+        local heroTokens = {}
+        for _, token in ipairs(dmhub.allTokens) do
+            if token.properties ~= nil and token.properties:IsHero() then
+                q:SetInitiative(InitiativeQueue.GetInitiativeId(token), 0, 0)
+                heroTokens[#heroTokens + 1] = token
+            end
+        end
+
+        --Attach a fake LiveEncounter already in the victory state.
+        local live = LiveEncounter.Create(Encounter.new())
+        live.onsetMonsterCount = 3
+        live.victoryAwarded = true
+
+        --Fake onset Recoveries 2 above current so the "onset -> current/max" arrow shows.
+        local onsetHeroes = {}
+        for _, token in ipairs(heroTokens) do
+            local _, cur = live:GetHeroRecoveries(token)
+            onsetHeroes[#onsetHeroes + 1] = {
+                charid = token.charid,
+                name = token.name,
+                recoveries = (cur or 0) + 2,
+            }
+        end
+        live.onsetHeroes = onsetHeroes
+
+        q.liveEncounter = live
+
+        info.initiativeQueue = q
+        info.UploadInitiative()
+
+        print(string.format("/testvictory: faked victory with %d heroes.", #heroTokens))
+    end,
+}
+
+Commands.RegisterMacro{
     name = "collapsefloor",
     summary = "collapse a floor",
     doc = "Usage: /collapsefloor <floor name>\nCollapses given floor object and drops tokens.",

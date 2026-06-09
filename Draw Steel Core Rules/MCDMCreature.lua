@@ -1047,6 +1047,24 @@ function creature:Moved(path)
         return
     end
 
+    --Per-encounter hero stat: accumulate spaces moved during combat. Count only the
+    --creature's own-turn voluntary movement (normal move / shift) -- IsOurTurn() is the
+    --same gate the base Moved uses for movement-cost accounting, so this matches the
+    --engine's notion of "moving on your turn". Forced movement (pushes/pulls/slides) and
+    --teleports are excluded since they are not the hero choosing to walk spaces.
+    --path.numSteps is the number of tiles traversed. Runs once on the moving
+    --(authoritative) client; TrackHeroStats self-guards to heroes in the live encounter,
+    --so non-hero movers are dropped (a summon attributes to its summoner).
+    if path ~= nil and (not path.forced) and path.movementType ~= "teleport" and self:IsOurTurn() then
+        local spaces = path.numSteps or 0
+        if spaces > 0 then
+            local token = dmhub.LookupToken(self)
+            if token ~= nil then
+                LiveEncounter.TrackHeroStats(token.charid, "spacesMoved", spaces)
+            end
+        end
+    end
+
     --no longer make just moving auto claim turn?
     --self:TryClaimTurn()
 end
@@ -4037,13 +4055,29 @@ function creature.SetCurrentHitpoints(self, amount, note)
     g_creatureSetCurrentHitpoints(self, amount, note)
 end
 
+--- @field creature.temporary_hitpoints_source nil|string Tokenid of whoever granted the
+--- current temporary stamina, so damage it absorbs can be credited to them as
+--- damagePrevention. A creature has at most one temp-stamina source at a time.
 local g_creatureSetTemporaryHitpoints = creature.SetTemporaryHitpoints
 function creature.SetTemporaryHitpoints(self, amount, note, options)
+    options = options or {}
     g_creatureSetTemporaryHitpoints(self, amount, note, options)
 
 
     if mod.unloaded then
         return
+    end
+
+    --Track who granted the current temporary stamina (options.source, set only on
+    --genuine grants). The RemoveTemporaryHitpoints round-trip that absorbs damage
+    --passes no source, so the source survives until the pool is depleted; once
+    --temporary stamina is gone we forget it so a later grant starts clean.
+    if self:TemporaryHitpoints() <= 0 then
+        if self:has_key("temporary_hitpoints_source") then
+            self.temporary_hitpoints_source = nil
+        end
+    elseif options.source ~= nil then
+        self.temporary_hitpoints_source = options.source
     end
 end
 
@@ -4061,6 +4095,73 @@ end
 local g_creatureTemporaryHitpointsStr = creature.TemporaryHitpointsStr
 function creature.TemporaryHitpointsStr(self)
     return g_creatureTemporaryHitpointsStr(self)
+end
+
+-- Per-encounter hero stat tracking hangs off the central attack-damage path. The base
+-- creature.InflictDamageInstance (DMHub Game Rules/Creature.lua) is the single choke
+-- point that knows the victim (self), the attacker (symbols.attacker), and the actual
+-- post-resistance damage that landed (result.damageDealt). We wrap it here, in the
+-- Draw Steel layer, rather than reaching for the DS-specific LiveEncounter from the
+-- system-agnostic base file. It runs once on the resolving client (inside the damaging
+-- ModifyProperties execute, alongside the existing cast:CountDamage), so the networked
+-- increment is not multiplied across clients.
+--
+-- LiveEncounter.TrackHeroStats is fully self-guarding: it no-ops unless the token
+-- resolves to a hero participating in the current live encounter (a summon attributes
+-- to its summoner), so feeding it every victim/attacker here is safe -- monsters,
+-- objects, and out-of-combat hits are silently ignored.
+local g_baseInflictDamageInstance = creature.InflictDamageInstance
+function creature.InflictDamageInstance(self, amount, damageType, keywords, sourceDescription, symbols)
+    --Snapshot temporary stamina (and who granted it) before the hit. Temp stamina is
+    --consumed inside TakeDamage, AFTER the base call computes result.damageDealt, so
+    --damageDealt is the pre-temp post-resistance amount. We split it into the part
+    --soaked by temp stamina (damagePrevention, credited to the granter) and the actual
+    --stamina loss (damageTaken). tempSource must be read now: SetTemporaryHitpoints
+    --clears it when the pool empties during this very call.
+    local tempBefore = self:TemporaryHitpoints()
+    local tempSource = self:try_get("temporary_hitpoints_source")
+
+    local result = g_baseInflictDamageInstance(self, amount, damageType, keywords, sourceDescription, symbols)
+
+    local landed = (type(result) == "table" and result.damageDealt) or 0
+    if landed > 0 then
+        --How much of the landed damage temporary stamina absorbed this hit. Damage
+        --never raises temp stamina, and the only temp reduction during the base call
+        --is this hit, so the before/after delta is the absorbed amount.
+        local absorbed = tempBefore - self:TemporaryHitpoints()
+        if absorbed < 0 then absorbed = 0 end
+        if absorbed > landed then absorbed = landed end
+        local staminaLoss = landed - absorbed
+
+        --damage taken by the victim -- only actual stamina loss, not what temp
+        --stamina soaked.
+        if staminaLoss > 0 then
+            local victimToken = dmhub.LookupToken(self)
+            if victimToken ~= nil then
+                LiveEncounter.TrackHeroStats(victimToken.charid, "damageTaken", staminaLoss)
+            end
+        end
+
+        --damage prevented by temporary stamina, credited to whoever granted it. This
+        --intentionally keys on the grantor, not the victim, so a hero who shields a
+        --non-hero ally still gets the credit. TrackHeroStats self-guards to heroes in
+        --the encounter, so an unknown / non-hero grantor is dropped.
+        if absorbed > 0 and tempSource ~= nil then
+            LiveEncounter.TrackHeroStats(tempSource, "damagePrevention", absorbed)
+        end
+
+        --damage dealt by the attacker (nil for environmental / aura damage). The
+        --attacker still dealt the full landed amount even if temp stamina soaked it.
+        local attacker = symbols ~= nil and symbols.attacker or nil
+        if attacker ~= nil then
+            local attackerToken = dmhub.LookupToken(attacker)
+            if attackerToken ~= nil then
+                LiveEncounter.TrackHeroStats(attackerToken.charid, "damageDealt", landed)
+            end
+        end
+    end
+
+    return result
 end
 
 creature.minionDamageTime = 0
@@ -4209,6 +4310,11 @@ function creature.TakeDamage(self, amount, note, info)
             end
         end
 
+        --Capture the squad pool before this hit so we can count how many minions
+        --it kills (a single blow can empty several single-minion stamina bands).
+        local minionKillHealthSingle = self:SingleMinionMaxStamina()
+        local minionKillHpBefore = self:CurrentHitpoints()
+
         self:SetCurrentHitpoints(self:CurrentHitpoints() - amount, note)
 
         self.minionDamageTime = ServerTimestamp()
@@ -4273,6 +4379,28 @@ function creature.TakeDamage(self, amount, note, info)
                 numberofattackers = eventArg.numberofattackers,
             }
             attacker:DispatchEvent("dealdamage", args)
+        end
+
+        --Per-encounter hero stat: minion kills. Count how many full single-minion
+        --stamina bands this hit emptied in the squad's shared pool (hpBefore ->
+        --hpBefore - amount) and credit the attacker that many. This naturally
+        --handles "multiple minions hit with one blow": area hits reduce the pool
+        --once per minion (summed across calls), and the Strikes-with-Multiple-
+        --Targets clamp leaves amount == 0 on the redundant calls (killed == 0).
+        --Overkill is bounded by minionsBefore, so the pool dropping below zero
+        --never over-counts. TrackHeroStats self-guards to heroes in the live
+        --encounter, so non-hero attackers are dropped. Minions return here and
+        --never reach the regular-monster "kills" path below.
+        if minionKillHealthSingle ~= nil and minionKillHealthSingle > 0 and amount > 0 and eventArg.attacker ~= nil then
+            local minionsBefore = math.max(0, math.ceil(minionKillHpBefore / minionKillHealthSingle))
+            local minionsAfter = math.max(0, math.ceil((minionKillHpBefore - amount) / minionKillHealthSingle))
+            local minionsKilled = minionsBefore - minionsAfter
+            if minionsKilled > 0 then
+                local killerToken = dmhub.LookupToken(eventArg.attacker)
+                if killerToken ~= nil then
+                    LiveEncounter.TrackHeroStats(killerToken.charid, "minionKills", minionsKilled)
+                end
+            end
         end
 
         return
@@ -4501,6 +4629,19 @@ function creature.TakeDamage(self, amount, note, info)
                 --DispatchEvent does not currently have support for dispatching
                 --creature objects and other self-referential objects.
                 eventArg.attacker:TriggerEvent("kill", eventArg)
+
+                --Per-encounter hero stat: credit the killer with a monster kill.
+                --Guarded to non-hero victims (a dying hero is not a "kill"); minions
+                --are counted separately as minionKills and never reach this path.
+                --This runs once on the resolving client as the victim transitions
+                --to dead. TrackHeroStats self-guards to heroes, so a monster killing
+                --a monster is dropped.
+                if not self:IsHero() then
+                    local killerToken = dmhub.LookupToken(eventArg.attacker)
+                    if killerToken ~= nil then
+                        LiveEncounter.TrackHeroStats(killerToken.charid, "kills")
+                    end
+                end
             end
 
             if not self:IsHero() then

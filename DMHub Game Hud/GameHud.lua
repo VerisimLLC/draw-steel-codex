@@ -1015,6 +1015,8 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
 
 			DramaticBanner.Create(),
 
+			DSVictoryScreen.Create(),
+
 			gamehud:CreateTipBanner(),
 
 			gamehud:ConnectionStatusPanel(),
@@ -1762,6 +1764,7 @@ function GameHud:CreateTipBanner()
 	local tipLabel = gui.Label{
 		id = "tipBannerLabel",
 		classes = {"tipBannerContent", "sizeM"},
+        interactable = false,
 		text = "Tip banner ready.",
 		color = "white",
 		fontSize = 16,

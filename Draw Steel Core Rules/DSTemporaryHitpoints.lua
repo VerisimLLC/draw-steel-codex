@@ -1,11 +1,13 @@
 local mod = dmhub.GetModLoading()
 
-function creature:GrantTemporaryStamina(amount, note)
+--- @param granterTokenId nil|string Tokenid of whoever granted this temporary stamina.
+--- Recorded as the source so damage it absorbs is credited to them as damagePrevention.
+function creature:GrantTemporaryStamina(amount, note, granterTokenId)
 	if self:TemporaryHitpoints() > amount then
 		return
 	end
 
-	self:SetTemporaryHitpoints(amount, note)
+	self:SetTemporaryHitpoints(amount, note, { source = granterTokenId })
 
     self:DispatchEvent("gaintempstamina", {})
 end
@@ -183,7 +185,7 @@ function ActivatedAbilityGrantTemporaryStaminaBehavior:Cast(ability, casterToken
         target.token:ModifyProperties{
             description = "Grant Temporary Stamina",
             execute = function()
-                target.token.properties:GrantTemporaryStamina(tonumber(roll))
+                target.token.properties:GrantTemporaryStamina(tonumber(roll), nil, casterToken.charid)
             end,
         }
         granted = true

@@ -1466,6 +1466,16 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
         return
     end
 
+    --Record the tier this hero rolled (tier1/tier2/tier3) for the live encounter
+    --stats. This runs once per resolved power roll on the authoritative casting
+    --client; TrackHeroStats self-guards, so monster/non-hero casters are dropped.
+    --Use the same effective tier the rest of Cast applies (manual amend / test
+    --overrideTier wins over the natural dice tier).
+    local rolledTier = rollProperties:try_get("overrideTier") or DiceResultToTier(m_result)
+    if rolledTier == 1 or rolledTier == 2 or rolledTier == 3 then
+        LiveEncounter.TrackHeroStats(casterToken.charid, string.format("tierRolls/tier%d", rolledTier))
+    end
+
     --Allow modifiers to modify the casting of the power roll.
     --Limited to cost changes
     for _, mod in ipairs(modifiersApplied or {}) do

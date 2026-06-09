@@ -140,15 +140,6 @@ ActivatedAbilityInvokeAbilityBehavior.runOnController = false
 --abilities, and squad maneuvers). Set true to opt in.
 ActivatedAbilityInvokeAbilityBehavior.useSquadCoordination = false
 
---Treat-targets-as-squad is gated by the "Override Squad" custom attribute carried
---by this ability's (minion) targets -- an earlier behavior tags them with it.
---When a target carries the tag, all currently-tagged minions are formed into a
---single real TEMPORARY squad and the invoked ability is cast once by the squad
---lead with squad coordination over exactly those minions. The temporary squad is
---dissolved (each member's original squad restored) when the cast finishes.
---See Cast/ExecuteInvoke.
-ActivatedAbilityInvokeAbilityBehavior.overrideSquadAttribute = "Override Squad"
-
 
 function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, targets, options)
 
@@ -159,53 +150,6 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
         for _,target in ipairs(targets or {}) do
             local targetToken = target.token
             targetChoices[#targetChoices+1] = targetToken
-        end
-    end
-
-    --Treat-targets-as-squad ("Override Squad"): an earlier behavior in this same
-    --ability tags the participating MINIONS with the "Override Squad" custom
-    --attribute. If this invoke's target carries that tag, collapse the per-target
-    --invocation into a SINGLE cast controlled by the squad's lead (this invoke's
-    --target minion) -- NOT the original caster. The squad's membership is exactly
-    --the set of minions currently carrying the tag (the selected squad), so
-    --untagged same-type minions are excluded. Those minions are formed into a real
-    --TEMPORARY squad (in ExecuteInvoke, from options.adhocSquadTokens) which then
-    --prompts for enemies with squad coordination over its members.
-    --Read the tag FRESH: it was granted earlier this same cast, but
-    --CalculateNamedCustomAttribute caches per-creature, so a value read earlier
-    --(0) would otherwise be returned stale. Clearing the cache forces a recompute.
-    local overrideAttrName = self:try_get("overrideSquadAttribute", "Override Squad")
-    local function hasOverrideTag(tok)
-        if tok == nil or not tok.valid or tok.properties == nil or not tok.properties.minion then
-            return false
-        end
-        tok.properties._tmp_calculatedAttributes = nil
-        return tok.properties:CalculateNamedCustomAttribute(overrideAttrName) > 0
-    end
-    local overrideLead = nil
-    for _,target in ipairs(targets or {}) do
-        if hasOverrideTag(target.token) then
-            overrideLead = target.token
-            break
-        end
-    end
-    local treatAsSquad = false
-    if overrideLead ~= nil then
-        --Membership is all tagged minions (the selected squad), not just this
-        --invoke's target -- this invoke may apply to only the first target.
-        local adhocSquadTokens = {}
-        for _,tok in ipairs(dmhub.GetTokens{}) do
-            if hasOverrideTag(tok) and (not tok.properties:IsDead()) then
-                adhocSquadTokens[#adhocSquadTokens + 1] = tok
-            end
-        end
-        if #adhocSquadTokens > 0 then
-            treatAsSquad = true
-            options.adhocSquadTokens = adhocSquadTokens
-            --One cast, controlled by the squad itself -- its lead (this invoke's
-            --target minion), NOT the original caster. The loop below runs once.
-            targets = { { token = overrideLead } }
-            promptWhenResolving = false
         end
     end
 
@@ -254,22 +198,11 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
             if target.token ~= nil then
                 print("INVOKE:: CASTING ON TARGET", i, "/", #targets)
 
-                --In a squad coordinated strike, the invoked effect (e.g. a forced-
-                --movement push/pull, or an inflicted condition) should be SOURCED
-                --from the main minion for THIS creature -- the first minion to
-                --attack it -- not from the cast's caster (the squad lead). This
-                --mirrors the per-creature attribution applied to power-roll tier
-                --commands in MCDMAbilityRollBehavior. Without targetPairs (non-squad
-                --invokes) this is just the caster, so behavior is unchanged.
-                local invokeSource = casterToken
-                if options.symbols ~= nil and options.symbols.cast ~= nil then
-                    invokeSource = options.symbols.cast:MainAttackerForTarget(options.symbols, target.token, casterToken)
-                end
 
                 --be careful not to put anything in here we don't want to transmit to the database.
                 local symbols = { spellname = options.symbols.spellname or ability.name, charges = options.symbols.charges, cast = options.symbols.cast, forcedMovementOrigin = options.symbols.forcedMovementOrigin }
 
-                if self.runOnController and target.token.activeControllerId ~= nil and self.abilityType ~= "custom" and not treatAsSquad then
+                if self.runOnController and target.token.activeControllerId ~= nil and self.abilityType ~= "custom" then
 
                     --clean out the ability so we don't copy too much.
                     local cast = DeepCopy(options.symbols.cast)
@@ -296,7 +229,7 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                         standardAbility = self.standardAbility,
                         standardAbilityParams = self:try_get("standardAbilityParams"),
                         targeting = self.targeting,
-                        invokerid = invokeSource.id,
+                        invokerid = casterToken.id,
                         casterid = cond(self.invokeOnCaster, casterToken.id, target.token.id),
                         targetid = target.token.id,
                         subjectid = subjectid,
@@ -359,9 +292,7 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
 
                         abilityClone.invoker = ability:try_get("invoker") or casterToken.properties
 
-                        --treat-targets-as-squad implies squad coordination, so don't
-                        --suppress it in that case.
-                        if not (self:try_get("useSquadCoordination", false) or treatAsSquad) then
+                        if not self:try_get("useSquadCoordination", false) then
                             abilityClone.disableSquadCoordination = true
                         end
 
@@ -486,16 +417,7 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
 
                         print("Invoke:: Execute...")
                         local invokerToken = cond(self.invokeOnCaster, casterToken, target.token)
-                        --treat-targets-as-squad: the squad members are the parent
-                        --targets; the squad lead (a target, = target.token here)
-                        --controls the invoke and prompts for its own enemies. The
-                        --original caster does NOT become the acting caster.
-                        local invokeTargeting = self.targeting
-                        if treatAsSquad then
-                            invokeTargeting = "prompt"
-                            invokerToken = target.token
-                        end
-                        self.ExecuteInvoke(invokeSource, abilityClone, invokerToken, invokeTargeting, symbols, options)
+                        self.ExecuteInvoke(casterToken, abilityClone, invokerToken, self.targeting, symbols, options)
                     end
                 end
 
@@ -518,88 +440,6 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
     if suppressSquad and casterToken ~= nil and casterToken.properties ~= nil then
         local depth = casterToken.properties:try_get("_tmp_disableSquadCoordinationDepth", 0)
         casterToken.properties._tmp_disableSquadCoordinationDepth = depth + 1
-    end
-
-    --Treat-targets-as-squad ("Override Squad"): form a REAL temporary squad of just
-    --the targets by giving them a unique minionSquad name. RefreshSquadInfo then
-    --builds a proper _tmp_minionSquad of exactly those members (the unique name
-    --guarantees no other minions are pulled in), and the lead casts the invoked
-    --strike through the normal squad-coordination path. The original squad of each
-    --target is restored in finishHandler (and on cancel). Targets are always
-    --minions. options.adhocSquadTokens is the target list (set in Cast).
-    local adhocSquadTokens = options.adhocSquadTokens
-    local adhocSquadActive = false
-    local adhocSavedSquads = nil
-    if adhocSquadTokens ~= nil and #adhocSquadTokens > 0 then
-        adhocSquadActive = true
-        adhocSavedSquads = {}
-        local tempName = "OverrideSquad:" .. dmhub.GenerateGuid()
-        for _, tok in ipairs(adhocSquadTokens) do
-            if tok ~= nil and tok.valid and tok.properties ~= nil then
-                adhocSavedSquads[#adhocSavedSquads + 1] = {
-                    tok = tok,
-                    had = tok.properties:has_key("minionSquad"),
-                    value = tok.properties:try_get("minionSquad"),
-                }
-                tok:ModifyProperties{
-                    description = "Override Squad",
-                    undoable = false,
-                    combine = true,
-                    execute = function()
-                        tok.properties.minionSquad = tempName
-                    end,
-                }
-            end
-        end
-        --Changing minionSquad does NOT rebuild the cached squad info
-        --(_tmp_minionSquad) that targeting reads -- that normally only happens on
-        --render. GetTargetingRays reads _tmp_minionSquad directly, so without this
-        --it would still see the stale real squad (e.g. all 7 Husks) and offer the
-        --untargeted members. Force a rebuild now so the cache rebinds to the
-        --temporary squad (only the tagged members) BEFORE targeting begins.
-        --Refreshing the lead builds the shared table; the rest rebind to it.
-        for _, tok in ipairs(adhocSquadTokens) do
-            if tok ~= nil and tok.valid and tok.properties ~= nil then
-                tok.properties:RefreshSquadInfo(tok)
-            end
-        end
-    end
-
-    --Dissolve the temporary squad: restore each target's original minionSquad (or
-    --clear it if it had none), so they rejoin their real squad. Idempotent, called
-    --both from finishHandler (normal completion) AND after the cast loop
-    --(cancellation), so the temporary squad can never persist past the cast.
-    local adhocCleanedUp = false
-    local cleanupAdhocSquad = function()
-        if adhocCleanedUp or not adhocSquadActive then return end
-        adhocCleanedUp = true
-        if adhocSavedSquads == nil then return end
-        for _, saved in ipairs(adhocSavedSquads) do
-            local tok = saved.tok
-            if tok ~= nil and tok.valid and tok.properties ~= nil then
-                tok:ModifyProperties{
-                    description = "Restore Squad",
-                    undoable = false,
-                    combine = true,
-                    execute = function()
-                        if saved.had then
-                            tok.properties.minionSquad = saved.value
-                        else
-                            tok.properties.minionSquad = nil
-                        end
-                    end,
-                }
-            end
-        end
-        --Rebind the cached squad info back to the restored real squad immediately
-        --(mirrors the rebuild done when the temp squad was formed), so any
-        --targeting that happens before the next render no longer sees the override.
-        for _, saved in ipairs(adhocSavedSquads) do
-            local tok = saved.tok
-            if tok ~= nil and tok.valid and tok.properties ~= nil then
-                tok.properties:RefreshSquadInfo(tok)
-            end
-        end
     end
 
     print("INVOKE:: STARTING:", abilityClone.name)
@@ -657,7 +497,6 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
                 casterToken.properties._tmp_disableSquadCoordinationDepth = depth - 1
             end
         end
-        cleanupAdhocSquad()
         if finishOptions.pay then
             --if the ability we invoked had to be paid for, we have to pay for the invoke.
             ability:CommitToPaying(casterToken, finishOptions)
@@ -822,11 +661,6 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
     end
 
     print("INVOKE:: FINISHED FOR", abilityClone.name, coroutine.running(), "CANCELED:", canceled)
-
-    --Safety net: if the cast was cancelled (finishHandler never fired), make sure
-    --the temporary squad is still dissolved so its members' minionSquad cannot
-    --linger past the cast.
-    cleanupAdhocSquad()
 
     return haveToPay
 end

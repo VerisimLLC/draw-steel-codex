@@ -648,35 +648,6 @@ function ActivatedAbilityCast:RemapForceMoveTargetAndCaster(targetToken, casterT
     return targetToken, casterToken
 end
 
--- Returns the "main minion" token for a target in a squad coordinated strike: the
--- first targetPairs entry whose b == targetToken.charid (the first minion to
--- attack that creature). Used to source non-damage effects (forced movement
--- origin, conditions, etc.) from the main minion for THAT creature when a squad
--- splits its attacks. Falls back to defaultToken when there is no squad pairing
--- for this target (e.g. non-squad invokes), so callers can pass the cast caster.
--- @param symbols table the cast symbols table (uses symbols.targetPairs)
--- @param targetToken CharacterToken
--- @param defaultToken CharacterToken
--- @return CharacterToken
-function ActivatedAbilityCast:MainAttackerForTarget(symbols, targetToken, defaultToken)
-    if symbols == nil or symbols.targetPairs == nil or targetToken == nil then
-        return defaultToken
-    end
-    local defaultCharid = defaultToken ~= nil and defaultToken.charid or nil
-    for _, pair in ipairs(symbols.targetPairs) do
-        if pair.b == targetToken.charid then
-            if pair.a ~= defaultCharid then
-                local attackerTok = dmhub.GetTokenById(pair.a)
-                if attackerTok ~= nil and attackerTok.valid then
-                    return attackerTok
-                end
-            end
-            return defaultToken
-        end
-    end
-    return defaultToken
-end
-
 --- Returns the casterToken that should be used to resolve a power-roll command for
 --- this particular target. Used by PowerRollBehavior so that "caster"-type retargets
 --- swap the source for ALL effects produced by the command -- push direction, taunt

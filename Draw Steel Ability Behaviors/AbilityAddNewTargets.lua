@@ -24,7 +24,6 @@ ActivatedAbility.RegisterType
 
 ActivatedAbilityAddNewTargetsBehavior.promptText = ''
 ActivatedAbilityAddNewTargetsBehavior.targetMode = 'add'
-ActivatedAbilityAddNewTargetsBehavior.ignoreExistingTargets = false
 
 function ActivatedAbilityAddNewTargetsBehavior:Cast(ability, casterToken, targets, options)
 	if #targets == 0 then
@@ -34,16 +33,6 @@ function ActivatedAbilityAddNewTargetsBehavior:Cast(ability, casterToken, target
 	ability:CommitToPaying(casterToken, options)
 
 	local symbols = options.symbols or {}
-
-	-- Exclude creatures already targeted by the ability from being selectable.
-	if self:try_get("ignoreExistingTargets", false) and options.targets ~= nil then
-		symbols.forbiddentargets = symbols.forbiddentargets or {}
-		for _, existingTarget in ipairs(options.targets) do
-			if existingTarget.token ~= nil then
-				symbols.forbiddentargets[existingTarget.token.charid] = true
-			end
-		end
-	end
 
 	-- Build the list of origin tokens to invoke targeting from.
 	-- Each target from applyto becomes an origin (e.g. burst centered on it).
@@ -175,14 +164,6 @@ function ActivatedAbilityAddNewTargetsBehavior:EditorItems(parentPanel)
 		value = self:try_get("allowDuplicates", false),
 		change = function(element)
 			self.allowDuplicates = element.value
-		end,
-	}
-
-	result[#result+1] = gui.Check{
-		text = "Ignore Existing Ability Targets",
-		value = self:try_get("ignoreExistingTargets", false),
-		change = function(element)
-			self.ignoreExistingTargets = element.value
 		end,
 	}
 

@@ -124,7 +124,7 @@ TriggeredAbility.TargetTypes = {
 		id = 'attacker',
 		text = 'Creature Attacking Me',
 		condition = function(ability)
-			return ability.trigger == "attacked" or ability.trigger == "hit" or ability.trigger == "losehitpoints" or ability.trigger == "inflictcondition" or ability.trigger == "winded" or ability.trigger == "dying"
+			return ability.trigger == "attacked" or ability.trigger == "hit" or ability.trigger == "losehitpoints" or ability.trigger == "inflictcondition" or ability.trigger == "winded" or ability.trigger == "dying" or ability.trigger == "forcemove"
 		end,
 	},
 	{
@@ -349,10 +349,20 @@ TriggeredAbility.triggers = {
 				type = "creature",
 				desc = "The creature who is causing the forced move to occur. Only valid if Has Attacker is true.",
 			},
-            {
+            vertical = {
                 name = "Vertical",
                 type = "boolean",
                 desc = "True if the forced movement is vertical.",
+            },
+            distance = {
+                name = "Distance",
+                type = "number",
+                desc = "The number of squares the creature was actually force moved.",
+            },
+            melee = {
+                name = "Melee",
+                type = "boolean",
+                desc = "True if the ability that forced the movement had the Melee keyword.",
             },
 		}
     },

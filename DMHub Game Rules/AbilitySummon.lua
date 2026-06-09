@@ -805,8 +805,11 @@ end
 function ActivatedAbilitySummonBehavior.PromptPlacementLoc(casterToken, rangeTiles, index, total, isMinion, squadCtx, creatureCtx, ability)
     local SQUAD_CAP = 8
 
-    local origin = casterToken.loc
-    local validLocs = origin:LocsInRadius(rangeTiles)
+    --measure range from the token's full footprint, not just its anchor square.
+    --GetLocsWithinRadius includes every tile the token occupies, so Size 2+ casters
+    --radiate range from all their squares instead of only the bottom-left corner.
+    local validLocs = casterToken:GetLocsWithinRadius(rangeTiles)
+    local occupiedLocs = casterToken:LocsOccupyingWhenAt(casterToken.loc)
 
     local pickedLoc = nil
     local pickedSquadResult = nil
@@ -827,7 +830,15 @@ function ActivatedAbilitySummonBehavior.PromptPlacementLoc(casterToken, rangeTil
     end
 
     local function isInRange(loc)
-        return loc ~= nil and origin:DistanceInTiles(loc) <= rangeTiles
+        if loc == nil then
+            return false
+        end
+        for _,o in ipairs(occupiedLocs) do
+            if o:DistanceInTiles(loc) <= rangeTiles then
+                return true
+            end
+        end
+        return false
     end
 
     local pickerContent

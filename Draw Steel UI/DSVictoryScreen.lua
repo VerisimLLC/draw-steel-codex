@@ -117,84 +117,87 @@ local function ComputeHeroRolesInternal(live)
         return 0
     end
 
-    --The hero with the strictly highest positive value of fn; ties go to the
-    --earliest hero in party order. Returns nil if nobody has a positive value.
-    local function MaxBy(fn)
-        local best = nil
-        local bestValue = 0
-        for _, d in ipairs(data) do
-            local v = fn(d) or 0
-            if v > bestValue then
-                best = d
-                bestValue = v
+    --The qualifying heroes for a stat, best first. fn returns the hero's value
+    --for the role (or nil to disqualify); values must also be > 0 and >=
+    --minValue. Ties keep party order.
+    local function RankBy(fn, minValue)
+        local list = {}
+        for order, d in ipairs(data) do
+            local v = fn(d)
+            if v ~= nil and v > 0 and v >= (minValue or 1) then
+                list[#list+1] = { d = d, value = v, order = order }
             end
         end
-        return best, bestValue
-    end
-
-    --The runner-up by fn, excluding the winner.
-    local function SecondBy(fn, winner)
-        local best = nil
-        local bestValue = 0
-        for _, d in ipairs(data) do
-            if d ~= winner then
-                local v = fn(d) or 0
-                if v > bestValue then
-                    best = d
-                    bestValue = v
-                end
+        table.sort(list, function(a, b)
+            if a.value ~= b.value then
+                return a.value > b.value
             end
-        end
-        return best, bestValue
+            return a.order < b.order
+        end)
+        return list
     end
 
     --Candidate roles, built in priority order (most interesting first). Each
-    --hero is later awarded the highest-priority candidate they won.
+    --role carries a RANKED list of qualifying heroes: when it is awarded, it
+    --goes to the highest-ranked qualifier who has no role yet, so a role whose
+    --winner earned something better falls through to the runner-up instead of
+    --vanishing. allowDuplicates marks floor roles (Pacifist/Tourist) that may
+    --appear on several cards at once.
     local candidates = {}
-    local function AddCandidate(winner, role, text, tooltip)
-        candidates[#candidates+1] = {
-            winner = winner,
-            role = role,
-            text = text,
-            tooltip = tooltip,
-        }
-    end
-
-    --Damage Dealer: dealt the most damage of any hero. Tooltip fun fact: the
-    --runner-up's total.
-    do
-        local winner, amount = MaxBy(function(d) return Total(d, "damageDealt") end)
-        if winner ~= nil then
-            local second, secondAmount = SecondBy(function(d) return Total(d, "damageDealt") end, winner)
-            local tooltip = "Nobody else dealt any damage"
-            if second ~= nil then
-                tooltip = string.format("%s dealt %d damage", second.name, secondAmount)
-            end
-            AddCandidate(winner, "Damage Dealer", string.format("Dealt %d damage", amount), tooltip)
+    local function AddRole(role, entries, allowDuplicates)
+        if entries ~= nil and #entries > 0 then
+            candidates[#candidates+1] = {
+                role = role,
+                entries = entries,
+                allowDuplicates = allowDuplicates,
+            }
         end
     end
 
-    --Initiator: dealt the most damage on round 1, and that round-1 damage is
-    --at least 8 per hero level.
+    --Damage Dealer: the most damage dealt. Tooltip fun fact: the best OTHER
+    --damage dealer.
     do
-        local winner, amount = MaxBy(function(d) return RoundStat(d, 1, "damageDealt") end)
-        if winner ~= nil then
+        local ranked = RankBy(function(d) return Total(d, "damageDealt") end)
+        local entries = {}
+        for i, e in ipairs(ranked) do
+            local other = ranked[cond(i == 1, 2, 1)]
+            local tooltip = "Nobody else dealt any damage"
+            if other ~= nil then
+                tooltip = string.format("%s dealt %d damage", other.d.name, other.value)
+            end
+            entries[#entries+1] = { d = e.d, text = string.format("Dealt %d damage", e.value), tooltip = tooltip }
+        end
+        AddRole("Damage Dealer", entries)
+    end
+
+    --Initiator: big round-1 damage -- at least 8 per hero level.
+    do
+        local ranked = RankBy(function(d)
+            local amount = RoundStat(d, 1, "damageDealt")
             local level = 1
-            if winner.token.properties ~= nil then
-                level = winner.token.properties:CharacterLevel() or 1
+            if d.token.properties ~= nil then
+                level = d.token.properties:CharacterLevel() or 1
             end
             if amount >= 8 * math.max(1, level) then
-                AddCandidate(winner, "Initiator",
-                    string.format("Dealt %d damage on round 1", amount),
-                    string.format("You spent %d heroic resources in doing so", RoundStat(winner, 1, "heroicResourcesSpent")))
+                return amount
             end
+            return nil
+        end)
+        local entries = {}
+        for _, e in ipairs(ranked) do
+            entries[#entries+1] = {
+                d = e.d,
+                text = string.format("Dealt %d damage on round 1", e.value),
+                tooltip = string.format("You spent %d heroic resources in doing so", RoundStat(e.d, 1, "heroicResourcesSpent")),
+            }
         end
+        AddRole("Initiator", entries)
     end
 
     --Big Hitter: the biggest single-round damage total, excluding round 1
     --(round-1 alpha strikes belong to Initiator).
     do
-        local function BestLateRound(d)
+        local ranked = RankBy(function(d)
             local best = 0
             for n, _ in pairs(d.rounds) do
                 if n >= 2 then
@@ -205,28 +208,33 @@ local function ComputeHeroRolesInternal(live)
                 end
             end
             return best
+        end)
+        local entries = {}
+        for _, e in ipairs(ranked) do
+            entries[#entries+1] = {
+                d = e.d,
+                text = string.format("Dealt %d damage in a single round", e.value),
+                tooltip = string.format("You dealt %d damage during the encounter", Total(e.d, "damageDealt")),
+            }
         end
-
-        local winner, amount = MaxBy(BestLateRound)
-        if winner ~= nil then
-            AddCandidate(winner, "Big Hitter",
-                string.format("Dealt %d damage in a single round", amount),
-                string.format("You dealt %d damage during the encounter", Total(winner, "damageDealt")))
-        end
+        AddRole("Big Hitter", entries)
     end
 
-    --Deadeye: the most critical hits this encounter, at least 2.
+    --Deadeye: the most critical hits, at least 2.
     do
-        local winner, count = MaxBy(function(d) return Total(d, "criticals") end)
-        if winner ~= nil and count >= 2 then
-            AddCandidate(winner, "Deadeye",
-                string.format("You got %d critical hits", count),
-                string.format("You dealt %d damage this encounter", Total(winner, "damageDealt")))
+        local ranked = RankBy(function(d) return Total(d, "criticals") end, 2)
+        local entries = {}
+        for _, e in ipairs(ranked) do
+            entries[#entries+1] = {
+                d = e.d,
+                text = string.format("You got %d critical hits", e.value),
+                tooltip = string.format("You dealt %d damage this encounter", Total(e.d, "damageDealt")),
+            }
         end
+        AddRole("Deadeye", entries)
     end
 
-    --Hat Trick: at least 2 critical hits within a single round. The hero with
-    --the most crits in their best round wins.
+    --Hat Trick: at least 2 critical hits within a single round.
     do
         local function BestCritRound(d)
             local best = 0
@@ -241,43 +249,56 @@ local function ComputeHeroRolesInternal(live)
             return best, bestRound
         end
 
-        local winner, count = MaxBy(BestCritRound)
-        if winner ~= nil and count >= 2 then
-            local _, roundNum = BestCritRound(winner)
-            AddCandidate(winner, "Hat Trick",
-                string.format("You got %d critical hits in round %d", count, roundNum),
-                string.format("You dealt %d damage on round %d", RoundStat(winner, roundNum, "damageDealt"), roundNum))
+        local ranked = RankBy(function(d) return (BestCritRound(d)) end, 2)
+        local entries = {}
+        for _, e in ipairs(ranked) do
+            local _, roundNum = BestCritRound(e.d)
+            entries[#entries+1] = {
+                d = e.d,
+                text = string.format("You got %d critical hits in round %d", e.value, roundNum),
+                tooltip = string.format("You dealt %d damage on round %d", RoundStat(e.d, roundNum, "damageDealt"), roundNum),
+            }
         end
+        AddRole("Hat Trick", entries)
     end
 
     --The Shield: the most damage prevention, at least 10.
     do
-        local winner, amount = MaxBy(function(d) return Total(d, "damagePrevention") end)
-        if winner ~= nil and amount >= 10 then
-            AddCandidate(winner, "The Shield",
-                string.format("You prevented %d damage this encounter", amount),
-                string.format("You and your teammates took %d damage this encounter", partyDamageTaken))
+        local ranked = RankBy(function(d) return Total(d, "damagePrevention") end, 10)
+        local entries = {}
+        for _, e in ipairs(ranked) do
+            entries[#entries+1] = {
+                d = e.d,
+                text = string.format("You prevented %d damage this encounter", e.value),
+                tooltip = string.format("You and your teammates took %d damage this encounter", partyDamageTaken),
+            }
         end
+        AddRole("The Shield", entries)
     end
 
     --Executioner: the most kills, at least 2.
     do
-        local winner, count = MaxBy(function(d) return Total(d, "kills") end)
-        if winner ~= nil and count >= 2 then
-            AddCandidate(winner, "Executioner",
-                string.format("You finished off %d enemies", count),
-                string.format("You dealt %d damage this encounter", Total(winner, "damageDealt")))
+        local ranked = RankBy(function(d) return Total(d, "kills") end, 2)
+        local entries = {}
+        for _, e in ipairs(ranked) do
+            entries[#entries+1] = {
+                d = e.d,
+                text = string.format("You finished off %d enemies", e.value),
+                tooltip = string.format("You dealt %d damage this encounter", Total(e.d, "damageDealt")),
+            }
         end
+        AddRole("Executioner", entries)
     end
 
     --Minion Mower: the most minion kills, at least 3.
     do
-        local winner, count = MaxBy(function(d) return Total(d, "minionKills") end)
-        if winner ~= nil and count >= 3 then
+        local ranked = RankBy(function(d) return Total(d, "minionKills") end, 3)
+        local entries = {}
+        for _, e in ipairs(ranked) do
             local bestRound = nil
             local bestCount = 0
-            for n, _ in pairs(winner.rounds) do
-                local v = RoundStat(winner, n, "minionKills")
+            for n, _ in pairs(e.d.rounds) do
+                local v = RoundStat(e.d, n, "minionKills")
                 if v > bestCount then
                     bestCount = v
                     bestRound = n
@@ -287,53 +308,88 @@ local function ComputeHeroRolesInternal(live)
             if bestRound ~= nil then
                 tooltip = string.format("%d of them in round %d alone", bestCount, bestRound)
             end
-            AddCandidate(winner, "Minion Mower",
-                string.format("You mowed down %d minions", count), tooltip)
+            entries[#entries+1] = { d = e.d, text = string.format("You mowed down %d minions", e.value), tooltip = tooltip }
         end
+        AddRole("Minion Mower", entries)
     end
 
     --Overkill: the most overkill damage, at least 10.
     do
-        local winner, amount = MaxBy(function(d) return Total(d, "overkill") end)
-        if winner ~= nil and amount >= 10 then
-            AddCandidate(winner, "Overkill",
-                string.format("You dealt %d more damage than strictly necessary", amount),
-                "Subtlety is overrated")
+        local ranked = RankBy(function(d) return Total(d, "overkill") end, 10)
+        local entries = {}
+        for _, e in ipairs(ranked) do
+            entries[#entries+1] = {
+                d = e.d,
+                text = string.format("You dealt %d more damage than strictly necessary", e.value),
+                tooltip = "Subtlety is overrated",
+            }
         end
+        AddRole("Overkill", entries)
     end
 
     --Closer: the most kills in the final round.
     do
         if finalRound >= 2 then
-            local winner, count = MaxBy(function(d) return RoundStat(d, finalRound, "kills") end)
-            if winner ~= nil then
-                AddCandidate(winner, "Closer",
-                    string.format("You ended %d %s in the final round", count, cond(count == 1, "enemy", "enemies")),
-                    "Someone had to finish it")
+            local ranked = RankBy(function(d) return RoundStat(d, finalRound, "kills") end)
+            local entries = {}
+            for _, e in ipairs(ranked) do
+                entries[#entries+1] = {
+                    d = e.d,
+                    text = string.format("You ended %d %s in the final round", e.value, cond(e.value == 1, "enemy", "enemies")),
+                    tooltip = "Someone had to finish it",
+                }
             end
+            AddRole("Closer", entries)
         end
     end
 
-    --Punching Bag / Martyr: the most damage taken. Martyr if they fell;
-    --Punching Bag (at least 15 taken) if they are still standing.
+    --Martyr: took the most damage and fell.
     do
-        local winner, amount = MaxBy(function(d) return Total(d, "damageTaken") end)
-        if winner ~= nil then
-            local dead = winner.token.properties ~= nil and winner.token.properties:IsDead()
+        local ranked = RankBy(function(d)
+            local dead = d.token.properties ~= nil and d.token.properties:IsDead()
             if dead then
-                AddCandidate(winner, "Martyr",
-                    string.format("You took %d damage before falling", amount),
-                    "Your sacrifice will be remembered")
-            elseif amount >= 15 then
-                local second, secondAmount = SecondBy(function(d) return Total(d, "damageTaken") end, winner)
-                local tooltip = "Nobody else took a scratch"
-                if second ~= nil then
-                    tooltip = string.format("The next-toughest hero took %d", secondAmount)
-                end
-                AddCandidate(winner, "Punching Bag",
-                    string.format("You took %d damage and kept standing", amount), tooltip)
+                return Total(d, "damageTaken")
             end
+            return nil
+        end)
+        local entries = {}
+        for _, e in ipairs(ranked) do
+            entries[#entries+1] = {
+                d = e.d,
+                text = string.format("You took %d damage before falling", e.value),
+                tooltip = "Your sacrifice will be remembered",
+            }
         end
+        AddRole("Martyr", entries)
+    end
+
+    --Punching Bag: took the most damage (at least 15) and kept standing.
+    do
+        local ranked = RankBy(function(d)
+            local dead = d.token.properties ~= nil and d.token.properties:IsDead()
+            if not dead then
+                return Total(d, "damageTaken")
+            end
+            return nil
+        end, 15)
+        local entries = {}
+        for _, e in ipairs(ranked) do
+            local secondAmount = 0
+            for _, d2 in ipairs(data) do
+                if d2 ~= e.d then
+                    local v = Total(d2, "damageTaken")
+                    if v > secondAmount then
+                        secondAmount = v
+                    end
+                end
+            end
+            local tooltip = "Nobody else took a scratch"
+            if secondAmount > 0 then
+                tooltip = string.format("The next-toughest hero took %d", secondAmount)
+            end
+            entries[#entries+1] = { d = e.d, text = string.format("You took %d damage and kept standing", e.value), tooltip = tooltip }
+        end
+        AddRole("Punching Bag", entries)
     end
 
     --Untouchable: the only hero who took no damage at all (needs a party).
@@ -346,80 +402,99 @@ local function ComputeHeroRolesInternal(live)
                 end
             end
             if #zeroes == 1 then
-                AddCandidate(zeroes[1], "Untouchable",
-                    "You took no damage at all",
-                    string.format("Your allies took %d between them", partyDamageTaken))
+                AddRole("Untouchable", {{
+                    d = zeroes[1],
+                    text = "You took no damage at all",
+                    tooltip = string.format("Your allies took %d between them", partyDamageTaken),
+                }})
             end
         end
     end
 
     --Immovable Object: stood firm against the most forced moves, at least 2.
     do
-        local winner, count = MaxBy(function(d) return Total(d, "standsFirm") end)
-        if winner ~= nil and count >= 2 then
-            AddCandidate(winner, "Immovable Object",
-                string.format("You stood firm against %d forced moves", count),
-                string.format("Enemies moved you only %d spaces all fight", Total(winner, "forcedMovementTaken")))
+        local ranked = RankBy(function(d) return Total(d, "standsFirm") end, 2)
+        local entries = {}
+        for _, e in ipairs(ranked) do
+            entries[#entries+1] = {
+                d = e.d,
+                text = string.format("You stood firm against %d forced moves", e.value),
+                tooltip = string.format("Enemies moved you only %d spaces all fight", Total(e.d, "forcedMovementTaken")),
+            }
         end
+        AddRole("Immovable Object", entries)
     end
 
     --Ragdoll: took the most forced movement, at least 6 spaces.
     do
-        local winner, amount = MaxBy(function(d) return Total(d, "forcedMovementTaken") end)
-        if winner ~= nil and amount >= 6 then
-            AddCandidate(winner, "Ragdoll",
-                string.format("You got thrown around %d spaces", amount),
-                string.format("And took %d damage along the way", Total(winner, "damageTaken")))
+        local ranked = RankBy(function(d) return Total(d, "forcedMovementTaken") end, 6)
+        local entries = {}
+        for _, e in ipairs(ranked) do
+            entries[#entries+1] = {
+                d = e.d,
+                text = string.format("You got thrown around %d spaces", e.value),
+                tooltip = string.format("And took %d damage along the way", Total(e.d, "damageTaken")),
+            }
         end
+        AddRole("Ragdoll", entries)
     end
 
     --Battering Ram: force-moved enemies the most spaces, at least 5.
     do
-        local winner, amount = MaxBy(function(d) return Total(d, "forcedMovementDealt") end)
-        if winner ~= nil and amount >= 5 then
-            AddCandidate(winner, "Battering Ram",
-                string.format("You shoved enemies %d spaces", amount),
-                "Walls were involved")
+        local ranked = RankBy(function(d) return Total(d, "forcedMovementDealt") end, 5)
+        local entries = {}
+        for _, e in ipairs(ranked) do
+            entries[#entries+1] = {
+                d = e.d,
+                text = string.format("You shoved enemies %d spaces", e.value),
+                tooltip = "Walls were involved",
+            }
         end
+        AddRole("Battering Ram", entries)
     end
 
     --Marathon Runner: moved the most spaces, at least 8.
     do
-        local winner, amount = MaxBy(function(d) return Total(d, "spacesMoved") end)
-        if winner ~= nil and amount >= 8 then
-            AddCandidate(winner, "Marathon Runner",
-                string.format("You moved %d spaces this encounter", amount),
-                "More than anyone else on the field")
+        local ranked = RankBy(function(d) return Total(d, "spacesMoved") end, 8)
+        local entries = {}
+        for i, e in ipairs(ranked) do
+            local tooltip = "More than anyone else on the field"
+            if i > 1 then
+                tooltip = string.format("Though %s moved %d", ranked[1].d.name, ranked[1].value)
+            end
+            entries[#entries+1] = { d = e.d, text = string.format("You moved %d spaces this encounter", e.value), tooltip = tooltip }
         end
+        AddRole("Marathon Runner", entries)
     end
 
     --Statue: never moved (voluntarily or otherwise) yet still dealt damage.
-    --The highest-damage qualifier wins.
     do
-        local winner = nil
-        for _, d in ipairs(data) do
-            if Total(d, "spacesMoved") == 0 and Total(d, "forcedMovementTaken") == 0
-                and Total(d, "damageDealt") > 0 then
-                if winner == nil or Total(d, "damageDealt") > Total(winner, "damageDealt") then
-                    winner = d
-                end
+        local ranked = RankBy(function(d)
+            if Total(d, "spacesMoved") == 0 and Total(d, "forcedMovementTaken") == 0 then
+                return Total(d, "damageDealt")
             end
+            return nil
+        end)
+        local entries = {}
+        for _, e in ipairs(ranked) do
+            entries[#entries+1] = {
+                d = e.d,
+                text = "You never moved a single space",
+                tooltip = string.format("And still dealt %d damage", e.value),
+            }
         end
-        if winner ~= nil then
-            AddCandidate(winner, "Statue",
-                "You never moved a single space",
-                string.format("And still dealt %d damage", Total(winner, "damageDealt")))
-        end
+        AddRole("Statue", entries)
     end
 
     --Puppet Master: inflicted the most conditions, at least 3. Tooltip calls
     --out their most-used condition.
     do
-        local winner, count = MaxBy(function(d) return NestedTotal(d, "conditionsInflicted") end)
-        if winner ~= nil and count >= 3 then
+        local ranked = RankBy(function(d) return NestedTotal(d, "conditionsInflicted") end, 3)
+        local entries = {}
+        for _, e in ipairs(ranked) do
             local bestName = nil
             local bestCount = 0
-            local t = winner.totals.conditionsInflicted
+            local t = e.d.totals.conditionsInflicted
             if type(t) == "table" then
                 for name, v in pairs(t) do
                     if type(v) == "number" and v > bestCount then
@@ -432,188 +507,228 @@ local function ComputeHeroRolesInternal(live)
             if bestName ~= nil then
                 tooltip = string.format("Including %d %s", bestCount, bestName)
             end
-            AddCandidate(winner, "Puppet Master",
-                string.format("You inflicted %d conditions", count), tooltip)
+            entries[#entries+1] = { d = e.d, text = string.format("You inflicted %d conditions", e.value), tooltip = tooltip }
         end
+        AddRole("Puppet Master", entries)
     end
 
     --Wrestler: grabbed enemies the most, at least 2.
     do
-        local winner, count = MaxBy(function(d) return NestedStat(d, "conditionsInflicted", "grabbed") end)
-        if winner ~= nil and count >= 2 then
-            AddCandidate(winner, "Wrestler",
-                string.format("You grabbed enemies %d times", count),
-                "Nobody escapes")
+        local ranked = RankBy(function(d) return NestedStat(d, "conditionsInflicted", "grabbed") end, 2)
+        local entries = {}
+        for _, e in ipairs(ranked) do
+            entries[#entries+1] = {
+                d = e.d,
+                text = string.format("You grabbed enemies %d times", e.value),
+                tooltip = "Nobody escapes",
+            }
         end
+        AddRole("Wrestler", entries)
     end
 
     --Down You Go: knocked enemies prone the most, at least 2.
     do
-        local winner, count = MaxBy(function(d) return NestedStat(d, "conditionsInflicted", "prone") end)
-        if winner ~= nil and count >= 2 then
-            AddCandidate(winner, "Down You Go",
-                string.format("You knocked enemies down %d times", count),
-                string.format("You dealt %d damage this encounter", Total(winner, "damageDealt")))
+        local ranked = RankBy(function(d) return NestedStat(d, "conditionsInflicted", "prone") end, 2)
+        local entries = {}
+        for _, e in ipairs(ranked) do
+            entries[#entries+1] = {
+                d = e.d,
+                text = string.format("You knocked enemies down %d times", e.value),
+                tooltip = string.format("You dealt %d damage this encounter", Total(e.d, "damageDealt")),
+            }
         end
+        AddRole("Down You Go", entries)
     end
 
     --Fearmonger: frightened enemies the most, at least 2.
     do
-        local winner, count = MaxBy(function(d) return NestedStat(d, "conditionsInflicted", "frightened") end)
-        if winner ~= nil and count >= 2 then
-            AddCandidate(winner, "Fearmonger",
-                string.format("You frightened enemies %d times", count),
-                "They were right to be afraid")
+        local ranked = RankBy(function(d) return NestedStat(d, "conditionsInflicted", "frightened") end, 2)
+        local entries = {}
+        for _, e in ipairs(ranked) do
+            entries[#entries+1] = {
+                d = e.d,
+                text = string.format("You frightened enemies %d times", e.value),
+                tooltip = "They were right to be afraid",
+            }
         end
+        AddRole("Fearmonger", entries)
     end
 
     --Playmaker: allies dealt the most damage during their turns, at least 10.
     do
-        local winner, amount = MaxBy(function(d) return Total(d, "allyDamageDealt") end)
-        if winner ~= nil and amount >= 10 then
-            AddCandidate(winner, "Playmaker",
-                string.format("Allies dealt %d damage during your turns", amount),
-                "You set them up; they knocked them down")
+        local ranked = RankBy(function(d) return Total(d, "allyDamageDealt") end, 10)
+        local entries = {}
+        for _, e in ipairs(ranked) do
+            entries[#entries+1] = {
+                d = e.d,
+                text = string.format("Allies dealt %d damage during your turns", e.value),
+                tooltip = "You set them up; they knocked them down",
+            }
         end
+        AddRole("Playmaker", entries)
     end
 
     --Opportunist: dealt the most damage on enemy turns, at least 8.
     do
-        local winner, amount = MaxBy(function(d) return Total(d, "enemyTurnDamage") end)
-        if winner ~= nil and amount >= 8 then
-            AddCandidate(winner, "Opportunist",
-                string.format("You dealt %d damage on enemy turns", amount),
-                "Free strikes add up")
+        local ranked = RankBy(function(d) return Total(d, "enemyTurnDamage") end, 8)
+        local entries = {}
+        for _, e in ipairs(ranked) do
+            entries[#entries+1] = {
+                d = e.d,
+                text = string.format("You dealt %d damage on enemy turns", e.value),
+                tooltip = "Free strikes add up",
+            }
         end
+        AddRole("Opportunist", entries)
     end
 
     --Big Spender: spent the most heroic resources, at least 10.
     do
-        local winner, amount = MaxBy(function(d) return Total(d, "heroicResourcesSpent") end)
-        if winner ~= nil and amount >= 10 then
-            AddCandidate(winner, "Big Spender",
-                string.format("You spent %d heroic resources", amount),
-                string.format("You generated %d this encounter", Total(winner, "heroicResourcesGained")))
+        local ranked = RankBy(function(d) return Total(d, "heroicResourcesSpent") end, 10)
+        local entries = {}
+        for _, e in ipairs(ranked) do
+            entries[#entries+1] = {
+                d = e.d,
+                text = string.format("You spent %d heroic resources", e.value),
+                tooltip = string.format("You generated %d this encounter", Total(e.d, "heroicResourcesGained")),
+            }
         end
+        AddRole("Big Spender", entries)
     end
 
     --Power Plant: generated the most heroic resources.
     do
-        local winner, amount = MaxBy(function(d) return Total(d, "heroicResourcesGained") end)
-        if winner ~= nil then
-            AddCandidate(winner, "Power Plant",
-                string.format("You generated %d heroic resources", amount),
-                string.format("And spent %d of them", Total(winner, "heroicResourcesSpent")))
+        local ranked = RankBy(function(d) return Total(d, "heroicResourcesGained") end)
+        local entries = {}
+        for _, e in ipairs(ranked) do
+            entries[#entries+1] = {
+                d = e.d,
+                text = string.format("You generated %d heroic resources", e.value),
+                tooltip = string.format("And spent %d of them", Total(e.d, "heroicResourcesSpent")),
+            }
         end
+        AddRole("Power Plant", entries)
     end
 
-    --Hoarder: gained plenty (at least 8) but spent less than half of it. The
-    --biggest unspent pile wins.
+    --Hoarder: gained plenty (at least 8) but spent less than half of it.
     do
-        local winner, unspent = MaxBy(function(d)
+        local ranked = RankBy(function(d)
             local gained = Total(d, "heroicResourcesGained")
             local spent = Total(d, "heroicResourcesSpent")
             if gained >= 8 and spent * 2 < gained then
                 return gained - spent
             end
-            return 0
+            return nil
         end)
-        if winner ~= nil then
-            AddCandidate(winner, "Hoarder",
-                string.format("You saved up %d unspent heroic resources", unspent),
-                "They don't carry over, you know")
+        local entries = {}
+        for _, e in ipairs(ranked) do
+            entries[#entries+1] = {
+                d = e.d,
+                text = string.format("You saved up %d unspent heroic resources", e.value),
+                tooltip = "They don't carry over, you know",
+            }
         end
+        AddRole("Hoarder", entries)
     end
 
     --Hot Streak: rolled tier 3 the most, at least 3 times. The tooltip
     --reminds them how many edges they had.
     do
-        local winner, count = MaxBy(function(d) return NestedStat(d, "tierRolls", "tier3") end)
-        if winner ~= nil and count >= 3 then
-            local edges = Total(winner, "edges")
+        local ranked = RankBy(function(d) return NestedStat(d, "tierRolls", "tier3") end, 3)
+        local entries = {}
+        for _, e in ipairs(ranked) do
+            local edges = Total(e.d, "edges")
             local tooltip = "And not a single edge to help you"
             if edges > 0 then
                 tooltip = string.format("Maybe the %d %s you got helped you?", edges, cond(edges == 1, "edge", "edges"))
             end
-            AddCandidate(winner, "Hot Streak",
-                string.format("You rolled tier 3 %d times", count), tooltip)
+            entries[#entries+1] = { d = e.d, text = string.format("You rolled tier 3 %d times", e.value), tooltip = tooltip }
         end
+        AddRole("Hot Streak", entries)
     end
 
     --Edgelord: rolled with the most edges, at least 4.
     do
-        local winner, count = MaxBy(function(d) return Total(d, "edges") end)
-        if winner ~= nil and count >= 4 then
-            AddCandidate(winner, "Edgelord",
-                string.format("You rolled with %d edges", count),
-                "Your allies kept setting you up")
+        local ranked = RankBy(function(d) return Total(d, "edges") end, 4)
+        local entries = {}
+        for _, e in ipairs(ranked) do
+            entries[#entries+1] = {
+                d = e.d,
+                text = string.format("You rolled with %d edges", e.value),
+                tooltip = "Your allies kept setting you up",
+            }
         end
+        AddRole("Edgelord", entries)
     end
 
     --Against All Odds: suffered the most banes, at least 4, but still dealt
     --damage anyway.
     do
-        local winner, count = MaxBy(function(d) return Total(d, "banes") end)
-        if winner ~= nil and count >= 4 and Total(winner, "damageDealt") > 0 then
-            AddCandidate(winner, "Against All Odds",
-                string.format("You fought through %d banes", count),
-                string.format("And still dealt %d damage", Total(winner, "damageDealt")))
+        local ranked = RankBy(function(d)
+            if Total(d, "damageDealt") > 0 then
+                return Total(d, "banes")
+            end
+            return nil
+        end, 4)
+        local entries = {}
+        for _, e in ipairs(ranked) do
+            entries[#entries+1] = {
+                d = e.d,
+                text = string.format("You fought through %d banes", e.value),
+                tooltip = string.format("And still dealt %d damage", Total(e.d, "damageDealt")),
+            }
         end
+        AddRole("Against All Odds", entries)
     end
 
-    --Metronome: dealt damage in every round (needs at least 2 rounds). The
-    --highest total among qualifiers wins.
+    --Metronome: dealt damage in every round (needs at least 2 rounds).
     do
         if finalRound >= 2 then
-            local winner = nil
-            for _, d in ipairs(data) do
-                local everyRound = true
+            local ranked = RankBy(function(d)
                 for n = 1, finalRound do
                     if RoundStat(d, n, "damageDealt") <= 0 then
-                        everyRound = false
-                        break
+                        return nil
                     end
                 end
-                if everyRound then
-                    if winner == nil or Total(d, "damageDealt") > Total(winner, "damageDealt") then
-                        winner = d
-                    end
-                end
+                return Total(d, "damageDealt")
+            end)
+            local entries = {}
+            for _, e in ipairs(ranked) do
+                entries[#entries+1] = {
+                    d = e.d,
+                    text = "You dealt damage every round",
+                    tooltip = string.format("Totaling %d", e.value),
+                }
             end
-            if winner ~= nil then
-                AddCandidate(winner, "Metronome",
-                    "You dealt damage every round",
-                    string.format("Totaling %d", Total(winner, "damageDealt")))
-            end
+            AddRole("Metronome", entries)
         end
     end
 
     --Slow Burn: damage strictly increased every round (needs at least 3
-    --rounds). The biggest final round among qualifiers wins.
+    --rounds).
     do
         if finalRound >= 3 then
-            local winner = nil
-            for _, d in ipairs(data) do
-                local rising = RoundStat(d, finalRound, "damageDealt") > 0
-                if rising then
-                    for n = 2, finalRound do
-                        if RoundStat(d, n, "damageDealt") <= RoundStat(d, n - 1, "damageDealt") then
-                            rising = false
-                            break
-                        end
+            local ranked = RankBy(function(d)
+                if RoundStat(d, finalRound, "damageDealt") <= 0 then
+                    return nil
+                end
+                for n = 2, finalRound do
+                    if RoundStat(d, n, "damageDealt") <= RoundStat(d, n - 1, "damageDealt") then
+                        return nil
                     end
                 end
-                if rising and (winner == nil
-                    or RoundStat(d, finalRound, "damageDealt") > RoundStat(winner, finalRound, "damageDealt")) then
-                    winner = d
-                end
+                return RoundStat(d, finalRound, "damageDealt")
+            end)
+            local entries = {}
+            for _, e in ipairs(ranked) do
+                entries[#entries+1] = {
+                    d = e.d,
+                    text = "Your damage went up every round",
+                    tooltip = string.format("Round 1: %d, final round: %d",
+                        RoundStat(e.d, 1, "damageDealt"), RoundStat(e.d, finalRound, "damageDealt")),
+                }
             end
-            if winner ~= nil then
-                AddCandidate(winner, "Slow Burn",
-                    "Your damage went up every round",
-                    string.format("Round 1: %d, final round: %d",
-                        RoundStat(winner, 1, "damageDealt"), RoundStat(winner, finalRound, "damageDealt")))
-            end
+            AddRole("Slow Burn", entries)
         end
     end
 
@@ -621,33 +736,39 @@ local function ComputeHeroRolesInternal(live)
     --least 2 rounds so it is distinct from Initiator).
     do
         if finalRound >= 2 then
-            local winner, amount = MaxBy(function(d) return RoundStat(d, finalRound, "damageDealt") end)
-            if winner ~= nil and amount >= 10 then
-                AddCandidate(winner, "Grand Finale",
-                    string.format("You dealt %d damage in the final round", amount),
-                    "Saving the best for last")
+            local ranked = RankBy(function(d) return RoundStat(d, finalRound, "damageDealt") end, 10)
+            local entries = {}
+            for _, e in ipairs(ranked) do
+                entries[#entries+1] = {
+                    d = e.d,
+                    text = string.format("You dealt %d damage in the final round", e.value),
+                    tooltip = "Saving the best for last",
+                }
             end
+            AddRole("Grand Finale", entries)
         end
     end
 
     --Cold Dice: rolled tier 1 the most, at least 2 times. A sympathy role
     --near the bottom of the list; the tooltip reminds them of their banes.
     do
-        local winner, count = MaxBy(function(d) return NestedStat(d, "tierRolls", "tier1") end)
-        if winner ~= nil and count >= 2 then
-            local banes = Total(winner, "banes")
+        local ranked = RankBy(function(d) return NestedStat(d, "tierRolls", "tier1") end, 2)
+        local entries = {}
+        for _, e in ipairs(ranked) do
+            local banes = Total(e.d, "banes")
             local tooltip = "And you can't even blame the banes"
             if banes > 0 then
                 tooltip = string.format("Maybe the %d %s you suffered didn't help?", banes, cond(banes == 1, "bane", "banes"))
             end
-            AddCandidate(winner, "Cold Dice",
-                string.format("You rolled tier 1 %d times", count), tooltip)
+            entries[#entries+1] = { d = e.d, text = string.format("You rolled tier 1 %d times", e.value), tooltip = tooltip }
         end
+        AddRole("Cold Dice", entries)
     end
 
     --Pacifist: dealt no damage, but contributed in some other tracked way.
-    --A floor role: every qualifying hero gets a candidate.
+    --A floor role: may appear on several cards.
     do
+        local entries = {}
         for _, d in ipairs(data) do
             if Total(d, "damageDealt") == 0 then
                 local conditions = NestedTotal(d, "conditionsInflicted")
@@ -662,34 +783,46 @@ local function ComputeHeroRolesInternal(live)
                     tooltip = string.format("But you spent %d heroic resources", spent)
                 end
                 if tooltip ~= nil then
-                    AddCandidate(d, "Pacifist", "You dealt no damage at all", tooltip)
+                    entries[#entries+1] = { d = d, text = "You dealt no damage at all", tooltip = tooltip }
                 end
             end
         end
+        AddRole("Pacifist", entries, true)
     end
 
     --Tourist: no damage, no conditions, no prevention, no resources spent.
-    --The last-resort floor role: every qualifying hero gets a candidate.
+    --The last-resort floor role: may appear on several cards.
     do
+        local entries = {}
         for _, d in ipairs(data) do
             if Total(d, "damageDealt") == 0
                 and NestedTotal(d, "conditionsInflicted") == 0
                 and Total(d, "damagePrevention") == 0
                 and Total(d, "heroicResourcesSpent") == 0 then
-                AddCandidate(d, "Tourist", "You were there", "And that counts for something")
+                entries[#entries+1] = { d = d, text = "You were there", tooltip = "And that counts for something" }
             end
         end
+        AddRole("Tourist", entries, true)
     end
 
-    --Award each hero the highest-priority role they earned.
+    --Award roles in priority order. Each role goes to its highest-ranked
+    --qualifier who has no role yet -- so a hero who earned several roles shows
+    --their most interesting one, and a role shadowed for its winner falls
+    --through to the runner-up rather than vanishing. Floor roles
+    --(allowDuplicates) land on every qualifying hero still without a role.
     for _, candidate in ipairs(candidates) do
-        local charid = candidate.winner.token.charid
-        if roles[charid] == nil then
-            roles[charid] = {
-                role = candidate.role,
-                text = candidate.text,
-                tooltip = candidate.tooltip,
-            }
+        for _, entry in ipairs(candidate.entries) do
+            local charid = entry.d.token.charid
+            if roles[charid] == nil then
+                roles[charid] = {
+                    role = candidate.role,
+                    text = entry.text,
+                    tooltip = entry.tooltip,
+                }
+                if not candidate.allowDuplicates then
+                    break
+                end
+            end
         end
     end
 
@@ -713,6 +846,49 @@ function DSVictoryScreen.ComputeHeroRoles(live)
 
     return result
 end
+
+--Debugging macro: prints the role each hero would be awarded if the current
+--combat ended right now, using the exact logic the victory screen uses.
+--Unlike the screen itself it does NOT require victory to have been awarded --
+--any active combat with a live encounter works, so it can be run mid-fight to
+--watch the roles shift as stats accumulate.
+Commands.RegisterMacro{
+    name = "roles",
+    summary = "Show the victory-screen role each hero would get if combat ended now.",
+    doc = "Usage: /roles\nAnalyzes the current combat's live encounter stats and prints, for each hero, the role the victory screen would award them if the encounter ended right now, along with the role's detail line and fun-fact tooltip.",
+    command = function()
+        local q = dmhub.initiativeQueue
+        if q == nil or q:try_get("hidden") then
+            print("Roles: no active combat.")
+            return
+        end
+
+        local live = q:try_get("liveEncounter")
+        if type(live) ~= "table" then
+            print("Roles: this combat has no live encounter (stats are only recorded in live encounters).")
+            return
+        end
+
+        local heroTokens = live:GetBattleHeroTokens()
+        if heroTokens == nil or #heroTokens == 0 then
+            print("Roles: no heroes are participating in this encounter.")
+            return
+        end
+
+        local roles = DSVictoryScreen.ComputeHeroRoles(live)
+
+        print(string.format("Roles: if the encounter ended now (round %d):", q.round or 0))
+        for _, tok in ipairs(heroTokens) do
+            local name = tok.name or "Hero"
+            local info = roles[tok.charid]
+            if info ~= nil then
+                print(string.format("  %s: %s -- \"%s\" (tooltip: \"%s\")", name, info.role, info.text, info.tooltip))
+            else
+                print(string.format("  %s: (no role)", name))
+            end
+        end
+    end,
+}
 
 -- Returns the live encounter if and only if it is currently in the victory state
 -- (combat active + victory awarded); otherwise nil.

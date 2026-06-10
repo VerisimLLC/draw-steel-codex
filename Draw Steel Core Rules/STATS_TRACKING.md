@@ -38,10 +38,13 @@ Defined in `Draw Steel Core Rules/MCDMEncounter.lua`. It is a static function on
    Otherwise it silently does nothing. So feeding it monsters, objects, or
    out-of-combat events is fine -- they are dropped.
 
-3. **Summons attribute to their summoner.** If the token is a summoned creature (an
-   animal companion, a minion a character summoned, etc.), the stat is attributed to
-   the hero at the root of the `summonerid` chain. You pass the summon's tokenid; the
-   hero gets credited. A summon of a *monster* resolves to a non-hero and is dropped.
+3. **Summons attribute to their summoner; retainers and followers to their mentor.**
+   If the token is a summoned creature (an animal companion, a minion a character
+   summoned, etc.), the stat is attributed to the hero at the root of the `summonerid`
+   chain. Retainers and followers have no summonerid -- when the summon link runs out,
+   ResolveStatHero follows their mentor relationship (`IsRetainer`/`GetMentor`) to the
+   owning hero instead. You pass the retainer/follower/summon's tokenid; the hero gets
+   credited. A summon of a *monster* resolves to a non-hero and is dropped.
 
 4. **It accumulates atomically on the server.** The add is routed through
    `dmhub:IncrementInitiativeData` -> `DataStore.IncrementData`, which on Durable

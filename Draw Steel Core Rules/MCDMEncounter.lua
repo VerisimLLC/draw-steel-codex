@@ -588,7 +588,10 @@ end
 --
 -- Summoned creatures (an animal companion, a minion summoned by a character, etc.)
 -- attribute their stats to the hero that summoned them, so we walk the summon chain
--- (token.summonerid, which holds the summoner's tokenid) up to its root. The result
+-- (token.summonerid, which holds the summoner's tokenid) up to its root. Retainers
+-- and followers are not summons -- they have no summonerid -- so when the summon
+-- link runs out we follow their mentor relationship (IsRetainer/GetMentor) to the
+-- hero instead; without this hop their stats would be silently dropped. The result
 -- is only accepted if it is a hero (type "character") that is an active combatant in
 -- the current encounter -- anything else (a monster, a monster's summon, or a hero
 -- not in this combat) is rejected and the caller drops the stat. Returns the hero
@@ -600,18 +603,34 @@ function LiveEncounter:ResolveStatHero(tokenid)
 
     local token = dmhub.GetTokenById(tokenid)
 
-    --walk up the summon chain to the root summoner. Guard against cycles with a
-    --visited set and against runaway chains with a hard cap.
+    --walk up the summon chain (falling back to retainer mentor links) to the
+    --root owner. Guard against cycles with a visited set and against runaway
+    --chains with a hard cap.
     local seen = {}
     local guard = 0
-    while token ~= nil and token.valid and token.summonerid and token.summonerid ~= "" and not seen[token.charid] and guard < 16 do
+    while token ~= nil and token.valid and not seen[token.charid] and guard < 16 do
         seen[token.charid] = true
         guard = guard + 1
-        local summoner = dmhub.GetTokenById(token.summonerid)
-        if summoner == nil then
+
+        local nextToken = nil
+        if token.summonerid and token.summonerid ~= "" then
+            nextToken = dmhub.GetTokenById(token.summonerid)
+        end
+
+        if nextToken == nil then
+            local props = token.properties
+            if props ~= nil and props.IsRetainer ~= nil and props:IsRetainer() and props.GetMentor ~= nil then
+                local mentor = props:GetMentor()
+                if mentor ~= nil then
+                    nextToken = dmhub.LookupToken(mentor)
+                end
+            end
+        end
+
+        if nextToken == nil or not nextToken.valid then
             break
         end
-        token = summoner
+        token = nextToken
     end
 
     if token == nil or not token.valid or token.properties == nil or not token.properties:IsHero() then

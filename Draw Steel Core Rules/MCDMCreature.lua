@@ -4358,9 +4358,12 @@ function creature.InflictDamageInstance(self, amount, damageType, keywords, sour
 
         --damage dealt by the attacker (nil for environmental / aura damage). The
         --attacker is still credited for damage temp stamina soaked, but not for
-        --overkill, which accumulates in its own stat.
+        --overkill, which accumulates in its own stat. Self-inflicted damage
+        --(strain, collisions with yourself as the source) is the victim's
+        --problem, not damage dealt -- it records damageTaken above but must not
+        --inflate damageDealt or the turn-relative stats.
         local attacker = symbols ~= nil and symbols.attacker or nil
-        if attacker ~= nil then
+        if attacker ~= nil and attacker ~= self then
             local attackerToken = dmhub.LookupToken(attacker)
             if attackerToken ~= nil then
                 if counted > 0 then
@@ -4394,16 +4397,31 @@ function creature.InflictDamageInstance(self, amount, damageType, keywords, sour
                         local turnToken = dmhub.GetTokenById(currentId)
 
                         if turnToken ~= nil and turnToken.valid then
+                            --walk to the attacker's root owner: summoner chain
+                            --first, falling back to the retainer/follower mentor
+                            --link (mirrors LiveEncounter.ResolveStatHero), so a
+                            --hero's own follower attacking on their turn counts
+                            --as their own damage, not ally damage.
                             local rootAttacker = attackerToken
                             for _ = 1, 10 do
-                                if rootAttacker.summonerid == nil then
+                                local nextToken = nil
+                                if rootAttacker.summonerid ~= nil and rootAttacker.summonerid ~= "" then
+                                    nextToken = dmhub.GetTokenById(rootAttacker.summonerid)
+                                end
+                                if nextToken == nil then
+                                    local rootProps = rootAttacker.properties
+                                    if rootProps ~= nil and rootProps.IsRetainer ~= nil and rootProps:IsRetainer()
+                                        and rootProps.GetMentor ~= nil then
+                                        local mentor = rootProps:GetMentor()
+                                        if mentor ~= nil then
+                                            nextToken = dmhub.LookupToken(mentor)
+                                        end
+                                    end
+                                end
+                                if nextToken == nil or (not nextToken.valid) then
                                     break
                                 end
-                                local summoner = dmhub.GetTokenById(rootAttacker.summonerid)
-                                if summoner == nil or (not summoner.valid) then
-                                    break
-                                end
-                                rootAttacker = summoner
+                                rootAttacker = nextToken
                             end
 
                             if rootAttacker.charid ~= turnToken.charid and turnToken:IsFriend(attackerToken) then

@@ -2001,14 +2001,16 @@ function ActivatedAbilityBehavior:SummonEditor(parentPanel, list, options)
 		end,
 	}
 
-	list[#list+1] = gui.Check{
-		text = "Change Creature Choice While Casting",
-		value = self.changeCreatureWhileCasting,
-        minWidth = 300,
-		change = function(element)
-			self.changeCreatureWhileCasting = element.value
-		end,
-	}
+	if not options.haveTargetCreature then
+		list[#list+1] = gui.Check{
+			text = "Change Creature Choice While Casting",
+			value = self.changeCreatureWhileCasting,
+	        minWidth = 300,
+			change = function(element)
+				self.changeCreatureWhileCasting = element.value
+			end,
+		}
+	end
 
 	list[#list+1] = gui.Check{
 		text = "All creatures the same",
@@ -2037,24 +2039,24 @@ function ActivatedAbilityBehavior:SummonEditor(parentPanel, list, options)
                 self.groupInitiativeWithCaster = element.value
             end,
         }
+
+        list[#list+1] = gui.Check{
+            text = "Summons Share Surges",
+            minWidth = 300,
+            value = self.shareSurgesWithSummoner,
+            change = function(element)
+                self.shareSurgesWithSummoner = element.value
+            end,
+        }
+
+        list[#list+1] = gui.Check{
+            text = "Summons Share Heroic Resource",
+            minWidth = 300,
+            value = self.shareHeroicResourceWithSummoner,
+            change = function(element)
+                self.shareHeroicResourceWithSummoner = element.value
+            end,
+        }
 	end
-
-    list[#list+1] = gui.Check{
-        text = "Summons Share Surges",
-        minWidth = 300,
-        value = self.shareSurgesWithSummoner,
-        change = function(element)
-            self.shareSurgesWithSummoner = element.value
-        end,
-    }
-
-    list[#list+1] = gui.Check{
-        text = "Summons Share Heroic Resource",
-        minWidth = 300,
-        value = self.shareHeroicResourceWithSummoner,
-        change = function(element)
-            self.shareHeroicResourceWithSummoner = element.value
-        end,
-    }
 
 end

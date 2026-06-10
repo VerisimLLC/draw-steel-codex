@@ -72,6 +72,11 @@ AudioSurfaceTypes = {
             text = "Puddle",
             sound = "Foot.Generic_Dirt",
             puddleSound = true,
+        },
+        {
+            id = 9,
+            text = "Snow",
+            sound = "Foot.Generic_Snow",
         }
     }
 }

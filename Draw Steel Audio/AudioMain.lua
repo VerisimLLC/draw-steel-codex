@@ -1167,6 +1167,15 @@ audio.SoundEvent{
     ignoreDuplicates = 0.05,
 }
 
+audio.SoundEvent{
+    name = "Foot.Generic_Snow",
+    mixgroup = "footsteps",
+    sounds = {"foot/FS_Walk_Gnrc_Snow_v1_01.wav","foot/FS_Walk_Gnrc_Snow_v1_02.wav","foot/FS_Walk_Gnrc_Snow_v1_03.wav","foot/FS_Walk_Gnrc_Snow_v1_04.wav","foot/FS_Walk_Gnrc_Snow_v1_05.wav","foot/FS_Walk_Gnrc_Snow_v1_06.wav"},
+    volume = 0.15,
+    pitchRand = 0.3,
+    ignoreDuplicates = 0.05,
+}
+
 
 
 

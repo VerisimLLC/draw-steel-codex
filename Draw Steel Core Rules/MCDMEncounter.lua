@@ -530,17 +530,57 @@ function LiveEncounter:GetHeroRecoveries(token)
 end
 
 -- The per-hero statistics table for this encounter, keyed by hero tokenid. Each
--- hero's sub-table maps a statid to a running total (see IncrementStat). Always a
--- table -- empty until the first stat is recorded. Read-only: mutate through
--- IncrementStat so the change is networked atomically.
+-- hero's sub-table is keyed by round ("round1", "round2", ...), and each round
+-- bucket maps a statid to a running total for that round (see IncrementStat).
+-- Always a table -- empty until the first stat is recorded. Read-only: mutate
+-- through IncrementStat so the change is networked atomically.
 function LiveEncounter:GetStats()
     return self:try_get("stats") or {}
 end
 
--- The statistics recorded for a single hero token (a map of statid -> total), or
--- an empty table if none have been recorded for that hero yet.
+--Recursively accumulate the numeric leaves of src into dest, preserving nested
+--stat sub-tables (e.g. conditionsInflicted/<name>, tierRolls/<tier>).
+local function SumStatsTables(dest, src)
+    for k, v in pairs(src) do
+        if type(v) == "table" then
+            local d = dest[k]
+            if type(d) ~= "table" then
+                d = {}
+                dest[k] = d
+            end
+            SumStatsTables(d, v)
+        elseif type(v) == "number" then
+            dest[k] = (type(dest[k]) == "number" and dest[k] or 0) + v
+        end
+    end
+end
+
+-- The whole-combat statistics for a single hero token (a map of statid -> total,
+-- summed across all round buckets), or an empty table if none have been recorded
+-- for that hero yet. Use GetStatsForTokenByRound for the per-round breakdown.
+-- Returns a freshly-built table: safe for callers to keep, never a live view.
 function LiveEncounter:GetStatsForToken(tokenid)
+    local result = {}
+    for _, roundStats in pairs(self:GetStats()[tokenid] or {}) do
+        --non-table entries would be stats recorded before per-round bucketing;
+        --they have no round to belong to and are skipped.
+        if type(roundStats) == "table" then
+            SumStatsTables(result, roundStats)
+        end
+    end
+    return result
+end
+
+-- The per-round statistics recorded for a single hero token: a map of
+-- "round<N>" -> { statid = total }, or an empty table. Read-only view.
+function LiveEncounter:GetStatsForTokenByRound(tokenid)
     return self:GetStats()[tokenid] or {}
+end
+
+-- The statistics a single hero recorded in one specific round (a map of
+-- statid -> total), or an empty table. `round` is the numeric round number.
+function LiveEncounter:GetStatsForTokenInRound(tokenid, round)
+    return self:GetStatsForTokenByRound(tokenid)[string.format("round%d", round)] or {}
 end
 
 -- Resolve the hero a stat should be attributed to. `tokenid` is the token that
@@ -620,9 +660,20 @@ function LiveEncounter:IncrementStat(tokenid, statid, quantity)
         return
     end
 
+    --bucket the stat by combat round (stats/<tokenid>/round<N>/<statid>) so all
+    --stats are recorded per round; whole-combat totals are produced by summing
+    --the round buckets on read (see GetStatsForToken). "roundN" string keys
+    --rather than bare numbers so no serialization layer mistakes the sub-table
+    --for an array.
+    local round = 0
+    local q = dmhub.initiativeQueue
+    if q ~= nil then
+        round = q.round or 0
+    end
+
     --path relative to the initiative queue root; the live encounter rides inside
     --the queue at liveEncounter, with per-hero stats under stats/<tokenid>.
-    local path = string.format("liveEncounter/stats/%s/%s", heroToken.charid, statid)
+    local path = string.format("liveEncounter/stats/%s/round%d/%s", heroToken.charid, round, statid)
     dmhub:IncrementInitiativeData(path, quantity)
 end
 

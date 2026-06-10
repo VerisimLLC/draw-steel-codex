@@ -2148,6 +2148,29 @@ function creature:IsDeadOrDying()
     return self:IsDead() or self:IsDying()
 end
 
+--- The stamina value at or below which this creature is dead: characters and
+--- retainers die at -BloodiedThreshold, everything else (including minion squad
+--- pools) at 0. IsDead/IsDying compare against this, and the stat tracking in
+--- InflictDamageInstance uses it to split landed damage into damageDealt and
+--- overkill.
+--- @return number
+function creature:KillThresholdStamina()
+    return 0
+end
+
+--- @return number
+function character:KillThresholdStamina()
+    return -self:BloodiedThreshold()
+end
+
+--- @return number
+function monster:KillThresholdStamina()
+    if self:IsRetainer() then
+        return -self:BloodiedThreshold()
+    end
+    return 0
+end
+
 --- @return boolean
 function creature:IsDying()
     return false
@@ -2158,7 +2181,7 @@ function monster:IsDying()
     if self:IsRetainer() then
         local hp = self:CurrentHitpoints()
         local dyingAt = self:CalculateNamedCustomAttribute("Dying Stamina") or 0
-        return hp <= dyingAt and hp > -self:BloodiedThreshold()
+        return hp <= dyingAt and hp > self:KillThresholdStamina()
     end
 
     return false
@@ -2171,15 +2194,12 @@ end
 
 --- @return boolean
 function character:IsDead()
-    return self:CurrentHitpoints() <= -self:BloodiedThreshold()
+    return self:CurrentHitpoints() <= self:KillThresholdStamina()
 end
 
 --- @return boolean
 function monster:IsDead()
-    if self:IsRetainer() then
-        return self:CurrentHitpoints() <= -self:BloodiedThreshold()
-    end
-    return self:CurrentHitpoints() <= 0
+    return self:CurrentHitpoints() <= self:KillThresholdStamina()
 end
 
 CustomAttribute.RegisterAttribute { id = "extraturns", text = "Extra Turns", attributeType = "number", category = "Basic Attributes" }
@@ -3253,6 +3273,21 @@ creature.RegisterSymbol {
 
 --override default InflictCondition to include MCDM condition rules.
 
+--The official Draw Steel conditions counted in per-encounter hero stats
+--(conditionsInflicted/conditionsReceived). Keyed by lowercased condition name.
+--Deliberately excludes surprised and any homebrew/internal conditions.
+local g_officialStatConditions = {
+    bleeding = true,
+    dazed = true,
+    frightened = true,
+    grabbed = true,
+    prone = true,
+    restrained = true,
+    slowed = true,
+    taunted = true,
+    weakened = true,
+}
+
 --Custom in-character speech shown when a creature is immune to a condition.
 --Keyed by lowercased condition name. Conditions not listed fall back to a
 --generic "I can't be <Name>!" line.
@@ -3317,6 +3352,11 @@ function creature:InflictCondition(conditionid, args)
         return
     end
 
+    --Whether the condition was already active before this call -- refreshing an
+    --active condition (new caster, new duration) is not a new infliction for the
+    --purposes of stat tracking.
+    local wasActive = inflictedConditions[conditionid] ~= nil
+
     local entry = inflictedConditions[conditionid] or {}
     inflictedConditions[conditionid] = entry
 
@@ -3369,6 +3409,28 @@ function creature:InflictCondition(conditionid, args)
             hasattacker = attacker ~= nil,
             condition = conditionInfo.name,
         })
+
+        --Per-encounter hero stats: official conditions only, and only genuinely
+        --new applications (immunity returned earlier; refreshes of an active
+        --condition and purges don't count). Nested stat paths give a
+        --per-condition breakdown, e.g. stats.conditionsInflicted.frightened.
+        --The victim records conditionsReceived; the inflicter (args.casterInfo)
+        --records conditionsInflicted unless they inflicted it on themselves
+        --(e.g. voluntarily dropping prone). TrackHeroStats self-guards to
+        --heroes, so monster victims/inflicters are dropped.
+        if (not wasActive) and conditionInfo ~= nil and g_officialStatConditions[string.lower(conditionInfo.name)] then
+            local lowerName = string.lower(conditionInfo.name)
+            local victimToken = dmhub.LookupToken(self)
+            local inflicterTokenid = args.casterInfo ~= nil and args.casterInfo.tokenid or nil
+
+            if victimToken ~= nil then
+                LiveEncounter.TrackHeroStats(victimToken.charid, "conditionsReceived/" .. lowerName)
+            end
+
+            if inflicterTokenid ~= nil and (victimToken == nil or inflicterTokenid ~= victimToken.charid) then
+                LiveEncounter.TrackHeroStats(inflicterTokenid, "conditionsInflicted/" .. lowerName)
+            end
+        end
 
         audio.DispatchSoundEvent(conditionInfo:SoundEvent())
     else
@@ -4231,10 +4293,26 @@ function creature.InflictDamageInstance(self, amount, damageType, keywords, sour
     --clears it when the pool empties during this very call.
     local tempBefore = self:TemporaryHitpoints()
     local tempSource = self:try_get("temporary_hitpoints_source")
+    local hpBefore = self:CurrentHitpoints()
 
     local result = g_baseInflictDamageInstance(self, amount, damageType, keywords, sourceDescription, symbols)
 
     local landed = (type(result) == "table" and result.damageDealt) or 0
+
+    --damage prevented by the victim's own damage immunity, applied inside the base
+    --call: the pre-immunity amount (floored the same way the base call floors it)
+    --minus what landed. Clamped at zero so vulnerability/amplification, which
+    --increase damage, never record negative prevention. Credited to the victim --
+    --it is their immunity. Tracked outside the landed > 0 block because full
+    --immunity (landed == 0) is the maximal prevention case.
+    local immunityPrevented = math.floor(amount) - landed
+    if immunityPrevented > 0 then
+        local victimToken = dmhub.LookupToken(self)
+        if victimToken ~= nil then
+            LiveEncounter.TrackHeroStats(victimToken.charid, "damagePrevention", immunityPrevented)
+        end
+    end
+
     if landed > 0 then
         --How much of the landed damage temporary stamina absorbed this hit. Damage
         --never raises temp stamina, and the only temp reduction during the base call
@@ -4261,17 +4339,167 @@ function creature.InflictDamageInstance(self, amount, damageType, keywords, sour
             LiveEncounter.TrackHeroStats(tempSource, "damagePrevention", absorbed)
         end
 
+        --Split the landed damage into the part that mattered (damageDealt) and the
+        --excess past what was needed to kill (overkill). Useful damage is the temp
+        --stamina absorbed plus the stamina the pool actually lost, with the pool
+        --loss capped at what brings the creature exactly to its kill threshold.
+        --Measuring pool loss from the actual before/after delta means the minion
+        --squad clamps inside TakeDamage (area damage capped at one minion's max,
+        --Strikes with Multiple Targets ignoring redundant instances) are respected
+        --without re-deriving them here.
+        local poolLoss = hpBefore - self:CurrentHitpoints()
+        if poolLoss < 0 then poolLoss = 0 end
+        local usefulCapacity = hpBefore - self:KillThresholdStamina()
+        if usefulCapacity < 0 then usefulCapacity = 0 end
+        if poolLoss > usefulCapacity then poolLoss = usefulCapacity end
+        local counted = absorbed + poolLoss
+        if counted > landed then counted = landed end
+        local overkill = landed - counted
+
         --damage dealt by the attacker (nil for environmental / aura damage). The
-        --attacker still dealt the full landed amount even if temp stamina soaked it.
+        --attacker is still credited for damage temp stamina soaked, but not for
+        --overkill, which accumulates in its own stat.
         local attacker = symbols ~= nil and symbols.attacker or nil
         if attacker ~= nil then
             local attackerToken = dmhub.LookupToken(attacker)
             if attackerToken ~= nil then
-                LiveEncounter.TrackHeroStats(attackerToken.charid, "damageDealt", landed)
+                if counted > 0 then
+                    LiveEncounter.TrackHeroStats(attackerToken.charid, "damageDealt", counted)
+                end
+                if overkill > 0 then
+                    LiveEncounter.TrackHeroStats(attackerToken.charid, "overkill", overkill)
+                end
+
+                --Turn-relative damage stats, both using the same overkill-excluded
+                --amount as damageDealt:
+                --
+                --allyDamageDealt: damage an allied hero dealt while it was THIS
+                --hero's turn (e.g. triggered free strikes the turn enabled),
+                --credited to the hero whose turn it is. Needs the turn owner's
+                --exact token, so it only applies when the current initiativeid is
+                --a tokenid (true for heroes; squads/groupings use MONSTER-/grouping
+                --ids). The attacker's summoner chain is walked first so a hero's
+                --own summon attacking on their turn counts as their own damage,
+                --not ally damage.
+                --
+                --enemyTurnDamage: damage the attacker dealt while an ENEMY was
+                --taking their turn (triggered abilities, free strikes, etc.),
+                --credited to the attacker (a summon's damage attributes to its
+                --hero via TrackHeroStats). Only needs to classify which SIDE owns
+                --the turn, so when the initiativeid is not a tokenid (monster
+                --type groups, minion squads) any token on that initiative serves.
+                if counted > 0 and dmhub.initiativeQueue ~= nil then
+                    local currentId = dmhub.initiativeQueue:CurrentInitiativeId()
+                    if currentId ~= nil then
+                        local turnToken = dmhub.GetTokenById(currentId)
+
+                        if turnToken ~= nil and turnToken.valid then
+                            local rootAttacker = attackerToken
+                            for _ = 1, 10 do
+                                if rootAttacker.summonerid == nil then
+                                    break
+                                end
+                                local summoner = dmhub.GetTokenById(rootAttacker.summonerid)
+                                if summoner == nil or (not summoner.valid) then
+                                    break
+                                end
+                                rootAttacker = summoner
+                            end
+
+                            if rootAttacker.charid ~= turnToken.charid and turnToken:IsFriend(attackerToken) then
+                                LiveEncounter.TrackHeroStats(turnToken.charid, "allyDamageDealt", counted)
+                            end
+                        end
+
+                        local sideToken = turnToken
+                        if sideToken == nil or (not sideToken.valid) then
+                            for _,tok in ipairs(dmhub.allTokens) do
+                                if tok.valid and InitiativeQueue.GetInitiativeId(tok) == currentId then
+                                    sideToken = tok
+                                    break
+                                end
+                            end
+                        end
+
+                        if sideToken ~= nil and sideToken.valid and (not sideToken:IsFriend(attackerToken)) then
+                            LiveEncounter.TrackHeroStats(attackerToken.charid, "enemyTurnDamage", counted)
+                        end
+                    end
+                end
             end
         end
     end
 
+    return result
+end
+
+--Per-encounter hero stats: heroic resource flow. ConsumeResource, RefreshResource,
+--and AddUnboundedResource are the three engine entry points that change the heroic
+--resource pool, so we wrap all three and measure the actual before/after delta of
+--GetResources()[heroicResourceId]. The delta approach means clamping (gains capped
+--at max, spends capped at available), no-op calls, and the combat-id rollover are
+--all handled for free -- GetResources ignores stale unbounded entries from a
+--previous combat, so the first gain of a new combat measures from 0, not from the
+--leftover display value.
+--
+--Gated to characters: heroic resource sharing (a companion spending its hero's
+--pool) redirects the call to the summoner hero, which re-enters these wrappers as
+--the hero, so tracking the companion's outer call too would double count.
+--TrackHeroStats self-guards to heroes in the live encounter as usual.
+local function TrackHeroicResourceDelta(c, before)
+    local after = c:GetResources()[CharacterResource.heroicResourceId] or 0
+    local delta = after - before
+    if delta == 0 then
+        return
+    end
+
+    local token = dmhub.LookupToken(c)
+    if token == nil then
+        return
+    end
+
+    if delta > 0 then
+        LiveEncounter.TrackHeroStats(token.charid, "heroicResourcesGained", delta)
+    else
+        LiveEncounter.TrackHeroStats(token.charid, "heroicResourcesSpent", -delta)
+    end
+end
+
+local function HeroicResourceBefore(c, key)
+    if key ~= CharacterResource.heroicResourceId or c.typeName ~= "character" then
+        return nil
+    end
+
+    return c:GetResources()[CharacterResource.heroicResourceId] or 0
+end
+
+local g_baseConsumeResource = creature.ConsumeResource
+function creature.ConsumeResource(self, key, refreshType, quantity, note)
+    local before = HeroicResourceBefore(self, key)
+    local result = g_baseConsumeResource(self, key, refreshType, quantity, note)
+    if before ~= nil then
+        TrackHeroicResourceDelta(self, before)
+    end
+    return result
+end
+
+local g_baseRefreshResource = creature.RefreshResource
+function creature.RefreshResource(self, key, refreshType, quantity, note)
+    local before = HeroicResourceBefore(self, key)
+    local result = g_baseRefreshResource(self, key, refreshType, quantity, note)
+    if before ~= nil then
+        TrackHeroicResourceDelta(self, before)
+    end
+    return result
+end
+
+local g_baseAddUnboundedResource = creature.AddUnboundedResource
+function creature.AddUnboundedResource(self, key, quantity, note)
+    local before = HeroicResourceBefore(self, key)
+    local result = g_baseAddUnboundedResource(self, key, quantity, note)
+    if before ~= nil then
+        TrackHeroicResourceDelta(self, before)
+    end
     return result
 end
 

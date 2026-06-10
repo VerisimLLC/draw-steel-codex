@@ -28,6 +28,692 @@ local g_heroStagger = 0.28
 -- The victory (Victories resource) icon, dropped into each hero's card on Award.
 local VICTORY_ICON = "drawsteel/HeroicResources/T_UI_ICON_FLAT_HR_VICTORY.png"
 
+----------------------------------------------------------------------
+-- Hero roles
+--
+-- Fun titles awarded from the live encounter's per-round hero stats (see
+-- Draw Steel Core Rules/STATS_TRACKING.md for the stats and their layout).
+-- Candidate roles are evaluated in priority order, most interesting first;
+-- each hero is shown the single highest-priority role they earned, so a hero
+-- who is both the top damage dealer and the round-1 Initiator shows only
+-- Damage Dealer. A role whose winner earned a better role is simply not shown
+-- for anyone (its criteria name a unique winner).
+--
+-- Stats consumed: damageDealt, damageTaken, damagePrevention, overkill, kills,
+-- minionKills, criticals (recorded by the shipped Critical Hit content),
+-- tierRolls, edges, banes, spacesMoved, forcedMovementDealt,
+-- forcedMovementTaken, standsFirm, allyDamageDealt, enemyTurnDamage,
+-- heroicResourcesGained, heroicResourcesSpent, conditionsInflicted.
+----------------------------------------------------------------------
+
+local function ComputeHeroRolesInternal(live)
+    local roles = {}
+
+    local heroTokens = live:GetBattleHeroTokens()
+    if heroTokens == nil or #heroTokens == 0 then
+        return roles
+    end
+
+    --Gather each hero's whole-encounter totals and numeric-keyed per-round
+    --stats once up front, plus the last round anyone recorded a stat in.
+    local data = {}
+    local partyDamageTaken = 0
+    local finalRound = 0
+    for _, tok in ipairs(heroTokens) do
+        local rounds = {}
+        for roundKey, stats in pairs(live:GetStatsForTokenByRound(tok.charid)) do
+            local n = tonumber(string.match(tostring(roundKey), "^round(%d+)$"))
+            if n ~= nil and type(stats) == "table" then
+                rounds[n] = stats
+                if n > finalRound then
+                    finalRound = n
+                end
+            end
+        end
+
+        local entry = {
+            token = tok,
+            name = tok.name or "Hero",
+            totals = live:GetStatsForToken(tok.charid),
+            rounds = rounds,
+        }
+        partyDamageTaken = partyDamageTaken + (entry.totals.damageTaken or 0)
+        data[#data+1] = entry
+    end
+
+    --Stat accessors. Totals are whole-encounter sums; RoundStat reads one
+    --round's bucket; the Nested variants handle sub-table stats (tierRolls,
+    --conditionsInflicted, ...).
+    local function Total(d, stat)
+        local v = d.totals[stat]
+        return type(v) == "number" and v or 0
+    end
+
+    local function RoundStat(d, n, stat)
+        local r = d.rounds[n]
+        local v = r ~= nil and r[stat] or nil
+        return type(v) == "number" and v or 0
+    end
+
+    local function NestedTotal(d, stat)
+        local t = d.totals[stat]
+        if type(t) ~= "table" then
+            return 0
+        end
+        local sum = 0
+        for _, v in pairs(t) do
+            if type(v) == "number" then
+                sum = sum + v
+            end
+        end
+        return sum
+    end
+
+    local function NestedStat(d, stat, key)
+        local t = d.totals[stat]
+        if type(t) == "table" and type(t[key]) == "number" then
+            return t[key]
+        end
+        return 0
+    end
+
+    --The hero with the strictly highest positive value of fn; ties go to the
+    --earliest hero in party order. Returns nil if nobody has a positive value.
+    local function MaxBy(fn)
+        local best = nil
+        local bestValue = 0
+        for _, d in ipairs(data) do
+            local v = fn(d) or 0
+            if v > bestValue then
+                best = d
+                bestValue = v
+            end
+        end
+        return best, bestValue
+    end
+
+    --The runner-up by fn, excluding the winner.
+    local function SecondBy(fn, winner)
+        local best = nil
+        local bestValue = 0
+        for _, d in ipairs(data) do
+            if d ~= winner then
+                local v = fn(d) or 0
+                if v > bestValue then
+                    best = d
+                    bestValue = v
+                end
+            end
+        end
+        return best, bestValue
+    end
+
+    --Candidate roles, built in priority order (most interesting first). Each
+    --hero is later awarded the highest-priority candidate they won.
+    local candidates = {}
+    local function AddCandidate(winner, role, text, tooltip)
+        candidates[#candidates+1] = {
+            winner = winner,
+            role = role,
+            text = text,
+            tooltip = tooltip,
+        }
+    end
+
+    --Damage Dealer: dealt the most damage of any hero. Tooltip fun fact: the
+    --runner-up's total.
+    do
+        local winner, amount = MaxBy(function(d) return Total(d, "damageDealt") end)
+        if winner ~= nil then
+            local second, secondAmount = SecondBy(function(d) return Total(d, "damageDealt") end, winner)
+            local tooltip = "Nobody else dealt any damage"
+            if second ~= nil then
+                tooltip = string.format("%s dealt %d damage", second.name, secondAmount)
+            end
+            AddCandidate(winner, "Damage Dealer", string.format("Dealt %d damage", amount), tooltip)
+        end
+    end
+
+    --Initiator: dealt the most damage on round 1, and that round-1 damage is
+    --at least 8 per hero level.
+    do
+        local winner, amount = MaxBy(function(d) return RoundStat(d, 1, "damageDealt") end)
+        if winner ~= nil then
+            local level = 1
+            if winner.token.properties ~= nil then
+                level = winner.token.properties:CharacterLevel() or 1
+            end
+            if amount >= 8 * math.max(1, level) then
+                AddCandidate(winner, "Initiator",
+                    string.format("Dealt %d damage on round 1", amount),
+                    string.format("You spent %d heroic resources in doing so", RoundStat(winner, 1, "heroicResourcesSpent")))
+            end
+        end
+    end
+
+    --Big Hitter: the biggest single-round damage total, excluding round 1
+    --(round-1 alpha strikes belong to Initiator).
+    do
+        local function BestLateRound(d)
+            local best = 0
+            for n, _ in pairs(d.rounds) do
+                if n >= 2 then
+                    local v = RoundStat(d, n, "damageDealt")
+                    if v > best then
+                        best = v
+                    end
+                end
+            end
+            return best
+        end
+
+        local winner, amount = MaxBy(BestLateRound)
+        if winner ~= nil then
+            AddCandidate(winner, "Big Hitter",
+                string.format("Dealt %d damage in a single round", amount),
+                string.format("You dealt %d damage during the encounter", Total(winner, "damageDealt")))
+        end
+    end
+
+    --Deadeye: the most critical hits this encounter, at least 2.
+    do
+        local winner, count = MaxBy(function(d) return Total(d, "criticals") end)
+        if winner ~= nil and count >= 2 then
+            AddCandidate(winner, "Deadeye",
+                string.format("You got %d critical hits", count),
+                string.format("You dealt %d damage this encounter", Total(winner, "damageDealt")))
+        end
+    end
+
+    --Hat Trick: at least 2 critical hits within a single round. The hero with
+    --the most crits in their best round wins.
+    do
+        local function BestCritRound(d)
+            local best = 0
+            local bestRound = nil
+            for n, _ in pairs(d.rounds) do
+                local v = RoundStat(d, n, "criticals")
+                if v > best then
+                    best = v
+                    bestRound = n
+                end
+            end
+            return best, bestRound
+        end
+
+        local winner, count = MaxBy(BestCritRound)
+        if winner ~= nil and count >= 2 then
+            local _, roundNum = BestCritRound(winner)
+            AddCandidate(winner, "Hat Trick",
+                string.format("You got %d critical hits in round %d", count, roundNum),
+                string.format("You dealt %d damage on round %d", RoundStat(winner, roundNum, "damageDealt"), roundNum))
+        end
+    end
+
+    --The Shield: the most damage prevention, at least 10.
+    do
+        local winner, amount = MaxBy(function(d) return Total(d, "damagePrevention") end)
+        if winner ~= nil and amount >= 10 then
+            AddCandidate(winner, "The Shield",
+                string.format("You prevented %d damage this encounter", amount),
+                string.format("You and your teammates took %d damage this encounter", partyDamageTaken))
+        end
+    end
+
+    --Executioner: the most kills, at least 2.
+    do
+        local winner, count = MaxBy(function(d) return Total(d, "kills") end)
+        if winner ~= nil and count >= 2 then
+            AddCandidate(winner, "Executioner",
+                string.format("You finished off %d enemies", count),
+                string.format("You dealt %d damage this encounter", Total(winner, "damageDealt")))
+        end
+    end
+
+    --Minion Mower: the most minion kills, at least 3.
+    do
+        local winner, count = MaxBy(function(d) return Total(d, "minionKills") end)
+        if winner ~= nil and count >= 3 then
+            local bestRound = nil
+            local bestCount = 0
+            for n, _ in pairs(winner.rounds) do
+                local v = RoundStat(winner, n, "minionKills")
+                if v > bestCount then
+                    bestCount = v
+                    bestRound = n
+                end
+            end
+            local tooltip = "They never stood a chance"
+            if bestRound ~= nil then
+                tooltip = string.format("%d of them in round %d alone", bestCount, bestRound)
+            end
+            AddCandidate(winner, "Minion Mower",
+                string.format("You mowed down %d minions", count), tooltip)
+        end
+    end
+
+    --Overkill: the most overkill damage, at least 10.
+    do
+        local winner, amount = MaxBy(function(d) return Total(d, "overkill") end)
+        if winner ~= nil and amount >= 10 then
+            AddCandidate(winner, "Overkill",
+                string.format("You dealt %d more damage than strictly necessary", amount),
+                "Subtlety is overrated")
+        end
+    end
+
+    --Closer: the most kills in the final round.
+    do
+        if finalRound >= 2 then
+            local winner, count = MaxBy(function(d) return RoundStat(d, finalRound, "kills") end)
+            if winner ~= nil then
+                AddCandidate(winner, "Closer",
+                    string.format("You ended %d %s in the final round", count, cond(count == 1, "enemy", "enemies")),
+                    "Someone had to finish it")
+            end
+        end
+    end
+
+    --Punching Bag / Martyr: the most damage taken. Martyr if they fell;
+    --Punching Bag (at least 15 taken) if they are still standing.
+    do
+        local winner, amount = MaxBy(function(d) return Total(d, "damageTaken") end)
+        if winner ~= nil then
+            local dead = winner.token.properties ~= nil and winner.token.properties:IsDead()
+            if dead then
+                AddCandidate(winner, "Martyr",
+                    string.format("You took %d damage before falling", amount),
+                    "Your sacrifice will be remembered")
+            elseif amount >= 15 then
+                local second, secondAmount = SecondBy(function(d) return Total(d, "damageTaken") end, winner)
+                local tooltip = "Nobody else took a scratch"
+                if second ~= nil then
+                    tooltip = string.format("The next-toughest hero took %d", secondAmount)
+                end
+                AddCandidate(winner, "Punching Bag",
+                    string.format("You took %d damage and kept standing", amount), tooltip)
+            end
+        end
+    end
+
+    --Untouchable: the only hero who took no damage at all (needs a party).
+    do
+        if #data >= 2 then
+            local zeroes = {}
+            for _, d in ipairs(data) do
+                if Total(d, "damageTaken") == 0 then
+                    zeroes[#zeroes+1] = d
+                end
+            end
+            if #zeroes == 1 then
+                AddCandidate(zeroes[1], "Untouchable",
+                    "You took no damage at all",
+                    string.format("Your allies took %d between them", partyDamageTaken))
+            end
+        end
+    end
+
+    --Immovable Object: stood firm against the most forced moves, at least 2.
+    do
+        local winner, count = MaxBy(function(d) return Total(d, "standsFirm") end)
+        if winner ~= nil and count >= 2 then
+            AddCandidate(winner, "Immovable Object",
+                string.format("You stood firm against %d forced moves", count),
+                string.format("Enemies moved you only %d spaces all fight", Total(winner, "forcedMovementTaken")))
+        end
+    end
+
+    --Ragdoll: took the most forced movement, at least 6 spaces.
+    do
+        local winner, amount = MaxBy(function(d) return Total(d, "forcedMovementTaken") end)
+        if winner ~= nil and amount >= 6 then
+            AddCandidate(winner, "Ragdoll",
+                string.format("You got thrown around %d spaces", amount),
+                string.format("And took %d damage along the way", Total(winner, "damageTaken")))
+        end
+    end
+
+    --Battering Ram: force-moved enemies the most spaces, at least 5.
+    do
+        local winner, amount = MaxBy(function(d) return Total(d, "forcedMovementDealt") end)
+        if winner ~= nil and amount >= 5 then
+            AddCandidate(winner, "Battering Ram",
+                string.format("You shoved enemies %d spaces", amount),
+                "Walls were involved")
+        end
+    end
+
+    --Marathon Runner: moved the most spaces, at least 8.
+    do
+        local winner, amount = MaxBy(function(d) return Total(d, "spacesMoved") end)
+        if winner ~= nil and amount >= 8 then
+            AddCandidate(winner, "Marathon Runner",
+                string.format("You moved %d spaces this encounter", amount),
+                "More than anyone else on the field")
+        end
+    end
+
+    --Statue: never moved (voluntarily or otherwise) yet still dealt damage.
+    --The highest-damage qualifier wins.
+    do
+        local winner = nil
+        for _, d in ipairs(data) do
+            if Total(d, "spacesMoved") == 0 and Total(d, "forcedMovementTaken") == 0
+                and Total(d, "damageDealt") > 0 then
+                if winner == nil or Total(d, "damageDealt") > Total(winner, "damageDealt") then
+                    winner = d
+                end
+            end
+        end
+        if winner ~= nil then
+            AddCandidate(winner, "Statue",
+                "You never moved a single space",
+                string.format("And still dealt %d damage", Total(winner, "damageDealt")))
+        end
+    end
+
+    --Puppet Master: inflicted the most conditions, at least 3. Tooltip calls
+    --out their most-used condition.
+    do
+        local winner, count = MaxBy(function(d) return NestedTotal(d, "conditionsInflicted") end)
+        if winner ~= nil and count >= 3 then
+            local bestName = nil
+            local bestCount = 0
+            local t = winner.totals.conditionsInflicted
+            if type(t) == "table" then
+                for name, v in pairs(t) do
+                    if type(v) == "number" and v > bestCount then
+                        bestName = name
+                        bestCount = v
+                    end
+                end
+            end
+            local tooltip = "The battlefield danced to your tune"
+            if bestName ~= nil then
+                tooltip = string.format("Including %d %s", bestCount, bestName)
+            end
+            AddCandidate(winner, "Puppet Master",
+                string.format("You inflicted %d conditions", count), tooltip)
+        end
+    end
+
+    --Wrestler: grabbed enemies the most, at least 2.
+    do
+        local winner, count = MaxBy(function(d) return NestedStat(d, "conditionsInflicted", "grabbed") end)
+        if winner ~= nil and count >= 2 then
+            AddCandidate(winner, "Wrestler",
+                string.format("You grabbed enemies %d times", count),
+                "Nobody escapes")
+        end
+    end
+
+    --Down You Go: knocked enemies prone the most, at least 2.
+    do
+        local winner, count = MaxBy(function(d) return NestedStat(d, "conditionsInflicted", "prone") end)
+        if winner ~= nil and count >= 2 then
+            AddCandidate(winner, "Down You Go",
+                string.format("You knocked enemies down %d times", count),
+                string.format("You dealt %d damage this encounter", Total(winner, "damageDealt")))
+        end
+    end
+
+    --Fearmonger: frightened enemies the most, at least 2.
+    do
+        local winner, count = MaxBy(function(d) return NestedStat(d, "conditionsInflicted", "frightened") end)
+        if winner ~= nil and count >= 2 then
+            AddCandidate(winner, "Fearmonger",
+                string.format("You frightened enemies %d times", count),
+                "They were right to be afraid")
+        end
+    end
+
+    --Playmaker: allies dealt the most damage during their turns, at least 10.
+    do
+        local winner, amount = MaxBy(function(d) return Total(d, "allyDamageDealt") end)
+        if winner ~= nil and amount >= 10 then
+            AddCandidate(winner, "Playmaker",
+                string.format("Allies dealt %d damage during your turns", amount),
+                "You set them up; they knocked them down")
+        end
+    end
+
+    --Opportunist: dealt the most damage on enemy turns, at least 8.
+    do
+        local winner, amount = MaxBy(function(d) return Total(d, "enemyTurnDamage") end)
+        if winner ~= nil and amount >= 8 then
+            AddCandidate(winner, "Opportunist",
+                string.format("You dealt %d damage on enemy turns", amount),
+                "Free strikes add up")
+        end
+    end
+
+    --Big Spender: spent the most heroic resources, at least 10.
+    do
+        local winner, amount = MaxBy(function(d) return Total(d, "heroicResourcesSpent") end)
+        if winner ~= nil and amount >= 10 then
+            AddCandidate(winner, "Big Spender",
+                string.format("You spent %d heroic resources", amount),
+                string.format("You generated %d this encounter", Total(winner, "heroicResourcesGained")))
+        end
+    end
+
+    --Power Plant: generated the most heroic resources.
+    do
+        local winner, amount = MaxBy(function(d) return Total(d, "heroicResourcesGained") end)
+        if winner ~= nil then
+            AddCandidate(winner, "Power Plant",
+                string.format("You generated %d heroic resources", amount),
+                string.format("And spent %d of them", Total(winner, "heroicResourcesSpent")))
+        end
+    end
+
+    --Hoarder: gained plenty (at least 8) but spent less than half of it. The
+    --biggest unspent pile wins.
+    do
+        local winner, unspent = MaxBy(function(d)
+            local gained = Total(d, "heroicResourcesGained")
+            local spent = Total(d, "heroicResourcesSpent")
+            if gained >= 8 and spent * 2 < gained then
+                return gained - spent
+            end
+            return 0
+        end)
+        if winner ~= nil then
+            AddCandidate(winner, "Hoarder",
+                string.format("You saved up %d unspent heroic resources", unspent),
+                "They don't carry over, you know")
+        end
+    end
+
+    --Hot Streak: rolled tier 3 the most, at least 3 times. The tooltip
+    --reminds them how many edges they had.
+    do
+        local winner, count = MaxBy(function(d) return NestedStat(d, "tierRolls", "tier3") end)
+        if winner ~= nil and count >= 3 then
+            local edges = Total(winner, "edges")
+            local tooltip = "And not a single edge to help you"
+            if edges > 0 then
+                tooltip = string.format("Maybe the %d %s you got helped you?", edges, cond(edges == 1, "edge", "edges"))
+            end
+            AddCandidate(winner, "Hot Streak",
+                string.format("You rolled tier 3 %d times", count), tooltip)
+        end
+    end
+
+    --Edgelord: rolled with the most edges, at least 4.
+    do
+        local winner, count = MaxBy(function(d) return Total(d, "edges") end)
+        if winner ~= nil and count >= 4 then
+            AddCandidate(winner, "Edgelord",
+                string.format("You rolled with %d edges", count),
+                "Your allies kept setting you up")
+        end
+    end
+
+    --Against All Odds: suffered the most banes, at least 4, but still dealt
+    --damage anyway.
+    do
+        local winner, count = MaxBy(function(d) return Total(d, "banes") end)
+        if winner ~= nil and count >= 4 and Total(winner, "damageDealt") > 0 then
+            AddCandidate(winner, "Against All Odds",
+                string.format("You fought through %d banes", count),
+                string.format("And still dealt %d damage", Total(winner, "damageDealt")))
+        end
+    end
+
+    --Metronome: dealt damage in every round (needs at least 2 rounds). The
+    --highest total among qualifiers wins.
+    do
+        if finalRound >= 2 then
+            local winner = nil
+            for _, d in ipairs(data) do
+                local everyRound = true
+                for n = 1, finalRound do
+                    if RoundStat(d, n, "damageDealt") <= 0 then
+                        everyRound = false
+                        break
+                    end
+                end
+                if everyRound then
+                    if winner == nil or Total(d, "damageDealt") > Total(winner, "damageDealt") then
+                        winner = d
+                    end
+                end
+            end
+            if winner ~= nil then
+                AddCandidate(winner, "Metronome",
+                    "You dealt damage every round",
+                    string.format("Totaling %d", Total(winner, "damageDealt")))
+            end
+        end
+    end
+
+    --Slow Burn: damage strictly increased every round (needs at least 3
+    --rounds). The biggest final round among qualifiers wins.
+    do
+        if finalRound >= 3 then
+            local winner = nil
+            for _, d in ipairs(data) do
+                local rising = RoundStat(d, finalRound, "damageDealt") > 0
+                if rising then
+                    for n = 2, finalRound do
+                        if RoundStat(d, n, "damageDealt") <= RoundStat(d, n - 1, "damageDealt") then
+                            rising = false
+                            break
+                        end
+                    end
+                end
+                if rising and (winner == nil
+                    or RoundStat(d, finalRound, "damageDealt") > RoundStat(winner, finalRound, "damageDealt")) then
+                    winner = d
+                end
+            end
+            if winner ~= nil then
+                AddCandidate(winner, "Slow Burn",
+                    "Your damage went up every round",
+                    string.format("Round 1: %d, final round: %d",
+                        RoundStat(winner, 1, "damageDealt"), RoundStat(winner, finalRound, "damageDealt")))
+            end
+        end
+    end
+
+    --Grand Finale: the most damage in the final round, at least 10 (needs at
+    --least 2 rounds so it is distinct from Initiator).
+    do
+        if finalRound >= 2 then
+            local winner, amount = MaxBy(function(d) return RoundStat(d, finalRound, "damageDealt") end)
+            if winner ~= nil and amount >= 10 then
+                AddCandidate(winner, "Grand Finale",
+                    string.format("You dealt %d damage in the final round", amount),
+                    "Saving the best for last")
+            end
+        end
+    end
+
+    --Cold Dice: rolled tier 1 the most, at least 2 times. A sympathy role
+    --near the bottom of the list; the tooltip reminds them of their banes.
+    do
+        local winner, count = MaxBy(function(d) return NestedStat(d, "tierRolls", "tier1") end)
+        if winner ~= nil and count >= 2 then
+            local banes = Total(winner, "banes")
+            local tooltip = "And you can't even blame the banes"
+            if banes > 0 then
+                tooltip = string.format("Maybe the %d %s you suffered didn't help?", banes, cond(banes == 1, "bane", "banes"))
+            end
+            AddCandidate(winner, "Cold Dice",
+                string.format("You rolled tier 1 %d times", count), tooltip)
+        end
+    end
+
+    --Pacifist: dealt no damage, but contributed in some other tracked way.
+    --A floor role: every qualifying hero gets a candidate.
+    do
+        for _, d in ipairs(data) do
+            if Total(d, "damageDealt") == 0 then
+                local conditions = NestedTotal(d, "conditionsInflicted")
+                local prevention = Total(d, "damagePrevention")
+                local spent = Total(d, "heroicResourcesSpent")
+                local tooltip = nil
+                if conditions > 0 then
+                    tooltip = string.format("But you inflicted %d %s", conditions, cond(conditions == 1, "condition", "conditions"))
+                elseif prevention > 0 then
+                    tooltip = string.format("But you prevented %d damage", prevention)
+                elseif spent > 0 then
+                    tooltip = string.format("But you spent %d heroic resources", spent)
+                end
+                if tooltip ~= nil then
+                    AddCandidate(d, "Pacifist", "You dealt no damage at all", tooltip)
+                end
+            end
+        end
+    end
+
+    --Tourist: no damage, no conditions, no prevention, no resources spent.
+    --The last-resort floor role: every qualifying hero gets a candidate.
+    do
+        for _, d in ipairs(data) do
+            if Total(d, "damageDealt") == 0
+                and NestedTotal(d, "conditionsInflicted") == 0
+                and Total(d, "damagePrevention") == 0
+                and Total(d, "heroicResourcesSpent") == 0 then
+                AddCandidate(d, "Tourist", "You were there", "And that counts for something")
+            end
+        end
+    end
+
+    --Award each hero the highest-priority role they earned.
+    for _, candidate in ipairs(candidates) do
+        local charid = candidate.winner.token.charid
+        if roles[charid] == nil then
+            roles[charid] = {
+                role = candidate.role,
+                text = candidate.text,
+                tooltip = candidate.tooltip,
+            }
+        end
+    end
+
+    return roles
+end
+
+--Compute the fun role each party member played this encounter.
+--Returns { [charid] = { role = "Damage Dealer", text = "Dealt 47 damage",
+--tooltip = "Mirala dealt 31 damage" } }; heroes who earned no role are simply
+--absent. Never throws -- any failure (stats missing, old encounter data)
+--returns an empty table so the victory screen renders without roles.
+function DSVictoryScreen.ComputeHeroRoles(live)
+    if live == nil then
+        return {}
+    end
+
+    local ok, result = pcall(ComputeHeroRolesInternal, live)
+    if not ok or type(result) ~= "table" then
+        return {}
+    end
+
+    return result
+end
+
 -- Returns the live encounter if and only if it is currently in the victory state
 -- (combat active + victory awarded); otherwise nil.
 local function GetActiveVictory()
@@ -78,11 +764,13 @@ local function ProceedEndCombat()
     end
 end
 
--- Build a single hero's card: portrait, name, Stamina bar, Recoveries change, and a DEAD
--- marker for fallen heroes. Every visible element carries the "victoryFade" class so the
--- card-level "shown" class can fade the whole card in via the descendant style rules on
--- the card (opacity does not cascade in this engine, so each leaf is faded individually).
-local function BuildHeroCard(live, token)
+-- Build a single hero's card: portrait, name, Stamina bar, Recoveries change, the fun
+-- role they earned (if any -- see ComputeHeroRoles; roleInfo may be nil and the role
+-- lines render blank), and a DEAD marker for fallen heroes. Every visible element
+-- carries the "victoryFade" class so the card-level "shown" class can fade the whole
+-- card in via the descendant style rules on the card (opacity does not cascade in this
+-- engine, so each leaf is faded individually).
+local function BuildHeroCard(live, token, roleInfo)
     local props = token and token.properties
     local name = (token and token.name) or "Hero"
 
@@ -94,6 +782,41 @@ local function BuildHeroCard(live, token)
         fillPct = math.min(1, curHp / maxHp) * 100
     end
 
+    -- For fallen heroes the portrait itself carries the death treatment: a 50%
+    -- red wash covering the whole portrait with the DEAD marker centered on it.
+    -- The wash's 50% comes from the bgcolor alpha (not opacity) so the
+    -- victoryFade opacity animation can still fade it in without overriding it.
+    local deadChildren = nil
+    if dead then
+        deadChildren = {
+            gui.Panel{
+                classes = {"victoryFade"},
+                interactable = false,
+                bgimage = "panels/square.png",
+                bgcolor = "#ff000080",
+                width = "100%",
+                height = "100%",
+                halign = "center",
+                valign = "center",
+            },
+            gui.Label{
+                classes = {"victoryFade", "victoryDead"},
+                interactable = false,
+                text = "DEAD",
+                width = "100%",
+                height = "auto",
+                halign = "center",
+                valign = "center",
+                textAlignment = "center",
+                color = "white",
+                fontFace = "Book",
+                fontSize = 18,
+                fontWeight = "black",
+                uppercase = true,
+            },
+        }
+    end
+
     -- Portrait. Fills the full width of the card and grows tall to match the
     -- 3:4 portrait aspect (height = width * 100/portraitWidthPercentOfHeight).
     -- A negative top margin pulls it flush to the card's top inner edge, past
@@ -103,6 +826,7 @@ local function BuildHeroCard(live, token)
         -- bgcolor "white" stays inline (image-tint-neutral for the portrait).
         classes = {"victoryFade", "victoryPortrait", "borderInfo"},
         interactable = false,
+        flow = "none",
         width = "100%",
         height = string.format("%f%% width", 10000 / Styles.portraitWidthPercentOfHeight),
         halign = "center",
@@ -111,6 +835,7 @@ local function BuildHeroCard(live, token)
         bgcolor = "white",
         borderWidth = 2,
         cornerRadius = 4,
+        children = deadChildren,
     }
     if token ~= nil then
         local portrait = token.inspectPortrait
@@ -131,7 +856,7 @@ local function BuildHeroCard(live, token)
         halign = "center",
         tmargin = 8,
         textAlignment = "center",
-        textWrap = false,
+        textWrap = true,
         fontFace = "Book",
         fontSize = 20,
         fontWeight = "bold",
@@ -198,21 +923,42 @@ local function BuildHeroCard(live, token)
         fontSize = 14,
     }
 
-    local deadLabel = gui.Label{
-        classes = {"victoryFade", "victoryDead", "danger"},
-        interactable = false,
-        text = "DEAD",
+    -- The fun role the hero earned this encounter: the role name as a small
+    -- accent header with the detail line under it, and the role's fun-fact on
+    -- a hover tooltip. When the hero earned no role both labels render blank
+    -- (auto height collapses them to nothing). The title label is the one
+    -- interactable element on an otherwise click-through card, so the tooltip
+    -- can receive hover.
+    local roleTitleLabel = gui.Label{
+        classes = {"victoryFade", "info"},
+        interactable = roleInfo ~= nil,
+        text = (roleInfo ~= nil and roleInfo.role) or "",
         width = "100%",
         height = "auto",
         halign = "center",
-        tmargin = 6,
+        tmargin = 8,
         textAlignment = "center",
+        textWrap = false,
         fontFace = "Book",
-        fontSize = 18,
-        fontWeight = "black",
+        fontSize = 16,
+        fontWeight = "bold",
         uppercase = true,
+        hover = (roleInfo ~= nil and roleInfo.tooltip ~= nil) and gui.Tooltip(roleInfo.tooltip) or nil,
     }
-    deadLabel:SetClass("collapsed", not dead)
+
+    local roleTextLabel = gui.Label{
+        classes = {"victoryFade", "fg"},
+        interactable = false,
+        text = (roleInfo ~= nil and roleInfo.text) or "",
+        width = "100%",
+        height = "auto",
+        halign = "center",
+        tmargin = 2,
+        textAlignment = "center",
+        textWrap = true,
+        fontFace = "Book",
+        fontSize = 13,
+    }
 
     -- "Victories: old -> new" line, hidden until the Award animation finishes.
     local victoriesLabel = gui.Label{
@@ -255,9 +1001,11 @@ local function BuildHeroCard(live, token)
         interactable = false,
         flow = "vertical",
         width = 200,
-        -- Fixed height + valign top: all cards align at the same top, and the conditional
-        -- DEAD / Victories lines fill reserved space below rather than resizing the card.
-        height = 380,
+        -- minHeight + auto height + valign top: all cards align at the same top and
+        -- normally match at the min height, but a card can grow if its content (e.g.
+        -- a long wrapped hero name) needs more room rather than overflowing.
+        height = "auto",
+        minHeight = 380,
         halign = "center",
         valign = "top",
         hmargin = 12,
@@ -282,7 +1030,7 @@ local function BuildHeroCard(live, token)
 
         -- dropLayer is LAST so it draws on top of the card content (in DMHub later
         -- siblings render above earlier ones), letting the icons land over the card.
-        children = { portraitPanel, nameLabel, staminaBar, recoveriesLabel, deadLabel, victoriesLabel, dropLayer },
+        children = { portraitPanel, nameLabel, staminaBar, recoveriesLabel, roleTitleLabel, roleTextLabel, victoriesLabel, dropLayer },
 
         -- Drop `amount` victory icons into this card one at a time, then reveal the
         -- "Victories: old -> new" line. Orchestrated per-card by the screen's playAward.
@@ -709,9 +1457,14 @@ function DSVictoryScreen.Create()
             --their Recoveries changed).
             local heroTokens = live:GetBattleHeroTokens()
             print("VICTORY:: building cards for", #heroTokens, "heroes")
+
+            --compute every hero's fun role once for the whole party; heroes
+            --with no role get nil and their card renders the role lines blank.
+            local heroRoles = DSVictoryScreen.ComputeHeroRoles(live)
+
             local cards = {}
             for _, token in ipairs(heroTokens) do
-                cards[#cards + 1] = BuildHeroCard(live, token)
+                cards[#cards + 1] = BuildHeroCard(live, token, heroRoles[token.charid])
             end
             heroRow.children = cards
 
@@ -730,6 +1483,8 @@ function DSVictoryScreen.Create()
 
         showTitle = function(element, g)
             if g ~= element.data.generation then return end
+            --play the same dramatic-banner sword sound as the swords sweep apart.
+            audio.FireSoundEvent(DramaticBanner.defaultSound)
             titleLabel:SetClass("shown", true)
             titleShadow:SetClass("shown", true)
             titleClip:SetClass("titleClip-closed", false)
@@ -833,6 +1588,8 @@ function DSVictoryScreen.Create()
         awardCard = function(element, g, card, n)
             if g ~= element.data.generation then return end
             if card ~= nil and card.valid then
+                --pickup sound as each player is awarded their victory.
+                audio.FireSoundEvent("UI.Inv_Item_Pickup_Special")
                 card:FireEvent("awardVictories", n)
             end
         end,

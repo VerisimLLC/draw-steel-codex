@@ -4819,6 +4819,11 @@ function ActivatedAbilityForcedMovementBehavior:Cast(ability, casterToken, targe
 
 		if range <= 0 then
 			if stability > 0 then
+				--Per-encounter hero stat: stability fully prevented the forced
+				--movement -- the hero stood firm. Single-fire on the resolving
+				--client; TrackHeroStats self-guards to heroes. (This file already
+				--leans on Draw Steel globals here -- see MCDMUtils below.)
+				LiveEncounter.TrackHeroStats(target.charid, "standsFirm")
 				local abilityBase = MCDMUtils.GetStandardAbility("Too Much Stability")
 				if abilityBase then
 					local abilityClone = DeepCopy(abilityBase)

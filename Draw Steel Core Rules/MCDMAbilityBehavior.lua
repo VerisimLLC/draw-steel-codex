@@ -271,6 +271,11 @@ local function ExecuteDamage(behavior, ability, casterToken, targetToken, option
             damage = damage + bonus
         end
 
+        --Snapshot before halving so the halved-away portion can be tracked as
+        --damagePrevention. Taken after the characteristic bonus is added, so the
+        --prevented amount is measured against the full pre-half damage.
+        local damageBeforeHalving = damage
+
         if halfCount > 0 then
             for i = 1, halfCount do
                 damage = math.floor(damage/2)
@@ -295,6 +300,17 @@ local function ExecuteDamage(behavior, ability, casterToken, targetToken, option
                 execute = function()
                     result = targetToken.properties:InflictDamageInstance(damage, damageType, ability.keywords, string.format("%s's %s", selfName, ability.name), { criticalhit = false, attacker = attacker, surges = options.surges, ability = ability, hasability = true, cast = options.symbols.cast, hasrolleddamage = isRolledDamage, patrondamage = patrondamage})
                     options.symbols.cast:CountDamage(targetToken, result.damageDealt, damage, isRolledDamage, patrondamage)
+
+                    --Damage halved away by (half) power-roll modifiers counts as
+                    --damagePrevention, credited to the target. The halving's true
+                    --source (the target's own trait/trigger vs a protector ally)
+                    --is not recoverable here -- the tier text only carries the
+                    --bare "(half)" marker -- so the target is the best available
+                    --attribution. TrackHeroStats self-guards, so monster targets
+                    --are dropped.
+                    if damage < damageBeforeHalving then
+                        LiveEncounter.TrackHeroStats(targetToken.charid, "damagePrevention", damageBeforeHalving - damage)
+                    end
                 end,
             }
         end
@@ -494,6 +510,10 @@ local g_rulePatterns = {
             if range <= 0 then
                 --don't execute forced movement of 0?
                 if stability > 0 then
+                    --Per-encounter hero stat: the hero's stability fully prevented
+                    --the forced movement -- they stood firm. Runs once on the
+                    --resolving client; TrackHeroStats self-guards to heroes.
+                    LiveEncounter.TrackHeroStats(targetToken.charid, "standsFirm")
                     ShowFailSpeech("Too Much Stability")
                 else
                     ShowFailMessage("Cannot Be Force Moved")
@@ -2914,3 +2934,61 @@ Commands.RegisterMacro{
         print("Could not upload")
     end,
 }
+--Per-encounter hero stats: forced movement distance. Every forced-movement flow
+--(tier-text push/pull/slide commands above, ActivatedAbilityForcedMovementBehavior,
+--and direct/remote invokes of the standard "Forced Movement: X" abilities) funnels
+--into a relocate_creature cast of a clone whose range has already been adjusted
+--for stability, Big Versus Little, Forced Movement Increase, and caster bonuses --
+--and whose "forcedMovement" field carries the movement type. So we wrap the
+--relocate Cast here, in the Draw Steel layer, and record the clone's range as the
+--distance: that is the entitlement the rules granted, which the user-facing stat
+--should count even when a wall or creature stops the actual path short (a push 5
+--into a wall after 2 squares still counts as 5). Mirrors the abilityDist
+--computation inside the base Cast (range / unitsPerSquare).
+--
+--forcedMovementTaken: credited to the moved creature (the clone's caster).
+--forcedMovementDealt: credited to the pusher (the clone's invoker), only when the
+--moved creature is an enemy -- repositioning allies is not "moving your enemies".
+--TrackHeroStats self-guards to heroes in the live encounter, so monster pushers
+--and monster victims are dropped, and a hero's summon credits the hero.
+local g_baseRelocateCreatureCast = ActivatedAbilityRelocateCreatureBehavior.Cast
+function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, targets, options)
+    g_baseRelocateCreatureCast(self, ability, casterToken, targets, options)
+
+    local forcedMovementType = ability:try_get("forcedMovement")
+    if forcedMovementType == nil or forcedMovementType == "" then
+        return
+    end
+
+    --Forced movement clones use movementType "move"; teleports and jumps are not
+    --forced movement and never count.
+    local movementType = self.movementType
+    if options.symbols ~= nil and options.symbols.shiftingOverride == false then
+        movementType = "move"
+    end
+    if movementType ~= "move" then
+        return
+    end
+
+    local spaces = round(ability:GetRange(casterToken.properties) / dmhub.unitsPerSquare)
+    if spaces <= 0 then
+        return
+    end
+
+    LiveEncounter.TrackHeroStats(casterToken.charid, "forcedMovementTaken", spaces)
+
+    local invoker = ability:try_get("invoker")
+    if invoker == nil and options.symbols ~= nil and options.symbols.invoker ~= nil then
+        invoker = options.symbols.invoker
+        if type(invoker) == "function" then
+            invoker = invoker("self")
+        end
+    end
+
+    if invoker ~= nil then
+        local pusherToken = dmhub.LookupToken(invoker)
+        if pusherToken ~= nil and pusherToken.charid ~= casterToken.charid and (not pusherToken:IsFriend(casterToken)) then
+            LiveEncounter.TrackHeroStats(pusherToken.charid, "forcedMovementDealt", spaces)
+        end
+    end
+end

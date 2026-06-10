@@ -409,6 +409,12 @@ function GameHud:CreateSingleDock(params)
 
             if floating then
                 container:FireEvent("minimizeFloating")
+                -- Mirror the maximize floating path: broadcast minimize so
+                -- child panels re-collapse their content, without the docked
+                -- fitChildren layout work.
+                container:SetClassTree("maximized", false)
+                container:FireEventTree("minimize")
+                element.data.maximizedChild = nil
                 return
             end
 
@@ -451,6 +457,14 @@ function GameHud:CreateSingleDock(params)
 
             if floating then
                 container:FireEvent("maximizeFloating")
+                -- A floating panel has no siblings to collapse and resizes
+                -- itself via maximizeFloating, so skip the dock fitChildren
+                -- work. But still broadcast the maximize event/class the same
+                -- way the docked path does, so child panels that reveal their
+                -- content on maximize (e.g. the audio sound browser) react.
+                container:SetClassTree("maximized", true)
+                container:FireEventTree("maximize")
+                element.data.maximizedChild = child
                 return
             end
 

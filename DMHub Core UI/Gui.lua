@@ -198,6 +198,7 @@ gui.iconButtonClasses = {
 			actionText = "Delete",
 		},
 	},
+	maximizeButton = {},
 	pagingArrow = {},
 	settingsButton = {},
 }
@@ -4883,24 +4884,18 @@ end
 --- A panel suitable for maximizing a dockable panel.
 --- @return Panel
 function gui.DockablePanelMaximizeButton()
-	return gui.Panel{
-		bgimage = "panels/hud/down-arrow.png",
-		width = 256/8,
-		height = 128/8,
-		bgcolor = "white",
+	-- Themed icon button: the "maximizeButton" kind paints the down-arrow on
+	-- the inner buttonIcon (tinted @fg so it follows the active scheme) and
+	-- the "maximized" class flips it vertically. Hover/press feedback comes
+	-- from the shared iconButton chrome rules. width/height stay inline as
+	-- layout: the arrow art is 2:1, so the button is wider than it is tall.
+	return gui.Button{
+		classes = {"maximizeButton"},
+		width = 32,
+		height = 16,
 		halign = "center",
 		valign = "top",
 		vmargin = 4,
-		styles = {
-			{
-				selectors = {"hover"},
-				brightness = 1.5,
-			},
-			{
-				selectors = {"maximized"},
-				scale = {x = 1, y = -1},
-			},
-		},
 
 		minimize = function(element)
 			element:SetClass("maximized", false)

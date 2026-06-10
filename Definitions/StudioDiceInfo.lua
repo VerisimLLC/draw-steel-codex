@@ -48,3 +48,40 @@ end
 function StudioDiceInfo:SetEventEffect(ev, effectName)
 	-- dummy implementation for documentation purposes only
 end
+
+--- GetEventSoundBinding
+--- @param ev any
+--- @return any
+function StudioDiceInfo:GetEventSoundBinding(ev)
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetEventSound
+--- @param ev any
+--- @return string
+function StudioDiceInfo:GetEventSound(ev)
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetEventSound
+--- @param ev any
+--- @param soundEventName string
+--- @return nil
+function StudioDiceInfo:SetEventSound(ev, soundEventName)
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetEventSoundVolume
+--- @param ev any
+--- @return number
+function StudioDiceInfo:GetEventSoundVolume(ev)
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetEventSoundVolume
+--- @param ev any
+--- @param volume number
+--- @return nil
+function StudioDiceInfo:SetEventSoundVolume(ev, volume)
+	-- dummy implementation for documentation purposes only
+end

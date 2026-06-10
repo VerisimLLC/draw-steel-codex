@@ -13,6 +13,14 @@ function DiceMaterialStudioProperties:ToDebugString()
 	-- dummy implementation for documentation purposes only
 end
 
+--- TryGetFloat
+--- @param s string
+--- @param f any
+--- @return boolean
+function DiceMaterialStudioProperties:TryGetFloat(s, f)
+	-- dummy implementation for documentation purposes only
+end
+
 --- GetFloat
 --- @param s string
 --- @param defaultValue any

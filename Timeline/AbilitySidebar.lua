@@ -563,6 +563,12 @@ local function CreateReadOnlyRollInfo(shareData)
                         width = "100%",
                         height = "auto",
                         vpad = 0,
+                        updateRollDialog = function(element, ds)
+                            local t = ds.tierTexts ~= nil and ds.tierTexts[i] or nil
+                            if t ~= nil then
+                                element.text = FormatReadOnlyTierText(t)
+                            end
+                        end,
                     },
                 },
             }
@@ -649,6 +655,22 @@ local function CreateReadOnlyRollInfo(shareData)
                         row:SetClassTree("highlight", idx == tier)
                     end
                     element.data.m_finished = true
+                end
+            end,
+
+            -- A re-roll broadcasts a new highlightedTier while rollState
+            -- stays "finished", so RefreshRemoteAbilityDisplay does not
+            -- rebuild this panel; re-apply the highlight here. Skipped
+            -- while a live dice animation is driving the highlight.
+            updateRollDialog = function(element, ds)
+                local d = element.data
+                if d ~= nil and not d.m_finished then
+                    return
+                end
+                if ds.highlightedTier ~= nil then
+                    for idx, row in ipairs(element.children) do
+                        row:SetClassTree("highlight", idx == ds.highlightedTier)
+                    end
                 end
             end,
 

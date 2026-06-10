@@ -837,12 +837,10 @@ function LiveEncounter:DeployWave(waveid, initiativeQueue)
             --determine minion squad naming, mirroring RichEncounter.spawn.
             local minionName = nil
             local nsquads = 1
-            local minionMonster = nil
             for monsterid, quantity in pairs(group.monsters) do
-                local monster = assets.monsters[monsterid]
-                if monster ~= nil and monster.properties:IsMonster() and monster.properties.minion then
-                    minionMonster = monster
-                    minionName = monster.properties.monster_type
+                local monsterAsset = assets.monsters[monsterid]
+                if monsterAsset ~= nil and monsterAsset.properties:IsMonster() and monsterAsset.properties.minion then
+                    minionName = monsterAsset.properties.monster_type
                     if quantity >= 8 then
                         nsquads = math.ceil(quantity / (group.squadSize or 4))
                     end
@@ -851,10 +849,11 @@ function LiveEncounter:DeployWave(waveid, initiativeQueue)
             end
 
             local squadNames = nil
-            if minionName ~= nil and minionMonster ~= nil then
+            if minionName ~= nil then
                 squadNames = {}
                 for i = 1, nsquads do
-                    squadNames[#squadNames + 1] = minionMonster.FindFreshSquadName(minionName)
+                    --FindFreshSquadName is a static function on the global monster game type.
+                    squadNames[#squadNames + 1] = monster.FindFreshSquadName(minionName)
                 end
             end
 
@@ -1295,53 +1294,99 @@ function LiveEncounter:GetObjectiveTooltip()
     return table.concat(lines, "\n")
 end
 
--- Scour the current map for encounters defined in its journal entries.
+-- Scour the journals available on the current map for authored encounters.
 --
--- Info bubbles on the current map (dmhub.infoBubbles) each reference a journal
--- (markdown) document. Those documents can embed RichEncounter annotations -- the
--- "encounter" rich tag, see DocumentSystem/RichEncounter.lua -- and each
--- RichEncounter wraps an Encounter object. This returns a list of every such
--- encounter found across all of the current map's info-bubble journals.
+-- Two sources are searched:
+--   1. Info bubbles on the current map (dmhub.infoBubbles), each of which
+--      references a journal (markdown) document.
+--   2. Game-wide journal documents -- every markdown document in the journal
+--      whose folder chain roots at an accessible root (shared documents, the
+--      Director's private documents, templates, or the current map's folder).
+--      Documents filed under other maps' folders are excluded, as are
+--      documents already found via an info bubble.
+--
+-- Those documents can embed RichEncounter annotations -- the "encounter" rich
+-- tag, see DocumentSystem/RichEncounter.lua -- and each RichEncounter wraps an
+-- Encounter object. This returns a list of every such encounter found.
 --
 -- Each result entry is a table:
 --   name          : string         the encounter's display name
 --   encounter     : Encounter      the authored encounter
 --   richEncounter : RichEncounter  the annotation wrapping the encounter
---   bubbleid      : string         id of the info bubble it was found on
+--   bubbleid      : string|nil     id of the info bubble it was found on, or
+--                                  nil for game-wide journal entries
 --   docid         : string|nil     id of the markdown document it was found in
 function Encounter.GetEncountersOnCurrentMap()
     local result = {}
+    local seenDocs = {}
 
-    local infoBubbles = dmhub.infoBubbles
-    if infoBubbles == nil then
-        return result
-    end
+    --Pull the RichEncounter annotations out of one journal markdown document.
+    --Only consider annotations actually referenced by a rich tag in the
+    --document text (in content order). This skips stale/orphaned annotations
+    --that linger in the annotations table but no longer appear in the journal.
+    local function HarvestDocument(markdownDoc, docid, bubbleid)
+        if docid ~= nil then
+            if seenDocs[docid] then
+                return
+            end
+            seenDocs[docid] = true
+        end
 
-    for bubbleid, bubble in pairs(infoBubbles) do
-        local infoDoc = bubble.document
-        if infoDoc ~= nil then
-            local markdownDoc = infoDoc:GetMarkdownDocument()
-            if markdownDoc ~= nil then
-                --Only consider annotations actually referenced by a rich tag in the
-                --document text (in content order). This skips stale/orphaned
-                --annotations that linger in the annotations table but no longer
-                --appear in the journal.
-                for _, ref in ipairs(markdownDoc:GetReferencedAnnotations()) do
-                    local annotation = ref.annotation
-                    if type(annotation) == "table" and annotation.typeName == "RichEncounter" then
-                        local encounter = annotation:try_get("encounter")
-                        if encounter ~= nil then
-                            result[#result + 1] = {
-                                name = encounter:try_get("name", "Encounter"),
-                                encounter = encounter,
-                                richEncounter = annotation,
-                                bubbleid = bubbleid,
-                                docid = markdownDoc:try_get("id"),
-                            }
-                        end
-                    end
+        for _, ref in ipairs(markdownDoc:GetReferencedAnnotations()) do
+            local annotation = ref.annotation
+            if type(annotation) == "table" and annotation.typeName == "RichEncounter" then
+                local encounter = annotation:try_get("encounter")
+                if encounter ~= nil then
+                    result[#result + 1] = {
+                        name = encounter:try_get("name", "Encounter"),
+                        encounter = encounter,
+                        richEncounter = annotation,
+                        bubbleid = bubbleid,
+                        docid = docid,
+                    }
                 end
             end
+        end
+    end
+
+    --Info bubbles on the current map go first so they win default-encounter
+    --inference in the combat setup dialog.
+    local infoBubbles = dmhub.infoBubbles
+    if infoBubbles ~= nil then
+        for bubbleid, bubble in pairs(infoBubbles) do
+            local infoDoc = bubble.document
+            if infoDoc ~= nil then
+                local markdownDoc = infoDoc:GetMarkdownDocument()
+                if markdownDoc ~= nil then
+                    HarvestDocument(markdownDoc, markdownDoc:try_get("id"), bubbleid)
+                end
+            end
+        end
+    end
+
+    --Game-wide journal entries: every accessible markdown document in the
+    --journal, sorted by name for a stable dropdown order.
+    local docsTable = dmhub.GetTable(CustomDocument.tableName)
+    if docsTable ~= nil then
+        local accessibleRoots = CustomDocument.GetAccessibleRoots()
+        local docs = {}
+        for docid, doc in unhidden_pairs(docsTable) do
+            if doc.typeName == "MarkdownDocument" and not seenDocs[docid] and CustomDocument.IsDocInAccessibleRoot(doc, accessibleRoots) then
+                docs[#docs + 1] = { docid = docid, doc = doc }
+            end
+        end
+
+        table.sort(docs, function(a, b)
+            local nameA = a.doc.description or ""
+            local nameB = b.doc.description or ""
+            if nameA ~= nameB then
+                return nameA < nameB
+            end
+            return a.docid < b.docid
+        end)
+
+        for _, entry in ipairs(docs) do
+            HarvestDocument(entry.doc, entry.docid, nil)
         end
     end
 

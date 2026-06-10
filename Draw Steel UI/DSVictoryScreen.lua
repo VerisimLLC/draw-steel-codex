@@ -373,19 +373,11 @@ local function ComputeHeroRolesInternal(live)
             return nil
         end, 15)
         local entries = {}
-        for _, e in ipairs(ranked) do
-            local secondAmount = 0
-            for _, d2 in ipairs(data) do
-                if d2 ~= e.d then
-                    local v = Total(d2, "damageTaken")
-                    if v > secondAmount then
-                        secondAmount = v
-                    end
-                end
-            end
-            local tooltip = "Nobody else took a scratch"
-            if secondAmount > 0 then
-                tooltip = string.format("The next-toughest hero took %d", secondAmount)
+        for i, e in ipairs(ranked) do
+            local other = ranked[cond(i == 1, 2, 1)]
+            local tooltip = "Nobody else soaked anywhere near that much"
+            if other ~= nil then
+                tooltip = string.format("%s took %d and stayed up too", other.d.name, other.value)
             end
             entries[#entries+1] = { d = e.d, text = string.format("You took %d damage and kept standing", e.value), tooltip = tooltip }
         end

@@ -318,6 +318,12 @@ function GameHud.CreateEmbeddedRollDialog()
     -- total, so we recompute: correctedTotal = naturalRoll + m_rollNonDiceModifier.
     local m_rollNonDiceModifier = nil
 
+    -- True while a re-roll's dice are in the air. The dialog keeps its
+    -- "finishedRolling" class through a re-roll, so BroadcastDialogState
+    -- uses this to report rollState "rolling" to remote viewers, letting
+    -- them re-subscribe to the new dice and replay the animation.
+    local m_rerolling = false
+
     local GetCurrentMultiTarget = function()
         if m_multitargets == nil or targetCreature == nil then
             return nil
@@ -1025,7 +1031,9 @@ function GameHud.CreateEmbeddedRollDialog()
         end
 
         local rollState = "preparing"
-        if resultPanel:HasClass("finishedRolling") then
+        if m_rerolling then
+            rollState = "rolling"
+        elseif resultPanel:HasClass("finishedRolling") then
             rollState = "finished"
         elseif resultPanel:HasClass("rolling") then
             rollState = "rolling"
@@ -1135,7 +1143,16 @@ function GameHud.CreateEmbeddedRollDialog()
         -- a simple integer rather than needing to replicate DiceResultToTier.
         local highlightedTier = nil
         if m_rollInfo ~= nil and (rollState == "finished" or rollState == "rolling") then
-            local total = m_rollInfo.total or 0
+            -- On re-rolls m_rollInfo.total is stale; recompute from the fresh
+            -- naturalRoll plus the stored non-dice modifier (same correction as
+            -- the pending handler and UpdateCurrentTargetArrowLabel).
+            local natRoll = m_rollInfo.naturalRoll or 0
+            local total
+            if natRoll > 0 and m_rollNonDiceModifier ~= nil then
+                total = natRoll + m_rollNonDiceModifier
+            else
+                total = m_rollInfo.total or 0
+            end
             local boons = m_rollInfo.boons or 0
             local banes = m_rollInfo.banes or 0
 
@@ -3142,7 +3159,13 @@ function GameHud.CreateEmbeddedRollDialog()
                     properties = g_activeRollArgs.properties,
                     begin = function(rollInfo)
                         m_rollInfo = rollInfo
+                        m_rerolling = true
                         resultPanel:FireEventTree("beginRoll", rollInfo, guid)
+
+                        -- Tell remote viewers the dice are rolling again so
+                        -- they rebuild their read-only view in the rolling
+                        -- state and replay the animation.
+                        BroadcastDialogState()
                     end,
                 }
             end
@@ -4548,6 +4571,7 @@ function GameHud.CreateEmbeddedRollDialog()
 
                 m_symbols = options.symbols
                 m_rollNonDiceModifier = nil
+                m_rerolling = false
 
                 resultPanel.data.rollid = options.rollid or dmhub.GenerateGuid()
                 rollIsSilent = false
@@ -5053,6 +5077,7 @@ function GameHud.CreateEmbeddedRollDialog()
                     end,
                     pending = function(rollInfo)
                         m_rollInfo = rollInfo
+                        m_rerolling = false
 
                         -- On re-rolls the engine provides a fresh naturalRoll but a
                         -- stale total.  Compute the non-dice modifier once (first
@@ -5177,6 +5202,7 @@ function GameHud.CreateEmbeddedRollDialog()
                     complete = function(rollInfo)
                         print("ROLL:: COMPLETE")
                         m_rollInfo = rollInfo
+                        m_rerolling = false
                         m_rollTotalLabel.text = tostring(rollInfo.total or 0)
 
                         resultPanel:SetClassTree("rolling", false)

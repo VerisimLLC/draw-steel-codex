@@ -141,7 +141,11 @@ All in `Draw Steel UI/DSInitiativeRoll.lua`:
 ## How encounters on the map are discovered
 
 `Encounter.GetEncountersOnCurrentMap()` (in `MCDMEncounter.lua`) returns a list of the
-encounters authored into the current map's journals:
+encounters authored into the journals available on the current map. It searches two
+sources, deduplicated by document id:
+
+1. **Info bubbles on the current map** (searched first, so they win the
+   default-encounter inference in the combat setup dialog):
 
 ```
 dmhub.infoBubbles            -- info bubbles on the CURRENT map (engine-provided)
@@ -152,7 +156,17 @@ dmhub.infoBubbles            -- info bubbles on the CURRENT map (engine-provided
   -> annotation.encounter     -- the authored Encounter
 ```
 
-Each returned entry is `{ name, encounter, richEncounter, bubbleid, docid }`.
+2. **Game-wide journal documents**: every markdown document in the journal table
+   (`dmhub.GetTable(CustomDocument.tableName)`, via `unhidden_pairs`) whose folder
+   chain roots at an accessible root (`CustomDocument.GetAccessibleRoots()` +
+   `IsDocInAccessibleRoot`) — for the Director that is Shared Documents, Private
+   Documents, Templates, and the current map's folder. Documents filed under
+   *other* maps' folders are excluded. These documents are harvested with the same
+   `GetReferencedAnnotations` pipeline, sorted by document name for a stable
+   dropdown order.
+
+Each returned entry is `{ name, encounter, richEncounter, bubbleid, docid }`, where
+`bubbleid` is nil for encounters found in game-wide journal documents.
 
 Key subtlety: it uses `MarkdownDocument:GetReferencedAnnotations()` (in
 `DocumentSystem/MarkdownDocument.lua`), **not** the raw `document.annotations` table.

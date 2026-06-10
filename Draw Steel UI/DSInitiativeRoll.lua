@@ -1771,9 +1771,9 @@ local function ShowCombatSetupDialog(selectedTokens)
     local m_initiativeResult = "roll"
     local m_initiativeLocked = false
 
-    --Scour the current map's journal info bubbles for authored encounters and build
-    --the encounter dropdown options: a "Custom" choice plus one entry per encounter
-    --found.
+    --Scour the current map's journal info bubbles plus game-wide journal documents
+    --for authored encounters and build the encounter dropdown options: a "Custom"
+    --choice plus one entry per encounter found.
     local m_encountersOnMap = Encounter.GetEncountersOnCurrentMap()
     local m_encounterOptions = { { id = "custom", text = "Custom" } }
     for i, info in ipairs(m_encountersOnMap) do

@@ -721,6 +721,8 @@ function CustomDocument:CreateInterface(args)
                     end
                 else
                     resultPanel.data.original = DeepCopy(self)
+                    resultPanel.data.pendingOriginal = nil
+                    resultPanel.data.pendingUpload = nil
                 end
                 writePanel:SetClass("collapsed", not writePanel:HasClass("collapsed"))
                 readPanel:SetClass("collapsed", not readPanel:HasClass("collapsed"))
@@ -731,7 +733,10 @@ function CustomDocument:CreateInterface(args)
             end,
 
             think = function(element)
-                writePanel:FireEventTree("checkChanges", resultPanel.data.original)
+                --compare against the most recent save the user has asked for
+                --(confirmed or still pending) so the unsaved-changes indicator
+                --clears as soon as they hit save, not when the server confirms.
+                writePanel:FireEventTree("checkChanges", resultPanel.data.pendingOriginal or resultPanel.data.original)
             end,
 
             hover = function(element)
@@ -1098,7 +1103,15 @@ function CustomDocument:CreateInterface(args)
             if writePanel ~= nil and not writePanel:HasClass("collapsed") then
 
                 if resultPanel.data.pendingUpload ~= nil and doc.updateid == resultPanel.data.pendingUpload then
-                    --we got a confirmation of our save going through.
+                    --we got a confirmation of our save going through. Only now
+                    --do we promote the saved snapshot to the delta baseline:
+                    --refreshGame fires off the server echo of our patch, so
+                    --reaching here means the write really landed server-side.
+                    if resultPanel.data.pendingOriginal ~= nil then
+                        resultPanel.data.original = resultPanel.data.pendingOriginal
+                        resultPanel.data.pendingOriginal = nil
+                    end
+                    resultPanel.data.pendingUpload = nil
                     resultPanel.data.saveConfirmed = true
                     element:FireEventTree("saveConfirmed")
                 end
@@ -1116,8 +1129,16 @@ function CustomDocument:CreateInterface(args)
                 --our original is different, or we are the same object upload.
 
                 resultPanel.data.pendingUpload = self:Upload(resultPanel.data.original)
-                resultPanel.data.original = DeepCopy(self)
-                writePanel:FireEventTree("checkChanges", resultPanel.data.original)
+
+                --do NOT advance data.original here: it is the baseline the
+                --next save's delta is computed from, and it must only move
+                --forward once the server confirms this save landed (see
+                --refreshGame above). If this upload is lost in transit, the
+                --next save's delta still includes everything from this one.
+                --The pending snapshot drives the unsaved-changes indicator
+                --in the meantime.
+                resultPanel.data.pendingOriginal = DeepCopy(self)
+                writePanel:FireEventTree("checkChanges", resultPanel.data.pendingOriginal)
             end
         end,
 

@@ -10,10 +10,10 @@
 --- @field coverDocumentId string 
 --- @field coverart any 
 --- @field owned boolean 
---- @field premium boolean
---- @field published boolean
---- @field deleted boolean
---- @field dmhubCanUse boolean
+--- @field premium boolean 
+--- @field published boolean 
+--- @field deleted boolean 
+--- @field dmhubCanUse boolean 
 --- @field publishingProperties any 
 --- @field contentSummary any 
 --- @field isdisabled boolean 
@@ -49,6 +49,12 @@ function ModuleLua:Upload(options)
 	-- dummy implementation for documentation purposes only
 end
 
+--- Delete: Soft-deletes this module. Marks the module record deleted (so direct-id lookups and searches no longer find it), removes it from the public index and from the current user's published-module lists. Users who already installed the module keep access to the content they imported. Calls options.success on success or options.failure with an error message.
+--- @param options table Options table with 'success' (function) and 'failure' (function(string)) fields.
+function ModuleLua:Delete(options)
+	-- dummy implementation for documentation purposes only
+end
+
 --- ReserveAuthorID
 --- @param options any
 --- @return nil
@@ -81,13 +87,6 @@ end
 --- @param properties any
 --- @return nil
 function ModuleLua:UploadModulePublishProperties(properties)
-	-- dummy implementation for documentation purposes only
-end
-
---- Delete: Soft-deletes this module. Hides it from search and the public index and removes it from the user's published-module lists. Users who already installed it keep access to its content.
---- @param options any
---- @return nil
-function ModuleLua:Delete(options)
 	-- dummy implementation for documentation purposes only
 end
 

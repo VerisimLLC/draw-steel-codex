@@ -152,6 +152,46 @@ function DiceStudioLua:PlayRawEffect(eventName)
 	-- dummy implementation for documentation purposes only
 end
 
+--- GetSoundEventOptions: Gets the sorted list of all registered sound event names, for the Sounds section dropdowns.
+--- @return string[]
+function DiceStudioLua:GetSoundEventOptions()
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetEventSound: Gets the sound event name bound to the given dice lifecycle event, or an empty string if nothing is bound.
+--- @param eventName string  One of: throwstart, appearance, bouncehit, disappear, reappear, exit.
+--- @return string
+function DiceStudioLua:GetEventSound(eventName)
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetEventSound: Binds (or clears) a sound event to a dice lifecycle event. Pass nil or an empty string to clear.
+--- @param eventName string  One of: throwstart, appearance, bouncehit, disappear, reappear, exit.
+--- @param soundEventName string|nil
+function DiceStudioLua:SetEventSound(eventName, soundEventName)
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetEventSoundVolume: Gets the volume multiplier (1 = authored volume) for the event's bound sound, or 1 if nothing is bound.
+--- @param eventName string
+--- @return number
+function DiceStudioLua:GetEventSoundVolume(eventName)
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetEventSoundVolume: Sets the volume multiplier for the event's bound sound. No-op if nothing is bound to the event.
+--- @param eventName string
+--- @param volume number
+function DiceStudioLua:SetEventSoundVolume(eventName, volume)
+	-- dummy implementation for documentation purposes only
+end
+
+--- FirePreviewSound: Test-plays the sound bound to the given dice lifecycle event (at the bound volume). No-op if nothing is bound.
+--- @param eventName string  One of: throwstart, appearance, bouncehit, disappear, reappear, exit.
+function DiceStudioLua:FirePreviewSound(eventName)
+	-- dummy implementation for documentation purposes only
+end
+
 --- GetMaterialProperties: Gets the material properties for the given category: 'material', 'text', or 'builtin'.
 --- @param id string The material category.
 --- @return nil|DiceMaterialStudioProperties

@@ -1616,6 +1616,144 @@ CreateDiceStudioPanel = function()
 		end,
 	}
 
+	-- Sounds section. Per-dice-set sound bindings, one sound per lifecycle event. Simpler than
+	-- the Particles section: a fixed row per event with a sound dropdown (drawn from ALL
+	-- registered sound events, plus a "(None)" entry) and a volume multiplier. Unbound events
+	-- fall back to the engine's built-in behavior (Throw/Impact keep their defaults; the
+	-- spawn/teleport/settle events are silent unless bound). "ThrowStart" is a per-roll sound;
+	-- the rest fire per die. Labels are author-friendly (BounceHit -> "Impact", Exit -> "Settle").
+	local diceSoundEventList = {
+		{ event = "ThrowStart", label = "Throw:"      },
+		{ event = "Appearance", label = "Appearance:" },
+		{ event = "BounceHit",  label = "Impact:"     },
+		{ event = "Disappear",  label = "Disappear:"  },
+		{ event = "Reappear",   label = "Reappear:"   },
+		{ event = "Exit",       label = "Settle:"     },
+	}
+
+	-- "(None)" sentinel + one entry per registered sound event, sorted by the engine.
+	local function BuildSoundOptions()
+		local options = { { id = "none", text = "(None)" } }
+		for _,name in ipairs(studio:GetSoundEventOptions()) do
+			options[#options+1] = { id = name, text = name }
+		end
+		return options
+	end
+
+	local function MakeSoundRow(eventName, labelText)
+		local function CurrentId()
+			local bound = studio:GetEventSound(eventName)
+			if bound == nil or bound == "" then
+				return "none"
+			end
+			return bound
+		end
+
+		local volumeRow
+		volumeRow = gui.Panel{
+			classes = {"formPanel"},
+			create = function(element)
+				element:SetClass("collapsed", CurrentId() == "none")
+			end,
+			newmaterial = function(element)
+				element:SetClass("collapsed", CurrentId() == "none")
+			end,
+			refreshDice = function(element)
+				element:SetClass("collapsed", CurrentId() == "none")
+			end,
+			gui.Label{
+				classes = {"formLabel"},
+				halign = "left",
+				text = "Volume:",
+			},
+			gui.Slider{
+				style = { height = 26, width = 240, fontSize = 14 },
+				sliderWidth = 150,
+				labelWidth = 50,
+				minValue = 0,
+				maxValue = 2,
+				value = studio:GetEventSoundVolume(eventName),
+				newmaterial = function(element)
+					element.value = studio:GetEventSoundVolume(eventName)
+				end,
+				refreshDice = function(element)
+					element.value = studio:GetEventSoundVolume(eventName)
+				end,
+				change = function(element)
+					studio:SetEventSoundVolume(eventName, element.value)
+				end,
+			},
+		}
+
+		local dropdown
+		dropdown = gui.Dropdown{
+			width = 220,
+			height = 30,
+			fontSize = 14,
+			halign = "left",
+			hmargin = 4,
+			create = function(element)
+				element.options = BuildSoundOptions()
+				element.idChosen = CurrentId()
+			end,
+			newmaterial = function(element)
+				element.options = BuildSoundOptions()
+				element.idChosen = CurrentId()
+			end,
+			refreshDice = function(element)
+				element.idChosen = CurrentId()
+			end,
+			change = function(element)
+				local id = element.idChosen
+				studio:SetEventSound(eventName, id == "none" and "" or id)
+				volumeRow:SetClass("collapsed", id == "none")
+				RefreshDice()
+			end,
+		}
+
+		return gui.Panel{
+			width = "100%",
+			height = "auto",
+			flow = "vertical",
+			gui.Panel{
+				classes = {"formPanel"},
+				width = "100%",
+				height = "auto",
+				flow = "horizontal",
+				gui.Label{
+					classes = {"formLabel"},
+					halign = "left",
+					text = labelText,
+				},
+				dropdown,
+				gui.Button{
+					text = "Test",
+					width = 50,
+					height = 30,
+					fontSize = 12,
+					hmargin = 4,
+					click = function(element)
+						studio:FirePreviewSound(eventName)
+					end,
+				},
+			},
+			volumeRow,
+		}
+	end
+
+	local diceSoundRows = gui.Panel{
+		width = "100%",
+		height = "auto",
+		flow = "vertical",
+		create = function(element)
+			local rows = {}
+			for _,info in ipairs(diceSoundEventList) do
+				rows[#rows+1] = MakeSoundRow(info.event, info.label)
+			end
+			element.children = rows
+		end,
+	}
+
 	local resultPanel
 
 	resultPanel = gui.Panel{
@@ -2472,6 +2610,17 @@ CreateDiceStudioPanel = function()
 				flow = "vertical",
 				diceEventRows,
 				addDiceEventControl,
+			},
+		},
+
+		gui.TreeNode{
+			text = "Sounds",
+			width = "100%",
+			contentPanel = gui.Panel{
+				width = "100%",
+				height = "auto",
+				flow = "vertical",
+				diceSoundRows,
 			},
 		},
 

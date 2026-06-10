@@ -44,6 +44,44 @@ local anthemDuration = setting{
 	end
 }
 
+--Per-client anthem volume multipliers, keyed by token charid (0..1, missing = 1).
+--Lets each user locally turn down or mute a specific creature's anthem without
+--affecting what anyone else hears. Edited from the speaker icon on the center
+--initiative card.
+local anthemLocalVolumes = setting{
+    id = "anthemlocalvolumes",
+    description = "Per-token anthem volume multipliers",
+    storage = "preference",
+    default = {},
+}
+
+local GetLocalAnthemVolume = function(charid)
+    if charid == nil then
+        return 1
+    end
+    local t = anthemLocalVolumes:Get()
+    if type(t) ~= "table" or type(t[charid]) ~= "number" then
+        return 1
+    end
+    return t[charid]
+end
+
+local SetLocalAnthemVolume = function(charid, volume)
+    if charid == nil then
+        return
+    end
+    --copy-on-write so we never mutate the table the setting system handed out.
+    local result = {}
+    local t = anthemLocalVolumes:Get()
+    if type(t) == "table" then
+        for k,v in pairs(t) do
+            result[k] = v
+        end
+    end
+    result[charid] = volume
+    anthemLocalVolumes:Set(result)
+end
+
 local playersControlInitiativeSetting = setting{
 	id = "permission:playersinitiative",
 	description = "Players can control initiative",
@@ -2820,6 +2858,16 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 	local m_anthemEventInstance = nil
 	local m_anthemTokenId = nil
 
+	--Speaker icon shown in the top right of the center card while the active
+	--creature's anthem is playing. Created alongside the center container below.
+	local anthemIcon
+
+	local UpdateAnthemIcon = function()
+		if anthemIcon ~= nil and anthemIcon.valid then
+			anthemIcon:SetClass("hidden", m_anthemEventInstance == nil or not m_anthemEventInstance.playing)
+		end
+	end
+
 	local StopAnthem = function()
 		if m_anthemEventInstance ~= nil then
 			m_anthemEventInstance:Stop()
@@ -2828,6 +2876,7 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 
 			choicePanel.monitorGame = nil
 		end
+		UpdateAnthemIcon()
 	end
 
 	local entries = {}
@@ -3071,6 +3120,145 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 		text = "Drag Hero Here",
 	}
 
+	--Speaker icon in the top right of the center card, shown while the active
+	--creature's anthem is playing (see UpdateAnthemIcon above). Appended last
+	--to centerChildren in refresh so it draws above the card.
+	--The icon is a white speaker over a slightly larger black copy of the same
+	--image, which reads as an outline and keeps it visible over any card art.
+	anthemIcon = gui.Panel{
+		classes = {"initiativeAnthemIcon", "hidden"},
+		floating = true,
+		halign = "right",
+		valign = "top",
+		hmargin = 3,
+		vmargin = 3,
+		width = 20,
+		height = 20,
+		flow = "none",
+		bgimage = true,
+		bgcolor = "clear",
+		linger = function(element)
+			local text = "Playing anthem"
+			if m_anthemTokenId ~= nil then
+				local tok = dmhub.GetTokenById(m_anthemTokenId)
+				if tok ~= nil and tok.name ~= nil and tok.name ~= "" then
+					text = string.format("Playing %s's anthem", tok.name)
+				end
+			end
+			gui.Tooltip(text .. "\n(click to adjust volume for yourself)")(element)
+		end,
+
+		--Click to adjust this token's anthem volume, locally only. The slider
+		--edits a per-client multiplier (anthemLocalVolumes) on top of the
+		--anthemVolume the token's owner set, so each user can quiet a specific
+		--creature's anthem without affecting anyone else.
+		press = function(element)
+			if element.popup ~= nil then
+				element.popup = nil
+				return
+			end
+			local charid = m_anthemTokenId
+			if charid == nil then
+				return
+			end
+
+			local tok = dmhub.GetTokenById(charid)
+			local name = (tok ~= nil and tok.name ~= nil and tok.name ~= "") and tok.name or "Anthem"
+
+			element.popupPositioning = "panel"
+			element.popup = gui.TooltipFrame(
+				gui.Panel{
+					styles = {
+						Styles.Default,
+						--The default slider track uses a theme token that is
+						--nearly invisible on this dark popup; force a red
+						--track and a brighter red fill so it reads clearly.
+						{
+							selectors = {"sliderNotch"},
+							bgimage = true,
+							bgcolor = "#a01010",
+							width = "100%",
+							halign = "center",
+						},
+						{
+							selectors = {"sliderFill"},
+							bgimage = true,
+							bgcolor = "#ff4040",
+							height = 4,
+						},
+					},
+					pad = 8,
+					width = "auto",
+					height = "auto",
+					flow = "vertical",
+					halign = "center",
+					valign = "top",
+
+					gui.Label{
+						text = string.format("%s's Anthem Volume (just for you)", name),
+						fontSize = 14,
+						width = "auto",
+						height = "auto",
+						halign = "center",
+						color = Styles.textColor,
+					},
+
+					gui.Slider{
+						width = 180,
+						height = 20,
+						vmargin = 6,
+						halign = "center",
+						sliderWidth = 140,
+						notchHeight = 4,
+						labelFormat = "percent",
+						minValue = 0,
+						maxValue = 1,
+						value = GetLocalAnthemVolume(charid),
+
+						--live preview while dragging.
+						change = function(slider)
+							if m_anthemEventInstance ~= nil and m_anthemTokenId == charid then
+								local t = dmhub.GetTokenById(charid)
+								local base = (t ~= nil and t.anthemVolume) or 1
+								m_anthemEventInstance.volume = base * slider.value
+							end
+						end,
+
+						confirm = function(slider)
+							SetLocalAnthemVolume(charid, slider.value)
+							if m_anthemEventInstance ~= nil and m_anthemTokenId == charid then
+								local t = dmhub.GetTokenById(charid)
+								local base = (t ~= nil and t.anthemVolume) or 1
+								m_anthemEventInstance.volume = base * slider.value
+							end
+						end,
+					},
+				},
+				{
+					halign = "center",
+					valign = "top",
+				}
+			)
+		end,
+
+		gui.Panel{
+			bgimage = "ui-icons/AudioVolumeButton.png",
+			bgcolor = "black",
+			halign = "center",
+			valign = "center",
+			width = 20,
+			height = 20,
+		},
+		gui.Panel{
+			bgimage = "ui-icons/AudioVolumeButton.png",
+			bgcolor = "white",
+			halign = "center",
+			valign = "center",
+			width = 16,
+			height = 16,
+		},
+	}
+
 	local centerContainer = gui.Panel{
 		halign = "center",
 		valign = "center",
@@ -3115,6 +3303,7 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 		},
 
 		centerPromptLabel,
+		anthemIcon,
 	}
 
     local drawSteelBubble = CreateDrawSteelBubble()
@@ -3467,6 +3656,10 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 			for _,e in ipairs(playerList) do processEntry(e.k, e.v, true) end
 			for _,e in ipairs(monsterList) do processEntry(e.k, e.v, false) end
 
+			--The anthem speaker icon goes last so it renders above the centered card.
+			--It must be included in every reassignment or it gets disposed.
+			centerChildren[#centerChildren+1] = anthemIcon
+
 			--Assign the destination container first to reduce the chance the wrapper
 			--gets destroyed in transit when it moves between containers.
 			centerContainer.children = centerChildren
@@ -3655,7 +3848,7 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
                         local asset = assets.audioTable[anthemToken.anthem]
                         if asset ~= nil then
                             m_anthemEventInstance = asset:Play()
-                            m_anthemEventInstance.volume = anthemToken.anthemVolume
+                            m_anthemEventInstance.volume = anthemToken.anthemVolume * GetLocalAnthemVolume(anthemToken.charid)
                             if anthemLimited:Get() then
                                 m_anthemEventInstance:SetStopAfter(anthemDuration:Get())
                             end
@@ -3670,6 +3863,8 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
             --only recalculate anthems once per change of turn.
             element.data.anthemInitiativeId = currentInitiativeId
 
+            UpdateAnthemIcon()
+
 		end,
 
 
@@ -3683,6 +3878,10 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 		--is owned by refresh.
 		thinkTime = 0.3,
 		think = function(element)
+			--Keep the anthem speaker icon in sync with actual playback, so it
+			--hides when a time-limited anthem finishes without a turn change.
+			UpdateAnthemIcon()
+
 			local q = info.initiativeQueue
 			if q == nil or q.hidden then return end
 			local live = q:try_get("liveEncounter")
@@ -3696,7 +3895,7 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 			if m_anthemEventInstance ~= nil and m_anthemTokenId ~= nil then
 				local tok = dmhub.GetTokenById(m_anthemTokenId)
 				if tok ~= nil then
-					m_anthemEventInstance.volume = tok.anthemVolume
+					m_anthemEventInstance.volume = tok.anthemVolume * GetLocalAnthemVolume(m_anthemTokenId)
 				else
 					StopAnthem()
 				end

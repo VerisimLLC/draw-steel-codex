@@ -573,13 +573,14 @@ local function _editorStyles()
             valign = "center",
         },
         -- "More options" CollapseArrow row (Targeting section foldout).
-        -- Text + chevron together, centered in column.
+        -- Text + chevron together, left-aligned to sit flush with the
+        -- other section headers / field rows in the column.
         {
             selectors = {"nae-more-options-row"},
             width = "auto",
             height = "auto",
             flow = "horizontal",
-            halign = "center",
+            halign = "left",
             valign = "center",
             tmargin = 12,
             bmargin = 4,
@@ -3234,6 +3235,29 @@ local function _buildTargetingSection(ability, fireChange)
                 ability:SetChosenTargetTypeFromDropdown(element.idChosen)
                 fireChange()
             end,
+            refreshAbility = function(element)
+                -- For triggered abilities the valid target types depend on the
+                -- trigger event / subject, so recompute the options whenever the
+                -- ability changes. Only reassign when the set actually changed --
+                -- for non-triggered abilities the list is static, so this is a
+                -- no-op and avoids churn on every edit. idChosen is refreshed
+                -- unconditionally; assigning it does not re-fire 'change'.
+                local options = ability:GetDisplayedTargetTypeOptions()
+                local current = element.options
+                local changed = current == nil or #current ~= #options
+                if not changed then
+                    for i,opt in ipairs(options) do
+                        if current[i].id ~= opt.id then
+                            changed = true
+                            break
+                        end
+                    end
+                end
+                if changed then
+                    element.options = options
+                end
+                element.idChosen = ability:GetChosenTargetTypeInDropdown()
+            end,
         }
     )
 
@@ -3678,9 +3702,16 @@ local function _buildTargetingSection(ability, fireChange)
     --------------------------------------------------------------------------
     -- "More options" CollapseArrow
     --------------------------------------------------------------------------
+    -- Default-expanded when the ability already has ability/reasoned filters
+    -- so authors can see active filter state without hunting for it. Plain
+    -- collapsed default otherwise.
+    local hasFilters =
+        #ability:try_get("abilityFilters", {}) > 0 or
+        #ability:try_get("reasonedFilters", {}) > 0
+
     local moreOptionsContent
     moreOptionsContent = gui.Panel{
-        classes = {"nae-field-subgroup", "collapsed-anim"},
+        classes = {"nae-field-subgroup", cond(hasFilters, nil, "collapsed-anim")},
         flow = "vertical",
         width = "100%",
         height = "auto",
@@ -3709,7 +3740,7 @@ local function _buildTargetingSection(ability, fireChange)
 
     local moreOptionsChevron
     moreOptionsChevron = gui.Panel{
-        classes = {"nae-more-options-chevron", "nae-collapsed"},
+        classes = {"nae-more-options-chevron", cond(hasFilters, nil, "nae-collapsed")},
     }
     children[#children + 1] = gui.Panel{
         classes = {"nae-more-options-row"},

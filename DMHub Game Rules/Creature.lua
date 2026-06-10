@@ -347,8 +347,15 @@ end
 --- The creature's movement type.
 --- @return string
 function creature:CurrentMoveType()
+    --The ground move type (walk vs swim) is derived from the token's position, so the cache must
+    --expire whenever the token could have moved. Invalidate() clears it, but that path is gated to
+    --once per dmhub.ngameupdate (see RefreshToken) and is skipped when another refresh already ran
+    --this tick -- which left the swim/walk icon stale by one move when entering/leaving water. Stamp
+    --the cache with dmhub.ngameupdate and recompute whenever the stamp is out of date: ngameupdate
+    --only advances on a game-state change (every move is one) and never while idle, so this recomputes
+    --exactly when the position could have changed and is otherwise free.
     local groundMoveType = rawget(self, "_tmp_groundMoveType")
-    if groundMoveType == nil then
+    if groundMoveType == nil or rawget(self, "_tmp_groundMoveTypeUpdate") ~= dmhub.ngameupdate then
         local token = dmhub.LookupToken(self)
         groundMoveType = "walk"
         if token ~= nil then
@@ -356,6 +363,7 @@ function creature:CurrentMoveType()
             local preferWater = false -- self:GetSpeed("swim") >= self:GetSpeed("walk")
             groundMoveType = token:GetGroundMoveType(preferWater)
             self._tmp_groundMoveType = groundMoveType
+            self._tmp_groundMoveTypeUpdate = dmhub.ngameupdate
         end
     end
 
@@ -511,9 +519,21 @@ end
 
 
 --- Calculates the movement cost to climb a height difference.
+--- Positive heightDifference is an ascent (with one tile of free climb at the
+--- base, matching normal walking onto a step). Negative heightDifference is a
+--- descent (climbing down): every tile down costs movement, with no free tile.
 --- @param heightDifference number
 --- @return number
 function creature:CostToClimb(heightDifference)
+    if heightDifference < 0 then
+        local descent = -heightDifference
+        if self:CanClimb() then
+            return descent
+        else
+            return descent*2
+        end
+    end
+
     heightDifference = heightDifference - 1
     if heightDifference <= 0 then
         return 0
@@ -5220,6 +5240,45 @@ function creature:FillTemporalActiveModifiers(result)
         end
     end
 
+    --any creature that considers this one its summoner (via token.summonerid)
+    --can contribute modsummoner-style modifiers back onto us. Symmetric to the
+    --mount/rider hook above but in the summon->summoner direction. The recursion
+    --guard inside creature:GetActiveModifiers (_tmp_calculatingActiveModifiers)
+    --breaks the cycle when summoner and summon ask each other for modifiers
+    --mid-calculation (e.g., beastheart <-> companion via modcompanion/modsummoner).
+    if tok ~= nil and tok.valid and tok.charid ~= nil and CharacterModifier.FillSummonerModifiers ~= nil then
+        local myCharId = tok.charid
+        for _,summonTok in ipairs(dmhub.GetTokens()) do
+            if summonTok.valid and summonTok.summonerid == myCharId and summonTok.properties ~= nil then
+                local summonCreature = summonTok.properties
+                for _,summonMod in ipairs(summonCreature:GetActiveModifiers()) do
+                    summonMod.mod:FillSummonerModifiers(summonMod, summonCreature, self, result)
+                end
+            end
+        end
+    end
+
+    --the summoner->summon direction. If this creature is itself a summon (its
+    --token.summonerid points at another creature), pull any modsummoner
+    --modifiers whose mode == "summons" from that summoner and apply their
+    --nested modifiers DOWN onto us. Mirror of the summon->summoner scan above.
+    --Re-evaluated every FillTemporalActiveModifiers, so minions summoned after
+    --the modifier was applied pick it up on their next refresh. The recursion
+    --guard inside creature:GetActiveModifiers (_tmp_calculatingActiveModifiers)
+    --breaks the cycle when summoner and summon ask each other for modifiers.
+    if tok ~= nil and tok.valid and tok.summonerid ~= nil and CharacterModifier.FillSummonsModifiers ~= nil then
+        --summonerid is a CHARACTER id (matched against token.charid in the scan
+        --above), so resolve it via GetCharacterById, which returns a token-like
+        --object exposing .properties (see the "summoner" GoblinScript symbol).
+        local summonerToken = dmhub.GetCharacterById(tok.summonerid)
+        if summonerToken ~= nil and summonerToken.properties ~= nil then
+            local summonerCreature = summonerToken.properties
+            for _,summonerMod in ipairs(summonerCreature:GetActiveModifiers()) do
+                summonerMod.mod:FillSummonsModifiers(summonerMod, summonerCreature, self, result)
+            end
+        end
+    end
+
 	local temporaryEffects = self:try_get("_tmp_temporaryEffects", {})
 	for i,effect in ipairs(temporaryEffects) do
 		for i,mod in ipairs(effect.modifiers) do
@@ -6513,6 +6572,8 @@ function creature:ApplyOngoingEffect(ongoingEffectid, duration, casterInfo, opti
 		self:SetTemporaryHitpoints(options.temporary_hitpoints, string.format("Applied %s", ongoingEffect.name), {
 			ongoingeffectid = ongoingEffectid,
 			tempHitpointsEndEffect = options.tempHitpointsEndEffect,
+			--credit the effect's caster as the temp-stamina source (damagePrevention).
+			source = casterInfo ~= nil and casterInfo.tokenid or nil,
 		})
 
 		self:DispatchEvent("gaintempstamina", {})
@@ -8689,15 +8750,15 @@ end
 --abilities pick up the same modifications as activated ones. Returns the
 --(possibly cloned) ability, or nil if a modifier rejected it.
 --
---context: optional. "triggered" filters out modifyability mods that have
---applyToTriggeredAbilities = false (defaults true for back-compat).
+--context: optional. "triggered" filters out modifyability mods that do not
+--have applyToTriggeredAbilities set (defaults false; must be opted in).
 function creature:ApplyAbilityModifiers(ability, modifiers, context)
 	modifiers = modifiers or self:GetActiveModifiers()
 	for _,mod in ipairs(modifiers) do
 		local skip = false
 		if context == "triggered"
 			and mod.mod.behavior == "modifyability"
-			and not mod.mod:try_get("applyToTriggeredAbilities", true) then
+			and not mod.mod:try_get("applyToTriggeredAbilities", false) then
 			skip = true
 		end
 

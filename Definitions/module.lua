@@ -160,3 +160,17 @@ end
 function module.ReinstallMap(mapid, callback)
 	-- dummy implementation for documentation purposes only
 end
+
+--- IsCharacterAvailableInModule: Whether a character with the given ID is available for reinstallation from any module snapshot.
+--- @param charid string
+--- @return boolean
+function module.IsCharacterAvailableInModule(charid)
+	-- dummy implementation for documentation purposes only
+end
+
+--- ReinstallCharacter: Reinstalls a character from its module snapshot, resetting it to its state in the module. Invokes the callback with a boolean indicating success or failure.
+--- @param charid string The ID of the character to reinstall.
+--- @param callback function Callback invoked with a boolean indicating success.
+function module.ReinstallCharacter(charid, callback)
+	-- dummy implementation for documentation purposes only
+end

@@ -312,20 +312,27 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
             width = "100%",
             height = "auto",
             flow = "vertical",
-            bgcolor = Styles.RichBlack02,
+            classes = {"bg"},
             bgimage = true,
-            styles = {
+            styles = ThemeEngine.MergeStyles{
                 {
                     selectors = {"row"},
-                    bgcolor = Styles.RichBlack02,
+                    bgcolor = "@bg",
                 },
                 {
                     selectors = {"row", "highlight"},
-                    bgcolor = Styles.textColor,
+                    bgcolor = "@accent",
                 },
                 {
                     selectors = {"label", "highlight"},
-                    color = "black",
+                    color = "@fgInverse",
+                },
+                {
+                    --Hovered rows fill with the light @accentHover gold, so the
+                    --tier text must flip to the dark inverse color to stay legible
+                    --(mirrors the {label, highlight} rule above for the accent fill).
+                    selectors = {"label", "hover"},
+                    color = "@fgInverse",
                 },
                 {
                     selectors = {"row", "flash"},
@@ -334,7 +341,7 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
                 },
                 {
                     selectors = {"row", "selectable", "hover"},
-                    bgcolor = "#ff7777",
+                    bgcolor = "@accentHover",
                     brightness = 2,
                     transitionTime = 0.1,
                 }
@@ -1459,6 +1466,29 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
         return
     end
 
+    --Record the tier this hero rolled (tier1/tier2/tier3) for the live encounter
+    --stats, along with the edges and banes that were applied to the roll
+    --(m_result.boons/banes -- the engine's names for edges/banes, captured from
+    --the roll dialog in completeRoll). This runs once per resolved power roll on
+    --the authoritative casting client; TrackHeroStats self-guards, so
+    --monster/non-hero casters are dropped. Use the same effective tier the rest
+    --of Cast applies (manual amend / test overrideTier wins over the natural
+    --dice tier).
+    local rolledTier = rollProperties:try_get("overrideTier") or DiceResultToTier(m_result)
+    if rolledTier == 1 or rolledTier == 2 or rolledTier == 3 then
+        LiveEncounter.TrackHeroStats(casterToken.charid, string.format("tierRolls/tier%d", rolledTier))
+
+        local edges = m_result.boons or 0
+        if edges > 0 then
+            LiveEncounter.TrackHeroStats(casterToken.charid, "edges", edges)
+        end
+
+        local banes = m_result.banes or 0
+        if banes > 0 then
+            LiveEncounter.TrackHeroStats(casterToken.charid, "banes", banes)
+        end
+    end
+
     --Allow modifiers to modify the casting of the power roll.
     --Limited to cost changes
     for _, mod in ipairs(modifiersApplied or {}) do
@@ -1750,6 +1780,50 @@ end
 function ActivatedAbilityPowerRollBehavior:GetPowerRollDisplay()
     local roll = self.roll
     return string.gsub(roll, "2d10", "<b>Power Roll</b>")
+end
+
+--Resolves the value of the characteristic this power roll uses for `caster`,
+--e.g. 5 for a hero whose roll is "2d10 + Reason" with Reason +5, or the higher
+--of the two for "2d10 + Might or Agility". Returns nil when the roll formula
+--names no characteristic (e.g. a flat "2d10 + 3" monster roll) so callers can
+--leave the GoblinScript symbol absent.
+--- @param caster creature
+--- @return number|nil
+function ActivatedAbilityPowerRollBehavior:GetRollCharacteristicValue(caster)
+    local rollFormula = self:try_get("roll", "")
+    if rollFormula == "" then
+        return nil
+    end
+
+    --Replace the dice term with 0 so evaluating the formula yields just the
+    --bonus. GoblinScript resolves "Might or Agility" to the higher of the two
+    --and "Highest Characteristic" to the highest. If no letters remain after
+    --removing the dice, the bonus is a flat number (no characteristic).
+    local bonusFormula = regex.ReplaceAll(rollFormula, "\\d*d\\d+", "0")
+    if regex.MatchGroups(bonusFormula, "(?<c>[a-zA-Z])") == nil then
+        return nil
+    end
+
+    local value = tonumber(dmhub.EvalGoblinScript(bonusFormula, caster:LookupSymbol(), "Roll Characteristic Value"))
+    if value == nil then
+        return nil
+    end
+
+    return round(value)
+end
+
+--Convenience wrapper: returns the characteristic value used by this ability's
+--power roll, or nil. Skips resistance rolls (they roll the target's defending
+--characteristic, not the caster's attacking one).
+--- @param caster creature
+--- @return number|nil
+function ActivatedAbility:GetRollCharacteristicValue(caster)
+    for _,behavior in ipairs(self.behaviors) do
+        if behavior.typeName == "ActivatedAbilityPowerRollBehavior" and not behavior:try_get("resistanceRoll", false) then
+            return behavior:GetRollCharacteristicValue(caster)
+        end
+    end
+    return nil
 end
 
 function ActivatedAbility:GetPowerRollDisplay()
@@ -2267,7 +2341,10 @@ function RollPropertiesPowerTable:GetOutcome(rollInfo)
     local tier = DiceResultToTier(rollInfo)
     return {
         outcome = string.format("Tier %d", tier),
-        color = "white",
+        --This is a data color consumed inline by roll-result labels (not a
+        --cascade rule), so resolve the @fg token to the active scheme's hex
+        --at call time rather than shipping a literal token string.
+        color = ThemeEngine.ResolveTokens("@fg"),
     }
 end
 
@@ -2791,12 +2868,9 @@ function RollPropertiesPowerTable:CustomPanel(message)
                         end
 
                         local panel = m_modifiersPanelCache[key] or gui.Panel{
-                            classes = {"modifierPanel"},
+                            classes = {"modifierPanel", "bordered"},
                             width = 60,
                             height = 40,
-                            bgimage = true,
-                            borderColor = "white",
-                            borderWidth = 1,
                             cornerRadius = 4,
                             hmargin = 2,
                             halign = "left",

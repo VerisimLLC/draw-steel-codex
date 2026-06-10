@@ -86,12 +86,9 @@ mod.shared.CreateEffectsLayerTexture = function()
 							end,
 						}
 					},
-					gui.IconButton{
+					gui.Button{
+						classes = {"sizeL"},
 						icon = 'game-icons/clockwise-rotation.png',
-						style = {
-							width = 24,
-							height = 24,
-						},
 						events = {
 							click = function(element)
 								seed = math.random(1000)
@@ -558,13 +555,11 @@ mod.shared.CreateEffectsLayerTexture = function()
 
 		children = {
 
-			gui.PrettyButton{
+			gui.Button{
 				text = 'Create Brush',
-				classes = {'hidden'},
+				classes = {"sizeXl", 'hidden'},
 				style = {
 					margin = 0,
-					width = 200,
-					height = 60,
 					halign = 'center',
 					valign = 'center',
 				},
@@ -587,12 +582,11 @@ mod.shared.CreateEffectsLayerTexture = function()
 				}
 			},
 
-			gui.PrettyButton{
+			gui.Button{
 				text = 'Close',
+				classes = {"sizeXl"},
 				style = {
 					margin = 0,
-					width = 200,
-					height = 60,
 					halign = 'center',
 					valign = 'center',
 				},

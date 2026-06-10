@@ -354,18 +354,26 @@ function Kit.CombineKits(creature, a, b)
 
 	local abilities = {}
 
+	local function subtractKitBonuses(kit, ability)
+        ability = ability:BifurcateIntoMeleeAndRanged(creature)
+        if ability.meleeAndRanged then
+            ApplyBonusesFromKit(kit, ability.meleeVariation, nil, function(a,b) return a - b end)
+            ApplyBonusesFromKit(kit, ability.rangedVariation, nil, function(a,b) return a - b end)
+        else
+            ApplyBonusesFromKit(kit, ability, nil, function(a,b) return a - b end)
+        end
+        return ability
+    end
+
 	for _,abilityRef in ipairs(a:SignatureAbilities()) do
         local ability = abilityRef:MakeTemporaryClone()
-		--Signature abilities that are melee or ranged are bifurcated so correct bonuses are applied to each variation.
-        ability = ability:BifurcateIntoMeleeAndRanged(creature)
-        ApplyBonusesFromKit(a, ability, nil, function(a,b) return a - b end)
+        ability = subtractKitBonuses(a, ability)
 		abilities[#abilities+1] = ability
 	end
 
 	for _,abilityRef in ipairs(b:SignatureAbilities()) do
         local ability = abilityRef:MakeTemporaryClone()
-        ability = ability:BifurcateIntoMeleeAndRanged(creature)
-        ApplyBonusesFromKit(b, ability, nil, function(a,b) return a - b end)
+        ability = subtractKitBonuses(b, ability)
 		abilities[#abilities+1] = ability
 	end
 
@@ -375,7 +383,7 @@ function Kit.CombineKits(creature, a, b)
     elseif b:has_key("modifierInfo") then
         modifierInfo = ClassLevel:CreateNew()
         modifierInfo:MergeFeatures(a.modifierInfo)
-        modifierInfo:MergeFeatures(a.modifierInfo)
+        modifierInfo:MergeFeatures(b.modifierInfo)
     end
 
 	local result = Kit.new{

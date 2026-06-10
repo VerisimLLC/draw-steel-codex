@@ -44,6 +44,44 @@ local anthemDuration = setting{
 	end
 }
 
+--Per-client anthem volume multipliers, keyed by token charid (0..1, missing = 1).
+--Lets each user locally turn down or mute a specific creature's anthem without
+--affecting what anyone else hears. Edited from the speaker icon on the center
+--initiative card.
+local anthemLocalVolumes = setting{
+    id = "anthemlocalvolumes",
+    description = "Per-token anthem volume multipliers",
+    storage = "preference",
+    default = {},
+}
+
+local GetLocalAnthemVolume = function(charid)
+    if charid == nil then
+        return 1
+    end
+    local t = anthemLocalVolumes:Get()
+    if type(t) ~= "table" or type(t[charid]) ~= "number" then
+        return 1
+    end
+    return t[charid]
+end
+
+local SetLocalAnthemVolume = function(charid, volume)
+    if charid == nil then
+        return
+    end
+    --copy-on-write so we never mutate the table the setting system handed out.
+    local result = {}
+    local t = anthemLocalVolumes:Get()
+    if type(t) == "table" then
+        for k,v in pairs(t) do
+            result[k] = v
+        end
+    end
+    result[charid] = volume
+    anthemLocalVolumes:Set(result)
+end
+
 local playersControlInitiativeSetting = setting{
 	id = "permission:playersinitiative",
 	description = "Players can control initiative",
@@ -167,10 +205,12 @@ local function CreateDrawSteelBubble()
 
         bgimage = true,
         bgcolor = "clear",
+        uiscale = 0.8,
         width = 120,
         height = 120,
         halign = "center",
 		valign = "top",
+        y = 50,
 
 
 
@@ -218,11 +258,11 @@ local function CreateDrawSteelBubble()
 			},
             {
                 selectors = {"text", "clickable"},
-                fontSize = 32,
+                fontSize = 22,
             },
             {
                 selectors = {"text", "clickable", "parent:hover"},
-                fontSize = 36,
+                fontSize = 24,
                 transitionTime = 0,
                 soundEvent = "Mouse.Hover",
             },
@@ -414,6 +454,21 @@ local function CreateDrawSteelBubble()
 			}
 
 
+			--(debug) DM/dev-only link to where this encounter's stats live on the
+			--server, mirroring the token right-click "Open Token Data". Only shown
+			--when a live encounter is present, under the same dev/admin gate. Appended
+			--at the end of the menu so it sits below the normal initiative controls.
+			local liveEncounter = dmhub.initiativeQueue:try_get("liveEncounter")
+			if type(liveEncounter) == "table" and (dmhub.GetSettingValue("dev") or dmhub.isAdminAccount) then
+				closeMenu[#closeMenu+1] = {
+					text = "Open Encounter Stats",
+					click = function()
+						self.popup = nil
+						dmhub.OpenDebugConsole(string.format("/initiativeQueues/%s/liveEncounter/stats", game.currentMapId), "game")
+					end,
+				}
+			end
+
 			self.popup = gui.ContextMenu{entries = closeMenu}
 
 
@@ -476,7 +531,6 @@ local function CreateDrawSteelBubble()
             fontFace = "Book",
             text = "Hero\n<size=90%>Turn</size>",
             textAlignment = "center",
-            fontSize = 26,
             brightness = 2,
             width = "auto",
             height = "auto",
@@ -485,10 +539,12 @@ local function CreateDrawSteelBubble()
             bgcolor = "white",
             --width = 69,
             --height = 39,
+            vmargin = 10,
             halign = "center",
 			valign = "center",
+            y = 26,
 
-			classes = "text",
+			classes = {"text", "clickable", "selected"},
 
             claiming = function(element, val)
                 element:SetClass("hidden", val)
@@ -523,9 +579,8 @@ local function CreateDrawSteelBubble()
 		gui.Label{
 
             fontFace = "Book",
-            text = "Claim\n<size=90%>Turn</size>",
+            text = "Claim\n<size=80%>Turn</size>",
             textAlignment = "center",
-            fontSize = 26,
             width = "auto",
             height = "auto",
             minWidth = 120,
@@ -533,10 +588,11 @@ local function CreateDrawSteelBubble()
             bgcolor = "white",
             --width = 69,
             --height = 39,
+            y = 26,
             halign = "center",
 			valign = "center",
 
-			classes = "text",
+			classes = {"text", "clickable", "selected"},
 
             claiming = function(element, prompt)
                 element:SetClass("hidden", not prompt)
@@ -752,14 +808,15 @@ local function CreateDrawSteelBubble()
             fontFace = "Book",
             text = "Enemy\n<size=90%>Turn</size>",
             textAlignment = "center",
-            fontSize = 26,
             bgcolor = "white",
             width = "auto",
             height = "auto",
             halign = "center",
 			valign = "center",
+            y = 26,
 
-			classes = {"text", "selected"},
+
+			classes = {"text", "clickable", "selected"},
 
             claiming = function(element, val)
                 element:SetClass("hidden", val)
@@ -803,7 +860,8 @@ local function CreateDrawSteelBubble()
             width = "auto",
             height = "auto",
             halign = "center",
-			valign = "center",
+			valign = "bottom",
+            vmargin = 10,
             textWrap = false,
             interactable = false,
 
@@ -982,6 +1040,1251 @@ local function AddInitiativeEntryPanel (element, info, playerControlled)
 	)
 end
 
+-- =====================================================================
+-- Villain Action strip
+-- A director-only panel that floats in the monster-side band of the
+-- initiative bar when the active encounter contains a Leader or Solo
+-- (or any monster) with abilities whose `villainAction` field is set.
+-- Three drawer buttons, one per VA slot (I / II / III), each showing
+-- the ability name. Drawers grey out when consumed this encounter and
+-- the whole strip is gated by the per-round VA budget. Available drawers
+-- pulse between turns to nudge the director; clicking one pans the camera
+-- to the owner, plays a Dramatic Banner, then casts the ability off-turn.
+-- When more than one VA owner is present the portrait acts as a selector
+-- to cycle between them.
+-- =====================================================================
+
+-- Return { ["Villain Action 1"] = ability, ... } for a token, or nil.
+local function GetVillainActionAbilities(token)
+    if token == nil or token.properties == nil then return nil end
+    local abilities = token.properties:GetActivatedAbilities()
+    if abilities == nil then return nil end
+    local result
+    for _, ab in ipairs(abilities) do
+        local key = ab:try_get("villainAction")
+        if key ~= nil and key ~= "" then
+            result = result or {}
+            result[key] = ab
+        end
+    end
+    return result
+end
+
+-- Returns all tokens in the active encounter that own villainAction
+-- abilities. Deduped by charid and sorted by name for stable display.
+local function FindAllVillainActionOwnersInEncounter()
+    local q = dmhub.initiativeQueue
+    if q == nil or q.hidden then return {} end
+    if GameHud.instance == nil or GameHud.instance.initiativeInterface == nil then return {} end
+    local result = {}
+    local seen = {}
+    for initiativeid, _ in pairs(q.entries) do
+        local tokens = GameHud.instance:GetTokensForInitiativeId(GameHud.instance.initiativeInterface, initiativeid)
+        for _, tok in ipairs(tokens or {}) do
+            if tok.valid and not seen[tok.charid] and GetVillainActionAbilities(tok) ~= nil then
+                seen[tok.charid] = true
+                result[#result+1] = tok
+            end
+        end
+    end
+    table.sort(result, function(a, b) return (a.name or "") < (b.name or "") end)
+    return result
+end
+
+-- Hand-rolled strip + drawers. Visual cues borrow the actionBarDrawer
+-- aesthetic (uppercase title, beveled corners, @border / @disabled
+-- transition for consumed state).
+local g_vaStripStyles = {
+    -- Strip is a transparent layout container; no chrome on the wrapper
+    -- itself. Header label sits above, drawer row sits below.
+    {
+        selectors = {"villainActionStrip"},
+        bgcolor = "clear",
+        vmargin = 4,
+    },
+
+    -- Label row above the drawers. Plain text labels, no panel chrome.
+    {
+        selectors = {"vaStripLabelRow"},
+        flow = "horizontal",
+        width = "auto",
+        height = "auto",
+        halign = "center",
+        valign = "top",
+        bmargin = 4,
+        hpad = 4,
+        vpad = 4,
+        bgimage = "panels/square.png",
+        bgcolor = "#000000bb",
+        borderWidth = 10,
+        borderColor = "#000000bb",
+        borderFade = true,
+    },
+    -- Header text: VILLAIN ACTIONS (uppercase) and the creature name in
+    -- Title Case. Both use @fgStrong so the subheader stays readable; the
+    -- case difference does the visual differentiation work. Compact sizes
+    -- for the right-side band placement.
+    {
+        selectors = {"vaStripHeader"},
+        fontSize = 12,
+        bold = true,
+        color = "@fgStrong",
+        uppercase = true,
+        width = "auto",
+        height = "auto",
+    },
+    {
+        selectors = {"vaStripSeparator"},
+        fontSize = 12,
+        bold = true,
+        color = "@fgStrong",
+        width = "auto",
+        height = "auto",
+        hmargin = 6,
+    },
+    {
+        selectors = {"vaStripSubHeader"},
+        fontSize = 12,
+        color = "@fgStrong",
+        width = "auto",
+        height = "auto",
+    },
+
+    -- Drawer row container - horizontal flow, hugs content.
+    {
+        selectors = {"vaDrawerRow"},
+        flow = "horizontal",
+        width = "auto",
+        height = "auto",
+        halign = "center",
+        valign = "top",
+    },
+
+    -- Owner portrait. Aligned left of the drawer row at the same height
+    -- as a drawer so the strip reads as one row. bgcolor=white is
+    -- image-tint-neutral so the creature portrait paints at its native
+    -- colours. Border is straight-edged (no corner radius / bevel) so the
+    -- portrait reads as a distinct creature card, not another drawer.
+    -- Clickable when multiple VA owners are in the encounter (the
+    -- "cyclable" class is toggled by refresh).
+    {
+        selectors = {"vaOwnerPortrait"},
+        width = 40,
+        height = 40,
+        halign = "center",
+        valign = "center",
+        hmargin = 6,
+        bgcolor = "white",
+        borderColor = "@border",
+        borderWidth = 2,
+        cornerRadius = 0,
+    },
+    {
+        selectors = {"vaOwnerPortrait", "cyclable", "hover"},
+        brightness = 1.5,
+        transitionTime = 0.1,
+    },
+
+    -- Individual drawer: compact variant for the right-side band placement.
+    -- Cloned from Styles.ActionBar's actionBarDrawer chrome (beveled corners,
+    -- raised feel, border contrast) but shrunk toward the monster-card scale.
+    {
+        selectors = {"vaDrawer"},
+        width = 132,
+        height = 40,
+        halign = "center",
+        valign = "bottom",
+        bgimage = true,
+        bgcolor = "@bg",
+        flow = "vertical",
+        cornerRadius = 8,
+        beveledcorners = true,
+        borderColor = "@border",
+        borderWidth = 2,
+        hmargin = 3,
+    },
+    {
+        selectors = {"vaDrawer", "~available"},
+        borderColor = "@disabled",
+        transitionTime = 0.2,
+    },
+    {
+        selectors = {"vaDrawer", "available", "hover"},
+        brightness = 1.5,
+        transitionTime = 0.1,
+    },
+    -- Roman numeral. Stacked tight with the ability name to keep the
+    -- accent line below clear of the text. tmargin adds breathing room
+    -- between the drawer's top border and the numeral.
+    {
+        selectors = {"vaDrawerTitle"},
+        fontSize = 13,
+        bold = true,
+        color = "@fgStrong",
+        width = "100%",
+        height = 15,
+        textAlignment = "center",
+        tmargin = 2,
+    },
+    {
+        selectors = {"vaDrawerTitle", "parent:~available"},
+        color = "@fgMuted",
+    },
+    -- Ability name immediately under the numeral.
+    {
+        selectors = {"vaDrawerSummary"},
+        fontSize = 10,
+        bold = true,
+        color = "@fg",
+        width = "100%",
+        height = 12,
+        textAlignment = "center",
+        tmargin = -1,
+    },
+    {
+        selectors = {"vaDrawerSummary", "parent:~available"},
+        color = "@fgMuted",
+    },
+
+    -- Filled diamond at the top of the drawer + horizontal accent lines on
+    -- either side that dip around the diamond outline. This is the visual
+    -- that gives the action bar drawer its "raised" look (a bright accent
+    -- line along the top inner edge plus the bevel cut around the diamond).
+    -- All hide when the drawer is ~available.
+    {
+        selectors = {"vaDrawerDiamond"},
+        bgcolor = "@accent",
+        bgimage = true,
+        width = 12,
+        height = 12,
+    },
+    {
+        selectors = {"vaDrawer", "~available"},
+        borderColor = "@disabled",
+    },
+    {
+        selectors = {"vaDrawerDiamond", "~available"},
+        scale = 0,
+        transitionTime = 0.2,
+    },
+    {
+        selectors = {"vaDrawerDiamondAccent", "~available"},
+        scale = { x = 1, y = 0 },
+        transitionTime = 0.2,
+    },
+    {
+        selectors = {"vaDrawerDiamondAccentLine"},
+        bgcolor = "@accent",
+    },
+    {
+        selectors = {"vaDrawerDiamondAccentDot"},
+        borderColor = "@accent",
+        bgcolor = "clear",
+    },
+
+    -- Flashing nudge: when it's between turns and the director can fire
+    -- a VA, the available drawers' whole surface pulses to @accent. The
+    -- pulse is driven by the "on" class toggled on the strip every
+    -- thinkTime; scoped via the compound selector so non-flashing drawers
+    -- are unaffected. (Tokenised rather than a hardcoded red so it tracks
+    -- the active scheme / the in-progress re-theme. Swap @accent -> @bgAlt
+    -- here for a subtler pulse.)
+    {
+        selectors = {"vaDrawer", "flashing"},
+        borderColor = "@accent",
+    },
+    {
+        selectors = {"vaDrawer", "flashing", "on"},
+        bgcolor = "@accent",
+        transitionTime = 0.7,
+        easing = "easeInOutSine",
+    },
+    {
+        selectors = {"vaDrawer", "flashing", "~on"},
+        bgcolor = "@bg",
+        transitionTime = 0.7,
+        easing = "easeInOutSine",
+    },
+}
+
+local function CreateVillainActionDrawer(slotKey, slotNumeral)
+    local m_token = nil
+    local m_ability = nil
+
+    local summaryLabel = gui.Label{
+        classes = {"vaDrawerSummary"},
+        text = "",
+    }
+
+    return gui.Panel{
+        classes = {"vaDrawer", "available"},
+
+        -- Floating diamond at the BOTTOM edge - pokes down into open space
+        -- under the strip. Visible when available, hidden when used.
+        gui.Panel{
+            classes = {"vaDrawerDiamond"},
+            floating = true,
+            halign = "center",
+            valign = "bottom",
+            bmargin = -6,
+            rotate = 45,
+        },
+
+        -- Accent strip along the bottom inner edge with a diamond-outline
+        -- notch tracing the upper edge of the floating diamond. Mirrors the
+        -- action bar's top-edge raised treatment, flipped to the bottom.
+        gui.Panel{
+            classes = {"vaDrawerDiamondAccent"},
+            width = "100%-20",
+            height = 6,
+            floating = true,
+            bmargin = 5,
+            halign = "center",
+            valign = "bottom",
+
+            gui.Panel{
+                classes = {"vaDrawerDiamondAccentLine"},
+                width = "50%-6",
+                halign = "left",
+                valign = "bottom",
+                height = 1,
+                bgimage = true,
+            },
+            gui.Panel{
+                classes = {"vaDrawerDiamondAccentLine"},
+                width = "50%-6",
+                halign = "right",
+                valign = "bottom",
+                height = 1,
+                bgimage = true,
+            },
+            -- Border on the bottom + right edges. When the square is
+            -- rotated 45 degrees those edges become the two diagonals
+            -- forming a v shape (chevron pointing down), tracing the
+            -- upper edge of the diamond from above.
+            gui.Panel{
+                classes = {"vaDrawerDiamondAccentDot"},
+                halign = "center",
+                valign = "bottom",
+                y = 5,
+                width = 10,
+                height = 10,
+                rotate = 45,
+                border = { x1 = 0, y1 = 0, x2 = 1, y2 = 1 },
+                bgimage = true,
+            },
+        },
+
+        gui.Label{
+            classes = {"vaDrawerTitle"},
+            text = slotNumeral,
+        },
+        summaryLabel,
+
+        refreshVA = function(element, token, ability)
+            m_token = token
+            m_ability = ability
+            local hasAbility = ability ~= nil
+            element:SetClass("collapsed", not hasAbility)
+            if not hasAbility then return end
+
+            summaryLabel.text = ability.name or ""
+
+            local consumed = VillainActionState.HasUsed(token.charid, slotKey)
+            -- SetClassTree propagates the available/~available state to the
+            -- diamond child so its `~available` style rule fires.
+            element:SetClassTree("available", not consumed)
+        end,
+
+        hover = function(element)
+            if m_token == nil or m_ability == nil or not m_token.valid then return end
+
+            if VillainActionState.HasUsed(m_token.charid, slotKey) then
+                gui.Tooltip{
+                    text = (m_ability.name or "This Villain Action") .. " has already been used this encounter.",
+                }(element)
+            elseif CharacterResource.GetVillainActions() <= 0 then
+                gui.Tooltip{
+                    text = "You have already used a Villain Action this round.",
+                }(element)
+            else
+                -- Full ability preview card for available drawers.
+                local tooltip = CreateAbilityTooltip(m_ability, {token = m_token, width = 480})
+                if tooltip ~= nil then
+                    element.tooltip = tooltip
+                else
+                    gui.Tooltip{text = m_ability.name or ""}(element)
+                end
+            end
+        end,
+
+        click = function(element)
+            if m_token == nil or m_ability == nil or not m_token.valid then return end
+
+            -- Gate: drawer is unavailable if this VA is already consumed
+            -- this encounter, or if the per-round VA budget is spent.
+            -- The hover tooltip above explains which gate is blocking.
+            if VillainActionState.HasUsed(m_token.charid, slotKey) then return end
+            if CharacterResource.GetVillainActions() <= 0 then return end
+
+            -- Pan camera to the caster (fire-and-forget; near-instant).
+            dmhub.CenterOnToken(m_token.charid, {smooth=true})
+
+            -- Build subtitle from the villainAction field with roman numerals.
+            local subtitle = m_ability:try_get("villainAction") or ""
+            subtitle = string.gsub(subtitle, "3", "III")
+            subtitle = string.gsub(subtitle, "2", "II")
+            subtitle = string.gsub(subtitle, "1", "I")
+
+            DramaticBanner.Show{
+                tokenid = m_token.charid,
+                text = m_ability.name or "",
+                subtitle = subtitle,
+            }
+
+            -- After the banner finishes, invoke the ability off-turn via
+            -- the action bar's invokeAbility event. This pushes the caster
+            -- onto the action bar's caster stack and runs the normal cast
+            -- pipeline (target selection, behaviors) without advancing the
+            -- initiative queue's currentTurn.
+            local token = m_token
+            local ability = m_ability
+            local delay = DramaticBanner.TimeUntilDone() + 0.2
+            dmhub.Schedule(delay, function()
+                if mod.unloaded then return end
+                if token == nil or not token.valid then return end
+                if gamehud == nil or gamehud.actionBarPanel == nil then return end
+                gamehud.actionBarPanel:FireEventTree("invokeAbility", token, ability, {}, nil, {})
+            end)
+        end,
+    }
+end
+
+local function CreateVillainActionStrip(self, info)
+    local drawer1 = CreateVillainActionDrawer("Villain Action 1", "I")
+    local drawer2 = CreateVillainActionDrawer("Villain Action 2", "II")
+    local drawer3 = CreateVillainActionDrawer("Villain Action 3", "III")
+
+    local headerLabel = gui.Label{
+        classes = {"vaStripHeader"},
+        text = "VILLAIN ACTIONS",
+    }
+    local subHeaderLabel = gui.Label{
+        classes = {"vaStripSubHeader"},
+        text = "",
+    }
+
+    local portraitPanel = gui.Panel{
+        classes = {"vaOwnerPortrait"},
+        refreshPortrait = function(element, token, isMulti)
+            if token == nil then
+                element.bgimage = nil
+            else
+                -- Match the initiative bar pattern: prefer the creature
+                -- portrait (offTokenPortrait) and crop with the per-aspect
+                -- rect so the framing is correct.
+                local portrait = token.offTokenPortrait
+                element.bgimage = portrait
+                if portrait ~= token.portrait and not token.popoutPortrait then
+                    element.selfStyle.imageRect = nil
+                else
+                    element.selfStyle.imageRect = token:GetPortraitRectForAspect(1.0, portrait)
+                end
+            end
+            element:SetClass("cyclable", isMulti)
+        end,
+        click = function(element)
+            local strip = element:FindParentWithClass("villainActionStrip")
+            if strip == nil then return end
+            local count = strip.data.ownerCount or 0
+            if count <= 1 then return end
+            strip.data.activeOwnerIndex = (strip.data.activeOwnerIndex % count) + 1
+            strip:FireEvent("refresh")
+        end,
+        hover = function(element)
+            local strip = element:FindParentWithClass("villainActionStrip")
+            if strip == nil or (strip.data.ownerCount or 0) <= 1 then return end
+            gui.Tooltip{text = "Click to change Villain"}(element)
+        end,
+    }
+
+    return gui.Panel{
+        classes = {"villainActionStrip"},
+        styles = { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(g_vaStripStyles) },
+        -- A plain container that just sizes to its content; placement is handled by
+        -- the parent container (see the monster-side strip container in the bar).
+        flow = "vertical",
+        width = "auto",
+        height = "auto",
+
+        -- Label row: "VILLAIN ACTIONS - Demon Chorogaunt" or with "(1/2)" suffix when multi.
+        gui.Panel{
+            classes = {"vaStripLabelRow"},
+            headerLabel,
+            gui.Label{ classes = {"vaStripSeparator"}, text = "-" },
+            subHeaderLabel,
+        },
+
+        -- Drawer row: portrait on the left, then the 3 drawers.
+        gui.Panel{
+            classes = {"vaDrawerRow"},
+            portraitPanel,
+            drawer1, drawer2, drawer3,
+        },
+
+        monitorGame = VillainActionState.GetDocPath(),
+        refreshGame = function(element)
+            element:FireEvent("refresh")
+        end,
+
+        -- activeOwnerIndex selects which VA owner the strip currently shows
+        -- when 2+ Leader/Solo with VAs are in the encounter (ownerCount is
+        -- the size of that list, read by the portrait selector handlers).
+        -- lastActiveTurn / lastActiveTurnRound / previousCurrentTurn /
+        -- previousRound power the flash gating; anyFlashing lets think skip
+        -- the pulse work when nothing is flashing. See the refresh and think
+        -- handlers below for the state-machine.
+        data = {
+            activeOwnerIndex = 1,
+            ownerCount = 0,
+            anyFlashing = false,
+            lastActiveTurn = nil,
+            lastActiveTurnRound = nil,
+            previousCurrentTurn = nil,
+            previousRound = nil,
+            themeListener = nil,
+        },
+
+        refresh = function(element)
+            if not dmhub.isDM then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            local owners = FindAllVillainActionOwnersInEncounter()
+            element.data.ownerCount = #owners
+            if #owners == 0 then
+                element.data.anyFlashing = false
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            -- Clamp activeOwnerIndex (creatures may have left the encounter).
+            if element.data.activeOwnerIndex < 1 or element.data.activeOwnerIndex > #owners then
+                element.data.activeOwnerIndex = 1
+            end
+
+            local owner = owners[element.data.activeOwnerIndex]
+            local vaMap = GetVillainActionAbilities(owner)
+            if vaMap == nil then
+                element.data.anyFlashing = false
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            element:SetClass("collapsed", false)
+
+            -- Header text: append "(i/N)" when multiple VA owners exist so
+            -- the cycle affordance is discoverable.
+            if #owners > 1 then
+                subHeaderLabel.text = string.format("%s (%d/%d)", owner.name or "", element.data.activeOwnerIndex, #owners)
+            else
+                subHeaderLabel.text = owner.name or ""
+            end
+
+            portraitPanel:FireEvent("refreshPortrait", owner, #owners > 1)
+
+            -- Flash gating. Pulse only when ALL of:
+            --   - it's between turns (currentTurn == false)
+            --   - the per-round VA budget is unspent
+            --   - a turn actually ended IN THE CURRENT ROUND (not a
+            --     leftover from a previous round, e.g. just after NextRound)
+            --   - the just-finished turn wasn't the VA owner's own
+            --
+            -- currentTurn is an initiative ID, NOT a charid. We compare
+            -- against owner's initiative ID via InitiativeQueue.GetInitiativeId.
+            local q = dmhub.initiativeQueue
+            local currentTurn = q and q.currentTurn
+            local currentRound = q and q.round
+            local betweenTurns = (currentTurn == false)
+            local justFinished = element.data.lastActiveTurn
+            if currentTurn ~= false and currentTurn ~= nil then
+                element.data.lastActiveTurn = currentTurn
+                element.data.lastActiveTurnRound = currentRound
+            end
+            local ownerInitiativeId = InitiativeQueue.GetInitiativeId(owner)
+            local selfTurnJustEnded = (justFinished ~= nil and ownerInitiativeId ~= nil and justFinished == ownerInitiativeId)
+            local turnEndedThisRound = (justFinished ~= nil and element.data.lastActiveTurnRound == currentRound)
+            local budgetAvailable = CharacterResource.GetVillainActions() > 0
+            local stripCanFlash = betweenTurns and budgetAvailable and turnEndedThisRound and (not selfTurnJustEnded)
+
+            -- Per-drawer flash: drawer must also be available (not consumed
+            -- this encounter and the ability slot is actually filled).
+            local function drawerShouldFlash(slot)
+                local ab = vaMap[slot]
+                if ab == nil then return false end
+                if VillainActionState.HasUsed(owner.charid, slot) then return false end
+                return stripCanFlash
+            end
+
+            local flash1 = drawerShouldFlash("Villain Action 1")
+            local flash2 = drawerShouldFlash("Villain Action 2")
+            local flash3 = drawerShouldFlash("Villain Action 3")
+            element.data.anyFlashing = flash1 or flash2 or flash3
+
+            drawer1:SetClass("flashing", flash1)
+            drawer2:SetClass("flashing", flash2)
+            drawer3:SetClass("flashing", flash3)
+
+            drawer1:FireEvent("refreshVA", owner, vaMap["Villain Action 1"])
+            drawer2:FireEvent("refreshVA", owner, vaMap["Villain Action 2"])
+            drawer3:FireEvent("refreshVA", owner, vaMap["Villain Action 3"])
+        end,
+
+        -- Pulse driver + currentTurn change detector. Every 0.7s:
+        --   1. Read currentTurn off the live queue; if it changed since the
+        --      last tick, fire refresh so flash gating + self-suppression
+        --      stay accurate. The shared-doc monitor alone doesn't fire on
+        --      initiative changes, so this poll fills the gap.
+        --   2. Toggle the "on" class on the subtree for the brightness pulse,
+        --      but only when something is actually flashing (otherwise the
+        --      subtree walk is wasted work).
+        -- Players never have the strip, so bail immediately for them.
+        thinkTime = 0.7,
+        think = function(element)
+            if not dmhub.isDM then return end
+
+            local q = dmhub.initiativeQueue
+            local currentTurn = q and q.currentTurn
+            local currentRound = q and q.round
+            if currentTurn ~= element.data.previousCurrentTurn or currentRound ~= element.data.previousRound then
+                element.data.previousCurrentTurn = currentTurn
+                element.data.previousRound = currentRound
+                element:FireEvent("refresh")
+            end
+
+            if element.data.anyFlashing then
+                element:SetClassTree("on", not element:HasClass("on"))
+            end
+        end,
+
+        create = function(element)
+            -- Re-resolve themed styles when the user switches theme / scheme
+            -- (MergeTokens captures a one-shot snapshot). Mirrors the action
+            -- bar's live re-theming hookup.
+            element.data.themeListener = ThemeEngine.OnThemeChanged(mod, function()
+                if element.valid then
+                    element.styles = { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(g_vaStripStyles) }
+                end
+            end)
+            element:FireEvent("refresh")
+        end,
+
+        destroy = function(element)
+            if element.data.themeListener ~= nil then
+                element.data.themeListener:Deregister()
+                element.data.themeListener = nil
+            end
+        end,
+    }
+end
+
+-- A single reinforcement button. Reuses the villain-action drawer chrome
+-- (vaDrawer / vaDrawerTitle / vaDrawerSummary classes) so reinforcements read as
+-- the same family of buttons. Clicking deploys the wave; right-click dismisses it.
+local function CreateReinforcementButton(info, wave)
+    return gui.Panel{
+        classes = {"vaDrawer", "available", "reinforcementButton"},
+        data = { waveid = wave.id },
+
+        gui.Label{
+            classes = {"vaDrawerTitle"},
+            fontSize = 12,
+            minFontSize = 8,
+            text = wave.name,
+        },
+        gui.Label{
+            classes = {"vaDrawerSummary"},
+            text = Encounter.WaveRoundText(wave),
+        },
+
+        hover = function(element)
+            gui.Tooltip{
+                text = string.format("Deploy %s (%s). Right-click to dismiss.", wave.name, Encounter.WaveRoundText(wave)),
+            }(element)
+        end,
+
+        click = function(element)
+            local q = info.initiativeQueue
+            if q == nil then return end
+            local liveEncounter = q:try_get("liveEncounter")
+            if type(liveEncounter) ~= "table" then return end
+
+            liveEncounter:DeployWave(wave.id, q)
+            info.UploadInitiative()
+
+            local strip = element:FindParentWithClass("reinforcementsStrip")
+            if strip ~= nil then
+                strip:FireEvent("refresh")
+            end
+        end,
+
+        rightClick = function(element)
+            element.popup = gui.ContextMenu{
+                entries = {
+                    {
+                        text = "Dismiss",
+                        click = function()
+                            element.popup = nil
+                            local q = info.initiativeQueue
+                            if q == nil then return end
+                            local liveEncounter = q:try_get("liveEncounter")
+                            if type(liveEncounter) ~= "table" then return end
+
+                            liveEncounter:MarkWaveDeployed(wave.id)
+                            info.UploadInitiative()
+
+                            local strip = element:FindParentWithClass("reinforcementsStrip")
+                            if strip ~= nil then
+                                strip:FireEvent("refresh")
+                            end
+                        end,
+                    },
+                },
+            }
+        end,
+    }
+end
+
+-- Reinforcements strip: a DM-only band, mounted just below the villain action
+-- strip, that surfaces a deploy button for each reinforcement wave whose arrival
+-- round has been reached and that has not yet been deployed/dismissed. The set of
+-- live waves lives on the initiative queue's LiveEncounter (see
+-- Draw Steel Core Rules/LIVE_ENCOUNTER.md), so this polls the queue and rebuilds its
+-- buttons only when the available set actually changes.
+local function CreateReinforcementsStrip(self, info)
+    local buttonsRow = gui.Panel{
+        classes = {"vaDrawerRow"},
+    }
+
+    return gui.Panel{
+        classes = {"reinforcementsStrip"},
+        styles = { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(g_vaStripStyles) },
+        -- A plain container that just sizes to its content; placement is handled by
+        -- the parent container (see the monster-side strip container in the bar).
+        flow = "vertical",
+        width = "auto",
+        height = "auto",
+
+        gui.Panel{
+            classes = {"vaStripLabelRow"},
+            gui.Label{
+                classes = {"vaStripHeader"},
+                text = "REINFORCEMENTS",
+            },
+        },
+
+        buttonsRow,
+
+        data = {
+            currentSignature = nil,
+            themeListener = nil,
+        },
+
+        refresh = function(element)
+            if not dmhub.isDM then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            local q = info.initiativeQueue
+            if q == nil or q.hidden then
+                element:SetClass("collapsed", true)
+                element.data.currentSignature = nil
+                return
+            end
+
+            local liveEncounter = q:try_get("liveEncounter")
+            if type(liveEncounter) ~= "table" then
+                element:SetClass("collapsed", true)
+                element.data.currentSignature = nil
+                return
+            end
+
+            local available = liveEncounter:GetAvailableWaves(q.round or 0)
+            if #available == 0 then
+                element:SetClass("collapsed", true)
+                element.data.currentSignature = nil
+                buttonsRow.children = {}
+                return
+            end
+
+            element:SetClass("collapsed", false)
+
+            --Only rebuild the buttons when the available set changes; rebuilding
+            --every poll would destroy event subscriptions and flicker.
+            local sig = ""
+            for _, wave in ipairs(available) do
+                sig = string.format("%s%s|%s;", sig, wave.id, wave.name)
+            end
+            if sig == element.data.currentSignature then
+                return
+            end
+            element.data.currentSignature = sig
+
+            local buttons = {}
+            for _, wave in ipairs(available) do
+                buttons[#buttons + 1] = CreateReinforcementButton(info, wave)
+            end
+            buttonsRow.children = buttons
+        end,
+
+        thinkTime = 0.7,
+        think = function(element)
+            if not dmhub.isDM then return end
+            element:FireEvent("refresh")
+        end,
+
+        create = function(element)
+            element.data.themeListener = ThemeEngine.OnThemeChanged(mod, function()
+                if element.valid then
+                    element.styles = { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(g_vaStripStyles) }
+                end
+            end)
+            element:FireEvent("refresh")
+        end,
+
+        destroy = function(element)
+            if element.data.themeListener ~= nil then
+                element.data.themeListener:Deregister()
+                element.data.themeListener = nil
+            end
+        end,
+    }
+end
+
+-- Eye icon that toggles whether players can see the objective. Mirrors the character
+-- sheet's privacyIcon: closed eye when hidden (director only), open eye ("shown"
+-- class) when revealed to players. @fgStrong is resolved via MergeTokens.
+local g_victoryIconStyles = {
+    {
+        selectors = {"objectiveVisibilityIcon"},
+        valign = "center",
+        width = 14,
+        height = 14,
+        hmargin = 6,
+        bgimage = "ui-icons/eye-closed.png",
+        bgcolor = "@fgStrong",
+    },
+    {
+        selectors = {"objectiveVisibilityIcon", "hover"},
+        brightness = 1.5,
+    },
+    {
+        selectors = {"objectiveVisibilityIcon", "shown"},
+        bgimage = "ui-icons/eye.png",
+    },
+}
+
+-- Boss bar styles: a wide Stamina bar shown below the combat tracker for a Solo
+-- creature (see LiveEncounter:GetBossToken). The frame is a dark rounded slab; the fill
+-- is a red gradient whose pixel width tracks the boss's current/maximum Stamina; the
+-- name floats centered over both. Fixed red palette (not theme-driven) so the boss
+-- always reads as a threat regardless of UI theme.
+local g_bossBarWidth = 600
+local g_bossBarStyles = {
+    {
+        selectors = {"bossBarFrame"},
+        flow = "none",
+        valign = "center",
+        halign = "center",
+        width = g_bossBarWidth,
+        height = 30,
+        bgimage = "panels/square.png",
+        bgcolor = "#000000aa",
+        cornerRadius = 4,
+        borderWidth = 2,
+        borderColor = "#000000bb",
+    },
+    {
+        selectors = {"bossBarFill"},
+        halign = "left",
+        valign = "center",
+        height = "100%",
+        bgimage = "panels/square.png",
+        bgcolor = "white",
+        cornerRadius = 4,
+        gradient = gui.Gradient{
+            type = "linear",
+            point_a = { x = 0, y = 0 },
+            point_b = { x = 0, y = 1 },
+            stops = {
+                { position = 0, color = "#880000" },
+                { position = 0.5, color = "#ff0000" },
+                { position = 1, color = "#880000" },
+            },
+        },
+    },
+    {
+        selectors = {"bossBarName"},
+        width = "100%",
+        height = "auto",
+        halign = "center",
+        valign = "center",
+        textAlignment = "center",
+        fontSize = 16,
+        bold = true,
+        color = "#FFFFFF",
+    },
+}
+
+-- Award Victory strip: a band on the player side, analogous to the Reinforcements
+-- strip on the monster side and sharing its drawer styling. While the encounter is in
+-- progress it shows a short "Objective: Defeat X/Y monsters to win" label (full
+-- reasoning in a hover tooltip) with an eye icon to reveal it to players; once the
+-- configured victory condition is met (LiveEncounter:CheckVictory) the director's view
+-- swaps to a "VICTORY" header + "Award Victory" button. Polls the queue like the
+-- other strips. The objective is director-only until revealed via the eye icon.
+local function CreateAwardVictoryStrip(self, info)
+    local function strFor()
+        return { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(g_vaStripStyles), ThemeEngine.MergeTokens(g_victoryIconStyles) }
+    end
+
+    local awardButton = gui.Panel{
+        classes = {"vaDrawer", "available", "awardVictoryButton"},
+
+        gui.Label{
+            classes = {"vaDrawerTitle"},
+            fontSize = 12,
+            minFontSize = 8,
+            valign = "center",
+            text = "Award Victory",
+        },
+
+        hover = function(element)
+            gui.Tooltip{ text = "The victory condition has been met. Click to award victory." }(element)
+        end,
+
+        click = function(element)
+            local q = info.initiativeQueue
+            local liveEncounter = q and q:try_get("liveEncounter")
+            if type(liveEncounter) ~= "table" then return end
+            --Flip the networked victory flag. Every client polls the live encounter and
+            --switches into the victory state: the initiative bar hides and the
+            --full-screen victory screen (DSVictoryScreen) takes over.
+            liveEncounter.victoryAwarded = true
+            info.UploadInitiative()
+            local strip = element:FindParentWithClass("awardVictoryStrip")
+            if strip ~= nil then
+                strip:FireEvent("refresh")
+            end
+        end,
+    }
+
+    -- Shown while the encounter is in progress: the current objective + progress.
+    local objectiveLabel = gui.Label{
+        classes = {"vaStripSubHeader"},
+        text = "Objective:",
+        hover = function(element)
+            local q = info.initiativeQueue
+            local liveEncounter = q and q:try_get("liveEncounter")
+            if type(liveEncounter) ~= "table" then return end
+            gui.Tooltip{ text = liveEncounter:GetObjectiveTooltip() }(element)
+        end,
+    }
+
+    -- Eye icon: director-only; toggles objectiveVisible on the live encounter so the
+    -- objective also shows on the players' bars.
+    local visibilityIcon = gui.Panel{
+        classes = {"objectiveVisibilityIcon"},
+        swallowPress = true,
+        hover = function(element)
+            gui.Tooltip{ text = "Toggle whether players can see this objective." }(element)
+        end,
+        press = function(element)
+            local q = info.initiativeQueue
+            local liveEncounter = q and q:try_get("liveEncounter")
+            if type(liveEncounter) ~= "table" then return end
+            liveEncounter.objectiveVisible = not liveEncounter:try_get("objectiveVisible", false)
+            info.UploadInitiative()
+            local strip = element:FindParentWithClass("awardVictoryStrip")
+            if strip ~= nil then
+                strip:FireEvent("refresh")
+            end
+        end,
+    }
+
+    local objectivePanel = gui.Panel{
+        classes = {"vaStripLabelRow"},
+        objectiveLabel,
+        visibilityIcon,
+    }
+
+    -- Shown to the director once victory is achieved.
+    local victoryPanel = gui.Panel{
+        flow = "vertical",
+        width = "auto",
+        height = "auto",
+        halign = "left",
+
+        gui.Panel{
+            classes = {"vaStripLabelRow"},
+            gui.Label{
+                classes = {"vaStripHeader"},
+                text = "VICTORY",
+            },
+        },
+
+        gui.Panel{
+            classes = {"vaDrawerRow"},
+            awardButton,
+        },
+    }
+
+    return gui.Panel{
+        classes = {"awardVictoryStrip"},
+        styles = strFor(),
+        -- A plain container that just sizes to its content; placement is handled by
+        -- the parent container (see the player-side strip container in the bar).
+        flow = "vertical",
+        width = "auto",
+        height = "auto",
+
+        objectivePanel,
+        victoryPanel,
+
+        data = { themeListener = nil },
+
+        refresh = function(element)
+            local q = info.initiativeQueue
+            if q == nil or q.hidden then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            local liveEncounter = q:try_get("liveEncounter")
+            --the objective strip is relevant when there are monsters to track, or for the
+            --"Destroy the Thing!" objective (which tracks objects, not monsters, so it can
+            --have no onset monsters at all).
+            local hasObjective = type(liveEncounter) == "table" and (
+                liveEncounter:try_get("onsetMonsterCount", 0) > 0 or
+                (liveEncounter:try_get("victoryCondition") == "destroy_thing" and
+                 liveEncounter:try_get("onsetDestroyObjectCount", 0) > 0))
+            if not hasObjective then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            local isDM = dmhub.isDM
+            local visible = liveEncounter:try_get("objectiveVisible", false)
+            local won = liveEncounter:CheckVictory()
+
+            if not isDM then
+                --players only ever see the objective label, and only when revealed and
+                --not yet won.
+                if not visible or won then
+                    element:SetClass("collapsed", true)
+                    return
+                end
+                element:SetClass("collapsed", false)
+                objectivePanel:SetClass("collapsed", false)
+                victoryPanel:SetClass("collapsed", true)
+                visibilityIcon:SetClass("collapsed", true)
+                objectiveLabel.text = liveEncounter:GetObjectiveText()
+                return
+            end
+
+            --director view.
+            element:SetClass("collapsed", false)
+            objectivePanel:SetClass("collapsed", won)
+            victoryPanel:SetClass("collapsed", not won)
+            visibilityIcon:SetClass("collapsed", won)
+            visibilityIcon:SetClass("shown", visible)
+            if not won then
+                objectiveLabel.text = liveEncounter:GetObjectiveText()
+            end
+        end,
+
+        thinkTime = 0.7,
+        think = function(element)
+            element:FireEvent("refresh")
+        end,
+
+        create = function(element)
+            element.data.themeListener = ThemeEngine.OnThemeChanged(mod, function()
+                if element.valid then
+                    element.styles = strFor()
+                end
+            end)
+            element:FireEvent("refresh")
+        end,
+
+        destroy = function(element)
+            if element.data.themeListener ~= nil then
+                element.data.themeListener:Deregister()
+                element.data.themeListener = nil
+            end
+        end,
+    }
+end
+
+-- Boss bar: a wide Stamina bar shown centered below the combat tracker whenever the
+-- live encounter designates a Solo "boss" creature (LiveEncounter:GetBossToken). The
+-- fill width tracks the boss's current Stamina; an eye icon to its right (director-only)
+-- toggles whether players see it, mirroring the objective strip. Director-only until
+-- revealed; polls the queue like the other strips so it appears/updates without an
+-- explicit refresh trigger.
+local function CreateBossBarStrip(self, info)
+    local function strFor()
+        return { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(g_bossBarStyles), ThemeEngine.MergeTokens(g_victoryIconStyles) }
+    end
+
+    --Stamina fill. Width is set in pixels and eased toward the target as Stamina
+    --changes. Monitors the boss token so a hit updates the bar promptly; the strip's
+    --poll also re-fires it as a fallback.
+    local fill = gui.Panel{
+        classes = {"bossBarFill"},
+        width = g_bossBarWidth,
+        interactable = false,
+        blocksGameInteraction = false,
+        data = { tokenid = nil },
+        refreshGame = function(element)
+            element:FireEvent("refreshFill")
+        end,
+        refreshFill = function(element)
+            local tokenid = element.data.tokenid
+            if tokenid == nil then return end
+            local token = dmhub.GetTokenById(tokenid)
+            if token == nil or token.properties == nil then return end
+            local maxhp = token.properties:MaxHitpoints()
+            local frac = 0
+            if maxhp > 0 then
+                frac = token.properties:CurrentHitpoints() / maxhp
+            end
+            if frac < 0 then frac = 0 end
+            if frac > 1 then frac = 1 end
+            TransitionStyle(element, 0.35, { width = math.floor(g_bossBarWidth * frac) })
+        end,
+    }
+
+    local nameLabel = gui.Label{
+        classes = {"bossBarName"},
+        interactable = false,
+        blocksGameInteraction = false,
+        text = "",
+    }
+
+    local frame = gui.Panel{
+        classes = {"bossBarFrame"},
+        interactable = false,
+        blocksGameInteraction = false,
+        fill,
+        nameLabel,
+    }
+
+    --Eye icon: director-only; toggles bossBarVisible on the live encounter so the boss
+    --bar also shows on the players' bars.
+    local visibilityIcon = gui.Panel{
+        classes = {"objectiveVisibilityIcon"},
+        swallowPress = true,
+        hover = function(element)
+            gui.Tooltip{ text = "Toggle whether players can see the boss bar." }(element)
+        end,
+        press = function(element)
+            local q = info.initiativeQueue
+            local liveEncounter = q and q:try_get("liveEncounter")
+            if type(liveEncounter) ~= "table" then return end
+            liveEncounter.bossBarVisible = not liveEncounter:try_get("bossBarVisible", false)
+            info.UploadInitiative()
+            local strip = element:FindParentWithClass("bossBarStrip")
+            if strip ~= nil then
+                strip:FireEvent("refresh")
+            end
+        end,
+    }
+
+    return gui.Panel{
+        classes = {"bossBarStrip"},
+        styles = strFor(),
+        floating = true,
+        flow = "horizontal",
+        width = "auto",
+        height = "auto",
+        halign = "center",
+        valign = "top",
+        --below the cards and the center round-tracker bubble (which extends to ~146px),
+        --with extra clearance so it doesn't overlap the villain action panel.
+        y = 182,
+
+        frame,
+        visibilityIcon,
+
+        data = { themeListener = nil },
+
+        refresh = function(element)
+            local q = info.initiativeQueue
+            if q == nil or q.hidden then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            local liveEncounter = q:try_get("liveEncounter")
+            if type(liveEncounter) ~= "table" or liveEncounter:try_get("victoryAwarded", false) then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            local bossToken = liveEncounter:GetBossToken()
+            if bossToken == nil then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            local isDM = dmhub.isDM
+            local visible = liveEncounter:try_get("bossBarVisible", false)
+
+            --players only see the bar once it has been revealed.
+            if not isDM and not visible then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            element:SetClass("collapsed", false)
+            visibilityIcon:SetClass("collapsed", not isDM)
+            visibilityIcon:SetClass("shown", visible)
+
+            nameLabel.text = Encounter.GetBossTokenName(bossToken)
+
+            if fill.data.tokenid ~= bossToken.charid then
+                fill.data.tokenid = bossToken.charid
+                fill.monitorGame = bossToken.monitorPath
+            end
+            fill:FireEvent("refreshFill")
+        end,
+
+        thinkTime = 0.7,
+        think = function(element)
+            element:FireEvent("refresh")
+        end,
+
+        create = function(element)
+            element.data.themeListener = ThemeEngine.OnThemeChanged(mod, function()
+                if element.valid then
+                    element.styles = strFor()
+                end
+            end)
+            element:FireEvent("refresh")
+        end,
+
+        destroy = function(element)
+            if element.data.themeListener ~= nil then
+                element.data.themeListener:Deregister()
+                element.data.themeListener = nil
+            end
+        end,
+    }
+end
+
 --Create the initiative bar.
 --   self: the GameHud object
 --   info: the dmhub info object which gives us access to important game information. Some parameters we use here:
@@ -1007,14 +2310,17 @@ function GameHud.CreateInitiativeBar(self, info)
     local resetTurnButton = nil
 
     if dmhub.isDM then
-        --reset turn button -- resets to checkpoint.
+        --Combat settings button: visible whenever the initiative bar is up. Click
+        --opens a dropdown that includes "Revert Turn" (when a checkpoint exists),
+        --plus the menu items that used to live behind the bubble's right-click.
         resetTurnButton = gui.Panel {
-            bgimage = "panels/hud/anticlockwise-rotation.png",
+            bgimage = "panels/hud/gear.png",
             bgcolor = "#ffffffaa",
             halign = "right",
             valign = "center",
             width = 24,
             height = 24,
+            x = 40,
             floating = true,
             classes = {"unavailable"},
 
@@ -1023,7 +2329,7 @@ function GameHud.CreateInitiativeBar(self, info)
                 checkpointRound = nil,
                 checkpointTurn = nil,
                 checkpointCombatid = nil,
-                checkpointReason = "Reset to start of turn",
+                checkpointReason = "Revert Turn",
             },
 
             styles = {
@@ -1042,88 +2348,183 @@ function GameHud.CreateInitiativeBar(self, info)
             thinkTime = 0.1,
             think = function(element)
                 local q = dmhub.initiativeQueue
-                if q == nil or q.hidden or (not q:ChoosingTurn()) then
-                    if q == nil or q.hidden or element.data.checkpoint == nil then
-                        element:SetClass("unavailable", true)
-                    elseif element:HasClass("unavailable") then
-                        element:SetClass("unavailable", false)
-
-                        --record whose turn it is who is starting.
-		                local tokens = self:GetTokensForInitiativeId(info, q.currentTurn)
-                        table.sort(tokens, function(a,b)
-                            return creature.ScoreTokenImportance(a) < creature.ScoreTokenImportance(b)
-                        end)
-
-                        if #tokens > 0 then
-                            element.data.checkpointReason = string.format("Reset to start of %s's turn", creature.GetTokenDescription(tokens[1]))
-                        else
-                            element.data.checkpointReason = "Reset to start of turn"
-                        end
-                    end
-                    return
-                end
-
-                if element.data.checkpoint ~= nil and element.data.checkpointTurn == q.turn and element.data.checkpointRound == q.round and element.data.checkpointCombatid == q.guid then
-                    --hidden until we start a turn.
+                if q == nil or q.hidden then
+                    --Combat is over -- hide the button entirely.
                     element:SetClass("unavailable", true)
                     return
                 end
+                --Combat is active -- show the settings button.
+                element:SetClass("unavailable", false)
 
-                element.data.checkpointTurn = q.turn
-                element.data.checkpointRound = q.round
-                element.data.checkpointCombatid = q.guid
-
-                element.data.checkpoint = backup.CreateCombatCheckpoint()
-
-                --hidden until we start a turn.
-                element:SetClass("unavailable", true)
+                --Track the pre-turn checkpoint so Revert restores the state from
+                --BEFORE the upcoming turn was selected. We must capture during
+                --ChoosingTurn (between turns) -- capturing mid-turn would miss the
+                --turn-selection itself and any action taken in the first frame.
+                if q:ChoosingTurn() then
+                    local needCheckpoint = element.data.checkpoint == nil
+                        or element.data.checkpointTurn ~= q.turn
+                        or element.data.checkpointRound ~= q.round
+                        or element.data.checkpointCombatid ~= q.guid
+                    if needCheckpoint then
+                        element.data.checkpointTurn = q.turn
+                        element.data.checkpointRound = q.round
+                        element.data.checkpointCombatid = q.guid
+                        element.data.checkpoint = backup.CreateCombatCheckpoint()
+                        element.data.checkpointReason = "Revert Turn"
+                        element.data.checkpointReasonTurn = nil
+                    end
+                else
+                    --Mid-turn: q.currentTurn is now set, so we can build a label
+                    --like "Revert to start of <Name>'s turn" for the dropdown.
+                    if element.data.checkpointReasonTurn ~= q.currentTurn then
+                        element.data.checkpointReasonTurn = q.currentTurn
+                        local tokens = self:GetTokensForInitiativeId(info, q.currentTurn)
+                        table.sort(tokens, function(a,b)
+                            return creature.ScoreTokenImportance(a) < creature.ScoreTokenImportance(b)
+                        end)
+                        if #tokens > 0 then
+                            element.data.checkpointReason = string.format("Revert to start of %s's turn", creature.GetTokenDescription(tokens[1]))
+                        else
+                            element.data.checkpointReason = "Revert Turn"
+                        end
+                    end
+                end
             end,
 
             hover = function(element)
-                gui.Tooltip(element.data.checkpointReason)(element)
+                gui.Tooltip("Combat Settings")(element)
             end,
 
             press = function(element)
-                if element:HasClass("unavailable") then
-                    return
+                local q = dmhub.initiativeQueue
+                if q == nil or q.hidden then return end
+                if not CanControlInitiative() then return end
+
+                local entries = {}
+
+                --Revert Turn -- only when a mid-turn checkpoint is available.
+                local canRevert = element.data.checkpoint ~= nil and not q:ChoosingTurn()
+                if canRevert then
+                    local checkpoint = element.data.checkpoint
+                    entries[#entries+1] = {
+                        text = element.data.checkpointReason,
+                        click = function()
+                            element.popup = nil
+                            checkpoint:Restore()
+                            audio.DispatchSoundEvent("Notify.Director_Undo")
+                        end,
+                    }
                 end
-                element.data.checkpoint:Restore()
-				audio.DispatchSoundEvent("Notify.Director_Undo")
+
+                --Switch to the other side's turn (only when both sides still have entries).
+                if q:BothSidesHaveUnmovedEntries() then
+                    entries[#entries+1] = {
+                        text = cond(q.playersTurn, "Switch to Monster Turn", "Switch to Player Turn"),
+                        click = function()
+                            element.popup = nil
+                            q.playersTurn = not q.playersTurn
+                            dmhub:UploadInitiativeQueue()
+                        end,
+                    }
+                end
+
+                --Set which side goes first each round.
+                local playersGoFirst = q.playersGoFirst
+                entries[#entries+1] = {
+                    text = cond(playersGoFirst, "Set Monsters to Go First Each Round", "Set Players to Go First Each Round"),
+                    click = function()
+                        element.popup = nil
+                        q.playersGoFirst = not playersGoFirst
+                        dmhub:UploadInitiativeQueue()
+                    end,
+                }
+
+                --Skip to Next Round -- if a turn is in progress, end it first.
+                entries[#entries+1] = {
+                    text = "Skip to Next Round",
+                    click = function()
+                        element.popup = nil
+                        local nextRound = function()
+                            q:NextRound()
+                            GameHud.instance:NewRound()
+                            dmhub:UploadInitiativeQueue()
+                        end
+                        if not q:ChoosingTurn() then
+                            GameHud.instance:NextInitiative(function() end)
+                            dmhub.Schedule(0.3, nextRound)
+                        else
+                            nextRound()
+                        end
+                    end,
+                }
+
+                --Award Victory -- manually flip the networked victory flag so the
+                --full-screen victory screen takes over. The automatic "Award Victory"
+                --strip only appears once the configured victory condition is met; this
+                --lets the director award victory at any point during combat. Hidden
+                --once victory has already been awarded.
+                local liveEncounter = q:try_get("liveEncounter")
+                if type(liveEncounter) == "table" and not liveEncounter:try_get("victoryAwarded", false) then
+                    entries[#entries+1] = {
+                        text = "Award Victory",
+                        click = function()
+                            element.popup = nil
+                            liveEncounter.victoryAwarded = true
+                            dmhub:UploadInitiativeQueue()
+                        end,
+                    }
+                end
+
+                --End Combat.
+                entries[#entries+1] = {
+                    text = "End Combat",
+                    click = function()
+                        element.popup = nil
+                        UploadDayNightInfo()
+
+                        local monsterCount = 0
+                        for initiativeid,_ in pairs(q.entries) do
+                            local tokens = GameHud.instance:GetTokensForInitiativeId(GameHud.instance.initiativeInterface, initiativeid)
+                            for _,tok in ipairs(tokens) do
+                                if not tok.properties:IsHero() then
+                                    monsterCount = monsterCount + 1
+                                end
+                            end
+                        end
+
+                        track("malice_at_combat_end", {
+                            maliceRemaining = CharacterResource.GetMalice(),
+                            roundCount = q.round,
+                            monsterCount = monsterCount,
+                            dailyLimit = 10,
+                        })
+
+                        q.hidden = true
+                        q.gameMode = "exploration"
+                        dmhub:UploadInitiativeQueue()
+
+                        CharacterResource.SetMalice(0, "End of Combat")
+
+                        for initiativeid,_ in pairs(q.entries) do
+                            local tokens = GameHud.instance:GetTokensForInitiativeId(GameHud.instance.initiativeInterface, initiativeid)
+                            for _,tok in ipairs(tokens) do
+                                tok.properties:EndCombat()
+                                tok.properties:DispatchEvent("endcombat", {})
+                            end
+                        end
+                    end,
+                }
+
+                element.popup = gui.ContextMenu{entries = entries}
             end,
         }
+        --Expose the settings button so card-level revert buttons can pull the
+        --start-of-turn checkpoint off of it without duplicating the bookkeeping.
+        self.combatSettingsButton = resetTurnButton
     end
 
 	local addCharacters
 	local addMonsters
-
-	--[[if dmhub.isDM then
-
-		addCharacters = gui.AddButton{
-			halign = "left",
-			valign = "center",
-			floating = true,
-			x = -60,
-			width = 24,
-			height = 24,
-			hover = gui.Tooltip("Add Character to initiative"),
-			click = function(element)
-				AddInitiativeEntryPanel(element, info, true)
-			end,
-		}
-
-		addMonsters = gui.AddButton{
-			halign = "right",
-			valign = "center",
-			floating = true,
-			x = 60,
-			width = 24,
-			height = 24,
-			hover = gui.Tooltip("Add Monster to initiative"),
-			click = function(element)
-				AddInitiativeEntryPanel(element, info, false)
-			end,
-		}
-	end]]
 
 	--The parent / top-level initiative bar.
 	return gui.Panel({
@@ -1190,28 +2591,25 @@ function GameHud.CreateInitiativeBar(self, info)
 
 			{
 				selectors = {"initiativeEntryPanel"},
-				height = "100%",
+				height = 72,
 				width = tostring(CardWidthPercent) .. "% height",
-				valign = 'top',
+				valign = 'center',
 				halign = 'center',
 				flow = 'none',
 			},
 
 			{
 				selectors = {"initiativeEntryPanel", "turn"},
-				y = -8,
                 transitionTime = 0,
 			},
 
 			{
 				selectors = {"initiativeEntryBackground"},
-				width = "100%+32",
-				height = "100%+32",
+				width = "100%",
+				height = "100%",
 				valign = "center",
 				halign = "center",
-				borderWidth = 16,
-				borderColor = "#000000aa",
-				borderFade = true,
+				borderWidth = 0,
 			},
 
 			{
@@ -1350,10 +2748,18 @@ function GameHud.CreateInitiativeBar(self, info)
 					valign = 'top',
 					halign = 'center',
 					textAlignment = 'center',
-					width = 180,
-					height = 24,
-					vmargin = 0,
-					y = 15,
+                    width = "auto",
+                    minWidth = 180,
+                    maxWidth = 500,
+					height = 30,
+					tmargin = 0,
+                    vpad = 8,
+                    hpad = 8,
+                    bgimage = "panels/square.png",
+                    bgcolor = "#000000bb",
+                    borderWidth = 10,
+                    borderColor = "#000000bb",
+                    borderFade = true,
 
 					refresh = function(element)
 						if info.initiativeQueue == nil or info.initiativeQueue.hidden then
@@ -1363,7 +2769,15 @@ function GameHud.CreateInitiativeBar(self, info)
                                 element.text = info.initiativeQueue:GameModeInfo().text
                             end
 						else
-							element.text = string.format('Round %d', info.initiativeQueue.round)
+							local roundText = string.format('Round %d', info.initiativeQueue.round)
+							local liveEncounter = info.initiativeQueue:try_get("liveEncounter")
+							if type(liveEncounter) == "table" then
+								local name = liveEncounter:GetName()
+								if name ~= nil and name ~= "" then
+									roundText = string.format('%s - %s', name, roundText)
+								end
+							end
+							element.text = roundText
 						end
 					end,
 
@@ -1410,55 +2824,6 @@ function GameHud.CreateInitiativeBar(self, info)
 			mainInitiativeBar,
 			choiceInitiativeBar,
 			respiteBar,
-
-			--button to close the initiative queue.
-			--[[gui.CloseButton({
-				escapeActivates = false,
-
-				events = {
-					refresh = function(element)
-						--only show this if initiative is currently actually active.
-						element:SetClass('hidden', info.initiativeQueue == nil or info.initiativeQueue.hidden)
-					end,
-
-					--when clicked we destroy the initiative queue by setting it to nil and upload changes. This will
-					--remove the initiative queue completely from player view.
-					click = function(element)
-						if info.initiativeQueue ~= nil then
-							UploadDayNightInfo()
-							info.initiativeQueue.hidden = true
-							info.UploadInitiative()
-
-							for initiativeid,_ in pairs(info.initiativeQueue.entries) do
-								local tokens = self:GetTokensForInitiativeId(info, initiativeid)
-								for _,tok in ipairs(tokens) do
-									tok.properties:DispatchEvent("endcombat", {})
-								end
-							end
-
-
-						end
-					end
-				},
-
-				selfStyle = {
-					halign = 'center',
-					valign = 'top',
-					x = 0,
-					y = 35,
-					width = 20,
-					height = 20,
-				},
-
-				styles = {
-					{
-						--only show the close initiative button to the DM, so for players hide it.
-						selectors = {'player'},
-						hidden = 1,
-					},
-				}
-			}),]]
-
 		},
 	})
 end
@@ -1467,9 +2832,41 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 
 	local choicePanel
 
+	--Gradients for the thin underline bar beneath each card. Blue for unmoved heroes,
+	--red for unmoved enemies, gray (via the shared grayscaleGradient) for cards that
+	--have already taken their turn. Colors match the player/enemy bubble accents.
+	local heroBarGradient = gui.Gradient{
+		point_a = {x = 0, y = 0},
+		point_b = {x = 1, y = 0},
+		stops = {
+			{position = 0,   color = "#0a4d8a"},
+			{position = 0.5, color = "#1194FF"},
+			{position = 1,   color = "#0a4d8a"},
+		},
+	}
+	local enemyBarGradient = gui.Gradient{
+		point_a = {x = 0, y = 0},
+		point_b = {x = 1, y = 0},
+		stops = {
+			{position = 0,   color = "#7a0f26"},
+			{position = 0.5, color = "#DE1E47"},
+			{position = 1,   color = "#7a0f26"},
+		},
+	}
+
 	--anthem data.
 	local m_anthemEventInstance = nil
 	local m_anthemTokenId = nil
+
+	--Speaker icon shown in the top right of the center card while the active
+	--creature's anthem is playing. Created alongside the center container below.
+	local anthemIcon
+
+	local UpdateAnthemIcon = function()
+		if anthemIcon ~= nil and anthemIcon.valid then
+			anthemIcon:SetClass("hidden", m_anthemEventInstance == nil or not m_anthemEventInstance.playing)
+		end
+	end
 
 	local StopAnthem = function()
 		if m_anthemEventInstance ~= nil then
@@ -1479,6 +2876,7 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 
 			choicePanel.monitorGame = nil
 		end
+		UpdateAnthemIcon()
 	end
 
 	local entries = {}
@@ -1554,6 +2952,66 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 			}
 		}
 
+		--Underline bar: one per side, floating below the cards. Holds two segments
+		--(gray for hadTurn, colored for unmoved) with a small spacer between them
+		--mirroring the gap between cards. Widths set in refresh. Each segment owns
+		--a floating label that only appears when this side is the one choosing.
+		local m_hadTurnLabel = gui.Label{
+			classes = {"initiativeBarLabel", "hadTurn"},
+			floating = true,
+			halign = "center",
+			valign = "bottom",
+			y = 16,
+			fontSize = 12,
+			width = "auto",
+			height = "auto",
+			textAlignment = "center",
+			text = "Already Moved",
+		}
+		local m_unmovedLabel = gui.Label{
+			classes = {"initiativeBarLabel", "unmoved", cond(playerside, "player", "monster")},
+			floating = true,
+			halign = "center",
+			valign = "bottom",
+			y = 16,
+			fontSize = 12,
+			width = "auto",
+			height = "auto",
+			textAlignment = "center",
+			text = cond(playerside, "Ready Heroes", "Ready Monsters"),
+		}
+		local m_hadTurnSegment = gui.Panel{
+			classes = {"initiativeBarSegment", "hadTurn"},
+			height = "100%",
+			width = 0,
+			m_hadTurnLabel,
+		}
+		local m_unmovedSegment = gui.Panel{
+			classes = {"initiativeBarSegment", "unmoved", cond(playerside, "player", "monster")},
+			height = "100%",
+			width = 0,
+			m_unmovedLabel,
+		}
+		local m_segmentSpacer = gui.Panel{
+			classes = {"initiativeBarSpacer"},
+			height = "100%",
+			width = 0,
+			bgcolor = "clear",
+		}
+		local m_bar = gui.Panel{
+			classes = {"initiativeBar"},
+			floating = true,
+			halign = cond(playerside, "right", "left"),
+			valign = "bottom",
+			y = 0,
+			height = 5,
+			width = "auto",
+			flow = "horizontal",
+			children = (playerside
+				and {m_hadTurnSegment, m_segmentSpacer, m_unmovedSegment}
+				or {m_unmovedSegment, m_segmentSpacer, m_hadTurnSegment}),
+		}
+
 		return gui.Panel{
 			styles = {
 				{
@@ -1574,15 +3032,21 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 			},
 			dragTarget = true,
 			classes = {"initiativeEntryContainer"},
+            bgimage = true,
 			halign = cond(playerside, "left", "right"),
-			width = 260,
-			height = 96,
-			bgimage = "panels/square.png",
+			width = 480,
+			height = 80,
 			flow = "horizontal",
 			data = {
 				player = playerside,
 				label = m_label,
 				wonInitiativeIndicator = m_wonInitiativeIndicator,
+				bar = m_bar,
+				hadTurnSegment = m_hadTurnSegment,
+				unmovedSegment = m_unmovedSegment,
+				segmentSpacer = m_segmentSpacer,
+				hadTurnLabel = m_hadTurnLabel,
+				unmovedLabel = m_unmovedLabel,
 			},
 
 			gui.Panel{
@@ -1598,6 +3062,12 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 
 				classes = "hidden",
 			},
+
+			--The bar is attached here at construction so its segments/labels aren't
+			--orphaned before the first refresh. The refresh handler does NOT include
+			--m_bar when it reassigns .children -- it relies on the construction-time
+			--attachment to keep the bar alive without re-attach churn.
+			m_bar,
 		}
 	end
 
@@ -1605,12 +3075,243 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 	local playerContainer = CreateContainer(true)
 	local monsterContainer = CreateContainer(false)
 
+	--Radial gradients used to tint the center slot's background based on whose
+	--turn it currently is. Bright accent at the middle, dark at the edge.
+	--Radial gradients must be plain tables with type = "radial" -- gui.Gradient{}
+	--is for linear gradients and would silently drop the type field.
+	local heroCenterGradient = gui.Gradient{
+		type = "radial",
+		point_a = {x = 2.0, y = 0.5},
+		point_b = {x = 0.0, y = 0.7},
+		stops = {
+			{position = 0,   color = "#1194FF"},
+			{position = 0.6, color = "#0a3b66"},
+			{position = 1,   color = "#04101c"},
+		},
+	}
+	local enemyCenterGradient = gui.Gradient{
+		type = "radial",
+		point_a = {x = 2.0, y = 0.5},
+		point_b = {x = 0.0, y = 0.7},
+		stops = {
+			{position = 0,   color = "#DE1E47"},
+			{position = 0.6, color = "#5c0a1d"},
+			{position = 1,   color = "#1c0309"},
+		},
+	}
+
+	--Scaled-up slot for the currently active turn card. Sits in the middle, over the bubble.
+	--Always present: when no turn is chosen the slot is empty and acts as a drop target
+	--so a card can be dragged in to claim that turn.
+	--Prompt shown inside the empty center slot while we're choosing the next turn.
+	--Tells the user where to drop a card; side ("Hero"/"Monster") is set in refresh.
+	local centerPromptLabel = gui.Label{
+		classes = {"initiativeCenterPrompt"},
+		floating = true,
+		halign = "center",
+		valign = "center",
+		width = "85%",
+		height = "auto",
+		fontSize = 14,
+		bold = true,
+		color = "#ffffff80",
+		textAlignment = "center",
+		textWrap = true,
+		text = "Drag Hero Here",
+	}
+
+	--Speaker icon in the top right of the center card, shown while the active
+	--creature's anthem is playing (see UpdateAnthemIcon above). Appended last
+	--to centerChildren in refresh so it draws above the card.
+	--The icon is a white speaker over a slightly larger black copy of the same
+	--image, which reads as an outline and keeps it visible over any card art.
+	anthemIcon = gui.Panel{
+		classes = {"initiativeAnthemIcon", "hidden"},
+		floating = true,
+		halign = "right",
+		valign = "top",
+		hmargin = 3,
+		vmargin = 3,
+		width = 20,
+		height = 20,
+		flow = "none",
+		bgimage = true,
+		bgcolor = "clear",
+		linger = function(element)
+			local text = "Playing anthem"
+			if m_anthemTokenId ~= nil then
+				local tok = dmhub.GetTokenById(m_anthemTokenId)
+				if tok ~= nil and tok.name ~= nil and tok.name ~= "" then
+					text = string.format("Playing %s's anthem", tok.name)
+				end
+			end
+			gui.Tooltip(text .. "\n(click to adjust volume for yourself)")(element)
+		end,
+
+		--Click to adjust this token's anthem volume, locally only. The slider
+		--edits a per-client multiplier (anthemLocalVolumes) on top of the
+		--anthemVolume the token's owner set, so each user can quiet a specific
+		--creature's anthem without affecting anyone else.
+		press = function(element)
+			if element.popup ~= nil then
+				element.popup = nil
+				return
+			end
+			local charid = m_anthemTokenId
+			if charid == nil then
+				return
+			end
+
+			local tok = dmhub.GetTokenById(charid)
+			local name = (tok ~= nil and tok.name ~= nil and tok.name ~= "") and tok.name or "Anthem"
+
+			element.popupPositioning = "panel"
+			element.popup = gui.TooltipFrame(
+				gui.Panel{
+					styles = {
+						Styles.Default,
+						--The default slider track uses a theme token that is
+						--nearly invisible on this dark popup; force a red
+						--track and a brighter red fill so it reads clearly.
+						{
+							selectors = {"sliderNotch"},
+							bgimage = true,
+							bgcolor = "#a01010",
+							width = "100%",
+							halign = "center",
+						},
+						{
+							selectors = {"sliderFill"},
+							bgimage = true,
+							bgcolor = "#ff4040",
+							height = 4,
+						},
+					},
+					pad = 8,
+					width = "auto",
+					height = "auto",
+					flow = "vertical",
+					halign = "center",
+					valign = "top",
+
+					gui.Label{
+						text = string.format("%s's Anthem Volume (just for you)", name),
+						fontSize = 14,
+						width = "auto",
+						height = "auto",
+						halign = "center",
+						color = Styles.textColor,
+					},
+
+					gui.Slider{
+						width = 180,
+						height = 20,
+						vmargin = 6,
+						halign = "center",
+						sliderWidth = 140,
+						notchHeight = 4,
+						labelFormat = "percent",
+						minValue = 0,
+						maxValue = 1,
+						value = GetLocalAnthemVolume(charid),
+
+						--live preview while dragging.
+						change = function(slider)
+							if m_anthemEventInstance ~= nil and m_anthemTokenId == charid then
+								local t = dmhub.GetTokenById(charid)
+								local base = (t ~= nil and t.anthemVolume) or 1
+								m_anthemEventInstance.volume = base * slider.value
+							end
+						end,
+
+						confirm = function(slider)
+							SetLocalAnthemVolume(charid, slider.value)
+							if m_anthemEventInstance ~= nil and m_anthemTokenId == charid then
+								local t = dmhub.GetTokenById(charid)
+								local base = (t ~= nil and t.anthemVolume) or 1
+								m_anthemEventInstance.volume = base * slider.value
+							end
+						end,
+					},
+				},
+				{
+					halign = "center",
+					valign = "top",
+				}
+			)
+		end,
+
+		gui.Panel{
+			bgimage = "ui-icons/AudioVolumeButton.png",
+			bgcolor = "black",
+			halign = "center",
+			valign = "center",
+			width = 20,
+			height = 20,
+		},
+		gui.Panel{
+			bgimage = "ui-icons/AudioVolumeButton.png",
+			bgcolor = "white",
+			halign = "center",
+			valign = "center",
+			width = 16,
+			height = 16,
+		},
+	}
+
+	local centerContainer = gui.Panel{
+		halign = "center",
+		valign = "center",
+		width = 90,
+		height = 120,
+        y = 6,
+		flow = "none",
+		dragTarget = true,
+		classes = {"initiativeCenterContainer"},
+		styles = {
+			{
+				selectors = {"initiativeCenterContainer"},
+				bgimage = "panels/square.png",
+				bgcolor = "white",
+				border = 2,
+				borderColor = "#ffffff66",
+				gradient = heroCenterGradient,
+			},
+			{
+				selectors = {"initiativeCenterContainer", "monster"},
+				gradient = enemyCenterGradient,
+			},
+			{
+				selectors = {"initiativeCenterContainer", "drag-target"},
+				borderColor = "white",
+			},
+			{
+				selectors = {"initiativeCenterContainer", "drag-target-hover"},
+				borderColor = "yellow",
+			},
+			{
+				selectors = {"initiativeCenterPrompt"},
+				hidden = 1,
+			},
+			{
+				selectors = {"initiativeCenterPrompt", "parent:choosing"},
+				hidden = 0,
+			},
+		},
+		data = {
+			promptLabel = centerPromptLabel,
+		},
+
+		centerPromptLabel,
+		anthemIcon,
+	}
+
     local drawSteelBubble = CreateDrawSteelBubble()
 
 	choicePanel = gui.Panel{
-		width = 800,
+		width = 1140,
 		height = 96,
-		y = 40,
+		y = 30,
 		flow = "none",
         halign = "center",
 
@@ -1621,13 +3322,11 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 			},
 			{
 				selectors = {"initiativeEntryBackground"},
-				width = "100%+32",
-				height = "100%+32",
+				width = "100%",
+				height = "100%",
 				valign = "center",
 				halign = "center",
-				borderWidth = 16,
-				borderColor = "#000000aa",
-				borderFade = true,
+				borderWidth = 0,
 			},
 			{
 				selectors = {"initiativeEntryBorder"},
@@ -1664,11 +3363,71 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 
             {
                 selectors = {"initiativeEntryParent", "repel"},
-                lmargin = 60,
-                rmargin = 60,
+                lmargin = 0,
+                rmargin = 0,
                 --transitionTime = 0.5,
                 moveTime = 0.5,
             },
+
+			--One bar per side, positioned a little below the cards. Made of two
+			--horizontally-packed segments: a gray segment under the cards that have
+			--taken their turn, and a colored segment (blue/red) under the cards still
+			--to act. The segment widths are recomputed each refresh from card counts.
+			{
+				selectors = {"initiativeBarSegment"},
+				bgimage = "panels/square.png",
+				bgcolor = "white",
+				saturation = 0.75,
+			},
+			{
+				selectors = {"initiativeBarSegment", "parent:active"},
+				saturation = 1,
+			},
+			{
+				selectors = {"initiativeBarSegment", "hadTurn"},
+				gradient = Styles.grayscaleGradient,
+			},
+			{
+				selectors = {"initiativeBarSegment", "unmoved", "player"},
+				gradient = heroBarGradient,
+			},
+			{
+				selectors = {"initiativeBarSegment", "unmoved", "monster"},
+				gradient = enemyBarGradient,
+			},
+
+			--Side labels under each bar segment: only visible when the segment's
+			--owning side is the one currently choosing a turn. The dark backdrop
+			--with a faded border gives the colored text enough contrast against
+			--the busy battlemap behind it.
+			{
+				selectors = {"initiativeBarLabel"},
+				hidden = 1,
+				bold = true,
+				bgimage = "panels/square.png",
+				bgcolor = "#000000bb",
+				borderWidth = 10,
+				borderColor = "#000000bb",
+				borderFade = true,
+				hpad = 6,
+				vpad = 2,
+			},
+			{
+				selectors = {"initiativeBarLabel", "parent:active"},
+				hidden = 0,
+			},
+			{
+				selectors = {"initiativeBarLabel", "unmoved", "player"},
+				color = "#80C8FF",
+			},
+			{
+				selectors = {"initiativeBarLabel", "unmoved", "monster"},
+				color = "#FF6680",
+			},
+			{
+				selectors = {"initiativeBarLabel", "hadTurn"},
+				color = "#E5E5E5",
+			},
 
             Styles.TriggerStyles,
 		},
@@ -1676,56 +3435,45 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 		playerContainer,
         drawSteelBubble,
 		monsterContainer,
+		centerContainer,
 
-		--The 'End Turn' button which is pressed to end the current token's turn. It is only shown to the DM
-		--and to players if it is currently their turn (their token is first in the initiative queue).
-		--[[gui.FancyButton({
+		-- Monster-side strip container: holds the Villain Action strip and the
+		-- Reinforcements strip stacked vertically. This container owns the placement
+		-- (floating, right-aligned into the monster-side band, dropped below the
+		-- monster cards which occupy the top ~80px) so the two strips inside it are
+		-- just plain content-sized containers. Floating so it never reflows the bar /
+		-- round tracker.
+		gui.Panel{
 			floating = true,
-			bgimage = 'panels/square.png',
-			text = 'End Turn',
-			y = 30,
-			halign = "center",
-			valign = "bottom",
-			width = 120,
-			height = 36,
-			fontSize = 20,
-			events = {
-				click = function(element)
-					self:NextInitiative()
-					info.UploadInitiative()
-				end,
+			flow = "vertical",
+			halign = "right",
+			valign = "top",
+			width = 480,
+			height = "auto",
+			y = 100,
 
-				refresh = function(element)
-					if info.initiativeQueue == nil or info.initiativeQueue.hidden or (not self:has_key('currentInitiativeId')) or info.initiativeQueue.currentTurn == false or info.initiativeQueue:ChoosingTurn() then
+			CreateVillainActionStrip(self, info),
+			CreateReinforcementsStrip(self, info),
+		},
 
-						--If there is no initiative then hide the button.
-						element:AddClass('hidden')
-					else
-						--Find the list of tokens for the first entry in the initiative queue. If we have control of any of them show
-						--the button, otherwise don't.
-						local tokens = self:GetTokensForInitiativeId(info, self.currentInitiativeId)
-						local foundControllable = false
-						for i,tok in ipairs(tokens) do
-							if tok.canControl then
-								foundControllable = true
-								break
-							end
-						end
+		-- Player-side strip container: mirror of the monster-side container,
+		-- left-aligned, holding the Award Victory strip. Floating so it never
+		-- reflows the bar / round tracker.
+		gui.Panel{
+			floating = true,
+			flow = "vertical",
+			halign = "left",
+			valign = "top",
+			width = 480,
+			height = "auto",
+			y = 100,
 
-						--note that the dm always shows entries, and doesn't auto-remove entries since they might be for a different map.
-						if foundControllable or dmhub.isDM then
-							element:RemoveClass('hidden')
-						else
-							element:AddClass('hidden')
-						end
-					end
-				end,
-                
+			CreateAwardVictoryStrip(self, info),
+		},
 
-			},
-		}),]]
-
-
+		--Boss bar: centered Stamina bar below the tracker for a Solo "boss" creature.
+		--Floating so it never reflows the bar.
+		CreateBossBarStrip(self, info),
 
 		refresh = function(element)
 
@@ -1736,6 +3484,14 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 				return
 			else
 				element:SetClass('hidden', false)
+			end
+
+			--Once victory has been awarded the initiative display is removed; the
+			--full-screen victory screen (DSVictoryScreen) takes over for everyone.
+			local liveEncounterForVictory = initiativeQueue:try_get("liveEncounter")
+			if type(liveEncounterForVictory) == "table" and liveEncounterForVictory:try_get("victoryAwarded", false) then
+				element:SetClass('hidden', true)
+				return
 			end
 
 			self.currentInitiativeId = initiativeQueue.currentTurn or nil
@@ -1755,25 +3511,74 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
                 initiativeids[initiativeid] = true
             end
 
-			local playerChildren = {playerContainer.data.label.parent}
-			local monsterChildren = {monsterContainer.data.label.parent}
+			local playerChildren = {playerContainer.data.label.parent, playerContainer.data.bar}
+			local monsterChildren = {monsterContainer.data.label.parent, monsterContainer.data.bar}
+			--Seed centerChildren with the prompt label so reassigning .children on
+			--the center container doesn't dispose it.
+			local centerChildren = {centerContainer.data.promptLabel}
+			local playerCards = {}
+			local monsterCards = {}
+			local centerCards = {}
 			local newEntries = {}
+
+			--Split entries into player/monster lists, then sort so cards that have
+			--already taken their turn are pushed to the outer edge of each side:
+			--player hadTurn first (left), monster hadTurn last (right). Within the same
+			--unmoved bucket we preserve a stable order by initiative id.
+			local playerList = {}
+			local monsterList = {}
 			for k,v in pairs(initiativeQueue.entries) do
-				local isplayer = initiativeQueue:IsEntryPlayer(k)
-				if entries[k] ~= nil and entries[k].data.isplayer == isplayer then
-					newEntries[k] = entries[k]
+				local rec = { k = k, v = v, unmoved = initiativeQueue:EntryUnmoved(v) }
+				if initiativeQueue:IsEntryPlayer(k) then
+					playerList[#playerList+1] = rec
+				else
+					monsterList[#monsterList+1] = rec
+				end
+			end
+			table.sort(playerList, function(a, b)
+				if a.unmoved ~= b.unmoved then return not a.unmoved end
+				return a.k < b.k
+			end)
+			table.sort(monsterList, function(a, b)
+				if a.unmoved ~= b.unmoved then return a.unmoved end
+				return a.k < b.k
+			end)
+
+			local processEntry = function(k, v, isplayer)
+				--A card's wrapper can't cleanly move between containers via .children
+				--reassignment, so if the desired container for this card has changed since
+				--the last refresh we must recreate the entry. Otherwise the wrapper gets
+				--orphaned and the card isn't visible until the next refresh.
+				local turn = initiativeQueue.currentTurn == k
+				local desiredContainer = turn and "center" or (isplayer and "player" or "monster")
+				local cached = entries[k]
+				local cacheHit = cached ~= nil
+					and cached.data ~= nil
+					and cached.data.isplayer == isplayer
+					and cached.data.container == desiredContainer
+				if cacheHit then
+					newEntries[k] = cached
 				else
 					newEntries[k] = self:CreateInitiativeEntry(info, k, {
-						click = function(element)
+						selectinitiative = function(element)
 
-                            print("CLICK:: CONTROL:", CanControlInitiative(), "CHOOSING:", initiativeQueue:ChoosingTurn(), "PLAYERSTURN:", initiativeQueue:IsPlayersTurn(), "UNMOVED:", initiativeQueue:EntriesUnmoved()[k])
-							if CanControlInitiative() == false and ((not initiativeQueue:ChoosingTurn()) or (not initiativeQueue:IsPlayersTurn()) or (not initiativeQueue:EntriesUnmoved()[k]) or (not initiativeQueue:IsEntryPlayer(k))) then --or element:HasClass("unselectable") then
+							--Use the live queue (dmhub.initiativeQueue), not the closure-
+							--captured initiativeQueue from when refresh ran -- the latter
+							--can be stale after a turn transition, which made SelectTurn a
+							--silent no-op for drag-to-claim after ending the previous turn.
+							local q = dmhub.initiativeQueue
+							if q == nil or q.hidden then return end
+
+							if CanControlInitiative() == false and ((not q:ChoosingTurn()) or (not q:IsPlayersTurn()) or (not q:EntriesUnmoved()[k]) or (not q:IsEntryPlayer(k))) then
 								return
 							end
-							initiativeQueue:SelectTurn(k)
-							info.UploadInitiative()
+							q:SelectTurn(k)
+							dmhub:UploadInitiativeQueue()
 
-							local tokens = self:GetTokensForInitiativeId(info, v.initiativeid)
+							--Use the loop key (the initiative id) rather than v.initiativeid;
+							--group entries don't populate v.initiativeid, which left BeginTurn
+							--unfired and the drag-to-claim a no-op for monster groups.
+							local tokens = self:GetTokensForInitiativeId(info, k)
 							local tokenIds = {}
 							for i,tok in ipairs(tokens) do
 								if tok.properties ~= nil then
@@ -1793,20 +3598,22 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 					newEntries[k]:SetClass("monster", not isplayer)
 
 					--parent this panel to a new panel so we can center it.
+					--Explicit pixel sizes (not "auto") so cards pack flush; FitCards updates these.
 					gui.Panel{
                         classes = {"initiativeEntryParent"},
-						halign = "center",
+						halign = cond(isplayer, "right", "left"),
 						valign = "center",
-						height = "auto",
-						width = 1,
+						height = 72,
+						width = 54,
+                        hmargin = 2,
 						newEntries[k],
 					}
 				end
 
 				local panel = newEntries[k]
 				panel.data.isplayer = isplayer
+				panel.data.container = desiredContainer
 
-				local turn = initiativeQueue.currentTurn == k
 				local unmoved = initiativeQueue:EntryUnmoved(v)
 				panel:SetClass("turn", turn)
 				panel.parent:SetClass("repel", turn)
@@ -1814,16 +3621,206 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 				panel:SetClass("hadTurn", not unmoved)
 				panel:SetClass("unselectable", (not unmoved) or (isPlayersTurn ~= isplayer))
                 panel:SetClass("selected", initiativeids[k])
+				--Propagate state classes to the wrapper so the underline bar style can match.
+				panel.parent:SetClass("player", isplayer)
+				panel.parent:SetClass("monster", not isplayer)
+				panel.parent:SetClass("unmoved", unmoved)
+				panel.parent:SetClass("hadTurn", not unmoved)
 
-				if isplayer then
+				--Determine whether this entry has any token the local player can see.
+				--Entries with no visible tokens still get added to children (their
+				--wrapper will be collapsed by the card's own refresh), but they are
+				--excluded from the *Cards lists so FitCards and the underline bar
+				--ignore them for sizing.
+				local visible = false
+				local entryTokens = self:GetTokensForInitiativeId(info, k)
+				for _,tok in ipairs(entryTokens) do
+					if tok.canSee or tok.playerControlled then
+						visible = true
+						break
+					end
+				end
+
+				if turn then
+					centerChildren[#centerChildren+1] = panel.parent
+					if visible then centerCards[#centerCards+1] = panel end
+				elseif isplayer then
 					playerChildren[#playerChildren+1] = panel.parent
+					if visible then playerCards[#playerCards+1] = panel end
 				else
 					monsterChildren[#monsterChildren+1] = panel.parent
+					if visible then monsterCards[#monsterCards+1] = panel end
 				end
 			end
 
+			for _,e in ipairs(playerList) do processEntry(e.k, e.v, true) end
+			for _,e in ipairs(monsterList) do processEntry(e.k, e.v, false) end
+
+			--The anthem speaker icon goes last so it renders above the centered card.
+			--It must be included in every reassignment or it gets disposed.
+			centerChildren[#centerChildren+1] = anthemIcon
+
+			--Assign the destination container first to reduce the chance the wrapper
+			--gets destroyed in transit when it moves between containers.
+			centerContainer.children = centerChildren
 			playerContainer.children = playerChildren
 			monsterContainer.children = monsterChildren
+
+			--Apply the scaled-up size to the active (centered) card. Override both
+			--width and height explicitly -- the class-style "75% height" width formula
+			--resolves against the class height, not selfStyle, so width must be pinned.
+			--Sized to fully fill the centerContainer (which is 90x120, same 0.75 aspect).
+			local centerCardH = 120
+			local centerCardW = centerCardH * (CardWidthPercent * 0.01)
+			local centerIsPlayer = nil
+			for _,card in ipairs(centerCards) do
+				card.selfStyle.height = centerCardH
+				card.selfStyle.width = centerCardW
+				card.selfStyle.valign = "center"
+				card.parent.selfStyle.height = centerCardH
+				card.parent.selfStyle.width = centerCardW
+				card.parent.selfStyle.halign = "center"
+				if centerIsPlayer == nil then
+					centerIsPlayer = card.data.isplayer
+				end
+			end
+			--Tint the center container based on whose turn it is (blue/red gradient).
+			--During ChoosingTurn there is no centered card yet -- fall back to whichever
+			--side is currently picking so the gradient still shows the right color.
+			local choosing = initiativeQueue:ChoosingTurn()
+			if centerIsPlayer == nil and choosing then
+				centerIsPlayer = initiativeQueue:IsPlayersTurn()
+			end
+			centerContainer:SetClass("player", centerIsPlayer == true)
+			centerContainer:SetClass("monster", centerIsPlayer == false)
+
+			--Empty-slot prompt: visible only while choosing a turn (no card in center).
+			centerContainer:SetClass("choosing", choosing and #centerCards == 0)
+			centerContainer.data.promptLabel.text = (centerIsPlayer == false)
+				and "Drag Monster Here"
+				or "Drag Hero Here"
+
+			--Shrink cards uniformly if the row would otherwise overflow the container.
+			--Container is 480w x 80h; cards are 75% of container height by default,
+			--and width is CardWidthPercent% of card height (square aspect ratio).
+			--We set explicit pixel dimensions on the wrapper too, because the card's
+			--"75% height" width formula breaks "auto" sizing on the parent.
+			local containerW = 480
+			local containerH = 80
+			--Cards default to 90% of the side container's height (~20% bigger than
+			--the previous 75% baseline). The centered card uses its own size.
+			local baseFactor = 0.9
+			local aspect = CardWidthPercent * 0.01
+			local desiredH = containerH * baseFactor
+			local desiredW = desiredH * aspect
+			--Cards in the same bucket pack with the normal hmargin (4px between them).
+			--At the boundary between hadTurn and unmoved we add bucketGapExtra extra
+			--pixels of left margin on the first card of the second bucket so there's
+			--a visible separation between "already moved" and "ready" cards.
+			local bucketGapExtra = 8
+			local FitCards = function(cards, isplayer)
+				local n = #cards
+				if n == 0 then return end
+				local totalW = n * desiredW
+				local finalH = desiredH
+				if totalW > containerW then
+					finalH = desiredH * (containerW / totalW)
+				end
+				local finalW = finalH * aspect
+				local halign = cond(isplayer, "right", "left")
+				local prevBucket = nil
+				for _,card in ipairs(cards) do
+					local bucket = card:HasClass("hadTurn") and "hadTurn" or "unmoved"
+					local isBoundary = prevBucket ~= nil and prevBucket ~= bucket
+					prevBucket = bucket
+					card.selfStyle.height = finalH
+					card.selfStyle.width = finalW
+					card.selfStyle.valign = "center"
+					card.parent.selfStyle.height = finalH
+					card.parent.selfStyle.width = finalW
+					card.parent.selfStyle.halign = halign
+					card.parent.selfStyle.lmargin = isBoundary and (2 + bucketGapExtra) or nil
+				end
+			end
+			FitCards(playerCards, true)
+			FitCards(monsterCards, false)
+
+			--Size the per-side underline bar segments to span the cards above them.
+			--Each card wrapper has hmargin = 2, so the per-card horizontal slot is
+			--cardW + 2 * hmargin wide -- the bar segments need to include that gap.
+			--A side is "active" when it's the side currently choosing whose turn goes
+			--next; the active side's bar shows at full saturation, the other at 50%.
+			local cardHMargin = 2
+			local choosingPlayer = false
+			local choosingMonster = false
+			if initiativeQueue:ChoosingTurn() then
+				if initiativeQueue:IsPlayersTurn() then
+					choosingPlayer = true
+				else
+					choosingMonster = true
+				end
+			end
+			local SizeBar = function(container, cards, active)
+				--cards is already filtered to entries the local player can see.
+				local n = #cards
+				local cardW = desiredW
+				if n > 0 then
+					local totalW = n * desiredW
+					local finalH = desiredH
+					if totalW > containerW then
+						finalH = desiredH * (containerW / totalW)
+					end
+					cardW = finalH * aspect
+				end
+				local slotW = cardW + 2 * cardHMargin
+				local hadTurnCount, unmovedCount = 0, 0
+				for _,c in ipairs(cards) do
+					if c:HasClass("hadTurn") then
+						hadTurnCount = hadTurnCount + 1
+					else
+						unmovedCount = unmovedCount + 1
+					end
+				end
+				--Segments include the outer margins of their edge cards. When both
+				--segments are present, the spacer takes the place of one card's outer
+				--margin (2px) from each side, so we subtract cardHMargin from each
+				--segment to keep the visible bar-gap aligned with the card-to-card gap.
+				local showBoth = hadTurnCount > 0 and unmovedCount > 0
+				local hadTurnW = hadTurnCount * slotW
+				local unmovedW = unmovedCount * slotW
+				if showBoth then
+					hadTurnW = hadTurnW - cardHMargin
+					unmovedW = unmovedW - cardHMargin
+				end
+				--Wrap segment/label updates in pcall: when the container's .children
+				--gets reassigned during a refresh, the engine can dispose the old
+				--bar/segment panels even though the Lua references in `data` still
+				--point at them, which makes the next selfStyle access raise a C#
+				--NullReferenceException. Skipping silently is fine -- next refresh
+				--will see fresh panels.
+				pcall(function()
+					container.data.hadTurnSegment.selfStyle.width = hadTurnW
+					container.data.unmovedSegment.selfStyle.width = unmovedW
+					--Spacer matches the card-to-card visible gap: 4px normal + bucketGapExtra
+					--at the bucket boundary, so the bar's break lines up with the card gap.
+					container.data.segmentSpacer.selfStyle.width = showBoth and (2 * cardHMargin + bucketGapExtra) or 0
+					container.data.bar:SetClass("active", active)
+					--Labels use parent:active to show themselves; parent is the segment.
+					container.data.hadTurnSegment:SetClass("active", active)
+					container.data.unmovedSegment:SetClass("active", active)
+					--Shorten the label text when the segment is only one card wide so it
+					--still fits beneath the bar.
+					container.data.hadTurnLabel.text = (hadTurnCount == 1) and "Moved" or "Already Moved"
+					container.data.unmovedLabel.text = (unmovedCount == 1) and "Ready"
+						or (container.data.player and "Ready Heroes" or "Ready Monsters")
+					--Labels only show when this side is currently choosing the next turn,
+					--and the bucket has at least one card to label.
+					container.data.hadTurnLabel.selfStyle.hidden = (active and hadTurnCount > 0) and 0 or 1
+					container.data.unmovedLabel.selfStyle.hidden = (active and unmovedCount > 0) and 0 or 1
+				end)
+			end
+			SizeBar(playerContainer, playerCards, choosingPlayer)
+			SizeBar(monsterContainer, monsterCards, choosingMonster)
 
 			entries = newEntries
 
@@ -1851,7 +3848,7 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
                         local asset = assets.audioTable[anthemToken.anthem]
                         if asset ~= nil then
                             m_anthemEventInstance = asset:Play()
-                            m_anthemEventInstance.volume = anthemToken.anthemVolume
+                            m_anthemEventInstance.volume = anthemToken.anthemVolume * GetLocalAnthemVolume(anthemToken.charid)
                             if anthemLimited:Get() then
                                 m_anthemEventInstance:SetStopAfter(anthemDuration:Get())
                             end
@@ -1866,6 +3863,8 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
             --only recalculate anthems once per change of turn.
             element.data.anthemInitiativeId = currentInitiativeId
 
+            UpdateAnthemIcon()
+
 		end,
 
 
@@ -1873,12 +3872,30 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 			StopAnthem()
 		end,
 
+		--Lightweight poll so the bar is removed promptly when victory is awarded mid-round
+		--(the heavy card refresh above only runs on turn transitions, which don't happen
+		--during the victory moment). Only ever force-hides on victory; the normal show/hide
+		--is owned by refresh.
+		thinkTime = 0.3,
+		think = function(element)
+			--Keep the anthem speaker icon in sync with actual playback, so it
+			--hides when a time-limited anthem finishes without a turn change.
+			UpdateAnthemIcon()
+
+			local q = info.initiativeQueue
+			if q == nil or q.hidden then return end
+			local live = q:try_get("liveEncounter")
+			if type(live) == "table" and live:try_get("victoryAwarded", false) then
+				element:SetClass("hidden", true)
+			end
+		end,
+
 		--fired when the token playing the anthem changes. Will update the volume of the anthem.
 		refreshGame = function(element)
 			if m_anthemEventInstance ~= nil and m_anthemTokenId ~= nil then
 				local tok = dmhub.GetTokenById(m_anthemTokenId)
 				if tok ~= nil then
-					m_anthemEventInstance.volume = tok.anthemVolume
+					m_anthemEventInstance.volume = tok.anthemVolume * GetLocalAnthemVolume(m_anthemTokenId)
 				else
 					StopAnthem()
 				end
@@ -1943,7 +3960,8 @@ function GameHud:NextInitiative(oncomplete)
 
 	--End the turn in initiative queue data and upload the changes.
 	if self:has_key('currentInitiativeId') then
-		local tokens = self:GetTokensForInitiativeId(info, self.currentInitiativeId)
+		local currentInitiativeId = self.currentInitiativeId
+		local tokens = self:GetTokensForInitiativeId(info, currentInitiativeId)
         
 
         --we have to dispatch end turn BEFORE we change to the next turn,
@@ -1964,7 +3982,7 @@ function GameHud:NextInitiative(oncomplete)
         --TODO: maybe a mechanism for counting in process abilities/coroutines and
         --waiting for them to finish before we start the next turn?
         dmhub.Schedule(0.1, function()
-            local newRound = info.initiativeQueue:NextTurn(self.currentInitiativeId)
+            local newRound = info.initiativeQueue:NextTurn(currentInitiativeId)
 
             if newRound then
                 self:NewRound()
@@ -2293,6 +4311,7 @@ function GameHud.CreateInitiativeEntry(self, info, initiativeid, options)
         halign = "left",
         valign = "bottom",
         flow = "vertical",
+        uiscale = 0.8,
         hmargin = 2,
         vmargin = 3,
         width = 24,
@@ -2347,47 +4366,51 @@ function GameHud.CreateInitiativeEntry(self, info, initiativeid, options)
 
 	local closeButton = nil
 
-	--The DM has an 'X' button which lets them remove initiative entries.
+	--Revert-turn button: only visible while this entry is the current turn.
+	--Pressed -> cancels the turn (sends us back to the choose-next-turn state).
 	if CanControlInitiative() then
 
-		closeButton = gui.CloseButton({
+		closeButton = gui.Button{
+            classes = {"closeButton", "revertTurnButton"},
+			halign = "right",
+			valign = "top",
+			hmargin = 2,
+			vmargin = 2,
+			-- The closeButton kind class auto-binds Escape (escapeActivates=true).
+			-- Reverting the current turn from a stray Escape press is far too
+			-- destructive, so opt this specific button out of escape activation.
+			escapeActivates = false,
+
+			styles = {
+				{
+					selectors = {"revertTurnButton"},
+					hidden = 1,
+				},
+				{
+					selectors = {"revertTurnButton", "parent:turn"},
+					hidden = 0,
+				},
+			},
+
+			hover = gui.Tooltip("Revert Turn"),
+
 			events = {
-				--remove the initiative entry.
 				click = function(element)
-					
-					if self:has_key("currentInitiativeId") and self.currentInitiativeId == initiativeid then
-						--if it's currently this creature's turn, move to next
+					--Prefer a full checkpoint restore (same as the settings menu's
+					--Revert Turn), which undoes any in-turn changes. Fall back to
+					--CancelTurn when no checkpoint is available.
+					local settingsButton = self:try_get("combatSettingsButton")
+					local checkpoint = settingsButton ~= nil and settingsButton.data.checkpoint or nil
+					if checkpoint ~= nil then
+						checkpoint:Restore()
+						audio.DispatchSoundEvent("Notify.Director_Undo")
+					elseif info.initiativeQueue ~= nil then
 						info.initiativeQueue:CancelTurn(initiativeid)
-					else
-						info.initiativeQueue:RemoveInitiative(initiativeid)
+						info.UploadInitiative()
 					end
-
-					info.UploadInitiative()
-				end
+				end,
 			},
-
-            --inner white bordered button. Outer button is black to give an outline.
-            gui.CloseButton{
-                width = 20,
-                height = 20,
-                halign = "center",
-                valign = "center",
-                brightness = 1,
-            },
-
-			selfStyle = {
-                bgcolor = "black",
-				halign = "left",
-				valign = "top",
-				hmargin = 0,
-				vmargin = 0,
-				width = 30,
-				height = 30,
-			},
-		})
-
-		--this isn't shown by default, only when hovering over the panel.
-		closeButton:AddClass('hidden')
+		}
 	end
 
 	local playerColor = "black"
@@ -2395,32 +4418,68 @@ function GameHud.CreateInitiativeEntry(self, info, initiativeid, options)
 		playercolor = token.playerColor.tostring
 	end
 
-	local orderLabel = gui.Label{
-		classes = {"hidden"},
-		floating = true,
-		halign = "center",
-		valign = "center",
-		width = "auto",
-		height = "auto",
-		fontSize = 62,
-		bold = true,
-		color = Styles.textColor,
-		text = "2",
-		textOutlineWidth = 0.2,
-		textOutlineColor = "black",
-	}
-
 	local m_bossTurnsPanel = nil
     local m_containerPanel = nil
+
+	--Players can normally only drag initiative cards when they have full control of
+	--the initiative bar (the DM, or the "players control initiative" setting). As a
+	--special case we also let a non-DM player drag a hero card onto the center
+	--"Drag Hero Here" slot to claim that hero's turn. Reassigning an entry between
+	--containers stays DM-only.
+	--
+	--We make the card draggable under EXACTLY the conditions selectinitiative accepts
+	--the drop (heroes' choose-a-turn phase, an unmoved hero entry) -- NOT token
+	--ownership. In Draw Steel any player picks which hero acts next on the heroes'
+	--turn, and token.canControl is false for hero tokens that aren't player-controlled
+	--(playerControlled=false), which is what was blocking the drag entirely.
+	--
+	--draggable must be recomputed live (see the refresh handler below): the card is
+	--created then cached across refreshes, and eligibility changes as the initiative
+	--phase changes, so a value frozen at creation would be wrong.
+	local CanDragEntry = function()
+		if CanControlInitiative() then
+			return true
+		end
+
+		local q = dmhub.initiativeQueue
+		if q == nil or q.hidden then
+			return false
+		end
+
+		if not (q:ChoosingTurn() and q:IsPlayersTurn() and q:IsEntryPlayer(initiativeid)) then
+			return false
+		end
+
+		local entry = q.entries[initiativeid]
+		return entry ~= nil and q:EntryUnmoved(entry)
+	end
 
 	--this is the initiative entry panel.
 	return gui.Panel({
 
 		classes = {"initiativeEntryPanel"},
 
-		draggable = CanControlInitiative(),
+		draggable = CanDragEntry(),
 		drag = function(element, target)
-			if target == nil or (not target:HasClass("initiativeEntryContainer")) then
+			if target == nil then
+				return
+			end
+
+			--Dropping on the center slot claims the turn (same effect as clicking the card
+			--when it's eligible to take its turn).
+			if target:HasClass("initiativeCenterContainer") then
+				if options.selectinitiative ~= nil then
+					options.selectinitiative(element)
+				end
+				return
+			end
+
+			--Reassigning an entry between containers is a DM-only reorganization.
+			if not CanControlInitiative() then
+				return
+			end
+
+			if not target:HasClass("initiativeEntryContainer") then
 				return
 			end
 
@@ -2431,7 +4490,18 @@ function GameHud.CreateInitiativeEntry(self, info, initiativeid, options)
 			end
 		end,
 		canDragOnto = function(element, target)
-			if target ~= nil and target:HasClass("initiativeEntryContainer") then
+			if target == nil then
+				return false
+			end
+
+			--Anyone allowed to drag can drop on the center slot to claim a turn.
+			if target:HasClass("initiativeCenterContainer") then
+				return true
+			end
+
+			--Only DMs (or when players control initiative) may move an entry between
+			--containers by dropping on another entry container.
+			if CanControlInitiative() and target:HasClass("initiativeEntryContainer") then
 				return true
 			end
 
@@ -2440,11 +4510,6 @@ function GameHud.CreateInitiativeEntry(self, info, initiativeid, options)
 
 		events = {
 			click = function(element)
-
-                print("CLICK::", options.click ~= nil)
-				if options.click ~= nil then
-					options.click(element)
-				end
 
 				local tokens = self:GetTokensForInitiativeId(info, initiativeid)
 				if tokens ~= nil and #tokens > 0 then
@@ -2472,13 +4537,35 @@ function GameHud.CreateInitiativeEntry(self, info, initiativeid, options)
 
                 local entries = {}
 
+                if q.currentTurn ~= initiativeid then
+                    entries[#entries+1] = {
+                        text = "Remove from Initiative",
+                        click = function()
+                            element.popup = nil
+                            info.initiativeQueue:RemoveInitiative(initiativeid)
+                            info.UploadInitiative()
+                        end,
+                    }
+                end
+
                 if q.currentTurn == initiativeid then
                     entries[#entries+1] = {
                         text = "Revert Turn",
                         click = function()
                             element.popup = nil
-                            q:CancelTurn(initiativeid)
-                            info.UploadInitiative()
+                            --Prefer the full checkpoint restore captured by the
+                            --combat settings button so heroic resources, stamina,
+                            --and other start-of-turn side effects are undone too.
+                            --CancelTurn alone only rewinds the initiative pointer.
+                            local settingsButton = self:try_get("combatSettingsButton")
+                            local checkpoint = settingsButton ~= nil and settingsButton.data.checkpoint or nil
+                            if checkpoint ~= nil then
+                                checkpoint:Restore()
+                                audio.DispatchSoundEvent("Notify.Director_Undo")
+                            else
+                                q:CancelTurn(initiativeid)
+                                info.UploadInitiative()
+                            end
                         end,
                     }
                 elseif q:EntryUnmoved(entry) then
@@ -2516,13 +4603,13 @@ function GameHud.CreateInitiativeEntry(self, info, initiativeid, options)
 					element.parent:RemoveClass('collapsed')
 				end
 
+				--Recompute draggability now that token is resolved: a player can drag
+				--a hero card they control onto the center slot to claim its turn, even
+				--though the card was created (and cached) while token was still nil.
+				element.draggable = CanDragEntry()
+
 				local entry = info.initiativeQueue.entries[initiativeid]
-				if entry ~= nil and entry.round == info.initiativeQueue.round+1 then
-					orderLabel.text = tostring(entry.turn)
-					orderLabel:RemoveClass("hidden")
-				else
-					orderLabel:AddClass("hidden")
-				end
+				element:SetClassTree("turntaken", entry ~= nil and entry.round == info.initiativeQueue.round+1)
 
 				if entry ~= nil and entry.turnsPerRound > 1 then
 					if m_bossTurnsPanel == nil then
@@ -2576,10 +4663,6 @@ function GameHud.CreateInitiativeEntry(self, info, initiativeid, options)
                     element:FireEvent("highlightTokens", tokens)
 				end
 
-				if closeButton ~= nil then
-					closeButton:RemoveClass('hidden')
-				end
-
 				local tooltip = nil
 				if token ~= nil then
 					if token.canLocalPlayerSeeName then
@@ -2630,9 +4713,6 @@ function GameHud.CreateInitiativeEntry(self, info, initiativeid, options)
 
 			dehover = function(element)
                 element:FireEvent("dehighlightTokens")
-				if closeButton ~= nil then
-					closeButton:AddClass('hidden')
-				end
 			end,
 		},
 
@@ -2777,8 +4857,6 @@ function GameHud.CreateInitiativeEntry(self, info, initiativeid, options)
 		
 
 			closeButton,
-
-			orderLabel,
 		}
 	})
 end

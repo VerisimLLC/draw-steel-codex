@@ -1049,6 +1049,25 @@ CharacterModifier.TypeInfo.resistance = {
 		end
 	end,
 
+	fillStatusIcons = function(self, creature, result)
+		if self:try_get("displayIcon", false) and self:has_key("statusIcon") then
+			local hoverText = self.name
+			local description = self:try_get("description", "")
+			if description ~= "" then
+				hoverText = string.format("<b>%s</b>\n%s", self.name, description)
+			end
+			result[#result+1] = {
+				id = self.name,
+				icon = self.statusIcon,
+				hoverText = hoverText,
+				style = {
+					bgcolor = self:try_get("iconColor", "#ffffffff"),
+				},
+				statusIcon = true,
+			}
+		end
+	end,
+
 	createEditor = function(modifier, element)
 		local Refresh
 		local firstRefresh = true
@@ -1207,9 +1226,8 @@ CharacterModifier.TypeInfo.resistance = {
                                 fontSize = 14,
                                 color = Styles.textColor,
                             },
-                            gui.DeleteItemButton{
-                                width = 12,
-                                height = 12,
+                            gui.Button{
+								classes = {"deleteButton", "sizeXs"},
                                 halign = "right",
                                 click = function(element)
                                     modifier.resistances[1].keywords[keyword] = nil
@@ -1355,6 +1373,58 @@ CharacterModifier.TypeInfo.resistance = {
 				}
 			end
 
+			children[#children+1] = gui.Check{
+				styles = ThemeEngine.GetStyles(),
+				text = "Display Icon When Active",
+				value = modifier:try_get("displayIcon", false),
+				change = function(element)
+					modifier.displayIcon = element.value
+					Refresh()
+				end,
+			}
+
+			if modifier:try_get("displayIcon", false) then
+				children[#children+1] = gui.Panel{
+					width = "auto",
+					height = "auto",
+					flow = "horizontal",
+					gui.IconEditor{
+						library = "ongoingEffects",
+						bgcolor = modifier:try_get("iconColor", "#ffffffff"),
+						margin = 10,
+						width = 48,
+						height = 48,
+						halign = "left",
+						value = modifier:try_get("statusIcon", "none"),
+						change = function(element)
+							modifier.statusIcon = element.value
+							Refresh()
+						end,
+						iconcolor = function(element, color)
+							element.selfStyle.bgcolor = color
+						end,
+					},
+					gui.ColorPicker{
+						value = modifier:try_get("iconColor", "#ffffffff"),
+						hmargin = 8,
+						width = 24,
+						height = 24,
+						halign = "left",
+						valign = "center",
+						borderWidth = 2,
+						borderColor = '#999999ff',
+
+						confirm = function(element)
+							modifier.iconColor = element.value
+							Refresh()
+						end,
+						change = function(element)
+							element.parent.parent:FireEventTree("iconcolor", element.value)
+						end,
+					},
+				}
+			end
+
 			element.children = children
 		end
 
@@ -1421,9 +1491,8 @@ CharacterModifier.TypeInfo.conditionimmunity = {
 						classes = {'formLabel'},
 						width = 200,
 						height = 30,
-						gui.DeleteItemButton{
-							width = 16,
-							height = 16,
+						gui.Button{
+							classes = {"deleteButton", "sizeS"},
 							valign = 'center',
 							halign = 'right',
 							click = function(element)
@@ -1916,9 +1985,9 @@ CharacterModifier.TypeInfo.trigger = {
 
                 end,
             }
-			children[#children+1] = gui.PrettyButton{
+			children[#children+1] = gui.Button{
+				classes = {"sizeL"},
 				width = 200,
-				height = 50,
 				text = "Edit Ability",
 				click = function(element)
 					local fn = function(element, modifier, savefn)
@@ -2040,9 +2109,9 @@ CharacterModifier.TypeInfo.activated = {
                     modifier.suppressOthers = element.value
                 end,
             }
-			children[#children+1] = gui.PrettyButton{
+			children[#children+1] = gui.Button{
+				classes = {"sizeL"},
 				width = 200,
-				height = 50,
 				text = "Edit Ability",
 				click = function(element)
 					local fn = function(element, modifier, savefn)

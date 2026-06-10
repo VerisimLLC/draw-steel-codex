@@ -45,6 +45,7 @@ local CreateEditorPanel = function(var, editor, changeFunction, args)
 					changeFunction(dmhub.GetSettingValue(var.id))
 				end
 			end,
+			linger = gui.Tooltip(var.help),
 		},
 
 		children = {
@@ -56,9 +57,11 @@ end
 
 local SettingsEditors = {
 
-	input = function(var)
+	input = function(var, options)
+		options = options or {}
+		local stacked = options.stacked
 		local input = gui.Input{
-			classes = {"form"},
+			classes = {stacked and "formStacked" or "form"},
 			text = dmhub.GetSettingValue(var.id),
 
 			characterLimit = var.characterLimit,
@@ -73,7 +76,7 @@ local SettingsEditors = {
 			}
 		}
 
-		return CreateEditorPanel(var, input)
+		return CreateEditorPanel(var, input, nil, options)
 	end,
 
 	sliderexponential = function(var)
@@ -210,13 +213,14 @@ local SettingsEditors = {
 			}
 		end
 
-		return 
+		return
 		gui.Panel{
 			width = "90%",
 			height = "auto",
 			gui.Check{
 				value = dmhub.GetSettingValue(var.id),
 				text = var.description,
+				tooltip = var.help,
 				halign = options.halign or "left",
 				keybinds = keybinds,
 
@@ -446,7 +450,9 @@ local SettingsEditors = {
 
 	end,
 
-	color = function(var)
+	color = function(var, options)
+		options = options or {}
+		local stacked = options.stacked
 		local picker = gui.ColorPicker{
 					value = dmhub.GetSettingValue(var.id),
 					popupAlignment = 'left',
@@ -479,24 +485,25 @@ local SettingsEditors = {
 					},
 					styles = {
 						{
-							halign = 'right',
+							halign = stacked and 'left' or 'right',
 							valign = 'center',
 							fontSize = '30%',
 							height = 24,
 							width = 24,
+							lmargin = stacked and 6 or 0,
 						},
 					}
 
 				}
 
-		return CreateEditorPanel(var, picker)
+		return CreateEditorPanel(var, picker, nil, options)
 	end,
 
 	buttonincrement = function(var)
-		local button = gui.PrettyButton{
+		local button = gui.Button{
+			classes = {"sizeL"},
 			text = var.description,
 			width = 260,
-			height = 48,
 			events = {
 				click = function(element)
 					dmhub.SetSettingValue(var.id, dmhub.GetSettingValue(var.id)+1)
@@ -597,11 +604,11 @@ function CreateSettingsEditor(var, options)
 	return nil
 end
 
-function CreateSettingsEditorsForSection(section)
+function CreateSettingsEditorsForSection(section, options)
 	local result = {}
 	for i,setting in ipairs(SettingsOrdered) do
 		if setting.section == section then
-			result[#result+1] = CreateSettingsEditor(setting)
+			result[#result+1] = CreateSettingsEditor(setting, options)
 		end
 	end
 	return result

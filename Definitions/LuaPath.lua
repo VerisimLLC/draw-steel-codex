@@ -10,6 +10,7 @@
 --- @field forcedMovementTotalDistance number 
 --- @field collisionSpeed number 
 --- @field hasClimbing boolean 
+--- @field fallDistance number Number of tiles of altitude the token would fall when executing this path. Zero when there's no fall (or when shift-held descent has converted the move into a climb-down).
 --- @field mount any 
 --- @field waterSteps any 
 --- @field difficultSteps any 

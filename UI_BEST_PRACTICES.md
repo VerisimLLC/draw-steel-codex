@@ -119,7 +119,7 @@ gui.CollapseArrow{
 }
 ```
 
-**gui.PagingArrow** -- left/right paging arrow. Property: `facing` (-1 for left, 1 for right).
+**gui.PagingArrow** -- DEPRECATED. Use gui.Button{ classes = {"pagingArrow", ["left" | "right"]}, instead. Left is default.
 
 ### Display Controls
 
@@ -179,6 +179,33 @@ gui.Panel{
     cornerRadius = 6,
 }
 ```
+
+### Z-Ordering (Sibling Array Order)
+
+Panels have **no** `zorder`/`z-index` style property. Render order is determined entirely by **sibling array order**: among siblings sharing a parent, **later entries in the `children` array render on top of earlier ones**. (`LuaObjectInstance.zorder` exists, but that is for map objects/tokens, not GUI panels.)
+
+```lua
+gui.Panel{
+    -- 'back' draws first (underneath); 'front' draws last (on top).
+    gui.Panel{ id = "back",  bgimage = true, bgcolor = "red" },
+    gui.Panel{ id = "front", bgimage = true, bgcolor = "blue" },
+}
+```
+
+To bring an existing panel forward at runtime, call `panel:SetAsLastSibling()` (it becomes the last child; other siblings keep their relative order).
+
+To drive z-order from a data field, sort ascending by that field before building the `children` array, so the highest value lands last (on top):
+
+```lua
+table.sort(items, function(a, b) return (a.zorder or 0) < (b.zorder or 0) end)
+local children = {}
+for i, item in ipairs(items) do
+    children[i] = BuildPanel(item)
+end
+element.children = children
+```
+
+Note that this only orders siblings relative to each other. A child cannot render above a panel that is its parent's sibling drawn later -- to change cross-branch layering, move the container, not the child.
 
 ---
 

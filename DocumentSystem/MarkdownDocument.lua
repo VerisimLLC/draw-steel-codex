@@ -609,6 +609,52 @@ BreakdownRichTags = function(content, result, options, extraOutput)
     return result
 end
 
+--Returns the annotations that are actually referenced by a rich tag in the document
+--content, as an ordered array (in content order) of { key = annotationKey,
+--annotation = annotation } entries.
+--
+--This mirrors how DisplayPanel resolves content tags to annotations (see the
+--token.type == "tag" branch in DisplayPanel), including the "-N" de-duplication of
+--repeated identical tags. Annotation entries that no longer have a corresponding
+--tag in the text (stale/orphaned annotations) are therefore excluded -- they are
+--invisible in the rendered journal, and callers generally want the same view.
+--
+--Note: pattern-based rich tags (RichTag.pattern) are not specially handled here;
+--they do not carry stored annotations, so they never contribute to the result.
+function MarkdownDocument:GetReferencedAnnotations(options)
+    local result = {}
+    local annotations = self:try_get("annotations")
+    if annotations == nil then
+        return result
+    end
+
+    local tokens = BreakdownRichTags(self:GetTextContent(), nil, options or {})
+    local tagsSeen = {}
+    for _, token in ipairs(tokens) do
+        if token.type == "tag" then
+            local fullname = token.text
+            local text = token.text:match("^(.-):") or token.text
+            local richTagInfo = MarkdownDocument.RichTagRegistry[string.lower(text)]
+            if richTagInfo ~= nil then
+                local candidate = fullname
+                local index = 1
+                while tagsSeen[candidate] do
+                    candidate = fullname .. '-' .. index
+                    index = index + 1
+                end
+                tagsSeen[candidate] = true
+
+                local annotation = annotations[candidate]
+                if annotation ~= nil then
+                    result[#result + 1] = { key = candidate, annotation = annotation }
+                end
+            end
+        end
+    end
+
+    return result
+end
+
 function MarkdownDocument:PatchToken(token, str)
     local lines = table.shallow_copy(token.lines)
     local line = token.lines[token.lineIndex]

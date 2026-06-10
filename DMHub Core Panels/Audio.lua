@@ -1166,9 +1166,9 @@ CreateSoundPanel = function()
 				end,
 			},
 
-			gui.AddButton{
-				width = 24,
-				height = 24,
+			gui.Button{
+				classes = {"addButton", "sizeM"},
+				hmargin = 4,
 				valign = "center",
 				press = function(element)
 					mod.shared.ImportAudio()
@@ -1463,8 +1463,8 @@ CreateSoundPanel = function()
 			gui.DockablePanelMaximizeButton(),
 
 			audioLibrary,
-			gui.AddButton{
-				classes = {"collapsed"},
+			gui.Button{
+				classes = {"addButton", "sizeXl", "collapsed"},
 				width = 32,
 				height = 32,
 				valign = 'bottom',

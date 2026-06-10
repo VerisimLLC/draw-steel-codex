@@ -33,14 +33,6 @@ end
 
 function GameHud.Refresh(self)
 	self.dialog.sheet:FireEventTree('refresh')
-
-	if self:try_get("hasRefreshed", false) == false then
-		self.hasRefreshed = true
-        --turn off launching tutorial on startup.
-		--if dmhub.isDM and dmhub.GetSettingValue("showtutorial") then
-		--	LaunchablePanel.GetOrLaunchPanel("Tutorial")
-		--end
-	end
 end
 
 --function which can be called by dmhub to present a tooltip on the map.
@@ -264,6 +256,20 @@ function GameHud.LootContainer(self, token, object)
 end
 
 setting{
+	id = "showtips",
+	default = true,
+	storage = "preference",
+}
+
+--Map of tip-id -> true for tips the local user has learned/dismissed.
+--Kept Lua-side (not via tutorial.*) so /tipsclear can wipe it in one call.
+setting{
+	id = "tipsLearned",
+	default = {},
+	storage = "preference",
+}
+
+setting{
 	id = "toolbarplayerconfig",
 	default = {},
 	storage = "preference",
@@ -292,7 +298,8 @@ function GameHud:CreateToolbarPanel()
 		local geticon = item.geticon
 		local getdisabled = item.getdisabled
 		local button
-		button = gui.HudIconButton{
+		button = gui.Button{
+			classes = {"sizeM"},
 			icon = item.icon,
 			monitor = item.setting,
 			events = {
@@ -421,9 +428,8 @@ function GameHud:CreateToolbarPanel()
 
 	DeserializeToolbar()
 
-
-
-    local addButton = gui.HudIconButton{
+    local addButton = gui.Button{
+		classes = {"sizeM"},
         icon = "ui-icons/Plus.png",
 		popupPositioning = "panel",
 
@@ -713,9 +719,6 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
 
 
 	gamehud.rollDialog = gamehud:CreateRollDialog()
-	gamehud.rollOnTableDialog = gamehud:CreateRollOnTableDialog()
-
-	gamehud.rollDialog.data.rollOnTableDialog = gamehud.rollOnTableDialog
 
 	gamehud.inventoryDialog = gamehud:CreateInventoryDialog{
 		rearrange = true, --the user can rearrange the items in the inventory by dragging it.
@@ -999,18 +1002,22 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
 			gamehud:CreateFrozenLabel(),
 			gamehud:CreateDocks(),
             gamehud:CreateAbilityDisplayPanel(),
+            gamehud:CreateStandaloneRollHost(),
 			gamehud:CreateDocumentsPanel(),
 			mainDialogPanel,
 			gamehud.shopPanel,
 			gamehud:ModalDialogPanel(),
 			gamehud:CreatePopupPanel(),
 			gamehud:CreateRollResultPanel(),
-			gamehud.rollOnTableDialog,
 			gamehud.rollDialog,
 
 			FullscreenDisplay.Create{belowui = false},
 
 			DramaticBanner.Create(),
+
+			DSVictoryScreen.Create(),
+
+			gamehud:CreateTipBanner(),
 
 			gamehud:ConnectionStatusPanel(),
 		}
@@ -1079,6 +1086,36 @@ end
 function GameHud:InitAbilityDisplayPanel(abilityDisplayPanel)
 end
 --]==]
+
+--Host for the embedded roll dialog when there is no ability context.
+--Positioned on the right like the ability sidebar; real init lives in
+--Timeline\AbilitySidebar.lua.
+function GameHud:CreateStandaloneRollHost()
+    self.standaloneRollHostPanel = gui.Panel{
+        styles = ThemeEngine.GetStyles(),
+        width = 540,
+        height = "auto",
+        rmargin = 364,
+        halign = "right",
+        valign = "center",
+        flow = "vertical",
+        interactable = true,
+    }
+
+    ThemeEngine.OnThemeChanged(mod, function()
+        if self.standaloneRollHostPanel ~= nil and self.standaloneRollHostPanel.valid then
+            self.standaloneRollHostPanel.styles = ThemeEngine.GetStyles()
+        end
+    end)
+
+    self:InitStandaloneRollHost(self.standaloneRollHostPanel)
+
+    return self.standaloneRollHostPanel
+end
+
+--Stub overridden by Timeline\AbilitySidebar.lua.
+function GameHud:InitStandaloneRollHost(panel)
+end
 
 --return the presented dialog doc, if it exists and matches the given dialogid.
 function GameHud.GetPresentDialogDoc(dialogid)
@@ -1224,7 +1261,8 @@ function GameHud:DMGameControlsPanel()
 		}
 	end
 
-	local dmIlluminationButton = gui.HudIconButton{
+	local dmIlluminationButton = gui.Button{
+		classes = {"sizeM"},
 		icon = "icons/icon_device/icon_device_57.png",
 		create = function(element)
 			element:SetClass('deselected', not dmhub.GetSettingValue("dmillumination"))
@@ -1397,6 +1435,606 @@ function GameHud:CreateFrozenLabel()
 	return self.freezeLabel
 end
 
+
+--Horizontal alpha-fade so the banner has soft left/right edges.
+--Black fill in the middle, transparent at the ends.
+local g_tipBannerGradient = gui.Gradient{
+	point_a = {x = 0, y = 0.5},
+	point_b = {x = 1, y = 0.5},
+	stops = {
+		{position = 0,    color = "#00000000"},
+		{position = 0.12, color = "#000000d8"},
+		{position = 0.88, color = "#000000d8"},
+		{position = 1,    color = "#00000000"},
+	},
+}
+
+--Mouse-button bindings come back as "leftclick"/"rightclick"/"middleclick";
+--single-letter key bindings come back lowercase. Humanize for tip text so
+--the displayed phrase always matches what the user has actually bound.
+local function PrettifyBinding(s)
+	if s == nil or s == "" then return "?" end
+	local mouseMap = {
+		leftclick = "left mouse button",
+		rightclick = "right mouse button",
+		middleclick = "middle mouse button",
+	}
+	if mouseMap[s] ~= nil then return mouseMap[s] end
+	if #s == 1 then return string.upper(s) end
+	return s
+end
+
+local function TipAudienceOk(target)
+	target = target or "all"
+	if target == "all" then return true end
+	if target == "director" then return dmhub.isDM end
+	if target == "player" then return not dmhub.isDM end
+	return true
+end
+
+--Tip registry. Tips opt in via Tip.Register{...}; the driver inside
+--CreateTipBanner's think handler scans every 5s for the highest-priority
+--eligible, not-yet-learned tip and displays it. Learned state is persisted
+--via the engine's tutorial.* bridge (PlayerPrefs under the hood).
+--Registry is stored on the Tip table so hot-reloading this file doesn't
+--drop tips registered from other modules.
+--rawget here because DMHub's Lua errors on reads of uninitialized globals.
+Tip = rawget(_G, "Tip") or {}
+Tip.registry = Tip.registry or {}
+
+---@param spec {id: string, priority: nil|number, target: nil|"all"|"director"|"player", text: string|function, eligible: nil|function, whenShown: nil|function, acted: nil|function}
+function Tip.Register(spec)
+	Tip.registry[spec.id] = spec
+end
+
+function Tip.Unregister(id)
+	Tip.registry[id] = nil
+end
+
+function Tip.IsLearned(id)
+	local t = dmhub.GetSettingValue("tipsLearned") or {}
+	return t[id] == true
+end
+
+function Tip.MarkLearned(id)
+	local t = dmhub.GetSettingValue("tipsLearned") or {}
+	t[id] = true
+	dmhub.SetSettingValue("tipsLearned", t)
+end
+
+--Wipe every tip's learned state and pull any currently-displayed tip off
+--screen without marking it learned. Used by the /tipsclear macro.
+function Tip.ResetAll()
+	dmhub.SetSettingValue("tipsLearned", {})
+	local gh = GameHud.instance
+	if gh == nil then return end
+	gh.activeTipId = nil
+	gh._tipState = nil
+	gh._tipLastScan = nil
+	local banner = gh:try_get("tipBanner")
+	if banner ~= nil and banner.valid then
+		banner:SetClass("visible", false)
+		banner.interactable = false
+	end
+end
+
+--Explicit dismiss from an action site. Marks the tip learned and, if it's
+--the one currently showing, takes it off screen immediately (no need to
+--wait for the next acted-poll tick).
+function Tip.Clear(id)
+	Tip.MarkLearned(id)
+	local gh = GameHud.instance
+	if gh == nil then return end
+	if gh:try_get("activeTipId") == id then
+		gh:_ClearActiveTip()
+	end
+end
+
+--First tip: camera movement. Cleared automatically the moment the camera
+--position changes (which only happens via the bound inputs or auto-control).
+Tip.Register{
+	id = "camera-move",
+	priority = 100,
+	target = "all",
+	text = function()
+		local up = PrettifyBinding(dmhub.GetCommandBinding("mapup"))
+		local left = PrettifyBinding(dmhub.GetCommandBinding("mapleft"))
+		local down = PrettifyBinding(dmhub.GetCommandBinding("mapdown"))
+		local right = PrettifyBinding(dmhub.GetCommandBinding("mapright"))
+		local scroll = PrettifyBinding(dmhub.GetCommandBinding("mapscroll"))
+		return string.format(
+			"Press %s, %s, %s, or %s to move the camera, or %s and drag.",
+			up, left, down, right, scroll)
+	end,
+	whenShown = function(state)
+		state.cameraPos = dmhub.cameraPosition
+	end,
+	acted = function(state)
+		if state.cameraPos == nil then return false end
+		local cur = dmhub.cameraPosition
+		if cur == nil then return false end
+		local dx = cur.x - state.cameraPos.x
+		local dy = cur.y - state.cameraPos.y
+		return (dx * dx + dy * dy) > 0.01
+	end,
+}
+
+--Camera zoom: shown after camera-move is learned. Cleared when the
+--orthographic size changes (mouse wheel zoom and zoomin/zoomout keys
+--all converge on the same camera property). "mouse wheel" stays
+--hardcoded -- wheel input isn't a rebindable command in the engine.
+Tip.Register{
+	id = "camera-zoom",
+	priority = 90,
+	target = "all",
+	text = function()
+		local zin = PrettifyBinding(dmhub.GetCommandBinding("zoomin"))
+		local zout = PrettifyBinding(dmhub.GetCommandBinding("zoomout"))
+		return string.format(
+			"Use mouse wheel or press %s/%s to zoom in and out.",
+			zin, zout)
+	end,
+	whenShown = function(state)
+		state.zoom = dmhub.cameraZoom
+	end,
+	acted = function(state)
+		if state.zoom == nil then return false end
+		local cur = dmhub.cameraZoom
+		if cur == nil then return false end
+		return math.abs(cur - state.zoom) > 0.0001
+	end,
+}
+
+--Token movement: shown when the user has a single token selected outside
+--of combat or a frozen state. Cleared once that token's location changes.
+--If the user deselects or combat starts while the tip is up, the driver's
+--eligible re-check suppresses it without marking learned, so it returns
+--the next time the context is right.
+Tip.Register{
+	id = "token-drag-move",
+	priority = 80,
+	target = "all",
+	text = "Click and drag your token to move it.",
+	eligible = function()
+		if dmhub.frozen then return false end
+		local q = dmhub.initiativeQueue
+		if q ~= nil and not q.hidden then return false end
+		local sel = dmhub.selectedTokens
+		if sel == nil or #sel ~= 1 then return false end
+		return true
+	end,
+	whenShown = function(state)
+		local tok = dmhub.selectedTokens[1]
+		state.tokenId = tok.id
+		state.startLoc = { x = tok.loc.x, y = tok.loc.y }
+	end,
+	acted = function(state)
+		if state.startLoc == nil then return false end
+		for _, tok in ipairs(dmhub.selectedTokens) do
+			if tok.id == state.tokenId then
+				local dx = tok.loc.x - state.startLoc.x
+				local dy = tok.loc.y - state.startLoc.y
+				return (dx * dx + dy * dy) > 0.01
+			end
+		end
+		return false
+	end,
+}
+
+--Use-light prompt. Eligible when the user has a single token selected
+--underground, in a dark area, with a light style configured but not yet
+--equipped (selectedLoadout != 1). The {light-btn} tutorial highlight
+--draws a cursor around the light toggle button in MCDMCharacterPanel.
+--Note: GetEquippedLightSource() returns the *currently chosen* light
+--item id even when initLight hasn't been set (it falls back to default).
+Tip.Register{
+	id = "use-light",
+	priority = 70,
+	target = "all",
+	text = function()
+		local lkey = PrettifyBinding(dmhub.GetCommandBinding("light"))
+		local lightName = "light"
+		local sel = dmhub.selectedTokens
+		if sel ~= nil and #sel == 1 then
+			local lightId = sel[1].properties:GetEquippedLightSource()
+			if lightId ~= nil then
+				local gearTable = dmhub.GetTable("tbl_Gear")
+				if gearTable ~= nil and gearTable[lightId] ~= nil and gearTable[lightId].name ~= nil then
+					lightName = gearTable[lightId].name
+				end
+			end
+		end
+		return string.format(
+			"Press %s or press the light button to take out your %s.",
+			lkey, lightName)
+	end,
+	eligible = function()
+		if dmhub.frozen then return false end
+		local sel = dmhub.selectedTokens
+		if sel == nil or #sel ~= 1 then return false end
+		local tok = sel[1]
+		local lightId = tok.properties:GetEquippedLightSource()
+		if lightId == nil then return false end
+		if tok.properties:try_get("selectedLoadout", 0) == 1 then return false end
+		--Above-ground floors use dynamic outdoor lighting; the "very dark"
+		--threshold belongs only to the underground illumination setting.
+		if game.FloorIsAboveGround(tok.floorid) then return false end
+		local ambient = dmhub.GetSettingValue("undergroundillumination") or 1.0
+		if ambient >= 0.3 then return false end
+		return true
+	end,
+	whenShown = function(state)
+		state.tokenId = dmhub.selectedTokens[1].id
+		--Highlight by id, not class: the "light-btn" class is unfortunately
+		--reused for the unrelated look-up-between-floors button in
+		--MCDMCharacterPanel.lua, so class targeting hits the wrong element
+		--(or both) and the cursor lands inconsistently. The id is stable.
+		tutorial.SetTutorial{
+			name = "tip-use-light",
+			entries = {
+				{ target = "#char-panel-light-btn", text = "" },
+			},
+		}
+	end,
+	whenHidden = function(state)
+		tutorial.ClearTutorial()
+	end,
+	acted = function(state)
+		if state.tokenId == nil then return false end
+		for _, tok in ipairs(dmhub.selectedTokens) do
+			if tok.id == state.tokenId then
+				return tok.properties:try_get("selectedLoadout", 0) == 1
+			end
+		end
+		return false
+	end,
+}
+
+--Beastheart "Call companion" prompt. Eligible when the user has a single
+--Beastheart selected with a chosen companion that isn't currently nearby
+--(matches the visibility of the Call button in DSBeastheart.lua). Cleared
+--when the companion ends up near the beastheart -- which is what pressing
+--Call accomplishes via CallCompanion(). CALL_RANGE_TILES is duplicated
+--from DSBeastheart.lua (kept in sync deliberately).
+local TIP_CALL_RANGE_TILES = 3
+
+local function BeastheartCompanionIsNearby(tok)
+	if tok == nil or not tok.valid or tok.properties == nil then return false end
+	local companionToken = tok.properties:GetCompanionToken()
+	if companionToken == nil or not companionToken.loc.isOnMap then return false end
+	return companionToken.loc:DistanceInTiles(tok.loc) <= TIP_CALL_RANGE_TILES
+end
+
+Tip.Register{
+	id = "beastheart-call",
+	priority = 60,
+	target = "all",
+	text = function()
+		local beastname = "companion"
+		local sel = dmhub.selectedTokens
+		if sel ~= nil and #sel == 1 then
+			local companionType = sel[1].properties:GetCompanionType()
+			if companionType ~= nil then
+				local monster = assets.monsters[companionType]
+				if monster ~= nil and monster.name ~= nil then
+					beastname = monster.name
+				end
+			end
+		end
+		return string.format("Press the Call button to summon your %s.", beastname)
+	end,
+	eligible = function()
+		local sel = dmhub.selectedTokens
+		if sel == nil or #sel ~= 1 then return false end
+		local tok = sel[1]
+		if tok.properties == nil then return false end
+		if tok.properties:GetCompanionType() == nil then return false end
+		return not BeastheartCompanionIsNearby(tok)
+	end,
+	whenShown = function(state)
+		state.tokenId = dmhub.selectedTokens[1].id
+		tutorial.SetTutorial{
+			name = "tip-beastheart-call",
+			entries = {
+				{ target = "#beastheart-call-btn", text = "" },
+			},
+		}
+	end,
+	whenHidden = function(state)
+		tutorial.ClearTutorial()
+	end,
+	acted = function(state)
+		if state.tokenId == nil then return false end
+		for _, tok in ipairs(dmhub.selectedTokens) do
+			if tok.id == state.tokenId then
+				return BeastheartCompanionIsNearby(tok)
+			end
+		end
+		return false
+	end,
+}
+
+--Tip banner: a top-of-screen overlay driven by the Tip.* registry.
+--The think handler polls the active tip's acted() at thinkTime cadence
+--and scans the registry for the next tip when nothing is showing.
+function GameHud:CreateTipBanner()
+	--Tip text. The {tipBannerContent} class is what the parent-targeted
+	--opacity rules in the banner's styles block hook onto so the text
+	--fades in/out together with the banner background.
+	local tipLabel = gui.Label{
+		id = "tipBannerLabel",
+		classes = {"tipBannerContent", "sizeM"},
+        interactable = false,
+		text = "Tip banner ready.",
+		color = "white",
+		fontSize = 16,
+		width = "auto",
+		height = "auto",
+		maxWidth = 580,
+		halign = "center",
+		valign = "center",
+		textAlignment = "center",
+		textWrap = true,
+	}
+
+	--Floating so it pins to the right edge regardless of sibling layout.
+	local dismissButton = gui.Label{
+		id = "tipBannerDismiss",
+		classes = {"tipBannerContent", "sizeS"},
+		text = "Dismiss",
+		color = "white",
+		fontSize = 14,
+		bold = true,
+		width = "auto",
+		height = "auto",
+		floating = true,
+		halign = "right",
+		valign = "center",
+		hmargin = 24,
+		styles = {
+			{
+				selectors = {"hover"},
+				color = "#ffe39a",
+				brightness = 1.1,
+			},
+			{
+				selectors = {"press"},
+				brightness = 0.7,
+			},
+		},
+		press = function(element)
+			GameHud.instance:HideTip()
+		end,
+	}
+
+	local banner
+	banner = gui.Panel{
+		id = "tipBanner",
+		classes = {"tipBanner"},
+		floating = true,
+		halign = "center",
+		valign = "top",
+		vmargin = 240,
+		width = 920,
+		height = 80,
+		bgimage = "panels/square.png",
+		bgcolor = "white",
+		gradient = g_tipBannerGradient,
+		cornerRadius = 4,
+		interactable = false,
+
+		--1 Hz tick. The driver is structured so when no tip is active
+		--(the common case) the work per tick is a single time compare;
+		--the expensive modal-dialog check only runs when a tip is
+		--actually displayed or about to be displayed.
+		thinkTime = 1.0,
+		think = function(element)
+			local gh = GameHud.instance
+			if gh ~= nil then gh:_TipDriverTick() end
+		end,
+
+		data = {
+			currentText = "",
+		},
+
+		--Banner rules target {tipBanner} so the cascade doesn't blanket
+		--the children. The {tipBannerContent, parent:visible} pair makes
+		--the label and dismiss mirror the banner's opacity transition
+		--instead of leaving text on screen after the background fades.
+		styles = {
+			{
+				selectors = {"tipBanner"},
+				opacity = 0,
+				y = -12,
+			},
+			{
+				selectors = {"tipBanner", "visible"},
+				opacity = 1,
+				y = 0,
+				transitionTime = 0.2,
+			},
+			{
+				selectors = {"tipBannerContent"},
+				opacity = 0,
+				transitionTime = 0.2,
+			},
+			{
+				selectors = {"tipBannerContent", "parent:visible"},
+				opacity = 1,
+				transitionTime = 0.2,
+			},
+		},
+
+		tipLabel,
+		dismissButton,
+	}
+
+	self.tipBanner = banner
+	self.tipBannerLabel = tipLabel
+
+	return banner
+end
+
+function GameHud:ShowTip(text)
+	local banner = self:try_get("tipBanner")
+	if banner == nil or not banner.valid then
+		return
+	end
+	local label = self:try_get("tipBannerLabel")
+	if label ~= nil and label.valid then
+		label.text = text or ""
+	end
+	banner.data.currentText = text or ""
+	banner:SetClass("visible", true)
+	banner.interactable = true
+end
+
+--Internal: take the active tip off display, invoking its whenHidden hook
+--so per-tip side effects (e.g. tutorial highlights) get torn down.
+--Does NOT mark the tip learned; callers decide.
+function GameHud:_ClearActiveTip()
+	local active = self:try_get("activeTipId")
+	if active == nil then return nil end
+	local spec = Tip.registry[active]
+	local state = self:try_get("_tipState") or {}
+	if spec ~= nil and spec.whenHidden ~= nil then
+		pcall(spec.whenHidden, state)
+	end
+	self.activeTipId = nil
+	self._tipState = nil
+	local banner = self:try_get("tipBanner")
+	if banner ~= nil and banner.valid then
+		banner:SetClass("visible", false)
+		banner.interactable = false
+	end
+	return active
+end
+
+function GameHud:HideTip()
+	--Dismiss-button / explicit hide: treat the active tip as learned so it
+	--won't reappear next session.
+	local active = self:_ClearActiveTip()
+	if active ~= nil then
+		Tip.MarkLearned(active)
+	end
+end
+
+--Panel classes that, when present anywhere in the HUD tree, suppress the
+--tip banner (and pause acted-polling) so tips don't compete with dialogs
+--the user is actively reading. Add more entries here as needed.
+local g_tipBlockingClasses = {
+	"journalViewer",
+}
+
+--Returns true if any tip-blocking dialog is currently in the panel tree.
+function GameHud:_TipIsBlockedByDialog()
+	local root = self:try_get("parentPanel")
+	if root == nil or not root.valid then return false end
+	for _, cls in ipairs(g_tipBlockingClasses) do
+		local hits = root:GetChildrenWithClassRecursive(cls)
+		if hits ~= nil and #hits > 0 then return true end
+	end
+	return false
+end
+
+--Called from the tip banner's think handler at thinkTime cadence.
+--Structured so the "no active tip + nothing eligible" path -- which is the
+--common case once tips are learned -- does only a single time comparison
+--per tick. The panel-tree-walking modal-dialog check is paid for ONLY when
+--a tip is actively displayed or when the scan has actually found a tip to
+--show; never speculatively.
+function GameHud:_TipDriverTick()
+	local active = self:try_get("activeTipId")
+
+	if active ~= nil then
+		--Active-tip path: full work. Modal check decides visibility,
+		--then acted/eligible decide state.
+		local banner = self:try_get("tipBanner")
+		if self:_TipIsBlockedByDialog() then
+			if banner ~= nil and banner.valid and banner:HasClass("visible") then
+				banner:SetClass("visible", false)
+				banner.interactable = false
+			end
+			return
+		end
+		if banner ~= nil and banner.valid and not banner:HasClass("visible") then
+			banner:SetClass("visible", true)
+			banner.interactable = true
+		end
+
+		local spec = Tip.registry[active]
+		if spec == nil then
+			self:_ClearActiveTip()
+			self._tipLastScan = nil
+			return
+		end
+
+		--acted() before eligible(): acted often invalidates eligible at
+		--the same moment (e.g. taking out a torch flips both); checking
+		--eligible first would suppress-without-marking and the tip would
+		--reappear next session.
+		if spec.acted ~= nil then
+			local state = self:try_get("_tipState") or {}
+			local ok, did = pcall(spec.acted, state)
+			if ok and did then
+				Tip.Clear(active)
+				return
+			end
+		end
+
+		if spec.eligible ~= nil then
+			local ok, v = pcall(spec.eligible)
+			if not (ok and v) then
+				self:_ClearActiveTip()
+				self._tipLastScan = nil
+				return
+			end
+		end
+
+		return
+	end
+
+	--No active tip. 4 out of 5 ticks fall through here in near-zero time:
+	--just one try_get + one float compare.
+	local now = dmhub.Time()
+	local last = self:try_get("_tipLastScan", -math.huge)
+	if (now - last) < 5 then return end
+	self._tipLastScan = now
+
+	--Scan for a candidate. Per-tip eligible() is microseconds; if every
+	--tip is learned or none is eligible we bail before touching the
+	--expensive modal-dialog check.
+	local best = nil
+	for _, spec in pairs(Tip.registry) do
+		if not Tip.IsLearned(spec.id) and TipAudienceOk(spec.target) then
+			local elig = true
+			if spec.eligible ~= nil then
+				local ok, v = pcall(spec.eligible)
+				elig = ok and v
+			end
+			if elig and (best == nil or (spec.priority or 0) > (best.priority or 0)) then
+				best = spec
+			end
+		end
+	end
+	if best == nil then return end
+
+	--Only now -- when we actually intend to display something -- pay the
+	--cost of walking the panel tree to ask "is a dialog blocking?"
+	if self:_TipIsBlockedByDialog() then return end
+
+	local text = best.text
+	if type(text) == "function" then
+		local ok, t = pcall(text)
+		text = (ok and t) or ""
+	end
+
+	local state = {}
+	if best.whenShown ~= nil then pcall(best.whenShown, state) end
+	self._tipState = state
+	self.activeTipId = best.id
+	self:ShowTip(text)
+end
 
 function GameHud:InspectDice()
 	if self:try_get("inspectdice") ~= nil then

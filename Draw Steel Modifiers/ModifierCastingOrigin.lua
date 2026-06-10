@@ -66,10 +66,9 @@ CharacterModifier.TypeInfo.castingorigin = {
 						classes = "formLabel",
 						text = ActivatedAbility.CanonicalKeyword(kw),
 					},
-					gui.DeleteItemButton{
+					gui.Button{
+						classes = {"deleteButton", "sizeS"},
 						halign = "right",
-						width = 16,
-						height = 16,
 						click = function(el)
 							modifier.keywordFilter[kw] = nil
 							Refresh()

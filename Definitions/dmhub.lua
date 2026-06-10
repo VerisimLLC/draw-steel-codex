@@ -1,7 +1,7 @@
 --- @class dmhub The main interface to dmhub.
 --- @field version string The current version of the DMHub engine.
 --- @field commandLineArguments string[] The command line arguments passed to the app.
---- @field teleportEffects any Registry of token effects (teleport / transformation / destruction visuals).
+--- @field tokenAnimations any Registry of token animations. RegisterTeleport / RegisterDeath / RegisterTransformation register category-specific animation functions.
 --- @field systemHardwareRating number The power level of the system hardware. 1 or greater is a relatively high power system.
 --- @field gameLoadingProgress number Game loading progress. nil = not loading a game. 0 = just started loading, 1 = fully loaded.
 --- @field whiteLabel WhiteLabel The current 'white label' version of the engine this is. May be 'dmhub' or 'mcdm'
@@ -351,6 +351,19 @@ end
 --- SaveImageDialog: Open a system file dialog inviting the user to save a file as an image. The named texture will be saved.
 --- @field options {texture: string, error: (fun(message: string): nil)}
 function dmhub.SaveImageDialog(options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- ExportTokenImage: Render the given token to a transparent-background PNG and prompt the user with a save dialog. Draws the token's frame backdrop plus its active spine or static art exactly as composed on the map, with fog-of-war dimming disabled. The camera is auto-framed around the token's world-space renderer bounds and expanded by the `padding` multiplier so weapons, hats, and parallax-shifted spine art aren't clipped.
+
+Options:
+  token (required): a CharacterToken (e.g. dmhub.selectedTokens[1]).
+  filename: default filename suggested in the save dialog (default: token name + .png).
+  padding: multiplier on the rendered area beyond the token's tight bounds (default 1.5; 1.0 = no extra padding).
+  resolution: pixel dimension of the square output (default 1024; clamped to 64..4096).
+  error: optional callback invoked with a string message on failure.
+--- @field options {token: LuaCharacterToken, filename: string?, padding: number?, resolution: number?, error: (fun(message: string): nil)?}
+function dmhub.ExportTokenImage(options)
 	-- dummy implementation for documentation purposes only
 end
 
@@ -872,6 +885,20 @@ end
 --- @param context string?
 --- @return nil
 function dmhub.SetCommandBinding(keystroke, cmd, context)
+	-- dummy implementation for documentation purposes only
+end
+
+--- PushCommandContext: Push a command context onto the input stack. While a context is active, command bindings set in that context (via SetCommandBinding with the same context) take priority over global bindings. Each Push must be balanced by a Pop with the same name; pushes/pops are reference counted. Commonly used to give a modal dialog its own keyboard shortcuts that override gameplay keys while it is open.
+--- @param context string
+--- @return nil
+function dmhub.PushCommandContext(context)
+	-- dummy implementation for documentation purposes only
+end
+
+--- PopCommandContext: Pop a command context previously pushed with PushCommandContext. Must be balanced with the matching Push.
+--- @param context string
+--- @return nil
+function dmhub.PopCommandContext(context)
 	-- dummy implementation for documentation purposes only
 end
 
@@ -1403,6 +1430,14 @@ end
 --- UploadInitiativeQueue: Tranmit changes to the initiative queue to the cloud.
 --- @return nil
 function dmhub:UploadInitiativeQueue()
+	-- dummy implementation for documentation purposes only
+end
+
+--- IncrementInitiativeData: Atomically add 'amount' to the numeric value stored at 'path' within the current map's initiative queue (where the live encounter lives). 'path' is relative to the initiative queue root, e.g. 'liveEncounter/stats/<tokenid>/kills' or a nested path 'liveEncounter/stats/<tokenid>/monsterDamage/<monsterid>'. Missing intermediate tables are created by the server. On Durable Object backends the increment is genuinely atomic, so concurrent writers can't lose updates. The resolved value rides back through the normal initiative-queue broadcast, so no local mutation is needed here.
+--- @param path string
+--- @param amount number
+--- @return nil
+function dmhub:IncrementInitiativeData(path, amount)
 	-- dummy implementation for documentation purposes only
 end
 

@@ -82,6 +82,14 @@ function ActivatedAbilityDrawSteelCommandBehavior:Cast(ability, casterToken, tar
             end
         end
 
+        --The prompt loop above can yield for a while; the caster may be deleted/
+        --despawned in that window (token reference survives but .valid is false and
+        --.properties is nil). The rule is evaluated against the caster's properties,
+        --so a gone caster means there is nothing to evaluate or execute.
+        if casterToken == nil or not casterToken.valid or casterToken.properties == nil then
+            break
+        end
+
         for _,target in ipairs(targets) do
             if target.token ~= nil then
                 -- Expose Cast (with its memory), Target, Mode, etc. to GoblinScript
@@ -263,6 +271,11 @@ local function ExecuteDamage(behavior, ability, casterToken, targetToken, option
             damage = damage + bonus
         end
 
+        --Snapshot before halving so the halved-away portion can be tracked as
+        --damagePrevention. Taken after the characteristic bonus is added, so the
+        --prevented amount is measured against the full pre-half damage.
+        local damageBeforeHalving = damage
+
         if halfCount > 0 then
             for i = 1, halfCount do
                 damage = math.floor(damage/2)
@@ -287,6 +300,17 @@ local function ExecuteDamage(behavior, ability, casterToken, targetToken, option
                 execute = function()
                     result = targetToken.properties:InflictDamageInstance(damage, damageType, ability.keywords, string.format("%s's %s", selfName, ability.name), { criticalhit = false, attacker = attacker, surges = options.surges, ability = ability, hasability = true, cast = options.symbols.cast, hasrolleddamage = isRolledDamage, patrondamage = patrondamage})
                     options.symbols.cast:CountDamage(targetToken, result.damageDealt, damage, isRolledDamage, patrondamage)
+
+                    --Damage halved away by (half) power-roll modifiers counts as
+                    --damagePrevention, credited to the target. The halving's true
+                    --source (the target's own trait/trigger vs a protector ally)
+                    --is not recoverable here -- the tier text only carries the
+                    --bare "(half)" marker -- so the target is the best available
+                    --attribution. TrackHeroStats self-guards, so monster targets
+                    --are dropped.
+                    if damage < damageBeforeHalving then
+                        LiveEncounter.TrackHeroStats(targetToken.charid, "damagePrevention", damageBeforeHalving - damage)
+                    end
                 end,
             }
         end
@@ -486,6 +510,10 @@ local g_rulePatterns = {
             if range <= 0 then
                 --don't execute forced movement of 0?
                 if stability > 0 then
+                    --Per-encounter hero stat: the hero's stability fully prevented
+                    --the forced movement -- they stood firm. Runs once on the
+                    --resolving client; TrackHeroStats self-guards to heroes.
+                    LiveEncounter.TrackHeroStats(targetToken.charid, "standsFirm")
                     ShowFailSpeech("Too Much Stability")
                 else
                     ShowFailMessage("Cannot Be Force Moved")
@@ -506,6 +534,17 @@ local g_rulePatterns = {
                 invoker = casterToken.properties,
                 promptOverride = description,
                 forcedMovementThroughCreatures = ability:try_get("forcedMovementThroughCreatures", false),
+                --This invoke relocates the TARGET (the pushed/pulled/slid creature),
+                --which becomes the caster of the forced-movement clone. InvokeAbility
+                --copies the parent ability's keywords onto the clone, so a forced
+                --movement from a Strike (e.g. Null's Magnetic Strike) carries the
+                --"Strike" keyword. If the target is a minion in a squad, that makes
+                --UsesSquadCoordination/UsesSquadStrike fire on the relocate clone and
+                --GetNumTargets multiply by the squad's minion count -- so the action
+                --bar waits for N target spaces and the destination click never
+                --confirms the pull. Forced movement is always per-target, never a
+                --squad-coordinated action, so opt out explicitly.
+                disableSquadCoordination = true,
             }
 
             if stability > 0 then
@@ -1268,10 +1307,33 @@ dmhub.RegisterEventHandler("refreshTables", function(keys)
     g_applyConditionIndex = g_applyConditionIndex or #g_rulePatterns + 1
 
     g_rulePatterns[g_applyConditionIndex] = {
-        pattern = "^(?<condition>" .. GetTableNameRegex(CharacterCondition.tableName, "powertable") .. ") \\((?<duration>eot|EoT|save ends|eoe)?\\)",
+        -- The "(duration)" suffix is optional. A bare condition name with no
+        -- parenthetical is only accepted for indefinite-duration conditions
+        -- (e.g. "Grabbed"), enforced by validate below; conditions that need a
+        -- duration must still carry a "(eot)" / "(save ends)" / "(eoe)" suffix.
+        pattern = "^(?<condition>" .. GetTableNameRegex(CharacterCondition.tableName, "powertable") .. ")(?<parens> \\((?<duration>eot|EoT|save ends|eoe)?\\))?",
+        validate = function(entry, match)
+            -- A parenthetical was present (even an empty "()"): always allow,
+            -- preserving the prior behavior where parens were mandatory.
+            if match.parens ~= nil and match.parens ~= "" then
+                return true
+            end
+
+            -- Bare name with no parens: only valid for an indefinite-duration
+            -- condition. Otherwise reject so a more specific rule (or none) is
+            -- used, matching the old behavior where bare names did not apply.
+            local cond = match.condition
+            local conditionsTable = dmhub.GetTable(CharacterCondition.tableName)
+            for _, v in unhidden_pairs(conditionsTable) do
+                if string.lower(v.name) == cond then
+                    return v.indefiniteDuration == true
+                end
+            end
+            return false
+        end,
         execute = function(behavior, ability, casterToken, targetToken, options, match)
             ability:CommitToPaying(casterToken, options)
-            local duration = string.lower(match.duration)
+            local duration = string.lower(match.duration or "")
             if string.starts_with(duration, "save") then
                 duration = "save"
             end
@@ -1284,9 +1346,16 @@ dmhub.RegisterEventHandler("refreshTables", function(keys)
                     local conditionsTable = dmhub.GetTable(CharacterCondition.tableName)
                     for k, v in unhidden_pairs(conditionsTable) do
                         if string.lower(v.name) == cond then
+                            -- Indefinite-duration conditions ignore any typed
+                            -- duration and apply with no set duration (eoe),
+                            -- matching the manual "Add Condition" menu.
+                            local appliedDuration = duration
+                            if v.indefiniteDuration then
+                                appliedDuration = "eoe"
+                            end
                             local riders = ability:GetRidersForCondition(k, casterToken, targetToken, options)
                             targetToken.properties:InflictCondition(k, {
-                                duration = duration,
+                                duration = appliedDuration,
                                 sourceDescription = string.format("Inflicted by %s's <b>%s</b> ability", creature.GetTokenDescription(casterToken), ability.name),
                                 riders = riders,
                                 casterInfo = {
@@ -1971,7 +2040,10 @@ function ActivatedAbilityDrawSteelCommandBehavior.FormatRuleValidation(rule)
             return string.format("%s<alpha=#00><alpha=#ff>%s%s", before, matchLiteral.whitespace, matchLiteral.text)
         end
 
-        local result = string.format("%s<alpha=#55>%s", before, displayText)
+        --Dim non-rule (unvalidated) text so it reads as "not recognized as a
+        --rule" without becoming illegible. #99 is ~60% alpha; #55 (~33%) washed
+        --out badly on light themed fills (e.g. the accent-gold power-roll rows).
+        local result = string.format("%s<alpha=#99>%s", before, displayText)
 
        --print("Rule:: Validation: result = ", result)
         --print(string.format("Rule:: Validation: rule = (%s); text = (%s); before = (%s); result = (%s)", rule, text, before, result))
@@ -2862,3 +2934,61 @@ Commands.RegisterMacro{
         print("Could not upload")
     end,
 }
+--Per-encounter hero stats: forced movement distance. Every forced-movement flow
+--(tier-text push/pull/slide commands above, ActivatedAbilityForcedMovementBehavior,
+--and direct/remote invokes of the standard "Forced Movement: X" abilities) funnels
+--into a relocate_creature cast of a clone whose range has already been adjusted
+--for stability, Big Versus Little, Forced Movement Increase, and caster bonuses --
+--and whose "forcedMovement" field carries the movement type. So we wrap the
+--relocate Cast here, in the Draw Steel layer, and record the clone's range as the
+--distance: that is the entitlement the rules granted, which the user-facing stat
+--should count even when a wall or creature stops the actual path short (a push 5
+--into a wall after 2 squares still counts as 5). Mirrors the abilityDist
+--computation inside the base Cast (range / unitsPerSquare).
+--
+--forcedMovementTaken: credited to the moved creature (the clone's caster).
+--forcedMovementDealt: credited to the pusher (the clone's invoker), only when the
+--moved creature is an enemy -- repositioning allies is not "moving your enemies".
+--TrackHeroStats self-guards to heroes in the live encounter, so monster pushers
+--and monster victims are dropped, and a hero's summon credits the hero.
+local g_baseRelocateCreatureCast = ActivatedAbilityRelocateCreatureBehavior.Cast
+function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, targets, options)
+    g_baseRelocateCreatureCast(self, ability, casterToken, targets, options)
+
+    local forcedMovementType = ability:try_get("forcedMovement")
+    if forcedMovementType == nil or forcedMovementType == "" then
+        return
+    end
+
+    --Forced movement clones use movementType "move"; teleports and jumps are not
+    --forced movement and never count.
+    local movementType = self.movementType
+    if options.symbols ~= nil and options.symbols.shiftingOverride == false then
+        movementType = "move"
+    end
+    if movementType ~= "move" then
+        return
+    end
+
+    local spaces = round(ability:GetRange(casterToken.properties) / dmhub.unitsPerSquare)
+    if spaces <= 0 then
+        return
+    end
+
+    LiveEncounter.TrackHeroStats(casterToken.charid, "forcedMovementTaken", spaces)
+
+    local invoker = ability:try_get("invoker")
+    if invoker == nil and options.symbols ~= nil and options.symbols.invoker ~= nil then
+        invoker = options.symbols.invoker
+        if type(invoker) == "function" then
+            invoker = invoker("self")
+        end
+    end
+
+    if invoker ~= nil then
+        local pusherToken = dmhub.LookupToken(invoker)
+        if pusherToken ~= nil and pusherToken.charid ~= casterToken.charid and (not pusherToken:IsFriend(casterToken)) then
+            LiveEncounter.TrackHeroStats(pusherToken.charid, "forcedMovementDealt", spaces)
+        end
+    end
+end

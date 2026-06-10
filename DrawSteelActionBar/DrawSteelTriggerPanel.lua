@@ -876,14 +876,13 @@ mod.shared.CreateTriggerPanel = function()
 									end					
 								end,
 
-                                gui.CloseButton{
+                                gui.Button{
+                                    classes = {"closeButton", "sizeS"},
                                     floating = true,
                                     halign = "right",
                                     valign = "top",
                                     hmargin = -3,
                                     vmargin = -3,
-                                    width = 16,
-                                    height = 16,
                                     styles = {
                                         {
                                             selectors = {"~parent:hover", "~hover"},

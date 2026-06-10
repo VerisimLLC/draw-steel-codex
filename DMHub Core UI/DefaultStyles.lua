@@ -1190,6 +1190,12 @@ ThemeEngine.RegisterTheme{
         {
             selectors = {"panel", "buttonIcon", "parent:customiseAbilityButton"},
             bgimage = "ui-icons/pencil.png",
+            selectors = {"panel", "buttonIcon", "parent:maximizeButton"},
+            bgimage = "panels/hud/down-arrow.png",
+        },
+        {
+            selectors = {"panel", "buttonIcon", "parent:maximizeButton", "parent:maximized"},
+            scale = {x = 1, y = -1},
         },
         -- pagingArrow: the canonical previous/next paging chevron.
         -- Use `gui.Button{ classes = {"pagingArrow"} }` for the left arrow and
@@ -2292,6 +2298,9 @@ ThemeEngine.RegisterTheme{
         { selectors = {"multiselectChip"},        cornerRadius = 0 },
         { selectors = {"multiselectChipRemove"},  cornerRadius = 0 },
         { selectors = {"enumSliderOption"},       cornerRadius = 0 },
+        { selectors = {"enumSliderOption", "enumSliderFirst"},                     cornerRadius = 0 },
+        { selectors = {"enumSliderOption", "enumSliderLast"},                      cornerRadius = 0 },
+        { selectors = {"enumSliderOption", "enumSliderFirst", "enumSliderLast"},   cornerRadius = 0 },
         { selectors = {"checkBackground"},        cornerRadius = 0 },
         { selectors = {"tab"},                    cornerRadius = 0 },
     },
@@ -2335,7 +2344,12 @@ ThemeEngine.RegisterTheme{
         { selectors = {"input", "bordered"},      cornerRadius = 5 },
         { selectors = {"multiselectChip"},        cornerRadius = 5 },
         { selectors = {"multiselectChipRemove"},  cornerRadius = 5 },
-        { selectors = {"enumSliderOption"},       cornerRadius = 5 },
+        -- Enum slider: round only the outer ends so the row reads as one pill.
+        -- x1=top-left, y1=top-right, x2=bottom-right, y2=bottom-left.
+        { selectors = {"enumSliderOption"},       cornerRadius = 0 },
+        { selectors = {"enumSliderOption", "enumSliderFirst"},                     cornerRadius = {x1 = 5, y1 = 0, x2 = 0, y2 = 5} },
+        { selectors = {"enumSliderOption", "enumSliderLast"},                      cornerRadius = {x1 = 0, y1 = 5, x2 = 5, y2 = 0} },
+        { selectors = {"enumSliderOption", "enumSliderFirst", "enumSliderLast"},   cornerRadius = 5 },
         { selectors = {"checkBackground"},        cornerRadius = 5 },
         { selectors = {"tab"},                    cornerRadius = {x1 = 5, x2 = 0, y1 = 5, y2 = 0} },
     },

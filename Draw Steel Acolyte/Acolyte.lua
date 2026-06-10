@@ -321,10 +321,9 @@ DrawSteelActionBar.RegisterCastControl{
         local labelOn = string.format("Invoking %d", cost)
 
         local toggle
-        toggle = gui.PrettyButton{
+        toggle = gui.Button{
+            classes = {"sizeM"},
             width = 140,
-            height = 40,
-            fontSize = 14,
             text = labelOff,
             classes = {},
 

@@ -721,6 +721,8 @@ function CustomDocument:CreateInterface(args)
                     end
                 else
                     resultPanel.data.original = DeepCopy(self)
+                    resultPanel.data.pendingOriginal = nil
+                    resultPanel.data.pendingUpload = nil
                 end
                 writePanel:SetClass("collapsed", not writePanel:HasClass("collapsed"))
                 readPanel:SetClass("collapsed", not readPanel:HasClass("collapsed"))
@@ -731,7 +733,10 @@ function CustomDocument:CreateInterface(args)
             end,
 
             think = function(element)
-                writePanel:FireEventTree("checkChanges", resultPanel.data.original)
+                --compare against the most recent save the user has asked for
+                --(confirmed or still pending) so the unsaved-changes indicator
+                --clears as soon as they hit save, not when the server confirms.
+                writePanel:FireEventTree("checkChanges", resultPanel.data.pendingOriginal or resultPanel.data.original)
             end,
 
             hover = function(element)
@@ -1098,7 +1103,15 @@ function CustomDocument:CreateInterface(args)
             if writePanel ~= nil and not writePanel:HasClass("collapsed") then
 
                 if resultPanel.data.pendingUpload ~= nil and doc.updateid == resultPanel.data.pendingUpload then
-                    --we got a confirmation of our save going through.
+                    --we got a confirmation of our save going through. Only now
+                    --do we promote the saved snapshot to the delta baseline:
+                    --refreshGame fires off the server echo of our patch, so
+                    --reaching here means the write really landed server-side.
+                    if resultPanel.data.pendingOriginal ~= nil then
+                        resultPanel.data.original = resultPanel.data.pendingOriginal
+                        resultPanel.data.pendingOriginal = nil
+                    end
+                    resultPanel.data.pendingUpload = nil
                     resultPanel.data.saveConfirmed = true
                     element:FireEventTree("saveConfirmed")
                 end
@@ -1116,8 +1129,16 @@ function CustomDocument:CreateInterface(args)
                 --our original is different, or we are the same object upload.
 
                 resultPanel.data.pendingUpload = self:Upload(resultPanel.data.original)
-                resultPanel.data.original = DeepCopy(self)
-                writePanel:FireEventTree("checkChanges", resultPanel.data.original)
+
+                --do NOT advance data.original here: it is the baseline the
+                --next save's delta is computed from, and it must only move
+                --forward once the server confirms this save landed (see
+                --refreshGame above). If this upload is lost in transit, the
+                --next save's delta still includes everything from this one.
+                --The pending snapshot drives the unsaved-changes indicator
+                --in the meantime.
+                resultPanel.data.pendingOriginal = DeepCopy(self)
+                writePanel:FireEventTree("checkChanges", resultPanel.data.pendingOriginal)
             end
         end,
 
@@ -1419,6 +1440,24 @@ local function CreateTabButton(doc, tabbedViewer, tabId, bubbleIcon)
     return tabButton
 end
 
+--Read-only: the doc id of the journal document currently shown in the tabbed journal
+--viewer (its active tab), or nil if the viewer isn't open. Unlike
+--GetOrCreateTabbedViewer this never creates a viewer as a side effect.
+function CustomDocument.GetCurrentJournalDocId()
+    local viewer = g_tabbedViewer
+    if viewer == nil or not viewer.valid then
+        return nil
+    end
+
+    for _, tab in ipairs(viewer.data.tabs) do
+        if tab.tabId == viewer.data.activeTabId then
+            return tab.docId
+        end
+    end
+
+    return nil
+end
+
 function CustomDocument.GetOrCreateTabbedViewer()
     if g_tabbedViewer ~= nil and g_tabbedViewer.valid then
         return g_tabbedViewer
@@ -1645,6 +1684,23 @@ function CustomDocument.GetOrCreateTabbedViewer()
         contentArea:AddChild(activeTab.contentPanel)
     end
 
+    -- Build a tab's content panel on demand. No-op if already realized.
+    -- tabData.tabArgs is the full args table captured at addTab time (dialog,
+    -- close, bubbleIcon, etc), so the lazily-built panel is identical to the
+    -- one addTab used to build eagerly. switchToTab calls this on activation
+    -- so opening the journal only builds the tab the user actually lands on.
+    local function realizeTab(tabData)
+        if tabData.contentPanel ~= nil then return end
+        local docs = dmhub.GetTable(CustomDocument.tableName) or {}
+        local doc = docs[tabData.docId]
+        if doc == nil then return end
+
+        local contentPanel = doc:CreateInterface(tabData.tabArgs)
+        contentPanel:SetClass("collapsed", true)  -- switchToTab un-collapses the active one
+        tabData.contentPanel = contentPanel
+        contentArea:AddChild(contentPanel)
+    end
+
     -- local viewerStyles = ThemeEngine.GetStyles()
     -- viewerStyles[#viewerStyles + 1] = gui.Style {
     --     classes = {"framedPanel"},
@@ -1735,6 +1791,8 @@ function CustomDocument.GetOrCreateTabbedViewer()
                 docId = doc.id,
                 history = {},
                 forwardHistory = {},
+                contentPanel = nil,   -- realized lazily on first switchToTab
+                tabArgs = tabArgs,    -- captured so realizeTab can build later
             }
             element.data.nextTabId = element.data.nextTabId + 1
 
@@ -1749,7 +1807,9 @@ function CustomDocument.GetOrCreateTabbedViewer()
                 if idx == nil then return end
 
                 tabData.tabButton:DestroySelf()
-                tabData.contentPanel:DestroySelf()
+                if tabData.contentPanel ~= nil then  -- may be nil if tab was never viewed
+                    tabData.contentPanel:DestroySelf()
+                end
                 table.remove(element.data.tabs, idx)
 
                 if #element.data.tabs == 0 then
@@ -1758,43 +1818,56 @@ function CustomDocument.GetOrCreateTabbedViewer()
                     return
                 end
 
-                if element.data.activeTabId == tabData.tabId then
+                if element.data.closeAllPending then
+                    -- Tearing the whole viewer down: do NOT switch to (and thus
+                    -- realize) a tab we're about to destroy. Just cascade to the
+                    -- next one. Otherwise close-all would build every tab's full
+                    -- interface one by one only to immediately destroy it.
+                    if #element.data.tabs > 0 then
+                        element:FireEvent("closeAllTabs")
+                    end
+                elseif element.data.activeTabId == tabData.tabId then
                     local newIndex = math.min(idx, #element.data.tabs)
                     element:FireEvent("switchToTab", element.data.tabs[newIndex].tabId)
                 else
                     refreshTabVisibility(element)
                 end
-
-                if element.data.closeAllPending and #element.data.tabs > 0 then
-                    element:FireEvent("closeAllTabs")
-                end
             end
             tabData.close = tabArgs.close
 
-            local contentPanel = doc:CreateInterface(tabArgs)
-            contentPanel:SetClass("collapsed", true)
-
+            -- Content is NOT built here; realizeTab() builds it on first view.
+            -- The tab button is cheap and is needed for the strip regardless.
             local tabButton = CreateTabButton(doc, viewer, tabData.tabId, args and args.bubbleIcon)
 
             tabData.tabButton = tabButton
-            tabData.contentPanel = contentPanel
             element.data.tabs[#element.data.tabs + 1] = tabData
 
             tabButtonsPanel:AddChild(tabButton)
-            contentArea:AddChild(contentPanel)
 
             if args and args.skipRefresh then
-                -- Batch mode: skip per-tab refresh, caller will trigger final refresh
+                -- Batch mode: skip per-tab refresh, caller will trigger final refresh.
+                -- Content stays unbuilt until the tab is actually viewed.
             else
                 refreshTabVisibility(element)
-                element:FireEvent("switchToTab", tabData.tabId)
+                element:FireEvent("switchToTab", tabData.tabId)  -- realizes this one
             end
         end,
 
         switchToTab = function(element, tabId)
             element.data.activeTabId = tabId
+
+            -- Build the target tab's content the first time it is viewed.
             for _, tab in ipairs(element.data.tabs) do
-                tab.contentPanel:SetClass("collapsed", tab.tabId ~= tabId)
+                if tab.tabId == tabId then
+                    realizeTab(tab)
+                    break
+                end
+            end
+
+            for _, tab in ipairs(element.data.tabs) do
+                if tab.contentPanel ~= nil then  -- skip never-viewed (unrealized) tabs
+                    tab.contentPanel:SetClass("collapsed", tab.tabId ~= tabId)
+                end
                 tab.tabButton:SetClass("selected", tab.tabId == tabId)
             end
             refreshTabVisibility(element)
@@ -1805,7 +1878,11 @@ function CustomDocument.GetOrCreateTabbedViewer()
         closeTab = function(element, tabId)
             for _, tab in ipairs(element.data.tabs) do
                 if tab.tabId == tabId then
-                    tab.contentPanel:FireEvent("closetab")
+                    if tab.contentPanel ~= nil then
+                        tab.contentPanel:FireEvent("closetab")
+                    else
+                        tab.close()  -- unrealized: run the close closure directly
+                    end
                     return
                 end
             end
@@ -1813,8 +1890,12 @@ function CustomDocument.GetOrCreateTabbedViewer()
 
         closeAllTabs = function(element)
             element.data.closeAllPending = true
-            if element.data.activeTabId then
-                element:FireEvent("closeTab", element.data.activeTabId)
+            -- Close the first tab and let its close closure cascade. We target a
+            -- live tab (tabs[1]) rather than activeTabId because the close path no
+            -- longer switches activeTabId to a surviving tab during teardown.
+            local tabs = element.data.tabs
+            if #tabs > 0 then
+                element:FireEvent("closeTab", tabs[1].tabId)
             end
         end,
 

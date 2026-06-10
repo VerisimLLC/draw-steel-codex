@@ -7,13 +7,15 @@
 --- @field border string Gets or sets the border style name for the dice. Returns 'None' if no border is set.
 --- @field borderOptions string[] Gets a list of available border style names, including 'None'.
 --- @field customDiceModel string Gets or sets the custom dice 3D model name, or nil if using the default model.
---- @field teleporting boolean Whether dice in this set have the teleporting feature: once a die has almost come to a stop near the end of a roll its momentum freezes, it jumps across the playfield (wrapping around the edges, fading out then back in), and finishes settling at the destination.
+--- @field specialMovement "none"|"teleport"|"portal" The special movement dice in this set perform during a roll: 'none', 'teleport', or 'portal'. 'teleport' makes a die freeze and jump across the playfield (wrapping at the edges) near the end of its roll. 'portal' spawns a pair of portals on the playfield surfaces when the die is hurled and the die passes through one to emerge from the other. Reconciles with legacy teleporting dice sets.
+--- @field teleporting boolean Deprecated: use specialMovement instead. True iff specialMovement == 'teleport'. Kept so existing UI that toggles teleporting keeps working; setting it true selects 'teleport', false selects 'none'.
 --- @field teleportVelocity number For teleporting dice: the linear speed at or below which a die's teleport jump triggers (it is then 'almost at a stop').
 --- @field teleportDistance number For teleporting dice: how far the die jumps, as a fraction (0-1) of the playfield width.
 --- @field teleportDuration number For teleporting dice: how long the jump slide takes, in seconds (lower = faster).
+--- @field portalCreationTime number For portal dice: seconds the die must be airborne before its first wall/floor collision passes it through a portal (the first such collision after this window triggers it, once per throw). Also the lead time the portals are shown before the impact.
+--- @field portalFlashPeriod number For portal dice: duration in seconds of the brightness flash a die pulses as it enters a portal. The flash peak is timed to the moment of entry (it begins half this period before impact). 0 disables it.
+--- @field portalFlashIntensity number For portal dice: peak brightness multiplier of the portal-entry flash (1 = no flash).
 --- @field customDiceModelOptions table[] Gets a list of available custom dice model options, each as a table with id and text fields.
---- @field particles table<string, boolean> Gets or sets the active particle system names as a table of name-to-true entries.
---- @field particleOptions string[] Gets a list of available particle system names.
 --- @field curves DiceCurveLua[] Gets or sets the list of dice curve modifiers applied to the dice.
 --- @field allCurveInputs table[] Gets a list of all available curve input types, each as a table with id and text fields.
 --- @field builtinMaterialProperties DiceMaterialStudioProperties Gets the built-in material properties for the dice, initializing from the d20 mesh if needed.
@@ -77,29 +79,69 @@ function DiceStudioLua:GetLocalFiles()
 	-- dummy implementation for documentation purposes only
 end
 
+--- DownloadCloudDice: Downloads an already-uploaded (cloud) dice set by its cloud id and saves it as a local Dice Studio file, so it appears in the local dice list (GetLocalFiles). The local copy keeps the cloud name and id, so editing it and then calling Save/Upload updates the same cloud document. If a local set with the same name already exists it is overwritten. Returns the local name on success, or nil if no uploaded dice has that id.
+--- @param id string  The cloud dice id (guid), e.g. an entry's `id` from dice.GetAllDice().
+--- @return string|nil
+function DiceStudioLua:DownloadCloudDice(id)
+	-- dummy implementation for documentation purposes only
+end
+
 --- GetEventEffect: Gets the prefab name currently bound to the given dice lifecycle event. Returns an empty string if nothing is bound.
---- @param eventName string  One of: appearance, bouncehit, disappear, reappear, exit, rollwaiting, traveltail.
+--- @param eventName string  One of: appearance, bouncehit, disappear, reappear, exit, rollwaiting, traveltail, portal.
 --- @return string
 function DiceStudioLua:GetEventEffect(eventName)
 	-- dummy implementation for documentation purposes only
 end
 
 --- SetEventEffect: Binds (or clears) a prefab to a dice lifecycle event. Pass nil or an empty string to clear.
---- @param eventName string  One of: appearance, bouncehit, disappear, reappear, exit, rollwaiting, traveltail.
+--- @param eventName string  One of: appearance, bouncehit, disappear, reappear, exit, rollwaiting, traveltail, portal.
 --- @param effectName string|nil
 function DiceStudioLua:SetEventEffect(eventName, effectName)
 	-- dummy implementation for documentation purposes only
 end
 
 --- GetEventEffectOptions: Gets the list of effect prefab names registered as available for the given dice lifecycle event.
---- @param eventName string  One of: appearance, bouncehit, disappear, reappear, exit, rollwaiting, traveltail.
+--- @param eventName string  One of: appearance, bouncehit, disappear, reappear, exit, rollwaiting, traveltail, portal.
 --- @return string[]
 function DiceStudioLua:GetEventEffectOptions(eventName)
 	-- dummy implementation for documentation purposes only
 end
 
+--- GetEventEffectList: Gets the list of effects bound to the given event, in authored order. An event can have several effects, each with its own tunables; each is returned as a DiceEventEffectBindingLua wrapper. Returns an empty list if nothing is bound.
+--- @param eventName string
+--- @return DiceEventEffectBindingLua[]
+function DiceStudioLua:GetEventEffectList(eventName)
+	-- dummy implementation for documentation purposes only
+end
+
+--- AddEventEffect: Adds another effect to the given event and returns its DiceEventEffectBindingLua wrapper (so its tunables can be set). Pass the effect prefab name, or nil/empty to add an unbound slot. Returns nil if the event name is invalid.
+--- @param eventName string
+--- @param effectName string|nil
+--- @return DiceEventEffectBindingLua|nil
+function DiceStudioLua:AddEventEffect(eventName, effectName)
+	-- dummy implementation for documentation purposes only
+end
+
+--- RemoveEventEffect: Removes a single effect (previously obtained from GetEventEffectList/AddEventEffect) from its event. No-op if the binding is not part of the current dice set.
+--- @param binding DiceEventEffectBindingLua
+function DiceStudioLua:RemoveEventEffect(binding)
+	-- dummy implementation for documentation purposes only
+end
+
+--- ClearEventEffects: Removes ALL effects bound to the given event.
+--- @param eventName string
+function DiceStudioLua:ClearEventEffects(eventName)
+	-- dummy implementation for documentation purposes only
+end
+
+--- PlayRawBinding: Plays a single bound effect's prefab raw (at world origin, no parenting/layer/transform changes) for debugging its appearance. Takes a DiceEventEffectBindingLua from GetEventEffectList/AddEventEffect.
+--- @param binding DiceEventEffectBindingLua
+function DiceStudioLua:PlayRawBinding(binding)
+	-- dummy implementation for documentation purposes only
+end
+
 --- FirePreviewEffect: Test-fires a dice lifecycle event on all currently spawned studio preview dice. For pulses, instantiates the bound one-shot prefab. For state effects (RollWaiting, TravelTail), re-spawns the attached instance so the restart is visible.
---- @param eventName string  One of: appearance, bouncehit, disappear, reappear, exit, rollwaiting, traveltail.
+--- @param eventName string  One of: appearance, bouncehit, disappear, reappear, exit, rollwaiting, traveltail, portal.
 function DiceStudioLua:FirePreviewEffect(eventName)
 	-- dummy implementation for documentation purposes only
 end
@@ -107,6 +149,46 @@ end
 --- PlayRawEffect: Plays the prefab bound to the named lifecycle event at world origin with no parenting, layer, or transform changes. For debugging the prefab's raw visual appearance.
 --- @param eventName string
 function DiceStudioLua:PlayRawEffect(eventName)
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetSoundEventOptions: Gets the sorted list of all registered sound event names, for the Sounds section dropdowns.
+--- @return string[]
+function DiceStudioLua:GetSoundEventOptions()
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetEventSound: Gets the sound event name bound to the given dice lifecycle event, or an empty string if nothing is bound.
+--- @param eventName string  One of: throwstart, appearance, bouncehit, disappear, reappear, exit.
+--- @return string
+function DiceStudioLua:GetEventSound(eventName)
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetEventSound: Binds (or clears) a sound event to a dice lifecycle event. Pass nil or an empty string to clear.
+--- @param eventName string  One of: throwstart, appearance, bouncehit, disappear, reappear, exit.
+--- @param soundEventName string|nil
+function DiceStudioLua:SetEventSound(eventName, soundEventName)
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetEventSoundVolume: Gets the volume multiplier (1 = authored volume) for the event's bound sound, or 1 if nothing is bound.
+--- @param eventName string
+--- @return number
+function DiceStudioLua:GetEventSoundVolume(eventName)
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetEventSoundVolume: Sets the volume multiplier for the event's bound sound. No-op if nothing is bound to the event.
+--- @param eventName string
+--- @param volume number
+function DiceStudioLua:SetEventSoundVolume(eventName, volume)
+	-- dummy implementation for documentation purposes only
+end
+
+--- FirePreviewSound: Test-plays the sound bound to the given dice lifecycle event (at the bound volume). No-op if nothing is bound.
+--- @param eventName string  One of: throwstart, appearance, bouncehit, disappear, reappear, exit.
+function DiceStudioLua:FirePreviewSound(eventName)
 	-- dummy implementation for documentation purposes only
 end
 

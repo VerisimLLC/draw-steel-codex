@@ -196,9 +196,8 @@ local CreateFeatureSummary = function(feature, featuresList, index, parentPanel,
 			end,
 		},
 
-		gui.SettingsButton{
-			width = 16,
-			height = 16,
+		gui.Button{
+			classes = {"settingsButton", "sizeXs"},
 			halign = "right",
 			valign = "center",
 			hmargin = 12,
@@ -1576,80 +1575,6 @@ function CharacterSubclassChoice:CreateEditor(class, params)
 					}
 				end
 			end
-
---		local subclassesTable = dmhub.GetTable("subclasses") or {}
---		for i,option in ipairs(self.options) do
---			local index = i
---			local subclass = subclassesTable[option]
---			if subclass ~= nil then
---				children[#children+1] = gui.Panel{
---					width = '100%',
---					height = 20,
---					flow = 'horizontal',
---
---					gui.Label{
---						text = subclass.name,
---						height = 'auto',
---						width = 'auto',
---						minWidth = 200,
---						fontSize = 16,
---						color = 'white',
---						valign = 'center',
---					},
---
---					gui.DeleteItemButton{
---						width = 16,
---						height = 16,
---						valign = 'center',
---						click = function(element)
---							table.remove(self.options, index)
---							resultPanel:FireEvent('create')
---							resultPanel:FireEvent('change')
---						end,
---					},
---				}
---			end
---		end
---
---		local options = {
---			{
---				id = 'none',
---				text = 'Add Choice...',
---			}
---		}
---
---		for k,subclass in pairs(subclassesTable) do
---			local alreadyHas = false
---			for i,option in ipairs(self.options) do
---				if option == k then
---					alreadyHas = true
---				end
---			end
---
---			if alreadyHas == false then
---				options[#options+1] = {
---					id = k,
---					text = subclass.name,
---				}
---			end
---		end
---
---		local dropdown = gui.Dropdown{
---			options = options,
---			idChosen = 'none',
---			width = 160,
---			height = 30,
---			fontSize = 16,
---			change = function(element)
---				if element.idChosen ~= 'none' then
---					self.options[#self.options+1] = element.idChosen
---					resultPanel:FireEvent('create')
---					resultPanel:FireEvent('change')
---				end
---			end,
---		}
---
---		children[#children+1] = dropdown
 
 			element.children = children
 		end,

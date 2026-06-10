@@ -11,6 +11,101 @@ local function track(eventType, fields)
     analytics.Event(fields)
 end
 
+local function CoroutineStackTrim(s)
+    return (s:gsub("^%s+", ""):gsub("%s+$", ""))
+end
+
+--- Parse a coroutine's traceback into a list of frames. Frames that correspond
+--- to a source location (a "[string "Mod : File"]:line:" entry) are also collected
+--- into a "locatable" list and given a 1-based .number so they can be opened by
+--- pressing the matching number key -- mirroring the F7 style inspector.
+--- @return table frames, table locatable
+local function ParseCoroutineStack(co)
+    local trace = debug.traceback(co)
+    local frames = {}
+    local locatable = {}
+    for line in string.gmatch(trace, "[^\r\n]+") do
+        local modAndFile, lineNum, rest = string.match(line, '%[string "([^"]+)"%]:(%d+):?%s*(.*)$')
+        local frame = {}
+        local modName, fileName
+        if modAndFile ~= nil then
+            modName, fileName = string.match(modAndFile, "^([^:]+):(.+)$")
+        end
+
+        if modName ~= nil and fileName ~= nil and #locatable < 9 then
+            frame.modName = CoroutineStackTrim(modName)
+            frame.fileName = CoroutineStackTrim(fileName)
+            frame.lineNumber = tonumber(lineNum)
+            locatable[#locatable+1] = frame
+            frame.number = #locatable
+            frame.display = string.format("%s/%s:%s  %s", frame.modName, frame.fileName, lineNum, CoroutineStackTrim(rest))
+        else
+            frame.display = CoroutineStackTrim(line)
+        end
+
+        frames[#frames+1] = frame
+    end
+
+    return frames, locatable
+end
+
+--- Build a tooltip panel for a coroutine stack. Each locatable frame is prefixed
+--- with its number. The panel is aligned to the top so it appears ABOVE the label.
+local function BuildCoroutineTooltip(frames)
+    local rows = {}
+    rows[#rows+1] = gui.Label{
+        text = "Hover and press 1-9 to open a stack location",
+        width = "auto",
+        height = "auto",
+        fontSize = 9,
+        color = "#88bbff",
+        bmargin = 4,
+    }
+
+    for _,frame in ipairs(frames) do
+        local text = frame.display
+        if frame.number ~= nil then
+            text = string.format("<color=#ffcc66>[%d]</color> %s", frame.number, frame.display)
+        end
+
+        rows[#rows+1] = gui.Label{
+            text = text,
+            width = "auto",
+            height = "auto",
+            fontSize = 10,
+            color = frame.number ~= nil and "white" or "#bbbbbb",
+        }
+    end
+
+    return gui.Panel{
+        classes = {"tooltipFrame"},
+        bgimage = "panels/square.png",
+        bgcolor = "#000000fa",
+        borderColor = "#000000fa",
+        borderWidth = 10,
+        borderFade = true,
+        cornerRadius = 10,
+        hpad = 16,
+        vpad = 10,
+        borderBox = true,
+        width = "auto",
+        height = "auto",
+        maxWidth = 1000,
+        flow = "vertical",
+        valign = "top",
+        halign = "left",
+        interactable = false,
+        children = rows,
+        styles = {
+            {
+                selectors = {"create"},
+                transitionTime = 0.2,
+                opacity = 0,
+            },
+        },
+    }
+end
+
 DockablePanel.Register{
     name = "Development Info",
 
@@ -43,13 +138,45 @@ DockablePanel.Register{
                             halign = "left",
                             valign = "top",
                             fontSize = 12,
+                            data = {},
                             refresh = function(element)
                                 element.text = string.format("coroutine %s -- %s", entry.id, coroutine.status(entry.coroutine))
                             end,
                             hover = function(element)
-                                local trace = debug.traceback(entry.coroutine)
-                                print("TRACEBACK", trace)
-                                gui.Tooltip(trace)(element)
+                                local frames, locatable = ParseCoroutineStack(entry.coroutine)
+                                element.data.locatable = locatable
+
+                                --seed the key state with whatever is currently held so a
+                                --key already down when we begin hovering won't fire until
+                                --it is released and pressed again.
+                                local keyState = {}
+                                for i=1,#locatable do
+                                    keyState[i] = dmhub.KeyPressed("Alpha" .. i)
+                                end
+                                element.data.keyState = keyState
+
+                                element.tooltip = BuildCoroutineTooltip(frames)
+                            end,
+                            thinkTime = 0.03,
+                            think = function(element)
+                                if element:HasClass("hover") == false then
+                                    return
+                                end
+
+                                local locatable = element.data.locatable
+                                local keyState = element.data.keyState
+                                if locatable == nil or keyState == nil then
+                                    return
+                                end
+
+                                for i=1,#locatable do
+                                    local down = dmhub.KeyPressed("Alpha" .. i)
+                                    if down and keyState[i] ~= true then
+                                        local f = locatable[i]
+                                        dmhub.OpenModFileAtLine(f.modName, f.fileName, f.lineNumber)
+                                    end
+                                    keyState[i] = down
+                                end
                             end,
                         }
 

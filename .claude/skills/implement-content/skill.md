@@ -539,17 +539,67 @@ Draw Steel abilities use power rolls (2d10 + characteristic) with three tiers of
 ```
 
 ### Tier String Syntax
-Tier strings describe outcomes using semicolons to separate effects:
+
+Tier strings (and DrawSteelCommand rule strings) describe outcomes built from clauses joined by separators. **Choose the separator deliberately -- the parser distinguishes them.**
+
+#### Separators (CRITICAL)
+
+| Separator | Meaning | Example |
+|---|---|---|
+| `;` | **Hard break** between disjoint clauses. Each side resolves independently. | `5 damage; push 3; M<{Weak}, prone` |
+| `,` *or* a bare space | **Soft link** binding a potency gate to its conditional effect. | `M < {Weak}, grabbed` or `M<[Weak] prone` |
+| `:` | **NEVER use as a separator.** Silently misparses -- the parser treats it as a hard break, severing the gate from its effect, so the condition either fires unconditionally or is dropped. No validation error fires. | WRONG: `M < {Weak}: grabbed` |
+
+**Rule of thumb:** `;` is for "and also" between independent things; `,` (or space) is for "if the gate, then the effect" inside a single potency clause.
+
+#### Difficulty threshold tokens
+
+Inside a potency gate, the threshold value should be one of:
+- `{Weak}` / `{Average}` / `{Strong}` -- curly-brace substitution (recommended)
+- `[Weak]` / `[Average]` / `[Strong]` -- square-bracket substitution (also valid; matches the Avalanche Rush convention)
+- A bare integer like `2` -- only when you want a literal numeric threshold (rare; the named tokens scale with target tier and are what the rules text uses)
+
+**Avoid** bare unbracketed words: `M < Weak prone` may be evaluated as a symbol lookup against `Weak`, which is undefined and silently evaluates to 0. Always wrap difficulty names in `{...}` or `[...]`.
+
+#### Clause vocabulary
+
 - `X damage` -- deal X damage
 - `X [type] damage` -- deal typed damage (e.g., `8 fire damage`)
 - `push/pull/slide X` -- forced movement
 - `vertical push X` -- vertical forced movement
 - `[condition] (save ends)` -- apply condition with save ends duration
 - `[condition] (EoT)` -- apply condition until end of target's next turn
-- `A<X [effect]` -- apply effect only if target's Agility < X (potency check)
+- `A<X [effect]` -- apply effect only if target's Agility < X (potency check); X is `{Weak}`/`{Average}`/`{Strong}` or a literal int
 - `M<X [effect]` -- Might potency check
 - `I<X [effect]` -- Intuition potency check
 - `P<X [effect]` -- Presence potency check
+- `R<X [effect]` -- Reason potency check
+
+#### Worked examples
+
+```
+6 + M damage; M < {Weak}, grabbed
+```
+"Deal 6+M damage, AND if target fails an M<Weak potency check, also grab them."
+
+```
+{3 + Might} damage; push 2; M<[Average] prone
+```
+"Deal 3+Might damage, push 2, AND if target fails M<Average, also knock prone." (Note: same potency clause uses space; could equivalently be `M<[Average], prone`.)
+
+```
+9 cold damage; slide 2
+```
+"Deal 9 cold damage AND slide 2 squares." (No potency gate -- both happen unconditionally.)
+
+```
+13 cold damage; slide 4
+```
+"Tier 3 form -- same shape, escalated numbers."
+
+#### Anti-pattern audit
+
+If you ever write a tier or rule string, sanity-check it does NOT contain `:` -- the parser will accept it without complaining but the gated effect will detach from its gate at runtime.
 
 ### Separate Condition Application
 For complex conditions, use a separate `ActivatedAbilityApplyOngoingEffectBehavior` with `tiersSelected`:

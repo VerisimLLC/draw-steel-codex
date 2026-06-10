@@ -19,10 +19,12 @@ function CreateCompendiumItemTooltip(spell, options)
 		pad = 0,
 		cornerRadius = 0,
 		bgimage = 'panels/square.png',
-		bgcolor = '#000000fb',
+		--Opaque, themed surface (no blur). Resolved to the active scheme's @bg
+		--hex at call time so it tracks scheme changes on the next render.
+		bgcolor = ThemeEngine.ResolveTokens('@bg'),
 		borderWidth = 0,
 		borderFade = false,
-        blurBackground = true,
+        blurBackground = false,
         opacity = 1,
     }
 

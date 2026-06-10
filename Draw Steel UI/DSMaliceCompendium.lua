@@ -155,7 +155,22 @@ CreateEditorPanel = function(key, monsterGroup)
                         height = "auto",
                         borderBox = true,
                         pad = 12,
-                        
+
+                        rightClick = function(panelElement)
+                            panelElement.popup = gui.ContextMenu{
+                                entries = {
+                                    {
+                                        text = "Copy",
+                                        click = function()
+                                            panelElement.popup = nil
+                                            dmhub.CopyToInternalClipboard(ability)
+                                            panelElement.parent:FireEvent("refreshAbilities")
+                                        end,
+                                    },
+                                },
+                            }
+                        end,
+
                         gui.Panel{
                             width = "100%",
                             height = "auto",
@@ -235,6 +250,11 @@ CreateEditorPanel = function(key, monsterGroup)
                     }
                 end
 
+                local clipboardHasMaliceAbility = function()
+                    local clipboardItem = dmhub.GetInternalClipboard()
+                    return clipboardItem ~= nil and (clipboardItem.typeName == "MaliceAbility" or clipboardItem.typeName == "ActivatedAbility")
+                end
+
                 children[#children+1] = gui.Button{
                     classes = {"addButton", "sizeL"},
                     halign = "right",
@@ -248,6 +268,41 @@ CreateEditorPanel = function(key, monsterGroup)
                         element.parent:FireEvent("refreshAbilities")
                     end,
                 }
+
+                children[#children+1] = gui.Button{
+                    classes = {"sizeM"},
+                    halign = "left",
+                    valign = "bottom",
+                    width = "auto",
+                    minWidth = 120,
+                    height = 35,
+                    hpad = 16,
+                    borderBox = true,
+                    text = "Paste Ability",
+
+                    create = function(element)
+                        element:SetClass("collapsed", not clipboardHasMaliceAbility())
+                    end,
+
+                    internalClipboardChanged = function(element)
+                        element:SetClass("collapsed", not clipboardHasMaliceAbility())
+                    end,
+
+                    click = function(element)
+                        if not clipboardHasMaliceAbility() then
+                            return
+                        end
+
+                        local clipboardItem = DeepCopy(dmhub.GetInternalClipboard())
+                        local pasted = MaliceAbility.Create(clipboardItem)
+                        pasted.guid = dmhub.GenerateGuid()
+
+                        monsterGroup.maliceAbilities[#monsterGroup.maliceAbilities+1] = pasted
+                        dmhub.SetAndUploadTableItem(MonsterGroup.tableName, monsterGroup)
+                        element.parent:FireEvent("refreshAbilities")
+                    end,
+                }
+
                 element.children = children
             end,
 

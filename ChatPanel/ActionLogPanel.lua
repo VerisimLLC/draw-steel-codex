@@ -909,7 +909,7 @@ CreateChatPanel = function()
 				width = '100%',
 				height = 'auto',
 				color = '@fgStrong',
-				fontSize = '40%',
+				fontSize = '100%',
 				vmargin = 2,
 			},
             {
@@ -1069,12 +1069,12 @@ CreateChatPanel = function()
 			{
 				selectors = {'row', 'highlighted'},
 				transitionTime = 1.0,
-				bgcolor = "@fgStrong",
+				bgcolor = "@accent",
 			},
 			{
 				selectors = {'label', 'parent:highlighted'},
 				transitionTime = 1.0,
-				color = "@bg",
+				color = "@fgInverse",
 			},
 			{
 				selectors = {'row', 'flash'},
@@ -1088,7 +1088,14 @@ CreateChatPanel = function()
 			},
 			{
 				selectors = {'amendable', 'row', 'hover'},
-				bgcolor = "@danger",
+				bgcolor = "@accentHover",
+			},
+			{
+				--Amendable rows fill with the light @accentHover gold on hover, so
+				--flip the tier text to the dark inverse color to stay legible
+				--(mirrors {label, parent:highlighted} above for the accent fill).
+				selectors = {'label', 'parent:amendable', 'parent:hover'},
+				color = "@fgInverse",
 			},
 			{
 				selectors = {'collapsedAnim'},

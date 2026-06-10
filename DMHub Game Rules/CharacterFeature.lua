@@ -1073,7 +1073,13 @@ function CharacterFeature:PopupEditor()
 				fontSize = 22,
 				text = "Confirm",
 				click = function(element)
-					contentPanel:FireEvent('modifierRefreshed')
+					-- FireEventTree (not FireEvent): in the themed path the
+					-- caller's 'modifierRefreshed' handler lives on the inner
+					-- scroll panel, not on contentPanel (the outer wrapper), so
+					-- a plain FireEvent on the wrapper never reaches it and edits
+					-- made right before Confirm (e.g. a renamed feature) failed to
+					-- refresh the source list until the sheet was reopened.
+					contentPanel:FireEventTree('modifierRefreshed')
 					resultPanel:DestroySelf()
 				end,
 			},
@@ -1104,7 +1110,14 @@ function CharacterFeature:PopupEditor()
 						self[k] = v
 					end
 
-					contentPanel:FireEvent('refreshModifier')
+					-- Cancel restored the backup above, so notify the source
+					-- list to rebuild from the reverted state. Route through the
+					-- same 'modifierRefreshed' handler as Confirm (FireEventTree
+					-- so it reaches the inner scroll panel in the themed path);
+					-- the handler fires 'refreshModifier' on the notify element.
+					-- Without this, any name the live poll had already pushed to
+					-- the list would persist until the sheet was reopened.
+					contentPanel:FireEventTree('modifierRefreshed')
 
 					resultPanel:DestroySelf()
 				end,

@@ -367,14 +367,14 @@ function TriggeredAbilityDisplay:CollectAppliedRangeModifications(caster, partne
             local applies = false
 
             if partner.kind == "triggered" then
-                if m:try_get("applyToTriggeredAbilities", true)
+                if m:try_get("applyToTriggeredAbilities", false)
                     and modifyAbilityTypeInfo ~= nil
                     and modifyAbilityTypeInfo.willModifyAbility ~= nil
                     and modifyAbilityTypeInfo.willModifyAbility(m, caster, partner.ability) then
                     applies = true
                 end
             elseif partner.kind == "powerroll" then
-                if m:try_get("applyToPowerRollTriggers", true)
+                if m:try_get("applyToPowerRollTriggers", false)
                     and m:try_get("filterAbility", "") == "" then
                     local triggerKeywords = partner.modifier.powerRollModifier:try_get("keywords", {})
                     local pass = true

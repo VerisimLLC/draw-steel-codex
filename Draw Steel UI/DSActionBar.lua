@@ -2716,13 +2716,11 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 		height = "auto",
 	}
 
-	skipButton = gui.PrettyButton{
+	skipButton = gui.Button{
+		classes = {"sizeL", "collapsed"},
 		halign = "center",
 		width = 120,
-		height = 60,
-		fontSize = 22,
 		text = "Skip",
-		classes = { 'collapsed' },
 		events = {},
 	}
 
@@ -2977,17 +2975,13 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
             },
 
         },
-
-
     }
 
-	castButton = gui.PrettyButton{
+	castButton = gui.Button{
+		classes = {"sizeL", "collapsed"},
 		halign = "center",
 		width = 120,
-		height = 60,
-		fontSize = 22,
 		text = "Confirm",
-		classes = { 'collapsed' },
 		events = {},
 	}
 
@@ -4353,7 +4347,8 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 
 			searchInput,
 
-			gui.CloseButton{
+			gui.Button{
+            	classes = {"closeButton"},
 				escapeActivates = true,
 				escapePriority = EscapePriority.DMHUB_POPUP,
 				click = function(element)
@@ -6447,7 +6442,8 @@ function GameHud:ShowActionBarEditDialog(creature, actionBar, pagingPanels)
 
 		pagesParent,
 
-		gui.CloseButton{
+		gui.Button{
+            classes = {"closeButton"},
 			halign = "right",
 			valign = "top",
 			floating = true,

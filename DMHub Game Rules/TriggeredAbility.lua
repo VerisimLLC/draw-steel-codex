@@ -124,7 +124,7 @@ TriggeredAbility.TargetTypes = {
 		id = 'attacker',
 		text = 'Creature Attacking Me',
 		condition = function(ability)
-			return ability.trigger == "attacked" or ability.trigger == "hit" or ability.trigger == "losehitpoints" or ability.trigger == "inflictcondition" or ability.trigger == "winded" or ability.trigger == "dying"
+			return ability.trigger == "attacked" or ability.trigger == "hit" or ability.trigger == "losehitpoints" or ability.trigger == "inflictcondition" or ability.trigger == "winded" or ability.trigger == "dying" or ability.trigger == "forcemove"
 		end,
 	},
 	{
@@ -349,10 +349,20 @@ TriggeredAbility.triggers = {
 				type = "creature",
 				desc = "The creature who is causing the forced move to occur. Only valid if Has Attacker is true.",
 			},
-            {
+            vertical = {
                 name = "Vertical",
                 type = "boolean",
                 desc = "True if the forced movement is vertical.",
+            },
+            distance = {
+                name = "Distance",
+                type = "number",
+                desc = "The number of squares the creature was actually force moved.",
+            },
+            melee = {
+                name = "Melee",
+                type = "boolean",
+                desc = "True if the ability that forced the movement had the Melee keyword.",
             },
 		}
     },
@@ -706,36 +716,41 @@ TriggeredAbility.RegisterTrigger{
     }
 }
 
--- Fired on the bearer of an ongoing effect when they fail a save check against
--- that effect (a save that did NOT remove the effect). Fires once per failed
--- save per effect, so a creature with multiple save_ends effects rolling one
--- save per effect will see this trigger fire once per failure.
+-- Fired on the bearer of an ongoing effect OR a save-ends condition when
+-- they fail a save check against that effect/condition (a save that did
+-- NOT remove it). Fires once per failed save per source, so a creature
+-- with multiple save_ends sources rolling one save per source will see
+-- this trigger fire once per failure.
 --
 -- Authors put a CharacterModifier {behavior=trigger, triggeredAbility={trigger=savefail,...}}
--- inside an ongoing effect's modifiers[] and filter on EffectName in
--- conditionFormula to scope the handler to the specific effect.
+-- inside the ongoing effect's or condition's modifiers[] and filter on
+-- EffectName in conditionFormula to scope the handler to the specific
+-- source.
 --
 -- Symbols installed when the trigger fires:
---   EffectName (text)    - the ongoing effect's display name (e.g. "Stoned")
---   Caster (creature)    - original applier of the ongoing effect when
---                          casterTracking is enabled and the caster token is
---                          still resolvable; otherwise the bearer (Self) is
---                          installed so Caster.X formulas still resolve safely.
+--   EffectName (text)    - the display name of the ongoing effect OR
+--                          condition being saved against (e.g. "Stoned").
+--   Caster (creature)    - original applier of the effect/condition when
+--                          caster tracking is enabled (casterTracking on
+--                          ongoing effects, trackCaster on conditions)
+--                          and the caster token is still resolvable;
+--                          otherwise the bearer (Self) is installed so
+--                          Caster.X formulas still resolve safely.
 --   SaveRoll (number)    - the actual save roll total that failed.
 TriggeredAbility.RegisterTrigger{
     id = "savefail",
-    text = "Fail Save vs Ongoing Effect",
+    text = "Fail Saving Throw",
     symbols = {
         {
             name = "EffectName",
             type = "text",
-            desc = "The display name of the ongoing effect being saved against. Use to scope the handler to one specific effect, e.g. EffectName = \"Stoned\".",
+            desc = "The display name of the ongoing effect or condition being saved against. Use to scope the handler to one specific source, e.g. EffectName = \"Stoned\".",
             prose = "the effect name",
         },
         {
             name = "Caster",
             type = "creature",
-            desc = "The original applier of the ongoing effect when caster tracking is enabled; otherwise the bearer of the effect.",
+            desc = "The original applier of the effect or condition when caster tracking is enabled; otherwise the bearer.",
             prose = "the caster",
         },
         {
@@ -748,7 +763,7 @@ TriggeredAbility.RegisterTrigger{
     examples = {
         {
             script = "EffectName = \"Stoned\"",
-            text = "The triggered ability only fires when the bearer fails a save against the Stoned ongoing effect.",
+            text = "The triggered ability only fires when the bearer fails a save against the Stoned condition.",
         },
     },
 }
@@ -1294,7 +1309,6 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
             trigger = triggers[guid]
 
             local turnid = casterToken.properties:GetResourceRefreshId("turn")
-            local starttime = dmhub.Time()
 
 			local sustain = true
 			local gameupdate = dmhub.ngameupdate
@@ -1302,16 +1316,16 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
             local expireAt = nil
             local wasDismissed = false
 
+            --missingSince records when the trigger entry first went missing from
+            --availableTriggers. The recovery grace period is measured from this
+            --point rather than from coroutine start, so a long-lived trigger
+            --still gets a full window to recover from a transient frame where
+            --GetAvailableTriggers rebuilds its table and momentarily omits us.
+            local missingSince = nil
+
 			while trigger ~= nil and (not trigger.triggered) and (not trigger.dismissed) and sustain do
 				coroutine.yield()
 
-				--Hold on to the previous trigger reference so we can detect
-				--dismissal-by-clear: when the player clicks dismiss, the
-				--ActiveTrigger has clearOnDismiss=true, so DispatchAvailableTrigger
-				--immediately removes the entry from availableTriggers and the
-				--refetch below returns nil, losing the dismissed flag we'd
-				--otherwise have observed.
-				local prevTrigger = trigger
 				trigger = nil
                 if casterToken == nil or (not casterToken.valid) then
                     break
@@ -1328,21 +1342,38 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
                 local triggers = casterToken.properties:GetAvailableTriggers() or {}
                 trigger = triggers[guid]
 
-                --Detect dismissal: either the new copy carries dismissed=true,
-                --or it's gone entirely (cleared by DispatchAvailableTrigger
-                --via clearOnDismiss).
+                if trigger == nil then
+                    if missingSince == nil then
+                        missingSince = dmhub.Time()
+                    end
+                else
+                    missingSince = nil
+                end
+
+                --Detect dismissal. A genuine dismiss/clear sets
+                --_tmp_clearedTriggers[guid] (every dismiss path routes through
+                --ClearAvailableTrigger, which sets it). That flag is what
+                --distinguishes a real dismissal from a transient frame where the
+                --entry is momentarily absent. Never infer dismissal from a bare
+                --nil read -- doing so used to tear the coroutine down while the
+                --panel entry was still (or again) present, leaving an
+                --unresponsive panel.
                 if trigger ~= nil and trigger.dismissed then
                     wasDismissed = true
-                elseif prevTrigger ~= nil and trigger == nil and sustain then
+                elseif trigger == nil and casterToken.valid and casterToken.properties:try_get("_tmp_clearedTriggers", {})[guid] then
                     wasDismissed = true
                 end
 
-                --give at least 5 seconds to recover if the trigger is not found.
-                --Skip the recovery wait if we already know the trigger was dismissed
-                while trigger == nil and (not wasDismissed) and dmhub.Time() < starttime+5 and casterToken.valid do
+                --Give the trigger time to recover if it is transiently not found,
+                --measured from when it went missing. Skip the wait if we already
+                --know it was dismissed.
+                while trigger == nil and (not wasDismissed) and dmhub.Time() < (missingSince or dmhub.Time()) + 5 and casterToken.valid do
 
                     local triggers = casterToken.properties:GetAvailableTriggers() or {}
                     trigger = triggers[guid]
+                    if trigger ~= nil then
+                        missingSince = nil
+                    end
 
 				    coroutine.yield()
                 end
@@ -1354,17 +1385,30 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
                 if trigger and gameupdate ~= dmhub.ngameupdate then
                     gameupdate = dmhub.ngameupdate
 
-                    if not self:CanAfford(casterToken) then
-                        sustain = false
-                    end
-
-                    if trim(self.conditionFormula) ~= "" then
-                        local condition = ExecuteGoblinScript(self.conditionFormula,
-                            casterToken.properties:LookupSymbol(symbols), 0, "Trigger condition")
-                        if tonumber(condition) == 0 then
-                            --we no longer sustain the trigger condition
+                    --This block evaluates user-authored GoblinScript, which can
+                    --throw. We cannot wrap the whole loop in pcall (this runtime
+                    --forbids yielding across a pcall boundary), so we protect the
+                    --throwing calls here: on error we stop sustaining, which
+                    --drops out of the loop into the guaranteed cleanup below
+                    --rather than escaping the coroutine and stranding the panel.
+                    local ok, err = pcall(function()
+                        if not self:CanAfford(casterToken) then
                             sustain = false
                         end
+
+                        if trim(self.conditionFormula) ~= "" then
+                            local condition = ExecuteGoblinScript(self.conditionFormula,
+                                casterToken.properties:LookupSymbol(symbols), 0, "Trigger condition")
+                            if tonumber(condition) == 0 then
+                                --we no longer sustain the trigger condition
+                                sustain = false
+                            end
+                        end
+                    end)
+
+                    if not ok then
+                        printf("Error evaluating trigger sustain condition: %s", tostring(err))
+                        sustain = false
                     end
                 end
             end
@@ -1373,12 +1417,19 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
                 casterToken = dmhub.GetTokenById(tokid)
             end
 
-			if trigger ~= nil and casterToken ~= nil and casterToken.valid then
+			--Guaranteed cleanup: remove the panel entry by guid on EVERY exit
+			--path (triggered, dismissed, sustain lost, caster invalid, transient
+			--nil read). The panel renders straight from availableTriggers, so if
+			--we exit without clearing, the entry lingers (until the 60s age-out)
+			--with no coroutine watching it -- clickable but unresponsive. Clear by
+			--guid rather than by the (possibly nil) trigger reference, since some
+			--exits leave trigger nil while the entry is still present.
+			if casterToken ~= nil and casterToken.valid then
 				casterToken:ModifyProperties{
 					description = "Clear Trigger",
 					undoable = false,
 					execute = function()
-						casterToken.properties:ClearAvailableTrigger(trigger)
+						casterToken.properties:ClearAvailableTrigger({id = guid})
 					end,
 				}
 			end

@@ -9,6 +9,30 @@ setting{
     storage = "transient",
 }
 
+setting{
+    id = "dockscale",
+    description = "Dock Scale",
+    help = "Scales the side docks. Lower values make the docks narrower; to compensate they grow taller so they always fill the full height of the screen, letting more panels stack vertically. Higher values make them wider and shorter.",
+    storage = "preference",
+    editor = "slider",
+    percent = true,
+    default = 1.0,
+    min = 0.5,
+    max = 1.5,
+    onchange = function()
+        --Apply the new scale live to any docks that already exist. Docks are
+        --only created once a game is active; bail out otherwise.
+        if gamehud == nil or rawget(gamehud, "leftDock") == nil then
+            return
+        end
+        for _,dock in ipairs(gamehud:Docks()) do
+            if dock ~= nil and dock.valid then
+                dock:FireEvent("setScale")
+            end
+        end
+    end,
+}
+
 --types of registered dockable panels.
 local dockablePanels = {}
 
@@ -117,8 +141,24 @@ function GameHud:CreateSingleDock(params)
         }
     end
 
-	local DockHeight = (params.height or 1080)
-	params.height = DockHeight
+	--Dock scaling. The dock is rendered at 'dockScale' via uiscale, which
+	--scales the dock's layout footprint too, so a smaller scale makes the dock
+	--narrower on screen. To keep the dock filling the full screen height
+	--regardless of scale, the logical DockHeight is the on-screen target height
+	--divided by the scale: a smaller scale yields a taller logical dock, so more
+	--panels fit vertically. The floating (center) dock is never scaled.
+	--NOTE: DockHeight is captured as an upvalue by fitChildren/sizeChild below;
+	--the setScale event reassigns it so those closures pick up the new value.
+	local baseDockHeight = (params.height or 1080)
+	local dockScale = cond(floating, 1, dmhub.GetSettingValue("dockscale") or 1)
+	local DockHeight = baseDockHeight / dockScale
+	--The dock is created at base size / uiscale 1 / default pivot, then setScale
+	--is fired once after construction to apply the real scale+pivot+height. This
+	--matters because _rectTransform.pivot is only (re)applied during a size-change
+	--refresh (UpdateStyle): a pivot set purely at construction races with the
+	--parent's positionY, which bakes the OLD center pivot into the panel position.
+	--Driving it through setScale (which changes uiscale+height) forces that refresh.
+	params.height = baseDockHeight
 
 	local verticalResizingInfo = nil
 
@@ -174,11 +214,24 @@ function GameHud:CreateSingleDock(params)
         width = (1920 * ((dmhub.screenDimensions.x/dmhub.screenDimensions.y)/(1920/1080))) - width*2 - DockablePanel.FloatingDockMargin
     end
 
+	--uiscale scales the dock around its pivot (Unity localScale), so the pivot
+	--must sit on the anchored corner or the scaled dock drifts off its edge:
+	--pivot.y=0 is the bottom (matches valign="bottom") and pivot.x is the docked
+	--side (0=left, 1=right). With a center pivot the dock floats up when scaled
+	--down and down when scaled up, and insets from the screen edge horizontally.
+	--The floating (center) dock isn't scaled, so it keeps the default pivot.
+	--Applied via setScale (in selfStyle), not here -- see the note above.
+	--NOTE: pivot MUST use the named {x=,y=} form. A positional {0,0} is silently
+	--ignored by selfStyle.pivot (the pivot stays at the default center), which
+	--makes the scaled dock drift off its edge no matter what value you pass.
+	local dockPivot = cond(floating, {x = 0.5, y = 0.5}, {x = cond(params.halign == "right", 1, 0), y = 0})
+
 	local args = {
 		id = params.id,
 		flow = cond(floating, "none", "vertical"),
 		interactable = false,
 		width = width,
+		uiscale = 1,
 		classes = {"dock", params.halign},
 		dragTarget = true,
 		data = {
@@ -272,6 +325,30 @@ function GameHud:CreateSingleDock(params)
 			end
 		end,
 
+		--Re-read the dockscale setting and reapply it live. Reassigning the
+		--DockHeight upvalue here also updates fitChildren/sizeChild, which close
+		--over the same local. Children heights are in the dock's logical (pre-
+		--uiscale) coordinate space, so re-fitting against the new DockHeight
+		--reflows them to fill the rescaled dock.
+		setScale = function(element)
+			if floating then
+				return
+			end
+			dockScale = dmhub.GetSettingValue("dockscale") or 1
+			DockHeight = baseDockHeight / dockScale
+			element.data.DockHeight = DockHeight
+			--Set pivot in selfStyle (the form that actually takes effect) and
+			--change uiscale+height so the resulting refresh re-applies the pivot.
+			element.selfStyle.pivot = dockPivot
+			element.selfStyle.uiscale = dockScale
+			element.selfStyle.height = DockHeight
+			--updatetabs recomputes each container's min/max height against the new
+			--scale before we re-fit them into the rescaled dock.
+			element:FireEventTree("updatetabs")
+			element:FireEvent("fitChildren")
+			element:FireEventTree("layoutChanged")
+		end,
+
 
 		--called when we start resizing panels using dragging, record the current layout
 		--of heights so they can be manipulated based on dragging.
@@ -332,6 +409,12 @@ function GameHud:CreateSingleDock(params)
 
             if floating then
                 container:FireEvent("minimizeFloating")
+                -- Mirror the maximize floating path: broadcast minimize so
+                -- child panels re-collapse their content, without the docked
+                -- fitChildren layout work.
+                container:SetClassTree("maximized", false)
+                container:FireEventTree("minimize")
+                element.data.maximizedChild = nil
                 return
             end
 
@@ -374,6 +457,14 @@ function GameHud:CreateSingleDock(params)
 
             if floating then
                 container:FireEvent("maximizeFloating")
+                -- A floating panel has no siblings to collapse and resizes
+                -- itself via maximizeFloating, so skip the dock fitChildren
+                -- work. But still broadcast the maximize event/class the same
+                -- way the docked path does, so child panels that reveal their
+                -- content on maximize (e.g. the audio sound browser) react.
+                container:SetClassTree("maximized", true)
+                container:FireEventTree("maximize")
+                element.data.maximizedChild = child
                 return
             end
 
@@ -596,6 +687,12 @@ function GameHud:CreateSingleDock(params)
 
 	resultPanel = gui.Panel(args)
 
+	--The dock is left at uiscale 1 / base height / default pivot here. The real
+	--scale+pivot is applied later via setScale once the dock is attached to the
+	--screen (see InitDockablePanels). Applying it at construction would race with
+	--layout -- the pivot wouldn't take effect and the scaled dock drifts off its
+	--edge. setScale must run on an attached dock to anchor correctly.
+
 	return resultPanel
 end
 
@@ -672,9 +769,15 @@ CreateDockablePanelTabbedContainer = function(options)
 
 		local tabSpacing = 40 --cond(#panelInstances > 1, 32, 0)
 
+		--Divide the panel's max content height by the dock scale. The dock
+		--renders at dockscale (via uiscale) and its logical height is the screen
+		--height divided by that scale, so a panel needs a proportionally larger
+		--logical max height to still stretch to the full screen when scaled down.
+		local dockScale = dmhub.GetSettingValue("dockscale") or 1
+
 		return {
 			minHeight = min + tabSpacing, -- + panelSpacing*2,
-			maxHeight = max + tabSpacing, -- + panelSpacing*2,
+			maxHeight = max/dockScale + tabSpacing, -- + panelSpacing*2,
 		}
 	end
 
@@ -793,6 +896,10 @@ CreateDockablePanelTabbedContainer = function(options)
 			end,
 
 			rightClick = function(element)
+				local isLastInDock = not dock.data.floating and #dock.data.GetChildren() <= 1
+				if isLastInDock then
+					return
+				end
 				element.popup = gui.ContextMenu{
 					halign = "right",
 					valign = "bottom",
@@ -800,7 +907,6 @@ CreateDockablePanelTabbedContainer = function(options)
 						{
 							text = "Close",
 							click = function()
-
 								element.popup = nil
 								resultPanel:DestroySelf()
 								dock:FireEvent("fitChildren")
@@ -1233,33 +1339,35 @@ CreateDockablePanelTabbedContainer = function(options)
 				DockablePanel.Serialize()
 			end,
 			rightClick = function(element)
+				local isLastInDock = not dock.data.floating and #dock.data.GetChildren() <= 1 and #panelInstances <= 1
+				local entries = {}
+				if not isLastInDock then
+					entries[#entries+1] = {
+						text = "Close",
+						click = function()
+							element.popup = nil
+							element:FireEvent("close")
+						end,
+					}
+				end
+				entries[#entries+1] = {
+					text = "Detach",
+					click = function()
+						element.popup = nil
+						local panelInstance = DetachPanelInstance(element)
+						if panelInstance ~= nil then
+							local newPanel = CreateDockablePanelTabbedContainer{
+								panelInstances = {panelInstance},
+							}
+							dock:FireEvent("addPanel", newPanel)
+							DockablePanel.Serialize()
+						end
+					end,
+				}
 				element.popup = gui.ContextMenu{
 					halign = "right",
 					valign = "bottom",
-					entries = {
-						{
-							text = "Close",
-							click = function()
-								element.popup = nil
-								element:FireEvent("close")
-							end,
-						},
-						{
-							text = "Detach",
-							click = function()
-								element.popup = nil
-								local panelInstance = DetachPanelInstance(element)
-								if panelInstance ~= nil then
-									local newPanel = CreateDockablePanelTabbedContainer{
-										panelInstances = {panelInstance},
-									}
-
-									dock:FireEvent("addPanel", newPanel)
-									DockablePanel.Serialize()
-								end
-							end,
-						},
-					},
+					entries = entries,
 				}
 			end,
 			button,
@@ -2094,9 +2202,31 @@ DockablePanel = {
 	end,
 }
 
+--Apply the dockscale setting to the docks. Must run on docks that are attached
+--to the screen and laid out (not at construction), or the uiscale pivot races
+--with layout and the scaled dock drifts off its edge. See the setScale dock
+--event and the note in CreateSingleDock.
+local function ApplyDockScale()
+	if gamehud == nil or rawget(gamehud, "leftDock") == nil then
+		return
+	end
+	for _,dock in ipairs(gamehud:Docks()) do
+		if dock ~= nil and dock.valid then
+			dock:FireEvent("setScale")
+		end
+	end
+end
+
 --called by dmhub to init dockable panels.
 function InitDockablePanels()
 	DockablePanel.Deserialize()
+
+	--Defer one tick so the docks are fully attached/laid out before we apply the
+	--scale; applying it inline still races with the initial layout pass.
+	dmhub.Schedule(0.1, function()
+		if mod.unloaded then return end
+		ApplyDockScale()
+	end)
 end
 
 dmhub.RegisterOnUnloadModFunction(function(modid)

@@ -358,9 +358,8 @@ local dialogStyles = {
 --- @return table panel The wrapped panel
 local function wrapDisplay(skillId, item, uiComponent)
 
-    local deleteButton = item.canDelete and gui.DeleteItemButton{
-        width = 20,
-        height = 20,
+    local deleteButton = item.canDelete and gui.Button{
+        classes = {"deleteButton", "sizeL"},
         halign = "left",
         valign = "center",
         hmargin = 2,

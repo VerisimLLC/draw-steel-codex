@@ -122,9 +122,9 @@ audio.SoundEvent{
 --Implemented: plays when a player is prompted to do a dice roll.
 audio.SoundEvent{
     name = "Notify.Diceroll",
-    mixgroup = "ui",
+    mixgroup = "dice",
     sounds = {"Notify_DiceRoll_v3_01.wav","Notify_DiceRoll_v3_02.wav","Notify_DiceRoll_v3_03.wav"},
-    volume = 0.5,
+    volume = 0.25,
     pitchRand = 0.2,
     ignoreDuplicates = 1,
 
@@ -432,6 +432,27 @@ audio.SoundEvent{
 
 
 
+--TO DO
+--UI Palette Change
+
+audio.SoundEvent{
+    name = "Notify.PalleteChange_Preview",
+    mixgroup = "ui",
+    sounds = {"Notify_PaletteChange_Preview_v1_01.wav"},
+    volume = 0.05,
+    pitchRand = 0.05,
+    ignoreDuplicates = 1,
+}
+
+audio.SoundEvent{
+    name = "Notify.PalleteChange_Apply",
+    mixgroup = "ui",
+    sounds = {"Notify_PaletteChange_Apply_v1_01.wav"},
+    volume = 0.1,
+    pitchRand = 0.05,
+    ignoreDuplicates = 1,
+}
+
 
 
 
@@ -529,6 +550,88 @@ audio.SoundEvent{
     pitchRand = 0.05,
     ignoreDuplicates = 0.1,
 }
+
+
+
+--TODO
+--Shapeshift
+
+
+audio.SoundEvent{
+    name = "Ability.Shapeshift_Generic_Start",
+    mixgroup = "gameplay",
+    sounds = {"abl/shapeshift/Abl_Shapeshift_Start_Generic_Whoosh_v1_01.wav"},
+    volume = 0.2,
+    pitchRand = 0.05,
+    ignoreDuplicates = 0.1,
+}
+
+audio.SoundEvent{
+    name = "Ability.Shapeshift_Generic_End",
+    mixgroup = "gameplay",
+    sounds = {"abl/shapeshift/Abl_Shapeshift_End_Generic_Whoosh_v1_01.wav"},
+    volume = 0.2,
+    pitchRand = 0.05,
+    ignoreDuplicates = 0.1,
+}
+
+audio.SoundEvent{
+    name = "Ability.Shapeshift_Bear_Start",
+    mixgroup = "gameplay",
+    play = function(sound)
+    audio.FireSoundEvent("Ability.Shapeshift_Generic_Start")
+    end,
+    sounds = {"abl/shapeshift/Abl_Shapeshift_Start_Bear_v1_01.wav","abl/shapeshift/Abl_Shapeshift_Start_Bear_v1_02.wav","abl/shapeshift/Abl_Shapeshift_Start_Bear_v1_03.wav"},
+    volume = 1.0,
+    delay = 0.75,
+    pitchRand = 0.05,
+    ignoreDuplicates = 0.1,
+}
+
+audio.SoundEvent{
+    name = "Ability.Shapeshift_Crow_Start",
+    mixgroup = "gameplay",
+    play = function(sound)
+    audio.FireSoundEvent("Ability.Shapeshift_Generic_Start")
+    end,
+    sounds = {"abl/shapeshift/Abl_Shapeshift_Start_Crow_v1_01.wav","abl/shapeshift/Abl_Shapeshift_Start_Crow_v1_02.wav","abl/shapeshift/Abl_Shapeshift_Start_Crow_v1_03.wav"},
+    volume = 0.1,
+    delay = 0.75,
+    pitchRand = 0.05,
+    ignoreDuplicates = 0.1,
+}
+
+audio.SoundEvent{
+    name = "Ability.Shapeshift_Rat_Start",
+    mixgroup = "gameplay",
+    play = function(sound)
+    audio.FireSoundEvent("Ability.Shapeshift_Generic_Start")
+    end,
+    sounds = {"abl/shapeshift/Abl_Shapeshift_Start_Rat_v1_01.wav","abl/shapeshift/Abl_Shapeshift_Start_Rat_v1_02.wav"},
+    volume = 0.1,
+    delay = 0.75,
+    pitchRand = 0.05,
+    ignoreDuplicates = 0.1,
+    
+    
+}
+
+audio.SoundEvent{
+    name = "Ability.Shapeshift_Wolf_Start",
+    mixgroup = "gameplay",
+    play = function(sound)
+    audio.FireSoundEvent("Ability.Shapeshift_Generic_Start")
+    end,
+    sounds = {"abl/shapeshift/Abl_Shapeshift_Start_Wolf_v1_01.wav","abl/shapeshift/Abl_Shapeshift_Start_Wolf_v1_02.wav","abl/shapeshift/Abl_Shapeshift_Start_Wolf_v1_03.wav"},
+    volume = 0.2,
+    delay = 0.75,
+    pitchRand = 0.05,
+    ignoreDuplicates = 0.1,
+}
+
+
+
+
 
 
 
@@ -707,11 +810,48 @@ audio.SoundEvent{
     volume = 0.3,
 }
 
+--TO IMPLEMENT
+
+--Generic numglow when numbers glow afer a power roll. one sound call for each die
+
+audio.SoundEvent{
+    name = "Dice.Numglow_Generic",
+    mixgroup = "dice",
+    sounds = {"dice/Dice_NumGlow_Generic_01.wav","dice/Dice_NumGlow_Generic_02.wav","dice/Dice_NumGlow_Generic_03.wav"},
+    volume = 0.01,
+    ignoreDuplicates = 0.01,
+}
 
 
+--Back ash version of numglow
+audio.SoundEvent{
+    name = "Dice.Numglow_BlackAsh",
+    mixgroup = "dice",
+    sounds = {"dice/cust/Dice_NumGlow_BlackAsh_01.wav","dice/cust/Dice_NumGlow_BlackAsh_02.wav","dice/cust/Dice_NumGlow_BlackAsh_03.wav","dice/cust/Dice_NumGlow_BlackAsh_04.wav","dice/cust/Dice_NumGlow_BlackAsh_05.wav"},
+    volume = 0.1,
+    pitchRand = 0.1,
+    ignoreDuplicates = 0.01,
+}
 
+--when black ash dice teleport at end of roll. one sound call for each die
+audio.SoundEvent{
+    name = "Dice.Teleport_BlackAsh",
+    mixgroup = "dice",
+    sounds = {"dice/cust/Dice_Teleport_BlackAsh_01.wav","dice/cust/Dice_Teleport_BlackAsh_02.wav","dice/cust/Dice_Teleport_BlackAsh_03.wav","dice/cust/Dice_Teleport_BlackAsh_04.wav","dice/cust/Dice_Teleport_BlackAsh_05.wav"},
+    volume = 0.2,
+    pitchRand = 0.1,
+    ignoreDuplicates = 0.01,
+}
 
-
+--when black ash dice disappear at end of roll. one sound call for each die
+audio.SoundEvent{
+    name = "Dice.Remove_BlackAsh",
+    mixgroup = "dice",
+    sounds = {"dice/cust/Dice_Remove_BlackAsh_01.wav","dice/cust/Dice_Remove_BlackAsh_02.wav","dice/cust/Dice_Remove_BlackAsh_03.wav","dice/cust/Dice_Remove_BlackAsh_04.wav","dice/cust/Dice_Remove_BlackAsh_05.wav"},
+    volume = 0.01,
+    pitchRand = 0.1,
+    ignoreDuplicates = 0.01,
+}
 
 
 
@@ -731,7 +871,7 @@ audio.SoundEvent{
         if speed > 10 then
             soundEvent = "DiceImp.Hard"
             volume = 0.6 + (speed - 8) * 0.1
-        elseif speed > 3 then
+        elseif speed > 4 then
             soundEvent = "DiceImp.Mild"
             volume = 0.6 + (speed - 1) * 0.1
         else
@@ -767,6 +907,40 @@ audio.SoundEvent{
     volume = 0.1,
     pitchRand = 0.1,
 }
+
+--TO DO
+--Black Ash Dice Impacts
+
+audio.SoundEvent{
+    name = "DiceImp.Hard_BlackAsh",
+    mixgroup = "dice",
+    sounds = {"dice/cust/DiceImp_BlackAsh_Hard_v1_01.wav","dice/cust/DiceImp_BlackAsh_Hard_v1_02.wav","dice/cust/DiceImp_BlackAsh_Hard_v1_03.wav","dice/cust/DiceImp_BlackAsh_Hard_v1_04.wav","dice/cust/DiceImp_BlackAsh_Hard_v1_05.wav","dice/cust/DiceImp_BlackAsh_Hard_v1_06.wav"},
+    volume = 0.05,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Mild_BlackAsh",
+    mixgroup = "dice",
+    sounds = {"dice/cust/DiceImp_BlackAsh_Mild_v1_01.wav","dice/cust/DiceImp_BlackAsh_Mild_v1_02.wav","dice/cust/DiceImp_BlackAsh_Mild_v1_03.wav","dice/cust/DiceImp_BlackAsh_Mild_v1_04.wav","dice/cust/DiceImp_BlackAsh_Mild_v1_05.wav","dice/cust/DiceImp_BlackAsh_Mild_v1_06.wav"},
+    volume = 0.15,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Soft_BlackAsh",
+    mixgroup = "dice",
+    sounds = {"dice/cust/DiceImp_BlackAsh_Soft_v1_01.wav","dice/cust/DiceImp_BlackAsh_Soft_v1_02.wav","dice/cust/DiceImp_BlackAsh_Soft_v1_03.wav","dice/cust/DiceImp_BlackAsh_Soft_v1_04.wav","dice/cust/DiceImp_BlackAsh_Soft_v1_05.wav","dice/cust/DiceImp_BlackAsh_Soft_v1_06.wav"},
+    volume = 0.25,
+    pitchRand = 0.1,
+}
+
+
+
+
+
+
+
 
 
 
@@ -899,6 +1073,26 @@ audio.SoundEvent{
     sounds = {"obj/Obj_Lever_Pull_Open_01.wav"},
     volume = 0.3,
 }
+
+
+
+
+
+
+--Tokens
+
+--To implement: cat purr when petting large cats
+
+audio.SoundEvent{
+    name = "Token_Catpurr_Large",
+    mixgroup = "gameplay",
+    sounds = {"Token/Token_CatPurr_Large_01.wav","Token/Token_CatPurr_Large_02.wav","Token/Token_CatPurr_Large_03.wav","Token/Token_CatPurr_Large_04.wav"},
+    volume = 0.3,
+    pitchRand = 0.3,
+    ignoreDuplicates = 1,
+}
+
+
 
 
 
@@ -1120,7 +1314,7 @@ end
 Commands.RegisterMacro{
     name = "downloadaudio",
     summary = "download audio assets",
-    doc = "Usage: /downloadaudio\nDownloads audio assets for development.",
+    doc = "Usage: /downloadaudio/nDownloads audio assets for development.",
     command = function()
         audio.DevDownloadAudio()
     end,

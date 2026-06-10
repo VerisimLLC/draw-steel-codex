@@ -68,6 +68,7 @@ function ActivatedAbilityFloatTextBehavior:EditorItems(parentPanel)
         gui.ColorPicker{
             width = 16,
             height = 16,
+            halign = "left",
             value = self.color,
             change = function(element)
                 self.color = element.value

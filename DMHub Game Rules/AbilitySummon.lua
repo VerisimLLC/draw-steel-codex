@@ -805,8 +805,11 @@ end
 function ActivatedAbilitySummonBehavior.PromptPlacementLoc(casterToken, rangeTiles, index, total, isMinion, squadCtx, creatureCtx, ability)
     local SQUAD_CAP = 8
 
-    local origin = casterToken.loc
-    local validLocs = origin:LocsInRadius(rangeTiles)
+    --measure range from the token's full footprint, not just its anchor square.
+    --GetLocsWithinRadius includes every tile the token occupies, so Size 2+ casters
+    --radiate range from all their squares instead of only the bottom-left corner.
+    local validLocs = casterToken:GetLocsWithinRadius(rangeTiles)
+    local occupiedLocs = casterToken:LocsOccupyingWhenAt(casterToken.loc)
 
     local pickedLoc = nil
     local pickedSquadResult = nil
@@ -827,7 +830,15 @@ function ActivatedAbilitySummonBehavior.PromptPlacementLoc(casterToken, rangeTil
     end
 
     local function isInRange(loc)
-        return loc ~= nil and origin:DistanceInTiles(loc) <= rangeTiles
+        if loc == nil then
+            return false
+        end
+        for _,o in ipairs(occupiedLocs) do
+            if o:DistanceInTiles(loc) <= rangeTiles then
+                return true
+            end
+        end
+        return false
     end
 
     local pickerContent
@@ -1268,6 +1279,11 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
         end
     end
 
+    --accumulate every summoned token across all outer targets so we can inject
+    --them into the cast's target list once, after the outer loop completes. This
+    --avoids mutating the `targets` table while it is still being iterated.
+    local allSummonedTokens = {}
+
     for _,target in ipairs(targets) do
         local newOwner = ""
         if self.casterControls then
@@ -1566,11 +1582,12 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
 
             token:UploadToken("Summon Creature")
             game.UpdateCharacterTokens()
+        end
 
-            --assign the token to the target so we can refer to it in subsequent behaviors.
-            local tok = dmhub.GetTokenById(token.charid)
-            target.token = tok
-            print("TOKEN:: ASSIGN", tok)
+        --remember every token summoned for this outer target so we can inject them
+        --all into the cast target list after the outer loop finishes.
+        for _,summoned in ipairs(summonedTokens) do
+            allSummonedTokens[#allSummonedTokens+1] = summoned
         end
 
         if #summonedTokens > 0 then
@@ -1618,6 +1635,33 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
                         casterToken.despawned = true
                     end,
                 }
+            end
+        end
+    end
+
+    --inject ALL summoned tokens into the cast target list so subsequent behaviors
+    --(e.g. ActivatedAbilityApplyOngoingEffectBehavior with applyto: targets) act on
+    --every summoned creature instead of only the last one. Previously a single
+    --shared target.token was overwritten once per spawn, so only the final summon
+    --survived in the target list. We mirror the duplicate-summon injection pattern.
+    --This runs after the outer target loop so we never mutate `targets` mid-iteration.
+    if #allSummonedTokens > 0 and args.targets ~= nil then
+        --ensure all spawned tokens are fully available before resolving them.
+        game.UpdateCharacterTokens()
+        coroutine.yield(0.2)
+        game.UpdateCharacterTokens()
+
+        --replace the original placement targets with one entry per summoned token.
+        for i = #args.targets, 1, -1 do
+            args.targets[i] = nil
+        end
+
+        for _,summoned in ipairs(allSummonedTokens) do
+            local resolved = dmhub.GetTokenById(summoned.charid)
+            if resolved ~= nil then
+                args.targets[#args.targets+1] = {token = resolved, loc = resolved.loc}
+            else
+                print("SUMMON:: could not resolve token for target injection", summoned.charid)
             end
         end
     end

@@ -15,24 +15,16 @@ function lobby:EnterLobbyGame(callback)
 	-- dummy implementation for documentation purposes only
 end
 
+--- SetVisibleGames: Declares the set of games currently shown on screen. The engine keeps a live metadata subscription open only for these games (plus always-on games such as the lobby); games scrolled off-screen keep their last-fetched snapshot but stop receiving live updates. Pass a Lua array of game id strings. All of the user's games are still loaded once at startup, so the full lobby list, search, and pagination keep working regardless of what is reported here.
+--- @param gameids string[] Array of game id strings currently visible on screen.
+function lobby:SetVisibleGames(gameids)
+	-- dummy implementation for documentation purposes only
+end
+
 --- MigrateGameToDurableObjects: Migrate an existing Firebase-backed game to Cloudflare Durable Objects. Options table can contain 'progress' (function called with status and progress 0-1) and 'complete' (function called with success bool and optional error string).
 --- @param gameid string The id of the game to migrate.
 --- @param options table Options with optional 'progress' and 'complete' callback fields.
 function lobby:MigrateGameToDurableObjects(gameid, options)
-	-- dummy implementation for documentation purposes only
-end
-
---- ListRollbackBookmarks: List rollback bookmarks for a Durable-Object-backed game. The callback receives (bookmarks, error). On success bookmarks is a list of {id, name, bookmark, createdAt, kind, note, createdBy} tables; on failure bookmarks is nil and error is a string.
---- @param gameid string The id of the game.
---- @param callback function Callback receiving (bookmarks, error).
-function lobby:ListRollbackBookmarks(gameid, callback)
-	-- dummy implementation for documentation purposes only
-end
-
---- PerformRollback: Roll back a Durable-Object-backed game to a prior point in time using Cloudflare PITR. Options must include exactly one rollback target: 'name' (string), 'bookmarkId' (number), 'bookmark' (string), or 'timestampMs' (number). Optional fields: 'note' (string), 'progress' (function(status, pct)), 'complete' (function(success, errorOrUndoBookmark)).
---- @param gameid string The id of the game.
---- @param options table Target + callbacks.
-function lobby:PerformRollback(gameid, options)
 	-- dummy implementation for documentation purposes only
 end
 
@@ -73,6 +65,20 @@ end
 --- PromoteLocalGame: Promote a local game to Durable Objects. Generates a new game id, copies all data to the cloud, verifies it, and then deletes the local copy. Options: 'gameid' (string, required - the local game's id), 'staging' (bool, optional - target the staging DO server instead of release), 'progress' (function(status, pct)), 'complete' (function(success, newGameid, error)).
 --- @param options table Options table with 'gameid', optional 'staging', 'progress', and 'complete' fields.
 function lobby:PromoteLocalGame(options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- ListRollbackBookmarks: List rollback bookmarks for a Durable-Object-backed game (storage=DurableObjects or DurableObjectsStaging). The callback receives (bookmarks, error). On success, bookmarks is a list of {id, name, bookmark, createdAt, kind, note, createdBy} tables; on failure bookmarks is nil and error is a string. The bookmarks table lives inside the DO's SQLite and shares its PITR window -- entries from before the most recent rollback may not be present.
+--- @param gameid string The id of the game.
+--- @param callback function Callback receiving (bookmarks, error).
+function lobby:ListRollbackBookmarks(gameid, callback)
+	-- dummy implementation for documentation purposes only
+end
+
+--- PerformRollback: Roll back a Durable-Object-backed game to a prior point in time using Cloudflare's SQLite Point-in-Time Recovery. The DO is aborted after scheduling the restore; the live WebSocket reconnects automatically and clients receive the full restored state. Options must include exactly one rollback target: 'name' (string -- most recent bookmark with this name), 'bookmarkId' (number -- a row id from lobby:ListRollbackBookmarks), 'bookmark' (string -- raw Cloudflare bookmark token), or 'timestampMs' (number -- ms since epoch, snapped to nearest internal snapshot). Optional fields: 'note' (string), 'progress' (function(status, pct)), 'complete' (function(success, errorOrUndoBookmark)). On success the captured pre-rollback bookmark is recorded as kind='auto-undo' in the bookmarks table.
+--- @param gameid string The id of the game.
+--- @param options table Target + callbacks.
+function lobby:PerformRollback(gameid, options)
 	-- dummy implementation for documentation purposes only
 end
 

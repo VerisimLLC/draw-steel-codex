@@ -52,11 +52,54 @@ local CreateMapNodePanel
 local CreateMapFolderPanel
 local CreateMapFolderChildPanel
 
+-- Per-open-dialog state shared with the file-local Create*View helpers.
+-- Set by showShareModuleDialog before any panel construction runs and reset
+-- to nil after the dialog closes. The hiddenEntries map (assetid -> true)
+-- comes from moduleInstance.publishingProperties.hiddenEntries and is the
+-- source of truth while the dialog is open.
+local g_dialogState = nil
+
 local createCheck = function(element)
 	element:FireEventOnParents("createasset", element)
 
+	-- If this entry was previously hidden via the right-click menu, hide it
+	-- on creation and exclude it from the per-section counts.
+	if g_dialogState ~= nil and element.data.assetid ~= nil
+		and g_dialogState.hiddenEntries[element.data.assetid] then
+		element:SetClass("silent", true)
+		element:SetClass("collapsed", true)
+	end
+
 	--debug show guid of object.
 	--element.data.SetText(element.data.GetText() .. " " .. element.data.assetid)
+end
+
+-- rightClick handler attached to each gui.Check row. Opens a context menu
+-- offering to hide this entry from the publish dialog permanently.
+local rightClickHide = function(element)
+	if g_dialogState == nil then return end
+	local assetid = element.data.assetid
+	if assetid == nil then return end
+	local displayName = element.data.displayName or "this entry"
+
+	element.popup = gui.ContextMenu{
+		width = 320,
+		entries = {
+			{
+				text = string.format("Hide \"%s\" from this dialog", displayName),
+				click = function()
+					element.popup = nil
+					g_dialogState.hiddenEntries[assetid] = true
+					element:SetClass("silent", true)
+					element:SetClass("collapsed", true)
+					if g_dialogState.onChange ~= nil then
+						g_dialogState.onChange()
+					end
+				end,
+			},
+		},
+		click = function() element.popup = nil end,
+	}
 end
 
 local changeCheck = function(element)
@@ -157,6 +200,7 @@ CreateMapNodePanel = function(map)
 		change = changeCheck,
 		count = countCheck,
 		linger = checkTooltip,
+		rightClick = rightClickHide,
 		includedAssets = includedAssets,
 		collectManifest = collectManifestCheck,
 		selection = function(element, t)
@@ -348,6 +392,7 @@ local CreateCharacterFolderChildPanel = function()
 			change = changeCheck,
 			count = countCheck,
 			linger = checkTooltip,
+			rightClick = rightClickHide,
 			includedAssets = includedAssets,
 			collectManifest = collectManifestCheck,
 			selection = selectionCheck,
@@ -680,6 +725,7 @@ local CreateObjectTableView = function(tableName, knownAssetsInCore)
 						change = changeCheck,
 						count = countCheck,
 						linger = checkTooltip,
+						rightClick = rightClickHide,
 						includedAssets = includedAssets,
 						collectManifest = collectManifestCheck,
 						selection = selectionCheck,
@@ -842,6 +888,7 @@ local function GatherAllAssetsChildren(children, knownAssetsInCore)
 							change = changeCheck,
 							count = countCheck,
 							linger = checkTooltip,
+							rightClick = rightClickHide,
 							includedAssets = includedAssets,
 							collectManifest = collectManifestCheck,
 							selection = selectionCheck,
@@ -860,7 +907,7 @@ local function GatherAllAssetsChildren(children, knownAssetsInCore)
 
 				numChildren = #children
 
-				table.sort(children, function(a,b) return (a.data.folderid or "") < (b.data.folderid or "") or (a.data.folderid == b.data.folderid and a.data.ord < b.data.ord) end)
+				table.sort(children, function(a,b) return a.data.ord < b.data.ord end)
 				local currentFolder = nil
 				local newChildren = {}
 				for _,child in ipairs(children) do
@@ -1002,6 +1049,7 @@ local function CreateCodeModView(modid, modInfo)
 		change = changeCheck,
 		count = countCheck,
 		linger = checkTooltip,
+		rightClick = rightClickHide,
 		includedAssets = includedAssets,
 		collectManifest = collectManifestCheck,
 		selection = selectionCheck,
@@ -1031,6 +1079,7 @@ local function CreateModuleDependencyView(moduleInstance)
 		change = changeCheck,
 		count = countCheck,
 		linger = checkTooltip,
+		rightClick = rightClickHide,
 		includedAssets = includedAssets,
 		collectManifest = collectManifestCheck,
 		selection = selectionCheck,
@@ -1100,6 +1149,7 @@ local function CreateImageLibraryView(assetid, imageLibrary, coreImageLibrary)
 		change = changeCheck,
 		count = countCheck,
 		linger = checkTooltip,
+		rightClick = rightClickHide,
 		includedAssets = includedAssets,
 		selection = selectionCheck,
 		collectManifest = collectManifestCheck,
@@ -1537,6 +1587,23 @@ local showShareModuleDialog = function(options)
 		includedAssets = DeepCopy(moduleInstance.publishingProperties.includedAssets)
 	end
 
+	-- Per-asset hide list. Populated from publishingProperties so prior hides
+	-- persist across dialog opens; the right-click "Hide this entry" menu
+	-- adds to this map and invokes g_dialogState.onChange to persist.
+	local hiddenEntries = {}
+	if moduleInstance.publishingProperties.hiddenEntries ~= nil then
+		hiddenEntries = DeepCopy(moduleInstance.publishingProperties.hiddenEntries)
+	end
+
+	g_dialogState = {
+		hiddenEntries = hiddenEntries,
+		moduleInstance = moduleInstance,
+		isNewModule = isNewModule,
+		-- Bound later once dialogPanel is constructed. We use a forwarding
+		-- closure so the body can reference dialogPanel by upvalue.
+		onChange = function() end,
+	}
+
 
 	if moduleInstance.authorid == nil or moduleInstance.authorid == "" then
 		moduleInstance.authorid = module.savedAuthorid or dmhub.GetDisplayName(dmhub.userid)
@@ -1610,6 +1677,14 @@ local showShareModuleDialog = function(options)
 
 		events = {
 			refreshModule = function(element)
+				if npage == 2 then
+					shareButton.text = cond(moduleInstance.deleted, "Delete Module", cond(isNewModule, "Create Module", "Update Module"))
+				end
+				--Deleting an existing module bypasses the terms-agreement gate.
+				if moduleInstance.deleted then
+					shareButton:SetClass("hidden", false)
+					return
+				end
 				shareButton:SetClass("hidden", npage == 2 and isNewModule and ((not moduleInstance.idvalid) or (not authorIdsAvailable[moduleInstance.authorid])) or (npage == 2 and (not conditionsAgreed)))
 			end,
 
@@ -1618,7 +1693,7 @@ local showShareModuleDialog = function(options)
 				if npage == 2 then
 					assetsPanel:SetClass("collapsed", true)
 					publishingPanel:SetClass("collapsed", false)
-					shareButton.text = cond(isNewModule, "Create Module", "Update Module")
+					shareButton.text = cond(moduleInstance.deleted, "Delete Module", cond(isNewModule, "Create Module", "Update Module"))
 					element:FireEvent("refreshModule")
 					return
 				end
@@ -1629,6 +1704,19 @@ local showShareModuleDialog = function(options)
 
 				contentPanel:SetClass("hidden", true)
 				footerPanel:SetClass("hidden", true)
+
+				if moduleInstance.deleted then
+					statusLabel.text = "Deleting your module..."
+					moduleInstance:Delete{
+						success = function()
+							statusLabel.text = "Your module has been deleted."
+						end,
+						failure = function(msg)
+							statusLabel.text = string.format("Deleting the module failed: %s", msg)
+						end,
+					}
+					return
+				end
 
 				if localCoverArt ~= nil then
 					localCoverArt:Upload()
@@ -1890,12 +1978,9 @@ local showShareModuleDialog = function(options)
 
 	local rightPublishingPanel
 
-	local pastePreviewImageButton = gui.PrettyButton{
+	local pastePreviewImageButton = gui.Button{
 		text = 'Paste Image',
-		classes = {cond(dmhub.HaveImageInClipboard(), nil, 'collapsed')},
-		width = 160,
-		height = 40,
-		fontSize = 14,
+		classes = {"sizeL", cond(dmhub.HaveImageInClipboard(), nil, 'collapsed')},
 		halign = "center",
 		click = function(element)
 			if not dmhub.HaveImageInClipboard() then
@@ -2293,13 +2378,20 @@ local showShareModuleDialog = function(options)
 						id = "premium",
 						text = "Premium",
 						hidden = not dmhub.isAdminAccount,
-					}
+					},
+					{
+						--Deleting is only an option for an existing module, not a new one.
+						id = "deleted",
+						text = "Deleted",
+						hidden = isNewModule,
+					},
 				},
-				idChosen = cond(moduleInstance.published, "public", "unlisted"),
+				idChosen = cond(moduleInstance.deleted, "deleted", cond(moduleInstance.published, "public", "unlisted")),
 				events = {
 					change = function(element)
 						moduleInstance.published = element.idChosen == "public"
 						moduleInstance.premium = element.idChosen == "premium"
+						moduleInstance.deleted = element.idChosen == "deleted"
 						dialogPanel:FireEventTree("refreshModule")
 					end
 				}
@@ -2313,7 +2405,9 @@ local showShareModuleDialog = function(options)
 			height = "auto",
 			valign = "top",
 			refreshModule = function(element)
-				if moduleInstance.published then
+				if moduleInstance.deleted then
+					element.text = "This module will be deleted. Users who already installed it into their games will be able to continue to use its contents"
+				elseif moduleInstance.published then
 					element.text = "Others will be able to search for and install your module."
 				elseif moduleInstance.premium then
 					element.text = "Your module will be available in the store. It must have a corresponding store entry to unlock it."
@@ -2410,6 +2504,64 @@ local showShareModuleDialog = function(options)
 	mapFolderHierarchy = CreateMapFolderPanel(game.rootMapFolder, true, folderOptions)
 
 
+	local assetsCustomStyles = {
+		{
+			classes = {"row"},
+			height = 24,
+			width = "100%",
+			halign = "left",
+			valign = "top",
+			flow = "horizontal",
+			bgcolor = "@bg",
+		},
+		{
+			classes = {"row", "map"},
+			height = "auto",
+			minHeight = 24,
+		},
+		{
+			classes = {"row", "hover"},
+			transitionTime = 0.1,
+			bgcolor = "@bgInverse",
+		},
+		{
+			classes = {"row", "dragging"},
+			bgcolor = "@bgInverse",
+		},
+		{
+			classes = {"label", "parent:row", "parent:hover"},
+			color = "@fgInverse",
+		},
+		{
+			classes = {"label", "parent:row", "parent:dragging"},
+			color = "@fgInverse",
+		},
+		{
+			classes = {"checkboxLabel", "parent:row", "parent:hover"},
+			color = "@fgInverse",
+		},
+		{
+			classes = {"checkboxLabel", "parent:row", "parent:dragging"},
+			color = "@fgInverse",
+		},
+		{
+			classes = {"label"},
+			halign = "left",
+			width = "auto",
+			height = "auto",
+			fontSize = 16,
+			margin = 4,
+			color = "@fg",
+		},
+		{
+			classes = {"checkbox-label"},
+			width = "auto",
+			maxWidth = 310,
+			textOverflow = "truncate",
+			textWrap = false,
+		},
+	}
+
 	assetsPanel = gui.Panel{
 		height = "auto",
 		width = 300,
@@ -2417,47 +2569,7 @@ local showShareModuleDialog = function(options)
 		flow = "vertical",
 		valign = "top",
 
-		styles = {
-			{
-				classes = {"row"},
-				height = 24,
-				width = "100%",
-				halign = "left",
-				valign = "top",
-				flow = "horizontal",
-				bgcolor = "#00000044",
-			},
-			{
-				classes = {"row", "map"},
-				height = "auto",
-				minHeight = 24,
-			},
-			{
-				classes = {"row", "hover"},
-				transitionTime = 0.1,
-				bgcolor = "#88000077",
-			},
-			{
-				classes = {"row", "dragging"},
-				bgcolor = "#88000077",
-			},
-			{
-				classes = {"label"},
-				halign = "left",
-				width = "auto",
-				height = "auto",
-				fontSize = 16,
-				margin = 4,
-				color = "#aaaaaa",
-			},
-			{
-				classes = {"checkbox-label"},
-				width = "auto",
-				maxWidth = 310,
-				textOverflow = "truncate",
-				textWrap = false,
-			},
-		},
+		styles = ThemeEngine.MergeTokens(assetsCustomStyles),
 
 
 
@@ -2644,6 +2756,20 @@ local showShareModuleDialog = function(options)
 			},
 	}
 
+	-- Bind the hidden-entries onChange now that dialogPanel/moduleInstance
+	-- are both reachable by upvalue. Persisting to publishingProperties +
+	-- (for existing modules) uploading immediately makes the hide survive a
+	-- dialog close without finishing the publish flow.
+	g_dialogState.onChange = function()
+		moduleInstance.publishingProperties.hiddenEntries = hiddenEntries
+		if not isNewModule then
+			moduleInstance:Upload{}
+		end
+		if dialogPanel ~= nil then
+			dialogPanel:FireEventTree("updatecounts")
+		end
+	end
+
 	dialogPanel = gui.Panel{
 		id = 'ShareDialog',
 		classes = {"framedPanel"},
@@ -2652,6 +2778,10 @@ local showShareModuleDialog = function(options)
 		styles = ThemeEngine.MergeStyles(dialogCustomStyles),
 
 		thinkTime = 0.1,
+
+		destroy = function(element)
+			g_dialogState = nil
+		end,
 
 		think = function(element)
 			if m_dependenciesDirty then
@@ -2729,7 +2859,8 @@ local showShareModuleDialog = function(options)
 		statusLabel,
 		moduleCodePanel,
 
-		gui.CloseButton{
+		gui.Button{
+            classes = {"closeButton"},
 			halign = "right",
 			valign = "top",
 			floating = true,
@@ -2755,6 +2886,9 @@ local showShareModuleDialog = function(options)
 	ThemeEngine.OnThemeChanged(mod, function()
 		if dialogPanel ~= nil and dialogPanel.valid then
 			dialogPanel.styles = ThemeEngine.MergeStyles(dialogCustomStyles)
+		end
+		if assetsPanel ~= nil and assetsPanel.valid then
+			assetsPanel.styles = ThemeEngine.MergeTokens(assetsCustomStyles)
 		end
 	end)
 end
@@ -2954,7 +3088,8 @@ mod.shared.ShowShareDialog = function()
 		},
 
 
-		gui.CloseButton{
+		gui.Button{
+            classes = {"closeButton"},
 			halign = "right",
 			valign = "top",
 			floating = true,
@@ -3826,7 +3961,8 @@ mod.shared.ShowDownloadShareDialog = function()
 
 		installPanel,
 
-		gui.CloseButton{
+		gui.Button{
+            classes = {"closeButton"},
 			halign = "right",
 			valign = "top",
 			floating = true,
@@ -4335,8 +4471,8 @@ mod.shared.ShowDownloadShareDialog = function()
 			moduleDisplayPanel,
 		},
 
-
-		gui.CloseButton{
+		gui.Button{
+            classes = {"closeButton"},
 			halign = "right",
 			valign = "top",
 			floating = true,
@@ -4378,13 +4514,11 @@ mod.shared.ShowExportDialog = function()
 	local settingsContainer
 
 	local exportButton
-	exportButton = gui.PrettyButton{
+	exportButton = gui.Button{
+		classes = {"sizeL"},
 		text = 'Export Map',
-		width = 240,
-		height = 70,
 		halign = 'center',
 		valign = 'center',
-		fontSize = 28,
 		events = {
 			click = function(element)
 				if exportType == "image" then
@@ -4429,7 +4563,6 @@ mod.shared.ShowExportDialog = function()
 						complete = function()
 							settingsContainer.children = {
 								gui.Label{
-									fontSize = 14,
 									text = "Export Complete",
 									width = "auto",
 									height = "auto",
@@ -4616,6 +4749,7 @@ mod.shared.ShowExportDialog = function()
 		},
 		gui.Input{
 			width = 100,
+			hmargin = 8,
 			text = tostring(tourWidth),
 			change = function(element)
 				if tonumber(element.text) == nil then
@@ -4633,6 +4767,7 @@ mod.shared.ShowExportDialog = function()
 		},
 		gui.Input{
 			width = 100,
+			hmargin = 8,
 			text = tostring(tourHeight),
 			change = function(element)
 				if tonumber(element.text) == nil then
@@ -4658,6 +4793,8 @@ mod.shared.ShowExportDialog = function()
 
 		gui.Dropdown{
 			idChosen = hz,
+			width = 200,
+			hmargin = 8,
 			options = {
 				{
 					id = "60",
@@ -4679,9 +4816,10 @@ mod.shared.ShowExportDialog = function()
 		},
 
 		gui.Input{
+			classes = {"sizeS"},
+			hmargin = 8,
 			width = 40,
 			height = 22,
-			fontSize = 18,
 			text = tostring(duration),
 			change = function(element)
 				local val = tonumber(element.text)
@@ -4699,8 +4837,6 @@ mod.shared.ShowExportDialog = function()
 			text = "seconds",
 			width = "auto",
 			height = "auto",
-			color = "white",
-			fontSize = 18,
 		},
 	}
 
@@ -4708,17 +4844,17 @@ mod.shared.ShowExportDialog = function()
 		width = "auto",
 		height = "auto",
 		flow = "horizontal",
+		tmargin = 8,
 		gui.Label{
 			text = "Pixels-per-tile:",
 			width = 'auto',
 			height = 'auto',
-			color = 'white',
-			fontSize = 18,
 		},
 		gui.Input{
+			classes = {"sizeS"},
 			width = 40,
 			height = 22,
-			fontSize = 18,
+			lmargin = 8,
 			text = tostring(MapExport.ppu),
 			change = function(element)
 				MapExport.ppu = tonumber(element.text)
@@ -4731,16 +4867,17 @@ mod.shared.ShowExportDialog = function()
 		width = "auto",
 		height = "auto",
 		flow = "horizontal",
+		tmargin = 20,
 		gui.Label{
 			text = "Export Type:",
 			width = 'auto',
 			height = 'auto',
-			color = 'white',
-			fontSize = 18,
 		},
 
 		gui.Dropdown{
 			idChosen = exportType,
+			lmargin = 8,
+			width = 200,
 			options = {
 				{
 					id = "image",
@@ -4793,6 +4930,7 @@ mod.shared.ShowExportDialog = function()
 
 	local previewImage
 	previewImage = gui.Panel{
+		classes = {"bordered"},
 		bgimage = '#MapExport',
 		autosizeimage = true,
 		maxWidth = 600,
@@ -4802,8 +4940,6 @@ mod.shared.ShowExportDialog = function()
 		halign = "center",
 		valign = "center",
 		bgcolor = "white",
-		borderWidth = 2,
-		borderColor = "black",
 	}
 
 	local previewImageContainer = gui.Panel{
@@ -4819,17 +4955,6 @@ mod.shared.ShowExportDialog = function()
 		height = "auto",
 		flow = "vertical",
 
-		styles = {
-			{
-				selectors = {"label"},
-				color = "white",
-				fontSize = 18,
-				width = "auto",
-				height = "auto",
-			}
-
-		},
-
 		exportTypePanel,
 		videoSettingsPanel,
 		tourSettingsPanel,
@@ -4842,96 +4967,18 @@ mod.shared.ShowExportDialog = function()
 	local dialogPanel = gui.Panel{
 		id = 'ShareDialog',
 		classes = {'framedPanel'},
-		styles = {
-			Styles.Default,
-			Styles.Panel,
-			{
-				selectors = {'framedPanel'},
-				width = 1000,
-				height = 900,
-				flow = 'none',
-			},
-			{
-				selectors = {'content-panel'},
-				width = '90%',
-				height = '80%',
-				valign = 'top',
-				halign = 'center',
-				flow = 'vertical',
-				vmargin = 20,
-			},
-			{
-				selectors = {'form-entry'},
-				width = '60%',
-				height = 40,
-				valign = 'top',
-				halign = 'center',
-				flow = 'horizontal',
-				vmargin = 8,
-			},
-			{
-				selectors = {'formLabel'},
-				width = '40%',
-				height = 40,
-				fontSize = 18,
-				color = '@fgStrong',
-			},
-			{
-				selectors = {'dropdown'},
-				width = 200,
-				height = 40,
-				fontSize = 18,
-				color = '@fgStrong',
-			},
-			{
-				selectors = {'dropdown-option'},
-				priority = 20,
-				width = 200,
-				height = 40,
-				fontSize = 18,
-				color = '@fgStrong',
-			},
-			{
-				selectors = {'input'},
-				fontSize = 18,
-				width = 200,
-				height = 24,
-			},
-			{
-				selectors = {'share-input'},
-				textAlignment = 'left',
-				width = 400,
-				height = 24,
-				fontSize = 20,
-			},
-			{
-				selectors = {'description-input'},
-				textAlignment = 'topleft',
-				valign = 'top',
-				width = '60%',
-				height = 100,
-				vmargin = 8,
-			},
-			{
-				selectors = {'status-label'},
-				fontSize = 20,
-				width = 'auto',
-				height = 'auto',
-				valign = 'center',
-				halign = 'center',
-				maxWidth = 400,
-				color = '@fgStrong',
-			},
-			{
-				selectors = {'share-panel'},
-				flow = 'vertical',
-				height = 'auto',
-				width = '100%',
-			},
-		},
+		styles = ThemeEngine.GetStyles(),
+		width = 1000,
+		height = 900,
+		flow = 'none',
 
 		gui.Panel{
-			classes = {'content-panel'},
+			width = '90%',
+			height = '80%',
+			valign = 'top',
+			halign = 'center',
+			flow = 'vertical',
+			vmargin = 20,
 
 			previewImageContainer,
 			settingsContainer,
@@ -4939,14 +4986,17 @@ mod.shared.ShowExportDialog = function()
 		},
 
 		gui.Panel{
-			classes = {'modal-button-panel'},
+			width = '100%-50',
+			height = 100,
+			valign = 'bottom',
+			halign = 'center',
+			flow = 'horizontal',
 
-			gui.PrettyButton{
+			gui.Button{
+				classes = {"sizeM"},
 				text = 'Close',
 				escapeActivates = true,
 				escapePriority = EscapePriority.EXIT_DIALOG,
-				width = 140,
-				height = 60,
 				halign = 'right',
 				events = {
 					click = function(element)

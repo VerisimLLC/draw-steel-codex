@@ -28,9 +28,9 @@ function gui.EnumeratedSliderControl(args)
         end
     end
 
-    for _, option in ipairs(options) do
+    for i, option in ipairs(options) do
         children[#children+1] = gui.Label{
-            classes = {"enumSliderOption", cond(m_value == option.id, "selected")},
+            classes = {"enumSliderOption", cond(i == 1, "enumSliderFirst"), cond(i == #options, "enumSliderLast"), cond(m_value == option.id, "selected")},
             data = { id = option.id },
             text = option.text,
             width = optionWidth,

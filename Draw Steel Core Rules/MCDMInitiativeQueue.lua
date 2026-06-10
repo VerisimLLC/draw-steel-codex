@@ -41,6 +41,11 @@ InitiativeQueue.gameMode = "exploration"
 InitiativeQueue.playersGoFirst = true
 InitiativeQueue.playersTurn = false
 
+--The live encounter (a LiveEncounter object, see MCDMEncounter.lua) associated
+--with this initiative queue, or false if there is no live encounter. How the
+--queue actually acquires a LiveEncounter is handled in a subsequent step.
+InitiativeQueue.liveEncounter = false
+
 function InitiativeQueue.RegisterGameMode(info)
     local targetIndex = #InitiativeQueue.GameModes + 1
     for i,mode in ipairs(InitiativeQueue.GameModes) do
@@ -102,6 +107,12 @@ InitiativeQueueEntry.turnsTaken = 0
 --Create a new empty initiative queue. Called when the DM starts initiative.
 function InitiativeQueue.Create()
 	local playersGoFirst = math.random(1, 2) == 1
+
+	-- New encounter -> clear per-encounter villain action consumption.
+	if VillainActionState ~= nil then
+		VillainActionState.ResetAll()
+	end
+
 	return InitiativeQueue.new{
 		guid = dmhub.GenerateGuid(),
         playersGoFirst = playersGoFirst,
@@ -247,6 +258,10 @@ function InitiativeQueue.GetInitiativeId(token)
         return nil
     end
 
+    --initiativeGrouping wins so the DM can deliberately put several squads (or a
+    --squad plus other tokens) on a single shared initiative. Forming a squad
+    --clears initiativeGrouping on its members so they fall through to the shared
+    --squad id below unless explicitly grouped again.
     if token.properties.initiativeGrouping then
         return token.properties.initiativeGrouping
     end

@@ -1047,6 +1047,24 @@ function creature:Moved(path)
         return
     end
 
+    --Per-encounter hero stat: accumulate spaces moved during combat. Count only the
+    --creature's own-turn voluntary movement (normal move / shift) -- IsOurTurn() is the
+    --same gate the base Moved uses for movement-cost accounting, so this matches the
+    --engine's notion of "moving on your turn". Forced movement (pushes/pulls/slides) and
+    --teleports are excluded since they are not the hero choosing to walk spaces.
+    --path.numSteps is the number of tiles traversed. Runs once on the moving
+    --(authoritative) client; TrackHeroStats self-guards to heroes in the live encounter,
+    --so non-hero movers are dropped (a summon attributes to its summoner).
+    if path ~= nil and (not path.forced) and path.movementType ~= "teleport" and self:IsOurTurn() then
+        local spaces = path.numSteps or 0
+        if spaces > 0 then
+            local token = dmhub.LookupToken(self)
+            if token ~= nil then
+                LiveEncounter.TrackHeroStats(token.charid, "spacesMoved", spaces)
+            end
+        end
+    end
+
     --no longer make just moving auto claim turn?
     --self:TryClaimTurn()
 end
@@ -1498,6 +1516,44 @@ creature.RegisterSymbol {
         type = "creature",
         desc = "If we have a captain, this will return the captain of the squad this creature is a member of.",
         seealso = {},
+    }
+}
+
+creature.RegisterSymbol {
+    symbol = "livingsquadmembers",
+    lookup = function(c)
+        --resolve the squad this creature belongs to. Minions report their squad
+        --via MinionSquad(); a captain is not a minion but still tracks its squad
+        --via the minionSquad property (so MinionSquad() also resolves for them).
+        local squadid = c:MinionSquad()
+        if squadid == nil and c:has_key("_tmp_minionSquad") then
+            squadid = c._tmp_minionSquad.name
+        end
+
+        if squadid == nil then
+            return 0
+        end
+
+        --Count fresh rather than reading the cached _tmp_minionSquad.liveMinions.
+        --That cache is only recomputed by a living minion's RefreshSquadInfo (gated
+        --once per game-update), so when the LAST minion dies there is no surviving
+        --minion left to refresh it and the cache stays frozen at its prior value.
+        --Enumerating live squad tokens here is always accurate at evaluation time.
+        local count = 0
+        local tokens = dmhub.GetTokens { haveProperties = true }
+        for _, tok in ipairs(tokens) do
+            if tok.valid and tok.properties.minion and tok.properties:MinionSquad() == squadid and (not tok.properties:IsDead()) then
+                count = count + 1
+            end
+        end
+
+        return count
+    end,
+    help = {
+        name = "Living Squad Members",
+        type = "number",
+        desc = "If this creature is a minion (or the captain of a squad), the number of members in its squad that are currently alive. Returns 0 if this creature is not part of a squad.",
+        seealso = { "SquadLiveMembers", "HasCaptain", "Minion" },
     }
 }
 
@@ -2092,6 +2148,29 @@ function creature:IsDeadOrDying()
     return self:IsDead() or self:IsDying()
 end
 
+--- The stamina value at or below which this creature is dead: characters and
+--- retainers die at -BloodiedThreshold, everything else (including minion squad
+--- pools) at 0. IsDead/IsDying compare against this, and the stat tracking in
+--- InflictDamageInstance uses it to split landed damage into damageDealt and
+--- overkill.
+--- @return number
+function creature:KillThresholdStamina()
+    return 0
+end
+
+--- @return number
+function character:KillThresholdStamina()
+    return -self:BloodiedThreshold()
+end
+
+--- @return number
+function monster:KillThresholdStamina()
+    if self:IsRetainer() then
+        return -self:BloodiedThreshold()
+    end
+    return 0
+end
+
 --- @return boolean
 function creature:IsDying()
     return false
@@ -2102,7 +2181,7 @@ function monster:IsDying()
     if self:IsRetainer() then
         local hp = self:CurrentHitpoints()
         local dyingAt = self:CalculateNamedCustomAttribute("Dying Stamina") or 0
-        return hp <= dyingAt and hp > -self:BloodiedThreshold()
+        return hp <= dyingAt and hp > self:KillThresholdStamina()
     end
 
     return false
@@ -2115,15 +2194,12 @@ end
 
 --- @return boolean
 function character:IsDead()
-    return self:CurrentHitpoints() <= -self:BloodiedThreshold()
+    return self:CurrentHitpoints() <= self:KillThresholdStamina()
 end
 
 --- @return boolean
 function monster:IsDead()
-    if self:IsRetainer() then
-        return self:CurrentHitpoints() <= -self:BloodiedThreshold()
-    end
-    return self:CurrentHitpoints() <= 0
+    return self:CurrentHitpoints() <= self:KillThresholdStamina()
 end
 
 CustomAttribute.RegisterAttribute { id = "extraturns", text = "Extra Turns", attributeType = "number", category = "Basic Attributes" }
@@ -3197,15 +3273,66 @@ creature.RegisterSymbol {
 
 --override default InflictCondition to include MCDM condition rules.
 
+--The official Draw Steel conditions counted in per-encounter hero stats
+--(conditionsInflicted/conditionsReceived). Keyed by lowercased condition name.
+--Deliberately excludes surprised and any homebrew/internal conditions.
+local g_officialStatConditions = {
+    bleeding = true,
+    dazed = true,
+    frightened = true,
+    grabbed = true,
+    prone = true,
+    restrained = true,
+    slowed = true,
+    taunted = true,
+    weakened = true,
+}
+
+--Custom in-character speech shown when a creature is immune to a condition.
+--Keyed by lowercased condition name. Conditions not listed fall back to a
+--generic "I can't be <Name>!" line.
+local g_conditionImmunitySpeech = {
+    ["bleeding"] = "I don't bleed like everyone else",
+    ["dazed"] = "You can't daze me!",
+    ["frightened"] = "Nothing frightens me!",
+    ["grabbed"] = "You can't grab me!",
+    ["prone"] = "I'll never be knocked down",
+    ["restrained"] = "You can't tie me down!",
+    ["slowed"] = "I won't be Slowed",
+    ["surprised"] = "Nothing ever surprises me!",
+    ["weakened"] = "I won't be weakened; not by you, not by anybody!",
+}
+
 --- Inflict a condition on a creature. (Or purge the condition using the 'purge' argument.)
 --- @param conditionid string
---- @param args {duration:string, force: nil|boolean, purge: nil|boolean, riders: nil|(string[]), sourceDescription: string, casterInfo:nil|{tokenid:string, timestamp: string|number|nil}, cast: ActivatedAbilityCast}
+--- @param args {duration:string, force: nil|boolean, purge: nil|boolean, silent: nil|boolean, riders: nil|(string[]), sourceDescription: string, casterInfo:nil|{tokenid:string, timestamp: string|number|nil}, cast: ActivatedAbilityCast}
 --- When purge=true and casterInfo is provided, only removes the condition if it was inflicted by that caster.
 function creature:InflictCondition(conditionid, args)
     local immunities = self:GetConditionImmunities()
 
     --this creature is immune to the condition.
     if immunities[conditionid] and (not args.purge) then
+        --give feedback that immunity blocked the condition: the creature "speaks"
+        --in character, e.g. "I can't be Slowed!". Falls back to floating text when
+        --the creature has no spoken language. Skipped when the application is
+        --silent (e.g. internal bookkeeping) via args.silent.
+        if not args.silent then
+            local conditionsTable = dmhub.GetTable(CharacterCondition.tableName)
+            local conditionInfo = conditionsTable[conditionid]
+            if conditionInfo ~= nil then
+                local text = g_conditionImmunitySpeech[string.lower(conditionInfo.name)]
+                    or string.format("I can't be %s!", conditionInfo.name)
+                local language = self:CurrentlySpokenLanguage()
+                if language ~= nil then
+                    self:CharacterSpeech{
+                        text = text,
+                        langid = language,
+                    }
+                else
+                    self:FloatLabel(text, "white")
+                end
+            end
+        end
         return
     end
 
@@ -3224,6 +3351,11 @@ function creature:InflictCondition(conditionid, args)
     if args.purge and inflictedConditions[conditionid] == nil then
         return
     end
+
+    --Whether the condition was already active before this call -- refreshing an
+    --active condition (new caster, new duration) is not a new infliction for the
+    --purposes of stat tracking.
+    local wasActive = inflictedConditions[conditionid] ~= nil
 
     local entry = inflictedConditions[conditionid] or {}
     inflictedConditions[conditionid] = entry
@@ -3277,6 +3409,28 @@ function creature:InflictCondition(conditionid, args)
             hasattacker = attacker ~= nil,
             condition = conditionInfo.name,
         })
+
+        --Per-encounter hero stats: official conditions only, and only genuinely
+        --new applications (immunity returned earlier; refreshes of an active
+        --condition and purges don't count). Nested stat paths give a
+        --per-condition breakdown, e.g. stats.conditionsInflicted.frightened.
+        --The victim records conditionsReceived; the inflicter (args.casterInfo)
+        --records conditionsInflicted unless they inflicted it on themselves
+        --(e.g. voluntarily dropping prone). TrackHeroStats self-guards to
+        --heroes, so monster victims/inflicters are dropped.
+        if (not wasActive) and conditionInfo ~= nil and g_officialStatConditions[string.lower(conditionInfo.name)] then
+            local lowerName = string.lower(conditionInfo.name)
+            local victimToken = dmhub.LookupToken(self)
+            local inflicterTokenid = args.casterInfo ~= nil and args.casterInfo.tokenid or nil
+
+            if victimToken ~= nil then
+                LiveEncounter.TrackHeroStats(victimToken.charid, "conditionsReceived/" .. lowerName)
+            end
+
+            if inflicterTokenid ~= nil and (victimToken == nil or inflicterTokenid ~= victimToken.charid) then
+                LiveEncounter.TrackHeroStats(inflicterTokenid, "conditionsInflicted/" .. lowerName)
+            end
+        end
 
         audio.DispatchSoundEvent(conditionInfo:SoundEvent())
     else
@@ -3747,6 +3901,14 @@ function creature:GetAfterRollModifiersForPowerRoll(rollType, options)
     return result
 end
 
+--Tracks creatures with a queued user-initiated roll (a characteristic test or a
+--journal power-table test) that is waiting for the roll gate to clear, so repeat
+--clicks do not stack multiple waiters that would displace each other. File-local
+--on purpose: it resets on every Lua reload, so a flag left set by a waiter
+--coroutine killed mid-wait (e.g. an F5/F4 reload) cannot persist -- unlike a
+--_tmp_ field on the creature, which survives reloads and would pin future clicks.
+local g_pendingQueuedRoll = {}
+
 function creature:RollCustomPowerTableTest(title, characteristics, skills, tiers)
     local attrid = nil
     local bestModifier = nil
@@ -3802,24 +3964,55 @@ function creature:RollCustomPowerTableTest(title, characteristics, skills, tiers
         end
     end
 
-    GameHud.instance.rollDialog.data.ShowDialog {
-        title = title,
-        description = title,
-        creature = self,
+    --Respect the global roll gate. This drives the singleton rollDialog
+    --directly, which only serializes against itself, so without this it would
+    --pop on top of an in-flight embedded/standalone roll (e.g. a start-of-turn
+    --damage or prayer roll). We cannot yield in this synchronous UI handler, so
+    --wait for every surface to clear inside a coroutine before showing. The
+    --pending registry stops repeated link clicks from stacking waiters.
+    if g_pendingQueuedRoll[self] then
+        return
+    end
+    g_pendingQueuedRoll[self] = true
 
-        type = rollType,
-        roll = roll,
-        modifiers = modifiers,
+    dmhub.Coroutine(function()
+        --Wait for every roll surface to clear, with a hard cap so a stuck dialog
+        --can never pin this flag (and thus future clicks) forever.
+        local waited = 0
+        while (not mod.unloaded) and CharacterPanel.AnyRollDialogShown() do
+            coroutine.yield(0.05)
+            waited = waited + 1
+            if waited > 600 then break end
+        end
 
-        rollProperties = rollProperties,
-        PopulateCustom = ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom(rollProperties),
+        g_pendingQueuedRoll[self] = nil
 
-        completeRoll = function(rollInfo)
-        end,
+        --Bail without showing if a reload is underway or we hit the cap with a
+        --roll still up (showing now would overlap). The click is dropped and the
+        --user can retry; nothing stays queued.
+        if mod.unloaded or CharacterPanel.AnyRollDialogShown() then
+            return
+        end
 
-        cancelRoll = function()
-        end,
-    }
+        GameHud.instance.rollDialog.data.ShowDialog {
+            title = title,
+            description = title,
+            creature = self,
+
+            type = rollType,
+            roll = roll,
+            modifiers = modifiers,
+
+            rollProperties = rollProperties,
+            PopulateCustom = ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom(rollProperties),
+
+            completeRoll = function(rollInfo)
+            end,
+
+            cancelRoll = function()
+            end,
+        }
+    end)
 end
 
 function creature:ShowCharacteristicRollDialog(attrid)
@@ -3839,13 +4032,13 @@ function creature:ShowCharacteristicRollDialog(attrid)
     local modifiers = self:GetModifiersForPowerRoll(roll, rollType, { attribute = attrid })
 
     local syntheticAbility = ActivatedAbility.Create{ isTest = true, name = title }
-    local token = dmhub.LookupToken(self)
 
+    --Assigned inside the queue coroutine below (after any in-flight roll clears)
+    --so the displacing steps do not run until it is safe. ShowRollDialog closes
+    --over these upvalues, so they are read at call time, not capture time.
+    local token = nil
+    local multitargets = nil
     local displaying = false
-    if token ~= nil then
-        CharacterPanel.UnlockDisplayAbility()
-        displaying = CharacterPanel.DisplayAbility(token, syntheticAbility, nil, {lock = true, renderAsAbility = true})
-    end
 
     local function ShowRollDialog(dialog)
         if dialog == nil or not dialog.valid then
@@ -3862,6 +4055,8 @@ function creature:ShowCharacteristicRollDialog(attrid)
             type = rollType,
             roll = roll,
             modifiers = modifiers,
+            multitargets = multitargets,
+            targetCreature = cond(multitargets ~= nil, self, nil),
             showDialogDuringRoll = true,
             amendable = true,
 
@@ -3909,15 +4104,73 @@ function creature:ShowCharacteristicRollDialog(attrid)
         }
     end
 
-    local embeddedDialog = CharacterPanel.EmbedDialogInAbility()
-    if embeddedDialog ~= nil then
-        dmhub.Schedule(0.05, function()
-            if mod.unloaded then return end
-            ShowRollDialog(embeddedDialog)
-        end)
-    else
-        ShowRollDialog(nil)
+    --This is a synchronous UI handler (a characteristic click), so we cannot
+    --yield here to queue. Run the displacing steps -- DisplayAbility clears the
+    --embedded panel and EmbedDialogInAbility mounts a fresh dialog -- inside a
+    --coroutine that first waits for every roll surface to clear. Without this,
+    --clicking a characteristic mid-roll destroyed the in-flight dialog (e.g. an
+    --ongoing-damage roll) and silently lost its result. The pending registry
+    --stops repeated clicks from stacking multiple queued waiters.
+    if g_pendingQueuedRoll[self] then
+        return
     end
+    g_pendingQueuedRoll[self] = true
+
+    dmhub.Coroutine(function()
+        --Wait for every roll surface to clear, with a hard cap so a stuck dialog
+        --can never pin this flag (and thus future clicks) forever.
+        local waited = 0
+        while (not mod.unloaded) and CharacterPanel.AnyRollDialogShown() do
+            coroutine.yield(0.05)
+            waited = waited + 1
+            if waited > 600 then break end
+        end
+
+        g_pendingQueuedRoll[self] = nil
+
+        --Bail without showing if a reload is underway or we hit the cap with a
+        --roll still up (showing now would displace/overlap). The click is dropped
+        --and the user can retry; nothing stays queued.
+        if mod.unloaded or CharacterPanel.AnyRollDialogShown() then
+            return
+        end
+
+        token = dmhub.LookupToken(self)
+
+        --Give the test roll a synthetic single-target (the roller itself) so the
+        --post-roll edge/bane -> tier refresh pipeline runs. That pipeline is plumbed
+        --entirely through RecalculateMultiTargets -> "recalculatedMultiTargets" ->
+        --message:UploadProperties, which bails when m_multitargets is nil. Without
+        --this, applying banes/edges after the dice land does not update the displayed
+        --tier (it only works before the roll, where the boons are baked into the
+        --formula). markLineOfSight is intentionally left unset so no targeting-ray
+        --labels are drawn, and CalculateMultiTargets is omitted so this static
+        --single-target array is preserved across recalculations.
+        if token ~= nil then
+            multitargets = {
+                {
+                    token = token,
+                    boons = 0,
+                    banes = 0,
+                    modifiers = modifiers,
+                    triggers = {},
+                },
+            }
+
+            CharacterPanel.UnlockDisplayAbility()
+            displaying = CharacterPanel.DisplayAbility(token, syntheticAbility, nil, {lock = true, renderAsAbility = true})
+        end
+
+        local embeddedDialog = CharacterPanel.EmbedDialogInAbility()
+        if embeddedDialog ~= nil then
+            dmhub.Schedule(0.05, function()
+                if mod.unloaded then return end
+                ShowRollDialog(embeddedDialog)
+            end)
+        else
+            ShowRollDialog(nil)
+        end
+    end)
 end
 
 --hitpoints handling overridden. We include handling of minions.
@@ -3975,13 +4228,29 @@ function creature.SetCurrentHitpoints(self, amount, note)
     g_creatureSetCurrentHitpoints(self, amount, note)
 end
 
+--- @field creature.temporary_hitpoints_source nil|string Tokenid of whoever granted the
+--- current temporary stamina, so damage it absorbs can be credited to them as
+--- damagePrevention. A creature has at most one temp-stamina source at a time.
 local g_creatureSetTemporaryHitpoints = creature.SetTemporaryHitpoints
 function creature.SetTemporaryHitpoints(self, amount, note, options)
+    options = options or {}
     g_creatureSetTemporaryHitpoints(self, amount, note, options)
 
 
     if mod.unloaded then
         return
+    end
+
+    --Track who granted the current temporary stamina (options.source, set only on
+    --genuine grants). The RemoveTemporaryHitpoints round-trip that absorbs damage
+    --passes no source, so the source survives until the pool is depleted; once
+    --temporary stamina is gone we forget it so a later grant starts clean.
+    if self:TemporaryHitpoints() <= 0 then
+        if self:has_key("temporary_hitpoints_source") then
+            self.temporary_hitpoints_source = nil
+        end
+    elseif options.source ~= nil then
+        self.temporary_hitpoints_source = options.source
     end
 end
 
@@ -3999,6 +4268,257 @@ end
 local g_creatureTemporaryHitpointsStr = creature.TemporaryHitpointsStr
 function creature.TemporaryHitpointsStr(self)
     return g_creatureTemporaryHitpointsStr(self)
+end
+
+-- Per-encounter hero stat tracking hangs off the central attack-damage path. The base
+-- creature.InflictDamageInstance (DMHub Game Rules/Creature.lua) is the single choke
+-- point that knows the victim (self), the attacker (symbols.attacker), and the actual
+-- post-resistance damage that landed (result.damageDealt). We wrap it here, in the
+-- Draw Steel layer, rather than reaching for the DS-specific LiveEncounter from the
+-- system-agnostic base file. It runs once on the resolving client (inside the damaging
+-- ModifyProperties execute, alongside the existing cast:CountDamage), so the networked
+-- increment is not multiplied across clients.
+--
+-- LiveEncounter.TrackHeroStats is fully self-guarding: it no-ops unless the token
+-- resolves to a hero participating in the current live encounter (a summon attributes
+-- to its summoner), so feeding it every victim/attacker here is safe -- monsters,
+-- objects, and out-of-combat hits are silently ignored.
+local g_baseInflictDamageInstance = creature.InflictDamageInstance
+function creature.InflictDamageInstance(self, amount, damageType, keywords, sourceDescription, symbols)
+    --Snapshot temporary stamina (and who granted it) before the hit. Temp stamina is
+    --consumed inside TakeDamage, AFTER the base call computes result.damageDealt, so
+    --damageDealt is the pre-temp post-resistance amount. We split it into the part
+    --soaked by temp stamina (damagePrevention, credited to the granter) and the actual
+    --stamina loss (damageTaken). tempSource must be read now: SetTemporaryHitpoints
+    --clears it when the pool empties during this very call.
+    local tempBefore = self:TemporaryHitpoints()
+    local tempSource = self:try_get("temporary_hitpoints_source")
+    local hpBefore = self:CurrentHitpoints()
+
+    local result = g_baseInflictDamageInstance(self, amount, damageType, keywords, sourceDescription, symbols)
+
+    local landed = (type(result) == "table" and result.damageDealt) or 0
+
+    --damage prevented by the victim's own damage immunity, applied inside the base
+    --call: the pre-immunity amount (floored the same way the base call floors it)
+    --minus what landed. Clamped at zero so vulnerability/amplification, which
+    --increase damage, never record negative prevention. Credited to the victim --
+    --it is their immunity. Tracked outside the landed > 0 block because full
+    --immunity (landed == 0) is the maximal prevention case.
+    local immunityPrevented = math.floor(amount) - landed
+    if immunityPrevented > 0 then
+        local victimToken = dmhub.LookupToken(self)
+        if victimToken ~= nil then
+            LiveEncounter.TrackHeroStats(victimToken.charid, "damagePrevention", immunityPrevented)
+        end
+    end
+
+    if landed > 0 then
+        --How much of the landed damage temporary stamina absorbed this hit. Damage
+        --never raises temp stamina, and the only temp reduction during the base call
+        --is this hit, so the before/after delta is the absorbed amount.
+        local absorbed = tempBefore - self:TemporaryHitpoints()
+        if absorbed < 0 then absorbed = 0 end
+        if absorbed > landed then absorbed = landed end
+        local staminaLoss = landed - absorbed
+
+        --damage taken by the victim -- only actual stamina loss, not what temp
+        --stamina soaked.
+        if staminaLoss > 0 then
+            local victimToken = dmhub.LookupToken(self)
+            if victimToken ~= nil then
+                LiveEncounter.TrackHeroStats(victimToken.charid, "damageTaken", staminaLoss)
+            end
+        end
+
+        --damage prevented by temporary stamina, credited to whoever granted it. This
+        --intentionally keys on the grantor, not the victim, so a hero who shields a
+        --non-hero ally still gets the credit. TrackHeroStats self-guards to heroes in
+        --the encounter, so an unknown / non-hero grantor is dropped.
+        if absorbed > 0 and tempSource ~= nil then
+            LiveEncounter.TrackHeroStats(tempSource, "damagePrevention", absorbed)
+        end
+
+        --Split the landed damage into the part that mattered (damageDealt) and the
+        --excess past what was needed to kill (overkill). Useful damage is the temp
+        --stamina absorbed plus the stamina the pool actually lost, with the pool
+        --loss capped at what brings the creature exactly to its kill threshold.
+        --Measuring pool loss from the actual before/after delta means the minion
+        --squad clamps inside TakeDamage (area damage capped at one minion's max,
+        --Strikes with Multiple Targets ignoring redundant instances) are respected
+        --without re-deriving them here.
+        local poolLoss = hpBefore - self:CurrentHitpoints()
+        if poolLoss < 0 then poolLoss = 0 end
+        local usefulCapacity = hpBefore - self:KillThresholdStamina()
+        if usefulCapacity < 0 then usefulCapacity = 0 end
+        if poolLoss > usefulCapacity then poolLoss = usefulCapacity end
+        local counted = absorbed + poolLoss
+        if counted > landed then counted = landed end
+        local overkill = landed - counted
+
+        --damage dealt by the attacker (nil for environmental / aura damage). The
+        --attacker is still credited for damage temp stamina soaked, but not for
+        --overkill, which accumulates in its own stat. Self-inflicted damage
+        --(strain, collisions with yourself as the source) is the victim's
+        --problem, not damage dealt -- it records damageTaken above but must not
+        --inflate damageDealt or the turn-relative stats.
+        local attacker = symbols ~= nil and symbols.attacker or nil
+        if attacker ~= nil and attacker ~= self then
+            local attackerToken = dmhub.LookupToken(attacker)
+            if attackerToken ~= nil then
+                if counted > 0 then
+                    LiveEncounter.TrackHeroStats(attackerToken.charid, "damageDealt", counted)
+                end
+                if overkill > 0 then
+                    LiveEncounter.TrackHeroStats(attackerToken.charid, "overkill", overkill)
+                end
+
+                --Turn-relative damage stats, both using the same overkill-excluded
+                --amount as damageDealt:
+                --
+                --allyDamageDealt: damage an allied hero dealt while it was THIS
+                --hero's turn (e.g. triggered free strikes the turn enabled),
+                --credited to the hero whose turn it is. Needs the turn owner's
+                --exact token, so it only applies when the current initiativeid is
+                --a tokenid (true for heroes; squads/groupings use MONSTER-/grouping
+                --ids). The attacker's summoner chain is walked first so a hero's
+                --own summon attacking on their turn counts as their own damage,
+                --not ally damage.
+                --
+                --enemyTurnDamage: damage the attacker dealt while an ENEMY was
+                --taking their turn (triggered abilities, free strikes, etc.),
+                --credited to the attacker (a summon's damage attributes to its
+                --hero via TrackHeroStats). Only needs to classify which SIDE owns
+                --the turn, so when the initiativeid is not a tokenid (monster
+                --type groups, minion squads) any token on that initiative serves.
+                if counted > 0 and dmhub.initiativeQueue ~= nil then
+                    local currentId = dmhub.initiativeQueue:CurrentInitiativeId()
+                    if currentId ~= nil then
+                        local turnToken = dmhub.GetTokenById(currentId)
+
+                        if turnToken ~= nil and turnToken.valid then
+                            --walk to the attacker's root owner: summoner chain
+                            --first, falling back to the retainer/follower mentor
+                            --link (mirrors LiveEncounter.ResolveStatHero), so a
+                            --hero's own follower attacking on their turn counts
+                            --as their own damage, not ally damage.
+                            local rootAttacker = attackerToken
+                            for _ = 1, 10 do
+                                local nextToken = nil
+                                if rootAttacker.summonerid ~= nil and rootAttacker.summonerid ~= "" then
+                                    nextToken = dmhub.GetTokenById(rootAttacker.summonerid)
+                                end
+                                if nextToken == nil then
+                                    local rootProps = rootAttacker.properties
+                                    if rootProps ~= nil and rootProps.IsRetainer ~= nil and rootProps:IsRetainer()
+                                        and rootProps.GetMentor ~= nil then
+                                        local mentor = rootProps:GetMentor()
+                                        if mentor ~= nil then
+                                            nextToken = dmhub.LookupToken(mentor)
+                                        end
+                                    end
+                                end
+                                if nextToken == nil or (not nextToken.valid) then
+                                    break
+                                end
+                                rootAttacker = nextToken
+                            end
+
+                            if rootAttacker.charid ~= turnToken.charid and turnToken:IsFriend(attackerToken) then
+                                LiveEncounter.TrackHeroStats(turnToken.charid, "allyDamageDealt", counted)
+                            end
+                        end
+
+                        local sideToken = turnToken
+                        if sideToken == nil or (not sideToken.valid) then
+                            for _,tok in ipairs(dmhub.allTokens) do
+                                if tok.valid and InitiativeQueue.GetInitiativeId(tok) == currentId then
+                                    sideToken = tok
+                                    break
+                                end
+                            end
+                        end
+
+                        if sideToken ~= nil and sideToken.valid and (not sideToken:IsFriend(attackerToken)) then
+                            LiveEncounter.TrackHeroStats(attackerToken.charid, "enemyTurnDamage", counted)
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    return result
+end
+
+--Per-encounter hero stats: heroic resource flow. ConsumeResource, RefreshResource,
+--and AddUnboundedResource are the three engine entry points that change the heroic
+--resource pool, so we wrap all three and measure the actual before/after delta of
+--GetResources()[heroicResourceId]. The delta approach means clamping (gains capped
+--at max, spends capped at available), no-op calls, and the combat-id rollover are
+--all handled for free -- GetResources ignores stale unbounded entries from a
+--previous combat, so the first gain of a new combat measures from 0, not from the
+--leftover display value.
+--
+--Gated to characters: heroic resource sharing (a companion spending its hero's
+--pool) redirects the call to the summoner hero, which re-enters these wrappers as
+--the hero, so tracking the companion's outer call too would double count.
+--TrackHeroStats self-guards to heroes in the live encounter as usual.
+local function TrackHeroicResourceDelta(c, before)
+    local after = c:GetResources()[CharacterResource.heroicResourceId] or 0
+    local delta = after - before
+    if delta == 0 then
+        return
+    end
+
+    local token = dmhub.LookupToken(c)
+    if token == nil then
+        return
+    end
+
+    if delta > 0 then
+        LiveEncounter.TrackHeroStats(token.charid, "heroicResourcesGained", delta)
+    else
+        LiveEncounter.TrackHeroStats(token.charid, "heroicResourcesSpent", -delta)
+    end
+end
+
+local function HeroicResourceBefore(c, key)
+    if key ~= CharacterResource.heroicResourceId or c.typeName ~= "character" then
+        return nil
+    end
+
+    return c:GetResources()[CharacterResource.heroicResourceId] or 0
+end
+
+local g_baseConsumeResource = creature.ConsumeResource
+function creature.ConsumeResource(self, key, refreshType, quantity, note)
+    local before = HeroicResourceBefore(self, key)
+    local result = g_baseConsumeResource(self, key, refreshType, quantity, note)
+    if before ~= nil then
+        TrackHeroicResourceDelta(self, before)
+    end
+    return result
+end
+
+local g_baseRefreshResource = creature.RefreshResource
+function creature.RefreshResource(self, key, refreshType, quantity, note)
+    local before = HeroicResourceBefore(self, key)
+    local result = g_baseRefreshResource(self, key, refreshType, quantity, note)
+    if before ~= nil then
+        TrackHeroicResourceDelta(self, before)
+    end
+    return result
+end
+
+local g_baseAddUnboundedResource = creature.AddUnboundedResource
+function creature.AddUnboundedResource(self, key, quantity, note)
+    local before = HeroicResourceBefore(self, key)
+    local result = g_baseAddUnboundedResource(self, key, quantity, note)
+    if before ~= nil then
+        TrackHeroicResourceDelta(self, before)
+    end
+    return result
 end
 
 creature.minionDamageTime = 0
@@ -4112,6 +4632,46 @@ function creature.TakeDamage(self, amount, note, info)
             amount = math.min(self:SingleMinionMaxStamina(), amount)
         end
 
+        --Summoner "excess damage" rule: when an attack overkills the squad's shared Stamina pool
+        --(there is leftover damage after the last minion in the squad dies), the summoner takes a
+        --flat 2 + their level. currentHp is the pool remaining before this hit, so currentHp > 0 and
+        --amount > currentHp means this blow both empties the pool and has excess. Gated by the
+        --"Minion Summoner Overflow" custom attribute so only summoner squads use it.
+        if (self:CalculateNamedCustomAttribute("Minion Summoner Overflow") or 0) > 0 then
+            local currentHp = self:CurrentHitpoints()
+            if currentHp > 0 and amount > currentHp then
+                local selfToken = dmhub.LookupToken(self)
+                if selfToken ~= nil and selfToken.summonerid then
+                    local summonerToken = dmhub.GetTokenById(selfToken.summonerid)
+                    if summonerToken ~= nil and summonerToken.valid then
+                        local overflowDamage = 2 + summonerToken.properties:CharacterLevel()
+                        summonerToken:ModifyProperties {
+                            description = "Squad destroyed (excess damage)",
+                            combine = true,
+                            execute = function()
+                                summonerToken.properties:TakeDamage(overflowDamage, "Squad destroyed (excess damage)")
+                            end,
+                        }
+
+                        --Announce the excess damage in the action log, reusing the damage
+                        --behavior's chat message card (caster portrait + detail + "N damage").
+                        chat.SendCustom(ActivatedAbilityDamageChatMessage.new{
+                            amount = overflowDamage,
+                            damageType = "",
+                            chatMessage = "Squad destroyed (excess damage)",
+                            casterid = summonerToken.charid,
+                            targetids = {},
+                        })
+                    end
+                end
+            end
+        end
+
+        --Capture the squad pool before this hit so we can count how many minions
+        --it kills (a single blow can empty several single-minion stamina bands).
+        local minionKillHealthSingle = self:SingleMinionMaxStamina()
+        local minionKillHpBefore = self:CurrentHitpoints()
+
         self:SetCurrentHitpoints(self:CurrentHitpoints() - amount, note)
 
         self.minionDamageTime = ServerTimestamp()
@@ -4132,6 +4692,11 @@ function creature.TakeDamage(self, amount, note, info)
         if info.cast then
             eventArg.edges = info.cast.boonsApplied
             eventArg.banes = info.cast.banesApplied
+            for _, target in ipairs(info.cast.targets or {}) do
+                if target.token ~= nil and target.token.properties == self then
+                    eventArg.numberofattackers = target.numAttackers or 1
+                end
+            end
         end
         if (not info.doesNotTrigger) and amount > 0 then
             print("LOSEHITPOINTS:: DO LOSE", info.doesNotTrigger)
@@ -4168,8 +4733,31 @@ function creature.TakeDamage(self, amount, note, info)
                 --Acolyte patron damage marker. Top-level bare symbol PatronDamage
                 --in trigger formulas (matches how gainresource exposes Quantity).
                 patrondamage = eventArg.patrondamage,
+                numberofattackers = eventArg.numberofattackers,
             }
             attacker:DispatchEvent("dealdamage", args)
+        end
+
+        --Per-encounter hero stat: minion kills. Count how many full single-minion
+        --stamina bands this hit emptied in the squad's shared pool (hpBefore ->
+        --hpBefore - amount) and credit the attacker that many. This naturally
+        --handles "multiple minions hit with one blow": area hits reduce the pool
+        --once per minion (summed across calls), and the Strikes-with-Multiple-
+        --Targets clamp leaves amount == 0 on the redundant calls (killed == 0).
+        --Overkill is bounded by minionsBefore, so the pool dropping below zero
+        --never over-counts. TrackHeroStats self-guards to heroes in the live
+        --encounter, so non-hero attackers are dropped. Minions return here and
+        --never reach the regular-monster "kills" path below.
+        if minionKillHealthSingle ~= nil and minionKillHealthSingle > 0 and amount > 0 and eventArg.attacker ~= nil then
+            local minionsBefore = math.max(0, math.ceil(minionKillHpBefore / minionKillHealthSingle))
+            local minionsAfter = math.max(0, math.ceil((minionKillHpBefore - amount) / minionKillHealthSingle))
+            local minionsKilled = minionsBefore - minionsAfter
+            if minionsKilled > 0 then
+                local killerToken = dmhub.LookupToken(eventArg.attacker)
+                if killerToken ~= nil then
+                    LiveEncounter.TrackHeroStats(killerToken.charid, "minionKills", minionsKilled)
+                end
+            end
         end
 
         return
@@ -4238,6 +4826,7 @@ function creature.TakeDamage(self, amount, note, info)
         --we don't ever regard us as attacking ourselves. This would make conditions doing damage to us trigger an attack on ourselves.
         eventArg.attacker = nil
     end
+    print("Info::", json(info))
     eventArg.damage = amount
     eventArg.rawdamage = info.rawdamage
     eventArg.damageimmunity = info.damageImmunity and info.damageImmunity.dr ~= nil
@@ -4249,6 +4838,11 @@ function creature.TakeDamage(self, amount, note, info)
     if info.cast then
         eventArg.edges = info.cast.boonsApplied
         eventArg.banes = info.cast.banesApplied
+        for _, target in ipairs(info.cast.targets or {}) do
+            if target.token ~= nil and target.token.properties == self then
+                eventArg.numberofattackers = target.numAttackers or 1
+            end
+        end
     end
 
     if (not info.doesNotTrigger) and original_amount > 0 then
@@ -4366,6 +4960,7 @@ function creature.TakeDamage(self, amount, note, info)
             --Acolyte patron damage marker. Top-level bare symbol PatronDamage
             --in trigger formulas (matches how gainresource exposes Quantity).
             patrondamage = eventArg.patrondamage,
+            numberofattackers = eventArg.numberofattackers,
         }
         attacker:DispatchEvent("dealdamage", args)
     end
@@ -4391,6 +4986,19 @@ function creature.TakeDamage(self, amount, note, info)
                 --DispatchEvent does not currently have support for dispatching
                 --creature objects and other self-referential objects.
                 eventArg.attacker:TriggerEvent("kill", eventArg)
+
+                --Per-encounter hero stat: credit the killer with a monster kill.
+                --Guarded to non-hero victims (a dying hero is not a "kill"); minions
+                --are counted separately as minionKills and never reach this path.
+                --This runs once on the resolving client as the victim transitions
+                --to dead. TrackHeroStats self-guards to heroes, so a monster killing
+                --a monster is dropped.
+                if not self:IsHero() then
+                    local killerToken = dmhub.LookupToken(eventArg.attacker)
+                    if killerToken ~= nil then
+                        LiveEncounter.TrackHeroStats(killerToken.charid, "kills")
+                    end
+                end
             end
 
             if not self:IsHero() then

@@ -11,6 +11,23 @@ local function track(eventType, fields)
     analytics.Event(fields)
 end
 
+-- Command context for the PDF viewer. While the viewer modal is open we push this
+-- context (dmhub.PushCommandContext) so the left/right arrow keys page through the
+-- document via the pdfprevpage/pdfnextpage commands instead of falling through to
+-- the global 'tokenmove' bindings. The viewer's command handler responds to these.
+-- Because they live in a named context, they only override the arrows while the
+-- viewer is the active modal; everywhere else the arrows still move tokens.
+local PDF_COMMAND_CONTEXT = "journalpdf"
+local g_pdfBindingsInitialized = false
+local function EnsurePdfCommandBindings()
+    if g_pdfBindingsInitialized then
+        return
+    end
+    g_pdfBindingsInitialized = true
+    dmhub.SetCommandBinding("left", "pdfprevpage", PDF_COMMAND_CONTEXT)
+    dmhub.SetCommandBinding("right", "pdfnextpage", PDF_COMMAND_CONTEXT)
+end
+
 setting {
     id = "pdfbrightness",
     description = "Brightness",
@@ -176,12 +193,11 @@ local function SmartImporterPanel(doc)
 
             local panel
 
-            local deleteButton = gui.DeleteItemButton {
+            local deleteButton = gui.Button {
+                classes = {"deleteButton", "sizeXs"},
                 halign = "right",
                 valign = "top",
                 floating = true,
-                width = 12,
-                height = 12,
                 click = function(element)
                     m_cancel = true
                     panel:DestroySelf()
@@ -458,7 +474,6 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                 element.y = y1 * imageHeight
                 element.selfStyle.width = (x2 - x1) * imageWidth
                 element.selfStyle.height = (y2 - y1) * imageHeight
-                printf("UPDATE:: %f, %f", element.selfStyle.width, element.selfStyle.height)
             end,
             finish = function(element, parentElement)
                 local mousePoint = parentElement.mousePoint
@@ -474,6 +489,8 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                 y1 = clamp(y1, 0, 1)
                 y2 = clamp(y2, 0, 1)
 
+                print("SELECT::", x1, y1, x2, y2)
+
                 if math.abs(x1 - x2) < 0.02 or math.abs(y1 - y2) < 0.02 then
                     element:FireEvent("hide")
                     return
@@ -481,9 +498,6 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
 
                 element:FireEvent("menu", { x1 = x1, y1 = y1, x2 = x2, y2 = y2 })
 
-                if x1 ~= -328.24 then
-                    return
-                end
             end,
             menu = function(element, args)
                 element.children = {
@@ -572,7 +586,7 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                                         valign = "bottom",
                                         vmargin = 24,
                                         flow = "horizontal",
-                                        gui.PrettyButton {
+                                        gui.Button {
                                             halign = "left",
                                             text = "Cancel",
                                             width = 180,
@@ -580,7 +594,7 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                                                 gui.CloseModal()
                                             end,
                                         },
-                                        gui.PrettyButton {
+                                        gui.Button {
                                             classes = { "hidden" },
                                             id = "addToJournalButton",
                                             halign = "right",
@@ -687,47 +701,6 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                                 m_dragPanel:SetClass("hidden", true)
                             end,
                         },
-                        --[[
-                        gui.HudIconButton{
-                            icon = "game-icons/cloud-upload.png",
-                            width = 24,
-                            height = 24,
-                            linger = gui.Tooltip("Import this statblock into your compendium."),
-                            swallowPress = true,
-                            create = function(element)
-                                document:TextInRect(m_npage, args.x1*document.summary.pageWidth, args.y2*document.summary.pageHeight, args.x2*document.summary.pageWidth, args.y1*document.summary.pageHeight, function(text)
-                                    if text == nil or text == "" then
-                                        element:SetClass("disabled", true)
-                                        element.events.linger = gui.Tooltip("No importable content found.")
-                                    end
-                                end)
-                            end,
-                            click = function(element)
-                                if element:HasClass("disabled") then
-                                    return
-                                end
-                                m_dragPanel.children = {}
-
-                                m_importer = true
-                                m_importerPanel:FireEvent("activate", m_importer)
-
-                                local npage = m_npage
-                                local dragPanel = m_dragPanel
-                                document:TextInRect(m_npage, args.x1*document.summary.pageWidth, args.y2*document.summary.pageHeight, args.x2*document.summary.pageWidth, args.y1*document.summary.pageHeight, function(text)
-                                    m_importerPanel:FireEventTree("import", text, dragPanel, string.format("pdf:%s&page=%d&area=%f,%f,%f,%f", doc.id, npage, args.x1, args.y1, args.x2, args.y2))
-                                end)
-
-                                m_dragPanel:SetClass("importing", true)
-
-                                local parentPanel = m_dragPanel.parent
-                                m_dragPanel = CreateDragPanel()
-
-                                local panels = parentPanel.children
-                                panels[#panels+1] = m_dragPanel
-                                parentPanel.children = panels
-                            end,
-                        },
-                        ]]
 
                     }
                 }
@@ -800,7 +773,7 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                 valign = "bottom",
                 vmargin = 24,
                 flow = "horizontal",
-                gui.PrettyButton {
+                gui.Button {
                     halign = "left",
                     text = "Cancel",
                     width = 180,
@@ -808,7 +781,7 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                         gui.CloseModal()
                     end,
                 },
-                gui.PrettyButton {
+                gui.Button {
                     id = "addBookmarkButton",
                     halign = "right",
                     text = cond(options.bookmark ~= nil, "Update", "Add"),
@@ -1423,6 +1396,204 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                 }
             },
 
+            --augmentation overlays: image panels that sit on top of the page
+            --and replace parts of it. Data-driven from PDFAugmentations (see
+            --JournalPDFAugmentation.lua). interactable=false so the page text
+            --underneath stays selectable.
+            gui.Panel {
+                id = "pdfAugmentations",
+                floating = true,
+                interactable = false,
+                halign = "left",
+                valign = "top",
+                width = "100%",
+                height = "100%",
+                data = {
+                    panels = {},
+                    dirty = true,
+                    lastW = 0,
+                    lastH = 0,
+                    lastPage = nil,
+                    activeAugs = {},     --augmentations matched on the current page
+                    detectors = {},      --aug id -> gesture detector
+                    gestureName = {},    --aug id -> currently-reported gesture, or nil
+                    graceUntil = {},     --aug id -> off-area grace deadline (dmhub.Time)
+                },
+
+                --fired by RefreshPage on page/zoom change; mark for relayout.
+                page = function(element)
+                    element.data.dirty = true
+                end,
+
+                --small thinkTime so gesture sampling is roughly per-frame; the
+                --relayout below is gated and cheap when nothing changed.
+                thinkTime = 0.01,
+                think = function(element)
+                    local parent = element.parent
+                    if parent == nil then
+                        return
+                    end
+
+                    local w = parent.renderedWidth
+                    local h = parent.renderedHeight
+                    if w <= 0 or h <= 0 then
+                        return
+                    end
+
+                    --(1) Relayout overlays only when the page changed or the
+                    --panel resized (covers zoom and window resize).
+                    if element.data.dirty or w ~= element.data.lastW or h ~= element.data.lastH or m_npage ~= element.data.lastPage then
+                        element.data.dirty = false
+                        element.data.lastW = w
+                        element.data.lastH = h
+                        element.data.lastPage = m_npage
+
+                        --the page number as displayed in the page input box: the
+                        --page label if the PDF has one, else the 1-based index.
+                        local pageShown = document.summary.pageLabels[m_npage + 1] or (m_npage + 1)
+
+                        --O(1) lookup of just this page's augmentations -- no walk
+                        --of the whole registry. GetForPage returns a shared list,
+                        --so shallow-copy it before sorting for render order.
+                        local PDFAug = rawget(_G, "PDFAugmentations")
+                        local pageAugs = (PDFAug ~= nil and PDFAug.GetForPage ~= nil) and PDFAug.GetForPage(doc.description, pageShown) or {}
+                        local matches = {}
+                        for i = 1, #pageAugs do
+                            matches[i] = pageAugs[i]
+                        end
+
+                        --sort ascending by zorder: GUI panels have no z-index
+                        --property, render order is sibling array order (later
+                        --children draw on top), so the highest zorder must land
+                        --last in element.children below.
+                        table.sort(matches, function(a, b)
+                            return (a.zorder or 0) < (b.zorder or 0)
+                        end)
+
+                        local children = {}
+                        for i, aug in ipairs(matches) do
+                            local area = aug.area
+
+                            local p = element.data.panels[i] or gui.Panel {
+                                floating = true,
+                                interactable = false,
+                                halign = "left",
+                                valign = "top",
+                                bgimage = "panels/square.png",
+                            }
+
+                            --area is {x1, y1, x2, y2} normalized, in the same
+                            --convention as the SELECT:: print in the drag handler:
+                            --y is bottom-origin (0 at the bottom of the page, 1 at
+                            --the top), so the panel's top edge maps from y2.
+                            p.selfStyle.x = w * area[1]
+                            p.selfStyle.y = h * (1 - area[4])
+                            p.selfStyle.width = w * (area[3] - area[1])
+                            p.selfStyle.height = h * (area[4] - area[2])
+
+                            p.bgimage = aug.image or "panels/square.png"
+                            p.selfStyle.bgcolor = aug.bgcolor or "white"
+
+                            --pass the blend mode straight through (e.g.
+                            --"premultiplied"); nil resets to the default so a
+                            --pooled panel reused by a non-blended augmentation
+                            --doesn't keep a stale blend.
+                            p.selfStyle.blend = aug.blend
+
+                            p:SetClass("hidden", false)
+                            element.data.panels[i] = p
+                            children[i] = p
+                        end
+
+                        for i = #matches + 1, #element.data.panels do
+                            element.data.panels[i]:SetClass("hidden", true)
+                            children[#children + 1] = element.data.panels[i]
+                        end
+
+                        element.children = children
+                        element.data.activeAugs = matches
+                    end
+
+                    --(2) Gesture detection every tick, for augmentations that
+                    --declare a gesture handler. The cursor position and guards
+                    --come from the parent (pdfViewPanel) because this overlay is
+                    --interactable=false; the augmentation 'area' is normalized
+                    --over the page, the same space as parent.mousePoint.
+                    local PDFAug = rawget(_G, "PDFAugmentations")
+                    if PDFAug == nil or PDFAug.NewGestureDetector == nil then
+                        return
+                    end
+
+                    local now = dmhub.Time()
+                    local mp = parent.mousePoint
+                    local hover = parent:HasClass("hover")
+                    local buttonHeld = parent:GetMouseButton(0) or parent:GetMouseButton(1) or parent:GetMouseButton(2)
+
+                    local relevant = {}
+                    for _, aug in ipairs(element.data.activeAugs) do
+                        if type(aug.gesture) == "function" then
+                            local id = aug.id
+                            relevant[id] = true
+
+                            local area = aug.area
+                            local inside = false
+                            if hover and mp ~= nil then
+                                inside = mp.x >= area[1] and mp.x <= area[3] and mp.y >= area[2] and mp.y <= area[4]
+                            end
+
+                            --a brief grace after the cursor strays off the area
+                            --keeps a stroke that overshoots the box alive; the
+                            --button guard still applies every tick.
+                            if inside then
+                                element.data.graceUntil[id] = now + 0.35
+                            end
+                            local active = (now < (element.data.graceUntil[id] or 0)) and (not buttonHeld)
+
+                            local detector = element.data.detectors[id]
+                            if detector == nil then
+                                detector = PDFAug.NewGestureDetector()
+                                element.data.detectors[id] = detector
+                            end
+
+                            --feed pixel-space position so the detector's pixel
+                            --thresholds (minStrokeDistance etc.) stay meaningful.
+                            local mx, my = 0, 0
+                            if mp ~= nil then
+                                mx = mp.x * w
+                                my = mp.y * h
+                            end
+
+                            local petting = detector:Tick(mx, my, now, active)
+                            local name = petting and "pet" or nil
+                            if name ~= nil then
+                                --continuous stream of calls while the gesture is
+                                --active (acts as a keepalive for the handler).
+                                aug.gesture(name)
+                            elseif element.data.gestureName[id] ~= nil then
+                                --falling edge: signal the end once.
+                                aug.gesture(nil)
+                            end
+                            element.data.gestureName[id] = name
+                        end
+                    end
+
+                    --send a stop (nil) for any augmentation that was mid-gesture
+                    --but is no longer on this page (e.g. the user changed pages).
+                    for id, name in pairs(element.data.gestureName) do
+                        if name ~= nil and not relevant[id] then
+                            element.data.gestureName[id] = nil
+                            if element.data.detectors[id] ~= nil then
+                                element.data.detectors[id]:Reset()
+                            end
+                            local aug = PDFAug.Get(id)
+                            if aug ~= nil and type(aug.gesture) == "function" then
+                                aug.gesture(nil)
+                            end
+                        end
+                    end
+                end,
+            },
+
             m_dragPanel,
 
             data = {
@@ -1590,7 +1761,7 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                             return
                         end
 
-                        CopyToClipboard(layout.text)
+                        CopyToClipboard(layout.text:Substring(1, layout.text.Length))
                     end,
                 }
 
@@ -1996,6 +2167,25 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
             RefreshPage()
         end,
 
+        -- Page navigation keyboard shortcuts. While the viewer modal is open the
+        -- 'journalpdf' command context (pushed in ShowPDFViewerDialog) binds the
+        -- left/right arrows to these commands, which are delivered here as 'command'
+        -- events. This fires for the whole active modal tree, so the always-present
+        -- viewer root is the right place to handle it.
+        command = function(element, cmd)
+            if cmd == "pdfprevpage" then
+                m_npage = m_npage - 1
+                m_searchResults = nil
+                m_searchText = nil
+                RefreshPage()
+            elseif cmd == "pdfnextpage" then
+                m_npage = m_npage + 1
+                m_searchResults = nil
+                m_searchText = nil
+                RefreshPage()
+            end
+        end,
+
         --header panel.
         gui.Panel {
             width = "100%",
@@ -2139,10 +2329,8 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                         end,
 
                         gui.Label {
-                            fontSize = 16,
+                            classes = {"sizeS"},
                             minFontSize = 10,
-                            width = 60,
-                            height = 20,
                             page = function(element)
                                 if m_searchResults ~= nil and m_searchResults[m_searchIndex] ~= nil then
                                     element.text = string.format("%d/%d", m_searchIndex, #m_searchResults)
@@ -2152,8 +2340,9 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                             end,
                         },
 
-                        gui.PagingArrow {
-                            facing = -1,
+                        gui.Button {
+                            classes = {"pagingArrow", "sizeS"},
+                            lmargin = 20,
                             page = function(element)
                                 element:SetClass("hidden",
                                     not (m_searchResults ~= nil and m_searchResults[m_searchIndex] ~= nil))
@@ -2167,8 +2356,9 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                             end,
                         },
 
-                        gui.PagingArrow {
-                            facing = 1,
+                        gui.Button {
+                            classes = {"pagingArrow", "right", "sizeS"},
+                            lmargin = 4,
                             page = function(element)
                                 element:SetClass("hidden",
                                     not (m_searchResults ~= nil and m_searchResults[m_searchIndex] ~= nil))
@@ -2184,11 +2374,9 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                     },
                 },
 
-
-
-                gui.PagingArrow {
+                gui.Button {
+                    classes = {"pagingArrow", "sizeS"},
                     hmargin = 4,
-                    facing = -1,
                     press = function(element)
                         m_npage = m_npage - 1
                         m_searchResults = nil
@@ -2196,17 +2384,18 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                     end,
                 },
                 gui.Label {
-                    fontSize = 14,
+                    classes = {"sizeXs"},
+                    hmargin = 4,
                     width = "auto",
                     height = "auto",
                     text = "Page",
                 },
                 gui.Input {
-                    fontSize = 14,
+                    classes = {"sizeXs"},
+                    width = 40,
                     characterLimit = 4,
-                    width = 20,
-                    height = 20,
                     textAlignment = "right",
+                    hmargin = 4,
                     page = function(element)
                         element.text = document.summary.pageLabels[m_npage + 1] or string.format("%d", m_npage + 1)
                     end,
@@ -2227,14 +2416,15 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                     end,
                 },
                 gui.Label {
-                    fontSize = 14,
+                    classes = {"sizeXs"},
                     width = "auto",
                     height = "auto",
-                    text = "/" .. (document.summary.pageLabels[#document.summary.pageLabels] or string.format("%d", document.summary.npages)),
+                    hmargin = "4",
+                    text = "/ " .. (document.summary.pageLabels[#document.summary.pageLabels] or string.format("%d", document.summary.npages)),
                 },
-                gui.PagingArrow {
+                gui.Button {
+                    classes = {"pagingArrow", "right", "sizeS"},
                     hmargin = 4,
-                    facing = 1,
                     press = function(element)
                         m_npage = m_npage + 1
                         m_searchResults = nil
@@ -2249,16 +2439,16 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                     width = "auto",
                     hmargin = 32,
                     gui.Label {
-                        fontSize = 14,
+                        classes = {"sizeXs"},
                         width = "auto",
                         height = "auto",
                         text = "Zoom:",
                     },
 
                     gui.Input {
-                        width = 28,
-                        height = 20,
-                        fontSize = 14,
+                        classes = {"sizeXs"},
+                        width = 40,
+                        hmargin = 4,
                         valign = "center",
                         text = string.format("%d", round(m_zoom * 100)),
                         change = function(element)
@@ -2272,34 +2462,23 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                                 m_zoom = clamp(m_zoom + cond(cmd == "zoomout", -0.2, 0.2), 0.05, 8)
                                 element.text = string.format("%d", round(m_zoom * 100)),
                                     RefreshPage()
-                            elseif cmd == "tokenmove -1 0" then
-                                m_npage = m_npage - 1
-                                m_searchResults = nil
-                                m_searchText = nil
-                                RefreshPage()
-                            elseif cmd == "tokenmove 1 0" then
-                                m_npage = m_npage + 1
-                                m_searchResults = nil
-                                m_searchText = nil
-                                RefreshPage()
                             end
                         end,
                     },
 
                     gui.Label {
-                        fontSize = 14,
+                        classes = {"sizeXs"},
                         width = "auto",
                         height = "auto",
                         text = "%",
                     },
 
-                    gui.Panel {
-                        bgcolor = Styles.textColor,
-                        bgimage = "icons/icon_tool/icon_tool_41.png",
+                    gui.Button {
+                        -- bgcolor = Styles.textColor,
+                        classes = {"sizeXs"},
+                        icon = "icons/icon_tool/icon_tool_41.png",
                         lmargin = 16,
                         halign = "right",
-                        width = 16,
-                        height = 16,
                         press = function(element)
                             element.parent:FireEventTree("command", "zoomout")
                         end,
@@ -2310,12 +2489,11 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                             },
                         },
                     },
-                    gui.Panel {
-                        bgcolor = Styles.textColor,
-                        bgimage = "icons/icon_tool/icon_tool_40.png",
+                    gui.Button {
+                        -- bgcolor = Styles.textColor,
+                        classes = {"sizeXs"},
+                        icon = "icons/icon_tool/icon_tool_40.png",
                         halign = "right",
-                        width = 16,
-                        height = 16,
                         press = function(element)
                             element.parent:FireEventTree("command", "zoomin")
                         end,
@@ -2328,11 +2506,10 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                     },
                 },
 
-                gui.SettingsButton {
+                gui.Button {
+                    classes = {"settingsButton", "sizeS"},
                     halign = "right",
                     valign = "center",
-                    width = 16,
-                    height = 16,
                     floating = true,
                     hmargin = -32,
 
@@ -2348,14 +2525,12 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                         local dialog
                         dialog = gui.Panel {
                             width = 600,
-                            height = 800,
+                            height = 200,
                             classes = { "framedPanel" },
-                            styles = {
-                                Styles.Panel,
-                                Styles.Default,
-                            },
+                            styles = ThemeEngine.GetStyles(),
                             halign = "center",
                             valign = "center",
+                            flow = "vertical",
 
                             destroy = function()
                                 if element ~= nil and element.valid and element.data.settingsDialog == dialog then
@@ -2363,7 +2538,8 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                                 end
                             end,
 
-                            gui.CloseButton {
+                            gui.Button {
+                                classes = {"closeButton"},
                                 floating = true,
                                 halign = "right",
                                 valign = "top",
@@ -2373,7 +2549,7 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                             },
 
                             gui.Label {
-                                classes = { "title" },
+                                classes = { "dialogTitle" },
                                 width = "auto",
                                 height = "auto",
                                 text = "PDF Settings",
@@ -2382,7 +2558,7 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                             },
 
                             gui.Panel {
-                                tmargin = 200,
+                                tmargin = 60,
                                 floating = true,
                                 valign = "top",
                                 halign = "center",
@@ -2506,6 +2682,16 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page)
         end,
 
         destroy = function(element)
+            -- Balance the PushCommandContext from when this dialog opened. Keyed on a
+            -- per-element flag (not g_pdfViewerDialog) so it pops exactly once for THIS
+            -- dialog regardless of destroy ordering: 'destroy' is also fired manually on
+            -- the pop-out path, and a reopened-on-a-different-doc dialog may have already
+            -- reassigned g_pdfViewerDialog before this old dialog's destroy runs.
+            if element.data.pdfContextActive then
+                element.data.pdfContextActive = false
+                dmhub.PopCommandContext(PDF_COMMAND_CONTEXT)
+            end
+
             if g_pdfViewerDialog == element then
                 g_pdfViewerDialog = nil
                 GameHud.instance.modalPanel.interactable = true
@@ -2547,13 +2733,10 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page)
                 element:SetClass("hidden", true)
             end,
 
-            gui.Panel {
-                classes = { "iconButton" },
-                bgimage = "ui-icons/icon-scale.png",
-                bgcolor = Styles.textColor,
+            gui.Button {
+                classes = { "sizeXs" },
+                icon = "ui-icons/icon-scale.png",
                 valign = "center",
-                width = 16,
-                height = 16,
                 rmargin = 6,
                 linger = function(element)
                     gui.Tooltip("Pop out window")(element)
@@ -2570,27 +2753,29 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page)
                 end,
             },
 
-            gui.Panel {
-                classes = { "iconButton" },
-                bgimage = "panels/square.png",
-                bgcolor = "black",
+            gui.Button {
+                classes = { "sizeXs" },
+                icon = "drawsteel/Icons_Nav_MinWindow.png",
                 valign = "center",
                 linger = function(element)
                     gui.Tooltip("Maximize window")(element)
                 end,
-                borderColor = Styles.textColor,
-                borderWidth = 2,
-                width = 12,
-                height = 12,
+                setResizeIcon = function(element)
+                    local isWindowed = g_journalWindowedSetting:Get()
+                    dialogPanel:SetClass("windowed", isWindowed)
+                    element:FireEvent("setIcon", isWindowed and "drawsteel/Icons_Nav_MaxWindow.png" or "drawsteel/Icons_Nav_MinWindow.png")
+                end,
+                create = function(element)
+                    element:FireEvent("setResizeIcon")
+                end,
                 click = function(element)
-                    dialogPanel:SetClass("windowed", not dialogPanel:HasClass("windowed"))
-                    g_journalWindowedSetting:Set(dialogPanel:HasClass("windowed"))
+                    g_journalWindowedSetting:Set(not g_journalWindowedSetting:Get())
+                    element:FireEvent("setResizeIcon")
                 end,
             },
 
-            gui.CloseButton {
-                width = 16,
-                height = 16,
+            gui.Button{
+                classes = {"closeButton", "sizeXs"},
                 valign = "center",
                 escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
                 press = function(element)
@@ -2602,6 +2787,13 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page)
     }
 
     g_pdfViewerDialog = dialogPanel
+
+    -- Activate the PDF page-navigation arrow keys for as long as this modal is up.
+    -- The matching PopCommandContext runs in the dialog's destroy handler above,
+    -- gated on this same per-element flag so the push/pop stay balanced.
+    EnsurePdfCommandBindings()
+    dialogPanel.data.pdfContextActive = true
+    dmhub.PushCommandContext(PDF_COMMAND_CONTEXT)
 
     gui.ShowModal(dialogPanel)
     GameHud.instance.modalPanel.interactable = false

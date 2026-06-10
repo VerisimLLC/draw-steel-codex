@@ -128,6 +128,7 @@ local function BuildCompanionSection()
 
     local m_callButton
     m_callButton = gui.Button{
+        id = "beastheart-call-btn",
         classes = {"sizeXxs", "collapsed"},
         vmargin = 0,
         hmargin = 4,

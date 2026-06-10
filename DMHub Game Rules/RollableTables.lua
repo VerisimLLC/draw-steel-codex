@@ -667,10 +667,8 @@ local SetData = function(tableName, rolltablePanel, key, options)
 					element:FireEventTree("setinputfocus")
 				end,
 			},
-			gui.AddButton{
-				classes = {"add-row-button"},
-				width = 16,
-				height = 16,
+			gui.Button{
+				classes = {"addButton", "sizeS", "add-row-button"},
 				valign = "center",
 				halign = "right",
 				click = function(element)
@@ -917,9 +915,8 @@ local SetData = function(tableName, rolltablePanel, key, options)
 							end,
 						},
 
-						gui.AddButton{
-							width = 16,
-							height = 16,
+						gui.Button{
+							classes = {"addButton", "sizeS"},
 							valign = "center",
 							halign = "right",
 							click = function(element)

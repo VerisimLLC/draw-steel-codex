@@ -43,9 +43,58 @@ setting{
 }
 
 setting{
+    id = "canopy:defaultradius",
+    description = "Default Canopy Cutaway Radius",
+    help = "Fallback cutaway radius (in tiles) used when a canopy-flagged object has no canopy layer above it. Set negative to disable the fallback cutaway.",
+    storage = "game",
+    section = "Map",
+    editor = "slider",
+    format = "F0",
+    default = 3,
+    min = -1,
+    max = 40,
+}
+
+setting{
+    id = "canopy:defaultfade",
+    description = "Default Canopy Cutaway Fade",
+    help = "Fallback cutaway fade width (in tiles) used when a canopy-flagged object has no canopy layer above it.",
+    storage = "game",
+    section = "Map",
+    editor = "slider",
+    format = "F1",
+    default = 1,
+    min = 0,
+    max = 2,
+}
+
+setting{
+    id = "canopy:defaultminopacity",
+    description = "Default Canopy Minimum Opacity",
+    help = "Fallback minimum opacity used when a canopy-flagged object has no canopy layer above it. 0 means fully transparent at the token.",
+    storage = "game",
+    section = "Map",
+    editor = "slider",
+    format = "F2",
+    default = 0,
+    min = 0,
+    max = 1,
+}
+
+setting{
     id = "usesystemcursor",
     description = "Use System Cursor",
     help = "When enabled, DMHub uses your operating system's default mouse cursor instead of custom themed cursors. Useful on macOS where the custom cursors can appear oversized on Retina displays.",
+    storage = "preference",
+    section = "General",
+    editor = "check",
+    default = false,
+}
+
+setting{
+    id = "p2p:forcewebsocketrelay",
+    description = "Force Server-Relayed Peer Connections",
+    help = "Routes all direct (peer-to-peer) traffic -- token drags, pings, live cursors -- through the game server over your existing connection instead of trying a direct UDP link to other players. Turn this on if peer connections never establish (e.g. a firewall, restrictive NAT, or ISP is blocking UDP). The app also switches to this automatically when it detects the peer link can't be reached, so you normally won't need to set it by hand. Only applies to games on the new server backend.",
     storage = "preference",
     section = "General",
     editor = "check",
@@ -2618,3 +2667,5 @@ setting{
         },
     },
 }
+
+dmhub.SetSettingValue("cloudblob:scheme", "r2")

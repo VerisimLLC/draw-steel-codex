@@ -125,6 +125,16 @@ function gui.IconEditor(args)
                         dmhub.OpenImageAssetURL(resultPanel.value)
                     end,
                 }
+
+                entries[#entries+1] = {
+                    text = "Copy Image ID",
+                    click = function()
+                        element.popup = nil
+                        if resultPanel.value ~= nil then
+                            dmhub.CopyToClipboard(resultPanel.value)
+                        end
+                    end,
+                }
             end
 
 			element.popup = gui.ContextMenu{
@@ -311,8 +321,8 @@ function gui.IconEditor(args)
 			flow = "horizontal",
 
 			children = {
-				gui.PagingArrow{
-					facing = -1,
+				gui.Button{
+					classes = {"pagingArrow"},
 					hmargin = 40,
 					refreshSearch = function(element)
 						element:SetClass("hidden", npage == 1)
@@ -379,8 +389,8 @@ function gui.IconEditor(args)
 					},
 				},
 
-				gui.PagingArrow{
-					facing = 1,
+				gui.Button{
+					classes = {"pagingArrow", "right"},
 					hmargin = 40,
 					refreshSearch = function(element)
 						element:SetClass("hidden", npage == GetNumPages())

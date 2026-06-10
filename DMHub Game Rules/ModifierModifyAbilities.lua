@@ -811,7 +811,7 @@ CharacterModifier.TypeInfo.modifyability = {
             children[#children+1] = gui.Check{
 				styles = ThemeEngine.GetStyles(),
                 text = "Apply to Triggered Abilities",
-                value = modifier:try_get("applyToTriggeredAbilities", true),
+                value = modifier:try_get("applyToTriggeredAbilities", false),
                 change = function(element)
                     modifier.applyToTriggeredAbilities = element.value
                     Refresh()
@@ -826,7 +826,7 @@ CharacterModifier.TypeInfo.modifyability = {
                 children[#children+1] = gui.Check{
                     styles = ThemeEngine.GetStyles(),
                     text = "Apply to Power Roll Triggers",
-                    value = modifier:try_get("applyToPowerRollTriggers", true),
+                    value = modifier:try_get("applyToPowerRollTriggers", false),
                     change = function(element)
                         modifier.applyToPowerRollTriggers = element.value
                         Refresh()
@@ -885,9 +885,8 @@ CharacterModifier.TypeInfo.modifyability = {
 							width = 400,
 							text = info.text,
 						},
-						gui.DeleteItemButton{
-							width = 16,
-							height = 16,
+						gui.Button{
+							classes = {"deleteButton", "sizeXs"},
 							valign = 'center',
 							halign = 'right',
 							click = function(element)
@@ -1126,10 +1125,9 @@ CharacterModifier.TypeInfo.modifyability = {
 										},
 									},
 
-									gui.DeleteItemButton{
+									gui.Button{
+										classes = {"deleteButton", "sizeS"},
 										halign = "right",
-										width = 16,
-										height = 16,
 										click = function(element)
 											table.remove(reasonedFilters, filterIndex)
 											Refresh()

@@ -332,8 +332,8 @@ function ActivatedAbilityReplenishBehavior:Cast(ability, casterToken, targets, o
                         width = "auto",
                         height = 160,
 
-                        gui.PagingArrow{
-                            facing = -1,
+                        gui.Button{
+                            classes = {"pagingArrow"},
                             height = "30%",
                             refreshResources = function(element)
                                 element:SetClass("hidden", resourceidToQuantity[resourceid] <= 0)
@@ -390,8 +390,8 @@ function ActivatedAbilityReplenishBehavior:Cast(ability, casterToken, targets, o
                             }
                         },
 
-                        gui.PagingArrow{
-                            facing = 1,
+                        gui.Button{
+                            classes = {"pagingArrow", "right"},
                             height = "30%",
                             refreshResources = function(element)
                                 element:SetClass("hidden", resourceidToQuantity[resourceid] >= quantity)
@@ -419,7 +419,8 @@ function ActivatedAbilityReplenishBehavior:Cast(ability, casterToken, targets, o
                         RecalculateResources()
                     end,
 
-                    gui.CloseButton{
+                    gui.Button{
+                        classes = {"closeButton"},
                         floating = true,
                         halign = "right",
                         valign = "top",
@@ -487,10 +488,10 @@ function ActivatedAbilityReplenishBehavior:Cast(ability, casterToken, targets, o
 
                         },
 
-                        gui.Divider{
+                        gui.MCDMDivider{
                         },
 
-                        gui.PrettyButton{
+                        gui.Button{
                             text = "Confirm",
                             click = function()
                                 finished = true
@@ -647,9 +648,8 @@ function ActivatedAbilityReplenishBehavior:EditorItems(parentPanel)
                         text = resourceInfo.name,
                     },
 
-                    gui.DeleteItemButton{
-                        width = 12,
-                        height = 12,
+                    gui.Button{
+                        classes = {"deleteButton", "sizeXs"},
                         click = function(element)
                             local options = self:try_get("resourceOptions", {})
                             table.remove(options, index)

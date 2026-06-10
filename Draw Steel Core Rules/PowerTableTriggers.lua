@@ -107,7 +107,7 @@ local function ComputeTriggerRange(modifier, creature)
         local m = modContext.mod
         if m.behavior == "modifyability"
             and m:try_get("filterAbility", "") == ""
-            and m:try_get("applyToPowerRollTriggers", true) then
+            and m:try_get("applyToPowerRollTriggers", false) then
             local pass = true
             for kw, _ in pairs(m:try_get("keywords", {})) do
                 if not triggerKeywords[kw] then
@@ -391,6 +391,20 @@ CharacterModifier.TypeInfo.powertabletrigger = {
         if self.trigger == "forcemove" or self.trigger == "forcemoved" then
             --check that the roll does some kind of forced movement.
             if not rollProperties:HasForcedMovement() then
+                return false
+            end
+        end
+
+        local abilityFilter = self:try_get("abilityFilter", "")
+        if abilityFilter ~= "" then
+            local filter = ExecuteGoblinScript(abilityFilter, token.properties:LookupSymbol{
+                caster = casterToken.properties,
+                target = targetToken.properties,
+                triggerer = token.properties,
+                ability = ability,
+                cast = symbols.cast,
+            }, 0)
+            if not GoblinScriptTrue(filter) then
                 return false
             end
         end
@@ -739,6 +753,67 @@ CharacterModifier.TypeInfo.powertabletrigger = {
 
             end
 
+            if modifier.trigger ~= "casting" then
+                children[#children+1] = gui.Panel{
+                    classes = {"formPanel"},
+                    gui.Label{
+                        classes = {"formLabel"},
+                        text = "Ability Filter:",
+                    },
+                    gui.GoblinScriptInput{
+                        value = modifier:try_get("abilityFilter", ""),
+                        change = function(element)
+                            modifier.abilityFilter = element.value
+                            Refresh()
+                        end,
+                        documentation = {
+                            domains = modifier:Domains(),
+                            help = "This GoblinScript is used to filter which abilities can fire this trigger. Leave blank to allow all abilities.",
+                            output = "boolean",
+                            examples = {
+                                {
+                                    script = 'Ability.Keywords has "Melee"',
+                                    text = "Only melee abilities can fire this trigger.",
+                                },
+                                {
+                                    script = 'Ability.Keywords has "Strike"',
+                                    text = "Only strikes can fire this trigger.",
+                                },
+                            },
+                            subject = creature.helpSymbols,
+                            subjectDescription = "The creature who the modifying trigger comes from.",
+                            symbols = {
+                                {
+                                    name = "Caster",
+                                    type = "creature",
+                                    desc = "The creature who is casting the ability.",
+                                },
+                                {
+                                    name = "Target",
+                                    type = "creature",
+                                    desc = "The target of the ability.",
+                                },
+                                {
+                                    name = "Triggerer",
+                                    type = "creature",
+                                    desc = "The creature who triggered the ability.",
+                                },
+                                {
+                                    name = "Ability",
+                                    type = "ability",
+                                    desc = "The ability being cast.",
+                                },
+                                {
+                                    name = "Cast",
+                                    type = "spellcast",
+                                    desc = "The cast context of the ability being cast.",
+                                },
+                            }
+                        }
+                    },
+                }
+            end
+
             if modifier.targetType ~= "self" then
 
                 children[#children+1] = gui.Panel{
@@ -845,12 +920,11 @@ CharacterModifier.TypeInfo.powertabletrigger = {
                     tmargin = 16,
                     width = "auto",
                     height = "auto",
-                    gui.DeleteItemButton{
+                    gui.Button{
+                        classes = {"deleteButton", "sizeXs"},
                         halign = "right",
                         valign = "center",
                         x = 30,
-                        width = 12,
-                        height = 12,
                         requireConfirm = true,
                         press = function()
                             local items = modifier:try_get("additionalCostModifiers", {})

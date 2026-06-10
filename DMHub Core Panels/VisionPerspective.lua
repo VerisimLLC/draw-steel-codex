@@ -37,6 +37,7 @@ dmhub.TokenVisionUpdated = function()
         end
 
         visionPerspectivePanel = gui.Panel{
+            styles = ThemeEngine.GetStyles(),
             classes = {"framedPanel"},
 
             halign = "left",
@@ -48,10 +49,6 @@ dmhub.TokenVisionUpdated = function()
             hmargin = 16,
 
             flow = "vertical",
-
-            styles = {
-                Styles.Panel,
-            },
 
             draggable = true,
             drag = function(element)
@@ -74,11 +71,10 @@ dmhub.TokenVisionUpdated = function()
                 end
             end,
 
-            gui.CloseButton{
+            gui.Button{
+                classes = {"closeButton", "sizeXs"},
                 halign = "right",
                 valign = "top",
-                width = 16,
-                height = 16,
                 floating = true,
                 escapeActivates = not loggedInAsTokens,
                 escapePriority = EscapePriority.EXIT_DIALOG,
@@ -106,7 +102,6 @@ dmhub.TokenVisionUpdated = function()
             },
 
             gui.Panel{
-                width = "90%",
                 width = "auto",
                 height = "auto",
                 flow = "horizontal",

@@ -93,16 +93,6 @@ local function buildStyles()
         priority = 3,
         halign = "left",
     }
-    -- The shared "More options" row in the Targeting stack (AbilityEditor.lua
-    -- ~line 563) uses halign="center" by default so the New Ability Editor
-    -- shows it as a centered fold-out. Inside the Triggered Ability Editor
-    -- we want it flush-left like every other Setup-section field row, per
-    -- 2026-04-24 design feedback. Scoped priority beats the base halign.
-    styles[#styles + 1] = {
-        selectors = {"nae-more-options-row"},
-        priority = 3,
-        halign = "left",
-    }
     -- Note: the classic TargetTypeEditor's abilityFilterPanel (DMHub Compendium
     -- ActivatedAbilityEditor.lua line ~1825) has no halign and no class hook,
     -- so its "Add Ability Filter" button still renders centered. Same story
@@ -764,7 +754,7 @@ end
 -- than miming a dropdown with modal behaviour. TriggeredAbility.Create
 -- always sets a default trigger id ("losehitpoints"), so the field never
 -- needs an empty state.
-local function makeTriggerEventButton(ability, refreshSection)
+local function makeTriggerEventButton(ability, refreshSection, fireChange)
     return gui.Panel{
         width = "auto",
         height = 30,
@@ -811,7 +801,12 @@ local function makeTriggerEventButton(ability, refreshSection)
                 click = function()
                     openTriggerEventPicker(ability.trigger, function(triggerId)
                         ability.trigger = triggerId
+                        -- refreshSection() rebuilds the Trigger section so the
+                        -- event label updates; fireChange() fires refreshAbility
+                        -- tree-wide so the Target Type dropdown in the Setup
+                        -- section recomputes its valid options for the new event.
                         refreshSection()
+                        if fireChange ~= nil then fireChange() end
                     end)
                 end,
             },
@@ -838,7 +833,7 @@ local function buildTriggerSection(ability, refreshSection, fireChange)
 
     -- Trigger Event -- categorized picker modal (phase 2).
     children[#children + 1] = fieldRow("Trigger Event",
-        makeTriggerEventButton(ability, refreshSection))
+        makeTriggerEventButton(ability, refreshSection, fireChange))
 
     -- Trigger Subject
     children[#children + 1] = fieldRow("Trigger Subject",
@@ -850,7 +845,10 @@ local function buildTriggerSection(ability, refreshSection, fireChange)
             idChosen = ability:try_get("subject", "self"),
             change = function(element)
                 ability.subject = element.idChosen
+                -- Subject also gates valid target types (e.g. "subject"),
+                -- so refresh the Setup section's Target dropdown tree-wide.
                 refreshSection()
+                if fireChange ~= nil then fireChange() end
             end,
         },
         "Who the editor is listening for the trigger event to occur on.")
@@ -2411,6 +2409,35 @@ local function buildMechanicalView(ability)
         subjectChip = "Never fires"
     end
     addRow("Subject", subjectId, subjectChip)
+
+    -- Target. The set of valid target types is gated by the trigger event
+    -- (and subject) via each TargetTypes entry's condition(). A target picked
+    -- for one event can therefore become invalid after the event is changed,
+    -- silently producing a trigger that targets nothing valid. Surface the
+    -- chosen target and warn (amber) when it is no longer valid for the event.
+    local chosenTargetId = ability:GetChosenTargetTypeInDropdown()
+    local validTargetOptions = ability:GetDisplayedTargetTypeOptions()
+    local targetLabel
+    local targetValid = false
+    for _, opt in ipairs(validTargetOptions) do
+        if opt.id == chosenTargetId then
+            targetLabel = opt.text
+            targetValid = true
+            break
+        end
+    end
+    if not targetValid then
+        -- Not valid for the current event: still describe what is selected by
+        -- scanning the unfiltered target-type list (condition ignored).
+        for _, opt in ipairs(ability.TargetTypes or {}) do
+            if opt.id == chosenTargetId then
+                targetLabel = opt.text
+                break
+            end
+        end
+    end
+    addRow("Target", targetLabel or chosenTargetId or "(unset)",
+        (not targetValid) and { text = "Invalid for event", class = "bgWarning" } or nil)
 
     -- Triggers When (condition). Two failure modes:
     --   * Compile error -- formula is malformed.
@@ -6093,9 +6120,7 @@ function openTestTriggerPopout(ability, initialState, reopen)
         valign = "center",
         -- Modal-layer escape priority so Esc closes the top-of-stack
         -- modal (this popout) rather than fighting with the editor's
-        -- own EXIT_MODAL_DIALOG handler. The deprecated gui.CloseButton's
-        -- default was EXIT_DIALOG which would never fire while a modal is
-        -- open; we set EXIT_MODAL_DIALOG explicitly here.
+        -- own EXIT_MODAL_DIALOG handler.
         escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
         press = function()
             if popoutRoot ~= nil and popoutRoot.valid then
@@ -6154,15 +6179,8 @@ function openTestTriggerPopout(ability, initialState, reopen)
                     valign = "center",
                     wrap = true,
                 },
-                gui.Panel{
-                    -- Mini dismiss X (reuses gui.CloseButton classes for
-                    -- the icon + hover styling without the modal-escape
-                    -- semantics; this is a banner-local action, not a
-                    -- dialog-level close).
-                    classes = { "close-button", "closeButton" },
-                    bgimage = "ui-icons/close.png",
-                    width = 14,
-                    height = 14,
+                gui.Button{
+                    classes = { "close-button", "closeButton", "sizeXs" },
                     halign = "right",
                     valign = "center",
                     press = function()

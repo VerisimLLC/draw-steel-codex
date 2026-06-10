@@ -301,8 +301,8 @@ function CharSheet.KitChoicePanel(options)
             }
         },
 
-        gui.PagingArrow{
-            facing = -1,
+        gui.Button{
+            classes = {"pagingArrow"},
             press = function(element)
                 if GetTargetIndex() > 1 then
                     SetTargetIndex(GetTargetIndex()-1)
@@ -348,8 +348,8 @@ function CharSheet.KitChoicePanel(options)
             },
         },
 
-        gui.PagingArrow{
-            facing = 1,
+        gui.Button{
+            classes = {"pagingArrow", "right"},
             press = function(element)
                 if GetTargetIndex() < #kitPanels then
                     SetTargetIndex(GetTargetIndex()+1)

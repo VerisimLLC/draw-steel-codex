@@ -36,7 +36,7 @@ end
 --- @return Panel
 function CBClassDetail._navPanel()
 
-    local changeButton = gui.PrettyButton{
+    local changeButton = gui.Button{
         classes = {"changeClass", "builder-base", "button", "selector", "destructive"},
         width = CBStyles.SIZES.CATEGORY_BUTTON_WIDTH,
         height = CBStyles.SIZES.CATEGORY_BUTTON_HEIGHT,
@@ -56,7 +56,7 @@ function CBClassDetail._navPanel()
         end,
     }
 
-    local selectButton = gui.PrettyButton{
+    local selectButton = gui.Button{
         classes = {"changeClass", "builder-base", "button", "selector"},
         width = CBStyles.SIZES.CATEGORY_BUTTON_WIDTH,
         height = CBStyles.SIZES.CATEGORY_BUTTON_HEIGHT,

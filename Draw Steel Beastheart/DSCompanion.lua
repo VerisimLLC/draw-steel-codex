@@ -173,6 +173,27 @@ function AnimalCompanion:CharacterLevel()
     return monster.CharacterLevel(self)
 end
 
+-- The GoblinScript symbol "Level" for monsters is backed by
+-- monster.lookupSymbols.level -> c:SpellcastingLevel() (see Monster.lua), which
+-- falls through to self.cr (always 1 on a companion stat block). Without this
+-- override the GoblinScript "Level" symbol on a companion always reads as 1,
+-- breaking any companion ability or modifier formula that scales on level
+-- (damage scaling, prereqs, level-gated rampage rows, etc.). Delegate to the
+-- summoner's CharacterLevel so the symbol follows the same summoner-aware path
+-- used by CharacterLevel(). The Lua-side monster:Level() helper also reads
+-- self.cr directly; override it too so any Lua callers stay consistent.
+function AnimalCompanion:SpellcastingLevel()
+    local summoner = self:SummonerToken()
+    if summoner ~= nil and summoner.properties ~= nil then
+        return summoner.properties:CharacterLevel()
+    end
+    return monster.SpellcastingLevel(self)
+end
+
+function AnimalCompanion:Level()
+    return self:CharacterLevel()
+end
+
 -- Free strikes for animal companions are derived (1 + Might modifier) per the
 -- Beastheart rules, so the character sheet displays them read-only and the
 -- monster-side stored opportunityAttack string is ignored for companions.
@@ -295,27 +316,16 @@ function AnimalCompanion:FillTemporalActiveModifiers(result)
     end
 end
 
--- Mirror of modifyCompanion in the opposite direction: any modifier on the
--- companion whose behavior implements modifySummoner contributes modifiers
--- back onto the beastheart. Used by traits like the bear's Strong Like Bear,
--- whose stat-block "you" refers to the beastheart per the Companion rules.
--- The recursion guard inside creature:GetActiveModifiers
--- (_tmp_calculatingActiveModifiers) breaks the cycle when each side asks the
--- other for modifiers mid-calculation.
-local g_characterFillTemporalActiveModifiersBase = character.FillTemporalActiveModifiers
-function character:FillTemporalActiveModifiers(result)
-    g_characterFillTemporalActiveModifiersBase(self, result)
-
-    if mod.unloaded then return end
-
-    local companionToken = self:GetCompanionToken()
-    if companionToken == nil then return end
-
-    local companionCreature = companionToken.properties
-    for _,companionMod in ipairs(companionCreature:GetActiveModifiers()) do
-        companionMod.mod:FillSummonerModifiers(companionMod, companionCreature, self, result)
-    end
-end
+-- The mirror direction -- companion -> summoner via modsummoner -- is
+-- dispatched generically for ALL creature types from
+-- creature:FillTemporalActiveModifiers in DMHub Game Rules/Creature.lua. That
+-- hook scans dmhub.GetTokens() for any token whose summonerid points at this
+-- creature's token (so it picks up the beastheart's companion via the
+-- summonerid set in DSBeastheart.lua, plus any other summon created via
+-- AbilitySummon, AbilityCompanion, or table-roll summons). The recursion guard
+-- inside creature:GetActiveModifiers (_tmp_calculatingActiveModifiers) breaks
+-- the cycle when summoner and summon ask each other for modifiers
+-- mid-calculation.
 
 function AnimalCompanion:RefreshToken(token)
     monster.RefreshToken(self, token)

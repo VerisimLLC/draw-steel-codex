@@ -10,38 +10,12 @@ local g_settingTargetObjects = setting {
     storage = "preference",
 }
 
-local g_hoverableGradient = gui.Gradient {
-    point_a = { x = 0, y = 0 },
-    point_b = { x = 1, y = 1 },
-    stops = {
-        {
-            position = 0,
-            color = Styles.backgroundColor,
-        },
-        {
-            position = 12,
-            color = Styles.textColor,
-        },
-    },
-}
-
-local g_highlightGradient = gui.Gradient {
-    point_a = { x = 0, y = 0 },
-    point_b = { x = 1, y = 1 },
-    stops = {
-        {
-            position = 0,
-            color = Styles.backgroundColor,
-        },
-        {
-            position = 4,
-            color = Styles.textColor,
-        },
-    },
-}
-
+-- Custom rules for the spellInfo / roll-dialog panel. Plain rule tables (NOT
+-- gui.Style objects) because they are routed through ThemeEngine.MergeStyles,
+-- which iterates each rule with pairs() to resolve @tokens. All colors use
+-- scheme @tokens so the panel tracks the active color scheme.
 SpellRenderStyles = {
-    gui.Style {
+    {
         selectors = "#spellInfo",
         width = "100%",
         height = 'auto',
@@ -49,37 +23,34 @@ SpellRenderStyles = {
         halign = 'left',
         valign = 'center',
     },
-    gui.Style {
+    {
         selectors = { "hoverable", "#spellInfo" },
-        bgcolor = "white",
-        gradient = g_hoverableGradient,
+        bgcolor = "@bgAlt",
     },
-    gui.Style {
+    {
         selectors = { "hoverable", "hovered", "#spellInfo" },
-        gradient = g_highlightGradient,
+        brightness = 1.5,
         transitionTime = 0.2,
     },
 
-    gui.Style {
+    {
         selectors = { "heading", "hovered" },
         brightness = 3,
     },
 
-    gui.Style {
+    {
         classes = { "label" },
         fontSize = 14,
-        color = 'white',
+        color = '@fg',
         width = '100%',
-        textAlignment = "left",
         height = 'auto',
         halign = 'left',
-
         textAlignment = 'left',
     },
 
-    gui.Style {
+    {
         classes = { "label", "#spellName" },
-        color = 'white',
+        color = '@fg',
         bgimage = "panels/square.png",
         bgcolor = "clear",
         fontSize = 14,
@@ -92,18 +63,18 @@ SpellRenderStyles = {
         fontWeight = "black",
     },
 
-    gui.Style {
+    {
         classes = { "subheading" },
-        color = '#bb6666',
+        color = '@danger',
         fontSize = 24,
         bold = true,
     },
 
-    gui.Style {
+    {
         classes = { "label", "#spellSummary" },
 
         italics = true,
-        color = 'white',
+        color = '@fgMuted',
         fontSize = 12,
         width = 'auto',
         height = 'auto',
@@ -111,111 +82,164 @@ SpellRenderStyles = {
         valign = 'top',
     },
 
-    gui.Style {
+    {
         classes = { "divider" },
 
         bgimage = 'panels/square.png',
-        bgcolor = '#666666',
-        halign = "left",
+        bgcolor = '@border',
         width = '100%',
         height = 1,
         halign = 'center',
         valign = 'top',
         vmargin = 4,
     },
-    gui.Style {
+    {
         classes = { "description" },
-        color = 'white',
+        color = '@fg',
         width = '96%',
     },
-    gui.Style {
+    {
         classes = { "label", "highlight" },
-        color = 'black',
+        color = '@fgInverse',
     },
-    gui.Style {
+    {
         classes = { "abilitySection" },
         bgimage = true,
         bgcolor = "clear",
     },
-    gui.Style {
+    {
         classes = { "abilitySection", "highlight" },
-        bgcolor = Styles.Gold03,
-        color = "black",
+        bgcolor = "@accent",
+        color = "@fgInverse",
+    },
+
+    -- Decorative accent line: border tint with an alpha falloff gradient.
+    {
+        selectors = { "fadeLine" },
+        bgcolor = "@border",
+    },
+
+    -- MCDM tab graphics: tab background tinted to the scheme accent. NOTE the
+    -- tab art (TabBGImage) is a gold-baked PNG, so the accent tint multiplies
+    -- rather than cleanly recolors; a white-silhouette asset would tint cleanly.
+    {
+        selectors = { "goldTab" },
+        bgcolor = "@accent",
+    },
+    {
+        selectors = { "goldTabLabel" },
+        color = "@fgInverse",
     },
 
     -- Implementation chip styles
-    gui.Style {
+    {
         classes = { "implementationChip" },
         height = "auto",
         width = "auto",
         lmargin = 3,
         fontSize = 14,
         bgimage = "panels/square.png",
-        --borderColor = "blue",
         bgcolor = "clear",
         bold = false,
-        --border = 1,
-        --cornerRadius = 2,
-        color = "black",
+        color = "@fg",
         valign = "top",
     },
-    gui.Style {
+    {
         classes = { "implementationChip", "wontimplement" },
-        --bgcolor = Styles.ImplementationStatusColors[0],
-        color = Styles.ImplementationStatusColors[0],
+        color = "@implStatus0",
     },
-    gui.Style {
+    {
         classes = { "implementationChip", "unimplemented" },
-        --bgcolor = Styles.ImplementationStatusColors[1],
-        color = Styles.ImplementationStatusColors[1],
+        color = "@implStatus1",
     },
-    gui.Style {
+    {
         classes = { "implementationChip", "bronze" },
-        --bgcolor = Styles.ImplementationStatusColors[2],
-        color = Styles.ImplementationStatusColors[2],
+        color = "@implStatus2",
     },
-    gui.Style {
+    {
         classes = { "implementationChip", "silver" },
-        --bgcolor = Styles.ImplementationStatusColors[3],
-        color = Styles.ImplementationStatusColors[3],
+        color = "@implStatus3",
     },
-    gui.Style {
+    {
         classes = { "implementationChip", "gold" },
-        --bgcolor = Styles.ImplementationStatusColors[4],
-        color = Styles.ImplementationStatusColors[4],
+        color = "@implStatus4",
     },
-    gui.Style {
+    {
         classes = { "implementationDiamond", "wontimplemented" },
-        bgcolor = Styles.ImplementationStatusColors[0],
-
+        bgcolor = "@implStatus0",
     },
-    gui.Style {
+    {
         classes = { "implementationDiamond", "unimplemented" },
-        bgcolor = Styles.ImplementationStatusColors[1],
-
+        bgcolor = "@implStatus1",
     },
-    gui.Style {
+    {
         classes = { "implementationDiamond", "bronze" },
-        bgcolor = Styles.ImplementationStatusColors[2],
-
+        bgcolor = "@implStatus2",
     },
-    gui.Style {
+    {
         classes = { "implementationDiamond", "silver" },
-        bgcolor = Styles.ImplementationStatusColors[3],
-
+        bgcolor = "@implStatus3",
     },
-    gui.Style {
+    {
         classes = { "implementationDiamond", "gold" },
-        bgcolor = Styles.ImplementationStatusColors[4],
-
+        bgcolor = "@implStatus4",
     },
 
 }
 
+-- Themed style rules for the ability-improvement pills (routed through
+-- ThemeEngine.MergeStyles at render time so they track the active scheme).
+local g_improvementPillStyles = {
+    {
+        selectors = { "improvementPill" },
+        borderColor = "@border",
+        borderWidth = 2,
+        cornerRadius = 5,
+        width = "auto",
+        height = "auto",
+        pad = 4,
+        flow = "horizontal",
+        bgimage = true,
+        bgcolor = "@bgAlt",
+        tmargin = 4,
+    },
+    {
+        selectors = { "improvementPill", "~selected" },
+        borderColor = "@borderInverse",
+    },
+    {
+        selectors = { "improvementLabel" },
+        opacity = 0.95,
+        color = "@fg",
+        fontSize = 16,
+        width = "auto",
+        height = "auto",
+        valign = "center",
+    },
+    {
+        selectors = { "improvementLabel", "~selected" },
+        color = "@fgMuted",
+    },
+    {
+        selectors = { "improvementLabel", "unaffordable", "selected" },
+        color = "@danger",
+    },
+    {
+        selectors = { "improvementLabel", "parent:hover" },
+        brightness = 1.5,
+    },
+    {
+        selectors = { "improvementPill", "hover" },
+        brightness = 1.5,
+    },
+}
+
+-- Semantic damage-type tints, resolved through ThemeEngine.ResolveTokens at the
+-- markup site so they follow the active color scheme.
 local g_damageTypeColors = {
-    sonic = "#ff0088",
-    fire = "#ff8888",
-    lightning = "#ff8800",
+    sonic = "@info",
+    fire = "@danger",
+    lightning = "@warning",
 }
 
 ActivatedAbility.KeywordRemappings = {
@@ -610,10 +634,268 @@ function ActivatedAbility:Render(options, params)
         end
     end
 
+    -- Apply active Modify Power Roll modifiers to a deep copy of the power-table
+    -- tiers for display purposes. Each tier is fully pre-evaluated first
+    -- (damage expressions, potency markers, GoblinScript) so that the regexes
+    -- inside modifyRollProperties can match plain numeric values. Characteristic
+    -- and potency notes plus one note per applicable modifier are appended to the
+    -- optional `notes` table. Resistance rolls and cases with no token are
+    -- returned unmodified.
+    local function applyModsToTiers(ptBehavior, notes)
+        if creatureProperties == nil or ptBehavior:try_get("resistanceRoll", false) then
+            return ptBehavior.tiers
+        end
+        -- Fully evaluate each tier (damage expressions, potency markers, GoblinScript)
+        -- so that modifyRollProperties regexes can match plain numeric values.
+        -- Characteristic and potency notes are collected into the notes table here;
+        -- the caller's subsequent DisplayRuleTextForCreature pass is then a no-op.
+        local normalizedTiers = {}
+        for i, t in ipairs(ptBehavior.tiers) do
+            normalizedTiers[i] = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(creatureProperties, t, notes, true)
+        end
+        -- Snapshot pre-modifier tier text for diff highlighting later.
+        local originalTiers = {}
+        for i, t in ipairs(normalizedTiers) do
+            originalTiers[i] = t
+        end
+        local rollProperties = RollPropertiesPowerTable.new{
+            tiers = normalizedTiers,
+        }
+        -- Pre-compute what the ability's tiers contain so note parts can be
+        -- filtered to only show information relevant to this ability.
+        -- hasDamage: any normalized tier contains the word "damage".
+        -- hasPotency: any raw tier contains a potency gate (" < ").
+        -- tiersDamageTypes: set of specific damage type words present in tiers.
+        local tiersAllText = table.concat(normalizedTiers, " "):lower()
+        local hasDamage = tiersAllText:find("damage") ~= nil
+        local hasPotency = false
+        for _, t in ipairs(ptBehavior.tiers) do
+            if t:find(" < ") then hasPotency = true break end
+        end
+        local tiersDamageTypes = {}
+        for damageType in tiersAllText:gmatch("(%a+)%s+damage") do
+            tiersDamageTypes[damageType] = true
+        end
+
+        -- A minimal "null target" object: GenerateSymbols returns a non-nil
+        -- function from it, which prevents AppendSymbols from substituting any
+        -- stale target left in _tmp_symbols from a previous real roll.
+        local nullTarget = {lookupSymbols = {}}
+        local function tryApply(modifier, modContext)
+            -- Skip modifiers whose activation condition references the target.
+            -- Without a real target we cannot evaluate target-relative conditions
+            -- (e.g. High Ground, Hidden, Flanking) and the null-target defaults
+            -- produce false positives.
+            local ac = modifier:try_get("activationCondition", false)
+            if type(ac) == "string" and ac:lower():find("target") then
+                return
+            end
+            -- Skip modifiers with a Roll Requirement (edge, bane, surges, etc.)
+            -- since we have no roll info at display time.
+            if modifier:try_get("rollRequirement", "none") ~= "none" then
+                return
+            end
+            -- Check displayCondition first (cheaper gate, avoids evaluating
+            -- activationCondition when the modifier should not be shown at all).
+            local rollOptions = {
+                ability = self,
+                caster = creatureProperties,
+                target = nullTarget,
+            }
+            if not modifier:ShouldShowInPowerRollDialog(modContext, creatureProperties, "ability_power_roll", rollOptions) then
+                return
+            end
+            local hint = modifier:HintModifyPowerRolls(modContext, creatureProperties, "ability_power_roll", rollOptions)
+            if hint == nil or not hint.result then
+                return
+            end
+            modifier:ModifyRollProperties(modContext, creatureProperties, rollProperties, nil)
+            -- Build a note describing what this modifier does.
+            if notes ~= nil then
+                local noteParts = {}
+                local lookupFn = creatureProperties:LookupSymbol(modifier:AppendSymbols{
+                    triggerer = nil,
+                    target = GenerateSymbols(nullTarget),
+                })
+                local damageModifier = modifier:try_get("damageModifier", "")
+                if damageModifier ~= "" and hasDamage then
+                    local dmgVal = safe_toint(dmhub.EvalGoblinScript(damageModifier, lookupFn, "Power Roll Damage display"))
+                    if dmgVal ~= nil and dmgVal ~= 0 then
+                        dmgVal = round(dmgVal)
+                        local damageModifierType = modifier:try_get("damageModifierType", "none")
+                        if damageModifierType ~= "none" then
+                            noteParts[#noteParts+1] = string.format("%s%d %s damage", dmgVal > 0 and "+" or "", dmgVal, damageModifierType)
+                        else
+                            noteParts[#noteParts+1] = string.format("%s%d damage", dmgVal > 0 and "+" or "", dmgVal)
+                        end
+                    end
+                end
+                if hasPotency then
+                    local potencymod = tonumber(modifier:try_get("potencymod", "none"))
+                    if potencymod ~= nil and potencymod ~= 0 then
+                        noteParts[#noteParts+1] = string.format("%s%d potency", potencymod > 0 and "+" or "", potencymod)
+                    end
+                end
+                local damageTypeMappings = modifier:try_get("damageTypeMappings")
+                if damageTypeMappings ~= nil and hasDamage then
+                    if damageTypeMappings["all"] ~= nil then
+                        noteParts[#noteParts+1] = string.format("all damage becomes %s", damageTypeMappings["all"])
+                    else
+                        for k, v in sorted_pairs(damageTypeMappings) do
+                            if tiersDamageTypes[k:lower()] then
+                                noteParts[#noteParts+1] = string.format("%s damage becomes %s", k, v)
+                            end
+                        end
+                    end
+                end
+                local replacePattern = trim(modifier:try_get("replacePattern", ""))
+                local replaceWith = trim(modifier:try_get("replaceText", ""))
+                if replacePattern ~= "" and replaceWith ~= "" then
+                    -- Use tiersAllText (a pre-modification string snapshot) so the
+                    -- search is not defeated by the replacement having already run.
+                    if tiersAllText:find(replacePattern:lower(), 1, true) then
+                        local dest = StringInterpolateGoblinScript(replaceWith, lookupFn)
+                        local t1, t2, t3 = dest:match("^(.-)%s*//%s*(.-)%s*//%s*(.-)%s*$")
+                        local destStr
+                        if t1 ~= nil then
+                            local function ts(t) return trim(t) ~= "" and ('"' .. trim(t) .. '"') or "-" end
+                            destStr = string.format("%s/%s/%s", ts(t1), ts(t2), ts(t3))
+                        else
+                            destStr = '"' .. dest .. '"'
+                        end
+                        noteParts[#noteParts+1] = string.format('"%s" -> %s', replacePattern, destStr)
+                    end
+                end
+                local addText = trim(modifier:try_get("addText", ""))
+                if addText ~= "" then
+                    local interpolated = StringInterpolateGoblinScript(addText, lookupFn)
+                    -- Split "A // B // C" tier notation; fall back to the raw text for N/N/N numeric format.
+                    local t1, t2, t3 = interpolated:match("^(.-)%s*//%s*(.-)%s*//%s*(.-)%s*$")
+                    local tierNote
+                    if t1 ~= nil then
+                        local function tierStr(t) return trim(t) ~= "" and ('"' .. trim(t) .. '"') or "-" end
+                        tierNote = string.format("adds: %s/%s/%s", tierStr(t1), tierStr(t2), tierStr(t3))
+                    else
+                        tierNote = "adds: " .. interpolated
+                    end
+                    noteParts[#noteParts+1] = tierNote
+                end
+                for _, adjustment in ipairs(modifier:try_get("adjustments", {})) do
+                    local adjType = adjustment.type or ""
+                    if adjType ~= "" and tiersAllText:find(adjType, 1, true) then
+                        local adjVal = safe_toint(dmhub.EvalGoblinScript(tostring(adjustment.value or 1), lookupFn, "Adjustment display"))
+                        if adjVal ~= nil and adjVal ~= 0 then
+                            noteParts[#noteParts+1] = string.format("%s%d %s", adjVal > 0 and "+" or "", adjVal, adjType)
+                        end
+                    end
+                end
+                local rfm = modifier:try_get("replaceForcedMovement")
+                if rfm ~= nil and rfm.from ~= nil and rfm.to ~= nil then
+                    if rfm.from == "any" then
+                        local presentTypes = {}
+                        for _, mt in ipairs({"push", "pull", "slide"}) do
+                            if tiersAllText:find(mt, 1, true) then
+                                presentTypes[#presentTypes+1] = mt
+                            end
+                        end
+                        if #presentTypes > 0 then
+                            noteParts[#noteParts+1] = string.format("%s -> %s", table.concat(presentTypes, "/"), rfm.to)
+                        end
+                    elseif tiersAllText:find(rfm.from, 1, true) then
+                        noteParts[#noteParts+1] = string.format("%s -> %s", rfm.from, rfm.to)
+                    end
+                end
+                local modtype = modifier:try_get("modtype", "none")
+                if modtype ~= "none" then
+                    local modTypeInfo = ActivatedAbilityPowerRollBehavior.s_modificationTypesById[modtype]
+                    if modTypeInfo ~= nil and not modTypeInfo.hideText then
+                        local rollModText
+                        if modTypeInfo.mod:match("^[+-]%d+$") then
+                            rollModText = modTypeInfo.mod .. " to roll"
+                        elseif modTypeInfo.mod:match("edge") or modTypeInfo.mod:match("bane") then
+                            rollModText = modTypeInfo.text .. " on roll"
+                        else
+                            rollModText = modTypeInfo.text
+                        end
+                        noteParts[#noteParts+1] = rollModText
+                    end
+                end
+                if #noteParts > 0 then
+                    notes[#notes+1] = string.format("%s: %s", modifier.name, table.concat(noteParts, ", "))
+                end
+            end
+        end
+        -- Modifiers from features, ongoing effects, auras, etc.
+        for _, mod in ipairs(creatureProperties:GetActiveModifiers()) do
+            tryApply(mod.mod, mod)
+        end
+        -- Modifiers embedded directly in this ability's own behaviors.
+        for _, behavior in ipairs(self.behaviors) do
+            if behavior.typeName == "ActivatedAbilityModifyPowerRollBehavior"
+                    and behavior:IsFiltered(self, params.token, params) == false then
+                local filterCond = trim(behavior.modifier:try_get("filterCondition", ""))
+                if filterCond == "" or dmhub.EvalGoblinScript(filterCond, creatureProperties:LookupSymbol(), "Filter condition for power roll display") then
+                    tryApply(behavior.modifier, {mod = behavior.modifier})
+                end
+            end
+        end
+        -- Colorize changed portions of each tier using a character-level diff
+        -- with word-boundary snapping.
+        local accentHex = nil
+        local function isAlnum(b)
+            return (b >= 48 and b <= 57) or (b >= 65 and b <= 90) or (b >= 97 and b <= 122)
+        end
+        for i = 1, #normalizedTiers do
+            local orig = originalTiers[i]
+            local modified = normalizedTiers[i]
+            if orig ~= modified then
+                if accentHex == nil then
+                    accentHex = ThemeEngine.ResolveTokens("@accent")
+                end
+                -- Find first differing character, then snap back to the start
+                -- of the current word so tokens are never split mid-character.
+                -- e.g. "1 damage" -> "11 damage": firstDiff=2, but "1" is
+                -- alphanumeric so we snap back to 1, highlighting the full "11".
+                local firstDiff = 1
+                local minLen = math.min(#orig, #modified)
+                while firstDiff <= minLen and orig:byte(firstDiff) == modified:byte(firstDiff) do
+                    firstDiff = firstDiff + 1
+                end
+                while firstDiff > 1 and isAlnum(modified:byte(firstDiff - 1)) do
+                    firstDiff = firstDiff - 1
+                end
+                -- Only trim a common suffix when there is a substantial shared
+                -- prefix (firstDiff >= 4). Without this, strings that diverge
+                -- early (e.g. "Push 1" -> "slide 2; Shift 1") would have their
+                -- trailing coincidental suffix ("1") excluded from the highlight.
+                local modEnd = #modified
+                if firstDiff >= 4 then
+                    local origEnd = #orig
+                    while origEnd >= firstDiff and modEnd >= firstDiff
+                          and orig:byte(origEnd) == modified:byte(modEnd) do
+                        origEnd = origEnd - 1
+                        modEnd = modEnd - 1
+                    end
+                    -- Snap modEnd forward to end of current word.
+                    while modEnd < #modified and isAlnum(modified:byte(modEnd + 1)) do
+                        modEnd = modEnd + 1
+                    end
+                end
+                normalizedTiers[i] = modified:sub(1, firstDiff - 1)
+                    .. string.format("<color=%s>", accentHex)
+                    .. modified:sub(firstDiff, modEnd)
+                    .. "</color>"
+                    .. modified:sub(modEnd + 1)
+            end
+        end
+        return rollProperties.tiers
+    end
+
     local powerRollLabel = nil
     local powerRollTable = nil
 
     local rulesNotes = {}
+    local displayTiers = powerTableBehavior ~= nil and applyModsToTiers(powerTableBehavior, rulesNotes) or nil
 
     if powerTableBehavior ~= nil then
         local c = nil
@@ -665,7 +947,7 @@ function ActivatedAbility:Render(options, params)
 
         local rows = {}
 
-        for i, entry in ipairs(powerTableBehavior.tiers) do
+        for i, entry in ipairs(displayTiers) do
             rows[#rows + 1] = gui.TableRow {
                 width = "100%",
                 height = "auto",
@@ -708,7 +990,7 @@ function ActivatedAbility:Render(options, params)
             roll = string.format("%s %s", roll, attackBehavior.damageType)
         end
 
-        local damageColor = g_damageTypeColors[attackBehavior.damageType] or "#ffffff"
+        local damageColor = ThemeEngine.ResolveTokens(g_damageTypeColors[attackBehavior.damageType] or "@fg")
 
         local triangleBlack = nil
         if not string.find(roll, "2d6") then
@@ -750,13 +1032,12 @@ function ActivatedAbility:Render(options, params)
         local cost = self:GetCost(params.token)
         if cost.outOfAmmo then
             tokenDependentChildren[#tokenDependentChildren + 1] = gui.Label {
-                color = "#ffaaaa",
+                classes = { "danger" },
                 text = "Out of Ammo",
             }
         end
 
         if cost.moveCost ~= nil then
-            local labelColor = cond(cost.cannotMove, "#ffaaaa", "#aaaaaa")
             local text = string.format("Consumes %s %s of movement",
                 MeasurementSystem.NativeToDisplayString(cost.moveCost), MeasurementSystem.Abbrev())
             if params.token.properties:CurrentMovementSpeed() <= 0 then
@@ -764,7 +1045,7 @@ function ActivatedAbility:Render(options, params)
             end
 
             tokenDependentChildren[#tokenDependentChildren + 1] = gui.Label {
-                color = labelColor,
+                classes = { cond(cost.cannotMove, "danger", nil) },
                 text = text,
             }
         end
@@ -816,11 +1097,15 @@ function ActivatedAbility:Render(options, params)
             end
         end
 
+        local hasDamageDisplay = displayTiers ~= nil and table.concat(displayTiers, " "):lower():find("damage") ~= nil
         for _, entry in ipairs(self:try_get("modificationLog", {})) do
-            tokenDependentChildren[#tokenDependentChildren + 1] = gui.Label {
-                text = entry,
-                color = "#aaaaff",
-            }
+            -- Skip kit damage notes on abilities that have no rolled damage.
+            if not entry:lower():find("damage") or hasDamageDisplay then
+                tokenDependentChildren[#tokenDependentChildren + 1] = gui.Label {
+                    text = entry,
+                    color = ThemeEngine.ResolveTokens("@accent"),
+                }
+            end
         end
 
         local seenRules = {}
@@ -829,7 +1114,7 @@ function ActivatedAbility:Render(options, params)
                 seenRules[entry] = true
                 tokenDependentChildren[#tokenDependentChildren + 1] = gui.Label {
                     text = entry,
-                    color = "#aaaaff",
+                    color = ThemeEngine.ResolveTokens("@accent"),
                 }
             end
         end
@@ -857,29 +1142,13 @@ function ActivatedAbility:Render(options, params)
     end
 
     if self:try_get("modifyDescriptions") ~= nil then
+        local infoHex = ThemeEngine.ResolveTokens("@info")
         for _, desc in ipairs(self.modifyDescriptions) do
-            description = string.format("%s\n<color=#aaaaff>%s</color>", description, desc)
+            description = string.format("%s\n<color=%s>%s</color>", description, infoHex, desc)
         end
     end
 
     local costText = ""
-
-    local headingColor = "#843030"
-
-
-
-    if params.token ~= nil and params.token.properties ~= nil then
-        local knownRefreshTypes = { rest = true, encounter = true, day = true }
-        --look for a cost with a description, this means an ability that has a specific limit per refresh type.
-        local costInfo = self:GetCost(params.token)
-        for i, entry in ipairs(costInfo.details) do
-            if entry.description ~= nil and knownRefreshTypes[entry.refreshType] then
-                --costText is disabled for now. We show recharge instead.
-                --costText = string.format(" [%s/%s]", tostring(entry.maxCharges), entry.refreshType)
-                headingColor = "#5e4a43"
-            end
-        end
-    end
 
     local resourceTable = dmhub.GetTable(CharacterResource.tableName)
 
@@ -918,10 +1187,6 @@ function ActivatedAbility:Render(options, params)
         actionText = "Free"
     else
         actionText = resourceInfo.name
-    end
-
-    if actionText == "Maneuver" then
-        headingColor = "#303084"
     end
 
 
@@ -1040,7 +1305,6 @@ function ActivatedAbility:Render(options, params)
         powerRollQueenPanel = gui.Panel {
 
             bgimage = true,
-            bgcolor = "blue",
             width = "100%",
             height = "auto",
             tmargin = 5,
@@ -1076,7 +1340,7 @@ function ActivatedAbility:Render(options, params)
 
                     width = "80%",
                     height = "auto",
-                    text = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(creatureProperties, powerTableBehavior.tiers[1], {}, self:try_get("implementation", 1) >= gui.ImplementationStatus.Bronze),
+                    text = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(creatureProperties, displayTiers[1], {}, self:try_get("implementation", 1) >= gui.ImplementationStatus.Bronze),
                     fontSize = 16,
                     halign = "left",
                     valign = "center",
@@ -1119,7 +1383,7 @@ function ActivatedAbility:Render(options, params)
 
                     width = "80%",
                     height = "auto",
-                    text = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(creatureProperties, powerTableBehavior.tiers[2], {}, self:try_get("implementation", 1) >= gui.ImplementationStatus.Bronze),
+                    text = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(creatureProperties, displayTiers[2], {}, self:try_get("implementation", 1) >= gui.ImplementationStatus.Bronze),
                     fontSize = 16,
                     halign = "left",
                     valign = "center",
@@ -1159,7 +1423,7 @@ function ActivatedAbility:Render(options, params)
 
                     width = "80%",
                     height = "auto",
-                    text = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(creatureProperties, powerTableBehavior.tiers[3], {}, self:try_get("implementation", 1) >= gui.ImplementationStatus.Bronze),
+                    text = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(creatureProperties, displayTiers[3], {}, self:try_get("implementation", 1) >= gui.ImplementationStatus.Bronze),
                     fontSize = 16,
                     halign = "left",
                     valign = "center",
@@ -1203,8 +1467,9 @@ function ActivatedAbility:Render(options, params)
     end
 
     if self:has_key("modifyDescriptions") then
+        local infoHex = ThemeEngine.ResolveTokens("@info")
         for _, desc in ipairs(self.modifyDescriptions) do
-            descriptionString = string.format("%s\n<color=#aaaaff>%s</color>", descriptionString, desc)
+            descriptionString = string.format("%s\n<color=%s>%s</color>", descriptionString, infoHex, desc)
         end
     end
 
@@ -1221,10 +1486,9 @@ function ActivatedAbility:Render(options, params)
     if suppressMessage ~= nil then
         suppressPanel = gui.Label {
             bgimage = true,
-            bgcolor = "#C73131", --forbidden color.
+            classes = { "bgDanger" },
             width = "100%",
             height = "auto",
-            color = "white",
             fontSize = 14,
             hpad = 16,
             vpad = 4,
@@ -1235,7 +1499,7 @@ function ActivatedAbility:Render(options, params)
     --king panel
     local args = {
         id = 'spellInfo',
-        styles = SpellRenderStyles,
+        styles = ThemeEngine.MergeStyles(SpellRenderStyles),
         hpad = 0,
         vpad = 0,
 
@@ -1301,7 +1565,6 @@ function ActivatedAbility:Render(options, params)
                             fontSize = 24,
                             fontFace = "Newzald",
                             fontWeight = "Light",
-                            color = "white",
                             text = string.format("<b>%s</b>%s <size=18>%s</size>", self.name, meleeOrRangedVariantText, costString),
                             height = "auto",
                             markdown = true,
@@ -1317,7 +1580,7 @@ function ActivatedAbility:Render(options, params)
                             gui.Label {
 
                                 text = string.format("<b>%s</b>", self:AbilityTypeDescription()),
-                                color = "red",
+                                classes = { "danger" },
                                 textAlignment = "left",
                                 width = "auto",
                                 height = "auto",
@@ -1436,7 +1699,6 @@ function ActivatedAbility:Render(options, params)
 
                 text = string.format("<i>%s</i>", self:try_get("flavor", "")),
                 textAlignment = "left",
-                color = "#CBCCCA",
                 width = "100%",
                 height = "auto",
                 bgimage = true,
@@ -1448,9 +1710,9 @@ function ActivatedAbility:Render(options, params)
             --divider line between top and bottom info
             gui.Panel {
 
+                classes = { "divider" },
                 tmargin = 8,
                 bgimage = true,
-                bgcolor = "#CBCCCA",
                 opacity = 1,
                 width = "100%",
                 height = 1.5,
@@ -1538,7 +1800,7 @@ function ActivatedAbility:Render(options, params)
                         }
                     },
 
-                    classes = { "tab" },
+                    classes = { "tab", "goldTab" },
                     x = -46,
                     floating = true,
                     valign = "top",
@@ -1546,10 +1808,9 @@ function ActivatedAbility:Render(options, params)
                     height = 136 * 0.8,
                     width = 33 * 0.8,
                     bgimage = ActivatedAbility.TabBGImage(),
-                    bgcolor = Styles.Gold03,
 
                     gui.Label {
-                        color = "black",
+                        classes = { "goldTabLabel" },
                         width = "auto",
                         height = "auto",
                         fontSize = 22,
@@ -1672,50 +1933,7 @@ function ActivatedAbility:Render(options, params)
                         local m_value = capturedEntry.checked
                         local pillPanel
                         pillPanel = gui.Panel{
-                            styles = {
-                                gui.Style{
-                                    classes = {"improvementPill"},
-                                    borderColor = Styles.Gold04,
-                                    borderWidth = 2,
-                                    cornerRadius = 5,
-                                    width = "auto",
-                                    height = "auto",
-                                    pad = 4,
-                                    flow = "horizontal",
-                                    bgimage = true,
-                                    bgcolor = Styles.RichBlack03,
-                                    tmargin = 4,
-                                },
-                                gui.Style{
-                                    classes = {"improvementPill", "~selected"},
-                                    borderColor = "#777777",
-                                },
-                                gui.Style{
-                                    classes = {"improvementLabel"},
-                                    opacity = 0.95,
-                                    color = "white",
-                                    fontSize = 16,
-                                    width = "auto",
-                                    height = "auto",
-                                    valign = "center",
-                                },
-                                gui.Style{
-                                    classes = {"improvementLabel", "~selected"},
-                                    color = "#777777",
-                                },
-                                gui.Style{
-                                    classes = {"improvementLabel", "unaffordable", "selected"},
-                                    color = "#ff6666",
-                                },
-                                gui.Style{
-                                    selectors = {"improvementLabel", "parent:hover"},
-                                    brightness = 1.5,
-                                },
-                                gui.Style{
-                                    classes = {"improvementPill", "hover"},
-                                    brightness = 1.5,
-                                },
-                            },
+                            styles = ThemeEngine.MergeStyles(g_improvementPillStyles),
                             classes = {"improvementPill"},
                             press = function(el)
                                 m_value = not m_value
@@ -1942,7 +2160,7 @@ function ActivatedAbility:Render(options, params)
                         }
                     },
 
-                    classes = { "tab" },
+                    classes = { "tab", "goldTab" },
                     x = -46,
                     floating = true,
                     valign = "top",
@@ -1950,10 +2168,9 @@ function ActivatedAbility:Render(options, params)
                     height = 136 * 0.8,
                     width = 33 * 0.8,
                     bgimage = ActivatedAbility.TabBGImage(),
-                    bgcolor = Styles.Gold03,
 
                     gui.Label {
-                        color = "black",
+                        classes = { "goldTabLabel" },
                         width = "auto",
                         height = "auto",
                         fontSize = 22,
@@ -1987,7 +2204,7 @@ function ActivatedAbility:Render(options, params)
                 valign = "top",
                 width = "100%",
                 height = "auto",
-                bgcolor = "blue",
+                bgcolor = "clear",
                 bgimage = true,
 
                 gui.Panel {
@@ -2020,13 +2237,13 @@ function ActivatedAbility:Render(options, params)
         --border line right panel
         gui.Panel {
 
+            classes = { "fadeLine" },
             floating = true,
             valign = "top",
             halign = "left",
             height = 1.2,
             width = 500,
             bgimage = true,
-            bgcolor = 'white',
             gradient = gui.Gradient {
                 point_a = { x = 0, y = 0 },
                 point_b = { x = 1, y = 0 },
@@ -2048,13 +2265,13 @@ function ActivatedAbility:Render(options, params)
         --border line down panel
         gui.Panel {
 
+            classes = { "fadeLine" },
             floating = true,
             valign = "top",
             halign = "left",
             height = 200,
             width = 1.2,
             bgimage = true,
-            bgcolor = 'white',
             gradient = gui.Gradient {
                 point_a = { x = 0, y = 1 },
                 point_b = { x = 0, y = 0 },
@@ -2076,6 +2293,7 @@ function ActivatedAbility:Render(options, params)
         --tab panel
         gui.Panel {
 
+            classes = { "goldTab" },
             floating = true,
             valign = "top",
             halign = "left",
@@ -2084,7 +2302,6 @@ function ActivatedAbility:Render(options, params)
             height = 106 * 0.8,
             width = 33 * 0.8,
             bgimage = mod.images.tabbg,
-            bgcolor = Styles.Gold03,
             embedRollDialog = function(element)
                 element:SetClass("collapsed", true)
             end,
@@ -2225,7 +2442,8 @@ function ActivatedAbility:DescribeTarget(casterToken)
     end
 
     if self:has_key("targetAdditionalCriteria") then
-        result = string.format("%s <color=#aaaaaa>%s</color>", result, self.targetAdditionalCriteria)
+        local mutedHex = ThemeEngine.ResolveTokens("@fgMuted")
+        result = string.format("%s <color=%s>%s</color>", result, mutedHex, self.targetAdditionalCriteria)
     end
 
     return result
@@ -2246,7 +2464,10 @@ end
 
 --Minion Individual Maneuver rule
 function ActivatedAbility:UsesIndividualManeuver(casterToken)
-    if casterToken == nil or not casterToken.properties.minion then
+    --casterToken.properties can be nil if the caster was destroyed/despawned mid-cast
+    --(token reference survives but .valid is false). A non-minion -- and likewise a
+    --gone caster -- never uses squad coordination / individual maneuver rules.
+    if casterToken == nil or casterToken.properties == nil or not casterToken.properties.minion then
         return false
     end
     if not casterToken.properties:has_key("_tmp_minionSquad") then
@@ -2263,7 +2484,21 @@ end
 
 --Returns true if this ability, when cast by a minion in a squad, should be coordinated across the squad
 function ActivatedAbility:UsesSquadCoordination(casterToken)
-    if casterToken == nil or not casterToken.properties.minion then
+    --An invoke that opted out of squad coordination forces this off regardless of the
+    --usual signature/free-strike/keyword rules. See ActivatedAbilityInvokeAbilityBehavior.
+    --The caster-side depth counter catches the case where the abilityClone gets cloned,
+    --bifurcated, or synthesized into a fresh ability that wouldn't carry the field.
+    if self:try_get("disableSquadCoordination", false) then
+        return false
+    end
+    if casterToken ~= nil and casterToken.properties ~= nil
+        and (casterToken.properties:try_get("_tmp_disableSquadCoordinationDepth", 0) or 0) > 0 then
+        return false
+    end
+    --casterToken.properties can be nil if the caster was destroyed/despawned mid-cast
+    --(token reference survives but .valid is false). A non-minion -- and likewise a
+    --gone caster -- never uses squad coordination / individual maneuver rules.
+    if casterToken == nil or casterToken.properties == nil or not casterToken.properties.minion then
         return false
     end
     if not casterToken.properties:has_key("_tmp_minionSquad") then
@@ -2386,7 +2621,13 @@ function ActivatedAbility:CanTargetAdditionalTimes(casterToken, symbols, targets
     end
 
     if self:UsesSquadStrike(casterToken) then
-        --signature abilities can 'stack' targeting up to three times.
+        --signature abilities can 'stack' targeting up to three times. Summoner
+        --minions and similar bypass this via the "Ignore Minion Target Limit"
+        --custom attribute, letting any number of minions hit the same creature.
+        if casterToken.properties:CalculateNamedCustomAttribute("Ignore Minion Target Limit") > 0 then
+            return true
+        end
+
         local currentTimes = 0
         for _, target in ipairs(targets) do
             if target == targetToken.id then
@@ -2899,7 +3140,7 @@ end
 local g_numTargetsFunction = ActivatedAbility.GetNumTargets
 
 function ActivatedAbility:GetNumTargets(casterToken, symbols)
-    local result = g_numTargetsFunction(self, casterToken, symbols)
+    local result = g_numTargetsFunction(self, casterToken, symbols) or 0
 
     if (not mod.unloaded) and casterToken ~= nil and result >= 1 and self:UsesSquadStrike(casterToken) then
         --minion signature abilities and free strikes can target one enemy per active

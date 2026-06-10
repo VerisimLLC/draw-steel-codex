@@ -135,6 +135,11 @@ ActivatedAbilityInvokeAbilityBehavior.promptText = ''
 ActivatedAbilityInvokeAbilityBehavior.invokeOnCaster = false
 ActivatedAbilityInvokeAbilityBehavior.runOnController = false
 
+--If false (the default), the invoked ability will not use squad coordination even if
+--it would normally (signature abilities, free strikes, other Strike-keyworded
+--abilities, and squad maneuvers). Set true to opt in.
+ActivatedAbilityInvokeAbilityBehavior.useSquadCoordination = false
+
 
 function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, targets, options)
 
@@ -231,6 +236,7 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                         symbols = symbols,
                         abilityAttr = {
                             promptOverride = cond(self.promptText ~= "", StringInterpolateGoblinScript(self.promptText, casterToken.properties:LookupSymbol{})),
+                            disableSquadCoordination = cond(not self:try_get("useSquadCoordination", false), true),
                         }
                     }
 
@@ -285,6 +291,10 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                         end
 
                         abilityClone.invoker = ability:try_get("invoker") or casterToken.properties
+
+                        if not self:try_get("useSquadCoordination", false) then
+                            abilityClone.disableSquadCoordination = true
+                        end
 
                         if self.inheritRange then
                             abilityClone.range = ability.range
@@ -422,6 +432,16 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
 
     options = options or {}
 
+    --When the invoke opted out of squad coordination, mirror the abilityClone flag
+    --onto the cast caster's properties as a transient depth counter so any cloned/
+    --bifurcated/synthesized variant produced downstream is also covered. Cleared
+    --in finishHandler below. UsesSquadCoordination checks both signals.
+    local suppressSquad = abilityClone:try_get("disableSquadCoordination", false) == true
+    if suppressSquad and casterToken ~= nil and casterToken.properties ~= nil then
+        local depth = casterToken.properties:try_get("_tmp_disableSquadCoordinationDepth", 0)
+        casterToken.properties._tmp_disableSquadCoordinationDepth = depth + 1
+    end
+
     print("INVOKE:: STARTING:", abilityClone.name)
     --wait until we aren't casting on the action bar to invoke this. Also resolve
     --any new casts that may have started since we got here.
@@ -469,6 +489,14 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
         end
         casting = false
         finishedCasting = true
+        if suppressSquad and casterToken ~= nil and casterToken.properties ~= nil then
+            local depth = casterToken.properties:try_get("_tmp_disableSquadCoordinationDepth", 0)
+            if depth <= 1 then
+                casterToken.properties._tmp_disableSquadCoordinationDepth = nil
+            else
+                casterToken.properties._tmp_disableSquadCoordinationDepth = depth - 1
+            end
+        end
         if finishOptions.pay then
             --if the ability we invoked had to be paid for, we have to pay for the invoke.
             ability:CommitToPaying(casterToken, finishOptions)
@@ -499,6 +527,15 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
     local canceled = false
 
     while not finishedCasting do
+        --The invoker can be deleted/despawned across the yields in this loop (prompt
+        --waits, nested casts): the token reference survives but .valid is false and
+        --.properties is nil. Every line below reads invokerToken.properties (AI control
+        --flags, prompt callback, symbols), so a gone invoker means there is nothing left
+        --to invoke -- end the invoke the same way a direct cancel does (break below).
+        if invokerToken == nil or not invokerToken.valid or invokerToken.properties == nil then
+            break
+        end
+
         local castCount = 0
 
         local invokerCallback = {
@@ -954,6 +991,14 @@ function ActivatedAbilityInvokeAbilityBehavior:EditorItems(parentPanel)
 		value = self:try_get("inheritKeywords", false),
 		change = function(element)
 			self.inheritKeywords = element.value
+		end,
+	}
+
+	result[#result+1] = gui.Check{
+		text = "Use Squad Coordination",
+		value = self:try_get("useSquadCoordination", false),
+		change = function(element)
+			self.useSquadCoordination = element.value
 		end,
 	}
 

@@ -1641,7 +1641,12 @@ function ActivatedAbility:CommitToPaying(casterToken, options)
 end
 
 function ActivatedAbility:FireUseAbility(casterToken, options)
-	if casterToken == nil then return end
+	--The caster can be deleted/despawned during a long-running cast coroutine (roll
+	--dialogs, forced movement, AI yields), in which case the token reference survives
+	--but .valid is false and .properties is nil. Everything below dispatches events to
+	--or mutates the caster's properties, so there's nothing valid to do -- bail out the
+	--same way FinishCast's own caster dispatch is guarded below (see ~line 2237).
+	if casterToken == nil or not casterToken.valid or casterToken.properties == nil then return end
 	if (not options.firedUseAbility) and self:CountsAsRegularAbilityCast() then
 		options.firedUseAbility = true
 
@@ -2234,7 +2239,7 @@ function ActivatedAbility:FinishCast(casterToken, options)
 
 	GameSystem.OnEndCastActivatedAbility(casterToken, self, options)
 
-	if self:CountsAsRegularAbilityCast() then
+	if self:CountsAsRegularAbilityCast() and casterToken ~= nil and casterToken.valid and casterToken.properties ~= nil then
         casterToken.properties:DispatchEvent("finishability", {usedability = self, cast = options.symbols and options.symbols.cast})
     end
 end
@@ -2787,6 +2792,31 @@ function ActivatedAbility.CastCoroutine(self, casterToken, targets, options)
 
 	print("CastCoroutine::", self.name, "end behaviors")
 
+	-- Villain Action consumption: any ability marked with the `villainAction`
+	-- field that runs to completion (not aborted) marks itself as used for
+	-- the encounter and spends the per-round VA budget. This fires regardless
+	-- of how the cast was invoked (Villain Action strip, action bar menu,
+	-- /act command, AI), so the strip's state stays accurate.
+	--
+	-- Wrapped in pcall so a transient doc-transaction failure or any other
+	-- runtime issue here can't take down the surrounding cast cleanup
+	-- (which is what frees dmhub.blockTokenSelection, pops the caster
+	-- stack, etc.).
+	if not options.abort then
+		local villainAction = self:try_get("villainAction")
+		if villainAction ~= nil and villainAction ~= "" and casterToken ~= nil and casterToken.valid and VillainActionState ~= nil then
+			local ok, err = pcall(function()
+				VillainActionState.MarkUsed(casterToken.charid, villainAction)
+				if CharacterResource.GetVillainActions() > 0 then
+					CharacterResource.SetVillainActions(0, "Villain Action used")
+				end
+			end)
+			if not ok then
+				print("Villain Action consumption hook failed:", tostring(err))
+			end
+		end
+	end
+
     if restoreTargets ~= nil then
         options.symbols.cast.targets = restoreTargets
     end
@@ -2832,7 +2862,7 @@ function ActivatedAbility.CastCoroutine(self, casterToken, targets, options)
 		return
 	end
 
-	if self.keywords["Strike"] then
+	if self.keywords["Strike"] and not options.abort then
 		local castInfo = options.symbols.cast
 		for _, target in ipairs(castInfo.targets or {}) do
 			if target.token ~= nil then
@@ -4789,6 +4819,11 @@ function ActivatedAbilityForcedMovementBehavior:Cast(ability, casterToken, targe
 
 		if range <= 0 then
 			if stability > 0 then
+				--Per-encounter hero stat: stability fully prevented the forced
+				--movement -- the hero stood firm. Single-fire on the resolving
+				--client; TrackHeroStats self-guards to heroes. (This file already
+				--leans on Draw Steel globals here -- see MCDMUtils below.)
+				LiveEncounter.TrackHeroStats(target.charid, "standsFirm")
 				local abilityBase = MCDMUtils.GetStandardAbility("Too Much Stability")
 				if abilityBase then
 					local abilityClone = DeepCopy(abilityBase)
@@ -5254,7 +5289,7 @@ local g_helpCasting = {
 
 local g_helpSymbols = {
 	__name = "ability",
-	__sampleFields = {"level", "school"},
+	__sampleFields = {"level"},
 
 
 	name = {
@@ -5421,4 +5456,19 @@ dmhub.RegisterEventHandler("refreshTables", function(keys)
 			desc = documentation,
 		}
 	end
+end)
+
+--Reset-turn / backup-restore teardown. Fires on every client whenever a
+--minor- backupid lands (CombatCheckpoint.Restore). Sets the abort flag on
+--every live cast coroutine so CastCoroutine breaks at the next behavior
+--boundary and unwinds through FinishCast (which marks the chat message
+--"aborted"). Also clears any unsubmitted dice preview.
+dmhub.RegisterEventHandler("restoreFromBackup", function()
+    for co, info in pairs(ActivatedAbility.coroutineStorage) do
+        if coroutine.status(co) ~= "dead" and info.options ~= nil then
+            info.options.abort = true
+            info.options.stopProcessing = true
+        end
+    end
+    dmhub.CancelCurrentRoll()
 end)

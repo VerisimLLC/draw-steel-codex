@@ -134,7 +134,8 @@ function GameHud.CreateRollOnTableDialog(self)
 		end,
 	}
 
-	local cancelButton = gui.CloseButton{
+	local cancelButton = gui.Button{
+		classes = {"closeButton"},
 		floating = true,
 		halign = "right",
 		valign = "top",
@@ -496,6 +497,21 @@ function GameHud.CreateRollOnTableDialog(self)
 				OnShow()
                 resultPanel:FireEventTree("show", m_options)
             end,
+
+            --External teardown entry point used by the restoreFromBackup event
+            --handler. Mirrors the cancelButton's click logic: when the roll has
+            --already happened (m_hasClose), just hide without re-firing the
+            --cancel callback; when the dialog is still pre-roll, run the full
+            --CancelRollDialog path.
+            Cancel = function()
+                if resultPanel:HasClass('hidden') then return end
+                if m_hasClose then
+                    resultPanel:SetClass('hidden', true)
+                    OnHide()
+                else
+                    CancelRollDialog()
+                end
+            end,
         },
 
 		gui.Panel{
@@ -555,7 +571,8 @@ end
 RegisterGameType("RollOnTableProperties", "RollProperties")
 
 function RollOnTableProperties:GetOutcome(rollInfo)
-    local total = rollInfo.total
+    --overrideRollTotal is set by the Timeline override flow.
+    local total = self:try_get("overrideRollTotal") or rollInfo.total
     local tableRef = self.tableRef
     if tableRef == nil then
         return nil
@@ -593,6 +610,26 @@ function RollOnTableProperties:CustomPanel(message)
 
     local m_finished = false
 
+    --"Player overrode the result" banner; collapses when no override.
+    local overrideLabel = gui.Label{
+        classes = { "collapsed" },
+        width = "100%-8",
+        height = "auto",
+        halign = "center",
+        fontSize = 14,
+        textWrap = true,
+        color = Styles.textColor,
+        text = "",
+        setOverride = function(element, text)
+            if text ~= nil and text ~= "" then
+                element.text = text
+                element:SetClass("collapsed", false)
+            else
+                element:SetClass("collapsed", true)
+            end
+        end,
+    }
+
     return gui.Panel{
         width = "100%",
         height = "auto",
@@ -603,15 +640,23 @@ function RollOnTableProperties:CustomPanel(message)
         refreshInfo = function(element, catInfo, diceStyle, complete, message)
             if complete then
                 m_finished = true
-                local t = self.tableRef:GetTable()
+
+                --Read from message.properties, not the captured `self` --
+                --UploadProperties may replace the message's properties with a
+                --fresh object, leaving the closure-captured `self` stale.
+                local props = (message ~= nil and message.properties) or self
+                local t = props.tableRef:GetTable()
                 if t == nil then
                     return nil
                 end
 
-                local rowIndex = t:RowIndexFromDiceResult(message.total)
+                local total = props:try_get("overrideRollTotal") or message.total
+                local rowIndex = t:RowIndexFromDiceResult(total)
                 if rowIndex == nil or rowIndex < 1 or rowIndex > #t.rows then
                     return nil
                 end
+
+                overrideLabel:FireEvent("setOverride", props:try_get("overrideMessage"))
 
                 local row = t.rows[rowIndex]
                 for _,item in ipairs(row.value.items) do
@@ -642,6 +687,22 @@ function RollOnTableProperties:CustomPanel(message)
                 end,
 
             },
+            overrideLabel,
         },
     }
 end
+
+--On reset-turn / backup-restore, close the main roll dialog. The embedded
+--dialog and standalone table host are handled in Timeline\AbilitySidebar.lua.
+dmhub.RegisterEventHandler("restoreFromBackup", function()
+    local hud = GameHud.instance
+    if hud == nil then return end
+
+    --rollDialog.Cancel does not self-guard against the hidden state, so check
+    --IsShown first to avoid re-firing a stale cancelRoll closure.
+    if hud.rollDialog ~= nil and hud.rollDialog.valid
+       and hud.rollDialog.data ~= nil and hud.rollDialog.data.Cancel ~= nil
+       and hud.rollDialog.data.IsShown ~= nil and hud.rollDialog.data.IsShown() then
+        hud.rollDialog.data.Cancel()
+    end
+end)

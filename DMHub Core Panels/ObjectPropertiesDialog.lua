@@ -2411,11 +2411,10 @@ local CreateObjectEditor = function(nodes, options)
 
 				},
 
-				gui.DeleteItemButton{
+				gui.Button{
+					classes = {"deleteButton", "sizeXs"},
 					halign = "right",
 					valign = "top",
-					width = 12,
-					height = 12,
 					click = function(element)
 						if options.recreate ~= nil then
 							local newNodes = {}
@@ -2502,8 +2501,12 @@ local CreateObjectEditor = function(nodes, options)
 				},
 
 				gui.Label{
-					text = nodes[1].description,
-					editable = not options.objectInstances,
+					--for blueprints this edits the asset's shared description; for placed
+					--instances it edits the per-instance name (falls back to the asset
+					--description when unset). The instance name field is capped at 32 chars
+					--by the engine setter.
+					text = cond(options.objectInstances, nodes[1].name, nodes[1].description),
+					editable = true,
 					classes = {"field-description-label", "field-name-label"},
 					selfStyle = {
 						halign = "left",
@@ -2514,8 +2517,17 @@ local CreateObjectEditor = function(nodes, options)
 					},
 					events = {
 						change = function(element)
-							for i,node in ipairs(nodes) do
-								node.description = element.text
+							if options.objectInstances then
+								--instance edits must be uploaded to persist + be undoable.
+								local groupid = dmhub.GenerateGuid()
+								for i,node in ipairs(nodes) do
+									node.name = element.text
+									node:Upload(groupid)
+								end
+							else
+								for i,node in ipairs(nodes) do
+									node.description = element.text
+								end
 							end
 						end,
 					},

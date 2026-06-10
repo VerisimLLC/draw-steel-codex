@@ -1208,7 +1208,9 @@ local function CreateActionBar()
 
             g_creature = g_token.properties
 
-            if g_creature:try_get("treatAsObject", false) then
+            --Hide the bar when the selected token is a fixture/object, EXCEPT
+            --while an invoked cast is driving us (g_casterTokenStack non-empty).
+            if g_creature:try_get("treatAsObject", false) and #g_casterTokenStack == 0 then
                 element:SetClass("hidden", true)
                 element:HaltEventPropagation()
                 element:FireEventTree("closemenu")
@@ -2246,10 +2248,12 @@ end
 -- are stored as a square count, so they're scaled to dmhub units to match
 -- range. Returns nil only if range is also nil.
 --
--- Altitude difference between source and target eats into the horizontal reach
--- the arrow can show: each square of vertical separation removes one square
--- from the effective horizontal range, so the arrow greys earlier (and is
--- entirely grey when altitude alone exceeds the range).
+-- Draw Steel uses "free diagonals" -- Chebyshev distance in 3D, where the
+-- distance between two points is max(|dx|, |dy|, |dz|). So altitude separation
+-- by itself does not eat into horizontal reach; it only matters when it alone
+-- exceeds the range, at which point the target is out of range entirely
+-- regardless of horizontal distance. Return 0 in that case so the arrow greys
+-- fully.
 local function EffectiveArrowRange(sourceToken, targetToken, range)
     local function loeUnits(tok)
         if tok == nil or tok.properties == nil then return nil end
@@ -2268,7 +2272,9 @@ local function EffectiveArrowRange(sourceToken, targetToken, range)
     end
     if effective ~= nil and sourceToken ~= nil and targetToken ~= nil then
         local altDiffUnits = math.abs(sourceToken.altitude - targetToken.altitude) * dmhub.unitsPerSquare
-        effective = math.max(0, effective - altDiffUnits)
+        if altDiffUnits >= effective + dmhub.unitsPerSquare then
+            effective = 0
+        end
     end
     return effective
 end
@@ -2305,15 +2311,14 @@ local function AddModifierLabelsToMarker(markers, sourceToken, targetToken, abil
 
     -- Match the validity check in CalculateSpellTargetFocusing: failReason
     -- fires when distance >= range + unitsPerSquare (i.e. `not (range+1 > d)`).
-    -- Use the same boundary here so a "just out of range" target (distance
-    -- exactly range + 1 square, the common Chebyshev-grid case) still gets
-    -- the label. Altitude separation counts against the same range budget,
-    -- so a target on the same floor-plan tile but well above/below is still
-    -- flagged as out of range.
+    -- Draw Steel "free diagonals" makes the 3D distance Chebyshev:
+    -- max(horizDist, altDiff). A target on the same floor-plan tile but well
+    -- above/below is out of range only when the altitude separation alone
+    -- exceeds range; otherwise the horizontal distance is what matters.
     if range ~= nil then
         local horizDist = targetToken:Distance(sourceToken)
         local altDiffUnits = math.abs(sourceToken.altitude - targetToken.altitude) * dmhub.unitsPerSquare
-        if horizDist + altDiffUnits >= range + dmhub.unitsPerSquare then
+        if math.max(horizDist, altDiffUnits) >= range + dmhub.unitsPerSquare then
             markers:AddLabel("Out of Range", "forbidden")
             return
         end
@@ -3579,14 +3584,11 @@ CreateAbilityController = function()
         end,
     }
 
-    g_castButton = gui.PrettyButton {
+    g_castButton = gui.Button {
+        classes = {"sizeL", "bold", "collapsed"},
         halign = "center",
         width = 140,
-        height = 50,
-        fontSize = 24,
-        bold = true,
         text = "Confirm",
-        classes = { 'collapsed' },
         press = function(element)
             if g_currentAbility == nil then return end
             if g_abilityController == nil then return end
@@ -3811,13 +3813,11 @@ CreateAbilityController = function()
         end,
     }
 
-    g_skipButton = gui.PrettyButton {
+    g_skipButton = gui.Button {
+        classes = {"sizeM", "collapsed"},
         width = 80,
-        height = 30,
-        fontSize = 14,
         text = "Skip",
         halign = "center",
-        classes = { 'collapsed' },
         press = function(element)
             if g_abilityController == nil then return end
             g_abilityController:FireEvent("cancelCasting")
@@ -4102,7 +4102,13 @@ CreateAbilityController = function()
             args = args or {}
 
             if g_actionBar == nil then return end
-            if g_token == nil then return end
+            --g_token can be non-nil but stale: the selected caster may have been
+            --deleted/despawned (or the selection cleared) before this fires, especially
+            --on the invoke path (FireEventTree "invokeAbility"). The reference survives
+            --but .valid is false and .properties is nil, and everything below reads
+            --g_token.properties (range, movement speed, compel attributes), so there is
+            --no caster to begin a cast for.
+            if g_token == nil or not g_token.valid or g_token.properties == nil then return end
             g_actionBar:FireEventTree("closemenu")
 
             ability = ability:SwitchModes(1)
@@ -5519,7 +5525,7 @@ CreateAbilityController = function()
                 return
             end
 
-            if g_token == nil then return end
+            if g_token == nil or not g_token.valid then return end
             if g_currentAbility == nil then return end
 
             local shape = g_currentAbility.targetType
@@ -5575,6 +5581,37 @@ CreateAbilityController = function()
 
                 if g_currentAbility.targetType == 'emptyspace' or g_currentAbility.targetType == 'emptyspacefriend' or g_currentAbility.targetType == 'anyspace' then
                     print(string.format("XFLOOR:: mappress building emptyspace target loc.floor=%s", tostring(loc and loc.floor or "nil")))
+
+                    --For multi-target emptyspace/anyspace abilities, clicking an already
+                    --selected space deselects it instead of adding a duplicate.
+                    if (g_currentAbility.targetType == 'emptyspace' or g_currentAbility.targetType == 'anyspace')
+                        and g_currentAbility:GetNumTargets(g_token, g_currentSymbols) > 1 and loc ~= nil then
+                        local deselectedIndex = nil
+                        for i, t in ipairs(targets) do
+                            if t.loc ~= nil and t.loc.str == loc.str then
+                                deselectedIndex = i
+                                break
+                            end
+                        end
+                        if deselectedIndex ~= nil then
+                            local removed = targets[deselectedIndex]
+                            table.remove(targets, deselectedIndex)
+                            if removed.marker ~= nil then
+                                removed.marker:Destroy()
+                                for i = #g_radiusMarkers, 1, -1 do
+                                    if g_radiusMarkers[i] == removed.marker then
+                                        table.remove(g_radiusMarkers, i)
+                                        break
+                                    end
+                                end
+                            end
+                            local promptText = g_currentAbility:PromptText(g_token, targets, g_currentSymbols)
+                            g_castMessage.data.promptText = promptText
+                            g_castMessage:FireEvent("refresh")
+                            return
+                        end
+                    end
+
                     targets[#targets + 1] = { loc = loc }
                 else
                     for k, target in pairs(g_pointForceTargets) do
@@ -5595,6 +5632,11 @@ CreateAbilityController = function()
                 if (g_currentAbility.targetType == 'emptyspace' or g_currentAbility.targetType == 'anyspace') and #targets < numTargets then
                     --allow selection of more targets.
                     AddCustomAreaMarker({ loc }, 'white')
+                    --Remember the marker for this target so we can destroy it
+                    --if the same space is later clicked to deselect.
+                    if #targets > 0 and targets[#targets].loc ~= nil and targets[#targets].loc.str == loc.str then
+                        targets[#targets].marker = g_radiusMarkers[#g_radiusMarkers]
+                    end
 
                     if g_currentAbility.targeting == "Contiguous" or g_currentAbility.targeting == "contiguous_wall" then
                         --targeting must be contiguous of current targets.
@@ -5903,7 +5945,7 @@ local function CalculateSpellTargetFocusing(symbols)
                     local bypass = false
                     if ignoreRange > 0 then
                         local dist = g_token:Distance(targetToken)
-                        if dist <= ignoreRange + dmhub.unitsPerSquare then
+                        if dist <= ignoreRange then
                             bypass = true
                         end
                     end
@@ -5926,17 +5968,17 @@ local function CalculateSpellTargetFocusing(symbols)
                         end
                     end
 
-                    --altitude range check: altitude separation eats into the same range budget as
-                    --horizontal distance, so a target that is fine on the 2D check can still be out
-                    --of range once the vertical separation is added in. Mirrors EffectiveArrowRange
-                    --and AddModifierLabelsToMarker so the arrow greying, the "Out of Range" label
-                    --and the strict-targeting block all agree.
+                    --altitude range check under Draw Steel "free diagonals": the 3D distance is
+                    --Chebyshev -- max(horizDist, altDiff) -- so altitude only takes a target out
+                    --of range when it alone exceeds the range. Mirrors EffectiveArrowRange and
+                    --AddModifierLabelsToMarker so arrow greying, the "Out of Range" label, and
+                    --the strict-targeting block all agree.
                     if failReason == nil and spell.targetType ~= "areatemplate" and (not g_token.properties.minion) then
                         local altDiff = math.abs(g_token.altitude - targetToken.altitude)
                         if altDiff > 0 then
                             local horizDist = targetToken:Distance(casterLocOverride or g_token)
                             local altDiffUnits = altDiff * dmhub.unitsPerSquare
-                            if horizDist + altDiffUnits >= range + dmhub.unitsPerSquare then
+                            if math.max(horizDist, altDiffUnits) >= range + dmhub.unitsPerSquare then
                                 failReason = string.format("Out of range (altitude difference: %d)", altDiff)
                             end
                         end
@@ -6267,4 +6309,14 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
 end
 
 RegisterCustomActionBar(CreateActionBar)
+
+--On reset-turn / backup-restore, cancel any in-progress cast on this client.
+--cancelCasting is the same event the escape key fires; it runs the full action
+--bar cleanup (HideAbility, RemoveTokenTargeting, ClearPointTargeting, clears
+--g_currentAbility, collapses cast controls, clears LoS markers, etc.).
+dmhub.RegisterEventHandler("restoreFromBackup", function()
+    if g_currentAbility ~= nil and g_abilityController ~= nil and g_abilityController.valid then
+        g_abilityController:FireEvent("cancelCasting")
+    end
+end)
 --RegisterCustomActionBar(nil)

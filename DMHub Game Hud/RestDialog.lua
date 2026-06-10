@@ -692,8 +692,8 @@ function GameHud:CreateRestingDialog(requestid, request)
 		},
 
 
-		gui.CloseButton{
-			classes = cond(dmhub.isDM, "hidden"), --the DM doesn't get access to this since they should formally finish the rest when ready.
+		gui.Button{
+            classes = {"closeButton", cond(dmhub.isDM, "hidden")}, --the DM doesn't get access to this since they should formally finish the rest when ready.
 			floating = true,
 			valign = "top",
 			halign = "right",

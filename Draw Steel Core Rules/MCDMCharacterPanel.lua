@@ -1855,6 +1855,9 @@ local g_companionAppSetting = setting{
 --- @return Panel
 function TacPanel.Portrait()
 
+    -- Portrait control buttons are 15% smaller than the standard vision button.
+    local visionBtnSize = math.floor(TacPanelSizes.VisionBtn.size * 0.85 + 0.5)
+
     local function outlineButton(params)
         local btn
         if type(params) ~= "table" then
@@ -1865,8 +1868,9 @@ function TacPanel.Portrait()
             classes = {"container", "tpOutline"},
             halign = "left",
             valign = "top",
-            lmargin = 4,
-            pad = 4,
+            lmargin = 3,
+            vmargin = 2,
+            pad = 3,
             bgimage = true,
             border = 1,
             cornerRadius = 4,
@@ -1890,8 +1894,8 @@ function TacPanel.Portrait()
             classes = {"toggle-btn"},
             hoverCursor = "pressbutton",
             bgimage = "ui-icons/codex-logo.png",
-            width = TacPanelSizes.VisionBtn.size,
-            height = TacPanelSizes.VisionBtn.size,
+            width = visionBtnSize,
+            height = visionBtnSize,
             data = { token = nil },
             refreshCharacter = function(element, token)
                 element.data.token = token
@@ -1942,51 +1946,23 @@ function TacPanel.Portrait()
         },
 
 
-        -- Control buttons at bottom of portrait
+        -- Control buttons at bottom of portrait. Bound the width to the portrait
+        -- frame and wrap so a 4th+ button drops to a second row within the avatar.
         gui.Panel{
             classes = {"container"},
             flow = "horizontal",
+            wrap = true,
+            width = "100%",
             floating = true,
             halign = "left",
             valign = "bottom",
             vmargin = 4,
-            outlineButton(
-                gui.EnhIconButton{
-                    classes = {"toggle-btn", "combatTint"},
-                    hoverCursor = "pressbutton",
-                    bgimage = "panels/initiative/initiative-icon.png",
-                    width = TacPanelSizes.VisionBtn.size,
-                    height = TacPanelSizes.VisionBtn.size,
-                    data = { token = nil },
-                    refreshCharacter = function(element, token)
-                        element.data.token = token
-                        local q = dmhub.initiativeQueue
-                        if q == nil or q.hidden then
-                            element.parent:SetClass("collapsed", true)
-                            return
-                        end
-                        element.parent:SetClass("collapsed",
-                            token.properties:try_get("_tmp_initiativeStatus") ~= "NonCombatant")
-                    end,
-                    refreshToken = function(element, token)
-                        element:FireEvent("refreshCharacter", token)
-                    end,
-                    setToken = function(element, token)
-                        element:FireEvent("refreshCharacter", token)
-                    end,
-                    press = function(element)
-                        Commands.rollinitiative()
-                    end,
-                    linger = function(element)
-                        gui.Tooltip("Add to combat")(element)
-                    end,
-                }
-            ),
             outlineButton(gui.Panel{
+                id = "char-panel-light-btn",
                 classes = {"toggle-btn", "light-btn"},
                 hoverCursor = "pressbutton",
-                width = TacPanelSizes.VisionBtn.size,
-                height = TacPanelSizes.VisionBtn.size,
+                width = visionBtnSize,
+                height = visionBtnSize,
                 bgimage = "drawsteel/light-off.png",
                 refreshCharacter = function(element, token)
                     local lightOn = token.properties.selectedLoadout == 1
@@ -2006,8 +1982,8 @@ function TacPanel.Portrait()
             outlineButton(gui.Panel{
                 classes = {"toggle-btn", "character-sheet-btn"},
                 hoverCursor = "pressbutton",
-                width = TacPanelSizes.VisionBtn.size,
-                height = TacPanelSizes.VisionBtn.size,
+                width = visionBtnSize,
+                height = visionBtnSize,
                 data = { token = nil },
                 refreshCharacter = function(element, token)
                     element.data.token = token
@@ -2035,8 +2011,8 @@ function TacPanel.Portrait()
                 classes = {"toggle-btn", "light-btn", "collapsed"},
                 hoverCursor = "pressbutton",
                 bgimage = "ui-icons/eye.png",
-                width = TacPanelSizes.VisionBtn.size,
-                height = TacPanelSizes.VisionBtn.size,
+                width = visionBtnSize,
+                height = visionBtnSize,
                 data = { token = nil, maxLookup = 0 },
                 monitor = "lookup",
                 events = {
@@ -2696,6 +2672,36 @@ function TacPanel.Summary()
             }
         },
 
+        -- Full-width "Add to Combat" button below the avatar area. Visible only
+        -- when there is an active initiative queue and this token is not yet a
+        -- combatant (same semantics as the old initiative icon button).
+        gui.Button{
+            classes = {"sizeM", "collapsed"},
+            width = "100%-12",
+            height = 40,
+            vmargin = 4,
+            lmargin = 4,
+            halign = "left",
+            text = "Add to Combat",
+            data = { token = nil },
+            refreshCharacter = function(element, token)
+                element.data.token = token
+                local q = dmhub.initiativeQueue
+                if q == nil or q.hidden then
+                    element:SetClass("collapsed", true)
+                    return
+                end
+                element:SetClass("collapsed",
+                    token.properties:try_get("_tmp_initiativeStatus") ~= "NonCombatant")
+            end,
+            setToken = function(element, token)
+                element:FireEvent("refreshCharacter", token)
+            end,
+            press = function(element)
+                Commands.rollinitiative()
+            end,
+        },
+
     }
 end
 
@@ -2987,6 +2993,62 @@ function TacPanel.RecoveriesBox()
         end
     end
 
+    -- Build and show the "spend an ally's shared recovery" context menu on the
+    -- given element. Returns true if a menu was shown (i.e. there is at least
+    -- one bonded ally with a spendable recovery), false otherwise.
+    local function ShowSharingMenu(element, token)
+        if token == nil or not token.valid or token.properties == nil then return false end
+
+        local recoverySharing = token.properties:ShareRecoveriesWith()
+        if recoverySharing == nil then return false end
+
+        local entries = {}
+        for _, otherToken in ipairs(recoverySharing) do
+            if otherToken.charid ~= token.charid then
+                local sharedUsage = otherToken.properties:GetResourceUsage(recoveryid, recoveryInfo.usageLimit) or 0
+                local sharedMax = otherToken.properties:GetResources()[recoveryid] or 0
+                local sharedQuantity = sharedMax - sharedUsage
+                if sharedQuantity > 0 then
+                    local casterToken = token
+                    local sourceToken = otherToken
+                    entries[#entries+1] = {
+                        text = string.format("Spend %s's Recovery (%d/%d)", sourceToken.name, sharedQuantity, sharedMax),
+                        click = function()
+                            element.popup = nil
+                            if casterToken.properties:CurrentHitpoints() >= casterToken.properties:MaxHitpoints() then
+                                return
+                            end
+
+                            local groupid = dmhub.GenerateGuid()
+                            casterToken:ModifyProperties{
+                                description = string.format("Use %s's Recovery", sourceToken.name),
+                                groupid = groupid,
+                                execute = function()
+                                    casterToken.properties:Heal(casterToken.properties:RecoveryAmount(), "Use Recovery")
+                                end,
+                            }
+
+                            sourceToken:ModifyProperties{
+                                description = string.format("%s's Recovery used by %s", sourceToken.name, casterToken.name),
+                                groupid = groupid,
+                                execute = function()
+                                    sourceToken.properties:ConsumeResource(recoveryid, recoveryInfo.usageLimit, 1, "Used Recovery")
+                                end,
+                            }
+                        end,
+                    }
+                end
+            end
+        end
+
+        if #entries == 0 then return false end
+
+        element.popup = gui.ContextMenu{
+            entries = entries,
+        }
+        return true
+    end
+
     return gui.Panel{
         classes = {"stamina-box", "recoveries"},
         hoverCursor = "pressbutton",
@@ -3046,6 +3108,19 @@ function TacPanel.RecoveriesBox()
                 end
             end
 
+            local recoverySharing = token.properties:ShareRecoveriesWith()
+            if recoverySharing ~= nil then
+                lines[#lines+1] = ""
+                lines[#lines+1] = "Can Share Recoveries With:"
+                for _, otherToken in ipairs(recoverySharing) do
+                    if otherToken.charid ~= token.charid then
+                        local sharedUsage = otherToken.properties:GetResourceUsage(recoveryid, recoveryInfo.usageLimit) or 0
+                        local sharedMax = otherToken.properties:GetResources()[recoveryid] or 0
+                        lines[#lines+1] = string.format("%s (%d/%d)", otherToken.name, sharedMax - sharedUsage, sharedMax)
+                    end
+                end
+            end
+
             element.tooltip = TacPanel.Tooltip(table.concat(lines, "\n"))
         end,
         press = function(element)
@@ -3056,6 +3131,9 @@ function TacPanel.RecoveriesBox()
             local quantity = max(0, (token.properties:GetResources()[recoveryid] or 0) - (token.properties:GetResourceUsage(recoveryid, recoveryInfo.usageLimit) or 0))
             if quantity <= 0 then
                 if (not token.properties:IsHero()) or token.properties:GetHeroTokens() < 2 then
+                    -- Out of our own recoveries (and no hero tokens to spend): offer
+                    -- any bonded ally's shared recoveries instead of silently failing.
+                    ShowSharingMenu(element, token)
                     return
                 end
                 useHeroTokens = true
@@ -3101,6 +3179,9 @@ function TacPanel.RecoveriesBox()
                 context = (q ~= nil and not q.hidden and q:try_get("gameMode") == "combat") and "combat" or "rest",
                 dailyLimit = 20,
             })
+        end,
+        rightClick = function(element)
+            ShowSharingMenu(element, element.data.token)
         end,
         gui.Label{
             classes = {"stambox-title", "heal"},
@@ -7075,7 +7156,7 @@ function TacPanel.AddConditionMenu(args)
                     },
 
                     gui.Button{
-                        classes = {"deleteButton", "sizeXs"},
+                        classes = {"deleteButton", "sizeS"},
                         halign = "left",
                         valign = "center",
                         linger = function(el)
@@ -7163,7 +7244,7 @@ function TacPanel.AddConditionMenu(args)
 
     m_button.popupsInheritStyles = true
     m_button.popup = gui.Panel{
-        styles = TacPanelStyles.AddConditionMenu, --ThemeEngine.MergeStyles(TacPanelStyles.AddConditionMenu),
+        styles = TacPanelStyles.AddConditionMenu,
         classes = {"dialog"},
         floating = true,
         vscroll = true,

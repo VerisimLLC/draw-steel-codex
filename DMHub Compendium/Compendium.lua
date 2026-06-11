@@ -6194,7 +6194,7 @@ dmhub.RegisterEventHandler("refreshTables", function(keys)
 
     Compendium.Register{
         section = "Rules",
-        text = 'OngoingEffects',
+        text = 'Ongoing Effects',
         contentType = "characterOngoingEffects",
         click = function(contentPanel)
             ShowOngoingEffectsPanel(contentPanel, "characterOngoingEffects")
@@ -6492,6 +6492,42 @@ end)
 -- 2a: activation just opens the Compendium panel. Chunk 2b replaces this with
 -- the universal deep-link locator (open the exact category, filtered to the
 -- clicked item) via Compendium.Open{...}.
+
+-- The registered category text (opt.text) is plural and Title Case for the
+-- left-menu ("Conditions", "Ongoing Effects"). A single search result names one
+-- item, so its type chip reads better singular ("Condition", "Ongoing Effect").
+-- This is a display-only transform on the chip; the registered text and the
+-- menu are untouched.
+local function SingularizeLastWord(label)
+    -- Only the final word is pluralised ("Damage Types" -> "Damage Type").
+    local head, last = string.match(label, "^(.*%s)(%S+)$")
+    if last == nil then
+        head, last = "", label
+    end
+    local lower = string.lower(last)
+    if #last > 3 and string.sub(lower, -4) == "sses" then
+        last = string.sub(last, 1, #last - 2)         -- Classes -> Class
+    elseif #last > 3 and string.sub(lower, -3) == "ies" then
+        last = string.sub(last, 1, #last - 3) .. "y"  -- Ancestries -> Ancestry
+    elseif #last > 2 and string.sub(lower, -1) == "s"
+        and string.sub(lower, -2) ~= "ss"
+        and string.sub(lower, -2) ~= "us"
+        and string.sub(lower, -2) ~= "is" then
+        last = string.sub(last, 1, #last - 1)         -- Conditions -> Condition
+    end
+    return head .. last
+end
+
+local function CompendiumTypeLabel(text)
+    if type(text) ~= "string" or text == "" then
+        return text
+    end
+    -- Defensive: split camelCase runs ("OngoingEffects" -> "Ongoing Effects")
+    -- so an un-spaced registration still reads cleanly.
+    local spaced = string.gsub(text, "(%l)(%u)", "%1 %2")
+    return SingularizeLastWord(spaced)
+end
+
 Search.RegisterProvider{
     id = "compendium-content",
     bucket = "compendium",
@@ -6519,7 +6555,7 @@ Search.RegisterProvider{
                         results[#results+1] = {
                             name = name,
                             score = Search.Score(name, needle),
-                            typeLabel = opt.text,
+                            typeLabel = CompendiumTypeLabel(opt.text),
                             activate = function()
                                 Compendium.Open{
                                     contentType = capturedType,

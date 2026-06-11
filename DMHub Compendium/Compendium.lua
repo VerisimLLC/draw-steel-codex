@@ -4899,6 +4899,21 @@ local CompendiumRegistry = {
 
 }
 
+-- Deep-link navigation (global search -> exact compendium item). A live
+-- LibraryPanel publishes its navigate function here; Compendium.Open stashes a
+-- pending request and the live panel (or a freshly-opened one) consumes it.
+local g_pendingNavigation = nil
+local g_libraryNavigate = nil
+
+local function ConsumePendingCompendiumNavigation()
+    if g_pendingNavigation == nil or g_libraryNavigate == nil then
+        return
+    end
+    local nav = g_pendingNavigation
+    g_pendingNavigation = nil
+    g_libraryNavigate(nav)
+end
+
 
 local LibraryPanel = function()
 
@@ -4930,6 +4945,55 @@ local LibraryPanel = function()
 		return cats
 	end
 
+	-- Select the deep-link target item inside the just-opened category page.
+	-- Most pages use shared CreateListItem rows (matched by name); Inventory
+	-- (tbl_Gear) is the one bespoke page -- draggable item cards keyed by
+	-- data.item.id whose press selects the item into the editor pane. The page
+	-- builds asynchronously, so retry across a few frames until it appears.
+	local function SelectTargetItem(opt, targetKey, attemptsLeft)
+		if opt == nil or targetKey == nil or not contentPanel.valid then
+			return
+		end
+		local t = dmhub.GetTable(opt.contentType) or {}
+		local item = t[targetKey]
+		if item == nil then
+			return
+		end
+
+		local target = nil
+		if opt.contentType == "tbl_Gear" then
+			-- The Inventory page (DSInventoryCompendium) is a category-navigated
+			-- card browser with its own filter and visibility gates; some items
+			-- are not in the current view at all. Best-effort: press the card if
+			-- it is realised (press selects the item into the editor), otherwise
+			-- leave the page browsable. We deliberately do NOT drive its private
+			-- filter -- a non-matching item would collapse the whole list to an
+			-- empty, broken-looking state.
+			target = contentPanel:FindChildRecursive(function(e)
+				return e.valid and e:HasClass("itemPanel")
+					and e.data ~= nil and e.data.item ~= nil and e.data.item.id == targetKey
+			end)
+		else
+			local targetName = item.name
+			if targetName ~= nil then
+				target = contentPanel:FindChildRecursive(function(e)
+					return e.valid and e:HasClass("list-item") and not e:HasClass("list-heading") and e.text == targetName
+				end)
+			end
+		end
+
+		if target ~= nil then
+			target:FireEvent("press")
+			return
+		end
+
+		if (attemptsLeft or 0) > 0 then
+			dmhub.Schedule(0.1, function()
+				SelectTargetItem(opt, targetKey, attemptsLeft - 1)
+			end)
+		end
+	end
+
 	-- Open a category's page with the active filter applied (the click target
 	-- for an aggregated result row). Mirrors a menu-category click: records the
 	-- category, builds its page, then re-filters that page + the summary.
@@ -4946,27 +5010,42 @@ local LibraryPanel = function()
 			end
 		end
 
-		-- Open the specific item the user clicked: press its row once the page
-		-- has built. Matched by name (rows carry the item name); a no-op if the
-		-- page builds asynchronously and the row is not yet present.
+		-- Open the specific item the user clicked. Pages build asynchronously
+		-- (monitorAssets/refreshAssets debounce), so the row may not exist yet on
+		-- the first frame -- retry a few frames until it appears, then press it.
 		if targetKey ~= nil then
-			local t = dmhub.GetTable(opt.contentType) or {}
-			local item = t[targetKey]
-			local targetName = item and item.name
-			if targetName ~= nil then
-				dmhub.Schedule(0.01, function()
-					if not contentPanel.valid then
-						return
-					end
-					local row = contentPanel:FindChildRecursive(function(e)
-						return e.valid and e:HasClass("list-item") and not e:HasClass("list-heading") and e.text == targetName
-					end)
-					if row ~= nil then
-						row:FireEvent("press")
-					end
-				end)
+			SelectTargetItem(opt, targetKey, 20)
+		end
+	end
+
+	-- Deep-link entry point: open the given category and select the target item,
+	-- pre-filtering by the search needle so the page narrows to the match. This
+	-- is the live navigate function published to g_libraryNavigate and driven by
+	-- Compendium.Open (global-search click-through).
+	local function navigate(nav)
+		if nav == nil or nav.contentType == nil then
+			return
+		end
+		local opt = nil
+		for _,o in pairs(CompendiumRegistry) do
+			if o.contentType == nav.contentType and o.click ~= nil and ((not o.admin) or dmhub.isAdminGame) then
+				opt = o
+				break
 			end
 		end
+		if opt == nil then
+			return
+		end
+
+		local needle = nav.search or ""
+		if compendiumSearchInput ~= nil then
+			compendiumSearchInput.text = needle
+			compendiumSearchInput:FireEvent("edit")
+		else
+			m_searchText = Search.Normalize(needle)
+		end
+
+		openCategoryFiltered(opt, nav.targetKey)
 	end
 
 	-- Render aggregated cross-category results into the content pane, grouped by
@@ -5601,6 +5680,17 @@ local LibraryPanel = function()
                 parentPanel.selfStyle.opacity = 1
                 parentPanel.selfStyle.borderWidth = 2.3
             end
+
+            -- Publish this live panel's deep-link navigator and consume any
+            -- pending Compendium.Open request that opened us.
+            g_libraryNavigate = navigate
+            ConsumePendingCompendiumNavigation()
+        end,
+
+        destroy = function(element)
+            if g_libraryNavigate == navigate then
+                g_libraryNavigate = nil
+            end
         end,
 
 		editCompendiumFeature = function(element, feature, fn)
@@ -5679,6 +5769,22 @@ Compendium = {
 	Styles = LibraryStyles,
 	AddButton = AddButton,
 	CreateListItem = CreateListItem,
+
+	-- Deep-link into the compendium: open the panel and navigate to the exact
+	-- item. nav = {contentType=, search=, targetKey=}. If the panel is already
+	-- open we drive it directly; otherwise we stash the request and the panel
+	-- consumes it on open. The universal global-search click-through.
+	Open = function(nav)
+		if nav == nil or nav.contentType == nil then
+			return
+		end
+		g_pendingNavigation = nav
+		if g_libraryNavigate ~= nil then
+			ConsumePendingCompendiumNavigation()
+		else
+			LaunchablePanel.LaunchPanelByName("Compendium")
+		end
+	end,
 
 	--export show rolltable panel so others can use it.
 	ShowRolltablePanel = ShowRolltablePanel,
@@ -6373,12 +6479,17 @@ Search.RegisterProvider{
                     for k,v in unhidden_pairs(t) do
                         local name = (type(v) == "table" and rawget(v, "name")) or nil
                         if type(name) == "string" and Search.MatchesText(name, needle) then
+                            local capturedType, capturedKey, capturedName = opt.contentType, k, name
                             results[#results+1] = {
                                 name = name,
                                 score = Search.Score(name, needle),
                                 typeLabel = opt.text,
                                 activate = function()
-                                    LaunchablePanel.LaunchPanelByName("Compendium")
+                                    Compendium.Open{
+                                        contentType = capturedType,
+                                        search = capturedName,
+                                        targetKey = capturedKey,
+                                    }
                                 end,
                             }
                         end

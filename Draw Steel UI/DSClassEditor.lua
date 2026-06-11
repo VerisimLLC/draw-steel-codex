@@ -718,7 +718,11 @@ function ClassLevel:CreateEditor(classOrRace, levelNum, params)
 		height = "auto",
 		flow = "vertical",
 
-		styles = ThemeEngine.GetStyles(),
+		-- No per-level styles: re-declaring the full theme stylesheet on every
+		-- level editor was ~265ms/14-panels (the engine re-walks all 362 rules
+		-- per declaring panel). The class-editor root owns the cascade once and
+		-- these inherit it (~4ms). This was the dominant cost in opening a class.
+		-- (Measured: declaring per-panel 265ms vs inheriting 4ms for 14 panels.)
 
 		paste = function(element, item, index)
 			item = DeepCopy(item)
@@ -1236,7 +1240,12 @@ function Class.CreateEditor()
 
 		vscroll = true,
 		classes = 'class-panel',
-		styles = {
+		-- The class-editor root owns the theme cascade ONCE; all descendant
+		-- level/feature editors inherit it instead of each re-declaring the full
+		-- stylesheet. In the compendium the library-panel host already provides
+		-- the cascade, but merging it here keeps the editor self-sufficient in any
+		-- standalone host without re-introducing the per-panel cost.
+		styles = ThemeEngine.MergeStyles({
 			{
 				classes = {"class-panel"},
 				width = "100%-160",
@@ -1246,7 +1255,7 @@ function Class.CreateEditor()
 				flow = "vertical",
 				pad = 20,
 			},
-		},
+		}),
 	}
 
 	return classPanel

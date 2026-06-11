@@ -634,6 +634,41 @@ CharacterModifier.RegisterAbilityModifier
 		},
 	}
 
+CharacterModifier.RegisterAbilityModifier
+	{
+		id = "damagetype",
+		text = "Damage Type",
+		operations = { "Set" },
+		set = function(modifier, creature, ability, operation, value)
+			if value == nil or value == "" then
+				return true
+			end
+			value = string.lower(value)
+
+			for _,behavior in ipairs(ability.behaviors) do
+				if behavior.typeName == "ActivatedAbilityDamageBehavior" then
+					--Direct damage behaviors (e.g. monster free strikes) store the
+					--damage type directly. This is the case Raining Cinders hits.
+					behavior.damageType = value
+				elseif behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
+					--Power roll tiers store damage as text like "5 fire damage" or
+					--"5 damage". Rewrite the first damage clause of each tier to the
+					--new type. Mirrors the tier rewrite in MCDModifyPowerRolls.lua.
+					local tiers = behavior:try_get("tiers")
+					if tiers ~= nil then
+						for i=1,#tiers do
+							local m = regex.MatchGroups(tiers[i], "^(?<prefix>.*?)(?<damage>\\d+)\\s+([a-zA-Z]+\\s+)?damage(?<suffix>.*)$")
+							if m ~= nil then
+								tiers[i] = m.prefix .. m.damage .. " " .. value .. " damage" .. m.suffix
+							end
+						end
+					end
+				end
+			end
+			return true
+		end,
+	}
+
 --The "replaceBehavior" used to be false (default) for placing new behaviors at the end, and true for replacing behaviors.
 --Now it has three modes, "after", "before", and "replace". This converts an old modifier to the new mode.
 local function ReplaceBehaviorToEnum(mode)
@@ -1238,6 +1273,24 @@ CharacterModifier.TypeInfo.modifyability = {
 									options = ActivatedAbility.registeredProperties,
 									change = function(element, value)
 										attr.properties = value
+										Refresh()
+									end,
+								},
+							}
+						elseif attr.id == "damagetype" then
+							children[#children+1] = gui.Panel{
+								classes = {"formPanel"},
+								gui.Label{
+									classes = {"formLabel"},
+									text = "Damage Type:",
+								},
+								gui.Dropdown{
+									styles = ThemeEngine.GetStyles(),
+									classes = "formDropdown",
+									options = rules.damageTypesAvailable,
+									idChosen = attr.value,
+									change = function(element)
+										modifier.attributes[i].value = element.idChosen
 										Refresh()
 									end,
 								},

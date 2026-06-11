@@ -1174,16 +1174,26 @@ function Class.CreateLevelEditor(children, class, UploadClass, startLevel, finis
 			-- Collapse the whole level card when no feature in this level matches
 			-- the filter. SetClass (element-only, NOT SetClassTree) so a matching
 			-- level does not force-show its non-matching inner feature cards --
-			-- those keep collapsing individually via their own handler.
+			-- those keep collapsing individually via their own handler. A matching
+			-- level also auto-expands its body so the matched feature is actually
+			-- visible (the body is collapsed by default); clearing the filter
+			-- restores the default collapsed state.
 			searchCompendium = function(element, text)
 				if text == "" then
 					element:SetClass("searching", false)
 					element:SetClass("matchSearch", false)
+					editorPanel:SetClass("collapsed-anim", true)
+					tri:SetClass("expanded", false)
+					header:SetClass("expanded", false)
 					return
 				end
 
 				element:SetClass("searching", true)
-				element:SetClass("matchSearch", MatchesSearchRecursive(classLevel, text))
+				local matched = MatchesSearchRecursive(classLevel, text)
+				element:SetClass("matchSearch", matched)
+				editorPanel:SetClass("collapsed-anim", not matched)
+				tri:SetClass("expanded", matched)
+				header:SetClass("expanded", matched)
 			end,
 
 			header,

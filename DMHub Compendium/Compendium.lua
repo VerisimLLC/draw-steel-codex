@@ -5441,7 +5441,11 @@ local LibraryPanel = function()
 		edit = function(element)
 			m_searchText = Search.Normalize(element.text)
 			clearSearchButton:SetClass("collapsed", element.text == nil or element.text == "")
-			resultPanel:FireEventTree("searchCompendium", trim(element.text))
+			-- Fire the NORMALISED needle (lowercased + trimmed), not the raw text.
+			-- List items re-normalise internally, but legacy MatchesSearchRecursive
+			-- consumers (e.g. the class editor) match the needle verbatim against a
+			-- lowercased haystack -- a raw mixed-case needle silently never matches.
+			resultPanel:FireEventTree("searchCompendium", m_searchText)
 			-- Default scope is ALL: with no category open, typing shows
 			-- aggregated cross-category results. A category page filters
 			-- itself (above) and is left untouched here.

@@ -7299,6 +7299,13 @@ creature.helpSymbols = {
 		examples = {"OBJ.Count Riders('goblin', 'crafty')"},
 	},
 
+	hasconditionrider = {
+		name = "Has Condition Rider",
+		type = "function",
+		desc = "A function given a condition name and a condition rider name; true if the creature has that condition with that rider attached. The rider name may be omitted to test for any rider on the named condition.",
+		examples = {"OBJ.Has Condition Rider(\"Grabbed\", \"Let's Tussle\")"},
+	},
+
 	level = {
 		name = "Level",
 		type = "number",
@@ -7937,6 +7944,34 @@ creature.lookupSymbols = {
 	countnearbycreatures = countnearbycreatures,
 
     countriders = countriders,
+
+	hasconditionrider = function(c)
+		return function(conditionName, riderName)
+			conditionName = string.lower(conditionName)
+			riderName = riderName ~= nil and string.lower(riderName) or nil
+			local inflicted = c:try_get("inflictedConditions")
+			if inflicted == nil then
+				return false
+			end
+			local conditionsTable = GetTableCached(CharacterCondition.tableName)
+			local ridersTable = GetTableCached(CharacterCondition.ridersTableName)
+			for condid, entry in pairs(inflicted) do
+				local condInfo = conditionsTable[condid]
+				if condInfo ~= nil and string.lower(condInfo.name) == conditionName and entry.riders ~= nil then
+					if riderName == nil then
+						return #entry.riders > 0
+					end
+					for _, riderid in ipairs(entry.riders) do
+						local riderInfo = ridersTable[riderid]
+						if riderInfo ~= nil and string.lower(riderInfo.name) == riderName then
+							return true
+						end
+					end
+				end
+			end
+			return false
+		end
+	end,
 
 	summoned = function(c)
 		local token = dmhub.LookupToken(c)

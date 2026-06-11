@@ -636,7 +636,12 @@ local function CreateSearchBar()
                     children[#children+1] = gui.Label{
                         classes = {"searchSeeAll"},
                         text = string.format("See all %d", #list),
-                        press = function()
+                        -- click (not press): press fires on mousedown and would
+                        -- rebuild the popup mid-click, so the mouseup lands on the
+                        -- swapped-out element and dismisses the whole popup
+                        -- ("briefly expands then disappears"). click debounces on
+                        -- mousedown+mouseup so the rebuild happens after the click.
+                        click = function()
                             expanded[capturedId] = true
                             resultPanel.popup = CreateGroupedPopup(grouped, needle, expanded, searchingLabel)
                         end,
@@ -721,7 +726,10 @@ local function CreateSearchBar()
         local links = CustomDocument.SearchLinks(text)
         for _,link in ipairs(links) do
             link.score = scoreMatch(link.name, text)
-            link.text = string.format("<b>%s</b> (%s)", link.name, link.type)
+            -- Render name + a muted type-label chip (like tokens), instead of
+            -- baking "(Map)"/"(Document)" into the text -- so maps/journals tag
+            -- consistently with the rest of the grouped results.
+            link.typeLabel = link.type
             link.bucket = BucketForLinkType(link.type)
             link.click = function()
                 CustomDocument.OpenContent(CustomDocument.ResolveLink(link.link))

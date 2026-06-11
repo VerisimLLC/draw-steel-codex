@@ -1,5 +1,32 @@
 # Theme Engine Performance Notes
 
+> **UPDATE 2026-06-11 -- core diagnosis below was WRONG; class editor FIXED.**
+> Direct measurement (current engine) contradicts the "smoking gun" section:
+> the cost is **re-DECLARING `styles = ThemeEngine.GetStyles()` per panel**, NOT
+> merely being *under* a GetStyles surface. Apples-to-apples:
+> - 14 child panels that INHERIT the cascade from a styled parent: **~4 ms**.
+> - 14 child panels that each set `styles = GetStyles()`: **~265 ms** (60x).
+>
+> So a panel that inherits walks the cascade cheaply; a panel that re-declares
+> the full stylesheet makes the engine re-walk all ~362 rules for that panel.
+> The fix is "own the cascade once at the surface root, let descendants inherit"
+> -- the exact opposite of what the original note implied was futile.
+>
+> **`Draw Steel UI/DSClassEditor.lua` fixed (commit dd5f53b):** `ClassLevel:CreateEditor`
+> was attaching `styles = GetStyles()` to every level editor panel; a large class
+> (Conduit) built ~127 such declarations and took **~18s** to open (and to deep-link
+> into). Removed the per-level declaration; the class-editor root owns the cascade
+> via `MergeStyles`. Result: `SetClass` 1027ms -> 79ms; full open ~18s -> ~0.1s;
+> GetStyles calls during the build 127 -> 3. Verified themed (class + race editors).
+>
+> **General lever for the rest of the app:** grep `styles = ThemeEngine.GetStyles()`
+> -- any panel that ISN'T a top-level window/surface and sits under one that already
+> owns the cascade is paying this cost needlessly. The original remediation options
+> below (trim DefaultStyles, optional packs) are still worth doing to lower the
+> baseline per-surface cost, but per-panel re-declaration is the bigger, cheaper win.
+
+---
+
 Bookmark for a future perf pass. Do not act on this without re-reading first; some of the data is from one observation session and the conclusions may shift after we get more samples.
 
 ## The symptom

@@ -1941,3 +1941,33 @@ dmhub.GetSelectedEncounter = function()
     local encounter = gui.GetFocus().data.encounter
     return encounter:CloneForNumberOfHeroes()
 end
+
+-- Global-search provider: encounters ("In this game"). DM-only content. The
+-- Encounter creator selects encounters internally with no per-encounter
+-- deep-link, so activation opens the panel (coarse open; exact-select is a
+-- later refinement).
+Search.RegisterProvider{
+    id = "encounters",
+    bucket = "ingame",
+    typeLabel = "Encounter",
+    enumerate = function(needle)
+        if not dmhub.isDM then
+            return {}
+        end
+        local results = {}
+        local t = dmhub.GetTable("encounters") or {}
+        for k,v in unhidden_pairs(t) do
+            local name = (type(v) == "table" and rawget(v, "name")) or nil
+            if type(name) == "string" and Search.MatchesText(name, needle) then
+                results[#results+1] = {
+                    name = name,
+                    score = Search.Score(name, needle),
+                    activate = function()
+                        DockablePanel.LaunchPanelByName("Encounter creator", "show")
+                    end,
+                }
+            end
+        end
+        return results
+    end,
+}

@@ -263,6 +263,7 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
 
 
 	local resultPanel
+	local m_lastSearch = ""
 
 	local children = {}
 	--some kind of choice.
@@ -319,6 +320,10 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
 		},
 
 		click = function(element)
+			if body:HasClass('collapsed-anim') and body.data ~= nil and body.data.EnsureBuilt ~= nil then
+				--expanding: build the deferred body now.
+				body.data.EnsureBuilt()
+			end
 			body:SetClass('collapsed-anim', not body:HasClass('collapsed-anim'))
 			tri:SetClass("expanded", not tri:HasClass("expanded"))
 			element:SetClass("expanded", tri:HasClass("expanded"))
@@ -416,57 +421,63 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
 		end,
 	}
 
-	local tagEditor = nil
+	-- The body's sub-editors are constructed by builder functions invoked from
+	-- BuildChoiceBody (lazily, on first expansion). Constructing them eagerly
+	-- here would orphan them when the body never builds: the engine warns about
+	-- (and never garbage-collects) panels created but not attached to a parent.
+	local BuildTagEditor = nil
 	if feature.typeName == "CharacterFeatChoice" then
 
-        local tagOptions = (function()
-            local tags = { feat = true }
-            local featsTable = dmhub.GetTable(CharacterFeat.tableName) or {}
-            for _,feat in pairs(featsTable) do
-                if not feat:try_get("hidden", false) then
-                    for _,tag in ipairs(feat:Tags()) do
-                        tags[string.lower(tag)] = true
+        BuildTagEditor = function()
+            local tagOptions = (function()
+                local tags = { feat = true }
+                local featsTable = dmhub.GetTable(CharacterFeat.tableName) or {}
+                for _,feat in pairs(featsTable) do
+                    if not feat:try_get("hidden", false) then
+                        for _,tag in ipairs(feat:Tags()) do
+                            tags[string.lower(tag)] = true
+                        end
                     end
                 end
-            end
-            local result = {}
-            for k,_ in pairs(tags) do
-                result[#result+1] = { id = k, text = k }
-            end
-            table.sort(result, function(a,b) return a.text < b.text end)
-            return result
-        end)()
+                local result = {}
+                for k,_ in pairs(tags) do
+                    result[#result+1] = { id = k, text = k }
+                end
+                table.sort(result, function(a,b) return a.text < b.text end)
+                return result
+            end)()
 
-        local tagValue = (function()
-            local v = {}
-            for _,tag in ipairs(feature:Tags()) do
-                v[string.lower(tag)] = true
-            end
-            return v
-        end)()
+            local tagValue = (function()
+                local v = {}
+                for _,tag in ipairs(feature:Tags()) do
+                    v[string.lower(tag)] = true
+                end
+                return v
+            end)()
 
-        tagEditor = gui.Panel{
-            classes = {"formStackedRow"},
-            gui.Label{
-                classes = {"formStacked"},
-                text = "Tags:",
-            },
-            gui.Multiselect{
-                classes = {"formStacked"},
-                addItemText = "Add Tag...",
-                options = tagOptions,
-                value = tagValue,
-                change = function(element, value)
-                    local newTags = {}
-                    for tag,_ in pairs(value) do
-                        newTags[#newTags+1] = tag
-                    end
-                    table.sort(newTags)
-                    feature.tag = string.join(newTags, ",")
-                    resultPanel:FireEvent("change")
-                end,
-            },
-        }
+            return gui.Panel{
+                classes = {"formStackedRow"},
+                gui.Label{
+                    classes = {"formStacked"},
+                    text = "Tags:",
+                },
+                gui.Multiselect{
+                    classes = {"formStacked"},
+                    addItemText = "Add Tag...",
+                    options = tagOptions,
+                    value = tagValue,
+                    change = function(element, value)
+                        local newTags = {}
+                        for tag,_ in pairs(value) do
+                            newTags[#newTags+1] = tag
+                        end
+                        table.sort(newTags)
+                        feature.tag = string.join(newTags, ",")
+                        resultPanel:FireEvent("change")
+                    end,
+                },
+            }
+        end
 
 	elseif feature.typeName == "CharacterSingleFeat" then
 
@@ -519,84 +530,130 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
 	end
 
 	local prerequisitesEditor = nil
+	local BuildPrerequisitesEditor = nil
 	if feature.typeName == "CharacterFeatureList" then
-		local dropdown = gui.Dropdown{
-			height = 30,
-			width = 220,
-			halign = "left",
+		BuildPrerequisitesEditor = function()
+			local dropdown = gui.Dropdown{
+				height = 30,
+				width = 220,
+				halign = "left",
 
-			idChosen = "none",
-			options = CharacterPrerequisite.options,
-			change = function(element)
-				if element.idChosen ~= 'none' then
-					feature:get_or_add("prerequisites", {})
-					feature.prerequisites[#feature.prerequisites+1] = CharacterPrerequisite.Create{
-						type = element.idChosen,
-					}
-					resultPanel:FireEvent("change")
-
-					element.idChosen = 'none'
-					prerequisitesEditor:FireEvent("create")
-				end
-			end,
-		}
-
-		prerequisitesEditor = gui.Panel{
-			width = "100%",
-			height = "auto",
-			flow = "vertical",
-
-			children = {dropdown},
-
-			create = function(element)
-				local children = {dropdown}
-
-				for i,pre in ipairs(feature:try_get("prerequisites", {})) do
-					children[#children+1] = pre:Editor{
-						change = function(element)
-							resultPanel:FireEvent("change")
-						end,
-						delete = function(element)
-							table.remove(feature.prerequisites, i)
-							resultPanel:FireEvent("change")
-							prerequisitesEditor:FireEvent('create')
-						end
-					}
-				end
-
-				element.children = children
-			end,
-		}
-	end
-
-	local rulesTextEditor = nil
-
-	if feature:try_get("rulesText") ~= nil then
-		rulesTextEditor = gui.Panel{
-			classes = {"formPanel"},
-			gui.Label{
-				text = "Rules Text:",
-				classes = {"form"},
-				minWidth = 160,
-			},
-			gui.Input{
-				width = 400,
-				text = feature.rulesText,
-				placeholderText = "Enter text...",
+				idChosen = "none",
+				options = CharacterPrerequisite.options,
 				change = function(element)
-					feature.rulesText = element.text
-					resultPanel:FireEvent("change")
+					if element.idChosen ~= 'none' then
+						feature:get_or_add("prerequisites", {})
+						feature.prerequisites[#feature.prerequisites+1] = CharacterPrerequisite.Create{
+							type = element.idChosen,
+						}
+						resultPanel:FireEvent("change")
+
+						element.idChosen = 'none'
+						prerequisitesEditor:FireEvent("create")
+					end
 				end,
 			}
-		}
+
+			prerequisitesEditor = gui.Panel{
+				width = "100%",
+				height = "auto",
+				flow = "vertical",
+
+				children = {dropdown},
+
+				create = function(element)
+					local children = {dropdown}
+
+					for i,pre in ipairs(feature:try_get("prerequisites", {})) do
+						children[#children+1] = pre:Editor{
+							change = function(element)
+								resultPanel:FireEvent("change")
+							end,
+							delete = function(element)
+								table.remove(feature.prerequisites, i)
+								resultPanel:FireEvent("change")
+								prerequisitesEditor:FireEvent('create')
+							end
+						}
+					end
+
+					element.children = children
+				end,
+			}
+
+			return prerequisitesEditor
+		end
+	end
+
+	local BuildRulesTextEditor = nil
+
+	if feature:try_get("rulesText") ~= nil then
+		BuildRulesTextEditor = function()
+			return gui.Panel{
+				classes = {"formPanel"},
+				gui.Label{
+					text = "Rules Text:",
+					classes = {"form"},
+					minWidth = 160,
+				},
+				gui.Input{
+					width = 400,
+					text = feature.rulesText,
+					placeholderText = "Enter text...",
+					change = function(element)
+						feature.rulesText = element.text
+						resultPanel:FireEvent("change")
+					end,
+				}
+			}
+		end
 	end
 
 
 	if body == nil then
+		-- Lazy body build: defer creating the body's editor panels (including the
+		-- recursive feature/choice editor subtree) until first expansion. See the
+		-- matching comment in ClassLevel:CreateEditor -- the engine pays a large
+		-- per-panel layout cost inside vscroll containers, and collapsed bodies
+		-- are most of the class editor's panel count.
+		local BuildChoiceBody
+
 		body = gui.Panel{
 			classes = {"featureCardBody", "collapsed-anim"},
+			data = {},
 
-			gui.Panel{
+			create = function(element)
+				if element:HasClass("collapsed-anim") then
+					element.data.pendingBuild = true
+					return
+				end
+				element.data.pendingBuild = false
+				BuildChoiceBody(element)
+				-- See ClassLevel:CreateEditor's create: re-apply any filter that
+				-- was broadcast before this deferred build ran.
+				if m_lastSearch ~= "" then
+					element:FireEventTree("searchCompendium", m_lastSearch)
+				end
+			end,
+		}
+
+		body.data.EnsureBuilt = function(searchText)
+			if not body.data.pendingBuild then
+				return false
+			end
+			body.data.pendingBuild = false
+			BuildChoiceBody(body)
+			local s = searchText or m_lastSearch
+			if s ~= nil and s ~= "" then
+				body:FireEventTree("searchCompendium", s)
+			end
+			return true
+		end
+
+		BuildChoiceBody = function(element)
+			local bodyChildren = {}
+
+			bodyChildren[#bodyChildren+1] = gui.Panel{
 				classes = {"formStackedRow"},
 				gui.Label{
 					classes = {"formStacked"},
@@ -611,17 +668,19 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
 						nameLabel.text = feature:Describe()
 					end,
 				}
-			},
+			}
 
+			if BuildPrerequisitesEditor ~= nil then
+				bodyChildren[#bodyChildren+1] = BuildPrerequisitesEditor()
+			end
+			if BuildTagEditor ~= nil then
+				bodyChildren[#bodyChildren+1] = BuildTagEditor()
+			end
+			if BuildRulesTextEditor ~= nil then
+				bodyChildren[#bodyChildren+1] = BuildRulesTextEditor()
+			end
 
-			prerequisitesEditor,
-
-			tagEditor,
-
-			rulesTextEditor,
-
-
-			gui.Panel{
+			bodyChildren[#bodyChildren+1] = gui.Panel{
 				classes = {"formStackedRow"},
 				gui.Label{
 					classes = {"formStacked"},
@@ -641,14 +700,16 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
 						resultPanel:FireEvent("change")
 					end,
 				},
-			},
+			}
 
-			feature:CreateEditor(classOrRace, {
+			bodyChildren[#bodyChildren+1] = feature:CreateEditor(classOrRace, {
 				change = function(element)
 					resultPanel:FireEvent("change")
 				end
-			}),
-		}
+			})
+
+			element.children = bodyChildren
+		end
 	end
 
 	children[#children+1] = body
@@ -659,6 +720,7 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
 		children = children,
 
         searchCompendium = function(element, text)
+            m_lastSearch = text or ""
             if text == "" then
                 element:SetClassTree("searching", false)
                 element:SetClassTree("matchSearch", false)
@@ -692,6 +754,8 @@ function ClassLevel:CreateEditor(classOrRace, levelNum, params)
 	end
 
 	local resultPanel
+	local m_lastSearch = ""
+	local BuildBody
 
 	local DescribeFeature = function(feature)
 		local isupgrade = false
@@ -719,10 +783,11 @@ function ClassLevel:CreateEditor(classOrRace, levelNum, params)
 		flow = "vertical",
 
 		-- No per-level styles: re-declaring the full theme stylesheet on every
-		-- level editor was ~265ms/14-panels (the engine re-walks all 362 rules
-		-- per declaring panel). The class-editor root owns the cascade once and
-		-- these inherit it (~4ms). This was the dominant cost in opening a class.
-		-- (Measured: declaring per-panel 265ms vs inheriting 4ms for 14 panels.)
+		-- level editor costs ~265ms/14-panels vs ~4ms inheriting the class-editor
+		-- root's cascade. (The dominant class-open cost was panel volume under
+		-- vscroll, addressed by the lazy body build below -- but keep inheriting.)
+
+		data = {},
 
 		paste = function(element, item, index)
 			item = DeepCopy(item)
@@ -733,7 +798,52 @@ function ClassLevel:CreateEditor(classOrRace, levelNum, params)
 			element:FireEvent("create")
 		end,
 
+		-- Track the active compendium filter so a lazily-built body can apply it
+		-- to its freshly created children (they were not mounted when the filter
+		-- was broadcast across the tree).
+		searchCompendium = function(element, text)
+			m_lastSearch = text or ""
+		end,
+
+		-- Lazy body build: when this editor is a collapsed level body, defer
+		-- building its feature cards until first expansion. The engine pays a
+		-- large constant layout cost PER PANEL inside a vscroll container
+		-- (measured ~3ms/panel, ~40x the cost outside vscroll), and ~98% of the
+		-- class editor's panels live inside collapsed bodies the user may never
+		-- open. Building them upfront froze the UI ~20s for a large class.
 		create = function(element)
+			if element:HasClass("collapsed-anim") then
+				element.data.pendingBuild = true
+				return
+			end
+			element.data.pendingBuild = false
+			BuildBody(element)
+			-- A search broadcast may already have expanded this body before
+			-- create fired (create runs at end of frame, after SetClass fires
+			-- searchCompendium). Re-apply it so the new children filter.
+			if m_lastSearch ~= "" then
+				element:FireEventTree("searchCompendium", m_lastSearch)
+			end
+		end,
+	}
+
+	-- Builds the body now if it was deferred. Returns true if it built.
+	-- searchText (optional) is applied to the new children; falls back to the
+	-- last broadcast filter.
+	args.data.EnsureBuilt = function(searchText)
+		if resultPanel == nil or not resultPanel.data.pendingBuild then
+			return false
+		end
+		resultPanel.data.pendingBuild = false
+		BuildBody(resultPanel)
+		local s = searchText or m_lastSearch
+		if s ~= nil and s ~= "" then
+			resultPanel:FireEventTree("searchCompendium", s)
+		end
+		return true
+	end
+
+	BuildBody = function(element)
 			local children = {}
 
 			for i,feature in ipairs(self.features) do
@@ -890,8 +1000,7 @@ function ClassLevel:CreateEditor(classOrRace, levelNum, params)
 			}
 
 			element.children = children
-		end,
-	}
+	end
 
 	for k,v in pairs(params) do
 		args[k] = v
@@ -1148,6 +1257,10 @@ function Class.CreateLevelEditor(children, class, UploadClass, startLevel, finis
 			summaryLabel,
 
 			click = function(element)
+				if editorPanel:HasClass("collapsed-anim") then
+					--expanding: build the deferred body now.
+					editorPanel.data.EnsureBuilt()
+				end
 				editorPanel:SetClass("collapsed-anim", not editorPanel:HasClass("collapsed-anim"))
 				tri:SetClass("expanded", not editorPanel:HasClass("collapsed-anim"))
 				element:SetClass("expanded", tri:HasClass("expanded"))
@@ -1195,6 +1308,10 @@ function Class.CreateLevelEditor(children, class, UploadClass, startLevel, finis
 				element:SetClass("searching", true)
 				local matched = MatchesSearchRecursive(classLevel, text)
 				element:SetClass("matchSearch", matched)
+				if matched then
+					--auto-expanding to show the match: build the deferred body.
+					editorPanel.data.EnsureBuilt(text)
+				end
 				editorPanel:SetClass("collapsed-anim", not matched)
 				tri:SetClass("expanded", matched)
 				header:SetClass("expanded", matched)

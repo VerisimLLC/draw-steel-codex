@@ -4962,17 +4962,33 @@ local LibraryPanel = function()
 
 		local target = nil
 		if opt.contentType == "tbl_Gear" then
-			-- The Inventory page (DSInventoryCompendium) is a category-navigated
-			-- card browser with its own filter and visibility gates; some items
-			-- are not in the current view at all. Best-effort: press the card if
-			-- it is realised (press selects the item into the editor), otherwise
-			-- leave the page browsable. We deliberately do NOT drive its private
-			-- filter -- a non-matching item would collapse the whole list to an
-			-- empty, broken-looking state.
+			-- The Inventory page virtualises its card list and keeps its own
+			-- filter, so drive that filter to the item name: it narrows the list
+			-- to the match and realises the (otherwise off-screen) card so we can
+			-- press it (press selects the item into the editor pane).
+			local searchBox = contentPanel:FindChildRecursive(function(e)
+				if not e.valid then
+					return false
+				end
+				local ok, pt = pcall(function() return e.placeholderText end)
+				return ok and pt == "Filter Inventory..."
+			end)
+			if searchBox ~= nil and item.name ~= nil and searchBox.text ~= item.name then
+				searchBox.text = item.name
+				searchBox:FireEvent("edit")
+			end
 			target = contentPanel:FindChildRecursive(function(e)
 				return e.valid and e:HasClass("itemPanel")
 					and e.data ~= nil and e.data.item ~= nil and e.data.item.id == targetKey
 			end)
+			-- Safety: if the item is genuinely not in this view (e.g. gated by a
+			-- visibility toggle) and never realises, clear the filter we set on
+			-- the final attempt so the user is left with the full browsable list,
+			-- not an empty one.
+			if target == nil and (attemptsLeft or 0) <= 1 and searchBox ~= nil and searchBox.text ~= "" then
+				searchBox.text = ""
+				searchBox:FireEvent("edit")
+			end
 		else
 			local targetName = item.name
 			if targetName ~= nil then
@@ -5026,11 +5042,16 @@ local LibraryPanel = function()
 		if nav == nil or nav.contentType == nil then
 			return
 		end
+		-- Several categories can share a contentType (e.g. "Inventory" shows all
+		-- tbl_Gear, "Lights" shows only light sources). Pick the highest-priority
+		-- one -- the broad "Inventory" view (priority 1) over the filtered "Lights"
+		-- view -- so an arbitrary item always lands in a category that contains it.
 		local opt = nil
 		for _,o in pairs(CompendiumRegistry) do
 			if o.contentType == nav.contentType and o.click ~= nil and ((not o.admin) or dmhub.isAdminGame) then
-				opt = o
-				break
+				if opt == nil or (o.priority or 0) > (opt.priority or 0) then
+					opt = o
+				end
 			end
 		end
 		if opt == nil then
@@ -6476,27 +6497,37 @@ Search.RegisterProvider{
     bucket = "compendium",
     enumerate = function(needle)
         local results = {}
+        -- Canonical category per contentType (highest priority), so items backed
+        -- by several category views (e.g. Inventory + Lights both = tbl_Gear) are
+        -- listed once, under the broadest category, and deep-link there.
+        local canonical = {}
         for _,opt in pairs(CompendiumRegistry) do
             if opt.contentType ~= nil and ((not opt.admin) or dmhub.isAdminGame) then
-                local t = dmhub.GetTable(opt.contentType)
-                if t ~= nil then
-                    for k,v in unhidden_pairs(t) do
-                        local name = (type(v) == "table" and rawget(v, "name")) or nil
-                        if type(name) == "string" and Search.MatchesText(name, needle) then
-                            local capturedType, capturedKey, capturedName = opt.contentType, k, name
-                            results[#results+1] = {
-                                name = name,
-                                score = Search.Score(name, needle),
-                                typeLabel = opt.text,
-                                activate = function()
-                                    Compendium.Open{
-                                        contentType = capturedType,
-                                        search = capturedName,
-                                        targetKey = capturedKey,
-                                    }
-                                end,
-                            }
-                        end
+                local cur = canonical[opt.contentType]
+                if cur == nil or (opt.priority or 0) > (cur.priority or 0) then
+                    canonical[opt.contentType] = opt
+                end
+            end
+        end
+        for _,opt in pairs(canonical) do
+            local t = dmhub.GetTable(opt.contentType)
+            if t ~= nil then
+                for k,v in unhidden_pairs(t) do
+                    local name = (type(v) == "table" and rawget(v, "name")) or nil
+                    if type(name) == "string" and Search.MatchesText(name, needle) then
+                        local capturedType, capturedKey, capturedName = opt.contentType, k, name
+                        results[#results+1] = {
+                            name = name,
+                            score = Search.Score(name, needle),
+                            typeLabel = opt.text,
+                            activate = function()
+                                Compendium.Open{
+                                    contentType = capturedType,
+                                    search = capturedName,
+                                    targetKey = capturedKey,
+                                }
+                            end,
+                        }
                     end
                 end
             end

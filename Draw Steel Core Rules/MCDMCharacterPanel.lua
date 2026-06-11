@@ -5020,6 +5020,28 @@ function TacPanel.Summoner()
                 end,
             },
 
+            -- Opens the squad manager modal; the panel itself is read-only.
+            gui.Button{
+                classes = {"sizeS"},
+                halign = "center",
+                width = 150,
+                height = 28,
+                vmargin = 4,
+                text = "Edit Squads",
+                data = { token = nil },
+                refreshToken = function(element, token)
+                    element.data.token = token
+                end,
+                hover = function(element)
+                    element.tooltip = gui.Tooltip("Open the squad manager to reassign, combine, split, rename, recolor, or delete your squads.")
+                end,
+                press = function(element)
+                    local token = element.data.token
+                    if token == nil or not token.valid then return end
+                    DrawSteelMinion.ShowSquadManager(token)
+                end,
+            },
+
             gui.Label{
                 classes = {"fg", "bgAlt", "sizeXs"},
                 width = "100%",

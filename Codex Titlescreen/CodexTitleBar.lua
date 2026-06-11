@@ -604,6 +604,9 @@ local function CreateSearchBar()
             flow = "horizontal",
             press = function()
                 resultPanel.popup = nil
+                -- deselect no longer clears the query when the pointer is on
+                -- the popup, so reset it here on activation.
+                resultPanel.text = ""
                 if result.click ~= nil then
                     result.click()
                 elseif result.activate ~= nil then
@@ -636,11 +639,12 @@ local function CreateSearchBar()
                     children[#children+1] = gui.Label{
                         classes = {"searchSeeAll"},
                         text = string.format("See all %d", #list),
-                        -- click (not press): press fires on mousedown and would
-                        -- rebuild the popup mid-click, so the mouseup lands on the
-                        -- swapped-out element and dismisses the whole popup
-                        -- ("briefly expands then disappears"). click debounces on
-                        -- mousedown+mouseup so the rebuild happens after the click.
+                        -- The historical "expands then disappears" bug was NOT
+                        -- this handler: the input's deselect fired on the real
+                        -- mousedown, cleared the text, and the resulting
+                        -- edit("") dismissed the rebuilt popup ~editlag later.
+                        -- deselect now keeps the query when the pointer is on
+                        -- the popup, so the expansion survives.
                         click = function()
                             expanded[capturedId] = true
                             resultPanel.popup = CreateGroupedPopup(grouped, needle, expanded, searchingLabel)
@@ -874,6 +878,21 @@ local function CreateSearchBar()
             element.hasFocus = true
         end,
         deselect = function(element)
+            -- A real click inside the results popup also blurs this input
+            -- (deselect fires on the mousedown). Clearing the text here makes
+            -- the engine fire edit("") after editlag, which runs
+            -- executeSearch("") and dismisses the popup right after the row's
+            -- click lands -- "See all" would briefly expand then vanish.
+            -- Only treat the blur as a dismissal when the pointer is OUTSIDE
+            -- the popup (mousePoint is normalized 0..1 inside a panel). The
+            -- engine already closes the popup itself on outside clicks.
+            local popup = element.popup
+            if popup ~= nil and popup.valid then
+                local mp = popup.mousePoint
+                if mp ~= nil and mp.x >= 0 and mp.x <= 1 and mp.y >= 0 and mp.y <= 1 then
+                    return
+                end
+            end
             element.text = ""
         end,
         repeatSearch = function(element)

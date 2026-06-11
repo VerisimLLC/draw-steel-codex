@@ -443,6 +443,123 @@ function Search.Highlight(text, needle, colorToken)
     return table.concat(out)
 end
 
+-- Relevance score for a candidate name against a (normalised) needle. Mirrors
+-- the title-bar idiom: exact 100, prefix 75, substring 50, none 0. Shared so
+-- every provider ranks consistently. Assumes the needle is already normalised.
+--- @param text any
+--- @param needle string
+--- @return number
+function Search.Score(text, needle)
+    if type(text) ~= "string" or needle == nil or needle == "" then
+        return 0
+    end
+    local h = string.lower(text)
+    if h == needle then
+        return 100
+    elseif string.starts_with(h, needle) then
+        return 75
+    elseif string.find(h, needle, 1, true) ~= nil then
+        return 50
+    end
+    return 0
+end
+
+-- =============================================================================
+-- Global-search provider registry.
+-- Appearing in global (title-bar) search = registering a PROVIDER. The system
+-- cannot auto-derive this (it can't tell user-facing data from internal, nor
+-- know the click action), so each domain opts in. Two forms:
+--
+--   One-liner (standard GetTable content):
+--     Search.RegisterProvider{
+--         id = "...", bucket = "compendium",
+--         tableName = "...", nameField = "name",     -- nameField defaults to "name"
+--         typeLabel = "...",                          -- shown as the result's source label
+--         activate = function(item, key) ... end,     -- optional click action
+--     }
+--
+--   Full provider (bespoke / computed data):
+--     Search.RegisterProvider{
+--         id = "...", bucket = "ingame", typeLabel = "...",
+--         enumerate = function(needle)                -- needle is normalised
+--             return { { name=, score=, typeLabel=, activate=function() end }, ... }
+--         end,
+--     }
+--
+-- `bucket` is one of Search.Buckets (display labels are owned by the search UI).
+-- Same path for first-party and third-party module devs; no core changes.
+-- =============================================================================
+
+-- Stable bucket ids. The title-bar search owns the display labels and order.
+Search.Buckets = { "compendium", "rulebooks", "ingame", "apptools" }
+
+-- Providers with a needle shorter than this are skipped: a single character
+-- matches almost everything and floods the results / wastes the render budget.
+Search.MinProviderQueryLength = 2
+
+local g_searchProviders = {}
+
+--- @param spec table provider spec (see header above); must carry a unique id
+function Search.RegisterProvider(spec)
+    if spec == nil or spec.id == nil then
+        return
+    end
+    g_searchProviders[spec.id] = spec
+end
+
+--- @param id string
+function Search.UnregisterProvider(id)
+    g_searchProviders[id] = nil
+end
+
+--- Run every registered provider against a (normalised) needle and return a
+--- flat list of result rows. Each row carries: name, score, bucket, typeLabel,
+--- and an activate() click action. A provider that errors is skipped rather
+--- than breaking the whole search.
+--- @param needle string normalised needle (see Search.Normalize)
+--- @return table list of result rows
+function Search.CollectProviderResults(needle)
+    local results = {}
+    if needle == nil or #needle < Search.MinProviderQueryLength then
+        return results
+    end
+
+    for _,spec in pairs(g_searchProviders) do
+        if spec.enumerate ~= nil then
+            local ok, list = pcall(spec.enumerate, needle)
+            if ok and type(list) == "table" then
+                for _,r in ipairs(list) do
+                    r.bucket = r.bucket or spec.bucket
+                    r.typeLabel = r.typeLabel or spec.typeLabel
+                    results[#results+1] = r
+                end
+            end
+        elseif spec.tableName ~= nil then
+            local t = dmhub.GetTable(spec.tableName) or {}
+            local nameField = spec.nameField or "name"
+            for k,v in unhidden_pairs(t) do
+                local name = (type(v) == "table" and rawget(v, nameField)) or nil
+                if type(name) == "string" and Search.MatchesText(name, needle) then
+                    local capturedItem, capturedKey = v, k
+                    results[#results+1] = {
+                        name = name,
+                        score = Search.Score(name, needle),
+                        bucket = spec.bucket,
+                        typeLabel = spec.typeLabel,
+                        activate = function()
+                            if spec.activate ~= nil then
+                                spec.activate(capturedItem, capturedKey)
+                            end
+                        end,
+                    }
+                end
+            end
+        end
+    end
+
+    return results
+end
+
 -- Legacy wrappers. These keep the historical contract (needle used verbatim,
 -- haystack lowered) so existing callers behave identically.
 

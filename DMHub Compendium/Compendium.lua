@@ -5059,8 +5059,12 @@ local LibraryPanel = function()
 		text = "All results",
 		press = function(element)
 			m_currentCategory = nil
+			-- Clear any selected category so its highlight drops, but do NOT
+			-- mark this nav entry 'selected' itself: the {list-item, selected}
+			-- wash (color @fgInverse) is more specific than our colour rule and
+			-- would render the entry as dark, barely-legible text.
 			for _,sibling in ipairs(element.parent.children) do
-				sibling:SetClass('selected', sibling == element)
+				sibling:SetClass('selected', false)
 			end
 			buildAggregated(m_searchText)
 		end,
@@ -5068,7 +5072,6 @@ local LibraryPanel = function()
 			local needle = Search.Normalize(text)
 			if needle == "" then
 				element:SetClass("collapsed", true)
-				element:SetClass("selected", false)
 				return
 			end
 
@@ -5082,7 +5085,6 @@ local LibraryPanel = function()
 
 			element:SetClass("collapsed", false)
 			element.text = string.format("All results (%d)", total)
-			element:SetClass("selected", m_currentCategory == nil)
 		end,
 	}
 
@@ -5529,13 +5531,14 @@ local LibraryPanel = function()
 				color = '@fg',
 			},
 			-- "All results (N)" entry pinned atop the menu while filtering.
-			-- accentHover (a light accent) stays legible on the dark menu;
-			-- @accent proper is too low-contrast to read here. The hover state is
-			-- left to the standard {list-item, hover} rule (inverse wash), which
-			-- stays readable; a custom hover colour here went invisible on it.
+			-- Uses @fgStrong (brightest text token) for legibility - the accent
+			-- tokens are too low-contrast on the dark menu to read; it stays
+			-- distinct via bold + top position + the count. Hover is left to the
+			-- standard {list-item, hover} rule (inverse wash), which stays
+			-- readable; a custom hover colour here went invisible on it.
 			{
 				selectors = {'compendiumAllResults'},
-				color = '@accentHover',
+				color = '@fgStrong',
 			},
 			-- Aggregated cross-category results pane.
 			{
@@ -6348,3 +6351,41 @@ dmhub.RegisterEventHandler("refreshTables", function(keys)
     --	end,
     --}
 end)
+
+-- Global-search provider: every enumerable compendium category (monsters,
+-- conditions, ongoing effects, items, classes, ...). Name-only match (no deep
+-- scan) keeps it fast enough to run on every keystroke. CompendiumRegistry is
+-- read lazily inside enumerate so it is fully populated by search time even
+-- though categories register after this file loads.
+--
+-- 2a: activation just opens the Compendium panel. Chunk 2b replaces this with
+-- the universal deep-link locator (open the exact category, filtered to the
+-- clicked item) via Compendium.Open{...}.
+Search.RegisterProvider{
+    id = "compendium-content",
+    bucket = "compendium",
+    enumerate = function(needle)
+        local results = {}
+        for _,opt in pairs(CompendiumRegistry) do
+            if opt.contentType ~= nil and ((not opt.admin) or dmhub.isAdminGame) then
+                local t = dmhub.GetTable(opt.contentType)
+                if t ~= nil then
+                    for k,v in unhidden_pairs(t) do
+                        local name = (type(v) == "table" and rawget(v, "name")) or nil
+                        if type(name) == "string" and Search.MatchesText(name, needle) then
+                            results[#results+1] = {
+                                name = name,
+                                score = Search.Score(name, needle),
+                                typeLabel = opt.text,
+                                activate = function()
+                                    LaunchablePanel.LaunchPanelByName("Compendium")
+                                end,
+                            }
+                        end
+                    end
+                end
+            end
+        end
+        return results
+    end,
+}

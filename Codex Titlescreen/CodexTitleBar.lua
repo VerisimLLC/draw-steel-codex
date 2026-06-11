@@ -380,6 +380,37 @@ local function CreateStatusBar()
     return resultPanel
 end
 
+-- Global-search provider: tokens on the current map(s). Full provider (bespoke
+-- data, custom activate): clicking selects the token and centres the camera on
+-- it. Players only see tokens not hidden from them.
+Search.RegisterProvider{
+    id = "tokens",
+    bucket = "ingame",
+    typeLabel = "Token",
+    enumerate = function(needle)
+        if not dmhub.inGame then
+            return {}
+        end
+        local results = {}
+        for _,token in ipairs(dmhub.allTokens) do
+            local name = token.name
+            if type(name) == "string" and Search.MatchesText(name, needle)
+                and (dmhub.isDM or (not token.invisibleToPlayers)) then
+                local capturedId = token.id
+                results[#results+1] = {
+                    name = name,
+                    score = Search.Score(name, needle),
+                    activate = function()
+                        dmhub.SelectToken(capturedId)
+                        dmhub.CenterOnToken(capturedId)
+                    end,
+                }
+            end
+        end
+        return results
+    end,
+}
+
 local function CreateSearchBar()
     local resultPanel
 
@@ -524,6 +555,115 @@ local function CreateSearchBar()
         return 0
     end
 
+    -- The 4 intent buckets the flat result list is grouped into. Stable ids
+    -- come from Search.Buckets; the labels + order live here (the search UI
+    -- owns the display strings).
+    local SEARCH_BUCKETS = {
+        { id = "compendium", label = "Compendium" },
+        { id = "rulebooks", label = "Rulebooks" },
+        { id = "ingame", label = "In this game" },
+        { id = "apptools", label = "App & tools" },
+    }
+    -- Per-bucket render budget: how many rows show before "See all N", and the
+    -- most we keep in memory per bucket (the rest deep-link to the surface).
+    local SEARCH_BUCKET_SHOWN = 5
+    local SEARCH_BUCKET_STORE = 50
+
+    -- Map a CustomDocument.SearchLinks result type onto a bucket.
+    local function BucketForLinkType(linkType)
+        if linkType == "PDF Document" or linkType == "PDF Fragment" then
+            return "rulebooks"
+        end
+        if linkType == "Document" or linkType == "Map" then
+            return "ingame"
+        end
+        -- Markdown-table prefixes (item:, title:, ...) and prefix suggestions
+        -- are compendium content.
+        return "compendium"
+    end
+
+    -- One result row: a highlighted name (provider results) or preformatted
+    -- text (legacy handlers), plus an optional muted type/source label.
+    -- Pressing runs the result's action and dismisses the popup.
+    local function CreateResultRow(result, needle)
+        local nameLabel = gui.Label{
+            classes = {"searchResultName"},
+            text = result.name ~= nil and Search.Highlight(result.name, needle) or (result.text or ""),
+        }
+
+        local typeLabel = nil
+        if result.typeLabel ~= nil then
+            typeLabel = gui.Label{
+                classes = {"searchResultType"},
+                text = result.typeLabel,
+            }
+        end
+
+        return gui.Panel{
+            classes = {"searchResultRow"},
+            flow = "horizontal",
+            press = function()
+                resultPanel.popup = nil
+                if result.click ~= nil then
+                    result.click()
+                elseif result.activate ~= nil then
+                    result.activate()
+                end
+            end,
+            nameLabel,
+            typeLabel,
+        }
+    end
+
+    -- Build the grouped results popup. `expanded` is a per-bucket flag set;
+    -- pressing "See all" flips a bucket open and rebuilds in place. Only the
+    -- shown rows are rendered (the lazy render budget).
+    local function CreateGroupedPopup(grouped, needle, expanded, searchingLabel)
+        local children = {}
+        for _,bucket in ipairs(SEARCH_BUCKETS) do
+            local list = grouped[bucket.id]
+            if list ~= nil and #list > 0 then
+                children[#children+1] = gui.Label{
+                    classes = {"searchGroupHeading"},
+                    text = string.format("<b>%s</b> (%d)", bucket.label, #list),
+                }
+                local shown = expanded[bucket.id] and #list or math.min(#list, SEARCH_BUCKET_SHOWN)
+                for i=1,shown do
+                    children[#children+1] = CreateResultRow(list[i], needle)
+                end
+                if (not expanded[bucket.id]) and #list > SEARCH_BUCKET_SHOWN then
+                    local capturedId = bucket.id
+                    children[#children+1] = gui.Label{
+                        classes = {"searchSeeAll"},
+                        text = string.format("See all %d", #list),
+                        press = function()
+                            expanded[capturedId] = true
+                            resultPanel.popup = CreateGroupedPopup(grouped, needle, expanded, searchingLabel)
+                        end,
+                    }
+                end
+            end
+        end
+
+        if searchingLabel ~= nil then
+            children[#children+1] = gui.Label{
+                classes = {"searchSeeAll"},
+                text = "Searching for more results...",
+            }
+        end
+
+        return gui.Panel{
+            classes = {"bordered", "bg", "searchResultsPanel"},
+            flow = "vertical",
+            width = 368,
+            height = "auto",
+            halign = "center",
+            valign = "bottom",
+            vscroll = true,
+            children = children,
+        }
+    end
+
     local executeSearch = function(text)
         if TopBar.HasCustomSearch() then
             return TopBar.ExecuteCustomSearch(text)
@@ -544,6 +684,7 @@ local function CreateSearchBar()
             if string.find(string.lower(item.text), text, 1, true) ~= nil then
                 local itemCopy = DeepCopy(item)
                 itemCopy.score = scoreMatch(itemCopy.text, text)
+                itemCopy.bucket = "apptools"
                 results[#results+1] = itemCopy
             end
         end
@@ -554,6 +695,7 @@ local function CreateSearchBar()
                 local itemCopy = DeepCopy(bind)
                 itemCopy.score = scoreMatch(itemCopy.name, text)
                 itemCopy.text = string.format("<b>%s</b> (Shortcut)", itemCopy.name)
+                itemCopy.bucket = "apptools"
                 itemCopy.click = function()
                     dmhub.ShowPlayerSettings{search = itemCopy.name}
                 end
@@ -567,6 +709,7 @@ local function CreateSearchBar()
                 local itemCopy = DeepCopy(settingInfo)
                 itemCopy.score = scoreMatch(itemCopy.description, text)
                 itemCopy.text = string.format("<b>%s</b> (Setting)", itemCopy.description)
+                itemCopy.bucket = "apptools"
                 itemCopy.click = function()
                     dmhub.ShowPlayerSettings{search = itemCopy.description}
                 end
@@ -579,6 +722,7 @@ local function CreateSearchBar()
         for _,link in ipairs(links) do
             link.score = scoreMatch(link.name, text)
             link.text = string.format("<b>%s</b> (%s)", link.name, link.type)
+            link.bucket = BucketForLinkType(link.type)
             link.click = function()
                 CustomDocument.OpenContent(CustomDocument.ResolveLink(link.link))
             end
@@ -589,9 +733,9 @@ local function CreateSearchBar()
             if not doc.hidden then
 
                 local pdfresults = searchPDF(k, doc, text)
-                print("ExecuteSearch PDF", doc.description, pdfresults)
                 if type(pdfresults) == "table" then
                     for _,r in ipairs(pdfresults) do
+                        r.bucket = "rulebooks"
                         results[#results+1] = r
                     end
                 else
@@ -600,14 +744,35 @@ local function CreateSearchBar()
             end
         end
 
-        table.stable_sort(results, function(a,b) return a.score > b.score end)
-        while #results > 10 do
-            table.remove(results)
+        -- Registered global-search providers (compendium content, tokens, ...).
+        -- They share the chunk-1 matcher and carry their own bucket + activate.
+        local needle = Search.Normalize(text)
+        for _,r in ipairs(Search.CollectProviderResults(needle)) do
+            results[#results+1] = r
+        end
+
+        -- Group the flat results into the intent buckets, ranked by score, and
+        -- cap each bucket to the render/store budget.
+        table.stable_sort(results, function(a,b) return (a.score or 0) > (b.score or 0) end)
+
+        local grouped = {}
+        for _,r in ipairs(results) do
+            local b = r.bucket or "apptools"
+            local list = grouped[b]
+            if list == nil then
+                list = {}
+                grouped[b] = list
+            end
+            if #list < SEARCH_BUCKET_STORE then
+                list[#list+1] = r
+            end
         end
 
         if #results == 0 then
-            if resultPanel.popup == nil or resultPanel.data.popupResults ~= nil then
-                resultPanel.data.popupResults = nil
+            resultPanel.data.searchSignature = nil
+            resultPanel.data.searchStatus = nil
+            if resultPanel.popup == nil or not resultPanel.data.isNoResultsPopup then
+                resultPanel.data.isNoResultsPopup = true
                 resultPanel.popup = gui.Label{
                     width = "auto",
                     height = "auto",
@@ -635,57 +800,34 @@ local function CreateSearchBar()
             return status
         end
 
-        local popupData = {
-            status = status,
-            results = results,
-        }
-
-        if resultPanel.popup ~= nil and resultPanel.data.popupResults ~= nil then
-            if popupData.status == resultPanel.data.popupResults.status and #popupData.results == #resultPanel.data.popupResults.results then
-                local same = true
-                for i=1,#popupData.results do
-                    if popupData.results[i].text ~= resultPanel.data.popupResults.results[i].text then
-                        same = false
-                        break
-                    end
-                end
-
-                if same then
-                    --no need to invalidate menu.
-                    return status
+        -- Flicker guard: re-fire of the same query (e.g. the async PDF
+        -- repeat-search) rebuilds nothing if the visible result set is
+        -- unchanged. The signature is the ordered names across all buckets, so
+        -- an expanded "See all" state survives an identical repeat.
+        local sigParts = {}
+        for _,bucket in ipairs(SEARCH_BUCKETS) do
+            local list = grouped[bucket.id]
+            if list ~= nil then
+                for _,r in ipairs(list) do
+                    sigParts[#sigParts+1] = r.name or r.text or ""
                 end
             end
         end
+        local signature = table.concat(sigParts, "\1")
 
-        resultPanel.data.popupResults = popupData
-
-        local searchingLabel = nil
-        if not status then
-            searchingLabel = gui.Label{
-                width = "auto",
-                height = "auto",
-                fontSize = 18,
-                text = "Searching for more results...",
-            }
+        if resultPanel.popup ~= nil
+            and resultPanel.data.searchStatus == status
+            and resultPanel.data.searchSignature == signature then
+            --no need to invalidate menu.
+            return status
         end
 
-		resultPanel.popup =
-		gui.Panel{
-			width = "auto",
-			height = "auto",
-			halign = "center",
-			valign = "bottom",
-            flow = "vertical",
-			gui.ContextMenu{
-				width = 360,
-                valign = "bottom",
-				entries = results,
-				click = function()
-					resultPanel.popup = nil
-				end,
-			},
-            searchingLabel,
-		}
+        resultPanel.data.searchStatus = status
+        resultPanel.data.searchSignature = signature
+        resultPanel.data.isNoResultsPopup = false
+
+        resultPanel.popupsInheritStyles = true
+        resultPanel.popup = CreateGroupedPopup(grouped, needle, {}, cond(status, nil, true))
 
         if status then
             track("search_titlebar", {
@@ -1244,6 +1386,71 @@ local function CreateTopBar()
         {
             selectors = {"searchInput", "~ingame", "~searchoverride"},
             hidden = 1,
+        },
+
+        -- Grouped global-search results popup.
+        {
+            selectors = {"searchResultsPanel"},
+            pad = 6,
+            maxHeight = 600,
+            borderBox = true,
+        },
+        {
+            selectors = {"searchGroupHeading"},
+            width = "100%-12",
+            height = "auto",
+            halign = "left",
+            color = "@accent",
+            fontSize = 13,
+            tmargin = 6,
+            bmargin = 2,
+            hmargin = 6,
+        },
+        {
+            selectors = {"searchResultRow"},
+            width = "100%-12",
+            height = "auto",
+            halign = "left",
+            valign = "center",
+            bgimage = true,
+            bgcolor = "clear",
+            pad = 4,
+            hmargin = 6,
+            borderBox = true,
+        },
+        {
+            selectors = {"searchResultRow", "hover"},
+            bgcolor = "@bgAlt",
+        },
+        {
+            selectors = {"searchResultName"},
+            width = "auto",
+            height = "auto",
+            halign = "left",
+            valign = "center",
+            color = "@fg",
+            fontSize = 16,
+        },
+        {
+            selectors = {"searchResultType"},
+            width = "auto",
+            height = "auto",
+            halign = "right",
+            valign = "center",
+            color = "@fgMuted",
+            fontSize = 12,
+            lmargin = 8,
+        },
+        {
+            selectors = {"searchSeeAll"},
+            width = "100%-12",
+            height = "auto",
+            halign = "left",
+            color = "@accentHover",
+            fontSize = 13,
+            pad = 4,
+            hmargin = 6,
+            borderBox = true,
         },
     }
 

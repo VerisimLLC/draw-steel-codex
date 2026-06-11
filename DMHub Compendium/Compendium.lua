@@ -151,13 +151,74 @@ CompendiumPermission.name = "Compendium Permission"
 CompendiumPermission.tableName = "compendiumPermissions"
 CompendiumPermission.visible = true
 
+-- Shared per-entry match test for the compendium left menu and its page lists.
+-- `needle` must already be normalised (Search.Normalize). A menu category
+-- (contentType set) matches if its label or any row in its table matches; a
+-- single row (tableName+key) matches if the item, the table name, or the label
+-- matches. Empty needle matches everything (so clearing restores the list).
+local function CompendiumEntryMatches(options, needle)
+	if needle == "" then
+		return true
+	end
+	if options.text ~= nil and Search.MatchesText(options.text, needle) then
+		return true
+	end
+	if options.contentType ~= nil then
+		return SearchTableHasMatch(dmhub.GetTable(options.contentType) or {}, needle)
+	elseif options.tableName ~= nil and options.key ~= nil then
+		local item = (dmhub.GetTable(options.tableName) or {})[options.key]
+		if item ~= nil and Search.MatchesObject(item, needle) then
+			return true
+		end
+		if Search.MatchesText(options.tableName, needle) then
+			return true
+		end
+	end
+	return false
+end
+
+-- Number of matching rows inside a category's table, for the menu count badge.
+-- Returns nil for entries that are not enumerable categories.
+local function CompendiumCategoryMatchCount(options, needle)
+	if options.contentType == nil then
+		return nil
+	end
+	return #Search.MatchKeys(dmhub.GetTable(options.contentType) or {}, needle)
+end
+
 local CreateListHeading = function(options)
 	return gui.Label{
 		text = options.text,
 		hmargin = 3,
 		fontSize = 22,
-		classes = {'list-item', 'list-heading'},
+		classes = {'list-item', 'list-heading', 'hideOnSearchMismatch'},
 		bold = true,
+
+		-- On an active filter a section heading stays only if its own text or
+		-- any category beneath it matches; otherwise it collapses so empty
+		-- sections do not leave orphan headers. Clearing restores it.
+		searchCompendium = function(element, text)
+			local needle = Search.Normalize(text)
+			if needle == "" then
+				element:SetClass("searching", false)
+				element:SetClass("matchSearch", false)
+				return
+			end
+
+			element:SetClass("searching", true)
+
+			local match = Search.MatchesText(options.text, needle)
+			if not match and options.matchOptions ~= nil then
+				for _,opt in ipairs(options.matchOptions) do
+					if CompendiumEntryMatches(opt, needle) then
+						match = true
+						break
+					end
+				end
+			end
+
+			element:SetClass("matchSearch", match)
+		end,
 	}
 end
 
@@ -293,14 +354,31 @@ local CreateListItem = function(options)
 	end
 	
 
+	-- Menu categories show a "(N)" badge of how many rows match the active
+	-- filter. Hidden when not searching or when the category matched only by
+	-- name (count 0). Single-row entries do not get a badge.
+	local countBadge = nil
+	if options.contentType ~= nil then
+		countBadge = gui.Label{
+			classes = {'compendiumMatchCount', 'collapsed'},
+			text = "",
+			halign = "right",
+			valign = "center",
+			rmargin = 44,
+			width = "auto",
+			height = "auto",
+		}
+	end
+
 	return gui.Label{
 			bgimage = 'panels/square.png',
 			text = options.text,
-			classes = {'list-item', collapsed, importedClass},
+			classes = {'list-item', 'hideOnSearchMismatch', collapsed, importedClass},
             importedPanel,
 			permissionPanel,
 			lockPanel,
 			modificationsPanel,
+			countBadge,
 
 			newContentMarker,
 
@@ -321,31 +399,29 @@ local CreateListItem = function(options)
 			events = {
 				search = options.search,
                 searchCompendium = function(element, text)
-                    text = string.lower(text)
-                    m_search = text
-                    if text == "" then
+                    local needle = Search.Normalize(text)
+                    m_search = needle
+                    if needle == "" then
                         element:SetClass("searching", false)
                         element:SetClass("matchSearch", false)
-                    else
-                        element:SetClass("searching", true)
-                        if options.contentType ~= nil then
-                            element:SetClass("matchSearch", SearchTableHasMatch(dmhub.GetTable(options.contentType), text))
-
-	                    elseif options.tableName ~= nil and options.key ~= nil then
-		                    local table = dmhub.GetTable(options.tableName)
-		                    local item = table[options.key]
-                            element:SetClass("matchSearch", MatchesSearchRecursive(item, text))
-
-                            if string.find(string.lower(options.tableName), text) then
-                                element:SetClass("matchSearch", true)
-                            end
-                        else
-                            element:SetClass("matchSearch", false)
+                        if countBadge ~= nil then
+                            countBadge:SetClass("collapsed", true)
                         end
+                        return
+                    end
 
-                        --if this is a direct search of the title of this section it obviously matches.
-                        if options.text ~= nil and string.find(string.lower(options.text), text) then
-                            element:SetClass("matchSearch", true)
+                    element:SetClass("searching", true)
+
+                    local match = CompendiumEntryMatches(options, needle)
+                    element:SetClass("matchSearch", match)
+
+                    if countBadge ~= nil then
+                        local count = match and CompendiumCategoryMatchCount(options, needle) or 0
+                        if count ~= nil and count > 0 then
+                            countBadge.text = string.format("(%d)", count)
+                            countBadge:SetClass("collapsed", false)
+                        else
+                            countBadge:SetClass("collapsed", true)
                         end
                     end
                 end,
@@ -4831,6 +4907,185 @@ local LibraryPanel = function()
 		classes = {'content-panel'},
 	}
 
+	-- Active filter state, shared so the "Showing X of Y" summary can react to
+	-- both typing and category changes. searchSummary is forward-declared and
+	-- assigned when the menu column is built.
+	local m_searchText = ""
+	local m_currentCategory = nil
+	local searchSummary = nil
+	local allResultsItem = nil
+	local compendiumSearchInput = nil
+
+	-- Enumerable menu categories: those backed by a GetTable content type the
+	-- user is allowed to see. The aggregated "all results" view and the
+	-- "All results (N)" count both iterate this.
+	local function EnumerableCategories()
+		local cats = {}
+		for _,opt in pairs(CompendiumRegistry) do
+			if opt.contentType ~= nil and ((not opt.admin) or dmhub.isAdminGame) then
+				cats[#cats+1] = opt
+			end
+		end
+		table.sort(cats, function(a,b) return (a.text or "") < (b.text or "") end)
+		return cats
+	end
+
+	-- Open a category's page with the active filter applied (the click target
+	-- for an aggregated result row). Mirrors a menu-category click: records the
+	-- category, builds its page, then re-filters that page + the summary.
+	local function openCategoryFiltered(opt, targetKey)
+		if opt == nil or opt.click == nil then
+			return
+		end
+		m_currentCategory = { contentType = opt.contentType, text = opt.text }
+		opt.click(contentPanel)
+		if m_searchText ~= "" then
+			contentPanel:FireEventTree("searchCompendium", m_searchText)
+			if searchSummary ~= nil then
+				searchSummary:FireEvent("searchCompendium", m_searchText)
+			end
+		end
+
+		-- Open the specific item the user clicked: press its row once the page
+		-- has built. Matched by name (rows carry the item name); a no-op if the
+		-- page builds asynchronously and the row is not yet present.
+		if targetKey ~= nil then
+			local t = dmhub.GetTable(opt.contentType) or {}
+			local item = t[targetKey]
+			local targetName = item and item.name
+			if targetName ~= nil then
+				dmhub.Schedule(0.01, function()
+					if not contentPanel.valid then
+						return
+					end
+					local row = contentPanel:FindChildRecursive(function(e)
+						return e.valid and e:HasClass("list-item") and not e:HasClass("list-heading") and e.text == targetName
+					end)
+					if row ~= nil then
+						row:FireEvent("press")
+					end
+				end)
+			end
+		end
+	end
+
+	-- Render aggregated cross-category results into the content pane, grouped by
+	-- category. Each group is capped so rendering stays bounded; the overflow
+	-- row and any result row open that category's filtered page.
+	local PER_GROUP_CAP = 20
+	local function buildAggregated(needle)
+		needle = Search.Normalize(needle)
+		if needle == "" then
+			contentPanel.children = {}
+			return
+		end
+
+		local groupPanels = {}
+		local totalResults = 0
+
+		for _,opt in ipairs(EnumerableCategories()) do
+			local t = dmhub.GetTable(opt.contentType)
+			if t ~= nil then
+				local keys = Search.MatchKeys(t, needle)
+				if #keys > 0 then
+					totalResults = totalResults + #keys
+					table.sort(keys, function(a,b)
+						local na = (t[a] and t[a].name) or tostring(a)
+						local nb = (t[b] and t[b].name) or tostring(b)
+						return na < nb
+					end)
+
+					groupPanels[#groupPanels+1] = gui.Label{
+						classes = {'aggregateGroupHeading'},
+						text = string.format("%s (%d)", opt.text, #keys),
+					}
+
+					local capturedOpt = opt
+					local shownCount = math.min(#keys, PER_GROUP_CAP)
+					for i=1,shownCount do
+						local capturedKey = keys[i]
+						local item = t[capturedKey]
+						local name = (item and item.name) or tostring(capturedKey)
+						groupPanels[#groupPanels+1] = gui.Label{
+							classes = {'aggregateResult'},
+							text = Search.Highlight(name, needle),
+							press = function()
+								openCategoryFiltered(capturedOpt, capturedKey)
+							end,
+						}
+					end
+
+					if #keys > PER_GROUP_CAP then
+						groupPanels[#groupPanels+1] = gui.Label{
+							classes = {'aggregateMore'},
+							text = string.format("+%d more in %s", #keys - PER_GROUP_CAP, opt.text),
+							press = function()
+								openCategoryFiltered(capturedOpt)
+							end,
+						}
+					end
+				end
+			end
+		end
+
+		if totalResults == 0 then
+			contentPanel.children = {
+				gui.Label{
+					classes = {'aggregateEmpty'},
+					text = string.format('No results for "%s"', needle),
+				},
+			}
+			return
+		end
+
+		contentPanel.children = {
+			gui.Panel{
+				classes = {'aggregateResultsPanel'},
+				vscroll = true,
+				width = "100%",
+				height = "100%",
+				flow = "vertical",
+				children = groupPanels,
+			},
+		}
+	end
+
+	-- "All results (N)" entry pinned to the top of the menu while filtering.
+	-- Clicking it returns from a category page to the aggregated view. No
+	-- hidden scope state: the menu always stays a visible navigator.
+	allResultsItem = gui.Label{
+		classes = {'list-item', 'compendiumAllResults', 'collapsed'},
+		bold = true,
+		text = "All results",
+		press = function(element)
+			m_currentCategory = nil
+			for _,sibling in ipairs(element.parent.children) do
+				sibling:SetClass('selected', sibling == element)
+			end
+			buildAggregated(m_searchText)
+		end,
+		searchCompendium = function(element, text)
+			local needle = Search.Normalize(text)
+			if needle == "" then
+				element:SetClass("collapsed", true)
+				element:SetClass("selected", false)
+				return
+			end
+
+			local total = 0
+			for _,opt in ipairs(EnumerableCategories()) do
+				local t = dmhub.GetTable(opt.contentType)
+				if t ~= nil then
+					total = total + #Search.MatchKeys(t, needle)
+				end
+			end
+
+			element:SetClass("collapsed", false)
+			element.text = string.format("All results (%d)", total)
+			element:SetClass("selected", m_currentCategory == nil)
+		end,
+	}
+
 	local recentsCache = nil
 	local recentsHeading = nil
 	local recentPanels = {}
@@ -4928,7 +5183,7 @@ local LibraryPanel = function()
 
 	recentsPanel:FireEvent("think")
 
-	local children = {recentsPanel}
+	local children = {allResultsItem, recentsPanel}
 
 	local permissionsTable = dmhub.GetTable(CompendiumPermission.tableName) or {}
 
@@ -4949,13 +5204,18 @@ local LibraryPanel = function()
 		end
 
 
+		table.sort(keys)
+
 		if #keys > 0 then
+			local matchOptions = {}
+			for _,k in ipairs(keys) do
+				matchOptions[#matchOptions+1] = CompendiumRegistry[k]
+			end
 			children[#children+1] = CreateListHeading{
-				text = section
+				text = section,
+				matchOptions = matchOptions,
 			}
 		end
-
-		table.sort(keys)
 
 		for _,key in ipairs(keys) do
 			--shallow copy the table so we can change the click function.
@@ -4968,13 +5228,20 @@ local LibraryPanel = function()
 				local fn = info.click
 				local sectionName = section
 				local itemName = key
+				local contentType = info.contentType
 				info.click = function()
 					track("compendium_view", {
 						section = sectionName,
 						item = itemName,
 						dailyLimit = 30,
 					})
+					m_currentCategory = { contentType = contentType, text = itemName }
 					fn(contentPanel)
+					-- Keep the "Showing X of Y" summary in step with the newly
+					-- opened category while a filter is active.
+					if searchSummary ~= nil then
+						searchSummary:FireEvent("searchCompendium", m_searchText)
+					end
 				end
 			end
 
@@ -5060,6 +5327,85 @@ local LibraryPanel = function()
 		end,
 	}
 
+	-- Inline clear (X) button for the filter input: shows only when there is
+	-- text, clears the filter on press.
+	local clearSearchButton = gui.Panel{
+		floating = true,
+		bgimage = "ui-icons/close.png",
+		bgcolor = "@fgMuted",
+		width = 14,
+		height = 14,
+		halign = "right",
+		valign = "center",
+		x = -4,
+		classes = {"compendiumClearSearch", "collapsed"},
+		press = function()
+			if compendiumSearchInput == nil then
+				return
+			end
+			compendiumSearchInput.text = ""
+			compendiumSearchInput:FireEvent("edit")
+		end,
+	}
+
+	compendiumSearchInput = gui.SearchInput{
+		width = 240,
+		height = 20,
+		fontSize = 16,
+		-- "Filter" (not "Search") and positioned inside the compendium,
+		-- so it reads distinct from the title-bar global search.
+		placeholderText = "Filter Compendium...",
+		bgcolor = "transparent",
+		editlag = 0.4,
+		edit = function(element)
+			m_searchText = Search.Normalize(element.text)
+			clearSearchButton:SetClass("collapsed", element.text == nil or element.text == "")
+			resultPanel:FireEventTree("searchCompendium", trim(element.text))
+			-- Default scope is ALL: with no category open, typing shows
+			-- aggregated cross-category results. A category page filters
+			-- itself (above) and is left untouched here.
+			if m_currentCategory == nil then
+				buildAggregated(m_searchText)
+			end
+		end,
+	}
+	compendiumSearchInput:AddChild(clearSearchButton)
+
+	-- "Showing X of Y" / "No matches" feedback for the open category's list.
+	-- Driven by the current category + active filter; hidden when not filtering
+	-- or no enumerable category is open.
+	searchSummary = gui.Label{
+		classes = {'compendiumSearchSummary', 'collapsed'},
+		text = "",
+		width = 240,
+		height = "auto",
+		searchCompendium = function(element, text)
+			local needle = Search.Normalize(text)
+			local cat = m_currentCategory
+			if needle == "" or cat == nil or cat.contentType == nil then
+				element:SetClass("collapsed", true)
+				return
+			end
+
+			local t = dmhub.GetTable(cat.contentType)
+			if t == nil then
+				element:SetClass("collapsed", true)
+				return
+			end
+
+			local total = 0
+			for _ in unhidden_pairs(t) do total = total + 1 end
+			local shown = #Search.MatchKeys(t, needle)
+
+			element:SetClass("collapsed", false)
+			element:SetClass("emptyState", shown == 0)
+			if shown == 0 then
+				element.text = string.format("No matches in %s", cat.text or "this category")
+			else
+				element.text = string.format("Showing %d of %d", shown, total)
+			end
+		end,
+	}
 
 	resultPanel = gui.Panel{
 		classes = {'library-panel'},
@@ -5154,6 +5500,95 @@ local LibraryPanel = function()
 				selectors = {'hideOnSearchMismatch', 'searching', '~matchSearch'},
 				collapsed = 1,
 			},
+			-- Per-category match count shown beside a menu category while filtering.
+			{
+				selectors = {'compendiumMatchCount'},
+				color = '@fgMuted',
+				fontSize = 12,
+				bold = false,
+			},
+			-- Inline clear (X) button inside the filter input.
+			{
+				selectors = {'compendiumClearSearch'},
+				bgcolor = '@fgMuted',
+			},
+			{
+				selectors = {'compendiumClearSearch', 'hover'},
+				bgcolor = '@fgStrong',
+			},
+			-- "Showing X of Y" / "No matches" filter feedback under the input.
+			{
+				selectors = {'compendiumSearchSummary'},
+				color = '@fgMuted',
+				fontSize = 12,
+				hmargin = 8,
+				vmargin = 2,
+			},
+			{
+				selectors = {'compendiumSearchSummary', 'emptyState'},
+				color = '@fg',
+			},
+			-- "All results (N)" entry pinned atop the menu while filtering.
+			-- accentHover (a light accent) stays legible on the dark menu;
+			-- @accent proper is too low-contrast to read here. The hover state is
+			-- left to the standard {list-item, hover} rule (inverse wash), which
+			-- stays readable; a custom hover colour here went invisible on it.
+			{
+				selectors = {'compendiumAllResults'},
+				color = '@accentHover',
+			},
+			-- Aggregated cross-category results pane.
+			{
+				selectors = {'aggregateResultsPanel'},
+				pad = 12,
+				borderBox = true,
+			},
+			{
+				selectors = {'aggregateGroupHeading'},
+				color = '@fgMuted',
+				fontSize = 16,
+				bold = true,
+				width = '100%',
+				height = 'auto',
+				tmargin = 12,
+				bmargin = 4,
+			},
+			{
+				selectors = {'aggregateResult'},
+				color = '@fg',
+				fontSize = 15,
+				width = '100%',
+				height = 'auto',
+				minHeight = 20,
+				lmargin = 12,
+				vmargin = 1,
+			},
+			{
+				selectors = {'aggregateResult', 'hover'},
+				color = '@accentHover',
+			},
+			{
+				selectors = {'aggregateMore'},
+				color = '@fgMuted',
+				fontSize = 13,
+				italics = true,
+				width = '100%',
+				height = 'auto',
+				lmargin = 12,
+				vmargin = 2,
+			},
+			{
+				selectors = {'aggregateMore', 'hover'},
+				color = '@accentHover',
+			},
+			{
+				selectors = {'aggregateEmpty'},
+				color = '@fgMuted',
+				fontSize = 16,
+				halign = 'center',
+				valign = 'top',
+				tmargin = 40,
+			},
 		}),
 
         create = function(element)
@@ -5181,21 +5616,14 @@ local LibraryPanel = function()
             height = "95%",
             width="auto",
             flow = "vertical",
-            gui.SearchInput{
-                width = 240,
-                height = 20,
-                fontSize = 16,
-                placeholderText = "Search Compendium...",
-				bgcolor = "transparent",
-                editlag = 0.4,
-                edit = function(element)
-                    resultPanel:FireEventTree("searchCompendium", trim(element.text))
-                end,
-            },
+            compendiumSearchInput,
+
+            searchSummary,
+
             gui.Panel{
                 classes = {'list-panel'},
                 vscroll = true,
-                height = "100%-24",
+                height = "100%-40",
                 maxHeight = 1080,
 
                 children = children,

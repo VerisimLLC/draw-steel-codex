@@ -321,20 +321,66 @@ function DebugMatchesSearchRecursive(obj, search, depth, path)
     return false
 end
 
-function MatchesSearchRecursive(obj, search, depth)
+-- =============================================================================
+-- Shared text matcher.
+-- One normalisation + substring + highlight path used by every search/filter
+-- surface (compendium filter, global search, feature filters) so they all
+-- behave consistently. The legacy MatchesSearchRecursive / SearchTableHasMatch
+-- / SearchTableForText globals are kept below as thin wrappers over these so
+-- existing callers are unchanged.
+--
+-- Contract: the Matches*/MatchKeys functions assume an already-NORMALISED
+-- needle (run it through Search.Normalize once, then reuse) so the lowering is
+-- not repeated per candidate. They lower the haystack themselves. The legacy
+-- wrappers preserve the old contract (needle used verbatim, not normalised).
+-- =============================================================================
+
+Search = {}
+
+--- Normalise a user-entered needle: lowercase + trim surrounding whitespace.
+--- @param text string|nil
+--- @return string
+function Search.Normalize(text)
+    if text == nil then
+        return ""
+    end
+    return (string.lower(text):match("^%s*(.-)%s*$"))
+end
+
+--- Substring test of a single string against a (normalised) needle. An empty
+--- needle matches everything so "no filter" shows all rows.
+--- @param haystack any
+--- @param needle string
+--- @return boolean
+function Search.MatchesText(haystack, needle)
+    if needle == nil or needle == "" then
+        return true
+    end
+    if type(haystack) ~= "string" then
+        return false
+    end
+    return string.find(string.lower(haystack), needle, 1, true) ~= nil
+end
+
+--- Recursive object match: true if any string key or value anywhere in obj (to
+--- depth 6) contains the needle. Verbatim substring, no pattern matching.
+--- @param obj any
+--- @param needle string
+--- @param depth number|nil
+--- @return boolean
+function Search.MatchesObject(obj, needle, depth)
     depth = depth or 0
     if depth > 6 then
         return false
     end
     if type(obj) == "table" then
         for k,v in pairs(obj) do
-            if MatchesSearchRecursive(k, search, depth+1) or MatchesSearchRecursive(v, search, depth+1) then
+            if Search.MatchesObject(k, needle, depth+1) or Search.MatchesObject(v, needle, depth+1) then
                 return true
             end
         end
     elseif type(obj) == "string" then
-        --search without any pattern matching etc, just verbatim substring match
-        if string.find(string.lower(obj), search, 1, true) ~= nil then
+        if string.find(string.lower(obj), needle, 1, true) ~= nil then
             return true
         end
     end
@@ -342,9 +388,71 @@ function MatchesSearchRecursive(obj, search, depth)
     return false
 end
 
+--- Returns the list of keys in table t whose entry (key or value) matches the
+--- needle. Iterates unhidden_pairs so soft-deleted rows are skipped.
+--- @param t table
+--- @param needle string
+--- @return table list of keys
+function Search.MatchKeys(t, needle)
+    local results = {}
+    for k,v in unhidden_pairs(t) do
+        if Search.MatchesObject(k, needle, 0) or Search.MatchesObject(v, needle, 0) then
+            results[#results+1] = k
+        end
+    end
+
+    return results
+end
+
+--- Wrap each case-insensitive occurrence of the (normalised) needle in text
+--- with theme-accent emphasis markup, so matched runs stand out in a list. The
+--- colour is resolved from a theme token (default @accent) at call time, never
+--- hard-coded; if the theme engine is not available the text is returned
+--- unchanged (no markup) rather than falling back to a literal colour.
+--- @param text string
+--- @param needle string
+--- @param colorToken string|nil theme token, defaults to "@accent"
+--- @return string
+function Search.Highlight(text, needle, colorToken)
+    if type(text) ~= "string" or needle == nil or needle == "" then
+        return text
+    end
+
+    if ThemeEngine == nil or ThemeEngine.ResolveTokens == nil then
+        return text
+    end
+
+    local color = ThemeEngine.ResolveTokens(colorToken or "@accent")
+    local lower = string.lower(text)
+    local needleLen = #needle
+    local out = {}
+    local pos = 1
+
+    while true do
+        local s = string.find(lower, needle, pos, true)
+        if s == nil then
+            out[#out+1] = string.sub(text, pos)
+            break
+        end
+
+        out[#out+1] = string.sub(text, pos, s-1)
+        out[#out+1] = "<color=" .. color .. "><b>" .. string.sub(text, s, s+needleLen-1) .. "</b></color>"
+        pos = s + needleLen
+    end
+
+    return table.concat(out)
+end
+
+-- Legacy wrappers. These keep the historical contract (needle used verbatim,
+-- haystack lowered) so existing callers behave identically.
+
+function MatchesSearchRecursive(obj, search, depth)
+    return Search.MatchesObject(obj, search, depth)
+end
+
 function SearchTableHasMatch(t, search)
     for k,v in unhidden_pairs(t) do
-        if MatchesSearchRecursive(k, search) or MatchesSearchRecursive(v, search) then
+        if Search.MatchesObject(k, search, 0) or Search.MatchesObject(v, search, 0) then
             return true
         end
     end
@@ -352,14 +460,7 @@ function SearchTableHasMatch(t, search)
 end
 
 function SearchTableForText(t, search)
-    local results = {}
-    for k,v in unhidden_pairs(t) do
-        if MatchesSearchRecursive(k, search) or MatchesSearchRecursive(v, search) then
-            results[#results+1] = k
-        end
-    end
-
-    return results
+    return Search.MatchKeys(t, search)
 end
 
 function DebugSearchTableForText(t, search, debugName)

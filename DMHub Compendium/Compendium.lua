@@ -6500,3 +6500,77 @@ Search.RegisterProvider{
         return results
     end,
 }
+
+-- Global-search provider: buried class/subclass sub-features (e.g. "Healing
+-- Grace", "Sermon of Grace") surfaced as first-class results that deep-link to
+-- the class filtered to that feature -- not just the opaque "Conduit" container.
+-- The feature names are indexed lazily and cached (the index is large and
+-- rarely changes); a class/subclass table refresh invalidates it.
+local g_classFeatureIndex = nil
+
+local function BuildClassFeatureIndex()
+    local index = {}
+    for _,tableName in ipairs({"classes", "subclasses"}) do
+        local t = dmhub.GetTable(tableName) or {}
+        for ck, class in unhidden_pairs(t) do
+            local className = class.name
+            local levels = class:try_get("levels")
+            if type(className) == "string" and type(levels) == "table" then
+                local seen = {}
+                -- Guard per-class: a malformed level shouldn't drop the whole index.
+                pcall(function()
+                    for _,classLevel in pairs(levels) do
+                        classLevel:VisitAllFeatures(function(feature)
+                            local fname = feature:try_get("name")
+                            if type(fname) == "string" and #fname > 0 and not seen[fname] then
+                                seen[fname] = true
+                                index[#index+1] = {
+                                    name = fname,
+                                    className = className,
+                                    contentType = tableName,
+                                    classKey = ck,
+                                }
+                            end
+                        end)
+                    end
+                end)
+            end
+        end
+    end
+    return index
+end
+
+dmhub.RegisterEventHandler("refreshTables", function(keys)
+    if keys == nil or keys.classes ~= nil or keys.subclasses ~= nil then
+        g_classFeatureIndex = nil
+    end
+end)
+
+Search.RegisterProvider{
+    id = "compendium-class-features",
+    bucket = "compendium",
+    enumerate = function(needle)
+        if g_classFeatureIndex == nil then
+            g_classFeatureIndex = BuildClassFeatureIndex()
+        end
+        local results = {}
+        for _,entry in ipairs(g_classFeatureIndex) do
+            if Search.MatchesText(entry.name, needle) then
+                local e = entry
+                results[#results+1] = {
+                    name = e.name,
+                    score = Search.Score(e.name, needle),
+                    typeLabel = e.className,
+                    activate = function()
+                        Compendium.Open{
+                            contentType = e.contentType,
+                            search = e.name,
+                            targetKey = e.classKey,
+                        }
+                    end,
+                }
+            end
+        end
+        return results
+    end,
+}

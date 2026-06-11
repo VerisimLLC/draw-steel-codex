@@ -5020,9 +5020,25 @@ local LibraryPanel = function()
 		m_currentCategory = { contentType = opt.contentType, text = opt.text }
 		opt.click(contentPanel)
 		if m_searchText ~= "" then
-			contentPanel:FireEventTree("searchCompendium", m_searchText)
-			if searchSummary ~= nil then
-				searchSummary:FireEvent("searchCompendium", m_searchText)
+			if opt.contentType == "classes" or opt.contentType == "subclasses" then
+				-- Filtering the class LIST deep-matches every class's entire object
+				-- (~27k nodes x ~40 classes/subclasses = ~1M MatchesObject calls,
+				-- several seconds of synchronous freeze) and the list filter is not
+				-- useful here anyway. Filter only the selected class's editor: fire
+				-- searchCompendium on the class editor panel; SelectTargetItem loads
+				-- the class and SetClass re-applies the filter to its features. Skip
+				-- the summary too (its match count runs the same deep MatchKeys).
+				local ed = contentPanel:FindChildRecursive(function(e)
+					return e.valid and e:HasClass("class-panel")
+				end)
+				if ed ~= nil then
+					ed:FireEventTree("searchCompendium", m_searchText)
+				end
+			else
+				contentPanel:FireEventTree("searchCompendium", m_searchText)
+				if searchSummary ~= nil then
+					searchSummary:FireEvent("searchCompendium", m_searchText)
+				end
 			end
 		end
 
@@ -5059,12 +5075,16 @@ local LibraryPanel = function()
 		end
 
 		local needle = nav.search or ""
-		if compendiumSearchInput ~= nil then
-			compendiumSearchInput.text = needle
-			compendiumSearchInput:FireEvent("edit")
-		else
-			m_searchText = Search.Normalize(needle)
-		end
+		-- Set the filter state DIRECTLY. Do NOT set compendiumSearchInput.text:
+		-- assigning .text fires the input's edit handler (after editlag), which
+		-- broadcasts searchCompendium across the whole compendium tree -- running
+		-- buildAggregated AND the "All results (N)" counter, both of which
+		-- depth-6 recursively match every item in every category (~1M+
+		-- MatchesObject calls / many seconds of synchronous freeze). The deep-link
+		-- opens ONE category and selects ONE item, so none of that is needed.
+		-- openCategoryFiltered below applies the filter only to the opened page
+		-- (and, for classes, only to the selected class's editor).
+		m_searchText = Search.Normalize(needle)
 
 		openCategoryFiltered(opt, nav.targetKey)
 	end

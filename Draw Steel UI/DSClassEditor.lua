@@ -1166,10 +1166,25 @@ function Class.CreateLevelEditor(children, class, UploadClass, startLevel, finis
 		}
 
 		local panel = gui.Panel{
-			classes = {"featureCard"},
+			classes = {"featureCard", "hideOnSearchMismatch"},
 			height = "auto",
 			width = 1100,
 			halign = "left",
+
+			-- Collapse the whole level card when no feature in this level matches
+			-- the filter. SetClass (element-only, NOT SetClassTree) so a matching
+			-- level does not force-show its non-matching inner feature cards --
+			-- those keep collapsing individually via their own handler.
+			searchCompendium = function(element, text)
+				if text == "" then
+					element:SetClass("searching", false)
+					element:SetClass("matchSearch", false)
+					return
+				end
+
+				element:SetClass("searching", true)
+				element:SetClass("matchSearch", MatchesSearchRecursive(classLevel, text))
+			end,
 
 			header,
 			editorPanel,

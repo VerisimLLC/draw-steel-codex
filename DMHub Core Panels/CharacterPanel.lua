@@ -2382,7 +2382,13 @@ local g_placementBanner = nil
 --placement) and one carrying data.charid deploys that existing character
 --(character-panel behaviour). Right-click, escape, or focusing anything else
 --exits placement; the banner removes itself when it loses focus.
-local function ShowPlacementBanner(bannerData, name)
+--
+--placementComplete (optional) is polled alongside the focus watch: when it
+--returns true the banner exits placement itself (clears focus + destroys).
+--Characters use it because they are single-placement - the click MOVES the
+--one token rather than stamping copies, so the mode should end on landing.
+--Monsters omit it and keep the bestiary's repeat placement.
+local function ShowPlacementBanner(bannerData, name, placementComplete)
     if g_placementBanner ~= nil and g_placementBanner.valid then
         g_placementBanner:DestroySelf()
     end
@@ -2426,6 +2432,14 @@ local function ShowPlacementBanner(bannerData, name)
                     g_placementBanner = nil
                 end
                 element:DestroySelf()
+                return
+            end
+            if placementComplete ~= nil and placementComplete() then
+                if g_placementBanner == element then
+                    g_placementBanner = nil
+                end
+                gui.SetFocus(nil)
+                element:DestroySelf()
             end
         end,
     }
@@ -2462,7 +2476,17 @@ local function BeginPlacingCharacter(charid)
         return
     end
 
-    ShowPlacementBanner({charid = charid}, tok.name)
+    --exit placement once the token lands on the map. Membership of allTokens
+    --matches the provider's definition of "unplaced" (hasTokenOnThisMap is
+    --true for despawned tokens, which would end the mode before the click).
+    ShowPlacementBanner({charid = charid}, tok.name, function()
+        for _,token in ipairs(dmhub.allTokens) do
+            if token.id == charid then
+                return true
+            end
+        end
+        return false
+    end)
 end
 
 --Global-search provider: party characters NOT placed on the current map (the

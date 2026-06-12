@@ -156,6 +156,25 @@ CompendiumPermission.visible = true
 -- (contentType set) matches if its label or any row in its table matches; a
 -- single row (tableName+key) matches if the item, the table name, or the label
 -- matches. Empty needle matches everything (so clearing restores the list).
+-- One keystroke fans out to several independent sweeps of the same tables
+-- (menu rows, section headings, the "All results (N)" counter, the aggregated
+-- view, the page summary). Memoise MatchKeys per (needle, contentType) so each
+-- table is walked once per needle; the short TTL keeps results fresh across
+-- edits without needing invalidation hooks.
+local m_matchKeysCache = {needle = nil, time = 0, keys = {}}
+local function MatchKeysCached(contentType, needle)
+	local now = os.clock()
+	if m_matchKeysCache.needle ~= needle or now - m_matchKeysCache.time > 1 then
+		m_matchKeysCache = {needle = needle, time = now, keys = {}}
+	end
+	local cached = m_matchKeysCache.keys[contentType]
+	if cached == nil then
+		cached = Search.MatchKeys(dmhub.GetTable(contentType) or {}, needle)
+		m_matchKeysCache.keys[contentType] = cached
+	end
+	return cached
+end
+
 local function CompendiumEntryMatches(options, needle)
 	if needle == "" then
 		return true
@@ -164,7 +183,7 @@ local function CompendiumEntryMatches(options, needle)
 		return true
 	end
 	if options.contentType ~= nil then
-		return SearchTableHasMatch(dmhub.GetTable(options.contentType) or {}, needle)
+		return #MatchKeysCached(options.contentType, needle) > 0
 	elseif options.tableName ~= nil and options.key ~= nil then
 		local item = (dmhub.GetTable(options.tableName) or {})[options.key]
 		if item ~= nil and Search.MatchesObject(item, needle) then
@@ -183,7 +202,7 @@ local function CompendiumCategoryMatchCount(options, needle)
 	if options.contentType == nil then
 		return nil
 	end
-	return #Search.MatchKeys(dmhub.GetTable(options.contentType) or {}, needle)
+	return #MatchKeysCached(options.contentType, needle)
 end
 
 local CreateListHeading = function(options)
@@ -882,9 +901,41 @@ local ShowOngoingEffectsPanel = function(parentPanel, tableName)
 			end
 
 			local index = 1
+			local prioritized = false
+			local needsSortOnComplete = false
 			local function BuildChunk()
 				if mod.unloaded or generation ~= m_buildGeneration or not element.valid then
 					return
+				end
+
+				-- Deep-links open the page and then apply their filter, selecting
+				-- the target row as soon as it exists; the filter therefore lands
+				-- after the first synchronous chunk. Reorder the remaining keys
+				-- matched-first so the wait is one chunk, not the whole stream.
+				-- Unmatched rows are collapsed while filtering, so their late,
+				-- out-of-order arrival is invisible; a final sort restores
+				-- alphabetical order for when the filter clears.
+				if (not prioritized) and (not groupByCondition) and m_activeSearch ~= "" and index <= #keys then
+					prioritized = true
+					local needle = Search.Normalize(m_activeSearch)
+					if needle ~= "" then
+						local matched, unmatched = {}, {}
+						for i = index, #keys do
+							local k = keys[i]
+							if Search.MatchesObject(ongoingEffectTable[k], needle) or Search.MatchesText(k, needle) then
+								matched[#matched+1] = k
+							else
+								unmatched[#unmatched+1] = k
+							end
+						end
+						if #matched > 0 and #unmatched > 0 then
+							for i = index, #keys do
+								local j = i - index + 1
+								keys[i] = (j <= #matched) and matched[j] or unmatched[j - #matched]
+							end
+							needsSortOnComplete = true
+						end
+					end
 				end
 
 				local target = math.min(index + chunkSize - 1, #keys)
@@ -940,6 +991,10 @@ local ShowOngoingEffectsPanel = function(parentPanel, tableName)
 				else
 					sectionHeadings = newSectionHeadings
 					ongoingEffectItems = newOngoingEffectItems
+					if needsSortOnComplete then
+						table.sort(children, function(a,b) return (a.text or "") < (b.text or "") end)
+						element.children = children
+					end
 				end
 			end
 
@@ -5149,57 +5204,36 @@ local LibraryPanel = function()
 	-- category. Each group is capped so rendering stays bounded; the overflow
 	-- row and any result row open that category's filtered page.
 	local PER_GROUP_CAP = 20
+	local m_aggGeneration = 0
 	local function buildAggregated(needle)
 		needle = Search.Normalize(needle)
+		m_aggGeneration = m_aggGeneration + 1
+		local generation = m_aggGeneration
 		if needle == "" then
 			contentPanel.children = {}
 			return
 		end
 
-		local groupPanels = {}
+		-- Matching is cheap (~0.05s worst case across every table); the cost is
+		-- RENDERING: broad needles produce 300+ labels, and panels pay a
+		-- per-panel layout tax under vscroll. Collect all matches up front, then
+		-- stream the labels in across frames so no single frame freezes.
+		local groups = {}
 		local totalResults = 0
 
 		for _,opt in ipairs(EnumerableCategories()) do
 			local t = dmhub.GetTable(opt.contentType)
 			if t ~= nil then
-				local keys = Search.MatchKeys(t, needle)
+				local keys = MatchKeysCached(opt.contentType, needle)
 				if #keys > 0 then
 					totalResults = totalResults + #keys
+					keys = table.shallow_copy(keys)
 					table.sort(keys, function(a,b)
 						local na = (t[a] and t[a].name) or tostring(a)
 						local nb = (t[b] and t[b].name) or tostring(b)
 						return na < nb
 					end)
-
-					groupPanels[#groupPanels+1] = gui.Label{
-						classes = {'aggregateGroupHeading'},
-						text = string.format("%s (%d)", opt.text, #keys),
-					}
-
-					local capturedOpt = opt
-					local shownCount = math.min(#keys, PER_GROUP_CAP)
-					for i=1,shownCount do
-						local capturedKey = keys[i]
-						local item = t[capturedKey]
-						local name = (item and item.name) or tostring(capturedKey)
-						groupPanels[#groupPanels+1] = gui.Label{
-							classes = {'aggregateResult'},
-							text = Search.Highlight(name, needle),
-							press = function()
-								openCategoryFiltered(capturedOpt, capturedKey)
-							end,
-						}
-					end
-
-					if #keys > PER_GROUP_CAP then
-						groupPanels[#groupPanels+1] = gui.Label{
-							classes = {'aggregateMore'},
-							text = string.format("+%d more in %s", #keys - PER_GROUP_CAP, opt.text),
-							press = function()
-								openCategoryFiltered(capturedOpt)
-							end,
-						}
-					end
+					groups[#groups+1] = {opt = opt, t = t, keys = keys}
 				end
 			end
 		end
@@ -5214,16 +5248,72 @@ local LibraryPanel = function()
 			return
 		end
 
-		contentPanel.children = {
-			gui.Panel{
-				classes = {'aggregateResultsPanel'},
-				vscroll = true,
-				width = "100%",
-				height = "100%",
-				flow = "vertical",
-				children = groupPanels,
-			},
+		local scrollPanel = gui.Panel{
+			classes = {'aggregateResultsPanel'},
+			vscroll = true,
+			width = "100%",
+			height = "100%",
+			flow = "vertical",
 		}
+		contentPanel.children = {scrollPanel}
+
+		local groupPanels = {}
+		local gi = 1
+		local rowIndex = 0 -- 0 = heading pending for the current group
+		local function BuildChunk()
+			if mod.unloaded or generation ~= m_aggGeneration or not scrollPanel.valid then
+				return
+			end
+
+			local budget = 80
+			while budget > 0 and gi <= #groups do
+				local g = groups[gi]
+				if rowIndex == 0 then
+					groupPanels[#groupPanels+1] = gui.Label{
+						classes = {'aggregateGroupHeading'},
+						text = string.format("%s (%d)", g.opt.text, #g.keys),
+					}
+					rowIndex = 1
+					budget = budget - 1
+				elseif rowIndex <= math.min(#g.keys, PER_GROUP_CAP) then
+					local capturedOpt = g.opt
+					local capturedKey = g.keys[rowIndex]
+					local item = g.t[capturedKey]
+					local name = (item and item.name) or tostring(capturedKey)
+					groupPanels[#groupPanels+1] = gui.Label{
+						classes = {'aggregateResult'},
+						text = Search.Highlight(name, needle),
+						press = function()
+							openCategoryFiltered(capturedOpt, capturedKey)
+						end,
+					}
+					rowIndex = rowIndex + 1
+					budget = budget - 1
+				else
+					if #g.keys > PER_GROUP_CAP then
+						local capturedOpt = g.opt
+						groupPanels[#groupPanels+1] = gui.Label{
+							classes = {'aggregateMore'},
+							text = string.format("+%d more in %s", #g.keys - PER_GROUP_CAP, g.opt.text),
+							press = function()
+								openCategoryFiltered(capturedOpt)
+							end,
+						}
+						budget = budget - 1
+					end
+					gi = gi + 1
+					rowIndex = 0
+				end
+			end
+
+			scrollPanel.children = groupPanels
+
+			if gi <= #groups then
+				dmhub.Schedule(0.01, BuildChunk)
+			end
+		end
+
+		BuildChunk()
 	end
 
 	-- "All results (N)" entry pinned to the top of the menu while filtering.
@@ -5255,7 +5345,7 @@ local LibraryPanel = function()
 			for _,opt in ipairs(EnumerableCategories()) do
 				local t = dmhub.GetTable(opt.contentType)
 				if t ~= nil then
-					total = total + #Search.MatchKeys(t, needle)
+					total = total + #MatchKeysCached(opt.contentType, needle)
 				end
 			end
 
@@ -5577,7 +5667,7 @@ local LibraryPanel = function()
 
 			local total = 0
 			for _ in unhidden_pairs(t) do total = total + 1 end
-			local shown = #Search.MatchKeys(t, needle)
+			local shown = #MatchKeysCached(cat.contentType, needle)
 
 			element:SetClass("collapsed", false)
 			element:SetClass("emptyState", shown == 0)

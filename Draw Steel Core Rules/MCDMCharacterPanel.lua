@@ -7495,7 +7495,21 @@ function TacPanel.PersistentAbilities()
             for _, chip in ipairs(chips) do
                 children[#children+1] = chip
             end
-            if totalCost > 2 then
+
+            local casterClasses = token.properties:GetClassesAndSubClasses()
+            local startOfTurnHeroicResource = 0
+            for _, classInfo in pairs(casterClasses) do
+                local heroicResource = classInfo.class:get_or_add("heroicResourceChecklist", {})
+                for _, resourceInfo in pairs(heroicResource) do
+                    if string.lower(resourceInfo.name or "") == "start of turn" then
+                        startOfTurnHeroicResource = resourceInfo.quantity or 0
+                    end
+                end
+            end
+
+            startOfTurnHeroicResource = tonumber(dmhub.EvalGoblinScript(startOfTurnHeroicResource, token.properties:LookupSymbol(), string.format("Calculating Start of Turn Resources")))
+            
+            if totalCost > startOfTurnHeroicResource then
                 children[#children+1] = gui.Label{
                     classes = {"danger", "sizeXs"},
                     width = "100%",

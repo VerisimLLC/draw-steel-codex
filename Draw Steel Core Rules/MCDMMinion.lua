@@ -164,24 +164,14 @@ DrawSteelMinion.AssignMinionsToSquad = function(destName, tokens, ownerCharid)
         return
     end
 
-    -- Moved minions join the destination's existing initiative grouping so they
-    -- stay in the order. Never clear the grouping -- that drops them from the queue.
-    local moving = {}
-    for _,tok in ipairs(tokens) do
-        if tok ~= nil and tok.valid then
-            moving[tok.charid] = true
-        end
-    end
-
-    local destGrouping = nil
-    for _,tok in ipairs(dmhub.allTokens) do
-        if tok.valid and tok.properties ~= nil and tok.properties.minion
-            and (not moving[tok.charid]) and tok.properties:MinionSquad() == destName then
-            local grouping = tok.properties.initiativeGrouping
-            if grouping then
-                destGrouping = grouping
-                break
-            end
+    -- Group moved minions into the summoner's initiative slot (the summon
+    -- ability's "group with caster"), so a squad change/rename/split puts them
+    -- in the initiative order right away.
+    local casterGrouping = nil
+    if ownerCharid ~= nil then
+        local summonerToken = dmhub.GetTokenById(ownerCharid)
+        if summonerToken ~= nil and summonerToken.valid then
+            casterGrouping = InitiativeQueue.GetInitiativeId(summonerToken)
         end
     end
 
@@ -196,10 +186,8 @@ DrawSteelMinion.AssignMinionsToSquad = function(destName, tokens, ownerCharid)
                     tok.properties.damage_taken = nil
                     tok.properties.damage_taken_seq = nil
                     tok.properties.squadpos = nil
-                    -- Join the destination's group if it has one; otherwise leave
-                    -- the grouping untouched (rename, or split to a new squad).
-                    if destGrouping ~= nil then
-                        tok.properties.initiativeGrouping = destGrouping
+                    if casterGrouping ~= nil then
+                        tok.properties.initiativeGrouping = casterGrouping
                     end
                 end,
             }

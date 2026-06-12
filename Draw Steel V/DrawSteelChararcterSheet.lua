@@ -5525,8 +5525,9 @@ end
       every change (reattaching previously-built panels orphans them).
     - Expansion and filter state live in locals here so they survive the
       fresh rebuilds triggered by refreshToken / choice changes.
-    - The direct characterFeatures list (custom features) is NOT shown here:
-      the editable ListEditor below already owns it.
+    - The direct characterFeatures list (sheet-added custom features) shows
+      read-only under a "Custom Features" group; EDITING them stays with the
+      ListEditor below until the side settings menu lands.
 ]]
 
 --Group header copy. Buckets without an entry fall back to the categoriser's
@@ -5537,6 +5538,7 @@ local FEATURE_GROUP_LABELS = {
     complication = "Complications",
     skill = "Skills",
     language = "Languages",
+    custom = "Custom Features",
     treasure = "Treasures",
     condition = "Conditions",
     effect = "Ongoing Effects",
@@ -5680,6 +5682,7 @@ local function FeaturesIndexPanel()
     --State preserved across fresh rebuilds.
     local m_filter = ""
     local m_expandedGroups = {}
+    local m_expandedLevels = {}
     local m_expandedRows = {}
     local m_info = nil
 
@@ -6014,7 +6017,10 @@ local function FeaturesIndexPanel()
         if expanded then
             if bucketId == "class" then
                 --Sub-group the class bucket by level, preserving pipeline
-                --order within each level.
+                --order within each level. Each level is its own collapsible
+                --sub-group: default collapsed with a count (rows built only
+                --while expanded), filtering forces matching levels open, and
+                --expansion state survives rebuilds via m_expandedLevels.
                 local byLevel = {}
                 local levelsSeen = {}
                 for _,e in ipairs(matched) do
@@ -6028,16 +6034,77 @@ local function FeaturesIndexPanel()
                 end
                 table.sort(levelsSeen)
                 for _,lvl in ipairs(levelsSeen) do
-                    bodyChildren[#bodyChildren+1] = gui.Label{
-                        classes = {"featureMutedText"},
+                    local levelEntries = byLevel[lvl]
+                    local levelExpanded = (m_filter ~= "") or (m_expandedLevels[lvl] == true)
+
+                    local levelUnspent = 0
+                    for _,e in ipairs(levelEntries) do
+                        levelUnspent = levelUnspent + (e._unspent or 0)
+                    end
+
+                    local levelTri = gui.ExpandoArrow{
+                        valign = "center",
+                    }
+                    levelTri:SetClass("expanded", levelExpanded)
+
+                    local levelHeaderChildren = {
+                        levelTri,
+                        gui.Label{
+                            classes = {"featureMutedText"},
+                            width = "auto",
+                            height = "auto",
+                            fontSize = 11,
+                            valign = "center",
+                            text = string.format("%s (%d)", cond(lvl > 0, string.format("Level %d", lvl), "Other"), #levelEntries),
+                        },
+                    }
+                    if levelUnspent > 0 then
+                        levelHeaderChildren[#levelHeaderChildren+1] = gui.Label{
+                            classes = {"featureChoiceBadge"},
+                            width = "auto",
+                            height = "auto",
+                            fontSize = 11,
+                            hpad = 6,
+                            vpad = 1,
+                            borderBox = true,
+                            halign = "right",
+                            valign = "center",
+                            text = string.format("%d to choose", levelUnspent),
+                        }
+                    end
+
+                    bodyChildren[#bodyChildren+1] = gui.Panel{
+                        classes = {"featureGroupHeader"},
                         width = "100%",
                         height = "auto",
-                        fontSize = 11,
-                        vmargin = 2,
-                        text = cond(lvl > 0, string.format("Level %d (%d)", lvl, #byLevel[lvl]), "Other"),
+                        flow = "horizontal",
+                        vmargin = 1,
+                        press = function(element)
+                            if m_filter ~= "" then
+                                return
+                            end
+                            if m_expandedLevels[lvl] then
+                                m_expandedLevels[lvl] = nil
+                            else
+                                m_expandedLevels[lvl] = true
+                            end
+                            Rebuild()
+                        end,
+                        children = levelHeaderChildren,
                     }
-                    for _,e in ipairs(byLevel[lvl]) do
-                        bodyChildren[#bodyChildren+1] = BuildRow(e, creature)
+
+                    if levelExpanded then
+                        local rowChildren = {}
+                        for _,e in ipairs(levelEntries) do
+                            rowChildren[#rowChildren+1] = BuildRow(e, creature)
+                        end
+                        bodyChildren[#bodyChildren+1] = gui.Panel{
+                            width = "100%-12",
+                            halign = "right",
+                            height = "auto",
+                            flow = "vertical",
+                            children = rowChildren,
+                        }
                     end
                 end
             else
@@ -6144,12 +6211,8 @@ local function FeaturesIndexPanel()
             local group = index.groups[bucketId]
             local entries = {}
             for _,e in ipairs(group.items) do
-                --Custom direct features (traits) stay with the editable
-                --ListEditor below rather than appearing twice.
-                if e.kind ~= "trait" then
-                    e._unspent = cond(e.kind == "build", FeatureUnspentChoices(e.feature, creature), 0)
-                    entries[#entries+1] = e
-                end
+                e._unspent = cond(e.kind == "build", FeatureUnspentChoices(e.feature, creature), 0)
+                entries[#entries+1] = e
             end
             if #entries > 0 then
                 total = total + #entries

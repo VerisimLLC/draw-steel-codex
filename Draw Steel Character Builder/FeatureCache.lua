@@ -1106,6 +1106,7 @@ FeatureCategoriser.BUCKETS = {
     { id = "skill",        name = "Skill",           order = 180 },
     { id = "language",     name = "Language",         order = 190 },
     { id = "trait",        name = "Trait",           order = 200 },
+    { id = "custom",       name = "Custom Feature",  order = 205 },
     { id = "treasure",     name = "Treasure",        order = 210 },
     { id = "condition",    name = "Condition",       order = 220 },
     { id = "effect",       name = "Ongoing Effect",  order = 230 },
@@ -1270,19 +1271,22 @@ local function categoriserAddBuildFeatures(creature, addEntry)
     end
 end
 
---- Add direct creature features. For monsters these are traits (source
---- "Trait"); for characters this list usually holds special direct grants.
---- Classified as a Trait by default, but a Title / Complication grant is still
---- peeled out via its own type.
+--- Add direct creature features. The same list means different things by
+--- creature kind: on monsters it holds the creature's REAL traits (bucket
+--- Trait); on characters it holds manual sheet additions, which bucket as
+--- Custom Feature instead. A Title / Complication grant is still peeled out
+--- via its own type either way.
 --- @param creature creature
 --- @param addEntry function
 local function categoriserAddCreatureFeatures(creature, addEntry)
     local ok, feats = pcall(function() return creature:try_get("characterFeatures", {}) end)
     if not ok or type(feats) ~= "table" then return end
 
+    local defaultBucket = cond(creature.typeName == "character", "custom", "trait")
+
     for _,feature in ipairs(feats) do
         if feature ~= nil then
-            local bucket = "trait"
+            local bucket = defaultBucket
             if categoriserIsDerived(feature, "Title") then bucket = "title"
             elseif categoriserIsDerived(feature, "CharacterComplication") then bucket = "complication" end
             addEntry(categoriserNormalise{

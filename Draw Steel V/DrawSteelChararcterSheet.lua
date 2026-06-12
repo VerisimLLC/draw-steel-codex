@@ -5554,11 +5554,11 @@ local FEATURE_GROUP_LABELS = {
     treasure = "Treasures",
     condition = "Conditions",
     effect = "Ongoing Effects",
-    aura = "Auras",
 }
 
---Buckets whose header shows the shared origin name ("Censor - Class",
---"Human - Ancestry") when every entry in the group agrees on it.
+--Buckets whose header appends the origin name(s): "Ancestry - Human",
+--"Career - Agent", "Class - Censor - Paragon" (class + subclass, in
+--first-seen pipeline order).
 local FEATURE_GROUP_ORIGIN_PREFIX = {
     class = true,
     ancestry = true,
@@ -5566,12 +5566,12 @@ local FEATURE_GROUP_ORIGIN_PREFIX = {
     kit = true,
 }
 
---"level 5, upgraded at levels 7, 9" - same wording as the old flat list.
+--"Level 5, upgraded at levels 7, 9" (capitalised per James's copy review).
 local function FeatureLevelString(levels)
     if levels == nil or levels[1] == nil then
         return ""
     end
-    local s = string.format("level %d", math.max(1, levels[1]))
+    local s = string.format("Level %d", math.max(1, levels[1]))
     if #levels > 1 then
         s = string.format("%s, upgraded at level%s %d", s, cond(#levels > 2, "s", ""), levels[2])
         for i = 3, #levels do
@@ -5664,8 +5664,7 @@ end
 --Best-effort description for any index entry. Each probe is pcall-isolated:
 --reading a method that does not exist on a game type ERRORS rather than
 --returning nil, so one probe must not kill the next (gear items have no
---GetDescription but do carry a description field; an aura instance carries
---neither, but its aura definition has the description).
+--GetDescription but do carry a description field).
 local function FeatureEntryDescription(entry)
     local desc = nil
     pcall(function()
@@ -5674,11 +5673,6 @@ local function FeatureEntryDescription(entry)
     if desc == nil or desc == "" then
         pcall(function()
             desc = entry.feature:try_get("description")
-        end)
-    end
-    if (desc == nil or desc == "") and entry.kind == "aura" then
-        pcall(function()
-            desc = entry.feature.aura:try_get("description")
         end)
     end
     if desc == "" then
@@ -6100,20 +6094,19 @@ local function FeaturesIndexPanel()
 
         local label = FEATURE_GROUP_LABELS[bucketId] or bucket.name
         if FEATURE_GROUP_ORIGIN_PREFIX[bucketId] then
-            local originName = nil
-            local shared = true
+            --Distinct origin names in first-seen order: "Ancestry - Human",
+            --"Class - Censor - Paragon" (class then subclass).
+            local names = {}
+            local seen = {}
             for _,e in ipairs(entries) do
-                if e.originName ~= nil then
-                    if originName == nil then
-                        originName = e.originName
-                    elseif originName ~= e.originName then
-                        shared = false
-                        break
-                    end
+                local n = e.originName
+                if n ~= nil and not seen[n] then
+                    seen[n] = true
+                    names[#names+1] = n
                 end
             end
-            if shared and originName ~= nil then
-                label = string.format("%s - %s", originName, bucket.name)
+            if #names > 0 then
+                label = string.format("%s - %s", bucket.name, table.concat(names, " - "))
             end
         end
 
@@ -6122,14 +6115,18 @@ local function FeaturesIndexPanel()
             unspentTotal = unspentTotal + (e._unspent or 0)
         end
 
-        local bodyChildren = {}
-        if expanded then
+        --Expansion is a LAZY IN-PLACE toggle, not a Rebuild: rebuilding the
+        --whole tab on every arrow press costs ~100ms of synchronous Lua
+        --(BuildIndex + per-entry choice checks + all panels). Bodies build
+        --their rows on first expand and then just toggle the collapsed
+        --class; full rebuilds happen only for data/filter changes.
+        local function BuildGroupBodyChildren()
+            local bodyChildren = {}
             if bucketId == "class" then
                 --Sub-group the class bucket by level, preserving pipeline
-                --order within each level. Each level is its own collapsible
-                --sub-group: default collapsed with a count (rows built only
-                --while expanded), filtering forces matching levels open, and
-                --expansion state survives rebuilds via m_expandedLevels.
+                --order within each level. Each level is its own lazy
+                --collapsible sub-group; expansion state survives rebuilds
+                --via m_expandedLevels, and filtering forces levels open.
                 local byLevel = {}
                 local levelsSeen = {}
                 for _,e in ipairs(matched) do
@@ -6181,6 +6178,27 @@ local function FeaturesIndexPanel()
                         }
                     end
 
+                    local levelRows
+                    local function BuildLevelRows()
+                        levelRows.data.built = true
+                        local rowChildren = {}
+                        for _,e in ipairs(levelEntries) do
+                            rowChildren[#rowChildren+1] = BuildRow(e, creature)
+                        end
+                        levelRows.children = rowChildren
+                    end
+                    levelRows = gui.Panel{
+                        width = "100%-12",
+                        halign = "right",
+                        height = "auto",
+                        flow = "vertical",
+                        classes = {cond(not levelExpanded, "collapsed")},
+                        data = { built = false },
+                    }
+                    if levelExpanded then
+                        BuildLevelRows()
+                    end
+
                     bodyChildren[#bodyChildren+1] = gui.Panel{
                         classes = {"featureGroupHeader"},
                         width = "100%",
@@ -6191,35 +6209,48 @@ local function FeaturesIndexPanel()
                             if m_filter ~= "" then
                                 return
                             end
-                            if m_expandedLevels[lvl] then
-                                m_expandedLevels[lvl] = nil
-                            else
+                            local nowExpanded = not (m_expandedLevels[lvl] == true)
+                            if nowExpanded then
                                 m_expandedLevels[lvl] = true
+                            else
+                                m_expandedLevels[lvl] = nil
                             end
-                            Rebuild()
+                            levelTri:SetClass("expanded", nowExpanded)
+                            levelRows:SetClass("collapsed", not nowExpanded)
+                            if nowExpanded and not levelRows.data.built then
+                                BuildLevelRows()
+                            end
                         end,
                         children = levelHeaderChildren,
                     }
-
-                    if levelExpanded then
-                        local rowChildren = {}
-                        for _,e in ipairs(levelEntries) do
-                            rowChildren[#rowChildren+1] = BuildRow(e, creature)
-                        end
-                        bodyChildren[#bodyChildren+1] = gui.Panel{
-                            width = "100%-12",
-                            halign = "right",
-                            height = "auto",
-                            flow = "vertical",
-                            children = rowChildren,
-                        }
-                    end
+                    bodyChildren[#bodyChildren+1] = levelRows
                 end
             else
                 for _,e in ipairs(matched) do
                     bodyChildren[#bodyChildren+1] = BuildRow(e, creature)
                 end
             end
+            return bodyChildren
+        end
+
+        local bodyPanel
+        bodyPanel = gui.Panel{
+            width = "100%-12",
+            halign = "right",
+            height = "auto",
+            flow = "vertical",
+            classes = {cond(not expanded, "collapsed")},
+            data = { built = false },
+        }
+        local function EnsureBodyBuilt()
+            if bodyPanel.data.built then
+                return
+            end
+            bodyPanel.data.built = true
+            bodyPanel.children = BuildGroupBodyChildren()
+        end
+        if expanded then
+            EnsureBodyBuilt()
         end
 
         local tri = FeatureExpandoArrow(expanded, {
@@ -6275,23 +6306,22 @@ local function FeaturesIndexPanel()
                     if m_filter ~= "" then
                         return
                     end
-                    if m_expandedGroups[bucketId] then
-                        m_expandedGroups[bucketId] = nil
-                    else
+                    local nowExpanded = not (m_expandedGroups[bucketId] == true)
+                    if nowExpanded then
                         m_expandedGroups[bucketId] = true
+                    else
+                        m_expandedGroups[bucketId] = nil
                     end
-                    Rebuild()
+                    tri:SetClass("expanded", nowExpanded)
+                    bodyPanel:SetClass("collapsed", not nowExpanded)
+                    if nowExpanded then
+                        EnsureBodyBuilt()
+                    end
                 end,
                 children = headerChildren,
             },
 
-            gui.Panel{
-                width = "100%-12",
-                halign = "right",
-                height = "auto",
-                flow = "vertical",
-                children = bodyChildren,
-            },
+            bodyPanel,
         }
 
         return groupPanel, #matched
@@ -6552,7 +6582,11 @@ local function FeaturesIndexPanel()
             vpad = 14,
             width = "auto",
             height = "auto",
+            --Popups are styling islands: without the theme cascade the
+            --Dropdown's internal triangle/label lose their layout rules and
+            --the triangle renders outside the frame.
             styles = ThemeEngine.MergeStyles{
+                ThemeEngine.GetStyles(),
                 PopupStyles,
             },
             children = children,
@@ -6645,10 +6679,12 @@ function CharSheet.InnerFeaturesPanel()
         flow = "vertical",
 
         --Filter/count/settings row, pinned ABOVE the scroll area so it
-        --survives scrolling.
+        --survives scrolling. tmargin keeps the input clear of the tab
+        --strip's border above.
         gui.Panel {
             width = "97%",
             hmargin = 4,
+            tmargin = 6,
             halign = "left",
             height = "auto",
             index.header,
@@ -6656,7 +6692,7 @@ function CharSheet.InnerFeaturesPanel()
 
         gui.Panel {
         width = "100%",
-        height = "100%-30",
+        height = "100%-36",
         valign = "top",
         vscroll = true,
         gui.Panel {

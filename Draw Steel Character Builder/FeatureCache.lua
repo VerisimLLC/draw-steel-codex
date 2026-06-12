@@ -1109,7 +1109,6 @@ FeatureCategoriser.BUCKETS = {
     { id = "treasure",     name = "Treasure",        order = 210 },
     { id = "condition",    name = "Condition",       order = 220 },
     { id = "effect",       name = "Ongoing Effect",  order = 230 },
-    { id = "aura",         name = "Aura",            order = 240 },
     { id = "other",        name = "Other",           order = 900 },
     --Custom Features deliberately LAST: they are the user's own additions
     --and a fixed last position keeps them easy to reach (James).
@@ -1209,39 +1208,20 @@ local function categoriserSlotComplete(creature, feature)
     return complete
 end
 
---- Single-home re-bucket for a fully-made generic feature choice: when every
---- chosen option's modifiers grant a skill (proficiency subtype "skill", or a
---- skills list as on skill-enhancement features) or a language, the slot row
---- IS that outcome's representation in the index, so it belongs in the
---- outcome's bucket rather than under the class level that hosted the
---- decision. Returns nil to keep the classified bucket (slot unmade,
---- unresolvable, or granting something else - e.g. ability pickers).
---- @param creature creature
---- @param feature CharacterChoice
+--- Single-home grant bucket for a fully-made feature choice: when every
+--- chosen option's modifiers grant a skill (proficiency subtype "skill", or
+--- a skills list as on skill-enhancement features) or a language, the slot
+--- row IS that outcome's representation in the index, so it belongs in the
+--- outcome's bucket. Returns nil when the chosen features grant something
+--- else (e.g. ability pickers) or disagree.
+--- @param chosen table resolved chosen option features
 --- @return string|nil bucketId
-local function categoriserGrantBucket(creature, feature)
+local function categoriserGrantBucketFromChosen(chosen)
     local bucket = nil
-    local ok = pcall(function()
-        local levelChoices = creature:GetLevelChoices()
-        local made = levelChoices[feature.guid]
-        if made == nil or #made == 0 then return end
-        local num = feature:NumChoices(creature)
-        if num == nil or num <= 0 or #made < num then return end
-        local options = feature:GetOptions(levelChoices)
-        if type(options) ~= "table" then return end
-        local byGuid = {}
-        for _,opt in ipairs(options) do
-            local g = _safeGet(opt, "guid")
-            if g ~= nil then byGuid[g] = opt end
-        end
-        for _,id in ipairs(made) do
-            local chosen = byGuid[id]
-            if chosen == nil then
-                bucket = nil
-                return
-            end
-            local found = nil
-            for _,m in ipairs(chosen:try_get("modifiers", {})) do
+    for _,chosenFeature in ipairs(chosen) do
+        local found = nil
+        pcall(function()
+            for _,m in ipairs(chosenFeature:try_get("modifiers", {})) do
                 local subtype = m:try_get("subtype")
                 local skills = m:try_get("skills")
                 if subtype == "skill" or (type(skills) == "table" and #skills > 0) then
@@ -1250,14 +1230,12 @@ local function categoriserGrantBucket(creature, feature)
                     found = "language"
                 end
             end
-            if found == nil or (bucket ~= nil and bucket ~= found) then
-                bucket = nil
-                return
-            end
-            bucket = found
+        end)
+        if found == nil or (bucket ~= nil and bucket ~= found) then
+            return nil
         end
-    end)
-    if not ok then return nil end
+        bucket = found
+    end
     return bucket
 end
 
@@ -1342,6 +1320,7 @@ local function categoriserAddBuildFeatures(creature, addEntry)
     --(its expansion renders the chosen feature's content).
     local chosenByGuid = {}
     local chosenBySlot = {}
+    local grantBucketBySlot = {}
     for _,entry in ipairs(details) do
         local feature = entry.feature
         if feature ~= nil and feature.typeName == "CharacterFeatureChoice" then
@@ -1365,6 +1344,15 @@ local function categoriserAddBuildFeatures(creature, addEntry)
                 end
                 if #chosen > 0 then
                     chosenBySlot[feature.guid] = chosen
+                    --Single-home re-bucketing, only when the slot is fully
+                    --made and every choice resolved (shares this pass's
+                    --GetOptions call rather than re-resolving later).
+                    if #chosen == #made then
+                        local num = feature:NumChoices(creature)
+                        if num ~= nil and num > 0 and #made >= num then
+                            grantBucketBySlot[feature.guid] = categoriserGrantBucketFromChosen(chosen)
+                        end
+                    end
                 end
             end)
         end
@@ -1389,10 +1377,10 @@ local function categoriserAddBuildFeatures(creature, addEntry)
 
         if feature ~= nil and not dropped then
             local bucket = FeatureCategoriser.ClassifyEntry(entry)
-            if typeName == "CharacterFeatureChoice" and bucket == "class" then
+            if typeName == "CharacterFeatureChoice" and bucket == "class" and guid ~= nil then
                 --Single-home: a made slot whose chosen options grant a
                 --skill/language re-homes to that bucket.
-                bucket = categoriserGrantBucket(creature, feature) or bucket
+                bucket = grantBucketBySlot[guid] or bucket
             end
             local _, originObj = categoriserEntryOrigin(entry)
             local levels = entry.levels
@@ -1508,27 +1496,6 @@ local function categoriserAddConditions(creature, addEntry)
     end
 end
 
---- Add auras present on the creature.
---- @param creature creature
---- @param addEntry function
-local function categoriserAddAuras(creature, addEntry)
-    if type(creature.GetAuras) ~= "function" then return end
-    local ok, auras = pcall(function() return creature:GetAuras() end)
-    if not ok or type(auras) ~= "table" then return end
-
-    for _,aura in ipairs(auras) do
-        if aura ~= nil then
-            addEntry(categoriserNormalise{
-                guid    = _safeGet(aura, "guid"),
-                name    = _safeGet(aura, "name", "Aura"),
-                bucket  = "aura",
-                kind    = "aura",
-                feature = aura,
-            })
-        end
-    end
-end
-
 --- Add equipped treasures (magic items / gear granting features). Best-effort:
 --- Equipment() returns a { slotName -> itemGuid } map, so each guid is resolved
 --- against the gear table for a display name. Dedupe by item guid handles an
@@ -1591,7 +1558,9 @@ function FeatureCategoriser.BuildIndex(creature)
         categoriserAddTreasures(creature, addEntry)
         categoriserAddConditions(creature, addEntry)
         categoriserAddOngoingEffects(creature, addEntry)
-        categoriserAddAuras(creature, addEntry)
+        --Auras deliberately NOT indexed (James 2026-06-12): aura instances
+        --are combat state surfaced on the tactical panel, and the granting
+        --feature/ability is already a row of its own.
     end
 
     -- Group + count.

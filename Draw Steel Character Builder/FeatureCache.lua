@@ -1106,12 +1106,14 @@ FeatureCategoriser.BUCKETS = {
     { id = "skill",        name = "Skill",           order = 180 },
     { id = "language",     name = "Language",         order = 190 },
     { id = "trait",        name = "Trait",           order = 200 },
-    { id = "custom",       name = "Custom Feature",  order = 205 },
     { id = "treasure",     name = "Treasure",        order = 210 },
     { id = "condition",    name = "Condition",       order = 220 },
     { id = "effect",       name = "Ongoing Effect",  order = 230 },
     { id = "aura",         name = "Aura",            order = 240 },
     { id = "other",        name = "Other",           order = 900 },
+    --Custom Features deliberately LAST: they are the user's own additions
+    --and a fixed last position keeps them easy to reach (James).
+    { id = "custom",       name = "Custom Feature",  order = 950 },
 }
 
 --- id -> bucket descriptor
@@ -1318,6 +1320,7 @@ local function categoriserNormalise(args)
         kind       = args.kind,
         feature    = args.feature,
         entry      = args.entry,
+        chosen     = args.chosen,
     }
 end
 
@@ -1331,14 +1334,58 @@ local function categoriserAddBuildFeatures(creature, addEntry)
     local ok, details = pcall(function() return creature:GetClassFeaturesAndChoicesWithDetails() end)
     if not ok or type(details) ~= "table" then return end
 
+    --Pass 1: resolve the chosen option features of every made generic
+    --feature choice (ability pickers, domain features, ...). The pipeline
+    --ALSO emits each chosen option as its own separate entry; pass 2
+    --suppresses those duplicates and attaches the chosen features to the
+    --slot entry instead, so the slot row is the outcome's single home
+    --(its expansion renders the chosen feature's content).
+    local chosenByGuid = {}
+    local chosenBySlot = {}
+    for _,entry in ipairs(details) do
+        local feature = entry.feature
+        if feature ~= nil and feature.typeName == "CharacterFeatureChoice" then
+            pcall(function()
+                local levelChoices = creature:GetLevelChoices()
+                local made = levelChoices[feature.guid]
+                if made == nil or #made == 0 then return end
+                local options = feature:GetOptions(levelChoices)
+                if type(options) ~= "table" then return end
+                local byGuid = {}
+                for _,opt in ipairs(options) do
+                    local g = _safeGet(opt, "guid")
+                    if g ~= nil then byGuid[g] = opt end
+                end
+                local chosen = {}
+                for _,id in ipairs(made) do
+                    if byGuid[id] ~= nil then
+                        chosen[#chosen+1] = byGuid[id]
+                        chosenByGuid[id] = true
+                    end
+                end
+                if #chosen > 0 then
+                    chosenBySlot[feature.guid] = chosen
+                end
+            end)
+        end
+    end
+
     for _,entry in ipairs(details) do
         local feature = entry.feature
         local typeName = feature ~= nil and feature.typeName or nil
+        local guid = feature ~= nil and _safeGet(feature, "guid") or nil
 
         --Completed structural slots (subclass/deity/domain) are dropped:
         --their outcomes are already ordinary rows in the index.
         local dropped = typeName ~= nil and CATEGORISER_STRUCTURAL_CHOICE[typeName] == true
             and categoriserSlotComplete(creature, feature)
+
+        --A chosen option's own pipeline entry is dropped: the slot row
+        --represents it (the slot guid itself never collides with an
+        --option guid, but guard on type anyway).
+        if guid ~= nil and chosenByGuid[guid] == true and typeName ~= "CharacterFeatureChoice" then
+            dropped = true
+        end
 
         if feature ~= nil and not dropped then
             local bucket = FeatureCategoriser.ClassifyEntry(entry)
@@ -1350,7 +1397,7 @@ local function categoriserAddBuildFeatures(creature, addEntry)
             local _, originObj = categoriserEntryOrigin(entry)
             local levels = entry.levels
             addEntry(categoriserNormalise{
-                guid       = _safeGet(feature, "guid"),
+                guid       = guid,
                 name       = _safeFeatureName(feature),
                 bucket     = bucket,
                 source     = _safeGet(feature, "source"),
@@ -1360,6 +1407,7 @@ local function categoriserAddBuildFeatures(creature, addEntry)
                 kind       = "build",
                 feature    = feature,
                 entry      = entry,
+                chosen     = guid ~= nil and chosenBySlot[guid] or nil,
             })
         end
     end
@@ -1671,14 +1719,32 @@ Search.RegisterProvider{
                 end
                 local index = FeatureCategoriser.BuildIndexCached(props)
                 for _,entry in ipairs(index.features) do
+                    --Match the entry name, or the name of a chosen option
+                    --(the categoriser folds a made choice's option into the
+                    --slot entry, so "Every Step ... Death!" lives on the
+                    --"Signature Ability" slot). The matched name is what the
+                    --row shows and what the Features tab filter receives.
+                    local matchName = nil
                     local name = entry.name
                     if type(name) == "string" and Search.MatchesText(name, needle) then
+                        matchName = name
+                    end
+                    if matchName == nil and entry.chosen ~= nil then
+                        for _,chosenFeature in ipairs(entry.chosen) do
+                            local chosenName = _safeGet(chosenFeature, "name")
+                            if type(chosenName) == "string" and Search.MatchesText(chosenName, needle) then
+                                matchName = chosenName
+                                break
+                            end
+                        end
+                    end
+                    if matchName ~= nil then
                         local capturedId = token.id
-                        local capturedName = name
+                        local capturedName = matchName
                         local bucket = FeatureCategoriser.BUCKET_BY_ID[entry.bucket]
                         results[#results+1] = {
-                            name = name,
-                            score = Search.Score(name, needle),
+                            name = matchName,
+                            score = Search.Score(matchName, needle),
                             typeLabel = (bucket ~= nil and bucket.name) or "Feature",
                             subLabel = string.format("On %s", tokenName),
                             activate = function()

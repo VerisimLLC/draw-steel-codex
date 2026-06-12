@@ -5526,15 +5526,20 @@ end
     - Expansion and filter state live in locals here so they survive the
       fresh rebuilds triggered by refreshToken / choice changes.
     - The direct characterFeatures list (sheet-added custom features) shows
-      read-only under a "Custom Features" group. Add/edit/paste/delete live
-      in the gear (settings) menu next to the filter box, which also hosts
-      creature templates and the direct-feats list - the old bottom strip,
-      now hidden for characters (it stays inline for monsters and other
-      creature kinds).
+      under a "Custom Features" group, ALWAYS LAST in the group order; each
+      row's expansion carries its Edit/Copy/Delete buttons (managed where
+      the user sees them). The gear (settings) menu next to the filter box
+      only ADDS things: Add Custom Feature, Paste Feature, creature
+      templates. The old bottom strip is hidden for characters (it stays
+      inline for monsters and other creature kinds; its delete-only feats
+      list was a 5e holdover and is not carried over).
     - The categoriser (FeatureCache.lua) enforces single-home display:
       completed structural slots (subclass/deity/domain) are dropped from
-      the index (their outcomes are ordinary rows), and made feature choices
-      that grant a skill/language re-home to that bucket.
+      the index (their outcomes are ordinary rows); made feature choices
+      that grant a skill/language re-home to that bucket; and a made
+      choice's chosen option features fold INTO the slot entry (entry
+      .chosen) instead of appearing as duplicate rows - the slot row's
+      expansion renders the chosen feature's description and ability card.
 ]]
 
 --Group header copy. Buckets without an entry fall back to the categoriser's
@@ -5576,21 +5581,30 @@ local function FeatureLevelString(levels)
     return s
 end
 
---Abilities granted by a feature's modifiers (the builder's detection
---pattern: behavior activated/triggerdisplay/routine carries the ability).
-local function FeatureGrantedAbilities(feature)
+--Abilities granted by an index entry: the feature's own modifiers plus the
+--modifiers of any chosen option features (a made ability picker carries the
+--ability on its chosen feature, folded into the slot entry by the
+--categoriser). Detection is the builder's pattern: behavior
+--activated/triggerdisplay/routine carries the ability.
+local function FeatureGrantedAbilities(entry)
     local abilities = {}
-    pcall(function()
-        for _,modifier in ipairs(feature:try_get("modifiers", {})) do
-            local behavior = modifier.behavior
-            if behavior == "activated" or behavior == "triggerdisplay" or behavior == "routine" then
-                local ability = rawget(modifier, cond(behavior == "activated", "activatedAbility", "ability"))
-                if ability ~= nil then
-                    abilities[#abilities+1] = ability
+    local function gather(feature)
+        pcall(function()
+            for _,modifier in ipairs(feature:try_get("modifiers", {})) do
+                local behavior = modifier.behavior
+                if behavior == "activated" or behavior == "triggerdisplay" or behavior == "routine" then
+                    local ability = rawget(modifier, cond(behavior == "activated", "activatedAbility", "ability"))
+                    if ability ~= nil then
+                        abilities[#abilities+1] = ability
+                    end
                 end
             end
-        end
-    end)
+        end)
+    end
+    gather(entry.feature)
+    for _,chosenFeature in ipairs(entry.chosen or {}) do
+        gather(chosenFeature)
+    end
     return abilities
 end
 
@@ -5740,19 +5754,20 @@ local function FeaturesIndexPanel()
             selectors = {"featureClearFilter"},
             bgcolor = "@fgMuted",
         },
-        {
-            selectors = {"featureGearButton"},
-            bgcolor = "@fgMuted",
-        },
-        {
-            selectors = {"featureGearButton", "hover"},
-            bgcolor = "@fg",
-        },
     }
 
     local function entrySearchText(entry)
         if entry._searchText == nil then
-            entry._searchText = string.format("%s %s", entry.name or "", FeatureEntryDescription(entry) or "")
+            local parts = {entry.name or "", FeatureEntryDescription(entry) or ""}
+            --Chosen option features are folded into the slot entry, so the
+            --filter must reach their names and descriptions too.
+            for _,chosenFeature in ipairs(entry.chosen or {}) do
+                pcall(function()
+                    parts[#parts+1] = chosenFeature.name or ""
+                    parts[#parts+1] = chosenFeature:GetDescription() or ""
+                end)
+            end
+            entry._searchText = table.concat(parts, " ")
         end
         return entry._searchText
     end
@@ -5763,14 +5778,77 @@ local function FeaturesIndexPanel()
         body.data.built = true
         local children = {}
 
-        local desc = FeatureEntryDescription(entry)
-        if desc ~= nil then
+        --A made choice slot's expansion shows the CHOSEN feature's content
+        --(the categoriser suppresses the chosen option's separate row);
+        --entries without chosen options show their own description.
+        local descs = {}
+        for _,chosenFeature in ipairs(entry.chosen or {}) do
+            pcall(function()
+                local d = chosenFeature:GetDescription()
+                if d ~= nil and d ~= "" then
+                    descs[#descs+1] = d
+                end
+            end)
+        end
+        if #descs == 0 then
+            local desc = FeatureEntryDescription(entry)
+            if desc ~= nil then
+                descs[#descs+1] = desc
+            end
+        end
+        for _,desc in ipairs(descs) do
             children[#children+1] = gui.Label{
                 width = "100%",
                 height = "auto",
                 fontSize = 12,
                 textWrap = true,
                 text = desc,
+            }
+        end
+
+        --Custom features are managed where the user sees them: the row
+        --carries Edit / Copy / Delete (the gear menu only ADDS things).
+        if entry.bucket == "custom" then
+            children[#children+1] = gui.Panel{
+                width = "auto",
+                height = "auto",
+                flow = "horizontal",
+                halign = "left",
+                vmargin = 2,
+                gui.Button{
+                    classes = {"sizeS"},
+                    text = "Edit",
+                    click = function(element)
+                        local editor = entry.feature:PopupEditor()
+                        editor.data.notifyElement = resultPanel
+                        CharacterSheet.instance:AddChild(editor)
+                    end,
+                },
+                gui.Button{
+                    classes = {"sizeS"},
+                    text = "Copy",
+                    hmargin = 6,
+                    click = function(element)
+                        dmhub.CopyToInternalClipboard(entry.feature)
+                        gui.Tooltip("Copied to clipboard!")(element)
+                    end,
+                },
+                gui.Button{
+                    classes = {"sizeS"},
+                    text = "Delete",
+                    click = function(element)
+                        local c = CharacterSheet.instance.data.info.token.properties
+                        local items = c:try_get("characterFeatures", {})
+                        for i,f in ipairs(items) do
+                            if f == entry.feature or (entry.guid ~= nil and f.guid == entry.guid) then
+                                table.remove(items, i)
+                                break
+                            end
+                        end
+                        c.characterFeatures = items
+                        CharacterSheet.instance:FireEvent("refreshAll")
+                    end,
+                },
             }
         end
 
@@ -5816,7 +5894,7 @@ local function FeaturesIndexPanel()
                 end
             end
 
-            local abilities = FeatureGrantedAbilities(feature)
+            local abilities = FeatureGrantedAbilities(entry)
             if #abilities > 0 then
                 local cardContainer = gui.Panel{
                     width = "100%",
@@ -5868,8 +5946,10 @@ local function FeaturesIndexPanel()
         local rowKey = tostring(entry.guid or entry.name or "?")
 
         --A non-build row with no description has nothing to expand into;
-        --build-pipeline rows may still carry dropdowns or an ability card.
-        local expandable = entry.kind == "build" or FeatureEntryDescription(entry) ~= nil
+        --build-pipeline rows may still carry dropdowns or an ability card,
+        --and custom rows always carry their Edit/Copy/Delete buttons.
+        local expandable = entry.kind == "build" or entry.bucket == "custom"
+            or FeatureEntryDescription(entry) ~= nil
         local expanded = expandable and m_expandedRows[rowKey] == true
 
         local titleText = entry.name or "Feature"
@@ -5886,13 +5966,16 @@ local function FeaturesIndexPanel()
             subParts[#subParts+1] = levelStr
         end
 
+        --The expanded class is passed at CONSTRUCTION: rows rebuild fresh on
+        --every change, and setting the class after creation replays the
+        --rotate transition on every already-expanded arrow (visible pivot).
         local tri = nil
         if expandable then
             tri = gui.ExpandoArrow{
+                classes = {cond(expanded, "expanded")},
                 halign = "right",
                 valign = "center",
             }
-            tri:SetClass("expanded", expanded)
         end
 
         local body = gui.Panel{
@@ -6058,9 +6141,9 @@ local function FeaturesIndexPanel()
                     end
 
                     local levelTri = gui.ExpandoArrow{
+                        classes = {cond(levelExpanded, "expanded")},
                         valign = "center",
                     }
-                    levelTri:SetClass("expanded", levelExpanded)
 
                     local levelHeaderChildren = {
                         levelTri,
@@ -6130,9 +6213,9 @@ local function FeaturesIndexPanel()
         end
 
         local tri = gui.ExpandoArrow{
+            classes = {cond(expanded, "expanded")},
             valign = "center",
         }
-        tri:SetClass("expanded", expanded)
 
         local headerChildren = {
             tri,
@@ -6290,135 +6373,137 @@ local function FeaturesIndexPanel()
     }
     m_filterInput:AddChild(clearButton)
 
-    --Settings (gear) menu: a popout hosting the editing surface folded off
-    --the tab body - the custom-feature ListEditor (add/edit/paste/copy/
-    --delete), creature templates, and the direct-feats list. Built fresh on
-    --every open; destroyed on close, token switch, or with the sheet (it is
-    --a child of CharacterSheet.instance, the PopupEditor pattern). Template
-    --and feat lists rebuild fresh on refreshToken; the ListEditor manages
-    --its own refresh and notifies the sheet via refreshAll.
-    local m_settingsMenu = nil
+    --Settings (gear) menu: the sheet's standard section-cog pattern
+    --(settingsButton class + element.popup, same as the Immunities /
+    --Skills / Languages cogs - native click-out dismissal, framedPanel +
+    --PopupStyles theming). The menu only ADDS things: custom features are
+    --edited on their rows in the Custom Features group. Template changes
+    --rebuild the popup in place (the Immunities popup's idiom).
+    local m_gearButton
+    local ShowManageMenu
 
-    local function CloseSettingsMenu()
-        if m_settingsMenu ~= nil and m_settingsMenu.valid then
-            m_settingsMenu:DestroySelf()
+    ShowManageMenu = function(element)
+        if m_info == nil then return end
+
+        local children = {}
+
+        children[#children+1] = gui.Label{
+            classes = {"sizeXl", "bold"},
+            halign = "center",
+            text = "Manage Features",
+            width = "auto",
+            height = "auto",
+        }
+
+        children[#children+1] = gui.Button{
+            classes = {"sizeM"},
+            text = "Add Custom Feature",
+            halign = "center",
+            vmargin = 4,
+            click = function()
+                local c = CharacterSheet.instance.data.info.token.properties
+                local items = c:try_get("characterFeatures", {})
+                local feature = CharacterFeature.Create{}
+                items[#items+1] = feature
+                c.characterFeatures = items
+                element.popup = nil
+                CharacterSheet.instance:FireEvent("refreshAll")
+                local editor = feature:PopupEditor()
+                editor.data.notifyElement = resultPanel
+                CharacterSheet.instance:AddChild(editor)
+            end,
+        }
+
+        local clipboardItem = dmhub.GetInternalClipboard()
+        if clipboardItem ~= nil and (clipboardItem.typeName == "CharacterFeature" or clipboardItem.typeName == "ActivatedAbility") then
+            children[#children+1] = gui.Button{
+                classes = {"sizeM"},
+                text = "Paste Feature",
+                halign = "center",
+                vmargin = 4,
+                click = function()
+                    local c = CharacterSheet.instance.data.info.token.properties
+                    local item = dmhub.GetInternalClipboard()
+                    local feature = nil
+                    if item ~= nil and item.typeName == "CharacterFeature" then
+                        feature = DeepCopy(item)
+                        DeepReplaceGuids(feature)
+                    elseif item ~= nil and item.typeName == "ActivatedAbility" then
+                        local ability = DeepCopy(item)
+                        DeepReplaceGuids(ability)
+                        local modifier = CharacterModifier.new{
+                            guid = dmhub.GenerateGuid(),
+                            name = ability.name,
+                            description = "",
+                            behavior = "activated",
+                            activatedAbility = ability,
+                        }
+                        feature = CharacterFeature.Create{
+                            name = ability.name,
+                            modifiers = { modifier },
+                        }
+                    end
+                    if feature ~= nil then
+                        local items = c:try_get("characterFeatures", {})
+                        items[#items+1] = feature
+                        c.characterFeatures = items
+                    end
+                    element.popup = nil
+                    CharacterSheet.instance:FireEvent("refreshAll")
+                end,
+            }
         end
-        m_settingsMenu = nil
-    end
 
-    local function SettingsHeading(text)
-        return gui.Label{
+        children[#children+1] = gui.Label{
             width = "100%",
             height = "auto",
             fontSize = 14,
             bold = true,
             vmargin = 4,
-            text = text,
-        }
-    end
-
-    local function OpenSettingsMenu()
-        if m_info == nil then return end
-        local props = m_info.token.properties
-
-        local menuStyles = {
-            ThemeEngine.GetStyles(),
-            {
-                selectors = {"featureClearFilter"},
-                bgcolor = "@fgMuted",
-            },
+            text = "Creature Templates",
         }
 
-        local sections = {}
+        local creature = m_info.token.properties
+        local templates = nil
+        pcall(function() templates = creature:try_get("creatureTemplates") end)
+        local templatesTable = dmhub.GetTable("creatureTemplates") or {}
+        for i,tid in ipairs(templates or {}) do
+            local templateInfo = templatesTable[tid]
+            if templateInfo ~= nil then
+                local n = i
+                children[#children+1] = gui.Panel{
+                    width = 320,
+                    height = "auto",
+                    flow = "horizontal",
+                    gui.Label{
+                        classes = {"statsLabel"},
+                        width = "80%",
+                        height = "auto",
+                        text = templateInfo.name,
+                    },
+                    gui.Button{
+                        classes = {"deleteButton"},
+                        width = 24,
+                        height = 24,
+                        halign = "right",
+                        click = function()
+                            local c = CharacterSheet.instance.data.info.token.properties
+                            c:RemoveTemplate(n)
+                            CharacterSheet.instance:FireEvent("refreshAll")
+                            ShowManageMenu(element)
+                        end,
+                    },
+                }
+            end
+        end
 
-        sections[#sections+1] = gui.Panel{
-            width = "100%",
-            height = "auto",
-            flow = "horizontal",
-            gui.Label{
-                width = "auto",
-                height = "auto",
-                fontSize = 16,
-                bold = true,
-                halign = "left",
-                text = "Manage Features",
-            },
-            gui.Panel{
-                classes = {"featureClearFilter"},
-                bgimage = "ui-icons/close.png",
-                width = 16,
-                height = 16,
-                halign = "right",
-                valign = "center",
-                press = function()
-                    CloseSettingsMenu()
-                end,
-            },
-        }
-
-        --Custom features: the full ListEditor, reused as-is.
-        sections[#sections+1] = SettingsHeading("Custom Features")
-        sections[#sections+1] = CharacterFeature.ListEditor(props, "characterFeatures", {
-            dialog = CharacterSheet.instance,
-            notify = CharacterSheet.instance,
-        })
-
-        --Creature templates: applied list + add dropdown.
-        sections[#sections+1] = SettingsHeading("Creature Templates")
-        sections[#sections+1] = gui.Panel{
-            width = "100%",
-            height = "auto",
-            flow = "vertical",
-            create = function(element)
-                element:FireEvent("refreshToken", m_info)
-            end,
-            refreshToken = function(element, info)
-                local creature = CharacterSheet.instance.data.info.token.properties
-                local children = {}
-                local templates = creature:try_get("creatureTemplates") or {}
-                local templatesTable = dmhub.GetTable("creatureTemplates") or {}
-                for i,tid in ipairs(templates) do
-                    local templateInfo = templatesTable[tid]
-                    if templateInfo ~= nil then
-                        local n = i
-                        children[#children+1] = gui.Panel{
-                            width = "100%",
-                            height = "auto",
-                            flow = "horizontal",
-                            gui.Label{
-                                classes = {"statsLabel"},
-                                width = "80%",
-                                height = "auto",
-                                text = cond(templateInfo.description ~= "", string.format("%s--%s", templateInfo.name, templateInfo.description), templateInfo.name),
-                            },
-                            gui.Button{
-                                classes = {"deleteButton"},
-                                width = 24,
-                                height = 24,
-                                halign = "right",
-                                click = function()
-                                    local c = CharacterSheet.instance.data.info.token.properties
-                                    c:RemoveTemplate(n)
-                                    CharacterSheet.instance:FireEvent("refreshAll")
-                                end,
-                            },
-                        }
-                    end
-                end
-                element.children = children
-            end,
-        }
-        sections[#sections+1] = gui.Dropdown{
-            monitorAssets = true,
+        children[#children+1] = gui.Dropdown{
             width = 220,
             height = 28,
-            halign = "left",
+            halign = "center",
             vmargin = 4,
             idChosen = "none",
-            create = function(element)
-                element:FireEvent("refreshAssets")
-            end,
-            refreshAssets = function(element)
+            create = function(dropdown)
                 local choices = {
                     { id = "none", text = "Add Creature Template..." },
                 }
@@ -6428,103 +6513,53 @@ local function FeaturesIndexPanel()
                         choices[#choices+1] = { id = k, text = entry.name }
                     end
                 end
-                element.options = choices
+                dropdown.options = choices
             end,
-            change = function(element)
+            change = function(dropdown)
                 local c = CharacterSheet.instance.data.info.token.properties
-                if element.idChosen ~= "none" then
-                    c:AddTemplate(element.idChosen)
+                if dropdown.idChosen ~= "none" then
+                    c:AddTemplate(dropdown.idChosen)
                 end
-                element.idChosen = "none"
+                dropdown.idChosen = "none"
                 CharacterSheet.instance:FireEvent("refreshAll")
+                ShowManageMenu(element)
             end,
         }
 
-        --Direct feats: display + remove, heading only when any exist.
-        sections[#sections+1] = gui.Panel{
-            width = "100%",
-            height = "auto",
-            flow = "vertical",
-            create = function(element)
-                element:FireEvent("refreshToken", m_info)
-            end,
-            refreshToken = function(element, info)
-                local creature = CharacterSheet.instance.data.info.token.properties
-                local children = {}
-                local feats = creature:try_get("creatureFeats") or {}
-                local featsTable = dmhub.GetTable(CharacterFeat.tableName) or {}
-                if #feats > 0 then
-                    children[#children+1] = SettingsHeading("Feats")
-                end
-                for i,fid in ipairs(feats) do
-                    local featInfo = featsTable[fid]
-                    if featInfo ~= nil then
-                        local n = i
-                        children[#children+1] = gui.Panel{
-                            width = "100%",
-                            height = "auto",
-                            flow = "horizontal",
-                            gui.Label{
-                                classes = {"statsLabel"},
-                                width = "80%",
-                                height = "auto",
-                                text = featInfo.name,
-                            },
-                            gui.Button{
-                                classes = {"deleteButton"},
-                                width = 24,
-                                height = 24,
-                                halign = "right",
-                                click = function()
-                                    local c = CharacterSheet.instance.data.info.token.properties
-                                    c:RemoveFeat(n)
-                                    CharacterSheet.instance:FireEvent("refreshAll")
-                                end,
-                            },
-                        }
-                    end
-                end
-                element.children = children
-            end,
-        }
-
-        m_settingsMenu = gui.Panel{
-            floating = true,
-            styles = menuStyles,
-            width = 460,
-            height = "auto",
+        element.popupPositioning = "panel"
+        element.popup = gui.Panel{
+            classes = {"framedPanel"},
             halign = "right",
-            valign = "center",
-            hmargin = 24,
+            interactable = true,
             flow = "vertical",
-            bgimage = "panels/square.png",
-            bgcolor = ThemeEngine.ResolveTokens("@bg"),
-            border = 2,
-            borderColor = ThemeEngine.ResolveTokens("@accent"),
-            pad = 12,
-            borderBox = true,
-            children = sections,
+            hpad = 24,
+            vpad = 14,
+            width = "auto",
+            height = "auto",
+            styles = ThemeEngine.MergeStyles{
+                PopupStyles,
+            },
+            children = children,
         }
-
-        CharacterSheet.instance:AddChild(m_settingsMenu)
     end
 
-    local m_gearButton = gui.Panel{
-        classes = {"featureGearButton"},
-        bgimage = "panels/character-sheet/gear.png",
-        width = 18,
-        height = 18,
+    m_gearButton = gui.Button{
+        classes = {"settingsButton"},
+        width = 16,
+        height = 16,
         halign = "right",
         valign = "center",
         hmargin = 6,
-        press = function()
-            if m_settingsMenu ~= nil and m_settingsMenu.valid then
-                CloseSettingsMenu()
+        linger = function(element)
+            gui.Tooltip("Manage Features and Templates")(element)
+        end,
+        press = function(element)
+            if element.popup ~= nil then
+                element.popup = nil
             else
-                OpenSettingsMenu()
+                ShowManageMenu(element)
             end
         end,
-        hover = gui.Tooltip("Manage features..."),
     }
 
     m_groupsContainer = gui.Panel{
@@ -6545,10 +6580,16 @@ local function FeaturesIndexPanel()
                 changedToken = m_info ~= nil and m_info.token.properties ~= info.token.properties
             end)
             if changedToken then
-                CloseSettingsMenu()
+                m_gearButton.popup = nil
             end
             m_info = info
             Rebuild()
+        end,
+
+        --Custom-feature PopupEditors notify here on change (the
+        --notifyElement contract): refresh the sheet so the index rebuilds.
+        refreshModifier = function(element)
+            CharacterSheet.instance:FireEvent("refreshAll")
         end,
 
         --Deep-link hook: the global-search features-on-creatures provider

@@ -660,6 +660,73 @@ function Search.CollectProviderResults(needle)
     return results
 end
 
+-- =============================================================================
+-- Context-sensitive search providers.
+-- When an artifact (PDF viewer, map, character sheet, journal, encounter) is
+-- open in the main Codex view, it can expose a search scoped to itself.
+-- Global search surfaces the results as ONE group pinned ABOVE the intent
+-- buckets ("In this document", "On this map", ...). The group is ADDITIVE -
+-- it never replaces global reach.
+--
+-- Registration is PRESENCE-based: register when the artifact's panel is
+-- created, unregister in its destroy. Never key off gui focus - the search
+-- input itself holds focus while the user types. When several artifacts are
+-- open at once the HIGHEST-priority provider wins (topmost artifact):
+-- modal viewers (PDF) ~100, sheet/journal/encounter ~50, map ~10.
+--
+--   Search.RegisterContextProvider{
+--       id = "pdf-viewer", priority = 100, label = "In this document",
+--       enumerate = function(needle)          -- needle is normalised
+--           return { {name=, subLabel=, score=, activate=function() end}, ... },
+--                  pendingBoolean             -- true = async search still running
+--       end,
+--   }
+-- =============================================================================
+
+local g_contextProviders = {}
+
+--- @param spec table context provider spec (see header above); unique id required
+function Search.RegisterContextProvider(spec)
+    if spec == nil or spec.id == nil then
+        return
+    end
+    g_contextProviders[spec.id] = spec
+end
+
+--- @param id string
+function Search.UnregisterContextProvider(id)
+    g_contextProviders[id] = nil
+end
+
+--- Run the highest-priority registered context provider against a (normalised)
+--- needle. Returns nil when no context is active, otherwise
+--- {label, results, pending}; pending=true means the provider is still
+--- searching asynchronously and the caller should repeat the search shortly.
+--- @param needle string normalised needle (see Search.Normalize)
+--- @return table|nil
+function Search.CollectContextResults(needle)
+    if needle == nil or #needle < Search.MinProviderQueryLength then
+        return nil
+    end
+
+    local best = nil
+    for _,spec in pairs(g_contextProviders) do
+        if best == nil or (spec.priority or 0) > (best.priority or 0) then
+            best = spec
+        end
+    end
+    if best == nil then
+        return nil
+    end
+
+    local ok, results, pending = pcall(best.enumerate, needle)
+    if not ok or type(results) ~= "table" then
+        return nil
+    end
+    table.sort(results, function(a,b) return (a.score or 0) > (b.score or 0) end)
+    return {label = best.label or "In this view", results = results, pending = (pending == true)}
+end
+
 -- Legacy wrappers. These keep the historical contract (needle used verbatim,
 -- haystack lowered) so existing callers behave identically.
 

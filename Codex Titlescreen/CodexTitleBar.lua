@@ -414,130 +414,31 @@ Search.RegisterProvider{
 local function CreateSearchBar()
     local resultPanel
 
-    local m_searchCache = {}
-    local m_intermediateCache = {}
-
+    -- Per-doc heading search lives in JournalPDFViewer.lua (SearchPDFHeadings,
+    -- shared with the "In this document" context provider). This wrapper maps
+    -- its {page, heading, score} matches onto result rows: the HEADING is the
+    -- row's main line, "doc, page N" the subhead. The 0.1 dampening of every
+    -- match after the first is global-ranking glue (one PDF must not flood the
+    -- flat list); it stays here rather than in the shared search.
     local searchPDF = function(docid, doc, search)
-        local document = doc.doc
-        local documentCache = m_searchCache[docid] or {}
-        m_searchCache[docid] = documentCache
-
-        local searchCache = documentCache[search] or {}
-        documentCache[search] = searchCache
-        if searchCache.status == "complete" then
-            return searchCache.results
-        end
-
-        local infoCache = m_intermediateCache[docid] or { layout = {}, searchResults = {} }
-        m_intermediateCache[docid] = infoCache
-
-        local searchResults = infoCache.searchResults[search] or doc.doc:Search(search)
-        if searchResults == nil or searchResults == "pending" then
-            return "pending"
-        elseif type(searchResults) ~= "table" then
-            searchCache.status = "complete"
-            searchCache.results = {}
-            return searchCache.results
-        end
-
-        infoCache.searchResults[search] = searchResults
-
-        local status = true
-
-        local matches = {}
-        local foundPerfectMatch = false
-
-        for _,result in ipairs(searchResults) do
-            local layout = infoCache.layout[result.page]
-            if layout == nil then
-                infoCache.layout[result.page] = false
-                document:TextLayout(result.page, function(layout)
-                    infoCache.layout[result.page] = layout
-                end)
-            end
-
-            layout = infoCache.layout[result.page]
-            if layout and status then
-                local startingCharIndex = result.index
-                local endingCharIndex = startingCharIndex + #search
-                for _,rect in ipairs(layout.mergedRects) do
-                    --search for the rect we are in, if we dominate the rectangle then
-                    --this is a good search result.
-                    if rect.a <= startingCharIndex and rect.b >= endingCharIndex then
-                        local rectText = layout.text:Substring(rect.a, rect.b)
-                        local haystack = string.lower(trim(rectText))
-                        local needle = trim(search)
-                        if haystack == needle or (string.starts_with(haystack, needle) and string.find(needle, " ") ~= nil) then
-                            local perfectMatch = (not foundPerfectMatch) and (haystack == needle)
-                            foundPerfectMatch = foundPerfectMatch or perfectMatch
-                            --perfect match.
-                            local newMatch = {
-                                text = string.format("<b>%s, page %d</b>", doc.description, result.page),
-                                score = cond(perfectMatch, 100, 50),
-                                click = function()
-                                    OpenPDFDocument(doc, result.page)
-                                end,
-                            }
-
-                            local valid = true
-
-                            --see that our font appears larger than others on this page by comparing distance
-                            --between breaks. Makes sure we only match on headings.
-                            local averageBreakDistance = 0
-                            for i=1,#rect.breaks-1 do
-                                averageBreakDistance = averageBreakDistance + math.abs(rect.breaks[i+1] - rect.breaks[i])
-                            end
-                            averageBreakDistance = averageBreakDistance / math.max(1, #rect.breaks-1)
-
-                            local totalAverage = 0
-                            local totalCount = 0
-                            for _,r in ipairs(layout.mergedRects) do
-                                for i=1,#r.breaks-1 do
-                                    totalAverage = totalAverage + math.abs(r.breaks[i+1] - r.breaks[i])
-                                    totalCount = totalCount + 1
-                                end
-                            end
-                            totalAverage = totalAverage/math.max(1, totalCount)
-
-                            local ratio = averageBreakDistance / math.max(1, totalAverage)
-
-                            if ratio < 1.05 then
-                                valid = false
-                            else
-                                newMatch.score = newMatch.score * ratio
-                            end
-
-                            --result de-duplication
-                            for _,match in ipairs(matches) do
-                                if match.text == newMatch.text then
-                                    valid = false
-                                    break
-                                end
-                            end
-                            if valid then
-                                matches[#matches+1] = newMatch
-                            end
-                        end
-                    end
-                end
-
-            else
-                status = false
-            end
-        end
-
-        if not status then
+        local matches = SearchPDFHeadings(doc, search)
+        if type(matches) ~= "table" then
             return "pending"
         end
 
-        table.sort(matches, function(a, b) return a.score > b.score end)
-        for i=2,#matches do
-            matches[i].score = matches[i].score*0.1
+        local rows = {}
+        for i,m in ipairs(matches) do
+            local capturedPage = m.page
+            rows[#rows+1] = {
+                name = m.heading,
+                subLabel = string.format("%s, page %d", doc.description, m.page),
+                score = cond(i == 1, m.score, m.score * 0.1),
+                click = function()
+                    OpenPDFDocument(doc, capturedPage)
+                end,
+            }
         end
-
-        searchCache.results = matches
-
-        return matches
+        return rows
     end
 
     local scoreMatch = function(text, search)
@@ -583,13 +484,31 @@ local function CreateSearchBar()
     end
 
     -- One result row: a highlighted name (provider results) or preformatted
-    -- text (legacy handlers), plus an optional muted type/source label.
+    -- text (legacy handlers), plus an optional muted type/source label, plus
+    -- an optional subhead line under the name (e.g. PDF results show the
+    -- matched heading with "doc, page N" beneath it).
     -- Pressing runs the result's action and dismisses the popup.
     local function CreateResultRow(result, needle)
         local nameLabel = gui.Label{
             classes = {"searchResultName"},
             text = result.name ~= nil and Search.Highlight(result.name, needle) or (result.text or ""),
         }
+
+        local nameBlock = nameLabel
+        if result.subLabel ~= nil then
+            nameBlock = gui.Panel{
+                flow = "vertical",
+                width = "auto",
+                height = "auto",
+                halign = "left",
+                valign = "center",
+                nameLabel,
+                gui.Label{
+                    classes = {"searchResultSub"},
+                    text = result.subLabel,
+                },
+            }
+        end
 
         local typeLabel = nil
         if result.typeLabel ~= nil then
@@ -640,7 +559,7 @@ local function CreateSearchBar()
                     element.popup = gui.ContextMenu{ entries = entries }
                 end
             end,
-            nameLabel,
+            nameBlock,
             typeLabel,
         }
     end
@@ -655,41 +574,51 @@ local function CreateSearchBar()
     -- (result rows AND "See all" labels, so expansion is keyboard-reachable);
     -- the selected entry carries the "searchfocus" class. Enter with no
     -- selection activates the first result.
-    local function CreateGroupedPopup(grouped, needle, expanded, searchingLabel)
+    local function CreateGroupedPopup(grouped, needle, expanded, searchingLabel, context)
         local children = {}
         local navRows = {}
+
+        local function AppendGroup(label, list, expandKey)
+            children[#children+1] = gui.Label{
+                classes = {"searchGroupHeading"},
+                text = string.format("<b>%s</b> (%d)", label, #list),
+            }
+            local shown = expanded[expandKey] and #list or math.min(#list, SEARCH_BUCKET_SHOWN)
+            for i=1,shown do
+                local row = CreateResultRow(list[i], needle)
+                children[#children+1] = row
+                navRows[#navRows+1] = {panel = row, event = "press"}
+            end
+            if (not expanded[expandKey]) and #list > SEARCH_BUCKET_SHOWN then
+                local seeAll = gui.Label{
+                    classes = {"searchSeeAll"},
+                    text = string.format("See all %d", #list),
+                    -- The historical "expands then disappears" bug was NOT
+                    -- this handler: the input's deselect fired on the real
+                    -- mousedown, cleared the text, and the resulting
+                    -- edit("") dismissed the rebuilt popup ~editlag later.
+                    -- deselect now keeps the query when the pointer is on
+                    -- the popup, so the expansion survives.
+                    click = function()
+                        expanded[expandKey] = true
+                        resultPanel.popup = CreateGroupedPopup(grouped, needle, expanded, searchingLabel, context)
+                    end,
+                }
+                children[#children+1] = seeAll
+                navRows[#navRows+1] = {panel = seeAll, event = "click"}
+            end
+        end
+
+        -- Context group ("In this document" / "On this map" / ...): pinned
+        -- ABOVE the intent buckets, additive - never replaces global reach.
+        if context ~= nil and #context.results > 0 then
+            AppendGroup(context.label, context.results, "context")
+        end
+
         for _,bucket in ipairs(SEARCH_BUCKETS) do
             local list = grouped[bucket.id]
             if list ~= nil and #list > 0 then
-                children[#children+1] = gui.Label{
-                    classes = {"searchGroupHeading"},
-                    text = string.format("<b>%s</b> (%d)", bucket.label, #list),
-                }
-                local shown = expanded[bucket.id] and #list or math.min(#list, SEARCH_BUCKET_SHOWN)
-                for i=1,shown do
-                    local row = CreateResultRow(list[i], needle)
-                    children[#children+1] = row
-                    navRows[#navRows+1] = {panel = row, event = "press"}
-                end
-                if (not expanded[bucket.id]) and #list > SEARCH_BUCKET_SHOWN then
-                    local capturedId = bucket.id
-                    local seeAll = gui.Label{
-                        classes = {"searchSeeAll"},
-                        text = string.format("See all %d", #list),
-                        -- The historical "expands then disappears" bug was NOT
-                        -- this handler: the input's deselect fired on the real
-                        -- mousedown, cleared the text, and the resulting
-                        -- edit("") dismissed the rebuilt popup ~editlag later.
-                        -- deselect now keeps the query when the pointer is on
-                        -- the popup, so the expansion survives.
-                        click = function()
-                            expanded[capturedId] = true
-                            resultPanel.popup = CreateGroupedPopup(grouped, needle, expanded, searchingLabel)
-                        end,
-                    }
-                    children[#children+1] = seeAll
-                    navRows[#navRows+1] = {panel = seeAll, event = "click"}
-                end
+                AppendGroup(bucket.label, list, bucket.id)
             end
         end
 
@@ -846,6 +775,15 @@ local function CreateSearchBar()
             results[#results+1] = r
         end
 
+        -- Context-sensitive search: when an artifact (PDF viewer, ...) is
+        -- open it contributes its own scoped group, pinned above the
+        -- buckets. A pending context (async per-doc search) repeats the
+        -- search the same way the global PDF path does.
+        local context = Search.CollectContextResults(needle)
+        if context ~= nil and context.pending then
+            status = false
+        end
+
         -- Group the flat results into the intent buckets, ranked by score, and
         -- cap each bucket to the render/store budget.
         table.stable_sort(results, function(a,b) return (a.score or 0) > (b.score or 0) end)
@@ -863,7 +801,7 @@ local function CreateSearchBar()
             end
         end
 
-        if #results == 0 then
+        if #results == 0 and (context == nil or #context.results == 0) then
             resultPanel.data.searchSignature = nil
             resultPanel.data.searchStatus = nil
             if resultPanel.popup == nil or not resultPanel.data.isNoResultsPopup then
@@ -897,9 +835,15 @@ local function CreateSearchBar()
 
         -- Flicker guard: re-fire of the same query (e.g. the async PDF
         -- repeat-search) rebuilds nothing if the visible result set is
-        -- unchanged. The signature is the ordered names across all buckets, so
-        -- an expanded "See all" state survives an identical repeat.
+        -- unchanged. The signature is the ordered names across the context
+        -- group + all buckets, so an expanded "See all" state survives an
+        -- identical repeat.
         local sigParts = {}
+        if context ~= nil then
+            for _,r in ipairs(context.results) do
+                sigParts[#sigParts+1] = r.name or r.text or ""
+            end
+        end
         for _,bucket in ipairs(SEARCH_BUCKETS) do
             local list = grouped[bucket.id]
             if list ~= nil then
@@ -922,7 +866,7 @@ local function CreateSearchBar()
         resultPanel.data.isNoResultsPopup = false
 
         resultPanel.popupsInheritStyles = true
-        resultPanel.popup = CreateGroupedPopup(grouped, needle, {}, cond(status, nil, true))
+        resultPanel.popup = CreateGroupedPopup(grouped, needle, {}, cond(status, nil, true), context)
 
         if status then
             track("search_titlebar", {
@@ -1577,6 +1521,14 @@ local function CreateTopBar()
             color = "@fgMuted",
             fontSize = 12,
             lmargin = 8,
+        },
+        {
+            selectors = {"searchResultSub"},
+            width = "auto",
+            height = "auto",
+            halign = "left",
+            color = "@fgMuted",
+            fontSize = 12,
         },
         {
             selectors = {"searchSeeAll"},

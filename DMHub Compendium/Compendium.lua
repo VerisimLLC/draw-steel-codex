@@ -820,12 +820,24 @@ local ShowOngoingEffectsPanel = function(parentPanel, tableName)
 
 	local sectionHeadings = {}
 	local ongoingEffectItems = {}
+	local m_buildGeneration = 0
+	local m_activeSearch = ""
 
 	itemsListPanel = gui.Panel{
 		classes = {'list-panel'},
 		vscroll = true,
 		monitorAssets = true,
+		searchCompendium = function(element, text)
+			-- rows created by later build chunks need the active filter applied
+			m_activeSearch = text
+		end,
 		refreshAssets = function(element)
+			m_buildGeneration = m_buildGeneration + 1
+			local generation = m_buildGeneration
+
+			-- captured once: late chunks run when aliveTime > 0.2, and select=true
+			-- fires press on create, which would open every row built after open
+			local autoSelect = element.aliveTime > 0.2
 
 			local children = {}
 			local ongoingEffectTable = dmhub.GetTable(tableName) or {}
@@ -842,52 +854,96 @@ local ShowOngoingEffectsPanel = function(parentPanel, tableName)
 					local condb = conditionsTable[cb.condition] or {name = "Ungrouped"}
 					return conda.name < condb.name
 				end)
+			else
+				-- rows are appended chunk by chunk, so keys must arrive pre-sorted;
+				-- the old post-build children sort is equivalent (row.text = item.name)
+				table.sort(keys, function(a,b)
+					return (ongoingEffectTable[a].name or "") < (ongoingEffectTable[b].name or "")
+				end)
 			end
 
 			local seenHeadings = {}
 			local newSectionHeadings = {}
 
+			-- Panels pay a per-panel layout cost under vscroll, so building a large
+			-- table's rows in one frame freezes the app (~1.5s at 786 ongoing
+			-- effects). Spread fresh builds across frames; when the reuse cache
+			-- already covers the table (asset refresh while the page is open),
+			-- build in a single pass exactly as before.
+			local missing = 0
 			for _,k in ipairs(keys) do
-				local item = ongoingEffectTable[k]
-				if groupByCondition then
-					local condition = conditionsTable[item.condition] or {name = "Ungrouped"}
-					if not seenHeadings[condition.name] then
-						seenHeadings[condition.name] = true
-
-						local heading = sectionHeadings[condition.name] or gui.Label{
-							text = condition.name,
-							fontSize = 20,
-							bold = true,
-							width = "auto",
-							height = "auto",
-							lmargin = 4,
-						}
-
-						newSectionHeadings[condition.name] = heading
-						children[#children+1] = heading
-					end
+				if ongoingEffectItems[k] == nil then
+					missing = missing + 1
 				end
-				newOngoingEffectItems[k] = ongoingEffectItems[k] or CreateListItem{
-					select = element.aliveTime > 0.2,
-					tableName = tableName,
-					key = k,
-					click = function()
-						SetOngoingEffect(k)
-					end,
-				}
-
-				newOngoingEffectItems[k].text = item.name
-
-				children[#children+1] = newOngoingEffectItems[k]
+			end
+			local chunkSize = #keys
+			if missing > 120 then
+				chunkSize = 80
 			end
 
-            if not groupByCondition then
-			    table.sort(children, function(a,b) return a.text < b.text end)
-            end
+			local index = 1
+			local function BuildChunk()
+				if mod.unloaded or generation ~= m_buildGeneration or not element.valid then
+					return
+				end
 
-			sectionHeadings = newSectionHeadings
-			ongoingEffectItems = newOngoingEffectItems
-			itemsListPanel.children = children
+				local target = math.min(index + chunkSize - 1, #keys)
+				local newRows = {}
+				while index <= target do
+					local k = keys[index]
+					local item = ongoingEffectTable[k]
+					if groupByCondition then
+						local condition = conditionsTable[item.condition] or {name = "Ungrouped"}
+						if not seenHeadings[condition.name] then
+							seenHeadings[condition.name] = true
+
+							local heading = sectionHeadings[condition.name] or gui.Label{
+								text = condition.name,
+								fontSize = 20,
+								bold = true,
+								width = "auto",
+								height = "auto",
+								lmargin = 4,
+							}
+
+							newSectionHeadings[condition.name] = heading
+							children[#children+1] = heading
+						end
+					end
+
+					local row = ongoingEffectItems[k] or CreateListItem{
+						select = autoSelect,
+						tableName = tableName,
+						key = k,
+						click = function()
+							SetOngoingEffect(k)
+						end,
+					}
+					row.text = item.name
+					newOngoingEffectItems[k] = row
+					children[#children+1] = row
+					newRows[#newRows+1] = row
+
+					index = index + 1
+				end
+
+				element.children = children
+
+				if m_activeSearch ~= "" then
+					for _,row in ipairs(newRows) do
+						row:FireEvent("searchCompendium", m_activeSearch)
+					end
+				end
+
+				if index <= #keys then
+					dmhub.Schedule(0.01, BuildChunk)
+				else
+					sectionHeadings = newSectionHeadings
+					ongoingEffectItems = newOngoingEffectItems
+				end
+			end
+
+			BuildChunk()
 		end,
 	}
 

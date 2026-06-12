@@ -648,8 +648,16 @@ local function CreateSearchBar()
     -- Build the grouped results popup. `expanded` is a per-bucket flag set;
     -- pressing "See all" flips a bucket open and rebuilds in place. Only the
     -- shown rows are rendered (the lazy render budget).
+    --
+    -- Keyboard navigation: the search input forwards uparrow / downarrow /
+    -- activateSelection (Enter) here via FireEventTree (same idiom as the
+    -- GoblinScript autocomplete popup). A cursor walks every navigable entry
+    -- (result rows AND "See all" labels, so expansion is keyboard-reachable);
+    -- the selected entry carries the "searchfocus" class. Enter with no
+    -- selection activates the first result.
     local function CreateGroupedPopup(grouped, needle, expanded, searchingLabel)
         local children = {}
+        local navRows = {}
         for _,bucket in ipairs(SEARCH_BUCKETS) do
             local list = grouped[bucket.id]
             if list ~= nil and #list > 0 then
@@ -659,11 +667,13 @@ local function CreateSearchBar()
                 }
                 local shown = expanded[bucket.id] and #list or math.min(#list, SEARCH_BUCKET_SHOWN)
                 for i=1,shown do
-                    children[#children+1] = CreateResultRow(list[i], needle)
+                    local row = CreateResultRow(list[i], needle)
+                    children[#children+1] = row
+                    navRows[#navRows+1] = {panel = row, event = "press"}
                 end
                 if (not expanded[bucket.id]) and #list > SEARCH_BUCKET_SHOWN then
                     local capturedId = bucket.id
-                    children[#children+1] = gui.Label{
+                    local seeAll = gui.Label{
                         classes = {"searchSeeAll"},
                         text = string.format("See all %d", #list),
                         -- The historical "expands then disappears" bug was NOT
@@ -677,6 +687,8 @@ local function CreateSearchBar()
                             resultPanel.popup = CreateGroupedPopup(grouped, needle, expanded, searchingLabel)
                         end,
                     }
+                    children[#children+1] = seeAll
+                    navRows[#navRows+1] = {panel = seeAll, event = "click"}
                 end
             end
         end
@@ -688,7 +700,37 @@ local function CreateSearchBar()
             }
         end
 
-        return gui.Panel{
+        local m_cursor = 0
+        local popupPanel
+
+        local function MoveCursor(delta)
+            if #navRows == 0 then
+                return
+            end
+            local newCursor = m_cursor + delta
+            if newCursor < 1 then
+                newCursor = #navRows
+            elseif newCursor > #navRows then
+                newCursor = 1
+            end
+            local old = navRows[m_cursor]
+            if old ~= nil and old.panel.valid then
+                old.panel:SetClass("searchfocus", false)
+            end
+            m_cursor = newCursor
+            local row = navRows[m_cursor]
+            if row.panel.valid then
+                row.panel:SetClass("searchfocus", true)
+            end
+            -- Keep the selection in view (vscrollPosition: 1 = top, 0 =
+            -- bottom). Approximate by cursor fraction; exact row offsets are
+            -- not exposed, and the popup only scrolls once a bucket expands.
+            if #navRows > 1 then
+                popupPanel.vscrollPosition = 1 - (m_cursor - 1) / (#navRows - 1)
+            end
+        end
+
+        popupPanel = gui.Panel{
             classes = {"bordered", "bg", "searchResultsPanel"},
             flow = "vertical",
             width = 368,
@@ -697,7 +739,21 @@ local function CreateSearchBar()
             valign = "bottom",
             vscroll = true,
             children = children,
+
+            uparrow = function(element)
+                MoveCursor(-1)
+            end,
+            downarrow = function(element)
+                MoveCursor(1)
+            end,
+            activateSelection = function(element)
+                local row = navRows[math.max(m_cursor, 1)]
+                if row ~= nil and row.panel.valid then
+                    row.panel:FireEvent(row.event)
+                end
+            end,
         }
+        return popupPanel
     end
 
     local executeSearch = function(text)
@@ -903,6 +959,24 @@ local function CreateSearchBar()
         end,
         find = function(element)
             element.hasFocus = true
+        end,
+        -- Keyboard navigation of the results popup: arrows move the selection,
+        -- Enter activates it (or the first result when nothing is selected).
+        -- Same forward-to-popup idiom as the GoblinScript autocomplete.
+        uparrow = function(element)
+            if element.popup ~= nil then
+                element.popup:FireEventTree("uparrow")
+            end
+        end,
+        downarrow = function(element)
+            if element.popup ~= nil then
+                element.popup:FireEventTree("downarrow")
+            end
+        end,
+        submit = function(element)
+            if element.popup ~= nil then
+                element.popup:FireEventTree("activateSelection")
+            end
         end,
         deselect = function(element)
             -- A real click inside the results popup also blurs this input
@@ -1474,6 +1548,15 @@ local function CreateTopBar()
         },
         {
             selectors = {"searchResultRow", "hover"},
+            bgcolor = "@bgAlt",
+        },
+        {
+            selectors = {"searchResultRow", "searchfocus"},
+            bgcolor = "@bgAlt",
+        },
+        {
+            selectors = {"searchSeeAll", "searchfocus"},
+            bgimage = true,
             bgcolor = "@bgAlt",
         },
         {

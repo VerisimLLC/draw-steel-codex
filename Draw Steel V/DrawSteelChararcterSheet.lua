@@ -5777,6 +5777,15 @@ function CharSheet.FeaturesAndNotesPanel()
                 end
             end,
 
+            --Deep-link hook: lets external code (global search's
+            --features-on-creatures results) land the sheet on a named tab via
+            --CharacterSheet.instance:FireEventTree("selectSheetTab", "Features").
+            selectSheetTab = function(element, tabText)
+                if tabText == text then
+                    element:FireEvent("press")
+                end
+            end,
+
             refreshToken = function(element, info)
                 local creature = CharacterSheet.instance.data.info.token.properties
                 if text ~= "Followers" then

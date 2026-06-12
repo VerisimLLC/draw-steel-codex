@@ -1499,3 +1499,94 @@ function FeatureCategoriser.BuildIndexCached(creature)
     g_categoriserCache[creature] = { time = now, index = index }
     return index
 end
+
+-- =============================================================================
+-- Global-search provider: features on creatures (search redesign ch4).
+--
+-- Surfaces the categorised per-creature feature index (FeatureCategoriser,
+-- above) in global search: searching "healing grace" finds the feature ON the
+-- token that has it, not just its compendium definition. One result row per
+-- (feature, token) pair -- the same feature on two tokens is two locations.
+--
+-- Activation is the COARSE click-through agreed in the plan review: select the
+-- token, centre the camera on it, open its sheet and land on the Features tab
+-- (via the selectSheetTab deep-link hook in DrawSteelChararcterSheet.lua).
+-- When the ch5 Features-tab redesign lands this upgrades to filter-to-feature.
+--
+-- Visibility: a user only sees features on tokens they can control (owner /
+-- party / GM -- token.canControl), so players never discover monster traits
+-- or other GM content through search.
+-- =============================================================================
+
+local mod = dmhub.GetModLoading()
+
+--- Open a token's character sheet landed on the Features tab. The sheet panel
+--- is created on demand by the engine, so the tab selection retries briefly
+--- until CharacterSheet.instance exists.
+--- @param tokenid string
+local function OpenSheetAtFeaturesTab(tokenid)
+    local tok = dmhub.GetTokenById(tokenid)
+    if tok == nil then
+        return
+    end
+
+    tok:ShowSheet()
+
+    local attempts = 0
+    local function trySelect()
+        if mod.unloaded then
+            return
+        end
+        local sheet = rawget(CharacterSheet, "instance")
+        if sheet ~= nil and sheet ~= false and sheet.valid then
+            sheet:FireEventTree("selectSheetTab", "Features")
+            return
+        end
+        attempts = attempts + 1
+        if attempts < 20 then
+            dmhub.Schedule(0.1, trySelect)
+        end
+    end
+    trySelect()
+end
+
+Search.RegisterProvider{
+    id = "creatureFeatures",
+    bucket = "ingame",
+    enumerate = function(needle)
+        if not dmhub.inGame then
+            return {}
+        end
+
+        local results = {}
+        for _,token in ipairs(dmhub.allTokens) do
+            local props = token.properties
+            if props ~= nil and token.canControl then
+                local tokenName = token.name
+                if type(tokenName) ~= "string" or tokenName == "" then
+                    tokenName = "Unnamed"
+                end
+                local index = FeatureCategoriser.BuildIndexCached(props)
+                for _,entry in ipairs(index.features) do
+                    local name = entry.name
+                    if type(name) == "string" and Search.MatchesText(name, needle) then
+                        local capturedId = token.id
+                        local bucket = FeatureCategoriser.BUCKET_BY_ID[entry.bucket]
+                        results[#results+1] = {
+                            name = name,
+                            score = Search.Score(name, needle),
+                            typeLabel = (bucket ~= nil and bucket.name) or "Feature",
+                            subLabel = string.format("On %s", tokenName),
+                            activate = function()
+                                dmhub.SelectToken(capturedId)
+                                dmhub.CenterOnToken(capturedId)
+                                OpenSheetAtFeaturesTab(capturedId)
+                            end,
+                        }
+                    end
+                end
+            end
+        end
+        return results
+    end,
+}

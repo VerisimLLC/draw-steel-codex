@@ -5581,6 +5581,20 @@ local function FeatureLevelString(levels)
     return s
 end
 
+--Expando arrow with the expanded state baked in at construction: rows and
+--groups rebuild fresh on every change, and calling SetClass("expanded")
+--after creation replays the 0.2s rotate transition on every already-open
+--arrow. GOTCHA: the classes key must be OMITTED entirely when collapsed -
+--gui.CombineFields REPLACES (not merges) the constructor's default
+--{"triangle","expandoArrow"} classes when handed an empty list, leaving an
+--unstyled full-size triangle.
+local function FeatureExpandoArrow(expanded, options)
+    if expanded then
+        options.classes = {"expanded"}
+    end
+    return gui.ExpandoArrow(options)
+end
+
 --Abilities granted by an index entry: the feature's own modifiers plus the
 --modifiers of any chosen option features (a made ability picker carries the
 --ability on its chosen feature, folded into the slot entry by the
@@ -5709,6 +5723,7 @@ local function FeaturesIndexPanel()
 
     local m_countLabel
     local m_filterInput
+    local m_headerPanel
     local m_groupsContainer
     local Rebuild
 
@@ -5966,16 +5981,12 @@ local function FeaturesIndexPanel()
             subParts[#subParts+1] = levelStr
         end
 
-        --The expanded class is passed at CONSTRUCTION: rows rebuild fresh on
-        --every change, and setting the class after creation replays the
-        --rotate transition on every already-expanded arrow (visible pivot).
         local tri = nil
         if expandable then
-            tri = gui.ExpandoArrow{
-                classes = {cond(expanded, "expanded")},
+            tri = FeatureExpandoArrow(expanded, {
                 halign = "right",
                 valign = "center",
-            }
+            })
         end
 
         local body = gui.Panel{
@@ -6140,10 +6151,9 @@ local function FeaturesIndexPanel()
                         levelUnspent = levelUnspent + (e._unspent or 0)
                     end
 
-                    local levelTri = gui.ExpandoArrow{
-                        classes = {cond(levelExpanded, "expanded")},
+                    local levelTri = FeatureExpandoArrow(levelExpanded, {
                         valign = "center",
-                    }
+                    })
 
                     local levelHeaderChildren = {
                         levelTri,
@@ -6212,10 +6222,9 @@ local function FeaturesIndexPanel()
             end
         end
 
-        local tri = gui.ExpandoArrow{
-            classes = {cond(expanded, "expanded")},
+        local tri = FeatureExpandoArrow(expanded, {
             valign = "center",
-        }
+        })
 
         local headerChildren = {
             tri,
@@ -6295,10 +6304,12 @@ local function FeaturesIndexPanel()
         local creature = m_info.token.properties
         if creature == nil or creature.typeName ~= "character" then
             resultPanel:SetClass("collapsed", true)
+            m_headerPanel:SetClass("collapsed", true)
             m_groupsContainer.children = {}
             return
         end
         resultPanel:SetClass("collapsed", false)
+        m_headerPanel:SetClass("collapsed", false)
 
         local index = FeatureCategoriser.BuildIndex(creature)
 
@@ -6398,6 +6409,7 @@ local function FeaturesIndexPanel()
         children[#children+1] = gui.Button{
             classes = {"sizeM"},
             text = "Add Custom Feature",
+            width = 220,
             halign = "center",
             vmargin = 4,
             click = function()
@@ -6419,6 +6431,7 @@ local function FeaturesIndexPanel()
             children[#children+1] = gui.Button{
                 classes = {"sizeM"},
                 text = "Paste Feature",
+                width = 220,
                 halign = "center",
                 vmargin = 4,
                 click = function()
@@ -6454,9 +6467,12 @@ local function FeaturesIndexPanel()
             }
         end
 
+        --width "auto" popup: every child must be fixed/auto width (a "100%"
+        --child makes the auto-sized popup blow out to the screen bounds).
         children[#children+1] = gui.Label{
-            width = "100%",
+            width = "auto",
             height = "auto",
+            halign = "center",
             fontSize = 14,
             bold = true,
             vmargin = 4,
@@ -6603,26 +6619,45 @@ local function FeaturesIndexPanel()
             m_filterInput:FireEvent("edit")
         end,
 
-        gui.Panel{
-            width = "100%",
-            height = 26,
-            flow = "horizontal",
-            m_countLabel,
-            m_filterInput,
-            m_gearButton,
-        },
-
         m_groupsContainer,
     }
 
-    return resultPanel
+    --The filter/count/settings row is returned SEPARATELY so the tab can
+    --pin it above the scroll area (it must survive scrolling).
+    m_headerPanel = gui.Panel{
+        width = "100%",
+        height = 26,
+        flow = "horizontal",
+        styles = styles,
+        m_countLabel,
+        m_filterInput,
+        m_gearButton,
+    }
+
+    return { header = m_headerPanel, body = resultPanel }
 end
 
 function CharSheet.InnerFeaturesPanel()
+    local index = FeaturesIndexPanel()
     return gui.Panel {
         width = "100%",
         height = "100%",
-        valign = "center",
+        flow = "vertical",
+
+        --Filter/count/settings row, pinned ABOVE the scroll area so it
+        --survives scrolling.
+        gui.Panel {
+            width = "97%",
+            hmargin = 4,
+            halign = "left",
+            height = "auto",
+            index.header,
+        },
+
+        gui.Panel {
+        width = "100%",
+        height = "100%-30",
+        valign = "top",
         vscroll = true,
         gui.Panel {
             classes = { "featuresPanel" },
@@ -6632,7 +6667,7 @@ function CharSheet.InnerFeaturesPanel()
             halign = "left",
             height = "auto",
 
-            FeaturesIndexPanel(),
+            index.body,
 
 
             --Legacy bottom strip: custom-feature ListEditor + creature
@@ -6871,7 +6906,8 @@ function CharSheet.InnerFeaturesPanel()
             },
 
 
-        }
+        },
+        },
     }
 end
 

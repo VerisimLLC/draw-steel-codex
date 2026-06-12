@@ -2327,3 +2327,175 @@ CreateBestiaryPanel = function()
 
     return resultPanel
 end
+
+-- =============================================================================
+-- Bestiary global-search provider + place-on-map.
+--
+-- Monsters live in assets.monsters (an ASSET table keyed by id, not a
+-- dmhub.GetTable), so the compendium-content provider never sees them. This
+-- provider surfaces them in global search; activating a result enters the
+-- ENGINE'S OWN placement mode: the engine polls dmhub.GetSelectedMonster
+-- (see top of this file), and whenever the focused panel carries
+-- data.monsterid it renders the cursor preview and spawns the monster on a
+-- map click - exactly what pressing a bestiary row does. We just focus a
+-- small proxy panel carrying the monster id, so placement from search is
+-- pixel-identical to placement from the bestiary (preview, naming, minion
+-- squad quantity, repeat placement, right-click/escape to exit).
+-- Right-clicking a result offers the bestiary's other affordance: opening the
+-- monster's sheet for editing.
+-- =============================================================================
+
+--Open the monster's character sheet for editing. Same pattern as the
+--bestiary right-click "Edit Monster" menu item above: the sheet works on the
+--monster's local-game bestiary token, which may need an upload to exist.
+local function EditBestiaryMonster(monsterid)
+    local monster = assets.monsters[monsterid]
+    if monster == nil or not dmhub.inGame then
+        return
+    end
+
+    local token = monster:GetLocalGameBestiaryToken()
+    if token == nil then
+        monster:Upload()
+        dmhub.Coroutine(function()
+            while token == nil do
+                coroutine.yield(0.1)
+                if mod.unloaded then
+                    return
+                end
+                token = monster:GetLocalGameBestiaryToken()
+            end
+            token:ShowSheet()
+        end)
+    else
+        token:ShowSheet()
+    end
+end
+
+local g_placementBanner = nil
+
+--Enter the engine's bestiary placement mode for a monster: focus a floating
+--banner panel that carries data.monsterid. The engine (via the
+--dmhub.GetSelectedMonster hook above) shows the cursor preview and places a
+--monster on each map click for as long as the panel keeps focus - identical
+--to pressing the monster's row in the bestiary panel. Right-click, escape,
+--or focusing anything else exits placement; the banner removes itself when
+--it loses focus.
+local function BeginPlacingMonster(monsterid)
+    if not dmhub.inGame then
+        return
+    end
+
+    local monster = assets.monsters[monsterid]
+    if monster == nil then
+        return
+    end
+
+    if g_placementBanner ~= nil and g_placementBanner.valid then
+        g_placementBanner:DestroySelf()
+    end
+    g_placementBanner = nil
+
+    --the title bar is a stable fullscreen-width surface to float the banner
+    --from; floating means it does not participate in the bar's layout.
+    local topBar = gui.GetSheetById("topBar")
+    if topBar == nil then
+        return
+    end
+
+    local banner
+    banner = gui.Label{
+        id = "bestiaryPlacementBanner",
+        floating = true,
+        text = string.format("Click the map to place <b>%s</b>. Right-click or Esc to cancel.", monster.name),
+        width = "auto",
+        height = "auto",
+        maxWidth = 700,
+        halign = "center",
+        valign = "top",
+        y = 60,
+        fontSize = 20,
+        color = "#ffffff",
+        bgimage = true,
+        bgcolor = "#000000dd",
+        pad = 12,
+
+        data = {
+            --the engine's GetSelectedMonster hook reads this off the focused
+            --panel; it is what makes the engine enter placement mode.
+            monsterid = monsterid,
+        },
+
+        --the engine exits placement when focus moves elsewhere (escape and
+        --right-click both clear focus natively); follow it by removing the
+        --banner.
+        thinkTime = 0.1,
+        think = function(element)
+            if mod.unloaded or gui.GetFocus() ~= element then
+                if g_placementBanner == element then
+                    g_placementBanner = nil
+                end
+                element:DestroySelf()
+            end
+        end,
+    }
+
+    topBar:AddChild(banner)
+    g_placementBanner = banner
+    gui.SetFocus(banner)
+end
+
+--Global-search provider over the bestiary. DM-only: the bestiary is GM
+--content and players should not discover unrevealed monsters through search.
+Search.RegisterProvider{
+    id = "monsters",
+    bucket = "compendium",
+    typeLabel = "Monster",
+    enumerate = function(needle)
+        if (not dmhub.isDM) or (not dmhub.inGame) then
+            return {}
+        end
+
+        local results = {}
+        for monsterid,monster in pairs(assets.monsters) do
+            local name = monster.name
+            if (not monster.hidden) and type(name) == "string" and Search.MatchesText(name, needle) then
+                local capturedId = monsterid
+
+                --Beastheart animal companions live in the bestiary too; label
+                --them honestly rather than as monsters.
+                local typeLabel = "Monster"
+                local props = monster.properties
+                if props ~= nil and (not props:IsMonster()) then
+                    typeLabel = "Companion"
+                end
+
+                results[#results+1] = {
+                    name = name,
+                    score = Search.Score(name, needle),
+                    typeLabel = typeLabel,
+                    activate = function()
+                        BeginPlacingMonster(capturedId)
+                    end,
+                    menuItems = function()
+                        return {
+                            {
+                                text = "Place on Map",
+                                click = function()
+                                    BeginPlacingMonster(capturedId)
+                                end,
+                            },
+                            {
+                                text = "Edit Monster",
+                                click = function()
+                                    EditBestiaryMonster(capturedId)
+                                end,
+                            },
+                        }
+                    end,
+                }
+            end
+        end
+        return results
+    end,
+}

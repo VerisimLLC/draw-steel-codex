@@ -613,6 +613,33 @@ local function CreateSearchBar()
                     result.activate()
                 end
             end,
+            -- Providers can attach secondary actions via a menuItems function
+            -- returning {text, click} entries (e.g. monsters: Place on Map /
+            -- Edit Monster). Activating an entry dismisses the search popup
+            -- the same way a row press does.
+            rightClick = function(element)
+                if result.menuItems == nil then
+                    return
+                end
+                local entries = {}
+                for _,item in ipairs(result.menuItems()) do
+                    local capturedClick = item.click
+                    entries[#entries+1] = {
+                        text = item.text,
+                        click = function()
+                            element.popup = nil
+                            resultPanel.popup = nil
+                            resultPanel.text = ""
+                            if capturedClick ~= nil then
+                                capturedClick()
+                            end
+                        end,
+                    }
+                end
+                if #entries > 0 then
+                    element.popup = gui.ContextMenu{ entries = entries }
+                end
+            end,
             nameLabel,
             typeLabel,
         }

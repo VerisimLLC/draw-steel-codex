@@ -2459,20 +2459,61 @@ Search.RegisterProvider{
         local results = {}
         for monsterid,monster in pairs(assets.monsters) do
             local name = monster.name
-            if (not monster.hidden) and type(name) == "string" and Search.MatchesText(name, needle) then
+            local props = monster.properties
+
+            --Name match first; otherwise try the monster's attributes - role
+            --("Platoon Brute"), keywords (Undead, Goblin, ...) and "level N" -
+            --so a director building an encounter can search "level 3 brute" or
+            --"horde undead", not just names. Attribute-only hits score below
+            --any name match and carry a "Level N Role" subhead so the row
+            --explains why it matched.
+            local score = 0
+            local subLabel = nil
+            if (not monster.hidden) and type(name) == "string" then
+                if Search.MatchesText(name, needle) then
+                    score = Search.Score(name, needle)
+                elseif props ~= nil then
+                    local role = props:try_get("role")
+                    local level = props:try_get("cr")
+                    local parts = {}
+                    if type(role) == "string" then
+                        parts[#parts+1] = role
+                    end
+                    for kw,v in pairs(props:try_get("keywords") or {}) do
+                        if v == true and type(kw) == "string" and kw ~= "_luaTable" then
+                            parts[#parts+1] = kw
+                        end
+                    end
+                    if level ~= nil then
+                        parts[#parts+1] = string.format("level %s", tostring(level))
+                    end
+                    if #parts > 0 and Search.MatchesText(table.concat(parts, " "), needle) then
+                        score = 20
+                        if level ~= nil and type(role) == "string" then
+                            subLabel = string.format("Level %s %s", tostring(level), role)
+                        elseif type(role) == "string" then
+                            subLabel = role
+                        elseif level ~= nil then
+                            subLabel = string.format("Level %s", tostring(level))
+                        end
+                    end
+                end
+            end
+
+            if score > 0 then
                 local capturedId = monsterid
 
                 --Beastheart animal companions live in the bestiary too; label
                 --them honestly rather than as monsters.
                 local typeLabel = "Monster"
-                local props = monster.properties
                 if props ~= nil and (not props:IsMonster()) then
                     typeLabel = "Companion"
                 end
 
                 results[#results+1] = {
                     name = name,
-                    score = Search.Score(name, needle),
+                    score = score,
+                    subLabel = subLabel,
                     typeLabel = typeLabel,
                     activate = function()
                         BeginPlacingMonster(capturedId)

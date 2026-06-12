@@ -38,6 +38,27 @@ end
 
 --- @param casterToken CharacterToken
 --- @param path LuaPath
+--- @return nil|(Loc[])
+function ActivatedAbility:FindPassedSquareLocs(casterToken, path)
+    for i,behavior in ipairs(self.behaviors) do
+        local result = behavior:FindPassedSquareLocs(self, casterToken, path)
+        if result ~= nil then
+            return result
+        end
+    end
+
+    return nil
+end
+
+--- @param casterToken CharacterToken
+--- @param path LuaPath
+--- @return nil|(Loc[])
+function ActivatedAbilityBehavior:FindPassedSquareLocs(ability, casterToken, path)
+    return nil
+end
+
+--- @param casterToken CharacterToken
+--- @param path LuaPath
 --- @return nil|(CharacterToken[])
 function ActivatedAbilityRelocateCreatureBehavior:FindTargetsInMovementVicinity(ability, casterToken, path)
     if not self.targetMoveVicinity then
@@ -84,11 +105,39 @@ function ActivatedAbilityRelocateCreatureBehavior:FindTargetsInMovementVicinity(
     return result
 end
 
+--- @param casterToken CharacterToken
+--- @param path LuaPath
+--- @return nil|(Loc[])  Every square the creature occupied along its path, origin included, or nil if disabled.
+function ActivatedAbilityRelocateCreatureBehavior:FindPassedSquareLocs(ability, casterToken, path)
+    if not self.targetPassedSquares then
+        return nil
+    end
+
+    local result = {}
+    local seen = {}
+
+    --Include every square the creature occupied along the path, origin included.
+    for i = 1, #path.steps do
+        local loc = path.steps[i]
+        local occupied = casterToken:LocsOccupyingWhenAt(loc)
+        for _, occLoc in ipairs(occupied) do
+            local key = occLoc.xyfloorOnly.str
+            if not seen[key] then
+                seen[key] = true
+                result[#result+1] = occLoc
+            end
+        end
+    end
+
+    return result
+end
+
 ActivatedAbilityRelocateCreatureBehavior.summary = 'Relocate Creatures'
 ActivatedAbilityRelocateCreatureBehavior.swapCreatures = false
 ActivatedAbilityRelocateCreatureBehavior.targetMoveVicinity = false
 ActivatedAbilityRelocateCreatureBehavior.vicinity = 0
 ActivatedAbilityRelocateCreatureBehavior.vicinityFilter = ""
+ActivatedAbilityRelocateCreatureBehavior.targetPassedSquares = false
 ActivatedAbilityRelocateCreatureBehavior.movementType = "teleport"
 
 function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, targets, options)
@@ -555,7 +604,26 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 
                     options.symbols.cast.targets = options.targets
                 end
-                
+
+            end
+
+            --Expose every square the creature moved through as a connected-square
+            --target area (shape = "locations"). A following area behavior (e.g. an
+            --aura) then applies a single effect covering the whole trail.
+            if path ~= nil and self.targetPassedSquares then
+                local squares = ability:FindPassedSquareLocs(casterToken, path)
+                if squares ~= nil and #squares > 0 then
+                    --locOverride pins the shape's origin (and thus the spawned aura
+                    --sprite/outline) to the first trail square. Without it the origin
+                    --defaults to the caster's post-move position, which splits the
+                    --visual from the covered cells.
+                    options.targetArea = dmhub.CalculateShape{
+                        shape = "locations",
+                        token = casterToken,
+                        locations = squares,
+                        locOverride = squares[1],
+                    }
+                end
             end
 		end
 
@@ -611,6 +679,15 @@ function ActivatedAbilityRelocateCreatureBehavior:EditorItems(parentPanel)
 		change = function(element)
 			self.targetMoveVicinity = element.value
             parentPanel:FireEventTree("refreshVicinity")
+		end,
+	}
+
+	result[#result+1] = gui.Check{
+		text = "Target Each Square Passed Through",
+		tooltip = "Replace targets with each square the creature moved through, origin included. If 'Target Creatures in Move Vicinity' is also set, this takes precedence.",
+		value = self.targetPassedSquares,
+		change = function(element)
+			self.targetPassedSquares = element.value
 		end,
 	}
 

@@ -6521,10 +6521,12 @@ local function FeaturesIndexPanel()
                     width = 320,
                     height = "auto",
                     flow = "horizontal",
+                    --statsLabel is a sheet-local class; the popup island only
+                    --carries the theme cascade, so style the label inline.
                     gui.Label{
-                        classes = {"statsLabel"},
                         width = "80%",
                         height = "auto",
+                        fontSize = 14,
                         text = templateInfo.name,
                     },
                     gui.Button{
@@ -6582,13 +6584,13 @@ local function FeaturesIndexPanel()
             vpad = 14,
             width = "auto",
             height = "auto",
-            --Popups are styling islands: without the theme cascade the
-            --Dropdown's internal triangle/label lose their layout rules and
-            --the triangle renders outside the frame.
-            styles = ThemeEngine.MergeStyles{
-                ThemeEngine.GetStyles(),
-                PopupStyles,
-            },
+            --Popups are styling islands: the theme cascade must be supplied
+            --explicitly or the Dropdown's internals lose their layout rules.
+            --PopupStyles is deliberately NOT included: its selectorless
+            --catch-all rule (flow vertical + valign bottom on EVERY panel)
+            --wrecks the Dropdown control, stacking its triangle below the
+            --label and outside the frame.
+            styles = ThemeEngine.GetStyles(),
             children = children,
         }
     end

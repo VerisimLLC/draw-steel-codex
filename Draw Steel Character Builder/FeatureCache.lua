@@ -1145,6 +1145,18 @@ local CATEGORISER_CHOICE_BUCKET = {
     CharacterAncestryInheritanceChoice = "ancestry",
 }
 
+--- Structural one-time build choices (subclass / deity / domain). Once made,
+--- their outcomes appear in the index as ordinary feature rows, so the spent
+--- slot itself is build scaffolding rather than something the creature "has".
+--- BuildIndex DROPS a completed slot of these types; an unmade one is kept
+--- (it is the call to action). Revisiting a made structural choice is the
+--- Character Builder's job, not the index's.
+local CATEGORISER_STRUCTURAL_CHOICE = {
+    CharacterSubclassChoice = true,
+    CharacterDeityChoice    = true,
+    CharacterDomainChoice   = true,
+}
+
 --- pcall-guarded IsDerivedFrom. The engine's type registry can error on an
 --- unknown type name, so this never propagates.
 --- @param obj any
@@ -1176,6 +1188,75 @@ local function categoriserOriginName(originObj)
     local name = _safeGet(originObj, "name")
     if name == nil or name == "" then return nil end
     return name
+end
+
+--- Whether a choice slot has all of its selections made. Errors, or a slot
+--- reporting no choices, count as NOT complete so callers keep the entry
+--- visible (safe default).
+--- @param creature creature
+--- @param feature CharacterChoice
+--- @return boolean
+local function categoriserSlotComplete(creature, feature)
+    local complete = false
+    pcall(function()
+        local num = feature:NumChoices(creature)
+        if num == nil or num <= 0 then return end
+        local made = creature:GetLevelChoices()[feature.guid]
+        complete = made ~= nil and #made >= num
+    end)
+    return complete
+end
+
+--- Single-home re-bucket for a fully-made generic feature choice: when every
+--- chosen option's modifiers grant a skill (proficiency subtype "skill", or a
+--- skills list as on skill-enhancement features) or a language, the slot row
+--- IS that outcome's representation in the index, so it belongs in the
+--- outcome's bucket rather than under the class level that hosted the
+--- decision. Returns nil to keep the classified bucket (slot unmade,
+--- unresolvable, or granting something else - e.g. ability pickers).
+--- @param creature creature
+--- @param feature CharacterChoice
+--- @return string|nil bucketId
+local function categoriserGrantBucket(creature, feature)
+    local bucket = nil
+    local ok = pcall(function()
+        local levelChoices = creature:GetLevelChoices()
+        local made = levelChoices[feature.guid]
+        if made == nil or #made == 0 then return end
+        local num = feature:NumChoices(creature)
+        if num == nil or num <= 0 or #made < num then return end
+        local options = feature:GetOptions(levelChoices)
+        if type(options) ~= "table" then return end
+        local byGuid = {}
+        for _,opt in ipairs(options) do
+            local g = _safeGet(opt, "guid")
+            if g ~= nil then byGuid[g] = opt end
+        end
+        for _,id in ipairs(made) do
+            local chosen = byGuid[id]
+            if chosen == nil then
+                bucket = nil
+                return
+            end
+            local found = nil
+            for _,m in ipairs(chosen:try_get("modifiers", {})) do
+                local subtype = m:try_get("subtype")
+                local skills = m:try_get("skills")
+                if subtype == "skill" or (type(skills) == "table" and #skills > 0) then
+                    found = "skill"
+                elseif subtype == "language" and found == nil then
+                    found = "language"
+                end
+            end
+            if found == nil or (bucket ~= nil and bucket ~= found) then
+                bucket = nil
+                return
+            end
+            bucket = found
+        end
+    end)
+    if not ok then return nil end
+    return bucket
 end
 
 --- Classify a single GetClassFeaturesAndChoicesWithDetails entry into a bucket
@@ -1252,13 +1333,26 @@ local function categoriserAddBuildFeatures(creature, addEntry)
 
     for _,entry in ipairs(details) do
         local feature = entry.feature
-        if feature ~= nil then
+        local typeName = feature ~= nil and feature.typeName or nil
+
+        --Completed structural slots (subclass/deity/domain) are dropped:
+        --their outcomes are already ordinary rows in the index.
+        local dropped = typeName ~= nil and CATEGORISER_STRUCTURAL_CHOICE[typeName] == true
+            and categoriserSlotComplete(creature, feature)
+
+        if feature ~= nil and not dropped then
+            local bucket = FeatureCategoriser.ClassifyEntry(entry)
+            if typeName == "CharacterFeatureChoice" and bucket == "class" then
+                --Single-home: a made slot whose chosen options grant a
+                --skill/language re-homes to that bucket.
+                bucket = categoriserGrantBucket(creature, feature) or bucket
+            end
             local _, originObj = categoriserEntryOrigin(entry)
             local levels = entry.levels
             addEntry(categoriserNormalise{
                 guid       = _safeGet(feature, "guid"),
                 name       = _safeFeatureName(feature),
-                bucket     = FeatureCategoriser.ClassifyEntry(entry),
+                bucket     = bucket,
                 source     = _safeGet(feature, "source"),
                 originName = categoriserOriginName(originObj),
                 levels     = levels,

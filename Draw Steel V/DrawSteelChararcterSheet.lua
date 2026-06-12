@@ -5526,8 +5526,15 @@ end
     - Expansion and filter state live in locals here so they survive the
       fresh rebuilds triggered by refreshToken / choice changes.
     - The direct characterFeatures list (sheet-added custom features) shows
-      read-only under a "Custom Features" group; EDITING them stays with the
-      ListEditor below until the side settings menu lands.
+      read-only under a "Custom Features" group. Add/edit/paste/delete live
+      in the gear (settings) menu next to the filter box, which also hosts
+      creature templates and the direct-feats list - the old bottom strip,
+      now hidden for characters (it stays inline for monsters and other
+      creature kinds).
+    - The categoriser (FeatureCache.lua) enforces single-home display:
+      completed structural slots (subclass/deity/domain) are dropped from
+      the index (their outcomes are ordinary rows), and made feature choices
+      that grant a skill/language re-home to that bucket.
 ]]
 
 --Group header copy. Buckets without an entry fall back to the categoriser's
@@ -5732,6 +5739,14 @@ local function FeaturesIndexPanel()
         {
             selectors = {"featureClearFilter"},
             bgcolor = "@fgMuted",
+        },
+        {
+            selectors = {"featureGearButton"},
+            bgcolor = "@fgMuted",
+        },
+        {
+            selectors = {"featureGearButton", "hover"},
+            bgcolor = "@fg",
         },
     }
 
@@ -6275,6 +6290,243 @@ local function FeaturesIndexPanel()
     }
     m_filterInput:AddChild(clearButton)
 
+    --Settings (gear) menu: a popout hosting the editing surface folded off
+    --the tab body - the custom-feature ListEditor (add/edit/paste/copy/
+    --delete), creature templates, and the direct-feats list. Built fresh on
+    --every open; destroyed on close, token switch, or with the sheet (it is
+    --a child of CharacterSheet.instance, the PopupEditor pattern). Template
+    --and feat lists rebuild fresh on refreshToken; the ListEditor manages
+    --its own refresh and notifies the sheet via refreshAll.
+    local m_settingsMenu = nil
+
+    local function CloseSettingsMenu()
+        if m_settingsMenu ~= nil and m_settingsMenu.valid then
+            m_settingsMenu:DestroySelf()
+        end
+        m_settingsMenu = nil
+    end
+
+    local function SettingsHeading(text)
+        return gui.Label{
+            width = "100%",
+            height = "auto",
+            fontSize = 14,
+            bold = true,
+            vmargin = 4,
+            text = text,
+        }
+    end
+
+    local function OpenSettingsMenu()
+        if m_info == nil then return end
+        local props = m_info.token.properties
+
+        local menuStyles = {
+            ThemeEngine.GetStyles(),
+            {
+                selectors = {"featureClearFilter"},
+                bgcolor = "@fgMuted",
+            },
+        }
+
+        local sections = {}
+
+        sections[#sections+1] = gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            gui.Label{
+                width = "auto",
+                height = "auto",
+                fontSize = 16,
+                bold = true,
+                halign = "left",
+                text = "Manage Features",
+            },
+            gui.Panel{
+                classes = {"featureClearFilter"},
+                bgimage = "ui-icons/close.png",
+                width = 16,
+                height = 16,
+                halign = "right",
+                valign = "center",
+                press = function()
+                    CloseSettingsMenu()
+                end,
+            },
+        }
+
+        --Custom features: the full ListEditor, reused as-is.
+        sections[#sections+1] = SettingsHeading("Custom Features")
+        sections[#sections+1] = CharacterFeature.ListEditor(props, "characterFeatures", {
+            dialog = CharacterSheet.instance,
+            notify = CharacterSheet.instance,
+        })
+
+        --Creature templates: applied list + add dropdown.
+        sections[#sections+1] = SettingsHeading("Creature Templates")
+        sections[#sections+1] = gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            create = function(element)
+                element:FireEvent("refreshToken", m_info)
+            end,
+            refreshToken = function(element, info)
+                local creature = CharacterSheet.instance.data.info.token.properties
+                local children = {}
+                local templates = creature:try_get("creatureTemplates") or {}
+                local templatesTable = dmhub.GetTable("creatureTemplates") or {}
+                for i,tid in ipairs(templates) do
+                    local templateInfo = templatesTable[tid]
+                    if templateInfo ~= nil then
+                        local n = i
+                        children[#children+1] = gui.Panel{
+                            width = "100%",
+                            height = "auto",
+                            flow = "horizontal",
+                            gui.Label{
+                                classes = {"statsLabel"},
+                                width = "80%",
+                                height = "auto",
+                                text = cond(templateInfo.description ~= "", string.format("%s--%s", templateInfo.name, templateInfo.description), templateInfo.name),
+                            },
+                            gui.Button{
+                                classes = {"deleteButton"},
+                                width = 24,
+                                height = 24,
+                                halign = "right",
+                                click = function()
+                                    local c = CharacterSheet.instance.data.info.token.properties
+                                    c:RemoveTemplate(n)
+                                    CharacterSheet.instance:FireEvent("refreshAll")
+                                end,
+                            },
+                        }
+                    end
+                end
+                element.children = children
+            end,
+        }
+        sections[#sections+1] = gui.Dropdown{
+            monitorAssets = true,
+            width = 220,
+            height = 28,
+            halign = "left",
+            vmargin = 4,
+            idChosen = "none",
+            create = function(element)
+                element:FireEvent("refreshAssets")
+            end,
+            refreshAssets = function(element)
+                local choices = {
+                    { id = "none", text = "Add Creature Template..." },
+                }
+                local templateTable = dmhub.GetTable("creatureTemplates") or {}
+                for k,entry in pairs(templateTable) do
+                    if not entry:try_get("hidden", false) then
+                        choices[#choices+1] = { id = k, text = entry.name }
+                    end
+                end
+                element.options = choices
+            end,
+            change = function(element)
+                local c = CharacterSheet.instance.data.info.token.properties
+                if element.idChosen ~= "none" then
+                    c:AddTemplate(element.idChosen)
+                end
+                element.idChosen = "none"
+                CharacterSheet.instance:FireEvent("refreshAll")
+            end,
+        }
+
+        --Direct feats: display + remove, heading only when any exist.
+        sections[#sections+1] = gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            create = function(element)
+                element:FireEvent("refreshToken", m_info)
+            end,
+            refreshToken = function(element, info)
+                local creature = CharacterSheet.instance.data.info.token.properties
+                local children = {}
+                local feats = creature:try_get("creatureFeats") or {}
+                local featsTable = dmhub.GetTable(CharacterFeat.tableName) or {}
+                if #feats > 0 then
+                    children[#children+1] = SettingsHeading("Feats")
+                end
+                for i,fid in ipairs(feats) do
+                    local featInfo = featsTable[fid]
+                    if featInfo ~= nil then
+                        local n = i
+                        children[#children+1] = gui.Panel{
+                            width = "100%",
+                            height = "auto",
+                            flow = "horizontal",
+                            gui.Label{
+                                classes = {"statsLabel"},
+                                width = "80%",
+                                height = "auto",
+                                text = featInfo.name,
+                            },
+                            gui.Button{
+                                classes = {"deleteButton"},
+                                width = 24,
+                                height = 24,
+                                halign = "right",
+                                click = function()
+                                    local c = CharacterSheet.instance.data.info.token.properties
+                                    c:RemoveFeat(n)
+                                    CharacterSheet.instance:FireEvent("refreshAll")
+                                end,
+                            },
+                        }
+                    end
+                end
+                element.children = children
+            end,
+        }
+
+        m_settingsMenu = gui.Panel{
+            floating = true,
+            styles = menuStyles,
+            width = 460,
+            height = "auto",
+            halign = "right",
+            valign = "center",
+            hmargin = 24,
+            flow = "vertical",
+            bgimage = "panels/square.png",
+            bgcolor = ThemeEngine.ResolveTokens("@bg"),
+            border = 2,
+            borderColor = ThemeEngine.ResolveTokens("@accent"),
+            pad = 12,
+            borderBox = true,
+            children = sections,
+        }
+
+        CharacterSheet.instance:AddChild(m_settingsMenu)
+    end
+
+    local m_gearButton = gui.Panel{
+        classes = {"featureGearButton"},
+        bgimage = "panels/character-sheet/gear.png",
+        width = 18,
+        height = 18,
+        halign = "right",
+        valign = "center",
+        hmargin = 6,
+        press = function()
+            if m_settingsMenu ~= nil and m_settingsMenu.valid then
+                CloseSettingsMenu()
+            else
+                OpenSettingsMenu()
+            end
+        end,
+        hover = gui.Tooltip("Manage features..."),
+    }
+
     m_groupsContainer = gui.Panel{
         width = "100%",
         height = "auto",
@@ -6288,6 +6540,13 @@ local function FeaturesIndexPanel()
         styles = styles,
 
         refreshToken = function(element, info)
+            local changedToken = false
+            pcall(function()
+                changedToken = m_info ~= nil and m_info.token.properties ~= info.token.properties
+            end)
+            if changedToken then
+                CloseSettingsMenu()
+            end
             m_info = info
             Rebuild()
         end,
@@ -6309,6 +6568,7 @@ local function FeaturesIndexPanel()
             flow = "horizontal",
             m_countLabel,
             m_filterInput,
+            m_gearButton,
         },
 
         m_groupsContainer,
@@ -6333,6 +6593,18 @@ function CharSheet.InnerFeaturesPanel()
 
             FeaturesIndexPanel(),
 
+
+            --Legacy bottom strip: custom-feature ListEditor + creature
+            --templates + feats list. For characters this strip is folded
+            --into the Features tab's gear (settings) menu; it stays inline
+            --for monsters and other creature kinds.
+            gui.Panel {
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            refreshToken = function(element, info)
+                element:SetClass("collapsed", info.token.properties.typeName == "character")
+            end,
 
             --list of additional/custom features.
             gui.Panel {
@@ -6552,6 +6824,8 @@ function CharSheet.InnerFeaturesPanel()
                         element.children = element.data.children
                     end,
                 },
+
+            },
 
             },
 

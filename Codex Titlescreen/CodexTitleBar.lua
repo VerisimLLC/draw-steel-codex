@@ -411,52 +411,6 @@ Search.RegisterProvider{
     end,
 }
 
--- Global-search provider: party characters NOT placed on the current map (the
--- tokens provider above covers placed ones, so a hero is never listed twice).
--- There is no token to centre on, so activation opens the character sheet -
--- this is the "open my sheet by name" path when your token is elsewhere.
--- Players see only player-controlled heroes; the DM sees every party member.
-Search.RegisterProvider{
-    id = "partyCharacters",
-    bucket = "ingame",
-    enumerate = function(needle)
-        if not dmhub.inGame then
-            return {}
-        end
-        local placed = {}
-        for _,token in ipairs(dmhub.allTokens) do
-            placed[token.id] = true
-        end
-        local results = {}
-        local seen = {}
-        local parties = dmhub.GetTable(Party.tableName) or {}
-        for partyid,_ in unhidden_pairs(parties) do
-            for _,charid in ipairs(dmhub.GetCharacterIdsInParty(partyid) or {}) do
-                if not placed[charid] and not seen[charid] then
-                    seen[charid] = true
-                    local tok = dmhub.GetCharacterById(charid)
-                    if tok ~= nil then
-                        local name = tok.name
-                        if type(name) == "string" and name ~= "" and Search.MatchesText(name, needle)
-                            and (dmhub.isDM or tok.playerControlled) then
-                            local capturedTok = tok
-                            results[#results+1] = {
-                                name = name,
-                                score = Search.Score(name, needle),
-                                typeLabel = cond(tok.playerControlled, "Hero", "NPC"),
-                                activate = function()
-                                    capturedTok:ShowSheet()
-                                end,
-                            }
-                        end
-                    end
-                end
-            end
-        end
-        return results
-    end,
-}
-
 local function CreateSearchBar()
     local resultPanel
 
@@ -1000,12 +954,18 @@ local function CreateSearchBar()
                 ShowRecentResults()
             end
         end,
-        -- Fired by the engine when the input gains edit focus (symmetric to
-        -- deselect). Click-to-focus with an empty box shows the recents.
-        select = function(element)
-            if string.trim(element.text or "") == "" then
+        -- Click-to-focus on the empty box shows the recents. The engine has
+        -- no input-gained-focus event (deselect has no symmetric select), so
+        -- watch for the rising edge of hasInputFocus on a light think.
+        thinkTime = 0.2,
+        think = function(element)
+            local focused = element.hasInputFocus
+            if focused and (not element.data.hadInputFocus)
+                and element.popup == nil
+                and string.trim(element.text or "") == "" then
                 ShowRecentResults()
             end
+            element.data.hadInputFocus = focused
         end,
         -- Keyboard navigation of the results popup: arrows move the selection,
         -- Enter activates it (or the first result when nothing is selected).

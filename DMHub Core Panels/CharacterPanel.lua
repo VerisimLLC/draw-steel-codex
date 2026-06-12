@@ -2374,23 +2374,15 @@ end
 
 local g_placementBanner = nil
 
---Enter the engine's bestiary placement mode for a monster: focus a floating
---banner panel that carries data.monsterid. The engine (via the
---dmhub.GetSelectedMonster hook above) shows the cursor preview and places a
---monster on each map click for as long as the panel keeps focus - identical
---to pressing the monster's row in the bestiary panel. Right-click, escape,
---or focusing anything else exits placement; the banner removes itself when
---it loses focus.
-local function BeginPlacingMonster(monsterid)
-    if not dmhub.inGame then
-        return
-    end
-
-    local monster = assets.monsters[monsterid]
-    if monster == nil then
-        return
-    end
-
+--Focus a floating banner panel carrying the given data table, putting the
+--engine into its native placement mode: it polls dmhub.GetSelectedMonster /
+--dmhub.GetSelectedCharacters (top of this file) against the focused panel,
+--so a focused panel carrying data.monsterid spawns that monster on each map
+--click (bestiary behaviour: cursor preview, naming, minion squads, repeat
+--placement) and one carrying data.charid deploys that existing character
+--(character-panel behaviour). Right-click, escape, or focusing anything else
+--exits placement; the banner removes itself when it loses focus.
+local function ShowPlacementBanner(bannerData, name)
     if g_placementBanner ~= nil and g_placementBanner.valid then
         g_placementBanner:DestroySelf()
     end
@@ -2405,9 +2397,9 @@ local function BeginPlacingMonster(monsterid)
 
     local banner
     banner = gui.Label{
-        id = "bestiaryPlacementBanner",
+        id = "searchPlacementBanner",
         floating = true,
-        text = string.format("Click the map to place <b>%s</b>. Right-click or Esc to cancel.", monster.name),
+        text = string.format("Click the map to place <b>%s</b>. Right-click or Esc to cancel.", name),
         width = "auto",
         height = "auto",
         maxWidth = 700,
@@ -2420,11 +2412,9 @@ local function BeginPlacingMonster(monsterid)
         bgcolor = "#000000dd",
         pad = 12,
 
-        data = {
-            --the engine's GetSelectedMonster hook reads this off the focused
-            --panel; it is what makes the engine enter placement mode.
-            monsterid = monsterid,
-        },
+        --the engine's placement hooks read monsterid/charid off the focused
+        --panel; this is what makes the engine enter placement mode.
+        data = bannerData,
 
         --the engine exits placement when focus moves elsewhere (escape and
         --right-click both clear focus natively); follow it by removing the
@@ -2444,6 +2434,100 @@ local function BeginPlacingMonster(monsterid)
     g_placementBanner = banner
     gui.SetFocus(banner)
 end
+
+--Enter the engine's bestiary placement mode for a monster.
+local function BeginPlacingMonster(monsterid)
+    if not dmhub.inGame then
+        return
+    end
+
+    local monster = assets.monsters[monsterid]
+    if monster == nil then
+        return
+    end
+
+    ShowPlacementBanner({monsterid = monsterid}, monster.name)
+end
+
+--Enter the engine's character placement mode for an existing (unplaced)
+--character token - the same deploy flow as pressing a character's row in the
+--character panel and clicking the map.
+local function BeginPlacingCharacter(charid)
+    if not dmhub.inGame then
+        return
+    end
+
+    local tok = dmhub.GetCharacterById(charid)
+    if tok == nil then
+        return
+    end
+
+    ShowPlacementBanner({charid = charid}, tok.name)
+end
+
+--Global-search provider: party characters NOT placed on the current map (the
+--tokens provider in CodexTitleBar covers placed ones, so a hero is never
+--listed twice). Activation mirrors the bestiary: left-click enters the
+--engine's character placement mode (click the map to deploy); the right-click
+--menu offers placement and the character sheet. Players see only player-
+--controlled heroes; the DM sees every party member.
+Search.RegisterProvider{
+    id = "partyCharacters",
+    bucket = "ingame",
+    enumerate = function(needle)
+        if not dmhub.inGame then
+            return {}
+        end
+        local placed = {}
+        for _,token in ipairs(dmhub.allTokens) do
+            placed[token.id] = true
+        end
+        local results = {}
+        local seen = {}
+        local parties = dmhub.GetTable(Party.tableName) or {}
+        for partyid,_ in unhidden_pairs(parties) do
+            for _,charid in ipairs(dmhub.GetCharacterIdsInParty(partyid) or {}) do
+                if not placed[charid] and not seen[charid] then
+                    seen[charid] = true
+                    local tok = dmhub.GetCharacterById(charid)
+                    if tok ~= nil then
+                        local name = tok.name
+                        if type(name) == "string" and name ~= "" and Search.MatchesText(name, needle)
+                            and (dmhub.isDM or tok.playerControlled) then
+                            local capturedTok = tok
+                            local capturedId = charid
+                            results[#results+1] = {
+                                name = name,
+                                score = Search.Score(name, needle),
+                                typeLabel = cond(tok.playerControlled, "Hero", "NPC"),
+                                activate = function()
+                                    BeginPlacingCharacter(capturedId)
+                                end,
+                                menuItems = function()
+                                    return {
+                                        {
+                                            text = "Place on Map",
+                                            click = function()
+                                                BeginPlacingCharacter(capturedId)
+                                            end,
+                                        },
+                                        {
+                                            text = "Character Sheet",
+                                            click = function()
+                                                capturedTok:ShowSheet()
+                                            end,
+                                        },
+                                    }
+                                end,
+                            }
+                        end
+                    end
+                end
+            end
+        end
+        return results
+    end,
+}
 
 --Global-search provider over the bestiary. DM-only: the bestiary is GM
 --content and players should not discover unrevealed monsters through search.

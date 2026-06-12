@@ -347,8 +347,41 @@ function Search.Normalize(text)
     return (string.lower(text):match("^%s*(.-)%s*$"))
 end
 
+-- Single-entry memo for term splitting: search sweeps test thousands of
+-- candidates against ONE needle, so cache the last split rather than
+-- re-splitting per candidate.
+local g_lastTermsNeedle = nil
+local g_lastTerms = nil
+
+--- Split a needle into its whitespace-separated terms for multi-term AND
+--- matching. Returns nil for a single-term needle so callers keep the plain
+--- single-substring fast path.
+--- @param needle string|nil
+--- @return table|nil
+function Search.SplitTerms(needle)
+    if needle == nil or string.find(needle, " ", 1, true) == nil then
+        return nil
+    end
+    if needle == g_lastTermsNeedle then
+        return g_lastTerms
+    end
+    local terms = {}
+    for term in string.gmatch(needle, "%S+") do
+        terms[#terms+1] = term
+    end
+    g_lastTermsNeedle = needle
+    if #terms < 2 then
+        g_lastTerms = nil
+    else
+        g_lastTerms = terms
+    end
+    return g_lastTerms
+end
+
 --- Substring test of a single string against a (normalised) needle. An empty
---- needle matches everything so "no filter" shows all rows.
+--- needle matches everything so "no filter" shows all rows. A multi-term
+--- needle ("fire damage") matches when EVERY term appears, in any order, so
+--- word order never hides a result.
 --- @param haystack any
 --- @param needle string
 --- @return boolean
@@ -359,23 +392,29 @@ function Search.MatchesText(haystack, needle)
     if type(haystack) ~= "string" then
         return false
     end
-    return string.find(string.lower(haystack), needle, 1, true) ~= nil
+    local h = string.lower(haystack)
+    local terms = Search.SplitTerms(needle)
+    if terms == nil then
+        return string.find(h, needle, 1, true) ~= nil
+    end
+    for _,term in ipairs(terms) do
+        if string.find(h, term, 1, true) == nil then
+            return false
+        end
+    end
+    return true
 end
 
---- Recursive object match: true if any string key or value anywhere in obj (to
---- depth 6) contains the needle. Verbatim substring, no pattern matching.
---- @param obj any
---- @param needle string
---- @param depth number|nil
---- @return boolean
-function Search.MatchesObject(obj, needle, depth)
+-- Single-needle recursive walk; the multi-term AND lives in the public
+-- Search.MatchesObject wrapper so recursion never re-splits the needle.
+local function MatchesObjectSingle(obj, needle, depth)
     depth = depth or 0
     if depth > 6 then
         return false
     end
     if type(obj) == "table" then
         for k,v in pairs(obj) do
-            if Search.MatchesObject(k, needle, depth+1) or Search.MatchesObject(v, needle, depth+1) then
+            if MatchesObjectSingle(k, needle, depth+1) or MatchesObjectSingle(v, needle, depth+1) then
                 return true
             end
         end
@@ -386,6 +425,27 @@ function Search.MatchesObject(obj, needle, depth)
     end
 
     return false
+end
+
+--- Recursive object match: true if any string key or value anywhere in obj (to
+--- depth 6) contains the needle. Verbatim substring, no pattern matching. A
+--- multi-term needle requires every term to match SOMEWHERE in the object
+--- (different fields may satisfy different terms).
+--- @param obj any
+--- @param needle string
+--- @param depth number|nil
+--- @return boolean
+function Search.MatchesObject(obj, needle, depth)
+    local terms = Search.SplitTerms(needle)
+    if terms == nil then
+        return MatchesObjectSingle(obj, needle, depth)
+    end
+    for _,term in ipairs(terms) do
+        if not MatchesObjectSingle(obj, term, depth) then
+            return false
+        end
+    end
+    return true
 end
 
 --- Returns the list of keys in table t whose entry (key or value) matches the
@@ -422,30 +482,60 @@ function Search.Highlight(text, needle, colorToken)
         return text
     end
 
-    local color = ThemeEngine.ResolveTokens(colorToken or "@accent")
     local lower = string.lower(text)
-    local needleLen = #needle
+    local terms = Search.SplitTerms(needle)
+
+    -- Collect every match range (per term for multi-term needles), then merge
+    -- overlapping/adjacent ranges so nested markup is never emitted.
+    local ranges = {}
+    for _,term in ipairs(terms or {needle}) do
+        local pos = 1
+        while true do
+            local s = string.find(lower, term, pos, true)
+            if s == nil then
+                break
+            end
+            ranges[#ranges+1] = {a = s, b = s + #term - 1}
+            pos = s + 1
+        end
+    end
+
+    if #ranges == 0 then
+        return text
+    end
+
+    table.sort(ranges, function(x,y) return x.a < y.a end)
+    local merged = {ranges[1]}
+    for i=2,#ranges do
+        local r = ranges[i]
+        local last = merged[#merged]
+        if r.a <= last.b + 1 then
+            if r.b > last.b then
+                last.b = r.b
+            end
+        else
+            merged[#merged+1] = r
+        end
+    end
+
+    local color = ThemeEngine.ResolveTokens(colorToken or "@accent")
     local out = {}
     local pos = 1
-
-    while true do
-        local s = string.find(lower, needle, pos, true)
-        if s == nil then
-            out[#out+1] = string.sub(text, pos)
-            break
-        end
-
-        out[#out+1] = string.sub(text, pos, s-1)
-        out[#out+1] = "<color=" .. color .. "><b>" .. string.sub(text, s, s+needleLen-1) .. "</b></color>"
-        pos = s + needleLen
+    for _,r in ipairs(merged) do
+        out[#out+1] = string.sub(text, pos, r.a-1)
+        out[#out+1] = "<color=" .. color .. "><b>" .. string.sub(text, r.a, r.b) .. "</b></color>"
+        pos = r.b + 1
     end
+    out[#out+1] = string.sub(text, pos)
 
     return table.concat(out)
 end
 
 -- Relevance score for a candidate name against a (normalised) needle. Mirrors
--- the title-bar idiom: exact 100, prefix 75, substring 50, none 0. Shared so
--- every provider ranks consistently. Assumes the needle is already normalised.
+-- the title-bar idiom: exact 100, prefix 75, substring 50; a multi-term needle
+-- whose terms all appear but not as the contiguous phrase scores 25 (ranks
+-- below any whole-phrase match); none 0. Shared so every provider ranks
+-- consistently. Assumes the needle is already normalised.
 --- @param text any
 --- @param needle string
 --- @return number
@@ -460,6 +550,16 @@ function Search.Score(text, needle)
         return 75
     elseif string.find(h, needle, 1, true) ~= nil then
         return 50
+    end
+
+    local terms = Search.SplitTerms(needle)
+    if terms ~= nil then
+        for _,term in ipairs(terms) do
+            if string.find(h, term, 1, true) == nil then
+                return 0
+            end
+        end
+        return 25
     end
     return 0
 end

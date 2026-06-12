@@ -1044,3 +1044,458 @@ end
 function CBOptionWrapper:SetSelected(selected)
     self.isSelected = selected
 end
+
+--[[
+    Feature Categoriser  (search redesign -- chunk 3)
+
+    A standalone, NO-UI module that produces a categorised per-creature feature
+    index. It classifies every feature a creature has into a canonical display
+    bucket (Ancestry / Culture / Career / Class / Kit / Perk / Title /
+    Complication / Skill / Language / Trait / Treasure / Condition / Ongoing
+    Effect / Aura) and returns both a flat list and a grouped-by-bucket view with
+    counts. It changes no game state and renders nothing.
+
+    Consumers (later chunks): the global-search "features on this creature"
+    provider (ch4), the character-sheet Features tab redesign (ch5), and the
+    tac-panel Features section (ch6). It lives here, alongside CBFeatureWrapper's
+    CharacterFeatChoice -> "Perk" map, to satisfy the no-new-files constraint.
+
+    It is a per-CREATURE capability: it runs on PCs, monsters, retainers and
+    followers. For characters it reads the structured build pipeline
+    GetClassFeaturesAndChoicesWithDetails(), which tags every entry with its true
+    ORIGIN object (class / race / background / culture + aspects / kit / feat) and
+    level metadata -- far more reliable than the flat feature "source" string,
+    which mislabels Perks, Titles and Complications all as "Feat". For ALL
+    creatures it then unions the active/equipped state -- direct creature features
+    (monster traits), equipped treasures, active conditions, ongoing effects and
+    auras -- and dedupes by guid. Game-wide global rule mods are deliberately
+    excluded (identical on every creature; they belong to search, not a per-
+    creature list, and never appear in the sources enumerated here anyway).
+
+    Classification is three layers, in priority order:
+      (1) origin-object type override -- a Title or CharacterComplication arrives
+          under the generic "feat" origin key but is a distinct type, so the
+          origin OBJECT's type wins;
+      (2) choice-slot type override -- a CharacterFeatChoice / CharacterSkillChoice
+          / CharacterLanguageChoice slot represents the thing being chosen (a
+          Perk / Skill / Language), not its host level, so it is peeled out even
+          when it arrives under a "class" origin key;
+      (3) primary bucket from the origin key (class -> Class, race -> Ancestry,
+          etc.), with a typeName-derived fallback.
+
+    SAFETY: GetClassFeaturesAndChoicesWithDetails is a character-only method and
+    the engine ERRORS (it does not return nil) if the field is even read on a
+    monster, so the character branch is gated on creature.typeName == "character".
+    Every engine call below is pcall-guarded so a single misbehaving source can
+    never break the index or, more importantly, the load of this file.
+]]
+
+FeatureCategoriser = {}
+
+--- Canonical buckets in display order. `id` is a stable grouping key (relied on
+--- by later UI); `order` drives sorting. "other" is the catch-all backstop.
+FeatureCategoriser.BUCKETS = {
+    { id = "ancestry",     name = "Ancestry",        order = 100 },
+    { id = "culture",      name = "Culture",         order = 110 },
+    { id = "career",       name = "Career",          order = 120 },
+    { id = "class",        name = "Class",           order = 130 },
+    { id = "kit",          name = "Kit",             order = 140 },
+    { id = "perk",         name = "Perk",            order = 150 },
+    { id = "title",        name = "Title",           order = 160 },
+    { id = "complication", name = "Complication",    order = 170 },
+    { id = "skill",        name = "Skill",           order = 180 },
+    { id = "language",     name = "Language",         order = 190 },
+    { id = "trait",        name = "Trait",           order = 200 },
+    { id = "treasure",     name = "Treasure",        order = 210 },
+    { id = "condition",    name = "Condition",       order = 220 },
+    { id = "effect",       name = "Ongoing Effect",  order = 230 },
+    { id = "aura",         name = "Aura",            order = 240 },
+    { id = "other",        name = "Other",           order = 900 },
+}
+
+--- id -> bucket descriptor
+FeatureCategoriser.BUCKET_BY_ID = {}
+for _,b in ipairs(FeatureCategoriser.BUCKETS) do
+    FeatureCategoriser.BUCKET_BY_ID[b.id] = b
+end
+
+--- Origin key (the non-feature/levels key on a WithDetails entry) -> bucket id.
+--- The culture aspects (environment / upbringing / organization) all roll up
+--- into Culture. "feat" defaults to Perk; the Title / Complication overrides in
+--- layer 1 peel those out first.
+local CATEGORISER_ORIGIN_BUCKET = {
+    class        = "class",
+    race         = "ancestry",
+    background    = "career",
+    culture      = "culture",
+    environment  = "culture",
+    upbringing   = "culture",
+    organization = "culture",
+    kit          = "kit",
+    feat         = "perk",
+}
+
+--- Choice-slot typeName -> bucket id. A choice slot stands in for the thing being
+--- chosen, so it is bucketed by what it offers rather than by its host origin.
+local CATEGORISER_CHOICE_BUCKET = {
+    CharacterFeatChoice                = "perk",
+    CharacterSkillChoice               = "skill",
+    CharacterLanguageChoice            = "language",
+    CharacterAncestryInheritanceChoice = "ancestry",
+}
+
+--- pcall-guarded IsDerivedFrom. The engine's type registry can error on an
+--- unknown type name, so this never propagates.
+--- @param obj any
+--- @param typeName string
+--- @return boolean
+local function categoriserIsDerived(obj, typeName)
+    if obj == nil or type(obj.IsDerivedFrom) ~= "function" then return false end
+    local ok, res = pcall(function() return obj.IsDerivedFrom(typeName) end)
+    return ok and res == true
+end
+
+--- The origin key + origin object carried on a WithDetails entry, e.g.
+--- ("class", <Class>) or ("feat", <Title>). Returns nil,nil if absent.
+--- @param entry table
+--- @return string|nil originKey
+--- @return any originObj
+local function categoriserEntryOrigin(entry)
+    for k,v in pairs(entry) do
+        if k ~= "feature" and k ~= "levels" then return k, v end
+    end
+    return nil, nil
+end
+
+--- A human-readable name for an origin object (e.g. "Censor", "Human", "Agent").
+--- @param originObj any
+--- @return string|nil
+local function categoriserOriginName(originObj)
+    if originObj == nil then return nil end
+    local name = _safeGet(originObj, "name")
+    if name == nil or name == "" then return nil end
+    return name
+end
+
+--- Classify a single GetClassFeaturesAndChoicesWithDetails entry into a bucket
+--- id. Pure function (no creature state read); this is the validated core.
+--- @param entry table { <originKey> = originObj, levels = {ints}?, feature = CharacterChoice|CharacterFeature }
+--- @return string bucketId
+function FeatureCategoriser.ClassifyEntry(entry)
+    if entry == nil then return "other" end
+
+    local originKey, originObj = categoriserEntryOrigin(entry)
+
+    -- Layer 1: origin-object type override. Title and Complication both arrive
+    -- under the "feat" origin key but are distinct types; the origin object's
+    -- own type is the reliable discriminator (the resolved feature is a plain
+    -- CharacterFeature and does not report these types).
+    if categoriserIsDerived(originObj, "Title") then return "title" end
+    if categoriserIsDerived(originObj, "CharacterComplication") then return "complication" end
+
+    -- Layer 2: choice-slot type override. A Perk / Skill / Language slot is
+    -- bucketed by what it offers, even when hosted under a "class" origin key
+    -- (this is what rescues a Perk choice from being mislabelled Class).
+    local feature = entry.feature
+    local typeName = feature ~= nil and feature.typeName or nil
+    if typeName ~= nil and CATEGORISER_CHOICE_BUCKET[typeName] ~= nil then
+        return CATEGORISER_CHOICE_BUCKET[typeName]
+    end
+
+    -- Layer 3a: primary bucket from the origin key.
+    if originKey ~= nil and CATEGORISER_ORIGIN_BUCKET[originKey] ~= nil then
+        return CATEGORISER_ORIGIN_BUCKET[originKey]
+    end
+
+    -- Layer 3b: typeName-derived fallback for unmapped origins, mirroring
+    -- CBFeatureWrapper._deriveCategory's "CharacterXChoice -> X" parse so novel
+    -- choice types degrade to a sensible-ish bucket rather than "Other".
+    if typeName ~= nil then
+        local parsed = typeName:match("Character(.+)Choice")
+        if parsed ~= nil then
+            local lowered = parsed:lower()
+            if FeatureCategoriser.BUCKET_BY_ID[lowered] ~= nil then return lowered end
+        end
+    end
+
+    return "other"
+end
+
+--- Build a normalised entry table from already-extracted parts. Centralised so
+--- every source emits the same shape.
+--- @return table
+local function categoriserNormalise(args)
+    return {
+        guid       = args.guid,
+        name       = args.name,
+        bucket     = args.bucket,
+        source     = args.source,
+        originName = args.originName,
+        levels     = args.levels,
+        level      = args.level,
+        kind       = args.kind,
+        feature    = args.feature,
+        entry      = args.entry,
+    }
+end
+
+--- Add the character build-pipeline features (character-only). No-op for any
+--- non-character creature -- the field itself errors if read on a monster.
+--- @param creature creature
+--- @param addEntry function
+local function categoriserAddBuildFeatures(creature, addEntry)
+    if creature.typeName ~= "character" then return end
+
+    local ok, details = pcall(function() return creature:GetClassFeaturesAndChoicesWithDetails() end)
+    if not ok or type(details) ~= "table" then return end
+
+    for _,entry in ipairs(details) do
+        local feature = entry.feature
+        if feature ~= nil then
+            local _, originObj = categoriserEntryOrigin(entry)
+            local levels = entry.levels
+            addEntry(categoriserNormalise{
+                guid       = _safeGet(feature, "guid"),
+                name       = _safeFeatureName(feature),
+                bucket     = FeatureCategoriser.ClassifyEntry(entry),
+                source     = _safeGet(feature, "source"),
+                originName = categoriserOriginName(originObj),
+                levels     = levels,
+                level      = (levels ~= nil and levels[1]) or nil,
+                kind       = "build",
+                feature    = feature,
+                entry      = entry,
+            })
+        end
+    end
+end
+
+--- Add direct creature features. For monsters these are traits (source
+--- "Trait"); for characters this list usually holds special direct grants.
+--- Classified as a Trait by default, but a Title / Complication grant is still
+--- peeled out via its own type.
+--- @param creature creature
+--- @param addEntry function
+local function categoriserAddCreatureFeatures(creature, addEntry)
+    local ok, feats = pcall(function() return creature:try_get("characterFeatures", {}) end)
+    if not ok or type(feats) ~= "table" then return end
+
+    for _,feature in ipairs(feats) do
+        if feature ~= nil then
+            local bucket = "trait"
+            if categoriserIsDerived(feature, "Title") then bucket = "title"
+            elseif categoriserIsDerived(feature, "CharacterComplication") then bucket = "complication" end
+            addEntry(categoriserNormalise{
+                guid    = _safeGet(feature, "guid"),
+                name    = _safeFeatureName(feature),
+                bucket  = bucket,
+                source  = _safeGet(feature, "source"),
+                kind    = "trait",
+                feature = feature,
+            })
+        end
+    end
+end
+
+--- Add active ongoing effects. An effect instance carries no name of its own --
+--- only an `ongoingEffectid` into the ongoing-effects table -- so the display
+--- name is resolved there, and the instance `id` is the dedupe key.
+--- @param creature creature
+--- @param addEntry function
+local function categoriserAddOngoingEffects(creature, addEntry)
+    if type(creature.ActiveOngoingEffects) ~= "function" then return end
+    local ok, effects = pcall(function() return creature:ActiveOngoingEffects() end)
+    if not ok or type(effects) ~= "table" then return end
+
+    local effectTable = nil
+    if CharacterOngoingEffect ~= nil and CharacterOngoingEffect.tableName ~= nil then
+        local okt, t = pcall(function() return dmhub.GetTable(CharacterOngoingEffect.tableName) end)
+        if okt then effectTable = t end
+    end
+
+    for _,effect in ipairs(effects) do
+        if effect ~= nil then
+            local effectId = _safeGet(effect, "ongoingEffectid")
+            local name = nil
+            if effectTable ~= nil and effectId ~= nil and effectTable[effectId] ~= nil then
+                name = _safeGet(effectTable[effectId], "name")
+            end
+            addEntry(categoriserNormalise{
+                guid    = _safeGet(effect, "id", effectId),
+                name    = name or "Ongoing Effect",
+                bucket  = "effect",
+                kind    = "effect",
+                feature = effect,
+            })
+        end
+    end
+end
+
+--- Add active conditions (the creature's currently inflicted conditions).
+--- @param creature creature
+--- @param addEntry function
+local function categoriserAddConditions(creature, addEntry)
+    local ok, conditions = pcall(function() return creature:try_get("inflictedConditions", {}) end)
+    if not ok or type(conditions) ~= "table" then return end
+
+    local condTable = nil
+    if CharacterCondition ~= nil and CharacterCondition.tableName ~= nil then
+        local okt, t = pcall(function() return dmhub.GetTable(CharacterCondition.tableName) end)
+        if okt then condTable = t end
+    end
+
+    for key,instance in pairs(conditions) do
+        -- The inflictedConditions map is keyed by condition id; resolve a display
+        -- name from the conditions table when possible, else fall back to the key.
+        local condId = (type(instance) == "table" and _safeGet(instance, "conditionid")) or key
+        local name = nil
+        if condTable ~= nil and condId ~= nil and condTable[condId] ~= nil then
+            name = _safeGet(condTable[condId], "name")
+        end
+        addEntry(categoriserNormalise{
+            guid    = tostring(condId),
+            name    = name or tostring(condId),
+            bucket  = "condition",
+            kind    = "condition",
+            feature = (type(instance) == "table") and instance or nil,
+        })
+    end
+end
+
+--- Add auras present on the creature.
+--- @param creature creature
+--- @param addEntry function
+local function categoriserAddAuras(creature, addEntry)
+    if type(creature.GetAuras) ~= "function" then return end
+    local ok, auras = pcall(function() return creature:GetAuras() end)
+    if not ok or type(auras) ~= "table" then return end
+
+    for _,aura in ipairs(auras) do
+        if aura ~= nil then
+            addEntry(categoriserNormalise{
+                guid    = _safeGet(aura, "guid"),
+                name    = _safeGet(aura, "name", "Aura"),
+                bucket  = "aura",
+                kind    = "aura",
+                feature = aura,
+            })
+        end
+    end
+end
+
+--- Add equipped treasures (magic items / gear granting features). Best-effort:
+--- Equipment() returns a { slotName -> itemGuid } map, so each guid is resolved
+--- against the gear table for a display name. Dedupe by item guid handles an
+--- item occupying multiple slots (e.g. a two-handed weapon).
+--- @param creature creature
+--- @param addEntry function
+local function categoriserAddTreasures(creature, addEntry)
+    if type(creature.Equipment) ~= "function" then return end
+    local ok, equipment = pcall(function() return creature:Equipment() end)
+    if not ok or type(equipment) ~= "table" then return end
+
+    local gearTable = nil
+    local okg, t = pcall(function() return dmhub.GetTable("tbl_Gear") end)
+    if okg then gearTable = t end
+
+    for _,itemGuid in pairs(equipment) do
+        if type(itemGuid) == "string" then
+            local item = gearTable ~= nil and gearTable[itemGuid] or nil
+            local name = item ~= nil and _safeGet(item, "name") or nil
+            addEntry(categoriserNormalise{
+                guid    = itemGuid,
+                name    = name or "Treasure",
+                bucket  = "treasure",
+                kind    = "treasure",
+                feature = item,
+            })
+        end
+    end
+end
+
+--- Build the categorised per-creature feature index.
+---
+--- Returns:
+---   features : array of normalised entries (see categoriserNormalise) in source
+---              order, deduped by guid.
+---   groups   : { [bucketId] = { bucket = <descriptor>, items = { entry, ... } } }
+---   order    : array of bucket ids that actually have entries, in display order.
+---   counts   : { [bucketId] = n }
+---   total    : total entry count.
+---
+--- @param creature creature
+--- @return table index
+function FeatureCategoriser.BuildIndex(creature)
+    local features = {}
+    local seenGuid = {}
+
+    local function addEntry(norm)
+        if norm == nil then return end
+        local guid = norm.guid
+        if guid ~= nil then
+            if seenGuid[guid] then return end
+            seenGuid[guid] = true
+        end
+        features[#features+1] = norm
+    end
+
+    if creature ~= nil then
+        categoriserAddBuildFeatures(creature, addEntry)
+        categoriserAddCreatureFeatures(creature, addEntry)
+        categoriserAddTreasures(creature, addEntry)
+        categoriserAddConditions(creature, addEntry)
+        categoriserAddOngoingEffects(creature, addEntry)
+        categoriserAddAuras(creature, addEntry)
+    end
+
+    -- Group + count.
+    local groups = {}
+    local counts = {}
+    for _,entry in ipairs(features) do
+        local bucketId = entry.bucket or "other"
+        local group = groups[bucketId]
+        if group == nil then
+            group = { bucket = FeatureCategoriser.BUCKET_BY_ID[bucketId] or FeatureCategoriser.BUCKET_BY_ID["other"], items = {} }
+            groups[bucketId] = group
+        end
+        group.items[#group.items+1] = entry
+        counts[bucketId] = (counts[bucketId] or 0) + 1
+    end
+
+    -- Non-empty bucket ids in display order.
+    local order = {}
+    for _,b in ipairs(FeatureCategoriser.BUCKETS) do
+        if groups[b.id] ~= nil then order[#order+1] = b.id end
+    end
+
+    return {
+        features = features,
+        groups   = groups,
+        order    = order,
+        counts   = counts,
+        total    = #features,
+    }
+end
+
+--- Short-TTL memo over BuildIndex. Features rarely change mid-keystroke, so a
+--- 1-second time-to-live is simpler and sufficient (vs event-driven
+--- invalidation) for the search provider's repeated calls. Keyed by the creature
+--- table identity; the cache self-prunes lazily as stale entries are replaced.
+local CATEGORISER_CACHE_TTL = 1.0
+local g_categoriserCache = setmetatable({}, { __mode = "k" })
+
+--- @param creature creature
+--- @return table index
+function FeatureCategoriser.BuildIndexCached(creature)
+    if creature == nil then return FeatureCategoriser.BuildIndex(creature) end
+
+    local now = dmhub.Time()
+    local cached = g_categoriserCache[creature]
+    if cached ~= nil and (now - cached.time) < CATEGORISER_CACHE_TTL then
+        return cached.index
+    end
+
+    local index = FeatureCategoriser.BuildIndex(creature)
+    g_categoriserCache[creature] = { time = now, index = index }
+    return index
+end

@@ -529,6 +529,27 @@ local function CreateSearchBar()
         return "compendium"
     end
 
+    -- Session-local list of recently activated results, newest first. Shown
+    -- as a "Recent" group when the search box is focused while empty - an
+    -- empty-state that gets a returning user back to what they were working
+    -- with. In-memory only (activation closures cannot be persisted).
+    local m_recentResults = {}
+    local RECENT_STORE = 20
+
+    local function RecordRecentResult(result)
+        local key = (result.name or result.text or "") .. "\1" .. (result.typeLabel or "")
+        for i,r in ipairs(m_recentResults) do
+            if ((r.name or r.text or "") .. "\1" .. (r.typeLabel or "")) == key then
+                table.remove(m_recentResults, i)
+                break
+            end
+        end
+        table.insert(m_recentResults, 1, result)
+        while #m_recentResults > RECENT_STORE do
+            table.remove(m_recentResults)
+        end
+    end
+
     -- One result row: a highlighted name (provider results) or preformatted
     -- text (legacy handlers), plus an optional muted type/source label, plus
     -- an optional subhead line under the name (e.g. PDF results show the
@@ -568,6 +589,10 @@ local function CreateSearchBar()
             classes = {"searchResultRow"},
             flow = "horizontal",
             press = function()
+                RecordRecentResult(result)
+                -- clearing the text fires edit("") - don't let that pop the
+                -- recents group right after navigating away.
+                resultPanel.data.skipRecentsOnce = true
                 resultPanel.popup = nil
                 -- deselect no longer clears the query when the pointer is on
                 -- the popup, so reset it here on activation.
@@ -592,6 +617,8 @@ local function CreateSearchBar()
                     entries[#entries+1] = {
                         text = item.text,
                         click = function()
+                            RecordRecentResult(result)
+                            resultPanel.data.skipRecentsOnce = true
                             element.popup = nil
                             resultPanel.popup = nil
                             resultPanel.text = ""
@@ -731,6 +758,21 @@ local function CreateSearchBar()
         return popupPanel
     end
 
+    -- Empty-state: focusing the search box with no query shows the recently
+    -- activated results as a "Recent" group - same popup machinery, so it
+    -- gets the cap-5/"See all" idiom and keyboard navigation for free.
+    local function ShowRecentResults()
+        if #m_recentResults == 0 then
+            return false
+        end
+        resultPanel.data.searchSignature = nil
+        resultPanel.data.searchStatus = nil
+        resultPanel.data.isNoResultsPopup = false
+        resultPanel.popupsInheritStyles = true
+        resultPanel.popup = CreateGroupedPopup({}, "", {}, nil, {label = "Recent", results = m_recentResults})
+        return true
+    end
+
     local executeSearch = function(text)
         if TopBar.HasCustomSearch() then
             return TopBar.ExecuteCustomSearch(text)
@@ -739,6 +781,11 @@ local function CreateSearchBar()
         local status = true --search is good and complete.
         text = string.trim(string.lower(text))
         if text == "" then
+            local skip = resultPanel.data.skipRecentsOnce
+            resultPanel.data.skipRecentsOnce = false
+            if (not skip) and resultPanel.hasInputFocus and ShowRecentResults() then
+                return status
+            end
             resultPanel.popup = nil
             return status
         end
@@ -949,6 +996,16 @@ local function CreateSearchBar()
         end,
         find = function(element)
             element.hasFocus = true
+            if string.trim(element.text or "") == "" then
+                ShowRecentResults()
+            end
+        end,
+        -- Fired by the engine when the input gains edit focus (symmetric to
+        -- deselect). Click-to-focus with an empty box shows the recents.
+        select = function(element)
+            if string.trim(element.text or "") == "" then
+                ShowRecentResults()
+            end
         end,
         -- Keyboard navigation of the results popup: arrows move the selection,
         -- Enter activates it (or the first result when nothing is selected).

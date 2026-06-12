@@ -1520,11 +1520,13 @@ end
 
 local mod = dmhub.GetModLoading()
 
---- Open a token's character sheet landed on the Features tab. The sheet panel
---- is created on demand by the engine, so the tab selection retries briefly
---- until CharacterSheet.instance exists.
+--- Open a token's character sheet landed on the Features tab, optionally
+--- pre-filtered to a feature (the Features tab's filterFeatures hook). The
+--- sheet panel is created on demand by the engine, so the tab selection
+--- retries briefly until CharacterSheet.instance exists.
 --- @param tokenid string
-local function OpenSheetAtFeaturesTab(tokenid)
+--- @param filterText string|nil
+local function OpenSheetAtFeaturesTab(tokenid, filterText)
     local tok = dmhub.GetTokenById(tokenid)
     if tok == nil then
         return
@@ -1540,6 +1542,9 @@ local function OpenSheetAtFeaturesTab(tokenid)
         local sheet = rawget(CharacterSheet, "instance")
         if sheet ~= nil and sheet ~= false and sheet.valid then
             sheet:FireEventTree("selectSheetTab", "Features")
+            if filterText ~= nil and filterText ~= "" then
+                sheet:FireEventTree("filterFeatures", filterText)
+            end
             return
         end
         attempts = attempts + 1
@@ -1571,6 +1576,7 @@ Search.RegisterProvider{
                     local name = entry.name
                     if type(name) == "string" and Search.MatchesText(name, needle) then
                         local capturedId = token.id
+                        local capturedName = name
                         local bucket = FeatureCategoriser.BUCKET_BY_ID[entry.bucket]
                         results[#results+1] = {
                             name = name,
@@ -1580,7 +1586,7 @@ Search.RegisterProvider{
                             activate = function()
                                 dmhub.SelectToken(capturedId)
                                 dmhub.CenterOnToken(capturedId)
-                                OpenSheetAtFeaturesTab(capturedId)
+                                OpenSheetAtFeaturesTab(capturedId, capturedName)
                             end,
                         }
                     end

@@ -5504,6 +5504,716 @@ function CharSheet.CreateNotesPanel()
     }
 end
 
+--[[
+    Redesigned Features tab content (search redesign ch5).
+
+    Replaces the flat GetClassFeaturesAndChoicesWithDetails list with a
+    grouped, filterable index built on FeatureCategoriser (FeatureCache.lua):
+    groups = categoriser buckets (the Class group sub-grouped by level), a
+    filter box narrowing rows via the shared Search matcher, unspent-choice
+    badges on groups and rows, inline choice dropdowns preserved, and
+    ability-granting features revealing the standard ability card on demand
+    ("View ability" toggle).
+
+    The global-search features-on-creatures provider lands here: it fires
+    "filterFeatures" with the matched feature's name after selecting the tab,
+    so the panel arrives pre-filtered to the feature that was clicked.
+
+    Build discipline:
+    - Group bodies are built ONLY while expanded (panels under a vscroll
+      container are expensive even when collapsed), and rebuilt fresh on
+      every change (reattaching previously-built panels orphans them).
+    - Expansion and filter state live in locals here so they survive the
+      fresh rebuilds triggered by refreshToken / choice changes.
+    - The direct characterFeatures list (custom features) is NOT shown here:
+      the editable ListEditor below already owns it.
+]]
+
+--Group header copy. Buckets without an entry fall back to the categoriser's
+--display name.
+local FEATURE_GROUP_LABELS = {
+    perk = "Perks",
+    title = "Titles",
+    complication = "Complications",
+    skill = "Skills",
+    language = "Languages",
+    treasure = "Treasures",
+    condition = "Conditions",
+    effect = "Ongoing Effects",
+    aura = "Auras",
+}
+
+--Buckets whose header shows the shared origin name ("Censor - Class",
+--"Human - Ancestry") when every entry in the group agrees on it.
+local FEATURE_GROUP_ORIGIN_PREFIX = {
+    class = true,
+    ancestry = true,
+    career = true,
+    kit = true,
+}
+
+--"level 5, upgraded at levels 7, 9" - same wording as the old flat list.
+local function FeatureLevelString(levels)
+    if levels == nil or levels[1] == nil then
+        return ""
+    end
+    local s = string.format("level %d", math.max(1, levels[1]))
+    if #levels > 1 then
+        s = string.format("%s, upgraded at level%s %d", s, cond(#levels > 2, "s", ""), levels[2])
+        for i = 3, #levels do
+            s = string.format("%s, %d", s, levels[i])
+        end
+    end
+    return s
+end
+
+--Abilities granted by a feature's modifiers (the builder's detection
+--pattern: behavior activated/triggerdisplay/routine carries the ability).
+local function FeatureGrantedAbilities(feature)
+    local abilities = {}
+    pcall(function()
+        for _,modifier in ipairs(feature:try_get("modifiers", {})) do
+            local behavior = modifier.behavior
+            if behavior == "activated" or behavior == "triggerdisplay" or behavior == "routine" then
+                local ability = rawget(modifier, cond(behavior == "activated", "activatedAbility", "ability"))
+                if ability ~= nil then
+                    abilities[#abilities+1] = ability
+                end
+            end
+        end
+    end)
+    return abilities
+end
+
+--How many of a choice slot's selections are still unmade.
+local function FeatureUnspentChoices(feature, creature)
+    local unspent = 0
+    pcall(function()
+        local num = feature:NumChoices(creature)
+        if num == nil or num <= 0 then
+            return
+        end
+        local made = creature:GetLevelChoices()[feature.guid] or {}
+        for i = 1, num do
+            if made[i] == nil then
+                unspent = unspent + 1
+            end
+        end
+    end)
+    return unspent
+end
+
+--Display names of the options a fully-made choice slot resolved to, so the
+--row can read "Forgettable Face" rather than "Agent Perk".
+local function FeatureChosenTexts(feature, creature)
+    local texts = {}
+    pcall(function()
+        local num = feature:NumChoices(creature)
+        if num == nil or num <= 0 then
+            return
+        end
+        local made = creature:GetLevelChoices()[feature.guid] or {}
+        for i = 1, num do
+            local chosenId = made[i]
+            if chosenId ~= nil then
+                for _,opt in ipairs(feature:Choices(i, made, creature) or {}) do
+                    if opt.id == chosenId then
+                        texts[#texts+1] = opt.text
+                    end
+                end
+            end
+        end
+    end)
+    return texts
+end
+
+local function FeaturesIndexPanel()
+    local resultPanel
+
+    --State preserved across fresh rebuilds.
+    local m_filter = ""
+    local m_expandedGroups = {}
+    local m_expandedRows = {}
+    local m_info = nil
+
+    local m_countLabel
+    local m_filterInput
+    local m_groupsContainer
+    local Rebuild
+
+    local styles = ThemeEngine.MergeTokens{
+        {
+            selectors = {"featureGroupHeader"},
+            bgimage = true,
+            bgcolor = "clear",
+        },
+        {
+            selectors = {"featureGroupHeader", "hover"},
+            bgcolor = "@bgAlt",
+        },
+        {
+            selectors = {"featureIndexRow"},
+            bgimage = true,
+            bgcolor = "clear",
+        },
+        {
+            selectors = {"featureIndexRow", "hover"},
+            bgcolor = "@bgAlt",
+        },
+        {
+            selectors = {"featureChoiceBadge"},
+            bgimage = true,
+            bgcolor = "@accent",
+            color = "@fgInverse",
+            cornerRadius = 8,
+        },
+        {
+            selectors = {"featureMutedText"},
+            color = "@fgMuted",
+        },
+        {
+            selectors = {"featureViewAbility"},
+            color = "@accent",
+        },
+        {
+            selectors = {"featureViewAbility", "hover"},
+            color = "@accentHover",
+        },
+        {
+            selectors = {"featureClearFilter"},
+            bgcolor = "@fgMuted",
+        },
+    }
+
+    local function entrySearchText(entry)
+        if entry._searchText == nil then
+            local desc = ""
+            pcall(function()
+                if entry.feature ~= nil and type(entry.feature.GetDescription) == "function" then
+                    desc = entry.feature:GetDescription() or ""
+                elseif entry.feature ~= nil and type(entry.feature.try_get) == "function" then
+                    desc = entry.feature:try_get("description", "") or ""
+                end
+            end)
+            entry._searchText = string.format("%s %s", entry.name or "", desc)
+        end
+        return entry._searchText
+    end
+
+    --Build a feature row's body: description, inline choice dropdowns, and
+    --the View-ability toggle. Called lazily on first expand.
+    local function BuildRowBody(body, entry, creature)
+        body.data.built = true
+        local children = {}
+
+        local desc = nil
+        pcall(function()
+            local f = entry.feature
+            if f ~= nil and type(f.GetDescription) == "function" then
+                desc = f:GetDescription()
+            elseif f ~= nil and type(f.try_get) == "function" then
+                desc = f:try_get("description")
+            end
+        end)
+        if desc ~= nil and desc ~= "" then
+            children[#children+1] = gui.Label{
+                width = "100%",
+                height = "auto",
+                fontSize = 12,
+                textWrap = true,
+                text = desc,
+            }
+        end
+
+        if entry.kind == "build" then
+            local feature = entry.feature
+            local numChoices = 0
+            pcall(function()
+                numChoices = feature:NumChoices(creature) or 0
+            end)
+            for i = 1, numChoices do
+                local options = nil
+                local idChosen = "none"
+                pcall(function()
+                    local made = creature:GetLevelChoices()[feature.guid] or {}
+                    options = feature:Choices(i, made, creature)
+                    idChosen = made[i] or "none"
+                end)
+                if options ~= nil and #options > 0 then
+                    local choiceIndex = i
+                    children[#children+1] = gui.Dropdown{
+                        height = 26,
+                        width = 240,
+                        halign = "left",
+                        vmargin = 2,
+                        textDefault = "Choose...",
+                        sort = true,
+                        options = options,
+                        idChosen = idChosen,
+                        change = function(element)
+                            local c = CharacterSheet.instance.data.info.token.properties
+                            local choice = element.idChosen
+                            if choice == "none" then
+                                choice = nil
+                            end
+                            local levelChoices = c:GetLevelChoices()
+                            if levelChoices[feature.guid] == nil then
+                                levelChoices[feature.guid] = {}
+                            end
+                            levelChoices[feature.guid][choiceIndex] = choice
+                            CharacterSheet.instance:FireEvent("refreshAll")
+                        end,
+                    }
+                end
+            end
+
+            local abilities = FeatureGrantedAbilities(feature)
+            if #abilities > 0 then
+                local cardContainer = gui.Panel{
+                    width = "100%",
+                    height = "auto",
+                    flow = "vertical",
+                    classes = {"collapsed"},
+                    data = {},
+                }
+                children[#children+1] = gui.Label{
+                    classes = {"featureViewAbility"},
+                    width = "auto",
+                    height = "auto",
+                    fontSize = 12,
+                    vmargin = 2,
+                    bgimage = true,
+                    bgcolor = "clear",
+                    text = "View ability",
+                    press = function(element)
+                        local showing = cardContainer:HasClass("collapsed")
+                        if showing and not cardContainer.data.built then
+                            cardContainer.data.built = true
+                            local cards = {}
+                            for _,ability in ipairs(abilities) do
+                                local ok, card = pcall(function()
+                                    return ability:Render({
+                                        width = "96%",
+                                        halign = "left",
+                                        bgimage = true,
+                                    }, {})
+                                end)
+                                if ok and card ~= nil then
+                                    cards[#cards+1] = card
+                                end
+                            end
+                            cardContainer.children = cards
+                        end
+                        cardContainer:SetClass("collapsed", not showing)
+                        element.text = cond(showing, "Hide ability", "View ability")
+                    end,
+                }
+                children[#children+1] = cardContainer
+            end
+        end
+
+        body.children = children
+    end
+
+    local function BuildRow(entry, creature)
+        local rowKey = tostring(entry.guid or entry.name or "?")
+        local expanded = m_expandedRows[rowKey] == true
+
+        local titleText = entry.name or "Feature"
+        local subParts = {}
+        if entry.kind == "build" and (entry._unspent or 0) == 0 then
+            local texts = FeatureChosenTexts(entry.feature, creature)
+            if #texts > 0 then
+                titleText = table.concat(texts, ", ")
+                subParts[#subParts+1] = entry.name
+            end
+        end
+        local levelStr = FeatureLevelString(entry.levels)
+        if levelStr ~= "" then
+            subParts[#subParts+1] = levelStr
+        end
+
+        local tri = gui.ExpandoArrow{
+            halign = "right",
+            valign = "center",
+        }
+        tri:SetClass("expanded", expanded)
+
+        local body = gui.Panel{
+            width = "100%-16",
+            halign = "left",
+            hmargin = 16,
+            height = "auto",
+            flow = "vertical",
+            classes = {cond(expanded, "expanded", "collapsed")},
+            data = {
+                built = false,
+            },
+        }
+        if expanded then
+            BuildRowBody(body, entry, creature)
+        end
+
+        local titleChildren = {
+            gui.Label{
+                width = "100%",
+                height = "auto",
+                fontSize = 13,
+                bold = true,
+                text = titleText,
+            },
+        }
+        if #subParts > 0 then
+            titleChildren[#titleChildren+1] = gui.Label{
+                classes = {"featureMutedText"},
+                width = "100%",
+                height = "auto",
+                fontSize = 11,
+                italics = true,
+                text = table.concat(subParts, " - "),
+            }
+        end
+
+        local headerChildren = {
+            gui.Panel{
+                width = "100%-60",
+                height = "auto",
+                flow = "vertical",
+                halign = "left",
+                children = titleChildren,
+            },
+        }
+        if (entry._unspent or 0) > 0 then
+            headerChildren[#headerChildren+1] = gui.Label{
+                classes = {"featureChoiceBadge"},
+                width = "auto",
+                height = "auto",
+                fontSize = 11,
+                hpad = 6,
+                vpad = 1,
+                borderBox = true,
+                halign = "right",
+                valign = "center",
+                text = "Choose",
+            }
+        end
+        headerChildren[#headerChildren+1] = tri
+
+        local header = gui.Panel{
+            classes = {"featureIndexRow"},
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            press = function(element)
+                local nowExpanded = not tri:HasClass("expanded")
+                tri:SetClass("expanded", nowExpanded)
+                body:SetClass("collapsed", not nowExpanded)
+                if nowExpanded then
+                    m_expandedRows[rowKey] = true
+                    if not body.data.built then
+                        BuildRowBody(body, entry, creature)
+                    end
+                else
+                    m_expandedRows[rowKey] = nil
+                end
+            end,
+            children = headerChildren,
+        }
+
+        return gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            vmargin = 1,
+            header,
+            body,
+        }
+    end
+
+    --Build one bucket group. Returns the group panel (nil when filtering and
+    --nothing matches) and the matched-entry count.
+    local function BuildGroup(bucketId, bucket, entries, creature)
+        local matched = {}
+        for _,e in ipairs(entries) do
+            if m_filter == "" or Search.MatchesText(entrySearchText(e), m_filter) then
+                matched[#matched+1] = e
+            end
+        end
+        if m_filter ~= "" and #matched == 0 then
+            return nil, 0
+        end
+
+        --Filtering forces matching groups open so the hits are visible.
+        local expanded = (m_filter ~= "") or (m_expandedGroups[bucketId] == true)
+
+        local label = FEATURE_GROUP_LABELS[bucketId] or bucket.name
+        if FEATURE_GROUP_ORIGIN_PREFIX[bucketId] then
+            local originName = nil
+            local shared = true
+            for _,e in ipairs(entries) do
+                if e.originName ~= nil then
+                    if originName == nil then
+                        originName = e.originName
+                    elseif originName ~= e.originName then
+                        shared = false
+                        break
+                    end
+                end
+            end
+            if shared and originName ~= nil then
+                label = string.format("%s - %s", originName, bucket.name)
+            end
+        end
+
+        local unspentTotal = 0
+        for _,e in ipairs(matched) do
+            unspentTotal = unspentTotal + (e._unspent or 0)
+        end
+
+        local bodyChildren = {}
+        if expanded then
+            if bucketId == "class" then
+                --Sub-group the class bucket by level, preserving pipeline
+                --order within each level.
+                local byLevel = {}
+                local levelsSeen = {}
+                for _,e in ipairs(matched) do
+                    local lvl = e.level or 0
+                    if byLevel[lvl] == nil then
+                        byLevel[lvl] = {}
+                        levelsSeen[#levelsSeen+1] = lvl
+                    end
+                    local t = byLevel[lvl]
+                    t[#t+1] = e
+                end
+                table.sort(levelsSeen)
+                for _,lvl in ipairs(levelsSeen) do
+                    bodyChildren[#bodyChildren+1] = gui.Label{
+                        classes = {"featureMutedText"},
+                        width = "100%",
+                        height = "auto",
+                        fontSize = 11,
+                        vmargin = 2,
+                        text = cond(lvl > 0, string.format("Level %d (%d)", lvl, #byLevel[lvl]), "Other"),
+                    }
+                    for _,e in ipairs(byLevel[lvl]) do
+                        bodyChildren[#bodyChildren+1] = BuildRow(e, creature)
+                    end
+                end
+            else
+                for _,e in ipairs(matched) do
+                    bodyChildren[#bodyChildren+1] = BuildRow(e, creature)
+                end
+            end
+        end
+
+        local tri = gui.ExpandoArrow{
+            valign = "center",
+        }
+        tri:SetClass("expanded", expanded)
+
+        local headerChildren = {
+            tri,
+            gui.Label{
+                width = "auto",
+                height = "auto",
+                fontSize = 13,
+                bold = true,
+                text = label,
+            },
+            gui.Label{
+                classes = {"featureMutedText"},
+                width = "auto",
+                height = "auto",
+                fontSize = 11,
+                hmargin = 6,
+                valign = "center",
+                text = cond(m_filter ~= "", string.format("%d of %d", #matched, #entries), string.format("%d", #entries)),
+            },
+        }
+        if unspentTotal > 0 then
+            headerChildren[#headerChildren+1] = gui.Label{
+                classes = {"featureChoiceBadge"},
+                width = "auto",
+                height = "auto",
+                fontSize = 11,
+                hpad = 6,
+                vpad = 1,
+                borderBox = true,
+                halign = "right",
+                valign = "center",
+                text = string.format("%d to choose", unspentTotal),
+            }
+        end
+
+        local groupPanel = gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            vmargin = 2,
+
+            gui.Panel{
+                classes = {"featureGroupHeader"},
+                width = "100%",
+                height = "auto",
+                flow = "horizontal",
+                press = function(element)
+                    if m_filter ~= "" then
+                        return
+                    end
+                    if m_expandedGroups[bucketId] then
+                        m_expandedGroups[bucketId] = nil
+                    else
+                        m_expandedGroups[bucketId] = true
+                    end
+                    Rebuild()
+                end,
+                children = headerChildren,
+            },
+
+            gui.Panel{
+                width = "100%-12",
+                halign = "right",
+                height = "auto",
+                flow = "vertical",
+                children = bodyChildren,
+            },
+        }
+
+        return groupPanel, #matched
+    end
+
+    Rebuild = function()
+        if m_info == nil or not resultPanel.valid then
+            return
+        end
+        local creature = m_info.token.properties
+        if creature == nil or creature.typeName ~= "character" then
+            resultPanel:SetClass("collapsed", true)
+            m_groupsContainer.children = {}
+            return
+        end
+        resultPanel:SetClass("collapsed", false)
+
+        local index = FeatureCategoriser.BuildIndex(creature)
+
+        local groupsChildren = {}
+        local total = 0
+        local matchedTotal = 0
+        for _,bucketId in ipairs(index.order) do
+            local group = index.groups[bucketId]
+            local entries = {}
+            for _,e in ipairs(group.items) do
+                --Custom direct features (traits) stay with the editable
+                --ListEditor below rather than appearing twice.
+                if e.kind ~= "trait" then
+                    e._unspent = cond(e.kind == "build", FeatureUnspentChoices(e.feature, creature), 0)
+                    entries[#entries+1] = e
+                end
+            end
+            if #entries > 0 then
+                total = total + #entries
+                local groupPanel, matchedCount = BuildGroup(bucketId, group.bucket, entries, creature)
+                matchedTotal = matchedTotal + matchedCount
+                if groupPanel ~= nil then
+                    groupsChildren[#groupsChildren+1] = groupPanel
+                end
+            end
+        end
+        m_groupsContainer.children = groupsChildren
+
+        if m_filter == "" then
+            m_countLabel.text = string.format("%d features", total)
+        elseif matchedTotal == 0 then
+            m_countLabel.text = string.format("No matches in %d features", total)
+        else
+            m_countLabel.text = string.format("Showing %d of %d features", matchedTotal, total)
+        end
+    end
+
+    m_countLabel = gui.Label{
+        classes = {"featureMutedText"},
+        width = "auto",
+        height = "auto",
+        fontSize = 12,
+        halign = "left",
+        valign = "center",
+        text = "",
+    }
+
+    local clearButton
+    m_filterInput = gui.SearchInput{
+        width = 200,
+        height = 20,
+        fontSize = 14,
+        halign = "right",
+        valign = "center",
+        placeholderText = "Filter features...",
+        editlag = 0.25,
+        edit = function(element)
+            m_filter = Search.Normalize(element.text)
+            clearButton:SetClass("collapsed", element.text == nil or element.text == "")
+            Rebuild()
+        end,
+    }
+    clearButton = gui.Panel{
+        floating = true,
+        classes = {"featureClearFilter", "collapsed"},
+        bgimage = "ui-icons/close.png",
+        width = 14,
+        height = 14,
+        halign = "right",
+        valign = "center",
+        x = -4,
+        press = function()
+            m_filterInput.text = ""
+            m_filterInput:FireEvent("edit")
+        end,
+    }
+    m_filterInput:AddChild(clearButton)
+
+    m_groupsContainer = gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+    }
+
+    resultPanel = gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        styles = styles,
+
+        refreshToken = function(element, info)
+            m_info = info
+            Rebuild()
+        end,
+
+        --Deep-link hook: the global-search features-on-creatures provider
+        --fires this (with the matched feature's name) after landing the
+        --sheet on the Features tab.
+        filterFeatures = function(element, needle)
+            if type(needle) ~= "string" then
+                needle = ""
+            end
+            m_filterInput.text = needle
+            m_filterInput:FireEvent("edit")
+        end,
+
+        gui.Panel{
+            width = "100%",
+            height = 26,
+            flow = "horizontal",
+            m_countLabel,
+            m_filterInput,
+        },
+
+        m_groupsContainer,
+    }
+
+    return resultPanel
+end
+
 function CharSheet.InnerFeaturesPanel()
     return gui.Panel {
         width = "100%",
@@ -5518,7 +6228,7 @@ function CharSheet.InnerFeaturesPanel()
             halign = "left",
             height = "auto",
 
-            CharSheet.CharacterFeaturesPanel(),
+            FeaturesIndexPanel(),
 
 
             --list of additional/custom features.

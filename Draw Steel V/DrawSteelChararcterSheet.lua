@@ -5585,7 +5585,12 @@ local function FeatureGrantedAbilities(feature)
     return abilities
 end
 
---How many of a choice slot's selections are still unmade.
+--How many of a choice slot's selections are still unmade. For point-buy
+--slots (costsPoints) NumChoices is the POINTS BUDGET, not a pick count -
+--two picks costing 3 points complete a 3-point slot - so completeness is
+--judged by points spent. Either way, a slot the engine can offer no further
+--option for (Choices() returns nil) counts as complete: no dropdown would
+--show, so badging it would be a dead end.
 local function FeatureUnspentChoices(feature, creature)
     local unspent = 0
     pcall(function()
@@ -5594,13 +5599,55 @@ local function FeatureUnspentChoices(feature, creature)
             return
         end
         local made = creature:GetLevelChoices()[feature.guid] or {}
-        for i = 1, num do
-            if made[i] == nil then
-                unspent = unspent + 1
+        if feature:try_get("costsPoints") then
+            local options = feature:GetOptions(creature:GetLevelChoices()) or {}
+            local spent = 0
+            for _,choiceid in ipairs(made) do
+                for _,opt in ipairs(options) do
+                    if opt.guid == choiceid then
+                        spent = spent + (rawget(opt, "pointsCost") or 1)
+                        break
+                    end
+                end
+            end
+            unspent = math.max(0, num - spent)
+        else
+            unspent = math.max(0, num - #made)
+        end
+        if unspent > 0 then
+            local nextOptions = feature:Choices(#made + 1, made, creature)
+            if nextOptions == nil or #nextOptions == 0 then
+                unspent = 0
             end
         end
     end)
     return unspent
+end
+
+--Best-effort description for any index entry. Each probe is pcall-isolated:
+--reading a method that does not exist on a game type ERRORS rather than
+--returning nil, so one probe must not kill the next (gear items have no
+--GetDescription but do carry a description field; an aura instance carries
+--neither, but its aura definition has the description).
+local function FeatureEntryDescription(entry)
+    local desc = nil
+    pcall(function()
+        desc = entry.feature:GetDescription()
+    end)
+    if desc == nil or desc == "" then
+        pcall(function()
+            desc = entry.feature:try_get("description")
+        end)
+    end
+    if (desc == nil or desc == "") and entry.kind == "aura" then
+        pcall(function()
+            desc = entry.feature.aura:try_get("description")
+        end)
+    end
+    if desc == "" then
+        desc = nil
+    end
+    return desc
 end
 
 --Display names of the options a fully-made choice slot resolved to, so the
@@ -5687,15 +5734,7 @@ local function FeaturesIndexPanel()
 
     local function entrySearchText(entry)
         if entry._searchText == nil then
-            local desc = ""
-            pcall(function()
-                if entry.feature ~= nil and type(entry.feature.GetDescription) == "function" then
-                    desc = entry.feature:GetDescription() or ""
-                elseif entry.feature ~= nil and type(entry.feature.try_get) == "function" then
-                    desc = entry.feature:try_get("description", "") or ""
-                end
-            end)
-            entry._searchText = string.format("%s %s", entry.name or "", desc)
+            entry._searchText = string.format("%s %s", entry.name or "", FeatureEntryDescription(entry) or "")
         end
         return entry._searchText
     end
@@ -5706,16 +5745,8 @@ local function FeaturesIndexPanel()
         body.data.built = true
         local children = {}
 
-        local desc = nil
-        pcall(function()
-            local f = entry.feature
-            if f ~= nil and type(f.GetDescription) == "function" then
-                desc = f:GetDescription()
-            elseif f ~= nil and type(f.try_get) == "function" then
-                desc = f:try_get("description")
-            end
-        end)
-        if desc ~= nil and desc ~= "" then
+        local desc = FeatureEntryDescription(entry)
+        if desc ~= nil then
             children[#children+1] = gui.Label{
                 width = "100%",
                 height = "auto",
@@ -5817,7 +5848,11 @@ local function FeaturesIndexPanel()
 
     local function BuildRow(entry, creature)
         local rowKey = tostring(entry.guid or entry.name or "?")
-        local expanded = m_expandedRows[rowKey] == true
+
+        --A non-build row with no description has nothing to expand into;
+        --build-pipeline rows may still carry dropdowns or an ability card.
+        local expandable = entry.kind == "build" or FeatureEntryDescription(entry) ~= nil
+        local expanded = expandable and m_expandedRows[rowKey] == true
 
         local titleText = entry.name or "Feature"
         local subParts = {}
@@ -5833,11 +5868,14 @@ local function FeaturesIndexPanel()
             subParts[#subParts+1] = levelStr
         end
 
-        local tri = gui.ExpandoArrow{
-            halign = "right",
-            valign = "center",
-        }
-        tri:SetClass("expanded", expanded)
+        local tri = nil
+        if expandable then
+            tri = gui.ExpandoArrow{
+                halign = "right",
+                valign = "center",
+            }
+            tri:SetClass("expanded", expanded)
+        end
 
         local body = gui.Panel{
             width = "100%-16",
@@ -5897,14 +5935,16 @@ local function FeaturesIndexPanel()
                 text = "Choose",
             }
         end
-        headerChildren[#headerChildren+1] = tri
+        if tri ~= nil then
+            headerChildren[#headerChildren+1] = tri
+        end
 
         local header = gui.Panel{
             classes = {"featureIndexRow"},
             width = "100%",
             height = "auto",
             flow = "horizontal",
-            press = function(element)
+            press = cond(expandable, function(element)
                 local nowExpanded = not tri:HasClass("expanded")
                 tri:SetClass("expanded", nowExpanded)
                 body:SetClass("collapsed", not nowExpanded)
@@ -5916,7 +5956,7 @@ local function FeaturesIndexPanel()
                 else
                     m_expandedRows[rowKey] = nil
                 end
-            end,
+            end),
             children = headerChildren,
         }
 

@@ -107,7 +107,7 @@ end
 
 --- @param casterToken CharacterToken
 --- @param path LuaPath
---- @return nil|(Loc[])  Every square the creature occupied along its path, origin included, or nil if disabled.
+--- @return nil|(Loc[])  Every square the creature stood in along its path (starting square included), or nil if the option is off.
 function ActivatedAbilityRelocateCreatureBehavior:FindPassedSquareLocs(ability, casterToken, path)
     if not self.targetPassedSquares then
         return nil
@@ -116,7 +116,8 @@ function ActivatedAbilityRelocateCreatureBehavior:FindPassedSquareLocs(ability, 
     local result = {}
     local seen = {}
 
-    --Include every square the creature occupied along the path, origin included.
+    --Walk the path and collect every square the creature stood in, including
+    --its starting square. Each square is only added once.
     for i = 1, #path.steps do
         local loc = path.steps[i]
         local occupied = casterToken:LocsOccupyingWhenAt(loc)
@@ -607,22 +608,64 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 
             end
 
-            --Expose every square the creature moved through as a connected-square
-            --target area (shape = "locations"). A following area behavior (e.g. an
-            --aura) then applies a single effect covering the whole trail.
+            --Hand every square the creature moved through to the next behavior
+            --(usually an aura) as a target area. The engine can only make an area
+            --out of squares that touch side-by-side, not corner-to-corner, so a
+            --diagonal step splits the trail into separate areas. A path with no
+            --diagonal steps gives one single area.
             if path ~= nil and self.targetPassedSquares then
                 local squares = ability:FindPassedSquareLocs(casterToken, path)
                 if squares ~= nil and #squares > 0 then
-                    --locOverride pins the shape's origin (and thus the spawned aura
-                    --sprite/outline) to the first trail square. Without it the origin
-                    --defaults to the caster's post-move position, which splits the
-                    --visual from the covered cells.
-                    options.targetArea = dmhub.CalculateShape{
-                        shape = "locations",
-                        token = casterToken,
-                        locations = squares,
-                        locOverride = squares[1],
-                    }
+                    --Group the squares into runs that touch side-by-side.
+                    local segments = {}
+                    local assigned = {}
+                    for i = 1, #squares do
+                        if not assigned[i] then
+                            assigned[i] = true
+                            local seg = { squares[i] }
+                            local cursor = 1
+                            while cursor <= #seg do
+                                local cur = seg[cursor]
+                                for j = 1, #squares do
+                                    if not assigned[j] then
+                                        local other = squares[j]
+                                        if math.abs(cur.x - other.x) + math.abs(cur.y - other.y) == 1 then
+                                            assigned[j] = true
+                                            seg[#seg+1] = other
+                                        end
+                                    end
+                                end
+                                cursor = cursor + 1
+                            end
+                            segments[#segments+1] = seg
+                        end
+                    end
+
+                    --Make one area shape per group. These are the same arguments wall
+                    --targeting uses to build its area; leaving any of them out makes
+                    --the engine shrink the area down to a single square. checklos is
+                    --false so line of sight cannot remove squares the creature really
+                    --walked through.
+                    local areas = {}
+                    for _, seg in ipairs(segments) do
+                        local anchorLoc = seg[1]
+                        areas[#areas+1] = dmhub.CalculateShape{
+                            shape = "locations",
+                            targetPoint = casterToken:PosAtLoc(anchorLoc),
+                            token = casterToken,
+                            range = #path.steps + 2,
+                            radius = 0,
+                            checklos = false,
+                            locOverride = anchorLoc,
+                            locations = seg,
+                        }
+                    end
+
+                    if #areas == 1 then
+                        options.targetArea = areas[1]
+                    else
+                        options.targetAreaList = areas
+                    end
                 end
             end
 		end
@@ -684,7 +727,7 @@ function ActivatedAbilityRelocateCreatureBehavior:EditorItems(parentPanel)
 
 	result[#result+1] = gui.Check{
 		text = "Target Each Square Passed Through",
-		tooltip = "Replace targets with each square the creature moved through, origin included. If 'Target Creatures in Move Vicinity' is also set, this takes precedence.",
+		tooltip = "If set, the squares the creature moves through become the target area (including the starting square). Overrides Move Vicinity.",
 		value = self.targetPassedSquares,
 		change = function(element)
 			self.targetPassedSquares = element.value

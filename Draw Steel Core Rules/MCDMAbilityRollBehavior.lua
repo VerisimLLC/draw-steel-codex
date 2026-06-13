@@ -1330,30 +1330,20 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
         end,
 
         beginRoll = function(rollInfo)
-            if #targets > 0 and targets[1].token ~= nil and ability.keywords["Strike"] and ability.keywords["Melee"] then
-
-                local damage = 5
-                local tier = DiceResultToTier(rollInfo)
-                local command = rollProperties.tiers[tier]
-
-                local damageMatch = regex.MatchGroups(roll, "(?<damage>[0-9]+).*?damage")
-                if damageMatch ~= nil then
-                    damage = tonumber(damageMatch.damage)
+            -- Generic per-roll animation hook, fired when the dice are thrown.
+            -- rollInfo already carries the deterministic result, so a game
+            -- system can classify the outcome here and start a dice-synced token
+            -- animation (the engine's PlayAttackAnimCo polls the roll key's
+            -- timeRemaining to land the strike as the 3D dice settle). Crows uses
+            -- this for the melee lunge / dodge attack animation -- see
+            -- GameSystem.OnPowerRollBeginAnimation in CrowdexInventory.lua. The
+            -- roll key (dialog.data.rollid) is what lets the engine sync timing.
+            if GameSystem.OnPowerRollBeginAnimation ~= nil then
+                local rollid = nil
+                if dialog ~= nil and dialog.valid and dialog.data ~= nil then
+                    rollid = dialog.data.rollid
                 end
-
-                local outcome = "Hit"
-                if tier == 1 then
-                    outcome = "Block"
-                elseif tier == 3 then
-                    outcome = "Critical"
-                end
-               --[[]
-                casterToken:AnimateAttack{
-                    targetid = targets[1].token.charid,
-                    rollid = "none",
-                    damage = damage,
-                    outcome = outcome,
-                }]]
+                GameSystem.OnPowerRollBeginAnimation(ability, casterToken, targets, rollInfo, rollid)
             end
         end,
 
@@ -1693,6 +1683,14 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
                 ability.RecordTokenMessage(targetToken, options, string.format("Tier %d (%s)", tier, displayCommand))
 
                 self:ExecuteCommand(ability, casterTokenForCommand, targetToken, options, command)
+
+                -- Generic per-target post-roll extension point: lets a game
+                -- system react to the tier outcome on each target with full
+                -- context (attacker, target, tier, natural roll). Crows uses
+                -- this for the Counter reaction on a melee miss.
+                if GameSystem.OnPowerRollResolvedAgainstTarget ~= nil then
+                    GameSystem.OnPowerRollResolvedAgainstTarget(ability, casterTokenForCommand, targetToken, tier, m_rollInfo, options)
+                end
 
                 if tier > highestTier and options.powerRollPass == "target" then
                     highestTier = tier

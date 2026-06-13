@@ -83,6 +83,99 @@ local RadialStyles = {
 
 }
 
+--Modal dialog letting a player rename a monster (gated behind the "players_rename_monsters"
+--game setting). The new name is applied to every instance of the monster on the map and
+--remembered as a playerName on the bestiary entry for future spawns. closeDialog() is
+--called to dismiss the dialog. See monster.RenameMonsterType in Monster.lua.
+local function CreateRenameMonsterDialog(token, closeDialog)
+    local monsterType = token.properties:try_get("monster_type")
+    local currentName = token.properties:try_get("playerName") or monsterType or ""
+    local pendingName = currentName
+
+    local function Commit()
+        closeDialog()
+        monster.RenameMonsterType(monsterType, pendingName)
+    end
+
+    return gui.Panel{
+        bgimage = "panels/square.png",
+        bgcolor = "#111111f0",
+        borderWidth = 2,
+        borderColor = Styles.textColor,
+        cornerRadius = 8,
+        width = 300,
+        height = 150,
+        halign = "center",
+        valign = "center",
+        flow = "vertical",
+        pad = 16,
+        borderBox = true,
+        captureEscape = true,
+        escapePriority = EscapePriority.CANCEL_TOKEN_MENU,
+        escape = function()
+            closeDialog()
+        end,
+        children = {
+            gui.Label{
+                text = "Rename Monster",
+                fontSize = 20,
+                bold = true,
+                color = Styles.textColor,
+                width = "100%",
+                height = "auto",
+                halign = "center",
+                valign = "top",
+            },
+            gui.Input{
+                text = currentName,
+                lineType = "SingleLine",
+                characterLimit = 32,
+                selectAllOnFocus = true,
+                width = "100%",
+                height = 28,
+                fontSize = 16,
+                vmargin = 12,
+                change = function(element)
+                    pendingName = element.text
+                end,
+                submit = function(element)
+                    pendingName = element.text
+                    Commit()
+                end,
+            },
+            gui.Panel{
+                flow = "horizontal",
+                width = "auto",
+                height = "auto",
+                halign = "center",
+                valign = "bottom",
+                children = {
+                    gui.PrettyButton{
+                        text = "Cancel",
+                        width = 110,
+                        height = 32,
+                        fontSize = 16,
+                        hmargin = 6,
+                        click = function()
+                            closeDialog()
+                        end,
+                    },
+                    gui.PrettyButton{
+                        text = "Rename",
+                        width = 110,
+                        height = 32,
+                        fontSize = 16,
+                        hmargin = 6,
+                        click = function()
+                            Commit()
+                        end,
+                    },
+                },
+            },
+        },
+    }
+end
+
 local g_statusBarRegistry = {}
 
 TokenUI.RegisterStatusBar = function(args)
@@ -570,7 +663,9 @@ TokenHud.RegisterPanel{
 							vmargin = 0,
                             valign = "bottom",
 							floating = true,
-							y = 14,
+							--bars normally sit at y=14; a registration can set its own
+							--y (via base.y) to stack a second bar without overlapping.
+							y = bar.base.y or 14,
 							update = function(element, barInfo)
 								element.selfStyle.height = barInfo.height or barInfo.base.height or 12
 							end,
@@ -2543,6 +2638,40 @@ function CreateTokenHud(token)
 					},
 				}
 
+
+                --Rename option: shown for monsters when the DM has enabled the
+                --"players_rename_monsters" game setting. Lets anyone rename the monster;
+                --see CreateRenameMonsterDialog / monster.RenameMonsterType.
+                if dmhub.GetSettingValue("players_rename_monsters") and token.properties ~= nil and token.properties:try_get("monster_type") then
+                    items[#items+1] = gui.Panel{
+                        className = 'radial-menu-item',
+                        translate = core.Vector2(0,70):Rotate(225),
+                        styles = {
+                            {
+                                selectors = {"create"},
+                                translate = core.Vector2(0,-70):Rotate(225),
+                            },
+                        },
+                        events = {
+                            click = function(btn)
+                                element.popup = CreateRenameMonsterDialog(token, function()
+                                    element.popup = nil
+                                end)
+                            end,
+                            hover = function(btn)
+                                gui.Tooltip("Rename")(btn)
+                            end,
+                        },
+                        children = {
+                            gui.Panel{
+                                bgimage = 'ui-icons/pencil.png',
+                                className = 'radial-menu-icon',
+                                width = 32,
+                                height = 32,
+                            }
+                        },
+                    }
+                end
 
 				local parentElement = element
 

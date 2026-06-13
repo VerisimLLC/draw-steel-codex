@@ -40,6 +40,23 @@ local settingAssignMonstersNamesPrivate = setting{
 	section = "game",
 }
 
+local settingPlayersRenameMonsters = setting{
+	id = "players_rename_monsters",
+	description = "Players May Rename Monsters",
+	help = "When on, players can rename monsters from the token radial menu. The new name is applied to every instance of that monster on the map and remembered on the bestiary entry for future spawns.",
+	editor = "check",
+	default = false,
+	storage = "game",
+	section = "game",
+}
+
+--The "basis" of a monster's generated name. Players can override the monster_type with a
+--playerName (see monster.RenameMonsterType); when present that becomes the basis used for
+--name generation while monster_type is preserved for AI/initiative/minion matching.
+function monster:GetNameBasis()
+	return self:try_get("playerName") or self:try_get("monster_type")
+end
+
 
 function monster.OnCreateFromBestiary(self, token)
 
@@ -57,9 +74,12 @@ function monster.OnCreateFromBestiary(self, token)
 
     local role = self:try_get("role")
 
-    if role == "Solo" or role == "Leader" then
-        --solos and leaders just get named their type.
-        token.name = self.monster_type
+    --the basis of the generated name: a player-given playerName overrides monster_type.
+    local nameBasis = self:GetNameBasis()
+
+    if (role == "Solo" or role == "Leader") and settingAssignMonstersNames:Get() ~= false then
+        --solos and leaders just get named their type (unless name generation is None).
+        token.name = nameBasis
 	elseif settingAssignMonstersNames:Get() and self:has_key("monster_type") and (not self.minion) then
 		token.namePrivate = settingAssignMonstersNamesPrivate:Get()
 
@@ -78,7 +98,7 @@ function monster.OnCreateFromBestiary(self, token)
                 for i=1,10 do
                     token.name = nameGenerator:Roll():JoinString(" ")
                     if genericTable then
-                        token.name = string.format("%s %s", token.name, self.monster_type)
+                        token.name = string.format("%s %s", token.name, nameBasis)
                     end
                     local unique = true
                     for _,tok in ipairs(tokens) do
@@ -103,7 +123,7 @@ function monster.OnCreateFromBestiary(self, token)
 			for _,tok in ipairs(tokens) do
 				if tok.name ~= nil then
 					local matchedName, number = string.match(tok.name, "^(.-)%s+(%d+)$")
-					if matchedName == self.monster_type then
+					if matchedName == nameBasis then
 						local num = tonumber(number)
 						if num > highestNumber then
 							highestNumber = num
@@ -112,12 +132,56 @@ function monster.OnCreateFromBestiary(self, token)
 				end
 			end
 
-			token.name = string.format("%s %d", self.monster_type, highestNumber+1)
+			token.name = string.format("%s %d", nameBasis, highestNumber+1)
 		end
 	end
 
 	--do a local validate and repair.
 	self:ValidateAndRepair(true)
+end
+
+--Rename a monster (typically invoked by a player from the token radial menu when the
+--"players_rename_monsters" setting is on). monsterType is the value matched against
+--each instance's properties.monster_type (which is left unchanged so AI/initiative still
+--work); newName becomes the basis of the displayed name. Every on-map instance is renamed
+--(preserving any trailing number, e.g. "Goblin 3" -> "Gobbo 3"), and the playerName is
+--remembered on the bestiary entry so future spawns use it as their name basis.
+function monster.RenameMonsterType(monsterType, newName)
+	if monsterType == nil or monsterType == "" or newName == nil then
+		return
+	end
+
+	newName = newName:match("^%s*(.-)%s*$")
+	if newName == "" then
+		return
+	end
+
+	--1. Rename every instance of this monster on the current map.
+	for _,tok in ipairs(dmhub.GetTokens()) do
+		if tok.properties ~= nil and tok.properties:try_get("monster_type") == monsterType then
+			tok:BeginChanges()
+			local number = nil
+			if tok.name ~= nil then
+				local matchedBase, matchedNumber = string.match(tok.name, "^(.-)%s+(%d+)$")
+				number = matchedNumber
+			end
+			if number ~= nil then
+				tok.name = string.format("%s %s", newName, number)
+			else
+				tok.name = newName
+			end
+			tok.properties.playerName = newName
+			tok:CompleteChanges("Rename Monster")
+		end
+	end
+
+	--2. Remember the player-given name on the bestiary entry(ies) for future spawns.
+	for _,masset in pairs(assets.monsters) do
+		if masset.properties ~= nil and masset.properties:try_get("monster_type") == monsterType then
+			masset.properties.playerName = newName
+			masset:Upload()
+		end
+	end
 end
 
 function monster.RerollHitpoints(self)
@@ -285,7 +349,10 @@ end
 --SKILLS
 ---------------
 function monster.SkillMod(self, skillInfo)
-	local rating = self.skillRatings[skillInfo.id]
+	--skillRatings may be absent on monsters imported by other game systems
+	--(e.g. Crows), so read it defensively rather than indexing directly.
+	local ratings = self:try_get("skillRatings")
+	local rating = ratings and ratings[skillInfo.id]
 	local baseValue
 	if rating == true then
 		--standard proficiency.
@@ -302,20 +369,23 @@ function monster.SkillMod(self, skillInfo)
 end
 
 function monster.SkillProficiencyBonus(self, skillInfo)
-	if self.skillRatings[skillInfo.id] == nil then
+	local ratings = self:try_get("skillRatings")
+	local rating = ratings and ratings[skillInfo.id]
+	if rating == nil then
 		return 0
 	end
 
-	if self.skillRatings[skillInfo.id] == true then
+	if rating == true then
 		return self:ProficiencyBonus()
 	end
 
-	return self.skillRatings[skillInfo.id] - self:GetAttribute(skillInfo.attribute):Modifier()
+	return rating - self:GetAttribute(skillInfo.attribute):Modifier()
 end
 
 
 function monster.HasSkillProficiency(self, skillInfo)
-	return self.skillRatings[skillInfo.id] ~= nil
+	local ratings = self:try_get("skillRatings")
+	return ratings ~= nil and ratings[skillInfo.id] ~= nil
 end
 
 function monster.SetSkillProficiency(self, skillInfo, val)
@@ -327,7 +397,8 @@ function monster.SetSkillProficiency(self, skillInfo, val)
 end
 
 function monster.SkillProficiencyLevel(self, skillInfo)
-	if skillInfo ~= nil and self.skillRatings[skillInfo.id] ~= nil then
+	local ratings = self:try_get("skillRatings")
+	if skillInfo ~= nil and ratings ~= nil and ratings[skillInfo.id] ~= nil then
 		return GameSystem.Proficient()
 	else
 		return GameSystem.NotProficient()

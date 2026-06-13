@@ -2933,29 +2933,25 @@ if devmode() then
         ["momentary"] = true,
     }
 
-    -- Derive the import directory path from the export infrastructure.
-    -- Calls ExportTable on a small table to get the base compendium path,
-    -- then replaces the tables subdirectory with import.
+    -- Derive the import directory path from the engine's compendium path API.
+    -- dmhub.GetCompendiumPath("import") returns the absolute on-disk path of the
+    -- compendium's import subfolder, independent of whether any table has content
+    -- (so it works even in a nearly-empty game).
     local g_importBasePath = nil
     local function GetImportBasePath()
         if g_importBasePath ~= nil then
             return g_importBasePath
         end
-        -- ExportTable returns {directory = "<basePath>/tables/<tableName>"}
-        -- We need <basePath> without "/tables/<tableName>", then append "/import"
-        local result = dmhub.ExportTable("damageTypes", {individualFiles = false})
-        if result ~= nil and result.directory ~= nil then
-            local dir = result.directory
-            -- dir looks like ".../compendium/tables/damageTypes"
-            -- Strip off "/tables/damageTypes" (or similar) to get ".../compendium"
-            -- Then append "/import"
-            local compendiumDir = string.match(dir, "^(.+)[/\\]tables[/\\]")
-            if compendiumDir then
-                g_importBasePath = compendiumDir .. "/import/"
-                return g_importBasePath
-            end
+        local dir = dmhub.GetCompendiumPath("import")
+        if dir == nil then
+            return nil
         end
-        return nil
+        -- Normalize a trailing separator so callers can append the filename directly.
+        if string.sub(dir, -1) ~= "/" and string.sub(dir, -1) ~= "\\" then
+            dir = dir .. "/"
+        end
+        g_importBasePath = dir
+        return g_importBasePath
     end
 
     -- Read a YAML file from compendium/import/ and return its text content.

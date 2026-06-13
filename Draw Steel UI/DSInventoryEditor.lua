@@ -1925,12 +1925,12 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
             },
 
             gui.Check {
-                classes = {"sizeM", cond(not EquipmentCategory.IsLightSource(document), "collapsed")},
+                classes = {"sizeM", cond(not EquipmentCategory.ShowWieldObjectEditor(document), "collapsed")},
                 halign = "center",
                 text = "Display on Token",
                 value = document:try_get("displayOnToken", true),
                 refresh = function(element)
-                    element:SetClass("collapsed", not EquipmentCategory.IsLightSource(document))
+                    element:SetClass("collapsed", not EquipmentCategory.ShowWieldObjectEditor(document))
                 end,
 
                 change = function(element)
@@ -1940,11 +1940,11 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
             },
 
             gui.Button {
-                classes = {"sizeM", cond(not EquipmentCategory.IsLightSource(document), "collapsed")},
+                classes = {"sizeM", cond(not EquipmentCategory.ShowWieldObjectEditor(document), "collapsed")},
                 width = 160,
                 text = "Edit Object",
                 refresh = function(element)
-                    element:SetClass("collapsed", not EquipmentCategory.IsLightSource(document))
+                    element:SetClass("collapsed", not EquipmentCategory.ShowWieldObjectEditor(document))
                 end,
 
                 click = function(element)
@@ -1963,11 +1963,11 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                 height = "auto",
                 flow = "vertical",
                 classes = {
-                    ['collapsed-anim'] = (document:has_key("equipmentCategory") == false or not EquipmentCategory.quantityCategories[document.equipmentCategory]),
+                    ['collapsed-anim'] = not EquipmentCategory.ShowProjectilePreview(document),
                 },
                 refresh = function(element)
                     element:SetClass('collapsed-anim',
-                        (document:has_key("equipmentCategory") == false or not EquipmentCategory.quantityCategories[document.equipmentCategory]))
+                        not EquipmentCategory.ShowProjectilePreview(document))
                     if element:HasClass("collapsed-anim") then
                         element:FireEvent("destroy")
                     elseif element.data.previewFloor == nil then

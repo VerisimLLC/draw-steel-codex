@@ -191,7 +191,21 @@ local function createDrawSteelBanner(options)
 
                     --as the controller who called for this dialog,
                     --create initiative for everyone now.
-                    if options.controller then
+                    if options.controller and options.reroll then
+                        --Per-round "who goes first" reroll (Crows): combat already
+                        --exists, so do NOT create a queue. Just record which side
+                        --goes first this round and refresh the initiative bar.
+                        --(See showDrawSteelRerollBanner.)
+                        local q = dmhub.initiativeQueue
+                        if q ~= nil and not q.hidden and m_heroesWin ~= nil then
+                            q.playersGoFirst = m_heroesWin
+                            q.playersTurn = m_heroesWin
+                            dmhub:UploadInitiativeQueue()
+                            if GameHud.instance ~= nil and GameHud.instance:has_key("choiceInitiativeBar") then
+                                GameHud.instance.choiceInitiativeBar:FireEvent("refresh")
+                            end
+                        end
+                    elseif options.controller then
                         local info = GameHud.instance.initiativeInterface
                         info.initiativeQueue = InitiativeQueue.Create()
                         info.initiativeQueue.playersGoFirst = m_heroesWin
@@ -826,6 +840,75 @@ end
 function showDrawSteelBanner(result)
     local banner = createDrawSteelBanner{ controller = true, immediateResult = result }
     GameHud.instance.parentPanel:AddChild(banner)
+end
+
+--Show the per-round "who goes first" reroll banner (used by Crows, which rolls
+--for turn order at the start of every round). Reuses the Draw Steel banner, but
+--in reroll mode it sets playersGoFirst on the EXISTING initiative queue when the
+--roll resolves rather than starting a new combat (see the reroll branch in
+--createDrawSteelBanner). Call this on a single client (the one advancing the
+--round); it broadcasts the banner to the other users itself.
+function showDrawSteelRerollBanner()
+    if GameHud.instance == nil or GameHud.instance.parentPanel == nil then
+        return
+    end
+    local banner = createDrawSteelBanner{ controller = true, reroll = true }
+    GameHud.instance.parentPanel:AddChild(banner)
+end
+
+RegisterGameType("Encounter") --make sure we have it registered.
+
+--Programmatic "Draw Steel!": starts combat immediately with the given authored
+--encounter, bypassing the combat setup dialog. Heroes are gathered with the same
+--side and non-combatant-party logic the setup dialog uses; the participating
+--monsters are the tokens the encounter placed on the map (spawnedCharids). Turn
+--order is rolled. Used by the journal RichEncounter "Draw Steel!" button.
+function Encounter.DrawSteelWithEncounter(encounter, spawnedCharids)
+    local q = dmhub.initiativeQueue
+    if q ~= nil and not q.hidden then
+        --already in combat.
+        return
+    end
+
+    local spawned = {}
+    for _,charid in ipairs(spawnedCharids or {}) do
+        spawned[charid] = true
+    end
+
+    g_playerTokensOpenInitiative = {}
+    g_monsterTokensOpenInitiative = {}
+
+    local tokens = {}
+    local partyTable = dmhub.GetTable(Party.tableName)
+    local playerPartyId = GetDefaultPartyID()
+    local playerParty = GetParty(playerPartyId)
+    for _,tok in ipairs(dmhub.allTokens) do
+        if tok ~= nil and tok.valid then
+            local partyid = tok.partyId
+            local playerSide = partyid ~= nil and ((partyid == playerPartyId) or (playerParty ~= nil and playerParty:GetAllyParties()[partyid] ~= nil))
+            if not playerSide and tok.playerControlled then
+                playerSide = true
+            end
+
+            local noncombatant = false
+            if partyid ~= nil then
+                local party = partyTable[partyid]
+                noncombatant = party ~= nil and party.noncombatant
+            end
+
+            if playerSide and not noncombatant then
+                tokens[#tokens+1] = tok
+                g_playerTokensOpenInitiative[tok.charid] = true
+            elseif (not playerSide) and spawned[tok.charid] then
+                tokens[#tokens+1] = tok
+                g_monsterTokensOpenInitiative[tok.charid] = true
+            end
+        end
+    end
+
+    g_selectedEncounterOpenInitiative = encounter
+    g_selectedTokensOpenInitiative = tokens
+    showDrawSteelBanner(nil)
 end
 
 --- @class RollInitiativeChatMessage

@@ -3734,6 +3734,7 @@ function GameHud.CreateEmbeddedRollDialog()
         hasClosed = false,
         lastRollInfo = nil,
         lastRollProperties = nil,
+        rollModifier = 0,
     }
 
     local m_tableRoll_titleLabel = gui.Label{
@@ -3778,14 +3779,7 @@ function GameHud.CreateEmbeddedRollDialog()
 
             local rangeText = "-"
             if rollInfo ~= nil then
-                local range = rollInfo.rollRanges[i]
-                if range ~= nil and not range.invalid then
-                    if range.min == range.max then
-                        rangeText = tostring(range.min)
-                    else
-                        rangeText = string.format("%d-%d", range.min, range.max)
-                    end
-                end
+                rangeText = RollTable.FormatRange(rollInfo.rollRanges[i])
             end
 
             local hideRow = t.visibility == "hidden" or (t.visibility == "reveal" and row.revealed == false)
@@ -4204,6 +4198,7 @@ function GameHud.CreateEmbeddedRollDialog()
 
             local t = m_tableRoll_state.table
             if t ~= nil then
+                total = total + (m_tableRoll_state.rollModifier or 0)
                 m_tableRoll_table:FireEvent("previewRoll", t:RowIndexFromDiceResult(total))
             end
         end,
@@ -4226,6 +4221,30 @@ function GameHud.CreateEmbeddedRollDialog()
         local rollInfo = t:CalculateRollInfo()
         if rollInfo == nil then return end
 
+        --Apply the table's optional GoblinScript modifier, evaluated against the
+        --rolling creature. A numeric result is appended as a flat offset (and
+        --tracked in rollModifier so the live dice preview lines up); a result
+        --that still carries dice is appended as a sub-roll whose dice fold into
+        --the preview total naturally.
+        local rollFormula = rollInfo.roll
+        m_tableRoll_state.rollModifier = 0
+        local modScript = t:try_get("rollModifier", "")
+        if type(modScript) == "string" and trim(modScript) ~= "" and options.creature ~= nil then
+            local evaluated = dmhub.EvalGoblinScript(modScript, options.creature:LookupSymbol(options.symbols or {}), string.format("Modifier for %s", t.name))
+            if evaluated ~= nil and trim(tostring(evaluated)) ~= "" then
+                local numeric = tonumber(evaluated)
+                if numeric ~= nil then
+                    local n = math.tointeger(round(numeric))
+                    if n ~= nil and n ~= 0 then
+                        m_tableRoll_state.rollModifier = n
+                        rollFormula = string.format("%s %+d", rollInfo.roll, n)
+                    end
+                else
+                    rollFormula = string.format("(%s) + (%s)", rollInfo.roll, evaluated)
+                end
+            end
+        end
+
         local rollProperties = options.rollProperties or RollOnTableProperties.new{
             tableRef = m_tableRoll_state.tableRef,
         }
@@ -4234,7 +4253,7 @@ function GameHud.CreateEmbeddedRollDialog()
         --External-mod hook preserved from the legacy modal.
         if RollDialog.OnBeforeTableRoll then
             local hookResult = RollDialog.OnBeforeTableRoll({
-                roll = rollInfo.roll,
+                roll = rollFormula,
                 description = string.format("Roll on %s", t.name),
                 creature = options.creature,
                 tokenid = tokenid,
@@ -4267,7 +4286,7 @@ function GameHud.CreateEmbeddedRollDialog()
             guid = m_tableRoll_state.guid,
             description = string.format("Roll on %s", t.name),
             tokenid = tokenid,
-            roll = rollInfo.roll,
+            roll = rollFormula,
             silent = false,
             dmonly = false,
             creature = options.creature,
@@ -5049,6 +5068,12 @@ function GameHud.CreateEmbeddedRollDialog()
                 print("ROLL:: SET CASTID", m_symbols ~= nil, m_symbols and m_symbols.castid)
 
                 local activeRoll
+                -- Crows (and any game system with GameSystem.RollDialogAutoProceed)
+                -- resolves the roll automatically in the `pending` callback the
+                -- moment the dice land -- there is no manual Accept / Re-roll.
+                -- This guards against `complete` (or an AI auto-proceed) applying
+                -- the result a second time.
+                local m_crowsResolved = false
                 local rollArgs = {
                     guid = resultPanel.data.rollid,
                     description = m_options.description,
@@ -5197,10 +5222,39 @@ function GameHud.CreateEmbeddedRollDialog()
                                 resultPanel:FireEventTree('prepare', m_options)
                                 CalculateRollText{}
                             end
+
+                            -- Auto-resolve for game systems with no manual Accept /
+                            -- Re-roll step (Crows). The dice have just landed, so
+                            -- apply the result now -- its effects land together with
+                            -- any dice-synced attack animation -- collapse the
+                            -- buttons, and let the result linger a moment before the
+                            -- dialog dismisses itself. RelinquishPanel/closedialog
+                            -- free the coroutine but do NOT hide the panel, so the
+                            -- result stays on screen until the scheduled hide. The
+                            -- m_crowsResolved guard stops `complete` (or an AI
+                            -- auto-proceed) from applying the result a second time.
+                            if (not m_crowsResolved) and GameSystem.RollDialogAutoProceed ~= nil and GameSystem.RollDialogAutoProceed(m_options) then
+                                m_crowsResolved = true
+                                rollAgainButton:SetClass("collapsed", true)
+                                proceedAfterRollButton:SetClass("collapsed", true)
+                                RelinquishPanel()
+                                completeFunction(rollInfo)
+                                local dismissDelay = GameSystem.RollDialogDismissDelay or 1.25
+                                dmhub.Schedule(dismissDelay, function()
+                                    if resultPanel ~= nil and resultPanel.valid then
+                                        resultPanel:SetClass('hidden', true)
+                                    end
+                                end)
+                            end
                         end
                     end,
                     complete = function(rollInfo)
                         print("ROLL:: COMPLETE")
+                        -- Crows already resolved this roll in `pending`; do not
+                        -- re-apply it.
+                        if m_crowsResolved then
+                            return
+                        end
                         m_rollInfo = rollInfo
                         m_rerolling = false
                         m_rollTotalLabel.text = tostring(rollInfo.total or 0)

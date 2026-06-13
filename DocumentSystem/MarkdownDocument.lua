@@ -1348,11 +1348,7 @@ function MarkdownDocument.DisplayPanel(self, args)
 
                             local label = newRollableTableRowLabels[#newRollableTableRowLabels]
                             label:Unparent()
-                            if range.min == range.max then
-                                label.text = string.format("%d.", range.min)
-                            else
-                                label.text = string.format("%d-%d.", range.min, range.max)
-                            end
+                            label.text = RollTable.FormatRange(range) .. "."
 
                             currentRollableTable.data.rowList = currentRollableTable.data.rowList or {}
                             currentRollableTable.data.rowList[currentRollableTable.data.row] = currentTableRow

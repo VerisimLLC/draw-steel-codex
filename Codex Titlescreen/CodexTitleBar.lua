@@ -504,12 +504,77 @@ local function CreateSearchBar()
         end
     end
 
-    -- One result row: a highlighted name (provider results) or preformatted
-    -- text (legacy handlers), plus an optional muted type/source label, plus
-    -- an optional subhead line under the name (e.g. PDF results show the
-    -- matched heading with "doc, page N" beneath it).
-    -- Pressing runs the result's action and dismisses the popup.
+    -- Per-type leading icons for the result rows. App icons (Icon_App_*) are
+    -- full-colour, so they render untinted (bgcolor "white" in the style) -
+    -- an INLINE bgcolor of a theme token is NOT resolved by the theme engine,
+    -- so a tinted icon would paint invisible.
+    local SEARCH_ICON_MONSTER    = "icons/standard/Icon_App_Bestiary.png"
+    local SEARCH_ICON_CHARACTER  = "icons/standard/Icon_App_Character.png"
+    local SEARCH_ICON_MAP        = "icons/standard/Icon_App_MapSettings.png"
+    local SEARCH_ICON_JOURNAL    = "icons/standard/Icon_App_Journal.png"
+    local SEARCH_ICON_ENCOUNTER  = "icons/standard/Icon_App_EncounterCreator.png"
+    local SEARCH_ICON_SETTINGS   = "panels/hud/gear.png"
+    -- The Compendium has no Icon_App_* glyph; reuse the icon that prepends the
+    -- Compendium link in the Codex title-bar menu (its LaunchablePanel icon).
+    local SEARCH_ICON_COMPENDIUM = "game-icons/bookmarklet.png"
+
+    local SEARCH_ICON_BY_TYPELABEL = {
+        ["monster"]   = SEARCH_ICON_MONSTER,
+        ["companion"] = SEARCH_ICON_MONSTER,
+        ["hero"]      = SEARCH_ICON_CHARACTER,
+        ["npc"]       = SEARCH_ICON_CHARACTER,
+        ["map"]       = SEARCH_ICON_MAP,
+        ["encounter"] = SEARCH_ICON_ENCOUNTER,
+    }
+
+    -- Map a result to its leading icon. Providers may set result.icon to
+    -- override; otherwise map from typeLabel (most specific) then bucket.
+    local function iconForResult(result)
+        if result.icon ~= nil then
+            return result.icon
+        end
+
+        local typeLabel = result.typeLabel
+        if typeLabel ~= nil then
+            local t = string.lower(typeLabel)
+            local byType = SEARCH_ICON_BY_TYPELABEL[t]
+            if byType ~= nil then
+                return byType
+            end
+            -- Document / PDF Document / PDF Fragment -> journal.
+            if t == "document" or string.find(t, "pdf", 1, true) ~= nil then
+                return SEARCH_ICON_JOURNAL
+            end
+        end
+
+        local bucket = result.bucket
+        if bucket == "rulebooks" then
+            return SEARCH_ICON_JOURNAL
+        elseif bucket == "apptools" then
+            return SEARCH_ICON_SETTINGS
+        elseif bucket == "ingame" then
+            -- tokens / maps / journals / encounters are caught above by
+            -- typeLabel; the remainder (creature features) are capabilities
+            -- that live on a creature.
+            return SEARCH_ICON_CHARACTER
+        end
+
+        -- Compendium content (conditions, classes, ...) and anything else.
+        return SEARCH_ICON_COMPENDIUM
+    end
+
+    -- One result row: a leading per-type icon, then a highlighted name
+    -- (provider results) or preformatted text (legacy handlers), plus an
+    -- optional muted type/source label, plus an optional subhead line under
+    -- the name (e.g. PDF results show the matched heading with "doc, page N"
+    -- beneath it). Pressing runs the result's action and dismisses the popup.
     local function CreateResultRow(result, needle)
+        local iconPanel = gui.Panel{
+            classes = {"searchResultIcon"},
+            bgimage = iconForResult(result),
+            interactable = false,
+        }
+
         local nameLabel = gui.Label{
             classes = {"searchResultName"},
             text = result.name ~= nil and Search.Highlight(result.name, needle) or (result.text or ""),
@@ -586,6 +651,7 @@ local function CreateSearchBar()
                     element.popup = gui.ContextMenu{ entries = entries }
                 end
             end,
+            iconPanel,
             nameBlock,
             typeLabel,
         }
@@ -1569,6 +1635,15 @@ local function CreateTopBar()
             selectors = {"searchSeeAll", "searchfocus"},
             bgimage = true,
             bgcolor = "@bgAlt",
+        },
+        {
+            selectors = {"searchResultIcon"},
+            width = 16,
+            height = 16,
+            halign = "left",
+            valign = "center",
+            rmargin = 8,
+            bgcolor = "white",
         },
         {
             selectors = {"searchResultName"},

@@ -5556,10 +5556,37 @@ function TacPanel.Features()
     local m_filter = ""       -- local user filter (the section's own Filter box)
     local m_glow = ""         -- live global-search query echoed here (drives glow)
     local m_glowActive = false
+    local m_flashSeq = 0      -- generation token so a new flash cancels the prior loop
     local m_expanded = {}     -- bucketId -> true (group expansion, survives refresh)
     local m_expandedLevels = {} -- level -> true (Class by-level sub-groups)
 
     local section, filterInput, clearButton, countLabel, groupsContainer
+
+    --Flash the matched chips' backgrounds a few times then settle, mirroring the
+    --villain-action end-of-turn cue. Drives a finite on/off toggle of "glow-on"
+    --over the groups subtree (only feature-chip+search-glow chips carry the
+    --pulse style, so headers/labels are unaffected). A generation token cancels
+    --any prior loop so re-entering the glow restarts cleanly.
+    local function startGlowFlash()
+        if groupsContainer == nil then return end
+        m_flashSeq = m_flashSeq + 1
+        local seq = m_flashSeq
+        local PULSE_STEPS = 6     -- 3 on/off cycles
+        local INTERVAL = 0.7      -- matches the bgcolor transition so each pulse eases fully
+        local i = 0
+        local function step()
+            if mod.unloaded or seq ~= m_flashSeq then return end
+            if section == nil or not section.valid or groupsContainer == nil then return end
+            if i >= PULSE_STEPS then
+                groupsContainer:SetClassTree("glow-on", false)   -- settle off
+                return
+            end
+            groupsContainer:SetClassTree("glow-on", (i % 2) == 0)
+            i = i + 1
+            dmhub.Schedule(INTERVAL, step)
+        end
+        step()
+    end
 
     --A wrapped chip body for a set of entries. When glowing, every built chip
     --is a search match (only matches are built), so each gets the glow class.
@@ -5791,12 +5818,10 @@ function TacPanel.Features()
         end
         countLabel:SetClass("collapsed", false)
 
-        --Flash the matched chips once when the glow first lights up (it stays
-        --steady-bordered while the query keeps matching, so this does not
-        --re-flash on every keystroke). Pulse the tree -- only chips carrying
-        --the search-flash selector brighten; headers/labels are unaffected.
+        --Flash the matched chips when the glow first lights up (a few pulses
+        --then settle; it does not re-flash while the query keeps matching).
         if glowing and not wasGlowing then
-            groupsContainer:PulseClassTree("search-flash")
+            startGlowFlash()
         end
 
         --A glow echoes an external search, so force the section open (an
@@ -5885,24 +5910,24 @@ function TacPanel.Features()
         width = "100%",
         height = "auto",
         flow = "vertical",
-        --Glow: a chip surfaced by the live global search keeps a steady accent
-        --border so the match stays identifiable, and flashes once when matches
-        --first appear (mirrors the end-of-turn villain-action flash, subtler).
+        --Glow: a chip surfaced by the live global search keeps the default chip
+        --border and instead FLASHES ITS BACKGROUND a few times, the same cue
+        --villain-action drawers use at the end of another creature's turn --
+        --bgcolor pulsing to @accent and easing back, toggled via "glow-on".
+        --The transition lives on both states so each pulse eases in and out.
         --Scoped to this panel's subtree (not DefaultStyles) so it cannot leak.
-        --The steady rule lists all four chip classes so it outranks the base
-        --cond-chip border rule in the cascade.
         styles = {
             {
-                selectors = {"panel", "cond-chip", "feature-chip", "search-glow"},
-                border = 2,
-                borderColor = "@accent",
-                brightness = 1.15,
-                transitionTime = 0.2,
+                selectors = {"feature-chip", "search-glow"},
+                bgcolor = "@bg",
+                transitionTime = 0.7,
+                easing = "easeInOutSine",
             },
             {
-                selectors = {"feature-chip", "search-flash"},
-                brightness = 1.7,
-                transitionTime = 0.5,
+                selectors = {"feature-chip", "search-glow", "glow-on"},
+                bgcolor = "@accent",
+                transitionTime = 0.7,
+                easing = "easeInOutSine",
             },
         },
     }

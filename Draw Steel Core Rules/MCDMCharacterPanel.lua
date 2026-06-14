@@ -5553,51 +5553,20 @@ end
 --- @return Panel
 function TacPanel.Features()
     local m_token = nil
-    local m_filter = ""       -- local user filter (the section's own Filter box)
-    local m_glow = ""         -- live global-search query echoed here (drives glow)
-    local m_glowActive = false
-    local m_flashSeq = 0      -- generation token so a new flash cancels the prior loop
+    local m_filter = ""       -- the active filter (the Filter box text)
+    local m_filterFromGlobal = false  -- true when the title-bar search set the filter
     local m_expanded = {}     -- bucketId -> true (group expansion, survives refresh)
     local m_expandedLevels = {} -- level -> true (Class by-level sub-groups)
 
     local section, filterInput, clearButton, countLabel, groupsContainer
 
-    --Flash the matched chips' backgrounds a few times then settle, mirroring the
-    --villain-action end-of-turn cue. Drives a finite on/off toggle of "glow-on"
-    --over the groups subtree (only feature-chip+search-glow chips carry the
-    --pulse style, so headers/labels are unaffected). A generation token cancels
-    --any prior loop so re-entering the glow restarts cleanly.
-    local function startGlowFlash()
-        if groupsContainer == nil then return end
-        m_flashSeq = m_flashSeq + 1
-        local seq = m_flashSeq
-        local PULSE_STEPS = 6     -- 3 on/off cycles
-        local INTERVAL = 0.7      -- matches the bgcolor transition so each pulse eases fully
-        local i = 0
-        local function step()
-            if mod.unloaded or seq ~= m_flashSeq then return end
-            if section == nil or not section.valid or groupsContainer == nil then return end
-            if i >= PULSE_STEPS then
-                groupsContainer:SetClassTree("glow-on", false)   -- settle off
-                return
-            end
-            groupsContainer:SetClassTree("glow-on", (i % 2) == 0)
-            i = i + 1
-            dmhub.Schedule(INTERVAL, step)
-        end
-        step()
-    end
-
-    --A wrapped chip body for a set of entries. When glowing, every built chip
-    --is a search match (only matches are built), so each gets the glow class.
-    local function chipWrap(token, entries, glowing)
+    --A wrapped chip body for a set of entries.
+    local function chipWrap(token, entries)
         local chipPanels = {}
         for _,e in ipairs(entries) do
             local captured = e
-            local chip = TacPanel.FeatureChip(token, e.name or "Feature",
+            chipPanels[#chipPanels+1] = TacPanel.FeatureChip(token, e.name or "Feature",
                 function() return FeatureTacDescription(captured) end)
-            if glowing then chip:SetClass("search-glow", true) end
-            chipPanels[#chipPanels+1] = chip
         end
         return gui.Panel{
             classes = {"panel", "cond-chips"},
@@ -5608,11 +5577,11 @@ function TacPanel.Features()
     end
 
     --A collapsible "Level N (count)" sub-group (Class bucket only), mirroring
-    --the ch5 sheet's by-level sub-grouping. Toggles in place; filtering/glowing
-    --forces it open and disables the toggle.
-    local function buildLevelGroup(token, lvl, entries, locked, glowing)
+    --the ch5 sheet's by-level sub-grouping. Toggles in place; filtering forces
+    --it open and disables the toggle.
+    local function buildLevelGroup(token, lvl, entries, locked)
         local expanded = locked or (m_expandedLevels[lvl] == true)
-        local body = chipWrap(token, entries, glowing)
+        local body = chipWrap(token, entries)
         body:SetClass("collapsed", not expanded)
 
         local arrow = gui.CollapseArrow{ width = 9, height = 9, valign = "center", hmargin = 4 }
@@ -5641,9 +5610,9 @@ function TacPanel.Features()
     --Build a collapsible origin group: header (arrow + "Bucket - Origin (N)")
     --over a chip body. The Class bucket sub-groups its chips by level; other
     --buckets are a flat chip wrap. Expansion toggles in place (no rebuild).
-    --When filtering/glowing the group is forced open and only matching chips
-    --are built. `locked` = filtering or glowing (no manual collapse).
-    local function buildGroup(token, group, locked, needle, glowing)
+    --When filtering the group is forced open and only matching chips are built.
+    --`locked` = filtering (no manual collapse while a filter is active).
+    local function buildGroup(token, group, locked, needle)
         local items = {}
         for _,e in ipairs(group.items) do
             if not locked or Search.MatchesText(e.searchText or e.name or "", needle) then
@@ -5670,14 +5639,14 @@ function TacPanel.Features()
             table.sort(levelsSeen)
             local levelPanels = {}
             for _,lvl in ipairs(levelsSeen) do
-                levelPanels[#levelPanels+1] = buildLevelGroup(token, lvl, byLevel[lvl], locked, glowing)
+                levelPanels[#levelPanels+1] = buildLevelGroup(token, lvl, byLevel[lvl], locked)
             end
             body = gui.Panel{
                 width = "100%", height = "auto", flow = "vertical", lmargin = 4,
                 children = levelPanels,
             }
         else
-            body = chipWrap(token, items, glowing)
+            body = chipWrap(token, items)
         end
         body:SetClass("collapsed", not expanded)
 
@@ -5725,7 +5694,8 @@ function TacPanel.Features()
     end
 
     --Whether the curated index (or the With-Captain synthetic) matches a needle.
-    --Used to decide if a global-search echo should glow this section at all.
+    --Used to decide whether a title-bar search should drive this section's
+    --filter at all (it only responds to queries it actually contains).
     local function indexHasMatch(creature, index, needle)
         for _,e in ipairs(index.features) do
             if Search.MatchesText(e.searchText or e.name or "", needle) then return true end
@@ -5737,36 +5707,29 @@ function TacPanel.Features()
         return false
     end
 
+    --Keep the filter input + clear button in sync with m_filter. Setting the
+    --input's text programmatically does NOT fire its change event, so this is
+    --safe to call from the title-bar-driven path.
+    local function syncFilterInput()
+        if filterInput ~= nil then filterInput.text = m_filter end
+        if clearButton ~= nil then clearButton:SetClass("collapsed", m_filter == "") end
+    end
+
     --Rebuild the groups container + count from the curated index. Collapses the
-    --whole section when there is nothing to show. The local Filter box drives
-    --filtering directly; otherwise a live global-search query drives a GLOW --
-    --the section filters + lights up in place -- but ONLY when that query
-    --matches curated content here (silent otherwise; the panel only lights up
-    --for what it actually contains).
+    --whole section when there is nothing to show. The Filter box drives all
+    --filtering; the title-bar search populates that box (see onGlobalQuery).
     local function rebuild()
         if section == nil then return end
         local token = m_token
         if token == nil or not token.valid or token.properties == nil then
-            m_glowActive = false
             section:SetClass("collapsed", true)
             return
         end
         local creature = token.properties
         local index = FeatureCategoriser.BuildTacIndex(creature)
 
-        local localFiltering = m_filter ~= ""
-        local glowing, needle = false, ""
-        if localFiltering then
-            needle = Search.Normalize(m_filter)
-        elseif m_glow ~= "" then
-            local g = Search.Normalize(m_glow)
-            if g ~= "" and indexHasMatch(creature, index, g) then
-                glowing, needle = true, g
-            end
-        end
-        local wasGlowing = m_glowActive
-        m_glowActive = glowing
-        local locked = localFiltering or glowing
+        local filtering = m_filter ~= ""
+        local needle = Search.Normalize(m_filter)
 
         local children = {}
         local shown = 0
@@ -5775,22 +5738,20 @@ function TacPanel.Features()
         --characterFeatures entry, so the categoriser never sees it).
         if creature.withCaptain and creature.minion then
             local captainText = creature.withCaptain
-            if not locked or Search.MatchesText("With Captain", needle)
+            if not filtering or Search.MatchesText("With Captain", needle)
                 or Search.MatchesText(captainText or "", needle) then
-                local chip = TacPanel.FeatureChip(token, "With Captain", function() return captainText end)
-                if glowing then chip:SetClass("search-glow", true) end
                 children[#children+1] = gui.Panel{
                     classes = {"panel", "cond-chips"},
                     wrap = true,
                     lmargin = 6,
-                    chip,
+                    TacPanel.FeatureChip(token, "With Captain", function() return captainText end),
                 }
                 shown = shown + 1
             end
         end
 
         for _,bid in ipairs(index.order) do
-            local groupPanel, n = buildGroup(token, index.groups[bid], locked, needle, glowing)
+            local groupPanel, n = buildGroup(token, index.groups[bid], filtering, needle)
             if groupPanel ~= nil then
                 children[#children+1] = groupPanel
                 shown = shown + n
@@ -5798,7 +5759,7 @@ function TacPanel.Features()
         end
 
         if #children == 0 then
-            if localFiltering then
+            if filtering then
                 countLabel.text = string.format("No matches in %d features", index.total)
                 countLabel:SetClass("collapsed", false)
                 groupsContainer.children = {}
@@ -5811,51 +5772,54 @@ function TacPanel.Features()
 
         section:SetClass("collapsed", false)
         groupsContainer.children = children
-        if locked then
+        if filtering then
             countLabel.text = string.format("Showing %d of %d features", shown, index.total)
         else
             countLabel.text = string.format("%d features", index.total)
         end
         countLabel:SetClass("collapsed", false)
+    end
 
-        --Flash the matched chips when the glow first lights up (a few pulses
-        --then settle; it does not re-flash while the query keeps matching).
-        if glowing and not wasGlowing then
-            startGlowFlash()
-        end
-
-        --A glow echoes an external search, so force the section open (an
-        --un-expanded section cannot glow) when the user has it collapsed.
-        if glowing and section.data ~= nil and section.data.collapsed then
+    --Set the filter (used by the title-bar search path). When it populates the
+    --filter, ensure the section is open so the filtered result is visible even
+    --if the user had it collapsed -- otherwise the filtering would be silent.
+    local function setFilter(text, fromGlobal)
+        m_filter = text or ""
+        m_filterFromGlobal = fromGlobal == true
+        syncFilterInput()
+        rebuild()
+        if m_filter ~= "" and section ~= nil and section.data ~= nil and section.data.collapsed then
             section.data.collapsed = false
             section:FireEventTree("setCollapse", false)
         end
     end
 
-    --Subscribe to the live global-search query. Only rebuild when the glow
-    --state actually changes (entering / updating / leaving glow); a query that
-    --never matches curated content here costs one cached index probe and no
-    --rebuild, so idle global typing does not churn the panel.
+    --Subscribe to the live title-bar search. When the query matches curated
+    --content on the selected token, drive THIS section's Filter box with it, so
+    --the filtered list shows the term + a clear (X) button -- making it obvious
+    --the list is not the whole set. A query that matches nothing here is
+    --ignored (a user-typed local filter is never clobbered), except that
+    --clearing/refining the search clears a filter the search itself set.
     local function onGlobalQuery(text)
         if section == nil or not section.valid then
             Search.UnregisterQueryListener(section)
             return
         end
-        local newGlow = text or ""
-        if newGlow == m_glow then return end
-        m_glow = newGlow
-        if m_filter ~= "" then return end   -- local filter wins; glow suppressed
-        local willGlow = false
+        local q = Search.Normalize(text or "")
         local token = m_token
-        if token ~= nil and token.valid and token.properties ~= nil and newGlow ~= "" then
-            local g = Search.Normalize(newGlow)
-            if g ~= "" then
-                local index = FeatureCategoriser.BuildTacIndex(token.properties)
-                willGlow = indexHasMatch(token.properties, index, g)
-            end
+        local matches = false
+        if q ~= "" and token ~= nil and token.valid and token.properties ~= nil then
+            local index = FeatureCategoriser.BuildTacIndex(token.properties)
+            matches = indexHasMatch(token.properties, index, q)
         end
-        if willGlow or m_glowActive then
-            rebuild()
+        if matches then
+            --Only the search's own filter (or an empty box) is overwritten; a
+            --filter the user typed by hand stays put.
+            if (m_filter == "" or m_filterFromGlobal) and (text or "") ~= m_filter then
+                setFilter(text, true)
+            end
+        elseif m_filterFromGlobal then
+            setFilter("", false)
         end
     end
 
@@ -5871,6 +5835,7 @@ function TacPanel.Features()
         editlag = 0.1,
         change = function(element)
             m_filter = element.text or ""
+            m_filterFromGlobal = false   -- the user is driving the filter now
             clearButton:SetClass("collapsed", m_filter == "")
             rebuild()
         end,
@@ -5888,6 +5853,7 @@ function TacPanel.Features()
         text = "X",
         press = function()
             m_filter = ""
+            m_filterFromGlobal = false
             filterInput.text = ""
             clearButton:SetClass("collapsed", true)
             rebuild()
@@ -5910,26 +5876,6 @@ function TacPanel.Features()
         width = "100%",
         height = "auto",
         flow = "vertical",
-        --Glow: a chip surfaced by the live global search keeps the default chip
-        --border and instead FLASHES ITS BACKGROUND a few times, the same cue
-        --villain-action drawers use at the end of another creature's turn --
-        --bgcolor pulsing to @accent and easing back, toggled via "glow-on".
-        --The transition lives on both states so each pulse eases in and out.
-        --Scoped to this panel's subtree (not DefaultStyles) so it cannot leak.
-        styles = {
-            {
-                selectors = {"feature-chip", "search-glow"},
-                bgcolor = "@bg",
-                transitionTime = 0.7,
-                easing = "easeInOutSine",
-            },
-            {
-                selectors = {"feature-chip", "search-glow", "glow-on"},
-                bgcolor = "@accent",
-                transitionTime = 0.7,
-                easing = "easeInOutSine",
-            },
-        },
     }
 
     section = TacPanel.CollapsiblePanel{
@@ -5940,11 +5886,10 @@ function TacPanel.Features()
         data = { token = nil },
 
         create = function(element)
-            --Echo the live global-search query (glow). Keyed by this element so
-            --multiple open Features sections coexist; released on destroy.
+            --Let the live title-bar search drive this section's filter. Keyed by
+            --this element so multiple open Features sections coexist; released on
+            --destroy.
             Search.RegisterQueryListener(element, onGlobalQuery)
-            local q = Search.GetGlobalQuery()
-            if q ~= nil and q ~= "" then m_glow = q end
         end,
         destroy = function(element)
             Search.UnregisterQueryListener(element)
@@ -5953,6 +5898,10 @@ function TacPanel.Features()
         refreshCharacter = function(element, token)
             m_token = token
             rebuild()
+            --Re-evaluate any active title-bar search against the new creature so
+            --a search-driven filter follows token switches (and clears if the
+            --new creature has no match).
+            onGlobalQuery(Search.GetGlobalQuery())
         end,
         refreshToken = function(element, token)
             element:FireEvent("refreshCharacter", token)

@@ -5840,15 +5840,24 @@ function TacPanel.Features()
         end)
     end
 
-    --Inline clear (X) button INSIDE the filter input, mirroring the compendium
-    --"Filter Compendium..." box: a floating close icon at the input's right
-    --edge, shown only when there is text.
+    --Inset the filter row symmetrically (the same gap each side) so the box
+    --reads as centred in the panel; the right gap also clears the dock scrollbar.
+    local FILTER_INSET = 14
+
+    --Inline clear (X) button INSIDE the filter input: a floating close icon at
+    --the input's right edge, shown only when there is text. Same close-icon
+    --treatment the character-sheet Features tab uses; passed as a CONSTRUCTOR
+    --child (a floating child added after the fact did not render on a bare
+    --gui.Input -- the input needs a children container at build time).
     clearButton = gui.Panel{
         floating = true,
         bgimage = "ui-icons/close.png",
-        bgcolor = "@fgMuted",
-        width = 12,
-        height = 12,
+        --An inline bgcolor of "@fgMuted" is NOT resolved by the theme engine
+        --(only style-rule values are), so the white icon would paint untinted
+        --and read as invisible. Resolve the token to a concrete colour here.
+        bgcolor = ThemeEngine.ResolveTokens("@fgMuted"),
+        width = 14,
+        height = 14,
         halign = "right",
         valign = "center",
         x = -4,
@@ -5867,6 +5876,8 @@ function TacPanel.Features()
         width = "100%",
         height = 22,
         halign = "left",
+        valign = "center",
+        borderBox = true,   -- include the input's own padding so 100% does not overflow the row
         fontSize = 12,
         placeholderText = "Filter features...",
         placeholderAlpha = 0.6,
@@ -5878,15 +5889,15 @@ function TacPanel.Features()
             clearButton:SetClass("collapsed", m_filter == "")
             rebuild()
         end,
+        clearButton,
     }
-    filterInput:AddChild(clearButton)
 
     countLabel = gui.Label{
         classes = {"label", "collapsed"},
-        width = "100%",
+        width = "auto",
         height = "auto",
         halign = "left",
-        lmargin = 2,
+        lmargin = FILTER_INSET,
         tmargin = 2,
         fontSize = 11,
         color = "@fgMuted",
@@ -5932,14 +5943,13 @@ function TacPanel.Features()
         end,
 
         gui.Panel{
-            --Inset from the right so the input ends BEFORE the dock scrollbar
-            --(it used to run underneath it).
-            width = "100%-14",
+            --Centred with an equal gap each side (the right gap clears the dock
+            --scrollbar the input used to run underneath).
+            width = "100%-" .. tostring(FILTER_INSET * 2),
             height = "auto",
-            halign = "left",
+            halign = "center",
             flow = "horizontal",
             valign = "center",
-            hpad = 4,
             tmargin = 2,
             borderBox = true,
             filterInput,

@@ -1512,7 +1512,7 @@ function GameHud.CreateInventoryDialog(self, options)
 
 	if hasAddItem then
 		if dmhub.isDM then
-			--generateShopSlot = CreateInventorySlot(self, options)
+			generateShopSlot = CreateInventorySlot(self, options)
 			refreshShopSlot = CreateInventorySlot(self, options)
 		end
 

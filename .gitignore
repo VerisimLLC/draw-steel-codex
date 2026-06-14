@@ -47,3 +47,6 @@ Definitions/version.txt
 # Compendium content -- ignored everything in this folder except reference/
 compendium/*
 !compendium/reference/
+
+# Crowdex is its own git repository
+/Crowdex/

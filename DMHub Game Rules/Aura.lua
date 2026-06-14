@@ -1312,12 +1312,10 @@ function ActivatedAbilityMoveAuraBehavior:Cast(ability, casterToken, targets, op
         return
     end
 
-    local targetLoc = options.targetArea.origin
-
     dmhub.BeginTransaction()
 
-    local destx = targetLoc.x - 0.5
-    local desty = targetLoc.y - 0.5
+    local destx = options.targetArea.xpos
+    local desty = options.targetArea.ypos
 
     local objAura = obj:GetComponent("Aura")
     if objAura ~= nil then
@@ -1328,7 +1326,7 @@ function ActivatedAbilityMoveAuraBehavior:Cast(ability, casterToken, targets, op
         }
     end
 
-    obj:SetAndUploadPos(targetLoc.x - 0.5, targetLoc.y - 0.5)
+    obj:SetAndUploadPos(destx, desty)
 
     dmhub.EndTransaction()
 

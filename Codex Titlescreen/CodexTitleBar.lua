@@ -380,13 +380,32 @@ local function CreateStatusBar()
     return resultPanel
 end
 
+-- Label a placed token by kind so its result row reads Hero / NPC / Monster
+-- (the leading icon is the token's own portrait, but the text label still
+-- splits it the way the unplaced providers do).
+local function TokenKindLabel(token)
+    local props = token.properties
+    if props ~= nil then
+        local ok, isMonster = pcall(function() return props:IsMonster() end)
+        if ok and isMonster then
+            return "Monster"
+        end
+    end
+    if token.playerControlled then
+        return "Hero"
+    end
+    return "NPC"
+end
+
 -- Global-search provider: tokens on the current map(s). Full provider (bespoke
 -- data, custom activate): clicking selects the token and centres the camera on
--- it. Players only see tokens not hidden from them.
+-- it. Players only see tokens not hidden from them. Each result carries the
+-- live token so the row can render its portrait as the leading icon - a visual
+-- cue that this creature is placed on the map (vs the flat Character/Bestiary
+-- icon shown for unplaced heroes/monsters).
 Search.RegisterProvider{
     id = "tokens",
     bucket = "ingame",
-    typeLabel = "Token",
     enumerate = function(needle)
         if not dmhub.inGame then
             return {}
@@ -400,6 +419,8 @@ Search.RegisterProvider{
                 results[#results+1] = {
                     name = name,
                     score = Search.Score(name, needle),
+                    typeLabel = TokenKindLabel(token),
+                    token = token,
                     activate = function()
                         dmhub.SelectToken(capturedId)
                         dmhub.CenterOnToken(capturedId)
@@ -569,11 +590,26 @@ local function CreateSearchBar()
     -- the name (e.g. PDF results show the matched heading with "doc, page N"
     -- beneath it). Pressing runs the result's action and dismisses the popup.
     local function CreateResultRow(result, needle)
-        local iconPanel = gui.Panel{
-            classes = {"searchResultIcon"},
-            bgimage = iconForResult(result),
-            interactable = false,
-        }
+        -- A placed token renders its own portrait (Hero/retainer/NPC/monster
+        -- already on the map); everything else gets a flat per-type glyph. If
+        -- the token went invalid since enumeration, fall back to the glyph.
+        local iconPanel
+        if result.token ~= nil and result.token.valid then
+            iconPanel = gui.CreateTokenImage(result.token, {
+                width = 20,
+                height = 20,
+                halign = "left",
+                valign = "center",
+                rmargin = 8,
+                interactable = false,
+            })
+        else
+            iconPanel = gui.Panel{
+                classes = {"searchResultIcon"},
+                bgimage = iconForResult(result),
+                interactable = false,
+            }
+        end
 
         local nameLabel = gui.Label{
             classes = {"searchResultName"},
@@ -1637,9 +1673,11 @@ local function CreateTopBar()
             bgcolor = "@bgAlt",
         },
         {
+            -- 20px to line up with the placed-token portraits (CreateTokenImage
+            -- at 20) so the name column starts at the same x on every row.
             selectors = {"searchResultIcon"},
-            width = 16,
-            height = 16,
+            width = 20,
+            height = 20,
             halign = "left",
             valign = "center",
             rmargin = 8,

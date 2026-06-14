@@ -727,6 +727,49 @@ function Search.CollectContextResults(needle)
     return {label = best.label or "In this view", results = results, pending = (pending == true)}
 end
 
+-- Global-search query broadcast (search redesign ch6). The title-bar search
+-- publishes its current query here; surfaces that want to ECHO the live search
+-- (the tac-panel Features glow) subscribe. Decoupled so the title bar needs no
+-- knowledge of its listeners, and so multiple listeners (several open panels)
+-- coexist -- listeners are keyed by an arbitrary handle (their panel element).
+-- Weak keys so a listener whose panel is collected without an explicit
+-- unregister self-prunes (destroy is the normal path; this is a backstop).
+Search._queryListeners = setmetatable({}, { __mode = "k" })
+Search._globalQuery = ""
+
+--- Publish the current global-search query to all listeners. Idempotent: a
+--- repeat of the same query is a no-op.
+--- @param text string the current query (empty string when cleared)
+function Search.SetGlobalQuery(text)
+    text = text or ""
+    if Search._globalQuery == text then return end
+    Search._globalQuery = text
+    for _,fn in pairs(Search._queryListeners) do
+        pcall(fn, text)
+    end
+end
+
+--- @return string the last published global-search query
+function Search.GetGlobalQuery()
+    return Search._globalQuery
+end
+
+--- Subscribe to global-search query changes. The listener fires with the new
+--- query string whenever it changes. Key by a stable handle (e.g. the
+--- subscribing panel element) and pass the same handle to unregister.
+--- @param key any
+--- @param fn function (text) -> nil
+function Search.RegisterQueryListener(key, fn)
+    if key == nil or type(fn) ~= "function" then return end
+    Search._queryListeners[key] = fn
+end
+
+--- @param key any
+function Search.UnregisterQueryListener(key)
+    if key == nil then return end
+    Search._queryListeners[key] = nil
+end
+
 -- Legacy wrappers. These keep the historical contract (needle used verbatim,
 -- haystack lowered) so existing callers behave identically.
 

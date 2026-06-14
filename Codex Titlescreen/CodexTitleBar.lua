@@ -734,6 +734,10 @@ local function CreateSearchBar()
 
         local status = true --search is good and complete.
         text = string.trim(string.lower(text))
+        --Broadcast the live query so echo surfaces (the tac-panel Features
+        --glow) can respond in place. Published on every keystroke including
+        --the empty/clear case so the glow turns off when the query is cleared.
+        Search.SetGlobalQuery(text)
         if text == "" then
             local skip = resultPanel.data.skipRecentsOnce
             resultPanel.data.skipRecentsOnce = false

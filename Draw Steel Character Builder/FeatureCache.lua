@@ -1496,32 +1496,64 @@ local function categoriserAddConditions(creature, addEntry)
     end
 end
 
---- Add equipped treasures (magic items / gear granting features). Best-effort:
---- Equipment() returns a { slotName -> itemGuid } map, so each guid is resolved
---- against the gear table for a display name. Dedupe by item guid handles an
---- item occupying multiple slots (e.g. a two-handed weapon).
+--- Equipment categories that are mundane gear, not treasures. Everything else
+--- (Leveled Treasure, Trinket, Artifact, Consumable, Imbuement, ...) counts as
+--- a treasure. Matched by category NAME (stable across installs).
+local CATEGORISER_MUNDANE_GEAR = {
+    ["Light Source"]        = true,
+    ["Projectiles"]         = true,
+    ["Crafting Ingredient"] = true,
+}
+
+--- Add the creature's treasures: the union of carried (inventory) and equipped
+--- (Equipment) gear, filtered to treasure categories. The union matters because
+--- carried and worn items are tracked separately. The category filter drops
+--- mundane gear -- crucially a feature-granted item like a dwarf's "Runic
+--- Carving" is a Light Source, so it no longer masquerades as a treasure, while
+--- real worn treasures (leveled treasures, trinkets) are kept.
 --- @param creature creature
 --- @param addEntry function
 local function categoriserAddTreasures(creature, addEntry)
-    if type(creature.Equipment) ~= "function" then return end
-    local ok, equipment = pcall(function() return creature:Equipment() end)
-    if not ok or type(equipment) ~= "table" then return end
-
     local gearTable = nil
-    local okg, t = pcall(function() return dmhub.GetTable("tbl_Gear") end)
-    if okg then gearTable = t end
+    local okg, gt = pcall(function() return dmhub.GetTable("tbl_Gear") end)
+    if okg then gearTable = gt end
 
-    for _,itemGuid in pairs(equipment) do
-        if type(itemGuid) == "string" then
-            local item = gearTable ~= nil and gearTable[itemGuid] or nil
-            local name = item ~= nil and _safeGet(item, "name") or nil
-            addEntry(categoriserNormalise{
-                guid    = itemGuid,
-                name    = name or "Treasure",
-                bucket  = "treasure",
-                kind    = "treasure",
-                feature = item,
-            })
+    local catTable = nil
+    local okc, ct = pcall(function() return dmhub.GetTable("equipmentCategories") end)
+    if okc then catTable = ct end
+
+    local function isTreasure(item)
+        if item == nil then return false end
+        if catTable == nil then return true end
+        local catId = _safeGet(item, "equipmentCategory")
+        local cat = catId ~= nil and catTable[catId] or nil
+        local catName = cat ~= nil and _safeGet(cat, "name") or nil
+        return catName == nil or not CATEGORISER_MUNDANE_GEAR[catName]
+    end
+
+    local seen = {}
+    local function consider(itemGuid)
+        if type(itemGuid) ~= "string" or seen[itemGuid] then return end
+        seen[itemGuid] = true
+        local item = gearTable ~= nil and gearTable[itemGuid] or nil
+        if not isTreasure(item) then return end
+        addEntry(categoriserNormalise{
+            guid    = itemGuid,
+            name    = (item ~= nil and _safeGet(item, "name")) or "Treasure",
+            bucket  = "treasure",
+            kind    = "treasure",
+            feature = item,
+        })
+    end
+
+    local oki, inventory = pcall(function() return creature:try_get("inventory", {}) end)
+    if oki and type(inventory) == "table" then
+        for itemGuid in pairs(inventory) do consider(itemGuid) end
+    end
+    if type(creature.Equipment) == "function" then
+        local oke, equipment = pcall(function() return creature:Equipment() end)
+        if oke and type(equipment) == "table" then
+            for _,itemGuid in pairs(equipment) do consider(itemGuid) end
         end
     end
 end
@@ -1538,6 +1570,78 @@ end
 ---
 --- @param creature creature
 --- @return table index
+--- Resolve a modifier `attribute` id to a human-readable display name. Custom
+--- attributes (GUID ids) carry their name in the customAttributes table -- this
+--- is the Tier-2 win: a feature whose modifier sets the "Can Shift In Difficult
+--- Terrain" / "Move Through Creatures" attribute becomes matchable on that name
+--- even when its prose never says it. Builtin ids (speed, forcedmoveresistance)
+--- have no table entry; the raw id is returned (still a usable search token).
+--- @param attr any
+--- @return string|nil
+local function categoriserResolveAttributeName(attr)
+    if type(attr) ~= "string" or attr == "" then return nil end
+    local name = nil
+    pcall(function()
+        local ct = dmhub.GetTable("customAttributes")
+        local rec = ct ~= nil and ct[attr] or nil
+        if rec ~= nil then name = rec.name end
+    end)
+    return name or attr
+end
+
+--- Tier-2 search haystack for a single feature: the structured strings of what
+--- it GRANTS -- modifier names, modifier descriptions, and resolved attribute
+--- display names -- folded into one searchable string. Reads the game's own
+--- structured data (no synonym table). Build-time only: computed once per index
+--- build and stored on the entry, never re-walked per keystroke.
+--- @param feature any
+--- @return string
+local function categoriserFeatureHaystack(feature)
+    if feature == nil then return "" end
+    local parts, seen = {}, {}
+    local function push(s)
+        if type(s) == "string" and s ~= "" and not seen[s] then
+            seen[s] = true
+            parts[#parts+1] = s
+        end
+    end
+    pcall(function()
+        for _,m in ipairs(feature:try_get("modifiers", {})) do
+            push(m:try_get("name"))
+            push(m:try_get("description"))
+            push(categoriserResolveAttributeName(m:try_get("attribute")))
+        end
+    end)
+    return table.concat(parts, " ")
+end
+
+--- Full searchable text for an index entry: the feature's own name +
+--- description + Tier-2 haystack, plus the same for any folded chosen options
+--- (the slot row represents them). The shared Tier-1+2 haystack used by the tac
+--- section filter, the tac glow, and the ch4 global-search provider, so all
+--- three behave identically.
+--- @param entry table normalised index entry
+--- @return string
+local function categoriserEntrySearchText(entry)
+    if entry == nil then return "" end
+    local parts = {}
+    local function pushFeature(f)
+        if f == nil then return end
+        local nm = _safeFeatureName(f)
+        if type(nm) == "string" and nm ~= "" then parts[#parts+1] = nm end
+        local desc = _safeGet(f, "description")
+        if type(desc) == "string" and desc ~= "" then parts[#parts+1] = desc end
+        local hay = categoriserFeatureHaystack(f)
+        if hay ~= "" then parts[#parts+1] = hay end
+    end
+    if type(entry.name) == "string" and entry.name ~= "" then parts[#parts+1] = entry.name end
+    pushFeature(entry.feature)
+    if entry.chosen ~= nil then
+        for _,c in ipairs(entry.chosen) do pushFeature(c) end
+    end
+    return table.concat(parts, " ")
+end
+
 function FeatureCategoriser.BuildIndex(creature)
     local features = {}
     local seenGuid = {}
@@ -1567,6 +1671,9 @@ function FeatureCategoriser.BuildIndex(creature)
     local groups = {}
     local counts = {}
     for _,entry in ipairs(features) do
+        --Tier-1+2 search text, precomputed once (build-time, cached) so the
+        --search provider and tac filter never re-walk modifiers per keystroke.
+        entry.searchText = categoriserEntrySearchText(entry)
         local bucketId = entry.bucket or "other"
         local group = groups[bucketId]
         if group == nil then
@@ -1616,6 +1723,368 @@ function FeatureCategoriser.BuildIndexCached(creature)
 end
 
 -- =============================================================================
+-- Tac-panel curation (search redesign ch6).
+--
+-- The sheet Features tab is the COMPLETE provenance index. The tac-panel
+-- Features section answers a narrower, in-context question -- "what ELSE can
+-- my character do" -- the passive / situational capabilities that are NOT
+-- already surfaced by a sibling tac section (Perks, Skills & Languages,
+-- Conditions) or the action bar (abilities). This is a VIEW filter over the
+-- same index; the categoriser itself is unchanged so the sheet still sees
+-- everything, and a search provider built on this agrees with the section.
+-- =============================================================================
+
+--- Buckets that already own a dedicated tac-panel section, so surfacing them
+--- again here would just duplicate. Conditions + ongoing effects live in the
+--- Conditions section; perks/skills/languages have their own sections.
+FeatureCategoriser.TAC_EXCLUDED_BUCKETS = {
+    perk      = true,
+    skill     = true,
+    language  = true,
+    condition = true,
+    effect    = true,
+}
+
+--- Whether a feature grants an ability the player reaches elsewhere, by the
+--- builder's behavior pattern: "activated" -> action bar, "triggerdisplay" ->
+--- the trigger drawer, "routine" -> the routines / persistent-abilities
+--- sections. A raw TriggeredAbility carries NONE of these modifiers, so a
+--- triggered ability with no display modifier is deliberately NOT detected and
+--- stays visible here (it is reachable nowhere else). Mirrors the sheet's
+--- FeatureGrantedAbilities detection.
+--- @param feature any
+--- @return boolean
+local function categoriserFeatureGrantsAbility(feature)
+    if feature == nil then return false end
+    local granted = false
+    pcall(function()
+        for _,m in ipairs(feature:try_get("modifiers", {})) do
+            local b = m.behavior
+            if b == "activated" or b == "triggerdisplay" or b == "routine" then
+                granted = true
+                return
+            end
+        end
+    end)
+    return granted
+end
+
+--- Whether a choice slot still has unmade selections. An unmade choice is
+--- build-state ("you still have a perk to pick"), not a current capability, so
+--- it does not belong on a play surface. pcall-guarded; a non-choice feature
+--- reports false.
+--- @param creature creature
+--- @param feature any
+--- @return boolean
+local function categoriserHasUnmadeChoice(creature, feature)
+    local unmade = false
+    pcall(function()
+        local num = feature:NumChoices(creature)
+        if num == nil or num <= 0 then return end
+        local made = creature:GetLevelChoices()[feature.guid] or {}
+        if #made < num then unmade = true end
+    end)
+    return unmade
+end
+
+--- Whether a feature's own modifiers grant a skill or language. The categoriser
+--- re-homes skill/language-granting CHOICES to those buckets, but a DIRECT
+--- feature grant (e.g. "Handle Animals Skill") stays under its origin bucket;
+--- it still belongs to the Skills & Languages tac section, so curation drops
+--- it here too. Mirrors categoriserGrantBucketFromChosen's detection.
+--- @param feature any
+--- @return boolean
+local function categoriserFeatureGrantsSkillOrLanguage(feature)
+    if feature == nil then return false end
+    local found = false
+    pcall(function()
+        for _,m in ipairs(feature:try_get("modifiers", {})) do
+            local subtype = m:try_get("subtype")
+            local skills = m:try_get("skills")
+            if subtype == "skill" or subtype == "language"
+                or (type(skills) == "table" and #skills > 0) then
+                found = true
+                return
+            end
+        end
+    end)
+    return found
+end
+
+--- The five core characteristics, by modifier `attribute` id. A feature that
+--- only raises these is shown in the Statistics box already.
+local CATEGORISER_CHARACTERISTIC_IDS = {
+    mgt = true,  -- Might
+    agl = true,  -- Agility
+    rea = true,  -- Reason
+    inu = true,  -- Intuition
+    prs = true,  -- Presence
+}
+
+--- Whether a feature does nothing but raise the core characteristics (its
+--- modifiers are non-empty and ALL are "attribute" modifiers targeting Might /
+--- Agility / Reason / Intuition / Presence). Such a feature -- e.g. a level-up
+--- "Characteristic Increase" -- is already represented in the Statistics box,
+--- so it is curated out. A feature that raises a NON-characteristic attribute
+--- (speed, stamina, ...) or carries any other modifier is NOT caught here.
+--- @param feature any
+--- @return boolean
+local function categoriserFeatureIsOnlyCharacteristics(feature)
+    if feature == nil then return false end
+    local count, onlyChar = 0, true
+    pcall(function()
+        for _,m in ipairs(feature:try_get("modifiers", {})) do
+            count = count + 1
+            if m.behavior ~= "attribute"
+                or not CATEGORISER_CHARACTERISTIC_IDS[m:try_get("attribute")] then
+                onlyChar = false
+                return
+            end
+        end
+    end)
+    return count > 0 and onlyChar
+end
+
+--- Whether a feature's own modifiers grant a character resource. A resource is
+--- always surfaced by a dedicated tac box (Recoveries, Heroic Resources, or the
+--- catch-all Resources box), so the feature that defines it (e.g. "Recoveries",
+--- the "Ferocity" heroic-resource feature) duplicates that box and is dropped.
+--- @param feature any
+--- @return boolean
+local function categoriserFeatureGrantsResource(feature)
+    if feature == nil then return false end
+    local found = false
+    pcall(function()
+        for _,m in ipairs(feature:try_get("modifiers", {})) do
+            if m.behavior == "resource" then
+                found = true
+                return
+            end
+        end
+    end)
+    return found
+end
+
+--- Whether a RESOLVED feature is a passive capability worth a chip on the tac
+--- panel. Excludes perks (the Perks section -- a CharacterFeat that is not a
+--- Title or Complication, both of which are CharacterFeat-derived but kept),
+--- skill/language grants (Skills & Languages section), resource grants (the
+--- resource boxes), and ability grants (action bar / drawer / routines; the
+--- triggered-without-display exception falls out of categoriserFeatureGrantsAbility).
+--- This runs per CAPABILITY -- so a perk chosen via a career slot is dropped
+--- even though its parent slot sits in the Career bucket.
+--- @param feature any
+--- @return boolean
+function FeatureCategoriser.IsPassiveFeature(feature)
+    if feature == nil then return true end
+    --A skill / language / perk CHOICE container belongs to its own section
+    --(a skill-group pick is captured under Skills). The recursion can surface
+    --these nested inside a class feature, so catch them by choice type.
+    local tn = nil
+    pcall(function() tn = feature.typeName end)
+    if tn ~= nil then
+        local choiceBucket = CATEGORISER_CHOICE_BUCKET[tn]
+        if choiceBucket == "skill" or choiceBucket == "language" or choiceBucket == "perk" then
+            return false
+        end
+    end
+    if not categoriserIsDerived(feature, "Title")
+        and not categoriserIsDerived(feature, "CharacterComplication") then
+        --A perk: either CharacterFeat-derived, or a resolved feature whose
+        --source is the feats table ("Feat"). The latter catches a career- or
+        --ancestry-granted perk that arrives as a plain CharacterFeature (e.g.
+        --"Polymath") but still belongs to the Perks section.
+        if categoriserIsDerived(feature, "CharacterFeat") then return false end
+        local src = nil
+        pcall(function() src = feature:try_get("source") end)
+        if src == "Feat" then return false end
+    end
+    if categoriserFeatureGrantsSkillOrLanguage(feature) then return false end
+    if categoriserFeatureGrantsResource(feature) then return false end
+    if categoriserFeatureIsOnlyCharacteristics(feature) then return false end
+    if categoriserFeatureGrantsAbility(feature) then return false end
+    return true
+end
+
+--- Coarse entry-level gate (before exploding into capabilities): drop
+--- sibling-section buckets and unmade choice slots. Per-capability filtering
+--- (IsPassiveFeature) does the rest in BuildTacIndex.
+--- @param creature creature
+--- @param entry table index entry
+--- @return boolean
+function FeatureCategoriser.IsTacPanelEntry(creature, entry)
+    if entry == nil then return false end
+    if FeatureCategoriser.TAC_EXCLUDED_BUCKETS[entry.bucket] then return false end
+    if entry.feature ~= nil and categoriserHasUnmadeChoice(creature, entry.feature) then
+        return false
+    end
+    return true
+end
+
+--- Build the curated tac-panel index (same shape as BuildIndex: features,
+--- groups, order, counts, total) containing only the passive "what else"
+--- entries. Reuses the cached full index, so the per-call cost is the
+--- predicate sweep.
+--- @param creature creature
+--- @return table index
+function FeatureCategoriser.BuildTacIndex(creature)
+    local full = FeatureCategoriser.BuildIndexCached(creature)
+
+    --Owned domains: the build pipeline lists EVERY domain's features (and the
+    --per-level "Domain Feature" choices offer all domains as options), but a
+    --Conduit only has the domains it chose. Drop capabilities named after a
+    --domain the creature does not own ("Storm Domain", "All Domains", ...).
+    --Features named after an owned domain ("War Domain Piety") are kept.
+    local ownedDomains = {}
+    pcall(function()
+        for _,d in ipairs(creature:GetDomains() or {}) do
+            local nm = (type(d) == "table") and (d.name or d.id) or d
+            if nm ~= nil then ownedDomains[tostring(nm)] = true end
+        end
+    end)
+    local hasDomains = next(ownedDomains) ~= nil
+
+    --The heroic resource (Wrath / Ferocity / Essence ...) has its own tac box.
+    --It is sometimes a `resource` modifier (caught by IsPassiveFeature) but
+    --sometimes an attribute+triggers feature named after the resource, so also
+    --drop a capability whose name IS the heroic resource name.
+    local heroicResourceName = nil
+    pcall(function() heroicResourceName = creature:GetHeroicResourceName() end)
+
+    --An unowned domain bundle ("Storm Domain", "All Domains"), pruned before
+    --recursing so the features of domains the creature does not have never
+    --surface.
+    local function isUnownedDomainList(name)
+        if not hasDomains or type(name) ~= "string" then return false end
+        local d = name:match("^(.-) Domains?$")
+        if d == nil or d == "" then return false end
+        return not ownedDomains[d]
+    end
+
+    --A bare domain reference / selection marker rather than a capability: any
+    --"<X> Domain"/"<X> Domains" name (the bundle), or a domain stored under just
+    --its name (e.g. the Censor's "Life"). The real domain capabilities have
+    --descriptive names ("War Domain Piety", "Font of Grace") and are kept.
+    local function isDomainScaffolding(name)
+        if type(name) ~= "string" then return false end
+        if name:match("^.- Domains?$") then return true end
+        if ownedDomains[name] then return true end
+        return false
+    end
+
+    --Explode each kept entry into the actual passive capabilities it yields.
+    --A made choice's chosen option is often NOT a leaf: a domain pick resolves
+    --to a CharacterFeatureList ("Life Domain") that wraps the real feature
+    --("Blessing of Life"), and a feature can wrap a further CharacterFeatureChoice
+    --whose own pick is sometimes an ability. So we recurse: descend lists,
+    --resolve nested choices to the made selection, prune unowned-domain lists
+    --at the wrapper, and only emit the surviving passive LEAVES (with their own
+    --name + description) -- never the "list of features" wrapper.
+    local lc = (creature ~= nil and creature:GetLevelChoices()) or {}
+    local function collectLeaves(feature, out, depth)
+        if feature == nil or depth > 6 then return end
+        local tn = nil
+        pcall(function() tn = feature.typeName end)
+        if tn == "CharacterFeatureList" then
+            local listName = nil
+            pcall(function() listName = feature:try_get("name") end)
+            if isUnownedDomainList(listName) then return end
+            local kids = nil
+            pcall(function() kids = feature:try_get("features", {}) end)
+            if type(kids) == "table" then
+                for _,sub in ipairs(kids) do collectLeaves(sub, out, depth + 1) end
+            end
+        elseif tn == "CharacterFeatureChoice" then
+            local guid = nil
+            pcall(function() guid = feature.guid end)
+            local made = (guid ~= nil and lc[guid]) or {}
+            if #made == 0 then return end
+            local opts = nil
+            pcall(function() opts = feature:GetOptions(lc) end)
+            if type(opts) ~= "table" then return end
+            local byGuid = {}
+            for _,o in ipairs(opts) do
+                local g = _safeGet(o, "guid")
+                if g ~= nil then byGuid[g] = o end
+            end
+            for _,id in ipairs(made) do
+                if byGuid[id] ~= nil then collectLeaves(byGuid[id], out, depth + 1) end
+            end
+        else
+            --A leaf feature: keep it if it is a passive capability. Domain
+            --scaffolding is dropped at emit (it applies to plain entries too).
+            if FeatureCategoriser.IsPassiveFeature(feature) then
+                out[#out+1] = feature
+            end
+        end
+    end
+
+    local features = {}
+    --Dedupe by bucket + name: several level slots can resolve to the same-named
+    --capability (e.g. a Conduit picking "Storm Domain" at four levels yields
+    --four distinct CharacterFeatureLists all named "Storm Domain"); one chip is
+    --enough on a play surface (per-level detail lives on the sheet).
+    local seenKey = {}
+    local function emit(name, feature, src)
+        if isDomainScaffolding(name) then return end
+        if heroicResourceName ~= nil and heroicResourceName ~= "" and name == heroicResourceName then return end
+        local key = string.format("%s|%s", tostring(src.bucket), name or "")
+        if seenKey[key] then return end
+        seenKey[key] = true
+        --Tier-1+2 haystack for this leaf (its own name + description + the
+        --names/descriptions/resolved-attribute names its modifiers grant), so
+        --the local filter and the glow match structured payload, not just prose.
+        features[#features+1] = {
+            name       = name,
+            feature    = feature,
+            bucket     = src.bucket,
+            originName = src.originName,
+            levels     = src.levels,
+            level      = src.level,
+            searchText = categoriserEntrySearchText{ name = name, feature = feature },
+        }
+    end
+    for _,entry in ipairs(full.features) do
+        if FeatureCategoriser.IsTacPanelEntry(creature, entry) then
+            local leaves = {}
+            if entry.chosen ~= nil and #entry.chosen > 0 then
+                for _,opt in ipairs(entry.chosen) do collectLeaves(opt, leaves, 0) end
+            else
+                collectLeaves(entry.feature, leaves, 0)
+            end
+            for _,leaf in ipairs(leaves) do
+                emit(_safeFeatureName(leaf), leaf, entry)
+            end
+        end
+    end
+
+    local groups, counts = {}, {}
+    for _,entry in ipairs(features) do
+        local bid = entry.bucket or "other"
+        local group = groups[bid]
+        if group == nil then
+            group = { bucket = FeatureCategoriser.BUCKET_BY_ID[bid] or FeatureCategoriser.BUCKET_BY_ID["other"], items = {} }
+            groups[bid] = group
+        end
+        group.items[#group.items+1] = entry
+        counts[bid] = (counts[bid] or 0) + 1
+    end
+
+    local order = {}
+    for _,b in ipairs(FeatureCategoriser.BUCKETS) do
+        if groups[b.id] ~= nil then order[#order+1] = b.id end
+    end
+
+    return {
+        features = features,
+        groups   = groups,
+        order    = order,
+        counts   = counts,
+        total    = #features,
+    }
+end
+
+-- =============================================================================
 -- Global-search provider: features on creatures (search redesign ch4).
 --
 -- Surfaces the categorised per-creature feature index (FeatureCategoriser,
@@ -1638,10 +2107,11 @@ local mod = dmhub.GetModLoading()
 --- Open a token's character sheet landed on the Features tab, optionally
 --- pre-filtered to a feature (the Features tab's filterFeatures hook). The
 --- sheet panel is created on demand by the engine, so the tab selection
---- retries briefly until CharacterSheet.instance exists.
+--- retries briefly until CharacterSheet.instance exists. Shared by the ch4
+--- global-search provider and the ch6 tac-panel Features section.
 --- @param tokenid string
 --- @param filterText string|nil
-local function OpenSheetAtFeaturesTab(tokenid, filterText)
+function FeatureCategoriser.OpenSheetAtFeaturesTab(tokenid, filterText)
     local tok = dmhub.GetTokenById(tokenid)
     if tok == nil then
         return
@@ -1707,6 +2177,14 @@ Search.RegisterProvider{
                             end
                         end
                     end
+                    --Tier-2: the query may match the structured payload (a
+                    --granted modifier / attribute name) without matching any
+                    --display name. Still surface the feature, labelled + deep-
+                    --linked by its own name (the sheet filter resolves it).
+                    if matchName == nil and type(entry.searchText) == "string"
+                        and type(name) == "string" and Search.MatchesText(entry.searchText, needle) then
+                        matchName = name
+                    end
                     if matchName ~= nil then
                         local capturedId = token.id
                         local capturedName = matchName
@@ -1719,7 +2197,7 @@ Search.RegisterProvider{
                             activate = function()
                                 dmhub.SelectToken(capturedId)
                                 dmhub.CenterOnToken(capturedId)
-                                OpenSheetAtFeaturesTab(capturedId, capturedName)
+                                FeatureCategoriser.OpenSheetAtFeaturesTab(capturedId, capturedName)
                             end,
                         }
                     end

@@ -5558,7 +5558,7 @@ function TacPanel.Features()
     local m_expanded = {}     -- bucketId -> true (group expansion, survives refresh)
     local m_expandedLevels = {} -- level -> true (Class by-level sub-groups)
 
-    local section, filterInput, clearFilterButton, countLabel, groupsContainer
+    local section, filterInput, clearButton, countLabel, groupsContainer
 
     --A wrapped chip body for a set of entries.
     local function chipWrap(token, entries)
@@ -5707,16 +5707,14 @@ function TacPanel.Features()
         return false
     end
 
-    --Keep the filter input in sync with m_filter. When the filter came from the
-    --title-bar search the input is left EMPTY -- the search already shows the
-    --term in its own box, and mirroring it here reads as a confusing double
-    --entry; the count line ("Showing X of Y" + Clear filter) carries it instead.
-    --A manually typed filter does show in the input. Setting the input's text
-    --programmatically does NOT fire its change event, so this is safe.
+    --Keep the filter input + its inline clear (X) in sync with m_filter. Setting
+    --the input's text programmatically does NOT fire its change event, so the
+    --title-bar-driven path can populate it safely. The search-driven update is
+    --DEBOUNCED (see onGlobalQuery) so the term only appears once typing settles,
+    --rather than mirroring the global box keystroke-by-keystroke.
     local function syncFilterInput()
-        if filterInput ~= nil then
-            filterInput.text = m_filterFromGlobal and "" or m_filter
-        end
+        if filterInput ~= nil then filterInput.text = m_filter end
+        if clearButton ~= nil then clearButton:SetClass("collapsed", m_filter == "") end
     end
 
     --Rebuild the groups container + count from the curated index. Collapses the
@@ -5766,7 +5764,6 @@ function TacPanel.Features()
             if filtering then
                 countLabel.text = string.format("No matches in %d features", index.total)
                 countLabel:SetClass("collapsed", false)
-                if clearFilterButton ~= nil then clearFilterButton:SetClass("collapsed", false) end
                 groupsContainer.children = {}
                 section:SetClass("collapsed", false)
                 return
@@ -5783,7 +5780,6 @@ function TacPanel.Features()
             countLabel.text = string.format("%d features", index.total)
         end
         countLabel:SetClass("collapsed", false)
-        if clearFilterButton ~= nil then clearFilterButton:SetClass("collapsed", not filtering) end
     end
 
     --Set the filter (used by the title-bar search path). When it populates the
@@ -5800,27 +5796,24 @@ function TacPanel.Features()
         end
     end
 
-    --Subscribe to the live title-bar search. When the query matches curated
-    --content on the selected token, drive THIS section's Filter box with it, so
-    --the filtered list shows the term + a clear (X) button -- making it obvious
-    --the list is not the whole set. A query that matches nothing here is
-    --ignored (a user-typed local filter is never clobbered), except that
-    --clearing/refining the search clears a filter the search itself set.
-    local function onGlobalQuery(text)
-        if section == nil or not section.valid then
-            Search.UnregisterQueryListener(section)
-            return
-        end
+    --Apply a title-bar query to this section's filter. When the query matches
+    --curated content on the selected token, the Filter box is driven with it (so
+    --the filtered list shows the term + the clear X), making it obvious the list
+    --is not the whole set. A query that matches nothing here is ignored (a
+    --user-typed local filter is never clobbered), except that clearing/refining
+    --the search clears a filter the search itself set. Below the minimum length
+    --the query is treated as no-match so a stray letter never filters.
+    local FILTER_MIN_QUERY = 2
+    local function applyGlobalQuery(text)
+        if section == nil or not section.valid then return end
         local q = Search.Normalize(text or "")
         local token = m_token
         local matches = false
-        if q ~= "" and token ~= nil and token.valid and token.properties ~= nil then
+        if #q >= FILTER_MIN_QUERY and token ~= nil and token.valid and token.properties ~= nil then
             local index = FeatureCategoriser.BuildTacIndex(token.properties)
             matches = indexHasMatch(token.properties, index, q)
         end
         if matches then
-            --Only the search's own filter (or an empty box) is overwritten; a
-            --filter the user typed by hand stays put.
             if (m_filter == "" or m_filterFromGlobal) and (text or "") ~= m_filter then
                 setFilter(text, true)
             end
@@ -5828,6 +5821,46 @@ function TacPanel.Features()
             setFilter("", false)
         end
     end
+
+    --Subscribe to the live title-bar search, DEBOUNCED: a query only drives the
+    --filter once typing pauses (the user asked it to wait for a more complete
+    --query rather than react to every keystroke). A generation token cancels a
+    --superseded query so only the latest settles.
+    local m_querySeq = 0
+    local function onGlobalQuery(text)
+        if section == nil or not section.valid then
+            Search.UnregisterQueryListener(section)
+            return
+        end
+        m_querySeq = m_querySeq + 1
+        local seq = m_querySeq
+        dmhub.Schedule(0.4, function()
+            if mod.unloaded or seq ~= m_querySeq then return end
+            applyGlobalQuery(text)
+        end)
+    end
+
+    --Inline clear (X) button INSIDE the filter input, mirroring the compendium
+    --"Filter Compendium..." box: a floating close icon at the input's right
+    --edge, shown only when there is text.
+    clearButton = gui.Panel{
+        floating = true,
+        bgimage = "ui-icons/close.png",
+        bgcolor = "@fgMuted",
+        width = 12,
+        height = 12,
+        halign = "right",
+        valign = "center",
+        x = -4,
+        classes = {"collapsed"},
+        press = function()
+            m_filter = ""
+            m_filterFromGlobal = false
+            if filterInput ~= nil then filterInput.text = "" end
+            clearButton:SetClass("collapsed", true)
+            rebuild()
+        end,
+    }
 
     filterInput = gui.Input{
         classes = {"input"},
@@ -5842,40 +5875,22 @@ function TacPanel.Features()
         change = function(element)
             m_filter = element.text or ""
             m_filterFromGlobal = false   -- the user is driving the filter now
+            clearButton:SetClass("collapsed", m_filter == "")
             rebuild()
         end,
     }
+    filterInput:AddChild(clearButton)
 
-    --A single "Clear filter" affordance sits inline with the feature count, so
-    --it reads as one row ("Showing X of Y features  Clear filter") and works the
-    --same whether the filter was typed here or driven by the title-bar search.
     countLabel = gui.Label{
-        classes = {"label"},
-        width = "auto",
+        classes = {"label", "collapsed"},
+        width = "100%",
         height = "auto",
         halign = "left",
-        valign = "center",
+        lmargin = 2,
+        tmargin = 2,
         fontSize = 11,
         color = "@fgMuted",
         text = "",
-    }
-
-    clearFilterButton = gui.Label{
-        classes = {"label", "collapsed"},
-        width = "auto",
-        height = "auto",
-        halign = "left",
-        valign = "center",
-        lmargin = 8,
-        fontSize = 11,
-        color = "@accent",
-        text = "Clear filter",
-        press = function()
-            m_filter = ""
-            m_filterFromGlobal = false
-            if filterInput ~= nil then filterInput.text = "" end
-            rebuild()
-        end,
     }
 
     groupsContainer = gui.Panel{
@@ -5905,9 +5920,9 @@ function TacPanel.Features()
             m_token = token
             rebuild()
             --Re-evaluate any active title-bar search against the new creature so
-            --a search-driven filter follows token switches (and clears if the
-            --new creature has no match).
-            onGlobalQuery(Search.GetGlobalQuery())
+            --a search-driven filter follows token switches (immediate, not
+            --debounced -- a switch is not typing).
+            applyGlobalQuery(Search.GetGlobalQuery())
         end,
         refreshToken = function(element, token)
             element:FireEvent("refreshCharacter", token)
@@ -5917,8 +5932,11 @@ function TacPanel.Features()
         end,
 
         gui.Panel{
-            width = "100%",
+            --Inset from the right so the input ends BEFORE the dock scrollbar
+            --(it used to run underneath it).
+            width = "100%-14",
             height = "auto",
+            halign = "left",
             flow = "horizontal",
             valign = "center",
             hpad = 4,
@@ -5926,16 +5944,7 @@ function TacPanel.Features()
             borderBox = true,
             filterInput,
         },
-        gui.Panel{
-            width = "100%",
-            height = "auto",
-            flow = "horizontal",
-            valign = "center",
-            lmargin = 2,
-            tmargin = 2,
-            countLabel,
-            clearFilterButton,
-        },
+        countLabel,
         groupsContainer,
     }
 

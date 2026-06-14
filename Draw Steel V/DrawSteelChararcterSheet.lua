@@ -5978,7 +5978,6 @@ local function FeaturesIndexPanel()
         local tri = nil
         if expandable then
             tri = FeatureExpandoArrow(expanded, {
-                halign = "right",
                 valign = "center",
             })
         end
@@ -6020,15 +6019,19 @@ local function FeaturesIndexPanel()
 
         local headerChildren = {
             gui.Panel{
-                width = "100%-60",
+                width = "100%-80",
                 height = "auto",
                 flow = "vertical",
                 halign = "left",
                 children = titleChildren,
             },
         }
+        --Right-side controls live in one right-aligned cluster so the expand
+        --arrow keeps a fixed position on every row; the "Choose" pill sits to
+        --its left rather than pushing the arrow inward.
+        local rightChildren = {}
         if (entry._unspent or 0) > 0 then
-            headerChildren[#headerChildren+1] = gui.Label{
+            rightChildren[#rightChildren+1] = gui.Label{
                 classes = {"featureChoiceBadge"},
                 width = "auto",
                 height = "auto",
@@ -6036,13 +6039,23 @@ local function FeaturesIndexPanel()
                 hpad = 6,
                 vpad = 1,
                 borderBox = true,
-                halign = "right",
                 valign = "center",
+                hmargin = 4,
                 text = "Choose",
             }
         end
         if tri ~= nil then
-            headerChildren[#headerChildren+1] = tri
+            rightChildren[#rightChildren+1] = tri
+        end
+        if #rightChildren > 0 then
+            headerChildren[#headerChildren+1] = gui.Panel{
+                width = "auto",
+                height = "auto",
+                flow = "horizontal",
+                halign = "right",
+                valign = "center",
+                children = rightChildren,
+            }
         end
 
         local header = gui.Panel{

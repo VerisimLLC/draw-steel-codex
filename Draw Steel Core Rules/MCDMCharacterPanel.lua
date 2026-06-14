@@ -5558,7 +5558,7 @@ function TacPanel.Features()
     local m_expanded = {}     -- bucketId -> true (group expansion, survives refresh)
     local m_expandedLevels = {} -- level -> true (Class by-level sub-groups)
 
-    local section, filterInput, clearButton, countLabel, groupsContainer
+    local section, filterInput, clearFilterButton, countLabel, groupsContainer
 
     --A wrapped chip body for a set of entries.
     local function chipWrap(token, entries)
@@ -5707,12 +5707,16 @@ function TacPanel.Features()
         return false
     end
 
-    --Keep the filter input + clear button in sync with m_filter. Setting the
-    --input's text programmatically does NOT fire its change event, so this is
-    --safe to call from the title-bar-driven path.
+    --Keep the filter input in sync with m_filter. When the filter came from the
+    --title-bar search the input is left EMPTY -- the search already shows the
+    --term in its own box, and mirroring it here reads as a confusing double
+    --entry; the count line ("Showing X of Y" + Clear filter) carries it instead.
+    --A manually typed filter does show in the input. Setting the input's text
+    --programmatically does NOT fire its change event, so this is safe.
     local function syncFilterInput()
-        if filterInput ~= nil then filterInput.text = m_filter end
-        if clearButton ~= nil then clearButton:SetClass("collapsed", m_filter == "") end
+        if filterInput ~= nil then
+            filterInput.text = m_filterFromGlobal and "" or m_filter
+        end
     end
 
     --Rebuild the groups container + count from the curated index. Collapses the
@@ -5762,6 +5766,7 @@ function TacPanel.Features()
             if filtering then
                 countLabel.text = string.format("No matches in %d features", index.total)
                 countLabel:SetClass("collapsed", false)
+                if clearFilterButton ~= nil then clearFilterButton:SetClass("collapsed", false) end
                 groupsContainer.children = {}
                 section:SetClass("collapsed", false)
                 return
@@ -5778,6 +5783,7 @@ function TacPanel.Features()
             countLabel.text = string.format("%d features", index.total)
         end
         countLabel:SetClass("collapsed", false)
+        if clearFilterButton ~= nil then clearFilterButton:SetClass("collapsed", not filtering) end
     end
 
     --Set the filter (used by the title-bar search path). When it populates the
@@ -5825,7 +5831,7 @@ function TacPanel.Features()
 
     filterInput = gui.Input{
         classes = {"input"},
-        width = "100%-22",
+        width = "100%",
         height = 22,
         halign = "left",
         fontSize = 12,
@@ -5836,40 +5842,40 @@ function TacPanel.Features()
         change = function(element)
             m_filter = element.text or ""
             m_filterFromGlobal = false   -- the user is driving the filter now
-            clearButton:SetClass("collapsed", m_filter == "")
             rebuild()
         end,
     }
 
-    clearButton = gui.Label{
-        classes = {"label", "collapsed"},
-        width = 18,
-        height = 22,
-        halign = "right",
-        valign = "center",
-        textAlignment = "center",
-        fontSize = 14,
-        color = "@fgMuted",
-        text = "X",
-        press = function()
-            m_filter = ""
-            m_filterFromGlobal = false
-            filterInput.text = ""
-            clearButton:SetClass("collapsed", true)
-            rebuild()
-        end,
-    }
-
+    --A single "Clear filter" affordance sits inline with the feature count, so
+    --it reads as one row ("Showing X of Y features  Clear filter") and works the
+    --same whether the filter was typed here or driven by the title-bar search.
     countLabel = gui.Label{
-        classes = {"label", "collapsed"},
-        width = "100%",
+        classes = {"label"},
+        width = "auto",
         height = "auto",
         halign = "left",
-        lmargin = 2,
-        tmargin = 2,
+        valign = "center",
         fontSize = 11,
         color = "@fgMuted",
         text = "",
+    }
+
+    clearFilterButton = gui.Label{
+        classes = {"label", "collapsed"},
+        width = "auto",
+        height = "auto",
+        halign = "left",
+        valign = "center",
+        lmargin = 8,
+        fontSize = 11,
+        color = "@accent",
+        text = "Clear filter",
+        press = function()
+            m_filter = ""
+            m_filterFromGlobal = false
+            if filterInput ~= nil then filterInput.text = "" end
+            rebuild()
+        end,
     }
 
     groupsContainer = gui.Panel{
@@ -5919,9 +5925,17 @@ function TacPanel.Features()
             tmargin = 2,
             borderBox = true,
             filterInput,
-            clearButton,
         },
-        countLabel,
+        gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            valign = "center",
+            lmargin = 2,
+            tmargin = 2,
+            countLabel,
+            clearFilterButton,
+        },
         groupsContainer,
     }
 

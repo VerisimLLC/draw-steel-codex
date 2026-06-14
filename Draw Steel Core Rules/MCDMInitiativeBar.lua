@@ -1307,6 +1307,42 @@ local g_vaStripStyles = {
     },
 }
 
+-- Fire a villain action's ability off-turn: pan to the caster, show the
+-- dramatic banner, then invoke the ability via the action bar after the
+-- banner finishes. Shared by the drawer's normal click (gated) and the
+-- right-click "Use anyway" override (ungated), so both paths run the exact
+-- same cast pipeline.
+local function InvokeVillainAction(token, ability)
+    if token == nil or ability == nil or not token.valid then return end
+
+    -- Pan camera to the caster (fire-and-forget; near-instant).
+    dmhub.CenterOnToken(token.charid, {smooth=true})
+
+    -- Build subtitle from the villainAction field with roman numerals.
+    local subtitle = ability:try_get("villainAction") or ""
+    subtitle = string.gsub(subtitle, "3", "III")
+    subtitle = string.gsub(subtitle, "2", "II")
+    subtitle = string.gsub(subtitle, "1", "I")
+
+    DramaticBanner.Show{
+        tokenid = token.charid,
+        text = ability.name or "",
+        subtitle = subtitle,
+    }
+
+    -- After the banner finishes, invoke the ability off-turn via the action
+    -- bar's invokeAbility event. This pushes the caster onto the action bar's
+    -- caster stack and runs the normal cast pipeline (target selection,
+    -- behaviors) without advancing the initiative queue's currentTurn.
+    local delay = DramaticBanner.TimeUntilDone() + 0.2
+    dmhub.Schedule(delay, function()
+        if mod.unloaded then return end
+        if token == nil or not token.valid then return end
+        if gamehud == nil or gamehud.actionBarPanel == nil then return end
+        gamehud.actionBarPanel:FireEventTree("invokeAbility", token, ability, {}, nil, {})
+    end)
+end
+
 local function CreateVillainActionDrawer(slotKey, slotNumeral)
     local m_token = nil
     local m_ability = nil
@@ -1424,38 +1460,53 @@ local function CreateVillainActionDrawer(slotKey, slotNumeral)
             -- Gate: drawer is unavailable if this VA is already consumed
             -- this encounter, or if the per-round VA budget is spent.
             -- The hover tooltip above explains which gate is blocking.
+            -- Right-click "Use anyway" bypasses both gates (see below).
             if VillainActionState.HasUsed(m_token.charid, slotKey) then return end
             if CharacterResource.GetVillainActions() <= 0 then return end
 
-            -- Pan camera to the caster (fire-and-forget; near-instant).
-            dmhub.CenterOnToken(m_token.charid, {smooth=true})
+            InvokeVillainAction(m_token, m_ability)
+        end,
 
-            -- Build subtitle from the villainAction field with roman numerals.
-            local subtitle = m_ability:try_get("villainAction") or ""
-            subtitle = string.gsub(subtitle, "3", "III")
-            subtitle = string.gsub(subtitle, "2", "II")
-            subtitle = string.gsub(subtitle, "1", "I")
+        -- Right-click override menu (director only). Gives a way out of the
+        -- "already used this encounter" / spent-budget state when a cast
+        -- failed to resolve or needs to be redone, without removing the
+        -- normal gating. "Use anyway" fires regardless of the gates; "Reset"
+        -- un-consumes the slot so the drawer lights up and left-click works
+        -- again (the monitored VillainActionState doc auto-refreshes it).
+        rightClick = function(element)
+            if m_token == nil or m_ability == nil or not m_token.valid then return end
+            if not CanControlInitiative() then return end
 
-            DramaticBanner.Show{
-                tokenid = m_token.charid,
-                text = m_ability.name or "",
-                subtitle = subtitle,
-            }
-
-            -- After the banner finishes, invoke the ability off-turn via
-            -- the action bar's invokeAbility event. This pushes the caster
-            -- onto the action bar's caster stack and runs the normal cast
-            -- pipeline (target selection, behaviors) without advancing the
-            -- initiative queue's currentTurn.
             local token = m_token
             local ability = m_ability
-            local delay = DramaticBanner.TimeUntilDone() + 0.2
-            dmhub.Schedule(delay, function()
-                if mod.unloaded then return end
-                if token == nil or not token.valid then return end
-                if gamehud == nil or gamehud.actionBarPanel == nil then return end
-                gamehud.actionBarPanel:FireEventTree("invokeAbility", token, ability, {}, nil, {})
-            end)
+            local consumed = VillainActionState.HasUsed(token.charid, slotKey)
+
+            element.popup = gui.ContextMenu{
+                entries = {
+                    {
+                        text = "Use anyway",
+                        click = function()
+                            element.popup = nil
+                            InvokeVillainAction(token, ability)
+                        end,
+                    },
+                    {
+                        text = "Reset this Villain Action",
+                        click = function()
+                            element.popup = nil
+                            -- Un-consume the encounter slot...
+                            VillainActionState.ClearUsed(token.charid, slotKey)
+                            -- ...and restore the per-round VA budget if it
+                            -- was spent, so the drawer is fully clickable
+                            -- again via the normal path rather than just lit.
+                            if CharacterResource.GetVillainActions() <= 0 then
+                                CharacterResource.SetVillainActions(1, "Villain Action reset")
+                            end
+                        end,
+                        hidden = not consumed,
+                    },
+                },
+            }
         end,
     }
 end

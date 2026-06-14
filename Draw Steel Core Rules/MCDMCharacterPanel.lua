@@ -5737,6 +5737,7 @@ function TacPanel.Features()
                 glowing, needle = true, g
             end
         end
+        local wasGlowing = m_glowActive
         m_glowActive = glowing
         local locked = localFiltering or glowing
 
@@ -5789,6 +5790,14 @@ function TacPanel.Features()
             countLabel.text = string.format("%d features", index.total)
         end
         countLabel:SetClass("collapsed", false)
+
+        --Flash the matched chips once when the glow first lights up (it stays
+        --steady-bordered while the query keeps matching, so this does not
+        --re-flash on every keystroke). Pulse the tree -- only chips carrying
+        --the search-flash selector brighten; headers/labels are unaffected.
+        if glowing and not wasGlowing then
+            groupsContainer:PulseClassTree("search-flash")
+        end
 
         --A glow echoes an external search, so force the section open (an
         --un-expanded section cannot glow) when the user has it collapsed.
@@ -5876,16 +5885,24 @@ function TacPanel.Features()
         width = "100%",
         height = "auto",
         flow = "vertical",
-        --Glow: a chip surfaced by the live global search gets an accent border
-        --and a brightness lift over its resting cond-chip styling. Scoped to
-        --this panel's subtree (not DefaultStyles) so it cannot leak.
+        --Glow: a chip surfaced by the live global search keeps a steady accent
+        --border so the match stays identifiable, and flashes once when matches
+        --first appear (mirrors the end-of-turn villain-action flash, subtler).
+        --Scoped to this panel's subtree (not DefaultStyles) so it cannot leak.
+        --The steady rule lists all four chip classes so it outranks the base
+        --cond-chip border rule in the cascade.
         styles = {
             {
-                selectors = {"feature-chip", "search-glow"},
-                border = 1,
+                selectors = {"panel", "cond-chip", "feature-chip", "search-glow"},
+                border = 2,
                 borderColor = "@accent",
-                brightness = 1.4,
+                brightness = 1.15,
                 transitionTime = 0.2,
+            },
+            {
+                selectors = {"feature-chip", "search-flash"},
+                brightness = 1.7,
+                transitionTime = 0.5,
             },
         },
     }

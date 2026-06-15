@@ -2804,6 +2804,8 @@ Search.RegisterContextProvider{
                     or MapTokenKindLabel(token)
                 for _,cap in ipairs(GetMonsterTokenCapabilities(token)) do
                     if Search.MatchesText(cap.name, needle) then
+                        local capName = cap.name
+                        local capCategorization = cap.categorization
                         results[#results+1] = {
                             name = cap.name,
                             score = Search.Score(cap.name, needle),
@@ -2813,6 +2815,13 @@ Search.RegisterContextProvider{
                             activate = function()
                                 dmhub.SelectToken(capturedId)
                                 dmhub.CenterOnToken(capturedId)
+                                -- An ABILITY also lands on the action bar once
+                                -- the token is selected; point the director at
+                                -- it (open its drawer + pulse the slot). Traits
+                                -- are not abilities, so they never route here.
+                                if capCategorization ~= "Trait" and Search.RevealActionBarAbility ~= nil then
+                                    Search.RevealActionBarAbility(capturedId, capName)
+                                end
                             end,
                         }
                     end

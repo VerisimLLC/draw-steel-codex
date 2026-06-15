@@ -1962,6 +1962,7 @@ Search.RegisterProvider{
                 results[#results+1] = {
                     name = name,
                     score = Search.Score(name, needle),
+                    actionLabel = "Open in Encounter Builder",
                     activate = function()
                         DockablePanel.LaunchPanelByName("Encounter creator", "show")
                     end,

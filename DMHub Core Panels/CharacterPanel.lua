@@ -2561,22 +2561,23 @@ Search.RegisterProvider{
                                 activate = function()
                                     BeginPlacingCharacter(capturedId)
                                 end,
-                                menuItems = function()
-                                    return {
-                                        {
-                                            text = "Place on Map",
-                                            click = function()
-                                                BeginPlacingCharacter(capturedId)
-                                            end,
-                                        },
-                                        {
-                                            text = "Character Sheet",
-                                            click = function()
-                                                capturedTok:ShowSheet()
-                                            end,
-                                        },
-                                    }
-                                end,
+                                -- Ordered actions (primary first). The search UI
+                                -- shows these as chips under the row; the first
+                                -- mirrors the row press.
+                                actions = {
+                                    {
+                                        text = "Place on Map",
+                                        click = function()
+                                            BeginPlacingCharacter(capturedId)
+                                        end,
+                                    },
+                                    {
+                                        text = "Character Sheet",
+                                        click = function()
+                                            capturedTok:ShowSheet()
+                                        end,
+                                    },
+                                },
                             }
                         end
                     end
@@ -2660,22 +2661,22 @@ Search.RegisterProvider{
                     activate = function()
                         BeginPlacingMonster(capturedId)
                     end,
-                    menuItems = function()
-                        return {
-                            {
-                                text = "Place on Map",
-                                click = function()
-                                    BeginPlacingMonster(capturedId)
-                                end,
-                            },
-                            {
-                                text = "Edit Monster",
-                                click = function()
-                                    EditBestiaryMonster(capturedId)
-                                end,
-                            },
-                        }
-                    end,
+                    -- Ordered actions (primary first); shown as chips, the first
+                    -- mirrors the row press.
+                    actions = {
+                        {
+                            text = "Place on Map",
+                            click = function()
+                                BeginPlacingMonster(capturedId)
+                            end,
+                        },
+                        {
+                            text = "Edit Monster",
+                            click = function()
+                                EditBestiaryMonster(capturedId)
+                            end,
+                        },
+                    },
                 }
             end
         end
@@ -2775,6 +2776,7 @@ Search.RegisterContextProvider{
                     score = Search.Score(name, needle),
                     typeLabel = MapTokenKindLabel(token),
                     token = token,
+                    actionLabel = "Center on token",
                     dedupKey = "token:" .. capturedId,
                     activate = function()
                         dmhub.SelectToken(capturedId)
@@ -2812,6 +2814,7 @@ Search.RegisterContextProvider{
                             typeLabel = onMapLabel,
                             subLabel = cap.categorization,
                             token = token,
+                            actionLabel = "Center on token",
                             activate = function()
                                 dmhub.SelectToken(capturedId)
                                 dmhub.CenterOnToken(capturedId)
@@ -2842,6 +2845,7 @@ Search.RegisterContextProvider{
                     score = Search.Score(title, needle),
                     typeLabel = "Map Note",
                     bubbleIcon = (okIcon and type(icon) == "string") and icon or "",
+                    actionLabel = "Open note",
                     dedupKey = "mapdoc:" .. string.lower(title),
                     activate = function()
                         local b = (dmhub.infoBubbles or {})[capturedId]
@@ -3029,16 +3033,23 @@ Search.RegisterProvider{
                     activate = function()
                         EditBestiaryMonster(entry.monsterId, entry.name, entry.categorization)
                     end,
-                    menuItems = function()
-                        return {
-                            {
-                                text = "Place on map",
-                                click = function()
-                                    BeginPlacingMonster(entry.monsterId)
-                                end,
-                            },
-                        }
-                    end,
+                    -- Ordered actions (primary first): View Ability opens the
+                    -- monster's editor at this ability (mirrors the row press);
+                    -- Place on Map is the secondary action.
+                    actions = {
+                        {
+                            text = "View Ability",
+                            click = function()
+                                EditBestiaryMonster(entry.monsterId, entry.name, entry.categorization)
+                            end,
+                        },
+                        {
+                            text = "Place on Map",
+                            click = function()
+                                BeginPlacingMonster(entry.monsterId)
+                            end,
+                        },
+                    },
                 }
             end
         end

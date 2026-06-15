@@ -2817,6 +2817,7 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page)
                     name = m.heading,
                     subLabel = string.format("Page %d", m.page),
                     score = m.score,
+                    actionLabel = string.format("Go to page %d", m.page),
                     activate = function()
                         mod.shared.ShowPDFViewerDialog(contextDoc, capturedPage)
                     end,

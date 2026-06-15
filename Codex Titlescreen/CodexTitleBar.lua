@@ -428,6 +428,7 @@ Search.RegisterProvider{
                     score = Search.Score(name, needle),
                     typeLabel = TokenKindLabel(token),
                     token = token,
+                    actionLabel = "Center on token",
                     -- Lets the "On this map" context group dedupe this token out
                     -- of the bucket while it is pinned there (same key the
                     -- map-view provider stamps).
@@ -465,6 +466,7 @@ local function CreateSearchBar()
                 name = m.heading,
                 subLabel = string.format("%s, page %d", doc.description, m.page),
                 score = cond(i == 1, m.score, m.score * 0.1),
+                actionLabel = string.format("Go to page %d", m.page),
                 click = function()
                     OpenPDFDocument(doc, capturedPage)
                 end,
@@ -595,12 +597,40 @@ local function CreateSearchBar()
         return SEARCH_ICON_COMPENDIUM
     end
 
+    -- The ordered action list for a result, primary first. Three sources, in
+    -- priority order: an explicit result.actions list (the modern form), a
+    -- legacy result.menuItems() function (its first entry is the primary), or a
+    -- single synthesised action from result.click/activate labelled by
+    -- result.actionLabel (default "Open"). The first action always mirrors what
+    -- pressing the row does, so the primary chip and the row press agree.
+    local function BuildResultActions(result)
+        if type(result.actions) == "table" and #result.actions > 0 then
+            return result.actions
+        end
+        if result.menuItems ~= nil then
+            local ok, items = pcall(result.menuItems)
+            if ok and type(items) == "table" and #items > 0 then
+                return items
+            end
+        end
+        local primaryClick = result.click or result.activate
+        if primaryClick ~= nil then
+            return { { text = result.actionLabel or "Open", click = primaryClick } }
+        end
+        return {}
+    end
+
     -- One result row: a leading per-type icon, then a highlighted name
     -- (provider results) or preformatted text (legacy handlers), plus an
-    -- optional muted type/source label, plus an optional subhead line under
-    -- the name (e.g. PDF results show the matched heading with "doc, page N"
-    -- beneath it). Pressing runs the result's action and dismisses the popup.
-    local function CreateResultRow(result, needle)
+    -- optional muted type/source label on the right. Beneath the name sit an
+    -- optional context line (e.g. "Signature Ability", "Level 1 Horde", or a
+    -- PDF's "doc, page N") and a row of action chips that spell out what each
+    -- click does (primary first, then secondaries spaced apart). Pressing the
+    -- row runs the primary action; pressing a chip runs that action. Both
+    -- dismiss the popup. `opts.noActions` suppresses the chip row (used by the
+    -- pinned context group, which stays deliberately clean).
+    local function CreateResultRow(result, needle, opts)
+        opts = opts or {}
         -- A placed token renders its own portrait (Hero/retainer/NPC/monster
         -- already on the map); everything else gets a flat per-type glyph. If
         -- the token went invalid since enumeration, fall back to the glyph.
@@ -636,80 +666,126 @@ local function CreateSearchBar()
             text = result.name ~= nil and Search.Highlight(result.name, needle) or (result.text or ""),
         }
 
-        local nameBlock = nameLabel
+        -- Run a result action: record it as recent, dismiss the popup, clear
+        -- the query (deselect no longer does this while the pointer is on the
+        -- popup), then invoke the action. Shared by the row press and the chips
+        -- so they dismiss identically.
+        local function activate(clickFn)
+            RecordRecentResult(result)
+            -- clearing the text fires edit("") - don't let that pop the
+            -- recents group right after navigating away.
+            resultPanel.data.skipRecentsOnce = true
+            resultPanel.popup = nil
+            resultPanel.text = ""
+            if clickFn ~= nil then
+                clickFn()
+            end
+        end
+
+        -- Name + optional context line + optional action chips, stacked. The
+        -- context line (result.subLabel) stays on its OWN line rather than
+        -- merged onto the right-hand type chip: Draw Steel villain/signature
+        -- ability names are full sentences, so merging would clip the majority
+        -- of monster-ability rows at the search box width.
+        local blockChildren = { nameLabel }
+
         if result.subLabel ~= nil then
+            blockChildren[#blockChildren+1] = gui.Label{
+                classes = {"searchResultSub"},
+                text = result.subLabel,
+            }
+        end
+
+        -- Secondary action buttons are collected here and placed in the RIGHT
+        -- column (under the type chip); the primary hint stays under the name.
+        local secondaryButtons = {}
+        if not opts.noActions then
+            local actions = BuildResultActions(result)
+            if #actions > 0 then
+                -- Primary action: a muted hint ("> Open in Compendium") under
+                -- the name spelling out what pressing the ROW does. Descriptive,
+                -- not a button -- the row press performs it -- so single-action
+                -- rows get just this line and no button at all.
+                blockChildren[#blockChildren+1] = gui.Panel{
+                    classes = {"searchActionLine"},
+                    flow = "horizontal",
+                    width = "auto",
+                    height = "auto",
+                    halign = "left",
+                    gui.Panel{ classes = {"searchHintArrow"} },
+                    gui.Label{ classes = {"searchHintText"}, text = actions[1].text },
+                }
+
+                -- Secondary actions: small outlined buttons. swallowPress stops
+                -- the press from also reaching the row (a press hits a panel AND
+                -- all its parents by default), so a button runs ONLY its own
+                -- action, never the row's primary as well.
+                for i=2,#actions do
+                    local capturedClick = actions[i].click
+                    secondaryButtons[#secondaryButtons+1] = gui.Label{
+                        classes = {"searchResultChip"},
+                        text = actions[i].text,
+                        swallowPress = true,
+                        press = function(element)
+                            activate(capturedClick)
+                        end,
+                    }
+                end
+            end
+        end
+
+        local nameBlock
+        if #blockChildren == 1 then
+            nameBlock = nameLabel
+        else
             nameBlock = gui.Panel{
                 flow = "vertical",
                 width = "auto",
                 height = "auto",
                 halign = "left",
                 valign = "center",
-                nameLabel,
-                gui.Label{
-                    classes = {"searchResultSub"},
-                    text = result.subLabel,
-                },
+                children = blockChildren,
             }
         end
 
-        local typeLabel = nil
+        -- RIGHT column: the muted type chip on top, then any secondary action
+        -- buttons stacked beneath it (e.g. a monster ability's "Place on Map"
+        -- sits under the monster name). Omitted when there is neither.
+        local rightBlock = nil
+        local rightChildren = {}
         if result.typeLabel ~= nil then
-            typeLabel = gui.Label{
+            rightChildren[#rightChildren+1] = gui.Label{
                 classes = {"searchResultType"},
                 text = result.typeLabel,
             }
+        end
+        for _,btn in ipairs(secondaryButtons) do
+            rightChildren[#rightChildren+1] = btn
+        end
+        if #rightChildren > 0 then
+            rightBlock = gui.Panel{
+                classes = {"searchResultRight"},
+                flow = "vertical",
+                width = "auto",
+                height = "auto",
+                halign = "right",
+                valign = "top",
+                children = rightChildren,
+            }
+        end
+
+        local rowChildren = { iconPanel, nameBlock }
+        if rightBlock ~= nil then
+            rowChildren[#rowChildren+1] = rightBlock
         end
 
         return gui.Panel{
             classes = {"searchResultRow"},
             flow = "horizontal",
             press = function()
-                RecordRecentResult(result)
-                -- clearing the text fires edit("") - don't let that pop the
-                -- recents group right after navigating away.
-                resultPanel.data.skipRecentsOnce = true
-                resultPanel.popup = nil
-                -- deselect no longer clears the query when the pointer is on
-                -- the popup, so reset it here on activation.
-                resultPanel.text = ""
-                if result.click ~= nil then
-                    result.click()
-                elseif result.activate ~= nil then
-                    result.activate()
-                end
+                activate(result.click or result.activate)
             end,
-            -- Providers can attach secondary actions via a menuItems function
-            -- returning {text, click} entries (e.g. monsters: Place on Map /
-            -- Edit Monster). Activating an entry dismisses the search popup
-            -- the same way a row press does.
-            rightClick = function(element)
-                if result.menuItems == nil then
-                    return
-                end
-                local entries = {}
-                for _,item in ipairs(result.menuItems()) do
-                    local capturedClick = item.click
-                    entries[#entries+1] = {
-                        text = item.text,
-                        click = function()
-                            RecordRecentResult(result)
-                            resultPanel.data.skipRecentsOnce = true
-                            element.popup = nil
-                            resultPanel.popup = nil
-                            resultPanel.text = ""
-                            if capturedClick ~= nil then
-                                capturedClick()
-                            end
-                        end,
-                    }
-                end
-                if #entries > 0 then
-                    element.popup = gui.ContextMenu{ entries = entries }
-                end
-            end,
-            iconPanel,
-            nameBlock,
-            typeLabel,
+            children = rowChildren,
         }
     end
 
@@ -727,14 +803,14 @@ local function CreateSearchBar()
         local children = {}
         local navRows = {}
 
-        local function AppendGroup(label, list, expandKey)
+        local function AppendGroup(label, list, expandKey, noActions)
             children[#children+1] = gui.Label{
                 classes = {"searchGroupHeading"},
                 text = string.format("<b>%s</b> (%d)", label, #list),
             }
             local shown = expanded[expandKey] and #list or math.min(#list, SEARCH_BUCKET_SHOWN)
             for i=1,shown do
-                local row = CreateResultRow(list[i], needle)
+                local row = CreateResultRow(list[i], needle, {noActions = noActions})
                 children[#children+1] = row
                 navRows[#navRows+1] = {panel = row, event = "press"}
             end
@@ -761,7 +837,9 @@ local function CreateSearchBar()
         -- Context group ("In this document" / "On this map" / ...): pinned
         -- ABOVE the intent buckets, additive - never replaces global reach.
         if context ~= nil and #context.results > 0 then
-            AppendGroup(context.label, context.results, "context")
+            -- Context rows render their action hint like every other row. The
+            -- noActions hook remains for any future group that wants to opt out.
+            AppendGroup(context.label, context.results, "context", context.noActions)
         end
 
         for _,bucket in ipairs(SEARCH_BUCKETS) do
@@ -879,6 +957,7 @@ local function CreateSearchBar()
                 local itemCopy = DeepCopy(item)
                 itemCopy.score = scoreMatch(itemCopy.text, text)
                 itemCopy.bucket = "apptools"
+                itemCopy.actionLabel = "Open"
                 results[#results+1] = itemCopy
             end
         end
@@ -890,6 +969,7 @@ local function CreateSearchBar()
                 itemCopy.score = scoreMatch(itemCopy.name, text)
                 itemCopy.text = string.format("<b>%s</b> (Shortcut)", itemCopy.name)
                 itemCopy.bucket = "apptools"
+                itemCopy.actionLabel = "Edit in Settings"
                 itemCopy.click = function()
                     dmhub.ShowPlayerSettings{search = itemCopy.name}
                 end
@@ -904,6 +984,7 @@ local function CreateSearchBar()
                 itemCopy.score = scoreMatch(itemCopy.description, text)
                 itemCopy.text = string.format("<b>%s</b> (Setting)", itemCopy.description)
                 itemCopy.bucket = "apptools"
+                itemCopy.actionLabel = "Open in Settings"
                 itemCopy.click = function()
                     dmhub.ShowPlayerSettings{search = itemCopy.description}
                 end
@@ -920,6 +1001,20 @@ local function CreateSearchBar()
             -- consistently with the rest of the grouped results.
             link.typeLabel = link.type
             link.bucket = BucketForLinkType(link.type)
+            -- Primary-action copy by link kind (rulebooks, journals, maps); a
+            -- prefix suggestion ("Search items...") narrows the query, and any
+            -- other markdown-table entry opens its content.
+            if link.isPrefix then
+                link.actionLabel = "Search this category"
+            elseif link.type == "PDF Document" or link.type == "PDF Fragment" then
+                link.actionLabel = "Open rulebook"
+            elseif link.type == "Document" then
+                link.actionLabel = "Open journal"
+            elseif link.type == "Map" then
+                link.actionLabel = "Go to map"
+            else
+                link.actionLabel = "Open"
+            end
             -- A map note's backing document also surfaces here as a "Document".
             -- Key it by title so that, when the note is pinned in "On this map",
             -- this journal twin is deduped out of the bucket. (When the map
@@ -1089,6 +1184,10 @@ local function CreateSearchBar()
         popupPositioning = "panel",
         placeholderText = cond(dmhub.GetCommandBinding("find"), string.format("Search (%s)...", dmhub.GetCommandBinding("find") or ""), "Search..."),
         inputEvents = { "find" },
+        -- Trailing debounce: coalesce keystrokes so a fast typist does not run
+        -- the provider sweep (all ~574 monsters etc.) on every key. Kept at
+        -- 0.1s -- 0.2s felt laggy; the typed text always updates instantly and
+        -- only the result computation waits this long.
         editlag = 0.1,
         edit = function(element)
             local status = executeSearch(element.text)
@@ -1773,6 +1872,65 @@ local function CreateTopBar()
             halign = "left",
             color = "@fgMuted",
             fontSize = 12,
+        },
+        {
+            -- The primary-action hint line under the name: a muted lead-in
+            -- arrow + text describing what pressing the row does.
+            selectors = {"searchActionLine"},
+            tmargin = 4,
+            valign = "center",
+        },
+        {
+            -- Right column: the type chip plus any secondary action buttons,
+            -- stacked. lmargin keeps it off the name when the row is narrow.
+            selectors = {"searchResultRight"},
+            lmargin = 8,
+        },
+        {
+            -- Small right-pointing lead-in arrow, tinted to match the muted
+            -- hint text so it reads as "this happens on click".
+            selectors = {"searchHintArrow"},
+            width = 11,
+            height = 11,
+            valign = "center",
+            rmargin = 5,
+            bgimage = "icons/icon_arrow/icon_arrow_28.png",
+            bgcolor = "@fgMuted",
+        },
+        {
+            selectors = {"searchHintText"},
+            width = "auto",
+            height = "auto",
+            valign = "center",
+            color = "@fgMuted",
+            fontSize = 12,
+        },
+        {
+            -- Secondary action: small outlined button in the right column,
+            -- right-aligned under the type chip; tmargin separates it from the
+            -- chip above (and from sibling buttons when there is more than one).
+            selectors = {"searchResultChip"},
+            width = "auto",
+            height = "auto",
+            halign = "right",
+            valign = "center",
+            color = "@fg",
+            fontSize = 11,
+            bgimage = "panels/square.png",
+            bgcolor = "clear",
+            borderWidth = 1,
+            borderColor = "@fgMuted",
+            cornerRadius = 4,
+            pad = 3,
+            hpad = 8,
+            borderBox = true,
+            tmargin = 5,
+        },
+        {
+            selectors = {"searchResultChip", "hover"},
+            bgcolor = "@bgAlt",
+            borderColor = "@accent",
+            color = "@accentHover",
         },
         {
             selectors = {"searchSeeAll"},

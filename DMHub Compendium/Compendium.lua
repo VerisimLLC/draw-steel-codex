@@ -5953,6 +5953,7 @@ local LibraryPanel = function()
                                             name = name,
                                             score = Search.Score(name, needle),
                                             typeLabel = CompendiumTypeLabel(opt.text),
+                                            actionLabel = "Open in Compendium",
                                             activate = function()
                                                 Compendium.Open{
                                                     contentType = capturedType,
@@ -6828,6 +6829,7 @@ Search.RegisterProvider{
                             name = name,
                             score = Search.Score(name, needle),
                             typeLabel = CompendiumTypeLabel(opt.text),
+                            actionLabel = "Open in Compendium",
                             activate = function()
                                 Compendium.Open{
                                     contentType = capturedType,
@@ -6904,6 +6906,7 @@ Search.RegisterProvider{
                     name = e.name,
                     score = Search.Score(e.name, needle),
                     typeLabel = e.className,
+                    actionLabel = "Open in Compendium",
                     activate = function()
                         Compendium.Open{
                             contentType = e.contentType,

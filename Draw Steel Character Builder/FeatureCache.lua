@@ -2220,6 +2220,7 @@ Search.RegisterProvider{
                             score = Search.Score(matchName, needle),
                             typeLabel = (bucket ~= nil and bucket.name) or "Feature",
                             subLabel = string.format("On %s", tokenName),
+                            actionLabel = "Show on Character Sheet",
                             activate = function()
                                 dmhub.SelectToken(capturedId)
                                 dmhub.CenterOnToken(capturedId)

@@ -5497,13 +5497,17 @@ end
 --- @param token CharacterToken
 --- @param name string display name
 --- @param descFn function () -> string|nil resolved on click (lazy)
+--- @param onOpen function|nil called when the popup opens (lets the owning
+---        section lock its filter so a later title-bar search change does not
+---        rebuild the list and tear this popup down)
 --- @return Panel
-function TacPanel.FeatureChip(token, name, descFn)
+function TacPanel.FeatureChip(token, name, descFn, onOpen)
     local chip
     chip = gui.Panel{
         classes = {"panel", "cond-chip", "feature-chip"},
         data = { matchName = string.lower(name or "") },
         click = function(element)
+            if onOpen ~= nil then onOpen() end
             local capturedId = token.id
             local desc = (descFn and descFn()) or "*No description.*"
             element.popupsInheritStyles = true
@@ -5560,13 +5564,22 @@ function TacPanel.Features()
 
     local section, filterInput, clearButton, countLabel, groupsContainer
 
+    --Opening a feature popup "locks" a title-bar-driven filter in place: we
+    --promote it to a user-owned filter so applyGlobalQuery stops touching it.
+    --Without this, clearing/changing the title-bar search rebuilds the list and
+    --tears down the popup the moment the user clicks a chip. The filter box
+    --still shows the term + the clear X, so it remains clearable by hand.
+    local function lockFilterOnOpen()
+        m_filterFromGlobal = false
+    end
+
     --A wrapped chip body for a set of entries.
     local function chipWrap(token, entries)
         local chipPanels = {}
         for _,e in ipairs(entries) do
             local captured = e
             chipPanels[#chipPanels+1] = TacPanel.FeatureChip(token, e.name or "Feature",
-                function() return FeatureTacDescription(captured) end)
+                function() return FeatureTacDescription(captured) end, lockFilterOnOpen)
         end
         return gui.Panel{
             classes = {"panel", "cond-chips"},
@@ -5746,7 +5759,7 @@ function TacPanel.Features()
                     classes = {"panel", "cond-chips"},
                     wrap = true,
                     lmargin = 6,
-                    TacPanel.FeatureChip(token, "With Captain", function() return captainText end),
+                    TacPanel.FeatureChip(token, "With Captain", function() return captainText end, lockFilterOnOpen),
                 }
                 shown = shown + 1
             end

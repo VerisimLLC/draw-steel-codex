@@ -149,10 +149,11 @@ end
 
 --- Adds a new downtime project to this character
 --- @param ownerId string The unique identifier of the token that owns this project
+--- @param projectId string|nil Optional GUID to assign the new project; generated when omitted
 --- @return DTProject project The newly created project
-function DTInfo:AddProject(ownerId)
+function DTInfo:AddProject(ownerId, projectId)
     local nextOrder = self:_maxProjectOrder() + 1
-    local project = DTProject.CreateNew(nextOrder, ownerId)
+    local project = DTProject.CreateNew(nextOrder, ownerId, projectId)
     self:GetProjects()[project:GetID()] = project
     return project
 end

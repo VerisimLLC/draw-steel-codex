@@ -44,11 +44,12 @@ DTProject._progressDirty = true        -- Marks cache as needing recalculation
 --- Creates a new downtime project instance
 --- @param sortOrder number The sort order for this project
 --- @param ownerId string The unique identifier of the token that owns this project
+--- @param id string|nil Optional GUID to assign; a new one is generated when omitted
 --- @return DTProject instance The new project instance
-function DTProject.CreateNew(sortOrder, ownerId)
+function DTProject.CreateNew(sortOrder, ownerId, id)
 
     local args = {
-        id = dmhub.GenerateGuid(),
+        id = id or dmhub.GenerateGuid(),
         ownerId = ownerId,
         sortOrder = sortOrder or 1,
         projectSourceLanguages = {},

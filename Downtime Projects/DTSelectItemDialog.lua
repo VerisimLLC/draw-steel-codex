@@ -1,6 +1,6 @@
 local mod = dmhub.GetModLoading()
 
---- Select Item Dialog for choosing a crafting item
+--- Select Item Dialog for choosing the source of a downtime project
 --- @class DTSelectItemDialog
 DTSelectItemDialog = RegisterGameType("DTSelectItemDialog")
 
@@ -10,9 +10,9 @@ DTSelectItemDialog = RegisterGameType("DTSelectItemDialog")
 function DTSelectItemDialog.CreateAsChild(callbacks)
     if not callbacks then callbacks = {} end
 
-    callbacks.confirmHandler = function(selectedItemId)
+    callbacks.confirmHandler = function(sourceType, selectedId)
         if callbacks and callbacks.confirm then
-            callbacks.confirm(selectedItemId)
+            callbacks.confirm(sourceType, selectedId)
         end
     end
 
@@ -50,11 +50,48 @@ function DTSelectItemDialog._createPanel(callbacks)
     end
     table.sort(craftableItems, function(a, b) return a.text < b.text end)
 
+    local activityItems = {}
+    for key, activity in unhidden_pairs(dmhub.GetTable(DowntimeActivity.tableName) or {}) do
+        activityItems[#activityItems + 1] = { id = key, text = activity.name }
+    end
+    table.sort(activityItems, function(a, b) return a.text < b.text end)
+
+    local sourceLists = {
+        crafting = craftableItems,
+        activity = activityItems,
+    }
+    local confirmLabels = {
+        crafting = "Start Craft",
+        activity = "Start Activity",
+    }
+
+    --- Switches the dialog between the crafting-project and activity sources
+    --- @param root table The dialog controller panel
+    --- @param sourceType string Either "crafting" or "activity"
+    local function selectSource(root, sourceType)
+        if root == nil then return end
+        root.data.sourceType = sourceType
+        root:FireEventTree("refreshSource", sourceType)
+
+        local dropdown = root:Get("itemSelector")
+        if dropdown then
+            dropdown.options = sourceLists[sourceType] or {}
+            dropdown.idChosen = nil
+        end
+
+        local confirmButton = root:Get("confirmButton")
+        if confirmButton then
+            confirmButton.text = confirmLabels[sourceType] or "Confirm"
+        end
+
+        root:FireEvent("validateForm")
+    end
+
     resultPanel = gui.Panel {
         classes = {"selectItemDialogController", "dialog"},
         styles = ThemeEngine.GetStyles(),
         width = 400,
-        height = 200,
+        height = 250,
         flow = "vertical",
         halign = "center",
         valign = "center",
@@ -63,6 +100,7 @@ function DTSelectItemDialog._createPanel(callbacks)
         escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
         captureEscape = true,
         data = {
+            sourceType = "crafting",
             close = function(element)
                 resultPanel:DestroySelf()
             end,
@@ -75,7 +113,7 @@ function DTSelectItemDialog._createPanel(callbacks)
         end,
 
         create = function(element)
-            element:FireEvent("validateForm")
+            selectSource(element, "crafting")
         end,
 
         close = function(element)
@@ -91,7 +129,46 @@ function DTSelectItemDialog._createPanel(callbacks)
             -- Header
             gui.Label{
                 classes = {"modalTitle"},
-                text = "Select Crafting Item",
+                text = "Select a Project Source",
+            },
+
+            -- Source toggle (segmented)
+            gui.Panel{
+                classes = {"tabBar"},
+                width = "100%+6",
+                height = 28,
+                tmargin = 12,
+                halign = "center",
+                children = {
+                    gui.Label{
+                        classes = {"tab", "selected"},
+                        text = "Crafting Projects",
+                        width = "50%",
+                        height = "100%",
+                        data = {sourceType = "crafting"},
+                        refreshSource = function(element, sourceType)
+                            element:SetClass("selected", element.data.sourceType == sourceType)
+                        end,
+                        press = function(element)
+                            local controller = element:FindParentWithClass("selectItemDialogController")
+                            selectSource(controller, element.data.sourceType)
+                        end,
+                    },
+                    gui.Label{
+                        classes = {"tab"},
+                        text = "Activities",
+                        width = "50%",
+                        height = "100%",
+                        data = {sourceType = "activity"},
+                        refreshSource = function(element, sourceType)
+                            element:SetClass("selected", element.data.sourceType == sourceType)
+                        end,
+                        press = function(element)
+                            local controller = element:FindParentWithClass("selectItemDialogController")
+                            selectSource(controller, element.data.sourceType)
+                        end,
+                    },
+                },
             },
 
             -- Content
@@ -99,10 +176,11 @@ function DTSelectItemDialog._createPanel(callbacks)
                 classes = {"formStackedRow"},
                 width = "100%",
                 halign = "center",
+                tmargin = 12,
                 children = {
                     gui.Label{
                         classes = {"formStacked"},
-                        text = "Item to Craft",
+                        text = "Selection",
                     },
                     gui.Dropdown{
                         id = "itemSelector",
@@ -142,8 +220,9 @@ function DTSelectItemDialog._createPanel(callbacks)
                         end,
                     },
                     gui.Button{
+                        id = "confirmButton",
                         classes = {"sizeL", "disabled"},
-                        text = "Confirm",
+                        text = "Start Craft",
                         halign = "right",
                         valign = "bottom",
                         interactable = false,
@@ -157,7 +236,7 @@ function DTSelectItemDialog._createPanel(callbacks)
                             if controller then
                                 local dropdown = controller:Get("itemSelector")
                                 local selectedItemId = dropdown and dropdown.idChosen or nil
-                                callbacks.confirmHandler(selectedItemId)
+                                callbacks.confirmHandler(controller.data.sourceType, selectedItemId)
                                 controller:FireEvent("close")
                             end
                         end,

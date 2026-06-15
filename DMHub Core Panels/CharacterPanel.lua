@@ -2881,8 +2881,22 @@ Search.RegisterProvider{
                     icon = "icons/standard/Icon_App_Bestiary.png",
                     typeLabel = entry.monsterName,
                     subLabel = entry.categorization,
+                    -- Searching an ability means "show me this ability", so the
+                    -- primary (left-click) action opens the monster's sheet, where
+                    -- the ability is read in full. Right-click offers the bestiary's
+                    -- other affordance: placing the monster on the map.
                     activate = function()
                         EditBestiaryMonster(entry.monsterId)
+                    end,
+                    menuItems = function()
+                        return {
+                            {
+                                text = "Place on map",
+                                click = function()
+                                    BeginPlacingMonster(entry.monsterId)
+                                end,
+                            },
+                        }
                     end,
                 }
             end

@@ -2345,10 +2345,40 @@ end
 -- monster's sheet for editing.
 -- =============================================================================
 
+--Fire a "revealCapability" event on the open sheet once it exists, so the
+--sheet expands the section holding the matched ability (action list) or
+--selects the Features sub-tab holding the matched trait. Retries briefly
+--while the sheet builds, mirroring
+--FeatureCategoriser.OpenSheetAtFeaturesTab's trySelect. A no-op when no
+--capability was threaded through (e.g. right-click "Edit Monster").
+local function RevealCapabilityOnSheet(capName, categorization)
+    if type(capName) ~= "string" or capName == "" then
+        return
+    end
+    local attempts = 0
+    local function tryReveal()
+        if mod.unloaded then
+            return
+        end
+        local sheet = rawget(CharacterSheet, "instance")
+        if sheet ~= nil and sheet ~= false and sheet.valid then
+            sheet:FireEventTree("revealCapability", capName, categorization)
+            return
+        end
+        attempts = attempts + 1
+        if attempts < 20 then
+            dmhub.Schedule(0.1, tryReveal)
+        end
+    end
+    tryReveal()
+end
+
 --Open the monster's character sheet for editing. Same pattern as the
 --bestiary right-click "Edit Monster" menu item above: the sheet works on the
 --monster's local-game bestiary token, which may need an upload to exist.
-local function EditBestiaryMonster(monsterid)
+--capName/categorization (optional) come from a search result: after the
+--sheet opens we reveal that capability (expand its section / select its tab).
+local function EditBestiaryMonster(monsterid, capName, categorization)
     local monster = assets.monsters[monsterid]
     if monster == nil or not dmhub.inGame then
         return
@@ -2366,9 +2396,11 @@ local function EditBestiaryMonster(monsterid)
                 token = monster:GetLocalGameBestiaryToken()
             end
             token:ShowSheet()
+            RevealCapabilityOnSheet(capName, categorization)
         end)
     else
         token:ShowSheet()
+        RevealCapabilityOnSheet(capName, categorization)
     end
 end
 
@@ -2986,7 +3018,7 @@ Search.RegisterProvider{
                     -- the ability is read in full. Right-click offers the bestiary's
                     -- other affordance: placing the monster on the map.
                     activate = function()
-                        EditBestiaryMonster(entry.monsterId)
+                        EditBestiaryMonster(entry.monsterId, entry.name, entry.categorization)
                     end,
                     menuItems = function()
                         return {

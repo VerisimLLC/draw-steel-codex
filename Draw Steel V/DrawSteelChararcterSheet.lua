@@ -794,6 +794,62 @@ local function CreateAbilityListPanel()
 
             element.children = children
         end,
+
+        --Deep-link hook: the bestiary monster-ability search result fires
+        --"revealCapability" after opening the sheet, to expand the action
+        --section holding the matched ability so it is visible without
+        --hunting. Traits render on the Features tab (handled there), so a
+        --"Trait" capability is ignored here; a no-op if the ability is not
+        --found. Note a name can be BOTH an ability and a trait (e.g.
+        --"Abyssal Protectors") - the categorization decides which surface
+        --reveals it.
+        revealCapability = function(element, capName, categorization)
+            if type(capName) ~= "string" or capName == "" or categorization == "Trait" then
+                return
+            end
+            local token = CharacterSheet.instance.data.info.token
+            if token == nil then
+                return
+            end
+            local c = token.properties
+            local header = nil
+
+            --Triggered abilities live in their own section, separate from
+            --the activated-ability list.
+            pcall(function()
+                for _, a in ipairs(c:GetTriggeredActions()) do
+                    if a.name == capName then
+                        header = m_triggersLabel
+                        return
+                    end
+                end
+            end)
+
+            if header == nil then
+                pcall(function()
+                    for _, a in ipairs(c:GetActivatedAbilities {}) do
+                        if a.name == capName then
+                            local ord = GetActionId(a)
+                            if ord == g_villainActionId then
+                                header = m_villainActionsLabel
+                            elseif ord == g_mainActionId then
+                                header = m_mainActionsLabel
+                            elseif ord == g_maneuverId then
+                                header = m_maneuversLabel
+                            else
+                                header = m_otherActionsLabel
+                            end
+                            return
+                        end
+                    end
+                end)
+            end
+
+            if header ~= nil then
+                header:SetClassTree("collapseSet", false)
+                element:FireEvent("refreshToken")
+            end
+        end,
     }
 
     ThemeEngine.OnThemeChanged(mod, function()
@@ -7025,6 +7081,10 @@ function CharSheet.FeaturesAndNotesPanel()
         }
     end
 
+    --Held so the revealCapability hook can select the Features tab the same
+    --way pressing it does.
+    local m_featuresTab = CreateTab("Features", 2)
+
     local resultPanel
     resultPanel = gui.Panel {
         classes = {"bordered"},
@@ -7035,13 +7095,24 @@ function CharSheet.FeaturesAndNotesPanel()
         halign = "center",
         flow = "vertical",
 
+        --Deep-link hook: a bestiary trait search result fires
+        --"revealCapability" after opening the monster sheet. A monster's
+        --traits render on the Features sub-tab (a flat list), so selecting
+        --that tab is the Phase A reveal. Abilities (non-"Trait") are handled
+        --by the action list and ignored here.
+        revealCapability = function(element, capName, categorization)
+            if categorization == "Trait" then
+                m_featuresTab:FireEvent("press")
+            end
+        end,
+
         --tab panel.
         gui.Panel {
             classes = {"tabBar"},
             valign = "top",
             width = "100%",
             CreateTab("Notes", 1),
-            CreateTab("Features", 2),
+            m_featuresTab,
             CreateTab("Followers", 3),
         },
         gui.Panel {

@@ -411,14 +411,17 @@ Search.RegisterProvider{
     id = "tokens",
     bucket = "ingame",
     enumerate = function(needle)
-        if not dmhub.inGame then
+        -- Director-only: token search leads to selection/placement, which are
+        -- director actions. A player searching their own party members was
+        -- offered a placement prompt they cannot fulfil, so campaign token
+        -- search is gated to the DM (matching the unplaced-character provider).
+        if (not dmhub.inGame) or (not dmhub.isDM) then
             return {}
         end
         local results = {}
         for _,token in ipairs(dmhub.allTokens) do
             local name = token.name
-            if type(name) == "string" and Search.MatchesText(name, needle)
-                and (dmhub.isDM or (not token.invisibleToPlayers)) then
+            if type(name) == "string" and Search.MatchesText(name, needle) then
                 local capturedId = token.id
                 results[#results+1] = {
                     name = name,

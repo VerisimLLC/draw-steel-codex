@@ -2499,7 +2499,10 @@ Search.RegisterProvider{
     id = "partyCharacters",
     bucket = "ingame",
     enumerate = function(needle)
-        if not dmhub.inGame then
+        -- Director-only: activation enters the engine's placement mode, which
+        -- is a director action. Players were offered a "place on map" prompt
+        -- they cannot fulfil, so unplaced-character search is gated to the DM.
+        if (not dmhub.inGame) or (not dmhub.isDM) then
             return {}
         end
         local placed = {}
@@ -2516,8 +2519,7 @@ Search.RegisterProvider{
                     local tok = dmhub.GetCharacterById(charid)
                     if tok ~= nil then
                         local name = tok.name
-                        if type(name) == "string" and name ~= "" and Search.MatchesText(name, needle)
-                            and (dmhub.isDM or tok.playerControlled) then
+                        if type(name) == "string" and name ~= "" and Search.MatchesText(name, needle) then
                             local capturedTok = tok
                             local capturedId = charid
                             results[#results+1] = {

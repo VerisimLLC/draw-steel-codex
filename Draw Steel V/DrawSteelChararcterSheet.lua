@@ -11,14 +11,18 @@ local g_abilityActionSortOrder = {
     [g_villainActionId] = 1,
 }
 
---Transient highlight for a capability revealed from search (Phase B). Pulsed
---via Panel:PulseClass, so the @accent fill applies instantly then fades back
---over transitionTime. The rule is merged into the action-list and Features
---panel style cascades so it resolves on either surface.
+--Transient highlight for a capability revealed from search (Phase B). The
+--reveal flashes the accent on instantly, HOLDS it, then fades out over
+--SEARCH_REVEAL_FADE (the rule's transitionTime, eased) with a dark gap before
+--the next flash - a gentle "here I am" rather than an aggressive strobe. The
+--rule is merged into the action-list and Features panel style cascades so it
+--resolves on either surface.
+local SEARCH_REVEAL_FADE = 0.8
 local SEARCH_REVEAL_RULE = {
     selectors = { "searchReveal" },
     bgcolor = "@accent",
-    transitionTime = 0.7,
+    transitionTime = SEARCH_REVEAL_FADE,
+    easing = "easeInOutSine",
 }
 
 --Scroll an arbitrary descendant into (vertically centered) view within its
@@ -96,25 +100,34 @@ local function ScrollCapabilityIntoView(target)
     return true
 end
 
---A single PulseClass fades over the rule's transitionTime (~0.7s) - quick to
---miss. Repeat it a few times so the reveal has time to register. This is a
---finite scheduled chain (no persistent think), the same shape as the villain
---action flash driver; cost is a handful of SetClass calls over ~2.4s.
+--Each pulse: fade the accent IN over SEARCH_REVEAL_FADE, HOLD at full for
+--SEARCH_REVEAL_HOLD, fade OUT over SEARCH_REVEAL_FADE (symmetric), then a slight
+--SEARCH_REVEAL_GAP pause before the next fade-in - a gentle "here I am" breathe.
+--Plain SetClass(true)/(false) animate both directions over the rule's
+--transitionTime. A finite scheduled chain (no persistent think).
 local SEARCH_REVEAL_PULSES = 3
-local SEARCH_REVEAL_PULSE_INTERVAL = 0.8
+local SEARCH_REVEAL_HOLD = 0.3
+local SEARCH_REVEAL_GAP = 0.1
 local function PulseRevealRepeated(target)
     local remaining = SEARCH_REVEAL_PULSES
-    local function pulse()
+    local function cycle()
         if mod.unloaded or target == nil or not target.valid then
             return
         end
-        target:PulseClass("searchReveal")
-        remaining = remaining - 1
-        if remaining > 0 then
-            dmhub.Schedule(SEARCH_REVEAL_PULSE_INTERVAL, pulse)
-        end
+        target:SetClass("searchReveal", true)
+        --Hold begins once the fade-in has completed.
+        dmhub.Schedule(SEARCH_REVEAL_FADE + SEARCH_REVEAL_HOLD, function()
+            if mod.unloaded or target == nil or not target.valid then
+                return
+            end
+            target:SetClass("searchReveal", false)
+            remaining = remaining - 1
+            if remaining > 0 then
+                dmhub.Schedule(SEARCH_REVEAL_FADE + SEARCH_REVEAL_GAP, cycle)
+            end
+        end)
     end
-    pulse()
+    cycle()
 end
 
 --Phase B for a revealed capability: locate the matched row (findTarget runs

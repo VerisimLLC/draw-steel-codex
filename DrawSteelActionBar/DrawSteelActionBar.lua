@@ -292,10 +292,19 @@ local g_preferredForcedMovementType = setting {
 -- ability result). Pulsed via Panel:PulseClass, so the @accent fill applies
 -- instantly then fades over transitionTime. Merged into the action bar root
 -- cascade so it resolves on the ability headings inside an opened drawer menu.
+-- Each reveal pulse fades the accent IN over SEARCH_REVEAL_FADE (eased), HOLDS
+-- it, fades OUT over the same time, then a slight SEARCH_REVEAL_GAP pause before
+-- the next - a gentle "here I am" breathe rather than a strobe (matches the
+-- sheet reveal).
+local SEARCH_REVEAL_FADE = 0.8
+local SEARCH_REVEAL_HOLD = 0.3
+local SEARCH_REVEAL_GAP = 0.1
+local SEARCH_REVEAL_PULSES = 3
 local SEARCH_REVEAL_RULE = {
     selectors = { "abilityHeading", "searchReveal" },
     bgcolor = "@accent",
-    transitionTime = 0.5,
+    transitionTime = SEARCH_REVEAL_FADE,
+    easing = "easeInOutSine",
 }
 
 -- Which drawer an ability lives in, mirroring the per-type filtering the
@@ -6458,14 +6467,21 @@ Search.RevealActionBarAbility = function(tokenid, abilityName)
             end
             walkHeading(g_actionBar, 0)
             if heading ~= nil then
-                local remaining = 3
-                local function flash()
+                --Fade the accent in, hold, fade out (both over the rule's
+                --transitionTime), then a slight pause before the next - a
+                --gentle reminder breathe, not a strobe.
+                local remaining = SEARCH_REVEAL_PULSES
+                local function cycle()
                     if mod.unloaded or heading == nil or not heading.valid then return end
-                    heading:PulseClass("searchReveal")
-                    remaining = remaining - 1
-                    if remaining > 0 then dmhub.Schedule(0.8, flash) end
+                    heading:SetClass("searchReveal", true)
+                    dmhub.Schedule(SEARCH_REVEAL_FADE + SEARCH_REVEAL_HOLD, function()
+                        if mod.unloaded or heading == nil or not heading.valid then return end
+                        heading:SetClass("searchReveal", false)
+                        remaining = remaining - 1
+                        if remaining > 0 then dmhub.Schedule(SEARCH_REVEAL_FADE + SEARCH_REVEAL_GAP, cycle) end
+                    end)
                 end
-                flash()
+                cycle()
                 return
             end
             pulseAttempts = pulseAttempts + 1

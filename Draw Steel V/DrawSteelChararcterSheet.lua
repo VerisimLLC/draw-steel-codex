@@ -96,6 +96,27 @@ local function ScrollCapabilityIntoView(target)
     return true
 end
 
+--A single PulseClass fades over the rule's transitionTime (~0.7s) - quick to
+--miss. Repeat it a few times so the reveal has time to register. This is a
+--finite scheduled chain (no persistent think), the same shape as the villain
+--action flash driver; cost is a handful of SetClass calls over ~2.4s.
+local SEARCH_REVEAL_PULSES = 3
+local SEARCH_REVEAL_PULSE_INTERVAL = 0.8
+local function PulseRevealRepeated(target)
+    local remaining = SEARCH_REVEAL_PULSES
+    local function pulse()
+        if mod.unloaded or target == nil or not target.valid then
+            return
+        end
+        target:PulseClass("searchReveal")
+        remaining = remaining - 1
+        if remaining > 0 then
+            dmhub.Schedule(SEARCH_REVEAL_PULSE_INTERVAL, pulse)
+        end
+    end
+    pulse()
+end
+
 --Phase B for a revealed capability: locate the matched row (findTarget runs
 --each retry because the row may still be building / unrendered), scroll it
 --into view, then pulse the highlight. Retries briefly while the freshly
@@ -108,7 +129,7 @@ local function ScheduleRevealAndPulse(findTarget)
         end
         local target = findTarget()
         if target ~= nil and target.valid and ScrollCapabilityIntoView(target) then
-            target:PulseClass("searchReveal")
+            PulseRevealRepeated(target)
             return
         end
         attempts = attempts + 1

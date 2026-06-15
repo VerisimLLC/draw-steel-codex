@@ -1160,6 +1160,29 @@ local g_gainConditionWithRiderIndex = nil
 local g_gainHeroicResourceIndex = nil
 local g_gainConditionByNameWithRiderIndex = nil
 
+-- A condition rider rides along on its host condition, so its duration always
+-- matches the condition's. When a rider rule supplies an explicit
+-- (eot|eoe|save ends) duration we honor it; otherwise we inherit the host
+-- condition's current duration. Conditions like Grabbed and Prone have no fixed
+-- duration (nil), so in those cases the rider simply stays active for as long
+-- as the host condition is active.
+local function ResolveRiderDuration(matchDuration, targetToken, conditionid)
+    if matchDuration ~= nil and matchDuration ~= "" then
+        local duration = string.lower(matchDuration)
+        if string.starts_with(duration, "save") then
+            duration = "save"
+        end
+        return duration
+    end
+
+    local inflicted = targetToken.properties:try_get("inflictedConditions")
+    if inflicted ~= nil and inflicted[conditionid] ~= nil then
+        return inflicted[conditionid].duration
+    end
+
+    return nil
+end
+
 dmhub.RegisterEventHandler("refreshTables", function(keys)
     if mod.unloaded then
         return
@@ -1170,16 +1193,15 @@ dmhub.RegisterEventHandler("refreshTables", function(keys)
 	end
 
 
-    -- Pattern: "Weakened Tail Spike (Save Ends)" -- condition name + rider powerTableText + duration
+    -- Pattern: "Weakened Tail Spike (Save Ends)" -- condition name + rider powerTableText + duration.
+    -- The duration is optional: a rider with no explicit duration (e.g. "Grabbed and
+    -- Roughed Up") inherits the host condition's duration. When omitted, the rider name
+    -- must be followed by end-of-rule or a connector so a shorter rider name cannot match
+    -- as a prefix of a longer one.
     g_gainConditionByNameWithRiderIndex = g_gainConditionByNameWithRiderIndex or #g_rulePatterns + 1
     g_rulePatterns[g_gainConditionByNameWithRiderIndex] = {
-        pattern = "^(?<condition>" .. GetTableNameRegex(CharacterCondition.tableName, "powertable") .. ") (?<rider>" .. GetTableNameRegex(CharacterCondition.ridersTableName, nil, "powerTableText") .. ")\\s+\\((?<duration>eot|eoe|save ends)\\)",
+        pattern = "^(?<condition>" .. GetTableNameRegex(CharacterCondition.tableName, "powertable") .. ") (?<rider>" .. GetTableNameRegex(CharacterCondition.ridersTableName, nil, "powerTableText") .. ")(?:\\s+\\((?<duration>eot|eoe|save ends)\\)|(?=$|\\s*[,;]|\\s+and\\b|\\s+then\\b))",
         execute = function(behavior, ability, casterToken, targetToken, options, match)
-            local duration = string.lower(match.duration)
-            if string.starts_with(duration, "save") then
-                duration = "save"
-            end
-
             local condName = match.condition
             local riderName = match.rider
 
@@ -1213,6 +1235,8 @@ dmhub.RegisterEventHandler("refreshTables", function(keys)
                 return
             end
 
+            local duration = ResolveRiderDuration(match.duration, targetToken, conditionid)
+
             targetToken:ModifyProperties {
                 description = "Inflict Condition",
                 execute = function()
@@ -1230,15 +1254,14 @@ dmhub.RegisterEventHandler("refreshTables", function(keys)
         end,
     }
 
+    -- Pattern: "Roughed Up (EoT)" -- bare rider powerTableText + optional duration. A rider
+    -- with no explicit duration (e.g. "and Roughed Up") inherits the duration of its host
+    -- condition. When omitted, the rider name must be followed by end-of-rule or a connector
+    -- so a shorter rider name cannot match as a prefix of a longer one.
     g_gainConditionWithRiderIndex = g_gainConditionWithRiderIndex or #g_rulePatterns + 1
     g_rulePatterns[g_gainConditionWithRiderIndex] = {
-        pattern = "^(?<rider>" .. GetTableNameRegex(CharacterCondition.ridersTableName, nil, "powerTableText") .. ")\\s+" .. "\\((?<duration>eot|eoe|save ends)\\)",
+        pattern = "^(?<rider>" .. GetTableNameRegex(CharacterCondition.ridersTableName, nil, "powerTableText") .. ")(?:\\s+\\((?<duration>eot|eoe|save ends)\\)|(?=$|\\s*[,;]|\\s+and\\b|\\s+then\\b))",
         execute = function(behavior, ability, casterToken, targetToken, options, match)
-
-            local duration = string.lower(match.duration)
-            if string.starts_with(duration, "save") then
-                duration = "save"
-            end
 
             local rider = match.rider
             local t = dmhub.GetTable(CharacterCondition.ridersTableName)
@@ -1265,6 +1288,8 @@ dmhub.RegisterEventHandler("refreshTables", function(keys)
                 print("Rider:: Could not find condition for rider", rider)
                 return
             end
+
+            local duration = ResolveRiderDuration(match.duration, targetToken, riderInfo.condition)
 
             targetToken:ModifyProperties {
                 description = "Inflict Condition",
@@ -1478,6 +1503,13 @@ function ActivatedAbilityDrawSteelCommandBehavior:ExecuteCommandInternal(ability
     --print("Rule:: Before normalize:  " .. rule)
     rule = rule:gsub("<alpha=#00><alpha=#ff>.*", "")
     rule = regex.ReplaceAll(rule, "<[^<>]*?>", "")
+    --Mirror the name normalization done by GetTableNameRegex, which strips
+    --apostrophes from condition/rider names when building the match patterns
+    --(e.g. "Let's Tussle" becomes "lets tussle"). The rule text must be stripped
+    --the same way or a rider whose name contains an apostrophe never matches.
+    --Apostrophes carry no structural meaning in rule text (no duration/gate/
+    --damage syntax uses one), so removing them is safe.
+    rule = rule:gsub("'", "")
     --print("Rule:: After normalize: " .. rule)
 
     rule = ActivatedAbilityDrawSteelCommandBehavior.NormalizeRuleTextForCreature(casterToken.properties, rule)

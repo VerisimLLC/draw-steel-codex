@@ -2772,14 +2772,17 @@ Search.RegisterContextProvider{
     end,
 }
 
--- Global-search provider: a monster's DISTINCTIVE abilities. DM-only (bestiary
--- is GM content). Lets a director find "Biokinetic Ballista" -> the monster
--- that has it, not just monster names. Only Signature / Villain Action / Heroic
--- abilities are indexed: these are per-monster (verified live -- "Biokinetic
--- Ballista"/"Kill Zone" each resolve to a single monster). The generic shared
--- actions (Basic Attack / Common Ability / Move / Hidden) AND Malice are
--- excluded -- Malice is a faction-wide shared menu, so "Malicious Strike" alone
--- hits 555 monsters; indexing it would bury the distinctive abilities in noise.
+-- Global-search provider: a monster's DISTINCTIVE abilities and its traits.
+-- DM-only (bestiary is GM content). Lets a director find "Biokinetic Ballista"
+-- or "Lethe" -> the monster(s) that have it, not just monster names. Only
+-- Signature / Villain Action / Heroic abilities are indexed: these are
+-- per-monster (verified live -- "Biokinetic Ballista"/"Kill Zone" each resolve
+-- to a single monster). The generic shared actions (Basic Attack / Common
+-- Ability / Move / Hidden) AND Malice are excluded -- Malice is a faction-wide
+-- shared menu, so "Malicious Strike" alone hits 555 monsters; indexing it would
+-- bury the distinctive abilities in noise. Traits (passive features) are
+-- indexed in full -- a shared trait surfaces once per monster, bounded by the
+-- result cap + "See all".
 --
 -- props:GetActivatedAbilities{} compiles GoblinScript per ability, so sweeping
 -- all ~574 monsters is far too heavy to run on a keystroke. The index is built
@@ -2832,6 +2835,33 @@ local function EnsureMonsterAbilityIndex()
                                     index[#index+1] = {
                                         name = aname,
                                         categorization = cat,
+                                        monsterName = mname,
+                                        monsterId = monsterid,
+                                    }
+                                end
+                            end
+                        end
+                    end)
+
+                    -- Traits (passive features), indexed alongside abilities so a
+                    -- search for e.g. "Lethe" finds every monster that has it.
+                    -- Every named feature from GetFeatures() is surfaced as a
+                    -- "Trait" row; GetFeatures() returns already-loaded data (no
+                    -- GoblinScript compile, unlike GetActivatedAbilities), so this
+                    -- pass is cheap. A shared trait's row volume is bounded by the
+                    -- result cap + "See all".
+                    pcall(function()
+                        local feats = props:GetFeatures()
+                        if type(feats) == "table" then
+                            local seenTrait = {}
+                            for _,f in ipairs(feats) do
+                                local okn, fname = pcall(function() return f.name end)
+                                if okn and type(fname) == "string" and fname ~= ""
+                                    and not seenTrait[fname] then
+                                    seenTrait[fname] = true
+                                    index[#index+1] = {
+                                        name = fname,
+                                        categorization = "Trait",
                                         monsterName = mname,
                                         monsterId = monsterid,
                                     }

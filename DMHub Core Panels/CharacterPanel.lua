@@ -2771,3 +2771,122 @@ Search.RegisterContextProvider{
         return results
     end,
 }
+
+-- Global-search provider: a monster's DISTINCTIVE abilities. DM-only (bestiary
+-- is GM content). Lets a director find "Biokinetic Ballista" -> the monster
+-- that has it, not just monster names. Only Signature / Villain Action / Heroic
+-- abilities are indexed: these are per-monster (verified live -- "Biokinetic
+-- Ballista"/"Kill Zone" each resolve to a single monster). The generic shared
+-- actions (Basic Attack / Common Ability / Move / Hidden) AND Malice are
+-- excluded -- Malice is a faction-wide shared menu, so "Malicious Strike" alone
+-- hits 555 monsters; indexing it would bury the distinctive abilities in noise.
+--
+-- props:GetActivatedAbilities{} compiles GoblinScript per ability, so sweeping
+-- all ~574 monsters is far too heavy to run on a keystroke. The index is built
+-- ONCE in a background coroutine (yielding every few monsters so no frame
+-- hitches) and cached; a long TTL lets it self-heal after monster edits without
+-- needing an asset-monitor panel. While the first build is in flight the
+-- provider returns nothing, so monster abilities appear a moment later (by then
+-- the director is usually still typing the name); a stale index keeps serving
+-- the previous results while a refresh builds, so there is no empty gap.
+local MONSTER_ABILITY_CATEGORIES = {
+    ["Signature Ability"] = true,
+    ["Villain Action"] = true,
+    ["Heroic Ability"] = true,
+}
+local MONSTER_ABILITY_INDEX_TTL = 300
+local g_monsterAbilityIndex = nil
+local g_monsterAbilityIndexTime = 0
+local g_monsterAbilityIndexBuilding = false
+
+local function MonsterAbilityIndexFresh()
+    return g_monsterAbilityIndex ~= nil
+        and (os.clock() - g_monsterAbilityIndexTime) < MONSTER_ABILITY_INDEX_TTL
+end
+
+local function EnsureMonsterAbilityIndex()
+    if g_monsterAbilityIndexBuilding or MonsterAbilityIndexFresh() then
+        return
+    end
+    g_monsterAbilityIndexBuilding = true
+    dmhub.Coroutine(function()
+        local index = {}
+        local n = 0
+        for monsterid, monster in pairs(assets.monsters) do
+            if not monster.hidden then
+                local mname = monster.name
+                local props = monster.properties
+                if props ~= nil and type(mname) == "string" and mname ~= "" then
+                    -- Guard per-monster: a malformed ability list must not abort
+                    -- the whole index.
+                    pcall(function()
+                        local abils = props:GetActivatedAbilities{}
+                        if type(abils) == "table" then
+                            local seen = {}
+                            for _,a in ipairs(abils) do
+                                local okn, aname = pcall(function() return a.name end)
+                                local okc, cat = pcall(function() return a.categorization end)
+                                if okn and okc and type(aname) == "string" and aname ~= ""
+                                    and MONSTER_ABILITY_CATEGORIES[cat] and not seen[aname] then
+                                    seen[aname] = true
+                                    index[#index+1] = {
+                                        name = aname,
+                                        categorization = cat,
+                                        monsterName = mname,
+                                        monsterId = monsterid,
+                                    }
+                                end
+                            end
+                        end
+                    end)
+                end
+            end
+            n = n + 1
+            if n % 20 == 0 then
+                if mod.unloaded then
+                    g_monsterAbilityIndexBuilding = false
+                    return
+                end
+                coroutine.yield()
+            end
+        end
+        g_monsterAbilityIndex = index
+        g_monsterAbilityIndexTime = os.clock()
+        g_monsterAbilityIndexBuilding = false
+    end)
+end
+
+Search.RegisterProvider{
+    id = "monster-abilities",
+    bucket = "compendium",
+    enumerate = function(needle)
+        if (not dmhub.isDM) or (not dmhub.inGame) then
+            return {}
+        end
+        EnsureMonsterAbilityIndex()
+        local index = g_monsterAbilityIndex
+        if index == nil then
+            return {}
+        end
+        local results = {}
+        for _,e in ipairs(index) do
+            if Search.MatchesText(e.name, needle) then
+                local entry = e
+                results[#results+1] = {
+                    name = entry.name,
+                    score = Search.Score(entry.name, needle),
+                    -- Bestiary glyph (the monsters provider's icon) so a monster
+                    -- ability reads as bestiary content; the monster it belongs
+                    -- to is the right-hand chip, its kind the subhead.
+                    icon = "icons/standard/Icon_App_Bestiary.png",
+                    typeLabel = entry.monsterName,
+                    subLabel = entry.categorization,
+                    activate = function()
+                        EditBestiaryMonster(entry.monsterId)
+                    end,
+                }
+            end
+        end
+        return results
+    end,
+}

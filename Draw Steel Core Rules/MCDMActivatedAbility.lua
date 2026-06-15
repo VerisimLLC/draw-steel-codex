@@ -2737,6 +2737,43 @@ end
 -- are added so that existing minion-to-target pairings are preserved.
 local g_prevTargetingRays = nil
 
+-- Explicit player locks: minion->target hard commitments set by the action
+-- bar (click a squad minion, then a target). Entries are {a = minionTokenId,
+-- b = targetTokenId}, newest first, so the most recent lock on a creature
+-- claims its first slot and becomes its main attacker (see
+-- ActivatedAbilityCast:MainAttackerForTarget). One lock per minion.
+-- Cleared by the action bar at targeting start and cancel.
+--- @type {a: string, b: string}[]
+local g_squadLocks = {}
+
+-- Lock minionToken to attack targetToken, replacing any prior lock for that
+-- minion. Returns the number of locks now aimed at targetToken so the UI can
+-- make sure the target has a slot per lock.
+function ActivatedAbility.LockSquadTargetingPair(minionToken, targetToken)
+    local newLocks = { { a = minionToken.id, b = targetToken.id } }
+    for _, lock in ipairs(g_squadLocks) do
+        if lock.a ~= minionToken.id then
+            newLocks[#newLocks + 1] = lock
+        end
+    end
+    g_squadLocks = newLocks
+
+    local count = 0
+    for _, lock in ipairs(g_squadLocks) do
+        if lock.b == targetToken.id then
+            count = count + 1
+        end
+    end
+    return count
+end
+
+-- Clear all squad targeting state: explicit locks AND the soft previous-result
+-- commitments, so a new cast starts from a clean auto-assignment.
+function ActivatedAbility.ClearSquadTargetingState()
+    g_squadLocks = {}
+    g_prevTargetingRays = nil
+end
+
 -- Captured here (before the GetNumTargets wrapper below) so squad coordination
 -- can read the per-minion (un-multiplied) target count.
 local g_baseNumTargetsFunction = ActivatedAbility.GetNumTargets
@@ -2805,53 +2842,88 @@ function ActivatedAbility:GetTargetingRays(casterToken, range, symbols, targets)
 
         local adjacency = BuildSquadAdjacency(squadTokens, possibleTargetsForEachToken, targets, targetLocsOccupying)
 
-        -- Build committed assignments from the previous result. Map previous
-        -- minion->target pairings onto the current squad/target indices so the
-        -- matching preserves them and only assigns uncommitted minions to new targets.
-        local committedTargets = nil
-        if g_prevTargetingRays ~= nil then
-            -- Build lookup: minionId -> squadIndex
-            local minionIdToIdx = {}
-            for i, tok in ipairs(squadTokens) do
-                minionIdToIdx[tok.id] = i
-            end
+        -- Build committed assignments. Player locks (g_squadLocks) are hard
+        -- commitments: each claims its target creature's earliest free slot so
+        -- the locked minion becomes that creature's MAIN attacker (the first
+        -- targetPairs entry -- see MainAttackerForTarget). The previous result
+        -- is then layered in as soft commitments to keep unlocked pairings
+        -- stable across recomputes.
+        local minionIdToIdx = {}
+        for i, tok in ipairs(squadTokens) do
+            minionIdToIdx[tok.id] = i
+        end
 
-            -- Build lookup: targetCharid -> targetIndex
-            local targetIdToIdx = {}
-            for j, target in ipairs(targets) do
-                -- Only record the first index for each target so we don't
-                -- double-commit when multiple minions attack the same creature.
-                if targetIdToIdx[target.token.charid] == nil then
-                    targetIdToIdx[target.token.charid] = j
+        -- targetCharid -> ordered list of slot indices (gang-up = the same
+        -- creature has several slots, one per attacker).
+        local targetSlotsByCharid = {}
+        for j, target in ipairs(targets) do
+            local cid = target.token.charid
+            targetSlotsByCharid[cid] = targetSlotsByCharid[cid] or {}
+            targetSlotsByCharid[cid][#targetSlotsByCharid[cid] + 1] = j
+        end
+
+        local committedTargets = nil
+        local commitsPerMinion = {}
+        local usedSlots = {}
+
+        local function minionReachesSlot(mIdx, j)
+            for _, adjTarget in ipairs(adjacency[mIdx]) do
+                if adjTarget == j then
+                    return true
                 end
             end
+            return false
+        end
 
-            committedTargets = {}
-            local commitsPerMinion = {}
+        -- Commit a minion to the earliest free slot of the given creature.
+        -- Soft (previous-result) commitments require the minion to be in
+        -- reach; explicit player locks pass ignoreReach because the Codex
+        -- informs rather than enforces -- the ray's out-of-range styling
+        -- warns the player, but their chosen pairing sticks.
+        -- Returns the slot index committed, or nil.
+        local function commitMinionToTarget(mIdx, charid, ignoreReach)
+            if mIdx == nil or (commitsPerMinion[mIdx] or 0) >= perMinion then
+                return nil
+            end
+            local slots = targetSlotsByCharid[charid]
+            if slots == nil then
+                return nil
+            end
+            for _, j in ipairs(slots) do
+                if (not usedSlots[j]) and (ignoreReach or minionReachesSlot(mIdx, j)) then
+                    usedSlots[j] = true
+                    commitsPerMinion[mIdx] = (commitsPerMinion[mIdx] or 0) + 1
+                    committedTargets = committedTargets or {}
+                    committedTargets[j] = mIdx
+                    return j
+                end
+            end
+            return nil
+        end
+
+        -- 1) Locks first, so they take each creature's earliest slots. Locks
+        -- commit even when the minion is out of range (inform, not enforce).
+        local lockCommitted = nil
+        local lockedSlots = {}
+        local lockedMinions = {}
+        for _, lock in ipairs(g_squadLocks) do
+            local mIdx = minionIdToIdx[lock.a]
+            local j = commitMinionToTarget(mIdx, lock.b, true)
+            if j ~= nil then
+                lockCommitted = lockCommitted or {}
+                lockCommitted[j] = mIdx
+                lockedSlots[j] = true
+                lockedMinions[mIdx] = true
+            end
+        end
+
+        -- 2) Previous result keeps unlocked assignments stable. A locked
+        -- minion's old soft assignments are dropped (its lock replaces them).
+        if g_prevTargetingRays ~= nil then
             for _, prev in ipairs(g_prevTargetingRays) do
                 local mIdx = minionIdToIdx[prev.a.id]
-                local tIdx = targetIdToIdx[prev.b.charid]
-                if mIdx ~= nil and tIdx ~= nil
-                    and (commitsPerMinion[mIdx] or 0) < perMinion then
-                    -- Only commit if the minion can still reach this target.
-                    local stillValid = false
-                    for _, adjTarget in ipairs(adjacency[mIdx]) do
-                        if adjTarget == tIdx then
-                            stillValid = true
-                            break
-                        end
-                    end
-
-                    if stillValid then
-                        committedTargets[tIdx] = mIdx
-                        -- Remove the target slot from the lookup so the next
-                        -- prev ray for the same creature gets a different slot
-                        -- rather than colliding on this one. The minion stays
-                        -- in the lookup so it can claim more slots up to
-                        -- perMinion (tracked via commitsPerMinion).
-                        targetIdToIdx[prev.b.charid] = nil
-                        commitsPerMinion[mIdx] = (commitsPerMinion[mIdx] or 0) + 1
-                    end
+                if mIdx ~= nil and not lockedMinions[mIdx] then
+                    commitMinionToTarget(mIdx, prev.b.charid)
                 end
             end
         end
@@ -2867,11 +2939,12 @@ function ActivatedAbility:GetTargetingRays(casterToken, range, symbols, targets)
             end
         end
 
-        -- If locked commitments prevented a full match, try an unconstrained
-        -- match that can reassign anyone. Keep the unconstrained result only
-        -- when it covers strictly more targets, so stable pairings survive.
+        -- If commitments prevented a full match, relax the previous-result
+        -- soft commitments for coverage, but keep the explicit player locks
+        -- so they are never displaced. Keep the relaxed result only when it
+        -- covers strictly more targets, so stable pairings survive.
         if constrainedCount < #targets then
-            local unconstrained = BipartiteMatch(adjacency, #squadTokens, #targets, nil, perMinion)
+            local unconstrained = BipartiteMatch(adjacency, #squadTokens, #targets, lockCommitted, perMinion)
             local unconstrainedCount = 0
             for j = 1, #targets do
                 if unconstrained[j] ~= nil then
@@ -2932,7 +3005,8 @@ function ActivatedAbility:GetTargetingRays(casterToken, range, symbols, targets)
                 for j2 = j1 + 1, #targets do
                     local m1 = matchOfTarget[j1]
                     local m2 = matchOfTarget[j2]
-                    if m1 ~= nil and m2 ~= nil and m1 ~= m2 then
+                    if m1 ~= nil and m2 ~= nil and m1 ~= m2
+                        and not lockedSlots[j1] and not lockedSlots[j2] then
                         local currentCost = squadDistance(m1, j1) + squadDistance(m2, j2)
                         local swappedCost = squadDistance(m1, j2) + squadDistance(m2, j1)
                         if swappedCost < currentCost then
@@ -2948,7 +3022,7 @@ function ActivatedAbility:GetTargetingRays(casterToken, range, symbols, targets)
             -- slot's target than the assigned minion, swap them in.
             for j = 1, #targets do
                 local current = matchOfTarget[j]
-                if current ~= nil then
+                if current ~= nil and not lockedSlots[j] then
                     local currentDist = squadDistance(current, j)
                     for i = 1, #squadTokens do
                         if i ~= current then
@@ -2978,10 +3052,12 @@ function ActivatedAbility:GetTargetingRays(casterToken, range, symbols, targets)
 
         -- Build rays from whichever targets got matched. Targets without a
         -- match are omitted; callers fall back to drawing from the caster.
+        -- Locked slots are tagged so the UI can label them; the field is
+        -- derived state, rebuilt every call, and inert to all other readers.
         local result = {}
         for j = 1, #targets do
             if matchOfTarget[j] ~= nil then
-                result[#result + 1] = { a = squadTokens[matchOfTarget[j]], b = targets[j].token }
+                result[#result + 1] = { a = squadTokens[matchOfTarget[j]], b = targets[j].token, locked = lockedSlots[j] or nil }
             end
         end
 

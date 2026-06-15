@@ -5020,6 +5020,28 @@ function TacPanel.Summoner()
                 end,
             },
 
+            -- Opens the squad manager modal; the panel itself is read-only.
+            gui.Button{
+                classes = {"sizeS"},
+                halign = "center",
+                width = 150,
+                height = 28,
+                vmargin = 4,
+                text = "Edit Squads",
+                data = { token = nil },
+                refreshToken = function(element, token)
+                    element.data.token = token
+                end,
+                hover = function(element)
+                    element.tooltip = gui.Tooltip("Open the squad manager to reassign, combine, split, rename, recolor, or delete your squads.")
+                end,
+                press = function(element)
+                    local token = element.data.token
+                    if token == nil or not token.valid then return end
+                    DrawSteelMinion.ShowSquadManager(token)
+                end,
+            },
+
             gui.Label{
                 classes = {"fg", "bgAlt", "sizeXs"},
                 width = "100%",
@@ -7923,7 +7945,21 @@ function TacPanel.PersistentAbilities()
             for _, chip in ipairs(chips) do
                 children[#children+1] = chip
             end
-            if totalCost > 2 then
+
+            local casterClasses = token.properties:GetClassesAndSubClasses()
+            local startOfTurnHeroicResource = 0
+            for _, classInfo in pairs(casterClasses) do
+                local heroicResource = classInfo.class:get_or_add("heroicResourceChecklist", {})
+                for _, resourceInfo in pairs(heroicResource) do
+                    if string.lower(resourceInfo.name or "") == "start of turn" then
+                        startOfTurnHeroicResource = resourceInfo.quantity or 0
+                    end
+                end
+            end
+
+            startOfTurnHeroicResource = tonumber(dmhub.EvalGoblinScript(startOfTurnHeroicResource, token.properties:LookupSymbol(), string.format("Calculating Start of Turn Resources")))
+            
+            if totalCost > startOfTurnHeroicResource then
                 children[#children+1] = gui.Label{
                     classes = {"danger", "sizeXs"},
                     width = "100%",

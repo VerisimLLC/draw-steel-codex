@@ -1048,7 +1048,13 @@ end
 --- @param targets table
 --- @param options table
 function ActivatedAbilityAuraBehavior:Cast(ability, casterToken, targets, options)
-    if options.targetArea ~= nil then
+    if options.targetAreaList ~= nil then
+        --More than one area was supplied (e.g. a movement trail that diagonal
+        --steps split into separate pieces). Create one aura over each area.
+        for _, area in ipairs(options.targetAreaList) do
+            self:CastOnArea(ability,casterToken, targets, options, area)
+        end
+    elseif options.targetArea ~= nil then
         self:CastOnArea(ability,casterToken, targets, options, options.targetArea)
     else
         for _,target in ipairs(targets) do
@@ -1306,12 +1312,10 @@ function ActivatedAbilityMoveAuraBehavior:Cast(ability, casterToken, targets, op
         return
     end
 
-    local targetLoc = options.targetArea.origin
-
     dmhub.BeginTransaction()
 
-    local destx = targetLoc.x - 0.5
-    local desty = targetLoc.y - 0.5
+    local destx = options.targetArea.xpos
+    local desty = options.targetArea.ypos
 
     local objAura = obj:GetComponent("Aura")
     if objAura ~= nil then
@@ -1322,7 +1326,7 @@ function ActivatedAbilityMoveAuraBehavior:Cast(ability, casterToken, targets, op
         }
     end
 
-    obj:SetAndUploadPos(targetLoc.x - 0.5, targetLoc.y - 0.5)
+    obj:SetAndUploadPos(destx, desty)
 
     dmhub.EndTransaction()
 

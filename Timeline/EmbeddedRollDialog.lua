@@ -98,136 +98,7 @@ local g_rollOptionsPlayer = {
     },
 }
 
-local g_boonsBanesStyles = {
-    gui.Style{
-        selectors = {"boonBaneEntry"},
-        width = "auto",
-        height = "auto",
-        flow = "horizontal",
-        bgimage = true,
-        bgcolor = Styles.RichBlack03,
-        borderWidth = 1,
-        borderColor = Styles.Gold02,
-        cornerRadius = 3,
-        hpad = 6,
-        hmargin = 2,
-        vmargin = 2,
-    },
-    gui.Style{
-        selectors = {"boonBaneEntry", "hover"},
-        borderWidth = 2,
-    },
-    gui.Style{
-        selectors = {"boonBaneEntry", "selected"},
-        bgcolor = "srgb:#16080B",
-        borderWidth = 2,
-    },
-    gui.Style{
-        selectors = {"boonBaneEntry", "boon", "selected"},
-        bgcolor = "srgb:#000044",
-        borderColor = Styles.ModifierBuffColor,
-        borderWidth = 2,
-    },
-    gui.Style{
-        selectors = {"boonBaneEntry", "bane", "selected"},
-        bgcolor = "srgb:#440000",
-        borderColor = Styles.ModifierDebuffColor,
-        borderWidth = 2,
-    },
-    gui.Style{
-        selectors = {"icon", "~undoIcon"},
-        bgimage = "drawsteel/Icons_Nav_CollapseArrow.png",
-        width = 16,
-        height = 16,
-    },
-    gui.Style{
-        selectors = {"icon", "baneIcon"},
-        scale = {y=-1,x=1},
-    },
-    gui.Style {
-        selectors = { "label" },
-        color = Styles.textColor,
-        valign = "center",
-        width = "auto",
-        height = "auto",
-        bgimage = "panels/square.png",
-        fontSize = 14,
-        textAlignment = "center",
-    },
-    gui.Style {
-        selectors = { "label", "parent:selected" },
-        bold = true,
-    },
-}
-
 local g_boonsLabels = { "BANE", "BANE", "X", "EDGE", "EDGE" }
-
-local g_modifierPanelStyles = {
-    gui.Style{
-        classes = {"modifierPanel"},
-        borderColor = Styles.Gold04,
-        borderWidth = 2,
-        cornerRadius = 5,
-        width = "auto",
-        height = "auto",
-        pad = 4,
-        flow = "horizontal",
-        bgimage = true,
-        bgcolor = Styles.RichBlack03,
-    },
-    gui.Style{
-        classes = {"modifierPanel", "buff"},
-        borderColor = Styles.ModifierBuffColor,
-    },
-    gui.Style{
-        classes = {"modifierPanel", "debuff"},
-        borderColor = Styles.ModifierDebuffColor,
-    },
-    gui.Style{
-        classes = {"modifierPanel", "~selected"},
-        borderColor = "#777777",
-    },
-    gui.Style{
-        classes = {"bonusIndicator"},
-        collapsed = 1,
-        bgimage = "drawsteel/Icons_Nav_CollapseArrow.png",
-        width = 18,
-        height = 18,
-    },
-    gui.Style{
-        classes = {"bonusIndicator", "buff"},
-        collapsed = 0,
-        bgcolor = Styles.ModifierBuffColor,
-        uiscale = {y=-1,x=1},
-    },
-    gui.Style{
-        classes = {"bonusIndicator", "debuff"},
-        collapsed = 0,
-        y = 2,
-        bgcolor = Styles.ModifierDebuffColor,
-    },
-    gui.Style{
-        classes = {"bonusIndicator", "~selected"},
-        bgcolor = "#777777",
-    },
-    gui.Style{
-        classes = {"label"},
-        opacity = 0.95,
-        color = "white",
-    },
-    gui.Style{
-        classes = {"label", "~selected"},
-        color = "#777777",
-    },
-    gui.Style{
-        classes = {"label", "hover"},
-        opacity = 1,
-    },
-    gui.Style{
-        classes = {"hover"},
-        brightness = 1.5,
-    },
-}
 
 local function ModifierPanel(args)
 
@@ -237,6 +108,8 @@ local function ModifierPanel(args)
     args.mod = nil
 
     local buffOrDebuff = m_mod.modifier:BuffOrDebuff(m_mod)
+    local isBuff = buffOrDebuff == "buff"
+    local isDebuff = buffOrDebuff == "debuff"
     
     local m_value = args.value
     args.value = nil
@@ -246,15 +119,23 @@ local function ModifierPanel(args)
 
     local classes = args.classes or {}
     classes[#classes+1] = "modifierPanel"
+    classes[#classes+1] = "bgAlt"
+    classes[#classes+1] = "hoverable"
     args.classes = nil
 
     local bonusIndicator = gui.Panel{
         classes = {"bonusIndicator"},
+        bgimage = "drawsteel/Icons_Nav_CollapseArrow.png",
+        width = 18,
+        height = 18,
+        collapsed = (not isBuff and not isDebuff) and 1 or 0,
+        uiscale = isBuff and {y=-1,x=1} or nil,
+        y = isDebuff and 2 or 0,
     }
 
     local label = gui.Label{
+        classes = {"sizeM"},
         text = m_text,
-        fontSize = 16,
         width = "auto",
         height = "auto",
         lmargin = 0,
@@ -262,14 +143,31 @@ local function ModifierPanel(args)
         valign = "center",
     }
 
+    -- Color follows state via theme utility classes: border muted at rest,
+    -- info (gold) when selected-neutral, success/danger for a selected
+    -- buff/debuff; the indicator arrow and label track the same.
+    local function ApplySelectionColors(selected)
+        resultPanel:SetClass("border", not selected)
+        resultPanel:SetClass("borderInfo", selected and not isBuff and not isDebuff)
+        resultPanel:SetClass("borderSuccess", selected and isBuff)
+        resultPanel:SetClass("borderDanger", selected and isDebuff)
+
+        bonusIndicator:SetClass("bgSuccess", selected and isBuff)
+        bonusIndicator:SetClass("bgDanger", selected and isDebuff)
+        bonusIndicator:SetClass("bgDisabled", not (selected and (isBuff or isDebuff)))
+
+        label:SetClass("fg", selected)
+        label:SetClass("fgMuted", not selected)
+    end
+
     local params = {
         classes = classes,
-        styles = g_modifierPanelStyles,
         width = "auto",
         height = 18,
         flow = "horizontal",
         cornerRadius = 4,
         borderWidth = 2,
+        pad = 4,
         bonusIndicator,
         label,
 
@@ -285,6 +183,7 @@ local function ModifierPanel(args)
         SetValue = function(element, value)
             m_value = value
             element:SetClassTree("selected", value)
+            ApplySelectionColors(value)
         end,
     }
 
@@ -2413,15 +2312,22 @@ function GameHud.CreateEmbeddedRollDialog()
         for i=1,#g_boonsLabels do
             local text = g_boonsLabels[i]
             local iconPanel = nil
+            local arrows = {}
             if i ~= 3 then
-                local children = {}
                 for j=1, cond(i==1 or i == 5, 2, 1) do
                     local y = 0
                     if i == 1 or i == 5 then
                         y = cond(j == 1, 2, -2)
                     end
-                    children[#children + 1] = gui.Panel {
-                        classes = { "icon", cond(i < 3, "boonIcon", "baneIcon") },
+                    -- No "icon" class: the dialog's local {icon} rule paints
+                    -- bgcolor white and would override the bgSuccess/bgDanger
+                    -- tint below. {image} keeps the arrow true-color at rest.
+                    arrows[#arrows + 1] = gui.Panel {
+                        classes = { "image", cond(i < 3, "boonIcon", "baneIcon") },
+                        bgimage = "drawsteel/Icons_Nav_CollapseArrow.png",
+                        width = 16,
+                        height = 16,
+                        scale = cond(i < 3, nil, {y=-1, x=1}),
                         y = y,
                         interactable = false,
                     }
@@ -2432,14 +2338,30 @@ function GameHud.CreateEmbeddedRollDialog()
                     width = 16,
                     height = 16,
                     valign = "center",
-                    children = children,
+                    children = arrows,
                 }
             end
             local label = gui.Label{
+                classes = { "sizeS" },
                 text = text,
+                valign = "center",
+                width = "auto",
+                height = "auto",
+                bgimage = "panels/square.png",
+                textAlignment = "center",
             }
             boonsBanesLabels[#boonsBanesLabels + 1] = gui.Panel {
-                classes = {"boonBaneEntry", cond(i <= 2, "bane", cond(i >= 4, "boon"))},
+                classes = {"boonBaneEntry", "bgAlt", "border", "hoverable", cond(i <= 2, "bane", cond(i >= 4, "boon"))},
+                bgimage = true,
+                width = "auto",
+                height = "auto",
+                flow = "horizontal",
+                borderWidth = 2,
+                cornerRadius = 3,
+                hpad = 6,
+                vpad = 2,
+                hmargin = 2,
+                vmargin = 2,
                 cond(i < 4, iconPanel, label),
                 cond(i < 4, label, iconPanel),
                 press = function(element)
@@ -2467,13 +2389,29 @@ function GameHud.CreateEmbeddedRollDialog()
                     else
                         m_currentBoons = boons - banes
                     end
-                    element:SetClass("selected", m_currentBoons == i - 3)
+                    local sel = m_currentBoons == i - 3
+                    element:SetClass("selected", sel)
+                    -- Selection border by semantic: success (edge/boon),
+                    -- danger (bane), info (none); neutral border at rest.
+                    -- Selected boxes get a thicker border.
+                    element:SetClass("borderSuccess", sel and i >= 4)
+                    element:SetClass("borderDanger", sel and i <= 2)
+                    element:SetClass("borderInfo", sel and i == 3)
+                    element:SetClass("border", not sel)
+                    element.selfStyle.borderWidth = sel and 4 or 2
+                    label:SetClass("bold", sel)
+                    -- Tint the direction arrows to match the selected border;
+                    -- true-color (image) at rest, success/danger when selected.
+                    for _, arrow in ipairs(arrows) do
+                        arrow:SetClass("image", not sel)
+                        arrow:SetClass("bgSuccess", sel and i >= 4)
+                        arrow:SetClass("bgDanger", sel and i <= 2)
+                    end
                 end,
             }
         end
 
         boonBar = gui.Panel {
-            styles = g_boonsBanesStyles,
             classes = { "hideWhenMinimized", "boonbanePanel" },
             halign = "center",
             width = "auto",
@@ -2494,7 +2432,7 @@ function GameHud.CreateEmbeddedRollDialog()
         }
 
         boonBar:AddChild(gui.Panel {
-            classes = { "icon", "undoIcon" },
+            classes = { "icon", "undoIcon", "image" },
             bgimage = "panels/hud/anticlockwise-rotation.png",
             floating = true,
             halign = "right",
@@ -3734,6 +3672,7 @@ function GameHud.CreateEmbeddedRollDialog()
         hasClosed = false,
         lastRollInfo = nil,
         lastRollProperties = nil,
+        rollModifier = 0,
     }
 
     local m_tableRoll_titleLabel = gui.Label{
@@ -3778,14 +3717,7 @@ function GameHud.CreateEmbeddedRollDialog()
 
             local rangeText = "-"
             if rollInfo ~= nil then
-                local range = rollInfo.rollRanges[i]
-                if range ~= nil and not range.invalid then
-                    if range.min == range.max then
-                        rangeText = tostring(range.min)
-                    else
-                        rangeText = string.format("%d-%d", range.min, range.max)
-                    end
-                end
+                rangeText = RollTable.FormatRange(rollInfo.rollRanges[i])
             end
 
             local hideRow = t.visibility == "hidden" or (t.visibility == "reveal" and row.revealed == false)
@@ -4204,6 +4136,7 @@ function GameHud.CreateEmbeddedRollDialog()
 
             local t = m_tableRoll_state.table
             if t ~= nil then
+                total = total + (m_tableRoll_state.rollModifier or 0)
                 m_tableRoll_table:FireEvent("previewRoll", t:RowIndexFromDiceResult(total))
             end
         end,
@@ -4226,6 +4159,30 @@ function GameHud.CreateEmbeddedRollDialog()
         local rollInfo = t:CalculateRollInfo()
         if rollInfo == nil then return end
 
+        --Apply the table's optional GoblinScript modifier, evaluated against the
+        --rolling creature. A numeric result is appended as a flat offset (and
+        --tracked in rollModifier so the live dice preview lines up); a result
+        --that still carries dice is appended as a sub-roll whose dice fold into
+        --the preview total naturally.
+        local rollFormula = rollInfo.roll
+        m_tableRoll_state.rollModifier = 0
+        local modScript = t:try_get("rollModifier", "")
+        if type(modScript) == "string" and trim(modScript) ~= "" and options.creature ~= nil then
+            local evaluated = dmhub.EvalGoblinScript(modScript, options.creature:LookupSymbol(options.symbols or {}), string.format("Modifier for %s", t.name))
+            if evaluated ~= nil and trim(tostring(evaluated)) ~= "" then
+                local numeric = tonumber(evaluated)
+                if numeric ~= nil then
+                    local n = math.tointeger(round(numeric))
+                    if n ~= nil and n ~= 0 then
+                        m_tableRoll_state.rollModifier = n
+                        rollFormula = string.format("%s %+d", rollInfo.roll, n)
+                    end
+                else
+                    rollFormula = string.format("(%s) + (%s)", rollInfo.roll, evaluated)
+                end
+            end
+        end
+
         local rollProperties = options.rollProperties or RollOnTableProperties.new{
             tableRef = m_tableRoll_state.tableRef,
         }
@@ -4234,7 +4191,7 @@ function GameHud.CreateEmbeddedRollDialog()
         --External-mod hook preserved from the legacy modal.
         if RollDialog.OnBeforeTableRoll then
             local hookResult = RollDialog.OnBeforeTableRoll({
-                roll = rollInfo.roll,
+                roll = rollFormula,
                 description = string.format("Roll on %s", t.name),
                 creature = options.creature,
                 tokenid = tokenid,
@@ -4267,7 +4224,7 @@ function GameHud.CreateEmbeddedRollDialog()
             guid = m_tableRoll_state.guid,
             description = string.format("Roll on %s", t.name),
             tokenid = tokenid,
-            roll = rollInfo.roll,
+            roll = rollFormula,
             silent = false,
             dmonly = false,
             creature = options.creature,
@@ -5049,6 +5006,12 @@ function GameHud.CreateEmbeddedRollDialog()
                 print("ROLL:: SET CASTID", m_symbols ~= nil, m_symbols and m_symbols.castid)
 
                 local activeRoll
+                -- Crows (and any game system with GameSystem.RollDialogAutoProceed)
+                -- resolves the roll automatically in the `pending` callback the
+                -- moment the dice land -- there is no manual Accept / Re-roll.
+                -- This guards against `complete` (or an AI auto-proceed) applying
+                -- the result a second time.
+                local m_crowsResolved = false
                 local rollArgs = {
                     guid = resultPanel.data.rollid,
                     description = m_options.description,
@@ -5197,10 +5160,40 @@ function GameHud.CreateEmbeddedRollDialog()
                                 resultPanel:FireEventTree('prepare', m_options)
                                 CalculateRollText{}
                             end
+
+                            -- Auto-resolve for game systems with no manual Accept /
+                            -- Re-roll step (Crows). The dice have just landed, so
+                            -- apply the result now -- its effects land together with
+                            -- any dice-synced attack animation -- collapse the
+                            -- buttons, and let the result linger a moment before the
+                            -- dialog dismisses itself. RelinquishPanel/closedialog
+                            -- free the coroutine but do NOT hide the panel, so the
+                            -- result stays on screen until the scheduled hide. The
+                            -- m_crowsResolved guard stops `complete` (or an AI
+                            -- auto-proceed) from applying the result a second time.
+                            local fn = GameSystem:try_get("RollDialogAutoProceed")
+                            if (not m_crowsResolved) and fn ~= nil and type(fn) == "function" and fn(m_options) then
+                                m_crowsResolved = true
+                                rollAgainButton:SetClass("collapsed", true)
+                                proceedAfterRollButton:SetClass("collapsed", true)
+                                RelinquishPanel()
+                                completeFunction(rollInfo)
+                                local dismissDelay = GameSystem.RollDialogDismissDelay or 1.25
+                                dmhub.Schedule(dismissDelay, function()
+                                    if resultPanel ~= nil and resultPanel.valid then
+                                        resultPanel:SetClass('hidden', true)
+                                    end
+                                end)
+                            end
                         end
                     end,
                     complete = function(rollInfo)
                         print("ROLL:: COMPLETE")
+                        -- Crows already resolved this roll in `pending`; do not
+                        -- re-apply it.
+                        if m_crowsResolved then
+                            return
+                        end
                         m_rollInfo = rollInfo
                         m_rerolling = false
                         m_rollTotalLabel.text = tostring(rollInfo.total or 0)

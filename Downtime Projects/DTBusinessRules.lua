@@ -279,3 +279,43 @@ function DTBusinessRules.ExtractLanguagesToIds(text)
 
     return langIds
 end
+
+--- Applies a selected source (crafting item or downtime activity) onto a project,
+--- populating the project's fields. The caller is responsible for wrapping this in
+--- token:ModifyProperties and for refreshing the UI afterward.
+--- @param project DTProject The project to populate
+--- @param sourceType string Either "crafting" or "activity"
+--- @param selectedId string The GUID of the chosen equipment item or downtime activity
+--- @return DTProject|nil project The populated project, or nil if nothing was applied
+function DTBusinessRules.ApplySourceToProject(project, sourceType, selectedId)
+    if not project or not selectedId or #selectedId == 0 then
+        return nil
+    end
+
+    if sourceType == "crafting" then
+        local item = dmhub.GetTable(equipment.tableName)[selectedId]
+        if item then
+            project:SetTitle(item.name)
+                :SetItemID(selectedId)
+                :SetItemPrerequisite(item.itemPrerequisite)
+                :SetProjectSource(item.projectSource)
+                :SetProjectGoal(tonumber(item.projectGoal:match("^%d+")))
+                :SetTestCharacteristics(DTHelpers.FlagListToList(item.projectRollCharacteristic))
+                :SetProjectSourceLanguages(DTBusinessRules.ExtractLanguagesToIds(item.projectSource))
+            return project
+        end
+    elseif sourceType == "activity" then
+        local activity = dmhub.GetTable(DowntimeActivity.tableName)[selectedId]
+        if activity then
+            project:SetTitle(activity:GetName())
+                :SetItemPrerequisite(activity:GetItemPrerequisite())
+                :SetProjectSource(activity:GetProjectSource())
+                :SetProjectGoal(tonumber(activity:GetProjectGoal():match("^%d+")))
+                :SetTestCharacteristics(activity:GetTestCharacteristics())
+                :SetProjectSourceLanguages(activity:GetProjectSourceLanguages())
+            return project
+        end
+    end
+
+    return nil
+end

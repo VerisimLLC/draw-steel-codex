@@ -1330,30 +1330,22 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
         end,
 
         beginRoll = function(rollInfo)
-            if #targets > 0 and targets[1].token ~= nil and ability.keywords["Strike"] and ability.keywords["Melee"] then
-
-                local damage = 5
-                local tier = DiceResultToTier(rollInfo)
-                local command = rollProperties.tiers[tier]
-
-                local damageMatch = regex.MatchGroups(roll, "(?<damage>[0-9]+).*?damage")
-                if damageMatch ~= nil then
-                    damage = tonumber(damageMatch.damage)
+            -- Generic per-roll animation hook, fired when the dice are thrown.
+            -- rollInfo already carries the deterministic result, so a game
+            -- system can classify the outcome here and start a dice-synced token
+            -- animation (the engine's PlayAttackAnimCo polls the roll key's
+            -- timeRemaining to land the strike as the 3D dice settle). Crows uses
+            -- this for the melee lunge / dodge attack animation -- see
+            -- GameSystem.OnPowerRollBeginAnimation in CrowdexInventory.lua. The
+            -- roll key (dialog.data.rollid) is what lets the engine sync timing.
+            local fn = GameSystem:try_get("OnPowerRollBeginAnimation")
+            if fn and type(fn) == "function" then
+            -- if GameSystem.OnPowerRollBeginAnimation ~= nil then
+                local rollid = nil
+                if dialog ~= nil and dialog.valid and dialog.data ~= nil then
+                    rollid = dialog.data.rollid
                 end
-
-                local outcome = "Hit"
-                if tier == 1 then
-                    outcome = "Block"
-                elseif tier == 3 then
-                    outcome = "Critical"
-                end
-               --[[]
-                casterToken:AnimateAttack{
-                    targetid = targets[1].token.charid,
-                    rollid = "none",
-                    damage = damage,
-                    outcome = outcome,
-                }]]
+                fn(ability, casterToken, targets, rollInfo, rollid)
             end
         end,
 
@@ -1641,17 +1633,17 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
 
                 options.powerRollPass = "target"
 
-                --if we have targetPairs that indicate a minion squad attack with a different caster,
-                --we substitute the casterToken.
-                if options.symbols.targetPairs ~= nil then
-                    for i, pair in ipairs(options.symbols.targetPairs) do
-                        if pair.b == targetToken.charid then
-                            local attackerTok = dmhub.GetTokenById(pair.a)
-                            if attackerTok ~= nil then
-                                casterTokenForCommand = attackerTok
-                                options.powerRollPass = nil
-                            end
-                        end
+                --Squad coordinated strike: the non-damage effects (forced movement,
+                --conditions, etc.) are sourced from the MAIN minion for THIS
+                --creature -- the first minion to target it. When a squad splits its
+                --attacks across several creatures, each creature gets its own main
+                --minion. Only substitute when the main attacker actually differs
+                --from the caster, so caster-pass dedup still applies otherwise.
+                if options.symbols.cast ~= nil then
+                    local mainAttacker = options.symbols.cast:MainAttackerForTarget(options.symbols, targetToken, casterToken)
+                    if mainAttacker ~= nil and mainAttacker.charid ~= casterToken.charid then
+                        casterTokenForCommand = mainAttacker
+                        options.powerRollPass = nil
                     end
                 end
 
@@ -1693,6 +1685,15 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
                 ability.RecordTokenMessage(targetToken, options, string.format("Tier %d (%s)", tier, displayCommand))
 
                 self:ExecuteCommand(ability, casterTokenForCommand, targetToken, options, command)
+
+                -- Generic per-target post-roll extension point: lets a game
+                -- system react to the tier outcome on each target with full
+                -- context (attacker, target, tier, natural roll). Crows uses
+                -- this for the Counter reaction on a melee miss.
+                local fn = GameSystem:try_get("OnPowerRollResolvedAgainstTarget")
+                if fn ~= nil and type(fn) == "function" then
+                    fn(ability, casterTokenForCommand, targetToken, tier, m_rollInfo, options)
+                end
 
                 if tier > highestTier and options.powerRollPass == "target" then
                     highestTier = tier

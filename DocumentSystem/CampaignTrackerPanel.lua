@@ -21,6 +21,9 @@ local mod = dmhub.GetModLoading()
 -- bottom, which reveals per-entry edit/share/delete icons. A single small "+"
 -- at the bottom adds a new note. Editing the text shows a plain multiline text
 -- box directly below the entry, with the entry live-previewing as you type.
+--
+-- Mods can add their own tracking sections to the panel via
+-- CampaignTracker.RegisterSection (see the extension hook section below).
 
 ----------------------------------------------------------------------
 -- Storage type: a MarkdownDocument subtype stored in its own table.
@@ -478,6 +481,81 @@ local function CreateNoteRow(noteid)
 end
 
 ----------------------------------------------------------------------
+-- Mod extension hook: custom tracker sections.
+--
+-- A mod can hook its own panel into the Campaign Tracker:
+--
+--   CampaignTracker.RegisterSection{
+--       id = "myModSection",
+--       ord = 50,
+--       create = function()
+--           return gui.Panel{ ... }
+--       end,
+--   }
+--
+-- Sections stack vertically with the built-in notes UI, ordered by ord.
+-- Registration is live: any open tracker panels rebuild immediately.
+----------------------------------------------------------------------
+
+--Global interface other mods use to extend the Campaign Tracker.
+--(rawget: reading an unset global errors in this runtime, so probe safely.)
+CampaignTracker = rawget(_G, "CampaignTracker") or {}
+
+--keyed by section id; kept on the global so registrations from other mods
+--survive a reload of this file.
+CampaignTracker._sections = CampaignTracker._sections or {}
+
+local SECTIONS_CHANGED_EVENT = "campaignTrackerSectionsChanged"
+
+--- Register a custom section that renders inside the Campaign Tracker panel.
+--- Call at mod load time (or any time -- open tracker panels rebuild live).
+--- Registering an id that already exists replaces that section, so a mod
+--- reload updates its section in place.
+--- @param args {id: string, create: (fun(): Panel), ord: nil|number}
+---   id:     unique key for the section.
+---   create: factory called once per Campaign Tracker panel instance (and
+---           again whenever the section list changes); must return a panel.
+---   ord:    sort order. The built-in notes section is ord 0 and custom
+---           sections default to 100, placing them below the notes; use a
+---           negative ord to sort above the notes.
+function CampaignTracker.RegisterSection(args)
+    if type(args) ~= "table" or type(args.id) ~= "string" or type(args.create) ~= "function" then
+        error("CampaignTracker.RegisterSection: requires { id = string, create = function }")
+    end
+
+    CampaignTracker._sections[args.id] = {
+        id = args.id,
+        ord = args.ord or 100,
+        create = args.create,
+    }
+
+    dmhub.FireGlobalEvent(SECTIONS_CHANGED_EVENT)
+end
+
+--- Remove a previously registered section. Open tracker panels update live.
+--- @param id string
+function CampaignTracker.UnregisterSection(id)
+    if CampaignTracker._sections[id] ~= nil then
+        CampaignTracker._sections[id] = nil
+        dmhub.FireGlobalEvent(SECTIONS_CHANGED_EVENT)
+    end
+end
+
+local function GetSortedSections()
+    local result = {}
+    for _, section in pairs(CampaignTracker._sections) do
+        result[#result + 1] = section
+    end
+    table.sort(result, function(a, b)
+        if a.ord ~= b.ord then
+            return a.ord < b.ord
+        end
+        return a.id < b.id
+    end)
+    return result
+end
+
+----------------------------------------------------------------------
 -- The panel body: a stack of notes plus a single "+" at the bottom.
 ----------------------------------------------------------------------
 
@@ -630,6 +708,75 @@ local function CreateCampaignTrackerPanel()
         addButton,
     }
 
+    --The built-in notes UI is itself a section (ord 0), so registered custom
+    --sections can sort above (ord < 0) or below (ord > 0) it.
+    local notesSection = gui.Panel {
+        classes = { "campaignTrackerSection" },
+        flow = "vertical",
+        width = "100%",
+        height = "auto",
+
+        listPanel,
+        footer,
+    }
+
+    local sectionsContainer
+
+    --Rebuild the ordered stack of sections. notesSection is always included
+    --in the new children list, so reassigning children only destroys the
+    --previous custom section panels (each replaced by a fresh factory call).
+    local function rebuildSections()
+        local entries = {
+            { ord = 0, id = "notes", panel = notesSection },
+        }
+
+        for _, section in ipairs(GetSortedSections()) do
+            local ok, panel = pcall(section.create)
+            if not ok then
+                printf("CampaignTracker: error building section %s: %s", section.id, tostring(panel))
+            elseif panel ~= nil then
+                entries[#entries + 1] = { ord = section.ord, id = section.id, panel = panel }
+            end
+        end
+
+        table.sort(entries, function(a, b)
+            if a.ord ~= b.ord then
+                return a.ord < b.ord
+            end
+            return a.id < b.id
+        end)
+
+        local children = {}
+        for _, entry in ipairs(entries) do
+            children[#children + 1] = entry.panel
+        end
+        sectionsContainer.children = children
+    end
+
+    sectionsContainer = gui.Panel {
+        flow = "vertical",
+        width = "100%",
+        height = "auto",
+        data = { sectionsHandler = nil },
+
+        create = function(element)
+            element.data.sectionsHandler = dmhub.RegisterEventHandler(SECTIONS_CHANGED_EVENT, function()
+                if mod.unloaded then return end
+                if element ~= nil and element.valid then
+                    rebuildSections()
+                end
+            end)
+            rebuildSections()
+        end,
+
+        destroy = function(element)
+            if element.data.sectionsHandler ~= nil then
+                dmhub.DeregisterEventHandler(element.data.sectionsHandler)
+                element.data.sectionsHandler = nil
+            end
+        end,
+    }
+
     return gui.Panel {
         classes = { "campaignTrackerPanel" },
         flow = "vertical",
@@ -689,8 +836,7 @@ local function CreateCampaignTrackerPanel()
             },
         },
 
-        listPanel,
-        footer,
+        sectionsContainer,
     }
 end
 

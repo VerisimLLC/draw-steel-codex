@@ -40,6 +40,10 @@ Each top-level directory is a "mod" (module) loaded by DMHub. Key layers:
 | `DMHub CharacterSheet Base/` | Base character sheet framework. |
 | `DocumentSystem/` | Rich document/journal system with Markdown, images, embedded dice rolls, etc. |
 
+## Crows
+
+**Crows** is a separate MCDM playtest game (not Draw Steel) implemented as the `Crowdex/` module, layered on top of the Draw Steel codex by wrapping/overriding its types and functions. **All Crows-specific Lua changes must be made in `Crowdex/`** -- keep shared Draw Steel files generic, adding only minimal generic hooks there when an override point is genuinely needed. The Crows rules and documentation are the official MCDM playtest booklets in `Crowdex/` as `.md` files (e.g. `01 MCDM Crows The Rules Booklet...`, `02 ...Characters...`, `03 ...Monsters...`); content imported into the compendium lives in `compendium/import/crows-*.yaml`.
+
 ## Core Architecture Patterns
 
 ### Game Types

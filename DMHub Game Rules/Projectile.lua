@@ -178,6 +178,20 @@ end
 -- casterToken: the caster using the ability.
 -- targetToken: the target creature.
 -- missileid: itemid of the missile.
+-- options:
+--   rollInfo, ability, casterToken, targetToken, missileid (as documented above)
+-- Optional generic overrides (used by game systems with their own outcome
+-- model, e.g. Crows, so they can skip the 5e ArmorClass/cover classifier while
+-- reusing the projectile object, dice-synced flight, and loot machinery):
+--   properties  - a pre-built projectile properties table (outcome, bounce, ...)
+--   target      - the final landing point (Vector2). When both properties and
+--                 target are supplied, CalculateProperties is NOT called and the
+--                 dice-resolution UpdateProjectileCoroutine is skipped.
+--   dropAmmo    - true/false to force whether the ammo drops as loot, bypassing
+--                 the item's AmmoDestroyChance roll.
+--   rollKey     - the chat roll key the flight syncs its windup/release to;
+--                 defaults to rollInfo.key.
+--   windupTime  - override the default windup duration (10, or 0.5 for thrown).
 function Projectile.Fire(options)
 
 	local windupTime = 10
@@ -186,6 +200,7 @@ function Projectile.Fire(options)
 	local casterToken = options.casterToken
 	local targetToken = options.targetToken
 	local rollInfo = options.rollInfo
+	local rollKey = options.rollKey or (rollInfo ~= nil and rollInfo.key) or nil
 
 	local sourcePos = core.Vector2(casterToken.posWithLean.x, casterToken.posWithLean.y)
 
@@ -199,19 +214,35 @@ function Projectile.Fire(options)
 		if itemInfo:HasProperty("thrown") then
 			windupTime = 0.5
 		end
+		if options.windupTime ~= nil then
+			windupTime = options.windupTime
+		end
+
+		-- A caller that supplies both a pre-built properties table and the final
+		-- landing point owns the outcome; skip the 5e classification entirely.
+		local preComputed = options.properties ~= nil and options.target ~= nil
 
 		local propertiesInfo = {
 			target = core.Vector2(targetToken.loc.x, targetToken.loc.y)
 		}
 		local properties = {}
-		if not rollInfo.waitingOnDice then
+		if preComputed then
+			properties = options.properties
+			propertiesInfo = { target = options.target }
+		elseif rollInfo ~= nil and not rollInfo.waitingOnDice then
 			propertiesInfo = Projectile.CalculateProperties(casterToken, targetToken, options.ability, rollInfo, properties, sourcePos)
 		end
 
 		local loot = nil
-		
-		printf("DestroyChance: %s", json(itemInfo:AmmoDestroyChance()))
-		if math.random() >= itemInfo:AmmoDestroyChance() then
+
+		local wantLoot
+		if options.dropAmmo ~= nil then
+			wantLoot = options.dropAmmo
+		else
+			printf("DestroyChance: %s", json(itemInfo:AmmoDestroyChance()))
+			wantLoot = math.random() >= itemInfo:AmmoDestroyChance()
+		end
+		if wantLoot then
 			loot = {
 				["@class"] = "ObjectComponentLoot",
 				destroyOnEmpty = true,
@@ -244,11 +275,14 @@ function Projectile.Fire(options)
 					rotation = itemInfo:try_get("projectileRotation", 0) + delta.angle,
 					scale = itemInfo:try_get("projectileScale", Projectile.DefaultScale),
 					sprite_invisible_to_players = false,
+					--Render sublayer (nil keeps the engine default "Objects").
+					--Pass "EffectsAboveTokens" to draw the projectile over tokens.
+					sublayer = options.sublayer,
 				},
 
 				PROJECTILE = {
 					["@class"] = "ObjectComponentProjectile",
-					key = rollInfo.key,
+					key = rollKey,
 					timestamp = dmhub.serverTime,
 					speed = 25,
 					srcx = sourcePos.x,
@@ -258,6 +292,11 @@ function Projectile.Fire(options)
 					properties = properties,
 					destroyOnFinish = (loot == nil),
 					windupTime = windupTime,
+					--Optional sublayer to draw the shot on while it is nocked on the
+					--attacker and launching (e.g. "EffectsAboveTokens" so it reads in
+					--front of the shooter). Once it clears the attacker it falls back
+					--to the CORE resting sublayer (below tokens). Nil = no override.
+					drawSublayer = options.drawSublayer,
 				},
 
 				LOOT = loot,
@@ -274,8 +313,10 @@ function Projectile.Fire(options)
 		}
 
 
-		if rollInfo.waitingOnDice then
-			dmhub.Coroutine(Projectile.UpdateProjectileCoroutine, obj, casterToken, targetToken, options.ability, rollInfo.key, sourcePos)
+		-- When the caller pre-computed the landing point, the target is already
+		-- final -- only patch it post-resolution for the 5e classification path.
+		if (not preComputed) and rollInfo ~= nil and rollInfo.waitingOnDice then
+			dmhub.Coroutine(Projectile.UpdateProjectileCoroutine, obj, casterToken, targetToken, options.ability, rollKey, sourcePos)
 		end
 
 		if loot == nil then

@@ -38,6 +38,27 @@ end
 
 --- @param casterToken CharacterToken
 --- @param path LuaPath
+--- @return nil|(Loc[])
+function ActivatedAbility:FindPassedSquareLocs(casterToken, path)
+    for i,behavior in ipairs(self.behaviors) do
+        local result = behavior:FindPassedSquareLocs(self, casterToken, path)
+        if result ~= nil then
+            return result
+        end
+    end
+
+    return nil
+end
+
+--- @param casterToken CharacterToken
+--- @param path LuaPath
+--- @return nil|(Loc[])
+function ActivatedAbilityBehavior:FindPassedSquareLocs(ability, casterToken, path)
+    return nil
+end
+
+--- @param casterToken CharacterToken
+--- @param path LuaPath
 --- @return nil|(CharacterToken[])
 function ActivatedAbilityRelocateCreatureBehavior:FindTargetsInMovementVicinity(ability, casterToken, path)
     if not self.targetMoveVicinity then
@@ -84,11 +105,40 @@ function ActivatedAbilityRelocateCreatureBehavior:FindTargetsInMovementVicinity(
     return result
 end
 
+--- @param casterToken CharacterToken
+--- @param path LuaPath
+--- @return nil|(Loc[])  Every square the creature stood in along its path (starting square included), or nil if the option is off.
+function ActivatedAbilityRelocateCreatureBehavior:FindPassedSquareLocs(ability, casterToken, path)
+    if not self.targetPassedSquares then
+        return nil
+    end
+
+    local result = {}
+    local seen = {}
+
+    --Walk the path and collect every square the creature stood in, including
+    --its starting square. Each square is only added once.
+    for i = 1, #path.steps do
+        local loc = path.steps[i]
+        local occupied = casterToken:LocsOccupyingWhenAt(loc)
+        for _, occLoc in ipairs(occupied) do
+            local key = occLoc.xyfloorOnly.str
+            if not seen[key] then
+                seen[key] = true
+                result[#result+1] = occLoc
+            end
+        end
+    end
+
+    return result
+end
+
 ActivatedAbilityRelocateCreatureBehavior.summary = 'Relocate Creatures'
 ActivatedAbilityRelocateCreatureBehavior.swapCreatures = false
 ActivatedAbilityRelocateCreatureBehavior.targetMoveVicinity = false
 ActivatedAbilityRelocateCreatureBehavior.vicinity = 0
 ActivatedAbilityRelocateCreatureBehavior.vicinityFilter = ""
+ActivatedAbilityRelocateCreatureBehavior.targetPassedSquares = false
 ActivatedAbilityRelocateCreatureBehavior.movementType = "teleport"
 
 function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, targets, options)
@@ -555,7 +605,68 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 
                     options.symbols.cast.targets = options.targets
                 end
-                
+
+            end
+
+            --Hand every square the creature moved through to the next behavior
+            --(usually an aura) as a target area. The engine can only make an area
+            --out of squares that touch side-by-side, not corner-to-corner, so a
+            --diagonal step splits the trail into separate areas. A path with no
+            --diagonal steps gives one single area.
+            if path ~= nil and self.targetPassedSquares then
+                local squares = ability:FindPassedSquareLocs(casterToken, path)
+                if squares ~= nil and #squares > 0 then
+                    --Group the squares into runs that touch side-by-side.
+                    local segments = {}
+                    local assigned = {}
+                    for i = 1, #squares do
+                        if not assigned[i] then
+                            assigned[i] = true
+                            local seg = { squares[i] }
+                            local cursor = 1
+                            while cursor <= #seg do
+                                local cur = seg[cursor]
+                                for j = 1, #squares do
+                                    if not assigned[j] then
+                                        local other = squares[j]
+                                        if math.abs(cur.x - other.x) + math.abs(cur.y - other.y) == 1 then
+                                            assigned[j] = true
+                                            seg[#seg+1] = other
+                                        end
+                                    end
+                                end
+                                cursor = cursor + 1
+                            end
+                            segments[#segments+1] = seg
+                        end
+                    end
+
+                    --Make one area shape per group. These are the same arguments wall
+                    --targeting uses to build its area; leaving any of them out makes
+                    --the engine shrink the area down to a single square. checklos is
+                    --false so line of sight cannot remove squares the creature really
+                    --walked through.
+                    local areas = {}
+                    for _, seg in ipairs(segments) do
+                        local anchorLoc = seg[1]
+                        areas[#areas+1] = dmhub.CalculateShape{
+                            shape = "locations",
+                            targetPoint = casterToken:PosAtLoc(anchorLoc),
+                            token = casterToken,
+                            range = #path.steps + 2,
+                            radius = 0,
+                            checklos = false,
+                            locOverride = anchorLoc,
+                            locations = seg,
+                        }
+                    end
+
+                    if #areas == 1 then
+                        options.targetArea = areas[1]
+                    else
+                        options.targetAreaList = areas
+                    end
+                end
             end
 		end
 
@@ -611,6 +722,15 @@ function ActivatedAbilityRelocateCreatureBehavior:EditorItems(parentPanel)
 		change = function(element)
 			self.targetMoveVicinity = element.value
             parentPanel:FireEventTree("refreshVicinity")
+		end,
+	}
+
+	result[#result+1] = gui.Check{
+		text = "Target Each Square Passed Through",
+		tooltip = "If set, the squares the creature moves through become the target area (including the starting square). Overrides Move Vicinity.",
+		value = self.targetPassedSquares,
+		change = function(element)
+			self.targetPassedSquares = element.value
 		end,
 	}
 

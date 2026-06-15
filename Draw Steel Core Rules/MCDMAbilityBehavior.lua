@@ -255,15 +255,15 @@ local function ExecuteDamage(behavior, ability, casterToken, targetToken, option
 
     if damage ~= nil then
 
+        --Squad coordinated strike: attribute the damage to the MAIN minion for this
+        --creature -- the first minion to target it -- so retaliation and "last
+        --attacker" triggers point at that creature's main minion, not an arbitrary
+        --attacker. (Same lookup the power-roll and invoke paths use.)
         local attacker = casterToken.properties
-        if options.symbols.targetPairs ~= nil then
-            for _,pair in ipairs(options.symbols.targetPairs) do
-                if pair.b == targetToken.charid then
-                    local attackerTok = dmhub.GetTokenById(pair.a)
-                    if attackerTok ~= nil then
-                        attacker = attackerTok.properties
-                    end
-                end
+        if options.symbols.cast ~= nil then
+            local attackerTok = options.symbols.cast:MainAttackerForTarget(options.symbols, targetToken, casterToken)
+            if attackerTok ~= nil then
+                attacker = attackerTok.properties
             end
         end
 

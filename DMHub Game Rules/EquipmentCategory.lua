@@ -311,6 +311,24 @@ function EquipmentCategory.IsLightSource(item)
 	return cond(EquipmentCategory.lightSourceCategories[item:try_get("equipmentCategory", "")], true, false)
 end
 
+--Whether an item should expose the projectile-preview editor (scale/rotation of
+--the object spawned into the scene when the item is fired/thrown). Defaults to
+--the quantity categories (arrows/bolts/etc.). Game systems may override this to
+--include their own ammunition categories.
+function EquipmentCategory.ShowProjectilePreview(item)
+	return cond(EquipmentCategory.quantityCategories[item:try_get("equipmentCategory", "")], true, false)
+end
+
+--Whether an item exposes the wield-object editor (the "Display on Token" toggle
+--and "Edit Object" button that configure how the item appears when wielded in
+--hand / displayed on a token). Defaults to light sources, which are the base
+--game's only wielded objects. Game systems where any item can be wielded may
+--override this to return true more broadly. GetWieldObject() is generic, so any
+--item can back a wield object.
+function EquipmentCategory.ShowWieldObjectEditor(item)
+	return EquipmentCategory.IsLightSource(item)
+end
+
 function EquipmentCategory.IsImbuement(item)
     local cat = item:try_get("equipmentCategory", "")
     return cat == EquipmentCategory.ImbuementId

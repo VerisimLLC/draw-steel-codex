@@ -1829,8 +1829,9 @@ function GameHud:CreateTipBanner()
 		--actually displayed or about to be displayed.
 		thinkTime = 1.0,
 		think = function(element)
-			--GameHud.instance is `false` (not nil) during teardown/reload, so a
-			--bare `~= nil` check lets a boolean through; a truthy check is correct.
+			--GameHud.instance is `false` (not nil) before the hud finishes
+			--initializing and again during teardown/reload, so a bare `~= nil`
+			--check lets a boolean through; a truthy check is correct.
 			local gh = GameHud.instance
 			if gh then gh:_TipDriverTick() end
 		end,

@@ -3280,16 +3280,33 @@ function ActivatedAbilityBehavior:ApplyToTargets(ability, casterToken, targets, 
 
 	elseif self.applyto == "caster" then
         if options.symbols.targetPairs ~= nil then
-            --minion signature abilities have a list of target pairs, so we
-            --use that to find the list of casters in the squad.
+            --Squad coordinated strike: caster-benefit behaviors (heal, shift,
+            --move, etc.) apply only to the MAIN attacker of each creature in
+            --the target list -- the first targetPairs entry for that creature.
+            --Deduped so a minion that is main attacker of two creatures only
+            --benefits once. Targets without a pairing fall back to the caster.
             result = {}
-            for _,pair in ipairs(options.symbols.targetPairs) do
-                local casterToken = dmhub.GetTokenById(pair.a)
-                if casterToken ~= nil and casterToken.valid then
-                    result[#result+1] = {
-                        token = casterToken,
-                    }
+            local seen = {}
+            for _,target in ipairs(targets) do
+                if target.token ~= nil then
+                    local attackerTok = casterToken
+                    if options.symbols.cast ~= nil then
+                        attackerTok = options.symbols.cast:MainAttackerForTarget(options.symbols, target.token, casterToken)
+                    end
+                    if attackerTok ~= nil and attackerTok.valid and not seen[attackerTok.charid] then
+                        seen[attackerTok.charid] = true
+                        result[#result+1] = {
+                            token = attackerTok,
+                        }
+                    end
                 end
+            end
+            if #result == 0 then
+                result = {
+                    {
+                        token = casterToken,
+                    },
+                }
             end
         else
             result = {

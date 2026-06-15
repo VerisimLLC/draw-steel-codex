@@ -79,16 +79,50 @@ function creature:GetSummonedSquadsByType(monsterType)
     local squads = {}
     for _,entry in ipairs(self:GetLiveSummonedEntries()) do
         if monsterType == nil or entry.monsterType == monsterType then
-            local squad = squads[entry.squad]
+            -- Group by the minion's current squad, not the name stored at summon
+            -- time, so reassignments show up without patching the roster.
+            local liveSquad = entry.squad
+            local token = dmhub.GetTokenById(entry.charid)
+            if token ~= nil and token.properties ~= nil then
+                liveSquad = token.properties:MinionSquad() or entry.squad
+            end
+            local squad = squads[liveSquad]
             if squad == nil then
                 squad = { monsterType = entry.monsterType, count = 0, charids = {} }
-                squads[entry.squad] = squad
+                squads[liveSquad] = squad
             end
             squad.count = squad.count + 1
             squad.charids[#squad.charids+1] = entry.charid
         end
     end
     return squads
+end
+
+--- Counts live minions and squads against the summoner's limits. Informational only.
+--- @param extraSquads number|nil Extra squads to test against the cap (default 0).
+--- @param extraMinions number|nil Extra minions to test against the cap (default 0).
+--- @return table { minionCount, squadCount, maxMinions, maxSquads, exceededMinions, exceededSquads }
+function creature:GetSummonerLimitInfo(extraSquads, extraMinions)
+    extraSquads = extraSquads or 0
+    extraMinions = extraMinions or 0
+
+    local minionCount = #self:GetLiveSummonedEntries()
+    local squadCount = 0
+    for _ in pairs(self:GetSummonedSquadsByType(nil)) do
+        squadCount = squadCount + 1
+    end
+
+    local maxMinions = self:CalculateNamedCustomAttribute("MaximumMinions") or 0
+    local maxSquads = self:CalculateNamedCustomAttribute("MaxMinionSquads") or 0
+
+    return {
+        minionCount = minionCount,
+        squadCount = squadCount,
+        maxMinions = maxMinions,
+        maxSquads = maxSquads,
+        exceededMinions = maxMinions > 0 and (minionCount + extraMinions) > maxMinions,
+        exceededSquads = maxSquads > 0 and (squadCount + extraSquads) > maxSquads,
+    }
 end
 
 --- Appends a summoned minion to this creature's roster. Caller must be inside a ModifyProperties block.

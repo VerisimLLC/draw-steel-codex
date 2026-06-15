@@ -78,31 +78,21 @@ function DTProjectEditor:_createProjectForm()
         click = function(element)
             if not element.interactable then return end
             CharacterSheet.instance:AddChild(DTSelectItemDialog.CreateAsChild({
-                confirm = function(itemId)
-                    if itemId and #itemId > 0 then
-                        local project, controller = element.data.getProject(element)
-                        if project then
-                            local item = dmhub.GetTable(equipment.tableName)[itemId]
-                            if item then
-                                modifyTokenProps{
-                                    execute = function()
-                                        project:SetTitle(item.name)
-                                            :SetItemID(itemId)
-                                            :SetItemPrerequisite(item.itemPrerequisite)
-                                            :SetProjectSource(item.projectSource)
-                                            :SetProjectGoal(tonumber(item.projectGoal:match("^%d+")))
-                                            :SetTestCharacteristics(DTHelpers.FlagListToList(item.projectRollCharacteristic))
-                                            :SetProjectSourceLanguages(DTBusinessRules.ExtractLanguagesToIds(item.projectSource))
-                                    end,
-                                }
-                                controller:FireEventTree("refreshToken")
-                                dmhub.Schedule(0.1, function()
-                                    DTSettings.Touch()
-                                    DTShares.Touch()
-                                end)
-                            end
-                        end
-                    end
+                confirm = function(sourceType, selectedId)
+                    if not selectedId or #selectedId == 0 then return end
+                    local project, controller = element.data.getProject(element)
+                    if not project then return end
+
+                    modifyTokenProps{
+                        execute = function()
+                            DTBusinessRules.ApplySourceToProject(project, sourceType, selectedId)
+                        end,
+                    }
+                    controller:FireEventTree("refreshToken")
+                    dmhub.Schedule(0.1, function()
+                        DTSettings.Touch()
+                        DTShares.Touch()
+                    end)
                 end,
                 cancel = function()
                     -- Placeholder for future cancel logic
@@ -1219,7 +1209,7 @@ function DTProjectEditor:_createAdjustmentsPanel()
         children = {
             -- Header
             gui.Panel {
-                classes = {"featureCardHeader"},
+                classes = {"featureCardHeader", "expanded"},
                 width = "100%",
                 height = "auto",
                 margin = 0,
@@ -1320,7 +1310,7 @@ function DTProjectEditor:_createRollsPanel()
         children = {
             -- Header
             gui.Panel {
-                classes = {"featureCardHeader"},
+                classes = {"featureCardHeader", "expanded"},
                 width = "100%",
                 height = "auto",
                 margin = 0,

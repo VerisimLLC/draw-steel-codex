@@ -172,6 +172,49 @@ function RichEncounter.CreateDisplay(self)
 
     }
 
+    --Prominent full-width "Draw Steel!" button shown when this encounter's monsters
+    --are placed on the map and combat has not started yet. Pressing it starts combat
+    --immediately using this encounter.
+    local drawSteelButton = gui.Button{
+        classes = {"collapsed"},
+        width = "100%",
+        height = 28,
+        fontSize = 16,
+        bold = true,
+        text = "Draw Steel!",
+        halign = "center",
+        valign = "bottom",
+        vmargin = 2,
+        swallowPress = true,
+
+        thinkTime = 1,
+        think = function(element)
+            element:FireEvent("refreshTag")
+        end,
+        refreshTag = function(element)
+            local show = false
+            local q = dmhub.initiativeQueue
+            local inCombat = q ~= nil and not q.hidden
+            if dmhub.isDM and not inCombat then
+                --only show once we have monsters from this encounter on the map.
+                for _,spawn in ipairs(self:try_get("spawns", {})) do
+                    if dmhub.GetTokenById(spawn) ~= nil then
+                        show = true
+                        break
+                    end
+                end
+            end
+            element:SetClass("collapsed", not show)
+        end,
+
+        press = function(element)
+            Encounter.DrawSteelWithEncounter(self.encounter, self:try_get("spawns", {}))
+        end,
+        hover = function(element)
+            gui.Tooltip("Start combat with this encounter.")(element)
+        end,
+    }
+
     resultPanel = gui.Panel{
         styles = ThemeEngine.MergeTokens({
             {
@@ -485,6 +528,7 @@ function RichEncounter.CreateDisplay(self)
         headerPanel,
         textPanel,
         footerPanel,
+        drawSteelButton,
     }
 
     return resultPanel

@@ -525,7 +525,266 @@ local shopStyles = {
 		collapsed = 1,
 	},
 
+	--The DMHub logo is replaced by the dice banner on the main shop page;
+	--it still shows on the cart and inventory views, which keep their
+	--plain text headers.
+	{
+		selectors = {"shopLogo"},
+		collapsed = 1,
+	},
+	{
+		selectors = {"shopLogo", "showingCart"},
+		collapsed = 0,
+	},
+	{
+		selectors = {"shopLogo", "inventory"},
+		collapsed = 0,
+	},
+
 }
+
+--The banner at the top of the shop: a skeleton clutching a (real, rendered)
+--die. Three layers: the painted background, the live dice preview render
+--sandwiched in the middle, and the skeleton's torso/arms painted on top so
+--the die reads as held in its hands.
+local MakeDiceBanner = function()
+	--The banner matches the visible width of a row of shop items below it:
+	--3 shopSummaryDisplays at 320 wide with 60px gaps between them (the
+	--rows' 30px outer margins are NOT included).
+	local bannerWidth = 1080
+
+	--The art is taller-aspect than we want, so we render a horizontal
+	--band of it: the full image width, cropped vertically to the
+	--[bandTop, bandBottom] range (fractions from the TOP of the image;
+	--converted to bottom-origin UV space in ApplyBand). The skeleton's
+	--alpha bbox spans 0.102-0.82 of the image height, and the die's top
+	--vertex reaches ~0.075, so the band hugs those with a little margin.
+	local bandTop = 0.06
+	local bandBottom = 0.835
+	local imageHeight = bannerWidth * 706 / 1232
+
+	local m_item = nil
+	local m_suspended = false
+	local m_diceScale = 3.4
+
+	--Where the dice panel is centered, as fractions of the full (uncropped)
+	--artwork (tuned live against the mockup via the configureBanner hook
+	--below). The rendered die sits at the center of the preview
+	--RenderTexture, so the panel center is effectively the die center.
+	local dieCenterX = 0.38
+	local dieCenterY = 0.385
+	local m_dieSize = math.floor(imageHeight)
+
+	--The die, rendered between the banner background and the skeleton.
+	--Positioned in full-image coordinates, shifted up by the cropped-off
+	--top band. The preview RT is transparent outside the die, so the
+	--panel harmlessly overflows the banner bounds.
+	local diePanel = gui.Panel{
+		floating = true,
+		interactable = false,
+		bgimage = "#DicePreview",
+		bgcolor = "white",
+		width = m_dieSize,
+		height = m_dieSize,
+		halign = "left",
+		valign = "top",
+	}
+
+	--The skeleton overlay in front of the die.
+	local frontPanel = gui.Panel{
+		floating = true,
+		interactable = false,
+		bgimage = "panels/shop/bannerfront.png",
+		bgcolor = "white",
+		width = "100%",
+		height = "100%",
+	}
+
+	local resultPanel
+
+	--Applies the vertical crop band to both art layers, sizes the banner
+	--to the band, and keeps the die locked to the artwork.
+	local function ApplyBand()
+		--imageRect is a UV rect: y=0 is the BOTTOM of the image, so the
+		--from-the-top band fractions flip here.
+		local rect = { x1 = 0, x2 = 1, y1 = 1 - bandBottom, y2 = 1 - bandTop }
+		resultPanel.selfStyle.imageRect = rect
+		frontPanel.selfStyle.imageRect = rect
+		resultPanel.selfStyle.height = math.floor(imageHeight * (bandBottom - bandTop))
+		diePanel.x = math.floor(bannerWidth * dieCenterX - m_dieSize / 2)
+		diePanel.y = math.floor(imageHeight * (dieCenterY - bandTop) - m_dieSize / 2)
+	end
+
+	resultPanel = gui.Panel{
+		classes = {"collapseOnCart", "collapsedWhenInventory", "collapsedWhenArtistFocus"},
+		width = bannerWidth,
+		height = math.floor(imageHeight * (bandBottom - bandTop)),
+		halign = "center",
+		valign = "top",
+		bgimage = "panels/shop/bannerback.png",
+		bgcolor = "white",
+
+		create = function(element)
+			ApplyBand()
+
+			--Feature the first dice product we can find; prefer one that
+			--is on sale.
+			local fallback = nil
+			for _,item in pairs(assets.shopItems) do
+				if item.itemType == "Dice" then
+					if item.onsale then
+						m_item = item
+						break
+					end
+					fallback = fallback or item
+				end
+			end
+
+			m_item = m_item or fallback
+
+			if m_item ~= nil then
+				element.thinkTime = 0.01
+				element:FireEventTree("refreshBannerItem", m_item)
+			end
+		end,
+
+		--While the product details page is up it drives the (shared) dice
+		--preview scene itself, so stop feeding it our banner settings.
+		hideProducts = function(element)
+			m_suspended = true
+			element:SetClass("collapsed", true)
+		end,
+
+		showProducts = function(element)
+			m_suspended = false
+			element:SetClass("collapsed", false)
+		end,
+
+		think = function(element)
+			if m_suspended or m_item == nil or element:HasClass("showingCart") or element:HasClass("inventory") then
+				return
+			end
+
+			local scene = dice.GetPreviewScene()
+			scene.assetid = m_item.assetid
+			scene.selectedIndex = 0
+			scene.solo = true
+			scene.transparent = true
+			scene.diceScale = m_diceScale
+		end,
+
+		--Dev hook for tuning the banner live, e.g.:
+		--CodexTitlescreenRoot:FireEventTree("configureBanner",
+		--  {dieX = 0.38, dieY = 0.555, size = 618, scale = 3.4,
+		--   bandTop = 0.06, bandBottom = 0.90})
+		configureBanner = function(element, opts)
+			opts = opts or {}
+			if opts.scale ~= nil then
+				m_diceScale = opts.scale
+			end
+			if opts.size ~= nil then
+				m_dieSize = opts.size
+				diePanel.width = opts.size
+				diePanel.height = opts.size
+			end
+			if opts.dieX ~= nil then
+				dieCenterX = opts.dieX
+			end
+			if opts.dieY ~= nil then
+				dieCenterY = opts.dieY
+			end
+			if opts.bandTop ~= nil then
+				bandTop = opts.bandTop
+			end
+			if opts.bandBottom ~= nil then
+				bandBottom = opts.bandBottom
+			end
+			ApplyBand()
+		end,
+
+		--Dev hook: dump the actual layer geometry for debugging.
+		--(Style properties like imageRect are write-only from Lua; only
+		--sizes/positions can be read back.)
+		debugBanner = function(element)
+			printf("BANNER:: banner rendered=%sx%s band=[%s,%s]", json(element.renderedWidth), json(element.renderedHeight), json(bandTop), json(bandBottom))
+			printf("BANNER:: front rendered=%sx%s", json(frontPanel.renderedWidth), json(frontPanel.renderedHeight))
+			printf("BANNER:: die pos=(%s,%s) size=%sx%s scale=%s", json(diePanel.x), json(diePanel.y), json(diePanel.renderedWidth), json(diePanel.renderedHeight), json(m_diceScale))
+		end,
+
+		diePanel,
+
+		frontPanel,
+
+		--Advertising copy for the featured dice, on the empty rock to the
+		--right of the skeleton. A dark scrim sits behind the text so it
+		--stays readable over the light rock.
+		gui.Panel{
+			floating = true,
+			flow = "vertical",
+			halign = "right",
+			valign = "center",
+			width = 420,
+			height = "auto",
+			hmargin = 36,
+			borderBox = true,
+			hpad = 24,
+			vpad = 20,
+			bgimage = "panels/square.png",
+			bgcolor = "#000000a0",
+			cornerRadius = 12,
+
+			gui.Label{
+				classes = {"shopTitle"},
+				width = "100%",
+				height = "auto",
+				halign = "left",
+				textAlignment = "left",
+				fontWeight = "bold",
+				fontSize = 34,
+				text = "",
+
+				refreshBannerItem = function(element, item)
+					element.text = item.name
+				end,
+			},
+
+			gui.Label{
+				classes = {"shopDescription"},
+				width = "100%",
+				height = "auto",
+				halign = "left",
+				textAlignment = "left",
+				vmargin = 10,
+				maxHeight = 110,
+				textOverflow = "ellipsis",
+				text = "",
+
+				refreshBannerItem = function(element, item)
+					local text = item.details
+					if text == nil or text == "" then
+						text = "Roll in style with this exclusive dice set."
+					end
+					element.text = text
+				end,
+			},
+
+			gui.Label{
+				classes = {"itemButton"},
+				halign = "left",
+				vmargin = 12,
+				text = "View Dice",
+
+				press = function(element)
+					if m_item ~= nil then
+						element:FireEventOnParents("showItemDetails", m_item)
+					end
+				end,
+			},
+		},
+	}
+
+	return resultPanel
+end
 
 local MakeShopImageDisplay = function(options)
 	options = options or {}
@@ -928,6 +1187,11 @@ local ShowItemDetailsInternal = function(args)
 				element.data.scene.assetid = element.data.item.assetid
 				element.data.scene.selectedIndex = element.data.diceIndex
 
+				--The shop banner reconfigures the shared preview scene for
+				--its single composited die; undo that for the carousel.
+				element.data.scene.solo = false
+				element.data.scene.transparent = false
+				element.data.scene.diceScale = 0
 			end,
 
 			showProductDetails = function(element, item)
@@ -1565,7 +1829,7 @@ local function CreateShopScreenInternal(arguments)
 				gui.Panel{
 					flow = "vertical",
 					width = "100%",
-					height = 300,
+					height = "auto",
 
 					gui.Panel{
 						--padding
@@ -1573,6 +1837,7 @@ local function CreateShopScreenInternal(arguments)
 					},
 
 					gui.Panel{
+						classes = {"shopLogo"},
 						width = 128,
 						height = 64,
 						bgimage = "panels/logo/DMHubLogoBare.png",
@@ -1581,6 +1846,8 @@ local function CreateShopScreenInternal(arguments)
 						valign = "top",
 						vmargin = 16,
 					},
+
+					MakeDiceBanner(),
 
 
 					gui.Panel{
@@ -1622,8 +1889,11 @@ local function CreateShopScreenInternal(arguments)
 						end,
 					},
 
+					--The text header for the main shop page is replaced by the
+					--dice banner above; keep the panel around (collapsed) in
+					--case we want to bring the tagline back.
 					gui.Panel{
-						classes = {"collapseOnCart","collapsedWhenInventory", "collapsedWhenArtistFocus"},
+						classes = {"collapsed"},
 						halign = "center",
 						flow = "vertical",
 						width = "auto",
@@ -2733,8 +3003,7 @@ local function CreateShopScreenInternal(arguments)
 			},
 
 			--close button in top left.
-			gui.Button{
-				classes = {"closeButton"},
+			gui.CloseButton{
 				halign = "left",
 				valign = "top",
 
@@ -2910,8 +3179,7 @@ function CreateShopScreen(arguments)
 							bgcolor = "#bbbbbbff",
 							gui.LoadingIndicator{},
 
-							gui.Button{
-								classes = {"closeButton"},
+							gui.CloseButton{
 								halign = "left",
 								valign = "top",
 								floating = true,

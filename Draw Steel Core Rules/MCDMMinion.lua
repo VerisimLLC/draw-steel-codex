@@ -153,6 +153,456 @@ DrawSteelMinion.FormSquad = function(tokens)
     end
 end
 
+--- Moves minions into a squad. Combine, reassign, and split all funnel here
+--- (existing name merges, fresh name splits). Clears per-minion squad state so
+--- the destination recomputes cleanly.
+--- @param destName string Squad to move the minions into.
+--- @param tokens CharacterToken[] Minion tokens to move.
+--- @param ownerCharid string|nil If set, only move minions whose summonerid matches.
+DrawSteelMinion.AssignMinionsToSquad = function(destName, tokens, ownerCharid)
+    if destName == nil or destName == "" then
+        return
+    end
+
+    -- Group moved minions into the summoner's initiative slot (the summon
+    -- ability's "group with caster"), so a squad change/rename/split puts them
+    -- in the initiative order right away.
+    local casterGrouping = nil
+    if ownerCharid ~= nil then
+        local summonerToken = dmhub.GetTokenById(ownerCharid)
+        if summonerToken ~= nil and summonerToken.valid then
+            casterGrouping = InitiativeQueue.GetInitiativeId(summonerToken)
+        end
+    end
+
+    for _,tok in ipairs(tokens) do
+        if tok ~= nil and tok.valid and tok.properties ~= nil and tok.properties.minion and (ownerCharid == nil or tok.summonerid == ownerCharid) then
+            tok:ModifyProperties{
+                description = "Assign to Squad",
+                undoable = false,
+                combine = true,
+                execute = function()
+                    tok.properties.minionSquad = destName
+                    tok.properties.damage_taken = nil
+                    tok.properties.damage_taken_seq = nil
+                    tok.properties.squadpos = nil
+                    if casterGrouping ~= nil then
+                        tok.properties.initiativeGrouping = casterGrouping
+                    end
+                end,
+            }
+        end
+    end
+
+    game.UpdateCharacterTokens()
+end
+
+--- Deletes the given summoned minions outright. We hard-delete rather than
+--- despawn -- despawned tokens linger and still show as live in the panel.
+--- @param tokens CharacterToken[]
+DrawSteelMinion.DeleteMinions = function(tokens)
+    local charids = {}
+    for _,tok in ipairs(tokens) do
+        if tok ~= nil and tok.valid then
+            charids[#charids+1] = tok.charid
+        end
+    end
+
+    if #charids > 0 then
+        game.DeleteCharacters(charids)
+    end
+
+    game.UpdateCharacterTokens()
+end
+
+--- Opens the drag-and-drop squad manager, applying changes live. Drag a minion
+--- to another squad (reassign), New Squad (split), or Trash (delete); drag a
+--- squad's grip to another squad (combine) or Trash (delete, with confirm).
+--- Rename and recolor are inline per row.
+--- @param token CharacterToken The summoner whose squads are managed.
+DrawSteelMinion.ShowSquadManager = function(token)
+    if token == nil or not token.valid or token.properties == nil then
+        return
+    end
+
+    local m_token = token
+
+    -- Whole-squad deletes prompt; single-minion deletes are immediate.
+    local function ConfirmDeleteSquad(name, squadTokens)
+        gui.ModalMessage{
+            title = "Delete Squad",
+            message = string.format("Delete all %d minions in %s? This removes them from play.", #squadTokens, name),
+            options = {
+                { text = "Cancel", execute = function() gui.CloseModal() end },
+                { text = "Delete", execute = function()
+                    DrawSteelMinion.DeleteMinions(squadTokens)
+                    gui.CloseModal()
+                end },
+            },
+        }
+    end
+
+    -- One squad row: a drop target with color/rename controls, a draggable grip
+    -- (whole squad), and draggable portraits.
+    local function BuildRow(squadName, liveTokens)
+        local portraits = {}
+        for _, tok in ipairs(liveTokens) do
+            local charid = tok.charid
+            portraits[#portraits + 1] = gui.Panel{
+                classes = {"sm-portrait"},
+                -- bgimage gives the wrapper a hit area to catch the drag press.
+                bgimage = "panels/square.png",
+                bgcolor = "clear",
+                width = 36,
+                height = 36,
+                halign = "left",
+                margin = 3,
+                draggable = true,
+                data = { charid = charid },
+                canDragOnto = function(element, target)
+                    if target == nil then return false end
+                    if target:HasClass("sm-trash") or target:HasClass("sm-new") then
+                        return true
+                    end
+                    return target:HasClass("sm-row") and target.data.squadName ~= squadName
+                end,
+                drag = function(element, target)
+                    if target == nil then return end
+                    local mtok = dmhub.GetTokenById(element.data.charid)
+                    if mtok == nil or not mtok.valid then return end
+                    if target:HasClass("sm-trash") then
+                        DrawSteelMinion.DeleteMinions{ mtok }
+                    elseif target:HasClass("sm-new") then
+                        local mt = mtok.properties:try_get("monster_type")
+                        if mt == nil or mt == "" then mt = "New" end
+                        DrawSteelMinion.AssignMinionsToSquad(monster.FindFreshSquadName(mt), { mtok }, m_token.charid)
+                        -- Splitting adds a squad; warn (never block) if over the cap.
+                        local info = m_token.properties:GetSummonerLimitInfo(0, 0)
+                        if info.exceededSquads then
+                            chat.Send(string.format("%s now has %d squads, over their limit of %d.", m_token.description, info.squadCount, info.maxSquads))
+                        end
+                    elseif target:HasClass("sm-row") then
+                        DrawSteelMinion.AssignMinionsToSquad(target.data.squadName, { mtok }, m_token.charid)
+                    end
+                end,
+                hover = function(element)
+                    gui.Tooltip("Drag to another squad to reassign, to New Squad to split, or to Trash to delete.")(element)
+                end,
+                gui.CreateTokenImage(tok, {
+                    width = 34,
+                    height = 34,
+                    halign = "center",
+                    valign = "center",
+                    interactable = false,
+                }),
+            }
+        end
+
+        local grip = gui.Panel{
+            classes = {"sm-grip"},
+            bgimage = "panels/square.png",
+            width = 24,
+            height = 24,
+            halign = "left",
+            valign = "center",
+            draggable = true,
+            canDragOnto = function(element, target)
+                if target == nil then return false end
+                if target:HasClass("sm-trash") then return true end
+                return target:HasClass("sm-row") and target.data.squadName ~= squadName
+            end,
+            drag = function(element, target)
+                if target == nil then return end
+                local squadTokens = {}
+                for _, t in ipairs(liveTokens) do
+                    if t.valid then squadTokens[#squadTokens + 1] = t end
+                end
+                if target:HasClass("sm-trash") then
+                    ConfirmDeleteSquad(squadName, squadTokens)
+                elseif target:HasClass("sm-row") and target.data.squadName ~= squadName then
+                    DrawSteelMinion.AssignMinionsToSquad(target.data.squadName, squadTokens, m_token.charid)
+                end
+            end,
+            hover = function(element)
+                gui.Tooltip("Drag the whole squad onto another to combine, or onto Trash to delete it.")(element)
+            end,
+            gui.Label{
+                classes = {"sizeL", "bold"},
+                interactable = false,
+                text = "::",
+                halign = "center",
+                valign = "center",
+                width = "auto",
+                height = "auto",
+            },
+        }
+
+        return gui.Panel{
+            classes = {"sm-row"},
+            dragTarget = true,
+            data = { squadName = squadName },
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            vmargin = 4,
+            pad = 6,
+
+            gui.Panel{
+                width = "100%",
+                height = "auto",
+                flow = "horizontal",
+                valign = "center",
+
+                grip,
+
+                gui.ColorPicker{
+                    classes = {"bordered"},
+                    width = 18,
+                    height = 18,
+                    cornerRadius = 9,
+                    halign = "left",
+                    valign = "center",
+                    hmargin = 4,
+                    value = DrawSteelMinion.GetSquadColor(squadName),
+                    confirm = function(element)
+                        local color = element.value.tostring
+                        DrawSteelMinion.SetSquadColor(squadName, color)
+                        local ids = {}
+                        for _, t in ipairs(liveTokens) do
+                            if t.valid then ids[#ids + 1] = t.id end
+                        end
+                        if #ids > 0 then
+                            game.Refresh{ tokens = ids }
+                        end
+                    end,
+                },
+
+                gui.Input{
+                    classes = {"sizeS"},
+                    text = squadName,
+                    characterLimit = 24,
+                    selectAllOnFocus = true,
+                    width = 200,
+                    height = "auto",
+                    valign = "center",
+                    hmargin = 4,
+                    change = function(element)
+                        local newName = trim(element.text)
+                        if newName == "" or newName == squadName then
+                            element.text = squadName
+                            return
+                        end
+                        -- Renaming = move all this squad's minions to the new name
+                        -- (the old name then has no members and disappears).
+                        DrawSteelMinion.AssignMinionsToSquad(newName, liveTokens, m_token.charid)
+                        local color = DrawSteelMinion.GetSquadColor(squadName)
+                        if type(color) == "table" and color.tostring ~= nil then
+                            color = color.tostring
+                        end
+                        DrawSteelMinion.SetSquadColor(newName, color)
+                    end,
+                },
+
+                gui.Label{
+                    classes = {"sizeS"},
+                    text = string.format("%d", #liveTokens),
+                    width = "auto",
+                    height = "auto",
+                    halign = "right",
+                    valign = "center",
+                },
+            },
+
+            gui.Panel{
+                width = "100%",
+                height = "auto",
+                flow = "horizontal",
+                wrap = true,
+                vmargin = 2,
+                children = portraits,
+            },
+        }
+    end
+
+    local squadsContainer
+    squadsContainer = gui.Panel{
+        classes = {"sm-squads"},
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        data = { signature = false },
+        thinkTime = 0.25,
+        think = function(element)
+            if m_token == nil or not m_token.valid or m_token.properties == nil then
+                return
+            end
+
+            local squads = m_token.properties:GetSummonedSquadsByType(nil) or {}
+            local squadList = {}
+            local sigParts = {}
+            for sName, info in pairs(squads) do
+                local lt = {}
+                for _, charid in ipairs(info.charids) do
+                    local mt = dmhub.GetTokenById(charid)
+                    if mt ~= nil and mt.valid and mt.properties ~= nil and not mt.properties:IsDeadOrDying() then
+                        lt[#lt + 1] = mt
+                    end
+                end
+                if #lt > 0 then
+                    table.sort(lt, function(a, b) return a.charid < b.charid end)
+                    squadList[#squadList + 1] = { name = sName, liveTokens = lt }
+                    local ids = {}
+                    for _, t in ipairs(lt) do ids[#ids + 1] = t.charid end
+                    sigParts[#sigParts + 1] = sName .. "=" .. table.concat(ids, ",")
+                end
+            end
+            table.sort(squadList, function(a, b) return a.name < b.name end)
+            table.sort(sigParts)
+            local signature = table.concat(sigParts, "|")
+
+            if signature == element.data.signature then return end
+            element.data.signature = signature
+
+            local children = {}
+            for _, entry in ipairs(squadList) do
+                children[#children + 1] = BuildRow(entry.name, entry.liveTokens)
+            end
+            if #children == 0 then
+                children[1] = gui.Label{
+                    classes = {"sizeS"},
+                    text = "No active squads.",
+                    halign = "center",
+                    width = "auto",
+                    height = "auto",
+                    vmargin = 12,
+                }
+            end
+            element.children = children
+        end,
+    }
+
+    local zones = gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "horizontal",
+        halign = "center",
+        vmargin = 8,
+
+        gui.Panel{
+            classes = {"sm-new"},
+            dragTarget = true,
+            width = 150,
+            height = 40,
+            halign = "center",
+            valign = "center",
+            flow = "horizontal",
+            hmargin = 8,
+            hover = function(element)
+                gui.Tooltip("Drag a minion here to split it into a brand-new squad.")(element)
+            end,
+            gui.Label{
+                classes = {"sizeS", "bold"},
+                interactable = false,
+                text = "+ New Squad",
+                halign = "center",
+                valign = "center",
+                width = "auto",
+                height = "auto",
+            },
+        },
+
+        gui.Panel{
+            classes = {"sm-trash"},
+            dragTarget = true,
+            width = 150,
+            height = 40,
+            halign = "center",
+            valign = "center",
+            flow = "horizontal",
+            hmargin = 8,
+            hover = function(element)
+                gui.Tooltip("Drag a minion here to delete it, or a squad's grip handle here to delete the whole squad.")(element)
+            end,
+            gui.Label{
+                classes = {"sizeS", "bold"},
+                interactable = false,
+                text = "Trash",
+                halign = "center",
+                valign = "center",
+                width = "auto",
+                height = "auto",
+            },
+        },
+    }
+
+    local resultPanel = gui.Panel{
+        classes = {"framedPanel", "sm-modal"},
+        flow = "vertical",
+        -- framedPanel supplies the themed frame; ShowModal centers it. Draggable
+        -- so the player can move it.
+        draggable = true,
+        drag = function(element)
+            element.x = element.xdrag
+            element.y = element.ydrag
+        end,
+        width = 560,
+        height = "auto",
+        pad = 16,
+
+        -- Drag styling via @tokens so it tracks the color scheme; MergeStyles
+        -- folds in the base theme.
+        styles = ThemeEngine.MergeStyles{
+            { selectors = {"sm-row"}, bgimage = true, borderWidth = 1, borderColor = "@border", bgcolor = "@bgAlt", cornerRadius = 6 },
+            { selectors = {"sm-row", "drag-target"}, borderColor = "@accent" },
+            { selectors = {"sm-row", "drag-target-hover"}, borderColor = "@accentHover" },
+
+            { selectors = {"sm-portrait"}, cornerRadius = 4, borderWidth = 1, borderColor = "clear" },
+            { selectors = {"sm-portrait", "hover"}, borderColor = "@accent" },
+
+            { selectors = {"sm-grip"}, cornerRadius = 4, bgcolor = "@bgAlt" },
+            { selectors = {"sm-grip", "hover"}, bgcolor = "@accent" },
+
+            { selectors = {"sm-new"}, bgimage = true, borderWidth = 1, borderColor = "@success", bgcolor = "@bgAlt", cornerRadius = 6 },
+            { selectors = {"sm-new", "drag-target-hover"}, bgcolor = "@success" },
+
+            { selectors = {"sm-trash"}, bgimage = true, borderWidth = 1, borderColor = "@danger", bgcolor = "@bgAlt", cornerRadius = 6 },
+            { selectors = {"sm-trash", "drag-target-hover"}, bgcolor = "@danger" },
+        },
+
+        gui.Label{
+            classes = {"dialogTitle"},
+            text = "Manage Squads",
+            bmargin = 4,
+        },
+
+        gui.Label{
+            classes = {"sizeXs"},
+            width = "100%",
+            height = "auto",
+            halign = "left",
+            bmargin = 6,
+            text = "Drag a minion onto another squad to reassign \nDrag onto New Squad to split, \nDrag onto Trash to delete. \nDrag a squad's handle onto another squad to combine, or onto Trash to delete the whole squad.",
+        },
+
+        squadsContainer,
+        zones,
+
+        gui.Button{
+            classes = {"sizeM"},
+            text = "Close",
+            halign = "right",
+            tmargin = 6,
+            escapeActivates = true,
+            escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+            press = function(element)
+                gui.CloseModal()
+            end,
+        },
+    }
+
+    gui.ShowModal(resultPanel)
+end
+
 local g_tileSize = 100
 local g_minionHealthGradient = gui.Gradient{
     point_a = {x = 0, y = 0},

@@ -441,6 +441,13 @@ function dmhub.GetTableVisible(tableName)
 	-- dummy implementation for documentation purposes only
 end
 
+--- GetCompendiumPath: Returns the absolute on-disk path to the compendium directory -- the base folder that holds the 'tables' and 'import' subfolders -- with an optional subdirectory appended. Pass 'import' to get the directory the YAML import commands read from. Returns nil if the path cannot be resolved (e.g. the subdir escapes the compendium root). Unlike ExportTable, this does not depend on any table having content.
+--- @param subdir nil|string Optional subdirectory beneath the compendium folder (e.g. 'import' or 'tables').
+--- @return string|nil
+function dmhub.GetCompendiumPath(subdir)
+	-- dummy implementation for documentation purposes only
+end
+
 --- ExportTable: Exports a single object table to YAML files on disk. Creates a subdirectory named after the table containing _table.yaml (the whole table) and individual .yaml files per item. Returns nil if the table does not exist.
 --- @param tableName string The name of the table to export.
 --- @param options nil|{ directory: string, includeHidden: boolean, individualFiles: boolean }

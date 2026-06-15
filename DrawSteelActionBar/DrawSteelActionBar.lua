@@ -82,6 +82,38 @@ local g_token
 --- @type nil|Creature
 local g_creature
 
+--Minion squad coordinated strike: the minion->target assignment is automatic,
+--but the player can hard-lock a specific minion to a specific target by
+--clicking the minion and then the target. Locks live in MCDMActivatedAbility
+--(ActivatedAbility.LockSquadTargetingPair / ClearSquadTargetingState) and are
+--honored by GetTargetingRays; the locked minion becomes that creature's main
+--attacker.
+--- @type nil|CharacterToken  a squad minion that was clicked and is awaiting a target
+local g_squadPendingLockMinion = nil
+
+local function SquadStrikeActive()
+    return g_currentAbility ~= nil and g_token ~= nil and g_token.valid
+        and g_currentAbility:UsesSquadStrike(g_token)
+end
+
+--True if tok is an active (alive, not broken-off) minion in the caster's squad.
+local function SquadIsActiveMinionToken(tok)
+    if tok == nil or g_token == nil or g_token.properties == nil then
+        return false
+    end
+    local squad = g_token.properties:try_get("_tmp_minionSquad")
+    if squad == nil or squad.tokens == nil then
+        return false
+    end
+    for _, member in ipairs(squad.tokens) do
+        if member ~= nil and member.valid and member.id == tok.id
+            and (not member.properties:IsDead()) and member.properties:IsActiveInSquad() then
+            return true
+        end
+    end
+    return false
+end
+
 --- @type nil|Panel
 local g_channeledResourcePanel
 
@@ -2422,6 +2454,11 @@ local function ReplaceTargetLineOfSightRays(rays, ability, range)
         else
             t[key] = dmhub.MarkLineOfSight(ray.a, ray.b, ray.a.properties:GetPierceWalls(), GetArrowColor(ability, ray.a, ray.b), EffectiveArrowRange(ray.a, ray.b, range))
             AddModifierLabelsToMarker(t[key], ray.a, ray.b, ability, range)
+            --Mark player-locked attacker->target pairings so they stand out
+            --from the auto-assigned ones.
+            if ray.locked then
+                t[key]:AddLabel("Locked", "buff")
+            end
         end
         m_targetLineOfSightRays[key] = nil
     end
@@ -2602,6 +2639,50 @@ local function CreateTargetInfo(spell)
         guid = dmhub.GenerateGuid(),
         action = spell,
         execute = function(targetToken, info) --info has {targetEffect = {list of effect panels}}
+            -- Squad coordinated strike: clicking a squad minion arms a lock for
+            -- that minion (click again to disarm); the next enemy click locks
+            -- the pair, making that minion the creature's main attacker.
+            -- Clicking a target with no minion armed is normal, auto-assigned
+            -- targeting (falls through below).
+            if SquadStrikeActive() then
+                if SquadIsActiveMinionToken(targetToken) then
+                    if g_squadPendingLockMinion ~= nil and g_squadPendingLockMinion.id == targetToken.id then
+                        g_squadPendingLockMinion = nil
+                    else
+                        g_squadPendingLockMinion = targetToken
+                    end
+                    CalculateSpellTargeting()
+                    return
+                elseif g_squadPendingLockMinion ~= nil then
+                    local locksOnTarget = ActivatedAbility.LockSquadTargetingPair(g_squadPendingLockMinion, targetToken)
+                    g_squadPendingLockMinion = nil
+
+                    --Adopt the hover preview arrow (drawn from the armed
+                    --minion, with its Locked label) as the persistent ray for
+                    --this pairing so it doesn't flicker on recompute.
+                    AdoptLineOfSightMark()
+
+                    -- Make sure the creature has a target slot for each lock
+                    -- aimed at it.
+                    local slots = 0
+                    for _, id in ipairs(g_targetsChosen) do
+                        if id == targetToken.id then
+                            slots = slots + 1
+                        end
+                    end
+                    while slots < locksOnTarget do
+                        g_targetsChosen[#g_targetsChosen + 1] = targetToken.id
+                        if g_firstTarget == nil then
+                            g_firstTarget = targetToken.id
+                        end
+                        slots = slots + 1
+                    end
+
+                    CalculateSpellTargeting()
+                    return
+                end
+            end
+
             -- Strict-targeting: players cannot select invalid targets (out of
             -- range, forbidden, etc). The reticule still lights up with the
             -- invalid styling so they get feedback on why, but the click is
@@ -4291,6 +4372,10 @@ CreateAbilityController = function()
 
             g_targetInfo = CreateTargetInfo(g_currentAbility)
 
+            --Clear any squad-strike minion->target locks from a previous cast.
+            g_squadPendingLockMinion = nil
+            ActivatedAbility.ClearSquadTargetingState()
+
             g_castMessageContainer:SetClass("collapsed", true)
             g_tokenSelectionContainer:SetClass("collapsed", true)
             g_castButton:SetClass("collapsed", true)
@@ -4468,6 +4553,9 @@ CreateAbilityController = function()
 
             RemoveTokenTargeting()
 
+            g_squadPendingLockMinion = nil
+            ActivatedAbility.ClearSquadTargetingState()
+
             ClearPointTargeting()
 
             SetTargetsInRadius({})
@@ -4642,6 +4730,24 @@ CreateAbilityController = function()
                 return
             end
             element:FireEvent("unhighlightTargetToken")
+
+            --While a squad minion is armed for a lock, preview the ray from
+            --THAT minion: clicking will lock this pair, so the hover arrow
+            --should show the armed minion attacking, not the auto-assigned
+            --(closest) one. Hovering another squad minion falls through to
+            --normal handling.
+            if SquadStrikeActive() and g_squadPendingLockMinion ~= nil and g_squadPendingLockMinion.valid
+                and not SquadIsActiveMinionToken(targetToken) then
+                local range = g_currentAbility:GetRange(g_token.properties, g_currentSymbols)
+                m_markLineOfSight = dmhub.MarkLineOfSight(g_squadPendingLockMinion, targetToken, g_squadPendingLockMinion.properties:GetPierceWalls(), GetArrowColor(g_currentAbility, g_squadPendingLockMinion, targetToken), EffectiveArrowRange(g_squadPendingLockMinion, targetToken, range))
+                if m_markLineOfSight ~= nil then
+                    AddModifierLabelsToMarker(m_markLineOfSight, g_squadPendingLockMinion, targetToken, g_currentAbility, range)
+                    m_markLineOfSight:AddLabel("Locked", "buff")
+                    m_markLineOfSightToken = targetToken
+                    m_markLineOfSightSourceToken = g_squadPendingLockMinion
+                end
+                return
+            end
 
             local targets = BuildTargetsList()
             targets[#targets + 1] = {
@@ -6079,6 +6185,26 @@ local function CalculateSpellTargetFocusing(symbols)
         end
     end
 
+    --Squad coordinated strike: make the squad's own minions clickable so the
+    --player can lock a specific minion to a target (click the minion, then the
+    --target). Auto-assignment still handles every unlocked minion.
+    if SquadStrikeActive() then
+        local squad = g_token.properties:try_get("_tmp_minionSquad")
+        if squad ~= nil and squad.tokens ~= nil then
+            for _, tok in ipairs(squad.tokens) do
+                if tok ~= nil and tok.valid and tok.sheet ~= nil
+                    and (not tok.properties:IsDead()) and tok.properties:IsActiveInSquad() then
+                    if tok.sheet.data.targetInfo ~= nil and tok.sheet.data.targetInfo ~= g_targetInfo then
+                        tok.sheet:FireEvent("untarget")
+                    end
+                    tok.sheet.data.targetInfo = g_targetInfo
+                    tok.sheet.data.targetValid = true
+                    tok.sheet:FireEvent("target", { valid = true })
+                end
+            end
+        end
+    end
+
     return potentialTargetTokens
 end
 
@@ -6237,6 +6363,22 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
 
 
             local promptText = g_currentAbility:PromptText(g_token, targets, g_currentSymbols, synthesizedSpells)
+            --While a minion is armed for a lock, prompt for its target.
+            --Otherwise, during squad targeting, add a hint that clicking a
+            --minion lets the player choose its target instead of using the
+            --automatic closest-minion assignment.
+            if SquadStrikeActive() then
+                if g_squadPendingLockMinion ~= nil and g_squadPendingLockMinion.valid then
+                    promptText = string.format("Choose a target to lock for %s", creature.GetTokenDescription(g_squadPendingLockMinion))
+                else
+                    local hint = "<size=75%><i>Click one of your minions to choose which minion attacks which target</i></size>"
+                    if promptText == nil or promptText == "" then
+                        promptText = hint
+                    else
+                        promptText = promptText .. "\n" .. hint
+                    end
+                end
+            end
             g_castMessage.data.promptText = promptText
             g_castMessage:FireEvent("refresh")
 

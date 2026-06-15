@@ -191,7 +191,21 @@ local function createDrawSteelBanner(options)
 
                     --as the controller who called for this dialog,
                     --create initiative for everyone now.
-                    if options.controller then
+                    if options.controller and options.reroll then
+                        --Per-round "who goes first" reroll (Crows): combat already
+                        --exists, so do NOT create a queue. Just record which side
+                        --goes first this round and refresh the initiative bar.
+                        --(See showDrawSteelRerollBanner.)
+                        local q = dmhub.initiativeQueue
+                        if q ~= nil and not q.hidden and m_heroesWin ~= nil then
+                            q.playersGoFirst = m_heroesWin
+                            q.playersTurn = m_heroesWin
+                            dmhub:UploadInitiativeQueue()
+                            if GameHud.instance ~= nil and GameHud.instance:has_key("choiceInitiativeBar") then
+                                GameHud.instance.choiceInitiativeBar:FireEvent("refresh")
+                            end
+                        end
+                    elseif options.controller then
                         local info = GameHud.instance.initiativeInterface
                         info.initiativeQueue = InitiativeQueue.Create()
                         info.initiativeQueue.playersGoFirst = m_heroesWin
@@ -828,6 +842,38 @@ function showDrawSteelBanner(result)
     GameHud.instance.parentPanel:AddChild(banner)
 end
 
+--Show the per-round "who goes first" reroll banner (used by Crows, which rolls
+--for turn order at the start of every round). Reuses the Draw Steel banner, but
+--in reroll mode it sets playersGoFirst on the EXISTING initiative queue when the
+--roll resolves rather than starting a new combat (see the reroll branch in
+--createDrawSteelBanner). Call this on a single client (the one advancing the
+--round); it broadcasts the banner to the other users itself.
+function showDrawSteelRerollBanner()
+    if GameHud.instance == nil or GameHud.instance.parentPanel == nil then
+        return
+    end
+    local banner = createDrawSteelBanner{ controller = true, reroll = true }
+    GameHud.instance.parentPanel:AddChild(banner)
+end
+
+RegisterGameType("Encounter") --make sure we have it registered.
+
+--Journal "Draw Steel!" button entry point. Opens the combat setup dialog scoped to
+--the given authored encounter so the DM can confirm/adjust sides before rolling turn
+--order. The dialog pre-selects this encounter in its dropdown (which routes the
+--encounter's placed monsters into the participating "Monsters" pool) and sets up the
+--heroes automatically. spawnedCharids is no longer needed -- the dialog derives the
+--participating monsters from the encounter's spawns via the dropdown selection.
+function Encounter.DrawSteelWithEncounter(encounter, spawnedCharids)
+    local q = dmhub.initiativeQueue
+    if q ~= nil and not q.hidden then
+        --already in combat.
+        return
+    end
+
+    Encounter.ShowCombatSetupDialog(nil, encounter)
+end
+
 --- @class RollInitiativeChatMessage
 --- @field winner "players"|"monsters"
 --- @field playerTokenIds string[]
@@ -1166,7 +1212,11 @@ local function SetTokenSurprised(tok, surprised)
     end
 end
 
-local function ShowCombatSetupDialog(selectedTokens)
+--selectedTokens: optional list of tokens to pre-mark as participating (else inferred).
+--preselectEncounter: optional Encounter object to force-select in the dropdown; takes
+--priority over the readied/open-journal inference. Used by the journal RichEncounter
+--"Draw Steel!" button so the dialog opens scoped to that encounter.
+local function ShowCombatSetupDialog(selectedTokens, preselectEncounter)
     local m_encounterStrength = 0
     local m_encounterStrengthSingleHero = 0
     local surprisedCondition = CharacterCondition.conditionsByName["surprised"]
@@ -1789,8 +1839,19 @@ local function ShowCombatSetupDialog(selectedTokens)
     local m_selectedEncounterId = "custom"
     local defaultEncounterIndex = nil
 
+    --An explicitly requested encounter (e.g. the journal "Draw Steel!" button) wins
+    --over every inferred default below.
+    if preselectEncounter ~= nil then
+        for i, info in ipairs(m_encountersOnMap) do
+            if info.encounter == preselectEncounter or info.name == preselectEncounter.name then
+                defaultEncounterIndex = i
+                break
+            end
+        end
+    end
+
     local readiedEncounter = Encounter.GetReadiedEncounter()
-    if readiedEncounter ~= nil then
+    if defaultEncounterIndex == nil and readiedEncounter ~= nil then
         for i, info in ipairs(m_encountersOnMap) do
             if info.encounter == readiedEncounter or info.name == readiedEncounter.name then
                 defaultEncounterIndex = i
@@ -2083,6 +2144,10 @@ local function ShowCombatSetupDialog(selectedTokens)
 
     GameHud.instance:ShowModal(dialog)
 end
+
+--Public handle so callers earlier in the file (Encounter.DrawSteelWithEncounter) and
+--other modules can open the combat setup dialog, optionally scoped to an encounter.
+Encounter.ShowCombatSetupDialog = ShowCombatSetupDialog
 
 Commands.RegisterMacro{
     name = "rollinitiative",

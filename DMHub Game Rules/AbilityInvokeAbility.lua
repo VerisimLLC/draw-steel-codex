@@ -198,6 +198,17 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
             if target.token ~= nil then
                 print("INVOKE:: CASTING ON TARGET", i, "/", #targets)
 
+                --In a squad coordinated strike, the invoked effect (e.g. a forced-
+                --movement push/pull, or an inflicted condition) should be SOURCED
+                --from the main minion for THIS creature -- the first minion to
+                --attack it -- not from the cast's caster (the squad lead). This
+                --mirrors the per-creature attribution applied to power-roll tier
+                --commands in MCDMAbilityRollBehavior. Without targetPairs (non-squad
+                --invokes) this is just the caster, so behavior is unchanged.
+                local invokeSource = casterToken
+                if options.symbols ~= nil and options.symbols.cast ~= nil then
+                    invokeSource = options.symbols.cast:MainAttackerForTarget(options.symbols, target.token, casterToken)
+                end
 
                 --be careful not to put anything in here we don't want to transmit to the database.
                 local symbols = { spellname = options.symbols.spellname or ability.name, charges = options.symbols.charges, cast = options.symbols.cast, forcedMovementOrigin = options.symbols.forcedMovementOrigin }
@@ -229,7 +240,7 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                         standardAbility = self.standardAbility,
                         standardAbilityParams = self:try_get("standardAbilityParams"),
                         targeting = self.targeting,
-                        invokerid = casterToken.id,
+                        invokerid = invokeSource.id,
                         casterid = cond(self.invokeOnCaster, casterToken.id, target.token.id),
                         targetid = target.token.id,
                         subjectid = subjectid,
@@ -417,7 +428,7 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
 
                         print("Invoke:: Execute...")
                         local invokerToken = cond(self.invokeOnCaster, casterToken, target.token)
-                        self.ExecuteInvoke(casterToken, abilityClone, invokerToken, self.targeting, symbols, options)
+                        self.ExecuteInvoke(invokeSource, abilityClone, invokerToken, self.targeting, symbols, options)
                     end
                 end
 

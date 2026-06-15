@@ -27,7 +27,16 @@ TokenUI.RegisterIcon{
     icon = "ui-icons/wounded-border.png",
     Filter = function(creature)
         --this controls if the icon should display.
-	    return creature.damage_taken >= creature:MaxHitpoints()/2 and woundedIconSetting:Get()
+        --MaxHitpoints can transiently come back nil while a Lua reload is in
+        --progress (e.g. a dialog's destroy handler triggers game.Refresh()
+        --mid-reload, rebuilding token huds before the rules mods finish
+        --loading). Treat that as "not wounded" instead of crashing the
+        --whole hud build.
+        local maxhp = creature:MaxHitpoints()
+        if maxhp == nil then
+            return false
+        end
+	    return creature.damage_taken >= maxhp/2 and woundedIconSetting:Get()
     end,
 
     --Only show to those who can't see the health bar.

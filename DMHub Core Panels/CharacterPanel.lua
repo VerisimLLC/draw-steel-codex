@@ -2694,6 +2694,13 @@ local function MapNoteTitle(bubble)
     return nil
 end
 
+-- Forward declaration: the per-token capability matcher used by the map-view
+-- provider below. Defined (with its short-TTL cache) alongside the bestiary
+-- capability index further down -- after MONSTER_ABILITY_CATEGORIES -- so the
+-- global index and the on-map matcher share one ExtractMonsterCapabilities
+-- classifier.
+local GetMonsterTokenCapabilities
+
 -- Context-sensitive search provider: the open battle map. While in a game,
 -- global search pins an "On this map" group, scoped to what is on the CURRENT
 -- map -- the deployed tokens (dmhub.allTokens is already current-map-only) and
@@ -2742,6 +2749,42 @@ Search.RegisterContextProvider{
                         dmhub.CenterOnToken(capturedId)
                     end,
                 }
+            end
+
+            -- Capability match: a placed MONSTER whose ability or trait matches.
+            -- The director is probably about to USE it, so the row selects and
+            -- centres the token (its abilities are then on the action bar). It
+            -- carries the token portrait and the "Monster (on Map)" header, with
+            -- the ability kind as the sub-label, mirroring the bestiary row. No
+            -- dedupKey: unlike the name row we deliberately LEAVE the bestiary
+            -- copy in the compendium bucket too, so the director can still place
+            -- another of this monster from the same search.
+            local props = token.properties
+            local okMon, isMonster = pcall(function() return props ~= nil and props:IsMonster() end)
+            if okMon and isMonster then
+                local capturedId = token.id
+                -- Name the SPECIFIC placed token (e.g. "Lumbering Egress (on Map)")
+                -- rather than the generic kind, so the director knows exactly which
+                -- token the row selects. Fall back to the kind label if unnamed.
+                local tokenName = token.name
+                local onMapLabel = (type(tokenName) == "string" and tokenName ~= "")
+                    and string.format("%s (on Map)", tokenName)
+                    or MapTokenKindLabel(token)
+                for _,cap in ipairs(GetMonsterTokenCapabilities(token)) do
+                    if Search.MatchesText(cap.name, needle) then
+                        results[#results+1] = {
+                            name = cap.name,
+                            score = Search.Score(cap.name, needle),
+                            typeLabel = onMapLabel,
+                            subLabel = cap.categorization,
+                            token = token,
+                            activate = function()
+                                dmhub.SelectToken(capturedId)
+                                dmhub.CenterOnToken(capturedId)
+                            end,
+                        }
+                    end
+                end
             end
         end
 
@@ -2802,6 +2845,72 @@ local g_monsterAbilityIndex = nil
 local g_monsterAbilityIndexTime = 0
 local g_monsterAbilityIndexBuilding = false
 
+-- Extract a monster's searchable capabilities from its creature properties: its
+-- distinctive abilities (Signature / Villain Action / Heroic, deduped by name)
+-- plus every named trait (passive feature, classed as "Trait"). Returns a flat
+-- list of {name, categorization}. Shared by the global bestiary index build
+-- below AND the per-token on-map matcher, so both classify a monster's
+-- capabilities identically. GetActivatedAbilities compiles GoblinScript (heavy);
+-- GetFeatures is cheap pre-loaded data. Each engine read is pcall-guarded: a
+-- malformed entry must not abort the sweep.
+local function ExtractMonsterCapabilities(props)
+    local caps = {}
+    if props == nil then
+        return caps
+    end
+    pcall(function()
+        local abils = props:GetActivatedAbilities{}
+        if type(abils) == "table" then
+            local seen = {}
+            for _,a in ipairs(abils) do
+                local okn, aname = pcall(function() return a.name end)
+                local okc, cat = pcall(function() return a.categorization end)
+                if okn and okc and type(aname) == "string" and aname ~= ""
+                    and MONSTER_ABILITY_CATEGORIES[cat] and not seen[aname] then
+                    seen[aname] = true
+                    caps[#caps+1] = { name = aname, categorization = cat }
+                end
+            end
+        end
+    end)
+    pcall(function()
+        local feats = props:GetFeatures()
+        if type(feats) == "table" then
+            local seenTrait = {}
+            for _,f in ipairs(feats) do
+                local okn, fname = pcall(function() return f.name end)
+                if okn and type(fname) == "string" and fname ~= ""
+                    and not seenTrait[fname] then
+                    seenTrait[fname] = true
+                    caps[#caps+1] = { name = fname, categorization = "Trait" }
+                end
+            end
+        end
+    end)
+    return caps
+end
+
+-- Per-token capability cache for the "On this map" matcher. Recomputing a placed
+-- token's capabilities (GoblinScript-compiling GetActivatedAbilities) on every
+-- keystroke would be too heavy, so each token's list is cached with a short TTL
+-- and rebuilt lazily. Weak-keyed so removed tokens are collected. Assigns the
+-- GetMonsterTokenCapabilities forward-declared above the map-view provider.
+local MONSTER_TOKEN_CAP_TTL = 5
+local g_tokenCapCache = setmetatable({}, { __mode = "k" })
+GetMonsterTokenCapabilities = function(token)
+    if token == nil or token.properties == nil then
+        return {}
+    end
+    local now = dmhub.Time()
+    local cached = g_tokenCapCache[token]
+    if cached ~= nil and (now - cached.time) < MONSTER_TOKEN_CAP_TTL then
+        return cached.caps
+    end
+    local caps = ExtractMonsterCapabilities(token.properties)
+    g_tokenCapCache[token] = { time = now, caps = caps }
+    return caps
+end
+
 local function MonsterAbilityIndexFresh()
     return g_monsterAbilityIndex ~= nil
         and (dmhub.Time() - g_monsterAbilityIndexTime) < MONSTER_ABILITY_INDEX_TTL
@@ -2820,55 +2929,16 @@ local function EnsureMonsterAbilityIndex()
                 local mname = monster.name
                 local props = monster.properties
                 if props ~= nil and type(mname) == "string" and mname ~= "" then
-                    -- Guard per-monster: a malformed ability list must not abort
-                    -- the whole index.
-                    pcall(function()
-                        local abils = props:GetActivatedAbilities{}
-                        if type(abils) == "table" then
-                            local seen = {}
-                            for _,a in ipairs(abils) do
-                                local okn, aname = pcall(function() return a.name end)
-                                local okc, cat = pcall(function() return a.categorization end)
-                                if okn and okc and type(aname) == "string" and aname ~= ""
-                                    and MONSTER_ABILITY_CATEGORIES[cat] and not seen[aname] then
-                                    seen[aname] = true
-                                    index[#index+1] = {
-                                        name = aname,
-                                        categorization = cat,
-                                        monsterName = mname,
-                                        monsterId = monsterid,
-                                    }
-                                end
-                            end
-                        end
-                    end)
-
-                    -- Traits (passive features), indexed alongside abilities so a
-                    -- search for e.g. "Lethe" finds every monster that has it.
-                    -- Every named feature from GetFeatures() is surfaced as a
-                    -- "Trait" row; GetFeatures() returns already-loaded data (no
-                    -- GoblinScript compile, unlike GetActivatedAbilities), so this
-                    -- pass is cheap. A shared trait's row volume is bounded by the
-                    -- result cap + "See all".
-                    pcall(function()
-                        local feats = props:GetFeatures()
-                        if type(feats) == "table" then
-                            local seenTrait = {}
-                            for _,f in ipairs(feats) do
-                                local okn, fname = pcall(function() return f.name end)
-                                if okn and type(fname) == "string" and fname ~= ""
-                                    and not seenTrait[fname] then
-                                    seenTrait[fname] = true
-                                    index[#index+1] = {
-                                        name = fname,
-                                        categorization = "Trait",
-                                        monsterName = mname,
-                                        monsterId = monsterid,
-                                    }
-                                end
-                            end
-                        end
-                    end)
+                    -- Abilities (deduped) + every named trait, classified once by
+                    -- the shared extractor and tagged with the owning monster.
+                    for _,cap in ipairs(ExtractMonsterCapabilities(props)) do
+                        index[#index+1] = {
+                            name = cap.name,
+                            categorization = cap.categorization,
+                            monsterName = mname,
+                            monsterId = monsterid,
+                        }
+                    end
                 end
             end
             n = n + 1

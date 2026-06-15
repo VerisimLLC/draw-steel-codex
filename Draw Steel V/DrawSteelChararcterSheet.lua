@@ -11,6 +11,114 @@ local g_abilityActionSortOrder = {
     [g_villainActionId] = 1,
 }
 
+--Transient highlight for a capability revealed from search (Phase B). Pulsed
+--via Panel:PulseClass, so the @accent fill applies instantly then fades back
+--over transitionTime. The rule is merged into the action-list and Features
+--panel style cascades so it resolves on either surface.
+local SEARCH_REVEAL_RULE = {
+    selectors = { "searchReveal" },
+    bgcolor = "@accent",
+    transitionTime = 0.7,
+}
+
+--Scroll an arbitrary descendant into (vertically centered) view within its
+--nearest vscroll ancestor. There is no engine ScrollIntoView and no
+--child-offset API, so the offset is summed from the rendered heights of
+--preceding siblings up the chain to the scroll panel (the normalized-position
+--math mirrors JournalPDFViewer). Returns false until layout has rendered
+--(heights still 0), so the caller can retry; true once it has positioned (or
+--when everything fits and no scroll is needed). Every engine read is
+--pcall-guarded - panel reads ERROR rather than return nil.
+local function ScrollCapabilityIntoView(target)
+    if target == nil or not target.valid then
+        return false
+    end
+
+    local scrollPanel = target.parent
+    while scrollPanel ~= nil do
+        local isScroll = false
+        pcall(function() isScroll = scrollPanel.vscroll == true end)
+        if isScroll then
+            break
+        end
+        scrollPanel = scrollPanel.parent
+    end
+    if scrollPanel == nil then
+        return false
+    end
+
+    local windowH = 0
+    local targetH = 0
+    pcall(function() windowH = scrollPanel.renderedHeight or 0 end)
+    pcall(function() targetH = target.renderedHeight or 0 end)
+    if windowH <= 0 or targetH <= 0 then
+        return false
+    end
+
+    local contentH = 0
+    pcall(function()
+        for _, c in ipairs(scrollPanel.children) do
+            contentH = contentH + (c.renderedHeight or 0)
+        end
+    end)
+    local range = contentH - windowH
+    if range <= 0 then
+        --Everything fits; the target is already visible.
+        return true
+    end
+
+    local offset = 0
+    local node = target
+    while node ~= nil and node ~= scrollPanel do
+        local parent = node.parent
+        if parent == nil then
+            return false
+        end
+        pcall(function()
+            for _, s in ipairs(parent.children) do
+                if s == node then
+                    break
+                end
+                offset = offset + (s.renderedHeight or 0)
+            end
+        end)
+        node = parent
+    end
+
+    local desiredTop = offset - (windowH - targetH) * 0.5
+    if desiredTop < 0 then
+        desiredTop = 0
+    elseif desiredTop > range then
+        desiredTop = range
+    end
+    --vscrollPosition: 1 = top, 0 = bottom.
+    scrollPanel.vscrollPosition = 1 - desiredTop / range
+    return true
+end
+
+--Phase B for a revealed capability: locate the matched row (findTarget runs
+--each retry because the row may still be building / unrendered), scroll it
+--into view, then pulse the highlight. Retries briefly while the freshly
+--expanded section lays out (heights start at 0); gives up quietly.
+local function ScheduleRevealAndPulse(findTarget)
+    local attempts = 0
+    local function attempt()
+        if mod.unloaded then
+            return
+        end
+        local target = findTarget()
+        if target ~= nil and target.valid and ScrollCapabilityIntoView(target) then
+            target:PulseClass("searchReveal")
+            return
+        end
+        attempts = attempts + 1
+        if attempts < 12 then
+            dmhub.Schedule(0.05, attempt)
+        end
+    end
+    attempt()
+end
+
 local fontScaling = 1
 local g_styles = {
     {
@@ -330,6 +438,9 @@ local function CreateAbilityPanel()
         end,
         ability = function(element, ability, c)
             m_ability = ability
+            --Stamped so the search reveal (Phase B) can locate this panel by
+            --the matched ability name.
+            element.data.capabilityName = ability.name
             element:SetClass("collapsed", false)
         end,
 
@@ -457,6 +568,9 @@ local function CreateTriggeredAbilityPanel()
         end,
         triggeredAbility = function(element, ability, c)
             m_triggeredAbility = ability
+            --Stamped so the search reveal (Phase B) can locate this panel by
+            --the matched ability name.
+            element.data.capabilityName = ability.name
             element:SetClass("collapsed", false)
         end,
 
@@ -651,6 +765,8 @@ local function CreateAbilityListPanel()
 
             { selectors = {"abilityTitle"},     color = "@fgStrong" },
             { selectors = {"abilityInfoLabel"}, color = "@fgMuted" },
+
+            SEARCH_REVEAL_RULE,
         }
     end
 
@@ -848,6 +964,33 @@ local function CreateAbilityListPanel()
             if header ~= nil then
                 header:SetClassTree("collapseSet", false)
                 element:FireEvent("refreshToken")
+
+                --Phase B: scroll the now-rendered ability panel into view and
+                --pulse it. The panels stamp data.capabilityName; the matching
+                --one is non-collapsed (pooled-out panels keep a stale name).
+                local listPanel = element
+                ScheduleRevealAndPulse(function()
+                    local result = nil
+                    local function walk(p, depth)
+                        if p == nil or depth > 8 or result ~= nil then
+                            return
+                        end
+                        local cn = nil
+                        pcall(function() cn = p.data and p.data.capabilityName or nil end)
+                        if cn == capName and not p:HasClass("collapsed") then
+                            result = p
+                            return
+                        end
+                        local ok, ch = pcall(function() return p.children end)
+                        if ok and type(ch) == "table" then
+                            for _, c in ipairs(ch) do
+                                walk(c, depth + 1)
+                            end
+                        end
+                    end
+                    walk(listPanel, 0)
+                    return result
+                end)
             end
         end,
     }
@@ -6749,6 +6892,10 @@ function CharSheet.InnerFeaturesPanel()
         height = "100%",
         flow = "vertical",
 
+        --Carries the search-reveal pulse rule so a monster trait row (in the
+        --legacy ListEditor below) can be highlighted when revealed from search.
+        styles = ThemeEngine.MergeTokens{ SEARCH_REVEAL_RULE },
+
         --Filter/count/settings row, pinned ABOVE the scroll area so it
         --survives scrolling. tmargin keeps the input clear of the tab
         --strip's border above.
@@ -7101,9 +7248,44 @@ function CharSheet.FeaturesAndNotesPanel()
         --that tab is the Phase A reveal. Abilities (non-"Trait") are handled
         --by the action list and ignored here.
         revealCapability = function(element, capName, categorization)
-            if categorization == "Trait" then
-                m_featuresTab:FireEvent("press")
+            if categorization ~= "Trait" then
+                return
             end
+            m_featuresTab:FireEvent("press")
+            if type(capName) ~= "string" or capName == "" then
+                return
+            end
+
+            --Phase B: scroll the matched trait row into view and pulse it. A
+            --trait renders as one markdown label whose visible text begins
+            --with the trait name ("<b>End Effect.</b> ..."), so match on the
+            --stripped prefix. Best-effort: a no-op if not located.
+            local featuresContent = contentPanels[2]
+            ScheduleRevealAndPulse(function()
+                local result = nil
+                local function walk(p, depth)
+                    if p == nil or depth > 30 or result ~= nil then
+                        return
+                    end
+                    local t = nil
+                    pcall(function() t = p.text end)
+                    if type(t) == "string" and t ~= "" then
+                        local plain = (t:gsub("<.->", ""))
+                        if string.sub(plain, 1, #capName) == capName then
+                            result = p
+                            return
+                        end
+                    end
+                    local ok, ch = pcall(function() return p.children end)
+                    if ok and type(ch) == "table" then
+                        for _, c in ipairs(ch) do
+                            walk(c, depth + 1)
+                        end
+                    end
+                end
+                walk(featuresContent, 0)
+                return result
+            end)
         end,
 
         --tab panel.

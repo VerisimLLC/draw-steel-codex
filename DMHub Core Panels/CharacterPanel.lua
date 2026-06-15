@@ -2648,3 +2648,125 @@ Search.RegisterProvider{
         return results
     end,
 }
+
+-- Hero/NPC/Monster label for a placed token, mirroring CodexTitleBar's
+-- TokenKindLabel (a file-local there, so duplicated here for the map context
+-- provider). IsMonster is the discriminator; player-controlled = Hero. The
+-- "(on Map)" suffix marks these as deployed -- it distinguishes a placed token
+-- from the same kind of UNPLACED creature (partyCharacters provider, plain
+-- "Hero"/"NPC") when both can land in the "In this Campaign" bucket.
+local function MapTokenKindLabel(token)
+    local props = token.properties
+    if props ~= nil then
+        local ok, isMonster = pcall(function() return props:IsMonster() end)
+        if ok and isMonster then
+            return "Monster (on Map)"
+        end
+    end
+    if token.playerControlled then
+        return "Hero (on Map)"
+    end
+    return "NPC (on Map)"
+end
+
+-- Title for a map note (info bubble): the backing document's title -- which is
+-- what the user names the note -- not the bubble's own .description (that can
+-- be a stale section heading). Every engine read is pcall-guarded: reading a
+-- missing method/field on these userdata objects ERRORS rather than returning
+-- nil. Falls back to the bubble description.
+local function MapNoteTitle(bubble)
+    local ok, doc = pcall(function() return bubble.document end)
+    if ok and doc ~= nil then
+        local okm, md = pcall(function() return doc:GetMarkdownDocument() end)
+        if okm and md ~= nil then
+            local okd, desc = pcall(function() return md.description end)
+            if okd and type(desc) == "string" and desc ~= "" then
+                return desc
+            end
+        end
+    end
+    local okb, d = pcall(function() return bubble.description end)
+    if okb and type(d) == "string" and d ~= "" then
+        return d
+    end
+    return nil
+end
+
+-- Context-sensitive search provider: the open battle map. While in a game,
+-- global search pins an "On this map" group, scoped to what is on the CURRENT
+-- map -- the deployed tokens (dmhub.allTokens is already current-map-only) and
+-- the map notes (dmhub.infoBubbles, also current-map-only). Token rows carry
+-- the live token so they render the creature's portrait and activate by
+-- selecting + centring the camera; note rows render the bubble's numbered pin
+-- and activate by opening the note in place (gamehud:DisplayDocument), exactly
+-- as clicking the on-map marker does.
+--
+-- LOWEST priority (10) in the context stack: any focused full-screen artifact
+-- that registers its own context -- the Compendium (~50), a modal PDF viewer
+-- (~100) -- outranks the map, so "On this map" is the fallback context behind
+-- everything. The map has no discrete open/close panel (it is the persistent
+-- game background), so unlike the PDF/compendium providers this one stays
+-- registered and enumerate self-gates on dmhub.inGame -- out of game it returns
+-- nothing and the group never shows. Each result stamps a dedupKey so the
+-- aggregator can keep the same item from ALSO appearing in the "In this
+-- Campaign" bucket while it is pinned here (tokens by id; notes by title vs the
+-- journal-document twin). When this context is suppressed (an artifact is open)
+-- those items fall back to the bucket, so global reach is never lost.
+Search.RegisterContextProvider{
+    id = "map-view",
+    priority = 10,
+    label = "On this map",
+    enumerate = function(needle)
+        if not dmhub.inGame then
+            return {}
+        end
+        local results = {}
+        for _,token in ipairs(dmhub.allTokens) do
+            local name = token.name
+            if type(name) == "string" and name ~= "" and Search.MatchesText(name, needle)
+                and (dmhub.isDM or (not token.invisibleToPlayers)) then
+                local capturedId = token.id
+                results[#results+1] = {
+                    name = name,
+                    score = Search.Score(name, needle),
+                    typeLabel = MapTokenKindLabel(token),
+                    token = token,
+                    dedupKey = "token:" .. capturedId,
+                    activate = function()
+                        dmhub.SelectToken(capturedId)
+                        dmhub.CenterOnToken(capturedId)
+                    end,
+                }
+            end
+        end
+
+        -- Map notes (info bubbles). DM-only: notes are GM content and have no
+        -- per-bubble player-visibility flag, so players never discover them
+        -- through search. The row icon is the bubble's own numbered pin
+        -- (result.bubbleIcon); activation re-fetches the bubble by id (the HUD
+        -- objects are transient) and opens it in place.
+        if dmhub.isDM then
+            for id,bubble in pairs(dmhub.infoBubbles or {}) do
+                local title = MapNoteTitle(bubble)
+                if type(title) == "string" and title ~= "" and Search.MatchesText(title, needle) then
+                    local capturedId = id
+                    local okIcon, icon = pcall(function() return bubble.icon end)
+                    results[#results+1] = {
+                        name = title,
+                        score = Search.Score(title, needle),
+                        typeLabel = "Map Note",
+                        bubbleIcon = (okIcon and type(icon) == "string") and icon or "",
+                        dedupKey = "mapdoc:" .. string.lower(title),
+                        activate = function()
+                            local b = (dmhub.infoBubbles or {})[capturedId]
+                            if b ~= nil and gamehud ~= nil then
+                                gamehud:DisplayDocument(b)
+                            end
+                        end,
+                    }
+                end
+            end
+        end
+        return results
+    end,
+}

@@ -161,6 +161,11 @@ CompendiumPermission.visible = true
 -- view, the page summary). Memoise MatchKeys per (needle, contentType) so each
 -- table is walked once per needle; the short TTL keeps results fresh across
 -- edits without needing invalidation hooks.
+-- Forward-declared so LibraryPanel's context-search provider (above its
+-- definition) can singularise category labels for its result chips. Assigned
+-- to the real implementation further down the file.
+local CompendiumTypeLabel
+
 local m_matchKeysCache = {needle = nil, time = 0, keys = {}}
 local function MatchKeysCached(contentType, needle)
 	local now = os.clock()
@@ -5038,6 +5043,10 @@ local LibraryPanel = function()
 	-- assigned when the menu column is built.
 	local m_searchText = ""
 	local m_currentCategory = nil
+	-- Context-search provider spec, registered while this panel is open (create)
+	-- and withdrawn in destroy. Held here so enumerate can keep its label in
+	-- sync with the focused category.
+	local m_contextSpec = nil
 	local searchSummary = nil
 	local allResultsItem = nil
 	local compendiumSearchInput = nil
@@ -5866,11 +5875,88 @@ local LibraryPanel = function()
             -- pending Compendium.Open request that opened us.
             g_libraryNavigate = navigate
             ConsumePendingCompendiumNavigation()
+
+            -- Context-sensitive search: while this panel is open, the global
+            -- title-bar search pins a group scoped to the compendium content the
+            -- user is browsing. When a single category is focused the group
+            -- narrows to it ("In Conditions"); otherwise it spans the whole
+            -- compendium ("In the Compendium"). Either way the rows deep-link
+            -- via Compendium.Open. This is DISTINCT from this panel's own
+            -- "Filter Compendium..." box (which filters the visible lists in
+            -- place): the context group surfaces the same content from the
+            -- GLOBAL search, pinned above the buckets. Priority 50 sits above
+            -- the map (~10) and below a modal PDF viewer (~100). Results are
+            -- matched with the same cached matcher the in-panel filter uses, so
+            -- the two stay consistent. Capped to keep the pinned group + its
+            -- "See all" bounded for broad needles.
+            local CONTEXT_RESULT_CAP = 50
+            m_contextSpec = {
+                id = "compendium-open",
+                priority = 50,
+                label = "In the Compendium",
+                enumerate = function(needle)
+                    if not contentPanel.valid then
+                        return {}
+                    end
+                    -- Scope to the focused category, else every enumerable one.
+                    -- The label is kept in sync here because CollectContextResults
+                    -- reads spec.label AFTER calling enumerate.
+                    local cats
+                    if m_currentCategory ~= nil and CompendiumRegistry[m_currentCategory.text] ~= nil then
+                        cats = { CompendiumRegistry[m_currentCategory.text] }
+                        m_contextSpec.label = string.format("In %s", m_currentCategory.text)
+                    else
+                        cats = EnumerableCategories()
+                        m_contextSpec.label = "In the Compendium"
+                    end
+
+                    local results = {}
+                    for _,opt in ipairs(cats) do
+                        if opt.contentType ~= nil and ((not opt.admin) or dmhub.isAdminGame) then
+                            local t = dmhub.GetTable(opt.contentType)
+                            if t ~= nil then
+                                for _,k in ipairs(MatchKeysCached(opt.contentType, needle)) do
+                                    local v = t[k]
+                                    local name = (type(v) == "table" and rawget(v, "name")) or nil
+                                    if type(name) == "string" then
+                                        local capturedType, capturedKey, capturedName = opt.contentType, k, name
+                                        results[#results+1] = {
+                                            name = name,
+                                            score = Search.Score(name, needle),
+                                            typeLabel = CompendiumTypeLabel(opt.text),
+                                            activate = function()
+                                                Compendium.Open{
+                                                    contentType = capturedType,
+                                                    search = capturedName,
+                                                    targetKey = capturedKey,
+                                                }
+                                            end,
+                                        }
+                                    end
+                                end
+                            end
+                        end
+                    end
+
+                    table.sort(results, function(a,b) return (a.score or 0) > (b.score or 0) end)
+                    while #results > CONTEXT_RESULT_CAP do
+                        table.remove(results)
+                    end
+                    return results
+                end,
+            }
+            Search.RegisterContextProvider(m_contextSpec)
         end,
 
         destroy = function(element)
+            -- Withdraw the navigator AND the context provider together, but only
+            -- if this is still the active panel: a reopened panel reassigns
+            -- g_libraryNavigate and re-registers the provider in its create, so a
+            -- late-firing destroy from the OLD panel must not clobber the new
+            -- registration.
             if g_libraryNavigate == navigate then
                 g_libraryNavigate = nil
+                Search.UnregisterContextProvider("compendium-open")
             end
         end,
 
@@ -6674,7 +6760,7 @@ local function SingularizeLastWord(label)
     return head .. last
 end
 
-local function CompendiumTypeLabel(text)
+function CompendiumTypeLabel(text)
     if type(text) ~= "string" or text == "" then
         return text
     end

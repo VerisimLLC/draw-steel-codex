@@ -383,18 +383,22 @@ end
 -- Label a placed token by kind so its result row reads Hero / NPC / Monster
 -- (the leading icon is the token's own portrait, but the text label still
 -- splits it the way the unplaced providers do).
+-- These rows are all PLACED tokens, so the kind carries an "(on Map)" suffix --
+-- it tells a deployed creature apart from the same kind of UNPLACED one (the
+-- partyCharacters provider, plain "Hero"/"NPC") when both can share the "In
+-- this Campaign" bucket.
 local function TokenKindLabel(token)
     local props = token.properties
     if props ~= nil then
         local ok, isMonster = pcall(function() return props:IsMonster() end)
         if ok and isMonster then
-            return "Monster"
+            return "Monster (on Map)"
         end
     end
     if token.playerControlled then
-        return "Hero"
+        return "Hero (on Map)"
     end
-    return "NPC"
+    return "NPC (on Map)"
 end
 
 -- Global-search provider: tokens on the current map(s). Full provider (bespoke
@@ -421,6 +425,10 @@ Search.RegisterProvider{
                     score = Search.Score(name, needle),
                     typeLabel = TokenKindLabel(token),
                     token = token,
+                    -- Lets the "On this map" context group dedupe this token out
+                    -- of the bucket while it is pinned there (same key the
+                    -- map-view provider stamps).
+                    dedupKey = "token:" .. capturedId,
                     activate = function()
                         dmhub.SelectToken(capturedId)
                         dmhub.CenterOnToken(capturedId)
@@ -483,7 +491,7 @@ local function CreateSearchBar()
     local SEARCH_BUCKETS = {
         { id = "compendium", label = "Compendium" },
         { id = "rulebooks", label = "Rulebooks" },
-        { id = "ingame", label = "In this game" },
+        { id = "ingame", label = "In this Campaign" },
         { id = "apptools", label = "App & tools" },
     }
     -- Per-bucket render budget: how many rows show before "See all N", and the
@@ -603,6 +611,15 @@ local function CreateSearchBar()
                 rmargin = 8,
                 interactable = false,
             })
+        elseif result.bubbleIcon ~= nil then
+            -- Map note: render the bubble's own numbered pin (dark disc, light
+            -- border) as the leading icon, matching the on-map marker and the
+            -- documents panel's pin so a note reads as a note at a glance.
+            iconPanel = gui.Label{
+                classes = {"searchResultBubble"},
+                text = result.bubbleIcon,
+                interactable = false,
+            }
         else
             iconPanel = gui.Panel{
                 classes = {"searchResultIcon"},
@@ -900,6 +917,14 @@ local function CreateSearchBar()
             -- consistently with the rest of the grouped results.
             link.typeLabel = link.type
             link.bucket = BucketForLinkType(link.type)
+            -- A map note's backing document also surfaces here as a "Document".
+            -- Key it by title so that, when the note is pinned in "On this map",
+            -- this journal twin is deduped out of the bucket. (When the map
+            -- context is suppressed the key is unowned, so the document still
+            -- shows -- the note stays reachable.)
+            if link.type == "Document" then
+                link.dedupKey = "mapdoc:" .. string.lower(link.name or "")
+            end
             link.click = function()
                 CustomDocument.OpenContent(CustomDocument.ResolveLink(link.link))
             end
@@ -937,20 +962,37 @@ local function CreateSearchBar()
             status = false
         end
 
+        -- Option A dedupe: an item already shown in the active context group
+        -- (a placed token, a map note) should not ALSO repeat in the intent
+        -- buckets below. Providers stamp a dedupKey on comparable results; the
+        -- context group is the home, the bucket is the fallback. When no
+        -- context is active ownedKeys is empty, so nothing is suppressed and
+        -- global reach is preserved.
+        local ownedKeys = {}
+        if context ~= nil then
+            for _,r in ipairs(context.results) do
+                if r.dedupKey ~= nil then
+                    ownedKeys[r.dedupKey] = true
+                end
+            end
+        end
+
         -- Group the flat results into the intent buckets, ranked by score, and
         -- cap each bucket to the render/store budget.
         table.stable_sort(results, function(a,b) return (a.score or 0) > (b.score or 0) end)
 
         local grouped = {}
         for _,r in ipairs(results) do
-            local b = r.bucket or "apptools"
-            local list = grouped[b]
-            if list == nil then
-                list = {}
-                grouped[b] = list
-            end
-            if #list < SEARCH_BUCKET_STORE then
-                list[#list+1] = r
+            if r.dedupKey == nil or not ownedKeys[r.dedupKey] then
+                local b = r.bucket or "apptools"
+                local list = grouped[b]
+                if list == nil then
+                    list = {}
+                    grouped[b] = list
+                end
+                if #list < SEARCH_BUCKET_STORE then
+                    list[#list+1] = r
+                end
             end
         end
 
@@ -1682,6 +1724,25 @@ local function CreateTopBar()
             valign = "center",
             rmargin = 8,
             bgcolor = "white",
+        },
+        {
+            -- Map-note pin: a small dark disc with the bubble's number/glyph,
+            -- echoing the on-map info-bubble marker. Same 20px box as the other
+            -- leading icons so the name column lines up.
+            selectors = {"searchResultBubble"},
+            width = 20,
+            height = 20,
+            halign = "left",
+            valign = "center",
+            rmargin = 8,
+            bgimage = "panels/square.png",
+            bgcolor = "black",
+            cornerRadius = "50% height",
+            borderWidth = 1,
+            borderColor = "@fg",
+            color = "@fg",
+            fontSize = 11,
+            textAlignment = "center",
         },
         {
             selectors = {"searchResultName"},

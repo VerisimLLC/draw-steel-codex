@@ -1673,7 +1673,11 @@ function FeatureCategoriser.BuildIndex(creature)
     for _,entry in ipairs(features) do
         --Tier-1+2 search text, precomputed once (build-time, cached) so the
         --search provider and tac filter never re-walk modifiers per keystroke.
+        --searchTextLower is the same string pre-lowercased so the per-keystroke
+        --fallback match (Search.MatchesLoweredText) skips re-lowering the whole
+        --concatenated haystack on every search tick.
         entry.searchText = categoriserEntrySearchText(entry)
+        entry.searchTextLower = string.lower(entry.searchText)
         local bucketId = entry.bucket or "other"
         local group = groups[bucketId]
         if group == nil then
@@ -2084,6 +2088,28 @@ function FeatureCategoriser.BuildTacIndex(creature)
     }
 end
 
+--- Short-TTL memo over BuildTacIndex, mirroring BuildIndexCached. The tac panel
+--- rebuilds on every refreshCharacter and, while a title-bar query is active,
+--- applyGlobalQuery builds the index a second time in the same refresh to test
+--- for matches; both now share this cache so the curation sweep + recursive
+--- collectLeaves runs at most once per creature per second.
+--- @param creature creature
+--- @return table index
+local g_tacIndexCache = setmetatable({}, { __mode = "k" })
+function FeatureCategoriser.BuildTacIndexCached(creature)
+    if creature == nil then return FeatureCategoriser.BuildTacIndex(creature) end
+
+    local now = dmhub.Time()
+    local cached = g_tacIndexCache[creature]
+    if cached ~= nil and (now - cached.time) < CATEGORISER_CACHE_TTL then
+        return cached.index
+    end
+
+    local index = FeatureCategoriser.BuildTacIndex(creature)
+    g_tacIndexCache[creature] = { time = now, index = index }
+    return index
+end
+
 -- =============================================================================
 -- Global-search provider: features on creatures (search redesign ch4).
 --
@@ -2181,8 +2207,8 @@ Search.RegisterProvider{
                     --granted modifier / attribute name) without matching any
                     --display name. Still surface the feature, labelled + deep-
                     --linked by its own name (the sheet filter resolves it).
-                    if matchName == nil and type(entry.searchText) == "string"
-                        and type(name) == "string" and Search.MatchesText(entry.searchText, needle) then
+                    if matchName == nil and type(entry.searchTextLower) == "string"
+                        and type(name) == "string" and Search.MatchesLoweredText(entry.searchTextLower, needle) then
                         matchName = name
                     end
                     if matchName ~= nil then

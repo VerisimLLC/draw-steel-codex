@@ -2801,7 +2801,7 @@ local g_monsterAbilityIndexBuilding = false
 
 local function MonsterAbilityIndexFresh()
     return g_monsterAbilityIndex ~= nil
-        and (os.clock() - g_monsterAbilityIndexTime) < MONSTER_ABILITY_INDEX_TTL
+        and (dmhub.Time() - g_monsterAbilityIndexTime) < MONSTER_ABILITY_INDEX_TTL
 end
 
 local function EnsureMonsterAbilityIndex()
@@ -2851,7 +2851,7 @@ local function EnsureMonsterAbilityIndex()
             end
         end
         g_monsterAbilityIndex = index
-        g_monsterAbilityIndexTime = os.clock()
+        g_monsterAbilityIndexTime = dmhub.Time()
         g_monsterAbilityIndexBuilding = false
     end)
 end

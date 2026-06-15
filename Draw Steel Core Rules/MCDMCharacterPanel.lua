@@ -5728,7 +5728,7 @@ function TacPanel.Features()
             return
         end
         local creature = token.properties
-        local index = FeatureCategoriser.BuildTacIndex(creature)
+        local index = FeatureCategoriser.BuildTacIndexCached(creature)
 
         local filtering = m_filter ~= ""
         local needle = Search.Normalize(m_filter)
@@ -5810,7 +5810,7 @@ function TacPanel.Features()
         local token = m_token
         local matches = false
         if #q >= FILTER_MIN_QUERY and token ~= nil and token.valid and token.properties ~= nil then
-            local index = FeatureCategoriser.BuildTacIndex(token.properties)
+            local index = FeatureCategoriser.BuildTacIndexCached(token.properties)
             matches = indexHasMatch(token.properties, index, q)
         end
         if matches then

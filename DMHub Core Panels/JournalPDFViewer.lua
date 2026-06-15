@@ -2880,6 +2880,12 @@ end
 -- =============================================================================
 local g_pdfHeadingSearchCache = {}
 local g_pdfIntermediateCache = {}
+-- Insertion order of search keys per docid, for bounded eviction (see below).
+local g_pdfSearchOrder = {}
+-- Max distinct queries retained per document. Incremental typing produces one
+-- key per prefix; past this cap the oldest queries are dropped (they recompute
+-- if searched again) so a long session does not accumulate them indefinitely.
+local PDF_SEARCH_CACHE_CAP = 64
 
 function SearchPDFHeadings(doc, search)
     local docid = doc.id
@@ -2887,14 +2893,35 @@ function SearchPDFHeadings(doc, search)
     local documentCache = g_pdfHeadingSearchCache[docid] or {}
     g_pdfHeadingSearchCache[docid] = documentCache
 
-    local searchCache = documentCache[search] or {}
-    documentCache[search] = searchCache
+    local infoCache = g_pdfIntermediateCache[docid] or { layout = {}, searchResults = {} }
+    g_pdfIntermediateCache[docid] = infoCache
+    -- Page-wide break-distance average, memoised per page (invariant for a page,
+    -- so the heading heuristic below computes it once instead of per matching rect).
+    infoCache.breakAvg = infoCache.breakAvg or {}
+
+    local searchCache = documentCache[search]
+    if searchCache == nil then
+        searchCache = {}
+        documentCache[search] = searchCache
+        -- New query: record insertion order and evict the oldest past the cap,
+        -- clearing both the results cache and the (potentially large) raw
+        -- document:Search result for that query. The current query is never the
+        -- one evicted. The per-page layout cache is bounded by page count and is
+        -- left intact.
+        local order = g_pdfSearchOrder[docid] or {}
+        g_pdfSearchOrder[docid] = order
+        order[#order+1] = search
+        while #order > PDF_SEARCH_CACHE_CAP do
+            local evict = table.remove(order, 1)
+            if evict ~= search then
+                documentCache[evict] = nil
+                infoCache.searchResults[evict] = nil
+            end
+        end
+    end
     if searchCache.status == "complete" then
         return searchCache.results
     end
-
-    local infoCache = g_pdfIntermediateCache[docid] or { layout = {}, searchResults = {} }
-    g_pdfIntermediateCache[docid] = infoCache
 
     local searchResults = infoCache.searchResults[search] or document:Search(search)
     if searchResults == nil or searchResults == "pending" then
@@ -2922,6 +2949,23 @@ function SearchPDFHeadings(doc, search)
 
         layout = infoCache.layout[result.page]
         if layout and status then
+            -- Page-wide average break distance: a property of the page, not of any
+            -- one rect, so compute it once per page (memoised) instead of
+            -- re-walking every mergedRect for each matching rect.
+            local totalAverage = infoCache.breakAvg[result.page]
+            if totalAverage == nil then
+                local totalSum = 0
+                local totalCount = 0
+                for _,r in ipairs(layout.mergedRects) do
+                    for i=1,#r.breaks-1 do
+                        totalSum = totalSum + math.abs(r.breaks[i+1] - r.breaks[i])
+                        totalCount = totalCount + 1
+                    end
+                end
+                totalAverage = totalSum/math.max(1, totalCount)
+                infoCache.breakAvg[result.page] = totalAverage
+            end
+
             local startingCharIndex = result.index
             local endingCharIndex = startingCharIndex + #search
             for _,rect in ipairs(layout.mergedRects) do
@@ -2950,16 +2994,6 @@ function SearchPDFHeadings(doc, search)
                             averageBreakDistance = averageBreakDistance + math.abs(rect.breaks[i+1] - rect.breaks[i])
                         end
                         averageBreakDistance = averageBreakDistance / math.max(1, #rect.breaks-1)
-
-                        local totalAverage = 0
-                        local totalCount = 0
-                        for _,r in ipairs(layout.mergedRects) do
-                            for i=1,#r.breaks-1 do
-                                totalAverage = totalAverage + math.abs(r.breaks[i+1] - r.breaks[i])
-                                totalCount = totalCount + 1
-                            end
-                        end
-                        totalAverage = totalAverage/math.max(1, totalCount)
 
                         local ratio = averageBreakDistance / math.max(1, totalAverage)
 

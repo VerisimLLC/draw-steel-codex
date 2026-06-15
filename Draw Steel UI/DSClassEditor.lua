@@ -786,6 +786,12 @@ function ClassLevel:CreateEditor(classOrRace, levelNum, params)
 		-- level editor costs ~265ms/14-panels vs ~4ms inheriting the class-editor
 		-- root's cascade. (The dominant class-open cost was panel volume under
 		-- vscroll, addressed by the lazy body build below -- but keep inheriting.)
+		-- CALLER CONTRACT: this editor carries no theme of its own, so whatever
+		-- host mounts it MUST own the theme cascade (via ThemeEngine.MergeStyles).
+		-- Every current caller does -- Class.CreateEditor, RaceEditor, and the
+		-- compendium library-panel that hosts the Feat / GlobalRuleMod / Career /
+		-- Title / etc. editors. A new standalone host must add the cascade too,
+		-- or the editor will render unstyled.
 
 		data = {},
 

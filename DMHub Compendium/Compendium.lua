@@ -180,6 +180,35 @@ local function MatchKeysCached(contentType, needle)
 	return cached
 end
 
+-- Name-only sibling of MatchKeysCached. The global "compendium-content" provider
+-- matches on the entry NAME only (deliberately narrower than the deep, all-fields
+-- MatchKeysCached), so it needs its own per-needle memo. Without this the provider
+-- re-walked every content table on each keystroke -- and again on every 0.2s
+-- async-PDF poll for the same unchanged needle. Same 1s TTL / single-needle shape
+-- as MatchKeysCached above.
+local m_nameMatchCache = {needle = nil, time = 0, keys = {}}
+local function NameMatchKeysCached(contentType, needle)
+	local now = os.clock()
+	if m_nameMatchCache.needle ~= needle or now - m_nameMatchCache.time > 1 then
+		m_nameMatchCache = {needle = needle, time = now, keys = {}}
+	end
+	local cached = m_nameMatchCache.keys[contentType]
+	if cached == nil then
+		cached = {}
+		local t = dmhub.GetTable(contentType)
+		if t ~= nil then
+			for k,v in unhidden_pairs(t) do
+				local name = (type(v) == "table" and rawget(v, "name")) or nil
+				if type(name) == "string" and Search.MatchesText(name, needle) then
+					cached[#cached+1] = k
+				end
+			end
+		end
+		m_nameMatchCache.keys[contentType] = cached
+	end
+	return cached
+end
+
 local function CompendiumEntryMatches(options, needle)
 	if needle == "" then
 		return true
@@ -5167,10 +5196,10 @@ local LibraryPanel = function()
 		if nav == nil or nav.contentType == nil then
 			return
 		end
-		-- Several categories can share a contentType (e.g. "Inventory" shows all
-		-- tbl_Gear, "Lights" shows only light sources). Pick the highest-priority
-		-- one -- the broad "Inventory" view (priority 1) over the filtered "Lights"
-		-- view -- so an arbitrary item always lands in a category that contains it.
+		-- Several categories can share a contentType. When they do, pick the
+		-- highest opt.priority one so an arbitrary item always lands in the
+		-- broadest category that contains it (priority defaults to 0; the tie-break
+		-- is exercised by the contentTypes that do register multiple views).
 		local opt = nil
 		for _,o in pairs(CompendiumRegistry) do
 			if o.contentType == nav.contentType and o.click ~= nil and ((not o.admin) or dmhub.isAdminGame) then
@@ -6775,9 +6804,9 @@ Search.RegisterProvider{
     bucket = "compendium",
     enumerate = function(needle)
         local results = {}
-        -- Canonical category per contentType (highest priority), so items backed
-        -- by several category views (e.g. Inventory + Lights both = tbl_Gear) are
-        -- listed once, under the broadest category, and deep-link there.
+        -- Canonical category per contentType (highest opt.priority), so items
+        -- backed by several category views sharing one contentType are listed
+        -- once, under the broadest category, and deep-link there.
         local canonical = {}
         for _,opt in pairs(CompendiumRegistry) do
             if opt.contentType ~= nil and ((not opt.admin) or dmhub.isAdminGame) then
@@ -6790,9 +6819,10 @@ Search.RegisterProvider{
         for _,opt in pairs(canonical) do
             local t = dmhub.GetTable(opt.contentType)
             if t ~= nil then
-                for k,v in unhidden_pairs(t) do
+                for _,k in ipairs(NameMatchKeysCached(opt.contentType, needle)) do
+                    local v = t[k]
                     local name = (type(v) == "table" and rawget(v, "name")) or nil
-                    if type(name) == "string" and Search.MatchesText(name, needle) then
+                    if type(name) == "string" then
                         local capturedType, capturedKey, capturedName = opt.contentType, k, name
                         results[#results+1] = {
                             name = name,

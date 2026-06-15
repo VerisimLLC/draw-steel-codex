@@ -392,13 +392,30 @@ function Search.MatchesText(haystack, needle)
     if type(haystack) ~= "string" then
         return false
     end
-    local h = string.lower(haystack)
+    return Search.MatchesLoweredText(string.lower(haystack), needle)
+end
+
+--- Same test as Search.MatchesText but for a haystack that has ALREADY been
+--- lowercased by the caller, so the per-call string.lower is skipped. Use this
+--- on hot paths where a long haystack is matched repeatedly against differing
+--- needles and a pre-lowered copy can be stored once at build time. The needle
+--- is assumed normalised (lowercased) like every other Search entry point.
+--- @param loweredHaystack any expected to be an already-lowercased string
+--- @param needle string
+--- @return boolean
+function Search.MatchesLoweredText(loweredHaystack, needle)
+    if needle == nil or needle == "" then
+        return true
+    end
+    if type(loweredHaystack) ~= "string" then
+        return false
+    end
     local terms = Search.SplitTerms(needle)
     if terms == nil then
-        return string.find(h, needle, 1, true) ~= nil
+        return string.find(loweredHaystack, needle, 1, true) ~= nil
     end
     for _,term in ipairs(terms) do
-        if string.find(h, term, 1, true) == nil then
+        if string.find(loweredHaystack, term, 1, true) == nil then
             return false
         end
     end
@@ -770,8 +787,14 @@ function Search.UnregisterQueryListener(key)
     Search._queryListeners[key] = nil
 end
 
--- Legacy wrappers. These keep the historical contract (needle used verbatim,
--- haystack lowered) so existing callers behave identically.
+-- Legacy wrappers. The needle is still used verbatim (not normalised) and the
+-- haystack is lowered, as before. NOTE: behaviour is identical only for
+-- single-word needles. A multi-word needle now matches AND-of-terms (every
+-- whitespace-separated term must appear SOMEWHERE in the object, in any order)
+-- rather than as one contiguous substring, because these delegate to the shared
+-- Search.MatchesObject. Callers that still pass raw multi-word queries (e.g. the
+-- class-editor feature filter, LanguageRelation) therefore match more broadly
+-- than they used to -- a deliberate consequence of unifying on the shared matcher.
 
 function MatchesSearchRecursive(obj, search, depth)
     return Search.MatchesObject(obj, search, depth)

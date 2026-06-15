@@ -2719,14 +2719,17 @@ Search.RegisterContextProvider{
     priority = 10,
     label = "On this map",
     enumerate = function(needle)
-        if not dmhub.inGame then
+        -- Director-only: token results lead to selection/placement and map
+        -- notes are GM content, both director concerns. Gating the whole
+        -- provider keeps "On this map" off the player's search entirely
+        -- (consistent with the director-only "In this Campaign" token results).
+        if (not dmhub.inGame) or (not dmhub.isDM) then
             return {}
         end
         local results = {}
         for _,token in ipairs(dmhub.allTokens) do
             local name = token.name
-            if type(name) == "string" and name ~= "" and Search.MatchesText(name, needle)
-                and (dmhub.isDM or (not token.invisibleToPlayers)) then
+            if type(name) == "string" and name ~= "" and Search.MatchesText(name, needle) then
                 local capturedId = token.id
                 results[#results+1] = {
                     name = name,
@@ -2742,31 +2745,27 @@ Search.RegisterContextProvider{
             end
         end
 
-        -- Map notes (info bubbles). DM-only: notes are GM content and have no
-        -- per-bubble player-visibility flag, so players never discover them
-        -- through search. The row icon is the bubble's own numbered pin
-        -- (result.bubbleIcon); activation re-fetches the bubble by id (the HUD
-        -- objects are transient) and opens it in place.
-        if dmhub.isDM then
-            for id,bubble in pairs(dmhub.infoBubbles or {}) do
-                local title = MapNoteTitle(bubble)
-                if type(title) == "string" and title ~= "" and Search.MatchesText(title, needle) then
-                    local capturedId = id
-                    local okIcon, icon = pcall(function() return bubble.icon end)
-                    results[#results+1] = {
-                        name = title,
-                        score = Search.Score(title, needle),
-                        typeLabel = "Map Note",
-                        bubbleIcon = (okIcon and type(icon) == "string") and icon or "",
-                        dedupKey = "mapdoc:" .. string.lower(title),
-                        activate = function()
-                            local b = (dmhub.infoBubbles or {})[capturedId]
-                            if b ~= nil and gamehud ~= nil then
-                                gamehud:DisplayDocument(b)
-                            end
-                        end,
-                    }
-                end
+        -- Map notes (info bubbles). The row icon is the bubble's own numbered
+        -- pin (result.bubbleIcon); activation re-fetches the bubble by id (the
+        -- HUD objects are transient) and opens it in place.
+        for id,bubble in pairs(dmhub.infoBubbles or {}) do
+            local title = MapNoteTitle(bubble)
+            if type(title) == "string" and title ~= "" and Search.MatchesText(title, needle) then
+                local capturedId = id
+                local okIcon, icon = pcall(function() return bubble.icon end)
+                results[#results+1] = {
+                    name = title,
+                    score = Search.Score(title, needle),
+                    typeLabel = "Map Note",
+                    bubbleIcon = (okIcon and type(icon) == "string") and icon or "",
+                    dedupKey = "mapdoc:" .. string.lower(title),
+                    activate = function()
+                        local b = (dmhub.infoBubbles or {})[capturedId]
+                        if b ~= nil and gamehud ~= nil then
+                            gamehud:DisplayDocument(b)
+                        end
+                    end,
+                }
             end
         end
         return results

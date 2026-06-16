@@ -653,14 +653,19 @@ function ActivatedAbility:Render(options, params)
         for i, t in ipairs(ptBehavior.tiers) do
             normalizedTiers[i] = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(creatureProperties, t, notes, true)
         end
+        local rollProperties = RollPropertiesPowerTable.new{
+            tiers = normalizedTiers,
+        }
+        -- Bake in this creature's monster level-scaling tier-damage bonuses
+        -- (rollProperties.tiers is the same table as normalizedTiers). Done
+        -- BEFORE the snapshot so the scaled numbers are the baseline and only
+        -- situational Modify Power Roll changes get diff-highlighted below.
+        rollProperties:ApplyCreatureTierDamage(creatureProperties, self)
         -- Snapshot pre-modifier tier text for diff highlighting later.
         local originalTiers = {}
         for i, t in ipairs(normalizedTiers) do
             originalTiers[i] = t
         end
-        local rollProperties = RollPropertiesPowerTable.new{
-            tiers = normalizedTiers,
-        }
         -- Pre-compute what the ability's tiers contain so note parts can be
         -- filtered to only show information relevant to this ability.
         -- hasDamage: any normalized tier contains the word "damage".

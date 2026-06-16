@@ -1713,6 +1713,16 @@ function CharSheet.AppearancePanel()
 
                         local alternateAppearances = info.token.properties:GetAlternateAppearances()
 
+                        --If an alternate appearance is currently selected but the modifier that
+                        --granted it is no longer active, revert to the variation we were on. This
+                        --replaces a per-panel 'disable' handler that fired whenever the panel was
+                        --collapsed/hidden/scrolled out of view (Unity OnDisable), silently reverting
+                        --the user's selection on tab-switch or sheet close.
+                        local alternateOverride = info.token.alternateAppearanceOverride
+                        if alternateOverride ~= nil and (alternateAppearances == nil or alternateAppearances[alternateOverride] == nil) then
+                            info.token:SwitchAppearanceVariation(info.token.appearanceVariationIndex)
+                        end
+
                         local newAlternateAppearancePanels = {}
                         if alternateAppearances ~= nil then
 
@@ -1724,14 +1734,6 @@ function CharSheet.AppearancePanel()
                                     flow = "vertical",
                                     width = "auto",
                                     height = "auto",
-                                    disable = function(element)
-                                        if element:HasClass("selected") then
-                                            local info = CharacterSheet.instance.data.info
-                                            if info ~= nil and info.token ~= nil and info.token.valid then
-                                                info.token:SwitchAppearanceVariation(0)
-                                            end
-                                        end
-                                    end,
                                     press = function(element)
                                         local defaultToken = nil
                                         local monster = assets.monsters[appearanceInfo.monsterDefault]

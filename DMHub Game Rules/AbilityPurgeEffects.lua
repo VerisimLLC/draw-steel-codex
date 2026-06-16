@@ -399,9 +399,11 @@ function ActivatedAbilityPurgeEffectsBehavior:Cast(ability, casterToken, targets
                             end
                         end
 
-                        -- damageToSelf: applied once per target when conditions were selected,
-                        -- matching original behaviour (lines 397-400 in CastOnTarget).
-                        if purgedConditionsCount > 0 and self.damageToSelf ~= "" then
+                        -- damageToSelf: applied once per target whenever at least one
+                        -- effect or condition was purged (we are already inside
+                        -- `if #selectedItems > 0`).  Matches the once-per-target behaviour
+                        -- of the conditions-only path in CastOnTarget.
+                        if self.damageToSelf ~= "" then
                             local damage = tonumber(self.damageToSelf)
                             if damage ~= nil and damage > 0 then
                                 data.token.properties:TakeDamage(damage, "Purged condition")

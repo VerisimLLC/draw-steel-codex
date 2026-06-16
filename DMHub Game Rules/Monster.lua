@@ -77,8 +77,13 @@ function monster.OnCreateFromBestiary(self, token)
     --the basis of the generated name: a player-given playerName overrides monster_type.
     local nameBasis = self:GetNameBasis()
 
-    if (role == "Solo" or role == "Leader") and settingAssignMonstersNames:Get() ~= false then
-        --solos and leaders just get named their type (unless name generation is None).
+    if settingAssignMonstersNames:Get() == false then
+        --Monster Name Generation "None": clear any name inherited from the bestiary
+        --so the token and its character-sheet name field start blank. A name only
+        --appears once a user types one in (which displays everywhere as usual).
+        token.name = ""
+    elseif role == "Solo" or role == "Leader" then
+        --solos and leaders just get named their type.
         token.name = nameBasis
 	elseif settingAssignMonstersNames:Get() and self:has_key("monster_type") and (not self.minion) then
 		token.namePrivate = settingAssignMonstersNamesPrivate:Get()

@@ -57,6 +57,20 @@ setting{
 	default = false,
 }
 
+setting{
+	id = "map:parallaxscale",
+	description = "Parallax Scale",
+	help = "Multiplies the parallax effect on this map relative to the game-wide Parallax setting. 1 leaves it unchanged, 0 disables parallax on this map, higher values make it more pronounced.",
+	classes = {"dmonly"},
+	storage = "map",
+	editor = "slider",
+	format = "F2",
+	labelFormat = "%.2f",
+	default = 1,
+	min = 0,
+	max = 3,
+}
+
 local function track(eventType, fields)
 	if dmhub.GetSettingValue("telemetry_enabled") == false then
 		return
@@ -120,6 +134,7 @@ CreateMapSettings = function()
 		},
 		children = {
 			CreateSettingsEditor("map:playerviewable", stackedOpts),
+			CreateSettingsEditor("map:parallaxscale", stackedOpts),
 			CreateSettingsEditor('gridcolor', stackedOpts),
 			CreateSettingsEditorsForSection('vision', stackedOpts),
 

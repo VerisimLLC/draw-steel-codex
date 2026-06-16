@@ -121,10 +121,17 @@ local g_edsSetting = setting{
 -- at load (below) to populate the tables, and again whenever the theme changes.
 function TacPanel.BuildStyles()
 TacPanelStyles.TacPanel = ThemeEngine.MergeTokens{
-    {   -- Outline-button wrapper: themed surface + border (icon button outline).
+    {   -- Portrait control icon chip: a clearly-visible rounded button over the
+        -- portrait art, ringed with the bright accentHover color so it pops, and
+        -- filled with the accent on hover.
         selectors = {"tpOutline"},
         bgcolor = "@bgAlt",
-        borderColor = "@fgMuted",
+        borderColor = "@accentHover",
+    },
+    {
+        selectors = {"tpOutline", "hover"},
+        bgcolor = "@accent",
+        borderColor = "@accentHover",
     },
     {   -- Outer tac panel. Applies margin, padding, alignment, bottom border.
         selectors = {"panel", "tacpanel"},
@@ -1855,8 +1862,9 @@ local g_companionAppSetting = setting{
 --- @return Panel
 function TacPanel.Portrait()
 
-    -- Portrait control buttons are 15% smaller than the standard vision button.
-    local visionBtnSize = math.floor(TacPanelSizes.VisionBtn.size * 0.85 + 0.5)
+    -- Portrait control icons. Sized to fit ~3 across the 90px-wide portrait while
+    -- staying large enough to read; they wrap to a second row if more are shown.
+    local visionBtnSize = 20
 
     local function outlineButton(params)
         local btn
@@ -1866,14 +1874,14 @@ function TacPanel.Portrait()
         end
         local args = {
             classes = {"container", "tpOutline"},
-            halign = "left",
-            valign = "top",
-            lmargin = 3,
-            vmargin = 2,
-            pad = 3,
+            halign = "center",
+            valign = "center",
+            hmargin = 1,
+            vmargin = 1,
+            pad = 2,
             bgimage = true,
             border = 1,
-            cornerRadius = 4,
+            cornerRadius = 13,
             btn,
         }
 
@@ -1891,9 +1899,10 @@ function TacPanel.Portrait()
     
     if g_companionAppSetting:Get() then
         m_companionAppButton = outlineButton(gui.Panel{
-            classes = {"toggle-btn"},
+            classes = {"toggle-btn", "light-btn"},
             hoverCursor = "pressbutton",
             bgimage = "ui-icons/codex-logo.png",
+            bgcolor = "white",
             width = visionBtnSize,
             height = visionBtnSize,
             data = { token = nil },
@@ -1946,17 +1955,26 @@ function TacPanel.Portrait()
         },
 
 
-        -- Control buttons at bottom of portrait. Bound the width to the portrait
-        -- frame and wrap so a 4th+ button drops to a second row within the avatar.
+        -- Control buttons at bottom of portrait. A full-width positioner is pinned
+        -- to the bottom of the portrait; inside it an auto-width row is centered
+        -- (width "auto" + halign center is the codebase idiom for centering a flow).
+        -- Each icon carries its own clearly-visible chip, so no group backing needed.
         gui.Panel{
             classes = {"container"},
-            flow = "horizontal",
-            wrap = true,
-            width = "100%",
             floating = true,
-            halign = "left",
+            flow = "vertical",
+            width = "100%",
+            height = "auto",
+            halign = "center",
             valign = "bottom",
-            vmargin = 4,
+            bmargin = 6,
+            gui.Panel{
+                classes = {"container"},
+                flow = "horizontal",
+                width = "auto",
+                height = "auto",
+                halign = "center",
+                valign = "center",
             outlineButton(gui.Panel{
                 id = "char-panel-light-btn",
                 classes = {"toggle-btn", "light-btn"},
@@ -2104,6 +2122,7 @@ function TacPanel.Portrait()
                     gui.Tooltip(text)(element)
                 end,
             }),
+            },
         },
     }
 end

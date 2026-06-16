@@ -970,19 +970,23 @@ function CharSheet.FramePreviewPanel()
                     unclamped = true,
                     sliderWidth = 340,
                     labelWidth = 50,
-                    minValue = 0,
+                    -- Hard minimum: a tokenScale below 0.3 shrinks the rendered token
+                    -- to (near) nothing, making it invisible-but-selectable. The engine
+                    -- also clamps to 0.3 (CharacterAppearance.MinTokenScaling) as a backstop.
+                    minValue = 0.3,
                     maxValue = 2,
                     events = {
                         change = function(element)
+                            local v = math.max(0.3, element.value)
                             if g_previewToken ~= nil and g_previewToken.valid then
-                                g_previewToken.tokenScale = element.value
+                                g_previewToken.tokenScale = v
                                 game.Refresh {
                                     tokens = { g_previewTokenId },
                                 }
                             end
                         end,
                         confirm = function(element)
-                            CharacterSheet.instance.data.info.token.tokenScale = element.value
+                            CharacterSheet.instance.data.info.token.tokenScale = math.max(0.3, element.value)
                             CharacterSheet.instance.data.info.token:UploadAppearance()
                             CharacterSheet.instance:FireEvent("refreshAll")
                         end,

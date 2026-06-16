@@ -2707,6 +2707,15 @@ end
 --functionality to mark radiuses.
 local g_radiusMarkers = {}
 
+--Strict movement: the exact set of legal forced-move destination tiles, captured from
+--the SAME data the forced-move movement radius is drawn from (g_token:CalculateMovementPerimeter
+--with the identical args passed to MarkMovementRadius). Keyed by loc.xyfloorOnly.str. nil when
+--no forced-move (straightline) targeting is active. Used to confine targeting to the drawn tiles.
+local g_forcedMoveLegalLocs = nil
+
+--One-shot guard so the "needs a C# build" warning prints at most once per session.
+local g_warnedPerimeterMissing = false
+
 local AddCustomAreaMarker = function(locs, color)
     g_radiusMarkers[#g_radiusMarkers + 1] = dmhub.MarkLocs {
         locs = locs,
@@ -2763,6 +2772,32 @@ local function ClearRadiusMarkers()
     end
 
     g_radiusMarkers = {}
+    g_forcedMoveLegalLocs = nil
+end
+
+--Strict movement: capture the EXACT legal forced-move destination tiles into
+--g_forcedMoveLegalLocs (keyed by loc.xyfloorOnly.str), using the SAME range + args
+--passed to MarkMovementRadius. CalculateMovementPerimeter runs the identical engine
+--computation that draws the radius, so the legal set and the highlighted radius can
+--never disagree -- no separate/duplicated targeting algorithm. Call this right after
+--each forced-move MarkMovementRadius draw so the set stays in sync (including the
+--multi-step waypoint re-draw). pcall-guarded: if the engine method is missing (Lua
+--reloaded before the C# build), leave the set nil and fall open instead of erroring.
+local function CaptureForcedMoveLegalLocs(token, range, radiusArgs)
+    local ok, perim = pcall(function() return token:CalculateMovementPerimeter(range, radiusArgs) end)
+    if ok and type(perim) == "table" then
+        local set = {}
+        for _, perimLoc in ipairs(perim) do
+            set[perimLoc.xyfloorOnly.str] = true
+        end
+        g_forcedMoveLegalLocs = set
+    else
+        g_forcedMoveLegalLocs = nil
+        if not ok and not g_warnedPerimeterMissing then
+            g_warnedPerimeterMissing = true
+            print("[STRICTMOVE] CalculateMovementPerimeter unavailable (needs a C# build); forced-move enforcement is OFF until the engine is rebuilt.")
+        end
+    end
 end
 
 
@@ -2783,6 +2818,48 @@ local function RemoveTokenTargeting()
     end
 
     g_targetInfo = nil
+end
+
+
+--- True when strict forced-movement enforcement should currently apply. The
+--- "Strictly Enforce Movement Rules" game setting must be on, and the actor must be
+--- a PLAYER -- OR a GM who is currently viewing the world as a player (Show Token
+--- Vision, or logged in as a token). Plain GM view is exempt, matching
+--- strict:resources / strict:targeting. The token-vision/logged-in-as cases let the
+--- rules be exercised and tested from the player's perspective.
+--- @return boolean
+local function ForcedMoveEnforcementActive()
+    if not dmhub.GetSettingValue("strict:movement") then
+        return false
+    end
+    if not dmhub.isDM then
+        return true
+    end
+    return dmhub.tokenVision ~= nil or dmhub.tokensLoggedInAs ~= nil
+end
+
+--- Strict movement enforcement for forced movement (push/pull/slide/knockback).
+--- Returns true when enforcement is active (see ForcedMoveEnforcementActive) and `loc`
+--- is NOT one of the tiles the forced-move movement radius highlights. The legal-tile
+--- set (g_forcedMoveLegalLocs) is captured from the exact same engine computation that
+--- draws the radius, so "what you can target" matches "what is highlighted" tile-for-tile.
+--- When the caller rejects a loc it suppresses the preview arrow / "Click to Confirm"
+--- text and ignores the click. If the legal set is unavailable (forced-move radius not
+--- computed, or the engine method is missing pre-build) we fall OPEN -- do not constrain --
+--- so targeting keeps working rather than blocking everything.
+--- @param loc nil|Loc
+--- @return boolean
+local function ForcedMoveLocRejected(loc)
+    if not ForcedMoveEnforcementActive() then
+        return false
+    end
+    if g_forcedMoveLegalLocs == nil then
+        return false
+    end
+    if loc == nil then
+        return true
+    end
+    return g_forcedMoveLegalLocs[loc.xyfloorOnly.str] ~= true
 end
 
 
@@ -4903,15 +4980,40 @@ CreateAbilityController = function()
                     if targetingType == "straightline" then
                         previewForcedDist = g_currentAbility:GetRange(g_token.properties, g_currentSymbols) / dmhub.unitsPerSquare
                     end
-                    local movementInfo = g_token:MarkMovementArrow(loc, {
-                        straightline = true,
-                        ignorecreatures = (targetingType == "straightpathignorecreatures" or throughCreatures),
-                        rebound = reboundOptions.rebound,
-                        maxBounces = reboundOptions.maxBounces,
-                        forcedMovementDistance = previewForcedDist,
-                        slide = (g_currentSymbols.forcedmovement or g_currentAbility:try_get("forcedMovement")) == "vertical_slide",
-                    })
-                    
+
+                    --[STRICTMOVE] diagnostic: once per hovered square, report whether the
+                    --hovered tile is in the captured legal-tile set (the exact tiles the
+                    --forced-move radius highlights) and whether enforcement is active.
+                    --Throttled by loc to avoid log spam. Safe to remove once verified.
+                    do
+                        local dk = tostring(loc and loc.str or "nil")
+                        if element.data._strictMoveDiagKey ~= dk then
+                            element.data._strictMoveDiagKey = dk
+                            print(string.format("[STRICTMOVE] hover=%s forcedmove=%s enforceActive=%s legalSet=%s inLegalSet=%s rejected=%s",
+                                tostring(loc and loc.str or "nil"),
+                                tostring(g_currentSymbols.forcedmovement or g_currentAbility:try_get("forcedMovement", "?")),
+                                tostring(ForcedMoveEnforcementActive()),
+                                tostring(g_forcedMoveLegalLocs ~= nil and "set" or "nil"),
+                                tostring(g_forcedMoveLegalLocs ~= nil and loc ~= nil and (g_forcedMoveLegalLocs[loc.xyfloorOnly.str] == true)),
+                                tostring((targetingType == "straightline") and ForcedMoveLocRejected(loc))))
+                        end
+                    end
+
+                    --Strict movement: a player may not preview a forced move to a square
+                    --outside the tiles the forced-move radius highlights (g_forcedMoveLegalLocs,
+                    --captured from the identical engine computation that draws the radius).
+                    local movementInfo = nil
+                    if not ((targetingType == "straightline") and ForcedMoveLocRejected(loc)) then
+                        movementInfo = g_token:MarkMovementArrow(loc, {
+                            straightline = true,
+                            ignorecreatures = (targetingType == "straightpathignorecreatures" or throughCreatures),
+                            rebound = reboundOptions.rebound,
+                            maxBounces = reboundOptions.maxBounces,
+                            forcedMovementDistance = previewForcedDist,
+                            slide = (g_currentSymbols.forcedmovement or g_currentAbility:try_get("forcedMovement")) == "vertical_slide",
+                        })
+                    end
+
                     if movementInfo ~= nil then
                         local targets = g_currentAbility:FindTargetsInMovementVicinity(g_token, movementInfo.path) or
                             filteredTargets
@@ -4930,8 +5032,13 @@ CreateAbilityController = function()
                             clearWarningArrows = false
                         end
                     end
-                    g_pointTargeting.showingMovementArrow = true
-                    clearMovementArrow = false
+                    --Only keep an arrow drawn when one was actually previewed. When a
+                    --strict-movement reject suppressed it, leave clearMovementArrow at
+                    --its default so any arrow from the previous frame is removed.
+                    if movementInfo ~= nil then
+                        g_pointTargeting.showingMovementArrow = true
+                        clearMovementArrow = false
+                    end
 
                     if movementInfo ~= nil then
                         local path = movementInfo.path
@@ -5492,7 +5599,14 @@ CreateAbilityController = function()
                     g_pointTargeting.partnerRadius = g_pointTargeting.partnerShape:Mark { color = targetColor, video = video }
                 end
 
-                if g_currentAbility ~= nil and loc ~= nil and g_pointTargeting.shape ~= nil then
+                --Strict movement: suppress the "Click to Confirm" affordance when a
+                --player is hovering a square outside the tiles the forced-move radius
+                --highlights, so it doesn't invite a click that will be rejected. The
+                --radius itself still renders.
+                local strictConfirmReject = (g_currentAbility ~= nil)
+                    and (g_currentAbility:try_get("targeting", "direct") == "straightline")
+                    and ForcedMoveLocRejected(loc)
+                if g_currentAbility ~= nil and loc ~= nil and g_pointTargeting.shape ~= nil and (not strictConfirmReject) then
                     local numTargets = g_currentAbility:GetNumTargets(g_token, g_currentSymbols)
 
                     local clickText = cond(numTargets == 1, "Click to Confirm", "")
@@ -5677,6 +5791,14 @@ CreateAbilityController = function()
                 end
             end
 
+            --Strict movement: a player (not the DM) may not target a forced-move square
+            --outside the tiles the forced-move radius highlights (g_forcedMoveLegalLocs,
+            --captured from the same engine computation that draws the radius). Tested after
+            --the large-creature offset so it matches the loc the preview/append use.
+            if targetingType == "straightline" and ForcedMoveLocRejected(loc) then
+                return
+            end
+
             print("WAYPOINT:: PRESS SHAPE:", g_pointTargeting.shape)
             if g_pointTargeting.shape ~= nil then
                 local targets = m_positionTargetsChosen
@@ -5831,12 +5953,18 @@ CreateAbilityController = function()
                                 filterTargetPredicate = function(loc) return baseFilter(loc) and restrictionFilter(loc) end
                             end
                         end
-                        local radiusMarker = g_token:MarkMovementRadius(g_range,
-                            { moveFlags = moveFlags, waypoints = waypoints, mask = mask, filter = filterTargetPredicate})
+                        local radiusArgs = { moveFlags = moveFlags, waypoints = waypoints, mask = mask, filter = filterTargetPredicate}
+                        local radiusMarker = g_token:MarkMovementRadius(g_range, radiusArgs)
 
                         if radiusMarker ~= nil then
                         print("MARK:: MARK LOCS")
                             g_radiusMarkers[#g_radiusMarkers + 1] = radiusMarker
+
+                            --Strict movement: keep the legal-tile set in sync with this
+                            --freshly-drawn forced-move radius (multi-step path case).
+                            if forcedMovement then
+                                CaptureForcedMoveLegalLocs(g_token, g_range, radiusArgs)
+                            end
                             return
                         end
                     end
@@ -6391,8 +6519,18 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
                 end
 
                 print("MARK:: MovementRadius:: MARK", range)
-                g_radiusMarkers[#g_radiusMarkers + 1] = g_token:MarkMovementRadius(range,
-                    { moveFlags = moveFlags, waypoints = waypoints, mask = mask, filter = filterTargetPredicate })
+                local radiusArgs = { moveFlags = moveFlags, waypoints = waypoints, mask = mask, filter = filterTargetPredicate }
+                g_radiusMarkers[#g_radiusMarkers + 1] = g_token:MarkMovementRadius(range, radiusArgs)
+
+                --Strict movement: for forced movement (straightline), capture the EXACT
+                --tiles this radius is drawn from so targeting can be confined to them.
+                --Other targeting variants (pathfind/vacated normal movement) are not
+                --forced movement -> leave the set nil (no forced-move gating).
+                if g_currentAbility:try_get("targeting", "direct") == "straightline" then
+                    CaptureForcedMoveLegalLocs(g_token, range, radiusArgs)
+                else
+                    g_forcedMoveLegalLocs = nil
+                end
             elseif (g_currentAbility.targetType ~= 'line' or g_currentAbility.canChooseLowerRange) and g_currentAbility.targetType ~= 'cone' and g_currentAbility.targetType ~= 'self' and g_currentAbility.targetType ~= 'all' and g_currentAbility.targetType ~= 'map' and g_currentAbility.targetType ~= 'areatemplate' then
                 local loc = g_currentAbility:try_get("casterLocOverride")
 

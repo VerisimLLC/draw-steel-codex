@@ -47,7 +47,7 @@ function ActivatedAbilityDrawSteelCommandBehavior:Cast(ability, casterToken, tar
         end
     end
 
-    --ability:CommitToPaying(casterToken, options)
+    ability:CommitToPaying(casterToken, options)
 
     repeat
         if promptWhenResolving and #targets > 0 then

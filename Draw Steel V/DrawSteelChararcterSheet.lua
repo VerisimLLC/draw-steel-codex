@@ -2345,6 +2345,459 @@ function CharSheet.DSEditImmunitiesPopup(element, info)
     }
 end
 
+--==============================================================
+-- Monster level scaling: the "Adjust Level" dialog (chunk 4).
+--
+-- Opens from the LEVEL indicator in the monster stat-block header. It previews
+-- the full consequence of moving to a target level -- a Now / After compare
+-- table with signed deltas, an echelon callout (only when crossing 3/4, 6/7,
+-- 9/10) and a scaling-down note -- before committing via
+-- monster:SetLevelAdjustment. All math + the generated feature live in
+-- MCDMMonster.lua (MCDMMonsterScaling + monster:Set/Clear/HasLevelAdjustment);
+-- this is presentation only.
+--
+-- Per-creature stats (EV / Stamina / Free strike) read the creature's actual
+-- current value and show After = Now + (current -> target) delta, exactly what
+-- Apply produces. Reference stats (Damage, Highest characteristic, Potency) are
+-- shown from the MCDM table / formula at the current vs target level (there is
+-- no single per-creature damage number, and characteristic / potency are
+-- echelon-derived).
+--==============================================================
+
+local function ScalingSignedString(n)
+    if n > 0 then
+        return string.format("+%d", n)
+    end
+    return string.format("%d", n)
+end
+
+local function ShowAdjustLevelDialog(token)
+    if token == nil or token.properties == nil then
+        return
+    end
+    local props = token.properties
+    if not props:IsMonster() then
+        return
+    end
+
+    local org, role = props:ScalingOrgRole()
+    local isLeaderSolo = (org == "leader" or org == "solo")
+    local dtype = MCDMMonsterScaling.DamageType(org, role)
+
+    local minLevel = MCDMMonsterScaling.minLevel
+    local maxLevel = MCDMMonsterScaling.maxLevel
+    local baseLevel = props:GetScalingBaseLevel()
+    local currentLevel = round(tonumber(props:CharacterLevel()) or baseLevel)
+    currentLevel = math.max(minLevel, math.min(maxLevel, currentLevel))
+
+    -- The creature's actual current per-creature stats (these already include
+    -- any adjustment in effect now).
+    local nowEV = round(tonumber(props:EV()) or 0)
+    local nowStamina = round(tonumber(props:MaxHitpoints()) or 0)
+    local nowFreeStrike = round(tonumber(props:OpportunityAttack()) or 0)
+
+    -- Mutable selection; starts at the current level (no change).
+    local targetLevel = currentLevel
+
+    -- Forward-declared so the helpers / event handlers below can reach them.
+    local dialog
+    local previewPanel
+    local valueLabel
+    local slider
+    local echelonBanner
+    local noteLabel
+    local footerLabel
+
+    local function signum(n)
+        if n > 0 then return 1 elseif n < 0 then return -1 else return 0 end
+    end
+
+    -- Adjustment-column text: the signed delta, or blank when unchanged.
+    local function adjStr(n)
+        if n == 0 then return "" end
+        return ScalingSignedString(n)
+    end
+
+    -- One Now / After / Adjustment compare row. The Adjustment column is tinted
+    -- success (increase) or danger (decrease); dir is its sign. Unchanged
+    -- echelon rows (dim=true) are quieted so the rows that move stay salient.
+    local function CompareRow(idx, labelText, nowText, afterText, adjText, dir, dim)
+        local changed = dir ~= 0
+        local quiet = dim and not changed
+        local adjClass = { "tableLabel", "bold" }
+        if dir > 0 then
+            adjClass = { "tableLabel", "bold", "adjustInc" }
+        elseif dir < 0 then
+            adjClass = { "tableLabel", "bold", "adjustDec" }
+        end
+        return gui.Panel{
+            classes = { "row", cond(idx % 2 == 0, "evenRow", "oddRow") },
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            borderBox = true,
+            hpad = 10,
+            vpad = 5,
+            opacity = cond(quiet, 0.5, 1.0),
+
+            gui.Label{ classes = { "tableLabel" }, text = labelText, width = "36%", height = "auto", halign = "left", textWrap = true },
+            gui.Label{ classes = { "tableLabel" }, text = nowText, width = "17%", height = "auto", textAlignment = "center" },
+            gui.Label{ classes = { "tableLabel" }, text = afterText, width = "17%", height = "auto", textAlignment = "center" },
+            gui.Label{ classes = adjClass, text = adjText, width = "30%", height = "auto", textAlignment = "center" },
+        }
+    end
+
+    local function BuildPreviewRows()
+        local deltas = MCDMMonsterScaling.ComputeDeltas(org, role, currentLevel, targetLevel) or {}
+        local rows = {}
+
+        rows[#rows+1] = gui.Panel{
+            classes = { "row", "headerRow" },
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            borderBox = true,
+            hpad = 10,
+            vpad = 8,
+            gui.Label{ classes = { "tableLabel", "bold" }, text = "", width = "36%", height = "auto" },
+            gui.Label{ classes = { "tableLabel", "bold" }, text = "Now", width = "17%", height = "auto", textAlignment = "center" },
+            gui.Label{ classes = { "tableLabel", "bold" }, text = "After", width = "17%", height = "auto", textAlignment = "center" },
+            gui.Label{ classes = { "tableLabel", "bold" }, text = "Adjustment", width = "30%", height = "auto", textAlignment = "center" },
+        }
+
+        -- Separator under the header so it reads distinctly from the data rows.
+        rows[#rows+1] = gui.Panel{ classes = { "adjustDivider" }, width = "100%", height = 1, bmargin = 2 }
+
+        local idx = 0
+        local function add(labelText, nowText, afterText, adjText, dir, dim)
+            idx = idx + 1
+            rows[#rows+1] = CompareRow(idx, labelText, nowText, afterText, adjText, dir, dim)
+        end
+
+        -- Encounter value (per-creature)
+        add("Encounter value",
+            string.format("%d", nowEV),
+            string.format("%d", nowEV + (deltas.ev or 0)),
+            adjStr(deltas.ev or 0), signum(deltas.ev or 0), false)
+
+        -- Stamina (per-creature)
+        add("Stamina",
+            string.format("%d", nowStamina),
+            string.format("%d", nowStamina + (deltas.stamina or 0)),
+            adjStr(deltas.stamina or 0), signum(deltas.stamina or 0), false)
+
+        -- Damage T1/T2/T3 (reference: MCDM table for this org/role)
+        local rowCur = MCDMMonsterScaling.RowFor(org, currentLevel)
+        local rowTgt = MCDMMonsterScaling.RowFor(org, targetLevel)
+        local dmgNow = rowCur and rowCur[dtype]
+        local dmgTgt = rowTgt and rowTgt[dtype]
+        if dmgNow ~= nil and dmgTgt ~= nil then
+            local d1, d2, d3 = deltas.t1 or 0, deltas.t2 or 0, deltas.t3 or 0
+            local changed = d1 ~= 0 or d2 ~= 0 or d3 ~= 0
+            local dStr = ""
+            if changed then
+                dStr = string.format("%s / %s / %s",
+                    ScalingSignedString(d1), ScalingSignedString(d2), ScalingSignedString(d3))
+            end
+            add("Damage (T1 / T2 / T3)",
+                string.format("%d / %d / %d", dmgNow[1], dmgNow[2], dmgNow[3]),
+                string.format("%d / %d / %d", dmgTgt[1], dmgTgt[2], dmgTgt[3]),
+                dStr, cond(changed, signum(targetLevel - currentLevel), 0), false)
+        end
+
+        -- Free strike (per-creature; T1 table delta, no characteristic)
+        add("Free strike",
+            string.format("%d", nowFreeStrike),
+            string.format("%d", nowFreeStrike + (deltas.freeStrike or 0)),
+            adjStr(deltas.freeStrike or 0), signum(deltas.freeStrike or 0), false)
+
+        -- Highest characteristic (reference formula; echelon row)
+        local charNow = MCDMMonsterScaling.HighestCharacteristic(currentLevel, isLeaderSolo)
+        local charTgt = MCDMMonsterScaling.HighestCharacteristic(targetLevel, isLeaderSolo)
+        add("Highest characteristic",
+            ScalingSignedString(charNow),
+            ScalingSignedString(charTgt),
+            adjStr(charTgt - charNow), signum(charTgt - charNow), true)
+
+        -- Potency weak/avg/strong (reference formula; echelon row)
+        local function potTriple(level)
+            local s = MCDMMonsterScaling.PotencyStrong(level, isLeaderSolo)
+            return math.max(0, s - 2), math.max(0, s - 1), s
+        end
+        local wNow, aNow, sNow = potTriple(currentLevel)
+        local wTgt, aTgt, sTgt = potTriple(targetLevel)
+        add("Potency (weak / avg / strong)",
+            string.format("%d / %d / %d", wNow, aNow, sNow),
+            string.format("%d / %d / %d", wTgt, aTgt, sTgt),
+            adjStr(sTgt - sNow), signum(sTgt - sNow), true)
+
+        return rows
+    end
+
+    local function Refresh()
+        if valueLabel ~= nil and valueLabel.valid then
+            valueLabel.text = string.format("%d", targetLevel)
+        end
+        if slider ~= nil and slider.valid then
+            slider:SetValue(targetLevel, false)
+        end
+        if previewPanel ~= nil and previewPanel.valid then
+            previewPanel.children = BuildPreviewRows()
+        end
+
+        local curEch = MCDMMonsterScaling.Echelon(currentLevel)
+        local tgtEch = MCDMMonsterScaling.Echelon(targetLevel)
+        local crossing = (tgtEch ~= curEch)
+        if echelonBanner ~= nil and echelonBanner.valid then
+            echelonBanner:SetClass("collapsed", not crossing)
+            if crossing then
+                local diff = math.abs(tgtEch - curEch)
+                local verb = cond(tgtEch > curEch, "increase", "decrease")
+                echelonBanner.text = string.format(
+                    "Echelon %d. Potency and highest characteristic %s by %d.", tgtEch, verb, diff)
+            end
+        end
+
+        if noteLabel ~= nil and noteLabel.valid then
+            noteLabel:SetClass("collapsed", not (targetLevel < baseLevel))
+        end
+
+        if footerLabel ~= nil and footerLabel.valid then
+            if targetLevel == baseLevel then
+                footerLabel.text = "At the base level. No feature is added."
+            else
+                footerLabel.text = "This adjustment adds a feature to the creature. Delete the feature or click the Reset button below to restore the creature to its original level."
+            end
+        end
+    end
+
+    local function SetTarget(n)
+        n = math.max(minLevel, math.min(maxLevel, round(tonumber(n) or targetLevel)))
+        if n == targetLevel then
+            return
+        end
+        targetLevel = n
+        Refresh()
+    end
+
+    valueLabel = gui.Label{
+        classes = { "number", "sizeL", "bold" },
+        text = string.format("%d", currentLevel),
+        width = 56,
+        height = "auto",
+        halign = "center",
+        valign = "center",
+        textAlignment = "center",
+    }
+
+    slider = gui.Slider{
+        width = "80%",
+        height = 24,
+        halign = "center",
+        vmargin = 4,
+        minValue = minLevel,
+        maxValue = maxLevel,
+        value = currentLevel,
+        round = true,
+        change = function(element)
+            SetTarget(element:GetValue())
+        end,
+    }
+
+    previewPanel = gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        tmargin = 12,
+    }
+
+    echelonBanner = gui.Label{
+        classes = { "sizeXs", "bold", "collapsed" },
+        width = "100%",
+        height = "auto",
+        halign = "left",
+        textAlignment = "left",
+        textWrap = true,
+        tmargin = 12,
+    }
+
+    noteLabel = gui.Label{
+        classes = { "sizeXs", "collapsed" },
+        text = "Some monsters have been hand-tuned and scaling values are approximate for these creatures.",
+        width = "100%",
+        height = "auto",
+        halign = "left",
+        textAlignment = "left",
+        textWrap = true,
+        tmargin = 8,
+    }
+
+    footerLabel = gui.Label{
+        classes = { "sizeXs" },
+        width = "100%",
+        height = "auto",
+        halign = "left",
+        textAlignment = "left",
+        textWrap = true,
+        tmargin = 12,
+    }
+
+    dialog = gui.Panel{
+        classes = { "dialog" },
+        -- Custom rules: tint the Adjustment column (the base tableLabel rule sets
+        -- @fg, which otherwise wins over a plain success/danger class), and a
+        -- clean 1px themed divider (a bordered box left end-cap artifacts).
+        styles = ThemeEngine.MergeStyles{
+            { selectors = { "tableLabel", "adjustInc" }, color = "@success", priority = 100 },
+            { selectors = { "tableLabel", "adjustDec" }, color = "@danger", priority = 100 },
+            { selectors = { "adjustDivider" }, bgimage = true, bgcolor = "@border" },
+        },
+        width = 660,
+        height = "auto",
+        minHeight = 440,
+        flow = "vertical",
+        borderBox = true,
+        pad = 20,
+
+        gui.Label{
+            classes = { "modalTitle" },
+            text = "Adjust Level",
+            width = "100%",
+            height = "auto",
+            tmargin = 4,
+        },
+
+        gui.Button{
+            classes = { "closeButton" },
+            halign = "right",
+            valign = "top",
+            floating = true,
+            margin = 8,
+            escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+            click = function(element)
+                gui.CloseModal()
+            end,
+        },
+
+        -- Subtitle: "<b>Name</b> - Role", centered. (Base Level lives on the
+        -- stepper row, right-aligned to the slider's edge.)
+        gui.Label{
+            classes = { "sizeS" },
+            text = string.format("<b>%s</b> - %s", token.name or "Monster", props:try_get("role", "")),
+            width = "92%",
+            height = "auto",
+            halign = "center",
+            textAlignment = "center",
+            textWrap = true,
+            tmargin = 4,
+        },
+
+        -- Stepper (minus / value / plus) centered, with Base Level right-aligned
+        -- to the slider's right edge. The wrapper matches the slider's 80% width
+        -- so "right" lands on the scale's edge.
+        gui.Panel{
+            width = "80%",
+            height = "auto",
+            halign = "center",
+            valign = "center",
+            flow = "none",
+            vmargin = 8,
+
+            gui.Panel{
+                width = "auto",
+                height = "auto",
+                flow = "horizontal",
+                halign = "center",
+                valign = "center",
+
+                gui.Button{
+                    classes = { "pagingArrow" },
+                    valign = "center",
+                    click = function(element)
+                        SetTarget(targetLevel - 1)
+                    end,
+                },
+                valueLabel,
+                gui.Button{
+                    classes = { "pagingArrow", "right" },
+                    valign = "center",
+                    click = function(element)
+                        SetTarget(targetLevel + 1)
+                    end,
+                },
+            },
+
+            gui.Label{
+                classes = { "sizeS" },
+                text = string.format("<b>Base Level:</b> %d", baseLevel),
+                width = "auto",
+                height = "auto",
+                halign = "right",
+                valign = "center",
+            },
+        },
+
+        slider,
+        previewPanel,
+        echelonBanner,
+        noteLabel,
+        footerLabel,
+
+        -- Cancel / Reset / Apply
+        gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            halign = "center",
+            valign = "bottom",
+            tmargin = 16,
+
+            gui.Button{
+                text = "Cancel",
+                width = 120,
+                height = 40,
+                hmargin = 6,
+                click = function(element)
+                    gui.CloseModal()
+                end,
+            },
+            gui.Button{
+                text = "Reset",
+                width = 120,
+                height = 40,
+                hmargin = 6,
+                click = function(element)
+                    -- Reset returns the selection to the creature's original
+                    -- (base) level; Apply then commits the restoration.
+                    targetLevel = baseLevel
+                    Refresh()
+                end,
+            },
+            gui.Button{
+                text = "Apply",
+                width = 120,
+                height = 40,
+                hmargin = 6,
+                click = function(element)
+                    token:ModifyProperties{
+                        description = "Adjust monster level",
+                        execute = function()
+                            token.properties:SetLevelAdjustment(targetLevel)
+                        end,
+                    }
+                    if CharacterSheet.instance ~= nil then
+                        CharacterSheet.instance:FireEvent("refreshAll")
+                    end
+                    gui.CloseModal()
+                end,
+            },
+        },
+    }
+
+    Refresh()
+    gui.ShowModal(dialog)
+end
+
 local function DSCharSheet()
     --find id for recovery from resourcestable
     local recoveryid = "5bd90f9b-46be-4cf2-8ca6-a96430d62949"
@@ -3956,44 +4409,111 @@ local function DSCharSheet()
 
                             },
 
-                            gui.Label {
-
-                                text = "4",
-                                color = "white",
-                                fontSize = 26,
-                                characterLimit = 2,
-
+                            --Level number with the Adjust Level affordance to its
+                            --left (monster level scaling): a small up/down-arrow
+                            --icon button that opens the Adjust Level dialog.
+                            --Monsters only.
+                            gui.Panel {
                                 bgimage = true,
                                 bgcolor = "clear",
                                 width = "100%",
                                 height = "35%",
-
-                                valign = "top",
-                                halign = "center",
-                                textAlignment = "center",
-
-
+                                -- flow "none" so the arrow overlays to the right
+                                -- without displacing the centered level number.
+                                -- The number is declared FIRST and the arrow LAST
+                                -- so the arrow renders on top and stays clickable
+                                -- (later siblings win pointer events).
+                                flow = "none",
+                                valign = "center",
                                 tmargin = 4,
-                                lmargin = 10,
 
-                                refreshToken = function(element, info)
-                                    local level = info.token.properties:CharacterLevel()
-                                    if level == 0 then
-                                        element.text = "-"
-                                    else
-                                        element.text = string.format("%d", level)
-                                    end
+                                gui.Label {
 
-                                    element.editable = info.token.properties:IsMonster()
-                                end,
+                                    text = "4",
+                                    color = "white",
+                                    fontSize = 26,
+                                    characterLimit = 2,
 
-                                change = function(element)
-                                    local token = CharacterSheet.instance.data.info.token
-                                    local n = math.max(0,
-                                        round(tonumber(element.text) or token.properties:CharacterLevel()))
-                                    token.properties.cr = n
-                                    CharacterSheet.instance:FireEvent("refreshAll")
-                                end,
+                                    bgimage = true,
+                                    bgcolor = "clear",
+                                    width = "100%",
+                                    height = "100%",
+
+                                    halign = "center",
+                                    valign = "center",
+                                    textAlignment = "center",
+
+                                    refreshToken = function(element, info)
+                                        local level = info.token.properties:CharacterLevel()
+                                        if level == 0 then
+                                            element.text = "-"
+                                        else
+                                            element.text = string.format("%d", level)
+                                        end
+
+                                        element.editable = info.token.properties:IsMonster()
+                                    end,
+
+                                    change = function(element)
+                                        -- Guard against firing during teardown / when the value
+                                        -- did not actually change: a spurious refreshAll mid-destroy
+                                        -- recomputes stats while the modifier pipeline is half torn
+                                        -- down (e.g. Stability transiently nil).
+                                        if CharacterSheet.instance == nil then
+                                            return
+                                        end
+                                        local token = CharacterSheet.instance.data.info.token
+                                        if token == nil or token.properties == nil then
+                                            return
+                                        end
+                                        local n = math.max(0,
+                                            round(tonumber(element.text) or token.properties:CharacterLevel()))
+                                        if n == round(tonumber(token.properties.cr) or 0) then
+                                            return
+                                        end
+                                        token.properties.cr = n
+                                        CharacterSheet.instance:FireEvent("refreshAll")
+                                    end,
+                                },
+
+                                gui.Panel {
+                                    classes = { "bordered", "hoverable" },
+                                    bgimage = "panels/square.png",
+                                    bgcolor = "clear",
+                                    width = 24,
+                                    height = 26,
+                                    halign = "right",
+                                    valign = "center",
+                                    rmargin = 8,
+                                    flow = "vertical",
+
+                                    hover = gui.Tooltip("Adjust Level"),
+
+                                    refreshToken = function(element, info)
+                                        element:SetClass("collapsed", not info.token.properties:IsMonster())
+                                    end,
+
+                                    click = function(element)
+                                        ShowAdjustLevelDialog(CharacterSheet.instance.data.info.token)
+                                    end,
+
+                                    gui.Panel {
+                                        width = 13,
+                                        height = "50%",
+                                        halign = "center",
+                                        valign = "top",
+                                        bgimage = "icons/icon_arrow/icon_arrow_29.png",
+                                        bgcolor = "white",
+                                    },
+                                    gui.Panel {
+                                        width = 13,
+                                        height = "50%",
+                                        halign = "center",
+                                        valign = "bottom",
+                                        bgimage = "icons/icon_arrow/icon_arrow_30.png",
+                                        bgcolor = "white",
+                                    },
+                                },
                             },
                         },
                     },

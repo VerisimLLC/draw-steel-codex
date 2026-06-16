@@ -151,13 +151,127 @@ CompendiumPermission.name = "Compendium Permission"
 CompendiumPermission.tableName = "compendiumPermissions"
 CompendiumPermission.visible = true
 
+-- Shared per-entry match test for the compendium left menu and its page lists.
+-- `needle` must already be normalised (Search.Normalize). A menu category
+-- (contentType set) matches if its label or any row in its table matches; a
+-- single row (tableName+key) matches if the item, the table name, or the label
+-- matches. Empty needle matches everything (so clearing restores the list).
+-- One keystroke fans out to several independent sweeps of the same tables
+-- (menu rows, section headings, the "All results (N)" counter, the aggregated
+-- view, the page summary). Memoise MatchKeys per (needle, contentType) so each
+-- table is walked once per needle; the short TTL keeps results fresh across
+-- edits without needing invalidation hooks.
+-- Forward-declared so LibraryPanel's context-search provider (above its
+-- definition) can singularise category labels for its result chips. Assigned
+-- to the real implementation further down the file.
+local CompendiumTypeLabel
+
+local m_matchKeysCache = {needle = nil, time = 0, keys = {}}
+local function MatchKeysCached(contentType, needle)
+	local now = os.clock()
+	if m_matchKeysCache.needle ~= needle or now - m_matchKeysCache.time > 1 then
+		m_matchKeysCache = {needle = needle, time = now, keys = {}}
+	end
+	local cached = m_matchKeysCache.keys[contentType]
+	if cached == nil then
+		cached = Search.MatchKeys(dmhub.GetTable(contentType) or {}, needle)
+		m_matchKeysCache.keys[contentType] = cached
+	end
+	return cached
+end
+
+-- Name-only sibling of MatchKeysCached. The global "compendium-content" provider
+-- matches on the entry NAME only (deliberately narrower than the deep, all-fields
+-- MatchKeysCached), so it needs its own per-needle memo. Without this the provider
+-- re-walked every content table on each keystroke -- and again on every 0.2s
+-- async-PDF poll for the same unchanged needle. Same 1s TTL / single-needle shape
+-- as MatchKeysCached above.
+local m_nameMatchCache = {needle = nil, time = 0, keys = {}}
+local function NameMatchKeysCached(contentType, needle)
+	local now = os.clock()
+	if m_nameMatchCache.needle ~= needle or now - m_nameMatchCache.time > 1 then
+		m_nameMatchCache = {needle = needle, time = now, keys = {}}
+	end
+	local cached = m_nameMatchCache.keys[contentType]
+	if cached == nil then
+		cached = {}
+		local t = dmhub.GetTable(contentType)
+		if t ~= nil then
+			for k,v in unhidden_pairs(t) do
+				local name = (type(v) == "table" and rawget(v, "name")) or nil
+				if type(name) == "string" and Search.MatchesText(name, needle) then
+					cached[#cached+1] = k
+				end
+			end
+		end
+		m_nameMatchCache.keys[contentType] = cached
+	end
+	return cached
+end
+
+local function CompendiumEntryMatches(options, needle)
+	if needle == "" then
+		return true
+	end
+	if options.text ~= nil and Search.MatchesText(options.text, needle) then
+		return true
+	end
+	if options.contentType ~= nil then
+		return #MatchKeysCached(options.contentType, needle) > 0
+	elseif options.tableName ~= nil and options.key ~= nil then
+		local item = (dmhub.GetTable(options.tableName) or {})[options.key]
+		if item ~= nil and Search.MatchesObject(item, needle) then
+			return true
+		end
+		if Search.MatchesText(options.tableName, needle) then
+			return true
+		end
+	end
+	return false
+end
+
+-- Number of matching rows inside a category's table, for the menu count badge.
+-- Returns nil for entries that are not enumerable categories.
+local function CompendiumCategoryMatchCount(options, needle)
+	if options.contentType == nil then
+		return nil
+	end
+	return #MatchKeysCached(options.contentType, needle)
+end
+
 local CreateListHeading = function(options)
 	return gui.Label{
 		text = options.text,
 		hmargin = 3,
 		fontSize = 22,
-		classes = {'list-item', 'list-heading'},
+		classes = {'list-item', 'list-heading', 'hideOnSearchMismatch'},
 		bold = true,
+
+		-- On an active filter a section heading stays only if its own text or
+		-- any category beneath it matches; otherwise it collapses so empty
+		-- sections do not leave orphan headers. Clearing restores it.
+		searchCompendium = function(element, text)
+			local needle = Search.Normalize(text)
+			if needle == "" then
+				element:SetClass("searching", false)
+				element:SetClass("matchSearch", false)
+				return
+			end
+
+			element:SetClass("searching", true)
+
+			local match = Search.MatchesText(options.text, needle)
+			if not match and options.matchOptions ~= nil then
+				for _,opt in ipairs(options.matchOptions) do
+					if CompendiumEntryMatches(opt, needle) then
+						match = true
+						break
+					end
+				end
+			end
+
+			element:SetClass("matchSearch", match)
+		end,
 	}
 end
 
@@ -293,14 +407,31 @@ local CreateListItem = function(options)
 	end
 	
 
+	-- Menu categories show a "(N)" badge of how many rows match the active
+	-- filter. Hidden when not searching or when the category matched only by
+	-- name (count 0). Single-row entries do not get a badge.
+	local countBadge = nil
+	if options.contentType ~= nil then
+		countBadge = gui.Label{
+			classes = {'compendiumMatchCount', 'collapsed'},
+			text = "",
+			halign = "right",
+			valign = "center",
+			rmargin = 44,
+			width = "auto",
+			height = "auto",
+		}
+	end
+
 	return gui.Label{
 			bgimage = 'panels/square.png',
 			text = options.text,
-			classes = {'list-item', collapsed, importedClass},
+			classes = {'list-item', 'hideOnSearchMismatch', collapsed, importedClass},
             importedPanel,
 			permissionPanel,
 			lockPanel,
 			modificationsPanel,
+			countBadge,
 
 			newContentMarker,
 
@@ -321,31 +452,29 @@ local CreateListItem = function(options)
 			events = {
 				search = options.search,
                 searchCompendium = function(element, text)
-                    text = string.lower(text)
-                    m_search = text
-                    if text == "" then
+                    local needle = Search.Normalize(text)
+                    m_search = needle
+                    if needle == "" then
                         element:SetClass("searching", false)
                         element:SetClass("matchSearch", false)
-                    else
-                        element:SetClass("searching", true)
-                        if options.contentType ~= nil then
-                            element:SetClass("matchSearch", SearchTableHasMatch(dmhub.GetTable(options.contentType), text))
-
-	                    elseif options.tableName ~= nil and options.key ~= nil then
-		                    local table = dmhub.GetTable(options.tableName)
-		                    local item = table[options.key]
-                            element:SetClass("matchSearch", MatchesSearchRecursive(item, text))
-
-                            if string.find(string.lower(options.tableName), text) then
-                                element:SetClass("matchSearch", true)
-                            end
-                        else
-                            element:SetClass("matchSearch", false)
+                        if countBadge ~= nil then
+                            countBadge:SetClass("collapsed", true)
                         end
+                        return
+                    end
 
-                        --if this is a direct search of the title of this section it obviously matches.
-                        if options.text ~= nil and string.find(string.lower(options.text), text) then
-                            element:SetClass("matchSearch", true)
+                    element:SetClass("searching", true)
+
+                    local match = CompendiumEntryMatches(options, needle)
+                    element:SetClass("matchSearch", match)
+
+                    if countBadge ~= nil then
+                        local count = match and CompendiumCategoryMatchCount(options, needle) or 0
+                        if count ~= nil and count > 0 then
+                            countBadge.text = string.format("(%d)", count)
+                            countBadge:SetClass("collapsed", false)
+                        else
+                            countBadge:SetClass("collapsed", true)
                         end
                     end
                 end,
@@ -744,12 +873,24 @@ local ShowOngoingEffectsPanel = function(parentPanel, tableName)
 
 	local sectionHeadings = {}
 	local ongoingEffectItems = {}
+	local m_buildGeneration = 0
+	local m_activeSearch = ""
 
 	itemsListPanel = gui.Panel{
 		classes = {'list-panel'},
 		vscroll = true,
 		monitorAssets = true,
+		searchCompendium = function(element, text)
+			-- rows created by later build chunks need the active filter applied
+			m_activeSearch = text
+		end,
 		refreshAssets = function(element)
+			m_buildGeneration = m_buildGeneration + 1
+			local generation = m_buildGeneration
+
+			-- captured once: late chunks run when aliveTime > 0.2, and select=true
+			-- fires press on create, which would open every row built after open
+			local autoSelect = element.aliveTime > 0.2
 
 			local children = {}
 			local ongoingEffectTable = dmhub.GetTable(tableName) or {}
@@ -766,52 +907,132 @@ local ShowOngoingEffectsPanel = function(parentPanel, tableName)
 					local condb = conditionsTable[cb.condition] or {name = "Ungrouped"}
 					return conda.name < condb.name
 				end)
+			else
+				-- rows are appended chunk by chunk, so keys must arrive pre-sorted;
+				-- the old post-build children sort is equivalent (row.text = item.name)
+				table.sort(keys, function(a,b)
+					return (ongoingEffectTable[a].name or "") < (ongoingEffectTable[b].name or "")
+				end)
 			end
 
 			local seenHeadings = {}
 			local newSectionHeadings = {}
 
+			-- Panels pay a per-panel layout cost under vscroll, so building a large
+			-- table's rows in one frame freezes the app (~1.5s at 786 ongoing
+			-- effects). Spread fresh builds across frames; when the reuse cache
+			-- already covers the table (asset refresh while the page is open),
+			-- build in a single pass exactly as before.
+			local missing = 0
 			for _,k in ipairs(keys) do
-				local item = ongoingEffectTable[k]
-				if groupByCondition then
-					local condition = conditionsTable[item.condition] or {name = "Ungrouped"}
-					if not seenHeadings[condition.name] then
-						seenHeadings[condition.name] = true
-
-						local heading = sectionHeadings[condition.name] or gui.Label{
-							text = condition.name,
-							fontSize = 20,
-							bold = true,
-							width = "auto",
-							height = "auto",
-							lmargin = 4,
-						}
-
-						newSectionHeadings[condition.name] = heading
-						children[#children+1] = heading
-					end
+				if ongoingEffectItems[k] == nil then
+					missing = missing + 1
 				end
-				newOngoingEffectItems[k] = ongoingEffectItems[k] or CreateListItem{
-					select = element.aliveTime > 0.2,
-					tableName = tableName,
-					key = k,
-					click = function()
-						SetOngoingEffect(k)
-					end,
-				}
-
-				newOngoingEffectItems[k].text = item.name
-
-				children[#children+1] = newOngoingEffectItems[k]
+			end
+			local chunkSize = #keys
+			if missing > 120 then
+				chunkSize = 80
 			end
 
-            if not groupByCondition then
-			    table.sort(children, function(a,b) return a.text < b.text end)
-            end
+			local index = 1
+			local prioritized = false
+			local needsSortOnComplete = false
+			local function BuildChunk()
+				if mod.unloaded or generation ~= m_buildGeneration or not element.valid then
+					return
+				end
 
-			sectionHeadings = newSectionHeadings
-			ongoingEffectItems = newOngoingEffectItems
-			itemsListPanel.children = children
+				-- Deep-links open the page and then apply their filter, selecting
+				-- the target row as soon as it exists; the filter therefore lands
+				-- after the first synchronous chunk. Reorder the remaining keys
+				-- matched-first so the wait is one chunk, not the whole stream.
+				-- Unmatched rows are collapsed while filtering, so their late,
+				-- out-of-order arrival is invisible; a final sort restores
+				-- alphabetical order for when the filter clears.
+				if (not prioritized) and (not groupByCondition) and m_activeSearch ~= "" and index <= #keys then
+					prioritized = true
+					local needle = Search.Normalize(m_activeSearch)
+					if needle ~= "" then
+						local matched, unmatched = {}, {}
+						for i = index, #keys do
+							local k = keys[i]
+							if Search.MatchesObject(ongoingEffectTable[k], needle) or Search.MatchesText(k, needle) then
+								matched[#matched+1] = k
+							else
+								unmatched[#unmatched+1] = k
+							end
+						end
+						if #matched > 0 and #unmatched > 0 then
+							for i = index, #keys do
+								local j = i - index + 1
+								keys[i] = (j <= #matched) and matched[j] or unmatched[j - #matched]
+							end
+							needsSortOnComplete = true
+						end
+					end
+				end
+
+				local target = math.min(index + chunkSize - 1, #keys)
+				local newRows = {}
+				while index <= target do
+					local k = keys[index]
+					local item = ongoingEffectTable[k]
+					if groupByCondition then
+						local condition = conditionsTable[item.condition] or {name = "Ungrouped"}
+						if not seenHeadings[condition.name] then
+							seenHeadings[condition.name] = true
+
+							local heading = sectionHeadings[condition.name] or gui.Label{
+								text = condition.name,
+								fontSize = 20,
+								bold = true,
+								width = "auto",
+								height = "auto",
+								lmargin = 4,
+							}
+
+							newSectionHeadings[condition.name] = heading
+							children[#children+1] = heading
+						end
+					end
+
+					local row = ongoingEffectItems[k] or CreateListItem{
+						select = autoSelect,
+						tableName = tableName,
+						key = k,
+						click = function()
+							SetOngoingEffect(k)
+						end,
+					}
+					row.text = item.name
+					newOngoingEffectItems[k] = row
+					children[#children+1] = row
+					newRows[#newRows+1] = row
+
+					index = index + 1
+				end
+
+				element.children = children
+
+				if m_activeSearch ~= "" then
+					for _,row in ipairs(newRows) do
+						row:FireEvent("searchCompendium", m_activeSearch)
+					end
+				end
+
+				if index <= #keys then
+					dmhub.Schedule(0.01, BuildChunk)
+				else
+					sectionHeadings = newSectionHeadings
+					ongoingEffectItems = newOngoingEffectItems
+					if needsSortOnComplete then
+						table.sort(children, function(a,b) return (a.text or "") < (b.text or "") end)
+						element.children = children
+					end
+				end
+			end
+
+			BuildChunk()
 		end,
 	}
 
@@ -4823,12 +5044,342 @@ local CompendiumRegistry = {
 
 }
 
+-- Deep-link navigation (global search -> exact compendium item). A live
+-- LibraryPanel publishes its navigate function here; Compendium.Open stashes a
+-- pending request and the live panel (or a freshly-opened one) consumes it.
+local g_pendingNavigation = nil
+local g_libraryNavigate = nil
+
+local function ConsumePendingCompendiumNavigation()
+    if g_pendingNavigation == nil or g_libraryNavigate == nil then
+        return
+    end
+    local nav = g_pendingNavigation
+    g_pendingNavigation = nil
+    g_libraryNavigate(nav)
+end
+
 
 local LibraryPanel = function()
 
 
 	local contentPanel = gui.Panel{
 		classes = {'content-panel'},
+	}
+
+	-- Active filter state, shared so the "Showing X of Y" summary can react to
+	-- both typing and category changes. searchSummary is forward-declared and
+	-- assigned when the menu column is built.
+	local m_searchText = ""
+	local m_currentCategory = nil
+	-- Context-search provider spec, registered while this panel is open (create)
+	-- and withdrawn in destroy. Held here so enumerate can keep its label in
+	-- sync with the focused category.
+	local m_contextSpec = nil
+	local searchSummary = nil
+	local allResultsItem = nil
+	local compendiumSearchInput = nil
+
+	-- Enumerable menu categories: those backed by a GetTable content type the
+	-- user is allowed to see. The aggregated "all results" view and the
+	-- "All results (N)" count both iterate this.
+	local function EnumerableCategories()
+		local cats = {}
+		for _,opt in pairs(CompendiumRegistry) do
+			if opt.contentType ~= nil and ((not opt.admin) or dmhub.isAdminGame) then
+				cats[#cats+1] = opt
+			end
+		end
+		table.sort(cats, function(a,b) return (a.text or "") < (b.text or "") end)
+		return cats
+	end
+
+	-- Select the deep-link target item inside the just-opened category page.
+	-- Most pages use shared CreateListItem rows (matched by name); Inventory
+	-- (tbl_Gear) is the one bespoke page -- draggable item cards keyed by
+	-- data.item.id whose press selects the item into the editor pane. The page
+	-- builds asynchronously, so retry across a few frames until it appears.
+	local function SelectTargetItem(opt, targetKey, attemptsLeft)
+		if opt == nil or targetKey == nil or not contentPanel.valid then
+			return
+		end
+		local t = dmhub.GetTable(opt.contentType) or {}
+		local item = t[targetKey]
+		if item == nil then
+			return
+		end
+
+		local target = nil
+		if opt.contentType == "tbl_Gear" then
+			-- The Inventory page virtualises its card list and keeps its own
+			-- filter, so drive that filter to the item name: it narrows the list
+			-- to the match and realises the (otherwise off-screen) card so we can
+			-- press it (press selects the item into the editor pane).
+			local searchBox = contentPanel:FindChildRecursive(function(e)
+				if not e.valid then
+					return false
+				end
+				local ok, pt = pcall(function() return e.placeholderText end)
+				return ok and pt == "Filter Inventory..."
+			end)
+			if searchBox ~= nil and item.name ~= nil and searchBox.text ~= item.name then
+				searchBox.text = item.name
+				searchBox:FireEvent("edit")
+			end
+			target = contentPanel:FindChildRecursive(function(e)
+				return e.valid and e:HasClass("itemPanel")
+					and e.data ~= nil and e.data.item ~= nil and e.data.item.id == targetKey
+			end)
+			-- Safety: if the item is genuinely not in this view (e.g. gated by a
+			-- visibility toggle) and never realises, clear the filter we set on
+			-- the final attempt so the user is left with the full browsable list,
+			-- not an empty one.
+			if target == nil and (attemptsLeft or 0) <= 1 and searchBox ~= nil and searchBox.text ~= "" then
+				searchBox.text = ""
+				searchBox:FireEvent("edit")
+			end
+		else
+			local targetName = item.name
+			if targetName ~= nil then
+				target = contentPanel:FindChildRecursive(function(e)
+					return e.valid and e:HasClass("list-item") and not e:HasClass("list-heading") and e.text == targetName
+				end)
+			end
+		end
+
+		if target ~= nil then
+			target:FireEvent("press")
+			return
+		end
+
+		if (attemptsLeft or 0) > 0 then
+			dmhub.Schedule(0.1, function()
+				SelectTargetItem(opt, targetKey, attemptsLeft - 1)
+			end)
+		end
+	end
+
+	-- Open a category's page with the active filter applied (the click target
+	-- for an aggregated result row). Mirrors a menu-category click: records the
+	-- category, builds its page, then re-filters that page + the summary.
+	local function openCategoryFiltered(opt, targetKey)
+		if opt == nil or opt.click == nil then
+			return
+		end
+		m_currentCategory = { contentType = opt.contentType, text = opt.text }
+		opt.click(contentPanel)
+		if m_searchText ~= "" then
+			-- Classes used to get a narrower broadcast (editor only, not the list)
+			-- on the belief that deep-matching every class cost seconds; measured
+			-- 2026-06-12 the full sweep is milliseconds (the real cost had been the
+			-- per-panel vscroll tax, fixed separately), so all categories now take
+			-- the same path and the class LIST filters like every other page.
+			contentPanel:FireEventTree("searchCompendium", m_searchText)
+			if searchSummary ~= nil then
+				searchSummary:FireEvent("searchCompendium", m_searchText)
+			end
+		end
+
+		-- Open the specific item the user clicked. Pages build asynchronously
+		-- (monitorAssets/refreshAssets debounce), so the row may not exist yet on
+		-- the first frame -- retry a few frames until it appears, then press it.
+		if targetKey ~= nil then
+			SelectTargetItem(opt, targetKey, 20)
+		end
+	end
+
+	-- Deep-link entry point: open the given category and select the target item,
+	-- pre-filtering by the search needle so the page narrows to the match. This
+	-- is the live navigate function published to g_libraryNavigate and driven by
+	-- Compendium.Open (global-search click-through).
+	local function navigate(nav)
+		if nav == nil or nav.contentType == nil then
+			return
+		end
+		-- Several categories can share a contentType. When they do, pick the
+		-- highest opt.priority one so an arbitrary item always lands in the
+		-- broadest category that contains it (priority defaults to 0; the tie-break
+		-- is exercised by the contentTypes that do register multiple views).
+		local opt = nil
+		for _,o in pairs(CompendiumRegistry) do
+			if o.contentType == nav.contentType and o.click ~= nil and ((not o.admin) or dmhub.isAdminGame) then
+				if opt == nil or (o.priority or 0) > (opt.priority or 0) then
+					opt = o
+				end
+			end
+		end
+		if opt == nil then
+			return
+		end
+
+		local needle = nav.search or ""
+		-- Set m_searchText synchronously so openCategoryFiltered can filter the
+		-- page it is about to open, and ALSO show the needle in the filter box so
+		-- the filter is visible and clearable. (It used to be hidden: clicking
+		-- another category then showed "No matches in X" beside an apparently
+		-- empty box.) Assigning .text fires the input's edit handler after
+		-- editlag; by then the page is open, so that broadcast is an idempotent
+		-- re-filter -- match sweeps are memoised and cheap.
+		m_searchText = Search.Normalize(needle)
+		if compendiumSearchInput ~= nil and compendiumSearchInput.text ~= needle then
+			compendiumSearchInput.text = needle
+		end
+
+		openCategoryFiltered(opt, nav.targetKey)
+	end
+
+	-- Render aggregated cross-category results into the content pane, grouped by
+	-- category. Each group is capped so rendering stays bounded; the overflow
+	-- row and any result row open that category's filtered page.
+	local PER_GROUP_CAP = 20
+	local m_aggGeneration = 0
+	local function buildAggregated(needle)
+		needle = Search.Normalize(needle)
+		m_aggGeneration = m_aggGeneration + 1
+		local generation = m_aggGeneration
+		if needle == "" then
+			contentPanel.children = {}
+			return
+		end
+
+		-- Matching is cheap (~0.05s worst case across every table); the cost is
+		-- RENDERING: broad needles produce 300+ labels, and panels pay a
+		-- per-panel layout tax under vscroll. Collect all matches up front, then
+		-- stream the labels in across frames so no single frame freezes.
+		local groups = {}
+		local totalResults = 0
+
+		for _,opt in ipairs(EnumerableCategories()) do
+			local t = dmhub.GetTable(opt.contentType)
+			if t ~= nil then
+				local keys = MatchKeysCached(opt.contentType, needle)
+				if #keys > 0 then
+					totalResults = totalResults + #keys
+					keys = table.shallow_copy(keys)
+					table.sort(keys, function(a,b)
+						local na = (t[a] and t[a].name) or tostring(a)
+						local nb = (t[b] and t[b].name) or tostring(b)
+						return na < nb
+					end)
+					groups[#groups+1] = {opt = opt, t = t, keys = keys}
+				end
+			end
+		end
+
+		if totalResults == 0 then
+			contentPanel.children = {
+				gui.Label{
+					classes = {'aggregateEmpty'},
+					text = string.format('No results for "%s"', needle),
+				},
+			}
+			return
+		end
+
+		local scrollPanel = gui.Panel{
+			classes = {'aggregateResultsPanel'},
+			vscroll = true,
+			width = "100%",
+			height = "100%",
+			flow = "vertical",
+		}
+		contentPanel.children = {scrollPanel}
+
+		local groupPanels = {}
+		local gi = 1
+		local rowIndex = 0 -- 0 = heading pending for the current group
+		local function BuildChunk()
+			if mod.unloaded or generation ~= m_aggGeneration or not scrollPanel.valid then
+				return
+			end
+
+			local budget = 80
+			while budget > 0 and gi <= #groups do
+				local g = groups[gi]
+				if rowIndex == 0 then
+					groupPanels[#groupPanels+1] = gui.Label{
+						classes = {'aggregateGroupHeading'},
+						text = string.format("%s (%d)", g.opt.text, #g.keys),
+					}
+					rowIndex = 1
+					budget = budget - 1
+				elseif rowIndex <= math.min(#g.keys, PER_GROUP_CAP) then
+					local capturedOpt = g.opt
+					local capturedKey = g.keys[rowIndex]
+					local item = g.t[capturedKey]
+					local name = (item and item.name) or tostring(capturedKey)
+					groupPanels[#groupPanels+1] = gui.Label{
+						classes = {'aggregateResult'},
+						text = Search.Highlight(name, needle),
+						press = function()
+							openCategoryFiltered(capturedOpt, capturedKey)
+						end,
+					}
+					rowIndex = rowIndex + 1
+					budget = budget - 1
+				else
+					if #g.keys > PER_GROUP_CAP then
+						local capturedOpt = g.opt
+						groupPanels[#groupPanels+1] = gui.Label{
+							classes = {'aggregateMore'},
+							text = string.format("+%d more in %s", #g.keys - PER_GROUP_CAP, g.opt.text),
+							press = function()
+								openCategoryFiltered(capturedOpt)
+							end,
+						}
+						budget = budget - 1
+					end
+					gi = gi + 1
+					rowIndex = 0
+				end
+			end
+
+			scrollPanel.children = groupPanels
+
+			if gi <= #groups then
+				dmhub.Schedule(0.01, BuildChunk)
+			end
+		end
+
+		BuildChunk()
+	end
+
+	-- "All results (N)" entry pinned to the top of the menu while filtering.
+	-- Clicking it returns from a category page to the aggregated view. No
+	-- hidden scope state: the menu always stays a visible navigator.
+	allResultsItem = gui.Label{
+		classes = {'list-item', 'compendiumAllResults', 'collapsed'},
+		bold = true,
+		text = "All results",
+		press = function(element)
+			m_currentCategory = nil
+			-- Clear any selected category so its highlight drops, but do NOT
+			-- mark this nav entry 'selected' itself: the {list-item, selected}
+			-- wash (color @fgInverse) is more specific than our colour rule and
+			-- would render the entry as dark, barely-legible text.
+			for _,sibling in ipairs(element.parent.children) do
+				sibling:SetClass('selected', false)
+			end
+			buildAggregated(m_searchText)
+		end,
+		searchCompendium = function(element, text)
+			local needle = Search.Normalize(text)
+			if needle == "" then
+				element:SetClass("collapsed", true)
+				return
+			end
+
+			local total = 0
+			for _,opt in ipairs(EnumerableCategories()) do
+				local t = dmhub.GetTable(opt.contentType)
+				if t ~= nil then
+					total = total + #MatchKeysCached(opt.contentType, needle)
+				end
+			end
+
+			element:SetClass("collapsed", false)
+			element.text = string.format("All results (%d)", total)
+		end,
 	}
 
 	local recentsCache = nil
@@ -4928,7 +5479,7 @@ local LibraryPanel = function()
 
 	recentsPanel:FireEvent("think")
 
-	local children = {recentsPanel}
+	local children = {allResultsItem, recentsPanel}
 
 	local permissionsTable = dmhub.GetTable(CompendiumPermission.tableName) or {}
 
@@ -4949,13 +5500,18 @@ local LibraryPanel = function()
 		end
 
 
+		table.sort(keys)
+
 		if #keys > 0 then
+			local matchOptions = {}
+			for _,k in ipairs(keys) do
+				matchOptions[#matchOptions+1] = CompendiumRegistry[k]
+			end
 			children[#children+1] = CreateListHeading{
-				text = section
+				text = section,
+				matchOptions = matchOptions,
 			}
 		end
-
-		table.sort(keys)
 
 		for _,key in ipairs(keys) do
 			--shallow copy the table so we can change the click function.
@@ -4968,13 +5524,20 @@ local LibraryPanel = function()
 				local fn = info.click
 				local sectionName = section
 				local itemName = key
+				local contentType = info.contentType
 				info.click = function()
 					track("compendium_view", {
 						section = sectionName,
 						item = itemName,
 						dailyLimit = 30,
 					})
+					m_currentCategory = { contentType = contentType, text = itemName }
 					fn(contentPanel)
+					-- Keep the "Showing X of Y" summary in step with the newly
+					-- opened category while a filter is active.
+					if searchSummary ~= nil then
+						searchSummary:FireEvent("searchCompendium", m_searchText)
+					end
 				end
 			end
 
@@ -5060,6 +5623,89 @@ local LibraryPanel = function()
 		end,
 	}
 
+	-- Inline clear (X) button for the filter input: shows only when there is
+	-- text, clears the filter on press.
+	local clearSearchButton = gui.Panel{
+		floating = true,
+		bgimage = "ui-icons/close.png",
+		bgcolor = "@fgMuted",
+		width = 14,
+		height = 14,
+		halign = "right",
+		valign = "center",
+		x = -4,
+		classes = {"compendiumClearSearch", "collapsed"},
+		press = function()
+			if compendiumSearchInput == nil then
+				return
+			end
+			compendiumSearchInput.text = ""
+			compendiumSearchInput:FireEvent("edit")
+		end,
+	}
+
+	compendiumSearchInput = gui.SearchInput{
+		width = 240,
+		height = 20,
+		fontSize = 16,
+		-- "Filter" (not "Search") and positioned inside the compendium,
+		-- so it reads distinct from the title-bar global search.
+		placeholderText = "Filter Compendium...",
+		bgcolor = "transparent",
+		editlag = 0.4,
+		edit = function(element)
+			m_searchText = Search.Normalize(element.text)
+			clearSearchButton:SetClass("collapsed", element.text == nil or element.text == "")
+			-- Fire the NORMALISED needle (lowercased + trimmed), not the raw text.
+			-- List items re-normalise internally, but legacy MatchesSearchRecursive
+			-- consumers (e.g. the class editor) match the needle verbatim against a
+			-- lowercased haystack -- a raw mixed-case needle silently never matches.
+			resultPanel:FireEventTree("searchCompendium", m_searchText)
+			-- Default scope is ALL: with no category open, typing shows
+			-- aggregated cross-category results. A category page filters
+			-- itself (above) and is left untouched here.
+			if m_currentCategory == nil then
+				buildAggregated(m_searchText)
+			end
+		end,
+	}
+	compendiumSearchInput:AddChild(clearSearchButton)
+
+	-- "Showing X of Y" / "No matches" feedback for the open category's list.
+	-- Driven by the current category + active filter; hidden when not filtering
+	-- or no enumerable category is open.
+	searchSummary = gui.Label{
+		classes = {'compendiumSearchSummary', 'collapsed'},
+		text = "",
+		width = 240,
+		height = "auto",
+		searchCompendium = function(element, text)
+			local needle = Search.Normalize(text)
+			local cat = m_currentCategory
+			if needle == "" or cat == nil or cat.contentType == nil then
+				element:SetClass("collapsed", true)
+				return
+			end
+
+			local t = dmhub.GetTable(cat.contentType)
+			if t == nil then
+				element:SetClass("collapsed", true)
+				return
+			end
+
+			local total = 0
+			for _ in unhidden_pairs(t) do total = total + 1 end
+			local shown = #MatchKeysCached(cat.contentType, needle)
+
+			element:SetClass("collapsed", false)
+			element:SetClass("emptyState", shown == 0)
+			if shown == 0 then
+				element.text = string.format("No matches in %s", cat.text or "this category")
+			else
+				element.text = string.format("Showing %d of %d", shown, total)
+			end
+		end,
+	}
 
 	resultPanel = gui.Panel{
 		classes = {'library-panel'},
@@ -5154,6 +5800,96 @@ local LibraryPanel = function()
 				selectors = {'hideOnSearchMismatch', 'searching', '~matchSearch'},
 				collapsed = 1,
 			},
+			-- Per-category match count shown beside a menu category while filtering.
+			{
+				selectors = {'compendiumMatchCount'},
+				color = '@fgMuted',
+				fontSize = 12,
+				bold = false,
+			},
+			-- Inline clear (X) button inside the filter input.
+			{
+				selectors = {'compendiumClearSearch'},
+				bgcolor = '@fgMuted',
+			},
+			{
+				selectors = {'compendiumClearSearch', 'hover'},
+				bgcolor = '@fgStrong',
+			},
+			-- "Showing X of Y" / "No matches" filter feedback under the input.
+			{
+				selectors = {'compendiumSearchSummary'},
+				color = '@fgMuted',
+				fontSize = 12,
+				hmargin = 8,
+				vmargin = 2,
+			},
+			{
+				selectors = {'compendiumSearchSummary', 'emptyState'},
+				color = '@fg',
+			},
+			-- "All results (N)" entry pinned atop the menu while filtering.
+			-- Uses @fgStrong (brightest text token) for legibility - the accent
+			-- tokens are too low-contrast on the dark menu to read; it stays
+			-- distinct via bold + top position + the count. Hover is left to the
+			-- standard {list-item, hover} rule (inverse wash), which stays
+			-- readable; a custom hover colour here went invisible on it.
+			{
+				selectors = {'compendiumAllResults'},
+				color = '@fgStrong',
+			},
+			-- Aggregated cross-category results pane.
+			{
+				selectors = {'aggregateResultsPanel'},
+				pad = 12,
+				borderBox = true,
+			},
+			{
+				selectors = {'aggregateGroupHeading'},
+				color = '@fgMuted',
+				fontSize = 16,
+				bold = true,
+				width = '100%',
+				height = 'auto',
+				tmargin = 12,
+				bmargin = 4,
+			},
+			{
+				selectors = {'aggregateResult'},
+				color = '@fg',
+				fontSize = 15,
+				width = '100%',
+				height = 'auto',
+				minHeight = 20,
+				lmargin = 12,
+				vmargin = 1,
+			},
+			{
+				selectors = {'aggregateResult', 'hover'},
+				color = '@accentHover',
+			},
+			{
+				selectors = {'aggregateMore'},
+				color = '@fgMuted',
+				fontSize = 13,
+				italics = true,
+				width = '100%',
+				height = 'auto',
+				lmargin = 12,
+				vmargin = 2,
+			},
+			{
+				selectors = {'aggregateMore', 'hover'},
+				color = '@accentHover',
+			},
+			{
+				selectors = {'aggregateEmpty'},
+				color = '@fgMuted',
+				fontSize = 16,
+				halign = 'center',
+				valign = 'top',
+				tmargin = 40,
+			},
 		}),
 
         create = function(element)
@@ -5162,6 +5898,95 @@ local LibraryPanel = function()
             if parentPanel ~= nil then
                 parentPanel.selfStyle.opacity = 1
                 parentPanel.selfStyle.borderWidth = 2.3
+            end
+
+            -- Publish this live panel's deep-link navigator and consume any
+            -- pending Compendium.Open request that opened us.
+            g_libraryNavigate = navigate
+            ConsumePendingCompendiumNavigation()
+
+            -- Context-sensitive search: while this panel is open, the global
+            -- title-bar search pins a group scoped to the compendium content the
+            -- user is browsing. When a single category is focused the group
+            -- narrows to it ("In Conditions"); otherwise it spans the whole
+            -- compendium ("In the Compendium"). Either way the rows deep-link
+            -- via Compendium.Open. This is DISTINCT from this panel's own
+            -- "Filter Compendium..." box (which filters the visible lists in
+            -- place): the context group surfaces the same content from the
+            -- GLOBAL search, pinned above the buckets. Priority 50 sits above
+            -- the map (~10) and below a modal PDF viewer (~100). Results are
+            -- matched with the same cached matcher the in-panel filter uses, so
+            -- the two stay consistent. Capped to keep the pinned group + its
+            -- "See all" bounded for broad needles.
+            local CONTEXT_RESULT_CAP = 50
+            m_contextSpec = {
+                id = "compendium-open",
+                priority = 50,
+                label = "In the Compendium",
+                enumerate = function(needle)
+                    if not contentPanel.valid then
+                        return {}
+                    end
+                    -- Scope to the focused category, else every enumerable one.
+                    -- The label is kept in sync here because CollectContextResults
+                    -- reads spec.label AFTER calling enumerate.
+                    local cats
+                    if m_currentCategory ~= nil and CompendiumRegistry[m_currentCategory.text] ~= nil then
+                        cats = { CompendiumRegistry[m_currentCategory.text] }
+                        m_contextSpec.label = string.format("In %s", m_currentCategory.text)
+                    else
+                        cats = EnumerableCategories()
+                        m_contextSpec.label = "In the Compendium"
+                    end
+
+                    local results = {}
+                    for _,opt in ipairs(cats) do
+                        if opt.contentType ~= nil and ((not opt.admin) or dmhub.isAdminGame) then
+                            local t = dmhub.GetTable(opt.contentType)
+                            if t ~= nil then
+                                for _,k in ipairs(MatchKeysCached(opt.contentType, needle)) do
+                                    local v = t[k]
+                                    local name = (type(v) == "table" and rawget(v, "name")) or nil
+                                    if type(name) == "string" then
+                                        local capturedType, capturedKey, capturedName = opt.contentType, k, name
+                                        results[#results+1] = {
+                                            name = name,
+                                            score = Search.Score(name, needle),
+                                            typeLabel = CompendiumTypeLabel(opt.text),
+                                            actionLabel = "Open in Compendium",
+                                            activate = function()
+                                                Compendium.Open{
+                                                    contentType = capturedType,
+                                                    search = capturedName,
+                                                    targetKey = capturedKey,
+                                                }
+                                            end,
+                                        }
+                                    end
+                                end
+                            end
+                        end
+                    end
+
+                    table.sort(results, function(a,b) return (a.score or 0) > (b.score or 0) end)
+                    while #results > CONTEXT_RESULT_CAP do
+                        table.remove(results)
+                    end
+                    return results
+                end,
+            }
+            Search.RegisterContextProvider(m_contextSpec)
+        end,
+
+        destroy = function(element)
+            -- Withdraw the navigator AND the context provider together, but only
+            -- if this is still the active panel: a reopened panel reassigns
+            -- g_libraryNavigate and re-registers the provider in its create, so a
+            -- late-firing destroy from the OLD panel must not clobber the new
+            -- registration.
+            if g_libraryNavigate == navigate then
+                g_libraryNavigate = nil
+                Search.UnregisterContextProvider("compendium-open")
             end
         end,
 
@@ -5181,21 +6006,14 @@ local LibraryPanel = function()
             height = "95%",
             width="auto",
             flow = "vertical",
-            gui.SearchInput{
-                width = 240,
-                height = 20,
-                fontSize = 16,
-                placeholderText = "Search Compendium...",
-				bgcolor = "transparent",
-                editlag = 0.4,
-                edit = function(element)
-                    resultPanel:FireEventTree("searchCompendium", trim(element.text))
-                end,
-            },
+            compendiumSearchInput,
+
+            searchSummary,
+
             gui.Panel{
                 classes = {'list-panel'},
                 vscroll = true,
-                height = "100%-24",
+                height = "100%-40",
                 maxHeight = 1080,
 
                 children = children,
@@ -5248,6 +6066,22 @@ Compendium = {
 	Styles = LibraryStyles,
 	AddButton = AddButton,
 	CreateListItem = CreateListItem,
+
+	-- Deep-link into the compendium: open the panel and navigate to the exact
+	-- item. nav = {contentType=, search=, targetKey=}. If the panel is already
+	-- open we drive it directly; otherwise we stash the request and the panel
+	-- consumes it on open. The universal global-search click-through.
+	Open = function(nav)
+		if nav == nil or nav.contentType == nil then
+			return
+		end
+		g_pendingNavigation = nav
+		if g_libraryNavigate ~= nil then
+			ConsumePendingCompendiumNavigation()
+		else
+			LaunchablePanel.LaunchPanelByName("Compendium")
+		end
+	end,
 
 	--export show rolltable panel so others can use it.
 	ShowRolltablePanel = ShowRolltablePanel,
@@ -5632,7 +6466,7 @@ dmhub.RegisterEventHandler("refreshTables", function(keys)
 
     Compendium.Register{
         section = "Rules",
-        text = 'OngoingEffects',
+        text = 'Ongoing Effects',
         contentType = "characterOngoingEffects",
         click = function(contentPanel)
             ShowOngoingEffectsPanel(contentPanel, "characterOngoingEffects")
@@ -5920,3 +6754,169 @@ dmhub.RegisterEventHandler("refreshTables", function(keys)
     --	end,
     --}
 end)
+
+-- Global-search provider: every enumerable compendium category (monsters,
+-- conditions, ongoing effects, items, classes, ...). Name-only match (no deep
+-- scan) keeps it fast enough to run on every keystroke. CompendiumRegistry is
+-- read lazily inside enumerate so it is fully populated by search time even
+-- though categories register after this file loads.
+--
+-- 2a: activation just opens the Compendium panel. Chunk 2b replaces this with
+-- the universal deep-link locator (open the exact category, filtered to the
+-- clicked item) via Compendium.Open{...}.
+
+-- The registered category text (opt.text) is plural and Title Case for the
+-- left-menu ("Conditions", "Ongoing Effects"). A single search result names one
+-- item, so its type chip reads better singular ("Condition", "Ongoing Effect").
+-- This is a display-only transform on the chip; the registered text and the
+-- menu are untouched.
+local function SingularizeLastWord(label)
+    -- Only the final word is pluralised ("Damage Types" -> "Damage Type").
+    local head, last = string.match(label, "^(.*%s)(%S+)$")
+    if last == nil then
+        head, last = "", label
+    end
+    local lower = string.lower(last)
+    if #last > 3 and string.sub(lower, -4) == "sses" then
+        last = string.sub(last, 1, #last - 2)         -- Classes -> Class
+    elseif #last > 3 and string.sub(lower, -3) == "ies" then
+        last = string.sub(last, 1, #last - 3) .. "y"  -- Ancestries -> Ancestry
+    elseif #last > 2 and string.sub(lower, -1) == "s"
+        and string.sub(lower, -2) ~= "ss"
+        and string.sub(lower, -2) ~= "us"
+        and string.sub(lower, -2) ~= "is" then
+        last = string.sub(last, 1, #last - 1)         -- Conditions -> Condition
+    end
+    return head .. last
+end
+
+function CompendiumTypeLabel(text)
+    if type(text) ~= "string" or text == "" then
+        return text
+    end
+    -- Defensive: split camelCase runs ("OngoingEffects" -> "Ongoing Effects")
+    -- so an un-spaced registration still reads cleanly.
+    local spaced = string.gsub(text, "(%l)(%u)", "%1 %2")
+    return SingularizeLastWord(spaced)
+end
+
+Search.RegisterProvider{
+    id = "compendium-content",
+    bucket = "compendium",
+    enumerate = function(needle)
+        local results = {}
+        -- Canonical category per contentType (highest opt.priority), so items
+        -- backed by several category views sharing one contentType are listed
+        -- once, under the broadest category, and deep-link there.
+        local canonical = {}
+        for _,opt in pairs(CompendiumRegistry) do
+            if opt.contentType ~= nil and ((not opt.admin) or dmhub.isAdminGame) then
+                local cur = canonical[opt.contentType]
+                if cur == nil or (opt.priority or 0) > (cur.priority or 0) then
+                    canonical[opt.contentType] = opt
+                end
+            end
+        end
+        for _,opt in pairs(canonical) do
+            local t = dmhub.GetTable(opt.contentType)
+            if t ~= nil then
+                for _,k in ipairs(NameMatchKeysCached(opt.contentType, needle)) do
+                    local v = t[k]
+                    local name = (type(v) == "table" and rawget(v, "name")) or nil
+                    if type(name) == "string" then
+                        local capturedType, capturedKey, capturedName = opt.contentType, k, name
+                        results[#results+1] = {
+                            name = name,
+                            score = Search.Score(name, needle),
+                            typeLabel = CompendiumTypeLabel(opt.text),
+                            actionLabel = "Open in Compendium",
+                            activate = function()
+                                Compendium.Open{
+                                    contentType = capturedType,
+                                    search = capturedName,
+                                    targetKey = capturedKey,
+                                }
+                            end,
+                        }
+                    end
+                end
+            end
+        end
+        return results
+    end,
+}
+
+-- Global-search provider: buried class/subclass sub-features (e.g. "Healing
+-- Grace", "Sermon of Grace") surfaced as first-class results that deep-link to
+-- the class filtered to that feature -- not just the opaque "Conduit" container.
+-- The feature names are indexed lazily and cached (the index is large and
+-- rarely changes); a class/subclass table refresh invalidates it.
+local g_classFeatureIndex = nil
+
+local function BuildClassFeatureIndex()
+    local index = {}
+    for _,tableName in ipairs({"classes", "subclasses"}) do
+        local t = dmhub.GetTable(tableName) or {}
+        for ck, class in unhidden_pairs(t) do
+            local className = class.name
+            local levels = class:try_get("levels")
+            if type(className) == "string" and type(levels) == "table" then
+                local seen = {}
+                -- Guard per-class: a malformed level shouldn't drop the whole index.
+                pcall(function()
+                    for _,classLevel in pairs(levels) do
+                        classLevel:VisitAllFeatures(function(feature)
+                            local fname = feature:try_get("name")
+                            if type(fname) == "string" and #fname > 0 and not seen[fname] then
+                                seen[fname] = true
+                                index[#index+1] = {
+                                    name = fname,
+                                    className = className,
+                                    contentType = tableName,
+                                    classKey = ck,
+                                }
+                            end
+                        end)
+                    end
+                end)
+            end
+        end
+    end
+    return index
+end
+
+dmhub.RegisterEventHandler("refreshTables", function(keys)
+    if keys == nil or keys.classes ~= nil or keys.subclasses ~= nil then
+        g_classFeatureIndex = nil
+    end
+end)
+
+Search.RegisterProvider{
+    id = "compendium-class-features",
+    bucket = "compendium",
+    enumerate = function(needle)
+        if g_classFeatureIndex == nil then
+            g_classFeatureIndex = BuildClassFeatureIndex()
+        end
+        local results = {}
+        for _,entry in ipairs(g_classFeatureIndex) do
+            if Search.MatchesText(entry.name, needle) then
+                local e = entry
+                results[#results+1] = {
+                    name = e.name,
+                    score = Search.Score(e.name, needle),
+                    typeLabel = e.className,
+                    actionLabel = "Open in Compendium",
+                    activate = function()
+                        Compendium.Open{
+                            contentType = e.contentType,
+                            search = e.name,
+                            targetKey = e.classKey,
+                        }
+                    end,
+                }
+            end
+        end
+        return results
+    end,
+}

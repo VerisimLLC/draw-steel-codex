@@ -2327,3 +2327,732 @@ CreateBestiaryPanel = function()
 
     return resultPanel
 end
+
+-- =============================================================================
+-- Bestiary global-search provider + place-on-map.
+--
+-- Monsters live in assets.monsters (an ASSET table keyed by id, not a
+-- dmhub.GetTable), so the compendium-content provider never sees them. This
+-- provider surfaces them in global search; activating a result enters the
+-- ENGINE'S OWN placement mode: the engine polls dmhub.GetSelectedMonster
+-- (see top of this file), and whenever the focused panel carries
+-- data.monsterid it renders the cursor preview and spawns the monster on a
+-- map click - exactly what pressing a bestiary row does. We just focus a
+-- small proxy panel carrying the monster id, so placement from search is
+-- pixel-identical to placement from the bestiary (preview, naming, minion
+-- squad quantity, repeat placement, right-click/escape to exit).
+-- Right-clicking a result offers the bestiary's other affordance: opening the
+-- monster's sheet for editing.
+-- =============================================================================
+
+--Fire a "revealCapability" event on the open sheet once it exists, so the
+--sheet expands the section holding the matched ability (action list) or
+--selects the Features sub-tab holding the matched trait. Retries briefly
+--while the sheet builds, mirroring
+--FeatureCategoriser.OpenSheetAtFeaturesTab's trySelect. A no-op when no
+--capability was threaded through (e.g. right-click "Edit Monster").
+local function RevealCapabilityOnSheet(capName, categorization)
+    if type(capName) ~= "string" or capName == "" then
+        return
+    end
+    local attempts = 0
+    local function tryReveal()
+        if mod.unloaded then
+            return
+        end
+        local sheet = rawget(CharacterSheet, "instance")
+        if sheet ~= nil and sheet ~= false and sheet.valid then
+            sheet:FireEventTree("revealCapability", capName, categorization)
+            return
+        end
+        attempts = attempts + 1
+        if attempts < 20 then
+            dmhub.Schedule(0.1, tryReveal)
+        end
+    end
+    tryReveal()
+end
+
+--Open the monster's character sheet for editing. Same pattern as the
+--bestiary right-click "Edit Monster" menu item above: the sheet works on the
+--monster's local-game bestiary token, which may need an upload to exist.
+--capName/categorization (optional) come from a search result: after the
+--sheet opens we reveal that capability (expand its section / select its tab).
+local function EditBestiaryMonster(monsterid, capName, categorization)
+    local monster = assets.monsters[monsterid]
+    if monster == nil or not dmhub.inGame then
+        return
+    end
+
+    local token = monster:GetLocalGameBestiaryToken()
+    if token == nil then
+        monster:Upload()
+        dmhub.Coroutine(function()
+            while token == nil do
+                coroutine.yield(0.1)
+                if mod.unloaded then
+                    return
+                end
+                token = monster:GetLocalGameBestiaryToken()
+            end
+            token:ShowSheet()
+            RevealCapabilityOnSheet(capName, categorization)
+        end)
+    else
+        token:ShowSheet()
+        RevealCapabilityOnSheet(capName, categorization)
+    end
+end
+
+local g_placementBanner = nil
+
+--Focus a floating banner panel carrying the given data table, putting the
+--engine into its native placement mode: it polls dmhub.GetSelectedMonster /
+--dmhub.GetSelectedCharacters (top of this file) against the focused panel,
+--so a focused panel carrying data.monsterid spawns that monster on each map
+--click (bestiary behaviour: cursor preview, naming, minion squads, repeat
+--placement) and one carrying data.charid deploys that existing character
+--(character-panel behaviour). Right-click, escape, or focusing anything else
+--exits placement; the banner removes itself when it loses focus.
+--
+--placementComplete (optional) is polled alongside the focus watch: when it
+--returns true the banner exits placement itself (clears focus + destroys).
+--Characters use it because they are single-placement - the click MOVES the
+--one token rather than stamping copies, so the mode should end on landing.
+--Monsters omit it and keep the bestiary's repeat placement.
+local function ShowPlacementBanner(bannerData, name, placementComplete)
+    if g_placementBanner ~= nil and g_placementBanner.valid then
+        g_placementBanner:DestroySelf()
+    end
+    g_placementBanner = nil
+
+    --the title bar is a stable fullscreen-width surface to float the banner
+    --from; floating means it does not participate in the bar's layout.
+    local topBar = gui.GetSheetById("topBar")
+    if topBar == nil then
+        return
+    end
+
+    local banner
+    banner = gui.Label{
+        id = "searchPlacementBanner",
+        floating = true,
+        text = string.format("Click the map to place <b>%s</b>. Right-click or Esc to cancel.", name),
+        width = "auto",
+        height = "auto",
+        maxWidth = 700,
+        halign = "center",
+        valign = "top",
+        y = 60,
+        fontSize = 20,
+        color = "#ffffff",
+        bgimage = true,
+        bgcolor = "#000000dd",
+        pad = 12,
+
+        --the engine's placement hooks read monsterid/charid off the focused
+        --panel; this is what makes the engine enter placement mode.
+        data = bannerData,
+
+        --the engine exits placement when focus moves elsewhere (escape and
+        --right-click both clear focus natively); follow it by removing the
+        --banner.
+        thinkTime = 0.1,
+        think = function(element)
+            if mod.unloaded or gui.GetFocus() ~= element then
+                if g_placementBanner == element then
+                    g_placementBanner = nil
+                end
+                element:DestroySelf()
+                return
+            end
+            if placementComplete ~= nil and placementComplete() then
+                if g_placementBanner == element then
+                    g_placementBanner = nil
+                end
+                gui.SetFocus(nil)
+                element:DestroySelf()
+            end
+        end,
+    }
+
+    topBar:AddChild(banner)
+    g_placementBanner = banner
+    gui.SetFocus(banner)
+end
+
+--Enter the engine's bestiary placement mode for a monster.
+local function BeginPlacingMonster(monsterid)
+    if not dmhub.inGame then
+        return
+    end
+
+    local monster = assets.monsters[monsterid]
+    if monster == nil then
+        return
+    end
+
+    ShowPlacementBanner({monsterid = monsterid}, monster.name)
+end
+
+--Enter the engine's character placement mode for an existing (unplaced)
+--character token - the same deploy flow as pressing a character's row in the
+--character panel and clicking the map.
+local function BeginPlacingCharacter(charid)
+    if not dmhub.inGame then
+        return
+    end
+
+    local tok = dmhub.GetCharacterById(charid)
+    if tok == nil then
+        return
+    end
+
+    --exit placement once the token lands on the map. Membership of allTokens
+    --matches the provider's definition of "unplaced" (hasTokenOnThisMap is
+    --true for despawned tokens, which would end the mode before the click).
+    ShowPlacementBanner({charid = charid}, tok.name, function()
+        for _,token in ipairs(dmhub.allTokens) do
+            if token.id == charid then
+                return true
+            end
+        end
+        return false
+    end)
+end
+
+--Global-search provider: party characters NOT placed on the current map (the
+--tokens provider in CodexTitleBar covers placed ones, so a hero is never
+--listed twice). Activation mirrors the bestiary: left-click enters the
+--engine's character placement mode (click the map to deploy); the right-click
+--menu offers placement and the character sheet. Players see only player-
+--controlled heroes; the DM sees every party member.
+Search.RegisterProvider{
+    id = "partyCharacters",
+    bucket = "ingame",
+    enumerate = function(needle)
+        -- Director-only: activation enters the engine's placement mode, which
+        -- is a director action. Players were offered a "place on map" prompt
+        -- they cannot fulfil, so unplaced-character search is gated to the DM.
+        if (not dmhub.inGame) or (not dmhub.isDM) then
+            return {}
+        end
+        local placed = {}
+        for _,token in ipairs(dmhub.allTokens) do
+            placed[token.id] = true
+        end
+        local results = {}
+        local seen = {}
+        local parties = dmhub.GetTable(Party.tableName) or {}
+        for partyid,_ in unhidden_pairs(parties) do
+            for _,charid in ipairs(dmhub.GetCharacterIdsInParty(partyid) or {}) do
+                if not placed[charid] and not seen[charid] then
+                    seen[charid] = true
+                    local tok = dmhub.GetCharacterById(charid)
+                    if tok ~= nil then
+                        local name = tok.name
+                        if type(name) == "string" and name ~= "" and Search.MatchesText(name, needle) then
+                            local capturedTok = tok
+                            local capturedId = charid
+                            results[#results+1] = {
+                                name = name,
+                                score = Search.Score(name, needle),
+                                typeLabel = cond(tok.playerControlled, "Hero", "NPC"),
+                                activate = function()
+                                    BeginPlacingCharacter(capturedId)
+                                end,
+                                -- Ordered actions (primary first). The search UI
+                                -- shows these as chips under the row; the first
+                                -- mirrors the row press.
+                                actions = {
+                                    {
+                                        text = "Place on Map",
+                                        click = function()
+                                            BeginPlacingCharacter(capturedId)
+                                        end,
+                                    },
+                                    {
+                                        text = "Character Sheet",
+                                        click = function()
+                                            capturedTok:ShowSheet()
+                                        end,
+                                    },
+                                },
+                            }
+                        end
+                    end
+                end
+            end
+        end
+        return results
+    end,
+}
+
+--Global-search provider over the bestiary. DM-only: the bestiary is GM
+--content and players should not discover unrevealed monsters through search.
+Search.RegisterProvider{
+    id = "monsters",
+    bucket = "compendium",
+    typeLabel = "Monster",
+    enumerate = function(needle)
+        if (not dmhub.isDM) or (not dmhub.inGame) then
+            return {}
+        end
+
+        local results = {}
+        for monsterid,monster in pairs(assets.monsters) do
+            local name = monster.name
+            local props = monster.properties
+
+            --Name match first; otherwise try the monster's attributes - role
+            --("Platoon Brute"), keywords (Undead, Goblin, ...) and "level N" -
+            --so a director building an encounter can search "level 3 brute" or
+            --"horde undead", not just names. Attribute-only hits score below
+            --any name match and carry a "Level N Role" subhead so the row
+            --explains why it matched.
+            local score = 0
+            local subLabel = nil
+            if (not monster.hidden) and type(name) == "string" then
+                if Search.MatchesText(name, needle) then
+                    score = Search.Score(name, needle)
+                elseif props ~= nil then
+                    local role = props:try_get("role")
+                    local level = props:try_get("cr")
+                    local parts = {}
+                    if type(role) == "string" then
+                        parts[#parts+1] = role
+                    end
+                    for kw,v in pairs(props:try_get("keywords") or {}) do
+                        if v == true and type(kw) == "string" and kw ~= "_luaTable" then
+                            parts[#parts+1] = kw
+                        end
+                    end
+                    if level ~= nil then
+                        parts[#parts+1] = string.format("level %s", tostring(level))
+                    end
+                    if #parts > 0 and Search.MatchesText(table.concat(parts, " "), needle) then
+                        score = 20
+                        if level ~= nil and type(role) == "string" then
+                            subLabel = string.format("Level %s %s", tostring(level), role)
+                        elseif type(role) == "string" then
+                            subLabel = role
+                        elseif level ~= nil then
+                            subLabel = string.format("Level %s", tostring(level))
+                        end
+                    end
+                end
+            end
+
+            if score > 0 then
+                local capturedId = monsterid
+
+                --Beastheart animal companions live in the bestiary too; label
+                --them honestly rather than as monsters.
+                local typeLabel = "Monster"
+                if props ~= nil and (not props:IsMonster()) then
+                    typeLabel = "Companion"
+                end
+
+                results[#results+1] = {
+                    name = name,
+                    score = score,
+                    subLabel = subLabel,
+                    typeLabel = typeLabel,
+                    activate = function()
+                        BeginPlacingMonster(capturedId)
+                    end,
+                    -- Ordered actions (primary first); shown as chips, the first
+                    -- mirrors the row press.
+                    actions = {
+                        {
+                            text = "Place on Map",
+                            click = function()
+                                BeginPlacingMonster(capturedId)
+                            end,
+                        },
+                        {
+                            text = "Edit Monster",
+                            click = function()
+                                EditBestiaryMonster(capturedId)
+                            end,
+                        },
+                    },
+                }
+            end
+        end
+        return results
+    end,
+}
+
+-- Hero/NPC/Monster label for a placed token, mirroring CodexTitleBar's
+-- TokenKindLabel (a file-local there, so duplicated here for the map context
+-- provider). IsMonster is the discriminator; player-controlled = Hero. The
+-- "(on Map)" suffix marks these as deployed -- it distinguishes a placed token
+-- from the same kind of UNPLACED creature (partyCharacters provider, plain
+-- "Hero"/"NPC") when both can land in the "In this Campaign" bucket.
+local function MapTokenKindLabel(token)
+    local props = token.properties
+    if props ~= nil then
+        local ok, isMonster = pcall(function() return props:IsMonster() end)
+        if ok and isMonster then
+            return "Monster (on Map)"
+        end
+    end
+    if token.playerControlled then
+        return "Hero (on Map)"
+    end
+    return "NPC (on Map)"
+end
+
+-- Title for a map note (info bubble): the backing document's title -- which is
+-- what the user names the note -- not the bubble's own .description (that can
+-- be a stale section heading). Every engine read is pcall-guarded: reading a
+-- missing method/field on these userdata objects ERRORS rather than returning
+-- nil. Falls back to the bubble description.
+local function MapNoteTitle(bubble)
+    local ok, doc = pcall(function() return bubble.document end)
+    if ok and doc ~= nil then
+        local okm, md = pcall(function() return doc:GetMarkdownDocument() end)
+        if okm and md ~= nil then
+            local okd, desc = pcall(function() return md.description end)
+            if okd and type(desc) == "string" and desc ~= "" then
+                return desc
+            end
+        end
+    end
+    local okb, d = pcall(function() return bubble.description end)
+    if okb and type(d) == "string" and d ~= "" then
+        return d
+    end
+    return nil
+end
+
+-- Forward declaration: the per-token capability matcher used by the map-view
+-- provider below. Defined (with its short-TTL cache) alongside the bestiary
+-- capability index further down -- after MONSTER_ABILITY_CATEGORIES -- so the
+-- global index and the on-map matcher share one ExtractMonsterCapabilities
+-- classifier.
+local GetMonsterTokenCapabilities
+
+-- Context-sensitive search provider: the open battle map. While in a game,
+-- global search pins an "On this map" group, scoped to what is on the CURRENT
+-- map -- the deployed tokens (dmhub.allTokens is already current-map-only) and
+-- the map notes (dmhub.infoBubbles, also current-map-only). Token rows carry
+-- the live token so they render the creature's portrait and activate by
+-- selecting + centring the camera; note rows render the bubble's numbered pin
+-- and activate by opening the note in place (gamehud:DisplayDocument), exactly
+-- as clicking the on-map marker does.
+--
+-- LOWEST priority (10) in the context stack: any focused full-screen artifact
+-- that registers its own context -- the Compendium (~50), a modal PDF viewer
+-- (~100) -- outranks the map, so "On this map" is the fallback context behind
+-- everything. The map has no discrete open/close panel (it is the persistent
+-- game background), so unlike the PDF/compendium providers this one stays
+-- registered and enumerate self-gates on dmhub.inGame -- out of game it returns
+-- nothing and the group never shows. Each result stamps a dedupKey so the
+-- aggregator can keep the same item from ALSO appearing in the "In this
+-- Campaign" bucket while it is pinned here (tokens by id; notes by title vs the
+-- journal-document twin). When this context is suppressed (an artifact is open)
+-- those items fall back to the bucket, so global reach is never lost.
+Search.RegisterContextProvider{
+    id = "map-view",
+    priority = 10,
+    label = "On this map",
+    enumerate = function(needle)
+        -- Director-only: token results lead to selection/placement and map
+        -- notes are GM content, both director concerns. Gating the whole
+        -- provider keeps "On this map" off the player's search entirely
+        -- (consistent with the director-only "In this Campaign" token results).
+        if (not dmhub.inGame) or (not dmhub.isDM) then
+            return {}
+        end
+        local results = {}
+        for _,token in ipairs(dmhub.allTokens) do
+            local name = token.name
+            if type(name) == "string" and name ~= "" and Search.MatchesText(name, needle) then
+                local capturedId = token.id
+                results[#results+1] = {
+                    name = name,
+                    score = Search.Score(name, needle),
+                    typeLabel = MapTokenKindLabel(token),
+                    token = token,
+                    actionLabel = "Center on token",
+                    dedupKey = "token:" .. capturedId,
+                    activate = function()
+                        dmhub.SelectToken(capturedId)
+                        dmhub.CenterOnToken(capturedId)
+                    end,
+                }
+            end
+
+            -- Capability match: a placed MONSTER whose ability or trait matches.
+            -- The director is probably about to USE it, so the row selects and
+            -- centres the token (its abilities are then on the action bar). It
+            -- carries the token portrait and the "Monster (on Map)" header, with
+            -- the ability kind as the sub-label, mirroring the bestiary row. No
+            -- dedupKey: unlike the name row we deliberately LEAVE the bestiary
+            -- copy in the compendium bucket too, so the director can still place
+            -- another of this monster from the same search.
+            local props = token.properties
+            local okMon, isMonster = pcall(function() return props ~= nil and props:IsMonster() end)
+            if okMon and isMonster then
+                local capturedId = token.id
+                -- Name the SPECIFIC placed token (e.g. "Lumbering Egress (on Map)")
+                -- rather than the generic kind, so the director knows exactly which
+                -- token the row selects. Fall back to the kind label if unnamed.
+                local tokenName = token.name
+                local onMapLabel = (type(tokenName) == "string" and tokenName ~= "")
+                    and string.format("%s (on Map)", tokenName)
+                    or MapTokenKindLabel(token)
+                for _,cap in ipairs(GetMonsterTokenCapabilities(token)) do
+                    if Search.MatchesText(cap.name, needle) then
+                        local capName = cap.name
+                        local capCategorization = cap.categorization
+                        results[#results+1] = {
+                            name = cap.name,
+                            score = Search.Score(cap.name, needle),
+                            typeLabel = onMapLabel,
+                            subLabel = cap.categorization,
+                            token = token,
+                            actionLabel = "Center on token",
+                            activate = function()
+                                dmhub.SelectToken(capturedId)
+                                dmhub.CenterOnToken(capturedId)
+                                -- An ABILITY also lands on the action bar once
+                                -- the token is selected; point the director at
+                                -- it (open its drawer + pulse the slot). Traits
+                                -- are not abilities, so they never route here.
+                                if capCategorization ~= "Trait" and Search.RevealActionBarAbility ~= nil then
+                                    Search.RevealActionBarAbility(capturedId, capName)
+                                end
+                            end,
+                        }
+                    end
+                end
+            end
+        end
+
+        -- Map notes (info bubbles). The row icon is the bubble's own numbered
+        -- pin (result.bubbleIcon); activation re-fetches the bubble by id (the
+        -- HUD objects are transient) and opens it in place.
+        for id,bubble in pairs(dmhub.infoBubbles or {}) do
+            local title = MapNoteTitle(bubble)
+            if type(title) == "string" and title ~= "" and Search.MatchesText(title, needle) then
+                local capturedId = id
+                local okIcon, icon = pcall(function() return bubble.icon end)
+                results[#results+1] = {
+                    name = title,
+                    score = Search.Score(title, needle),
+                    typeLabel = "Map Note",
+                    bubbleIcon = (okIcon and type(icon) == "string") and icon or "",
+                    actionLabel = "Open note",
+                    dedupKey = "mapdoc:" .. string.lower(title),
+                    activate = function()
+                        local b = (dmhub.infoBubbles or {})[capturedId]
+                        if b ~= nil and gamehud ~= nil then
+                            gamehud:DisplayDocument(b)
+                        end
+                    end,
+                }
+            end
+        end
+        return results
+    end,
+}
+
+-- Global-search provider: a monster's DISTINCTIVE abilities and its traits.
+-- DM-only (bestiary is GM content). Lets a director find "Biokinetic Ballista"
+-- or "Lethe" -> the monster(s) that have it, not just monster names. Only
+-- Signature / Villain Action / Heroic abilities are indexed: these are
+-- per-monster (verified live -- "Biokinetic Ballista"/"Kill Zone" each resolve
+-- to a single monster). The generic shared actions (Basic Attack / Common
+-- Ability / Move / Hidden) AND Malice are excluded -- Malice is a faction-wide
+-- shared menu, so "Malicious Strike" alone hits 555 monsters; indexing it would
+-- bury the distinctive abilities in noise. Traits (passive features) are
+-- indexed in full -- a shared trait surfaces once per monster, bounded by the
+-- result cap + "See all".
+--
+-- props:GetActivatedAbilities{} compiles GoblinScript per ability, so sweeping
+-- all ~574 monsters is far too heavy to run on a keystroke. The index is built
+-- ONCE in a background coroutine (yielding every few monsters so no frame
+-- hitches) and cached; a long TTL lets it self-heal after monster edits without
+-- needing an asset-monitor panel. While the first build is in flight the
+-- provider returns nothing, so monster abilities appear a moment later (by then
+-- the director is usually still typing the name); a stale index keeps serving
+-- the previous results while a refresh builds, so there is no empty gap.
+local MONSTER_ABILITY_CATEGORIES = {
+    ["Signature Ability"] = true,
+    ["Villain Action"] = true,
+    ["Heroic Ability"] = true,
+}
+local MONSTER_ABILITY_INDEX_TTL = 300
+local g_monsterAbilityIndex = nil
+local g_monsterAbilityIndexTime = 0
+local g_monsterAbilityIndexBuilding = false
+
+-- Extract a monster's searchable capabilities from its creature properties: its
+-- distinctive abilities (Signature / Villain Action / Heroic, deduped by name)
+-- plus every named trait (passive feature, classed as "Trait"). Returns a flat
+-- list of {name, categorization}. Shared by the global bestiary index build
+-- below AND the per-token on-map matcher, so both classify a monster's
+-- capabilities identically. GetActivatedAbilities compiles GoblinScript (heavy);
+-- GetFeatures is cheap pre-loaded data. Each engine read is pcall-guarded: a
+-- malformed entry must not abort the sweep.
+local function ExtractMonsterCapabilities(props)
+    local caps = {}
+    if props == nil then
+        return caps
+    end
+    pcall(function()
+        local abils = props:GetActivatedAbilities{}
+        if type(abils) == "table" then
+            local seen = {}
+            for _,a in ipairs(abils) do
+                local okn, aname = pcall(function() return a.name end)
+                local okc, cat = pcall(function() return a.categorization end)
+                if okn and okc and type(aname) == "string" and aname ~= ""
+                    and MONSTER_ABILITY_CATEGORIES[cat] and not seen[aname] then
+                    seen[aname] = true
+                    caps[#caps+1] = { name = aname, categorization = cat }
+                end
+            end
+        end
+    end)
+    pcall(function()
+        local feats = props:GetFeatures()
+        if type(feats) == "table" then
+            local seenTrait = {}
+            for _,f in ipairs(feats) do
+                local okn, fname = pcall(function() return f.name end)
+                if okn and type(fname) == "string" and fname ~= ""
+                    and not seenTrait[fname] then
+                    seenTrait[fname] = true
+                    caps[#caps+1] = { name = fname, categorization = "Trait" }
+                end
+            end
+        end
+    end)
+    return caps
+end
+
+-- Per-token capability cache for the "On this map" matcher. Recomputing a placed
+-- token's capabilities (GoblinScript-compiling GetActivatedAbilities) on every
+-- keystroke would be too heavy, so each token's list is cached with a short TTL
+-- and rebuilt lazily. Weak-keyed so removed tokens are collected. Assigns the
+-- GetMonsterTokenCapabilities forward-declared above the map-view provider.
+local MONSTER_TOKEN_CAP_TTL = 5
+local g_tokenCapCache = setmetatable({}, { __mode = "k" })
+GetMonsterTokenCapabilities = function(token)
+    if token == nil or token.properties == nil then
+        return {}
+    end
+    local now = dmhub.Time()
+    local cached = g_tokenCapCache[token]
+    if cached ~= nil and (now - cached.time) < MONSTER_TOKEN_CAP_TTL then
+        return cached.caps
+    end
+    local caps = ExtractMonsterCapabilities(token.properties)
+    g_tokenCapCache[token] = { time = now, caps = caps }
+    return caps
+end
+
+local function MonsterAbilityIndexFresh()
+    return g_monsterAbilityIndex ~= nil
+        and (dmhub.Time() - g_monsterAbilityIndexTime) < MONSTER_ABILITY_INDEX_TTL
+end
+
+local function EnsureMonsterAbilityIndex()
+    if g_monsterAbilityIndexBuilding or MonsterAbilityIndexFresh() then
+        return
+    end
+    g_monsterAbilityIndexBuilding = true
+    dmhub.Coroutine(function()
+        local index = {}
+        local n = 0
+        for monsterid, monster in pairs(assets.monsters) do
+            if not monster.hidden then
+                local mname = monster.name
+                local props = monster.properties
+                if props ~= nil and type(mname) == "string" and mname ~= "" then
+                    -- Abilities (deduped) + every named trait, classified once by
+                    -- the shared extractor and tagged with the owning monster.
+                    for _,cap in ipairs(ExtractMonsterCapabilities(props)) do
+                        index[#index+1] = {
+                            name = cap.name,
+                            categorization = cap.categorization,
+                            monsterName = mname,
+                            monsterId = monsterid,
+                        }
+                    end
+                end
+            end
+            n = n + 1
+            if n % 20 == 0 then
+                if mod.unloaded then
+                    g_monsterAbilityIndexBuilding = false
+                    return
+                end
+                coroutine.yield()
+            end
+        end
+        g_monsterAbilityIndex = index
+        g_monsterAbilityIndexTime = dmhub.Time()
+        g_monsterAbilityIndexBuilding = false
+    end)
+end
+
+Search.RegisterProvider{
+    id = "monster-abilities",
+    bucket = "compendium",
+    enumerate = function(needle)
+        if (not dmhub.isDM) or (not dmhub.inGame) then
+            return {}
+        end
+        EnsureMonsterAbilityIndex()
+        local index = g_monsterAbilityIndex
+        if index == nil then
+            return {}
+        end
+        local results = {}
+        for _,e in ipairs(index) do
+            if Search.MatchesText(e.name, needle) then
+                local entry = e
+                results[#results+1] = {
+                    name = entry.name,
+                    score = Search.Score(entry.name, needle),
+                    -- Bestiary glyph (the monsters provider's icon) so a monster
+                    -- ability reads as bestiary content; the monster it belongs
+                    -- to is the right-hand chip, its kind the subhead.
+                    icon = "icons/standard/Icon_App_Bestiary.png",
+                    typeLabel = entry.monsterName,
+                    subLabel = entry.categorization,
+                    -- Searching an ability means "show me this ability", so the
+                    -- primary (left-click) action opens the monster's sheet, where
+                    -- the ability is read in full. Right-click offers the bestiary's
+                    -- other affordance: placing the monster on the map.
+                    activate = function()
+                        EditBestiaryMonster(entry.monsterId, entry.name, entry.categorization)
+                    end,
+                    -- Ordered actions (primary first): View Ability opens the
+                    -- monster's editor at this ability (mirrors the row press);
+                    -- Place on Map is the secondary action.
+                    actions = {
+                        {
+                            text = "View Ability",
+                            click = function()
+                                EditBestiaryMonster(entry.monsterId, entry.name, entry.categorization)
+                            end,
+                        },
+                        {
+                            text = "Place on Map",
+                            click = function()
+                                BeginPlacingMonster(entry.monsterId)
+                            end,
+                        },
+                    },
+                }
+            end
+        end
+        return results
+    end,
+}

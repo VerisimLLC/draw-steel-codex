@@ -2694,6 +2694,7 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page)
 
             if g_pdfViewerDialog == element then
                 g_pdfViewerDialog = nil
+                Search.UnregisterContextProvider("pdf-viewer")
                 GameHud.instance.modalPanel.interactable = true
             end
         end,
@@ -2788,6 +2789,44 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page)
 
     g_pdfViewerDialog = dialogPanel
 
+    -- Context-sensitive search: while this viewer is open, global search pins
+    -- an "In this document" group scoped to this PDF (headings only, same
+    -- heuristic as the Rulebooks group). Presence-based registration: added
+    -- here, withdrawn in the dialog's destroy. Activation navigates the
+    -- already-open viewer in place (same doc + page = gotopage, no rebuild).
+    Search.RegisterContextProvider{
+        id = "pdf-viewer",
+        priority = 100,
+        label = "In this document",
+        enumerate = function(needle)
+            if g_pdfViewerDialog == nil or (not g_pdfViewerDialog.valid) then
+                return {}
+            end
+            local contextDoc = g_pdfViewerDialog.data.doc
+            if contextDoc == nil then
+                return {}
+            end
+            local matches = SearchPDFHeadings(contextDoc, needle)
+            if type(matches) ~= "table" then
+                return {}, true
+            end
+            local results = {}
+            for _,m in ipairs(matches) do
+                local capturedPage = m.page
+                results[#results+1] = {
+                    name = m.heading,
+                    subLabel = string.format("Page %d", m.page),
+                    score = m.score,
+                    actionLabel = string.format("Go to page %d", m.page),
+                    activate = function()
+                        mod.shared.ShowPDFViewerDialog(contextDoc, capturedPage)
+                    end,
+                }
+            end
+            return results
+        end,
+    }
+
     -- Activate the PDF page-navigation arrow keys for as long as this modal is up.
     -- The matching PopCommandContext runs in the dialog's destroy handler above,
     -- gated on this same per-element flag so the push/pop stay balanced.
@@ -2824,6 +2863,177 @@ end
 
 function OpenPDFDocument(doc, page)
     mod.shared.ShowPDFViewerDialog(doc, page)
+end
+
+-- =============================================================================
+-- Shared PDF heading search.
+-- Finds the HEADINGS in a single PDF document matching a search string: the
+-- engine's doc:Search full-text matches, filtered to text runs set notably
+-- larger than the page average (the heading heuristic). Headings-only is
+-- deliberate: rulebook vocabulary repeats heavily (searching "slowed" would
+-- otherwise surface every stat block referencing it, not the rule).
+--
+-- Used by the global Rulebooks search group (CodexTitleBar) and the
+-- "In this document" context provider below. Caches are per-doc + per-search;
+-- page layouts arrive asynchronously, so this returns "pending" until every
+-- matched page has laid out (callers re-run shortly). On completion returns a
+-- list of {page, heading, score} sorted by descending score.
+-- =============================================================================
+local g_pdfHeadingSearchCache = {}
+local g_pdfIntermediateCache = {}
+-- Insertion order of search keys per docid, for bounded eviction (see below).
+local g_pdfSearchOrder = {}
+-- Max distinct queries retained per document. Incremental typing produces one
+-- key per prefix; past this cap the oldest queries are dropped (they recompute
+-- if searched again) so a long session does not accumulate them indefinitely.
+local PDF_SEARCH_CACHE_CAP = 64
+
+function SearchPDFHeadings(doc, search)
+    local docid = doc.id
+    local document = doc.doc
+    local documentCache = g_pdfHeadingSearchCache[docid] or {}
+    g_pdfHeadingSearchCache[docid] = documentCache
+
+    local infoCache = g_pdfIntermediateCache[docid] or { layout = {}, searchResults = {} }
+    g_pdfIntermediateCache[docid] = infoCache
+    -- Page-wide break-distance average, memoised per page (invariant for a page,
+    -- so the heading heuristic below computes it once instead of per matching rect).
+    infoCache.breakAvg = infoCache.breakAvg or {}
+
+    local searchCache = documentCache[search]
+    if searchCache == nil then
+        searchCache = {}
+        documentCache[search] = searchCache
+        -- New query: record insertion order and evict the oldest past the cap,
+        -- clearing both the results cache and the (potentially large) raw
+        -- document:Search result for that query. The current query is never the
+        -- one evicted. The per-page layout cache is bounded by page count and is
+        -- left intact.
+        local order = g_pdfSearchOrder[docid] or {}
+        g_pdfSearchOrder[docid] = order
+        order[#order+1] = search
+        while #order > PDF_SEARCH_CACHE_CAP do
+            local evict = table.remove(order, 1)
+            if evict ~= search then
+                documentCache[evict] = nil
+                infoCache.searchResults[evict] = nil
+            end
+        end
+    end
+    if searchCache.status == "complete" then
+        return searchCache.results
+    end
+
+    local searchResults = infoCache.searchResults[search] or document:Search(search)
+    if searchResults == nil or searchResults == "pending" then
+        return "pending"
+    elseif type(searchResults) ~= "table" then
+        searchCache.status = "complete"
+        searchCache.results = {}
+        return searchCache.results
+    end
+
+    infoCache.searchResults[search] = searchResults
+
+    local status = true
+    local matches = {}
+    local foundPerfectMatch = false
+
+    for _,result in ipairs(searchResults) do
+        local layout = infoCache.layout[result.page]
+        if layout == nil then
+            infoCache.layout[result.page] = false
+            document:TextLayout(result.page, function(layoutResult)
+                infoCache.layout[result.page] = layoutResult
+            end)
+        end
+
+        layout = infoCache.layout[result.page]
+        if layout and status then
+            -- Page-wide average break distance: a property of the page, not of any
+            -- one rect, so compute it once per page (memoised) instead of
+            -- re-walking every mergedRect for each matching rect.
+            local totalAverage = infoCache.breakAvg[result.page]
+            if totalAverage == nil then
+                local totalSum = 0
+                local totalCount = 0
+                for _,r in ipairs(layout.mergedRects) do
+                    for i=1,#r.breaks-1 do
+                        totalSum = totalSum + math.abs(r.breaks[i+1] - r.breaks[i])
+                        totalCount = totalCount + 1
+                    end
+                end
+                totalAverage = totalSum/math.max(1, totalCount)
+                infoCache.breakAvg[result.page] = totalAverage
+            end
+
+            local startingCharIndex = result.index
+            local endingCharIndex = startingCharIndex + #search
+            for _,rect in ipairs(layout.mergedRects) do
+                --search for the rect we are in, if we dominate the rectangle
+                --then this is a good search result.
+                if rect.a <= startingCharIndex and rect.b >= endingCharIndex then
+                    local rectText = layout.text:Substring(rect.a, rect.b)
+                    local haystack = string.lower(trim(rectText))
+                    local needle = trim(search)
+                    if haystack == needle or (string.starts_with(haystack, needle) and string.find(needle, " ") ~= nil) then
+                        local perfectMatch = (not foundPerfectMatch) and (haystack == needle)
+                        foundPerfectMatch = foundPerfectMatch or perfectMatch
+                        local newMatch = {
+                            page = result.page,
+                            heading = trim(rectText),
+                            score = cond(perfectMatch, 100, 50),
+                        }
+
+                        local valid = true
+
+                        --see that our font appears larger than others on this
+                        --page by comparing distance between breaks. Makes sure
+                        --we only match on headings.
+                        local averageBreakDistance = 0
+                        for i=1,#rect.breaks-1 do
+                            averageBreakDistance = averageBreakDistance + math.abs(rect.breaks[i+1] - rect.breaks[i])
+                        end
+                        averageBreakDistance = averageBreakDistance / math.max(1, #rect.breaks-1)
+
+                        local ratio = averageBreakDistance / math.max(1, totalAverage)
+
+                        if ratio < 1.05 then
+                            valid = false
+                        else
+                            newMatch.score = newMatch.score * ratio
+                        end
+
+                        --result de-duplication
+                        if valid then
+                            for _,match in ipairs(matches) do
+                                if match.heading == newMatch.heading and match.page == newMatch.page then
+                                    valid = false
+                                    break
+                                end
+                            end
+                        end
+                        if valid then
+                            matches[#matches+1] = newMatch
+                        end
+                    end
+                end
+            end
+        else
+            status = false
+        end
+    end
+
+    if not status then
+        return "pending"
+    end
+
+    table.sort(matches, function(a, b) return a.score > b.score end)
+
+    searchCache.status = "complete"
+    searchCache.results = matches
+
+    return matches
 end
 
 dmhub.OpenDocument = function(url)

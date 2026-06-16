@@ -1,5 +1,21 @@
 # Theme Engine Performance Notes
 
+> **UPDATE 2026-06-11 -- one correction: descendants can INHERIT the cascade.**
+> Direct measurement on the current engine: the cost is re-DECLARING
+> `styles = ThemeEngine.GetStyles()` per panel, NOT merely being *under* a GetStyles
+> surface. Apples-to-apples for 14 child panels:
+> - INHERIT the cascade from a styled parent (no own `styles`): ~4 ms.
+> - each set their own `styles = GetStyles()`: ~265 ms (~60x).
+>
+> So a descendant that inherits walks the cascade cheaply; one that re-declares the
+> full stylesheet makes the engine re-walk all ~362 rules for that panel. Practical
+> lever: only top-level windows/surfaces need `GetStyles()`; descendants under a
+> surface that already owns the cascade can drop their own `styles =` and inherit.
+> (This corrects the implication below that being *under* a GetStyles surface is
+> itself the cost -- it isn't; re-declaration is.)
+
+---
+
 Bookmark for a future perf pass. Do not act on this without re-reading first; some of the data is from one observation session and the conclusions may shift after we get more samples.
 
 ## The symptom

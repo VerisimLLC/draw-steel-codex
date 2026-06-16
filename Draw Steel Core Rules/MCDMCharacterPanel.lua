@@ -5472,68 +5472,503 @@ end
 
 --- Display the Features panel
 --- @return Panel
+--Best-effort description for a curated index entry. Mirrors the sheet's
+--FeatureEntryDescription: each probe is pcall-isolated because reading a
+--missing method on a game type errors rather than returning nil. Falls back to
+--a folded made-choice's chosen feature (the slot row represents that outcome).
+local function FeatureTacDescription(entry)
+    local desc = nil
+    pcall(function() desc = entry.feature:GetDescription() end)
+    if desc == nil or desc == "" then
+        pcall(function() desc = entry.feature:try_get("description") end)
+    end
+    if (desc == nil or desc == "") and entry.chosen ~= nil then
+        for _,c in ipairs(entry.chosen) do
+            pcall(function()
+                local d = c:GetDescription()
+                if d == nil or d == "" then d = c:try_get("description") end
+                if d ~= nil and d ~= "" then desc = d end
+            end)
+            if desc ~= nil and desc ~= "" then break end
+        end
+    end
+    if desc == "" then desc = nil end
+    return desc
+end
+
+--"Bucket - Origin" header text for a curated group: appends the origin name
+--when every entry shares one (e.g. "Class - Censor"), mirroring the sheet's
+--Features tab headers. Falls back to the bare bucket name on mixed origins.
+local function FeatureGroupHeaderText(group)
+    local origin, mixed = nil, false
+    for _,e in ipairs(group.items) do
+        if e.originName ~= nil and e.originName ~= "" then
+            if origin == nil then origin = e.originName
+            elseif origin ~= e.originName then mixed = true end
+        end
+    end
+    if origin ~= nil and not mixed then
+        return string.format("%s - %s", group.bucket.name, origin)
+    end
+    return group.bucket.name
+end
+
+--A single feature chip: name only. Click opens a small popup with the
+--description and an "Open on sheet" link (the ch5 filterFeatures deep-link).
+--View + link only -- choice-changing stays on the sheet.
+--- @param token CharacterToken
+--- @param name string display name
+--- @param descFn function () -> string|nil resolved on click (lazy)
+--- @param onOpen function|nil called when the popup opens (lets the owning
+---        section lock its filter so a later title-bar search change does not
+---        rebuild the list and tear this popup down)
+--- @return Panel
+function TacPanel.FeatureChip(token, name, descFn, onOpen)
+    local chip
+    chip = gui.Panel{
+        classes = {"panel", "cond-chip", "feature-chip"},
+        data = { matchName = string.lower(name or "") },
+        click = function(element)
+            if onOpen ~= nil then onOpen() end
+            local capturedId = token.id
+            local desc = (descFn and descFn()) or "*No description.*"
+            element.popupsInheritStyles = true
+            element.popup = gui.Panel{
+                classes = {"dialog"},
+                floating = true,
+                flow = "vertical",
+                width = 280,
+                height = "auto",
+                pad = 8,
+                gui.Label{
+                    width = "100%", height = "auto",
+                    bold = true, fontSize = 14, color = "@fg",
+                    text = name,
+                },
+                gui.Label{
+                    width = "100%", height = "auto",
+                    markdown = true, fontSize = 12, color = "@fg",
+                    tmargin = 4,
+                    text = desc,
+                },
+                gui.Label{
+                    width = "auto", height = "auto",
+                    halign = "right", tmargin = 6,
+                    bold = true, fontSize = 12, color = "@accent",
+                    text = "Open on sheet",
+                    click = function(linkEl)
+                        chip.popup = nil
+                        FeatureCategoriser.OpenSheetAtFeaturesTab(capturedId, name)
+                    end,
+                },
+            }
+        end,
+        gui.Label{
+            classes = {"label", "cond-name"},
+            text = name,
+        },
+    }
+    return chip
+end
+
+--- The tac-panel Features section (search redesign ch6): a curated, in-context
+--- "what ELSE can my character do" view -- the passive capabilities not already
+--- on the action bar or a sibling tac section. Grouped by origin (collapsed,
+--- with counts), chips inside, a local filter, and a click-through to the
+--- sheet. Heroes gain a section they never had; monsters keep their traits.
+--- @return Panel
 function TacPanel.Features()
-    return TacPanel.CollapsiblePanel{
+    local m_token = nil
+    local m_filter = ""       -- the active filter (the Filter box text)
+    local m_filterFromGlobal = false  -- true when the title-bar search set the filter
+    local m_expanded = {}     -- bucketId -> true (group expansion, survives refresh)
+    local m_expandedLevels = {} -- level -> true (Class by-level sub-groups)
+
+    local section, filterInput, clearButton, countLabel, groupsContainer
+
+    --Opening a feature popup "locks" a title-bar-driven filter in place: we
+    --promote it to a user-owned filter so applyGlobalQuery stops touching it.
+    --Without this, clearing/changing the title-bar search rebuilds the list and
+    --tears down the popup the moment the user clicks a chip. The filter box
+    --still shows the term + the clear X, so it remains clearable by hand.
+    local function lockFilterOnOpen()
+        m_filterFromGlobal = false
+    end
+
+    --A wrapped chip body for a set of entries.
+    local function chipWrap(token, entries)
+        local chipPanels = {}
+        for _,e in ipairs(entries) do
+            local captured = e
+            chipPanels[#chipPanels+1] = TacPanel.FeatureChip(token, e.name or "Feature",
+                function() return FeatureTacDescription(captured) end, lockFilterOnOpen)
+        end
+        return gui.Panel{
+            classes = {"panel", "cond-chips"},
+            wrap = true,
+            lmargin = 6,
+            children = chipPanels,
+        }
+    end
+
+    --A collapsible "Level N (count)" sub-group (Class bucket only), mirroring
+    --the ch5 sheet's by-level sub-grouping. Toggles in place; filtering forces
+    --it open and disables the toggle.
+    local function buildLevelGroup(token, lvl, entries, locked)
+        local expanded = locked or (m_expandedLevels[lvl] == true)
+        local body = chipWrap(token, entries)
+        body:SetClass("collapsed", not expanded)
+
+        local arrow = gui.CollapseArrow{ width = 9, height = 9, valign = "center", hmargin = 4 }
+        arrow:SetClass("collapseSet", not expanded)
+
+        local header = gui.Panel{
+            width = "100%", height = "auto", flow = "horizontal", valign = "center", vmargin = 1,
+            press = function()
+                if locked then return end
+                local now = not (m_expandedLevels[lvl] == true)
+                if now then m_expandedLevels[lvl] = true else m_expandedLevels[lvl] = nil end
+                body:SetClass("collapsed", not now)
+                arrow:SetClass("collapseSet", not now)
+            end,
+            arrow,
+            gui.Label{
+                width = "auto", height = "auto", valign = "center",
+                fontSize = 11, color = "@fgMuted",
+                text = string.format("%s (%d)",
+                    cond(lvl > 0, string.format("Level %d", lvl), "Other"), #entries),
+            },
+        }
+        return gui.Panel{ width = "100%-8", halign = "right", height = "auto", flow = "vertical", header, body }
+    end
+
+    --Build a collapsible origin group: header (arrow + "Bucket - Origin (N)")
+    --over a chip body. The Class bucket sub-groups its chips by level; other
+    --buckets are a flat chip wrap. Expansion toggles in place (no rebuild).
+    --When filtering the group is forced open and only matching chips are built.
+    --`locked` = filtering (no manual collapse while a filter is active).
+    local function buildGroup(token, group, locked, needle)
+        local items = {}
+        for _,e in ipairs(group.items) do
+            if not locked or Search.MatchesText(e.searchText or e.name or "", needle) then
+                items[#items+1] = e
+            end
+        end
+        if #items == 0 then return nil, 0 end
+
+        local expanded = locked or (m_expanded[group.bucket.id] == true)
+
+        local body
+        if group.bucket.id == "class" then
+            --Sub-group the matching items by level (ascending; "Other" = 0).
+            local byLevel, levelsSeen = {}, {}
+            for _,e in ipairs(items) do
+                local lvl = e.level or 0
+                if byLevel[lvl] == nil then
+                    byLevel[lvl] = {}
+                    levelsSeen[#levelsSeen+1] = lvl
+                end
+                local t = byLevel[lvl]
+                t[#t+1] = e
+            end
+            table.sort(levelsSeen)
+            local levelPanels = {}
+            for _,lvl in ipairs(levelsSeen) do
+                levelPanels[#levelPanels+1] = buildLevelGroup(token, lvl, byLevel[lvl], locked)
+            end
+            body = gui.Panel{
+                width = "100%", height = "auto", flow = "vertical", lmargin = 4,
+                children = levelPanels,
+            }
+        else
+            body = chipWrap(token, items)
+        end
+        body:SetClass("collapsed", not expanded)
+
+        local arrow = gui.CollapseArrow{
+            width = 10,
+            height = 10,
+            valign = "center",
+            hmargin = 4,
+        }
+        arrow:SetClass("collapseSet", not expanded)
+
+        local header = gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            valign = "center",
+            vmargin = 2,
+            press = function()
+                if locked then return end
+                local nowExpanded = not (m_expanded[group.bucket.id] == true)
+                if nowExpanded then m_expanded[group.bucket.id] = true
+                else m_expanded[group.bucket.id] = nil end
+                body:SetClass("collapsed", not nowExpanded)
+                arrow:SetClass("collapseSet", not nowExpanded)
+            end,
+            arrow,
+            gui.Label{
+                width = "auto",
+                height = "auto",
+                valign = "center",
+                fontSize = 12,
+                bold = true,
+                color = "@fg",
+                text = string.format("%s (%d)", FeatureGroupHeaderText(group), #group.items),
+            },
+        }
+
+        return gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            header,
+            body,
+        }, #items
+    end
+
+    --Whether the curated index (or the With-Captain synthetic) matches a needle.
+    --Used to decide whether a title-bar search should drive this section's
+    --filter at all (it only responds to queries it actually contains).
+    local function indexHasMatch(creature, index, needle)
+        for _,e in ipairs(index.features) do
+            if Search.MatchesText(e.searchText or e.name or "", needle) then return true end
+        end
+        if creature.withCaptain and creature.minion then
+            if Search.MatchesText("With Captain", needle)
+                or Search.MatchesText(creature.withCaptain or "", needle) then return true end
+        end
+        return false
+    end
+
+    --Keep the filter input + its inline clear (X) in sync with m_filter. Setting
+    --the input's text programmatically does NOT fire its change event, so the
+    --title-bar-driven path can populate it safely. The search-driven update is
+    --DEBOUNCED (see onGlobalQuery) so the term only appears once typing settles,
+    --rather than mirroring the global box keystroke-by-keystroke.
+    local function syncFilterInput()
+        if filterInput ~= nil then filterInput.text = m_filter end
+        if clearButton ~= nil then clearButton:SetClass("collapsed", m_filter == "") end
+    end
+
+    --Rebuild the groups container + count from the curated index. Collapses the
+    --whole section when there is nothing to show. The Filter box drives all
+    --filtering; the title-bar search populates that box (see onGlobalQuery).
+    local function rebuild()
+        if section == nil then return end
+        local token = m_token
+        if token == nil or not token.valid or token.properties == nil then
+            section:SetClass("collapsed", true)
+            return
+        end
+        local creature = token.properties
+        local index = FeatureCategoriser.BuildTacIndexCached(creature)
+
+        local filtering = m_filter ~= ""
+        local needle = Search.Normalize(m_filter)
+
+        local children = {}
+        local shown = 0
+
+        --Minion "With Captain": preserved as a standalone chip (it is not a
+        --characterFeatures entry, so the categoriser never sees it).
+        if creature.withCaptain and creature.minion then
+            local captainText = creature.withCaptain
+            if not filtering or Search.MatchesText("With Captain", needle)
+                or Search.MatchesText(captainText or "", needle) then
+                children[#children+1] = gui.Panel{
+                    classes = {"panel", "cond-chips"},
+                    wrap = true,
+                    lmargin = 6,
+                    TacPanel.FeatureChip(token, "With Captain", function() return captainText end, lockFilterOnOpen),
+                }
+                shown = shown + 1
+            end
+        end
+
+        for _,bid in ipairs(index.order) do
+            local groupPanel, n = buildGroup(token, index.groups[bid], filtering, needle)
+            if groupPanel ~= nil then
+                children[#children+1] = groupPanel
+                shown = shown + n
+            end
+        end
+
+        if #children == 0 then
+            if filtering then
+                countLabel.text = string.format("No matches in %d features", index.total)
+                countLabel:SetClass("collapsed", false)
+                groupsContainer.children = {}
+                section:SetClass("collapsed", false)
+                return
+            end
+            section:SetClass("collapsed", true)
+            return
+        end
+
+        section:SetClass("collapsed", false)
+        groupsContainer.children = children
+        if filtering then
+            countLabel.text = string.format("Showing %d of %d features", shown, index.total)
+        else
+            countLabel.text = string.format("%d features", index.total)
+        end
+        countLabel:SetClass("collapsed", false)
+    end
+
+    --Set the filter (used by the title-bar search path). When it populates the
+    --filter, ensure the section is open so the filtered result is visible even
+    --if the user had it collapsed -- otherwise the filtering would be silent.
+    local function setFilter(text, fromGlobal)
+        m_filter = text or ""
+        m_filterFromGlobal = fromGlobal == true
+        syncFilterInput()
+        rebuild()
+        if m_filter ~= "" and section ~= nil and section.data ~= nil and section.data.collapsed then
+            section.data.collapsed = false
+            section:FireEventTree("setCollapse", false)
+        end
+    end
+
+    --Apply a title-bar query to this section's filter. When the query matches
+    --curated content on the selected token, the Filter box is driven with it (so
+    --the filtered list shows the term + the clear X), making it obvious the list
+    --is not the whole set. A query that matches nothing here is ignored (a
+    --user-typed local filter is never clobbered), except that clearing/refining
+    --the search clears a filter the search itself set. Below the minimum length
+    --the query is treated as no-match so a stray letter never filters.
+    local FILTER_MIN_QUERY = 2
+    local function applyGlobalQuery(text)
+        if section == nil or not section.valid then return end
+        local q = Search.Normalize(text or "")
+        local token = m_token
+        local matches = false
+        if #q >= FILTER_MIN_QUERY and token ~= nil and token.valid and token.properties ~= nil then
+            local index = FeatureCategoriser.BuildTacIndexCached(token.properties)
+            matches = indexHasMatch(token.properties, index, q)
+        end
+        if matches then
+            if (m_filter == "" or m_filterFromGlobal) and (text or "") ~= m_filter then
+                setFilter(text, true)
+            end
+        elseif m_filterFromGlobal then
+            setFilter("", false)
+        end
+    end
+
+    --Subscribe to the live title-bar search, DEBOUNCED: a query only drives the
+    --filter once typing pauses (the user asked it to wait for a more complete
+    --query rather than react to every keystroke). A generation token cancels a
+    --superseded query so only the latest settles.
+    local m_querySeq = 0
+    local function onGlobalQuery(text)
+        if section == nil or not section.valid then
+            Search.UnregisterQueryListener(section)
+            return
+        end
+        m_querySeq = m_querySeq + 1
+        local seq = m_querySeq
+        dmhub.Schedule(0.4, function()
+            if mod.unloaded or seq ~= m_querySeq then return end
+            applyGlobalQuery(text)
+        end)
+    end
+
+    --Inset the filter row symmetrically (the same gap each side) so the box
+    --reads as centred in the panel; the right gap also clears the dock scrollbar.
+    local FILTER_INSET = 14
+
+    --Inline clear (X) button INSIDE the filter input: a floating close icon at
+    --the input's right edge, shown only when there is text. Same close-icon
+    --treatment the character-sheet Features tab uses; passed as a CONSTRUCTOR
+    --child (a floating child added after the fact did not render on a bare
+    --gui.Input -- the input needs a children container at build time).
+    clearButton = gui.Panel{
+        floating = true,
+        bgimage = "ui-icons/close.png",
+        --An inline bgcolor of "@fgMuted" is NOT resolved by the theme engine
+        --(only style-rule values are), so the white icon would paint untinted
+        --and read as invisible. Resolve the token to a concrete colour here.
+        bgcolor = ThemeEngine.ResolveTokens("@fgMuted"),
+        width = 14,
+        height = 14,
+        halign = "right",
+        valign = "center",
+        x = -4,
+        classes = {"collapsed"},
+        press = function()
+            m_filter = ""
+            m_filterFromGlobal = false
+            if filterInput ~= nil then filterInput.text = "" end
+            clearButton:SetClass("collapsed", true)
+            rebuild()
+        end,
+    }
+
+    filterInput = gui.Input{
+        classes = {"input"},
+        width = "100%",
+        height = 22,
+        halign = "left",
+        valign = "center",
+        borderBox = true,   -- include the input's own padding so 100% does not overflow the row
+        fontSize = 12,
+        placeholderText = "Filter features...",
+        placeholderAlpha = 0.6,
+        text = "",
+        editlag = 0.1,
+        change = function(element)
+            m_filter = element.text or ""
+            m_filterFromGlobal = false   -- the user is driving the filter now
+            clearButton:SetClass("collapsed", m_filter == "")
+            rebuild()
+        end,
+        clearButton,
+    }
+
+    countLabel = gui.Label{
+        classes = {"label", "collapsed"},
+        width = "auto",
+        height = "auto",
+        halign = "left",
+        lmargin = FILTER_INSET,
+        tmargin = 2,
+        fontSize = 11,
+        color = "@fgMuted",
+        text = "",
+    }
+
+    groupsContainer = gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+    }
+
+    section = TacPanel.CollapsiblePanel{
         sectionId = "features",
         classes = {"collapsed"},
         altBg = false,
         title = "FEATURES",
         data = { token = nil },
 
+        create = function(element)
+            --Let the live title-bar search drive this section's filter. Keyed by
+            --this element so multiple open Features sections coexist; released on
+            --destroy.
+            Search.RegisterQueryListener(element, onGlobalQuery)
+        end,
+        destroy = function(element)
+            Search.UnregisterQueryListener(element)
+        end,
+
         refreshCharacter = function(element, token)
-            if token == nil or not token.valid or token.properties == nil then
-                element:SetClass("collapsed", true)
-                return
-            end
-
-            element.data.token = token
-            local creature = token.properties
-            local features = creature:try_get("characterFeatures")
-            if features == nil or #features == 0 then
-                if not (creature.withCaptain and creature.minion) then
-                    element:SetClass("collapsed", true)
-                    return
-                end
-            end
-
-            local specs = {}
-
-            -- With Captain entry (minions only)
-            if creature.withCaptain and creature.minion then
-                local implemented = DrawSteelMinion.GetWithCaptainEffect(creature.withCaptain) ~= nil
-                local implementedColor = cond(implemented, "#ff", "#55")
-
-                specs[#specs+1] = {
-                    entryKey = "features",
-                    entryId  = "withCaptain",
-                    charid   = token.charid,
-                    title    = "With Captain",
-                    body     = string.format("<alpha=%s>%s", implementedColor, creature.withCaptain),
-                }
-            end
-
-            -- Feature entries
-            if features ~= nil then
-                for _, feature in ipairs(features) do
-                    if feature.description ~= "" then
-                        specs[#specs+1] = {
-                            entryKey = "features",
-                            entryId  = feature.name,
-                            charid   = token.charid,
-                            title    = feature.name,
-                            body     = feature.description,
-                        }
-                    end
-                end
-            end
-
-            if #specs == 0 then
-                element:SetClass("collapsed", true)
-                return
-            end
-
-            element:SetClass("collapsed", false)
-            element:FireEventTree("setEntries", specs)
+            m_token = token
+            rebuild()
+            --Re-evaluate any active title-bar search against the new creature so
+            --a search-driven filter follows token switches (immediate, not
+            --debounced -- a switch is not typing).
+            applyGlobalQuery(Search.GetGlobalQuery())
         end,
         refreshToken = function(element, token)
             element:FireEvent("refreshCharacter", token)
@@ -5542,8 +5977,23 @@ function TacPanel.Features()
             element:FireEvent("refreshCharacter", token)
         end,
 
-        TacPanel.CollapsibleEntryContainer(),
+        gui.Panel{
+            --Centred with an equal gap each side (the right gap clears the dock
+            --scrollbar the input used to run underneath).
+            width = "100%-" .. tostring(FILTER_INSET * 2),
+            height = "auto",
+            halign = "center",
+            flow = "horizontal",
+            valign = "center",
+            tmargin = 2,
+            borderBox = true,
+            filterInput,
+        },
+        countLabel,
+        groupsContainer,
     }
+
+    return section
 end
 
 --- Display the Notes panel

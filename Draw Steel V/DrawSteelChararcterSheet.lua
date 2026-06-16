@@ -11,6 +11,148 @@ local g_abilityActionSortOrder = {
     [g_villainActionId] = 1,
 }
 
+--Transient highlight for a capability revealed from search (Phase B). The
+--reveal flashes the accent on instantly, HOLDS it, then fades out over
+--SEARCH_REVEAL_FADE (the rule's transitionTime, eased) with a dark gap before
+--the next flash - a gentle "here I am" rather than an aggressive strobe. The
+--rule is merged into the action-list and Features panel style cascades so it
+--resolves on either surface.
+local SEARCH_REVEAL_FADE = 0.8
+local SEARCH_REVEAL_RULE = {
+    selectors = { "searchReveal" },
+    bgcolor = "@accent",
+    transitionTime = SEARCH_REVEAL_FADE,
+    easing = "easeInOutSine",
+}
+
+--Scroll an arbitrary descendant into (vertically centered) view within its
+--nearest vscroll ancestor. There is no engine ScrollIntoView and no
+--child-offset API, so the offset is summed from the rendered heights of
+--preceding siblings up the chain to the scroll panel (the normalized-position
+--math mirrors JournalPDFViewer). Returns false until layout has rendered
+--(heights still 0), so the caller can retry; true once it has positioned (or
+--when everything fits and no scroll is needed). Every engine read is
+--pcall-guarded - panel reads ERROR rather than return nil.
+local function ScrollCapabilityIntoView(target)
+    if target == nil or not target.valid then
+        return false
+    end
+
+    local scrollPanel = target.parent
+    while scrollPanel ~= nil do
+        local isScroll = false
+        pcall(function() isScroll = scrollPanel.vscroll == true end)
+        if isScroll then
+            break
+        end
+        scrollPanel = scrollPanel.parent
+    end
+    if scrollPanel == nil then
+        return false
+    end
+
+    local windowH = 0
+    local targetH = 0
+    pcall(function() windowH = scrollPanel.renderedHeight or 0 end)
+    pcall(function() targetH = target.renderedHeight or 0 end)
+    if windowH <= 0 or targetH <= 0 then
+        return false
+    end
+
+    local contentH = 0
+    pcall(function()
+        for _, c in ipairs(scrollPanel.children) do
+            contentH = contentH + (c.renderedHeight or 0)
+        end
+    end)
+    local range = contentH - windowH
+    if range <= 0 then
+        --Everything fits; the target is already visible.
+        return true
+    end
+
+    local offset = 0
+    local node = target
+    while node ~= nil and node ~= scrollPanel do
+        local parent = node.parent
+        if parent == nil then
+            return false
+        end
+        pcall(function()
+            for _, s in ipairs(parent.children) do
+                if s == node then
+                    break
+                end
+                offset = offset + (s.renderedHeight or 0)
+            end
+        end)
+        node = parent
+    end
+
+    local desiredTop = offset - (windowH - targetH) * 0.5
+    if desiredTop < 0 then
+        desiredTop = 0
+    elseif desiredTop > range then
+        desiredTop = range
+    end
+    --vscrollPosition: 1 = top, 0 = bottom.
+    scrollPanel.vscrollPosition = 1 - desiredTop / range
+    return true
+end
+
+--Each pulse: fade the accent IN over SEARCH_REVEAL_FADE, HOLD at full for
+--SEARCH_REVEAL_HOLD, fade OUT over SEARCH_REVEAL_FADE (symmetric), then a slight
+--SEARCH_REVEAL_GAP pause before the next fade-in - a gentle "here I am" breathe.
+--Plain SetClass(true)/(false) animate both directions over the rule's
+--transitionTime. A finite scheduled chain (no persistent think).
+local SEARCH_REVEAL_PULSES = 3
+local SEARCH_REVEAL_HOLD = 0.3
+local SEARCH_REVEAL_GAP = 0.1
+local function PulseRevealRepeated(target)
+    local remaining = SEARCH_REVEAL_PULSES
+    local function cycle()
+        if mod.unloaded or target == nil or not target.valid then
+            return
+        end
+        target:SetClass("searchReveal", true)
+        --Hold begins once the fade-in has completed.
+        dmhub.Schedule(SEARCH_REVEAL_FADE + SEARCH_REVEAL_HOLD, function()
+            if mod.unloaded or target == nil or not target.valid then
+                return
+            end
+            target:SetClass("searchReveal", false)
+            remaining = remaining - 1
+            if remaining > 0 then
+                dmhub.Schedule(SEARCH_REVEAL_FADE + SEARCH_REVEAL_GAP, cycle)
+            end
+        end)
+    end
+    cycle()
+end
+
+--Phase B for a revealed capability: locate the matched row (findTarget runs
+--each retry because the row may still be building / unrendered), scroll it
+--into view, then pulse the highlight. Retries briefly while the freshly
+--expanded section lays out (heights start at 0); gives up quietly.
+local function ScheduleRevealAndPulse(findTarget)
+    local attempts = 0
+    local function attempt()
+        if mod.unloaded then
+            return
+        end
+        local target = findTarget()
+        if target ~= nil and target.valid and ScrollCapabilityIntoView(target) then
+            PulseRevealRepeated(target)
+            return
+        end
+        attempts = attempts + 1
+        if attempts < 12 then
+            dmhub.Schedule(0.05, attempt)
+        end
+    end
+    attempt()
+end
+
 local fontScaling = 1
 local g_styles = {
     {
@@ -330,6 +472,9 @@ local function CreateAbilityPanel()
         end,
         ability = function(element, ability, c)
             m_ability = ability
+            --Stamped so the search reveal (Phase B) can locate this panel by
+            --the matched ability name.
+            element.data.capabilityName = ability.name
             element:SetClass("collapsed", false)
         end,
 
@@ -457,6 +602,9 @@ local function CreateTriggeredAbilityPanel()
         end,
         triggeredAbility = function(element, ability, c)
             m_triggeredAbility = ability
+            --Stamped so the search reveal (Phase B) can locate this panel by
+            --the matched ability name.
+            element.data.capabilityName = ability.name
             element:SetClass("collapsed", false)
         end,
 
@@ -651,6 +799,8 @@ local function CreateAbilityListPanel()
 
             { selectors = {"abilityTitle"},     color = "@fgStrong" },
             { selectors = {"abilityInfoLabel"}, color = "@fgMuted" },
+
+            SEARCH_REVEAL_RULE,
         }
     end
 
@@ -793,6 +943,89 @@ local function CreateAbilityListPanel()
             end
 
             element.children = children
+        end,
+
+        --Deep-link hook: the bestiary monster-ability search result fires
+        --"revealCapability" after opening the sheet, to expand the action
+        --section holding the matched ability so it is visible without
+        --hunting. Traits render on the Features tab (handled there), so a
+        --"Trait" capability is ignored here; a no-op if the ability is not
+        --found. Note a name can be BOTH an ability and a trait (e.g.
+        --"Abyssal Protectors") - the categorization decides which surface
+        --reveals it.
+        revealCapability = function(element, capName, categorization)
+            if type(capName) ~= "string" or capName == "" or categorization == "Trait" then
+                return
+            end
+            local token = CharacterSheet.instance.data.info.token
+            if token == nil then
+                return
+            end
+            local c = token.properties
+            local header = nil
+
+            --Triggered abilities live in their own section, separate from
+            --the activated-ability list.
+            pcall(function()
+                for _, a in ipairs(c:GetTriggeredActions()) do
+                    if a.name == capName then
+                        header = m_triggersLabel
+                        return
+                    end
+                end
+            end)
+
+            if header == nil then
+                pcall(function()
+                    for _, a in ipairs(c:GetActivatedAbilities {}) do
+                        if a.name == capName then
+                            local ord = GetActionId(a)
+                            if ord == g_villainActionId then
+                                header = m_villainActionsLabel
+                            elseif ord == g_mainActionId then
+                                header = m_mainActionsLabel
+                            elseif ord == g_maneuverId then
+                                header = m_maneuversLabel
+                            else
+                                header = m_otherActionsLabel
+                            end
+                            return
+                        end
+                    end
+                end)
+            end
+
+            if header ~= nil then
+                header:SetClassTree("collapseSet", false)
+                element:FireEvent("refreshToken")
+
+                --Phase B: scroll the now-rendered ability panel into view and
+                --pulse it. The panels stamp data.capabilityName; the matching
+                --one is non-collapsed (pooled-out panels keep a stale name).
+                local listPanel = element
+                ScheduleRevealAndPulse(function()
+                    local result = nil
+                    local function walk(p, depth)
+                        if p == nil or depth > 8 or result ~= nil then
+                            return
+                        end
+                        local cn = nil
+                        pcall(function() cn = p.data and p.data.capabilityName or nil end)
+                        if cn == capName and not p:HasClass("collapsed") then
+                            result = p
+                            return
+                        end
+                        local ok, ch = pcall(function() return p.children end)
+                        if ok and type(ch) == "table" then
+                            for _, c in ipairs(ch) do
+                                walk(c, depth + 1)
+                            end
+                        end
+                    end
+                    walk(listPanel, 0)
+                    return result
+                end)
+            end
         end,
     }
 
@@ -5504,11 +5737,1215 @@ function CharSheet.CreateNotesPanel()
     }
 end
 
+--[[
+    Redesigned Features tab content (search redesign ch5).
+
+    Replaces the flat GetClassFeaturesAndChoicesWithDetails list with a
+    grouped, filterable index built on FeatureCategoriser (FeatureCache.lua):
+    groups = categoriser buckets (the Class group sub-grouped by level), a
+    filter box narrowing rows via the shared Search matcher, unspent-choice
+    badges on groups and rows, inline choice dropdowns preserved, and
+    ability-granting features revealing the standard ability card on demand
+    ("View ability" toggle).
+
+    The global-search features-on-creatures provider lands here: it fires
+    "filterFeatures" with the matched feature's name after selecting the tab,
+    so the panel arrives pre-filtered to the feature that was clicked.
+
+    Build discipline:
+    - Group bodies are built ONLY while expanded (panels under a vscroll
+      container are expensive even when collapsed), and rebuilt fresh on
+      every change (reattaching previously-built panels orphans them).
+    - Expansion and filter state live in locals here so they survive the
+      fresh rebuilds triggered by refreshToken / choice changes.
+    - The direct characterFeatures list (sheet-added custom features) shows
+      under a "Custom Features" group, ALWAYS LAST in the group order; each
+      row's expansion carries its Edit/Copy/Delete buttons (managed where
+      the user sees them). The gear (settings) menu next to the filter box
+      only ADDS things: Add Custom Feature, Paste Feature, creature
+      templates. The old bottom strip is hidden for characters (it stays
+      inline for monsters and other creature kinds; its delete-only feats
+      list was a 5e holdover and is not carried over).
+    - The categoriser (FeatureCache.lua) enforces single-home display:
+      completed structural slots (subclass/deity/domain) are dropped from
+      the index (their outcomes are ordinary rows); made feature choices
+      that grant a skill/language re-home to that bucket; and a made
+      choice's chosen option features fold INTO the slot entry (entry
+      .chosen) instead of appearing as duplicate rows - the slot row's
+      expansion renders the chosen feature's description and ability card.
+]]
+
+--Group header copy. Buckets without an entry fall back to the categoriser's
+--display name.
+local FEATURE_GROUP_LABELS = {
+    perk = "Perks",
+    title = "Titles",
+    complication = "Complications",
+    skill = "Skills",
+    language = "Languages",
+    custom = "Custom Features",
+    treasure = "Treasures",
+    condition = "Conditions",
+    effect = "Ongoing Effects",
+}
+
+--Buckets whose header appends the origin name(s): "Ancestry - Human",
+--"Career - Agent", "Class - Censor - Paragon" (class + subclass, in
+--first-seen pipeline order).
+local FEATURE_GROUP_ORIGIN_PREFIX = {
+    class = true,
+    ancestry = true,
+    career = true,
+    kit = true,
+}
+
+--"Level 5, upgraded at levels 7, 9" (capitalised per James's copy review).
+local function FeatureLevelString(levels)
+    if levels == nil or levels[1] == nil then
+        return ""
+    end
+    local s = string.format("Level %d", math.max(1, levels[1]))
+    if #levels > 1 then
+        s = string.format("%s, upgraded at level%s %d", s, cond(#levels > 2, "s", ""), levels[2])
+        for i = 3, #levels do
+            s = string.format("%s, %d", s, levels[i])
+        end
+    end
+    return s
+end
+
+--Expando arrow with the expanded state baked in at construction: rows and
+--groups rebuild fresh on every change, and calling SetClass("expanded")
+--after creation replays the 0.2s rotate transition on every already-open
+--arrow. GOTCHA: the classes key must be OMITTED entirely when collapsed -
+--gui.CombineFields REPLACES (not merges) the constructor's default
+--{"triangle","expandoArrow"} classes when handed an empty list, leaving an
+--unstyled full-size triangle.
+local function FeatureExpandoArrow(expanded, options)
+    if expanded then
+        options.classes = {"expanded"}
+    end
+    return gui.ExpandoArrow(options)
+end
+
+--Abilities granted by an index entry: the feature's own modifiers plus the
+--modifiers of any chosen option features (a made ability picker carries the
+--ability on its chosen feature, folded into the slot entry by the
+--categoriser). Detection is the builder's pattern: behavior
+--activated/triggerdisplay/routine carries the ability.
+local function FeatureGrantedAbilities(entry)
+    local abilities = {}
+    local function gather(feature)
+        pcall(function()
+            for _,modifier in ipairs(feature:try_get("modifiers", {})) do
+                local behavior = modifier.behavior
+                if behavior == "activated" or behavior == "triggerdisplay" or behavior == "routine" then
+                    local ability = rawget(modifier, cond(behavior == "activated", "activatedAbility", "ability"))
+                    if ability ~= nil then
+                        abilities[#abilities+1] = ability
+                    end
+                end
+            end
+        end)
+    end
+    gather(entry.feature)
+    for _,chosenFeature in ipairs(entry.chosen or {}) do
+        gather(chosenFeature)
+    end
+    return abilities
+end
+
+--How many of a choice slot's selections are still unmade. For point-buy
+--slots (costsPoints) NumChoices is the POINTS BUDGET, not a pick count -
+--two picks costing 3 points complete a 3-point slot - so completeness is
+--judged by points spent. Either way, a slot the engine can offer no further
+--option for (Choices() returns nil) counts as complete: no dropdown would
+--show, so badging it would be a dead end.
+local function FeatureUnspentChoices(feature, creature)
+    local unspent = 0
+    pcall(function()
+        local num = feature:NumChoices(creature)
+        if num == nil or num <= 0 then
+            return
+        end
+        local made = creature:GetLevelChoices()[feature.guid] or {}
+        if feature:try_get("costsPoints") then
+            local options = feature:GetOptions(creature:GetLevelChoices()) or {}
+            local spent = 0
+            for _,choiceid in ipairs(made) do
+                for _,opt in ipairs(options) do
+                    if opt.guid == choiceid then
+                        spent = spent + (rawget(opt, "pointsCost") or 1)
+                        break
+                    end
+                end
+            end
+            unspent = math.max(0, num - spent)
+        else
+            unspent = math.max(0, num - #made)
+        end
+        if unspent > 0 then
+            local nextOptions = feature:Choices(#made + 1, made, creature)
+            if nextOptions == nil or #nextOptions == 0 then
+                unspent = 0
+            end
+        end
+    end)
+    return unspent
+end
+
+--Best-effort description for any index entry. Each probe is pcall-isolated:
+--reading a method that does not exist on a game type ERRORS rather than
+--returning nil, so one probe must not kill the next (gear items have no
+--GetDescription but do carry a description field).
+local function FeatureEntryDescription(entry)
+    local desc = nil
+    pcall(function()
+        desc = entry.feature:GetDescription()
+    end)
+    if desc == nil or desc == "" then
+        pcall(function()
+            desc = entry.feature:try_get("description")
+        end)
+    end
+    if desc == "" then
+        desc = nil
+    end
+    return desc
+end
+
+--Display names of the options a fully-made choice slot resolved to, so the
+--row can read "Forgettable Face" rather than "Agent Perk".
+local function FeatureChosenTexts(feature, creature)
+    local texts = {}
+    pcall(function()
+        local num = feature:NumChoices(creature)
+        if num == nil or num <= 0 then
+            return
+        end
+        local made = creature:GetLevelChoices()[feature.guid] or {}
+        for i = 1, num do
+            local chosenId = made[i]
+            if chosenId ~= nil then
+                for _,opt in ipairs(feature:Choices(i, made, creature) or {}) do
+                    if opt.id == chosenId then
+                        texts[#texts+1] = opt.text
+                    end
+                end
+            end
+        end
+    end)
+    return texts
+end
+
+local function FeaturesIndexPanel()
+    local resultPanel
+
+    --State preserved across fresh rebuilds.
+    local m_filter = ""
+    local m_expandedGroups = {}
+    local m_expandedLevels = {}
+    local m_expandedRows = {}
+    local m_info = nil
+
+    local m_countLabel
+    local m_filterInput
+    local m_headerPanel
+    local m_groupsContainer
+    local Rebuild
+
+    local styles = ThemeEngine.MergeTokens{
+        {
+            selectors = {"featureGroupHeader"},
+            bgimage = true,
+            bgcolor = "clear",
+        },
+        {
+            selectors = {"featureGroupHeader", "hover"},
+            bgcolor = "@bgAlt",
+        },
+        {
+            selectors = {"featureIndexRow"},
+            bgimage = true,
+            bgcolor = "clear",
+        },
+        {
+            selectors = {"featureIndexRow", "hover"},
+            bgcolor = "@bgAlt",
+        },
+        {
+            selectors = {"featureChoiceBadge"},
+            bgimage = true,
+            bgcolor = "@accent",
+            color = "@fgInverse",
+            cornerRadius = 8,
+        },
+        {
+            selectors = {"featureMutedText"},
+            color = "@fgMuted",
+        },
+        {
+            selectors = {"featureViewAbility"},
+            color = "@accent",
+        },
+        {
+            selectors = {"featureViewAbility", "hover"},
+            color = "@accentHover",
+        },
+        {
+            selectors = {"featureClearFilter"},
+            bgcolor = "@fgMuted",
+        },
+    }
+
+    local function entrySearchText(entry)
+        if entry._searchText == nil then
+            local parts = {entry.name or "", FeatureEntryDescription(entry) or ""}
+            --Chosen option features are folded into the slot entry, so the
+            --filter must reach their names and descriptions too.
+            for _,chosenFeature in ipairs(entry.chosen or {}) do
+                pcall(function()
+                    parts[#parts+1] = chosenFeature.name or ""
+                    parts[#parts+1] = chosenFeature:GetDescription() or ""
+                end)
+            end
+            entry._searchText = table.concat(parts, " ")
+        end
+        return entry._searchText
+    end
+
+    --Build a feature row's body: description, inline choice dropdowns, and
+    --the View-ability toggle. Called lazily on first expand.
+    local function BuildRowBody(body, entry, creature)
+        body.data.built = true
+        local children = {}
+
+        --A made choice slot's expansion shows the CHOSEN feature's content
+        --(the categoriser suppresses the chosen option's separate row);
+        --entries without chosen options show their own description.
+        local descs = {}
+        for _,chosenFeature in ipairs(entry.chosen or {}) do
+            pcall(function()
+                local d = chosenFeature:GetDescription()
+                if d ~= nil and d ~= "" then
+                    descs[#descs+1] = d
+                end
+            end)
+        end
+        if #descs == 0 then
+            local desc = FeatureEntryDescription(entry)
+            if desc ~= nil then
+                descs[#descs+1] = desc
+            end
+        end
+        for _,desc in ipairs(descs) do
+            children[#children+1] = gui.Label{
+                width = "100%",
+                height = "auto",
+                fontSize = 12,
+                textWrap = true,
+                text = desc,
+            }
+        end
+
+        --Custom features are managed where the user sees them: the row
+        --carries Edit / Copy / Delete (the gear menu only ADDS things).
+        if entry.bucket == "custom" then
+            children[#children+1] = gui.Panel{
+                width = "auto",
+                height = "auto",
+                flow = "horizontal",
+                halign = "left",
+                vmargin = 2,
+                gui.Button{
+                    classes = {"sizeS"},
+                    text = "Edit",
+                    click = function(element)
+                        local editor = entry.feature:PopupEditor()
+                        editor.data.notifyElement = resultPanel
+                        CharacterSheet.instance:AddChild(editor)
+                    end,
+                },
+                gui.Button{
+                    classes = {"sizeS"},
+                    text = "Copy",
+                    hmargin = 6,
+                    click = function(element)
+                        dmhub.CopyToInternalClipboard(entry.feature)
+                        gui.Tooltip("Copied to clipboard!")(element)
+                    end,
+                },
+                gui.Button{
+                    classes = {"sizeS"},
+                    text = "Delete",
+                    click = function(element)
+                        local c = CharacterSheet.instance.data.info.token.properties
+                        local items = c:try_get("characterFeatures", {})
+                        for i,f in ipairs(items) do
+                            if f == entry.feature or (entry.guid ~= nil and f.guid == entry.guid) then
+                                table.remove(items, i)
+                                break
+                            end
+                        end
+                        c.characterFeatures = items
+                        CharacterSheet.instance:FireEvent("refreshAll")
+                    end,
+                },
+            }
+        end
+
+        if entry.kind == "build" then
+            local feature = entry.feature
+            local numChoices = 0
+            pcall(function()
+                numChoices = feature:NumChoices(creature) or 0
+            end)
+            for i = 1, numChoices do
+                local options = nil
+                local idChosen = "none"
+                pcall(function()
+                    local made = creature:GetLevelChoices()[feature.guid] or {}
+                    options = feature:Choices(i, made, creature)
+                    idChosen = made[i] or "none"
+                end)
+                if options ~= nil and #options > 0 then
+                    local choiceIndex = i
+                    children[#children+1] = gui.Dropdown{
+                        height = 26,
+                        width = 240,
+                        halign = "left",
+                        vmargin = 2,
+                        textDefault = "Choose...",
+                        sort = true,
+                        options = options,
+                        idChosen = idChosen,
+                        change = function(element)
+                            local c = CharacterSheet.instance.data.info.token.properties
+                            local choice = element.idChosen
+                            if choice == "none" then
+                                choice = nil
+                            end
+                            local levelChoices = c:GetLevelChoices()
+                            if levelChoices[feature.guid] == nil then
+                                levelChoices[feature.guid] = {}
+                            end
+                            levelChoices[feature.guid][choiceIndex] = choice
+                            CharacterSheet.instance:FireEvent("refreshAll")
+                        end,
+                    }
+                end
+            end
+
+            local abilities = FeatureGrantedAbilities(entry)
+            if #abilities > 0 then
+                local cardContainer = gui.Panel{
+                    width = "100%",
+                    height = "auto",
+                    flow = "vertical",
+                    classes = {"collapsed"},
+                    data = {},
+                }
+                children[#children+1] = gui.Label{
+                    classes = {"featureViewAbility"},
+                    width = "auto",
+                    height = "auto",
+                    fontSize = 12,
+                    vmargin = 2,
+                    bgimage = true,
+                    bgcolor = "clear",
+                    text = "View ability",
+                    press = function(element)
+                        local showing = cardContainer:HasClass("collapsed")
+                        if showing and not cardContainer.data.built then
+                            cardContainer.data.built = true
+                            local cards = {}
+                            for _,ability in ipairs(abilities) do
+                                local ok, card = pcall(function()
+                                    return ability:Render({
+                                        width = "96%",
+                                        halign = "left",
+                                        bgimage = true,
+                                    }, {})
+                                end)
+                                if ok and card ~= nil then
+                                    cards[#cards+1] = card
+                                end
+                            end
+                            cardContainer.children = cards
+                        end
+                        cardContainer:SetClass("collapsed", not showing)
+                        element.text = cond(showing, "Hide ability", "View ability")
+                    end,
+                }
+                children[#children+1] = cardContainer
+            end
+        end
+
+        body.children = children
+    end
+
+    local function BuildRow(entry, creature)
+        local rowKey = tostring(entry.guid or entry.name or "?")
+
+        --A non-build row with no description has nothing to expand into;
+        --build-pipeline rows may still carry dropdowns or an ability card,
+        --and custom rows always carry their Edit/Copy/Delete buttons.
+        local expandable = entry.kind == "build" or entry.bucket == "custom"
+            or FeatureEntryDescription(entry) ~= nil
+        local expanded = expandable and m_expandedRows[rowKey] == true
+
+        local titleText = entry.name or "Feature"
+        local subParts = {}
+        if entry.kind == "build" and (entry._unspent or 0) == 0 then
+            local texts = FeatureChosenTexts(entry.feature, creature)
+            if #texts > 0 then
+                titleText = table.concat(texts, ", ")
+                subParts[#subParts+1] = entry.name
+            end
+        end
+        local levelStr = FeatureLevelString(entry.levels)
+        if levelStr ~= "" then
+            subParts[#subParts+1] = levelStr
+        end
+
+        local tri = nil
+        if expandable then
+            tri = FeatureExpandoArrow(expanded, {
+                valign = "center",
+            })
+        end
+
+        local body = gui.Panel{
+            width = "100%-16",
+            halign = "left",
+            hmargin = 16,
+            height = "auto",
+            flow = "vertical",
+            classes = {cond(expanded, "expanded", "collapsed")},
+            data = {
+                built = false,
+            },
+        }
+        if expanded then
+            BuildRowBody(body, entry, creature)
+        end
+
+        local titleChildren = {
+            gui.Label{
+                width = "100%",
+                height = "auto",
+                fontSize = 13,
+                bold = true,
+                text = titleText,
+            },
+        }
+        if #subParts > 0 then
+            titleChildren[#titleChildren+1] = gui.Label{
+                classes = {"featureMutedText"},
+                width = "100%",
+                height = "auto",
+                fontSize = 11,
+                italics = true,
+                text = table.concat(subParts, " - "),
+            }
+        end
+
+        local headerChildren = {
+            gui.Panel{
+                width = "100%-80",
+                height = "auto",
+                flow = "vertical",
+                halign = "left",
+                children = titleChildren,
+            },
+        }
+        --Right-side controls live in one right-aligned cluster so the expand
+        --arrow keeps a fixed position on every row; the "Choose" pill sits to
+        --its left rather than pushing the arrow inward.
+        local rightChildren = {}
+        if (entry._unspent or 0) > 0 then
+            rightChildren[#rightChildren+1] = gui.Label{
+                classes = {"featureChoiceBadge"},
+                width = "auto",
+                height = "auto",
+                fontSize = 11,
+                hpad = 6,
+                vpad = 1,
+                borderBox = true,
+                valign = "center",
+                hmargin = 4,
+                text = "Choose",
+            }
+        end
+        if tri ~= nil then
+            rightChildren[#rightChildren+1] = tri
+        end
+        if #rightChildren > 0 then
+            headerChildren[#headerChildren+1] = gui.Panel{
+                width = "auto",
+                height = "auto",
+                flow = "horizontal",
+                halign = "right",
+                valign = "center",
+                children = rightChildren,
+            }
+        end
+
+        local header = gui.Panel{
+            classes = {"featureIndexRow"},
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            press = cond(expandable, function(element)
+                local nowExpanded = not tri:HasClass("expanded")
+                tri:SetClass("expanded", nowExpanded)
+                body:SetClass("collapsed", not nowExpanded)
+                if nowExpanded then
+                    m_expandedRows[rowKey] = true
+                    if not body.data.built then
+                        BuildRowBody(body, entry, creature)
+                    end
+                else
+                    m_expandedRows[rowKey] = nil
+                end
+            end),
+            children = headerChildren,
+        }
+
+        return gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            vmargin = 1,
+            header,
+            body,
+        }
+    end
+
+    --Build one bucket group. Returns the group panel (nil when filtering and
+    --nothing matches) and the matched-entry count.
+    local function BuildGroup(bucketId, bucket, entries, creature)
+        local matched = {}
+        for _,e in ipairs(entries) do
+            if m_filter == "" or Search.MatchesText(entrySearchText(e), m_filter) then
+                matched[#matched+1] = e
+            end
+        end
+        if m_filter ~= "" and #matched == 0 then
+            return nil, 0
+        end
+
+        --Filtering forces matching groups open so the hits are visible.
+        local expanded = (m_filter ~= "") or (m_expandedGroups[bucketId] == true)
+
+        local label = FEATURE_GROUP_LABELS[bucketId] or bucket.name
+        if FEATURE_GROUP_ORIGIN_PREFIX[bucketId] then
+            --Distinct origin names in first-seen order: "Ancestry - Human",
+            --"Class - Censor - Paragon" (class then subclass).
+            local names = {}
+            local seen = {}
+            for _,e in ipairs(entries) do
+                local n = e.originName
+                if n ~= nil and not seen[n] then
+                    seen[n] = true
+                    names[#names+1] = n
+                end
+            end
+            if #names > 0 then
+                label = string.format("%s - %s", bucket.name, table.concat(names, " - "))
+            end
+        end
+
+        local unspentTotal = 0
+        for _,e in ipairs(matched) do
+            unspentTotal = unspentTotal + (e._unspent or 0)
+        end
+
+        --Expansion is a LAZY IN-PLACE toggle, not a Rebuild: rebuilding the
+        --whole tab on every arrow press costs ~100ms of synchronous Lua
+        --(BuildIndex + per-entry choice checks + all panels). Bodies build
+        --their rows on first expand and then just toggle the collapsed
+        --class; full rebuilds happen only for data/filter changes.
+        local function BuildGroupBodyChildren()
+            local bodyChildren = {}
+            if bucketId == "class" then
+                --Sub-group the class bucket by level, preserving pipeline
+                --order within each level. Each level is its own lazy
+                --collapsible sub-group; expansion state survives rebuilds
+                --via m_expandedLevels, and filtering forces levels open.
+                local byLevel = {}
+                local levelsSeen = {}
+                for _,e in ipairs(matched) do
+                    local lvl = e.level or 0
+                    if byLevel[lvl] == nil then
+                        byLevel[lvl] = {}
+                        levelsSeen[#levelsSeen+1] = lvl
+                    end
+                    local t = byLevel[lvl]
+                    t[#t+1] = e
+                end
+                table.sort(levelsSeen)
+                for _,lvl in ipairs(levelsSeen) do
+                    local levelEntries = byLevel[lvl]
+                    local levelExpanded = (m_filter ~= "") or (m_expandedLevels[lvl] == true)
+
+                    local levelUnspent = 0
+                    for _,e in ipairs(levelEntries) do
+                        levelUnspent = levelUnspent + (e._unspent or 0)
+                    end
+
+                    local levelTri = FeatureExpandoArrow(levelExpanded, {
+                        valign = "center",
+                    })
+
+                    local levelHeaderChildren = {
+                        levelTri,
+                        gui.Label{
+                            classes = {"featureMutedText"},
+                            width = "auto",
+                            height = "auto",
+                            fontSize = 11,
+                            valign = "center",
+                            text = string.format("%s (%d)", cond(lvl > 0, string.format("Level %d", lvl), "Other"), #levelEntries),
+                        },
+                    }
+                    if levelUnspent > 0 then
+                        levelHeaderChildren[#levelHeaderChildren+1] = gui.Label{
+                            classes = {"featureChoiceBadge"},
+                            width = "auto",
+                            height = "auto",
+                            fontSize = 11,
+                            hpad = 6,
+                            vpad = 1,
+                            borderBox = true,
+                            halign = "right",
+                            valign = "center",
+                            text = string.format("%d to choose", levelUnspent),
+                        }
+                    end
+
+                    local levelRows
+                    local function BuildLevelRows()
+                        levelRows.data.built = true
+                        local rowChildren = {}
+                        for _,e in ipairs(levelEntries) do
+                            rowChildren[#rowChildren+1] = BuildRow(e, creature)
+                        end
+                        levelRows.children = rowChildren
+                    end
+                    levelRows = gui.Panel{
+                        width = "100%-12",
+                        halign = "right",
+                        height = "auto",
+                        flow = "vertical",
+                        classes = {cond(not levelExpanded, "collapsed")},
+                        data = { built = false },
+                    }
+                    if levelExpanded then
+                        BuildLevelRows()
+                    end
+
+                    bodyChildren[#bodyChildren+1] = gui.Panel{
+                        classes = {"featureGroupHeader"},
+                        width = "100%",
+                        height = "auto",
+                        flow = "horizontal",
+                        vmargin = 1,
+                        press = function(element)
+                            if m_filter ~= "" then
+                                return
+                            end
+                            local nowExpanded = not (m_expandedLevels[lvl] == true)
+                            if nowExpanded then
+                                m_expandedLevels[lvl] = true
+                            else
+                                m_expandedLevels[lvl] = nil
+                            end
+                            levelTri:SetClass("expanded", nowExpanded)
+                            levelRows:SetClass("collapsed", not nowExpanded)
+                            if nowExpanded and not levelRows.data.built then
+                                BuildLevelRows()
+                            end
+                        end,
+                        children = levelHeaderChildren,
+                    }
+                    bodyChildren[#bodyChildren+1] = levelRows
+                end
+            else
+                for _,e in ipairs(matched) do
+                    bodyChildren[#bodyChildren+1] = BuildRow(e, creature)
+                end
+            end
+            return bodyChildren
+        end
+
+        local bodyPanel
+        bodyPanel = gui.Panel{
+            width = "100%-12",
+            halign = "right",
+            height = "auto",
+            flow = "vertical",
+            classes = {cond(not expanded, "collapsed")},
+            data = { built = false },
+        }
+        local function EnsureBodyBuilt()
+            if bodyPanel.data.built then
+                return
+            end
+            bodyPanel.data.built = true
+            bodyPanel.children = BuildGroupBodyChildren()
+        end
+        if expanded then
+            EnsureBodyBuilt()
+        end
+
+        local tri = FeatureExpandoArrow(expanded, {
+            valign = "center",
+        })
+
+        local headerChildren = {
+            tri,
+            gui.Label{
+                width = "auto",
+                height = "auto",
+                fontSize = 13,
+                bold = true,
+                text = label,
+            },
+            gui.Label{
+                classes = {"featureMutedText"},
+                width = "auto",
+                height = "auto",
+                fontSize = 11,
+                hmargin = 6,
+                valign = "center",
+                text = cond(m_filter ~= "", string.format("%d of %d", #matched, #entries), string.format("%d", #entries)),
+            },
+        }
+        if unspentTotal > 0 then
+            headerChildren[#headerChildren+1] = gui.Label{
+                classes = {"featureChoiceBadge"},
+                width = "auto",
+                height = "auto",
+                fontSize = 11,
+                hpad = 6,
+                vpad = 1,
+                borderBox = true,
+                halign = "right",
+                valign = "center",
+                text = string.format("%d to choose", unspentTotal),
+            }
+        end
+
+        local groupPanel = gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            vmargin = 2,
+
+            gui.Panel{
+                classes = {"featureGroupHeader"},
+                width = "100%",
+                height = "auto",
+                flow = "horizontal",
+                press = function(element)
+                    if m_filter ~= "" then
+                        return
+                    end
+                    local nowExpanded = not (m_expandedGroups[bucketId] == true)
+                    if nowExpanded then
+                        m_expandedGroups[bucketId] = true
+                    else
+                        m_expandedGroups[bucketId] = nil
+                    end
+                    tri:SetClass("expanded", nowExpanded)
+                    bodyPanel:SetClass("collapsed", not nowExpanded)
+                    if nowExpanded then
+                        EnsureBodyBuilt()
+                    end
+                end,
+                children = headerChildren,
+            },
+
+            bodyPanel,
+        }
+
+        return groupPanel, #matched
+    end
+
+    Rebuild = function()
+        if m_info == nil or not resultPanel.valid then
+            return
+        end
+        local creature = m_info.token.properties
+        if creature == nil or creature.typeName ~= "character" then
+            resultPanel:SetClass("collapsed", true)
+            m_headerPanel:SetClass("collapsed", true)
+            m_groupsContainer.children = {}
+            return
+        end
+        resultPanel:SetClass("collapsed", false)
+        m_headerPanel:SetClass("collapsed", false)
+
+        local index = FeatureCategoriser.BuildIndex(creature)
+
+        local groupsChildren = {}
+        local total = 0
+        local matchedTotal = 0
+        for _,bucketId in ipairs(index.order) do
+            local group = index.groups[bucketId]
+            local entries = {}
+            for _,e in ipairs(group.items) do
+                e._unspent = cond(e.kind == "build", FeatureUnspentChoices(e.feature, creature), 0)
+                entries[#entries+1] = e
+            end
+            if #entries > 0 then
+                total = total + #entries
+                local groupPanel, matchedCount = BuildGroup(bucketId, group.bucket, entries, creature)
+                matchedTotal = matchedTotal + matchedCount
+                if groupPanel ~= nil then
+                    groupsChildren[#groupsChildren+1] = groupPanel
+                end
+            end
+        end
+        m_groupsContainer.children = groupsChildren
+
+        if m_filter == "" then
+            m_countLabel.text = string.format("%d features", total)
+        elseif matchedTotal == 0 then
+            m_countLabel.text = string.format("No matches in %d features", total)
+        else
+            m_countLabel.text = string.format("Showing %d of %d features", matchedTotal, total)
+        end
+    end
+
+    m_countLabel = gui.Label{
+        classes = {"featureMutedText"},
+        width = "auto",
+        height = "auto",
+        fontSize = 12,
+        halign = "left",
+        valign = "center",
+        text = "",
+    }
+
+    local clearButton
+    m_filterInput = gui.SearchInput{
+        width = 200,
+        height = 20,
+        fontSize = 14,
+        halign = "right",
+        valign = "center",
+        placeholderText = "Filter features...",
+        editlag = 0.25,
+        edit = function(element)
+            m_filter = Search.Normalize(element.text)
+            clearButton:SetClass("collapsed", element.text == nil or element.text == "")
+            Rebuild()
+        end,
+    }
+    clearButton = gui.Panel{
+        floating = true,
+        classes = {"featureClearFilter", "collapsed"},
+        bgimage = "ui-icons/close.png",
+        width = 14,
+        height = 14,
+        halign = "right",
+        valign = "center",
+        x = -4,
+        press = function()
+            m_filterInput.text = ""
+            m_filterInput:FireEvent("edit")
+        end,
+    }
+    m_filterInput:AddChild(clearButton)
+
+    --Settings (gear) menu: the sheet's standard section-cog pattern
+    --(settingsButton class + element.popup, same as the Immunities /
+    --Skills / Languages cogs - native click-out dismissal, framedPanel +
+    --PopupStyles theming). The menu only ADDS things: custom features are
+    --edited on their rows in the Custom Features group. Template changes
+    --rebuild the popup in place (the Immunities popup's idiom).
+    local m_gearButton
+    local ShowManageMenu
+
+    ShowManageMenu = function(element)
+        if m_info == nil then return end
+
+        local children = {}
+
+        children[#children+1] = gui.Label{
+            classes = {"sizeXl", "bold"},
+            halign = "center",
+            text = "Manage Features",
+            width = "auto",
+            height = "auto",
+        }
+
+        children[#children+1] = gui.Button{
+            classes = {"sizeM"},
+            text = "Add Custom Feature",
+            width = 220,
+            halign = "center",
+            vmargin = 4,
+            click = function()
+                local c = CharacterSheet.instance.data.info.token.properties
+                local items = c:try_get("characterFeatures", {})
+                local feature = CharacterFeature.Create{}
+                items[#items+1] = feature
+                c.characterFeatures = items
+                element.popup = nil
+                CharacterSheet.instance:FireEvent("refreshAll")
+                local editor = feature:PopupEditor()
+                editor.data.notifyElement = resultPanel
+                CharacterSheet.instance:AddChild(editor)
+            end,
+        }
+
+        local clipboardItem = dmhub.GetInternalClipboard()
+        if clipboardItem ~= nil and (clipboardItem.typeName == "CharacterFeature" or clipboardItem.typeName == "ActivatedAbility") then
+            children[#children+1] = gui.Button{
+                classes = {"sizeM"},
+                text = "Paste Feature",
+                width = 220,
+                halign = "center",
+                vmargin = 4,
+                click = function()
+                    local c = CharacterSheet.instance.data.info.token.properties
+                    local item = dmhub.GetInternalClipboard()
+                    local feature = nil
+                    if item ~= nil and item.typeName == "CharacterFeature" then
+                        feature = DeepCopy(item)
+                        DeepReplaceGuids(feature)
+                    elseif item ~= nil and item.typeName == "ActivatedAbility" then
+                        local ability = DeepCopy(item)
+                        DeepReplaceGuids(ability)
+                        local modifier = CharacterModifier.new{
+                            guid = dmhub.GenerateGuid(),
+                            name = ability.name,
+                            description = "",
+                            behavior = "activated",
+                            activatedAbility = ability,
+                        }
+                        feature = CharacterFeature.Create{
+                            name = ability.name,
+                            modifiers = { modifier },
+                        }
+                    end
+                    if feature ~= nil then
+                        local items = c:try_get("characterFeatures", {})
+                        items[#items+1] = feature
+                        c.characterFeatures = items
+                    end
+                    element.popup = nil
+                    CharacterSheet.instance:FireEvent("refreshAll")
+                end,
+            }
+        end
+
+        --width "auto" popup: every child must be fixed/auto width (a "100%"
+        --child makes the auto-sized popup blow out to the screen bounds).
+        children[#children+1] = gui.Label{
+            width = "auto",
+            height = "auto",
+            halign = "center",
+            fontSize = 14,
+            bold = true,
+            vmargin = 4,
+            text = "Creature Templates",
+        }
+
+        local creature = m_info.token.properties
+        local templates = nil
+        pcall(function() templates = creature:try_get("creatureTemplates") end)
+        local templatesTable = dmhub.GetTable("creatureTemplates") or {}
+        for i,tid in ipairs(templates or {}) do
+            local templateInfo = templatesTable[tid]
+            if templateInfo ~= nil then
+                local n = i
+                children[#children+1] = gui.Panel{
+                    width = 320,
+                    height = "auto",
+                    flow = "horizontal",
+                    --statsLabel is a sheet-local class; the popup island only
+                    --carries the theme cascade, so style the label inline.
+                    gui.Label{
+                        width = "80%",
+                        height = "auto",
+                        fontSize = 14,
+                        text = templateInfo.name,
+                    },
+                    gui.Button{
+                        classes = {"deleteButton"},
+                        width = 24,
+                        height = 24,
+                        halign = "right",
+                        click = function()
+                            local c = CharacterSheet.instance.data.info.token.properties
+                            c:RemoveTemplate(n)
+                            CharacterSheet.instance:FireEvent("refreshAll")
+                            ShowManageMenu(element)
+                        end,
+                    },
+                }
+            end
+        end
+
+        children[#children+1] = gui.Dropdown{
+            width = 220,
+            height = 28,
+            halign = "center",
+            vmargin = 4,
+            idChosen = "none",
+            create = function(dropdown)
+                local choices = {
+                    { id = "none", text = "Add Creature Template..." },
+                }
+                local templateTable = dmhub.GetTable("creatureTemplates") or {}
+                for k,entry in pairs(templateTable) do
+                    if not entry:try_get("hidden", false) then
+                        choices[#choices+1] = { id = k, text = entry.name }
+                    end
+                end
+                dropdown.options = choices
+            end,
+            change = function(dropdown)
+                local c = CharacterSheet.instance.data.info.token.properties
+                if dropdown.idChosen ~= "none" then
+                    c:AddTemplate(dropdown.idChosen)
+                end
+                dropdown.idChosen = "none"
+                CharacterSheet.instance:FireEvent("refreshAll")
+                ShowManageMenu(element)
+            end,
+        }
+
+        element.popupPositioning = "panel"
+        element.popup = gui.Panel{
+            classes = {"framedPanel"},
+            halign = "right",
+            interactable = true,
+            flow = "vertical",
+            hpad = 24,
+            vpad = 14,
+            width = "auto",
+            height = "auto",
+            --Popups are styling islands: the theme cascade must be supplied
+            --explicitly or the Dropdown's internals lose their layout rules.
+            --PopupStyles is deliberately NOT included: its selectorless
+            --catch-all rule (flow vertical + valign bottom on EVERY panel)
+            --wrecks the Dropdown control, stacking its triangle below the
+            --label and outside the frame.
+            styles = ThemeEngine.GetStyles(),
+            children = children,
+        }
+    end
+
+    m_gearButton = gui.Button{
+        classes = {"settingsButton"},
+        width = 16,
+        height = 16,
+        halign = "right",
+        valign = "center",
+        hmargin = 6,
+        linger = function(element)
+            gui.Tooltip("Manage Features and Templates")(element)
+        end,
+        press = function(element)
+            if element.popup ~= nil then
+                element.popup = nil
+            else
+                ShowManageMenu(element)
+            end
+        end,
+    }
+
+    m_groupsContainer = gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+    }
+
+    resultPanel = gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        styles = styles,
+
+        refreshToken = function(element, info)
+            local changedToken = false
+            pcall(function()
+                changedToken = m_info ~= nil and m_info.token.properties ~= info.token.properties
+            end)
+            if changedToken then
+                m_gearButton.popup = nil
+            end
+            m_info = info
+            Rebuild()
+        end,
+
+        --Custom-feature PopupEditors notify here on change (the
+        --notifyElement contract): refresh the sheet so the index rebuilds.
+        refreshModifier = function(element)
+            CharacterSheet.instance:FireEvent("refreshAll")
+        end,
+
+        --Deep-link hook: the global-search features-on-creatures provider
+        --fires this (with the matched feature's name) after landing the
+        --sheet on the Features tab.
+        filterFeatures = function(element, needle)
+            if type(needle) ~= "string" then
+                needle = ""
+            end
+            m_filterInput.text = needle
+            m_filterInput:FireEvent("edit")
+        end,
+
+        m_groupsContainer,
+    }
+
+    --The filter/count/settings row is returned SEPARATELY so the tab can
+    --pin it above the scroll area (it must survive scrolling).
+    m_headerPanel = gui.Panel{
+        width = "100%",
+        height = 26,
+        flow = "horizontal",
+        styles = styles,
+        m_countLabel,
+        m_filterInput,
+        m_gearButton,
+    }
+
+    return { header = m_headerPanel, body = resultPanel }
+end
+
 function CharSheet.InnerFeaturesPanel()
+    local index = FeaturesIndexPanel()
     return gui.Panel {
         width = "100%",
         height = "100%",
-        valign = "center",
+        flow = "vertical",
+
+        --Carries the search-reveal pulse rule so a monster trait row (in the
+        --legacy ListEditor below) can be highlighted when revealed from search.
+        styles = ThemeEngine.MergeTokens{ SEARCH_REVEAL_RULE },
+
+        --Filter/count/settings row, pinned ABOVE the scroll area so it
+        --survives scrolling. tmargin keeps the input clear of the tab
+        --strip's border above.
+        gui.Panel {
+            width = "97%",
+            hmargin = 4,
+            tmargin = 6,
+            halign = "left",
+            height = "auto",
+            index.header,
+        },
+
+        gui.Panel {
+        width = "100%",
+        height = "100%-36",
+        valign = "top",
         vscroll = true,
         gui.Panel {
             classes = { "featuresPanel" },
@@ -5518,8 +6955,20 @@ function CharSheet.InnerFeaturesPanel()
             halign = "left",
             height = "auto",
 
-            CharSheet.CharacterFeaturesPanel(),
+            index.body,
 
+
+            --Legacy bottom strip: custom-feature ListEditor + creature
+            --templates + feats list. For characters this strip is folded
+            --into the Features tab's gear (settings) menu; it stays inline
+            --for monsters and other creature kinds.
+            gui.Panel {
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            refreshToken = function(element, info)
+                element:SetClass("collapsed", info.token.properties.typeName == "character")
+            end,
 
             --list of additional/custom features.
             gui.Panel {
@@ -5742,8 +7191,11 @@ function CharSheet.InnerFeaturesPanel()
 
             },
 
+            },
 
-        }
+
+        },
+        },
     }
 end
 
@@ -5777,6 +7229,15 @@ function CharSheet.FeaturesAndNotesPanel()
                 end
             end,
 
+            --Deep-link hook: lets external code (global search's
+            --features-on-creatures results) land the sheet on a named tab via
+            --CharacterSheet.instance:FireEventTree("selectSheetTab", "Features").
+            selectSheetTab = function(element, tabText)
+                if tabText == text then
+                    element:FireEvent("press")
+                end
+            end,
+
             refreshToken = function(element, info)
                 local creature = CharacterSheet.instance.data.info.token.properties
                 if text ~= "Followers" then
@@ -5801,6 +7262,10 @@ function CharSheet.FeaturesAndNotesPanel()
         }
     end
 
+    --Held so the revealCapability hook can select the Features tab the same
+    --way pressing it does.
+    local m_featuresTab = CreateTab("Features", 2)
+
     local resultPanel
     resultPanel = gui.Panel {
         classes = {"bordered"},
@@ -5811,13 +7276,59 @@ function CharSheet.FeaturesAndNotesPanel()
         halign = "center",
         flow = "vertical",
 
+        --Deep-link hook: a bestiary trait search result fires
+        --"revealCapability" after opening the monster sheet. A monster's
+        --traits render on the Features sub-tab (a flat list), so selecting
+        --that tab is the Phase A reveal. Abilities (non-"Trait") are handled
+        --by the action list and ignored here.
+        revealCapability = function(element, capName, categorization)
+            if categorization ~= "Trait" then
+                return
+            end
+            m_featuresTab:FireEvent("press")
+            if type(capName) ~= "string" or capName == "" then
+                return
+            end
+
+            --Phase B: scroll the matched trait row into view and pulse it. A
+            --trait renders as one markdown label whose visible text begins
+            --with the trait name ("<b>End Effect.</b> ..."), so match on the
+            --stripped prefix. Best-effort: a no-op if not located.
+            local featuresContent = contentPanels[2]
+            ScheduleRevealAndPulse(function()
+                local result = nil
+                local function walk(p, depth)
+                    if p == nil or depth > 30 or result ~= nil then
+                        return
+                    end
+                    local t = nil
+                    pcall(function() t = p.text end)
+                    if type(t) == "string" and t ~= "" then
+                        local plain = (t:gsub("<.->", ""))
+                        if string.sub(plain, 1, #capName) == capName then
+                            result = p
+                            return
+                        end
+                    end
+                    local ok, ch = pcall(function() return p.children end)
+                    if ok and type(ch) == "table" then
+                        for _, c in ipairs(ch) do
+                            walk(c, depth + 1)
+                        end
+                    end
+                end
+                walk(featuresContent, 0)
+                return result
+            end)
+        end,
+
         --tab panel.
         gui.Panel {
             classes = {"tabBar"},
             valign = "top",
             width = "100%",
             CreateTab("Notes", 1),
-            CreateTab("Features", 2),
+            m_featuresTab,
             CreateTab("Followers", 3),
         },
         gui.Panel {

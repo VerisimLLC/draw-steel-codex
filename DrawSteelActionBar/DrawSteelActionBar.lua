@@ -320,6 +320,54 @@ local g_preferredForcedMovementType = setting {
     default = "none",
 }
 
+-- Transient highlight for an ability revealed from search (on-map monster
+-- ability result). Pulsed via Panel:PulseClass, so the @accent fill applies
+-- instantly then fades over transitionTime. Merged into the action bar root
+-- cascade so it resolves on the ability headings inside an opened drawer menu.
+-- Each reveal pulse fades the accent IN over SEARCH_REVEAL_FADE (eased), HOLDS
+-- it, fades OUT over the same time, then a slight SEARCH_REVEAL_GAP pause before
+-- the next - a gentle "here I am" breathe rather than a strobe (matches the
+-- sheet reveal).
+local SEARCH_REVEAL_FADE = 0.8
+local SEARCH_REVEAL_HOLD = 0.3
+local SEARCH_REVEAL_GAP = 0.1
+local SEARCH_REVEAL_PULSES = 3
+local SEARCH_REVEAL_RULE = {
+    selectors = { "abilityHeading", "searchReveal" },
+    bgcolor = "@accent",
+    transitionTime = SEARCH_REVEAL_FADE,
+    easing = "easeInOutSine",
+}
+
+-- Which drawer an ability lives in, mirroring the per-type filtering the
+-- "menu" event applies to g_abilities. Returns the drawer's `type` string, or
+-- nil when the ability is not surfaced by any drawer (then the reveal is a
+-- no-op). Used by Search.RevealActionBarAbility below.
+local function DrawerTypeForAbility(ability)
+    local cat = ability.categorization
+    if cat == "Malice" then
+        return "malice"
+    end
+    if cat == "Trigger" or cat == "Villain Action" then
+        return "trigger"
+    end
+    if cat == "Move" then
+        return "move"
+    end
+    local rid = ability.actionResourceId
+    if rid == CharacterResource.actionResourceId then
+        return "action"
+    end
+    if rid == CharacterResource.maneuverResourceId
+        or rid == "none"
+        or rid == CharacterResource.respiteActivityId
+        or rid == CharacterResource.freeManeuverResourceId then
+        --Free / respite / maneuver abilities all surface in the maneuver drawer.
+        return "maneuver"
+    end
+    return nil
+end
+
 
 local function ActionBarDrawer(args)
     local m_resourceid
@@ -735,6 +783,9 @@ local function ActionBarDrawer(args)
 
     local resultPanelArgs = {
         classes = { "actionBarDrawer" },
+
+        --Stamped so the search reveal can find this drawer by its type.
+        data = { drawerType = args.type },
 
         press = function(element)
 
@@ -1199,7 +1250,7 @@ local function CreateActionBar()
 
     resultPanel = gui.Panel {
         classes = { "actionBar" },
-        styles = { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(Styles.ActionBar) },
+        styles = { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(Styles.ActionBar), ThemeEngine.MergeTokens{ SEARCH_REVEAL_RULE } },
         width = "100%",
         height = 50,
         halign = "center",
@@ -1212,7 +1263,7 @@ local function CreateActionBar()
         create = function(element)
             element.data.themeListener = ThemeEngine.OnThemeChanged(mod, function()
                 if element.valid then
-                    element.styles = { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(Styles.ActionBar) }
+                    element.styles = { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(Styles.ActionBar), ThemeEngine.MergeTokens{ SEARCH_REVEAL_RULE } }
                 end
             end)
         end,
@@ -1573,6 +1624,8 @@ local function AbilityHeading(args)
             classes = { "abilityIconPanel" },
             ability = function(element, ability)
                 m_ability = ability
+                --Stamped so the search reveal can find this heading by name.
+                resultPanel.data.abilityName = ability.name
 
                 if ability:try_get("manualVersionOfTrigger") or ability.categorization == "Trigger" then
                     element.text = "!"
@@ -6600,3 +6653,121 @@ dmhub.RegisterEventHandler("restoreFromBackup", function()
     end
 end)
 --RegisterCustomActionBar(nil)
+
+-- =============================================================================
+-- On-map search reveal: open an ability's drawer menu and pulse its row.
+--
+-- When the director searches an on-map monster's ability (the map-view context
+-- provider in CharacterPanel.lua), the result selects + centres the token; its
+-- abilities then populate this bar. This points the director at the matched
+-- ability: open the drawer dropdown it lives in and pulse its row. Exposed on
+-- the shared Search table (field access is nil-safe across modules). A no-op
+-- when the ability is not on the bar (traits route here as nil; an ability that
+-- no drawer surfaces is skipped). Every panel read is pcall-guarded.
+-- =============================================================================
+Search.RevealActionBarAbility = function(tokenid, abilityName)
+    if type(abilityName) ~= "string" or abilityName == "" then
+        return
+    end
+
+    --g_abilities populates asynchronously after SelectToken, so retry until the
+    --bar is showing the right token and the matched ability is present.
+    local openAttempts = 0
+    local function openDrawer()
+        if mod.unloaded then
+            return
+        end
+        if g_actionBar == nil or not g_actionBar.valid or g_token == nil or g_token.id ~= tokenid then
+            openAttempts = openAttempts + 1
+            if openAttempts < 30 then dmhub.Schedule(0.1, openDrawer) end
+            return
+        end
+
+        local matched = nil
+        for _, ability in ipairs(g_abilities or {}) do
+            local ok, nm = pcall(function() return ability.name end)
+            if ok and nm == abilityName then
+                matched = ability
+                break
+            end
+        end
+        if matched == nil then
+            openAttempts = openAttempts + 1
+            if openAttempts < 30 then dmhub.Schedule(0.1, openDrawer) end
+            return
+        end
+
+        local drawerType = DrawerTypeForAbility(matched)
+        if drawerType == nil then
+            return
+        end
+
+        --Find the drawer of that type and open its dropdown. press toggles, so
+        --only press when it is not already the active (open) drawer.
+        local drawer = nil
+        local function walkDrawer(p, depth)
+            if p == nil or depth > 10 or drawer ~= nil then return end
+            local dt = nil
+            pcall(function() dt = p.data and p.data.drawerType or nil end)
+            if dt == drawerType then drawer = p return end
+            local ok, ch = pcall(function() return p.children end)
+            if ok and type(ch) == "table" then
+                for _, c in ipairs(ch) do walkDrawer(c, depth + 1) end
+            end
+        end
+        walkDrawer(g_actionBar, 0)
+        if drawer == nil then
+            return
+        end
+        if not drawer:HasClass("active") then
+            drawer:FireEvent("press")
+        end
+
+        --The menu builds its headings synchronously but needs a frame to lay
+        --out; retry locating the matched heading, then pulse it a few times so
+        --it is easy to see (finite scheduled chain, no persistent think).
+        local pulseAttempts = 0
+        local function pulse()
+            if mod.unloaded or not g_actionBar.valid then
+                return
+            end
+            local heading = nil
+            local function walkHeading(p, depth)
+                if p == nil or depth > 25 or heading ~= nil then return end
+                local an = nil
+                pcall(function() an = p.data and p.data.abilityName or nil end)
+                if an == abilityName and p:HasClass("abilityHeading") and not p:HasClass("collapsed") then
+                    heading = p
+                    return
+                end
+                local ok, ch = pcall(function() return p.children end)
+                if ok and type(ch) == "table" then
+                    for _, c in ipairs(ch) do walkHeading(c, depth + 1) end
+                end
+            end
+            walkHeading(g_actionBar, 0)
+            if heading ~= nil then
+                --Fade the accent in, hold, fade out (both over the rule's
+                --transitionTime), then a slight pause before the next - a
+                --gentle reminder breathe, not a strobe.
+                local remaining = SEARCH_REVEAL_PULSES
+                local function cycle()
+                    if mod.unloaded or heading == nil or not heading.valid then return end
+                    heading:SetClass("searchReveal", true)
+                    dmhub.Schedule(SEARCH_REVEAL_FADE + SEARCH_REVEAL_HOLD, function()
+                        if mod.unloaded or heading == nil or not heading.valid then return end
+                        heading:SetClass("searchReveal", false)
+                        remaining = remaining - 1
+                        if remaining > 0 then dmhub.Schedule(SEARCH_REVEAL_FADE + SEARCH_REVEAL_GAP, cycle) end
+                    end)
+                end
+                cycle()
+                return
+            end
+            pulseAttempts = pulseAttempts + 1
+            if pulseAttempts < 20 then dmhub.Schedule(0.05, pulse) end
+        end
+        pulse()
+    end
+    openDrawer()
+end

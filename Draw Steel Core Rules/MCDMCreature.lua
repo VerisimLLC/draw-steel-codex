@@ -4304,6 +4304,171 @@ function creature.TemporaryHitpointsStr(self)
     return g_creatureTemporaryHitpointsStr(self)
 end
 
+-- Action-log entry broadcast whenever a creature carrying an active damage immunity
+-- or weakness takes damage that the immunity/weakness actually modified (e.g. the
+-- Ogre Juggernaut's Defiant Anger, which grants Damage Immunity 1 only while winded).
+-- It shows the victim (the creature the modifier runs on, who took the damage) and the
+-- attacker who inflicted it, plus a shield chip tinted to the battle-compass color:
+-- blue (heroes turn) for an immunity, red (enemy turn) for a weakness. The source of
+-- the modification is named (the ability name like "Defiant Anger", or a synthesized
+-- "Fire Immunity 5" for innate resistances) and hovering it shows the source's
+-- description. Purpose is to communicate to all players WHY the damage was reduced or
+-- increased and where to look for it.
+DamageModifierChatMessage = RegisterGameType("DamageModifierChatMessage")
+DamageModifierChatMessage.victimid = ""
+DamageModifierChatMessage.attackerid = ""
+DamageModifierChatMessage.prevented = 0  -- damage prevented (>0) or added by weakness (<0)
+DamageModifierChatMessage.rating = 0     -- the immunity/weakness value (signed); used for innate hover text
+DamageModifierChatMessage.damageType = ""
+DamageModifierChatMessage.source = ""            -- name of the ability/resistance providing it (the headline)
+DamageModifierChatMessage.sourceDescription = "" -- description shown on hover (empty for innate -> synthesized in Render)
+DamageModifierChatMessage.abilityName = ""       -- the ability/attack that inflicted the damage
+
+-- Battle-compass colors (see MCDMInitiativeBar): heroes-turn blue for an immunity,
+-- enemy-turn red for a weakness. The same MCDM shield image is used for both -- only
+-- the color differentiates immunity from weakness.
+local g_damageModifierImmunityColor = "#1194FF"
+local g_damageModifierWeaknessColor = "#DE1E47"
+local g_damageModifierShield = "c86775c1-72d6-4a46-8493-a8b9c341a1ee"
+
+function DamageModifierChatMessage:GetVictimToken()
+    return dmhub.GetCharacterById(self.victimid)
+end
+
+function DamageModifierChatMessage:GetAttackerToken()
+    if self.attackerid == nil or self.attackerid == "" then
+        return nil
+    end
+    return dmhub.GetCharacterById(self.attackerid)
+end
+
+function DamageModifierChatMessage.Render(self, message)
+    local victimToken = self:GetVictimToken()
+    if victimToken == nil or not victimToken.valid then
+        return nil
+    end
+
+    -- Direction is taken from the damage that was actually prevented/added.
+    local immunity = self.prevented > 0
+    local chipColor = cond(immunity, g_damageModifierImmunityColor, g_damageModifierWeaknessColor)
+
+    -- Headline: the trait/source that modified the damage (e.g. "Defiant Anger" or the
+    -- synthesized "Fire Immunity 5"). Hovering it shows the source's description. For a
+    -- modifier the description is supplied; for an innate resistance we synthesize one
+    -- here using the creature's name so the hover never falls through to the card's
+    -- default timestamp tooltip.
+    local sourceName = self:try_get("source", "")
+    local hoverDescription = self:try_get("sourceDescription", "")
+    if hoverDescription == "" then
+        local rating = self:try_get("rating", 0)
+        if rating == 0 then rating = self.prevented end
+        local typeWord = ""
+        local dt = self.damageType
+        if dt ~= nil and dt ~= "" and string.lower(dt) ~= "all" then
+            typeWord = string.lower(dt) .. " "
+        end
+        local vname = cond(victimToken.canLocalPlayerSeeName, "The " .. victimToken.name, "This creature")
+        hoverDescription = string.format("%s has %sdamage %s %d", vname, typeWord,
+            cond(immunity, "immunity", "weakness"), math.abs(rating))
+    end
+
+    local headlineLabel = gui.Label{
+        classes = {"action-log-name", "sizeS", "bold"},
+        color = chipColor,
+        text = sourceName,
+        linger = function(element)
+            gui.Tooltip{ maxWidth = 400, text = hoverDescription }(element)
+        end,
+    }
+
+    -- A common height for everything in the row so the attacker portrait, shield and
+    -- number all share the same size and vertical center.
+    local rowHeight = 40
+
+    local attackerToken = self:GetAttackerToken()
+    local attackerPortrait = nil
+    if attackerToken ~= nil and attackerToken.valid then
+        attackerPortrait = gui.CreateTokenImage(attackerToken, {
+            width = rowHeight,
+            height = rowHeight,
+            halign = "center",
+            valign = "center",
+        })
+    end
+
+    -- The chip: the MCDM shield tinted blue for an immunity or red for a weakness. No
+    -- text overlay -- the big delta number sits next to it instead.
+    local chip = gui.Panel{
+        width = rowHeight,
+        height = rowHeight,
+        valign = "center",
+        bgimage = g_damageModifierShield,
+        bgcolor = chipColor,
+    }
+
+    -- The damage delta in big white text, next to the shield: negative when an immunity
+    -- reduced the damage (e.g. -2), positive when a weakness increased it (e.g. +3).
+    local deltaLabel = gui.Label{
+        width = "auto",
+        height = rowHeight,
+        valign = "center",
+        textAlignment = "left",
+        fontSize = 28,
+        bold = true,
+        color = "white",
+        text = string.format("%+d", -self.prevented),
+    }
+
+    -- Fixed-height row, width auto so the attacker portrait, shield and number pack
+    -- tightly together on the left and share a single vertical center line.
+    local mainRow = gui.Panel{
+        width = "auto",
+        height = rowHeight,
+        halign = "left",
+        flow = "horizontal",
+        valign = "center",
+        attackerPortrait,
+        gui.Panel{ width = 6, height = 1 },
+        chip,
+        gui.Panel{ width = 8, height = 1 },
+        deltaLabel,
+    }
+
+    local content = {headlineLabel, mainRow}
+
+    -- The ability/attack that inflicted the damage, so players can see which attack
+    -- didn't land full damage (e.g. "Ranged Free Strike").
+    local abilityName = self:try_get("abilityName", "")
+    if abilityName ~= "" then
+        content[#content+1] = gui.Label{
+            classes = {"action-log-subtext", "sizeXxs", "fgMuted"},
+            text = abilityName,
+        }
+    end
+
+    local card = CreateActionLogCard{
+        token = victimToken,
+        hideName = true,
+        content = content,
+    }
+
+    return gui.Panel{
+        classes = {"chat-message-panel"},
+        flow = "vertical",
+        width = "100%",
+        height = "auto",
+        -- Defining our own linger stops the Action Log from attaching its default
+        -- timestamp tooltip (which renders garbage for these messages). Hovering
+        -- anywhere on the card now shows the source's description instead.
+        linger = function(element)
+            gui.Tooltip{ maxWidth = 400, text = hoverDescription }(element)
+        end,
+        refreshMessage = function(element, message)
+        end,
+        card,
+    }
+end
+
 -- Per-encounter hero stat tracking hangs off the central attack-damage path. The base
 -- creature.InflictDamageInstance (DMHub Game Rules/Creature.lua) is the single choke
 -- point that knows the victim (self), the attacker (symbols.attacker), and the actual
@@ -4344,6 +4509,89 @@ function creature.InflictDamageInstance(self, amount, damageType, keywords, sour
         local victimToken = dmhub.LookupToken(self)
         if victimToken ~= nil then
             LiveEncounter.TrackHeroStats(victimToken.charid, "damagePrevention", immunityPrevented)
+        end
+    end
+
+    -- Communicate to all players when an active damage immunity or weakness modified
+    -- this hit. immunityPrevented is non-zero only when the resistance actually took
+    -- effect: positive when an immunity reduced the damage, negative when a weakness
+    -- increased it. Bypassed immunities (cannotBeReduced / Ignore X Immunity) leave it
+    -- at zero, so they correctly produce no entry.
+    if immunityPrevented ~= 0 and math.floor(amount) > 0 then
+        local victimToken = dmhub.LookupToken(self)
+        if victimToken ~= nil then
+            local immunity = immunityPrevented > 0
+
+            -- Find the resistance entry that drove this modification so we can name its
+            -- source. Mirror DamageResistance's selection: the matching damage type (or
+            -- "all") with the largest immunity / worst weakness.
+            local dt = string.lower(damageType)
+            if string.startswith(dt, "magic ") then dt = string.sub(dt, 7)
+            elseif string.startswith(dt, "magical ") then dt = string.sub(dt, 9) end
+
+            local bestEntry = nil
+            for _, entry in ipairs(self:CalculateResistances()) do
+                if entry.apply == "Damage Reduction" and (entry.damageType == dt or entry.damageType == "all") then
+                    local dr = entry:try_get("dr", 0)
+                    if immunity and dr > 0 then
+                        if bestEntry == nil or dr > bestEntry:try_get("dr", 0) then bestEntry = entry end
+                    elseif (not immunity) and dr < 0 then
+                        if bestEntry == nil or dr < bestEntry:try_get("dr", 0) then bestEntry = entry end
+                    end
+                end
+            end
+
+            -- Name + description of the source. Modifier-sourced entries carry e.source
+            -- (the ability name, e.g. "Defiant Anger"); innate resistances do not, so we
+            -- synthesize "Fire Immunity 5". sourceDescriptionText is left empty for innate
+            -- resistances -- Render builds the hover text from the rating and creature name.
+            local sourceName = ""
+            local sourceDescriptionText = ""
+            local rating = immunityPrevented
+            if bestEntry ~= nil then
+                rating = bestEntry:try_get("dr", immunityPrevented)
+                local entrySource = bestEntry:try_get("source")
+                if entrySource ~= nil and entrySource ~= "" then
+                    sourceName = entrySource
+                    for _, mod in ipairs(self:GetActiveModifiers()) do
+                        if mod.mod ~= nil and mod.mod.name == entrySource then
+                            sourceDescriptionText = mod.mod:try_get("description", "")
+                            break
+                        end
+                    end
+                else
+                    local prefix = ""
+                    local etype = bestEntry:try_get("damageType", "all")
+                    if string.lower(etype) ~= "all" then
+                        prefix = string.upper(string.sub(etype, 1, 1)) .. string.sub(etype, 2) .. " "
+                    end
+                    sourceName = string.format("%s%s %d", prefix, cond(immunity, "Immunity", "Weakness"), math.abs(rating))
+                end
+            end
+
+            local attacker = symbols ~= nil and symbols.attacker or nil
+            local attackerToken = (attacker ~= nil and attacker ~= self) and dmhub.LookupToken(attacker) or nil
+
+            -- The ability/attack that inflicted the damage (e.g. "Ranged Free Strike").
+            -- Prefer the ability's name; fall back to the damage source description string.
+            local abilityName = ""
+            if symbols ~= nil and symbols.ability ~= nil then
+                abilityName = symbols.ability:try_get("name", "")
+            end
+            if abilityName == "" and type(sourceDescription) == "string" then
+                abilityName = sourceDescription
+            end
+
+            chat.SendCustom(DamageModifierChatMessage.new{
+                victimid = victimToken.charid,
+                attackerid = attackerToken ~= nil and attackerToken.charid or "",
+                prevented = immunityPrevented,
+                rating = rating,
+                damageType = damageType,
+                source = sourceName,
+                sourceDescription = sourceDescriptionText,
+                abilityName = abilityName,
+            })
         end
     end
 

@@ -1338,12 +1338,14 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
             -- this for the melee lunge / dodge attack animation -- see
             -- GameSystem.OnPowerRollBeginAnimation in CrowdexInventory.lua. The
             -- roll key (dialog.data.rollid) is what lets the engine sync timing.
-            if GameSystem.OnPowerRollBeginAnimation ~= nil then
+            local fn = GameSystem:try_get("OnPowerRollBeginAnimation")
+            if fn and type(fn) == "function" then
+            -- if GameSystem.OnPowerRollBeginAnimation ~= nil then
                 local rollid = nil
                 if dialog ~= nil and dialog.valid and dialog.data ~= nil then
                     rollid = dialog.data.rollid
                 end
-                GameSystem.OnPowerRollBeginAnimation(ability, casterToken, targets, rollInfo, rollid)
+                fn(ability, casterToken, targets, rollInfo, rollid)
             end
         end,
 
@@ -1688,8 +1690,9 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
                 -- system react to the tier outcome on each target with full
                 -- context (attacker, target, tier, natural roll). Crows uses
                 -- this for the Counter reaction on a melee miss.
-                if GameSystem.OnPowerRollResolvedAgainstTarget ~= nil then
-                    GameSystem.OnPowerRollResolvedAgainstTarget(ability, casterTokenForCommand, targetToken, tier, m_rollInfo, options)
+                local fn = GameSystem:try_get("OnPowerRollResolvedAgainstTarget")
+                if fn ~= nil and type(fn) == "function" then
+                    fn(ability, casterTokenForCommand, targetToken, tier, m_rollInfo, options)
                 end
 
                 if tier > highestTier and options.powerRollPass == "target" then

@@ -2989,6 +2989,16 @@ function GameHud.CreateEmbeddedRollDialog()
         end
         resultPanel:SetClass('hidden', true)
         chat.PreviewChat('')
+        --chat.PreviewChat('') above is meant to clear the unsubmitted preview dice,
+        --but while this dialog still owns DiceHarness.dicePreviewPanel the empty-text
+        --path in ChatPanel.ValueChanged is guarded to NOT ClearPreview (so plain chat
+        --typing can't wipe the dialog's dice). That guard can't tell the dialog's own
+        --clear from chat typing: both arrive as a byte-identical PreviewChat(''). So on
+        --cancel the preview dice are left orphaned: they lose their panel at teardown,
+        --drift to the center of the screen stacked on top of each other, and pin
+        --__previewdice=true so the action bar stays locked in preview-dice mode. Clear
+        --them explicitly through the dice API this dialog owns.
+        dmhub.CancelCurrentRoll()
         OnHide()
         RelinquishPanel()
     end

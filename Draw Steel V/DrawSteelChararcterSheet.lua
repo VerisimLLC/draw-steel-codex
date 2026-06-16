@@ -2564,9 +2564,9 @@ local function ShowAdjustLevelDialog(token)
 
         if footerLabel ~= nil and footerLabel.valid then
             if targetLevel == baseLevel then
-                footerLabel.text = "At the base level. No feature is added."
+                footerLabel.text = "At the base level. No adjustment is applied."
             else
-                footerLabel.text = "This adjustment adds a feature to the creature. Delete the feature or click the Reset button below to restore the creature to its original level."
+                footerLabel.text = "Click Reset to restore the creature to its original level."
             end
         end
     end

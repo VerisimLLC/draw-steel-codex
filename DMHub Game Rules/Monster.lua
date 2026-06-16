@@ -78,10 +78,20 @@ function monster.OnCreateFromBestiary(self, token)
     local nameBasis = self:GetNameBasis()
 
     if settingAssignMonstersNames:Get() == false then
-        --Monster Name Generation "None": clear any name inherited from the bestiary
-        --so the token and its character-sheet name field start blank. A name only
-        --appears once a user types one in (which displays everywhere as usual).
-        token.name = ""
+        --Monster Name Generation "None": suppress generated/preset names so the
+        --token and its character-sheet name field start blank -- UNLESS the
+        --players (via the "Players May Rename Monsters" feature) have given this
+        --monster a name. RenameMonsterType remembers that as playerName on the
+        --bestiary entry, so future spawns should keep it. monster_type (the
+        --preset/director-set name) is deliberately NOT used here; only an
+        --explicit player-set name survives. Without a player name the field
+        --stays blank until a user types one in.
+        local playerName = self:try_get("playerName")
+        if playerName ~= nil and playerName ~= "" then
+            token.name = playerName
+        else
+            token.name = ""
+        end
     elseif role == "Solo" or role == "Leader" then
         --solos and leaders just get named their type.
         token.name = nameBasis
@@ -151,14 +161,25 @@ end
 --work); newName becomes the basis of the displayed name. Every on-map instance is renamed
 --(preserving any trailing number, e.g. "Goblin 3" -> "Gobbo 3"), and the playerName is
 --remembered on the bestiary entry so future spawns use it as their name basis.
+--
+--Clearing the name (newName empty/blank) REMOVES the player override: playerName is
+--cleared from every instance and from the bestiary entry, so naming reverts to the
+--default -- generated from monster_type, or blank when Monster Name Generation is "None".
 function monster.RenameMonsterType(monsterType, newName)
 	if monsterType == nil or monsterType == "" or newName == nil then
 		return
 	end
 
 	newName = newName:match("^%s*(.-)%s*$")
-	if newName == "" then
-		return
+
+	--An empty name means "clear the player override" rather than "set the name to
+	--empty". When clearing, the visible name reverts to the monster's type as the
+	--basis -- unless Monster Name Generation is "None", in which case it goes blank.
+	local clearing = (newName == "")
+	local nameGenOff = (settingAssignMonstersNames:Get() == false)
+	local displayBasis = newName
+	if clearing then
+		displayBasis = nameGenOff and "" or monsterType
 	end
 
 	--1. Rename every instance of this monster on the current map.
@@ -170,20 +191,25 @@ function monster.RenameMonsterType(monsterType, newName)
 				local matchedBase, matchedNumber = string.match(tok.name, "^(.-)%s+(%d+)$")
 				number = matchedNumber
 			end
-			if number ~= nil then
-				tok.name = string.format("%s %s", newName, number)
+			if displayBasis == "" then
+				tok.name = ""
+			elseif number ~= nil then
+				tok.name = string.format("%s %s", displayBasis, number)
 			else
-				tok.name = newName
+				tok.name = displayBasis
 			end
-			tok.properties.playerName = newName
+			--Clearing removes playerName entirely so GetNameBasis falls back to
+			--monster_type; a non-empty rename stores the override as before.
+			tok.properties.playerName = cond(clearing, nil, newName)
 			tok:CompleteChanges("Rename Monster")
 		end
 	end
 
-	--2. Remember the player-given name on the bestiary entry(ies) for future spawns.
+	--2. Remember (or, when clearing, remove) the player-given name on the bestiary
+	--entry(ies) so future spawns pick up the change.
 	for _,masset in pairs(assets.monsters) do
 		if masset.properties ~= nil and masset.properties:try_get("monster_type") == monsterType then
-			masset.properties.playerName = newName
+			masset.properties.playerName = cond(clearing, nil, newName)
 			masset:Upload()
 		end
 	end

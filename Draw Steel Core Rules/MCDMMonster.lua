@@ -1230,6 +1230,7 @@ local g_adjustModGuids = {
     t2         = "ad13299a-108b-47d3-ac21-c1eda5abda26",
     t3         = "c79b4266-f7c8-49f4-ac52-0a4def6b63b8",
     strike     = "ea86292d-b78d-47ce-9081-14533f341598",
+    characteristic = "1f7c4d6e-2b9a-4f08-bb51-6e0a9d2c8b34",
 }
 
 --Resolve a custom attribute's GUID (the key an attribute modifier targets) by
@@ -1247,21 +1248,39 @@ end
 --(see MCDMMonsterScaling.ComputeDeltas). Every entry is a plain add-operation
 --Modify Attribute modifier; zero deltas are skipped. Returns nil if there is
 --nothing to add.
-function MCDMMonsterScaling.BuildAdjustmentFeature(deltas)
+--
+--charScale (optional) = { attr = <characteristic attribute id>, bump = <delta> }
+--actually raises the creature's highest characteristic so the sheet reflects it
+--and abilities that roll "2d10 + Highest Characteristic" scale. Because the
+--engine ties Potency() to HighestCharacteristic(), the characteristic bump
+--already moves potency by `bump`; the Potency Bonus attribute therefore carries
+--only the REMAINDER (the echelon-4 leader/solo divergence where potency outpaces
+--the +5-capped characteristic). Strike damage moves by the same `bump` (the
+--characteristic part of a strike's per-tier damage); the static tier text is not
+--re-derived from the characteristic, so there is no double count.
+function MCDMMonsterScaling.BuildAdjustmentFeature(deltas, charScale)
     if deltas == nil then
         return nil
     end
+
+    local charBump = (charScale ~= nil and charScale.bump) or 0
 
     local specs = {
         { key = "ev",         attribute = "ev",                  value = deltas.ev },
         { key = "hitpoints",  attribute = "hitpoints",           value = deltas.stamina },
         { key = "freeStrike", attribute = "Free Strike Bonus",   value = deltas.freeStrike, custom = true },
-        { key = "potency",    attribute = "Potency Bonus",       value = deltas.potency,    custom = true },
+        { key = "potency",    attribute = "Potency Bonus",       value = (deltas.potency or 0) - charBump, custom = true },
         { key = "t1",         attribute = "Tier 1 Damage Bonus", value = deltas.t1,         custom = true },
         { key = "t2",         attribute = "Tier 2 Damage Bonus", value = deltas.t2,         custom = true },
         { key = "t3",         attribute = "Tier 3 Damage Bonus", value = deltas.t3,         custom = true },
-        { key = "strike",     attribute = "Strike Damage Bonus", value = deltas.strike,     custom = true },
+        { key = "strike",     attribute = "Strike Damage Bonus", value = charBump,          custom = true },
     }
+
+    --Raise the actual highest characteristic (skipped when there is no echelon
+    --change, or no attribute to target).
+    if charScale ~= nil and charScale.attr ~= nil and charBump ~= 0 then
+        specs[#specs+1] = { key = "characteristic", attribute = charScale.attr, value = charBump }
+    end
 
     local modifiers = {}
     for _,spec in ipairs(specs) do
@@ -1353,7 +1372,31 @@ creature.RegisterFeatureCalculation{
         end
 
         local org, role = MCDMMonsterScaling.ParseOrgRole(c:try_get("role", ""), c:try_get("minion", false))
-        local feature = MCDMMonsterScaling.BuildAdjustmentFeature(MCDMMonsterScaling.ComputeDeltas(org, role, base, target))
+        local deltas = MCDMMonsterScaling.ComputeDeltas(org, role, base, target)
+
+        -- Resolve the characteristic bump. Read the highest characteristic from
+        -- the raw stored attributes (GetBaseAttribute -- no modifier pipeline, so
+        -- no recursion during this calculation), apply the formula characteristic
+        -- delta (deltas.strike), and clamp the result to the +5 power-roll cap so
+        -- a hand-tuned monster authored above the curve cannot exceed it.
+        local charScale = nil
+        if deltas ~= nil then
+            local highestAttr, highestVal = nil, nil
+            for _, attrid in ipairs(creature.attributeIds) do
+                local v = 0
+                pcall(function() v = c:GetBaseAttribute(attrid).baseValue or 0 end)
+                if highestVal == nil or v > highestVal then
+                    highestVal = v
+                    highestAttr = attrid
+                end
+            end
+            if highestAttr ~= nil then
+                local newHighest = math.min(5, (highestVal or 0) + (deltas.strike or 0))
+                charScale = { attr = highestAttr, bump = newHighest - (highestVal or 0) }
+            end
+        end
+
+        local feature = MCDMMonsterScaling.BuildAdjustmentFeature(deltas, charScale)
         if feature ~= nil then
             result[#result+1] = feature
         end

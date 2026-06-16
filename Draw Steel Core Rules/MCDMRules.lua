@@ -1014,7 +1014,7 @@ GameSystem.RegisterConditionRule{
 	conditions = {"Unbalanced"},
 
 	rule = function(targetCreature, modifiers)
-		return targetCreature:MaxHitpoints(modifiers) <= targetCreature.damage_taken
+		return targetCreature:MaxHitpoints(modifiers) <= (targetCreature.damage_taken or 0)
 	end,
 }
 

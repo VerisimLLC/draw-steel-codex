@@ -863,7 +863,10 @@ function equipment:RenderToMarkdown(options)
         tokens[#tokens+1] = "\n\n:<>"
         for key,token in pairs(Party.GetPlayerCharacters()) do
             if token.name ~= "" then
-                tokens[#tokens+1] = string.format("[[/giveitem \"%s\" %s 1|Give to %s]]", token.name, self.id, token.name)
+                -- Escape the name so a [ ] or | in it doesn't corrupt the macro
+                -- syntax; RichMacro decodes it before running/showing the button.
+                local safeName = RichMacro.Escape(token.name)
+                tokens[#tokens+1] = string.format("[[/giveitem \"%s\" %s 1|Give to %s]]", safeName, self.id, safeName)
             end
         end
 

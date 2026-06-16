@@ -858,11 +858,12 @@ end
 
 RegisterGameType("Encounter") --make sure we have it registered.
 
---Programmatic "Draw Steel!": starts combat immediately with the given authored
---encounter, bypassing the combat setup dialog. Heroes are gathered with the same
---side and non-combatant-party logic the setup dialog uses; the participating
---monsters are the tokens the encounter placed on the map (spawnedCharids). Turn
---order is rolled. Used by the journal RichEncounter "Draw Steel!" button.
+--Journal "Draw Steel!" button entry point. Opens the combat setup dialog scoped to
+--the given authored encounter so the DM can confirm/adjust sides before rolling turn
+--order. The dialog pre-selects this encounter in its dropdown (which routes the
+--encounter's placed monsters into the participating "Monsters" pool) and sets up the
+--heroes automatically. spawnedCharids is no longer needed -- the dialog derives the
+--participating monsters from the encounter's spawns via the dropdown selection.
 function Encounter.DrawSteelWithEncounter(encounter, spawnedCharids)
     local q = dmhub.initiativeQueue
     if q ~= nil and not q.hidden then
@@ -870,45 +871,7 @@ function Encounter.DrawSteelWithEncounter(encounter, spawnedCharids)
         return
     end
 
-    local spawned = {}
-    for _,charid in ipairs(spawnedCharids or {}) do
-        spawned[charid] = true
-    end
-
-    g_playerTokensOpenInitiative = {}
-    g_monsterTokensOpenInitiative = {}
-
-    local tokens = {}
-    local partyTable = dmhub.GetTable(Party.tableName)
-    local playerPartyId = GetDefaultPartyID()
-    local playerParty = GetParty(playerPartyId)
-    for _,tok in ipairs(dmhub.allTokens) do
-        if tok ~= nil and tok.valid then
-            local partyid = tok.partyId
-            local playerSide = partyid ~= nil and ((partyid == playerPartyId) or (playerParty ~= nil and playerParty:GetAllyParties()[partyid] ~= nil))
-            if not playerSide and tok.playerControlled then
-                playerSide = true
-            end
-
-            local noncombatant = false
-            if partyid ~= nil then
-                local party = partyTable[partyid]
-                noncombatant = party ~= nil and party.noncombatant
-            end
-
-            if playerSide and not noncombatant then
-                tokens[#tokens+1] = tok
-                g_playerTokensOpenInitiative[tok.charid] = true
-            elseif (not playerSide) and spawned[tok.charid] then
-                tokens[#tokens+1] = tok
-                g_monsterTokensOpenInitiative[tok.charid] = true
-            end
-        end
-    end
-
-    g_selectedEncounterOpenInitiative = encounter
-    g_selectedTokensOpenInitiative = tokens
-    showDrawSteelBanner(nil)
+    Encounter.ShowCombatSetupDialog(nil, encounter)
 end
 
 --- @class RollInitiativeChatMessage
@@ -1249,7 +1212,11 @@ local function SetTokenSurprised(tok, surprised)
     end
 end
 
-local function ShowCombatSetupDialog(selectedTokens)
+--selectedTokens: optional list of tokens to pre-mark as participating (else inferred).
+--preselectEncounter: optional Encounter object to force-select in the dropdown; takes
+--priority over the readied/open-journal inference. Used by the journal RichEncounter
+--"Draw Steel!" button so the dialog opens scoped to that encounter.
+local function ShowCombatSetupDialog(selectedTokens, preselectEncounter)
     local m_encounterStrength = 0
     local m_encounterStrengthSingleHero = 0
     local surprisedCondition = CharacterCondition.conditionsByName["surprised"]
@@ -1872,8 +1839,19 @@ local function ShowCombatSetupDialog(selectedTokens)
     local m_selectedEncounterId = "custom"
     local defaultEncounterIndex = nil
 
+    --An explicitly requested encounter (e.g. the journal "Draw Steel!" button) wins
+    --over every inferred default below.
+    if preselectEncounter ~= nil then
+        for i, info in ipairs(m_encountersOnMap) do
+            if info.encounter == preselectEncounter or info.name == preselectEncounter.name then
+                defaultEncounterIndex = i
+                break
+            end
+        end
+    end
+
     local readiedEncounter = Encounter.GetReadiedEncounter()
-    if readiedEncounter ~= nil then
+    if defaultEncounterIndex == nil and readiedEncounter ~= nil then
         for i, info in ipairs(m_encountersOnMap) do
             if info.encounter == readiedEncounter or info.name == readiedEncounter.name then
                 defaultEncounterIndex = i
@@ -2166,6 +2144,10 @@ local function ShowCombatSetupDialog(selectedTokens)
 
     GameHud.instance:ShowModal(dialog)
 end
+
+--Public handle so callers earlier in the file (Encounter.DrawSteelWithEncounter) and
+--other modules can open the combat setup dialog, optionally scoped to an encounter.
+Encounter.ShowCombatSetupDialog = ShowCombatSetupDialog
 
 Commands.RegisterMacro{
     name = "rollinitiative",

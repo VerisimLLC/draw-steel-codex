@@ -1188,6 +1188,8 @@ ThemeEngine.RegisterTheme{
             bgimage = "panels/gamescreen/settings.png",
         },
         {
+            selectors = {"panel", "buttonIcon", "parent:customiseAbilityButton"},
+            bgimage = "ui-icons/pencil.png",
             selectors = {"panel", "buttonIcon", "parent:maximizeButton"},
             bgimage = "panels/hud/down-arrow.png",
         },
@@ -2071,9 +2073,12 @@ ThemeEngine.RegisterTheme{
         -- every dock surface here.
         -- =====================================================================
 
-        -- Slide-in/out animation. 364 matches DockablePanel.DockWidth.
-        { selectors = {"dock", "offscreen", "left"},  x = -364, transitionTime = 0.2 },
-        { selectors = {"dock", "offscreen", "right"}, x =  364, transitionTime = 0.2 },
+        -- The dock slide-in/out (the 'offscreen' class) is defined as a per-dock
+        -- style in Lua (DockablePanel.CreateSingleDock -> OffscreenStyle), not
+        -- here, because its translation distance must scale with the dock's
+        -- uiscale=dockScale or the restore handle slides off-screen with the dock
+        -- at smaller scales. That style carries both the x offset and the
+        -- transitionTime, and is driven by the class so the slide animates.
 
         -- Dock frame surface beneath each dock column.
         {

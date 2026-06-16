@@ -1692,7 +1692,11 @@ function CustomDocument.GetOrCreateTabbedViewer()
     local function realizeTab(tabData)
         if tabData.contentPanel ~= nil then return end
         local docs = dmhub.GetTable(CustomDocument.tableName) or {}
-        local doc = docs[tabData.docId]
+        -- Prefer the most up-to-date table copy, but fall back to the in-memory
+        -- doc captured at addTab time. Transient docs (e.g. an item/spell link
+        -- wrapped via MarkdownRender.RenderToMarkdown) are never written to the
+        -- table, so a table-only lookup would render a blank tab for them.
+        local doc = docs[tabData.docId] or tabData.doc
         if doc == nil then return end
 
         local contentPanel = doc:CreateInterface(tabData.tabArgs)
@@ -1789,6 +1793,7 @@ function CustomDocument.GetOrCreateTabbedViewer()
             local tabData = {
                 tabId = element.data.nextTabId,
                 docId = doc.id,
+                doc = doc,            -- in-memory fallback for transient docs not in the table
                 history = {},
                 forwardHistory = {},
                 contentPanel = nil,   -- realized lazily on first switchToTab

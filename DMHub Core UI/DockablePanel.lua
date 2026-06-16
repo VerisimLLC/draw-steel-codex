@@ -160,6 +160,27 @@ function GameHud:CreateSingleDock(params)
 	--Driving it through setScale (which changes uiscale+height) forces that refresh.
 	params.height = baseDockHeight
 
+	--Per-dock style that slides the dock off its screen edge while the
+	--'offscreen' class is set. The slide distance must equal the dock's
+	--*rendered* width (DockWidth * dockScale): the dock renders at
+	--uiscale=dockScale and the restore handle is a child of the dock, so a fixed
+	--base-width offset overshoots by (1-dockScale)*DockWidth and carries the
+	--handle off-screen with the dock, leaving it unreachable at scales below
+	--~0.93. This lives as a per-dock style (rebuilt on setScale) rather than a
+	--static rule in DefaultStyles so the distance can track dockScale -- and,
+	--crucially, because it's driven by the 'offscreen' *class* (not selfStyle)
+	--the transitionTime animates the slide. selfStyle changes apply instantly; a
+	--style applied/removed by a class change is what the engine transitions. The
+	--floating (center) dock isn't scaled and has no handle, so it gets no offset.
+	local function OffscreenStyle()
+		local dir = cond(params.halign == "right", 1, -1)
+		return gui.Style{
+			selectors = {"offscreen"},
+			x = cond(floating, 0, dir * DockablePanel.DockWidth * dockScale),
+			transitionTime = 0.2,
+		}
+	end
+
 	local verticalResizingInfo = nil
 
 	--functions to compress and expand the vertical size of panels. We have deltaPixels to work with
@@ -233,6 +254,7 @@ function GameHud:CreateSingleDock(params)
 		width = width,
 		uiscale = 1,
 		classes = {"dock", params.halign},
+		styles = {OffscreenStyle()},
 		dragTarget = true,
 		data = {
             floating = floating,
@@ -347,6 +369,12 @@ function GameHud:CreateSingleDock(params)
 			element:FireEventTree("updatetabs")
 			element:FireEvent("fitChildren")
 			element:FireEventTree("layoutChanged")
+			--Rebuild the offscreen slide style for the new scale: its translation
+			--distance is DockWidth*dockScale, so if the dock is currently
+			--offscreen the restore handle would otherwise drift off the screen
+			--edge. The dock has no other local styles, so replacing the array is
+			--safe (the DefaultStyles cascade comes from ancestors, not here).
+			element.styles = {OffscreenStyle()}
 		end,
 
 

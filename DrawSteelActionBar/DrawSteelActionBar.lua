@@ -320,6 +320,54 @@ local g_preferredForcedMovementType = setting {
     default = "none",
 }
 
+-- Transient highlight for an ability revealed from search (on-map monster
+-- ability result). Pulsed via Panel:PulseClass, so the @accent fill applies
+-- instantly then fades over transitionTime. Merged into the action bar root
+-- cascade so it resolves on the ability headings inside an opened drawer menu.
+-- Each reveal pulse fades the accent IN over SEARCH_REVEAL_FADE (eased), HOLDS
+-- it, fades OUT over the same time, then a slight SEARCH_REVEAL_GAP pause before
+-- the next - a gentle "here I am" breathe rather than a strobe (matches the
+-- sheet reveal).
+local SEARCH_REVEAL_FADE = 0.8
+local SEARCH_REVEAL_HOLD = 0.3
+local SEARCH_REVEAL_GAP = 0.1
+local SEARCH_REVEAL_PULSES = 3
+local SEARCH_REVEAL_RULE = {
+    selectors = { "abilityHeading", "searchReveal" },
+    bgcolor = "@accent",
+    transitionTime = SEARCH_REVEAL_FADE,
+    easing = "easeInOutSine",
+}
+
+-- Which drawer an ability lives in, mirroring the per-type filtering the
+-- "menu" event applies to g_abilities. Returns the drawer's `type` string, or
+-- nil when the ability is not surfaced by any drawer (then the reveal is a
+-- no-op). Used by Search.RevealActionBarAbility below.
+local function DrawerTypeForAbility(ability)
+    local cat = ability.categorization
+    if cat == "Malice" then
+        return "malice"
+    end
+    if cat == "Trigger" or cat == "Villain Action" then
+        return "trigger"
+    end
+    if cat == "Move" then
+        return "move"
+    end
+    local rid = ability.actionResourceId
+    if rid == CharacterResource.actionResourceId then
+        return "action"
+    end
+    if rid == CharacterResource.maneuverResourceId
+        or rid == "none"
+        or rid == CharacterResource.respiteActivityId
+        or rid == CharacterResource.freeManeuverResourceId then
+        --Free / respite / maneuver abilities all surface in the maneuver drawer.
+        return "maneuver"
+    end
+    return nil
+end
+
 
 local function ActionBarDrawer(args)
     local m_resourceid
@@ -735,6 +783,9 @@ local function ActionBarDrawer(args)
 
     local resultPanelArgs = {
         classes = { "actionBarDrawer" },
+
+        --Stamped so the search reveal can find this drawer by its type.
+        data = { drawerType = args.type },
 
         press = function(element)
 
@@ -1199,7 +1250,7 @@ local function CreateActionBar()
 
     resultPanel = gui.Panel {
         classes = { "actionBar" },
-        styles = { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(Styles.ActionBar) },
+        styles = { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(Styles.ActionBar), ThemeEngine.MergeTokens{ SEARCH_REVEAL_RULE } },
         width = "100%",
         height = 50,
         halign = "center",
@@ -1212,7 +1263,7 @@ local function CreateActionBar()
         create = function(element)
             element.data.themeListener = ThemeEngine.OnThemeChanged(mod, function()
                 if element.valid then
-                    element.styles = { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(Styles.ActionBar) }
+                    element.styles = { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(Styles.ActionBar), ThemeEngine.MergeTokens{ SEARCH_REVEAL_RULE } }
                 end
             end)
         end,
@@ -1573,6 +1624,8 @@ local function AbilityHeading(args)
             classes = { "abilityIconPanel" },
             ability = function(element, ability)
                 m_ability = ability
+                --Stamped so the search reveal can find this heading by name.
+                resultPanel.data.abilityName = ability.name
 
                 if ability:try_get("manualVersionOfTrigger") or ability.categorization == "Trigger" then
                     element.text = "!"
@@ -2707,6 +2760,15 @@ end
 --functionality to mark radiuses.
 local g_radiusMarkers = {}
 
+--Strict movement: the exact set of legal forced-move destination tiles, captured from
+--the SAME data the forced-move movement radius is drawn from (g_token:CalculateMovementPerimeter
+--with the identical args passed to MarkMovementRadius). Keyed by loc.xyfloorOnly.str. nil when
+--no forced-move (straightline) targeting is active. Used to confine targeting to the drawn tiles.
+local g_forcedMoveLegalLocs = nil
+
+--One-shot guard so the "needs a C# build" warning prints at most once per session.
+local g_warnedPerimeterMissing = false
+
 local AddCustomAreaMarker = function(locs, color)
     g_radiusMarkers[#g_radiusMarkers + 1] = dmhub.MarkLocs {
         locs = locs,
@@ -2763,6 +2825,32 @@ local function ClearRadiusMarkers()
     end
 
     g_radiusMarkers = {}
+    g_forcedMoveLegalLocs = nil
+end
+
+--Strict movement: capture the EXACT legal forced-move destination tiles into
+--g_forcedMoveLegalLocs (keyed by loc.xyfloorOnly.str), using the SAME range + args
+--passed to MarkMovementRadius. CalculateMovementPerimeter runs the identical engine
+--computation that draws the radius, so the legal set and the highlighted radius can
+--never disagree -- no separate/duplicated targeting algorithm. Call this right after
+--each forced-move MarkMovementRadius draw so the set stays in sync (including the
+--multi-step waypoint re-draw). pcall-guarded: if the engine method is missing (Lua
+--reloaded before the C# build), leave the set nil and fall open instead of erroring.
+local function CaptureForcedMoveLegalLocs(token, range, radiusArgs)
+    local ok, perim = pcall(function() return token:CalculateMovementPerimeter(range, radiusArgs) end)
+    if ok and type(perim) == "table" then
+        local set = {}
+        for _, perimLoc in ipairs(perim) do
+            set[perimLoc.xyfloorOnly.str] = true
+        end
+        g_forcedMoveLegalLocs = set
+    else
+        g_forcedMoveLegalLocs = nil
+        if not ok and not g_warnedPerimeterMissing then
+            g_warnedPerimeterMissing = true
+            print("[STRICTMOVE] CalculateMovementPerimeter unavailable (needs a C# build); forced-move enforcement is OFF until the engine is rebuilt.")
+        end
+    end
 end
 
 
@@ -2783,6 +2871,48 @@ local function RemoveTokenTargeting()
     end
 
     g_targetInfo = nil
+end
+
+
+--- True when strict forced-movement enforcement should currently apply. The
+--- "Strictly Enforce Forced Movement Rules" game setting must be on, and the actor must be
+--- a PLAYER -- OR a GM who is currently viewing the world as a player (Show Token
+--- Vision, or logged in as a token). Plain GM view is exempt, matching
+--- strict:resources / strict:targeting. The token-vision/logged-in-as cases let the
+--- rules be exercised and tested from the player's perspective.
+--- @return boolean
+local function ForcedMoveEnforcementActive()
+    if not dmhub.GetSettingValue("strict:movement") then
+        return false
+    end
+    if not dmhub.isDM then
+        return true
+    end
+    return dmhub.tokenVision ~= nil or dmhub.tokensLoggedInAs ~= nil
+end
+
+--- Strict movement enforcement for forced movement (push/pull/slide/knockback).
+--- Returns true when enforcement is active (see ForcedMoveEnforcementActive) and `loc`
+--- is NOT one of the tiles the forced-move movement radius highlights. The legal-tile
+--- set (g_forcedMoveLegalLocs) is captured from the exact same engine computation that
+--- draws the radius, so "what you can target" matches "what is highlighted" tile-for-tile.
+--- When the caller rejects a loc it suppresses the preview arrow / "Click to Confirm"
+--- text and ignores the click. If the legal set is unavailable (forced-move radius not
+--- computed, or the engine method is missing pre-build) we fall OPEN -- do not constrain --
+--- so targeting keeps working rather than blocking everything.
+--- @param loc nil|Loc
+--- @return boolean
+local function ForcedMoveLocRejected(loc)
+    if not ForcedMoveEnforcementActive() then
+        return false
+    end
+    if g_forcedMoveLegalLocs == nil then
+        return false
+    end
+    if loc == nil then
+        return true
+    end
+    return g_forcedMoveLegalLocs[loc.xyfloorOnly.str] ~= true
 end
 
 
@@ -4903,15 +5033,40 @@ CreateAbilityController = function()
                     if targetingType == "straightline" then
                         previewForcedDist = g_currentAbility:GetRange(g_token.properties, g_currentSymbols) / dmhub.unitsPerSquare
                     end
-                    local movementInfo = g_token:MarkMovementArrow(loc, {
-                        straightline = true,
-                        ignorecreatures = (targetingType == "straightpathignorecreatures" or throughCreatures),
-                        rebound = reboundOptions.rebound,
-                        maxBounces = reboundOptions.maxBounces,
-                        forcedMovementDistance = previewForcedDist,
-                        slide = (g_currentSymbols.forcedmovement or g_currentAbility:try_get("forcedMovement")) == "vertical_slide",
-                    })
-                    
+
+                    --[STRICTMOVE] diagnostic: once per hovered square, report whether the
+                    --hovered tile is in the captured legal-tile set (the exact tiles the
+                    --forced-move radius highlights) and whether enforcement is active.
+                    --Throttled by loc to avoid log spam. Safe to remove once verified.
+                    do
+                        local dk = tostring(loc and loc.str or "nil")
+                        if element.data._strictMoveDiagKey ~= dk then
+                            element.data._strictMoveDiagKey = dk
+                            print(string.format("[STRICTMOVE] hover=%s forcedmove=%s enforceActive=%s legalSet=%s inLegalSet=%s rejected=%s",
+                                tostring(loc and loc.str or "nil"),
+                                tostring(g_currentSymbols.forcedmovement or g_currentAbility:try_get("forcedMovement", "?")),
+                                tostring(ForcedMoveEnforcementActive()),
+                                tostring(g_forcedMoveLegalLocs ~= nil and "set" or "nil"),
+                                tostring(g_forcedMoveLegalLocs ~= nil and loc ~= nil and (g_forcedMoveLegalLocs[loc.xyfloorOnly.str] == true)),
+                                tostring((targetingType == "straightline") and ForcedMoveLocRejected(loc))))
+                        end
+                    end
+
+                    --Strict movement: a player may not preview a forced move to a square
+                    --outside the tiles the forced-move radius highlights (g_forcedMoveLegalLocs,
+                    --captured from the identical engine computation that draws the radius).
+                    local movementInfo = nil
+                    if not ((targetingType == "straightline") and ForcedMoveLocRejected(loc)) then
+                        movementInfo = g_token:MarkMovementArrow(loc, {
+                            straightline = true,
+                            ignorecreatures = (targetingType == "straightpathignorecreatures" or throughCreatures),
+                            rebound = reboundOptions.rebound,
+                            maxBounces = reboundOptions.maxBounces,
+                            forcedMovementDistance = previewForcedDist,
+                            slide = (g_currentSymbols.forcedmovement or g_currentAbility:try_get("forcedMovement")) == "vertical_slide",
+                        })
+                    end
+
                     if movementInfo ~= nil then
                         local targets = g_currentAbility:FindTargetsInMovementVicinity(g_token, movementInfo.path) or
                             filteredTargets
@@ -4930,8 +5085,13 @@ CreateAbilityController = function()
                             clearWarningArrows = false
                         end
                     end
-                    g_pointTargeting.showingMovementArrow = true
-                    clearMovementArrow = false
+                    --Only keep an arrow drawn when one was actually previewed. When a
+                    --strict-movement reject suppressed it, leave clearMovementArrow at
+                    --its default so any arrow from the previous frame is removed.
+                    if movementInfo ~= nil then
+                        g_pointTargeting.showingMovementArrow = true
+                        clearMovementArrow = false
+                    end
 
                     if movementInfo ~= nil then
                         local path = movementInfo.path
@@ -5492,7 +5652,14 @@ CreateAbilityController = function()
                     g_pointTargeting.partnerRadius = g_pointTargeting.partnerShape:Mark { color = targetColor, video = video }
                 end
 
-                if g_currentAbility ~= nil and loc ~= nil and g_pointTargeting.shape ~= nil then
+                --Strict movement: suppress the "Click to Confirm" affordance when a
+                --player is hovering a square outside the tiles the forced-move radius
+                --highlights, so it doesn't invite a click that will be rejected. The
+                --radius itself still renders.
+                local strictConfirmReject = (g_currentAbility ~= nil)
+                    and (g_currentAbility:try_get("targeting", "direct") == "straightline")
+                    and ForcedMoveLocRejected(loc)
+                if g_currentAbility ~= nil and loc ~= nil and g_pointTargeting.shape ~= nil and (not strictConfirmReject) then
                     local numTargets = g_currentAbility:GetNumTargets(g_token, g_currentSymbols)
 
                     local clickText = cond(numTargets == 1, "Click to Confirm", "")
@@ -5677,6 +5844,14 @@ CreateAbilityController = function()
                 end
             end
 
+            --Strict movement: a player (not the DM) may not target a forced-move square
+            --outside the tiles the forced-move radius highlights (g_forcedMoveLegalLocs,
+            --captured from the same engine computation that draws the radius). Tested after
+            --the large-creature offset so it matches the loc the preview/append use.
+            if targetingType == "straightline" and ForcedMoveLocRejected(loc) then
+                return
+            end
+
             print("WAYPOINT:: PRESS SHAPE:", g_pointTargeting.shape)
             if g_pointTargeting.shape ~= nil then
                 local targets = m_positionTargetsChosen
@@ -5831,12 +6006,18 @@ CreateAbilityController = function()
                                 filterTargetPredicate = function(loc) return baseFilter(loc) and restrictionFilter(loc) end
                             end
                         end
-                        local radiusMarker = g_token:MarkMovementRadius(g_range,
-                            { moveFlags = moveFlags, waypoints = waypoints, mask = mask, filter = filterTargetPredicate})
+                        local radiusArgs = { moveFlags = moveFlags, waypoints = waypoints, mask = mask, filter = filterTargetPredicate}
+                        local radiusMarker = g_token:MarkMovementRadius(g_range, radiusArgs)
 
                         if radiusMarker ~= nil then
                         print("MARK:: MARK LOCS")
                             g_radiusMarkers[#g_radiusMarkers + 1] = radiusMarker
+
+                            --Strict movement: keep the legal-tile set in sync with this
+                            --freshly-drawn forced-move radius (multi-step path case).
+                            if forcedMovement then
+                                CaptureForcedMoveLegalLocs(g_token, g_range, radiusArgs)
+                            end
                             return
                         end
                     end
@@ -6391,8 +6572,18 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
                 end
 
                 print("MARK:: MovementRadius:: MARK", range)
-                g_radiusMarkers[#g_radiusMarkers + 1] = g_token:MarkMovementRadius(range,
-                    { moveFlags = moveFlags, waypoints = waypoints, mask = mask, filter = filterTargetPredicate })
+                local radiusArgs = { moveFlags = moveFlags, waypoints = waypoints, mask = mask, filter = filterTargetPredicate }
+                g_radiusMarkers[#g_radiusMarkers + 1] = g_token:MarkMovementRadius(range, radiusArgs)
+
+                --Strict movement: for forced movement (straightline), capture the EXACT
+                --tiles this radius is drawn from so targeting can be confined to them.
+                --Other targeting variants (pathfind/vacated normal movement) are not
+                --forced movement -> leave the set nil (no forced-move gating).
+                if g_currentAbility:try_get("targeting", "direct") == "straightline" then
+                    CaptureForcedMoveLegalLocs(g_token, range, radiusArgs)
+                else
+                    g_forcedMoveLegalLocs = nil
+                end
             elseif (g_currentAbility.targetType ~= 'line' or g_currentAbility.canChooseLowerRange) and g_currentAbility.targetType ~= 'cone' and g_currentAbility.targetType ~= 'self' and g_currentAbility.targetType ~= 'all' and g_currentAbility.targetType ~= 'map' and g_currentAbility.targetType ~= 'areatemplate' then
                 local loc = g_currentAbility:try_get("casterLocOverride")
 
@@ -6462,3 +6653,121 @@ dmhub.RegisterEventHandler("restoreFromBackup", function()
     end
 end)
 --RegisterCustomActionBar(nil)
+
+-- =============================================================================
+-- On-map search reveal: open an ability's drawer menu and pulse its row.
+--
+-- When the director searches an on-map monster's ability (the map-view context
+-- provider in CharacterPanel.lua), the result selects + centres the token; its
+-- abilities then populate this bar. This points the director at the matched
+-- ability: open the drawer dropdown it lives in and pulse its row. Exposed on
+-- the shared Search table (field access is nil-safe across modules). A no-op
+-- when the ability is not on the bar (traits route here as nil; an ability that
+-- no drawer surfaces is skipped). Every panel read is pcall-guarded.
+-- =============================================================================
+Search.RevealActionBarAbility = function(tokenid, abilityName)
+    if type(abilityName) ~= "string" or abilityName == "" then
+        return
+    end
+
+    --g_abilities populates asynchronously after SelectToken, so retry until the
+    --bar is showing the right token and the matched ability is present.
+    local openAttempts = 0
+    local function openDrawer()
+        if mod.unloaded then
+            return
+        end
+        if g_actionBar == nil or not g_actionBar.valid or g_token == nil or g_token.id ~= tokenid then
+            openAttempts = openAttempts + 1
+            if openAttempts < 30 then dmhub.Schedule(0.1, openDrawer) end
+            return
+        end
+
+        local matched = nil
+        for _, ability in ipairs(g_abilities or {}) do
+            local ok, nm = pcall(function() return ability.name end)
+            if ok and nm == abilityName then
+                matched = ability
+                break
+            end
+        end
+        if matched == nil then
+            openAttempts = openAttempts + 1
+            if openAttempts < 30 then dmhub.Schedule(0.1, openDrawer) end
+            return
+        end
+
+        local drawerType = DrawerTypeForAbility(matched)
+        if drawerType == nil then
+            return
+        end
+
+        --Find the drawer of that type and open its dropdown. press toggles, so
+        --only press when it is not already the active (open) drawer.
+        local drawer = nil
+        local function walkDrawer(p, depth)
+            if p == nil or depth > 10 or drawer ~= nil then return end
+            local dt = nil
+            pcall(function() dt = p.data and p.data.drawerType or nil end)
+            if dt == drawerType then drawer = p return end
+            local ok, ch = pcall(function() return p.children end)
+            if ok and type(ch) == "table" then
+                for _, c in ipairs(ch) do walkDrawer(c, depth + 1) end
+            end
+        end
+        walkDrawer(g_actionBar, 0)
+        if drawer == nil then
+            return
+        end
+        if not drawer:HasClass("active") then
+            drawer:FireEvent("press")
+        end
+
+        --The menu builds its headings synchronously but needs a frame to lay
+        --out; retry locating the matched heading, then pulse it a few times so
+        --it is easy to see (finite scheduled chain, no persistent think).
+        local pulseAttempts = 0
+        local function pulse()
+            if mod.unloaded or not g_actionBar.valid then
+                return
+            end
+            local heading = nil
+            local function walkHeading(p, depth)
+                if p == nil or depth > 25 or heading ~= nil then return end
+                local an = nil
+                pcall(function() an = p.data and p.data.abilityName or nil end)
+                if an == abilityName and p:HasClass("abilityHeading") and not p:HasClass("collapsed") then
+                    heading = p
+                    return
+                end
+                local ok, ch = pcall(function() return p.children end)
+                if ok and type(ch) == "table" then
+                    for _, c in ipairs(ch) do walkHeading(c, depth + 1) end
+                end
+            end
+            walkHeading(g_actionBar, 0)
+            if heading ~= nil then
+                --Fade the accent in, hold, fade out (both over the rule's
+                --transitionTime), then a slight pause before the next - a
+                --gentle reminder breathe, not a strobe.
+                local remaining = SEARCH_REVEAL_PULSES
+                local function cycle()
+                    if mod.unloaded or heading == nil or not heading.valid then return end
+                    heading:SetClass("searchReveal", true)
+                    dmhub.Schedule(SEARCH_REVEAL_FADE + SEARCH_REVEAL_HOLD, function()
+                        if mod.unloaded or heading == nil or not heading.valid then return end
+                        heading:SetClass("searchReveal", false)
+                        remaining = remaining - 1
+                        if remaining > 0 then dmhub.Schedule(SEARCH_REVEAL_FADE + SEARCH_REVEAL_GAP, cycle) end
+                    end)
+                end
+                cycle()
+                return
+            end
+            pulseAttempts = pulseAttempts + 1
+            if pulseAttempts < 20 then dmhub.Schedule(0.05, pulse) end
+        end
+        pulse()
+    end
+    openDrawer()
+end

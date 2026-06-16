@@ -2613,7 +2613,8 @@ setting{
 
 setting{
     id = "strict:movement",
-    description = "Strictly Enforce Movement Rules",
+    description = "Strictly Enforce Forced Movement Rules",
+    help = "When enabled, players (and a GM viewing as a player) can only place forced movement (push, pull, slide, knockback) on legally reachable tiles. This is separate from the engine's 'Strictly Enforce Movement Rules' setting, which restricts voluntary drag-movement to a token's own turn during combat.",
     storage = "game",
     editor = "check",
     default = false,

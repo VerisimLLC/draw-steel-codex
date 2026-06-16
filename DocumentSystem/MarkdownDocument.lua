@@ -1512,17 +1512,15 @@ function MarkdownDocument.DisplayPanel(self, args)
 
                                 local doc = CustomDocument.ResolveLink(element.linkHovered)
                                 if doc ~= nil then
-                                    -- Try in-place navigation for document types
+                                    -- Try in-place navigation for real document types only.
+                                    -- Renderable content (e.g. an item/spell link) wraps into a
+                                    -- transient MarkdownDocument that is never written to the
+                                    -- table, so navigateToDocument (which looks up by id) can't
+                                    -- resolve it -- let those fall through to OpenContent instead.
                                     local navigableDocId = nil
                                     if type(doc) == "table" or type(doc) == "userdata" then
                                         if doc.IsDerivedFrom and doc.IsDerivedFrom("CustomDocument") and doc:try_get("id") then
                                             navigableDocId = doc.id
-                                        elseif MarkdownRender.IsRenderable(doc) then
-                                            -- Wrap renderable content into a MarkdownDocument and upload so it has an ID
-                                            local wrappedDoc = MarkdownRender.RenderToMarkdown(doc, { noninteractive = false })
-                                            if wrappedDoc and wrappedDoc.id then
-                                                navigableDocId = wrappedDoc.id
-                                            end
                                         end
                                     end
 

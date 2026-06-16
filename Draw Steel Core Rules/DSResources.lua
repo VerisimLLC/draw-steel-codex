@@ -116,6 +116,15 @@ function VillainActionState.MarkUsed(tokenid, villainActionKey)
     doc:CompleteChange("Villain Action used: " .. villainActionKey)
 end
 
+function VillainActionState.ClearUsed(tokenid, villainActionKey)
+    if tokenid == nil or villainActionKey == nil then return end
+    local doc = mod:GetDocumentSnapshot(VillainActionState.docId)
+    if doc.data.used == nil or doc.data.used[tokenid] == nil then return end
+    doc:BeginChange()
+    doc.data.used[tokenid][villainActionKey] = nil
+    doc:CompleteChange("Villain Action reset: " .. villainActionKey, {undoable = false})
+end
+
 function VillainActionState.ClearForToken(tokenid)
     if tokenid == nil then return end
     local doc = mod:GetDocumentSnapshot(VillainActionState.docId)

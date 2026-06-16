@@ -1482,11 +1482,31 @@ local CreateAssetsHierarchy = function(moduleInstance)
 		end
 
 		local codemodsChildren = {}
-		local codemodsPresent = code.loadedModsLocalToGame
+		-- Codemods authored locally in this game, plus codemods that were
+		-- installed into the game by module dependencies (e.g. the Crowdex
+		-- codemod pulled in via mcdm-crowdex). The latter live in
+		-- gameInfo.codeModsFromModules and would otherwise not be offerable as
+		-- content to bundle into this module. Dedup so a codemod that is both
+		-- local and from a module only appears once.
+		local codemodsPresent = {}
+		local codemodsSeen = {}
+		local AddCodemod = function(modid)
+			if modid ~= nil and modid ~= "" and not codemodsSeen[modid] then
+				codemodsSeen[modid] = true
+				codemodsPresent[#codemodsPresent+1] = modid
+			end
+		end
+		for _,modid in ipairs(code.loadedModsLocalToGame) do
+			AddCodemod(modid)
+		end
+		for _,modid in ipairs(code.loadedModsFromModules) do
+			AddCodemod(modid)
+		end
 		for _,modid in ipairs(codemodsPresent) do
 			local modInfo = code.GetMod(modid)
-			codemodsChildren[#codemodsChildren+1] = CreateCodeModView(modid, modInfo)
-			
+			if modInfo ~= nil then
+				codemodsChildren[#codemodsChildren+1] = CreateCodeModView(modid, modInfo)
+			end
 		end
 
 		dmhub.Debug(string.format("CODEMOD:: %d", #codemodsChildren))

@@ -970,19 +970,23 @@ function CharSheet.FramePreviewPanel()
                     unclamped = true,
                     sliderWidth = 340,
                     labelWidth = 50,
-                    minValue = 0,
+                    -- Hard minimum: a tokenScale below 0.3 shrinks the rendered token
+                    -- to (near) nothing, making it invisible-but-selectable. The engine
+                    -- also clamps to 0.3 (CharacterAppearance.MinTokenScaling) as a backstop.
+                    minValue = 0.3,
                     maxValue = 2,
                     events = {
                         change = function(element)
+                            local v = math.max(0.3, element.value)
                             if g_previewToken ~= nil and g_previewToken.valid then
-                                g_previewToken.tokenScale = element.value
+                                g_previewToken.tokenScale = v
                                 game.Refresh {
                                     tokens = { g_previewTokenId },
                                 }
                             end
                         end,
                         confirm = function(element)
-                            CharacterSheet.instance.data.info.token.tokenScale = element.value
+                            CharacterSheet.instance.data.info.token.tokenScale = math.max(0.3, element.value)
                             CharacterSheet.instance.data.info.token:UploadAppearance()
                             CharacterSheet.instance:FireEvent("refreshAll")
                         end,
@@ -1709,6 +1713,16 @@ function CharSheet.AppearancePanel()
 
                         local alternateAppearances = info.token.properties:GetAlternateAppearances()
 
+                        --If an alternate appearance is currently selected but the modifier that
+                        --granted it is no longer active, revert to the variation we were on. This
+                        --replaces a per-panel 'disable' handler that fired whenever the panel was
+                        --collapsed/hidden/scrolled out of view (Unity OnDisable), silently reverting
+                        --the user's selection on tab-switch or sheet close.
+                        local alternateOverride = info.token.alternateAppearanceOverride
+                        if alternateOverride ~= nil and (alternateAppearances == nil or alternateAppearances[alternateOverride] == nil) then
+                            info.token:SwitchAppearanceVariation(info.token.appearanceVariationIndex)
+                        end
+
                         local newAlternateAppearancePanels = {}
                         if alternateAppearances ~= nil then
 
@@ -1720,14 +1734,6 @@ function CharSheet.AppearancePanel()
                                     flow = "vertical",
                                     width = "auto",
                                     height = "auto",
-                                    disable = function(element)
-                                        if element:HasClass("selected") then
-                                            local info = CharacterSheet.instance.data.info
-                                            if info ~= nil and info.token ~= nil and info.token.valid then
-                                                info.token:SwitchAppearanceVariation(0)
-                                            end
-                                        end
-                                    end,
                                     press = function(element)
                                         local defaultToken = nil
                                         local monster = assets.monsters[appearanceInfo.monsterDefault]

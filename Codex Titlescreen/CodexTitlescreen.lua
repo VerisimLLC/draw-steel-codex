@@ -96,6 +96,20 @@ local g_directorGamePageSetting = setting {
     default = 1,
 }
 
+-- When enabled, the "Create New Campaign" dialog offers community game
+-- types (e.g. Crows) in addition to the built-in Draw Steel options. These
+-- install a community-authored module on top of the Draw Steel system module.
+-- Stored as a per-user preference so it shows in the Settings panel.
+local g_allowCommunityGameTypes = setting{
+    id = "allowcommunitygametypes",
+    description = "Allow Community Game Types",
+    help = "When enabled, the Create New Campaign screen offers community-authored game types (such as Crows) in addition to the built-in Draw Steel campaigns. These install an extra community module on top of the standard Draw Steel rules.",
+    storage = "preference",
+    section = "General",
+    editor = "check",
+    default = false,
+}
+
 local g_playerGamePageSetting = setting {
     id = "playergamepage",
     storage = "preference",
@@ -735,6 +749,27 @@ local g_moduleOptions = {
         text = "Custom Campaign",
         descriptionDetails =
         "Forge your own adventure! We'll start you in a tavern with all the Draw Steel rules and you can take it from there.",
+        coverart = "panels/backgrounds/mcdm-cinematic.jpeg",
+    },
+}
+
+-- Community game types, only offered when the "Allow Community Game Types"
+-- preference is enabled. Each entry's id is the module that gets installed as
+-- the game's starting module (CreateGameDialog defaults startingModule to the
+-- option's id), so it must be a published module that contains a starter map.
+-- By default the Draw Steel system module (mcdm-drawsteel) is auto-injected
+-- underneath so the community module layers on top of the base game; set
+-- noSystemModule = true on an entry to suppress that injection and install the
+-- community module standalone.
+local g_communityModuleOptions = {
+    {
+        id = "codex-crowdex",
+        text = "Crows",
+        -- Crows ships as a self-contained game system, so we suppress the
+        -- mcdm-drawsteel system-module injection and install only crowdex.
+        noSystemModule = true,
+        descriptionDetails =
+        "Installs the community Crows module as a standalone game system. (Community playtest content.)",
         coverart = "panels/backgrounds/mcdm-cinematic.jpeg",
     },
 }
@@ -3269,6 +3304,13 @@ function CreateGameDialog()
     local m_moduleOptions = {}
     for _, module in ipairs(g_moduleOptions) do
         m_moduleOptions[#m_moduleOptions + 1] = module
+    end
+    -- Community game types (e.g. Crows) are offered only when the user has
+    -- opted in via the "Allow Community Game Types" preference.
+    if g_allowCommunityGameTypes:Get() then
+        for _, module in ipairs(g_communityModuleOptions) do
+            m_moduleOptions[#m_moduleOptions + 1] = module
+        end
     end
     if dmhub.isAdminAccount then
         m_moduleOptions[#m_moduleOptions + 1] = {

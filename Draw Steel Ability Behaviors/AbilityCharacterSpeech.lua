@@ -34,27 +34,16 @@ function ActivatedAbilityCharacterSpeechBehavior:Cast(ability, casterToken, targ
             self._tmp_shuffle[#self._tmp_shuffle] = nil
 
             local language = tok.properties:CurrentlySpokenLanguage()
-
-            if language ~= nil then
-                tok:ModifyProperties{
-                    description = "Speech",
-                    undoable = false,
-                    execute = function()
-                        tok.properties:CharacterSpeech{
-                            text = text,
-                            langid = language, 
-                        }
-                    end,
-                }
-            elseif self:has_key("fallbackText") then
-                tok:ModifyProperties{
-                    description = "Float text",
-                    undoable = false,
-                    execute = function()
-                        tok.properties:FloatLabel(self.fallbackText, "white")
-                    end,
-                }
-            end
+            tok:ModifyProperties{
+                description = "Speech",
+                undoable = false,
+                execute = function()
+                    tok.properties:CharacterSpeech{
+                        text   = text,
+                        langid = language,
+                    }
+                end,
+            }
         end
     end
 end

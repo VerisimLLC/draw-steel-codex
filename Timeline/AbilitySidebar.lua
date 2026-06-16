@@ -145,11 +145,7 @@ local function CreateReadOnlyModifierPill(modInfo)
     local isDebuff = modInfo.buffOrDebuff == "debuff"
 
     return gui.Panel{
-        classes = {"modPill",
-            cond(modInfo.enabled, "enabled"),
-            cond(isBuff, "buff"),
-            cond(isDebuff, "debuff"),
-        },
+        classes = {"modPill", "bgAlt"},
         borderWidth = 2,
         cornerRadius = 4,
         width = "auto",
@@ -157,13 +153,17 @@ local function CreateReadOnlyModifierPill(modInfo)
         pad = 4,
         flow = "horizontal",
         bgimage = true,
-        bgcolor = Styles.RichBlack03,
         hmargin = 2,
 
+        -- Border tracks state: muted at rest, info (gold) when enabled,
+        -- success/danger for an enabled buff/debuff.
         updateModifierPill = function(element, info)
-            element:SetClassTree("enabled", info.enabled)
-            element:SetClassTree("buff", info.buffOrDebuff == "buff")
-            element:SetClassTree("debuff", info.buffOrDebuff == "debuff")
+            local buff = info.buffOrDebuff == "buff"
+            local debuff = info.buffOrDebuff == "debuff"
+            element:SetClass("border", not info.enabled)
+            element:SetClass("borderInfo", info.enabled and not buff and not debuff)
+            element:SetClass("borderSuccess", info.enabled and buff)
+            element:SetClass("borderDanger", info.enabled and debuff)
         end,
 
         gui.Panel{
@@ -174,17 +174,31 @@ local function CreateReadOnlyModifierPill(modInfo)
             collapsed = (not isBuff and not isDebuff) and 1 or 0,
             uiscale = isBuff and {y=-1, x=1} or nil,
             y = isDebuff and 2 or 0,
+
+            -- Arrow tint: disabled grey until an enabled buff/debuff colors it.
+            updateModifierPill = function(element, info)
+                local buff = info.buffOrDebuff == "buff"
+                local debuff = info.buffOrDebuff == "debuff"
+                element:SetClass("bgSuccess", info.enabled and buff)
+                element:SetClass("bgDanger", info.enabled and debuff)
+                element:SetClass("bgDisabled", not (info.enabled and (buff or debuff)))
+            end,
         },
 
         gui.Label{
-            classes = {"modLabel"},
+            classes = {"modLabel", "sizeM"},
             text = modInfo.name,
-            fontSize = 16,
             width = "auto",
             height = "auto",
             lmargin = 0,
             rmargin = 4,
             valign = "center",
+
+            -- Label brightens from muted to default when enabled.
+            updateModifierPill = function(element, info)
+                element:SetClass("fg", info.enabled)
+                element:SetClass("fgMuted", not info.enabled)
+            end,
         },
     }
 end
@@ -226,8 +240,8 @@ local function CreateReadOnlyRollInfo(shareData)
                             width = 24, height = 24,
                         }),
                         gui.Label{
+                            classes = {"sizeS"},
                             text = targetToken.description or "Unknown",
-                            fontSize = 14, color = "white",
                             width = "auto", height = "auto",
                             valign = "center", lmargin = 4,
                         },
@@ -284,24 +298,35 @@ local function CreateReadOnlyRollInfo(shareData)
 
             -- Entry bgcolor and border based on selection state.
             boonEntries[#boonEntries+1] = gui.Panel{
+                -- Selection signalled by border color: success (boon), danger
+                -- (bane), info (none); neutral border at rest.
                 updateRollDialog = function(element, ds)
-                    element:SetClass("selected", (ds.boonValue or 0) == entryBoon)
+                    local sel = (ds.boonValue or 0) == entryBoon
+                    element:SetClass("borderSuccess", sel and isBoon)
+                    element:SetClass("borderDanger", sel and isBane)
+                    element:SetClass("borderInfo", sel and not isBoon and not isBane)
+                    element:SetClass("border", not sel)
                 end,
-                classes = {"boonPanel", cond(isBoon, "boon"), cond(isBane, "bane"), cond(isSelected, "selected")},
+                classes = {"boonPanel", "bgAlt",
+                    cond(isSelected and isBoon, "borderSuccess"),
+                    cond(isSelected and isBane, "borderDanger"),
+                    cond(isSelected and not isBoon and not isBane, "borderInfo"),
+                    cond(not isSelected, "border"),
+                },
                 width = "auto", height = "auto",
                 flow = "horizontal",
                 bgimage = true,
+                borderWidth = 1,
                 cornerRadius = 6,
                 hpad = 6,
                 vmargin = 2,
                 isBane and iconPanel or nil,
                 gui.Label{
+                    classes = {"sizeS"},
                     text = g_readOnlyBoonsLabels[i],
-                    color = Styles.textColor,
                     valign = "center",
                     width = "auto", height = "auto",
                     bgimage = "panels/square.png",
-                    fontSize = 14,
                     textAlignment = "center",
                     bold = isSelected,
                 },
@@ -310,29 +335,6 @@ local function CreateReadOnlyRollInfo(shareData)
         end
 
         sections[#sections+1] = gui.Panel{
-            styles = {
-                {
-                    selectors = {"boonPanel"},
-                    bgcolor = Styles.RichBlack03,
-                    borderWidth = 1,
-                },
-                {
-                    selectors = {"boonPanel", "selected"},
-                    bgcolor = "srgb:#16080B",
-                    borderWidth = 2,
-                },
-                {
-                    selectors = {"boonPanel", "selected", "boon"},
-                    bgcolor = "srgb:#000044",
-                    borderColor = Styles.ModifierBuffColor,
-
-                },
-                {
-                    selectors = {"boonPanel", "selected", "bane"},
-                    bgcolor = "srgb:#16080B",
-                    borderColor = Styles.ModifierDebuffColor,
-                },
-            },
             halign = "center",
             width = "auto", height = "auto",
             flow = "horizontal",
@@ -344,46 +346,6 @@ local function CreateReadOnlyRollInfo(shareData)
     -- Modifiers panel.
     local modifierPills = {}
     sections[#sections+1] = gui.Panel{
-        styles = {
-            {
-                selectors = {"modPill"},
-                borderColor = "#777777",
-            },
-            {
-                selectors = {"modPill", "enabled"},
-                borderColor = Styles.Gold04,
-            },
-            {
-                selectors = {"modPill", "enabled", "buff"},
-                borderColor = Styles.ModifierBuffColor,
-            },
-            {
-                selectors = {"modPill", "enabled", "debuff"},
-                borderColor = Styles.ModifierDebuffColor,
-            },
-            {
-                selectors = {"modIndicator"},
-                bgcolor = "#777777",
-            },
-            {
-                selectors = {"modIndicator", "enabled", "buff"},
-                bgcolor = Styles.ModifierBuffColor,
-            },
-            {
-                selectors = {"modIndicator", "enabled", "debuff"},
-                bgcolor = Styles.ModifierDebuffColor,
-            },
-            {
-                selectors = {"modLabel"},
-                color = "#777777",
-                opacity = 0.6,
-            },
-            {
-                selectors = {"modLabel", "enabled"},
-                color = "white",
-                opacity = 0.95,
-            },
-        },
         width = "100%", height = "auto",
         flow = "horizontal",
         wrap = true,
@@ -451,8 +413,8 @@ local function CreateReadOnlyRollInfo(shareData)
                     },
 
                     gui.Label{
-                        fontSize = 12, bold = true,
-                        color = Styles.textColor,
+                        classes = {"sizeXs"},
+                        bold = true,
                         width = "95%", height = "auto",
                         maxHeight = 30,
                         halign = "center",
@@ -482,10 +444,10 @@ local function CreateReadOnlyRollInfo(shareData)
         if (target.surges or 0) > 0 then
             local surgeChildren = {}
             surgeChildren[#surgeChildren+1] = gui.Label{
+                classes = {"sizeS"},
                 bold = true, valign = "center",
-                color = "white", text = "Surges:",
+                text = "Surges:",
                 width = "auto", height = "auto",
-                fontSize = 14,
             }
             for s = 1, (target.surges or 0) do
                 surgeChildren[#surgeChildren+1] = gui.Panel{
@@ -495,9 +457,9 @@ local function CreateReadOnlyRollInfo(shareData)
                 }
             end
             sections[#sections+1] = gui.Panel{
+                classes = {"bgAlt"},
                 halign = "left", valign = "center",
                 width = "auto", height = "auto",
-                bgcolor = "black", bgimage = true,
                 hpad = 4, vpad = 2, tmargin = 2,
                 flow = "horizontal",
                 children = surgeChildren,
@@ -512,12 +474,12 @@ local function CreateReadOnlyRollInfo(shareData)
             halign = "center", valign = "top",
             flow = "horizontal",
             gui.Label{
+                classes = {"sizeS"},
                 text = ds.rollText,
-                fontSize = 14, bold = true,
+                bold = true,
                 width = "auto", height = 18,
                 lmargin = 6,
                 halign = "left", valign = "center",
-                color = "white",
             },
         }
     end
@@ -576,21 +538,19 @@ local function CreateReadOnlyRollInfo(shareData)
 
         -- Dice animation state -- stored on the table's data table so
         -- it survives across think ticks.
+        --
+        -- Highlight a tier row using the default {row, highlight} (@info) fill,
+        -- flipping the row's labels to @fgInverse so they stay legible on it.
+        local function SetTierHighlight(row, on)
+            row:SetClassTree("highlight", on)
+            row:SetClassTree("fgInverse", on)
+        end
+
         local tierContainer = gui.Table{
             width = "100%",
             height = "auto",
             flow = "vertical",
             tmargin = 4,
-            styles = {
-                {
-                    selectors = {"row", "highlight"},
-                    bgcolor = Styles.textColor,
-                },
-                {
-                    selectors = {"label", "highlight"},
-                    color = "black",
-                },
-            },
             children = tierRows,
 
             create = function(element)
@@ -599,7 +559,7 @@ local function CreateReadOnlyRollInfo(shareData)
                 if not isRolling then
                     if highlightTier ~= nil then
                         for idx, row in ipairs(element.children) do
-                            row:SetClassTree("highlight", idx == highlightTier)
+                            SetTierHighlight(row, idx == highlightTier)
                         end
                     end
                     return
@@ -618,7 +578,7 @@ local function CreateReadOnlyRollInfo(shareData)
                     -- Roll message not found yet; fall back to static.
                     if highlightTier ~= nil then
                         for idx, row in ipairs(element.children) do
-                            row:SetClassTree("highlight", idx == highlightTier)
+                            SetTierHighlight(row, idx == highlightTier)
                         end
                     end
                     element:ScheduleEvent("create", 0.1)
@@ -652,7 +612,7 @@ local function CreateReadOnlyRollInfo(shareData)
                 if m_numDice == 0 and rollMsg.total ~= nil then
                     local tier = RollUtils.DiceResultToTier(rollMsg)
                     for idx, row in ipairs(element.children) do
-                        row:SetClassTree("highlight", idx == tier)
+                        SetTierHighlight(row, idx == tier)
                     end
                     element.data.m_finished = true
                 end
@@ -669,7 +629,7 @@ local function CreateReadOnlyRollInfo(shareData)
                 end
                 if ds.highlightedTier ~= nil then
                     for idx, row in ipairs(element.children) do
-                        row:SetClassTree("highlight", idx == ds.highlightedTier)
+                        SetTierHighlight(row, idx == ds.highlightedTier)
                     end
                 end
             end,
@@ -731,7 +691,7 @@ local function CreateReadOnlyRollInfo(shareData)
                     d.m_currentTier = tier
 
                     for idx, row in ipairs(element.children) do
-                        row:SetClassTree("highlight", idx == tier)
+                        SetTierHighlight(row, idx == tier)
                     end
                 end
             end,
@@ -749,7 +709,7 @@ local function CreateReadOnlyRollInfo(shareData)
                     d.m_finished = true
                     local finalTier = RollUtils.DiceResultToTier(d.rollMsg)
                     for idx, row in ipairs(element.children) do
-                        row:SetClassTree("highlight", idx == finalTier)
+                        SetTierHighlight(row, idx == finalTier)
                     end
                 end
 
@@ -782,38 +742,43 @@ local function CreateReadOnlyRollInfo(shareData)
                 })
             end
 
-            local trigBgcolor = trig.triggered and Styles.textColor or "#00000000"
-            local labelColor = trig.triggered and Styles.backgroundColor or Styles.textColor
+            local triggered = trig.triggered
 
             trigChildren[#trigChildren+1] = gui.Panel{
+                classes = {
+                    cond(triggered, "bgInverse", "transparent"),
+                    cond(triggered, "borderInverse", "border"),
+                },
                 width = 120,
                 height = 70,
                 bgimage = true,
-                bgcolor = trigBgcolor,
                 flow = "vertical",
                 borderWidth = 1,
-                borderColor = trig.triggered and "white" or "grey",
                 halign = trig.hostile and "right" or "left",
+                -- Triggered fills with the inverse surface; resting is transparent.
                 updateRollDialog = function(element, ds)
                     local trig = ds.triggers[triggerIndex]
                     if trig ~= nil then
-                        local triggered = trig.triggered
-                        element.selfStyle.bgcolor = triggered and Styles.textColor or "#00000000"
-                        element.selfStyle.borderColor = triggered and "white" or "grey"
+                        local on = trig.triggered
+                        element:SetClass("bgInverse", on)
+                        element:SetClass("transparent", not on)
+                        element:SetClass("borderInverse", on)
+                        element:SetClass("border", not on)
                     end
                 end,
 
                 tokenImg,
                 gui.Label{
+                    classes = {"sizeXs", cond(triggered, "fgInverse")},
                     text = trig.name,
-                    fontSize = 12, bold = true,
+                    bold = true,
                     width = "auto", height = "auto",
                     halign = "center",
-                    color = labelColor,
+                    -- Dark inverse text on the triggered fill; default otherwise.
                     updateRollDialog = function(element, ds)
                         local trig = ds.triggers[triggerIndex]
                         if trig ~= nil then
-                            element.selfStyle.color = trig.triggered and Styles.backgroundColor or Styles.textColor
+                            element:SetClass("fgInverse", trig.triggered)
                         end
                     end,
                 },
@@ -835,23 +800,25 @@ local function CreateReadOnlyRollInfo(shareData)
     -- from "Rolling..." to "Awaiting result..." when dice settle locally.
     if ds.rollState == "rolling" then
         sections[#sections+1] = gui.Label{
+            classes = {"sizeM", "warning"},
             text = "Rolling...",
-            fontSize = 16, bold = true,
-            color = "#ffdd88",
+            bold = true,
             width = "auto", height = "auto",
             halign = "center",
             tmargin = 4,
             italics = true,
+            -- On local dice settle, shift from active (warning) to pending.
             rollDiceSettled = function(element)
                 element.text = "Awaiting result..."
-                element.selfStyle.color = "#88ddff"
+                element:SetClass("warning", false)
+                element:SetClass("fgPending", true)
             end,
         }
     elseif ds.rollState == "finished" then
         sections[#sections+1] = gui.Label{
+            classes = {"sizeM", "fgPending"},
             text = "Awaiting result...",
-            fontSize = 16, bold = true,
-            color = "#88ddff",
+            bold = true,
             width = "auto", height = "auto",
             halign = "center",
             tmargin = 4,
@@ -877,7 +844,7 @@ local function CreateReadOnlyRollInfo(shareData)
 
     if phaseLabelText ~= nil then
         local phaseLabelElement = gui.Label{
-            color = "black",
+            classes = {"fgInverse"},
             width = "auto",
             height = "auto",
             fontSize = 22,
@@ -893,6 +860,7 @@ local function CreateReadOnlyRollInfo(shareData)
         }
 
         phaseTab = gui.Panel{
+            classes = {"bgInfo"},
             styles = {
                 {
                     selectors = {"results"},
@@ -906,7 +874,6 @@ local function CreateReadOnlyRollInfo(shareData)
             height = 166 * 0.8,
             width = 33 * 0.8,
             bgimage = ActivatedAbility.TabBGImage(),
-            bgcolor = Styles.Gold03,
             rollDiceSettled = function(element)
                 element:SetClass("results", true)
             end,
@@ -1028,7 +995,6 @@ local function RefreshRemoteAbilityDisplay(displayPanel, shareData)
 
     local abilityPanel = CreateAbilityTooltip(tooltipAbility, {
         width = 346,
-        bgcolor = "#222222e9",
         token = casterToken,
     })
 
@@ -1075,9 +1041,8 @@ local function RefreshRemoteAbilityDisplay(displayPanel, shareData)
         casterName = casterToken.description or "Unknown"
     end
     headerChildren[#headerChildren+1] = gui.Label{
+        classes = {"sizeS", "fgMuted"},
         text = string.format("%s is using %s", casterName, ability.name or "an ability"),
-        fontSize = 14,
-        color = "#dddddd",
         width = "auto",
         height = "auto",
         valign = "center",
@@ -1187,7 +1152,7 @@ function GameHud:InitAbilityDisplayPanel(abilityDisplayPanel)
             if panel == nil and ability.typeName ~= "ActiveTrigger" then
                 needParent = false
                 panel = CreateAbilityTooltip(ability:GetActiveVariation(token),
-                    { token = token, symbols = symbols, width = 346, bgcolor = "#222222e9", })
+                    { token = token, symbols = symbols, width = 346, })
                 if panel == nil then
                     return
                 end
@@ -1202,11 +1167,10 @@ function GameHud:InitAbilityDisplayPanel(abilityDisplayPanel)
 
             if needParent then
                 panel = gui.Panel{
+                    classes = {"bgAlt"},
                     width = "auto",
                     height = "auto",
                     valign = "center",
-                    bgcolor = "#222222e9",
-                    bgimage = true,
                     blurBackground = true,
                     panel,
                 }

@@ -383,7 +383,122 @@ local g_materialFields = {
 
 
 
-	}
+	},
+
+	-- Generic PBR surface material driven entirely by a cloud-delivered texture set
+	-- (ambientCG / Poly Haven style: Color + NormalGL + Roughness + Displacement). Upload
+	-- the maps as cloud image assets, then assign them here -- they ship with the dice set.
+	-- The normal/roughness/height maps are decoded linear engine-side (see
+	-- DiceMaterialStudioProperties.IsLinearDataProperty); the normal map must be raw RGB,
+	-- OpenGL convention (use "_NormalGL", or tick Flip Normal Y for a "_NormalDX" map).
+	PBRTexturedDiceMaterial = {
+		{
+			name = "_BaseMap",
+			type = "Texture",
+			library = "Textures",
+			description = "Albedo / Color",
+		},
+		{
+			name = "_BaseColor",
+			type = "Color",
+			description = "Tint",
+		},
+		{
+			name = "_NormalMap",
+			type = "Texture",
+			library = "Normal",
+			description = "Normal Map (GL)",
+		},
+		{
+			name = "_NormalStrength",
+			type = "Range",
+			min = 0,
+			max = 3,
+			default = 1,
+			description = "Normal Strength",
+		},
+		{
+			name = "_NormalFlipY",
+			type = "Bool",
+			description = "Flip Normal Y (DX)",
+		},
+		{
+			name = "_RoughnessMap",
+			type = "Texture",
+			library = "Textures",
+			description = "Roughness Map",
+		},
+		{
+			name = "_RoughnessScale",
+			type = "Range",
+			min = 0,
+			max = 2,
+			default = 1,
+			description = "Roughness Scale",
+		},
+		{
+			name = "_Brightness",
+			type = "Range",
+			min = 0,
+			max = 3,
+			default = 1,
+			description = "Brightness",
+		},
+		{
+			name = "_Ambient",
+			type = "Range",
+			min = 0,
+			max = 1,
+			default = 0.4,
+			description = "Ambient",
+		},
+		{
+			name = "_SpecStrength",
+			type = "Range",
+			min = 0,
+			max = 2,
+			default = 0.6,
+			description = "Specular Strength",
+		},
+		{
+			name = "_HeightMap",
+			type = "Texture",
+			library = "Textures",
+			description = "Height / Displacement",
+		},
+		{
+			name = "_ParallaxScale",
+			type = "Range",
+			min = 0,
+			max = 0.15,
+			default = 0.03,
+			description = "Parallax Depth",
+		},
+		{
+			name = "_ParallaxSteps",
+			type = "Range",
+			min = 1,
+			max = 32,
+			default = 12,
+			description = "Parallax Steps",
+		},
+		{
+			name = "_OcclusionFromHeight",
+			type = "Range",
+			min = 0,
+			max = 1,
+			default = 0,
+			description = "AO From Height",
+		},
+		{
+			name = "_Tiling",
+			type = "Range",
+			min = 0.1,
+			max = 8,
+			default = 1,
+			description = "Tiling",
+		},
+	},
 
 }
 
@@ -3032,6 +3147,29 @@ CreateDicePanel = function()
 		height = "auto",
 
 		diceDisplayPanel,
+
+		gui.Panel{
+			classes = {"formPanel"},
+			gui.Label{
+				classes = {"formLabel"},
+				halign = "left",
+				text = "Preview Size:",
+			},
+			gui.Slider{
+				style = { height = 26, width = 240, fontSize = 14 },
+				sliderWidth = 180,
+				labelWidth = 50,
+				minValue = 0.5,
+				maxValue = 8,
+				value = studio.previewScale,
+				newmaterial = function(element)
+					element.value = studio.previewScale
+				end,
+				change = function(element)
+					studio.previewScale = element.value
+				end,
+			},
+		},
 
 		CreateColorEditor("bgcolor", "Preview Color"),
 		CreateColorEditor("trimcolor", "Preview Trim"),

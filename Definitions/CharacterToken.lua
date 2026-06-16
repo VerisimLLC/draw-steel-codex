@@ -483,6 +483,14 @@ function CharacterToken:MarkMovementRadius(movementAllowance, args)
 	-- dummy implementation for documentation purposes only
 end
 
+--- CalculateMovementPerimeter: Returns the exact list of tiles that MarkMovementRadius would highlight, given the same arguments. Uses identical underlying logic, so callers can confine targeting to exactly the tiles the movement radius draws.
+--- @param movementAllowance movement allowance in decitiles.
+--- @param args nil|{waypoints: nil|Loc[], mask: nil|Loc[], filter: nil|function, moveFlags: nil|('IgnoreMovementType'|'CannotMoveThroughFriends'|'CanFly'|'IgnoreOtherCreatures'|'Shifting'|'IgnoreWalls')[] }
+--- @return Loc[]
+function CharacterToken:CalculateMovementPerimeter(movementAllowance, args)
+	-- dummy implementation for documentation purposes only
+end
+
 --- MarkMovementArrow: Draw a movement arrow. @see ClearMovementArrow to clear the movement arrow.
 --- @param targetLoc Loc
 --- @param options nil|table

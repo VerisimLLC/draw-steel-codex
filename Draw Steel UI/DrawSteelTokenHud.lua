@@ -233,15 +233,9 @@ TokenHud.RegisterPanel{
                             local text = token:GetNameMaxLength(30)
                             if (text == nil or text == "") then
                                 if token.properties:IsMonster() then
-                                    -- "Monster Name Generation" = None: show no name
-                                    -- on the map rather than falling back to the type.
-                                    if dmhub.GetSettingValue("assignmonstersnames") == false then
-                                        text = ""
-                                    else
-                                        text = token.properties:try_get("monster_type")
-                                        if text == "" then
-                                            text = "Monster"
-                                        end
+                                    text = token.properties:try_get("monster_type")
+                                    if text == "" then
+                                        text = "Monster"
                                     end
                                 elseif token.properties:IsHero() then
                                     text = "Hero"

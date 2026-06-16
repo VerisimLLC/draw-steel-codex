@@ -443,9 +443,10 @@ function DTCharSheetTab._createHeaderPanel()
             if token and token.properties and token.properties:IsHero() then
                 local downtimeInfo = token.properties:GetDowntimeInfo()
                 if downtimeInfo then
+                    local newProjectId = dmhub.GenerateGuid()
                     modifyTokenProps{
                         execute = function()
-                            downtimeInfo:AddProject(token.charid)
+                            downtimeInfo:AddProject(token.charid, newProjectId)
                         end
                     }
                     DTSettings.Touch()
@@ -453,6 +454,32 @@ function DTCharSheetTab._createHeaderPanel()
                     if scrollArea then
                         scrollArea:FireEventTree("refreshToken")
                     end
+
+                    -- Immediately prompt the user to choose a source for the new project
+                    CharacterSheet.instance:AddChild(DTSelectItemDialog.CreateAsChild({
+                        confirm = function(sourceType, selectedId)
+                            local di = token.properties:GetDowntimeInfo()
+                            local project = di and di:GetProject(newProjectId)
+                            if project then
+                                modifyTokenProps{
+                                    execute = function()
+                                        DTBusinessRules.ApplySourceToProject(project, sourceType, selectedId)
+                                    end
+                                }
+                                local sa = CharacterSheet.instance:Get("projectScrollArea")
+                                if sa then
+                                    sa:FireEventTree("refreshToken")
+                                end
+                                dmhub.Schedule(0.1, function()
+                                    DTSettings.Touch()
+                                    DTShares.Touch()
+                                end)
+                            end
+                        end,
+                        cancel = function()
+                            -- Custom / cancel: leave the new project empty for manual editing
+                        end
+                    }))
                 end
             end
         end

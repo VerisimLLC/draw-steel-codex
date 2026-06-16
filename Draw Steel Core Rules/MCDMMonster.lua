@@ -1204,3 +1204,158 @@ end
 function monster:ScalingOrgRole()
     return MCDMMonsterScaling.ParseOrgRole(self:try_get("role", ""), self.minion)
 end
+
+--==============================================================
+-- Monster level scaling: the generated "Level Adjustment" feature.
+--
+-- The only persistent state is the authored base level (scalingBaseLevel);
+-- creature.cr holds the current (target) level. A feature carrying the
+-- base->target stat deltas is regenerated on every modifier calculation via
+-- RegisterFeatureCalculation, so rescaling just changes cr and restoring just
+-- clears scalingBaseLevel -- no stored modifiers to go stale.
+--==============================================================
+
+local g_adjustFeatureName = "Level Adjustment"
+
+--Stable guids for the generated feature and its modifiers. The feature is
+--regenerated (never persisted) per calculation and is only ever alive inside a
+--single creature's modifier list, so these need only be internally distinct.
+local g_adjustFeatureGuid = "c3079d4d-f5a8-48a9-8c6e-b4357209b4a9"
+local g_adjustModGuids = {
+    ev         = "3228246a-90ed-4759-8629-9a967641f6fa",
+    hitpoints  = "64069561-1cbb-47b6-bd01-de9a7a9ce467",
+    freeStrike = "3852aca2-a776-4744-9f67-a92f48210c80",
+    potency    = "831861c3-4d74-4fd1-af15-df1094b2c910",
+    t1         = "5557dadd-a1a1-4338-94e4-f2ffb41470ef",
+    t2         = "ad13299a-108b-47d3-ac21-c1eda5abda26",
+    t3         = "c79b4266-f7c8-49f4-ac52-0a4def6b63b8",
+    strike     = "ea86292d-b78d-47ce-9081-14533f341598",
+}
+
+--Resolve a custom attribute's GUID (the key an attribute modifier targets) by
+--name, so this survives a compendium re-import that changes the GUIDs.
+local function ScalingCustomAttrId(name)
+    local sym = string.lower(name:gsub("%s+", ""))
+    local attr = CustomAttribute.attributeInfoByLookupSymbol[sym]
+    if attr == nil then
+        return nil
+    end
+    return attr.id
+end
+
+--Build the generated "Level Adjustment" CharacterFeature from a deltas table
+--(see MCDMMonsterScaling.ComputeDeltas). Every entry is a plain add-operation
+--Modify Attribute modifier; zero deltas are skipped. Returns nil if there is
+--nothing to add.
+function MCDMMonsterScaling.BuildAdjustmentFeature(deltas)
+    if deltas == nil then
+        return nil
+    end
+
+    local specs = {
+        { key = "ev",         attribute = "ev",                  value = deltas.ev },
+        { key = "hitpoints",  attribute = "hitpoints",           value = deltas.stamina },
+        { key = "freeStrike", attribute = "Free Strike Bonus",   value = deltas.freeStrike, custom = true },
+        { key = "potency",    attribute = "Potency Bonus",       value = deltas.potency,    custom = true },
+        { key = "t1",         attribute = "Tier 1 Damage Bonus", value = deltas.t1,         custom = true },
+        { key = "t2",         attribute = "Tier 2 Damage Bonus", value = deltas.t2,         custom = true },
+        { key = "t3",         attribute = "Tier 3 Damage Bonus", value = deltas.t3,         custom = true },
+        { key = "strike",     attribute = "Strike Damage Bonus", value = deltas.strike,     custom = true },
+    }
+
+    local modifiers = {}
+    for _,spec in ipairs(specs) do
+        local value = spec.value or 0
+        if value ~= 0 then
+            local attribute = spec.attribute
+            if spec.custom then
+                attribute = ScalingCustomAttrId(spec.attribute)
+            end
+            if attribute ~= nil then
+                modifiers[#modifiers+1] = CharacterModifier.new{
+                    guid = g_adjustModGuids[spec.key],
+                    sourceguid = g_adjustFeatureGuid,
+                    name = g_adjustFeatureName,
+                    source = g_adjustFeatureName,
+                    description = "",
+                    behavior = "attribute",
+                    operation = "add",
+                    attribute = attribute,
+                    value = value,
+                }
+            end
+        end
+    end
+
+    if #modifiers == 0 then
+        return nil
+    end
+
+    return CharacterFeature.Create{
+        guid = g_adjustFeatureGuid,
+        name = g_adjustFeatureName,
+        source = g_adjustFeatureName,
+        modifiers = modifiers,
+    }
+end
+
+--The authored (base) level: the stored value if scaled, else the current cr.
+function monster:GetScalingBaseLevel()
+    return round(tonumber(self:try_get("scalingBaseLevel", self.cr)) or 0)
+end
+
+--True if a level adjustment is currently in effect.
+function monster:HasLevelAdjustment()
+    local base = self:try_get("scalingBaseLevel")
+    return base ~= nil and round(tonumber(base) or 0) ~= round(tonumber(self.cr) or 0)
+end
+
+--Scale this monster to targetLevel (clamped to 1-11). Stores the authored base
+--level on first use; clears the adjustment if targetLevel returns to base.
+--Mutates creature properties -- callers outside the character sheet must wrap
+--this in token:ModifyProperties.
+function monster:SetLevelAdjustment(targetLevel)
+    targetLevel = round(tonumber(targetLevel) or 0)
+    targetLevel = math.max(MCDMMonsterScaling.minLevel, math.min(MCDMMonsterScaling.maxLevel, targetLevel))
+
+    local base = self:GetScalingBaseLevel()
+    if targetLevel == base then
+        self:ClearLevelAdjustment()
+        return
+    end
+
+    self.scalingBaseLevel = base
+    self.cr = targetLevel
+end
+
+--Remove the level adjustment, restoring the monster to its authored level.
+function monster:ClearLevelAdjustment()
+    if self:has_key("scalingBaseLevel") then
+        self.cr = self:GetScalingBaseLevel()
+        self.scalingBaseLevel = nil
+    end
+end
+
+creature.RegisterFeatureCalculation{
+    id = "monsterLevelScaling",
+    FillFeatures = function(c, result)
+        if not c:IsMonster() then
+            return
+        end
+        local base = c:try_get("scalingBaseLevel")
+        if base == nil then
+            return
+        end
+        base = round(tonumber(base) or 0)
+        local target = round(tonumber(c.cr) or base)
+        if target == base then
+            return
+        end
+
+        local org, role = MCDMMonsterScaling.ParseOrgRole(c:try_get("role", ""), c:try_get("minion", false))
+        local feature = MCDMMonsterScaling.BuildAdjustmentFeature(MCDMMonsterScaling.ComputeDeltas(org, role, base, target))
+        if feature ~= nil then
+            result[#result+1] = feature
+        end
+    end,
+}

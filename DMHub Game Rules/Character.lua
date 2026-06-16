@@ -935,6 +935,17 @@ character.lookupSymbols = {
 		return 0
 	end,
 
+	--characters have no monster_type, so the base creature 'name' symbol is blank.
+	--prefer the token's display name (e.g. "Mighty Oak") when one is set, otherwise
+	--fall back to the base creature behavior.
+	name = function(c)
+		local token = dmhub.LookupToken(c)
+		if token ~= nil and token.name ~= nil and token.name ~= '' then
+			return token.name
+		end
+		return creature.lookupSymbols.name(c)
+	end,
+
 	level = function(c)
 		return c:CharacterLevel()
 	end,

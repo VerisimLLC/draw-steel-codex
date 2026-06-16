@@ -501,13 +501,25 @@ end
 --- @param feature table The feature object
 --- @return string The feature name
 function CharacterBuilder._safeFeatureName(feature)
-    local name = feature:try_get("name")
-    if name then
+    -- Safe against plain instance tables (ongoing-effect / condition instances
+    -- set as entry.feature) that lack a try_get method: use the same accessor
+    -- _safeGet does, and guard a missing/short typeName, so the index build for
+    -- a creature carrying such instances never crashes.
+    if feature == nil then
+        return ""
+    end
+
+    local name = CharacterBuilder._safeGet(feature, "name")
+    if type(name) == "string" and name ~= "" then
         return name
     end
 
     -- Extract type name without "Character" prefix
-    local typeName = feature.typeName:sub(10)  -- Remove "Character"
+    local typeName = CharacterBuilder._safeGet(feature, "typeName")
+    if type(typeName) ~= "string" or #typeName < 10 then
+        return ""
+    end
+    typeName = typeName:sub(10)  -- Remove "Character"
 
     -- Add spaces before capitals (except first char)
     return typeName:sub(1, 1) .. typeName:sub(2):gsub("(%u)", " %1")

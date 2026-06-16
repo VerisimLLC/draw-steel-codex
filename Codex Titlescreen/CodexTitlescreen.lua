@@ -757,14 +757,19 @@ local g_moduleOptions = {
 -- preference is enabled. Each entry's id is the module that gets installed as
 -- the game's starting module (CreateGameDialog defaults startingModule to the
 -- option's id), so it must be a published module that contains a starter map.
--- The Draw Steel system module (mcdm-drawsteel) is still auto-injected
--- underneath, so these modules layer on top of the base game.
+-- By default the Draw Steel system module (mcdm-drawsteel) is auto-injected
+-- underneath so the community module layers on top of the base game; set
+-- noSystemModule = true on an entry to suppress that injection and install the
+-- community module standalone.
 local g_communityModuleOptions = {
     {
         id = "codex-crowdex",
         text = "Crows",
+        -- Crows ships as a self-contained game system, so we suppress the
+        -- mcdm-drawsteel system-module injection and install only crowdex.
+        noSystemModule = true,
         descriptionDetails =
-        "Installs the community Crows module on top of Draw Steel. (Community playtest content.)",
+        "Installs the community Crows module as a standalone game system. (Community playtest content.)",
         coverart = "panels/backgrounds/mcdm-cinematic.jpeg",
     },
 }

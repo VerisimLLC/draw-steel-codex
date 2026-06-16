@@ -4430,9 +4430,10 @@ local function DSCharSheet()
                                 gui.Label {
 
                                     text = "4",
-                                    color = "white",
                                     fontSize = 26,
-                                    characterLimit = 2,
+                                    -- 3 chars so a scaled level fits the appended
+                                    -- asterisk (e.g. "11*").
+                                    characterLimit = 3,
 
                                     bgimage = true,
                                     bgcolor = "clear",
@@ -4443,15 +4444,86 @@ local function DSCharSheet()
                                     valign = "center",
                                     textAlignment = "center",
 
+                                    -- Level-scaling signpost. While a Level
+                                    -- Adjustment is in effect the number is
+                                    -- tinted success (scaled up) or danger
+                                    -- (scaled down) and carries a trailing
+                                    -- asterisk, so the adjusted state reads
+                                    -- without relying on color alone.
+                                    classes = { "levelValue" },
+                                    styles = ThemeEngine.MergeTokens{
+                                        { selectors = { "levelValue" }, color = "white" },
+                                        { selectors = { "levelValue", "scaledUp" }, color = "@success", priority = 100 },
+                                        { selectors = { "levelValue", "scaledDown" }, color = "@danger", priority = 100 },
+                                    },
+
                                     refreshToken = function(element, info)
-                                        local level = info.token.properties:CharacterLevel()
+                                        local c = info.token.properties
+                                        local level = round(tonumber(c:CharacterLevel()) or 0)
+                                        local adjusted = c:IsMonster() and c:HasLevelAdjustment()
+
                                         if level == 0 then
                                             element.text = "-"
+                                        elseif adjusted then
+                                            element.text = string.format("%d*", level)
                                         else
                                             element.text = string.format("%d", level)
                                         end
 
-                                        element.editable = info.token.properties:IsMonster()
+                                        local up, down = false, false
+                                        if adjusted then
+                                            local base = c:GetScalingBaseLevel()
+                                            up = level > base
+                                            down = level < base
+                                        end
+                                        element:SetClass("scaledUp", up)
+                                        element:SetClass("scaledDown", down)
+
+                                        -- While adjusted the number is a
+                                        -- read-only signpost that opens the
+                                        -- modal on click; direct level edits go
+                                        -- through the Adjust Level dialog so the
+                                        -- stored deltas stay consistent.
+                                        element.editable = c:IsMonster() and not adjusted
+                                    end,
+
+                                    -- Dynamic hover, shown only while adjusted:
+                                    -- names the base level and the revert path.
+                                    hover = function(element)
+                                        local sheet = CharacterSheet.instance
+                                        if sheet == nil then
+                                            return
+                                        end
+                                        local token = sheet.data.info.token
+                                        if token == nil or token.properties == nil then
+                                            return
+                                        end
+                                        local c = token.properties
+                                        if not (c:IsMonster() and c:HasLevelAdjustment()) then
+                                            return
+                                        end
+                                        gui.Tooltip(string.format(
+                                            "Adjusted from Level %d. Click to review.",
+                                            c:GetScalingBaseLevel()))(element)
+                                    end,
+
+                                    -- When adjusted the number is non-editable,
+                                    -- so a click opens the Adjust Level dialog
+                                    -- ("Click to review"). When not adjusted the
+                                    -- label handles its own click for inline
+                                    -- editing and this is a no-op.
+                                    click = function(element)
+                                        local sheet = CharacterSheet.instance
+                                        if sheet == nil then
+                                            return
+                                        end
+                                        local token = sheet.data.info.token
+                                        if token == nil or token.properties == nil then
+                                            return
+                                        end
+                                        if token.properties:IsMonster() and token.properties:HasLevelAdjustment() then
+                                            ShowAdjustLevelDialog(token)
+                                        end
                                     end,
 
                                     change = function(element)

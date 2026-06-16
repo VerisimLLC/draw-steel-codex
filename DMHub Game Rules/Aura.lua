@@ -150,10 +150,15 @@ function Aura:CreaturePassesFilter(c, auraInstance)
         return true
     end
 
-    local casterToken = dmhub.GetTokenById(auraInstance.casterid)
-    local caster = nil
-    if casterToken ~= nil and casterToken.properties ~= nil then
-        caster = casterToken.properties
+    local casterToken
+    local caster
+
+    if rawget(auraInstance, "casterid") ~= nil then
+        casterToken = dmhub.GetTokenById(auraInstance.casterid)
+        caster = nil
+        if casterToken ~= nil and casterToken.properties ~= nil then
+            caster = casterToken.properties
+        end
     end
 
     local result = ExecuteGoblinScript(self.creatureFilter, c:LookupSymbol { caster = caster, target = c, aura = auraInstance },

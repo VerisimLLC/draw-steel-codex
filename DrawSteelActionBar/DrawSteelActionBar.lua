@@ -2875,7 +2875,7 @@ end
 
 
 --- True when strict forced-movement enforcement should currently apply. The
---- "Strictly Enforce Movement Rules" game setting must be on, and the actor must be
+--- "Strictly Enforce Forced Movement Rules" game setting must be on, and the actor must be
 --- a PLAYER -- OR a GM who is currently viewing the world as a player (Show Token
 --- Vision, or logged in as a token). Plain GM view is exempt, matching
 --- strict:resources / strict:targeting. The token-vision/logged-in-as cases let the

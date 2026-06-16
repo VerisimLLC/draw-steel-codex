@@ -527,31 +527,49 @@ local function CreateAbilityPanel()
             },
         },
 
-        gui.Button {
-            classes = {"settingsButton"},
+        -- Button group: customise (always visible) + settings (innate only).
+        gui.Panel{
             floating = true,
-            halign = "right",
-            valign = "top",
-            tmargin = 2,
-            rmargin = 4,
-            ability = function(element, ability, c)
-                element:SetClass("hidden", not c:IsActivatedAbilityInnate(ability))
-            end,
-            press = function(element)
-                --this gets the actual underlying ability.
-                local ability = CharacterSheet.instance.data.info.token.properties:IsActivatedAbilityInnate(m_ability)
-                if not ability then
-                    return
-                end
-                CharacterSheet.instance:AddChild(ability:ShowEditActivatedAbilityDialog {
-                    close = function(element)
-                        CharacterSheet.instance:FireEvent("refreshAll")
-                    end,
-                    delete = function(element)
-                        CharacterSheet.instance.data.info.token.properties:RemoveInnateActivatedAbility(ability)
-                    end,
-                })
-            end,
+            halign   = "right",
+            valign   = "top",
+            flow     = "horizontal",
+            width    = "auto",
+            height   = "auto",
+            tmargin  = 2,
+            rmargin  = 4,
+
+            gui.Button{
+                classes = {"customiseAbilityButton"},
+                tooltip = "Customize this ability",
+                press   = function(element)
+                    if m_ability == nil then return end
+                    local tok = CharacterSheet.instance.data.info.token
+                    if tok == nil or not tok.valid then return end
+                    CharacterSheet.instance:AddChild(
+                        m_ability:ShowCustomisationDialog(tok, CharacterSheet.instance)
+                    )
+                end,
+            },
+
+            gui.Button{
+                classes = {"settingsButton"},
+                ability = function(element, ability, c)
+                    element:SetClass("hidden", not c:IsActivatedAbilityInnate(ability))
+                end,
+                press   = function(element)
+                    --this gets the actual underlying ability.
+                    local ability = CharacterSheet.instance.data.info.token.properties:IsActivatedAbilityInnate(m_ability)
+                    if not ability then return end
+                    CharacterSheet.instance:AddChild(ability:ShowEditActivatedAbilityDialog{
+                        close = function(element)
+                            CharacterSheet.instance:FireEvent("refreshAll")
+                        end,
+                        delete = function(element)
+                            CharacterSheet.instance.data.info.token.properties:RemoveInnateActivatedAbility(ability)
+                        end,
+                    })
+                end,
+            },
         },
 
         gui.Panel {

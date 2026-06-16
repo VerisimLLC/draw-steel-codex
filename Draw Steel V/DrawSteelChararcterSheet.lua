@@ -2396,6 +2396,43 @@ local function ShowAdjustLevelDialog(token)
     local nowStamina = round(tonumber(props:MaxHitpoints()) or 0)
     local nowFreeStrike = round(tonumber(props:OpportunityAttack()) or 0)
 
+    -- Minion squads. A level adjustment normally hits only this token, but a
+    -- minion is one of a squad of identical minions, so scaling one leaves the
+    -- rest behind. When this minion belongs to a squad we offer to scale every
+    -- member together (default on). Squad membership = same MinionSquad name and
+    -- monster type; recomputed fresh at Apply time so deaths mid-dialog can't
+    -- leave a stale target list.
+    local function CollectSquadMembers()
+        local squadName = nil
+        pcall(function() squadName = props:MinionSquad() end)
+        if not props:try_get("minion", false) or squadName == nil then
+            return { token }
+        end
+        local mtype = props:try_get("monster_type", nil)
+        local members = {}
+        for _, t in ipairs(dmhub.GetTokens() or {}) do
+            local tp = t.properties
+            local match = false
+            pcall(function()
+                match = tp ~= nil and tp:try_get("minion", false) == true
+                    and tp:MinionSquad() == squadName
+                    and (mtype == nil or tp:try_get("monster_type", nil) == mtype)
+            end)
+            if match then
+                members[#members + 1] = t
+            end
+        end
+        if #members == 0 then
+            return { token }
+        end
+        return members
+    end
+
+    local squadSize = #CollectSquadMembers()
+    local isSquadMinion = squadSize > 1
+    -- Default on: the common case is scaling the whole squad together.
+    local applyToSquad = isSquadMinion
+
     -- Mutable selection; starts at the current level (no change).
     local targetLevel = currentLevel
 
@@ -2407,6 +2444,7 @@ local function ShowAdjustLevelDialog(token)
     local echelonBanner
     local noteLabel
     local footerLabel
+    local squadCheck
 
     local function signum(n)
         if n > 0 then return 1 elseif n < 0 then return -1 else return 0 end
@@ -2642,6 +2680,18 @@ local function ShowAdjustLevelDialog(token)
         tmargin = 12,
     }
 
+    -- Squad scope toggle (minions only). Collapsed for non-squad creatures.
+    squadCheck = gui.Check{
+        text = string.format("Apply to all %d minions in this squad", squadSize),
+        value = applyToSquad,
+        halign = "left",
+        tmargin = 12,
+        change = function(element)
+            applyToSquad = element.value
+        end,
+    }
+    squadCheck:SetClass("collapsed", not isSquadMinion)
+
     dialog = gui.Panel{
         classes = { "dialog" },
         -- Custom rules: tint the Adjustment column (the base tableLabel rule sets
@@ -2741,6 +2791,7 @@ local function ShowAdjustLevelDialog(token)
         previewPanel,
         echelonBanner,
         noteLabel,
+        squadCheck,
         footerLabel,
 
         -- Cancel / Reset / Apply
@@ -2779,12 +2830,21 @@ local function ShowAdjustLevelDialog(token)
                 height = 40,
                 hmargin = 6,
                 click = function(element)
-                    token:ModifyProperties{
-                        description = "Adjust monster level",
-                        execute = function()
-                            token.properties:SetLevelAdjustment(targetLevel)
-                        end,
-                    }
+                    -- Recompute the squad fresh so a death mid-dialog can't
+                    -- target a stale member; fall back to this token alone.
+                    local targets = { token }
+                    if isSquadMinion and applyToSquad then
+                        targets = CollectSquadMembers()
+                    end
+                    for _, tok in ipairs(targets) do
+                        tok:ModifyProperties{
+                            description = "Adjust monster level",
+                            combine = true,
+                            execute = function()
+                                tok.properties:SetLevelAdjustment(targetLevel)
+                            end,
+                        }
+                    end
                     if CharacterSheet.instance ~= nil then
                         CharacterSheet.instance:FireEvent("refreshAll")
                     end

@@ -976,3 +976,231 @@ function monster:Role()
 
     return nil
 end
+
+--==============================================================
+-- Monster level scaling: lookup tables + math foundation.
+--
+-- Data ported (EVALUATED values) from the Monsters sheet of
+-- "Draw Steel Maker Pro.xlsx" -- the authoritative source for this math.
+-- Designer-confirmed rulings and the full design live in
+-- .claude/monster-level-scaling.md. These functions are pure (no creature
+-- mutation, no UI); the feature builder and the damage hook consume them.
+--==============================================================
+
+MCDMMonsterScaling = {}
+
+MCDMMonsterScaling.minLevel = 1
+MCDMMonsterScaling.maxLevel = 11
+
+--Indexed by [org][level] for levels 1-11. stamina holds the three stamina
+--tiers (low/med/high); normal/dps hold the three power-roll tiers {t1,t2,t3}.
+--Leader/Solo rows only populate High stamina and DPS damage (others are nil),
+--matching the sheet.
+local g_scaleTable = {
+    minion = {
+        [1] = {ev=3, stamina={low=3, med=4, high=5}, normal={1, 2, 3}, dps={2, 4, 5}},
+        [2] = {ev=4, stamina={low=4, med=5, high=7}, normal={2, 3, 5}, dps={3, 4, 6}},
+        [3] = {ev=5, stamina={low=5, med=7, high=8}, normal={2, 4, 5}, dps={3, 5, 6}},
+        [4] = {ev=6, stamina={low=7, med=8, high=9}, normal={2, 4, 6}, dps={3, 5, 7}},
+        [5] = {ev=7, stamina={low=8, med=9, high=10}, normal={3, 5, 6}, dps={3, 6, 7}},
+        [6] = {ev=8, stamina={low=9, med=10, high=12}, normal={3, 5, 7}, dps={4, 6, 8}},
+        [7] = {ev=9, stamina={low=10, med=12, high=13}, normal={3, 6, 7}, dps={4, 7, 8}},
+        [8] = {ev=10, stamina={low=12, med=13, high=14}, normal={3, 6, 8}, dps={4, 7, 9}},
+        [9] = {ev=11, stamina={low=13, med=14, high=15}, normal={4, 6, 8}, dps={5, 7, 9}},
+        [10] = {ev=12, stamina={low=14, med=15, high=17}, normal={4, 7, 9}, dps={5, 8, 10}},
+        [11] = {ev=13, stamina={low=14, med=15, high=18}, normal={5, 7, 9}, dps={5, 8, 10}},
+    },
+    horde = {
+        [1] = {ev=3, stamina={low=10, med=15, high=20}, normal={1, 2, 3}, dps={2, 4, 5}},
+        [2] = {ev=4, stamina={low=15, med=20, high=25}, normal={2, 3, 5}, dps={3, 4, 6}},
+        [3] = {ev=5, stamina={low=20, med=25, high=30}, normal={2, 4, 5}, dps={3, 5, 6}},
+        [4] = {ev=6, stamina={low=25, med=30, high=35}, normal={2, 4, 6}, dps={3, 5, 7}},
+        [5] = {ev=7, stamina={low=30, med=35, high=40}, normal={3, 5, 6}, dps={3, 6, 7}},
+        [6] = {ev=8, stamina={low=35, med=40, high=45}, normal={3, 5, 7}, dps={4, 6, 8}},
+        [7] = {ev=9, stamina={low=40, med=45, high=50}, normal={3, 6, 7}, dps={4, 7, 8}},
+        [8] = {ev=10, stamina={low=45, med=50, high=55}, normal={3, 6, 8}, dps={4, 7, 9}},
+        [9] = {ev=11, stamina={low=50, med=55, high=60}, normal={4, 6, 8}, dps={5, 7, 9}},
+        [10] = {ev=12, stamina={low=55, med=60, high=65}, normal={4, 7, 9}, dps={5, 8, 10}},
+        [11] = {ev=13, stamina={low=55, med=60, high=70}, normal={5, 7, 9}, dps={5, 8, 10}},
+    },
+    platoon = {
+        [1] = {ev=6, stamina={low=20, med=30, high=40}, normal={3, 5, 7}, dps={4, 7, 10}},
+        [2] = {ev=8, stamina={low=30, med=40, high=50}, normal={4, 7, 10}, dps={5, 8, 11}},
+        [3] = {ev=10, stamina={low=40, med=50, high=60}, normal={5, 8, 11}, dps={5, 9, 12}},
+        [4] = {ev=12, stamina={low=50, med=60, high=70}, normal={5, 9, 12}, dps={6, 10, 13}},
+        [5] = {ev=14, stamina={low=60, med=70, high=80}, normal={6, 10, 13}, dps={6, 11, 14}},
+        [6] = {ev=16, stamina={low=70, med=80, high=90}, normal={6, 11, 14}, dps={7, 12, 15}},
+        [7] = {ev=18, stamina={low=80, med=90, high=100}, normal={7, 12, 15}, dps={7, 13, 16}},
+        [8] = {ev=20, stamina={low=90, med=100, high=110}, normal={7, 13, 16}, dps={8, 13, 17}},
+        [9] = {ev=22, stamina={low=100, med=110, high=120}, normal={8, 13, 17}, dps={9, 14, 18}},
+        [10] = {ev=24, stamina={low=110, med=120, high=130}, normal={9, 14, 18}, dps={10, 15, 19}},
+        [11] = {ev=26, stamina={low=110, med=120, high=140}, normal={10, 15, 19}, dps={10, 16, 20}},
+    },
+    leader = {
+        [1] = {ev=12, stamina={low=nil, med=nil, high=80}, normal=nil, dps={4, 7, 10}},
+        [2] = {ev=16, stamina={low=nil, med=nil, high=100}, normal=nil, dps={5, 8, 11}},
+        [3] = {ev=20, stamina={low=nil, med=nil, high=120}, normal=nil, dps={5, 9, 12}},
+        [4] = {ev=24, stamina={low=nil, med=nil, high=140}, normal=nil, dps={6, 10, 13}},
+        [5] = {ev=28, stamina={low=nil, med=nil, high=160}, normal=nil, dps={6, 11, 14}},
+        [6] = {ev=32, stamina={low=nil, med=nil, high=180}, normal=nil, dps={7, 12, 15}},
+        [7] = {ev=36, stamina={low=nil, med=nil, high=200}, normal=nil, dps={7, 13, 16}},
+        [8] = {ev=40, stamina={low=nil, med=nil, high=220}, normal=nil, dps={8, 13, 17}},
+        [9] = {ev=44, stamina={low=nil, med=nil, high=240}, normal=nil, dps={9, 14, 18}},
+        [10] = {ev=48, stamina={low=nil, med=nil, high=260}, normal=nil, dps={10, 15, 19}},
+        [11] = {ev=52, stamina={low=nil, med=nil, high=280}, normal=nil, dps={10, 16, 20}},
+    },
+    elite = {
+        [1] = {ev=12, stamina={low=40, med=60, high=80}, normal={4, 7, 10}, dps={5, 8, 11}},
+        [2] = {ev=16, stamina={low=60, med=80, high=100}, normal={5, 8, 11}, dps={5, 9, 12}},
+        [3] = {ev=20, stamina={low=80, med=100, high=120}, normal={5, 9, 12}, dps={6, 10, 13}},
+        [4] = {ev=24, stamina={low=100, med=120, high=140}, normal={6, 10, 13}, dps={6, 11, 14}},
+        [5] = {ev=28, stamina={low=120, med=140, high=160}, normal={6, 11, 14}, dps={7, 12, 15}},
+        [6] = {ev=32, stamina={low=140, med=160, high=180}, normal={7, 12, 15}, dps={7, 13, 16}},
+        [7] = {ev=36, stamina={low=160, med=180, high=200}, normal={7, 13, 16}, dps={8, 13, 17}},
+        [8] = {ev=40, stamina={low=180, med=200, high=220}, normal={8, 13, 17}, dps={9, 14, 18}},
+        [9] = {ev=44, stamina={low=200, med=220, high=240}, normal={9, 14, 18}, dps={10, 15, 19}},
+        [10] = {ev=48, stamina={low=220, med=240, high=260}, normal={10, 15, 19}, dps={10, 16, 20}},
+        [11] = {ev=52, stamina={low=220, med=240, high=280}, normal={10, 16, 20}, dps={11, 17, 21}},
+    },
+    solo = {
+        [1] = {ev=36, stamina={low=nil, med=nil, high=200}, normal=nil, dps={5, 8, 11}},
+        [2] = {ev=48, stamina={low=nil, med=nil, high=250}, normal=nil, dps={5, 9, 12}},
+        [3] = {ev=60, stamina={low=nil, med=nil, high=300}, normal=nil, dps={6, 10, 13}},
+        [4] = {ev=72, stamina={low=nil, med=nil, high=350}, normal=nil, dps={6, 11, 14}},
+        [5] = {ev=84, stamina={low=nil, med=nil, high=400}, normal=nil, dps={7, 12, 15}},
+        [6] = {ev=96, stamina={low=nil, med=nil, high=450}, normal=nil, dps={7, 13, 16}},
+        [7] = {ev=108, stamina={low=nil, med=nil, high=500}, normal=nil, dps={8, 13, 17}},
+        [8] = {ev=120, stamina={low=nil, med=nil, high=550}, normal=nil, dps={9, 14, 18}},
+        [9] = {ev=132, stamina={low=nil, med=nil, high=600}, normal=nil, dps={10, 15, 19}},
+        [10] = {ev=144, stamina={low=nil, med=nil, high=650}, normal=nil, dps={10, 16, 20}},
+        [11] = {ev=156, stamina={low=nil, med=nil, high=700}, normal=nil, dps={11, 17, 21}},
+    },
+}
+
+--Role -> stamina tier and damage type, from the sheet's MonsterIndex.
+local g_roleStaminaTier = {
+    controller = "low", hexer = "low", artillery = "low",
+    harrier = "med", mount = "med", support = "med", ambusher = "med",
+    defender = "high", brute = "high",
+}
+local g_roleDamageType = {
+    controller = "normal", hexer = "normal", harrier = "normal",
+    mount = "normal", support = "normal", defender = "normal",
+    artillery = "dps", ambusher = "dps", brute = "dps",
+}
+
+local g_organizationSet = {
+    minion = true, horde = true, platoon = true,
+    elite = true, leader = true, solo = true,
+}
+local g_roleSet = {
+    controller = true, hexer = true, artillery = true, harrier = true,
+    mount = true, support = true, ambusher = true, defender = true, brute = true,
+}
+
+--Echelon for a level: 1 (L1-3), 2 (L4-6), 3 (L7-9), 4 (L10-11).
+function MCDMMonsterScaling.Echelon(level)
+    if level <= 3 then return 1
+    elseif level <= 6 then return 2
+    elseif level <= 9 then return 3
+    else return 4 end
+end
+
+--Highest characteristic / power-roll bonus: caps at +5.
+function MCDMMonsterScaling.HighestCharacteristic(level, isLeaderSolo)
+    return math.min(5, MCDMMonsterScaling.Echelon(level) + (isLeaderSolo and 2 or 1))
+end
+
+--Strong-tier potency: caps at 6, and is NOT derived from the (capped)
+--characteristic. They diverge for leader/solo at echelon 4 (char +5, potency 6).
+function MCDMMonsterScaling.PotencyStrong(level, isLeaderSolo)
+    return math.min(6, MCDMMonsterScaling.Echelon(level) + (isLeaderSolo and 2 or 1))
+end
+
+--Parse a monster "role" string (which encodes organization and role, e.g.
+--"Elite Brute", "Minion Harrier", "Leader", or just "Harrier") into
+--(organization, role), both lowercase. Word order is tolerated. With no
+--organization keyword the standard organization is Platoon. minionFlag (the
+--engine's creature.minion) forces minion. role may be nil (e.g. bare "Leader").
+function MCDMMonsterScaling.ParseOrgRole(roleString, minionFlag)
+    local org, role
+    for word in string.gmatch(string.lower(roleString or ""), "%a+") do
+        if g_organizationSet[word] then
+            org = word
+        elseif g_roleSet[word] then
+            role = word
+        end
+    end
+    if minionFlag then org = "minion" end
+    if org == nil then org = "platoon" end
+    return org, role
+end
+
+--Stamina tier to read for an (org, role). Leader/Solo always read High.
+function MCDMMonsterScaling.StaminaTier(org, role)
+    if org == "leader" or org == "solo" then return "high" end
+    return g_roleStaminaTier[role] or "med"
+end
+
+--Damage type to read for an (org, role). Leader/Solo always read DPS.
+function MCDMMonsterScaling.DamageType(org, role)
+    if org == "leader" or org == "solo" then return "dps" end
+    return g_roleDamageType[role] or "normal"
+end
+
+--Raw table row for an (org, level), or nil if out of range / unknown org.
+function MCDMMonsterScaling.RowFor(org, level)
+    local orgTbl = g_scaleTable[org]
+    if orgTbl == nil then return nil end
+    return orgTbl[level]
+end
+
+--Per-stat deltas to apply when scaling from baseLevel to targetLevel for an
+--(org, role). Deltas are added on top of the creature's authored stats (the
+--delta-from-base model), so bespoke / hand-tuned stat blocks keep their offset.
+--Returns nil if the org is unknown or either level is out of the 1-11 range.
+--Fields:
+--  ev             EV delta (creature 'ev' attribute)
+--  stamina        Stamina delta (creature 'hitpoints')
+--  t1/t2/t3       Per-tier table-damage deltas (Tier N Damage Bonus)
+--  freeStrike     Free-strike delta = T1 table delta (no characteristic)
+--  characteristic Highest-characteristic / power-roll delta (capped at +5)
+--  potency        Potency delta (own value, capped at 6; Potency Bonus)
+--  strike         Strike Damage Bonus delta = characteristic delta
+function MCDMMonsterScaling.ComputeDeltas(org, role, baseLevel, targetLevel)
+    local b = MCDMMonsterScaling.RowFor(org, baseLevel)
+    local t = MCDMMonsterScaling.RowFor(org, targetLevel)
+    if b == nil or t == nil then return nil end
+
+    local isLeaderSolo = (org == "leader" or org == "solo")
+    local tier = MCDMMonsterScaling.StaminaTier(org, role)
+    local dtype = MCDMMonsterScaling.DamageType(org, role)
+    local bDmg, tDmg = b[dtype], t[dtype]
+
+    local function tierDelta(i)
+        if bDmg == nil or tDmg == nil then return 0 end
+        return (tDmg[i] or 0) - (bDmg[i] or 0)
+    end
+
+    local charBase = MCDMMonsterScaling.HighestCharacteristic(baseLevel, isLeaderSolo)
+    local charTarget = MCDMMonsterScaling.HighestCharacteristic(targetLevel, isLeaderSolo)
+    local potBase = MCDMMonsterScaling.PotencyStrong(baseLevel, isLeaderSolo)
+    local potTarget = MCDMMonsterScaling.PotencyStrong(targetLevel, isLeaderSolo)
+
+    return {
+        ev = t.ev - b.ev,
+        stamina = (t.stamina[tier] or 0) - (b.stamina[tier] or 0),
+        t1 = tierDelta(1),
+        t2 = tierDelta(2),
+        t3 = tierDelta(3),
+        freeStrike = tierDelta(1),
+        characteristic = charTarget - charBase,
+        potency = potTarget - potBase,
+        strike = charTarget - charBase,
+    }
+end
+
+--Convenience: parse this monster's organization and role from its data.
+function monster:ScalingOrgRole()
+    return MCDMMonsterScaling.ParseOrgRole(self:try_get("role", ""), self.minion)
+end

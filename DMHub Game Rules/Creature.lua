@@ -9047,6 +9047,7 @@ ActiveTrigger.epicResourceCost = 0
 ActiveTrigger.clearOnDismiss = false
 ActiveTrigger.dismissOnTrigger = false
 ActiveTrigger.powerRollModifier = false
+ActiveTrigger.noDeduplicate = false
 ActiveTrigger.targets = {}
 ActiveTrigger.triggered = false
 ActiveTrigger.dismissed = false
@@ -9196,7 +9197,7 @@ function creature:DispatchAvailableTrigger(triggerInfo)
 		local age = TimestampAgeInSeconds(value.timestamp)
 		if age > 60 then
 			deletes[#deletes+1] = key
-		elseif triggerInfo ~= nil and availableTriggers[triggerInfo.id] == nil and triggerInfo.powerRollModifier == false and value.powerRollModifier == false then
+		elseif triggerInfo ~= nil and availableTriggers[triggerInfo.id] == nil and triggerInfo.powerRollModifier == false and value.powerRollModifier == false and (not triggerInfo.noDeduplicate) and (not value.noDeduplicate) then
             --de-duplicate spammy triggers that all do the same thing, e.g. if Tactician Mastermind's Overwatch trigger against the same moving creature.
 			if (not value.dismissed) and (not value.triggered) and (value.text == triggerInfo.text) and (value.rules == triggerInfo.rules) and dmhub.DeepEqual(value.modes, triggerInfo.modes) and dmhub.DeepEqual(value.targets, triggerInfo.targets) then
 				--just refresh this trigger instead of creating a new one.

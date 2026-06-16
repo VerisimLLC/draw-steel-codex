@@ -1205,6 +1205,30 @@ function monster:ScalingOrgRole()
     return MCDMMonsterScaling.ParseOrgRole(self:try_get("role", ""), self.minion)
 end
 
+--Potency for monsters. The base creature:Potency() returns the highest
+--characteristic, which is correct for every monster EXCEPT echelon-4
+--leaders/solos: the MCDM monster-math sheet caps the characteristic (power
+--roll) at +5 but lets potency reach 6 at that echelon. Detect that one case by
+--organization + echelon and lift potency by 1, but only when the characteristic
+--is actually at the +5 cap, so a hand-tuned monster with a sub-cap characteristic
+--still gets potency = its highest characteristic. Computed live from level/org,
+--so any new L10/L11 leader or solo gets the right result with no per-monster data.
+function monster:Potency()
+    local summonerToken = self:GetPotencySummonerToken()
+    if summonerToken ~= nil then
+        return summonerToken.properties:Potency()
+    end
+
+    local highest = self:HighestCharacteristic()
+    local org = self:ScalingOrgRole()
+    if (org == "leader" or org == "solo")
+        and MCDMMonsterScaling.Echelon(round(tonumber(self.cr) or 0)) == 4
+        and highest >= 5 then
+        return highest + 1
+    end
+    return highest
+end
+
 --==============================================================
 -- Monster level scaling: the generated "Level Adjustment" feature.
 --
@@ -1251,13 +1275,12 @@ end
 --
 --charScale (optional) = { attr = <characteristic attribute id>, bump = <delta> }
 --actually raises the creature's highest characteristic so the sheet reflects it
---and abilities that roll "2d10 + Highest Characteristic" scale. Because the
---engine ties Potency() to HighestCharacteristic(), the characteristic bump
---already moves potency by `bump`; the Potency Bonus attribute therefore carries
---only the REMAINDER (the echelon-4 leader/solo divergence where potency outpaces
---the +5-capped characteristic). Strike damage moves by the same `bump` (the
---characteristic part of a strike's per-tier damage); the static tier text is not
---re-derived from the characteristic, so there is no double count.
+--and abilities that roll "2d10 + Highest Characteristic" scale. Potency needs no
+--modifier of its own: the engine ties monster:Potency() to the highest
+--characteristic (plus the echelon-4 leader/solo +1), so the characteristic bump
+--and the level change move potency correctly on their own. Strike damage moves
+--by the same `bump` (the characteristic part of a strike's per-tier damage); the
+--static tier text is not re-derived from the characteristic, so no double count.
 function MCDMMonsterScaling.BuildAdjustmentFeature(deltas, charScale)
     if deltas == nil then
         return nil
@@ -1265,11 +1288,15 @@ function MCDMMonsterScaling.BuildAdjustmentFeature(deltas, charScale)
 
     local charBump = (charScale ~= nil and charScale.bump) or 0
 
+    -- No Potency Bonus modifier: potency follows the characteristic via the
+    -- engine (monster:Potency() = highest characteristic, +1 at echelon-4
+    -- leader/solo), and scaling already raises both the characteristic and the
+    -- level, so potency recomputes correctly on its own. Adding a Potency Bonus
+    -- here would double-count the echelon-4 divergence.
     local specs = {
         { key = "ev",         attribute = "ev",                  value = deltas.ev },
         { key = "hitpoints",  attribute = "hitpoints",           value = deltas.stamina },
         { key = "freeStrike", attribute = "Free Strike Bonus",   value = deltas.freeStrike, custom = true },
-        { key = "potency",    attribute = "Potency Bonus",       value = (deltas.potency or 0) - charBump, custom = true },
         { key = "t1",         attribute = "Tier 1 Damage Bonus", value = deltas.t1,         custom = true },
         { key = "t2",         attribute = "Tier 2 Damage Bonus", value = deltas.t2,         custom = true },
         { key = "t3",         attribute = "Tier 3 Damage Bonus", value = deltas.t3,         custom = true },

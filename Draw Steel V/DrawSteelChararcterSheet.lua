@@ -553,6 +553,7 @@ local function CreateAbilityPanel()
 
             gui.Button{
                 classes = {"settingsButton"},
+                lmargin  = 8,
                 ability = function(element, ability, c)
                     element:SetClass("hidden", not c:IsActivatedAbilityInnate(ability))
                 end,

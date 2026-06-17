@@ -1439,6 +1439,9 @@ local function AbilityHeading(args)
             if dmhub.isDM then
                 local addedEditEntry = false
                 for domain, _ in pairs(m_ability.domains or {}) do
+                    if addedEditEntry then
+                        break
+                    end
                     if domain ~= "_luaTable" then
                         --parse domain information
                         local tableType, guid = string.match(domain, "^([^:]+):(.+)$")

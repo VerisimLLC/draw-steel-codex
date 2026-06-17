@@ -4790,7 +4790,7 @@ CreateAbilityController = function()
                 caster = casterToken,
                 section = "target",
             }
-            element:FireEvent("beginCasting", ability, { symbols = symbols })
+            element:FireEvent("beginCasting", ability, { symbols = symbols, targets = options.targets })
 
             --[[
             local spellPanel = GetSpellPanel(nil, nil, ability,
@@ -6377,8 +6377,13 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
 
         g_skipButton:SetClass("collapsed", not g_currentAbility:try_get("skippable", false))
 
-        -- Don't auto-cast on initial setup unless requested
-        if ((not g_currentAbility:CanSelectMoreTargets(g_token, targets, g_currentSymbols)) or forceCast) then --temporarily disabled -David -- and not initialSetup then
+        -- Don't auto-cast on initial setup unless requested.
+        -- When a promptOverride is set (e.g. an invoke-ability prompt), always fall through to the
+        -- confirmation UI so the player can read the prompt and click Confirm, even if all
+        -- targets are already pre-selected via the inherited target list. An explicit Confirm
+        -- click (forceCast = true) always goes through regardless of promptOverride.
+        local hasPromptOverride = g_currentAbility:try_get("promptOverride") ~= nil
+        if forceCast or ((not g_currentAbility:CanSelectMoreTargets(g_token, targets, g_currentSymbols)) and not hasPromptOverride) then --temporarily disabled -David -- and not initialSetup then
             --we can't select more targets, so cast the spell in here.
             g_token.lookAtMouse = false
             if g_castingEmoteSet and g_token.valid then

@@ -417,7 +417,7 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                         end
 
                         local autoTarget = self:try_get("autoTarget", true)
-                        if autoTarget and not abilityClone:RequiresPromptWhenCast() then
+                        if autoTarget and not abilityClone:RequiresPromptWhenCast() and abilityClone:try_get("promptOverride") == nil then
                             abilityClone.castImmediately = true
                             print("INVOKE:: Auto-target enabled for", abilityClone.name)
                         end
@@ -604,6 +604,16 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
                 targets = { { token = casterToken } }
             elseif targeting == "inherit" then
                 targets = options.targets or {}
+                --Lock target selection to exactly the inherited targets -- the player
+                --should not be able to swap in different targets for an "inherit"
+                --invoke, since the whole point is to reuse the parent ability's targets.
+                local allowedtargets = {}
+                for _, target in ipairs(targets) do
+                    if target.token ~= nil then
+                        allowedtargets[target.token.charid] = true
+                    end
+                end
+                symbols.allowedtargets = allowedtargets
             elseif targeting == "args" then
                 targets = options.targetArgs or {}
             elseif targeting == "formula" then
@@ -642,7 +652,7 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
                 end
             end
 
-            if abilityClone:RequiresPromptWhenCast() then
+            if abilityClone:RequiresPromptWhenCast() or abilityClone:try_get("promptOverride") ~= nil then
                 abilityClone.skippable = true
                 gamehud.actionBarPanel:FireEventTree("invokeAbility", casterToken, abilityClone, symbols, invokerCallback, {instantCast = true, targets = targets})
             else

@@ -226,6 +226,120 @@ function JournalStylesheet.PickerOptions()
 end
 
 -- =============================================================================
+-- Stylesheet CRUD (Task 2: editor UI)
+-- =============================================================================
+
+function JournalStylesheet.CreateNew()
+    return JournalStylesheet.Create()
+end
+
+-- Forward-declared so JournalStyleEditor_SetData can call it before its
+-- definition below.
+local JournalStyleEditor_BuildForm
+
+-- SetData fetches the entry and (re)builds the editor form. Re-resolving on
+-- each field change keeps displayed (inherited) values current.
+local function JournalStyleEditor_SetData(tableName, panel, id)
+    local sheet = (dmhub.GetTable(tableName) or {})[id]
+    if sheet == nil then
+        panel.children = {}
+        return
+    end
+    panel.data.sheetid = id
+    local upload = function()
+        dmhub.SetAndUploadTableItem(tableName, sheet)
+    end
+    JournalStyleEditor_BuildForm(sheet, upload, panel)
+end
+
+function JournalStylesheet.CreateEditor()
+    local panel
+    panel = gui.Panel{
+        vscroll = true,
+        flow = "vertical",
+        pad = 20,
+        borderBox = true,
+        width = "100%",
+        height = "100%",
+        data = {
+            sheetid = "",
+            SetData = function(tableName, id)
+                JournalStyleEditor_SetData(tableName, panel, id)
+            end,
+        },
+    }
+    return panel
+end
+
+-- Form row helpers (shared by base-skin and class editors). Each returns a panel.
+local function JSE_TextRow(label, value, onset)
+    return gui.Panel{ classes = {"formStackedRow"},
+        gui.Label{ classes = {"formStacked"}, text = label },
+        gui.Input{ classes = {"formStacked"}, text = value or "",
+            change = function(element) onset(element.text) end },
+    }
+end
+
+local function JSE_ColorRow(label, value, onset)
+    return gui.Panel{ classes = {"formStackedRow"},
+        gui.Label{ classes = {"formStacked"}, text = label },
+        gui.ColorPicker{ value = value or "white", width = 24, height = 24, valign = "center",
+            confirm = function(element) onset(element.value) end },
+    }
+end
+
+local function JSE_NumberRow(label, value, onset)
+    return gui.Panel{ classes = {"formStackedRow"},
+        gui.Label{ classes = {"formStacked"}, text = label },
+        gui.Input{ classes = {"formStacked"}, text = (value ~= nil and tostring(value)) or "",
+            change = function(element)
+                local n = tonumber(element.text)
+                onset(n)
+            end },
+    }
+end
+
+local function JSE_CheckRow(label, value, onset)
+    return gui.Panel{ classes = {"formStackedRow"},
+        gui.Check{ value = value == true, text = label,
+            change = function(element) onset(element.value == true) end },
+    }
+end
+
+local function JSE_DropdownRow(label, options, idChosen, onset)
+    return gui.Panel{ classes = {"formStackedRow"},
+        gui.Label{ classes = {"formStacked"}, text = label },
+        gui.Dropdown{ classes = {"formStacked"}, options = options, idChosen = idChosen or "",
+            change = function(element) onset(element.idChosen) end },
+    }
+end
+
+JournalStyleEditor_BuildForm = function(sheet, upload, panel)
+    local children = {}
+
+    -- Name
+    children[#children+1] = JSE_TextRow("Name:", sheet.name, function(v)
+        sheet.name = v; upload()
+    end)
+
+    -- Parent (inheritance). Options are all OTHER stylesheets plus "(No parent)".
+    local parentOptions = { { id = "", text = "(No parent)" } }
+    for k, other in unhidden_pairs(dmhub.GetTable(sheet.tableName or "journalStyles") or {}) do
+        if k ~= panel.data.sheetid then
+            parentOptions[#parentOptions+1] = { id = k, text = other.name or "Unnamed" }
+        end
+    end
+    children[#children+1] = JSE_DropdownRow("Inherits from:", parentOptions,
+        sheet.parentId or "", function(v)
+            sheet.parentId = (v ~= "" and v) or false
+            ResolveStylesheet.ClearCache()
+            upload()
+        end)
+
+    panel.children = children
+end
+
+-- =============================================================================
 -- Skin -> inline markup (Plan 2). A live spike showed gui.MarkdownStyle swaps do
 -- not restyle headings/bullets, but inline TMP markup renders reliably. So we
 -- inject skin-derived markup per line. The DEFAULT skin is tuned so this is a

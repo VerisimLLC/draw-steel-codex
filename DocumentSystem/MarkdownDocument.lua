@@ -3,6 +3,12 @@ local mod = dmhub.GetModLoading()
 ---@class MarkdownDocument:CustomDocument
 MarkdownDocument = RegisterGameType("MarkdownDocument", "CustomDocument")
 MarkdownDocument.vscroll = false
+-- Id of the JournalStylesheet that re-skins this document. `false` = built-in
+-- default skin. (false is the codebase sentinel for an optional id; a nil
+-- default does NOT register a readable field, so reads would throw. Confirmed
+-- by Task 1, which hit the same constraint with parentId.)
+-- Auto-serialized; round-trips through document upload.
+MarkdownDocument.styleSheetId = false
 
 local g_markdownStyle = gui.MarkdownStyle {
     ["#  "] = "<size=200%><b>", ["/#  "] = "</b></size>",
@@ -191,6 +197,12 @@ ResolveStylesheet = setmetatable({}, {
 
 function ResolveStylesheet.ClearCache()
     g_resolveCache = {}
+end
+
+--- Resolve this document's stylesheet (or the default skin if unset).
+--- @return table { base = table, classes = table }
+function MarkdownDocument:GetResolvedStylesheet()
+    return ResolveStylesheet(self.styleSheetId)
 end
 
 local showPreviewSetting = setting{

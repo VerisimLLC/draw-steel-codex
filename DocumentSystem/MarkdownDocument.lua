@@ -286,7 +286,7 @@ local function SkinBulletMarkup(bullet, defmarker, content)
         prefix = glyph
     end
     local line = prefix .. " " .. content
-    if indent and indent ~= 0 then
+    if indent ~= 0 then
         line = string.format("<indent=%dpx>%s</indent>", indent, line)
     end
     return line
@@ -304,7 +304,7 @@ local function SkinOrderedMarkup(ordered, marker, content)
         prefix = marker
     end
     local line = prefix .. " " .. content
-    if indent and indent ~= 0 then
+    if indent ~= 0 then
         line = string.format("<indent=%dpx>%s</indent>", indent, line)
     end
     return line
@@ -327,8 +327,8 @@ ApplySkinToText = function(text, base)
     if type(text) ~= "string" or text == "" then return text end
     base = base or {}
     local out = {}
-    -- Split on \n preserving structure; gmatch with a trailing sentinel keeps
-    -- empty lines and a possible empty final segment.
+    -- Split on \n with a manual string.find loop: this preserves empty lines
+    -- between consecutive newlines and a possible empty final segment.
     local start = 1
     local lines = {}
     while true do
@@ -344,7 +344,7 @@ ApplySkinToText = function(text, base)
         local hashes, hContent = string.match(line, "^(#+) (.*)$")
         local bmarker, bContent = string.match(line, "^([%-%*]) (.*)$")
         local onum, oContent = string.match(line, "^(%d+%.) (.*)$")
-        if hashes ~= nil and #hashes >= 1 and #hashes <= 6 then
+        if hashes ~= nil and #hashes >= 1 and #hashes <= 5 then
             out[#out + 1] = SkinHeadingMarkup((base.headings or {})[#hashes], hContent)
         elseif bmarker ~= nil then
             out[#out + 1] = SkinBulletMarkup(base.bullet, bmarker, bContent)

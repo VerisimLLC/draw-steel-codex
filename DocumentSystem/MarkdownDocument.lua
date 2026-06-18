@@ -1860,6 +1860,7 @@ function MarkdownDocument.DisplayPanel(self, args)
                     --pass, nothing needed here.
                 elseif token.type == "collapse_node" then
                     local panel = m_treeNodes[#newTreeNodes + 1] or CreateTreeNodePanel()
+                    ApplyBlockFrame(panel, ((resolvedSkin.blocks or {}).collapse or {}).box)
                     if m_treeNodes[#newTreeNodes + 1] ~= nil then
                         panel:Unparent()
                     end
@@ -1910,6 +1911,7 @@ function MarkdownDocument.DisplayPanel(self, args)
                     currentRichRow = nil
 
                     local panel = m_powerTables[#newPowerTables + 1] or PowerRollDisplay(self)
+                    ApplyBlockFrame(panel, ((resolvedSkin.blocks or {}).powerRoll or {}).box)
                     panel:FireEventTree("refreshPowerRoll", token)
                     newPowerTables[#newPowerTables + 1] = panel
                     children[#children + 1] = panel
@@ -2068,6 +2070,8 @@ function MarkdownDocument.DisplayPanel(self, args)
                     panel.data.table = nil
                     currentRollableTable = panel
 
+                    ApplyBlockFrame(panel, ((resolvedSkin.blocks or {}).rollableTable or {}).box)
+
                     if m_rollableTables[tableName] ~= nil then
                         panel:Unparent()
                     end
@@ -2088,6 +2092,8 @@ function MarkdownDocument.DisplayPanel(self, args)
                         }
 
                         currentTable.data.children = {}
+
+                        ApplyBlockFrame(currentTable, ((resolvedSkin.blocks or {}).table or {}).box)
 
                         if currentRollableTable ~= nil then
                             currentRollableTable.data.table = currentTable

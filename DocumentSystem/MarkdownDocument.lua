@@ -2137,6 +2137,11 @@ function MarkdownDocument.DisplayPanel(self, args)
             m_blockquotes = newBlockquotes
             element.children = children
         end,
+        monitorGame = "/assets/objectTables/" .. JournalStylesheet.tableName,
+        refreshGame = function(element)
+            ResolveStylesheet.ClearCache()
+            element:FireEvent("refreshDocument", self)
+        end,
     }
 
     for k, v in pairs(args) do

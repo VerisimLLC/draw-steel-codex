@@ -251,6 +251,60 @@ end
 -- definition below.
 local JournalStyleEditor_BuildForm
 
+-- Build the read-only "showcase" markdown for the stylesheet editor preview:
+-- a fixed base + built-in-block sample, then a sample per named class.
+local function BuildShowcaseContent(sheet)
+    local lines = {
+        "# Chapter Title",
+        "## Section Heading",
+        "Body paragraph text showing the body color and the page background.",
+        "### Sub-heading",
+        "- First bullet item",
+        "- Second bullet item",
+        "1. First numbered item",
+        "2. Second numbered item",
+        "#### Smaller Heading",
+        "> A read-aloud style blockquote line.",
+        "",
+        "---",
+        "",
+        "##### Power Roll",
+        "|Might Test: Might|",
+        "| 11- | You fail. |",
+        "| 12-16 | You succeed with a cost. |",
+        "| 17+ | You succeed. |",
+        "",
+        "|Column A|Column B|",
+        "|---|---|",
+        "|a1|b1|",
+        "|a2|b2|",
+        "",
+        "+ A Collapse Section",
+        "Content inside the collapse section.",
+    }
+    local classNames = {}
+    for name, _ in pairs(sheet:try_get("classes") or {}) do classNames[#classNames + 1] = name end
+    table.sort(classNames)
+    if #classNames > 0 then
+        lines[#lines + 1] = ""
+        lines[#lines + 1] = "###### Classes"
+        for _, name in ipairs(classNames) do
+            local cls = sheet.classes[name]
+            if cls.kind == "block" then
+                lines[#lines + 1] = "::: " .. name
+                lines[#lines + 1] = "Block class '" .. name .. "' sample."
+                lines[#lines + 1] = ":::"
+            else
+                lines[#lines + 1] = "Inline: {." .. name .. " sample text}"
+            end
+        end
+    end
+    return table.concat(lines, "\n")
+end
+
+-- Test hook.
+MarkdownDocument.__BuildShowcaseContent = BuildShowcaseContent
+
 -- SetData fetches the entry and (re)builds the editor form. Re-resolving on
 -- each field change keeps displayed (inherited) values current.
 local function JournalStyleEditor_SetData(tableName, panel, id)

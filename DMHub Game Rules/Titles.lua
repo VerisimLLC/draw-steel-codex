@@ -74,6 +74,7 @@ function Title:RenderToMarkdown(options)
         id = dmhub.GenerateGuid(),
         description = name,
         content = content,
+        annotations = {},
     }
 end
 

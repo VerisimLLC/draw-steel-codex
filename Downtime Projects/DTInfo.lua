@@ -116,10 +116,29 @@ function DTInfo:GetFollowerIdsWithRolls()
     return result
 end
 
+--- Repairs a stored project that lost its DTProject metatable on deserialization.
+--- Legacy projects (created before DTProject used the engine constructor) were stored
+--- without a "__typeName" tag, so the engine deserializes them as plain method-less
+--- tables. Re-attaching DTProject.mt restores the methods AND causes the project to be
+--- re-serialized with its "__typeName" tag, permanently healing the persisted data on
+--- the next save. See DTProject.lua / ScriptSerialize.cs (__typeName <-> MetaTable).
+--- @param project any A value pulled from the downtimeProjects table
+--- @return any project The same value, with its metatable restored if it was a plain table
+local function _rehydrateProject(project)
+    if type(project) == "table" and type(project.GetID) ~= "function" then
+        setmetatable(project, DTProject.mt)
+    end
+    return project
+end
+
 --- Gets all downtime projects for this character
 --- @return table downtimeProjects Hash table of DTProject instances keyed by GUID
 function DTInfo:GetProjects()
-    return self:try_get("downtimeProjects") or {}
+    local projects = self:try_get("downtimeProjects") or {}
+    for key, project in pairs(projects) do
+        projects[key] = _rehydrateProject(project)
+    end
+    return projects
 end
 
 --- Gets all downtime projects sorted by sort order

@@ -1188,7 +1188,7 @@ CreateChatPanel = function()
                                 child = result
                             else
 
-                                dmhub.CloudError("Error creating chat panel in ActionLog: ", message.messageType, result)
+                                dmhub.CloudError(string.format("Error creating chat panel in ActionLog: messageType=%s error=%s", tostring(message.messageType), tostring(result)))
                                 g_errorPanels[message.key] = true
                             end
                         end

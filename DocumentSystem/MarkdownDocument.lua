@@ -66,6 +66,12 @@ local g_defaultSkin = {
     rule    = { image = nil, color = nil, thickness = 1, margin = 0 },
     link    = { color = nil, underline = true },
     page    = { bgcolor = false },
+    blocks  = {
+        powerRoll     = { box = {} },
+        table         = { box = {} },
+        rollableTable = { box = {} },
+        collapse      = { box = {} },
+    },
 }
 
 -- Read-only accessor (deep copy) so callers/tests cannot mutate the canonical
@@ -106,6 +112,13 @@ local function MergeSkin(parent, child)
     -- single-section keys
     for _, key in ipairs({"body", "bullet", "ordered", "quote", "rule", "link", "page"}) do
         out[key] = MergeSection(parent and parent[key], child[key])
+    end
+    -- blocks: per-block-type box merge (each block type has its own box override)
+    out.blocks = {}
+    local pblk = (parent and parent.blocks) or {}
+    local cblk = child.blocks or {}
+    for _, btype in ipairs({"powerRoll", "table", "rollableTable", "collapse"}) do
+        out.blocks[btype] = { box = MergeSection((pblk[btype] or {}).box, (cblk[btype] or {}).box) }
     end
     return out
 end
@@ -502,6 +515,31 @@ local function SkinColor(c)
     if c == nil or c == false or c == "" then return nil end
     return ThemeEngine.ResolveTokens(c)
 end
+
+-- Apply a box "frame" to a container panel: clears the frame props first (so a
+-- reused cached panel keeps no stale frame and an empty box is a no-op), then
+-- applies any set props. Same vocabulary as the callout-box render.
+local function ApplyBlockFrame(panel, box)
+    box = box or {}
+    local ss = panel.selfStyle
+    ss.bgimage = nil
+    ss.bgcolor = nil
+    ss.borderImage = nil
+    ss.border = nil
+    ss.borderColor = nil
+    ss.cornerRadius = nil
+    ss.pad = nil
+    if box.bgcolor then ss.bgimage = "panels/square.png"; ss.bgcolor = SkinColor(box.bgcolor) end
+    if box.bgimage then ss.bgimage = box.bgimage end
+    if box.borderImage then ss.borderImage = box.borderImage end
+    if box.border then ss.border = box.border end
+    if box.borderColor then ss.borderColor = SkinColor(box.borderColor) end
+    if box.cornerRadius then ss.cornerRadius = box.cornerRadius end
+    if box.pad then ss.pad = box.pad; ss.borderBox = true end
+end
+
+-- Test hook.
+MarkdownDocument.__ApplyBlockFrame = ApplyBlockFrame
 
 -- Build the open/close markup pair for a heading level from its skin entry, and
 -- return the (possibly case-transformed) content.

@@ -565,15 +565,13 @@ local function StripSpoilers(text)
                 -- Inline class span {.name text}: copy verbatim so the render-time
                 -- ApplyInlineClasses pass (which has the resolved classes) handles
                 -- it. Stripping here would lose the class for player view.
-                if depth == 0 then
-                    local close = text:find("}", a + 1, true)
-                    if close ~= nil then
-                        result = result .. text:sub(a, close)
-                        b = close
-                    else
-                        result = result .. text:sub(a)
-                        b = #text
-                    end
+                local close = text:find("}", a + 1, true)
+                if close ~= nil then
+                    result = result .. text:sub(a, close)
+                    b = close
+                else
+                    result = result .. text:sub(a)
+                    b = #text
                 end
             else
                 depth = depth + 1
@@ -2156,7 +2154,7 @@ function MarkdownDocument.DisplayPanel(self, args)
                     end
 
                     local innerText = token.text
-                    if type(cls) == "table" and cls.text ~= nil then
+                    if type(cls) == "table" and cls.kind == "block" and cls.text ~= nil then
                         innerText = SkinClassTextMarkup(cls.text, token.text)
                     end
                     styleblock:FireEventTree("markdownText", innerText)

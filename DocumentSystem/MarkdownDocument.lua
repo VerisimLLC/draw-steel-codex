@@ -284,7 +284,13 @@ local function JSE_ColorRow(label, value, onset)
     return gui.Panel{ classes = {"formStackedRow"},
         gui.Label{ classes = {"formStacked"}, text = label },
         gui.ColorPicker{ value = value or "white", width = 24, height = 24, valign = "center",
-            confirm = function(element) onset(element.value) end },
+            -- element.value is a Color userdata; the renderer needs a hex string.
+            -- Color.tostring gives "#RRGGBBAA"; pass strings through unchanged.
+            confirm = function(element)
+                local v = element.value
+                if type(v) == "userdata" then v = v.tostring end
+                onset(v)
+            end },
     }
 end
 

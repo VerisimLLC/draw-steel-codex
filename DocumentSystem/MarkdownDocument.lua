@@ -322,6 +322,45 @@ local function SkinQuoteText(quote, content)
     return open .. content .. close
 end
 
+-- Build inline TMP markup from a class's `text` block. Mirrors SkinHeadingMarkup
+-- but covers the full class-text vocabulary (italic/underline/strike/mark). An
+-- empty/nil block returns the content unchanged. `font` is intentionally not
+-- emitted (needs imported faces; deferred to the asset pack, as in Plan 2).
+local function SkinClassTextMarkup(t, content)
+    t = t or {}
+    local open, close = "", ""
+    if t.size and t.size ~= 100 then
+        open = open .. string.format("<size=%d%%>", t.size); close = "</size>" .. close
+    end
+    if t.weight == "bold" or t.weight == "black" then
+        open = open .. "<b>"; close = "</b>" .. close
+    end
+    if t.italic == true then open = open .. "<i>"; close = "</i>" .. close end
+    if t.underline == true then open = open .. "<u>"; close = "</u>" .. close end
+    if t.strike == true then open = open .. "<s>"; close = "</s>" .. close end
+    local tracking = t.tracking or 0
+    if tracking ~= 0 then
+        open = open .. string.format("<cspace=%.3fem>", tracking / 1000)
+        close = "</cspace>" .. close
+    end
+    if t.mark == true then
+        open = open .. ThemeEngine.ResolveTokens("<mark=@fg>"); close = "</mark>" .. close
+    end
+    local color = SkinColor(t.color)
+    if color then
+        open = open .. string.format("<color=%s>", color); close = "</color>" .. close
+    end
+    if t.caps == "allcaps" then
+        content = string.upper(content)
+    elseif t.caps == "smallcaps" then
+        open = open .. "<smallcaps>"; close = "</smallcaps>" .. close
+    end
+    return open .. content .. close
+end
+
+-- Test hook.
+MarkdownDocument.__SkinClassTextMarkup = SkinClassTextMarkup
+
 local ApplySkinToText
 ApplySkinToText = function(text, base)
     if type(text) ~= "string" or text == "" then return text end
@@ -1421,7 +1460,9 @@ function MarkdownDocument.DisplayPanel(self, args)
             -- Plan 2: resolve this document's skin once per render. Memoized in
             -- the resolver, so re-calling per token would also be cheap, but we
             -- hoist it for clarity and to thread into text/divider/quote.
-            local resolvedSkin = self:GetResolvedStylesheet().base
+            local resolvedStylesheet = self:GetResolvedStylesheet()
+            local resolvedSkin = resolvedStylesheet.base
+            local resolvedClasses = resolvedStylesheet.classes
             for i, token in ipairs(tokens) do
                 if token.type == "justification" then
                     --pass, nothing needed here.

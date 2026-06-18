@@ -67,6 +67,132 @@ function JournalStylesheet.DefaultSkin()
     return DeepCopy(g_defaultSkin)
 end
 
+-- =============================================================================
+-- Task 2: Cascade resolver (inheritance + memoization + cycle defense)
+-- =============================================================================
+
+-- Deep-merge child over parent for one base-skin sub-section (e.g. body, a
+-- single heading level). Child keys win; keys absent in child inherit parent.
+local function MergeSection(parent, child)
+    local out = {}
+    if type(parent) == "table" then
+        for k, v in pairs(parent) do out[k] = v end
+    end
+    if type(child) == "table" then
+        for k, v in pairs(child) do out[k] = v end
+    end
+    return out
+end
+
+-- Merge a full base skin: parent is fully-populated, child is sparse (only the
+-- keys it overrides). headings is per-level; other sections merge as a unit.
+local function MergeSkin(parent, child)
+    child = child or {}
+    local out = {}
+    -- headings: merge each level 1..6 individually
+    out.headings = {}
+    local ph = (parent and parent.headings) or {}
+    local ch = child.headings or {}
+    for level = 1, 6 do
+        out.headings[level] = MergeSection(ph[level], ch[level])
+    end
+    -- single-section keys
+    for _, key in ipairs({"body", "bullet", "ordered", "quote", "rule", "link"}) do
+        out[key] = MergeSection(parent and parent[key], child[key])
+    end
+    return out
+end
+
+-- Merge class dictionaries: child class entries override parent entries by name.
+-- Within a class, text/box sub-tables merge child-over-parent.
+local function MergeClasses(parent, child)
+    local out = {}
+    parent = parent or {}
+    child = child or {}
+    for name, cls in pairs(parent) do out[name] = cls end
+    for name, cls in pairs(child) do
+        local base = out[name]
+        if type(base) == "table" then
+            local merged = { kind = cls.kind or base.kind }
+            merged.text = MergeSection(base.text, cls.text)
+            merged.box  = MergeSection(base.box,  cls.box)
+            out[name] = merged
+        else
+            out[name] = cls
+        end
+    end
+    return out
+end
+
+-- Build the inheritance chain from a stylesheet up to (but not including) the
+-- default root, outermost-ancestor-first. Defends against cycles with a visited
+-- set; a detected cycle is logged once and the chain is truncated there.
+local g_loggedStylesheetCycles = {}
+local function BuildChain(id)
+    local chain = {}
+    local visited = {}
+    local tbl = dmhub.GetTable(JournalStylesheet.tableName) or {}
+    local cur = id
+    while cur do  -- a falsy parentId (the `false` no-parent sentinel) stops the walk
+        if visited[cur] then
+            if not g_loggedStylesheetCycles[cur] then
+                g_loggedStylesheetCycles[cur] = true
+                print("JOURNAL_STYLESHEET:: parentId cycle detected at " .. tostring(cur))
+            end
+            break
+        end
+        visited[cur] = true
+        local sheet = tbl[cur]
+        if sheet == nil then break end
+        chain[#chain + 1] = sheet
+        cur = sheet:try_get("parentId")
+    end
+    -- chain is [self, parent, grandparent, ...]; reverse to root-first
+    local rev = {}
+    for i = #chain, 1, -1 do rev[#rev + 1] = chain[i] end
+    return rev
+end
+
+local g_resolveCache = {}
+
+--- ResolveStylesheet is a callable table so that ClearCache can be attached as
+--- a field. Call it as ResolveStylesheet(id) or ResolveStylesheet.ClearCache().
+---
+--- Resolve a stylesheet id to a fully-merged { base, classes }. nil/unknown id
+--- returns the default skin with empty classes. Result is memoized per id.
+--- @param id string|nil
+--- @return table { base = table, classes = table }
+ResolveStylesheet = setmetatable({}, {
+    __call = function(self, id)
+        local key = id or "@default"
+        local cached = g_resolveCache[key]
+        if cached ~= nil then return cached end
+
+        -- Default: a fresh, fully-populated copy of the default skin. MergeSkin
+        -- always builds new tables, so we never hand back (and cache) the raw
+        -- g_defaultSkin reference, which must stay immutable. This is also the
+        -- graceful fallthrough for a falsy id (nil / the `false` sentinel) AND
+        -- for a truthy-but-unknown id whose chain comes back empty.
+        local base = MergeSkin(g_defaultSkin, nil)
+        local classes = {}
+        if id then
+            local chain = BuildChain(id)
+            for _, sheet in ipairs(chain) do
+                base = MergeSkin(base, sheet:try_get("base"))
+                classes = MergeClasses(classes, sheet:try_get("classes"))
+            end
+        end
+
+        local result = { base = base, classes = classes }
+        g_resolveCache[key] = result
+        return result
+    end,
+})
+
+function ResolveStylesheet.ClearCache()
+    g_resolveCache = {}
+end
+
 local showPreviewSetting = setting{
     id = "markdownEditorShowPreview",
     name = "Show Preview Pane in Markdown Editor",

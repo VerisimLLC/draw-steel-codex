@@ -310,6 +310,18 @@ local function SkinOrderedMarkup(ordered, marker, content)
     return line
 end
 
+-- Wrap blockquote body text per the quote skin (color/italic). Default skin
+-- (no color, italic=false) returns the text unchanged.
+local function SkinQuoteText(quote, content)
+    quote = quote or {}
+    if type(content) ~= "string" then return content end
+    local open, close = "", ""
+    local color = SkinColor(quote.color)
+    if color then open = open .. string.format("<color=%s>", color); close = "</color>" .. close end
+    if quote.italic == true then open = open .. "<i>"; close = "</i>" .. close end
+    return open .. content .. close
+end
+
 local ApplySkinToText
 ApplySkinToText = function(text, base)
     if type(text) ~= "string" or text == "" then return text end
@@ -1480,7 +1492,11 @@ function MarkdownDocument.DisplayPanel(self, args)
                         valign = "top",
                         width = "100%",
                     }
-                    print("DIVIDER:: ADD")
+                    -- Plan 2: apply rule skin (only spike-confirmed props).
+                    -- Spike result: bgcolor and tmargin/bmargin error on selfStyle set;
+                    -- height works. Only thickness is applied here.
+                    local rule = resolvedSkin.rule or {}
+                    if rule.thickness then divider.selfStyle.height = rule.thickness end
 
                     newDividers[#newDividers + 1] = divider
                     children[#children + 1] = divider
@@ -1982,7 +1998,7 @@ function MarkdownDocument.DisplayPanel(self, args)
                         blockquote:Unparent()
                     end
 
-                    blockquote:FireEventTree("markdownText", token.text)
+                    blockquote:FireEventTree("markdownText", SkinQuoteText(resolvedSkin.quote, token.text))
 
                     newBlockquotes[#newBlockquotes + 1] = blockquote
 

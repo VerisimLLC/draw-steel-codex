@@ -336,6 +336,65 @@ JournalStyleEditor_BuildForm = function(sheet, upload, panel)
             upload()
         end)
 
+    -- Resolve once for display of inherited values.
+    local resolvedBase = ResolveStylesheet(panel.data.sheetid).base
+
+    local function ownBaseSection(key)
+        sheet.base = sheet.base or {}
+        sheet.base[key] = sheet.base[key] or {}
+        return sheet.base[key]
+    end
+    local function ownHeading(level)
+        sheet.base = sheet.base or {}
+        sheet.base.headings = sheet.base.headings or {}
+        sheet.base.headings[level] = sheet.base.headings[level] or {}
+        return sheet.base.headings[level]
+    end
+
+    local weightOptions = {
+        { id = "regular", text = "Regular" },
+        { id = "bold", text = "Bold" },
+        { id = "black", text = "Black" },
+    }
+    local capsOptions = {
+        { id = "", text = "None" },
+        { id = "smallcaps", text = "Small Caps" },
+        { id = "allcaps", text = "All Caps" },
+    }
+
+    -- Headings 1-6 (curated: size, color, weight, caps)
+    for level = 1, 6 do
+        local rh = (resolvedBase.headings or {})[level] or {}
+        children[#children+1] = gui.Label{ classes = {"formStacked"}, text = string.format("Heading %d", level) }
+        children[#children+1] = JSE_NumberRow("  Size %:", rh.sizePct, function(n)
+            ownHeading(level).sizePct = n; upload()
+        end)
+        children[#children+1] = JSE_ColorRow("  Color:", rh.color, function(c)
+            ownHeading(level).color = c; upload()
+        end)
+        children[#children+1] = JSE_DropdownRow("  Weight:", weightOptions, rh.weight or "bold", function(v)
+            ownHeading(level).weight = v; upload()
+        end)
+        children[#children+1] = JSE_DropdownRow("  Caps:", capsOptions, rh.caps or "", function(v)
+            ownHeading(level).caps = (v ~= "" and v) or nil; upload()
+        end)
+    end
+
+    -- Body (curated: color)
+    children[#children+1] = gui.Label{ classes = {"formStacked"}, text = "Body" }
+    children[#children+1] = JSE_ColorRow("  Color:", (resolvedBase.body or {}).color, function(c)
+        ownBaseSection("body").color = c; upload()
+    end)
+
+    -- Bullet (curated: glyph, color)
+    children[#children+1] = gui.Label{ classes = {"formStacked"}, text = "Bullet" }
+    children[#children+1] = JSE_TextRow("  Glyph:", (resolvedBase.bullet or {}).glyph, function(v)
+        ownBaseSection("bullet").glyph = (v ~= "" and v) or false; upload()
+    end)
+    children[#children+1] = JSE_ColorRow("  Color:", (resolvedBase.bullet or {}).color, function(c)
+        ownBaseSection("bullet").color = c; upload()
+    end)
+
     panel.children = children
 end
 

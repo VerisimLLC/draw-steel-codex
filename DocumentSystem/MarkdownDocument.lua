@@ -1362,6 +1362,10 @@ function MarkdownDocument.DisplayPanel(self, args)
             end
 
             --print("BREAKDOWN::", tokens)
+            -- Plan 2: resolve this document's skin once per render. Memoized in
+            -- the resolver, so re-calling per token would also be cheap, but we
+            -- hoist it for clarity and to thread into text/divider/quote.
+            local resolvedSkin = self:GetResolvedStylesheet().base
             for i, token in ipairs(tokens) do
                 if token.type == "justification" then
                     --pass, nothing needed here.
@@ -1861,7 +1865,7 @@ function MarkdownDocument.DisplayPanel(self, args)
                         text = text:sub(1, -2) .. "<color=#00000000>.</color>"
                     end
 
-                    textPanel.text = text
+                    textPanel.text = ApplySkinToText(text, resolvedSkin)
                     newTextPanels[#newTextPanels + 1] = textPanel
 
                     --find if the string only has a newline at the end or no newline,

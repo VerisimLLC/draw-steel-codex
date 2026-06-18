@@ -1229,6 +1229,30 @@ function monster:Potency()
     return highest
 end
 
+--A level-scaled monster's *literal* ability potency gates (e.g. "M < 3") are
+--frozen text baked in at the authored level; unlike the Potencies line and
+--weak/average/strong gates (which recompute from monster:Potency()), they never
+--track the characteristic. So they must be nudged explicitly by the same potency
+--delta the Adjust Level modal previews. Returns 0 when unscaled (zero shift), and
+--mirrors the summoner redirect that Potency()/CalculatePotencyValue use. Both the
+--display pass and the resolution save-check add this, so the shown gate and the
+--actual save always agree. Computed live (no stored modifier) so it cannot stale.
+function monster:ScaledPotencyGateBonus()
+    local summonerToken = self:GetPotencySummonerToken()
+    if summonerToken ~= nil then
+        return summonerToken.properties:ScaledPotencyGateBonus()
+    end
+    if not self:HasLevelAdjustment() then
+        return 0
+    end
+    local org, role = self:ScalingOrgRole()
+    local deltas = MCDMMonsterScaling.ComputeDeltas(org, role, self:GetScalingBaseLevel(), round(tonumber(self.cr) or 0))
+    if deltas == nil then
+        return 0
+    end
+    return deltas.potency or 0
+end
+
 --==============================================================
 -- Monster level scaling: the generated "Level Adjustment" feature.
 --
@@ -1288,11 +1312,14 @@ function MCDMMonsterScaling.BuildAdjustmentFeature(deltas, charScale)
 
     local charBump = (charScale ~= nil and charScale.bump) or 0
 
-    -- No Potency Bonus modifier: potency follows the characteristic via the
-    -- engine (monster:Potency() = highest characteristic, +1 at echelon-4
-    -- leader/solo), and scaling already raises both the characteristic and the
-    -- level, so potency recomputes correctly on its own. Adding a Potency Bonus
-    -- here would double-count the echelon-4 divergence.
+    -- No Potency Bonus modifier: the computed potency (the Potencies line and
+    -- weak/average/strong gates) follows the characteristic via the engine
+    -- (monster:Potency() = highest characteristic, +1 at echelon-4 leader/solo),
+    -- and scaling already raises both the characteristic and the level, so it
+    -- recomputes on its own; a Potency Bonus here would double-count it. The one
+    -- thing that does NOT recompute is a *literal* potency gate baked into ability
+    -- text (e.g. "M < 3") -- that is nudged separately by monster:ScaledPotencyGateBonus
+    -- at the two gate sites in MCDMAbilityBehavior, not by a modifier here.
     local specs = {
         { key = "ev",         attribute = "ev",                  value = deltas.ev },
         { key = "hitpoints",  attribute = "hitpoints",           value = deltas.stamina },

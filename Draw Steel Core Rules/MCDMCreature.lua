@@ -1485,6 +1485,14 @@ function creature:CalculatePotencyValueSelf(potency)
     return potencyValue + potencyBonus
 end
 
+--The amount to shift an ability's *literal* potency gate (e.g. "M < 3") for this
+--creature. Only level-scaled monsters carry a shift (see
+--monster:ScaledPotencyGateBonus); every other creature -- heroes included --
+--returns 0, so non-scaled potency gates are completely unaffected.
+function creature:ScaledPotencyGateBonus()
+    return 0
+end
+
 creature.RegisterSymbol {
     symbol = "recoveriesavailabletospend",
     lookup = function(c)

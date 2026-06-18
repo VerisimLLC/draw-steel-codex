@@ -1521,7 +1521,7 @@ function ActivatedAbilityDrawSteelCommandBehavior:ExecuteCommandInternal(ability
         if type(gateMatch.gate) == "string" then
             gate = casterToken.properties:CalculatePotencyValue(gateMatch.gate)
         else
-            gate = tonumber(gateMatch.gate) + casterToken.properties:CalculateNamedCustomAttribute("Potency Bonus")
+            gate = tonumber(gateMatch.gate) + casterToken.properties:CalculateNamedCustomAttribute("Potency Bonus") + casterToken.properties:ScaledPotencyGateBonus()
         end
 
 
@@ -2015,9 +2015,13 @@ function ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(cas
         rule = regex.ReplaceAll(rule, "(if the target has )?(?<attr>[MARIP]) < \\[?average\\]?", string.format("<color=#ff4444><uppercase>${attr}</uppercase> < %d</color>", potencyAverage))
         rule = regex.ReplaceAll(rule, "(if the target has )?(?<attr>[MARIP]) < \\[?strong\\]?", string.format("<color=#ff4444><uppercase>${attr}</uppercase> < %d</color>", potencyStrong))
 
-        --Add potency bonus when numeric gate is used
-        local potencyBonus = caster:CalculateNamedCustomAttribute("Potency Bonus")
-        if starting == rule and potencyBonus > 0 then
+        --Add potency bonus (plus any level-scaling literal-gate shift) when a
+        --numeric gate is used. The ~= 0 guard (was > 0) lets a negative shift --
+        --i.e. scaling a monster DOWN -- rewrite the gate too, matching what the
+        --resolution save-check already does, so the shown gate never disagrees
+        --with the actual save.
+        local potencyBonus = caster:CalculateNamedCustomAttribute("Potency Bonus") + caster:ScaledPotencyGateBonus()
+        if starting == rule and potencyBonus ~= 0 then
             rule = string.gsub(rule, "([MARIPmarip])%s*<%s*(%-?%d+)", function(attr, gate)
                 local adjustedGate = tonumber(gate) + potencyBonus
                 return string.format("<color=#ff4444><uppercase>%s</uppercase> < %d</color>", string.upper(attr), adjustedGate)

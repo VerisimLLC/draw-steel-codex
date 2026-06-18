@@ -65,6 +65,7 @@ local g_defaultSkin = {
     quote   = { font = nil, color = nil, bold = false, italic = false, justify = nil, barColor = nil, inset = 0 },
     rule    = { image = nil, color = nil, thickness = 1, margin = 0 },
     link    = { color = nil, underline = true },
+    page    = { bgcolor = false },
 }
 
 -- Read-only accessor (deep copy) so callers/tests cannot mutate the canonical
@@ -103,7 +104,7 @@ local function MergeSkin(parent, child)
         out.headings[level] = MergeSection(ph[level], ch[level])
     end
     -- single-section keys
-    for _, key in ipairs({"body", "bullet", "ordered", "quote", "rule", "link"}) do
+    for _, key in ipairs({"body", "bullet", "ordered", "quote", "rule", "link", "page"}) do
         out[key] = MergeSection(parent and parent[key], child[key])
     end
     return out
@@ -1798,6 +1799,18 @@ function MarkdownDocument.DisplayPanel(self, args)
             local resolvedStylesheet = self:GetResolvedStylesheet()
             local resolvedSkin = resolvedStylesheet.base
             local resolvedClasses = resolvedStylesheet.classes
+            -- Page background: paint the content container from the resolved skin.
+            -- Re-runs every render (including live stylesheet edits via the monitor).
+            -- Unset clears it so a reused panel keeps no stale background and the
+            -- default skin stays a visual no-op.
+            local pageColor = SkinColor((resolvedSkin.page or {}).bgcolor)
+            if pageColor then
+                element.bgimage = "panels/square.png"
+                element.bgcolor = pageColor
+            else
+                element.bgimage = nil
+                element.bgcolor = nil
+            end
             for i, token in ipairs(tokens) do
                 if token.type == "justification" then
                     --pass, nothing needed here.

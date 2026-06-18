@@ -420,7 +420,9 @@ JournalStyleEditor_BuildForm = function(sheet, upload, panel)
         cls.text = cls.text or {}
         cls.box = cls.box or {}
 
-        children[#children+1] = gui.Label{ classes = {"formStacked"}, text = "  ." .. name }
+        -- Show the syntax the author actually types: {.name} for inline, :::name for block.
+        local syntaxLabel = (cls.kind == "block") and (":::" .. name) or ("{." .. name .. "}")
+        children[#children+1] = gui.Label{ classes = {"formStacked"}, text = "  " .. syntaxLabel }
 
         -- Rename: moves the key.
         children[#children+1] = JSE_TextRow("    Name:", name, function(v)
@@ -460,7 +462,7 @@ JournalStyleEditor_BuildForm = function(sheet, upload, panel)
         children[#children+1] = JSE_NumberRow("    Box padding:", cls.box.pad, function(n)
             cls.box.pad = n; upload()
         end)
-        children[#children+1] = gui.Button{ text = "Delete class ." .. name, width = "auto", height = 24,
+        children[#children+1] = gui.Button{ text = "Delete class: " .. name, width = "auto", height = 24,
             click = function()
                 sheet.classes[name] = nil
                 upload()

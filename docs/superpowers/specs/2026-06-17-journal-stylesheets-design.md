@@ -144,22 +144,49 @@ child-over-parent per key (base keys and class entries both diff-merge). Result 
 
 ## Rendering / compile path
 
-In `MarkdownDocument` (`DisplayPanel` render path):
+**ARCHITECTURE PIVOT (verified by live spike, 2026-06-17).** The original plan was to
+build a per-document `gui.MarkdownStyle` from the resolved `base` and swap it in. A live
+spike DISPROVED this: a custom `gui.MarkdownStyle` does not restyle headings or bullets
+on the render path (the engine appears to intern style objects, and it renders bullets
+with its own glyph). But inline TextMeshPro markup (`<size>`, `<color>`, `<b>`,
+`<cspace>`, `<i>`, `<smallcaps>`) renders reliably. So the actual mechanism is
+**inline-markup injection**: derive markup from the resolved skin and inject it into the
+text at render time. This is more deterministic and more print-faithful than the
+style-key mechanism.
 
-1. Resolve `self.styleSheetId` -> merged stylesheet (memoized).
-2. **Base skin -> per-document `gui.MarkdownStyle`** built from resolved `base`
-   instead of the module-level `g_markdownStyle` constant. Headings become
-   data-driven; today's constant becomes the built-in default's heading values.
-3. **Bullets / ordered lists / blockquote / rule** are currently rendered by display
-   logic, NOT via the style map (only headings flow through it today). This is net-new
-   work: expose knobs in `base` and thread them into the list/quote/rule rendering.
-   The implementation plan must trace the exact list-rendering code first.
-4. **Inline `{.class text}`** -> new branch in the existing brace tokenizer, beside the
-   `{!`, `{#`, `{:lang:` cases (`MarkdownDocument.lua:92-110`). Looks up the class,
-   emits its `text` rich-text tags, runs `ResolveTokens` for `@token` colors.
-5. **Block `:::class ... :::`** -> registered **RichTag** (same rail as
-   `RichImage`/`RichReminder`). Tokenizes the fence, renders inner markdown into a
-   wrapping `gui.Panel` carrying the class's `box` props + inner `text` style.
+### Implemented (Plans 1-2, merged)
+
+1. Resolve `self.styleSheetId` -> merged stylesheet (memoized): `ResolveStylesheet(id)`
+   returning `{ base, classes }`; `MarkdownDocument:GetResolvedStylesheet()`. (Plan 1.)
+2. **`ApplySkinToText(text, base)`** -- a pure, per-line transformer that injects skin
+   markup for headings (size/weight->`<b>`/color/`tracking`->`<cspace>`/`caps`), bullets
+   and ordered lists (colored glyph/marker, indent), and body color. Heading dispatch is
+   capped at 5 hashes (`######` stays literal, matching today's 5-level markdown). The
+   built-in default skin is tuned so this is a **visual no-op** -- unstyled journals
+   render exactly as before. (Plan 2.)
+3. Wired in at the single body-text application point (`textPanel.text = ...`), with the
+   resolved `base` hoisted once per render as `resolvedSkin`. (Plan 2.)
+4. **Blockquote** text styled via `SkinQuoteText(quote, text)` (color/italic) on the
+   feed to the inner `MarkdownLabel`. **Divider** styled from `rule` -- but `gui.Divider`
+   only honors `height`/thickness (`bgcolor`/margins error on set), so `rule.color` /
+   `rule.margin` cannot apply; colored dividers need a different rendering (deferred).
+   (Plan 2.)
+5. **Live re-render:** the document display panel monitors `/assets/objectTables/
+   journalStyles` and on change clears the resolver cache and re-renders. (Plan 2.)
+
+### Planned (Plan 3 -- named classes)
+
+6. Thread the resolved `classes` table at render (today only `base` is hoisted; add a
+   `resolvedClasses` hoist -- additive, no rework).
+7. **Inline `{.class text}`** -> handled in the inline brace processor beside the `{!`,
+   `{#`, `{:lang:` cases. Resolve the class's `text` block to inline markup (reuse the
+   `Skin*Markup` text logic; `ResolveTokens` for `@token` colors) and wrap the span.
+8. **Block `:::class ... :::`** -> follow the **blockquote precedent, NOT a RichTag**
+   (RichTags are inline `[[tag]]` single tokens -- wrong shape for a multi-line wrapper).
+   Add a tokenizer branch (near the blockquote branch) emitting a new token type carrying
+   `className` + inner text, and a render-loop branch (mirroring `type=="blockquote"`)
+   that renders a wrapping `gui.Panel` with the class's `box` props + an inner
+   `MarkdownLabel` styled by the class's `text`.
 
 No change to how documents are stored or synced -- purely a render-time interpretation
 layer plus one new id field on the document.

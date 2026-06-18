@@ -3724,17 +3724,18 @@ function MarkdownDocument:EditPanel(args)
             element.text = self:GetTextContent()
         end,
         needsave = function(element, result)
-            if self:GetTextContent() ~= element.text then
+            if self:GetTextContent() ~= element.text or self:try_get("_tmp_styleDirty") == true then
                 result.save = true
             end
         end,
         savedoc = function(element)
             self:SetTextContent(element.text)
             element.text = self:GetTextContent()
+            self._tmp_styleDirty = nil
         end,
 
         checkChanges = function(element, baseDoc)
-            resultPanel:SetClassTree("changes", element.text ~= baseDoc:GetTextContent())
+            resultPanel:SetClassTree("changes", element.text ~= baseDoc:GetTextContent() or self:try_get("_tmp_styleDirty") == true)
         end,
 
         caretReady = function(element)
@@ -4023,6 +4024,7 @@ function MarkdownDocument:EditPanel(args)
                     if previewPanel ~= nil then
                         previewPanel:FireEventTree("refreshDocument", previewDoc)
                     end
+                    self._tmp_styleDirty = true
                     if resultPanel ~= nil then
                         resultPanel:SetClassTree("changes", true)
                     end

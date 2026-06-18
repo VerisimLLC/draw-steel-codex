@@ -307,36 +307,48 @@ MarkdownDocument.__BuildShowcaseContent = BuildShowcaseContent
 
 -- SetData fetches the entry and (re)builds the editor form. Re-resolving on
 -- each field change keeps displayed (inherited) values current.
-local function JournalStyleEditor_SetData(tableName, panel, id)
+local function JournalStyleEditor_SetData(tableName, formPanel, previewDoc, previewPanel, id)
     local sheet = (dmhub.GetTable(tableName) or {})[id]
     if sheet == nil then
-        panel.children = {}
+        formPanel.children = {}
         return
     end
-    panel.data.sheetid = id
+    formPanel.data.sheetid = id
+    previewDoc.styleSheetId = id
     local upload = function()
         dmhub.SetAndUploadTableItem(tableName, sheet)
     end
-    JournalStyleEditor_BuildForm(sheet, upload, panel)
+    JournalStyleEditor_BuildForm(sheet, upload, formPanel)
 end
 
 function JournalStylesheet.CreateEditor()
-    local panel
-    panel = gui.Panel{
-        vscroll = true,
-        flow = "vertical",
-        pad = 20,
-        borderBox = true,
-        width = "100%",
-        height = "100%",
+    local formPanel = gui.Panel{
+        vscroll = true, flow = "vertical", pad = 20, borderBox = true,
+        width = "50%", height = "100%",
+        data = { sheetid = "" },
+    }
+    local previewDoc = MarkdownDocument.new{ content = "", annotations = {}, styleSheetId = false }
+    local previewPanel = gui.Panel{
+        vscroll = true, flow = "vertical", borderBox = true,
+        width = "50%", height = "100%", lmargin = 8, hpad = 12, vpad = 12,
+        previewDoc:DisplayPanel{ width = "100%", height = "auto" },
+    }
+    -- Let BuildForm reach the preview so class add/remove/rename regenerates it.
+    formPanel.data.previewDoc = previewDoc
+    formPanel.data.previewPanel = previewPanel
+
+    local root = gui.Panel{
+        flow = "horizontal", width = "100%", height = "100%",
         data = {
             sheetid = "",
             SetData = function(tableName, id)
-                JournalStyleEditor_SetData(tableName, panel, id)
+                JournalStyleEditor_SetData(tableName, formPanel, previewDoc, previewPanel, id)
             end,
         },
+        formPanel,
+        previewPanel,
     }
-    return panel
+    return root
 end
 
 -- Form row helpers (shared by base-skin and class editors). Each returns a panel.
@@ -589,6 +601,17 @@ JournalStyleEditor_BuildForm = function(sheet, upload, panel)
         end }
 
     panel.children = children
+
+    -- Live preview: regenerate the showcase content for this sheet and refresh.
+    -- (Base-skin/frame/color edits re-render via the journalStyles monitor that
+    -- every DisplayPanel carries; class add/remove/rename rebuilds the form, so
+    -- regenerating here picks up new/removed class samples.)
+    if panel.data.previewDoc ~= nil then
+        panel.data.previewDoc:SetTextContent(BuildShowcaseContent(sheet))
+        if panel.data.previewPanel ~= nil then
+            panel.data.previewPanel:FireEventTree("refreshDocument", panel.data.previewDoc)
+        end
+    end
 end
 
 -- =============================================================================

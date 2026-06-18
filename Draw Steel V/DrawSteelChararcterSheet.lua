@@ -2611,7 +2611,10 @@ local function ShowAdjustLevelDialog(token)
             valueLabel.text = string.format("%d", targetLevel)
         end
         if slider ~= nil and slider.valid then
-            slider:SetValue(targetLevel, false)
+            -- setValueNoEvent repositions the thumb (fires updateValue) without
+            -- firing 'change'. SetValue(v, false) would skip updateValue too, so
+            -- the thumb would not follow the stepper arrows.
+            slider.data.setValueNoEvent(targetLevel)
         end
         if previewPanel ~= nil and previewPanel.valid then
             previewPanel.children = BuildPreviewRows()
@@ -2621,12 +2624,33 @@ local function ShowAdjustLevelDialog(token)
         local tgtEch = MCDMMonsterScaling.Echelon(targetLevel)
         local crossing = (tgtEch ~= curEch)
         if echelonBanner ~= nil and echelonBanner.valid then
-            echelonBanner:SetClass("collapsed", not crossing)
-            if crossing then
-                local diff = math.abs(tgtEch - curEch)
-                local verb = cond(tgtEch > curEch, "increase", "decrease")
-                echelonBanner.text = string.format(
-                    "Echelon %d. Potency and highest characteristic %s by %d.", tgtEch, verb, diff)
+            -- Report the ACTUAL characteristic and potency deltas, not the echelon
+            -- difference: they diverge at the echelon-4 leader/solo boundary, where
+            -- the characteristic is capped at +5 while potency reaches 6, so
+            -- crossing 9<->10 moves potency but leaves the characteristic unchanged.
+            local charD = MCDMMonsterScaling.HighestCharacteristic(targetLevel, isLeaderSolo)
+                        - MCDMMonsterScaling.HighestCharacteristic(currentLevel, isLeaderSolo)
+            local potD = MCDMMonsterScaling.PotencyStrong(targetLevel, isLeaderSolo)
+                       - MCDMMonsterScaling.PotencyStrong(currentLevel, isLeaderSolo)
+            local moved = (charD ~= 0 or potD ~= 0)
+            echelonBanner:SetClass("collapsed", not (crossing and moved))
+            if crossing and moved then
+                local function phrase(noun, delta)
+                    return string.format("%s %s by %d", noun,
+                        cond(delta > 0, "increases", "decreases"), math.abs(delta))
+                end
+                local body
+                if charD == potD then
+                    body = string.format("Potency and highest characteristic %s by %d",
+                        cond(potD > 0, "increase", "decrease"), math.abs(potD))
+                elseif charD == 0 then
+                    body = phrase("Potency", potD) .. "; highest characteristic is unchanged"
+                elseif potD == 0 then
+                    body = phrase("Highest characteristic", charD) .. "; potency is unchanged"
+                else
+                    body = phrase("Potency", potD) .. " and " .. string.lower(phrase("Highest characteristic", charD))
+                end
+                echelonBanner.text = string.format("Echelon %d. %s.", tgtEch, body)
             end
         end
 

@@ -209,6 +209,101 @@ function MarkdownDocument:GetResolvedStylesheet()
     return ResolveStylesheet(self.styleSheetId)
 end
 
+-- =============================================================================
+-- Skin -> inline markup (Plan 2). A live spike showed gui.MarkdownStyle swaps do
+-- not restyle headings/bullets, but inline TMP markup renders reliably. So we
+-- inject skin-derived markup per line. The DEFAULT skin is tuned so this is a
+-- visual no-op (unstyled journals render exactly as before).
+-- =============================================================================
+
+-- Resolve an optional color value (literal hex or @token) to a hex string, or
+-- nil if unset. ThemeEngine.ResolveTokens turns "@danger" into "#rrggbb".
+local function SkinColor(c)
+    if c == nil or c == false or c == "" then return nil end
+    return ThemeEngine.ResolveTokens(c)
+end
+
+-- Build the open/close markup pair for a heading level from its skin entry, and
+-- return the (possibly case-transformed) content.
+local function SkinHeadingMarkup(h, content)
+    h = h or {}
+    local open, close = "", ""
+    if h.sizePct and h.sizePct ~= 100 then
+        open = open .. string.format("<size=%d%%>", h.sizePct)
+        close = "</size>" .. close
+    end
+    -- weight: "bold" or "black" both map to <b> (TMP has no separate black face
+    -- in the current font catalog); "regular" emits nothing.
+    if h.weight == "bold" or h.weight == "black" then
+        open = open .. "<b>"
+        close = "</b>" .. close
+    end
+    local tracking = h.tracking or 0
+    if tracking ~= 0 then
+        -- InDesign tracking is 1/1000 em; TMP <cspace> takes em. -20 -> -0.02em.
+        open = open .. string.format("<cspace=%.3fem>", tracking / 1000)
+        close = "</cspace>" .. close
+    end
+    local color = SkinColor(h.color)
+    if color then
+        open = open .. string.format("<color=%s>", color)
+        close = "</color>" .. close
+    end
+    if h.caps == "allcaps" then
+        content = string.upper(content)
+    elseif h.caps == "smallcaps" then
+        open = open .. "<smallcaps>"
+        close = "</smallcaps>" .. close
+    end
+    return open .. content .. close
+end
+
+-- Wrap a body line per the body skin. Only emits markup for explicitly-set,
+-- non-default values so the default skin stays a visual no-op.
+local function SkinBodyMarkup(body, content)
+    body = body or {}
+    local open, close = "", ""
+    local color = SkinColor(body.color)
+    if color then
+        open = open .. string.format("<color=%s>", color)
+        close = "</color>" .. close
+    end
+    return open .. content .. close
+end
+
+local ApplySkinToText
+ApplySkinToText = function(text, base)
+    if type(text) ~= "string" or text == "" then return text end
+    base = base or {}
+    local out = {}
+    -- Split on \n preserving structure; gmatch with a trailing sentinel keeps
+    -- empty lines and a possible empty final segment.
+    local start = 1
+    local lines = {}
+    while true do
+        local nl = string.find(text, "\n", start, true)
+        if nl == nil then
+            lines[#lines + 1] = string.sub(text, start)
+            break
+        end
+        lines[#lines + 1] = string.sub(text, start, nl - 1)
+        start = nl + 1
+    end
+    for _, line in ipairs(lines) do
+        local hashes, content = string.match(line, "^(#+) (.*)$")
+        if hashes ~= nil and #hashes >= 1 and #hashes <= 6 then
+            local level = #hashes
+            out[#out + 1] = SkinHeadingMarkup((base.headings or {})[level], content)
+        else
+            out[#out + 1] = SkinBodyMarkup(base.body, line)
+        end
+    end
+    return table.concat(out, "\n")
+end
+
+-- Test hook (no _tmp_ needed; this is a class-level function reference).
+MarkdownDocument.__ApplySkinToText = ApplySkinToText
+
 local showPreviewSetting = setting{
     id = "markdownEditorShowPreview",
     name = "Show Preview Pane in Markdown Editor",

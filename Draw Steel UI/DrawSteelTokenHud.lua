@@ -293,7 +293,10 @@ TokenHud.RegisterPanel{
                     local is_direct_target = token.properties.minionDamageTime == squad.damage_time
                     local has_direct_targets = squad.num_recently_damaged > 0
 
-                    if death and (is_direct_target or death_overflows) then
+                    --suppress the skull while a death trigger is being offered so it does not cover the trigger icon.
+                    local triggers = token.properties:GetAvailableTriggers(true)
+
+                    if death and (is_direct_target or death_overflows) and triggers == nil then
                         if m_minionDeathPanel == nil then
                             m_minionDeathPanel = gui.Panel{
                                 styles = g_deadMinionIconStyles,

@@ -6354,6 +6354,62 @@ end
 
 
 
+local ShowJournalStylesheetsPanel = function(parentPanel)
+    local editorPanel = JournalStylesheet.CreateEditor()
+    local SetData = editorPanel.data.SetData
+
+    local itemsListPanel = nil
+    local stylesheetsItems = {}
+
+    itemsListPanel = gui.Panel{
+        classes = {'list-panel'},
+        vscroll = true,
+        monitorAssets = true,
+        refreshAssets = function(element)
+            local children = {}
+            local stylesheetsTable = dmhub.GetTable(JournalStylesheet.tableName) or {}
+            local newStylesheetsItems = {}
+
+            for k, item in unhidden_pairs(stylesheetsTable) do
+                newStylesheetsItems[k] = stylesheetsItems[k] or CreateListItem{
+                    select = element.aliveTime > 0.2,
+                    tableName = JournalStylesheet.tableName,
+                    key = k,
+                    obliterateOnDelete = true,
+                    click = function()
+                        SetData(JournalStylesheet.tableName, k)
+                    end,
+                }
+                newStylesheetsItems[k].text = item.name
+                children[#children+1] = newStylesheetsItems[k]
+            end
+
+            table.sort(children, function(a, b) return a.text < b.text end)
+
+            stylesheetsItems = newStylesheetsItems
+            itemsListPanel.children = children
+        end,
+    }
+
+    itemsListPanel:FireEvent('refreshAssets')
+
+    local leftPanel = gui.Panel{
+        selfStyle = {
+            flow = 'vertical',
+            height = '100%',
+            width = 'auto',
+        },
+        itemsListPanel,
+        AddButton{
+            click = function(element)
+                dmhub.SetAndUploadTableItem(JournalStylesheet.tableName, JournalStylesheet.CreateNew())
+            end,
+        },
+    }
+
+    parentPanel.children = {leftPanel, editorPanel}
+end
+
 Compendium.CreateListItem = CreateListItem
 
 local g_registeredPanels = false
@@ -6445,6 +6501,15 @@ dmhub.RegisterEventHandler("refreshTables", function(keys)
     --		mod.shared.GameSystemCompendium(contentPanel)
     --	end,
     --}
+
+    Compendium.Register{
+        section = "Rules",
+        text = 'Journal Stylesheets',
+        contentType = JournalStylesheet.tableName,
+        click = function(contentPanel)
+            ShowJournalStylesheetsPanel(contentPanel)
+        end,
+    }
 
     Compendium.Register{
         section = "Rules",

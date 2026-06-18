@@ -191,6 +191,26 @@ style-key mechanism.
 No change to how documents are stored or synced -- purely a render-time interpretation
 layer plus one new id field on the document.
 
+### Known limitations of named classes (Plan 3, as built)
+
+The `{.class}` syntax lives inside the engine's existing `{...}` GM-spoiler grammar, which
+forces a few deliberate edge-case tradeoffs. Plan 4's editor should not surface affordances
+that hit these:
+
+- **Inline span requires inner text after a space.** `{.name text}` is recognized; `{.name}`
+  (no space/inner) is NOT -- it is treated as a normal GM spoiler. Empty inline spans are
+  unsupported.
+- **A genuine spoiler that begins `.word ` is misclassified.** A real `{.NET ships}` spoiler
+  is read as an inline class (and, in player view, its content survives the strip and shows).
+  Low likelihood; inherent to reusing the `{` grammar. Authors who need a literal leading
+  `.word ` in a spoiler should reword.
+- **Inline `{.class}` resolves only in body text.** A `{.warn x}` inside a blockquote, table
+  cell, or other non-text token is not resolved and renders literally. Inline classes are a
+  body-paragraph feature.
+- **No nesting; bare `:::` leaks.** Block classes do not nest; an unbalanced or stray `:::`
+  line (no class name) renders literally.
+- **Inline `{.class}` inner text may not contain a literal `}`.**
+
 ## Editor UI
 
 A stylesheet editor panel hosted in an existing DocumentSystem panel file (plan picks

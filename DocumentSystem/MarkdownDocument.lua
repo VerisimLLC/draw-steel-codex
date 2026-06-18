@@ -564,6 +564,7 @@ local function ApplyBlockFrame(panel, box)
     ss.borderColor = nil
     ss.cornerRadius = nil
     ss.pad = nil
+    ss.borderBox = nil
     if box.bgcolor then ss.bgimage = "panels/square.png"; ss.bgcolor = SkinColor(box.bgcolor) end
     if box.bgimage then ss.bgimage = box.bgimage end
     if box.borderImage then ss.borderImage = box.borderImage end
@@ -2504,21 +2505,7 @@ function MarkdownDocument.DisplayPanel(self, args)
                     -- Apply the class box props (graceful when class is missing or
                     -- not a block class -> renders as a plain unstyled panel).
                     local box = (type(cls) == "table" and cls.kind == "block" and cls.box) or {}
-                    local ss = styleblock.selfStyle
-                    ss.bgimage = nil
-                    ss.bgcolor = nil
-                    ss.borderImage = nil
-                    ss.border = nil
-                    ss.borderColor = nil
-                    ss.cornerRadius = nil
-                    ss.pad = nil
-                    if box.bgcolor then ss.bgimage = "panels/square.png"; ss.bgcolor = SkinColor(box.bgcolor) end
-                    if box.bgimage then ss.bgimage = box.bgimage end
-                    if box.borderImage then ss.borderImage = box.borderImage end
-                    if box.border then ss.border = box.border end
-                    if box.borderColor then ss.borderColor = SkinColor(box.borderColor) end
-                    if box.cornerRadius then ss.cornerRadius = box.cornerRadius end
-                    if box.pad then ss.pad = box.pad end
+                    ApplyBlockFrame(styleblock, box)
 
                     if m_styleblocks[#newStyleblocks + 1] ~= nil then
                         styleblock:Unparent()

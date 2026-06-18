@@ -457,6 +457,12 @@ function creature:CanFly()
 	return self:GetSpeed("fly") > 0
 end
 
+--- If the creature is currently flying.
+--- @return boolean
+function creature:IsFlying()
+	return self:CurrentMoveType() == "fly"
+end
+
 --- If the creature has a swim speed.
 --- @return boolean
 function creature:CanSwim()

@@ -246,6 +246,37 @@ to:
 
 (Inline spans resolve first, producing inner markup; then `ApplySkinToText` applies line-level heading/bullet/body markup around them. Line-start detection in `ApplySkinToText` is unaffected because a `{.` span never begins a line's heading/bullet prefix.)
 
+(d) **Exclude `{.` from the spoiler tokenizer (REQUIRED -- discovered at runtime).**
+The main tokenizer (NOT just `StripSpoilers`) treats every `{` as a GM spoiler:
+the regex at line 914 captures `(?<spoiler>\{)` and the branch at line 931 emits a
+"Reveal to Players" link for it in DM view. Without this fix, `{.class text}` gets a
+spurious spoiler link layered over the styled span. In the `if match.spoiler ~= nil`
+branch, detect the inline-class marker and skip the spoiler UI (mirroring how the same
+branch already special-cases `{!` at line 940). Change:
+
+```lua
+            if match.spoiler ~= nil then
+
+                if not isPlayer then
+```
+
+to:
+
+```lua
+            if match.spoiler ~= nil then
+
+                -- {.name ...} is an inline class marker, not a spoiler: skip the
+                -- spoiler UI so the render-time ApplyInlineClasses pass resolves it.
+                local isInlineClass = string.match(match.suffix, "^%.[%w_%-]+ ") ~= nil
+
+                if not isPlayer and not isInlineClass then
+```
+
+The `text = text .. "{"` at line 960 still runs, so the `{` and the rest of
+`.name text}` flow through as plain text into the text token, where
+`ApplyInlineClasses` resolves the span. This makes `{.class}` render cleanly in BOTH
+views (no spoiler link in DM view; `StripSpoilers` passthrough in player view).
+
 - [ ] **Step 4: Run the unit test to verify it passes**
 
 `reload_lua`, `execute_lua` with the Step-1 snippet. Expected: `PASS`. Also re-run the Plan 2 `ApplySkinToText` default-skin snippet (from `MarkdownDocument.__ApplySkinToText`, e.g. `f("# Title", default)=="<size=200%><b>Title</b></size>"`) to confirm no regression.

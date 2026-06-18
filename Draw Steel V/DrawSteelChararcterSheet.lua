@@ -2384,6 +2384,18 @@ local function ShowAdjustLevelDialog(token)
     local isLeaderSolo = (org == "leader" or org == "solo")
     local dtype = MCDMMonsterScaling.DamageType(org, role)
 
+    -- Strikes add the highest characteristic on top of the table damage and so
+    -- scale differently from non-strike power rolls (table delta + characteristic
+    -- delta vs table delta alone). Only surface a Strike damage row when this
+    -- monster actually has a strike ability, so monsters without one get no dead row.
+    local hasStrike = false
+    for _, a in ipairs(props:GetActivatedAbilities {}) do
+        if a:HasKeyword("Strike") then
+            hasStrike = true
+            break
+        end
+    end
+
     local minLevel = MCDMMonsterScaling.minLevel
     local maxLevel = MCDMMonsterScaling.maxLevel
     local baseLevel = props:GetScalingBaseLevel()
@@ -2541,6 +2553,28 @@ local function ShowAdjustLevelDialog(token)
                 string.format("%d / %d / %d", dmgNow[1], dmgNow[2], dmgNow[3]),
                 string.format("%d / %d / %d", dmgTgt[1], dmgTgt[2], dmgTgt[3]),
                 dStr, cond(changed, signum(targetLevel - currentLevel), 0), false)
+
+            -- Strike damage = table damage + highest characteristic, which scales
+            -- by the table delta plus the characteristic delta (so it moves more
+            -- than the row above when an echelon boundary is crossed). Only shown
+            -- when the monster has a strike ability.
+            if hasStrike then
+                local sCharNow = MCDMMonsterScaling.HighestCharacteristic(currentLevel, isLeaderSolo)
+                local sCharTgt = MCDMMonsterScaling.HighestCharacteristic(targetLevel, isLeaderSolo)
+                local s1 = (dmgTgt[1] + sCharTgt) - (dmgNow[1] + sCharNow)
+                local s2 = (dmgTgt[2] + sCharTgt) - (dmgNow[2] + sCharNow)
+                local s3 = (dmgTgt[3] + sCharTgt) - (dmgNow[3] + sCharNow)
+                local sChanged = s1 ~= 0 or s2 ~= 0 or s3 ~= 0
+                local sStr = ""
+                if sChanged then
+                    sStr = string.format("%s / %s / %s",
+                        ScalingSignedString(s1), ScalingSignedString(s2), ScalingSignedString(s3))
+                end
+                add("Strike damage (T1 / T2 / T3)",
+                    string.format("%d / %d / %d", dmgNow[1] + sCharNow, dmgNow[2] + sCharNow, dmgNow[3] + sCharNow),
+                    string.format("%d / %d / %d", dmgTgt[1] + sCharTgt, dmgTgt[2] + sCharTgt, dmgTgt[3] + sCharTgt),
+                    sStr, cond(sChanged, signum(targetLevel - currentLevel), 0), false)
+            end
         end
 
         -- Free strike (per-creature; T1 table delta, no characteristic)

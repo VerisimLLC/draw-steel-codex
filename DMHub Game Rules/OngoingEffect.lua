@@ -269,6 +269,16 @@ function TimePoint:RoundsSince()
 	local initiativeEntry = initiativeQueue:GetFirstInitiativeEntry()
 	local currentlyOurTurn = initiativeEntry ~= nil and initiativeEntry.initiativeid == self:try_get("initiativeid")
 
+	--While a creature's "Before Start of Turn" (prestartturn) trigger is firing, its turn
+	--has not "really" begun yet (see creature:BeginTurn). The round counter has already
+	--incremented, so rewind a full round step for this creature's own effects so that
+	--ones expiring "at the start of its turn" (duration 0) remain active through the
+	--trigger and only expire once the flag clears. Gated on currentlyOurTurn so effects
+	--on other creatures are never affected.
+	if currentlyOurTurn and initiativeQueue:try_get("_tmp_prestartInitiativeId") == self:try_get("initiativeid") then
+		roundsPassed = roundsPassed - 1
+	end
+
 	local turnPassed = false
 	local turnPending = false
 

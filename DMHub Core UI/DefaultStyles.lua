@@ -1190,6 +1190,8 @@ ThemeEngine.RegisterTheme{
         {
             selectors = {"panel", "buttonIcon", "parent:customiseAbilityButton"},
             bgimage = "ui-icons/pencil.png",
+        },
+        {
             selectors = {"panel", "buttonIcon", "parent:maximizeButton"},
             bgimage = "panels/hud/down-arrow.png",
         },

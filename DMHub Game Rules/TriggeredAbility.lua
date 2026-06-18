@@ -1289,6 +1289,7 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
                 clearOnDismiss = true,
                 modes = modes,
                 heroicResourceCost = tonumber(cost),
+                noDeduplicate = self:try_get("allowDuplicateTriggers", false),
 			}
 
             if self:ActionResource() == CharacterResource.triggerResourceId then

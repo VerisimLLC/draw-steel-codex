@@ -395,6 +395,82 @@ JournalStyleEditor_BuildForm = function(sheet, upload, panel)
         ownBaseSection("bullet").color = c; upload()
     end)
 
+    -- Named classes (curated). Operate on this sheet's OWN classes table.
+    sheet.classes = sheet.classes or {}
+    children[#children+1] = gui.Label{ classes = {"formStacked"}, text = "Classes" }
+
+    local kindOptions = {
+        { id = "inline", text = "Inline {.name text}" },
+        { id = "block", text = "Block :::name:::" },
+    }
+
+    -- Stable, sorted iteration so the form does not reorder under the user.
+    local classNames = {}
+    for name,_ in pairs(sheet.classes) do classNames[#classNames+1] = name end
+    table.sort(classNames)
+
+    for _, name in ipairs(classNames) do
+        local cls = sheet.classes[name]
+        cls.text = cls.text or {}
+        cls.box = cls.box or {}
+
+        children[#children+1] = gui.Label{ classes = {"formStacked"}, text = "  ." .. name }
+
+        -- Rename: moves the key.
+        children[#children+1] = JSE_TextRow("    Name:", name, function(v)
+            v = string.lower(trim(v))
+            if v ~= "" and v ~= name and sheet.classes[v] == nil then
+                sheet.classes[v] = sheet.classes[name]
+                sheet.classes[name] = nil
+                upload()
+                JournalStyleEditor_BuildForm(sheet, upload, panel)  -- rebuild with new key
+            end
+        end)
+        children[#children+1] = JSE_DropdownRow("    Kind:", kindOptions, cls.kind or "inline", function(v)
+            cls.kind = v; upload()
+        end)
+        children[#children+1] = JSE_ColorRow("    Text color:", cls.text.color, function(c)
+            cls.text.color = c; upload()
+        end)
+        children[#children+1] = JSE_DropdownRow("    Text weight:", {
+            { id = "regular", text = "Regular" }, { id = "bold", text = "Bold" }, { id = "black", text = "Black" },
+        }, cls.text.weight or "regular", function(v) cls.text.weight = v; upload() end)
+        children[#children+1] = JSE_CheckRow("    Italic", cls.text.italic, function(b)
+            cls.text.italic = b; upload()
+        end)
+        -- Block box fields (shown always; only used when kind == "block")
+        children[#children+1] = JSE_ColorRow("    Box bg:", cls.box.bgcolor, function(c)
+            cls.box.bgcolor = c; upload()
+        end)
+        children[#children+1] = JSE_NumberRow("    Box border:", cls.box.border, function(n)
+            cls.box.border = n; upload()
+        end)
+        children[#children+1] = JSE_ColorRow("    Box border color:", cls.box.borderColor, function(c)
+            cls.box.borderColor = c; upload()
+        end)
+        children[#children+1] = JSE_NumberRow("    Box corner radius:", cls.box.cornerRadius, function(n)
+            cls.box.cornerRadius = n; upload()
+        end)
+        children[#children+1] = JSE_NumberRow("    Box padding:", cls.box.pad, function(n)
+            cls.box.pad = n; upload()
+        end)
+        children[#children+1] = gui.Button{ text = "Delete class ." .. name, width = "auto", height = 24,
+            click = function()
+                sheet.classes[name] = nil
+                upload()
+                JournalStyleEditor_BuildForm(sheet, upload, panel)
+            end }
+    end
+
+    children[#children+1] = gui.Button{ text = "Add class", width = "auto", height = 28,
+        click = function()
+            local n, i = "class", 1
+            while sheet.classes[n] ~= nil do i = i + 1; n = "class" .. i end
+            sheet.classes[n] = { kind = "inline", text = {}, box = {} }
+            upload()
+            JournalStyleEditor_BuildForm(sheet, upload, panel)
+        end }
+
     panel.children = children
 end
 

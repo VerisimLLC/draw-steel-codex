@@ -772,6 +772,29 @@ BreakdownRichTags = function(content, result, options, extraOutput)
             str = ""
         end
 
+        local styleBlockMatch = regex.MatchGroups(str, "^::: *(?<class>[a-zA-Z0-9_-]+) *$")
+        if styleBlockMatch ~= nil then
+            EmitText()
+            local blockLines = {}
+            local consumed = 0
+            for j = i + 1, #lines do
+                if regex.MatchGroups(lines[j], "^::: *$") ~= nil then
+                    consumed = consumed + 1  -- count the closing fence
+                    break
+                end
+                blockLines[#blockLines + 1] = lines[j]
+                consumed = consumed + 1
+            end
+            result[#result + 1] = {
+                type = "styleblock",
+                className = string.lower(styleBlockMatch.class),
+                text = table.concat(blockLines, "\n"),
+                player = isPlayer,
+            }
+            skipLines = consumed
+            str = ""
+        end
+
         local rollableTableHeaderMatch = regex.MatchGroups(str, "^\\|(?<name>[^:]+): *(?<dice>[0-9]+d[0-9]+) *$")
         if rollableTableHeaderMatch ~= nil and lines[i + 1] ~= nil and string.starts_with(lines[i + 1], "|") then
             EmitText()
@@ -1421,6 +1444,7 @@ function MarkdownDocument.DisplayPanel(self, args)
     local m_embeds = {}
     local m_treeNodes = {}
     local m_blockquotes = {}
+    local m_styleblocks = {}
     local m_tokenExtraInfo = {}
 
     local params = {
@@ -1471,6 +1495,7 @@ function MarkdownDocument.DisplayPanel(self, args)
             local newEmbeds = {}
             local newTreeNodes = {}
             local newBlockquotes = {}
+            local newStyleblocks = {}
             local currentRichRow = nil
 
             local rollableTablesByName = {}
@@ -2083,6 +2108,54 @@ function MarkdownDocument.DisplayPanel(self, args)
 
                     children[#children+1] = blockquote
 
+                elseif token.type == "styleblock" then
+                    currentRichRow = nil
+                    local cls = resolvedClasses[token.className]
+                    local styleblock = m_styleblocks[#newStyleblocks + 1] or gui.Panel {
+                        width = "100%",
+                        height = "auto",
+                        halign = "left",
+                        valign = "top",
+                        flow = "vertical",
+                        borderBox = true,
+                        savedoc = function(element) element:HaltEventPropagation() end,
+                        refreshDocument = function(element) element:HaltEventPropagation() end,
+                        editDocument = function(element) element:HaltEventPropagation() end,
+                        refreshTag = function(element) element:HaltEventPropagation() end,
+                        gui.MarkdownLabel{
+                            width = "100%",
+                            markdownText = function(element, text)
+                                element:HaltEventPropagation()
+                                element.text = text
+                            end,
+                        }
+                    }
+
+                    -- Apply the class box props (graceful when class is missing or
+                    -- not a block class -> renders as a plain unstyled panel).
+                    local box = (type(cls) == "table" and cls.kind == "block" and cls.box) or {}
+                    local ss = styleblock.selfStyle
+                    if box.bgcolor then ss.bgimage = "panels/square.png"; ss.bgcolor = SkinColor(box.bgcolor) end
+                    if box.bgimage then ss.bgimage = box.bgimage end
+                    if box.borderImage then ss.borderImage = box.borderImage end
+                    if box.border then ss.border = box.border end
+                    if box.borderColor then ss.borderColor = SkinColor(box.borderColor) end
+                    if box.cornerRadius then ss.cornerRadius = box.cornerRadius end
+                    if box.pad then ss.pad = box.pad end
+
+                    if m_styleblocks[#newStyleblocks + 1] ~= nil then
+                        styleblock:Unparent()
+                    end
+
+                    local innerText = token.text
+                    if type(cls) == "table" and cls.text ~= nil then
+                        innerText = SkinClassTextMarkup(cls.text, token.text)
+                    end
+                    styleblock:FireEventTree("markdownText", innerText)
+
+                    newStyleblocks[#newStyleblocks + 1] = styleblock
+                    children[#children + 1] = styleblock
+
                 elseif token.type == "tag" then
                     if currentTable ~= nil and currentTableRow == nil then
                         --end of table.
@@ -2214,6 +2287,7 @@ function MarkdownDocument.DisplayPanel(self, args)
             m_embeds = newEmbeds
             m_treeNodes = newTreeNodes
             m_blockquotes = newBlockquotes
+            m_styleblocks = newStyleblocks
             element.children = children
         end,
         monitorGame = "/assets/objectTables/" .. JournalStylesheet.tableName,

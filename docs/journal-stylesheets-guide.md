@@ -31,6 +31,7 @@ The base skin controls the journal's structural typography:
 - **Headings 1-6** -- size, color, weight (Regular / Bold / Black), and caps (None / Small Caps / All Caps).
 - **Body** -- text color.
 - **Bullet** -- the marker glyph and its color.
+- **Page** -- the journal's overall background color (e.g. a cream/parchment page). When you set a light page, also set dark heading and body colors so the text reads -- the page does not auto-adjust text contrast.
 
 You only set what you want to change. Anything you leave alone keeps inheriting -- from the parent stylesheet, or from the built-in default.
 
@@ -68,10 +69,10 @@ Open the fence with `:::` followed by the class name, write your lines, and clos
 
 ## The MCDM stylesheet
 
-The **MCDM** stylesheet is modeled on the printed MCDM book: a gold all-caps chapter title, a bold heading hierarchy, gold small-caps sub-heads, gold bullets, and a gold-bordered read-aloud box. It ships with two ready-to-use classes:
+The **MCDM** stylesheet is modeled on the printed MCDM book: **dark text on a warm parchment page**, with bronze-gold accents -- an all-caps chapter title, a bold dark heading hierarchy, gold small-caps sub-heads, gold bullets, and a gold-bordered read-aloud box. It ships with two ready-to-use classes:
 
-- `{.emphasis text}` -- gold, bold inline emphasis.
-- `:::read-aloud` -- a gold-bordered, tinted callout box with italic text.
+- `{.emphasis text}` -- bronze-gold, bold inline emphasis.
+- `:::read-aloud` -- a gold-bordered tan callout box with dark italic text.
 
 Assign it from the **Stylesheet:** dropdown to give any journal that look.
 

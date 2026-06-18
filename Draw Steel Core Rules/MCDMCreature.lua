@@ -2173,6 +2173,19 @@ function creature:Echelon()
     return math.min(4, math.ceil(self:CharacterLevel() / 3))
 end
 
+creature.RegisterSymbol {
+    symbol = "echelon",
+    lookup = function(c)
+        return c:Echelon()
+    end,
+    help = {
+        name = "Echelon",
+        type = "number",
+        desc = "The creature's echelon, derived from its level: 1 (levels 1-3), 2 (4-6), 3 (7-9), 4 (10 and up). Useful for scaling values that step up once per echelon, e.g. a solo's End Effect damage of 5 * Echelon.",
+        seealso = { "Level" },
+    }
+}
+
 function creature:Keywords()
     return {}
 end

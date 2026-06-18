@@ -13,6 +13,60 @@ local g_markdownStyle = gui.MarkdownStyle {
     ["##### "] = "<size=120%><b>", ["/##### "] = "</b></size>",
 }
 
+-- =============================================================================
+-- Journal Stylesheets (Plan 1: data model + cascade resolver)
+-- A JournalStylesheet re-skins a journal's structural typography (base) and
+-- defines named inline/block classes. Stylesheets inherit via parentId, diff-
+-- merging down to g_defaultSkin (the built-in root that mirrors today's look).
+-- =============================================================================
+
+---@class JournalStylesheet
+JournalStylesheet = RegisterGameType("JournalStylesheet")
+JournalStylesheet.tableName = "journalStyles"
+JournalStylesheet.name = "New Stylesheet"
+JournalStylesheet.parentId = false
+-- base/classes default to shared empty tables ONLY as type defaults; Create()
+-- always assigns fresh per-instance tables so instances never alias.
+JournalStylesheet.base = {}
+JournalStylesheet.classes = {}
+
+function JournalStylesheet.Create()
+    return JournalStylesheet.new{
+        name = "New Stylesheet",
+        base = {},
+        classes = {},
+    }
+end
+
+-- The built-in default skin. Values mirror today's g_markdownStyle so a journal
+-- with no stylesheet (or one that overrides nothing) renders exactly as it does
+-- now. Heading sizes are stored as percentages of body, matching the existing
+-- <size=NNN%> markup. The book-faithful "Print" values from the IDML live in a
+-- separate authored stylesheet (later plan), NOT here -- the default must stay
+-- non-breaking. font names are validated engine faces (gui.availableFonts).
+local g_defaultSkin = {
+    headings = {
+        [1] = { sizePct = 200, font = nil, color = nil, bold = true,  caps = nil, tracking = 0, spaceBefore = 0, spaceAfter = 0 },
+        [2] = { sizePct = 180, font = nil, color = nil, bold = true,  caps = nil, tracking = 0, spaceBefore = 0, spaceAfter = 0 },
+        [3] = { sizePct = 160, font = nil, color = nil, bold = true,  caps = nil, tracking = 0, spaceBefore = 0, spaceAfter = 0 },
+        [4] = { sizePct = 140, font = nil, color = nil, bold = true,  caps = nil, tracking = 0, spaceBefore = 0, spaceAfter = 0 },
+        [5] = { sizePct = 120, font = nil, color = nil, bold = true,  caps = nil, tracking = 0, spaceBefore = 0, spaceAfter = 0 },
+        [6] = { sizePct = 120, font = nil, color = nil, bold = true,  caps = nil, tracking = 0, spaceBefore = 0, spaceAfter = 0 },
+    },
+    body    = { font = "berling", color = nil, sizePct = 100, lineHeight = nil, paragraphSpacing = nil, firstLineIndent = 0 },
+    bullet  = { glyph = "-", glyphFont = nil, color = nil, indent = 0, hangingIndent = 0, spacing = 0 },
+    ordered = { color = nil, indent = 0, hangingIndent = 0, spacing = 0 },
+    quote   = { font = nil, color = nil, bold = false, italic = false, justify = nil, barColor = nil, inset = 0 },
+    rule    = { image = nil, color = nil, thickness = 1, margin = 0 },
+    link    = { color = nil, underline = true },
+}
+
+-- Read-only accessor (deep copy) so callers/tests cannot mutate the canonical
+-- default. DeepCopy is a global utility used throughout the codebase.
+function JournalStylesheet.DefaultSkin()
+    return DeepCopy(g_defaultSkin)
+end
+
 local showPreviewSetting = setting{
     id = "markdownEditorShowPreview",
     name = "Show Preview Pane in Markdown Editor",

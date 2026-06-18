@@ -44,9 +44,20 @@ status.json
 
 Definitions/version.txt
 
-# Compendium content -- ignored everything in this folder except reference/
+# Compendium content 
 compendium/*
-!compendium/reference/
 
 # Crowdex is its own git repository
 /Crowdex/
+
+# Content
+RedRoad/*
+Updatedcompendium/*
+monsterjson/*
+
+# Superpowers workflow docs (specs, plans, decision requests)
+docs/superpowers/
+
+# Tooling caches
+.superpowers/
+.understand-anything/

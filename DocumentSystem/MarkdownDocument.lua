@@ -60,7 +60,7 @@ local g_defaultSkin = {
         [6] = { sizePct = 120, font = nil, color = nil, weight = "bold", caps = nil, tracking = 0, spaceBefore = 0, spaceAfter = 0 },
     },
     body    = { font = "berling", color = nil, sizePct = 100, lineHeight = nil, paragraphSpacing = nil, firstLineIndent = 0 },
-    bullet  = { glyph = "-", glyphFont = nil, color = nil, indent = 0, hangingIndent = 0, spacing = 0 },
+    bullet  = { glyph = false, glyphFont = nil, color = nil, indent = 0, hangingIndent = 0, spacing = 0 },
     ordered = { color = nil, indent = 0, hangingIndent = 0, spacing = 0 },
     quote   = { font = nil, color = nil, bold = false, italic = false, justify = nil, barColor = nil, inset = 0 },
     rule    = { image = nil, color = nil, thickness = 1, margin = 0 },
@@ -271,6 +271,45 @@ local function SkinBodyMarkup(body, content)
     return open .. content .. close
 end
 
+-- Unordered bullet. `defmarker` is the original marker character ("-" or "*"),
+-- used as the glyph when no skin glyph is set so unstyled journals are unchanged.
+local function SkinBulletMarkup(bullet, defmarker, content)
+    bullet = bullet or {}
+    local glyph = bullet.glyph
+    if glyph == nil or glyph == false or glyph == "" then glyph = defmarker end
+    local color = SkinColor(bullet.color)
+    local indent = bullet.indent or 0
+    local prefix
+    if color then
+        prefix = string.format("<color=%s>%s</color>", color, glyph)
+    else
+        prefix = glyph
+    end
+    local line = prefix .. " " .. content
+    if indent and indent ~= 0 then
+        line = string.format("<indent=%dpx>%s</indent>", indent, line)
+    end
+    return line
+end
+
+-- Ordered list item. `marker` is the literal "N." token. Default = unchanged.
+local function SkinOrderedMarkup(ordered, marker, content)
+    ordered = ordered or {}
+    local color = SkinColor(ordered.color)
+    local indent = ordered.indent or 0
+    local prefix
+    if color then
+        prefix = string.format("<color=%s>%s</color>", color, marker)
+    else
+        prefix = marker
+    end
+    local line = prefix .. " " .. content
+    if indent and indent ~= 0 then
+        line = string.format("<indent=%dpx>%s</indent>", indent, line)
+    end
+    return line
+end
+
 local ApplySkinToText
 ApplySkinToText = function(text, base)
     if type(text) ~= "string" or text == "" then return text end
@@ -290,10 +329,15 @@ ApplySkinToText = function(text, base)
         start = nl + 1
     end
     for _, line in ipairs(lines) do
-        local hashes, content = string.match(line, "^(#+) (.*)$")
+        local hashes, hContent = string.match(line, "^(#+) (.*)$")
+        local bmarker, bContent = string.match(line, "^([%-%*]) (.*)$")
+        local onum, oContent = string.match(line, "^(%d+%.) (.*)$")
         if hashes ~= nil and #hashes >= 1 and #hashes <= 6 then
-            local level = #hashes
-            out[#out + 1] = SkinHeadingMarkup((base.headings or {})[level], content)
+            out[#out + 1] = SkinHeadingMarkup((base.headings or {})[#hashes], hContent)
+        elseif bmarker ~= nil then
+            out[#out + 1] = SkinBulletMarkup(base.bullet, bmarker, bContent)
+        elseif onum ~= nil then
+            out[#out + 1] = SkinOrderedMarkup(base.ordered, onum, oContent)
         else
             out[#out + 1] = SkinBodyMarkup(base.body, line)
         end

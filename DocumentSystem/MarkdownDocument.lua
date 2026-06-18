@@ -209,6 +209,22 @@ function MarkdownDocument:GetResolvedStylesheet()
     return ResolveStylesheet(self.styleSheetId)
 end
 
+-- Dropdown options for choosing a journal stylesheet. First entry (id "") means
+-- "no stylesheet -> built-in default skin". Sorted by name.
+function JournalStylesheet.PickerOptions()
+    local result = { { id = "", text = "(Default skin)" } }
+    local tbl = dmhub.GetTable(JournalStylesheet.tableName) or {}
+    for k, sheet in unhidden_pairs(tbl) do
+        result[#result + 1] = { id = k, text = sheet.name or "Unnamed" }
+    end
+    table.sort(result, function(a, b)
+        if a.id == "" then return true end
+        if b.id == "" then return false end
+        return a.text < b.text
+    end)
+    return result
+end
+
 -- =============================================================================
 -- Skin -> inline markup (Plan 2). A live spike showed gui.MarkdownStyle swaps do
 -- not restyle headings/bullets, but inline TMP markup renders reliably. So we
@@ -3742,6 +3758,7 @@ function MarkdownDocument:EditPanel(args)
     local previewDoc = MarkdownDocument.new{
         content = self:GetTextContent(),
         annotations = self.annotations,
+        styleSheetId = self.styleSheetId or false,
     }
 
     previewPanel = gui.Panel{
@@ -3986,6 +4003,31 @@ function MarkdownDocument:EditPanel(args)
                     element.idChosen = ""
                 end
             end,
+        },
+
+        gui.Panel{
+            classes = { "formStackedRow" },
+            width = "auto",
+            height = "auto",
+            valign = "center",
+            gui.Label{ classes = { "formStacked" }, text = "Stylesheet:" },
+            gui.Dropdown{
+                classes = { "formStacked" },
+                options = JournalStylesheet.PickerOptions(),
+                idChosen = self.styleSheetId or "",
+                change = function(element)
+                    local chosen = element.idChosen
+                    self.styleSheetId = (chosen ~= "" and chosen) or false
+                    previewDoc.styleSheetId = self.styleSheetId
+                    ResolveStylesheet.ClearCache()
+                    if previewPanel ~= nil then
+                        previewPanel:FireEventTree("refreshDocument", previewDoc)
+                    end
+                    if resultPanel ~= nil then
+                        resultPanel:SetClassTree("changes", true)
+                    end
+                end,
+            },
         },
     }
 

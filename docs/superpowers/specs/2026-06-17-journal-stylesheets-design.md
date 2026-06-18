@@ -226,6 +226,20 @@ shows:
 
 The journal editor gains a stylesheet picker that sets `MarkdownDocument.styleSheetId`.
 
+### Editor known limitations (Plan 4, as built -- curated scope)
+
+- **Curated property set only.** The editor exposes heading size/color/weight/caps, body
+  color, bullet glyph/color, and per-class name/kind/text(color/weight/italic) +
+  box(bgcolor/border/borderColor/cornerRadius/pad). The long tail (tracking, underline/
+  strike/mark, font, ordered/quote/rule/link, box bgslice/gradient/bevel/inset) is
+  authored via import/code.
+- **No "clear to inherit."** A field, once set in the UI, stays an override; resetting it
+  to inherit is an import/code edit. (A blank numeric field does clear that one number.)
+- **The class editor lists only THIS sheet's own classes**, not classes inherited from a
+  parent. Overriding an inherited class means re-declaring it by name.
+- **Colors are literal hex** from the picker; `@token` colors are an import/code feature.
+- **Per-class `font`** has no control (needs the asset pack).
+
 ## Print-fidelity scope (v1)
 
 Per direction: **structural typography fidelity, no columns.** v1 exposes the full

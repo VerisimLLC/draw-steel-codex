@@ -930,7 +930,11 @@ BreakdownRichTags = function(content, result, options, extraOutput)
 
             if match.spoiler ~= nil then
 
-                if not isPlayer then
+                -- {.name ...} is an inline class marker, not a spoiler: skip the
+                -- spoiler UI so the render-time ApplyInlineClasses pass resolves it.
+                local isInlineClass = string.match(match.suffix, "^%.[%w_%-]+ ") ~= nil
+
+                if not isPlayer and not isInlineClass then
 
                     local linepos = (#line - #str) + #match.prefix
 

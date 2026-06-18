@@ -59,7 +59,7 @@ check(JournalStylesheet.tableName == "journalStyles", "tableName is journalStyle
 local s = JournalStylesheet.Create()
 check(type(s.base) == "table", "Create() gives a base table")
 check(type(s.classes) == "table", "Create() gives a classes table")
-check(s.parentId == nil, "new stylesheet parentId defaults nil")
+check(not s.parentId, "new stylesheet parentId defaults to false (no-parent sentinel)")
 -- default skin shape
 check(type(g_defaultSkin_PROBE) == "table", "default skin accessible via probe")
 check(g_defaultSkin_PROBE.headings[1].sizePct == 200, "h1 default size mirrors today (200%)")
@@ -94,7 +94,9 @@ Insert the following block into `DocumentSystem/MarkdownDocument.lua` immediatel
 JournalStylesheet = RegisterGameType("JournalStylesheet")
 JournalStylesheet.tableName = "journalStyles"
 JournalStylesheet.name = "New Stylesheet"
-JournalStylesheet.parentId = nil
+-- `false`, not nil: a nil default does NOT register a readable field in DMHub
+-- (reads throw). `false` is the codebase sentinel for an optional id.
+JournalStylesheet.parentId = false
 -- base/classes default to shared empty tables ONLY as type defaults; Create()
 -- always assigns fresh per-instance tables so instances never alias.
 JournalStylesheet.base = {}
@@ -209,13 +211,13 @@ ResolveStylesheet.ClearCache()
 local cyc = ResolveStylesheet(gid)
 check(type(cyc.base) == "table", "cycle resolves to a table without hanging")
 
--- cleanup
-dmhub.DeleteTableItem(JournalStylesheet.tableName, cid)
-dmhub.DeleteTableItem(JournalStylesheet.tableName, gid)
+-- cleanup (hard delete; verified API for this build)
+dmhub.ObliterateTableItem(JournalStylesheet.tableName, cid)
+dmhub.ObliterateTableItem(JournalStylesheet.tableName, gid)
 print(ok and "PASS" or "TEST FAILED")
 ```
 
-Note: if `dmhub.DeleteTableItem` is not the correct removal call in this build, set `.hidden = true` and re-upload instead (the codebase's soft-delete convention). Confirm against an existing caller before relying on it; cleanup failure does not affect the assertions.
+Note: `dmhub.ObliterateTableItem(tableName, id)` is the verified hard-delete call for this build (`dmhub.DeleteTableItem` does NOT exist). `dmhub.SetAndUploadTableItem(tableName, obj)` is verified to return the assigned guid id and to set `obj.id`. Cleanup failure does not affect the assertions.
 
 - [ ] **Step 2: Run the test to verify it fails**
 
@@ -289,7 +291,7 @@ local function BuildChain(id)
     local visited = {}
     local tbl = dmhub.GetTable(JournalStylesheet.tableName) or {}
     local cur = id
-    while cur ~= nil do
+    while cur do  -- a falsy parentId (the `false` no-parent sentinel) stops the walk
         if visited[cur] then
             if not g_loggedStylesheetCycles[cur] then
                 g_loggedStylesheetCycles[cur] = true
@@ -320,17 +322,20 @@ function ResolveStylesheet(id)
     local cached = g_resolveCache[key]
     if cached ~= nil then return cached end
 
-    local base = g_defaultSkin
+    -- Default: a fresh, fully-populated copy of the default skin. MergeSkin
+    -- always builds new tables, so we never hand back (and cache) the raw
+    -- g_defaultSkin reference, which must stay immutable. This is also the
+    -- graceful fallthrough for a falsy id (nil / the `false` sentinel) AND for
+    -- a truthy-but-unknown id whose chain comes back empty.
+    local base = MergeSkin(g_defaultSkin, nil)
     local classes = {}
-    if id ~= nil then
+    if id then
         local chain = BuildChain(id)
         for _, sheet in ipairs(chain) do
             base = MergeSkin(base, sheet:try_get("base"))
             classes = MergeClasses(classes, sheet:try_get("classes"))
         end
     end
-    -- ensure base is fully populated even when id was nil (deep copy default)
-    if id == nil then base = MergeSkin(g_defaultSkin, nil) end
 
     local result = { base = base, classes = classes }
     g_resolveCache[key] = result
@@ -374,9 +379,9 @@ git commit -m "feat(journal): cascade resolver with inheritance, memo, cycle def
 local ok = true
 local function check(cond, msg) if not cond then ok=false print("FAIL: "..msg) end end
 local doc = MarkdownDocument.new{ content = "", annotations = {} }
-check(doc.styleSheetId == nil, "styleSheetId defaults nil (safe read)")
+check(not doc.styleSheetId, "styleSheetId defaults to false (safe read)")
 local rs = doc:GetResolvedStylesheet()
-check(rs.base.headings[1].sizePct == 200, "nil styleSheetId resolves to default skin")
+check(rs.base.headings[1].sizePct == 200, "false styleSheetId resolves to default skin")
 
 -- with a real stylesheet assigned
 local s = JournalStylesheet.Create()
@@ -386,7 +391,7 @@ ResolveStylesheet.ClearCache()
 doc.styleSheetId = sid
 local rs2 = doc:GetResolvedStylesheet()
 check(rs2.base.headings[1].sizePct == 333, "assigned styleSheetId resolves through")
-dmhub.DeleteTableItem(JournalStylesheet.tableName, sid)
+dmhub.ObliterateTableItem(JournalStylesheet.tableName, sid)
 print(ok and "PASS" or "TEST FAILED")
 ```
 
@@ -404,9 +409,12 @@ MarkdownDocument.vscroll = false
 Change it to:
 ```lua
 MarkdownDocument.vscroll = false
--- Id of the JournalStylesheet that re-skins this document. nil = built-in
--- default skin. Auto-serialized; round-trips through document upload.
-MarkdownDocument.styleSheetId = nil
+-- Id of the JournalStylesheet that re-skins this document. `false` = built-in
+-- default skin. (false is the codebase sentinel for an optional id; a nil
+-- default does NOT register a readable field, so reads would throw. Confirmed
+-- by Task 1, which hit the same constraint with parentId.)
+-- Auto-serialized; round-trips through document upload.
+MarkdownDocument.styleSheetId = false
 ```
 
 (b) Add the helper method directly after the Task 2 block:

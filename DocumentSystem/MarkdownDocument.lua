@@ -212,7 +212,7 @@ end
 -- Dropdown options for choosing a journal stylesheet. First entry (id "") means
 -- "no stylesheet -> built-in default skin". Sorted by name.
 function JournalStylesheet.PickerOptions()
-    local result = { { id = "", text = "(Default skin)" } }
+    local result = { { id = "", text = "Default" } }
     local tbl = dmhub.GetTable(JournalStylesheet.tableName) or {}
     for k, sheet in unhidden_pairs(tbl) do
         result[#result + 1] = { id = k, text = sheet.name or "Unnamed" }

@@ -399,6 +399,26 @@ end
 -- Test hook (no _tmp_ needed; this is a class-level function reference).
 MarkdownDocument.__ApplySkinToText = ApplySkinToText
 
+-- Resolve inline {.name inner} spans to the named inline class's text markup.
+-- Unknown names, or classes whose kind is not "inline", strip to bare `inner`
+-- (graceful fallthrough -- never leave the literal {....} markers visible).
+-- inner may not contain a literal "}" (the common authoring case); a span whose
+-- inner needs a brace is not supported.
+local function ApplyInlineClasses(text, classes)
+    if type(text) ~= "string" or text == "" then return text end
+    classes = classes or {}
+    return (text:gsub("{%.([%w_%-]+) ([^}]*)}", function(name, inner)
+        local cls = classes[name]
+        if type(cls) == "table" and cls.kind == "inline" then
+            return SkinClassTextMarkup(cls.text, inner)
+        end
+        return inner
+    end))
+end
+
+-- Test hook.
+MarkdownDocument.__ApplyInlineClasses = ApplyInlineClasses
+
 local showPreviewSetting = setting{
     id = "markdownEditorShowPreview",
     name = "Show Preview Pane in Markdown Editor",
@@ -539,6 +559,20 @@ local function StripSpoilers(text)
                         markEnd = "</color></mark>"
                         --result = result .. "<font=\"Tengwar\">"
                         --markEnd = "</font>"
+                    end
+                end
+            elseif text:sub(a + 1, a + 1) == "." and depth == 0 then
+                -- Inline class span {.name text}: copy verbatim so the render-time
+                -- ApplyInlineClasses pass (which has the resolved classes) handles
+                -- it. Stripping here would lose the class for player view.
+                if depth == 0 then
+                    local close = text:find("}", a + 1, true)
+                    if close ~= nil then
+                        result = result .. text:sub(a, close)
+                        b = close
+                    else
+                        result = result .. text:sub(a)
+                        b = #text
                     end
                 end
             else
@@ -1966,7 +2000,7 @@ function MarkdownDocument.DisplayPanel(self, args)
                         text = text:sub(1, -2) .. "<color=#00000000>.</color>"
                     end
 
-                    textPanel.text = ApplySkinToText(text, resolvedSkin)
+                    textPanel.text = ApplySkinToText(ApplyInlineClasses(text, resolvedClasses), resolvedSkin)
                     newTextPanels[#newTextPanels + 1] = textPanel
 
                     --find if the string only has a newline at the end or no newline,

@@ -775,6 +775,7 @@ BreakdownRichTags = function(content, result, options, extraOutput)
         local styleBlockMatch = regex.MatchGroups(str, "^::: *(?<class>[a-zA-Z0-9_-]+) *$")
         if styleBlockMatch ~= nil then
             EmitText()
+            skipping = true
             local blockLines = {}
             local consumed = 0
             for j = i + 1, #lines do
@@ -2135,6 +2136,13 @@ function MarkdownDocument.DisplayPanel(self, args)
                     -- not a block class -> renders as a plain unstyled panel).
                     local box = (type(cls) == "table" and cls.kind == "block" and cls.box) or {}
                     local ss = styleblock.selfStyle
+                    ss.bgimage = nil
+                    ss.bgcolor = nil
+                    ss.borderImage = nil
+                    ss.border = nil
+                    ss.borderColor = nil
+                    ss.cornerRadius = nil
+                    ss.pad = nil
                     if box.bgcolor then ss.bgimage = "panels/square.png"; ss.bgcolor = SkinColor(box.bgcolor) end
                     if box.bgimage then ss.bgimage = box.bgimage end
                     if box.borderImage then ss.borderImage = box.borderImage end

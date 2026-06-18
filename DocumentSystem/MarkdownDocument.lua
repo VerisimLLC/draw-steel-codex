@@ -412,6 +412,41 @@ JournalStyleEditor_BuildForm = function(sheet, upload, panel)
         ownBaseSection("page").bgcolor = c; upload()
     end)
 
+    -- Built-in block frames (auto-applied by syntax; no author class).
+    local blockTypes = {
+        { key = "powerRoll",     label = "Power roll" },
+        { key = "table",         label = "Table" },
+        { key = "rollableTable", label = "Rollable table (header)" },
+        { key = "collapse",      label = "Collapse section" },
+    }
+    local function ownBlockBox(bkey)
+        sheet.base = sheet.base or {}
+        sheet.base.blocks = sheet.base.blocks or {}
+        sheet.base.blocks[bkey] = sheet.base.blocks[bkey] or {}
+        sheet.base.blocks[bkey].box = sheet.base.blocks[bkey].box or {}
+        return sheet.base.blocks[bkey].box
+    end
+    children[#children+1] = gui.Label{ classes = {"formStacked"}, text = "Blocks" }
+    for _, bt in ipairs(blockTypes) do
+        local rbox = (((resolvedBase.blocks or {})[bt.key]) or {}).box or {}
+        children[#children+1] = gui.Label{ classes = {"formStacked"}, text = "  " .. bt.label }
+        children[#children+1] = JSE_ColorRow("    Background:", rbox.bgcolor, function(c)
+            ownBlockBox(bt.key).bgcolor = c; upload()
+        end)
+        children[#children+1] = JSE_NumberRow("    Border:", rbox.border, function(n)
+            ownBlockBox(bt.key).border = n; upload()
+        end)
+        children[#children+1] = JSE_ColorRow("    Border color:", rbox.borderColor, function(c)
+            ownBlockBox(bt.key).borderColor = c; upload()
+        end)
+        children[#children+1] = JSE_NumberRow("    Corner radius:", rbox.cornerRadius, function(n)
+            ownBlockBox(bt.key).cornerRadius = n; upload()
+        end)
+        children[#children+1] = JSE_NumberRow("    Padding:", rbox.pad, function(n)
+            ownBlockBox(bt.key).pad = n; upload()
+        end)
+    end
+
     -- Bullet (curated: glyph, color)
     children[#children+1] = gui.Label{ classes = {"formStacked"}, text = "Bullet" }
     children[#children+1] = JSE_TextRow("  Glyph:", (resolvedBase.bullet or {}).glyph, function(v)

@@ -393,6 +393,12 @@ JournalStyleEditor_BuildForm = function(sheet, upload, panel)
         ownBaseSection("body").color = c; upload()
     end)
 
+    -- Page (curated: bgcolor)
+    children[#children+1] = gui.Label{ classes = {"formStacked"}, text = "Page" }
+    children[#children+1] = JSE_ColorRow("  Background:", (resolvedBase.page or {}).bgcolor, function(c)
+        ownBaseSection("page").bgcolor = c; upload()
+    end)
+
     -- Bullet (curated: glyph, color)
     children[#children+1] = gui.Label{ classes = {"formStacked"}, text = "Bullet" }
     children[#children+1] = JSE_TextRow("  Glyph:", (resolvedBase.bullet or {}).glyph, function(v)

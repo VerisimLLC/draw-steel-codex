@@ -52,12 +52,12 @@ end
 -- non-breaking. font names are validated engine faces (gui.availableFonts).
 local g_defaultSkin = {
     headings = {
-        [1] = { sizePct = 200, font = nil, color = nil, bold = true,  caps = nil, tracking = 0, spaceBefore = 0, spaceAfter = 0 },
-        [2] = { sizePct = 180, font = nil, color = nil, bold = true,  caps = nil, tracking = 0, spaceBefore = 0, spaceAfter = 0 },
-        [3] = { sizePct = 160, font = nil, color = nil, bold = true,  caps = nil, tracking = 0, spaceBefore = 0, spaceAfter = 0 },
-        [4] = { sizePct = 140, font = nil, color = nil, bold = true,  caps = nil, tracking = 0, spaceBefore = 0, spaceAfter = 0 },
-        [5] = { sizePct = 120, font = nil, color = nil, bold = true,  caps = nil, tracking = 0, spaceBefore = 0, spaceAfter = 0 },
-        [6] = { sizePct = 120, font = nil, color = nil, bold = true,  caps = nil, tracking = 0, spaceBefore = 0, spaceAfter = 0 },
+        [1] = { sizePct = 200, font = nil, color = nil, weight = "bold", caps = nil, tracking = 0, spaceBefore = 0, spaceAfter = 0 },
+        [2] = { sizePct = 180, font = nil, color = nil, weight = "bold", caps = nil, tracking = 0, spaceBefore = 0, spaceAfter = 0 },
+        [3] = { sizePct = 160, font = nil, color = nil, weight = "bold", caps = nil, tracking = 0, spaceBefore = 0, spaceAfter = 0 },
+        [4] = { sizePct = 140, font = nil, color = nil, weight = "bold", caps = nil, tracking = 0, spaceBefore = 0, spaceAfter = 0 },
+        [5] = { sizePct = 120, font = nil, color = nil, weight = "bold", caps = nil, tracking = 0, spaceBefore = 0, spaceAfter = 0 },
+        [6] = { sizePct = 120, font = nil, color = nil, weight = "bold", caps = nil, tracking = 0, spaceBefore = 0, spaceAfter = 0 },
     },
     body    = { font = "berling", color = nil, sizePct = 100, lineHeight = nil, paragraphSpacing = nil, firstLineIndent = 0 },
     bullet  = { glyph = "-", glyphFont = nil, color = nil, indent = 0, hangingIndent = 0, spacing = 0 },
@@ -111,20 +111,20 @@ end
 
 -- Merge class dictionaries: child class entries override parent entries by name.
 -- Within a class, text/box sub-tables merge child-over-parent.
+-- Every returned entry is a fresh table so callers cannot corrupt stored objects.
 local function MergeClasses(parent, child)
     local out = {}
     parent = parent or {}
     child = child or {}
-    for name, cls in pairs(parent) do out[name] = cls end
+    for name, cls in pairs(parent) do
+        out[name] = { kind = cls.kind, text = MergeSection(cls.text, nil), box = MergeSection(cls.box, nil) }
+    end
     for name, cls in pairs(child) do
         local base = out[name]
         if type(base) == "table" then
-            local merged = { kind = cls.kind or base.kind }
-            merged.text = MergeSection(base.text, cls.text)
-            merged.box  = MergeSection(base.box,  cls.box)
-            out[name] = merged
+            out[name] = { kind = cls.kind or base.kind, text = MergeSection(base.text, cls.text), box = MergeSection(base.box, cls.box) }
         else
-            out[name] = cls
+            out[name] = { kind = cls.kind, text = MergeSection(cls.text, nil), box = MergeSection(cls.box, nil) }
         end
     end
     return out
@@ -161,13 +161,17 @@ end
 
 local g_resolveCache = {}
 
+---@class ResolvedStylesheet
+---@field base table
+---@field classes table
+
 --- ResolveStylesheet is a callable table so that ClearCache can be attached as
 --- a field. Call it as ResolveStylesheet(id) or ResolveStylesheet.ClearCache().
 ---
 --- Resolve a stylesheet id to a fully-merged { base, classes }. nil/unknown id
 --- returns the default skin with empty classes. Result is memoized per id.
 --- @param id string|nil
---- @return table { base = table, classes = table }
+--- @return ResolvedStylesheet
 ResolveStylesheet = setmetatable({}, {
     __call = function(self, id)
         local key = id or "@default"
@@ -200,7 +204,7 @@ function ResolveStylesheet.ClearCache()
 end
 
 --- Resolve this document's stylesheet (or the default skin if unset).
---- @return table { base = table, classes = table }
+--- @return ResolvedStylesheet
 function MarkdownDocument:GetResolvedStylesheet()
     return ResolveStylesheet(self.styleSheetId)
 end

@@ -2916,6 +2916,297 @@ local function ShowAdjustLevelDialog(token)
     gui.ShowModal(dialog)
 end
 
+-- Villain-action slot vocabulary. The picker is launched for one slot at a time
+-- and only offers candidates authored for that same slot (slot-locked).
+local g_villainSlotMeta = {
+    ["Villain Action 1"] = { label = "Opener",        roman = "I" },
+    ["Villain Action 2"] = { label = "Crowd Control",  roman = "II" },
+    ["Villain Action 3"] = { label = "Showstopper",    roman = "III" },
+}
+
+-- Browse every villain action across the bestiary in a given slot, preview the
+-- real ability card, and duplicate one onto this creature. CHUNK 2 (modal core):
+-- slot-locked alphabetical list + real CreateAbilityTooltip preview + "Add to
+-- this creature" (deep-copy with a fresh guid, categorization + slot preset).
+-- Search, the implementation-status cross-check filter, status dots, and "Create
+-- New Villain Action" arrive in the next pass. Reuses the cached bestiary
+-- ability index (GetBestiaryVillainActions / GetBestiaryAbilityObject) so it
+-- shares the bestiary's single GoblinScript scan rather than re-scanning.
+local function ShowVillainActionPicker(token, slot)
+    if token == nil or token.properties == nil then
+        return
+    end
+    if not token.properties:IsMonster() then
+        return
+    end
+
+    local meta = g_villainSlotMeta[slot] or { label = "Villain Action", roman = "" }
+
+    -- Forward-declared so the list / preview / add handlers can reach them.
+    local dialog
+    local listPanel
+    local previewPanel
+    local addButton
+    local selectedEntry = nil
+
+    local function RefreshPreview()
+        if previewPanel == nil or not previewPanel.valid then
+            return
+        end
+        local children
+        if selectedEntry == nil then
+            children = {
+                gui.Label{
+                    classes = { "sizeS" },
+                    text = "Select a villain action to preview it.",
+                    width = "100%", height = "auto",
+                    halign = "center", valign = "center",
+                    textAlignment = "center", textWrap = true,
+                },
+            }
+        else
+            -- The real ability card (1:1 with how it renders in play), not a
+            -- re-render. Fetched on demand for the one selected ability.
+            local obj = GetBestiaryAbilityObject(selectedEntry.monsterId, selectedEntry.name)
+            local card = nil
+            if obj ~= nil then
+                card = CreateAbilityTooltip(obj, { token = token, width = 380, pad = 8 })
+            end
+            if card ~= nil then
+                children = { card }
+            else
+                children = {
+                    gui.Label{
+                        classes = { "sizeS" },
+                        text = "This ability could not be loaded for preview.",
+                        width = "100%", height = "auto",
+                        halign = "center", valign = "center",
+                        textAlignment = "center", textWrap = true,
+                    },
+                }
+            end
+        end
+        previewPanel.children = children
+    end
+
+    local function BuildRows(entries)
+        table.sort(entries, function(a, b)
+            if a.name ~= b.name then
+                return a.name < b.name
+            end
+            return (a.monsterName or "") < (b.monsterName or "")
+        end)
+        local rows = {}
+        for i, entry in ipairs(entries) do
+            local capturedEntry = entry
+            local subText = entry.monsterName or ""
+            if entry.level ~= nil then
+                subText = string.format("%s - Level %d", subText, entry.level)
+            end
+            local row
+            row = gui.Panel{
+                classes = { "row", cond(i % 2 == 0, "evenRow", "oddRow"), "hoverable" },
+                width = "100%",
+                height = "auto",
+                flow = "vertical",
+                borderBox = true,
+                hpad = 10,
+                vpad = 6,
+                press = function(element)
+                    selectedEntry = capturedEntry
+                    if listPanel ~= nil and listPanel.valid then
+                        for _, child in ipairs(listPanel.children) do
+                            child:SetClass("selected", child == element)
+                        end
+                    end
+                    if addButton ~= nil and addButton.valid then
+                        addButton.interactable = true
+                    end
+                    RefreshPreview()
+                end,
+                gui.Label{
+                    classes = { "tableLabel", "bold" },
+                    text = capturedEntry.name,
+                    width = "100%", height = "auto",
+                    halign = "left", textWrap = true,
+                },
+                gui.Label{
+                    classes = { "sizeXs" },
+                    text = subText,
+                    width = "100%", height = "auto",
+                    halign = "left", textWrap = true,
+                },
+            }
+            rows[#rows + 1] = row
+        end
+        if #rows == 0 then
+            rows = {
+                gui.Label{
+                    classes = { "sizeS" },
+                    text = "No villain actions found for this slot.",
+                    width = "100%", height = "auto",
+                    halign = "center", textAlignment = "center", textWrap = true,
+                },
+            }
+        end
+        return rows
+    end
+
+    -- The bestiary index builds lazily in a coroutine. If it is not ready yet,
+    -- show a loading line and re-poll until it is.
+    local function Populate()
+        if listPanel == nil or not listPanel.valid then
+            return
+        end
+        local entries, ready = GetBestiaryVillainActions(slot)
+        if not ready then
+            listPanel.children = {
+                gui.Label{
+                    classes = { "sizeS" },
+                    text = "Loading bestiary...",
+                    width = "100%", height = "auto",
+                    halign = "center", textAlignment = "center",
+                },
+            }
+            dmhub.Schedule(0.3, function()
+                if mod.unloaded then
+                    return
+                end
+                Populate()
+            end)
+            return
+        end
+        listPanel.children = BuildRows(entries)
+    end
+
+    listPanel = gui.Panel{
+        vscroll = true,
+        width = "100%",
+        height = "100%",
+        flow = "vertical",
+    }
+
+    previewPanel = gui.Panel{
+        vscroll = true,
+        width = "100%",
+        height = "100%",
+        flow = "vertical",
+        halign = "center",
+    }
+
+    addButton = gui.Button{
+        text = "Add to this creature",
+        width = 200,
+        height = 40,
+        hmargin = 6,
+        interactable = false,
+        click = function(element)
+            if selectedEntry == nil then
+                return
+            end
+            local source = GetBestiaryAbilityObject(selectedEntry.monsterId, selectedEntry.name)
+            if source == nil then
+                return
+            end
+            -- Duplicate the source onto this creature (the source is untouched).
+            -- Fresh guid so it is a distinct ability; force the categorization and
+            -- the launched slot so it lands in the right group even if the source
+            -- was authored for a different slot. This modal lives outside the sheet
+            -- panel tree, so the mutation is wrapped in ModifyProperties (mirroring
+            -- the Adjust Level Apply) rather than relying on the sheet's own upload.
+            local copy = DeepCopy(source)
+            copy.guid = dmhub.GenerateGuid()
+            copy.categorization = "Villain Action"
+            copy.villainAction = slot
+            token:ModifyProperties{
+                description = "Add villain action",
+                execute = function()
+                    token.properties:AddInnateActivatedAbility(copy)
+                end,
+            }
+            if CharacterSheet.instance ~= nil then
+                CharacterSheet.instance:FireEvent("refreshAll")
+            end
+            gui.CloseModal()
+        end,
+    }
+
+    dialog = gui.Panel{
+        classes = { "dialog" },
+        styles = ThemeEngine.GetStyles(),
+        width = 820,
+        height = 600,
+        flow = "vertical",
+        borderBox = true,
+        pad = 20,
+
+        gui.Label{
+            classes = { "modalTitle" },
+            text = "Add Villain Action",
+            width = "100%", height = "auto",
+            tmargin = 4,
+        },
+
+        gui.Button{
+            classes = { "closeButton" },
+            halign = "right",
+            valign = "top",
+            floating = true,
+            margin = 8,
+            escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+            click = function(element)
+                gui.CloseModal()
+            end,
+        },
+
+        -- Context line: "Opener - Villain Action I - <creature>".
+        gui.Label{
+            classes = { "sizeS" },
+            text = string.format("<b>%s</b> - Villain Action %s - %s",
+                meta.label, meta.roman, token.name or "Monster"),
+            width = "100%", height = "auto",
+            halign = "left", textAlignment = "left", textWrap = true,
+            tmargin = 4, bmargin = 10,
+        },
+
+        -- Two-pane body: slot-locked candidate list | real ability-card preview.
+        gui.Panel{
+            width = "100%",
+            height = "100%-150",
+            flow = "horizontal",
+
+            gui.Panel{
+                width = "44%", height = "100%", flow = "vertical",
+                listPanel,
+            },
+            gui.Panel{ width = "2%", height = "100%" },
+            gui.Panel{
+                width = "54%", height = "100%", flow = "vertical",
+                previewPanel,
+            },
+        },
+
+        -- Cancel / Add to this creature.
+        gui.Panel{
+            width = "100%", height = "auto", flow = "horizontal",
+            halign = "center", valign = "bottom", tmargin = 16,
+
+            gui.Button{
+                text = "Cancel",
+                width = 120, height = 40, hmargin = 6,
+                click = function(element)
+                    gui.CloseModal()
+                end,
+            },
+            addButton,
+        },
+    }
+
+    Populate()
+    RefreshPreview()
+    gui.ShowModal(dialog)
+end
+
 local function DSCharSheet()
     --find id for recovery from resourcestable
     local recoveryid = "5bd90f9b-46be-4cf2-8ca6-a96430d62949"

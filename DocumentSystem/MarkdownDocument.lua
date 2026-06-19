@@ -311,6 +311,9 @@ local function JournalStyleEditor_SetData(tableName, formPanel, previewDoc, prev
     local sheet = (dmhub.GetTable(tableName) or {})[id]
     if sheet == nil then
         formPanel.children = {}
+        previewDoc.styleSheetId = false
+        previewDoc:SetTextContent("")
+        previewPanel:FireEventTree("refreshDocument", previewDoc)
         return
     end
     formPanel.data.sheetid = id
@@ -330,7 +333,7 @@ function JournalStylesheet.CreateEditor()
     local previewDoc = MarkdownDocument.new{ content = "", annotations = {}, styleSheetId = false }
     local previewPanel = gui.Panel{
         vscroll = true, flow = "vertical", borderBox = true,
-        width = "50%", height = "100%", lmargin = 8, hpad = 12, vpad = 12,
+        width = "50%-8", height = "100%", lmargin = 8, hpad = 12, vpad = 12,
         previewDoc:DisplayPanel{ width = "100%", height = "auto" },
     }
     -- Let BuildForm reach the preview so class add/remove/rename regenerates it.
@@ -340,7 +343,6 @@ function JournalStylesheet.CreateEditor()
     local root = gui.Panel{
         flow = "horizontal", width = "100%", height = "100%",
         data = {
-            sheetid = "",
             SetData = function(tableName, id)
                 JournalStyleEditor_SetData(tableName, formPanel, previewDoc, previewPanel, id)
             end,

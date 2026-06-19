@@ -2924,6 +2924,16 @@ local g_villainSlotMeta = {
     ["Villain Action 3"] = { label = "Showstopper",    roman = "III" },
 }
 
+-- Maps an implementation-status value (gui.ImplementationStatus) to the status
+-- modifier class for the canonical colored dot (DefaultStyles spellImplementationIcon).
+local g_implDotClass = {
+    [0] = "wontimplement",
+    [1] = "unimplemented",
+    [2] = "bronze",
+    [3] = "silver",
+    [4] = "gold",
+}
+
 -- Browse every villain action across the bestiary in a given slot, preview the
 -- real ability card, and duplicate one onto this creature. CHUNK 2 (modal core):
 -- slot-locked alphabetical list + real CreateAbilityTooltip preview + "Add to
@@ -2946,10 +2956,44 @@ local function ShowVillainActionPicker(token, slot)
     local dialog
     local listPanel
     local previewPanel
+    local verdictLabel
     local addButton
     local selectedEntry = nil
 
+    -- Filter state. allEntries is the slot's full candidate set (stored once the
+    -- bestiary index is ready); the visible list is derived from it by the search
+    -- needle and the cross-check toggle.
+    local allEntries = {}
+    local searchNeedle = ""
+    -- "Exclude Narrative and Unimplemented" cross-checks the status field (which
+    -- the importer over-marks) against the structural signal: keep only entries
+    -- that are Bronze+ AND carry real behaviors. Default off -- inform, do not
+    -- enforce; the director opts in.
+    local excludeUnimplemented = false
+
+    -- The status field is unreliable on its own (the importer over-marks Silver),
+    -- so the verdict cross-checks it against whether the ability carries real
+    -- behaviors: "<Status> - mechanics verified" when it auto-resolves, or
+    -- "<Status> - no mechanics (text only)" when it is director-adjudicated.
+    local function UpdateVerdict()
+        if verdictLabel == nil or not verdictLabel.valid then
+            return
+        end
+        if selectedEntry == nil then
+            verdictLabel:SetClass("collapsed", true)
+            return
+        end
+        local status = selectedEntry.implementation or 1
+        local statusName = gui.ImplementationStatusValues[status] or "Unknown"
+        local verdict = cond(selectedEntry.hasBehaviors,
+            "mechanics verified", "no mechanics (text only)")
+        verdictLabel.text = string.format("%s - %s", statusName, verdict)
+        verdictLabel.classes = { "sizeXs", "bold", "implStatus" .. tostring(status) }
+        verdictLabel:SetClass("collapsed", false)
+    end
+
     local function RefreshPreview()
+        UpdateVerdict()
         if previewPanel == nil or not previewPanel.valid then
             return
         end
@@ -3003,12 +3047,14 @@ local function ShowVillainActionPicker(token, slot)
             if entry.level ~= nil then
                 subText = string.format("%s - Level %d", subText, entry.level)
             end
+            local status = entry.implementation or 1
+            local dotClass = g_implDotClass[status] or "unimplemented"
             local row
             row = gui.Panel{
                 classes = { "row", cond(i % 2 == 0, "evenRow", "oddRow"), "hoverable" },
                 width = "100%",
                 height = "auto",
-                flow = "vertical",
+                flow = "horizontal",
                 borderBox = true,
                 hpad = 10,
                 vpad = 6,
@@ -3024,32 +3070,72 @@ local function ShowVillainActionPicker(token, slot)
                     end
                     RefreshPreview()
                 end,
-                gui.Label{
-                    classes = { "tableLabel", "bold" },
-                    text = capturedEntry.name,
-                    width = "100%", height = "auto",
-                    halign = "left", textWrap = true,
+                -- Per-row implementation-status dot (the canonical colored dot
+                -- used on compendium entries; scheme-consistent implStatus tokens).
+                gui.Panel{
+                    classes = { "spellImplementationIcon", dotClass },
+                    halign = "left",
+                    valign = "center",
                 },
-                gui.Label{
-                    classes = { "sizeXs" },
-                    text = subText,
-                    width = "100%", height = "auto",
-                    halign = "left", textWrap = true,
+                gui.Panel{
+                    width = "100%-24", height = "auto", flow = "vertical",
+                    halign = "left", valign = "center",
+                    gui.Label{
+                        classes = { "tableLabel", "bold" },
+                        text = capturedEntry.name,
+                        width = "100%", height = "auto",
+                        halign = "left", textWrap = true,
+                    },
+                    gui.Label{
+                        classes = { "sizeXs" },
+                        text = subText,
+                        width = "100%", height = "auto",
+                        halign = "left", textWrap = true,
+                    },
                 },
             }
             rows[#rows + 1] = row
         end
         if #rows == 0 then
+            local emptyText = cond(#allEntries == 0,
+                "No villain actions found for this slot.",
+                "No villain actions match your search and filter.")
             rows = {
                 gui.Label{
                     classes = { "sizeS" },
-                    text = "No villain actions found for this slot.",
+                    text = emptyText,
                     width = "100%", height = "auto",
                     halign = "center", textAlignment = "center", textWrap = true,
                 },
             }
         end
         return rows
+    end
+
+    -- Derive the visible list from allEntries by the search needle (matched over a
+    -- combined name + monster + level haystack, reusing Search.MatchesText) and
+    -- the cross-check toggle. Then rebuild the rows.
+    local function ApplyFilter()
+        if listPanel == nil or not listPanel.valid then
+            return
+        end
+        local filtered = {}
+        for _, e in ipairs(allEntries) do
+            local keep = true
+            if excludeUnimplemented then
+                local status = e.implementation or 1
+                keep = (status >= gui.ImplementationStatus.Bronze) and (e.hasBehaviors == true)
+            end
+            if keep and searchNeedle ~= "" then
+                local hay = string.format("%s %s level %s",
+                    e.name or "", e.monsterName or "", tostring(e.level or ""))
+                keep = Search.MatchesText(hay, searchNeedle)
+            end
+            if keep then
+                filtered[#filtered + 1] = e
+            end
+        end
+        listPanel.children = BuildRows(filtered)
     end
 
     -- The bestiary index builds lazily in a coroutine. If it is not ready yet,
@@ -3076,22 +3162,60 @@ local function ShowVillainActionPicker(token, slot)
             end)
             return
         end
-        listPanel.children = BuildRows(entries)
+        allEntries = entries
+        ApplyFilter()
     end
 
     listPanel = gui.Panel{
         vscroll = true,
         width = "100%",
-        height = "100%",
+        -- Fills the left pane below the search input and the filter checkbox.
+        height = "100%-72",
         flow = "vertical",
     }
 
     previewPanel = gui.Panel{
         vscroll = true,
         width = "100%",
-        height = "100%",
+        height = "100%-28",
         flow = "vertical",
         halign = "center",
+    }
+
+    -- Cross-check verdict, shown under the preview card.
+    verdictLabel = gui.Label{
+        classes = { "sizeXs", "bold", "collapsed" },
+        width = "100%", height = "auto",
+        halign = "left", valign = "bottom",
+        textAlignment = "left", textWrap = true,
+        tmargin = 6,
+    }
+
+    -- Smart search: ability name, monster name, or level (reuses the global
+    -- search matcher). Results stay grouped alphabetically.
+    local searchInput = gui.SearchInput{
+        width = "100%",
+        height = 26,
+        fontSize = 14,
+        halign = "left",
+        placeholderText = "Search villain actions, monsters, levels...",
+        editlag = 0.25,
+        edit = function(element)
+            searchNeedle = Search.Normalize(element.text) or ""
+            ApplyFilter()
+        end,
+    }
+
+    -- The cross-check filter. gui.Check has intrinsic sizing -- never width 100%.
+    local excludeCheck = gui.Check{
+        text = "Exclude Narrative and Unimplemented",
+        value = excludeUnimplemented,
+        halign = "left",
+        vmargin = 6,
+        change = function(element)
+            excludeUnimplemented = element.value
+            ApplyFilter()
+        end,
     }
 
     addButton = gui.Button{
@@ -3169,7 +3293,8 @@ local function ShowVillainActionPicker(token, slot)
             tmargin = 4, bmargin = 10,
         },
 
-        -- Two-pane body: slot-locked candidate list | real ability-card preview.
+        -- Two-pane body. Left: search + cross-check filter + slot-locked list.
+        -- Right: the real ability-card preview + the cross-check verdict.
         gui.Panel{
             width = "100%",
             height = "100%-150",
@@ -3177,16 +3302,19 @@ local function ShowVillainActionPicker(token, slot)
 
             gui.Panel{
                 width = "44%", height = "100%", flow = "vertical",
+                searchInput,
+                excludeCheck,
                 listPanel,
             },
             gui.Panel{ width = "2%", height = "100%" },
             gui.Panel{
                 width = "54%", height = "100%", flow = "vertical",
                 previewPanel,
+                verdictLabel,
             },
         },
 
-        -- Cancel / Add to this creature.
+        -- Cancel / Create New Villain Action / Add to this creature.
         gui.Panel{
             width = "100%", height = "auto", flow = "horizontal",
             halign = "center", valign = "bottom", tmargin = 16,
@@ -3196,6 +3324,31 @@ local function ShowVillainActionPicker(token, slot)
                 width = 120, height = 40, hmargin = 6,
                 click = function(element)
                     gui.CloseModal()
+                end,
+            },
+            -- Build a fresh villain action from scratch in the ability editor,
+            -- preset to this slot. Mirrors the sheet's Create Ability path.
+            gui.Button{
+                text = "Create New Villain Action",
+                width = 220, height = 40, hmargin = 6,
+                click = function(element)
+                    gui.CloseModal()
+                    if CharacterSheet.instance == nil then
+                        return
+                    end
+                    local newAbility = ActivatedAbility.Create {
+                        name = "New Villain Action",
+                        categorization = "Villain Action",
+                        villainAction = slot,
+                    }
+                    CharacterSheet.instance:AddChild(newAbility:ShowEditActivatedAbilityDialog {
+                        add = function(el)
+                            CharacterSheet.instance.data.info.token.properties:AddInnateActivatedAbility(newAbility)
+                            CharacterSheet.instance:FireEvent("refreshAll")
+                        end,
+                        cancel = function(el)
+                        end,
+                    })
                 end,
             },
             addButton,

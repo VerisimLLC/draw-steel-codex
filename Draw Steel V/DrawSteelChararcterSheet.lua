@@ -11,6 +11,21 @@ local g_abilityActionSortOrder = {
     [g_villainActionId] = 1,
 }
 
+-- Villain-action slot vocabulary, shared by the sheet's Villain Actions slots
+-- (CreateAbilityListPanel, earlier in the file) and the picker modal
+-- (ShowVillainActionPicker, far below). The picker is launched for one slot at a
+-- time and only offers candidates authored for that same slot (slot-locked).
+local g_villainSlotMeta = {
+    ["Villain Action 1"] = { label = "Opener",        roman = "I" },
+    ["Villain Action 2"] = { label = "Crowd Control",  roman = "II" },
+    ["Villain Action 3"] = { label = "Showstopper",    roman = "III" },
+}
+local g_villainSlotOrder = { "Villain Action 1", "Villain Action 2", "Villain Action 3" }
+
+-- Forward-declared: defined far below, but referenced by the sheet's Villain
+-- Actions empty-slot Add affordances (CreateAbilityListPanel) which build earlier.
+local ShowVillainActionPicker
+
 --Transient highlight for a capability revealed from search (Phase B). The
 --reveal flashes the accent on instantly, HOLDS it, then fades out over
 --SEARCH_REVEAL_FADE (the rule's transitionTime, eased) with a dark gap before
@@ -801,6 +816,54 @@ local function CreateAbilityListPanel()
         return actionid
     end
 
+    -- Villain Actions empty-slot Add affordances. Solos and leaders are expected
+    -- to field three villain actions (Opener / Crowd Control / Showstopper); when a
+    -- slot is unfilled this surfaces an Add row that launches the picker for that
+    -- slot. Built once; refreshToken toggles each row by which slots are filled and
+    -- whether the group is shown + expanded. Normal monster-building (a non-solo,
+    -- non-leader creature with no villain actions) never sees these.
+    local m_villainSlotRows = {}
+    local m_villainSlotsPanel
+    do
+        local rows = {}
+        for _, slotId in ipairs(g_villainSlotOrder) do
+            local capturedSlot = slotId
+            local slotMeta = g_villainSlotMeta[slotId]
+            local row = gui.Panel{
+                classes = { "villainSlotAdd", "hoverable", "collapsed" },
+                width = "100%",
+                height = 32,
+                flow = "horizontal",
+                valign = "center",
+                borderBox = true,
+                hpad = 12,
+                click = function(element)
+                    local token = CharacterSheet.instance ~= nil
+                        and CharacterSheet.instance.data.info.token or nil
+                    if token ~= nil and ShowVillainActionPicker ~= nil then
+                        ShowVillainActionPicker(token, capturedSlot)
+                    end
+                end,
+                gui.Label{
+                    classes = { "villainSlotAddLabel" },
+                    width = "auto", height = "auto",
+                    valign = "center",
+                    text = string.format("+  Add %s", slotMeta.label),
+                },
+            }
+            m_villainSlotRows[slotId] = row
+            rows[#rows + 1] = row
+        end
+        m_villainSlotsPanel = gui.Panel{
+            classes = { "collapsed" },
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            data = { ord = g_villainActionId },
+            children = rows,
+        }
+    end
+
     local function buildActionMenuStyles()
         return ThemeEngine.MergeTokens{
             Styles.ActionMenu,
@@ -819,6 +882,13 @@ local function CreateAbilityListPanel()
             { selectors = {"abilityTitle"},     color = "@fgStrong" },
             { selectors = {"abilityInfoLabel"}, color = "@fgMuted" },
 
+            -- Villain Actions empty-slot Add rows.
+            { selectors = {"villainSlotAdd"},
+              bgcolor = "@bg", borderColor = "@border", borderWidth = 1 },
+            { selectors = {"villainSlotAdd", "hover"},
+              bgcolor = "@bgAlt", borderColor = "@accent" },
+            { selectors = {"villainSlotAddLabel"}, color = "@fgMuted", fontSize = 14 },
+
             SEARCH_REVEAL_RULE,
         }
     end
@@ -829,6 +899,7 @@ local function CreateAbilityListPanel()
         m_triggersLabel,
         m_otherActionsLabel,
         m_villainActionsLabel,
+        m_villainSlotsPanel,
         styles = buildActionMenuStyles(),
         width = "100%-12",
         height = "auto",
@@ -845,14 +916,29 @@ local function CreateAbilityListPanel()
             local abilities = c:GetActivatedAbilities {} -- characterSheet = true }
             local children = {}
 
+            -- Which villain-action slots are already filled, and whether the
+            -- creature is a solo or leader (the orgs expected to have villain
+            -- actions). The Villain Actions group -- and its empty-slot Add rows --
+            -- show when the creature has villain actions OR is a solo/leader, so
+            -- normal monster-building never surfaces them.
             local hasVillainActions = false
+            local slotFilled = {}
             for _, ability in ipairs(abilities) do
                 if IsVillainAction(ability) then
                     hasVillainActions = true
-                    break
+                    local slot = ability:try_get("villainAction")
+                    if slot ~= nil then
+                        slotFilled[slot] = true
+                    end
                 end
             end
-            m_villainActionsLabel:SetClass("collapsed", not hasVillainActions)
+            local isSoloOrLeader = false
+            pcall(function()
+                local org = c:ScalingOrgRole()
+                isSoloOrLeader = (org == "solo" or org == "leader")
+            end)
+            local showVillainGroup = hasVillainActions or isSoloOrLeader
+            m_villainActionsLabel:SetClass("collapsed", not showVillainGroup)
 
             local showAbilities = {}
             if not m_mainActionsLabel:HasClass("collapseSet") then
@@ -867,7 +953,8 @@ local function CreateAbilityListPanel()
                 showAbilities["other"] = true
             end
 
-            if hasVillainActions and not m_villainActionsLabel:HasClass("collapseSet") then
+            local villainExpanded = showVillainGroup and not m_villainActionsLabel:HasClass("collapseSet")
+            if villainExpanded then
                 showAbilities[g_villainActionId] = true
             end
 
@@ -950,6 +1037,20 @@ local function CreateAbilityListPanel()
             for _, heading in ipairs(headings) do
                 children[#children + 1] = heading
             end
+
+            -- Villain Actions empty-slot Add rows: surface each unfilled slot, but
+            -- only when the group is shown and expanded. Appended after the villain
+            -- header / villain abilities (villain actions sort last).
+            local anyEmptySlot = false
+            for _, slotId in ipairs(g_villainSlotOrder) do
+                local emptySlot = villainExpanded and not slotFilled[slotId]
+                m_villainSlotRows[slotId]:SetClass("collapsed", not emptySlot)
+                if emptySlot then
+                    anyEmptySlot = true
+                end
+            end
+            m_villainSlotsPanel:SetClass("collapsed", not anyEmptySlot)
+            children[#children + 1] = m_villainSlotsPanel
 
             for i = #abilities + 1, #m_abilityPanels do
                 m_abilityPanels[i]:SetClass("collapsed", true)
@@ -2916,14 +3017,6 @@ local function ShowAdjustLevelDialog(token)
     gui.ShowModal(dialog)
 end
 
--- Villain-action slot vocabulary. The picker is launched for one slot at a time
--- and only offers candidates authored for that same slot (slot-locked).
-local g_villainSlotMeta = {
-    ["Villain Action 1"] = { label = "Opener",        roman = "I" },
-    ["Villain Action 2"] = { label = "Crowd Control",  roman = "II" },
-    ["Villain Action 3"] = { label = "Showstopper",    roman = "III" },
-}
-
 -- Maps an implementation-status value (gui.ImplementationStatus) to the status
 -- modifier class for the canonical colored dot (DefaultStyles spellImplementationIcon).
 local g_implDotClass = {
@@ -2942,7 +3035,8 @@ local g_implDotClass = {
 -- New Villain Action" arrive in the next pass. Reuses the cached bestiary
 -- ability index (GetBestiaryVillainActions / GetBestiaryAbilityObject) so it
 -- shares the bestiary's single GoblinScript scan rather than re-scanning.
-local function ShowVillainActionPicker(token, slot)
+-- Assigns the forward-declared local (see top of file).
+function ShowVillainActionPicker(token, slot)
     if token == nil or token.properties == nil then
         return
     end

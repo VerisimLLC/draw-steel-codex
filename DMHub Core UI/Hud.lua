@@ -119,7 +119,12 @@ function Hud.GetModal(self)
 		return nil
 	end
 
-    return self.modalPanel:GetChild(1)
+    -- GetChild is 0-based: child 0 is the first modal. Passing 1 asked for a
+    -- (usually non-existent) SECOND modal, so GetModal returned nil whenever a
+    -- single modal was open. That made canGameInput true under the modal and
+    -- routed command-context keys (e.g. the PDF viewer's left/right paging) down
+    -- the ExecuteCommand path instead of delivering them as a 'command' event.
+    return self.modalPanel:GetChild(0)
 end
 
 --- @class ModalMessageArgs

@@ -70,9 +70,25 @@ Encounter.victoryDestroyKeyword = nil
 --victory screen (DSVictoryScreen). Defaults to 1.
 Encounter.victories = 1
 
+--Returns the lowercase organization keyword (the first word of a creature's role, e.g.
+--"Leader Controller" -> "leader") for any creature/monster properties, or nil. Read via
+--try_get + regex so it is safe on plain creature-typed properties: monster:Organization()
+--is absent on some compendium monster assets whose properties are creature-typed, and
+--reading a missing method raises rather than returning nil. Mirrors monster:Organization().
+local function OrganizationKeyword(props)
+    if props == nil then
+        return nil
+    end
+    local m = regex.MatchGroups(props:try_get("role", ""), "^(?<org>[a-zA-Z]+).*$")
+    if m ~= nil then
+        return string.lower(m.org)
+    end
+    return nil
+end
+
 --The selectable victory conditions for an encounter (id + display text).
-function Encounter.GetVictoryConditions()
-    return {
+function Encounter.GetVictoryConditions(encounter)
+    local result = {
         { id = "all_defeated", text = "All Monsters Defeated" },
         { id = "heroes_outnumber", text = "Heroes Outnumber Monsters" },
         { id = "heroes_outnumber_two_to_one", text = "Heroes Outnumber Monsters Two-to-One" },
@@ -80,6 +96,39 @@ function Encounter.GetVictoryConditions()
         { id = "solo_exhausted", text = "Solo Exhausted" },
         { id = "destroy_thing", text = "Destroy the Thing!" },
     }
+
+    --"Leader Defeated" is only offered when the encounter actually contains a Leader
+    --monster (the objective tracks that leader's Stamina on the boss bar and wins when it
+    --falls). It is also kept available when already selected, so a previously-configured
+    --encounter whose leader was since removed still shows its chosen value rather than a
+    --blank dropdown.
+    if encounter ~= nil and (Encounter.HasMonsterWithOrganization(encounter, "leader") or
+        encounter:try_get("victoryCondition") == "leader_defeated") then
+        result[#result + 1] = { id = "leader_defeated", text = "Leader Defeated" }
+    end
+
+    return result
+end
+
+-- Returns true if the (design-time) encounter contains at least one monster whose
+-- organization matches the given lowercase keyword (e.g. "leader", "solo"). Scans every
+-- group's monster roster against the monster compendium assets. Used to gate the
+-- "Leader Defeated" victory condition in the encounter editor.
+function Encounter.HasMonsterWithOrganization(encounter, org)
+    if encounter == nil then
+        return false
+    end
+    for _, group in ipairs(encounter:try_get("groups", {})) do
+        for monsterid, quantity in pairs(group.monsters or {}) do
+            if quantity ~= nil and quantity > 0 then
+                local monster = assets.monsters[monsterid]
+                if monster ~= nil and monster.properties ~= nil and OrganizationKeyword(monster.properties) == org then
+                    return true
+                end
+            end
+        end
+    end
+    return false
 end
 
 --Scans the current map for objects that have the Targetable property and returns a
@@ -274,13 +323,17 @@ end
 --count reflects what actually spawns (minHeroes filtering + per-hero balancing).
 --Minions are deliberately excluded. This is the total the victory checks measure
 --against (e.g. the denominator for "Half Monsters Defeated").
-function Encounter.CountNonMinionMonsters(self, numHeroes)
+-- Counts the non-minion monsters in the encounter for a given number of heroes
+-- (including reinforcement waves). If org is given (a lowercase organization keyword
+-- such as "leader"), only monsters of that organization are counted.
+function Encounter.CountNonMinionMonsters(self, numHeroes, org)
     local clone = self:CloneForNumberOfHeroes(numHeroes)
     local count = 0
     for _, group in ipairs(clone.groups) do
         for monsterid, quantity in pairs(group.monsters) do
             local monster = assets.monsters[monsterid]
-            if monster ~= nil and not monster.properties.minion then
+            if monster ~= nil and not monster.properties.minion and
+                (org == nil or OrganizationKeyword(monster.properties) == org) then
                 count = count + quantity
             end
         end
@@ -443,6 +496,12 @@ function LiveEncounter.Create(encounter)
     if result:try_get("victoryCondition") == "destroy_thing" then
         local total = result:CountDestroyObjects()
         result.onsetDestroyObjectCount = total
+    end
+    --for "Leader Defeated", record how many Leader monsters (start groups + reinforcements)
+    --the encounter contains at onset; victory is declared once all of them are defeated, so
+    --this guards an encounter that never actually had a leader from being won instantly.
+    if result:try_get("victoryCondition") == "leader_defeated" then
+        result.onsetLeaderCount = result:CountNonMinionMonsters(nil, "leader")
     end
     --per-hero statistics for this encounter (see LiveEncounter:IncrementStat).
     --keyed by hero tokenid; sub-tables are vivified on first increment.
@@ -949,7 +1008,9 @@ end
 -- wave is not in deployedWaves). These are monsters that "will arrive" -- they count
 -- toward the monsters the heroes still have to deal with even though they're not yet
 -- on the map.
-function LiveEncounter:CountPendingReinforcements(numHeroes)
+-- If org is given (a lowercase organization keyword such as "leader"), only pending
+-- reinforcement monsters of that organization are counted.
+function LiveEncounter:CountPendingReinforcements(numHeroes, org)
     numHeroes = numHeroes or dmhub.GetSettingValue("numheroes")
     local clone = self:CloneForNumberOfHeroes(numHeroes)
     local count = 0
@@ -957,7 +1018,8 @@ function LiveEncounter:CountPendingReinforcements(numHeroes)
         if group.wave ~= nil and not self:IsWaveDeployed(group.wave) then
             for monsterid, quantity in pairs(group.monsters) do
                 local monster = assets.monsters[monsterid]
-                if monster ~= nil and not monster.properties.minion then
+                if monster ~= nil and not monster.properties.minion and
+                    (org == nil or OrganizationKeyword(monster.properties) == org) then
                     count = count + quantity
                 end
             end
@@ -1071,12 +1133,64 @@ function LiveEncounter:CountDestroyObjects()
     return total, live
 end
 
--- Returns the Solo creature's token to display in the boss bar, or nil if no boss bar
+-- Returns the first non-minion monster token in the active initiative queue whose
+-- organization matches the given lowercase keyword (e.g. "leader"), alive or defeated,
+-- or nil if none is present. Used to locate the encounter's leader for the boss bar.
+function LiveEncounter:GetFirstMonsterWithOrganization(org)
+    local q = dmhub.initiativeQueue
+    if q == nil then
+        return nil
+    end
+    local seen = {}
+    for initiativeid, _ in pairs(q.entries) do
+        local tokens = InitiativeQueue.GetTokensForInitiativeId(initiativeid)
+        for _, token in ipairs(tokens or {}) do
+            if token ~= nil and not seen[token.charid] then
+                seen[token.charid] = true
+                local props = token.properties
+                if props ~= nil and props:IsMonster() and not props.minion and OrganizationKeyword(props) == org then
+                    return token
+                end
+            end
+        end
+    end
+    return nil
+end
+
+-- Counts the live (Stamina > 0) non-minion Leader monsters currently in the active
+-- initiative queue. A defeated leader (0 Stamina) or one removed from the queue is not
+-- counted, which is what drives the "Leader Defeated" victory check.
+function LiveEncounter:CountLiveLeaders()
+    local q = dmhub.initiativeQueue
+    local count = 0
+    if q == nil then
+        return count
+    end
+    local seen = {}
+    for initiativeid, _ in pairs(q.entries) do
+        local tokens = InitiativeQueue.GetTokensForInitiativeId(initiativeid)
+        for _, token in ipairs(tokens or {}) do
+            if token ~= nil and not seen[token.charid] then
+                seen[token.charid] = true
+                local props = token.properties
+                if props ~= nil and props:IsMonster() and not props.minion and
+                    OrganizationKeyword(props) == "leader" and props:CurrentHitpoints() > 0 then
+                    count = count + 1
+                end
+            end
+        end
+    end
+    return count
+end
+
+-- Returns the creature's token to display in the boss bar, or nil if no boss bar
 -- should be shown. A boss bar is appropriate when:
 --   * the victory condition is "Solo Exhausted" (the objective is literally to wear the
 --     solo down), or
 --   * the victory condition is "all monsters defeated" AND the encounter contains exactly
 --     one non-minion monster with the Solo role, or
+--   * the victory condition is "Leader Defeated" AND the encounter contains a Leader (the
+--     bar tracks that leader's Stamina), or
 --   * the victory condition is "Destroy the Thing!" AND exactly one matching object was
 --     present at the onset of combat (the bar then tracks that object's Stamina).
 -- The bar tracks the chosen creature/object's Stamina. Minions are ignored.
@@ -1091,6 +1205,11 @@ function LiveEncounter:GetBossToken()
         local keyword = self:try_get("victoryDestroyKeyword")
         local tokens = Encounter.GetTargetableObjectsWithKeyword(keyword)
         return tokens[1]
+    end
+
+    if condition == "leader_defeated" then
+        --track the encounter's leader; the first one present (alive or downed) drives the bar.
+        return self:GetFirstMonsterWithOrganization("leader")
     end
 
     if condition ~= "solo_exhausted" and condition ~= "all_defeated" then
@@ -1172,6 +1291,14 @@ function LiveEncounter:CheckVictory()
         return defeated * 2 >= onset
     elseif condition == "solo_exhausted" then
         return self:IsSoloExhausted()
+    elseif condition == "leader_defeated" then
+        --victory once every Leader monster is defeated: none live on the field and none
+        --still pending as a reinforcement. Guarded by the onset leader count so an
+        --encounter that never actually contained a leader cannot be won instantly.
+        if self:try_get("onsetLeaderCount", 0) <= 0 then
+            return false
+        end
+        return self:CountLiveLeaders() + self:CountPendingReinforcements(numHeroes, "leader") <= 0
     end
 
     return false
@@ -1227,6 +1354,8 @@ function LiveEncounter:GetObjectiveText()
     local condition = self:try_get("victoryCondition", "all_defeated")
     if condition == "solo_exhausted" then
         return "Objective: Exhaust the solo monster to win"
+    elseif condition == "leader_defeated" then
+        return "Objective: Defeat the leader to win"
     elseif condition == "destroy_thing" then
         local keyword = self:try_get("victoryDestroyKeyword", "thing")
         local onset = self:try_get("onsetDestroyObjectCount", 0)
@@ -1264,6 +1393,19 @@ function LiveEncounter:GetObjectiveTooltip()
         lines[#lines + 1] = "Victory when the living heroes outnumber the remaining monsters two-to-one, so the monsters lose their nerve and flee. The kill count shows how many monsters must fall to reach that point."
     elseif condition == "solo_exhausted" then
         return "Victory when the solo monster has spent all of its villain actions and is reduced to one quarter Stamina or less."
+    elseif condition == "leader_defeated" then
+        local liveLeaders = self:CountLiveLeaders()
+        local pendingLeaders = self:CountPendingReinforcements(numHeroes, "leader")
+        local tooltipLines = {
+            "Victory when the encounter's Leader monster is defeated (reduced to 0 Stamina or removed from the field).",
+            "",
+            string.format("Leaders at onset: %d", self:try_get("onsetLeaderCount", 0)),
+            string.format("Leaders still standing: %d", liveLeaders),
+        }
+        if pendingLeaders > 0 then
+            tooltipLines[#tooltipLines + 1] = string.format("Leaders still to arrive: %d", pendingLeaders)
+        end
+        return table.concat(tooltipLines, "\n")
     elseif condition == "destroy_thing" then
         local keyword = self:try_get("victoryDestroyKeyword", "thing")
         local onsetObjects = self:try_get("onsetDestroyObjectCount", 0)

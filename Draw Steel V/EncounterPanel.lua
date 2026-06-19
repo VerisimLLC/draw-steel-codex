@@ -1130,8 +1130,24 @@ function Encounter.Editor(self, options)
                 halign = "center",
                 valign = "center",
                 fontSize = 12,
-                options = Encounter.GetVictoryConditions(),
+                options = Encounter.GetVictoryConditions(self),
                 idChosen = self:try_get("victoryCondition", "all_defeated"),
+
+                --The "Leader Defeated" option only exists while the encounter contains a
+                --Leader monster, and the roster is edited live in the group panel above,
+                --so poll for that presence flipping and rebuild the option list (re-asserting
+                --the current selection) when it changes. Cheap: only reassigns on a change.
+                data = { hasLeader = nil },
+                thinkTime = 0.5,
+                think = function(element)
+                    local hasLeader = Encounter.HasMonsterWithOrganization(self, "leader")
+                    if hasLeader ~= element.data.hasLeader then
+                        element.data.hasLeader = hasLeader
+                        element.options = Encounter.GetVictoryConditions(self)
+                        element.idChosen = self:try_get("victoryCondition", "all_defeated")
+                    end
+                end,
+
                 change = function(element)
                     self.victoryCondition = element.idChosen
                     resultPanel:FireEventTree("refreshDestroy")

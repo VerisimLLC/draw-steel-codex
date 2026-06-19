@@ -169,6 +169,26 @@ ActivatedAbilityPurgeEffectsBehavior.purgeTypeOptions = {
 
 
 
+--Evaluate the damageToSelf field against a creature's properties, returning a
+--roll string. The field accepts a flat number ("5") or a GoblinScript
+--expression ("5 * Echelon"); dmhub.EvalGoblinScript resolves symbols and
+--computes the value, and leaves a plain number unchanged. Returns "" when the
+--field is blank, or the raw field when no creature is available. Callers that
+--need a number apply tonumber() to the result -- a non-numeric result (e.g. a
+--dice expression, which this field has never actually rolled) yields nil there,
+--the same no-op the field had before.
+function ActivatedAbilityPurgeEffectsBehavior:EvalDamageToSelf(creatureProps)
+    local raw = self:try_get("damageToSelf", "")
+    --A plain number (the overwhelmingly common case) needs no evaluation:
+    --return it untouched so flat values are provably unchanged and we skip the
+    --GoblinScript compile entirely. Only a non-numeric expression (e.g.
+    --"5 * Echelon") is evaluated.
+    if raw == "" or tonumber(raw) ~= nil or creatureProps == nil then
+        return raw
+    end
+    return dmhub.EvalGoblinScript(raw, creatureProps:LookupSymbol{}, "Purge effects damage to self")
+end
+
 function ActivatedAbilityPurgeEffectsBehavior:Cast(ability, casterToken, targets, options)
     if #targets == 0 then
         return
@@ -404,7 +424,7 @@ function ActivatedAbilityPurgeEffectsBehavior:Cast(ability, casterToken, targets
                         -- `if #selectedItems > 0`).  Matches the once-per-target behaviour
                         -- of the conditions-only path in CastOnTarget.
                         if self.damageToSelf ~= "" then
-                            local damage = tonumber(self.damageToSelf)
+                            local damage = tonumber(self:EvalDamageToSelf(data.token.properties))
                             if damage ~= nil and damage > 0 then
                                 data.token.properties:TakeDamage(damage, "Purged condition")
                             end
@@ -584,7 +604,7 @@ function ActivatedAbilityPurgeEffectsBehavior:CastOnTarget(casterToken, targetTo
                         result[#result+1] = condid
                     end
 
-                    local damage = tonumber(self.damageToSelf)
+                    local damage = tonumber(self:EvalDamageToSelf(targetCreature))
                     if damage ~= nil and damage > 0 then
                         targetCreature:TakeDamage(damage, "Purged condition")
                     end
@@ -1203,7 +1223,7 @@ function ActivatedAbilityPurgeEffectsBehavior:ShowPurgeDialog(targetDataList, ab
     }
 
     -- Damage-to-self warning: shown in red when a positive damage value is set.
-    local damageNum = tonumber(self:try_get("damageToSelf", ""))
+    local damageNum = tonumber(self:EvalDamageToSelf(casterToken and casterToken.properties or nil))
     if damageNum ~= nil and damageNum > 0 then
         local damageText
         if self.purgeType == "one" then
@@ -1966,6 +1986,9 @@ function ActivatedAbilityPurgeEffectsBehavior:ShowConditionsSelection(casterToke
 
 	local conditionsTable = dmhub.GetTable(CharacterCondition.tableName) or {}
 
+    -- Evaluate the self-damage once (GoblinScript-aware) for the option labels.
+    local damageToSelfShown = self:EvalDamageToSelf(casterToken and casterToken.properties or nil)
+
     for i,condid in ipairs(conditionsList) do
         local conditionInfo = conditionsTable[condid]
         if conditionInfo ~= nil then
@@ -1977,8 +2000,8 @@ function ActivatedAbilityPurgeEffectsBehavior:ShowConditionsSelection(casterToke
                 text = conditionInfo.name,
             }
 
-            if self.damageToSelf ~= "" then
-                option.text = option.text .. " <color=#ff0000>(Receive " .. self.damageToSelf .. " damage)"
+            if damageToSelfShown ~= "" then
+                option.text = option.text .. " <color=#ff0000>(Receive " .. damageToSelfShown .. " damage)"
             end
 
             args.options[#args.options+1] = option

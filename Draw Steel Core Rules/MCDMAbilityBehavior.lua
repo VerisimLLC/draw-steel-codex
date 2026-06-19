@@ -47,7 +47,7 @@ function ActivatedAbilityDrawSteelCommandBehavior:Cast(ability, casterToken, tar
         end
     end
 
-    --ability:CommitToPaying(casterToken, options)
+    ability:CommitToPaying(casterToken, options)
 
     repeat
         if promptWhenResolving and #targets > 0 then
@@ -521,7 +521,34 @@ local g_rulePatterns = {
                 return
             end
 
-            local vertical = cond(match.vertical, "Vertical ", "")
+            -- Flying targets: per Draw Steel, a creature that is flying (or grabbed
+            -- by a flying creature and held above the ground) has push/pull/slide
+            -- forced movement resolved vertically. Reuse the existing vertical
+            -- pathway by selecting the "Vertical" standard-ability variant.
+            local convertToVertical = false
+            if not match.vertical then
+                if targetToken.properties:IsFlying() then
+                    convertToVertical = true
+                else
+                    local grabbedby = targetToken.properties:try_get("_tmp_grabbedby")
+                    if grabbedby and targetToken.floorAltitude and targetToken.floorAltitude > 0 then
+                        local grabberTok = dmhub.GetTokenById(grabbedby)
+                        if grabberTok ~= nil and grabberTok.valid and grabberTok.properties:IsFlying() then
+                            convertToVertical = true
+                        end
+                    end
+                end
+            end
+
+            local isVertical = match.vertical or convertToVertical
+            local vertical = cond(isVertical, "Vertical ", "")
+
+            if convertToVertical then
+                -- Make the vertical choice win even if a ModifierForcedMovement UI
+                -- override populated options.symbols.forcedmovement (which otherwise
+                -- overrides the ability's own forcedMovement field downstream).
+                options.symbols.forcedmovement = "vertical_" .. match.movement
+            end
 
             local abilityName = "Forced Movement: " .. vertical .. match.movement
 

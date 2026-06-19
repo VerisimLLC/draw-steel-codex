@@ -3,6 +3,12 @@ local mod = dmhub.GetModLoading()
 ---@class MarkdownDocument:CustomDocument
 MarkdownDocument = RegisterGameType("MarkdownDocument", "CustomDocument")
 MarkdownDocument.vscroll = false
+-- Id of the JournalStylesheet that re-skins this document. `false` = built-in
+-- default skin. (false is the codebase sentinel for an optional id; a nil
+-- default does NOT register a readable field, so reads would throw. Confirmed
+-- by Task 1, which hit the same constraint with parentId.)
+-- Auto-serialized; round-trips through document upload.
+MarkdownDocument.styleSheetId = false
 
 local g_markdownStyle = gui.MarkdownStyle {
     ["#  "] = "<size=200%><b>", ["/#  "] = "</b></size>",
@@ -12,6 +18,839 @@ local g_markdownStyle = gui.MarkdownStyle {
     ["#### "] = "<size=140%><b>", ["/#### "] = "</b></size>",
     ["##### "] = "<size=120%><b>", ["/##### "] = "</b></size>",
 }
+
+-- =============================================================================
+-- Journal Stylesheets (Plan 1: data model + cascade resolver)
+-- A JournalStylesheet re-skins a journal's structural typography (base) and
+-- defines named inline/block classes. Stylesheets inherit via parentId, diff-
+-- merging down to g_defaultSkin (the built-in root that mirrors today's look).
+-- =============================================================================
+
+---@class JournalStylesheet
+JournalStylesheet = RegisterGameType("JournalStylesheet")
+JournalStylesheet.tableName = "journalStyles"
+JournalStylesheet.name = "New Stylesheet"
+JournalStylesheet.parentId = false
+-- base/classes default to shared empty tables ONLY as type defaults; Create()
+-- always assigns fresh per-instance tables so instances never alias.
+JournalStylesheet.base = {}
+JournalStylesheet.classes = {}
+
+function JournalStylesheet.Create()
+    return JournalStylesheet.new{
+        name = "New Stylesheet",
+        base = {},
+        classes = {},
+    }
+end
+
+-- The built-in default skin. Values mirror today's g_markdownStyle so a journal
+-- with no stylesheet (or one that overrides nothing) renders exactly as it does
+-- now. Heading sizes are stored as percentages of body, matching the existing
+-- <size=NNN%> markup. The book-faithful "Print" values from the IDML live in a
+-- separate authored stylesheet (later plan), NOT here -- the default must stay
+-- non-breaking. font names are validated engine faces (gui.availableFonts).
+local g_defaultSkin = {
+    headings = {
+        [1] = { sizePct = 200, font = nil, color = nil, weight = "bold", caps = nil, tracking = 0, spaceBefore = 0, spaceAfter = 0 },
+        [2] = { sizePct = 180, font = nil, color = nil, weight = "bold", caps = nil, tracking = 0, spaceBefore = 0, spaceAfter = 0 },
+        [3] = { sizePct = 160, font = nil, color = nil, weight = "bold", caps = nil, tracking = 0, spaceBefore = 0, spaceAfter = 0 },
+        [4] = { sizePct = 140, font = nil, color = nil, weight = "bold", caps = nil, tracking = 0, spaceBefore = 0, spaceAfter = 0 },
+        [5] = { sizePct = 120, font = nil, color = nil, weight = "bold", caps = nil, tracking = 0, spaceBefore = 0, spaceAfter = 0 },
+        [6] = { sizePct = 120, font = nil, color = nil, weight = "bold", caps = nil, tracking = 0, spaceBefore = 0, spaceAfter = 0 },
+    },
+    body    = { font = "berling", color = nil, sizePct = 100, lineHeight = nil, paragraphSpacing = nil, firstLineIndent = 0 },
+    bullet  = { glyph = false, glyphFont = nil, color = nil, indent = 0, hangingIndent = 0, spacing = 0 },
+    ordered = { color = nil, indent = 0, hangingIndent = 0, spacing = 0 },
+    quote   = { font = nil, color = nil, bold = false, italic = false, justify = nil, barColor = nil, inset = 0 },
+    rule    = { image = nil, color = nil, thickness = 1, margin = 0 },
+    link    = { color = nil, underline = true },
+    page    = { bgcolor = false },
+    blocks  = {
+        powerRoll     = { box = {} },
+        table         = { box = {} },
+        rollableTable = { box = {} },
+        collapse      = { box = {} },
+    },
+}
+
+-- Read-only accessor (deep copy) so callers/tests cannot mutate the canonical
+-- default. DeepCopy is a global utility used throughout the codebase.
+function JournalStylesheet.DefaultSkin()
+    return DeepCopy(g_defaultSkin)
+end
+
+-- =============================================================================
+-- Task 2: Cascade resolver (inheritance + memoization + cycle defense)
+-- =============================================================================
+
+-- Deep-merge child over parent for one base-skin sub-section (e.g. body, a
+-- single heading level). Child keys win; keys absent in child inherit parent.
+local function MergeSection(parent, child)
+    local out = {}
+    if type(parent) == "table" then
+        for k, v in pairs(parent) do out[k] = v end
+    end
+    if type(child) == "table" then
+        for k, v in pairs(child) do out[k] = v end
+    end
+    return out
+end
+
+-- Merge a full base skin: parent is fully-populated, child is sparse (only the
+-- keys it overrides). headings is per-level; other sections merge as a unit.
+local function MergeSkin(parent, child)
+    child = child or {}
+    local out = {}
+    -- headings: merge each level 1..6 individually
+    out.headings = {}
+    local ph = (parent and parent.headings) or {}
+    local ch = child.headings or {}
+    for level = 1, 6 do
+        out.headings[level] = MergeSection(ph[level], ch[level])
+    end
+    -- single-section keys
+    for _, key in ipairs({"body", "bullet", "ordered", "quote", "rule", "link", "page"}) do
+        out[key] = MergeSection(parent and parent[key], child[key])
+    end
+    -- blocks: per-block-type box merge (each block type has its own box override)
+    out.blocks = {}
+    local pblk = (parent and parent.blocks) or {}
+    local cblk = child.blocks or {}
+    for _, btype in ipairs({"powerRoll", "table", "rollableTable", "collapse"}) do
+        out.blocks[btype] = { box = MergeSection((pblk[btype] or {}).box, (cblk[btype] or {}).box) }
+    end
+    return out
+end
+
+-- Merge class dictionaries: child class entries override parent entries by name.
+-- Within a class, text/box sub-tables merge child-over-parent.
+-- Every returned entry is a fresh table so callers cannot corrupt stored objects.
+local function MergeClasses(parent, child)
+    local out = {}
+    parent = parent or {}
+    child = child or {}
+    for name, cls in pairs(parent) do
+        out[name] = { kind = cls.kind, text = MergeSection(cls.text, nil), box = MergeSection(cls.box, nil) }
+    end
+    for name, cls in pairs(child) do
+        local base = out[name]
+        if type(base) == "table" then
+            out[name] = { kind = cls.kind or base.kind, text = MergeSection(base.text, cls.text), box = MergeSection(base.box, cls.box) }
+        else
+            out[name] = { kind = cls.kind, text = MergeSection(cls.text, nil), box = MergeSection(cls.box, nil) }
+        end
+    end
+    return out
+end
+
+-- Build the inheritance chain from a stylesheet up to (but not including) the
+-- default root, outermost-ancestor-first. Defends against cycles with a visited
+-- set; a detected cycle is logged once and the chain is truncated there.
+local g_loggedStylesheetCycles = {}
+local function BuildChain(id)
+    local chain = {}
+    local visited = {}
+    local tbl = dmhub.GetTable(JournalStylesheet.tableName) or {}
+    local cur = id
+    while cur do  -- a falsy parentId (the `false` no-parent sentinel) stops the walk
+        if visited[cur] then
+            if not g_loggedStylesheetCycles[cur] then
+                g_loggedStylesheetCycles[cur] = true
+                print("JOURNAL_STYLESHEET:: parentId cycle detected at " .. tostring(cur))
+            end
+            break
+        end
+        visited[cur] = true
+        local sheet = tbl[cur]
+        if sheet == nil then break end
+        chain[#chain + 1] = sheet
+        cur = sheet:try_get("parentId")
+    end
+    -- chain is [self, parent, grandparent, ...]; reverse to root-first
+    local rev = {}
+    for i = #chain, 1, -1 do rev[#rev + 1] = chain[i] end
+    return rev
+end
+
+local g_resolveCache = {}
+
+---@class ResolvedStylesheet
+---@field base table
+---@field classes table
+
+--- ResolveStylesheet is a callable table so that ClearCache can be attached as
+--- a field. Call it as ResolveStylesheet(id) or ResolveStylesheet.ClearCache().
+---
+--- Resolve a stylesheet id to a fully-merged { base, classes }. nil/unknown id
+--- returns the default skin with empty classes. Result is memoized per id.
+--- @param id string|nil
+--- @return ResolvedStylesheet
+ResolveStylesheet = setmetatable({}, {
+    __call = function(self, id)
+        local key = id or "@default"
+        local cached = g_resolveCache[key]
+        if cached ~= nil then return cached end
+
+        -- Default: a fresh, fully-populated copy of the default skin. MergeSkin
+        -- always builds new tables, so we never hand back (and cache) the raw
+        -- g_defaultSkin reference, which must stay immutable. This is also the
+        -- graceful fallthrough for a falsy id (nil / the `false` sentinel) AND
+        -- for a truthy-but-unknown id whose chain comes back empty.
+        local base = MergeSkin(g_defaultSkin, nil)
+        local classes = {}
+        if id then
+            local chain = BuildChain(id)
+            for _, sheet in ipairs(chain) do
+                base = MergeSkin(base, sheet:try_get("base"))
+                classes = MergeClasses(classes, sheet:try_get("classes"))
+            end
+        end
+
+        local result = { base = base, classes = classes }
+        g_resolveCache[key] = result
+        return result
+    end,
+})
+
+function ResolveStylesheet.ClearCache()
+    g_resolveCache = {}
+end
+
+--- Resolve this document's stylesheet (or the default skin if unset).
+--- @return ResolvedStylesheet
+function MarkdownDocument:GetResolvedStylesheet()
+    return ResolveStylesheet(self.styleSheetId)
+end
+
+-- Dropdown options for choosing a journal stylesheet. First entry (id "") means
+-- "no stylesheet -> built-in default skin". Sorted by name.
+function JournalStylesheet.PickerOptions()
+    local result = { { id = "", text = "Default" } }
+    local tbl = dmhub.GetTable(JournalStylesheet.tableName) or {}
+    for k, sheet in unhidden_pairs(tbl) do
+        result[#result + 1] = { id = k, text = sheet.name or "Unnamed" }
+    end
+    table.sort(result, function(a, b)
+        if a.id == "" then return true end
+        if b.id == "" then return false end
+        return a.text < b.text
+    end)
+    return result
+end
+
+-- =============================================================================
+-- Stylesheet CRUD (Task 2: editor UI)
+-- =============================================================================
+
+function JournalStylesheet.CreateNew()
+    return JournalStylesheet.Create()
+end
+
+-- Forward-declared so JournalStyleEditor_SetData can call it before its
+-- definition below.
+local JournalStyleEditor_BuildForm
+
+-- Build the read-only "showcase" markdown for the stylesheet editor preview:
+-- a fixed base + built-in-block sample, then a sample per named class.
+local function BuildShowcaseContent(sheet)
+    local lines = {
+        "# Chapter Title",
+        "## Section Heading",
+        "Body paragraph text showing the body color and the page background.",
+        "### Sub-heading",
+        "- First bullet item",
+        "- Second bullet item",
+        "1. First numbered item",
+        "2. Second numbered item",
+        "#### Smaller Heading",
+        "> A read-aloud style blockquote line.",
+        "",
+        "---",
+        "",
+        "##### Power Roll",
+        "|Might Test: Might|",
+        "| 11- | You fail. |",
+        "| 12-16 | You succeed with a cost. |",
+        "| 17+ | You succeed. |",
+        "",
+        "|Column A|Column B|",
+        "|---|---|",
+        "|a1|b1|",
+        "|a2|b2|",
+        "",
+        "+ A Collapse Section",
+        "Content inside the collapse section.",
+    }
+    local classNames = {}
+    for name, _ in pairs(sheet:try_get("classes") or {}) do classNames[#classNames + 1] = name end
+    table.sort(classNames)
+    if #classNames > 0 then
+        lines[#lines + 1] = ""
+        lines[#lines + 1] = "###### Classes"
+        for _, name in ipairs(classNames) do
+            local cls = sheet.classes[name]
+            if cls.kind == "block" then
+                lines[#lines + 1] = "::: " .. name
+                lines[#lines + 1] = "Block class '" .. name .. "' sample."
+                lines[#lines + 1] = ":::"
+            else
+                lines[#lines + 1] = "Inline: {." .. name .. " sample text}"
+            end
+        end
+    end
+    return table.concat(lines, "\n")
+end
+
+-- Test hook.
+MarkdownDocument.__BuildShowcaseContent = BuildShowcaseContent
+
+-- SetData fetches the entry and (re)builds the editor form. Re-resolving on
+-- each field change keeps displayed (inherited) values current.
+local function JournalStyleEditor_SetData(tableName, formPanel, previewDoc, previewPanel, id)
+    local sheet = (dmhub.GetTable(tableName) or {})[id]
+    if sheet == nil then
+        formPanel.children = {}
+        previewDoc.styleSheetId = false
+        previewDoc:SetTextContent("")
+        previewPanel:FireEventTree("refreshDocument", previewDoc)
+        return
+    end
+    formPanel.data.sheetid = id
+    previewDoc.styleSheetId = id
+    local upload = function()
+        dmhub.SetAndUploadTableItem(tableName, sheet)
+    end
+    JournalStyleEditor_BuildForm(sheet, upload, formPanel)
+end
+
+function JournalStylesheet.CreateEditor()
+    local formPanel = gui.Panel{
+        vscroll = true, flow = "vertical", pad = 20, borderBox = true,
+        width = "50%", height = "100%",
+        data = { sheetid = "" },
+    }
+    local previewDoc = MarkdownDocument.new{ content = "", annotations = {}, styleSheetId = false }
+    local previewPanel = gui.Panel{
+        vscroll = true, flow = "vertical", borderBox = true,
+        width = "50%-8", height = "100%", lmargin = 8, hpad = 12, vpad = 12,
+        previewDoc:DisplayPanel{ width = "100%", height = "auto" },
+    }
+    -- Let BuildForm reach the preview so class add/remove/rename regenerates it.
+    formPanel.data.previewDoc = previewDoc
+    formPanel.data.previewPanel = previewPanel
+
+    local root = gui.Panel{
+        flow = "horizontal", width = "100%", height = "100%",
+        data = {
+            SetData = function(tableName, id)
+                JournalStyleEditor_SetData(tableName, formPanel, previewDoc, previewPanel, id)
+            end,
+        },
+        formPanel,
+        previewPanel,
+    }
+    return root
+end
+
+-- Form row helpers (shared by base-skin and class editors). Each returns a panel.
+local function JSE_TextRow(label, value, onset)
+    return gui.Panel{ classes = {"formStackedRow"},
+        gui.Label{ classes = {"formStacked"}, text = label },
+        gui.Input{ classes = {"formStacked"}, text = value or "",
+            change = function(element) onset(element.text) end },
+    }
+end
+
+local function JSE_ColorRow(label, value, onset)
+    return gui.Panel{ classes = {"formStackedRow"},
+        gui.Label{ classes = {"formStacked"}, text = label },
+        gui.ColorPicker{ value = value or "white", width = 24, height = 24, valign = "center",
+            -- element.value is a Color userdata; the renderer needs a hex string.
+            -- Color.tostring gives "#RRGGBBAA"; pass strings through unchanged.
+            confirm = function(element)
+                local v = element.value
+                if type(v) == "userdata" then v = v.tostring end
+                onset(v)
+            end },
+    }
+end
+
+local function JSE_NumberRow(label, value, onset)
+    return gui.Panel{ classes = {"formStackedRow"},
+        gui.Label{ classes = {"formStacked"}, text = label },
+        gui.Input{ classes = {"formStacked"}, text = (value ~= nil and tostring(value)) or "",
+            change = function(element)
+                local n = tonumber(element.text)
+                onset(n)
+            end },
+    }
+end
+
+local function JSE_CheckRow(label, value, onset)
+    return gui.Panel{ classes = {"formStackedRow"},
+        gui.Check{ value = value == true, text = label,
+            change = function(element) onset(element.value == true) end },
+    }
+end
+
+local function JSE_DropdownRow(label, options, idChosen, onset)
+    return gui.Panel{ classes = {"formStackedRow"},
+        gui.Label{ classes = {"formStacked"}, text = label },
+        gui.Dropdown{ classes = {"formStacked"}, options = options, idChosen = idChosen or "",
+            change = function(element) onset(element.idChosen) end },
+    }
+end
+
+JournalStyleEditor_BuildForm = function(sheet, upload, panel)
+    local children = {}
+
+    -- Name
+    children[#children+1] = JSE_TextRow("Name:", sheet.name, function(v)
+        sheet.name = v; upload()
+    end)
+
+    -- Parent (inheritance). Options are all OTHER stylesheets plus "(No parent)".
+    local parentOptions = { { id = "", text = "(No parent)" } }
+    for k, other in unhidden_pairs(dmhub.GetTable(sheet.tableName or "journalStyles") or {}) do
+        if k ~= panel.data.sheetid then
+            parentOptions[#parentOptions+1] = { id = k, text = other.name or "Unnamed" }
+        end
+    end
+    children[#children+1] = JSE_DropdownRow("Inherits from:", parentOptions,
+        sheet.parentId or "", function(v)
+            sheet.parentId = (v ~= "" and v) or false
+            ResolveStylesheet.ClearCache()
+            upload()
+        end)
+
+    -- Resolve once for display of inherited values.
+    local resolvedBase = ResolveStylesheet(panel.data.sheetid).base
+
+    local function ownBaseSection(key)
+        sheet.base = sheet.base or {}
+        sheet.base[key] = sheet.base[key] or {}
+        return sheet.base[key]
+    end
+    local function ownHeading(level)
+        sheet.base = sheet.base or {}
+        sheet.base.headings = sheet.base.headings or {}
+        sheet.base.headings[level] = sheet.base.headings[level] or {}
+        return sheet.base.headings[level]
+    end
+
+    local weightOptions = {
+        { id = "regular", text = "Regular" },
+        { id = "bold", text = "Bold" },
+        { id = "black", text = "Black" },
+    }
+    local capsOptions = {
+        { id = "", text = "None" },
+        { id = "smallcaps", text = "Small Caps" },
+        { id = "allcaps", text = "All Caps" },
+    }
+
+    -- Headings 1-6 (curated: size, color, weight, caps)
+    for level = 1, 6 do
+        local rh = (resolvedBase.headings or {})[level] or {}
+        children[#children+1] = gui.Label{ classes = {"formStacked"}, text = string.format("Heading %d", level) }
+        children[#children+1] = JSE_NumberRow("  Size %:", rh.sizePct, function(n)
+            ownHeading(level).sizePct = n; upload()
+        end)
+        children[#children+1] = JSE_ColorRow("  Color:", rh.color, function(c)
+            ownHeading(level).color = c; upload()
+        end)
+        children[#children+1] = JSE_DropdownRow("  Weight:", weightOptions, rh.weight or "bold", function(v)
+            ownHeading(level).weight = v; upload()
+        end)
+        children[#children+1] = JSE_DropdownRow("  Caps:", capsOptions, rh.caps or "", function(v)
+            ownHeading(level).caps = (v ~= "" and v) or nil; upload()
+        end)
+    end
+
+    -- Body (curated: color)
+    children[#children+1] = gui.Label{ classes = {"formStacked"}, text = "Body" }
+    children[#children+1] = JSE_ColorRow("  Color:", (resolvedBase.body or {}).color, function(c)
+        ownBaseSection("body").color = c; upload()
+    end)
+
+    -- Page (curated: bgcolor)
+    children[#children+1] = gui.Label{ classes = {"formStacked"}, text = "Page" }
+    children[#children+1] = JSE_ColorRow("  Background:", (resolvedBase.page or {}).bgcolor, function(c)
+        ownBaseSection("page").bgcolor = c; upload()
+    end)
+
+    -- Built-in block frames (auto-applied by syntax; no author class).
+    local blockTypes = {
+        { key = "powerRoll",     label = "Power roll" },
+        { key = "table",         label = "Table" },
+        { key = "rollableTable", label = "Rollable table (header)" },
+        { key = "collapse",      label = "Collapse section" },
+    }
+    local function ownBlockBox(bkey)
+        sheet.base = sheet.base or {}
+        sheet.base.blocks = sheet.base.blocks or {}
+        sheet.base.blocks[bkey] = sheet.base.blocks[bkey] or {}
+        sheet.base.blocks[bkey].box = sheet.base.blocks[bkey].box or {}
+        return sheet.base.blocks[bkey].box
+    end
+    children[#children+1] = gui.Label{ classes = {"formStacked"}, text = "Blocks" }
+    for _, bt in ipairs(blockTypes) do
+        local rbox = (((resolvedBase.blocks or {})[bt.key]) or {}).box or {}
+        children[#children+1] = gui.Label{ classes = {"formStacked"}, text = "  " .. bt.label }
+        children[#children+1] = JSE_ColorRow("    Background:", rbox.bgcolor, function(c)
+            ownBlockBox(bt.key).bgcolor = c; upload()
+        end)
+        children[#children+1] = JSE_NumberRow("    Border:", rbox.border, function(n)
+            ownBlockBox(bt.key).border = n; upload()
+        end)
+        children[#children+1] = JSE_ColorRow("    Border color:", rbox.borderColor, function(c)
+            ownBlockBox(bt.key).borderColor = c; upload()
+        end)
+        children[#children+1] = JSE_NumberRow("    Corner radius:", rbox.cornerRadius, function(n)
+            ownBlockBox(bt.key).cornerRadius = n; upload()
+        end)
+        children[#children+1] = JSE_NumberRow("    Padding:", rbox.pad, function(n)
+            ownBlockBox(bt.key).pad = n; upload()
+        end)
+    end
+
+    -- Bullet (curated: glyph, color)
+    children[#children+1] = gui.Label{ classes = {"formStacked"}, text = "Bullet" }
+    children[#children+1] = JSE_TextRow("  Glyph:", (resolvedBase.bullet or {}).glyph, function(v)
+        ownBaseSection("bullet").glyph = (v ~= "" and v) or false; upload()
+    end)
+    children[#children+1] = JSE_ColorRow("  Color:", (resolvedBase.bullet or {}).color, function(c)
+        ownBaseSection("bullet").color = c; upload()
+    end)
+
+    -- Named classes (curated). Operate on this sheet's OWN classes table.
+    sheet.classes = sheet.classes or {}
+    children[#children+1] = gui.Label{ classes = {"formStacked"}, text = "Classes" }
+
+    local kindOptions = {
+        { id = "inline", text = "Inline {.name text}" },
+        { id = "block", text = "Block :::name:::" },
+    }
+
+    -- Stable, sorted iteration so the form does not reorder under the user.
+    local classNames = {}
+    for name,_ in pairs(sheet.classes) do classNames[#classNames+1] = name end
+    table.sort(classNames)
+
+    for _, name in ipairs(classNames) do
+        local cls = sheet.classes[name]
+        cls.text = cls.text or {}
+        cls.box = cls.box or {}
+
+        -- Show the syntax the author actually types: {.name} for inline, :::name for block.
+        local syntaxLabel = (cls.kind == "block") and (":::" .. name) or ("{." .. name .. "}")
+        children[#children+1] = gui.Label{ classes = {"formStacked"}, text = "  " .. syntaxLabel }
+
+        -- Rename: moves the key.
+        children[#children+1] = JSE_TextRow("    Name:", name, function(v)
+            v = string.lower(trim(v))
+            if v ~= "" and v ~= name and sheet.classes[v] == nil then
+                sheet.classes[v] = sheet.classes[name]
+                sheet.classes[name] = nil
+                upload()
+                JournalStyleEditor_BuildForm(sheet, upload, panel)  -- rebuild with new key
+            end
+        end)
+        children[#children+1] = JSE_DropdownRow("    Kind:", kindOptions, cls.kind or "inline", function(v)
+            cls.kind = v; upload()
+        end)
+        children[#children+1] = JSE_ColorRow("    Text color:", cls.text.color, function(c)
+            cls.text.color = c; upload()
+        end)
+        children[#children+1] = JSE_DropdownRow("    Text weight:", {
+            { id = "regular", text = "Regular" }, { id = "bold", text = "Bold" }, { id = "black", text = "Black" },
+        }, cls.text.weight or "regular", function(v) cls.text.weight = v; upload() end)
+        children[#children+1] = JSE_CheckRow("    Italic", cls.text.italic, function(b)
+            cls.text.italic = b; upload()
+        end)
+        -- Block box fields (shown always; only used when kind == "block")
+        children[#children+1] = JSE_ColorRow("    Box bg:", cls.box.bgcolor, function(c)
+            cls.box.bgcolor = c; upload()
+        end)
+        children[#children+1] = JSE_NumberRow("    Box border:", cls.box.border, function(n)
+            cls.box.border = n; upload()
+        end)
+        children[#children+1] = JSE_ColorRow("    Box border color:", cls.box.borderColor, function(c)
+            cls.box.borderColor = c; upload()
+        end)
+        children[#children+1] = JSE_NumberRow("    Box corner radius:", cls.box.cornerRadius, function(n)
+            cls.box.cornerRadius = n; upload()
+        end)
+        children[#children+1] = JSE_NumberRow("    Box padding:", cls.box.pad, function(n)
+            cls.box.pad = n; upload()
+        end)
+        children[#children+1] = gui.Button{ text = "Delete class: " .. name, width = "auto", height = 24,
+            click = function()
+                sheet.classes[name] = nil
+                upload()
+                JournalStyleEditor_BuildForm(sheet, upload, panel)
+            end }
+    end
+
+    children[#children+1] = gui.Button{ text = "Add class", width = "auto", height = 28,
+        click = function()
+            local n, i = "class", 1
+            while sheet.classes[n] ~= nil do i = i + 1; n = "class" .. i end
+            sheet.classes[n] = { kind = "inline", text = {}, box = {} }
+            upload()
+            JournalStyleEditor_BuildForm(sheet, upload, panel)
+        end }
+
+    panel.children = children
+
+    -- Live preview: regenerate the showcase content for this sheet and refresh.
+    -- (Base-skin/frame/color edits re-render via the journalStyles monitor that
+    -- every DisplayPanel carries; class add/remove/rename rebuilds the form, so
+    -- regenerating here picks up new/removed class samples.)
+    if panel.data.previewDoc ~= nil then
+        panel.data.previewDoc:SetTextContent(BuildShowcaseContent(sheet))
+        if panel.data.previewPanel ~= nil then
+            panel.data.previewPanel:FireEventTree("refreshDocument", panel.data.previewDoc)
+        end
+    end
+end
+
+-- =============================================================================
+-- Skin -> inline markup (Plan 2). A live spike showed gui.MarkdownStyle swaps do
+-- not restyle headings/bullets, but inline TMP markup renders reliably. So we
+-- inject skin-derived markup per line. The DEFAULT skin is tuned so this is a
+-- visual no-op (unstyled journals render exactly as before).
+-- =============================================================================
+
+-- Resolve an optional color value (literal hex or @token) to a hex string, or
+-- nil if unset. ThemeEngine.ResolveTokens turns "@danger" into "#rrggbb".
+local function SkinColor(c)
+    if c == nil or c == false or c == "" then return nil end
+    return ThemeEngine.ResolveTokens(c)
+end
+
+-- Apply a box "frame" to a container panel: clears the frame props first (so a
+-- reused cached panel keeps no stale frame and an empty box is a no-op), then
+-- applies any set props. Same vocabulary as the callout-box render.
+local function ApplyBlockFrame(panel, box)
+    box = box or {}
+    local ss = panel.selfStyle
+    ss.bgimage = nil
+    ss.bgcolor = nil
+    ss.borderImage = nil
+    ss.border = nil
+    ss.borderColor = nil
+    ss.cornerRadius = nil
+    ss.pad = nil
+    ss.borderBox = nil
+    if box.bgcolor then ss.bgimage = "panels/square.png"; ss.bgcolor = SkinColor(box.bgcolor) end
+    if box.bgimage then ss.bgimage = box.bgimage end
+    if box.borderImage then ss.borderImage = box.borderImage end
+    if box.border then ss.border = box.border end
+    if box.borderColor then ss.borderColor = SkinColor(box.borderColor) end
+    if box.cornerRadius then ss.cornerRadius = box.cornerRadius end
+    if box.pad then ss.pad = box.pad; ss.borderBox = true end
+end
+
+-- Test hook.
+MarkdownDocument.__ApplyBlockFrame = ApplyBlockFrame
+
+-- Build the open/close markup pair for a heading level from its skin entry, and
+-- return the (possibly case-transformed) content.
+local function SkinHeadingMarkup(h, content)
+    h = h or {}
+    local open, close = "", ""
+    if h.sizePct and h.sizePct ~= 100 then
+        open = open .. string.format("<size=%d%%>", h.sizePct)
+        close = "</size>" .. close
+    end
+    -- weight: "bold" or "black" both map to <b> (TMP has no separate black face
+    -- in the current font catalog); "regular" emits nothing.
+    if h.weight == "bold" or h.weight == "black" then
+        open = open .. "<b>"
+        close = "</b>" .. close
+    end
+    local tracking = h.tracking or 0
+    if tracking ~= 0 then
+        -- InDesign tracking is 1/1000 em; TMP <cspace> takes em. -20 -> -0.02em.
+        open = open .. string.format("<cspace=%.3fem>", tracking / 1000)
+        close = "</cspace>" .. close
+    end
+    local color = SkinColor(h.color)
+    if color then
+        open = open .. string.format("<color=%s>", color)
+        close = "</color>" .. close
+    end
+    if h.caps == "allcaps" then
+        content = string.upper(content)
+    elseif h.caps == "smallcaps" then
+        open = open .. "<smallcaps>"
+        close = "</smallcaps>" .. close
+    end
+    return open .. content .. close
+end
+
+-- Wrap a body line per the body skin. Only emits markup for explicitly-set,
+-- non-default values so the default skin stays a visual no-op.
+local function SkinBodyMarkup(body, content)
+    body = body or {}
+    local open, close = "", ""
+    local color = SkinColor(body.color)
+    if color then
+        open = open .. string.format("<color=%s>", color)
+        close = "</color>" .. close
+    end
+    return open .. content .. close
+end
+
+-- Unordered bullet. `defmarker` is the original marker character ("-" or "*"),
+-- used as the glyph when no skin glyph is set so unstyled journals are unchanged.
+local function SkinBulletMarkup(bullet, defmarker, content)
+    bullet = bullet or {}
+    local glyph = bullet.glyph
+    if glyph == nil or glyph == false or glyph == "" then glyph = defmarker end
+    local color = SkinColor(bullet.color)
+    local indent = bullet.indent or 0
+    local prefix
+    if color then
+        prefix = string.format("<color=%s>%s</color>", color, glyph)
+    else
+        prefix = glyph
+    end
+    local line = prefix .. " " .. content
+    if indent ~= 0 then
+        line = string.format("<indent=%dpx>%s</indent>", indent, line)
+    end
+    return line
+end
+
+-- Ordered list item. `marker` is the literal "N." token. Default = unchanged.
+local function SkinOrderedMarkup(ordered, marker, content)
+    ordered = ordered or {}
+    local color = SkinColor(ordered.color)
+    local indent = ordered.indent or 0
+    local prefix
+    if color then
+        prefix = string.format("<color=%s>%s</color>", color, marker)
+    else
+        prefix = marker
+    end
+    local line = prefix .. " " .. content
+    if indent ~= 0 then
+        line = string.format("<indent=%dpx>%s</indent>", indent, line)
+    end
+    return line
+end
+
+-- Wrap blockquote body text per the quote skin (color/italic). Default skin
+-- (no color, italic=false) returns the text unchanged.
+local function SkinQuoteText(quote, content)
+    quote = quote or {}
+    if type(content) ~= "string" then return content end
+    local open, close = "", ""
+    local color = SkinColor(quote.color)
+    if color then open = open .. string.format("<color=%s>", color); close = "</color>" .. close end
+    if quote.italic == true then open = open .. "<i>"; close = "</i>" .. close end
+    return open .. content .. close
+end
+
+-- Build inline TMP markup from a class's `text` block. Mirrors SkinHeadingMarkup
+-- but covers the full class-text vocabulary (italic/underline/strike/mark). An
+-- empty/nil block returns the content unchanged. `font` is intentionally not
+-- emitted (needs imported faces; deferred to the asset pack, as in Plan 2).
+local function SkinClassTextMarkup(t, content)
+    t = t or {}
+    local open, close = "", ""
+    if t.size and t.size ~= 100 then
+        open = open .. string.format("<size=%d%%>", t.size); close = "</size>" .. close
+    end
+    if t.weight == "bold" or t.weight == "black" then
+        open = open .. "<b>"; close = "</b>" .. close
+    end
+    if t.italic == true then open = open .. "<i>"; close = "</i>" .. close end
+    if t.underline == true then open = open .. "<u>"; close = "</u>" .. close end
+    if t.strike == true then open = open .. "<s>"; close = "</s>" .. close end
+    local tracking = t.tracking or 0
+    if tracking ~= 0 then
+        open = open .. string.format("<cspace=%.3fem>", tracking / 1000)
+        close = "</cspace>" .. close
+    end
+    if t.mark == true then
+        open = open .. ThemeEngine.ResolveTokens("<mark=@fg>"); close = "</mark>" .. close
+    end
+    local color = SkinColor(t.color)
+    if color then
+        open = open .. string.format("<color=%s>", color); close = "</color>" .. close
+    end
+    if t.caps == "allcaps" then
+        content = string.upper(content)
+    elseif t.caps == "smallcaps" then
+        open = open .. "<smallcaps>"; close = "</smallcaps>" .. close
+    end
+    return open .. content .. close
+end
+
+-- Test hook.
+MarkdownDocument.__SkinClassTextMarkup = SkinClassTextMarkup
+
+local ApplySkinToText
+ApplySkinToText = function(text, base)
+    if type(text) ~= "string" or text == "" then return text end
+    base = base or {}
+    local out = {}
+    -- Split on \n with a manual string.find loop: this preserves empty lines
+    -- between consecutive newlines and a possible empty final segment.
+    local start = 1
+    local lines = {}
+    while true do
+        local nl = string.find(text, "\n", start, true)
+        if nl == nil then
+            lines[#lines + 1] = string.sub(text, start)
+            break
+        end
+        lines[#lines + 1] = string.sub(text, start, nl - 1)
+        start = nl + 1
+    end
+    for _, line in ipairs(lines) do
+        local hashes, hContent = string.match(line, "^(#+) (.*)$")
+        local bmarker, bContent = string.match(line, "^([%-%*]) (.*)$")
+        local onum, oContent = string.match(line, "^(%d+%.) (.*)$")
+        if hashes ~= nil and #hashes >= 1 and #hashes <= 5 then
+            out[#out + 1] = SkinHeadingMarkup((base.headings or {})[#hashes], hContent)
+        elseif bmarker ~= nil then
+            out[#out + 1] = SkinBulletMarkup(base.bullet, bmarker, bContent)
+        elseif onum ~= nil then
+            out[#out + 1] = SkinOrderedMarkup(base.ordered, onum, oContent)
+        else
+            out[#out + 1] = SkinBodyMarkup(base.body, line)
+        end
+    end
+    return table.concat(out, "\n")
+end
+
+-- Test hook (no _tmp_ needed; this is a class-level function reference).
+MarkdownDocument.__ApplySkinToText = ApplySkinToText
+
+-- Resolve inline {.name inner} spans to the named inline class's text markup.
+-- Unknown names, or classes whose kind is not "inline", strip to bare `inner`
+-- (graceful fallthrough -- never leave the literal {....} markers visible).
+-- inner may not contain a literal "}" (the common authoring case); a span whose
+-- inner needs a brace is not supported.
+local function ApplyInlineClasses(text, classes)
+    if type(text) ~= "string" or text == "" then return text end
+    classes = classes or {}
+    return (text:gsub("{%.([%w_%-]+) ([^}]*)}", function(name, inner)
+        local cls = classes[name]
+        if type(cls) == "table" and cls.kind == "inline" then
+            return SkinClassTextMarkup(cls.text, inner)
+        end
+        return inner
+    end))
+end
+
+-- Test hook.
+MarkdownDocument.__ApplyInlineClasses = ApplyInlineClasses
 
 local showPreviewSetting = setting{
     id = "markdownEditorShowPreview",
@@ -154,6 +993,18 @@ local function StripSpoilers(text)
                         --result = result .. "<font=\"Tengwar\">"
                         --markEnd = "</font>"
                     end
+                end
+            elseif text:sub(a + 1, a + 1) == "." and depth == 0 then
+                -- Inline class span {.name text}: copy verbatim so the render-time
+                -- ApplyInlineClasses pass (which has the resolved classes) handles
+                -- it. Stripping here would lose the class for player view.
+                local close = text:find("}", a + 1, true)
+                if close ~= nil then
+                    result = result .. text:sub(a, close)
+                    b = close
+                else
+                    result = result .. text:sub(a)
+                    b = #text
                 end
             else
                 depth = depth + 1
@@ -352,6 +1203,30 @@ BreakdownRichTags = function(content, result, options, extraOutput)
             str = ""
         end
 
+        local styleBlockMatch = regex.MatchGroups(str, "^::: *(?<class>[a-zA-Z0-9_-]+) *$")
+        if styleBlockMatch ~= nil then
+            EmitText()
+            skipping = true
+            local blockLines = {}
+            local consumed = 0
+            for j = i + 1, #lines do
+                if regex.MatchGroups(lines[j], "^::: *$") ~= nil then
+                    consumed = consumed + 1  -- count the closing fence
+                    break
+                end
+                blockLines[#blockLines + 1] = lines[j]
+                consumed = consumed + 1
+            end
+            result[#result + 1] = {
+                type = "styleblock",
+                className = string.lower(styleBlockMatch.class),
+                text = table.concat(blockLines, "\n"),
+                player = isPlayer,
+            }
+            skipLines = consumed
+            str = ""
+        end
+
         local rollableTableHeaderMatch = regex.MatchGroups(str, "^\\|(?<name>[^:]+): *(?<dice>[0-9]+d[0-9]+) *$")
         if rollableTableHeaderMatch ~= nil and lines[i + 1] ~= nil and string.starts_with(lines[i + 1], "|") then
             EmitText()
@@ -510,7 +1385,11 @@ BreakdownRichTags = function(content, result, options, extraOutput)
 
             if match.spoiler ~= nil then
 
-                if not isPlayer then
+                -- {.name ...} is an inline class marker, not a spoiler: skip the
+                -- spoiler UI so the render-time ApplyInlineClasses pass resolves it.
+                local isInlineClass = string.match(match.suffix, "^%.[%w_%-]+ ") ~= nil
+
+                if not isPlayer and not isInlineClass then
 
                     local linepos = (#line - #str) + #match.prefix
 
@@ -997,6 +1876,7 @@ function MarkdownDocument.DisplayPanel(self, args)
     local m_embeds = {}
     local m_treeNodes = {}
     local m_blockquotes = {}
+    local m_styleblocks = {}
     local m_tokenExtraInfo = {}
 
     local params = {
@@ -1047,6 +1927,7 @@ function MarkdownDocument.DisplayPanel(self, args)
             local newEmbeds = {}
             local newTreeNodes = {}
             local newBlockquotes = {}
+            local newStyleblocks = {}
             local currentRichRow = nil
 
             local rollableTablesByName = {}
@@ -1071,11 +1952,30 @@ function MarkdownDocument.DisplayPanel(self, args)
             end
 
             --print("BREAKDOWN::", tokens)
+            -- Plan 2: resolve this document's skin once per render. Memoized in
+            -- the resolver, so re-calling per token would also be cheap, but we
+            -- hoist it for clarity and to thread into text/divider/quote.
+            local resolvedStylesheet = self:GetResolvedStylesheet()
+            local resolvedSkin = resolvedStylesheet.base
+            local resolvedClasses = resolvedStylesheet.classes
+            -- Page background: paint the content container from the resolved skin.
+            -- Re-runs every render (including live stylesheet edits via the monitor).
+            -- Unset clears it so a reused panel keeps no stale background and the
+            -- default skin stays a visual no-op.
+            local pageColor = SkinColor((resolvedSkin.page or {}).bgcolor)
+            if pageColor then
+                element.bgimage = "panels/square.png"
+                element.bgcolor = pageColor
+            else
+                element.bgimage = nil
+                element.bgcolor = nil
+            end
             for i, token in ipairs(tokens) do
                 if token.type == "justification" then
                     --pass, nothing needed here.
                 elseif token.type == "collapse_node" then
                     local panel = m_treeNodes[#newTreeNodes + 1] or CreateTreeNodePanel()
+                    ApplyBlockFrame(panel, ((resolvedSkin.blocks or {}).collapse or {}).box)
                     if m_treeNodes[#newTreeNodes + 1] ~= nil then
                         panel:Unparent()
                     end
@@ -1126,6 +2026,7 @@ function MarkdownDocument.DisplayPanel(self, args)
                     currentRichRow = nil
 
                     local panel = m_powerTables[#newPowerTables + 1] or PowerRollDisplay(self)
+                    ApplyBlockFrame(panel, ((resolvedSkin.blocks or {}).powerRoll or {}).box)
                     panel:FireEventTree("refreshPowerRoll", token)
                     newPowerTables[#newPowerTables + 1] = panel
                     children[#children + 1] = panel
@@ -1141,7 +2042,11 @@ function MarkdownDocument.DisplayPanel(self, args)
                         valign = "top",
                         width = "100%",
                     }
-                    print("DIVIDER:: ADD")
+                    -- Plan 2: apply rule skin (only spike-confirmed props).
+                    -- Spike result: bgcolor and tmargin/bmargin error on selfStyle set;
+                    -- height works. Only thickness is applied here.
+                    local rule = resolvedSkin.rule or {}
+                    if rule.thickness then divider.selfStyle.height = rule.thickness end
 
                     newDividers[#newDividers + 1] = divider
                     children[#children + 1] = divider
@@ -1280,6 +2185,8 @@ function MarkdownDocument.DisplayPanel(self, args)
                     panel.data.table = nil
                     currentRollableTable = panel
 
+                    ApplyBlockFrame(panel, ((resolvedSkin.blocks or {}).rollableTable or {}).box)
+
                     if m_rollableTables[tableName] ~= nil then
                         panel:Unparent()
                     end
@@ -1300,6 +2207,8 @@ function MarkdownDocument.DisplayPanel(self, args)
                         }
 
                         currentTable.data.children = {}
+
+                        ApplyBlockFrame(currentTable, ((resolvedSkin.blocks or {}).table or {}).box)
 
                         if currentRollableTable ~= nil then
                             currentRollableTable.data.table = currentTable
@@ -1570,7 +2479,7 @@ function MarkdownDocument.DisplayPanel(self, args)
                         text = text:sub(1, -2) .. "<color=#00000000>.</color>"
                     end
 
-                    textPanel.text = text
+                    textPanel.text = ApplySkinToText(ApplyInlineClasses(text, resolvedClasses), resolvedSkin)
                     newTextPanels[#newTextPanels + 1] = textPanel
 
                     --find if the string only has a newline at the end or no newline,
@@ -1643,11 +2552,52 @@ function MarkdownDocument.DisplayPanel(self, args)
                         blockquote:Unparent()
                     end
 
-                    blockquote:FireEventTree("markdownText", token.text)
+                    blockquote:FireEventTree("markdownText", SkinQuoteText(resolvedSkin.quote, token.text))
 
                     newBlockquotes[#newBlockquotes + 1] = blockquote
 
                     children[#children+1] = blockquote
+
+                elseif token.type == "styleblock" then
+                    currentRichRow = nil
+                    local cls = resolvedClasses[token.className]
+                    local styleblock = m_styleblocks[#newStyleblocks + 1] or gui.Panel {
+                        width = "100%",
+                        height = "auto",
+                        halign = "left",
+                        valign = "top",
+                        flow = "vertical",
+                        borderBox = true,
+                        savedoc = function(element) element:HaltEventPropagation() end,
+                        refreshDocument = function(element) element:HaltEventPropagation() end,
+                        editDocument = function(element) element:HaltEventPropagation() end,
+                        refreshTag = function(element) element:HaltEventPropagation() end,
+                        gui.MarkdownLabel{
+                            width = "100%",
+                            markdownText = function(element, text)
+                                element:HaltEventPropagation()
+                                element.text = text
+                            end,
+                        }
+                    }
+
+                    -- Apply the class box props (graceful when class is missing or
+                    -- not a block class -> renders as a plain unstyled panel).
+                    local box = (type(cls) == "table" and cls.kind == "block" and cls.box) or {}
+                    ApplyBlockFrame(styleblock, box)
+
+                    if m_styleblocks[#newStyleblocks + 1] ~= nil then
+                        styleblock:Unparent()
+                    end
+
+                    local innerText = token.text
+                    if type(cls) == "table" and cls.kind == "block" and cls.text ~= nil then
+                        innerText = SkinClassTextMarkup(cls.text, token.text)
+                    end
+                    styleblock:FireEventTree("markdownText", innerText)
+
+                    newStyleblocks[#newStyleblocks + 1] = styleblock
+                    children[#children + 1] = styleblock
 
                 elseif token.type == "tag" then
                     if currentTable ~= nil and currentTableRow == nil then
@@ -1780,7 +2730,13 @@ function MarkdownDocument.DisplayPanel(self, args)
             m_embeds = newEmbeds
             m_treeNodes = newTreeNodes
             m_blockquotes = newBlockquotes
+            m_styleblocks = newStyleblocks
             element.children = children
+        end,
+        monitorGame = "/assets/objectTables/" .. JournalStylesheet.tableName,
+        refreshGame = function(element)
+            ResolveStylesheet.ClearCache()
+            element:FireEvent("refreshDocument", self)
         end,
     }
 
@@ -3189,17 +4145,18 @@ function MarkdownDocument:EditPanel(args)
             element.text = self:GetTextContent()
         end,
         needsave = function(element, result)
-            if self:GetTextContent() ~= element.text then
+            if self:GetTextContent() ~= element.text or self:try_get("_tmp_styleDirty") == true then
                 result.save = true
             end
         end,
         savedoc = function(element)
             self:SetTextContent(element.text)
             element.text = self:GetTextContent()
+            self._tmp_styleDirty = nil
         end,
 
         checkChanges = function(element, baseDoc)
-            resultPanel:SetClassTree("changes", element.text ~= baseDoc:GetTextContent())
+            resultPanel:SetClassTree("changes", element.text ~= baseDoc:GetTextContent() or self:try_get("_tmp_styleDirty") == true)
         end,
 
         caretReady = function(element)
@@ -3223,6 +4180,7 @@ function MarkdownDocument:EditPanel(args)
     local previewDoc = MarkdownDocument.new{
         content = self:GetTextContent(),
         annotations = self.annotations,
+        styleSheetId = self.styleSheetId or false,
     }
 
     previewPanel = gui.Panel{
@@ -3467,6 +4425,32 @@ function MarkdownDocument:EditPanel(args)
                     element.idChosen = ""
                 end
             end,
+        },
+
+        gui.Panel{
+            classes = { "formStackedRow" },
+            width = "auto",
+            height = "auto",
+            valign = "center",
+            gui.Label{ classes = { "formStacked" }, text = "Stylesheet:" },
+            gui.Dropdown{
+                classes = { "formStacked" },
+                options = JournalStylesheet.PickerOptions(),
+                idChosen = self.styleSheetId or "",
+                change = function(element)
+                    local chosen = element.idChosen
+                    self.styleSheetId = (chosen ~= "" and chosen) or false
+                    previewDoc.styleSheetId = self.styleSheetId
+                    ResolveStylesheet.ClearCache()
+                    if previewPanel ~= nil then
+                        previewPanel:FireEventTree("refreshDocument", previewDoc)
+                    end
+                    self._tmp_styleDirty = true
+                    if resultPanel ~= nil then
+                        resultPanel:SetClassTree("changes", true)
+                    end
+                end,
+            },
         },
     }
 

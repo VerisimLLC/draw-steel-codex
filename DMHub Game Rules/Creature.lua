@@ -457,6 +457,12 @@ function creature:CanFly()
 	return self:GetSpeed("fly") > 0
 end
 
+--- If the creature is currently flying.
+--- @return boolean
+function creature:IsFlying()
+	return self:CurrentMoveType() == "fly"
+end
+
 --- If the creature has a swim speed.
 --- @return boolean
 function creature:CanSwim()
@@ -8501,13 +8507,12 @@ function creature:BeginTurn()
 	--just in case some linger.
 	self:ClearMomentaryOngoingEffects()
 
-    self:CheckAuraExpiration("nextturn")
-    
 	local token = dmhub.LookupToken(self)
     local order = 1
+    local initiativeid = nil
 
     if token ~= nil then
-		local initiativeid = InitiativeQueue.GetInitiativeId(token)
+		initiativeid = InitiativeQueue.GetInitiativeId(token)
 	    local tokens = InitiativeQueue.GetTokensForInitiativeId(initiativeid)
         if tokens ~= nil then
             for i,tok in ipairs(tokens) do
@@ -8519,10 +8524,69 @@ function creature:BeginTurn()
         end
     end
 
-    print("BeginTurn: order =", order)
 	dmhub.Coroutine(function()
-        self:DispatchEventAndWait("prestartturn", {})
+        --The initiative queue has already advanced to this creature's turn before
+        --BeginTurn runs, so effects/auras that expire "at the start of this creature's
+        --turn" would otherwise expire the instant the prestartturn (Before Start of
+        --Turn) trigger begins. Mark this creature's turn as still pending while the
+        --prestartturn trigger fires (consulted by TimePoint:RoundsSince and by the aura
+        --pruning below) so those effects remain active through the trigger and only
+        --expire afterward. The flag is transient and only needed locally during this
+        --window.
+        local q = dmhub.initiativeQueue
+        if q ~= nil and initiativeid ~= nil then
+            q._tmp_prestartInitiativeId = initiativeid
+        end
+
+        local ok, err = pcall(function()
+            self:DispatchEventAndWait("prestartturn", {})
+        end)
+
+        --Clear the flag even if a trigger handler errored.
+        if q ~= nil then
+            q._tmp_prestartInitiativeId = nil
+        end
+
+        --Now that the prestartturn trigger has completed, expire start-of-turn auras.
+        self:CheckAuraExpiration("nextturn")
+
+        if self:has_key("auras") then
+            local expires = false
+            for i,aura in ipairs(self.auras) do
+                if aura:HasExpired() then
+                    expires = true
+                end
+            end
+
+            if expires then
+                local newAuras = {}
+                for i,aura in ipairs(self.auras) do
+                    if aura:HasExpired() then
+                        aura:DestroyAura(self)
+                    else
+                        newAuras[#newAuras+1] = aura
+                    end
+                end
+                self.auras = newAuras
+            end
+        end
+
+        if token ~= nil then
+            local auras = self:GetAurasAffecting(token)
+            if auras ~= nil then
+                for i,auraInfo in ipairs(auras) do
+                    self:EnterAura(auraInfo)
+                end
+            end
+        end
+
         self:DispatchEvent("beginturn", {order = order})
+
+        --Surface a prestartturn trigger error after cleanup so a buggy trigger does not
+        --abort the rest of BeginTurn.
+        if not ok then
+            dmhub.CloudError(err)
+        end
     end)
 
 
@@ -8547,36 +8611,6 @@ function creature:BeginTurn()
 					end
 				end,
 			}
-		end
-	end
-
-	if self:has_key("auras") then
-		local expires = false
-		for i,aura in ipairs(self.auras) do
-			if aura:HasExpired() then
-				expires = true
-			end
-		end
-
-		if expires then
-			local newAuras = {}
-			for i,aura in ipairs(self.auras) do
-				if aura:HasExpired() then
-					aura:DestroyAura(self)
-				else
-					newAuras[#newAuras+1] = aura
-				end
-			end
-			self.auras = newAuras
-		end
-	end
-
-	if token ~= nil then
-	    local auras = self:GetAurasAffecting(token)
-		if auras ~= nil then
-			for i,auraInfo in ipairs(auras) do
-				self:EnterAura(auraInfo)
-			end
 		end
 	end
 end
@@ -9087,6 +9121,7 @@ ActiveTrigger.epicResourceCost = 0
 ActiveTrigger.clearOnDismiss = false
 ActiveTrigger.dismissOnTrigger = false
 ActiveTrigger.powerRollModifier = false
+ActiveTrigger.noDeduplicate = false
 ActiveTrigger.targets = {}
 ActiveTrigger.triggered = false
 ActiveTrigger.dismissed = false
@@ -9236,7 +9271,7 @@ function creature:DispatchAvailableTrigger(triggerInfo)
 		local age = TimestampAgeInSeconds(value.timestamp)
 		if age > 60 then
 			deletes[#deletes+1] = key
-		elseif triggerInfo ~= nil and availableTriggers[triggerInfo.id] == nil and triggerInfo.powerRollModifier == false and value.powerRollModifier == false then
+		elseif triggerInfo ~= nil and availableTriggers[triggerInfo.id] == nil and triggerInfo.powerRollModifier == false and value.powerRollModifier == false and (not triggerInfo.noDeduplicate) and (not value.noDeduplicate) then
             --de-duplicate spammy triggers that all do the same thing, e.g. if Tactician Mastermind's Overwatch trigger against the same moving creature.
 			if (not value.dismissed) and (not value.triggered) and (value.text == triggerInfo.text) and (value.rules == triggerInfo.rules) and dmhub.DeepEqual(value.modes, triggerInfo.modes) and dmhub.DeepEqual(value.targets, triggerInfo.targets) then
 				--just refresh this trigger instead of creating a new one.

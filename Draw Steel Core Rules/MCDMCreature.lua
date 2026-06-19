@@ -5681,6 +5681,7 @@ function creature:PersistentAbilities()
             newAbility.repeatTargets = false
             newAbility.whenActive = "combat"
             newAbility.castImmediately = true
+            newAbility.allowDuplicateTriggers = true
 
             ability.persistence = nil
             ability.actionResourceId = cond(persistenceMode == "recast_maneuver", CharacterResource.maneuverResourceId,

@@ -106,11 +106,11 @@ function MapFloorLua:ChangeElevation(options)
 	-- dummy implementation for documentation purposes only
 end
 
---- ScaleMapElevations: Multiply every elevation setting on the current map (all floors) by a factor, as a single undoable operation. Scales heightmap terrain, "set elevation" objects (elevation mode is not "rest on ground"), and elevated floor/platform objects (elevation + climb height). Token altitudes are recomputed from the new terrain but are not themselves scaled. Pass options to skip a category.
---- @param factor number positive multiplier (1 = no change)
---- @param options nil|{heightmap: nil|boolean, objects: nil|boolean, platforms: nil|boolean}
+--- ScaleMapElevations
+--- @param factorValue any
+--- @param optionsValue any
 --- @return nil
-function MapFloorLua:ScaleMapElevations(factor, options)
+function MapFloorLua:ScaleMapElevations(factorValue, optionsValue)
 	-- dummy implementation for documentation purposes only
 end
 

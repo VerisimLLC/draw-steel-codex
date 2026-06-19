@@ -2,7 +2,7 @@
 --- @field hasGit boolean True if Git is available on the system for code mod version control.
 --- @field loadedMods string[] Returns a list of all code mod IDs currently loaded in the game, including global mods.
 --- @field loadedModsLocalToGame string[] Returns a list of code mod IDs that are loaded locally for the current game only.
---- @field loadedModsFromModules string[] Returns a deduplicated list of code mod IDs that were installed into the current game by module dependencies (from gameInfo.codeModsFromModules rather than authored locally).
+--- @field loadedModsFromModules string[] Returns a deduplicated list of code mod IDs that were installed into the current game by module dependencies (i.e. came from gameInfo.codeModsFromModules rather than being authored locally). Used by the module publishing UI so codemods pulled in from dependencies can be explicitly bundled into a new module version.
 --- @field monitorid string The ID of the code mod currently being monitored for live changes.
 --- @field logEvent LuaEvent The event that fires when a code mod log entry is added.
 --- @field modifyEvent LuaEvent The event that fires when a code mod is modified.

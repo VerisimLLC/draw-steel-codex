@@ -533,6 +533,40 @@ local CreateMaterialPropertiesPanel = function(opts)
 		return dicestudio:GetMaterial(matid)
 	end
 
+	-- Maps this panel's material category to the dice-script handle used to set its properties,
+	-- so each property row can show a tooltip with the exact script call. The builtin material is
+	-- the base die material (die.material); a default or per-die surface override is die.surface.
+	-- The text material is not exposed to dice scripts.
+	local ScriptHandleName = function()
+		if matid == "builtin" then
+			return "die.material"
+		elseif matid == "text" then
+			return nil
+		end
+		return "die.surface"
+	end
+
+	-- Returns a hover handler (gui.Tooltip) hinting how to set property p from a dice script, or
+	-- nil when it isn't script-settable (textures) or the material isn't script-exposed. The
+	-- tooltip shows the shader property NAME (the stable script identifier) rather than the UI
+	-- label, since the label is a renamable description.
+	local ScriptHint = function(p)
+		local handle = ScriptHandleName()
+		if handle == nil then
+			return nil
+		end
+		if p.type == "Color" then
+			return gui.Tooltip(string.format('Script: %s:SetColor("%s", "#rrggbb")', handle, p.name))
+		elseif p.type == "Bool" then
+			return gui.Tooltip(string.format('Script: %s:SetFloat("%s", 0 or 1)', handle, p.name))
+		elseif p.type == "Float" or p.type == "Range" then
+			return gui.Tooltip(string.format('Script: %s:SetFloat("%s", value)  -- range %s..%s', handle, p.name, tostring(p.min or 0), tostring(p.max or 1)))
+		elseif p.type == "Texture" then
+			return gui.Tooltip(string.format('Shader property "%s" (textures cannot be set from a dice script)', p.name))
+		end
+		return nil
+	end
+
 	return gui.Panel{
 		width = "100%",
 		height = "auto",
@@ -573,6 +607,7 @@ local CreateMaterialPropertiesPanel = function(opts)
 
 					children[#children+1] = gui.Panel{
 						classes = {"formPanel"},
+						hover = ScriptHint(p),
 						gui.Check{
 							halign = "left",
 							text = string.format("%s", p.description),
@@ -590,6 +625,7 @@ local CreateMaterialPropertiesPanel = function(opts)
 
 					children[#children+1] = gui.Panel{
 						classes = {"formPanel"},
+						hover = ScriptHint(p),
                     	refreshDice = function(element)
 							printf("REFRESHDICE: %s", json(p.requires))
 							element:SetClass("collapsed", p.requires ~= nil and GetProps():GetFloat(p.requires) == 0)
@@ -624,6 +660,7 @@ local CreateMaterialPropertiesPanel = function(opts)
 					printf("DICESET:: Property %s / %s = %s", matid, p.name, json(GetProps():GetColor(p.name)))
 					children[#children+1] = gui.Panel{
 						classes = {"formPanel"},
+						hover = ScriptHint(p),
                     	refreshDice = function(element)
 							element:SetClass("collapsed", p.requires ~= nil and GetProps():GetFloat(p.requires) == 0)
 						end,
@@ -649,6 +686,7 @@ local CreateMaterialPropertiesPanel = function(opts)
 					printf("DICESET:: Property Texture %s / %s = %s", matid, p.name, json(GetProps():GetColor(p.name)))
 					children[#children+1] = gui.Panel{
 						classes = {"formPanel"},
+						hover = ScriptHint(p),
 						data = {
 							is_array = nil,
 						},
@@ -1869,6 +1907,187 @@ CreateDiceStudioPanel = function()
 		end,
 	}
 
+	-- Script section. Attaches a sandboxed custom Lua script to the dice set. The script runs
+	-- once per die instance as a coroutine (see DiceInstanceLua) and can recolor/animate each die.
+	-- It is edited in the user's external text editor via a watched temp file (the same
+	-- OpenTextFileInConnectedEditor mechanism the document editor uses); saving the file validates
+	-- the script, stores it on the set, and live-rebinds any preview dice so the effect shows
+	-- immediately. The source ships and uploads with the dice set, so it runs in a locked-down
+	-- environment with no engine API access (only math/table/string/coroutine + Wait()).
+	local g_scriptTemplate = [[
+-- Custom dice script. Runs once per die instance as a coroutine.
+-- 'die' lets you inspect state (die.state, die.speed, die.face, die.alive, ...)
+-- and set sticky appearance overrides (die.hue, die.color, die.alpha,
+-- die.material:SetFloat/SetColor, ...). Call Wait() to give up the frame.
+return function(die)
+    while die.alive do
+        if die.rolling then
+            -- shift hue with speed while tumbling
+            die.hue = math.min(1, die.speed / 18)
+        elseif die.state == "result" and die.isMax then
+            -- glow gold on a natural max
+            die.color = "#ffd700"
+        end
+        Wait()
+    end
+end
+]]
+
+	local g_scriptWatcher = nil
+	local scriptStatusLabel
+	local scriptSnippetLabel
+
+	local function ScriptSnippet()
+		local src = dicestudio.script or ""
+		if src == "" then
+			return "(no script attached)"
+		end
+		if #src > 240 then
+			return string.sub(src, 1, 240) .. "..."
+		end
+		return src
+	end
+
+	local function DestroyScriptWatcher()
+		if g_scriptWatcher ~= nil then
+			g_scriptWatcher:Destroy()
+			g_scriptWatcher = nil
+		end
+	end
+
+	local function RefreshScriptUI()
+		if scriptSnippetLabel ~= nil then
+			scriptSnippetLabel.text = ScriptSnippet()
+		end
+		if scriptStatusLabel ~= nil then
+			local src = dicestudio.script or ""
+			local err = dicestudio:ValidateScript(src)
+			if err ~= "" then
+				scriptStatusLabel.text = "Error: " .. err
+				scriptStatusLabel.selfStyle.color = "#ff8888ff"
+			elseif src == "" then
+				scriptStatusLabel.text = "No script attached."
+				scriptStatusLabel.selfStyle.color = "#bbbbbbff"
+			else
+				scriptStatusLabel.text = "Script OK."
+				scriptStatusLabel.selfStyle.color = "#88ff88ff"
+			end
+		end
+	end
+
+	scriptStatusLabel = gui.Label{
+		width = "100%",
+		height = "auto",
+		halign = "left",
+		vmargin = 4,
+		fontSize = 13,
+		color = "#bbbbbbff",
+		text = "No script attached.",
+	}
+
+	scriptSnippetLabel = gui.Label{
+		width = "100%",
+		height = "auto",
+		halign = "left",
+		vmargin = 4,
+		fontSize = 12,
+		color = "#888888ff",
+		bgimage = "panels/square.png",
+		bgcolor = "#00000055",
+		pad = 6,
+		borderBox = true,
+		text = "(no script attached)",
+	}
+
+	local scriptSection = gui.TreeNode{
+		text = "Script",
+		width = "100%",
+		contentPanel = gui.Panel{
+			width = "100%",
+			height = "auto",
+			flow = "vertical",
+
+			-- Tear down the file watcher when the panel goes away.
+			destroy = function(element)
+				DestroyScriptWatcher()
+			end,
+			-- A different set was loaded: the watched temp file is now stale, so stop watching
+			-- and refresh the snippet/status from the newly loaded set's script.
+			newmaterial = function(element)
+				DestroyScriptWatcher()
+				RefreshScriptUI()
+			end,
+			refreshDice = function(element)
+				RefreshScriptUI()
+			end,
+			create = function(element)
+				RefreshScriptUI()
+			end,
+
+			gui.Label{
+				width = "100%",
+				height = "auto",
+				halign = "left",
+				fontSize = 12,
+				color = "#bbbbbbff",
+				text = "Attach a custom Lua script that runs once per die. The script must end with 'return function(die) ... end' and may inspect and recolor each die. It runs in a locked-down sandbox.",
+			},
+
+			gui.Panel{
+				width = "100%",
+				height = "auto",
+				flow = "horizontal",
+				vmargin = 4,
+
+				gui.Button{
+					text = "Edit Script...",
+					width = 140,
+					height = 26,
+					fontSize = 16,
+					click = function(element)
+						DestroyScriptWatcher()
+
+						local seed = dicestudio.script or ""
+						if seed == "" then
+							seed = g_scriptTemplate
+						end
+
+						local filename = "dicescript-" .. tostring(diceDropdown.idChosen or "set") .. ".lua"
+						g_scriptWatcher = dmhub.OpenTextFileInConnectedEditor(filename, seed, function(contents)
+							dicestudio.script = contents
+							RefreshScriptUI()
+							RefreshDice()
+						end)
+
+						if g_scriptWatcher == nil then
+							gui.ModalMessage{
+								title = "Could not open editor",
+								message = "Could not spawn an external text editor for the dice script.",
+							}
+						end
+					end,
+				},
+
+				gui.Button{
+					text = "Clear",
+					width = 80,
+					height = 26,
+					fontSize = 16,
+					hmargin = 8,
+					click = function(element)
+						DestroyScriptWatcher()
+						dicestudio.script = ""
+						RefreshScriptUI()
+						RefreshDice()
+					end,
+				},
+			},
+
+			scriptStatusLabel,
+			scriptSnippetLabel,
+		},
+	}
+
 	local resultPanel
 
 	resultPanel = gui.Panel{
@@ -2852,6 +3071,7 @@ CreateDiceStudioPanel = function()
 			},
 		},
 
+		scriptSection,
 
 	}
 

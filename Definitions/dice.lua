@@ -67,3 +67,10 @@ end
 function dice.DragEnd()
 	-- dummy implementation for documentation purposes only
 end
+
+--- SetRollPreviewModel: Overrides the dice appearance used by subsequent rolls with the given dice-set asset id, so dice the player doesn't own yet (e.g. a shop item being previewed) can still be rolled -- the equipped-dice setting rejects unowned sets, but this bypasses it. Pass nil or an empty string to clear the override and return to the player's equipped set.
+--- @param assetid string
+--- @return nil
+function dice.SetRollPreviewModel(assetid)
+	-- dummy implementation for documentation purposes only
+end

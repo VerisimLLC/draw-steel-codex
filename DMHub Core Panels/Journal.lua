@@ -1035,10 +1035,15 @@ CreateFolderContentsPanel = function(journalPanel, folderid)
             end
 
             table.sort(children, function(a, b)
-                if a.data.ord ~= b.data.ord then
-                    return a.data.ord < b.data.ord
+                --Built-in folders (and PDF/image/folder members) have no `ord`
+                --field, so a.data.ord/b.data.ord can be nil. Custom documents
+                --default to ord 0. Comparing nil against a number throws and
+                --aborts the whole journal render, so coalesce to 0 first.
+                local ao, bo = a.data.ord or 0, b.data.ord or 0
+                if ao ~= bo then
+                    return ao < bo
                 end
-                return a.data.ordDesc < b.data.ordDesc
+                return (a.data.ordDesc or "") < (b.data.ordDesc or "")
             end)
 
             m_documentPanels = newDocumentPanels

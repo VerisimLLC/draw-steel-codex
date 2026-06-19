@@ -1,6 +1,7 @@
 --- @class LuaGameInfo 
 --- @field gameSystem any 
 --- @field storage number 
+--- @field hasLocalData boolean 
 --- @field description any 
 --- @field descriptionDetails any 
 --- @field password any 

@@ -67,9 +67,19 @@ function CustomDocument.ScaleFontSize(size)
 end
 
 function CustomDocument.OnDeserialize(self)
-    print("TYPE:: DESERIALIZE", self.textStorage)
     if self.textStorage and not getmetatable(self.textStorage) then
-        self.textStorage = nil
+        --textStorage came back without its metatable (e.g. it deserialized as a
+        --plain table). Do NOT just discard it: that falls back to the stale/empty
+        --self.content (SetTextContent no longer keeps content in sync), and the
+        --next save would then permanently overwrite the good data in the DB with
+        --that empty content. Re-wrap the raw sections into a proper TextStorage so
+        --the content survives. Only give up if there is genuinely nothing to keep.
+        local raw = self.textStorage
+        if TextStorage ~= nil and type(raw) == "table" and type(raw.sections) == "table" then
+            self.textStorage = TextStorage.new{ sections = raw.sections }
+        else
+            self.textStorage = nil
+        end
     end
 end
 
@@ -1099,6 +1109,12 @@ function CustomDocument:CreateInterface(args)
                 return
             end
             local doc = (dmhub.GetTable(CustomDocument.tableName) or {})[self.id]
+            if doc == nil then
+                --the document row is gone (e.g. hard-deleted while open). Nothing
+                --to confirm or refresh, and dereferencing doc.updateid below would
+                --throw, so bail out.
+                return
+            end
 
             if writePanel ~= nil and not writePanel:HasClass("collapsed") then
 

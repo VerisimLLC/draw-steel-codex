@@ -142,11 +142,23 @@ local function CreateSections(str, beginKey, endKey)
         local remaining = (#sections - i)
         local r = 1/(remaining+2)
         key = string_tween(key, endKey, r)
-        if result[key] ~= nil then
-            print("CONTENT:: ERROR:: DUPLICATE KEY:", key)
+
+        --string_tween's heuristic rounding can occasionally land on a key we
+        --already placed in this result set. Overwriting it would silently drop
+        --a whole section of the document (data loss on save). Instead, nudge the
+        --key further toward endKey until it is unique. string_tween grows the
+        --key length when it cannot advance within the current length, so it
+        --always makes forward progress and keeps keys strictly ordered between
+        --beginKey and endKey. The guard is a belt-and-suspenders bound against a
+        --pathological non-terminating case; in practice a unique key is found in
+        --one or two iterations.
+        local guard = 0
+        while result[key] ~= nil and guard < 64 do
+            key = string_tween(key, endKey, 0.5)
+            guard = guard + 1
         end
+
         result[key] = sections[i]
-        print("CONTENT:: ADD SECTION:", i, key, sections[i])
     end
 
     return result

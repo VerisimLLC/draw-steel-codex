@@ -489,6 +489,13 @@ end
 
 local g_minionSquadTables = {}
 
+--Tracks the last game update on which we pruned defunct squads from
+--g_minionSquadTables. That table is per-client transient state keyed by squad
+--name and is otherwise only cleared by MinionDeath (click-driven and client
+--local), so a dead squad's entry can linger on clients that never ran it. See
+--the sweep in RefreshSquadInfo.
+local g_lastSquadSweepUpdate = nil
+
 local g_baseRefreshToken = creature.RefreshToken
 
 function creature:GetFollowers()
@@ -965,10 +972,62 @@ function creature:RefreshSquadInfo(token)
 
         local liveMinions = 0
         local activeMinions = 0
-        local damage_taken_charid = self._tmp_minionSquad.damage_taken_charid or nil
-        local damage_taken = self._tmp_minionSquad.damage_taken or 0
-        local damage_taken_seq = self._tmp_minionSquad.damage_taken_seq or 0
-        local damage_taken_minion_count = self._tmp_minionSquad.liveMinions or nil
+
+        --Prune defunct squads from the per-client registry, throttled to once per
+        --game update. g_minionSquadTables is keyed by squad name; FindFreshSquadName
+        --recycles a name as soon as its slot is free, so leaving dead entries around
+        --lets a brand new squad inherit a defunct squad's cached damage pool. Drop any
+        --populated entry (updateid set -- bare FindFreshSquadName reservations have
+        --none and are left alone to avoid racing name assignment) that no longer has a
+        --live minion. The current squad always contains at least this token, so it is
+        --never pruned.
+        if g_lastSquadSweepUpdate ~= dmhub.gameupdateid then
+            g_lastSquadSweepUpdate = dmhub.gameupdateid
+            local liveSquadNames = {}
+            for _, tok in ipairs(tokens) do
+                if tok.valid and tok.properties.minion and (not tok.properties.minionDead) then
+                    local squadName = tok.properties:MinionSquad()
+                    if squadName ~= nil then
+                        liveSquadNames[squadName] = true
+                    end
+                end
+            end
+            for squadName, entry in pairs(g_minionSquadTables) do
+                if entry.updateid ~= nil and (not liveSquadNames[squadName]) then
+                    g_minionSquadTables[squadName] = nil
+                end
+            end
+        end
+
+        --Seed the squad damage pool from the cached _tmp_minionSquad for stability,
+        --but only when the token that last recorded that damage is still a live member
+        --of this squad. When a squad name is recycled the fresh minions carry no
+        --damage_taken_seq, so a stale seed would never be overwritten by the per-token
+        --scan below and the new squad would show phantom skulls / read as killable for
+        --this client only. The damage write fans out to every member, so any genuinely
+        --damaged survivor still carries the true value and the scan re-derives it; a
+        --fully turned-over squad correctly re-derives to zero.
+        local cachedDamageCharid = self._tmp_minionSquad.damage_taken_charid
+        local cacheCorroborated = false
+        if cachedDamageCharid ~= nil then
+            for _, tok in ipairs(tokens) do
+                if tok.charid == cachedDamageCharid and tok.properties.minion and tok.properties:MinionSquad() == squad then
+                    cacheCorroborated = true
+                    break
+                end
+            end
+        end
+
+        local damage_taken_charid = nil
+        local damage_taken = 0
+        local damage_taken_seq = 0
+        local damage_taken_minion_count = nil
+        if cacheCorroborated then
+            damage_taken_charid = cachedDamageCharid
+            damage_taken = self._tmp_minionSquad.damage_taken or 0
+            damage_taken_seq = self._tmp_minionSquad.damage_taken_seq or 0
+            damage_taken_minion_count = self._tmp_minionSquad.liveMinions or nil
+        end
         local damage_time = self._tmp_minionSquad.damage_time or 0
         local damage_time_pending = false
         local num_recently_damaged = 0

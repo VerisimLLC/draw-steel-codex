@@ -6007,6 +6007,8 @@ function creature:OnMove(path)
 
     local occupyingLocationMap = {}
     local adjacentLocationMap = {}
+    local altitudeMap = {}
+    local tileSizeMap = {}
     for i,otherToken in ipairs(allTokens) do
         local otherTokenTileSize = otherToken.tileSize
         local otherTokenAltitude = otherToken.floorAltitude
@@ -6035,6 +6037,8 @@ function creature:OnMove(path)
             allTokensFiltered[#allTokensFiltered+1] = otherToken
             local occupying = otherToken.locsOccupying
             occupyingLocationMap[#allTokensFiltered] = occupying
+            altitudeMap[#allTokensFiltered] = otherTokenAltitude
+            tileSizeMap[#allTokensFiltered] = otherTokenTileSize
             for _,loc in ipairs(occupying) do
                 adj[#adj+1] = loc
             end
@@ -6048,7 +6052,13 @@ function creature:OnMove(path)
     local ourCharid = dmhub.LookupTokenId(self)
 
     local previousAdjacent = {}
-    
+
+    --The altitude at the previous step, i.e. the square a creature is leaving
+    --FROM when adjacency is lost. Used by the opportunity-attack reach gate
+    --below so vertical departures are judged from where the mover was still in
+    --reach, not from its (already out-of-reach) destination altitude.
+    local previousStepAltitude = nil
+
     --Create temp table of creatures we move through
     if not rawget(self, "_tmp_movedThroughTokens") or self:try_get("_tmp_movedThroughRoundId") ~= (dmhub.initiativeQueue and dmhub.initiativeQueue:GetRoundId() or "") then
         self._tmp_movedThroughTokens = {}
@@ -6106,6 +6116,19 @@ function creature:OnMove(path)
                     end
 
                     if adjacent then
+                        --The x,y/floor check above ignores altitude, so a flyer
+                        --moving straight up/down stays "adjacent" forever and never
+                        --triggers leaveadjacent. Require the altitude ranges to
+                        --overlap-or-touch as well, mirroring the candidate filter
+                        --above, so rising/falling out of reach drops adjacency.
+                        local otherTokenAltitude = altitudeMap[j]
+                        local otherTokenTileSize = tileSizeMap[j]
+                        if (step.altitude + ourTileSize) < otherTokenAltitude or step.altitude > (otherTokenAltitude + otherTokenTileSize) then
+                            adjacent = false
+                        end
+                    end
+
+                    if adjacent then
                     print("LOCS:: IS ADJACENT", otherToken.charid)
                         adjacentTokens[otherToken.charid] = otherToken
                     end
@@ -6116,7 +6139,23 @@ function creature:OnMove(path)
         if not immuneFromOpportunityAttacks then
             for k,tok in pairs(previousAdjacent) do
                 if not adjacentTokens[k] then
-                    if (not tok:IsFriend(self)) and tok.properties._tmp_grabbedby ~= ourCharid and not tok.properties:HasBanesOnGenericFreeStrike(ourToken) and tok.properties:TargetPassesFilter("opportunityattack", self) then
+                    --Vertical reach gate. This used to live in each opportunity-
+                    --attack ability's GoblinScript as
+                    --(Moving Creature.Altitude <= Self.Altitude + 1), but that
+                    --re-evaluates the moving creature's CURRENT altitude, which for
+                    --a straight-up flyer is already out of reach by the time the
+                    --reaction resolves -- so the strike appears and then cancels
+                    --itself. Doing it here against previousStepAltitude (the square
+                    --the creature is leaving from, where it was still in reach) lets
+                    --vertical and lateral departures provoke identically. The test
+                    --mirrors the altitude overlap-or-touch used by the adjacency
+                    --check above (two-sided, so a target far above OR below is out
+                    --of reach).
+                    local attackerAltitude = tok.floorAltitude
+                    local attackerTileSize = tok.tileSize
+                    local withinVerticalReach = previousStepAltitude == nil or ((previousStepAltitude + ourTileSize) >= attackerAltitude and previousStepAltitude <= (attackerAltitude + attackerTileSize))
+
+                    if withinVerticalReach and (not tok:IsFriend(self)) and tok.properties._tmp_grabbedby ~= ourCharid and not tok.properties:HasBanesOnGenericFreeStrike(ourToken) and tok.properties:TargetPassesFilter("opportunityattack", self) then
                         tok.properties:DispatchEvent("leaveadjacent", { movingcreature = self })
                         self._tmp_triggeredOpportunityAttacks = self._tmp_triggeredOpportunityAttacks + 1
                     end
@@ -6125,6 +6164,7 @@ function creature:OnMove(path)
         end
 
         previousAdjacent = adjacentTokens
+        previousStepAltitude = step.altitude
     end
     
     -- Check what tokens we're overlapping at our final position

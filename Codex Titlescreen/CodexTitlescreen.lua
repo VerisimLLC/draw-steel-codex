@@ -2566,6 +2566,13 @@ local function MakeGamePanel(gameIndex)
 
                 bmargin = 3,
 
+                -- Hide Play for a local game whose data lives on another
+                -- computer. Entering it would have the local server create a
+                -- fresh empty game.db and serve an empty game.
+                refreshGames = function(element)
+                    element:SetClass("collapsed", m_game ~= nil and m_game.storage == 3 and not m_game.hasLocalData)
+                end,
+
                 hover = function ()
 
                     audio.FireSoundEvent("Mouse.Hover")
@@ -2573,6 +2580,9 @@ local function MakeGamePanel(gameIndex)
                 end,
 
                 press = function(element)
+                    if m_game.storage == 3 and not m_game.hasLocalData then
+                        return
+                    end
                     element.root:FireEventTree("overrideLoadingScreenArt", m_game.coverart, m_game.gameid)
                     lobby:EnterGame(m_game.gameid)
                     audio.FireSoundEvent("Mouse.Click")
@@ -2804,6 +2814,10 @@ local function MakeGamePanel(gameIndex)
 
                 -- "Invite Players" button that replaces the gameid-copy label
                 -- for local games. Clicking it starts the promote-to-DO flow.
+                -- Only shown when this machine actually has the game's data --
+                -- a local game created on another computer (listed here from
+                -- Firebase metadata but with no local data) can't be promoted
+                -- from here; the message below is shown in its place.
                 gui.Button {
                     text = "Invite Players",
                     width = 360,
@@ -2813,10 +2827,31 @@ local function MakeGamePanel(gameIndex)
                     y = -16,
                     hmargin = 4,
                     refreshGames = function(element)
-                        element:SetClass("collapsed", m_game == nil or m_game.storage ~= 3)
+                        element:SetClass("collapsed", m_game == nil or m_game.storage ~= 3 or not m_game.hasLocalData)
                     end,
                     click = function(element)
                         ShowPromoteLocalGameDialog(m_game, element.root)
+                    end,
+                },
+
+                -- Shown in place of the Invite Players button for a local game
+                -- whose data lives on a different computer. The local-only
+                -- gameid is useless to anyone else, so instead of offering a
+                -- non-functional Play/Invite we explain how to make the game
+                -- reachable from here.
+                gui.Label {
+                    classes = { "fgMuted" },
+                    text = "This game was created on a different computer. Press Invite Players from that computer to deploy it online so you can access it anywhere.",
+                    fontSize = 14,
+                    width = 360,
+                    height = "auto",
+                    textAlignment = "center",
+                    halign = "center",
+                    valign = "bottom",
+                    y = -8,
+                    hmargin = 4,
+                    refreshGames = function(element)
+                        element:SetClass("collapsed", m_game == nil or m_game.storage ~= 3 or m_game.hasLocalData)
                     end,
                 },
 
@@ -4296,6 +4331,18 @@ function CreateTitlescreen(dialog, options)
                     },
 
 
+                    -- Viewport-sized container so the loading-quote banner stays
+                    -- in the visible screen area at any aspect ratio. loadingScreen
+                    -- is oversized by ScaleDimensionsToFill on widescreens, which
+                    -- would otherwise push this bottom-anchored banner below the
+                    -- screen. (Mirrors the ProgressDice container below.)
+                    gui.Panel {
+                        floating = true,
+                        width = 1080 * (dmhub.screenDimensions.x / dmhub.screenDimensions.y),
+                        height = 1080,
+                        halign = "center",
+                        valign = "center",
+
                     gui.Panel {
                         flow = "vertical",
                         width = 1200,
@@ -4351,6 +4398,7 @@ function CreateTitlescreen(dialog, options)
                             height = 2,
                             y = -3.5,
                         },
+                    },
                     },
 
                     -- Viewport-sized container so the ProgressDice stays

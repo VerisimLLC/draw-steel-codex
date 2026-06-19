@@ -7,6 +7,7 @@
 --- @field border string Gets or sets the border style name for the dice. Returns 'None' if no border is set.
 --- @field borderOptions string[] Gets a list of available border style names, including 'None'.
 --- @field customDiceModel string Gets or sets the custom dice 3D model name, or nil if using the default model.
+--- @field script string The custom Lua script attached to this dice set, or an empty string if none. The script runs once per die instance as a sandboxed coroutine and may inspect/modify each die (see DiceInstanceLua). Setting it re-binds any live preview dice so the studio shows the effect immediately.
 --- @field specialMovement "none"|"teleport"|"portal" The special movement dice in this set perform during a roll: 'none', 'teleport', or 'portal'. 'teleport' makes a die freeze and jump across the playfield (wrapping at the edges) near the end of its roll. 'portal' spawns a pair of portals on the playfield surfaces when the die is hurled and the die passes through one to emerge from the other. Reconciles with legacy teleporting dice sets.
 --- @field teleporting boolean Deprecated: use specialMovement instead. True iff specialMovement == 'teleport'. Kept so existing UI that toggles teleporting keeps working; setting it true selects 'teleport', false selects 'none'.
 --- @field teleportVelocity number For teleporting dice: the linear speed at or below which a die's teleport jump triggers (it is then 'almost at a stop').
@@ -27,6 +28,7 @@
 --- @field hideBaseMaterial boolean Whether the base dice material is hidden entirely so that only the custom surface material is shown. When true, the engraved face numbers and the border cage are not rendered. Has no visible effect unless a surface material is set.
 --- @field finishVideoEffect DiceVideoEffect Gets the video effect played when dice finish rolling.
 --- @field availableMaterials DiceMaterialLua[] Gets a list of all available dice materials.
+--- @field previewScale number Gets or sets the scale of the dice shown in the dice studio preview.
 DiceStudioLua = {}
 
 --- Activate: Activates the Dice Studio view.
@@ -83,6 +85,13 @@ end
 --- @param id string  The cloud dice id (guid), e.g. an entry's `id` from dice.GetAllDice().
 --- @return string|nil
 function DiceStudioLua:DownloadCloudDice(id)
+	-- dummy implementation for documentation purposes only
+end
+
+--- ValidateScript: Compiles the given dice-script source in the sandbox without running it, returning an empty string if it compiles cleanly or the error message otherwise. Used by the Script editor to show inline status. Does not change the current script.
+--- @param src string
+--- @return string
+function DiceStudioLua:ValidateScript(src)
 	-- dummy implementation for documentation purposes only
 end
 

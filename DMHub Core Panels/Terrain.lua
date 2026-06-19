@@ -11,6 +11,34 @@ local function track(eventType, fields)
 	analytics.Event(fields)
 end
 
+--Optional wall height for building draw operations. When "Set Wall Height" is off the
+--wall draws to the ceiling (wall height 0); when on, the slider value (in tiles) is
+--encoded on every draw operation. The engine reads this via dmhub.GetWallHeight (below)
+--and parallax walls render to that height above the ground.
+setting{
+	id = "building:specifywallheight",
+	description = "Set Wall Height",
+	storage = "preference",
+	editor = "check",
+	default = false,
+}
+
+setting{
+	id = "building:wallheightvalue",
+	description = "Wall Height (tiles)",
+	storage = "preference",
+	editor = "slider",
+	default = 2,
+	min = 1,
+	max = 10,
+	round = true,
+	labelFormat = '%d',
+	monitorVisible = {'building:specifywallheight'},
+	visible = function()
+		return dmhub.GetSettingValue('building:specifywallheight') == true
+	end,
+}
+
 local CreateTerrainEditor
 local CreateBuildingEditor
 
@@ -1348,6 +1376,8 @@ CreateBuildingEditor = function()
                 mod.shared.BrushEditorPanel('buildingbrush'),
             },
             CreateSettingsEditor('building:stabilization'),
+            CreateSettingsEditor('building:specifywallheight'),
+            CreateSettingsEditor('building:wallheightvalue'),
         },
     })
 
@@ -1787,7 +1817,11 @@ dmhub.SelectFloor = function(floorid)
 end
 
 dmhub.GetWallHeight = function()
-    return dmhub.GetSettingValue("building:wallheight")
+    --Returning 0 means "no wall height" -> the engine draws the wall to the ceiling.
+    if dmhub.GetSettingValue("building:specifywallheight") then
+        return dmhub.GetSettingValue("building:wallheightvalue")
+    end
+    return 0
 end
 
 dmhub.GetSelectedWall = function()

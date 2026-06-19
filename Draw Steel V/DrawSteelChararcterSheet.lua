@@ -1180,6 +1180,30 @@ local function CreateAbilityListPanel()
                 end)
             end
         end,
+
+        --Make Solo post-apply signpost: expand the Villain Actions group and
+        --scroll + flash the first empty slot, so a freshly converted solo's
+        --empty slots are seen rather than left hidden off-page. Mirrors
+        --revealCapability's expand-then-pulse, but targets an empty slot row
+        --instead of a filled ability. Reuses the search-reveal pulse, so the
+        --signpost is the same gentle animation the director already knows.
+        revealEmptyVillainSlot = function(element)
+            if CharacterSheet.instance == nil
+                or CharacterSheet.instance.data.info.token == nil then
+                return
+            end
+            m_villainActionsLabel:SetClassTree("collapseSet", false)
+            element:FireEvent("refreshToken")
+            ScheduleRevealAndPulse(function()
+                for _, slotId in ipairs(g_villainSlotOrder) do
+                    local row = m_villainSlotRows[slotId]
+                    if row ~= nil and row.valid and not row:HasClass("collapsed") then
+                        return row
+                    end
+                end
+                return nil
+            end)
+        end,
     }
 
     ThemeEngine.OnThemeChanged(mod, function()
@@ -1967,6 +1991,75 @@ function CharSheet.CharacterSheetAndAvatarPanel()
                     end
 
                     element:SetClass("collapsed", false)
+                end,
+            },
+
+            --Make Solo / Revert Solo: promote an Elite or Leader monster to a
+            --Solo (organization -> Solo plus the Instant Solo template) in one
+            --reversible action, then signpost the now-revealed empty villain
+            --action slots. Lives directly under the organization controls it
+            --rewrites; after Apply both the org dropdown (now "Solo") and this
+            --button's revert state surface here together.
+            --
+            --Offered only for Elite and Leader baselines: the Instant Solo
+            --template's x3 EV / x2.5 Stamina math lands exactly on the sheet's
+            --Solo row for those two organizations. Standard / horde / minion
+            --baselines would produce an under-budgeted "half solo", so they are
+            --excluded for now (revisit if there is demand). A button conversion
+            --is always revertible (which is the only way a creature reaches the
+            --converted state, so the revert path stays available).
+            gui.Button {
+                classes = { "sizeM" },
+                text = "Make Solo",
+                width = 160,
+                height = 30,
+                halign = "center",
+                vmargin = 6,
+                refreshToken = function(element, info)
+                    local c = info.token.properties
+                    if not c:IsMonster() then
+                        element:SetClass("collapsed", true)
+                        return
+                    end
+                    if c:HasSoloConversion() then
+                        element:SetClass("collapsed", false)
+                        element.text = "Revert Solo"
+                        return
+                    end
+                    --Not converted: offer Make Solo only for Elite/Leader
+                    --(excludes standard/horde/minion/authored-solo).
+                    local org = c:Organization()
+                    if org ~= "elite" and org ~= "leader" then
+                        element:SetClass("collapsed", true)
+                        return
+                    end
+                    element:SetClass("collapsed", false)
+                    element.text = "Make Solo"
+                end,
+                click = function(element)
+                    local sheet = CharacterSheet.instance
+                    if sheet == nil then
+                        return
+                    end
+                    local token = sheet.data.info.token
+                    if token == nil or token.properties == nil then
+                        return
+                    end
+                    local c = token.properties
+                    if not c:IsMonster() then
+                        return
+                    end
+                    if c:HasSoloConversion() then
+                        c:RevertSolo()
+                        sheet:FireEvent("refreshAll")
+                    else
+                        c:MakeSolo()
+                        sheet:FireEvent("refreshAll")
+                        --Reveal-and-prompt (inform, don't enforce): expand the
+                        --Villain Actions group and flash the first empty slot.
+                        --No picker is forced open.
+                        sheet:FireEventTree("revealEmptyVillainSlot")
+                    end
                 end,
             },
 

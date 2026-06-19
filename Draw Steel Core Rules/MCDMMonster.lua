@@ -1409,6 +1409,118 @@ function monster:ClearLevelAdjustment()
     end
 end
 
+--==============================================================
+-- Solo conversion: the "Make Solo" button lifecycle.
+--
+-- A non-solo monster can be promoted to a Solo in one action: its organization
+-- is set to Solo (the role word is dropped -- Solos have no role) and the
+-- "Instant Solo" creature template is applied for the stat math (EV x3, Stamina
+-- x2.5, extra turns/action, end effect). The conversion is fully reversible: the
+-- prior role string and minion flag are remembered so Revert restores them
+-- exactly, then the template is removed.
+--
+-- creature.role is the single source of truth for organization (Organization()
+-- regex-parses its first word), so the org->Solo flip is a plain string write. A
+-- template MODIFIER cannot write a string field, which is why this lives on a
+-- code actor (the button) rather than in the template itself.
+--
+-- Mutates creature properties -- callers outside the character sheet must wrap
+-- these in token:ModifyProperties.
+--==============================================================
+local INSTANT_SOLO_TEMPLATE_ID = "231c3a1e-1292-4751-bc23-238b26531e61"
+
+--True if this monster was promoted to Solo by the Make Solo button (as opposed
+--to being authored as a Solo). Only a button conversion is revertible.
+function monster:HasSoloConversion()
+    return self:try_get("soloConversionPriorRole") ~= nil
+end
+
+--Promote this monster to a Solo: remember the prior role/minion, set the
+--organization to Solo (dropping the role word), and apply the Instant Solo
+--template. No-op if already converted.
+function monster:MakeSolo()
+    if self:HasSoloConversion() then
+        return
+    end
+
+    self.soloConversionPriorRole = self:try_get("role", "")
+    self.soloConversionPriorMinion = self:try_get("minion", false)
+
+    --Snapshot the villain actions the creature already has, so Revert removes
+    --only the ones added during the solo conversion and leaves any the creature
+    --owned beforehand (e.g. a Leader's native villain actions) intact.
+    local priorVillainActions = {}
+    for _, a in ipairs(self:try_get("innateActivatedAbilities", {})) do
+        if a.categorization == "Villain Action" then
+            priorVillainActions[#priorVillainActions + 1] = a.guid
+        end
+    end
+    self.soloConversionPriorVillainActions = priorVillainActions
+
+    self.role = "Solo"
+    self.minion = false
+
+    --Apply the Instant Solo template, guarding against a stray duplicate.
+    local templates = self:try_get("creatureTemplates")
+    local hasTemplate = false
+    if templates ~= nil then
+        for _, id in ipairs(templates) do
+            if id == INSTANT_SOLO_TEMPLATE_ID then
+                hasTemplate = true
+                break
+            end
+        end
+    end
+    if not hasTemplate then
+        self:AddTemplate(INSTANT_SOLO_TEMPLATE_ID)
+    end
+end
+
+--Revert a Make Solo conversion: restore the prior role/minion and remove the
+--Instant Solo template. No-op if not converted.
+function monster:RevertSolo()
+    if not self:HasSoloConversion() then
+        return
+    end
+
+    self.role = self:try_get("soloConversionPriorRole", "")
+    self.minion = self:try_get("soloConversionPriorMinion", false)
+
+    --Remove the Instant Solo template we added (RemoveTemplate is index-based,
+    --so locate it first; iterate in reverse so the index stays valid).
+    local templates = self:try_get("creatureTemplates")
+    if templates ~= nil then
+        for i = #templates, 1, -1 do
+            if templates[i] == INSTANT_SOLO_TEMPLATE_ID then
+                self:RemoveTemplate(i)
+                break
+            end
+        end
+    end
+
+    --Remove villain actions added during the solo conversion: any villain
+    --action whose guid is not in the pre-conversion snapshot. This restores the
+    --creature's original villain-action set (none for an Elite, the native ones
+    --for a Leader) rather than leaving solo-only actions behind.
+    local priorVillainActions = {}
+    for _, guid in ipairs(self:try_get("soloConversionPriorVillainActions", {})) do
+        priorVillainActions[guid] = true
+    end
+    local villainActionsToRemove = {}
+    for _, a in ipairs(self:try_get("innateActivatedAbilities", {})) do
+        if a.categorization == "Villain Action" and not priorVillainActions[a.guid] then
+            villainActionsToRemove[#villainActionsToRemove + 1] = a
+        end
+    end
+    for _, a in ipairs(villainActionsToRemove) do
+        self:RemoveInnateActivatedAbility(a)
+    end
+
+    self.soloConversionPriorRole = nil
+    self.soloConversionPriorMinion = nil
+    self.soloConversionPriorVillainActions = nil
+end
+
 creature.RegisterFeatureCalculation{
     id = "monsterLevelScaling",
     FillFeatures = function(c, result)

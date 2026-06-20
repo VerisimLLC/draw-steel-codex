@@ -2815,6 +2815,12 @@ function MarkdownDocument.DisplayPanel(self, args)
             for i, t in ipairs(newTables) do
                 t.children = t.data.children
                 t.data.children = nil
+                -- Inner styling runs here (not at the ApplyBlockFrame call site): a
+                -- table's row panels exist only once its children are committed above.
+                ApplyBlockInner(t, ((resolvedSkin.blocks or {}).table or {}).inner, "table")
+            end
+            for _, rt in pairs(newRollableTables) do
+                ApplyBlockInner(rt, ((resolvedSkin.blocks or {}).rollableTable or {}).inner, "rollableTable")
             end
 
             m_rollableTableRowLabels = newRollableTableRowLabels

@@ -341,7 +341,11 @@ function JournalStylesheet.CreateEditor()
     formPanel.data.previewPanel = previewPanel
 
     local root = gui.Panel{
-        flow = "horizontal", width = "100%", height = "100%",
+        -- Fixed width, left-aligned: the Compendium host places this editor in a
+        -- horizontal flow next to an auto-width list panel. A "100%" root would
+        -- claim the whole parent and push the preview half off the right edge, so
+        -- use a fixed width like the other compendium editors (e.g. Conditions).
+        flow = "horizontal", width = 1200, height = "100%", halign = "left",
         data = {
             SetData = function(tableName, id)
                 JournalStyleEditor_SetData(tableName, formPanel, previewDoc, previewPanel, id)

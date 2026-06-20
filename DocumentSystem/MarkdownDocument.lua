@@ -67,10 +67,10 @@ local g_defaultSkin = {
     link    = { color = nil, underline = true },
     page    = { bgcolor = false },
     blocks  = {
-        powerRoll     = { box = {} },
-        table         = { box = {} },
-        rollableTable = { box = {} },
-        collapse      = { box = {} },
+        powerRoll     = { box = {}, inner = {} },
+        table         = { box = {}, inner = {} },
+        rollableTable = { box = {}, inner = {} },
+        collapse      = { box = {}, inner = {} },
     },
 }
 
@@ -118,7 +118,10 @@ local function MergeSkin(parent, child)
     local pblk = (parent and parent.blocks) or {}
     local cblk = child.blocks or {}
     for _, btype in ipairs({"powerRoll", "table", "rollableTable", "collapse"}) do
-        out.blocks[btype] = { box = MergeSection((pblk[btype] or {}).box, (cblk[btype] or {}).box) }
+        out.blocks[btype] = {
+            box   = MergeSection((pblk[btype] or {}).box,   (cblk[btype] or {}).box),
+            inner = MergeSection((pblk[btype] or {}).inner, (cblk[btype] or {}).inner),
+        }
     end
     return out
 end

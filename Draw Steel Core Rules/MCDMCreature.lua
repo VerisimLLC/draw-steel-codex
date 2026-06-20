@@ -5838,6 +5838,25 @@ function creature:EndPersistentAbilityById(guid)
         end
     end
 
+    --Remove any gameplay auras linked to this persistent ability (duration "While
+    --Persisting"). RemoveAura destroys the aura and drops it from self.auras.
+    local linkedAuras = {}
+    for _, aura in ipairs(self:try_get("auras", {})) do
+        if aura:try_get("persistenceId") == guid then
+            linkedAuras[#linkedAuras + 1] = aura.guid
+        end
+    end
+
+    for _, auraid in ipairs(linkedAuras) do
+        token:ModifyProperties {
+            description = "End Persistent Ability Aura",
+            undoable = false,
+            execute = function()
+                self:RemoveAura(auraid)
+            end,
+        }
+    end
+
     token:ModifyProperties {
         description = "End Persistent Ability",
         undoable = false,

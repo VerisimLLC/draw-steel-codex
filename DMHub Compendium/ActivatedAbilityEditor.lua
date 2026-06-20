@@ -2797,6 +2797,10 @@ function ActivatedAbilityBehavior:AuraEditor(parentPanel, list)
                     id = "eoe",
                     text = "Until End of Encounter",
                 },
+                {
+                    id = "persistence",
+                    text = "While Persisting",
+                },
             },
 			idChosen = self.duration,
 			change = function(element)

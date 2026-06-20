@@ -813,6 +813,15 @@ end
 --- Returns true if this aura instance's duration has elapsed.
 --- @return boolean
 function AuraInstance:HasExpired()
+    --Auras tied to a persistent ability never expire on their own schedule. Their
+    --lifetime is controlled by the persistence entry: they are removed when persistence
+    --ends (see creature:EndPersistentAbilityById). The "persistence" duration check also
+    --covers the misconfigured case where "While Persisting" was chosen on a non-persistent
+    --ability (persistenceId never got stamped) -- treat it like "eoe" and never expire.
+    if self:try_get("persistenceId") ~= nil or self:try_get("duration") == "persistence" then
+        return false
+    end
+
     if self:has_key("duration") then
         local initiative = dmhub.initiativeQueue
         if initiative == nil or initiative.hidden == true then
@@ -1163,14 +1172,21 @@ function ActivatedAbilityAuraBehavior:CastOnArea(ability, casterToken, targets, 
                 end
 
                 local persistence = ability:Persistence()
-                if persistence ~= nil and persistence.enabled and obj ~= nil then
-                    local persistenceInfo = casterToken.properties:MostRecentPersistentAbility()
-                    if persistenceInfo ~= nil then
-                        local objects = persistenceInfo:get_or_add("objects", {})
-                        objects[#objects + 1] = {
-                            floorid = obj.floorid,
-                            objid = obj.objid,
-                        }
+                if persistence ~= nil and persistence.enabled then
+                    --Link this aura to the persistent ability so its lifetime follows the
+                    --persistence: it survives as long as persistence is maintained and is
+                    --removed when persistence ends (see EndPersistentAbilityById).
+                    auraInstance.persistenceId = casterToken.properties:MostRecentPersistentAbilityId()
+
+                    if obj ~= nil then
+                        local persistenceInfo = casterToken.properties:MostRecentPersistentAbility()
+                        if persistenceInfo ~= nil then
+                            local objects = persistenceInfo:get_or_add("objects", {})
+                            objects[#objects + 1] = {
+                                floorid = obj.floorid,
+                                objid = obj.objid,
+                            }
+                        end
                     end
                 end
 
@@ -1264,7 +1280,9 @@ function creature:CheckAuraExpiration(eventname)
 
 
     for i = #auras, 1, -1 do
-        if rawget(auras[i], "duration") == eventname then
+        --Persistence-linked auras are removed only when their persistence ends, never by
+        --turn/round expiration events.
+        if rawget(auras[i], "duration") == eventname and rawget(auras[i], "persistenceId") == nil then
             local doremove = true
             if rawget(auras[i], "durationRound") ~= nil then
                 local q = dmhub.initiativeQueue

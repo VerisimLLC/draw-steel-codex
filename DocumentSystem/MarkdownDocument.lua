@@ -683,43 +683,36 @@ end
 MarkdownDocument.__ApplyBlockFrame = ApplyBlockFrame
 
 -- Apply a stylesheet's inner block styling to a built-in block's inner content
--- (table rows/cells, power-roll tier rows, collapse body). Mirrors ApplyBlockFrame:
--- re-runs every render, no-ops when inner is unset so default (dark) rendering is
--- preserved, and restores defaults on a reused panel when inner is later cleared.
+-- (power-roll tier rows, collapse body). Mirrors ApplyBlockFrame: re-runs every
+-- render, no-ops when inner is unset so default (dark) rendering is preserved, and
+-- restores defaults on a reused panel when inner is later cleared.
 --
 -- The inner darkness is NOT an inline background: every inner element carries the
--- engine "uiblur" (dark frosted-glass) class, and table rows carry row/oddRow/
--- evenRow. So we strip uiblur and paint our own opaque backgrounds. Tables expose
--- their rows via the "row" class; the power roll's tiers and the collapse body are
--- plain child panels (no row class), so for those block types we paint every
--- non-root, non-label descendant panel.
--- blockType is one of "powerRoll" | "table" | "rollableTable" | "collapse".
+-- engine "uiblur" (dark frosted-glass) class. So we strip uiblur and paint our own
+-- opaque background on every non-root, non-label descendant panel, and set the
+-- label text color.
+--
+-- NOTE: this is used for power roll and collapse, whose inner elements are plain
+-- markdown-created panels. TABLES are styled differently -- a gui.Table colors its
+-- rows from theme class-selectors during its own layout, so external painting does
+-- not stick; tables use the Table's own `styles` instead (see TableInnerStyles and
+-- the table render branch).
+-- blockType is one of "powerRoll" | "collapse" (kept for call-site symmetry).
 local function ApplyBlockInner(panel, inner, blockType)
     inner = inner or {}
-    local bg  = inner.bgcolor  and SkinColor(inner.bgcolor)  or nil
-    local txt = inner.color    and SkinColor(inner.color)    or nil
-    local alt = inner.altcolor and SkinColor(inner.altcolor) or nil
-    local active = (bg ~= nil) or (txt ~= nil) or (alt ~= nil)
-    local paintRows = (blockType == "table" or blockType == "rollableTable")
-    local rowIndex = 0
+    local bg  = inner.bgcolor and SkinColor(inner.bgcolor) or nil
+    local txt = inner.color   and SkinColor(inner.color)   or nil
+    local active = (bg ~= nil) or (txt ~= nil)
     local function visit(el, isRoot)
         if el == nil then return end
         local cls; pcall(function() cls = el.classes end)
         local ss; pcall(function() ss = el.selfStyle end)
-        local isRow = cls and table.contains(cls, "row")
         local isLabel = cls and table.contains(cls, "label")
-        local paintsBg = isRow or ((not paintRows) and (not isRoot) and (not isLabel))
+        local paintsBg = (not isRoot) and (not isLabel)
         if ss then
             if active then
                 pcall(function() el:SetClass("uiblur", false) end)
-                if isRow then
-                    rowIndex = rowIndex + 1
-                    local rc = bg
-                    if alt and (rowIndex % 2 == 0) then rc = alt end
-                    if rc then ss.bgimage = "panels/square.png"; ss.bgcolor = rc end
-                elseif paintsBg and bg then
-                    ss.bgimage = "panels/square.png"; ss.bgcolor = bg
-                end
+                if paintsBg and bg then ss.bgimage = "panels/square.png"; ss.bgcolor = bg end
                 if isLabel and txt then ss.color = txt end
             else
                 -- inactive: restore the default dark glass and clear what we set
@@ -736,6 +729,44 @@ end
 
 -- Test hook.
 MarkdownDocument.__ApplyBlockInner = ApplyBlockInner
+
+-- Build instance style overrides for a gui.Table from a block's inner config.
+-- A gui.Table colors its rows from the theme's row/oddRow/evenRow/headerRow
+-- selectors during its own layout (so painting rows from outside does not stick).
+-- The Table's `styles` DO apply -- but only when set at construction; the setter
+-- rejects post-construction updates. So the table render branch passes these into
+-- the constructor and rebuilds the Table when the inner config changes.
+-- Returns nil when inner is unset (the Table keeps its default theme look).
+-- Pass RAW values: the style system resolves color tokens/hex itself.
+local function TableInnerStyles(inner)
+    inner = inner or {}
+    local function val(c) if c == nil or c == false or c == "" then return nil end return c end
+    local bg  = val(inner.bgcolor)
+    local txt = val(inner.color)
+    local alt = val(inner.altcolor)
+    if bg == nil and txt == nil and alt == nil then return nil end
+    local styles = {}
+    if bg then
+        styles[#styles + 1] = { selectors = {"row", "headerRow"}, bgcolor = bg }
+        styles[#styles + 1] = { selectors = {"row", "oddRow"},  bgcolor = bg }
+        styles[#styles + 1] = { selectors = {"row", "evenRow"}, bgcolor = alt or bg }
+    elseif alt then
+        styles[#styles + 1] = { selectors = {"row", "evenRow"}, bgcolor = alt }
+    end
+    if txt then
+        styles[#styles + 1] = { selectors = {"label"}, color = txt }
+    end
+    return styles
+end
+MarkdownDocument.__TableInnerStyles = TableInnerStyles
+
+-- Signature of a block's inner config, to detect when a cached gui.Table must be
+-- rebuilt (its styles can only be set at construction).
+local function TableInnerSig(inner)
+    inner = inner or {}
+    return tostring(inner.bgcolor) .. ":" .. tostring(inner.color) .. ":" .. tostring(inner.altcolor)
+end
+
 
 -- Build the open/close markup pair for a heading level from its skin entry, and
 -- return the (possibly case-transformed) content.
@@ -2296,27 +2327,66 @@ function MarkdownDocument.DisplayPanel(self, args)
                 elseif token.type == "row" then
                     currentRichRow = nil
                     if currentTable == nil then
-                        currentTable = m_tables[#newTables + 1] or gui.Table {
-                            halign = "left",
-                            valign = "top",
-                            width = "auto",
-                            height = "auto",
-                            flow = "vertical",
-                            lmargin = 6,
-                        }
+                        -- The frame (border/bg/pad) goes on a wrapper panel, NOT the
+                        -- gui.Table itself: a gui.Table lays out its cells from its own
+                        -- origin and ignores the panel's pad, so a frame applied directly
+                        -- leaves the upper-left cells sitting outside the box. The wrapper
+                        -- is a normal panel whose pad insets the Table correctly. m_tables
+                        -- caches the wrapper; the Table persists inside it as
+                        -- wrapper.data.tablePanel.
+                        -- Pick the block (rollable tables share the row path) and its
+                        -- inner config; row colors are applied via the Table's own
+                        -- `styles`, which can only be set at construction -- so rebuild
+                        -- the Table when the inner config changes (the journalStyles
+                        -- monitor already re-renders the document on any style edit).
+                        local blockKey = (currentRollableTable ~= nil) and "rollableTable" or "table"
+                        local blockSkin = (resolvedSkin.blocks or {})[blockKey] or {}
+                        local innerSig = TableInnerSig(blockSkin.inner)
+                        local function NewInnerTable()
+                            return gui.Table {
+                                halign = "left",
+                                valign = "top",
+                                width = "auto",
+                                height = "auto",
+                                flow = "vertical",
+                                styles = TableInnerStyles(blockSkin.inner),
+                            }
+                        end
+                        local tableWrapper = m_tables[#newTables + 1]
+                        if tableWrapper == nil then
+                            local tbl = NewInnerTable()
+                            tableWrapper = gui.Panel {
+                                flow = "vertical",
+                                width = "auto",
+                                height = "auto",
+                                halign = "left",
+                                valign = "top",
+                                lmargin = 6,
+                                tbl,
+                            }
+                            tableWrapper.data.tablePanel = tbl
+                            tableWrapper.data.innerSig = innerSig
+                        elseif tableWrapper.data.innerSig ~= innerSig then
+                            -- inner styling changed: rebuild the Table with new styles.
+                            local tbl = NewInnerTable()
+                            tableWrapper.data.tablePanel = tbl
+                            tableWrapper.children = { tbl }
+                            tableWrapper.data.innerSig = innerSig
+                        end
+                        currentTable = tableWrapper.data.tablePanel
 
                         currentTable.data.children = {}
 
-                        ApplyBlockFrame(currentTable, ((resolvedSkin.blocks or {}).table or {}).box)
+                        ApplyBlockFrame(tableWrapper, blockSkin.box)
 
                         if currentRollableTable ~= nil then
                             currentRollableTable.data.table = currentTable
                             currentRollableTable.data.row = 1
                         end
 
-                        newTables[#newTables + 1] = currentTable
+                        newTables[#newTables + 1] = tableWrapper
                         currentTableRow = nil
-                        children[#children + 1] = currentTable
+                        children[#children + 1] = tableWrapper
                     end
 
                     currentTableRow = m_tableRows[#newTableRows + 1] or gui.TableRow {
@@ -2813,14 +2883,13 @@ function MarkdownDocument.DisplayPanel(self, args)
             end
 
             for i, t in ipairs(newTables) do
-                t.children = t.data.children
-                t.data.children = nil
-                -- Inner styling runs here (not at the ApplyBlockFrame call site): a
-                -- table's row panels exist only once its children are committed above.
-                ApplyBlockInner(t, ((resolvedSkin.blocks or {}).table or {}).inner, "table")
-            end
-            for _, rt in pairs(newRollableTables) do
-                ApplyBlockInner(rt, ((resolvedSkin.blocks or {}).rollableTable or {}).inner, "rollableTable")
+                -- t is the wrapper; commit rows onto the gui.Table it holds. The
+                -- wrapper carries the block FRAME and the Table carries its inner row
+                -- colors via `styles` (both set in the table render branch), so no
+                -- post-build styling is needed here.
+                local tbl = t.data.tablePanel
+                tbl.children = tbl.data.children
+                tbl.data.children = nil
             end
 
             m_rollableTableRowLabels = newRollableTableRowLabels

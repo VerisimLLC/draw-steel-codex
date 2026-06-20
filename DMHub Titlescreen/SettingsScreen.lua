@@ -526,7 +526,6 @@ function CreateSettingsScreen(dialog, args)
 						Setting('perf:nocompress'),
 
 						--Setting('perf:hideftextures'),
-						Setting('perf:hidefdice'),
 						Setting('perf:castshadows'),
                         Setting("graphics:uiblur"),
 
@@ -590,7 +589,6 @@ function CreateSettingsScreen(dialog, args)
                             height = 30,
                             press = function(element)
                                 dmhub.SetSettingValue("backgroundfps", false)
-                                dmhub.SetSettingValue("perf:hidefdice", true)
                                 dmhub.SetSettingValue("perf:castshadows", true)
                                 dmhub.SetSettingValue("perf:hdr", true)
                                 local systemPower = dmhub.systemHardwareRating

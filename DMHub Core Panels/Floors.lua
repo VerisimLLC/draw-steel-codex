@@ -28,292 +28,592 @@ DockablePanel.Register{
 	end,
 }
 
-local function ShowFloorSettings(floor)
-
-	local shadowCastOptions = {
-		{
-			id = 'this',
-			text = "Cast Shadows",
-		},
-		{
-			id = 'none',
-			text = 'No Shadows',
-		},
-	}
-
-	for i,floorInfo in ipairs(game.currentMap.floors) do
-		if floorInfo.floorid ~= floor.floorid then
-			shadowCastOptions[#shadowCastOptions+1] =
-			{
-				id = floorInfo.floorid,
-				text = string.format('Cast Shadows Onto %s', floorInfo.description),
-			}
+--Find the map LevelObject (an object carrying a "Map" component) associated with a floor or layer, if
+--any. Searches the floor's own objects first, then -- for a top-level floor -- every layer beneath it.
+local function FindMapObjectForFloor(floor)
+	for _, obj in pairs(floor.objects) do
+		if obj:GetComponent("Map") ~= nil then
+			return obj
 		end
 	end
 
-	local dialogPanelRoofLayerOptions = gui.Panel{
-				width = 500,
+	if floor.parentFloor == nil then
+		local layers = game.currentMap:GetLayersForFloor(floor.floorid)
+		if layers ~= nil then
+			for _, layer in ipairs(layers) do
+				for _, obj in pairs(layer.objects) do
+					if obj:GetComponent("Map") ~= nil then
+						return obj
+					end
+				end
+			end
+		end
+	end
+
+	return nil
+end
+
+local function ShowFloorSettings(floor)
+
+	--Sub-layers (parentFloor ~= nil) are layers within a floor rather than floors in their
+	--own right. The roof/canopy/vision options only take effect on top-level floors, so for a
+	--sub-layer we collapse that whole section and just expose the name.
+	local isLayer = floor.parentFloor ~= nil
+
+	--Canopy-only options (vision multiplier + cutaway controls). Shown when the layer type is
+	--"Canopy"; a plain roof has none of these -- it renders transparent where the player has
+	--vision and opaque elsewhere. Canopy adds the vision multiplier and cutaway tuning.
+	local canopyOptions = gui.Panel{
+		classes = cond(floor.canopy, nil, "collapsed"),
+		width = "100%",
+		height = "auto",
+		flow = "vertical",
+
+		gui.Panel{
+			classes = {"formStackedRow"},
+			gui.Label{
+				classes = {"formStacked"},
+				text = "Vision Multiplier:",
+				linger = gui.Tooltip("The vision multiplier allows players to see further on the canopy layer than they can on other layers."),
+			},
+			gui.Slider{
+				classes = {"formStacked"},
+				style = { height = 22, width = 220, valign = "center" },
+				sliderWidth = 150,
+				minValue = 0.1,
+				maxValue = 8,
+				labelWidth = 60,
+				value = floor.visionMultiplier,
+				labelFormat = "rawpercent",
+				events = {
+					change = function(element)
+						floor.visionMultiplierNoUpload = element.value
+					end,
+					confirm = function(element)
+						floor.visionMultiplier = element.value
+					end,
+				},
+			},
+		},
+
+		gui.Panel{
+			classes = {"formStackedRow"},
+			gui.Label{
+				classes = {"formStacked"},
+				text = "Cutaway Radius:",
+				linger = gui.Tooltip("The cutaway radius (in tiles) around any token with vision. Pixels of the canopy within this distance of a token are cut away to reveal the layer below. Set negative to disable the cutaway entirely (the canopy will always be fully shown). For tree foliage, try a small value like 6-10."),
+			},
+			gui.Slider{
+				classes = {"formStacked"},
+				style = { height = 22, width = 220, valign = "center" },
+				sliderWidth = 150,
+				minValue = -1,
+				maxValue = 40,
+				labelWidth = 60,
+				labelFormat = "%d",
+				value = floor.roofVisionExclusion,
+				events = {
+					change = function(element)
+						floor.roofVisionExclusionNoUpload = element.value
+					end,
+					confirm = function(element)
+						floor.roofVisionExclusion = element.value
+					end,
+				},
+			},
+		},
+
+		gui.Panel{
+			classes = {"formStackedRow"},
+			gui.Label{
+				classes = {"formStacked"},
+				text = "Cutaway Fade:",
+				linger = gui.Tooltip("Width (in tiles) of the smooth fade band at the outer edge of the cutaway. Larger values give a softer transition back to the full canopy; a fade of 0 produces a hard edge."),
+			},
+			gui.Slider{
+				classes = {"formStacked"},
+				style = { height = 22, width = 220, valign = "center" },
+				sliderWidth = 150,
+				labelFormat = "%.1f",
+				minValue = 0,
+				maxValue = 2,
+				labelWidth = 60,
+				value = floor.roofVisionExclusionFade,
+				events = {
+					change = function(element)
+						floor.roofVisionExclusionFadeNoUpload = element.value
+					end,
+					confirm = function(element)
+						floor.roofVisionExclusionFade = element.value
+					end,
+				},
+			},
+		},
+
+		gui.Panel{
+			classes = {"formStackedRow"},
+			gui.Label{
+				classes = {"formStacked"},
+				text = "Minimum Opacity:",
+				linger = gui.Tooltip("The minimum opacity that the canopy layer will have within the cutaway zone. 0 means fully transparent at the token; raise it to keep some of the canopy visible even directly above a token."),
+			},
+			gui.Slider{
+				classes = {"formStacked"},
+				style = { height = 22, width = 220, valign = "center" },
+				sliderWidth = 150,
+				labelFormat = "rawpercent",
+				minValue = 0.0,
+				maxValue = 1.0,
+				labelWidth = 60,
+				value = floor.roofMinimumOpacity,
+				events = {
+					change = function(element)
+						floor.roofMinimumOpacityNoUpload = element.value
+					end,
+					confirm = function(element)
+						floor.roofMinimumOpacity = element.value
+					end,
+				},
+			},
+		},
+	}
+
+	--Roof options. Shown for both "Roof" and "Canopy"; canopy stacks its extra controls on top.
+	local roofOptions = gui.Panel{
+		classes = cond(floor.roof, nil, "collapsed"),
+		width = "100%",
+		height = "auto",
+		flow = "vertical",
+
+		gui.Check{
+			text = "Hide roof when players are inside",
+			value = not floor.roofShowWhenInside,
+			lmargin = 12,
+			vmargin = 4,
+			events = {
+				change = function(element)
+					floor.roofShowWhenInside = not element.value
+				end,
+				linger = gui.Tooltip("This layer will be hidden when players are inside."),
+			},
+		},
+
+		canopyOptions,
+	}
+
+	local function CurrentLayerType()
+		if floor.canopy then
+			return "canopy"
+		elseif floor.roof then
+			return "roof"
+		else
+			return "floor"
+		end
+	end
+
+	--Layer type selector + its dependent roof/canopy options. Collapsed entirely for sub-layers.
+	local typeSection = gui.Panel{
+		classes = cond(isLayer, "collapsed"),
+		width = "100%",
+		height = "auto",
+		flow = "vertical",
+
+		gui.Panel{
+			classes = {"formStackedRow"},
+			gui.Label{
+				classes = {"formStacked"},
+				text = "Layer Type:",
+				linger = gui.Tooltip("Floor: a normal map level. Roof: hidden for players beneath it except where they can't see. Canopy: a roof that cuts away around tokens (tree foliage etc)."),
+			},
+			gui.Dropdown{
+				classes = {"formStacked"},
+				options = {
+					{id = "floor", text = "Floor"},
+					{id = "roof", text = "Roof"},
+					{id = "canopy", text = "Canopy"},
+				},
+				idChosen = CurrentLayerType(),
+				change = function(element)
+					local id = element.idChosen
+					if id == "floor" then
+						floor.roof = false
+						floor.canopy = false
+					elseif id == "roof" then
+						floor.roof = true
+						floor.canopy = false
+					elseif id == "canopy" then
+						floor.roof = true
+						floor.canopy = true
+					end
+					roofOptions:SetClass("collapsed", not floor.roof)
+					canopyOptions:SetClass("collapsed", not floor.canopy)
+				end,
+			},
+		},
+
+		roofOptions,
+	}
+
+	local nameValue
+	if isLayer then
+		nameValue = floor.layerDescription or ""
+	else
+		nameValue = floor.description or ""
+	end
+
+	--Map appearance picker. If this floor (or one of its layers) carries a Map object, expose a small
+	--gallery for switching the map's image between named alternates (e.g. a "Flooded" version). This
+	--drives the map object's Appearance component image-swap list, auto-creating the component on first
+	--use so the user never has to touch the raw component editor.
+	local mapObj = FindMapObjectForFloor(floor)
+	local appearanceSection = gui.Panel{ classes = {"collapsed"}, width = "100%", height = 0 }
+
+	if mapObj ~= nil then
+		--Dialog-local mirror of the Appearance component's swap state, kept index-aligned:
+		--  selected == 0       -> the map's own base image ("Default")
+		--  selected == i (>=1) -> swaps[i], displayed with name names[i]
+		local swaps = {}
+		local names = {}
+		local selected = 0
+		local uploading = false
+
+		local existing = mapObj:GetComponent("Appearance")
+		if existing ~= nil and existing.valid then
+			local doc = mapObj:ComponentToJson(existing.componentid)
+			if doc ~= nil then
+				swaps = doc.imageSwaps or {}
+				names = doc.imageSwapNames or {}
+				selected = doc.imageNumber or 0
+			end
+		end
+
+		--Pad names so every swap has a label even for pre-existing swaps saved without names.
+		for i = 1, #swaps do
+			if names[i] == nil then
+				names[i] = string.format("Appearance %d", i)
+			end
+		end
+
+		--Write the local swap state back to the map object's Appearance component, creating the component
+		--if it does not exist yet. Existing components patch transactionally (keeping the component id
+		--stable); the create path sets the fields in-memory then does a single MarkUndo/Upload.
+		local function Persist(description)
+			local comp = mapObj:GetComponent("Appearance")
+			if comp ~= nil and comp.valid then
+				comp:SetAndUploadProperties{
+					imageSwaps = swaps,
+					imageSwapNames = names,
+					imageNumber = selected,
+				}
+			else
+				mapObj:MarkUndo()
+				mapObj:AddComponent("Appearance")
+				comp = mapObj:GetComponent("Appearance")
+				if comp == nil then
+					return
+				end
+				comp:SetProperty("imageSwaps", swaps)
+				comp:SetProperty("imageSwapNames", names)
+				comp:SetProperty("imageNumber", selected)
+				mapObj:Upload()
+			end
+		end
+
+		local function FileBaseName(path)
+			local base = string.match(path, "[^/\\]+$") or path
+			base = string.gsub(base, "%.[^.]*$", "")
+			return base
+		end
+
+		local tilesPanel = gui.Panel{
+			width = "100%",
+			height = "auto",
+			flow = "horizontal",
+			wrap = true,
+			valign = "top",
+		}
+
+		local RefreshTiles
+
+		--Let the user pick an image file off disk, upload it, then append it as a new named appearance.
+		local function AddAppearance()
+			if uploading then
+				return
+			end
+			dmhub.OpenFileDialog{
+				id = "MapAppearanceImage",
+				extensions = {"jpeg", "jpg", "png", "webp", "bmp"},
+				prompt = "Choose a map image to use as an alternate appearance",
+				multiFiles = false,
+				open = function(path)
+					uploading = true
+					RefreshTiles()
+					local defaultName = FileBaseName(path)
+					assets:UploadImageAsset{
+						path = path,
+						error = function(text)
+							uploading = false
+							if mod.unloaded then return end
+							RefreshTiles()
+							gui.ModalMessage{
+								title = "Error loading image",
+								message = text,
+							}
+						end,
+						upload = function(imageid)
+							uploading = false
+							if mod.unloaded then return end
+							swaps[#swaps+1] = imageid
+							names[#names+1] = defaultName
+							selected = #swaps
+							Persist("Add map appearance")
+							RefreshTiles()
+						end,
+					}
+				end,
+			}
+		end
+
+		--Build one gallery tile. index 0 is the base image (not removable / not renamable).
+		local function CreateTile(index)
+			local isBase = index == 0
+			local imageId = cond(isBase, mapObj.imageid, swaps[index])
+			local isSelected = selected == index
+
+			local thumb = gui.Panel{
+				width = 104,
+				height = 78,
+				halign = "center",
+				valign = "top",
+				bgimage = imageId or "panels/square.png",
+				bgcolor = cond(imageId, "white", "#333333"),
+				cornerRadius = 6,
+				borderWidth = cond(isSelected, 3, 1),
+				borderColor = cond(isSelected, "#ffcc44", "black"),
+				click = function()
+					--Clicking the base when there are no alternates is a no-op (nothing to switch to).
+					if isBase and #swaps == 0 then
+						return
+					end
+					selected = index
+					Persist("Switch map appearance")
+					RefreshTiles()
+				end,
+			}
+
+			local caption
+			if isBase then
+				caption = gui.Label{
+					text = "Default",
+					width = 104,
+					height = 22,
+					halign = "center",
+					textAlignment = "center",
+					fontSize = 12,
+					color = Styles.textColor,
+					vmargin = 2,
+				}
+			else
+				caption = gui.Input{
+					text = names[index] or string.format("Appearance %d", index),
+					width = 104,
+					height = 24,
+					halign = "center",
+					fontSize = 12,
+					color = Styles.textColor,
+					vmargin = 2,
+					change = function(element)
+						names[index] = element.text
+						Persist("Rename map appearance")
+					end,
+				}
+			end
+
+			local tileArgs = {
+				width = 112,
 				height = "auto",
 				flow = "vertical",
+				hmargin = 4,
+				vmargin = 4,
+				halign = "left",
+				valign = "top",
+				children = { thumb, caption },
+			}
+
+			if not isBase then
+				tileArgs.rightClick = function(element)
+					element.popup = gui.ContextMenu{
+						entries = {
+							{
+								text = "Remove Appearance",
+								click = function()
+									element.popup = nil
+									table.remove(swaps, index)
+									table.remove(names, index)
+									if selected == index then
+										selected = 0
+									elseif selected > index then
+										selected = selected - 1
+									end
+									Persist("Remove map appearance")
+									RefreshTiles()
+								end,
+							},
+						},
+					}
+				end
+			end
+
+			return gui.Panel(tileArgs)
+		end
+
+		--The trailing "add" tile.
+		local function CreateAddTile()
+			local thumb = gui.Panel{
+				width = 104,
+				height = 78,
+				halign = "center",
+				valign = "top",
 				bgimage = "panels/square.png",
-
-				classes = cond(floor.roof, nil, 'collapsed'),
-
-				gui.Check{
-					text = "Hide roof when players are inside",
-					value = not floor.roofShowWhenInside,
-					style = {
-						height = 20,
-						width = '40%',
-						fontSize = 18,
-					},
-					events = {
-						change = function(element)
-							floor.roofShowWhenInside = not element.value
-						end,
-						linger = gui.Tooltip("This layer will be hidden when players are inside."),
-					},
-				},
-
-				gui.Panel{
-					classes = {"formPanel"},
-					flow = "horizontal",
-					width = "auto",
-					height = "auto",
-					gui.Label{
-						text = "Vision Multiplier:",
-						color = 'white',
-						width = '50%',
-						height = 'auto',
-						fontSize = 18,
-						linger = gui.Tooltip("The vision multiplier allows players to see further on the roof layer than they can on other layers."),
-					},
-
-					gui.Slider{
-						style = {
-							height = 20,
-							width = 200,
-							valign = "center",
-							fontSize = 14,
-						},
-						sliderWidth = 140,
-						minValue = 0.1,
-						maxValue = 8,
-						labelWidth = 60,
-						value = floor.visionMultiplier,
-						labelFormat = "rawpercent",
-						events = {
-							change = function(element)
-								floor.visionMultiplierNoUpload = element.value
-							end,
-							confirm = function(element)
-								floor.visionMultiplier = element.value
-							end,
-						},
-					},
-				},
-
-				gui.Panel{
-					classes = {"formPanel"},
-					flow = "horizontal",
-					width = "auto",
-					height = "auto",
-					gui.Label{
-						text = "Roof Cutaway Radius:",
-						color = 'white',
-						width = '50%',
-						height = 'auto',
-						fontSize = 18,
-						linger = gui.Tooltip("The cutaway radius is the distance to which we prefer to show the radius the player is on if they have vision of it instead of the roof layer. For roofs of buildings you most likely want this to be 100%, but for tree foliage you might want it lower than 100%. The lower it is the more elements on the roof layer will occlude vision."),
-					},
-
-					gui.Slider{
-						style = {
-							height = 20,
-							width = 200,
-							valign = "center",
-							fontSize = 14,
-						},
-						sliderWidth = 140,
-						minValue = 0.0,
-						maxValue = 1.0,
-						labelWidth = 60,
-						labelFormat = "rawpercent",
-						value = floor.roofVisionExclusion,
-						events = {
-							change = function(element)
-								floor.roofVisionExclusionNoUpload = element.value
-							end,
-							confirm = function(element)
-								floor.roofVisionExclusion = element.value
-							end,
-						},
-					},
-				},
-
-				gui.Panel{
-					classes = {"formPanel"},
-					flow = "horizontal",
-					width = "auto",
-					height = "auto",
-					gui.Label{
-						text = "Roof Cutaway Fade:",
-						color = 'white',
-						width = '50%',
-						height = 'auto',
-						fontSize = 18,
-						linger = gui.Tooltip("The roof cutaway fade controls how quickly vision fades from showing the layer the player is on to the roof layer."),
-					},
-
-					gui.Slider{
-						style = {
-							height = 20,
-							width = 200,
-							valign = "center",
-							fontSize = 14,
-						},
-						sliderWidth = 140,
-						labelFormat = "rawpercent",
-						minValue = 0.0,
-						maxValue = 1.0,
-						labelWidth = 60,
-						value = floor.roofVisionExclusionFade,
-						events = {
-							change = function(element)
-								floor.roofVisionExclusionFadeNoUpload = element.value
-							end,
-							confirm = function(element)
-								floor.roofVisionExclusionFade = element.value
-							end,
-						},
-					},
-				},
-
-				gui.Panel{
-					classes = {"formPanel"},
-					flow = "horizontal",
-					width = "auto",
-					height = "auto",
-					gui.Label{
-						text = "Roof Minimum Opacity:",
-						color = 'white',
-						width = '50%',
-						height = 'auto',
-						fontSize = 18,
-						linger = gui.Tooltip("The minimum opacity that the roof layer will have when it is cut away to show the layer the player is on."),
-					},
-
-					gui.Slider{
-						style = {
-							height = 20,
-							width = 200,
-							valign = "center",
-							fontSize = 14,
-						},
-						sliderWidth = 140,
-						labelFormat = "rawpercent",
-						minValue = 0.0,
-						maxValue = 1.0,
-						labelWidth = 60,
-						value = floor.roofMinimumOpacity,
-						events = {
-							change = function(element)
-								floor.roofMinimumOpacityNoUpload = element.value
-							end,
-							confirm = function(element)
-								floor.roofMinimumOpacity = element.value
-							end,
-						},
-					},
+				bgcolor = "#222222",
+				cornerRadius = 6,
+				borderWidth = 1,
+				borderColor = "#888888",
+				click = function()
+					AddAppearance()
+				end,
+				gui.Label{
+					text = cond(uploading, "...", "+"),
+					halign = "center",
+					valign = "center",
+					fontSize = 40,
+					color = Styles.textColor,
 				},
 			}
 
+			return gui.Panel{
+				width = 112,
+				height = "auto",
+				flow = "vertical",
+				hmargin = 4,
+				vmargin = 4,
+				halign = "left",
+				valign = "top",
+				children = {
+					thumb,
+					gui.Label{
+						text = cond(uploading, "Uploading...", "Add"),
+						width = 104,
+						height = 22,
+						halign = "center",
+						textAlignment = "center",
+						fontSize = 12,
+						color = Styles.textColor,
+						vmargin = 2,
+					},
+				},
+			}
+		end
+
+		RefreshTiles = function()
+			local children = { CreateTile(0) }
+			for i = 1, #swaps do
+				children[#children+1] = CreateTile(i)
+			end
+			children[#children+1] = CreateAddTile()
+			tilesPanel.children = children
+		end
+
+		local resolutionLabel = gui.Label{
+			classes = {"formStacked"},
+			text = "Checking map size...",
+			fontSize = 12,
+			bold = false,
+			bmargin = 4,
+		}
+
+		dmhub.GetImageInfo(mapObj.imageid, function(info)
+			if mod.unloaded then return end
+			if info ~= nil then
+				resolutionLabel.text = string.format("Map size: %d x %d. For a clean swap, use an image of the same size.", info.width, info.height)
+			else
+				resolutionLabel.text = "Add an alternate full-map image to swap how this map looks."
+			end
+		end)
+
+		RefreshTiles()
+
+		appearanceSection = gui.Panel{
+			width = "100%",
+			height = "auto",
+			flow = "vertical",
+			vmargin = 8,
+			children = {
+				gui.Label{
+					classes = {"formStacked"},
+					text = "Map Appearance",
+				},
+				resolutionLabel,
+				tilesPanel,
+			},
+		}
+	end
+
 	local dialogPanel = gui.Panel{
-		classes = {'framedPanel'},
-		width = 1000,
-		height = 800,
-		styles = {
-			Styles.Panel,
-		},
+		classes = {"framedPanel"},
+		width = 480,
+		height = "auto",
+		styles = ThemeEngine.GetStyles(),
 
 		gui.Panel{
-			vscroll = true,
-			halign = 'center',
-			valign = 'top',
-			vmargin = 20,
-			flow = 'vertical',
-			width = 600,
-			height = 600,
+			width = "100%-48",
+			height = "auto",
+			halign = "center",
+			valign = "top",
+			flow = "vertical",
+			vmargin = 24,
 
-			styles = {
-				{
-					valign = "top",
-				},
-				{
-					selectors = {"formPanel"},
-					vmargin = 4,
-				},
+			gui.Label{
+				classes = {"modalTitle"},
+				text = isLayer and "Layer Settings" or "Floor Settings",
 			},
 
 			gui.Panel{
-				valign = 'top',
-				flow = 'horizontal',
-				width = '100%',
-				height = 40,
-
+				classes = {"formStackedRow"},
+				vmargin = 8,
 				gui.Label{
+					classes = {"formStacked"},
 					text = "Name:",
-					width = "auto",
-					height = "auto",
-					color = "white",
-					fontSize = 18,
 				},
-
 				gui.Input{
-					width = 180,
-					height = 24,
-					fontSize = 18,
-					text = floor.description,
+					classes = {"formStacked"},
+					text = nameValue,
 					change = function(element)
-						floor.description = element.text
+						if isLayer then
+							floor.layerDescription = element.text
+						else
+							floor.description = element.text
+						end
 					end,
 				},
 			},
 
-			gui.Check{
-				text = "Roof Layer",
-				value = floor.roof,
-				style = {
-					height = 20,
-					width = '40%',
-					fontSize = 18,
-				},
-				events = {
-					change = function(element)
-						floor.roof = element.value
-						dialogPanelRoofLayerOptions:SetClass('collapsed', not floor.roof)
-					end,
-					linger = gui.Tooltip("A roof layer will be displayed for players who are on a floor beneath it. It will only be displayed in areas they can't see."),
-				},
-			},
+			typeSection,
 
-			dialogPanelRoofLayerOptions,
+			appearanceSection,
 
-		},
+			gui.Panel{
+				width = "100%",
+				height = 40,
+				valign = "bottom",
+				vmargin = 12,
 
-		gui.Panel{
-			classes = {'modal-button-panel'},
-
-			gui.Button{
-				classes = {"sizeM"},
-				text = 'Close',
-				escapeActivates = true,
-				escapePriority = EscapePriority.EXIT_DIALOG,
-				style = {
-					halign = 'right',
-					fontSize = 36,
-				},
-				events = {
+				gui.Button{
+					classes = {"sizeM"},
+					halign = "right",
+					text = "Close",
+					escapeActivates = true,
+					escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
 					click = function(element)
 						gui.CloseModal()
 					end,
@@ -808,7 +1108,7 @@ CreateLayersPanel = function()
 								width = 12,
 								height = 12,
 								click = function(element)
-									mod.shared.CreateLayersDisplay()
+									ShowFloorSettings(floor)
 								end,
 							},
 
@@ -1443,7 +1743,7 @@ CreateLayersList = function(parentFloor)
 								width = 12,
 								height = 12,
 								click = function(element)
-									mod.shared.CreateLayersDisplay()
+									ShowFloorSettings(floor)
 								end,
 							},
 

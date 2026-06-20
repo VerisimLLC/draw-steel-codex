@@ -59,7 +59,6 @@ if not g_setRecommendedGraphics:Get() then
 
     dmhub.SetSettingValue("backgroundfps", false)
     dmhub.SetSettingValue("perf:hdr", true)
-    dmhub.SetSettingValue("perf:hidefdice", true)
     dmhub.SetSettingValue("perf:castshadows", true)
     local systemPower = dmhub.systemHardwareRating
     if systemPower < 1 then

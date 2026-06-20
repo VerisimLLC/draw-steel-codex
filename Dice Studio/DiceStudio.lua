@@ -93,7 +93,10 @@ local g_builtinFields = {
 	},
 	{
 		type = "Texture",
-		flag = "_UseMatcap",
+		-- The shader gates the surface matcap on _EnableMatcap (not _UseMatcap, which it never
+		-- reads), so write the flag the shader actually samples -- otherwise setting a surface
+		-- matcap texture in the studio never turned the matcap on.
+		flag = "_EnableMatcap",
 		name = "_MatcapTexture",
 		description = "Matcap Texture",
 		library = "Matcap",
@@ -140,6 +143,26 @@ local g_builtinFields = {
 		type = "Color",
 		name = "_FontGlowColor",
 		description = "Font Glow",
+	},
+	-- Font Matcap: paints the numbers with a matcap (lit-sphere) reflection instead of a
+	-- flat fill, for chrome / gold / holographic / glass-looking numbers. Setting a texture
+	-- turns it on (the flag writes 1 to _EnableFontMatcap, which the shader reads); clearing
+	-- it turns it back off. _FontTint tints the matcap (white = pure matcap), _FontMatcapPower
+	-- scales its brightness. See DMHub-Dice-Generic.shader.
+	{
+		type = "Texture",
+		flag = "_EnableFontMatcap",
+		name = "_FontMatcapTexture",
+		description = "Font Matcap",
+		library = "Matcap",
+	},
+	{
+		type = "Range",
+		name = "_FontMatcapPower",
+		description = "Font Matcap Power",
+		min = 0,
+		max = 2,
+		default = 1,
 	},
 	{
 		type = "Float",

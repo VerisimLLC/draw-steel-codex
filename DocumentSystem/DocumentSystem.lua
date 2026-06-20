@@ -119,7 +119,7 @@ function CustomDocument:ShowCreateDialog()
 end
 
 function CustomDocument:EditPanel()
-    local editInput = gui.Input {
+    local editInput = gui.TextEditor {
         width = "90%",
         height = "90%",
         halign = "center",

@@ -354,6 +354,48 @@ function dmhub.SaveImageDialog(options)
 	-- dummy implementation for documentation purposes only
 end
 
+--- GetImageAssetOptimizeInfo: Developer texture browser: reports whether the image with the given md5 is backed by editable current-game ImageAssets (ObjectAsset/GenericImageAsset) that can be safely rescaled. Returns { width, height, assets={ {guid, name, type}, ... } }.
+--- @param imageid string
+--- @return table
+function dmhub.GetImageAssetOptimizeInfo(imageid)
+	-- dummy implementation for documentation purposes only
+end
+
+--- OptimizeImageAsset: Developer texture browser: rescales the image with the given md5 to targetWidth x targetHeight (snapped to multiples of 4), uploads it as a new content-addressed image, and repoints + re-saves every editable ObjectAsset/GenericImageAsset that referenced it. Writes to the cloud. Returns { ok, error, newid, count }.
+--- @param imageid string
+--- @param targetWidth number
+--- @param targetHeight number
+--- @return table
+function dmhub.OptimizeImageAsset(imageid, targetWidth, targetHeight)
+	-- dummy implementation for documentation purposes only
+end
+
+--- FocusToken: Developer helper: pan the camera to the live token with the given id (if on the current map), pulse-highlight it, and select it if controllable.
+--- @param charid string
+--- @return nil
+function dmhub.FocusToken(charid)
+	-- dummy implementation for documentation purposes only
+end
+
+--- FindImageUsage: Developer texture browser: scans live game objects (character tokens, placed map objects, UI panel bgimages) for where the given image id is currently in use, returning an array of human-readable usage strings. Resolves asset GUIDs / md5: / thumb: references before matching.
+--- @param imageid string
+--- @return table
+function dmhub.FindImageUsage(imageid)
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetLoadedTextures: Developer texture browser report of all textures held by the ImageManager cache, sorted largest-footprint first. Returns { budgetMegapixels, summary={count, megapixels, vramMB, sysMB, totalMB, compressed, uncompressed, readable, pinned, video}, textures={ {id, trace, width, height, format, compressed, readable, pinned, liveedit, lowdef, video, status, idleSeconds, mips, vramBytes, sysBytes, totalBytes, megapixels}, ... } }.
+--- @return table
+function dmhub.GetLoadedTextures()
+	-- dummy implementation for documentation purposes only
+end
+
+--- DumpRenderTextures: Diagnostic: logs every live RenderTexture to the console with a summary header: RESIDENT (created=GPU-realized) vs allocated-not-resident totals, a per-subsystem breakdown (Dice / Lighting-Shadow / Vision-Fog / Minimap / Shapes / World / Main-Post / Other), and a per-floor total (lighting/vision/world/minimap RTs are instanced per floor, so they scale with floor count). Then each RT's dimensions/format/MSAA/mips/owning-camera/name, sorted by size. Used to hunt large/unexpected render targets. Reusable tool.
+--- @return nil
+function dmhub.DumpRenderTextures()
+	-- dummy implementation for documentation purposes only
+end
+
 --- ExportTokenImage: Render the given token to a transparent-background PNG and prompt the user with a save dialog. Draws the token's frame backdrop plus its active spine or static art exactly as composed on the map, with fog-of-war dimming disabled. The camera is auto-framed around the token's world-space renderer bounds and expanded by the `padding` multiplier so weapons, hats, and parallax-shifted spine art aren't clipped.
 
 Options:

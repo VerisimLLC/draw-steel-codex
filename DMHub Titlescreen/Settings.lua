@@ -870,15 +870,6 @@ setting{
 	default = true,
 }
 
-setting{
-	id = "perf:hidefdice",
-	description = "High Definition Dice",
-	storage = "preference",
-	editor = "check",
-
-	default = true,
-}
-
 local hidefText = "High Definition"
 if dmhub.platform == "macOS" then
     hidefText = "Retina Display"

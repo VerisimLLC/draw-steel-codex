@@ -1064,6 +1064,13 @@ local function RefreshRemoteAbilityDisplay(displayPanel, shareData)
     g_remoteAbilityPanel = abilityPanel
 end
 
+-- Declared as a valid default so reading GameHud.instance.abilityDisplay returns
+-- false (rather than throwing "unknown field in type Hud") before
+-- InitAbilityDisplayPanel has run / on clients where the panel never gets set up.
+-- Every reader guards on truthiness, so false reads as "no panel yet". Mirrors the
+-- GameHud.instance = false pattern in GameHud.lua.
+GameHud.abilityDisplay = false
+
 function GameHud:InitAbilityDisplayPanel(abilityDisplayPanel)
     local resultPanel
 

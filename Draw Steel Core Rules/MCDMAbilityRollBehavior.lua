@@ -2443,6 +2443,15 @@ function RollPropertiesPowerTable:CustomPanel(message)
     local m_banes = 0
     local m_tiers = 0
 
+    --Forced-result / tier-clamp flags from the roll. These are carried alongside
+    --boons/banes/tiers so the local tier recomputes below (boon-bane bar press,
+    --no-dice result, live dice animation) honor autofailure/autosuccess instead of
+    --silently dropping them and reverting to the dice-derived tier.
+    local m_autofailure = false
+    local m_autosuccess = false
+    local m_nottierone = false
+    local m_nottierthree = false
+
     local m_multitargetPanels = {}
     local m_selectedMultitarget = 1
     local m_multitargetsPanel = gui.Panel{
@@ -2540,7 +2549,7 @@ function RollPropertiesPowerTable:CustomPanel(message)
 
                                 local total = m_lastKnownTotal + newMod - oldMod
 
-                                local index = self:try_get("overrideTier") or DiceResultToTier{ total = total, boons = m_boons, banes = m_banes, tiers = m_tiers }
+                                local index = self:try_get("overrideTier") or DiceResultToTier{ total = total, boons = m_boons, banes = m_banes, tiers = m_tiers, autofailure = m_autofailure, autosuccess = m_autosuccess, nottierone = m_nottierone, nottierthree = m_nottierthree }
                                 if m_rows ~= nil then
                                     for i,row in ipairs(m_rows) do
                                         if row ~=nil and row.valid then
@@ -2605,6 +2614,10 @@ function RollPropertiesPowerTable:CustomPanel(message)
             m_tiers = info.tiers or 0
             m_boons = info.boons or 0
             m_banes = info.banes or 0
+            m_autofailure = info.autofailure or false
+            m_autosuccess = info.autosuccess or false
+            m_nottierone = info.nottierone or false
+            m_nottierthree = info.nottierthree or false
 
             if boonsBanesLabels ~= nil then
                 local selectedIndex = 3 + m_boons - m_banes
@@ -2752,7 +2765,7 @@ function RollPropertiesPowerTable:CustomPanel(message)
 
                 if #info.rolls == 0 then
                     local total = m_mod
-                    local index = DiceResultToTier{ total = total, boons = m_boons, banes = m_banes, tiers = m_tiers }
+                    local index = DiceResultToTier{ total = total, boons = m_boons, banes = m_banes, tiers = m_tiers, autofailure = m_autofailure, autosuccess = m_autosuccess, nottierone = m_nottierone, nottierthree = m_nottierthree }
                     for i,row in ipairs(m_rows) do
                         if row ~=nil and row.valid then
                             row:SetClassImmediate("highlighted", i == index)
@@ -2820,7 +2833,7 @@ function RollPropertiesPowerTable:CustomPanel(message)
                 return
             end
 
-            local index = DiceResultToTier{ total = total, boons = m_boons, banes = m_banes, tiers = m_tiers }
+            local index = DiceResultToTier{ total = total, boons = m_boons, banes = m_banes, tiers = m_tiers, autofailure = m_autofailure, autosuccess = m_autosuccess, nottierone = m_nottierone, nottierthree = m_nottierthree }
             for i,row in ipairs(m_rows) do
                 if row ~=nil and row.valid then
                     row:SetClassImmediate("highlighted", i == index)

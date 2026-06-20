@@ -11,6 +11,99 @@ local function track(eventType, fields)
 	analytics.Event(fields)
 end
 
+--Shared by the two initiative-bar "End Combat" menu items (the gear-button
+--dropdown and the initiative bubble's close menu). Hides the initiative queue,
+--clears malice, and fires endcombat on every token. Networked via
+--UploadInitiativeQueue. Re-fetches the live queue itself so it stays correct
+--when invoked asynchronously from the confirmation modal below.
+local function PerformEndCombat()
+	local q = dmhub.initiativeQueue
+	if q == nil then
+		return
+	end
+
+	UploadDayNightInfo()
+
+	local monsterCount = 0
+	for initiativeid,_ in pairs(q.entries) do
+		local tokens = GameHud.instance:GetTokensForInitiativeId(GameHud.instance.initiativeInterface, initiativeid)
+		for _,tok in ipairs(tokens) do
+			if not tok.properties:IsHero() then
+				monsterCount = monsterCount + 1
+			end
+		end
+	end
+
+	track("malice_at_combat_end", {
+		maliceRemaining = CharacterResource.GetMalice(),
+		roundCount = q.round,
+		monsterCount = monsterCount,
+		dailyLimit = 10,
+	})
+
+	q.hidden = true
+	q.gameMode = "exploration"
+	dmhub:UploadInitiativeQueue()
+
+	CharacterResource.SetMalice(0, "End of Combat")
+
+	for initiativeid,_ in pairs(q.entries) do
+		local tokens = GameHud.instance:GetTokensForInitiativeId(GameHud.instance.initiativeInterface, initiativeid)
+		for _,tok in ipairs(tokens) do
+			tok.properties:EndCombat()
+			tok.properties:DispatchEvent("endcombat", {})
+		end
+	end
+end
+
+--Flip the networked victory flag so the full-screen victory screen takes over on
+--every client. The victory screen handles the actual end-of-combat teardown when
+--it is dismissed (see DSVictoryScreen ProceedEndCombat). Falls back to a plain
+--end-combat when there is no live encounter to award victory for.
+local function ShowVictoryScreen()
+	local q = dmhub.initiativeQueue
+	if q == nil then
+		return
+	end
+
+	local liveEncounter = q:try_get("liveEncounter")
+	if type(liveEncounter) == "table" then
+		liveEncounter.victoryAwarded = true
+		dmhub:UploadInitiativeQueue()
+	else
+		--No encounter to award victory for; just end combat.
+		PerformEndCombat()
+	end
+end
+
+--Prompt the DM before ending combat: present the Victory Screen, end with no
+--victory, or cancel. Shared by both initiative-bar "End Combat" menu items.
+local function PromptEndCombat()
+	GameHud.instance:ModalMessage{
+		title = "End Combat",
+		message = "Do you want to present the Victory Screen?",
+		options = {
+			{
+				text = "Show Victory Screen",
+				execute = function()
+					ShowVictoryScreen()
+				end,
+			},
+			{
+				text = "End Combat, No Victory",
+				execute = function()
+					PerformEndCombat()
+				end,
+			},
+			{
+				text = "Cancel",
+				execute = function()
+				end,
+			},
+		},
+	}
+end
+
 local g_triggeredResourceId = "b9bc06dd-80f1-4f33-bc55-25c114e3300c"
 
 local anthemLimited = setting{
@@ -408,46 +501,8 @@ local function CreateDrawSteelBubble()
 				{
 					text = "End Combat",
 					click = function ()
-
 						self.popup = nil
-
-						if dmhub.initiativeQueue ~= nil then
-							UploadDayNightInfo()
-
-							local monsterCount = 0
-							for initiativeid,_ in pairs(dmhub.initiativeQueue.entries) do
-								local tokens = GameHud.instance:GetTokensForInitiativeId(GameHud.instance.initiativeInterface, initiativeid)
-								for _,tok in ipairs(tokens) do
-									if not tok.properties:IsHero() then
-										monsterCount = monsterCount + 1
-									end
-								end
-							end
-
-							track("malice_at_combat_end", {
-								maliceRemaining = CharacterResource.GetMalice(),
-								roundCount = dmhub.initiativeQueue.round,
-								monsterCount = monsterCount,
-								dailyLimit = 10,
-							})
-
-							dmhub.initiativeQueue.hidden = true
-							dmhub.initiativeQueue.gameMode = "exploration"
-							dmhub:UploadInitiativeQueue()
-
-                            CharacterResource.SetMalice(0, "End of Combat")
-
-							for initiativeid,_ in pairs(dmhub.initiativeQueue.entries) do
-								local tokens = GameHud.instance:GetTokensForInitiativeId(GameHud.instance.initiativeInterface, initiativeid)
-								for _,tok in ipairs(tokens) do
-                                    tok.properties:EndCombat()
-									tok.properties:DispatchEvent("endcombat", {})
-								end
-							end
-
-
-						end
-						
+						PromptEndCombat()
 					end
 				}
 
@@ -2531,38 +2586,7 @@ function GameHud.CreateInitiativeBar(self, info)
                     text = "End Combat",
                     click = function()
                         element.popup = nil
-                        UploadDayNightInfo()
-
-                        local monsterCount = 0
-                        for initiativeid,_ in pairs(q.entries) do
-                            local tokens = GameHud.instance:GetTokensForInitiativeId(GameHud.instance.initiativeInterface, initiativeid)
-                            for _,tok in ipairs(tokens) do
-                                if not tok.properties:IsHero() then
-                                    monsterCount = monsterCount + 1
-                                end
-                            end
-                        end
-
-                        track("malice_at_combat_end", {
-                            maliceRemaining = CharacterResource.GetMalice(),
-                            roundCount = q.round,
-                            monsterCount = monsterCount,
-                            dailyLimit = 10,
-                        })
-
-                        q.hidden = true
-                        q.gameMode = "exploration"
-                        dmhub:UploadInitiativeQueue()
-
-                        CharacterResource.SetMalice(0, "End of Combat")
-
-                        for initiativeid,_ in pairs(q.entries) do
-                            local tokens = GameHud.instance:GetTokensForInitiativeId(GameHud.instance.initiativeInterface, initiativeid)
-                            for _,tok in ipairs(tokens) do
-                                tok.properties:EndCombat()
-                                tok.properties:DispatchEvent("endcombat", {})
-                            end
-                        end
+                        PromptEndCombat()
                     end,
                 }
 

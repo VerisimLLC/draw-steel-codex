@@ -4326,13 +4326,6 @@ function GameHud.CreateEmbeddedRollDialog()
 
         styles = styles,
 
-        --Allow the user to drag the roll box around (useful in table mode).
-        draggable = true,
-        drag = function(element)
-            element.x = element.xdrag
-            element.y = element.ydrag
-        end,
-
         captureEscape = true,
         escapePriority = EscapePriority.EXIT_ROLL_DIALOG,
 

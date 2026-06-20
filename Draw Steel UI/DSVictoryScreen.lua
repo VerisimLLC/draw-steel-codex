@@ -797,12 +797,105 @@ local function ComputeHeroRolesInternal(live)
         AddRole("Tourist", entries, true)
     end
 
-    --Award roles in priority order. Each role goes to its highest-ranked
-    --qualifier who has no role yet -- so a hero who earned several roles shows
-    --their most interesting one, and a role shadowed for its winner falls
-    --through to the runner-up rather than vanishing. Floor roles
-    --(allowDuplicates) land on every qualifying hero still without a role.
+    --How many times a hero has previously been awarded a given role, read from
+    --the persistent per-hero history written by RecordHeroRoles at end of
+    --combat. Used to bias selection toward roles a hero has earned less often.
+    --Read-only here; missing/never-played heroes read 0 and so behave exactly
+    --as they did before any history existed.
+    local function RoleCount(d, roleName)
+        local props = d.token ~= nil and d.token.properties or nil
+        local history = props ~= nil and props:try_get("dsVictoryRoleHistory") or nil
+        if type(history) ~= "table" then
+            return 0
+        end
+        local n = history[roleName]
+        return type(n) == "number" and n or 0
+    end
+
+    --Soft-bias tuning weights (all integers; bigger = stronger pull). Selection
+    --is deterministic -- every client computes the same roles from the same
+    --stats + history -- so these just shape which qualifying role a hero lands
+    --on, never introduce randomness:
+    --  INTEREST: each step down the (in-play) priority list a role sits costs
+    --            this much, so a more interesting role still wins all else equal.
+    --  FATIGUE : each past time THIS hero earned THIS role pushes it down by
+    --            this much. With FATIGUE < INTEREST a hero keeps a strictly more
+    --            interesting role through one repeat and only rotates onto a
+    --            nearby alternative after earning it "over and over". Raise
+    --            FATIGUE (or lower INTEREST) to rotate more aggressively.
+    --  RANK    : pure tiebreak below -- prefer the better-ranked qualifier
+    --            within a role; never crosses a priority step.
+    local INTEREST_WEIGHT = 4
+    local FATIGUE_WEIGHT = 3
+
+    --Award the interesting (non-floor) roles first, then the floor roles. Floor
+    --roles (Pacifist/Tourist, flagged allowDuplicates) are deliberately kept out
+    --of the biased pool: we never steer anyone toward a "boring" role, so they
+    --only ever land as a last resort, below.
+    local interestingCandidates = {}
+    local floorCandidates = {}
     for _, candidate in ipairs(candidates) do
+        if candidate.allowDuplicates then
+            floorCandidates[#floorCandidates+1] = candidate
+        else
+            interestingCandidates[#interestingCandidates+1] = candidate
+        end
+    end
+
+    --Build one scored hero<->role edge per (interesting role, qualifier), then
+    --assign greedily by score. Each interesting role goes to a single hero and
+    --each hero takes at most one, so a role shadowed for its best qualifier
+    --still falls through to a runner-up, exactly as the old priority loop did --
+    --and with no history the scores collapse to plain priority order, so the
+    --behavior is unchanged until a hero has actually repeated a role.
+    local edges = {}
+    for priorityIdx, candidate in ipairs(interestingCandidates) do
+        for rank, entry in ipairs(candidate.entries) do
+            edges[#edges+1] = {
+                candidate = candidate,
+                entry = entry,
+                charid = entry.d.token.charid,
+                priorityIdx = priorityIdx,
+                rank = rank,
+                score = -(priorityIdx - 1) * INTEREST_WEIGHT
+                        - RoleCount(entry.d, candidate.role) * FATIGUE_WEIGHT,
+            }
+        end
+    end
+
+    --Highest score first; deterministic tiebreaks (priority, then rank within a
+    --role, then charid) so every client resolves ties identically. Rank lives
+    --only here, never in the score, so it orders qualifiers and breaks ties but
+    --can never let a worse-ranked hero leapfrog a more interesting role.
+    table.sort(edges, function(a, b)
+        if a.score ~= b.score then
+            return a.score > b.score
+        end
+        if a.priorityIdx ~= b.priorityIdx then
+            return a.priorityIdx < b.priorityIdx
+        end
+        if a.rank ~= b.rank then
+            return a.rank < b.rank
+        end
+        return a.charid < b.charid
+    end)
+
+    local roleTaken = {}
+    for _, edge in ipairs(edges) do
+        local charid = edge.charid
+        if roles[charid] == nil and not roleTaken[edge.candidate.role] then
+            roles[charid] = {
+                role = edge.candidate.role,
+                text = edge.entry.text,
+                tooltip = edge.entry.tooltip,
+            }
+            roleTaken[edge.candidate.role] = true
+        end
+    end
+
+    --Floor roles last, in priority order, landing on every still-roleless
+    --qualifying hero (they allow duplicates and are never biased).
+    for _, candidate in ipairs(floorCandidates) do
         for _, entry in ipairs(candidate.entries) do
             local charid = entry.d.token.charid
             if roles[charid] == nil then
@@ -811,9 +904,6 @@ local function ComputeHeroRolesInternal(live)
                     text = entry.text,
                     tooltip = entry.tooltip,
                 }
-                if not candidate.allowDuplicates then
-                    break
-                end
             end
         end
     end
@@ -874,7 +964,11 @@ Commands.RegisterMacro{
             local name = tok.name or "Hero"
             local info = roles[tok.charid]
             if info ~= nil then
-                print(string.format("  %s: %s -- \"%s\" (tooltip: \"%s\")", name, info.role, info.text, info.tooltip))
+                --show how many times this hero has earned this role before, so the
+                --less-often-achieved bias is visible as stats/history accumulate.
+                local history = tok.properties ~= nil and tok.properties:try_get("dsVictoryRoleHistory") or nil
+                local prior = (type(history) == "table" and type(history[info.role]) == "number") and history[info.role] or 0
+                print(string.format("  %s: %s (earned %dx before) -- \"%s\" (tooltip: \"%s\")", name, info.role, prior, info.text, info.tooltip))
             else
                 print(string.format("  %s: (no role)", name))
             end
@@ -898,6 +992,50 @@ local function GetActiveVictory()
     return live
 end
 
+-- Record the role each hero was awarded this encounter into their persistent
+-- per-hero history (character.dsVictoryRoleHistory, a map of role name -> times
+-- earned). ComputeHeroRolesInternal reads this back to bias future encounters
+-- away from roles a hero has earned often. Run once, DM-only, at end of combat:
+-- the role assignment is deterministic, so recomputing it here yields the same
+-- roles every client saw on the victory screen. Floor roles (Tourist/Pacifist)
+-- are recorded too but never bias selection, so counting them is harmless.
+local function RecordHeroRoles(live)
+    if type(live) ~= "table" or not dmhub.isDM then
+        return
+    end
+    -- Guard against a double-proceed re-recording the same encounter (transient:
+    -- it only needs to hold for this client's session, which is all that can
+    -- re-enter ProceedEndCombat before the live encounter is torn down).
+    if live:try_get("_tmp_dsRolesRecorded", false) then
+        return
+    end
+    live._tmp_dsRolesRecorded = true
+
+    local roles = DSVictoryScreen.ComputeHeroRoles(live)
+    for _, token in ipairs(live:GetBattleHeroTokens()) do
+        local info = token ~= nil and roles[token.charid] or nil
+        if info ~= nil and token.properties ~= nil then
+            token:ModifyProperties{
+                description = "Record victory role",
+                undoable = false,
+                execute = function()
+                    -- Assign a fresh table so the field-level change is observed
+                    -- and uploaded (in-place nested mutation may not diff).
+                    local history = {}
+                    local old = token.properties:try_get("dsVictoryRoleHistory")
+                    if type(old) == "table" then
+                        for k, v in pairs(old) do
+                            history[k] = v
+                        end
+                    end
+                    history[info.role] = (history[info.role] or 0) + 1
+                    token.properties.dsVictoryRoleHistory = history
+                end,
+            }
+        end
+    end
+end
+
 -- End combat and clear the victory state, mirroring the initiative bar's "End Combat"
 -- menu item. Setting the queue hidden + clearing victoryAwarded and uploading is what
 -- closes this screen (and re-hides the bar) on every client.
@@ -909,6 +1047,9 @@ local function ProceedEndCombat()
 
     local live = q:try_get("liveEncounter")
     if type(live) == "table" then
+        -- Record awarded roles while the queue is still live (GetBattleHeroTokens
+        -- reads it) and before victoryAwarded is cleared.
+        RecordHeroRoles(live)
         live.victoryAwarded = false
     end
 

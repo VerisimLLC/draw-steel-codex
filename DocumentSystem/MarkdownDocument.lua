@@ -1086,17 +1086,18 @@ local function StripSpoilers(text)
                         end
                     end
 
+                    local canSpeak = false
                     if bestLanguage ~= nil then
                         result = result .. string.format("(in %s) ", bestLanguage.name)
-                    end
 
-                    local canSpeak = false
-                    if not dmhub.isDM then
-                        local token = dmhub.currentToken
-                        if token ~= nil and token.properties:LanguagesKnown()[bestLanguage.id] then
-                            canSpeak = true
+                        if not dmhub.isDM then
+                            local token = dmhub.currentToken
+                            if token ~= nil and token.properties:LanguagesKnown()[bestLanguage.id] then
+                                canSpeak = true
+                            end
                         end
                     end
+
 
                     if markDepth == 1 and not canSpeak then
                         --TODO: get fonts working.
@@ -3328,6 +3329,7 @@ function MarkdownDocument:EditPanel(args)
         ["Map"]          = "implStatus3",
         ["item"]         = "implStatus4",
         ["title"]        = "implStatus4",
+        ["monster"]      = "implStatus0",
         ["Rich Tag"]     = "implStatus0",
         ["Command"]      = "implStatus1",
     }
@@ -4169,7 +4171,24 @@ function MarkdownDocument:EditPanel(args)
             end
         end
 
-        -- Sort prefix suggestions first, then alphabetically by name
+        -- Rank entries by how well their name matches the typed text. The
+        -- effective search term drops any recognized table prefix (e.g. the
+        -- "item:" in "item:heal") so "Healing Potion" still ranks as a prefix
+        -- match. rank 0 = exact name, 1 = name starts with the search, 2 =
+        -- substring match anywhere.
+        local rankSearch = string.lower(searchText)
+        local rankColon = string.find(rankSearch, ":", 1, true)
+        if rankColon ~= nil then
+            rankSearch = string.sub(rankSearch, rankColon + 1)
+        end
+        local function MatchRank(name)
+            local n = string.lower(name or "")
+            if n == rankSearch then return 0 end
+            if string.find(n, rankSearch, 1, true) == 1 then return 1 end
+            return 2
+        end
+
+        -- Sort prefix suggestions first, then by match rank, then alphabetically.
         table.sort(results, function(a, b)
             -- Rich tag prefix always first
             if (a.isRichTagPrefix and true or false) ~= (b.isRichTagPrefix and true or false) then
@@ -4177,6 +4196,10 @@ function MarkdownDocument:EditPanel(args)
             end
             if (a.isPrefix and true or false) ~= (b.isPrefix and true or false) then
                 return a.isPrefix and true or false
+            end
+            local ra, rb = MatchRank(a.name), MatchRank(b.name)
+            if ra ~= rb then
+                return ra < rb
             end
             return a.name < b.name
         end)
@@ -4292,7 +4315,60 @@ function MarkdownDocument:EditPanel(args)
 
     local previewPanel
 
-    editInput = gui.Input {
+    -- Find bar (Ctrl+F) state. Defined after editInput; forward-declared here so the
+    -- editInput 'find' event handler can call OpenFind.
+    local findInput, findBar, findCountLabel
+    local OpenFind, CloseFind, UpdateFindUI
+
+    -- BEGIN syntax-highlight smoke test ------------------------------------------------
+    -- Temporary proof that the C# gui.TextEditor:SetColorSpans hook works end-to-end.
+    -- Colors a few markdown constructs using simple Lua patterns (this is NOT the real
+    -- tokenizer -- the production highlighter will reuse BreakdownRichTags for accurate
+    -- source-offset spans). Safe to delete this whole fenced block together with the two
+    -- element:SetColorSpans(...) calls in the editor's create/edit handlers below.
+    local function SyntaxHighlightSmokeTestSpans(text)
+        local spans = {}
+        text = text or ""
+        local len = #text
+
+        -- Inline constructs scanned across the whole document. string.find returns 1-based
+        -- inclusive [start, finish] positions, which is exactly what SetColorSpans wants.
+        local function scanInline(pattern, color)
+            local init = 1
+            while true do
+                local s, e = string.find(text, pattern, init)
+                if s == nil then break end
+                spans[#spans + 1] = { from = s, to = e, color = color }
+                init = e + 1
+            end
+        end
+
+        scanInline("%*%*[^*]-%*%*", "#c678dd")           -- **bold**
+        scanInline("`[^`]-`", "#98c379")                 -- `code`
+        scanInline("%[[^%]]-%]%([^%)]-%)", "#61afef")    -- [text](url)
+
+        -- Line-leading constructs. Lua patterns have no multiline '^', so walk line by line.
+        local lineStart = 1
+        while lineStart <= len + 1 do
+            local nl = string.find(text, "\n", lineStart, true)
+            local lineStop = (nl or (len + 1)) - 1
+            if lineStop >= lineStart then
+                local line = string.sub(text, lineStart, lineStop)
+                if string.match(line, "^#+%s") ~= nil then
+                    spans[#spans + 1] = { from = lineStart, to = lineStop, color = "#e5c07b" }  -- # heading
+                elseif string.match(line, "^>%s?") ~= nil then
+                    spans[#spans + 1] = { from = lineStart, to = lineStop, color = "#7f848e" }  -- > quote
+                end
+            end
+            if nl == nil then break end
+            lineStart = nl + 1
+        end
+
+        return spans
+    end
+    -- END syntax-highlight smoke test --------------------------------------------------
+
+    editInput = gui.TextEditor {
         id = "editorPanel",
         classes = { "monospace" },
         width = "100%",
@@ -4308,12 +4384,18 @@ function MarkdownDocument:EditPanel(args)
 
         thinkTime = 0.2,
         editlag = 0.3,
+        create = function(element)
+            -- syntax-highlight smoke test (remove with the fenced block above)
+            element:SetColorSpans(SyntaxHighlightSmokeTestSpans(element.text))
+        end,
         edit = function(element)
             if resultPanel ~= nil then
                 resultPanel:FireEventTree("editDocument", element.text)
             end
             charactersUsedLabel:FireEvent("refreshLength", element.text)
             UpdateAutocomplete(element)
+            -- syntax-highlight smoke test (remove with the fenced block above)
+            element:SetColorSpans(SyntaxHighlightSmokeTestSpans(element.text))
         end,
         refreshDocument = function(element)
             element.text = self:GetTextContent()
@@ -4336,6 +4418,10 @@ function MarkdownDocument:EditPanel(args)
         caretReady = function(element)
             UpdateAutocomplete(element)
             SyncPreviewScroll(element, previewPanel)
+        end,
+
+        find = function(element)
+            OpenFind()
         end,
 
         think = function(element)
@@ -4628,12 +4714,115 @@ function MarkdownDocument:EditPanel(args)
         },
     }
 
+    -- Find bar: a small overlay at the top of the editor. The search field is a plain
+    -- gui.Input; all matching/highlighting/scrolling is driven through the TextEditor API
+    -- (Find / FindNext / FindPrev / ClearFind), which selects + scrolls the match in the
+    -- editor. resetOnDeActivation is set false while open so the match stays highlighted
+    -- even though the search field holds focus.
+    findCountLabel = gui.Label{
+        width = "auto",
+        height = "auto",
+        valign = "center",
+        hmargin = 8,
+        fontSize = 12,
+        color = "#bbbbbb",
+        text = "",
+    }
+
+    findInput = gui.Input{
+        width = "45%",
+        height = 22,
+        valign = "center",
+        fontSize = 14,
+        placeholderText = "Find",
+        text = "",
+        lineType = "SingleLine",
+        edit = function(element)
+            editInput:Find(element.text, false)
+            UpdateFindUI()
+        end,
+        submit = function(element)
+            editInput:FindNext()
+            UpdateFindUI()
+        end,
+    }
+
+    UpdateFindUI = function()
+        local total = editInput:FindCount()
+        if total <= 0 then
+            findCountLabel.text = (findInput.text ~= "" and "No results") or ""
+        else
+            findCountLabel.text = string.format("%d / %d", editInput:FindCurrent(), total)
+        end
+    end
+
+    OpenFind = function()
+        findBar:SetClass("collapsed", false)
+        findBar.captureEscape = true
+        -- Keep the match highlighted while the search field has focus.
+        editInput.resetOnDeActivation = false
+        findInput.hasInputFocus = true
+        if findInput.text ~= "" then
+            editInput:Find(findInput.text, false)
+        end
+        UpdateFindUI()
+    end
+
+    CloseFind = function()
+        findBar:SetClass("collapsed", true)
+        findBar.captureEscape = false
+        editInput:ClearFind()
+        editInput.resetOnDeActivation = true
+        editInput.hasInputFocus = true
+    end
+
+    findBar = gui.Panel{
+        classes = { "collapsed" },
+        floating = true,
+        width = "100%-8",
+        height = 30,
+        halign = "center",
+        valign = "top",
+        tmargin = 4,
+        flow = "horizontal",
+        bgimage = "panels/square.png",
+        bgcolor = "#1a1a1af0",
+        hpad = 6,
+        vpad = 4,
+        borderBox = true,
+
+        -- Escape closes the find bar (and refocuses the editor) rather than bubbling to the
+        -- journal's EXIT_DIALOG handler. DMHUB_POPUP outranks EXIT_DIALOG, and captureEscape
+        -- is toggled with the bar's open state so it only intercepts Escape while open.
+        captureEscape = false,
+        escapePriority = EscapePriority.DMHUB_POPUP,
+        escape = function(element)
+            CloseFind()
+        end,
+
+        findInput,
+        findCountLabel,
+        gui.Button{
+            text = "Prev", width = 46, height = 20, fontSize = 11, hmargin = 2, valign = "center",
+            press = function() editInput:FindPrev() UpdateFindUI() findInput.hasInputFocus = true end,
+        },
+        gui.Button{
+            text = "Next", width = 46, height = 20, fontSize = 11, hmargin = 2, valign = "center",
+            press = function() editInput:FindNext() UpdateFindUI() findInput.hasInputFocus = true end,
+        },
+        gui.Button{
+            text = "Close", width = 50, height = 20, fontSize = 11, hmargin = 2, valign = "center",
+            press = function() CloseFind() end,
+        },
+    }
+
     local editorColumn
     editorColumn = gui.Panel{
         width = showPreviewSetting:Get() and "50%" or "100%",
         height = "100%",
         borderBox = true,
         editInput,
+        findBar,
     }
 
     resultPanel = gui.Panel {

@@ -58,6 +58,13 @@ function gui.Input(table)
 	-- dummy implementation for documentation purposes only
 end
 
+--- TextEditor: Create a TextEditor panel: a multiline rich text editor (used by the journal). Backed by a fork of TMP_InputField with a working scrollbar, undo/redo, and find & replace.
+--- @param args TextEditorArgs
+--- @return TextEditor
+function gui.TextEditor(table)
+	-- dummy implementation for documentation purposes only
+end
+
 --- RegisterTheme: Registers style overrides for a theme section.
 --- @param themeid string The theme ID.
 --- @param sectionid string The section within the theme.

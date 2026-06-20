@@ -331,6 +331,40 @@ function CustomDocument.SearchLinks(search)
         end
     end
 
+    -- Search registered markdown tables (items, titles, etc.) by entry name,
+    -- so plain text like "healing" surfaces matching items without the user
+    -- needing to type the "item:" prefix first. The link still uses the
+    -- "prefix:name" form so it resolves unambiguously to that table.
+    for _, info in ipairs(registeredPrefixes) do
+        local tableData = dmhub.GetTable(info.tableName) or {}
+        for k, v in unhidden_pairs(tableData) do
+            if MarkdownRender.IsRenderable(v) then
+                local entryName = rawget(v, "name") or rawget(v, "description") or ""
+                if #entryName > 0 and string.find(string.lower(entryName), search, 1, true) then
+                    results[#results+1] = {
+                        link = info.prefix .. ":" .. entryName,
+                        name = entryName,
+                        type = info.prefix,
+                    }
+                end
+            end
+        end
+    end
+
+    -- Search monsters by name. Monster references resolve directly from the
+    -- plain link name (see ResolveLink's monster fallback), so no prefix is
+    -- used here.
+    local monsters = assets.monsters
+    for k, monster in pairs(monsters) do
+        if (not monster.hidden) and monster.name ~= nil and string.find(string.lower(monster.name), search, 1, true) then
+            results[#results+1] = {
+                link = monster.name,
+                name = monster.name,
+                type = "monster",
+            }
+        end
+    end
+
     return results
 end
 

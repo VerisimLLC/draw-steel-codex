@@ -2532,136 +2532,139 @@ function MarkdownDocument.DisplayPanel(self, args)
                         currentTable = nil
                     end
 
-                    local textPanel = m_textPanels[#newTextPanels + 1] or gui.Label {
-                        classes = {"fg"},
-                        width = "auto",
-                        height = "auto",
-                        maxWidth = "100%",
-                        valign = "center",
-                        vmargin = 0,
-                        markdown = true,
-                        markdownStyle = g_markdownStyle,
-                        textAlignment = "topleft",
-                        fontSize = CustomDocument.ScaleFontSize(14),
-                        pad = 0,
-                        links = true,
-                        hoverLink = function(element, link)
-                            print("LINK:: HOVER", link, element.linkHovered)
-                            if string.starts_with(link, "spoiler:") then
-                                return
-                            end
-                            CustomDocument.PreviewLink(element, link)
-                        end,
-                        dehoverLink = function(element, link)
-                            element.tooltip = nil
-                        end,
-                        rightClick = function(element)
-                            if element.linkHovered == nil then return end
-                            local link = element.linkHovered
-                            if string.starts_with(link, "spoiler:") then return end
-                            local doc = CustomDocument.ResolveLink(link)
-                            if doc == nil then return end
-
-                            -- Only show context menu for navigable document types
-                            local isNavigable = false
-                            if type(doc) == "table" or type(doc) == "userdata" then
-                                if doc.IsDerivedFrom and doc.IsDerivedFrom("CustomDocument") and doc:try_get("id") then
-                                    isNavigable = true
-                                elseif MarkdownRender.IsRenderable(doc) then
-                                    isNavigable = true
-                                end
-                            end
-                            if not isNavigable then return end
-
-                            element.popup = gui.ContextMenu {
-                                entries = {
-                                    {
-                                        text = "Open in New Tab",
-                                        click = function()
-                                            element.popup = nil
-                                            CustomDocument.OpenContent(doc)
-                                        end,
-                                    },
-                                },
-                            }
-                        end,
-                        press = function(element)
-                            if element.popup then
-                                element.popup = nil
-                                return
-                            end
-                            if element.linkHovered ~= nil then
-                                local link = element.linkHovered
-                                print("LINK::", element.linkHovered)
+                    local function MakeTextLabel()
+                        return gui.Label {
+                            classes = {"fg"},
+                            width = "auto",
+                            height = "auto",
+                            maxWidth = "100%",
+                            valign = "center",
+                            vmargin = 0,
+                            markdown = true,
+                            markdownStyle = g_markdownStyle,
+                            textAlignment = "topleft",
+                            fontSize = CustomDocument.ScaleFontSize(14),
+                            pad = 0,
+                            links = true,
+                            hoverLink = function(element, link)
+                                print("LINK:: HOVER", link, element.linkHovered)
                                 if string.starts_with(link, "spoiler:") then
-                                    local spoilerValue = link:sub(9)
-                                    local spoilerInfo = (m_tokenExtraInfo.spoilers or {})[spoilerValue]
-                                    if spoilerInfo == nil then
-                                        print("SPOILER: INVALID INDEX", spoilerValue, "VS", table.keys(m_tokenExtraInfo.spoilers))
+                                    return
+                                end
+                                CustomDocument.PreviewLink(element, link)
+                            end,
+                            dehoverLink = function(element, link)
+                                element.tooltip = nil
+                            end,
+                            rightClick = function(element)
+                                if element.linkHovered == nil then return end
+                                local link = element.linkHovered
+                                if string.starts_with(link, "spoiler:") then return end
+                                local doc = CustomDocument.ResolveLink(link)
+                                if doc == nil then return end
+
+                                -- Only show context menu for navigable document types
+                                local isNavigable = false
+                                if type(doc) == "table" or type(doc) == "userdata" then
+                                    if doc.IsDerivedFrom and doc.IsDerivedFrom("CustomDocument") and doc:try_get("id") then
+                                        isNavigable = true
+                                    elseif MarkdownRender.IsRenderable(doc) then
+                                        isNavigable = true
+                                    end
+                                end
+                                if not isNavigable then return end
+
+                                element.popup = gui.ContextMenu {
+                                    entries = {
+                                        {
+                                            text = "Open in New Tab",
+                                            click = function()
+                                                element.popup = nil
+                                                CustomDocument.OpenContent(doc)
+                                            end,
+                                        },
+                                    },
+                                }
+                            end,
+                            press = function(element)
+                                if element.popup then
+                                    element.popup = nil
+                                    return
+                                end
+                                if element.linkHovered ~= nil then
+                                    local link = element.linkHovered
+                                    print("LINK::", element.linkHovered)
+                                    if string.starts_with(link, "spoiler:") then
+                                        local spoilerValue = link:sub(9)
+                                        local spoilerInfo = (m_tokenExtraInfo.spoilers or {})[spoilerValue]
+                                        if spoilerInfo == nil then
+                                            print("SPOILER: INVALID INDEX", spoilerValue, "VS", table.keys(m_tokenExtraInfo.spoilers))
+                                            return
+                                        end
+
+                                        local lines = table.shallow_copy(spoilerInfo.lines)
+                                        local line = spoilerInfo.lines[spoilerInfo.lineIndex]
+                                        print("SPOILER: SUBSTITUTING...", line)
+                                        for i=spoilerInfo.linepos,#line do
+                                            if line:sub(i,i) == "{" then
+                                                local nextChar = line:sub(i+1,i+1)
+                                                if nextChar == "!" then
+                                                    line = line:sub(1,i) .. line:sub(i+2)
+                                                else
+                                                    line = line:sub(1,i) .. "!" .. line:sub(i+1)
+                                                end
+                                                print("SPOILER: NEW LINE...", line)
+                                                lines[spoilerInfo.lineIndex] = line
+                                                self:SetTextContent(table.concat(lines, "\n"))
+                                                self:Upload()
+                                                break
+                                            end
+                                        end
+
                                         return
                                     end
 
-                                    local lines = table.shallow_copy(spoilerInfo.lines)
-                                    local line = spoilerInfo.lines[spoilerInfo.lineIndex]
-                                    print("SPOILER: SUBSTITUTING...", line)
-                                    for i=spoilerInfo.linepos,#line do
-                                        if line:sub(i,i) == "{" then
-                                            local nextChar = line:sub(i+1,i+1)
-                                            if nextChar == "!" then
-                                                line = line:sub(1,i) .. line:sub(i+2)
-                                            else
-                                                line = line:sub(1,i) .. "!" .. line:sub(i+1)
+                                    local doc = CustomDocument.ResolveLink(element.linkHovered)
+                                    if doc ~= nil then
+                                        -- Try in-place navigation for real document types only.
+                                        -- Renderable content (e.g. an item/spell link) wraps into a
+                                        -- transient MarkdownDocument that is never written to the
+                                        -- table, so navigateToDocument (which looks up by id) can't
+                                        -- resolve it -- let those fall through to OpenContent instead.
+                                        local navigableDocId = nil
+                                        if type(doc) == "table" or type(doc) == "userdata" then
+                                            if doc.IsDerivedFrom and doc.IsDerivedFrom("CustomDocument") and doc:try_get("id") then
+                                                navigableDocId = doc.id
                                             end
-                                            print("SPOILER: NEW LINE...", line)
-                                            lines[spoilerInfo.lineIndex] = line
-                                            self:SetTextContent(table.concat(lines, "\n"))
-                                            self:Upload()
-                                            break
                                         end
-                                    end
 
-                                    return
+                                        if navigableDocId then
+                                            local dialogPanel = element:FindParentWithClass("framedPanel")
+                                            if dialogPanel and dialogPanel.data and dialogPanel.data.history then
+                                                dialogPanel:FireEvent("navigateToDocument", navigableDocId)
+                                                return
+                                            end
+                                        end
+
+                                        -- Fall back to opening in new window
+                                        CustomDocument.OpenContent(doc)
+                                    else
+                                        local guid = dmhub.GenerateGuid()
+                                        local markdownDoc = MarkdownDocument.new {
+                                            id = guid,
+                                            description = element.linkHovered,
+                                            content = "# " .. element.linkHovered,
+                                            annotations = {},
+                                        }
+
+                                        dmhub.SetAndUploadTableItem(MarkdownDocument.tableName, markdownDoc)
+                                        markdownDoc:ShowDocument { edit = true }
+                                    end
                                 end
-
-                                local doc = CustomDocument.ResolveLink(element.linkHovered)
-                                if doc ~= nil then
-                                    -- Try in-place navigation for real document types only.
-                                    -- Renderable content (e.g. an item/spell link) wraps into a
-                                    -- transient MarkdownDocument that is never written to the
-                                    -- table, so navigateToDocument (which looks up by id) can't
-                                    -- resolve it -- let those fall through to OpenContent instead.
-                                    local navigableDocId = nil
-                                    if type(doc) == "table" or type(doc) == "userdata" then
-                                        if doc.IsDerivedFrom and doc.IsDerivedFrom("CustomDocument") and doc:try_get("id") then
-                                            navigableDocId = doc.id
-                                        end
-                                    end
-
-                                    if navigableDocId then
-                                        local dialogPanel = element:FindParentWithClass("framedPanel")
-                                        if dialogPanel and dialogPanel.data and dialogPanel.data.history then
-                                            dialogPanel:FireEvent("navigateToDocument", navigableDocId)
-                                            return
-                                        end
-                                    end
-
-                                    -- Fall back to opening in new window
-                                    CustomDocument.OpenContent(doc)
-                                else
-                                    local guid = dmhub.GenerateGuid()
-                                    local markdownDoc = MarkdownDocument.new {
-                                        id = guid,
-                                        description = element.linkHovered,
-                                        content = "# " .. element.linkHovered,
-                                        annotations = {},
-                                    }
-
-                                    dmhub.SetAndUploadTableItem(MarkdownDocument.tableName, markdownDoc)
-                                    markdownDoc:ShowDocument { edit = true }
-                                end
-                            end
-                        end,
-                    }
+                            end,
+                        }
+                    end
+                    local textPanel = m_textPanels[#newTextPanels + 1] or MakeTextLabel()
 
                     textPanel.selfStyle.halign = token.justification or "left"
 

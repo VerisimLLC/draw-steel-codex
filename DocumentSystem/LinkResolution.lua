@@ -149,6 +149,7 @@ function CustomDocument.CreateEmbeddablePanel(content, args)
                     hpad = 0,
                     hmargin = 0,
                     embedDepth = (args.embedDepth or 0) + 1,
+                    hostPageColor = args.hostPageColor,
                 },
                 savedoc = function(element)
                     element:HaltEventPropagation()

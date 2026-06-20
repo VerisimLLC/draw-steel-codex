@@ -1862,6 +1862,14 @@ function MarkdownDocument.DisplayPanel(self, args)
     local embedDepth = args.embedDepth or 0
     args.embedDepth = nil
 
+    -- Host page color handed down to an embedded document. When this embed has
+    -- no page background of its own, it falls back to this so it blends into
+    -- the host page. nil for top-level documents and for embeds whose host has
+    -- no page color. Captured as a closure local so it survives re-renders,
+    -- exactly like embedDepth above.
+    local m_hostPageColor = args.hostPageColor
+    args.hostPageColor = nil
+
     --TODO: respect this parameter.
     local m_noninteractive = args.noninteractive or false
     args.noninteractive = nil
@@ -1967,6 +1975,14 @@ function MarkdownDocument.DisplayPanel(self, args)
             -- Unset clears it so a reused panel keeps no stale background and the
             -- default skin stays a visual no-op.
             local pageColor = SkinColor((resolvedSkin.page or {}).bgcolor)
+            -- Embeds default to the host page color when they set none of their
+            -- own, so embedded content blends into the page. An embed's own page
+            -- color (non-nil here) always wins. m_hostPageColor is only set for
+            -- embeds, so top-level documents are unaffected. pageColor is now the
+            -- effective color, which propagates to any nested embeds below.
+            if pageColor == nil and m_hostPageColor ~= nil then
+                pageColor = m_hostPageColor
+            end
             if pageColor then
                 element.bgimage = "panels/square.png"
                 element.bgcolor = pageColor
@@ -2013,7 +2029,7 @@ function MarkdownDocument.DisplayPanel(self, args)
                         local doc = CustomDocument.ResolveLink(original)
                         if doc ~= nil then
                             print("EMBED:: CREATE", original)
-                            newEmbeds[embed] = CustomDocument.CreateEmbeddablePanel(doc, { embedDepth = embedDepth }) or
+                            newEmbeds[embed] = CustomDocument.CreateEmbeddablePanel(doc, { embedDepth = embedDepth, hostPageColor = pageColor }) or
                             false
                         else
                             newEmbeds[embed] = false

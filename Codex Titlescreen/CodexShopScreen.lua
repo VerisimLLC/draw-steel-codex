@@ -608,7 +608,8 @@ end
 --is anchored to an edge/corner (halign/valign) and pushed inward by a base
 --inset, then nudged by the user's offset.
 local function ApplyTextPlacement(textPanel, placement, offsetX, offsetY)
-	local inset = 36
+	--Edge margin for the standard placement presets (was 36; now 60% of that).
+	local inset = 21.6
 	local h, v = "right", "center"
 	if placement == "left" then
 		h, v = "left", "center"
@@ -982,8 +983,9 @@ local MakeDiceBanner = function(opts)
 			width = 420,
 			height = "auto",
 			borderBox = true,
-			hpad = 24,
-			vpad = 20,
+			--Padding cut 30% (hpad 24 -> 16.8, vpad 20 -> 14).
+			hpad = 16.8,
+			vpad = 14,
 			bgimage = "panels/square.png",
 			bgcolor = "#000000a0",
 			cornerRadius = 12,
@@ -1562,7 +1564,7 @@ local function ShowDiceTryRoll(item)
 				hmargin = 8,
 				text = "Roll Power Roll",
 				press = function(element)
-					dmhub.Roll{ roll = "2d10", description = string.format("Trying %s", item.name) }
+					dmhub.Roll{ roll = "2d10", ["local"] = true, silent = true, description = string.format("Trying %s", item.name) }
 				end,
 			},
 
@@ -1729,14 +1731,14 @@ local ShowItemDetailsInternal = function(args)
 								return
 							end
 							pcall(function() dice.SetRollPreviewModel(element.data.item.assetid) end)
-							dmhub.Roll{ drag = true, numDice = 1, numFaces = 10, numKeep = 0, description = "Try Dice" }
+							dmhub.Roll{ drag = true, ["local"] = true, silent = true, numDice = 1, numFaces = 10, numKeep = 0, description = "Try Dice" }
 						end,
 						click = function(element)
 							if element.data.item == nil then
 								return
 							end
 							pcall(function() dice.SetRollPreviewModel(element.data.item.assetid) end)
-							dmhub.Roll{ numDice = 1, numFaces = 10, numKeep = 0, description = "Try Dice" }
+							dmhub.Roll{ ["local"] = true, silent = true, numDice = 1, numFaces = 10, numKeep = 0, description = "Try Dice" }
 						end,
 
 						--Trim outline drawn over the filled die in the set's trim color.

@@ -813,6 +813,13 @@ local function SkinBodyMarkup(body, content)
         open = open .. string.format("<color=%s>", color)
         close = "</color>" .. close
     end
+    -- line-height: percent of the line's font size. Unset or 100 = no tag, so
+    -- the default skin stays a visual no-op. Wrapped + closed so it does not
+    -- bleed into adjacent heading lines that set no line-height.
+    if body.lineHeight and body.lineHeight ~= 100 then
+        open = open .. string.format("<line-height=%d%%>", body.lineHeight)
+        close = "</line-height>" .. close
+    end
     return open .. content .. close
 end
 

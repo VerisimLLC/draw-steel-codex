@@ -501,6 +501,13 @@ JournalStyleEditor_BuildForm = function(sheet, upload, panel)
         sheet.base.blocks[bkey].box = sheet.base.blocks[bkey].box or {}
         return sheet.base.blocks[bkey].box
     end
+    local function ownBlockInner(bkey)
+        sheet.base = sheet.base or {}
+        sheet.base.blocks = sheet.base.blocks or {}
+        sheet.base.blocks[bkey] = sheet.base.blocks[bkey] or {}
+        sheet.base.blocks[bkey].inner = sheet.base.blocks[bkey].inner or {}
+        return sheet.base.blocks[bkey].inner
+    end
     children[#children+1] = gui.Label{ classes = {"formStacked"}, text = "Blocks" }
     for _, bt in ipairs(blockTypes) do
         local rbox = (((resolvedBase.blocks or {})[bt.key]) or {}).box or {}
@@ -520,6 +527,18 @@ JournalStyleEditor_BuildForm = function(sheet, upload, panel)
         children[#children+1] = JSE_NumberRow("    Padding:", rbox.pad, function(n)
             ownBlockBox(bt.key).pad = n; upload()
         end)
+        local rinner = (((resolvedBase.blocks or {})[bt.key]) or {}).inner or {}
+        children[#children+1] = JSE_ColorRow("    Inner background:", rinner.bgcolor, function(c)
+            ownBlockInner(bt.key).bgcolor = c; upload()
+        end)
+        children[#children+1] = JSE_ColorRow("    Inner text:", rinner.color, function(c)
+            ownBlockInner(bt.key).color = c; upload()
+        end)
+        if bt.key == "table" or bt.key == "rollableTable" then
+            children[#children+1] = JSE_ColorRow("    Alt row tint:", rinner.altcolor, function(c)
+                ownBlockInner(bt.key).altcolor = c; upload()
+            end)
+        end
     end
 
     -- Bullet (curated: glyph, color)

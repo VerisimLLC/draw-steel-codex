@@ -820,6 +820,16 @@ local function SkinBodyMarkup(body, content)
         open = open .. string.format("<line-height=%d%%>", body.lineHeight)
         close = "</line-height>" .. close
     end
+    -- first-line indent (px). Positive indents the first visual line via a
+    -- horizontal space; negative is a hanging indent (wrapped lines pushed in,
+    -- matching SkinBulletMarkup). 0/nil = no markup.
+    local fli = body.firstLineIndent or 0
+    if fli > 0 then
+        open = open .. string.format("<space=%dpx>", fli)
+    elseif fli < 0 then
+        open = string.format("<indent=%dpx>", -fli) .. open
+        close = close .. "</indent>"
+    end
     return open .. content .. close
 end
 

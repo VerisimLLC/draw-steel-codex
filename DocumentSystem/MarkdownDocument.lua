@@ -333,7 +333,7 @@ function JournalStylesheet.CreateEditor()
     local previewDoc = MarkdownDocument.new{ content = "", annotations = {}, styleSheetId = false }
     local previewPanel = gui.Panel{
         vscroll = true, flow = "vertical", borderBox = true,
-        width = "50%-8", height = "100%", lmargin = 8, hpad = 12, vpad = 12,
+        width = "50%-8", height = "100%", lmargin = 8, hpad = 16, vpad = 12,
         previewDoc:DisplayPanel{ width = "100%", height = "auto" },
     }
     -- Let BuildForm reach the preview so class add/remove/rename regenerates it.

@@ -936,8 +936,15 @@ local function SplitRunAtRuledHeadings(text, ruledLevels)
         accum[#accum + 1] = line
         local hashes = string.match(line, "^(#+) ")
         if hashes ~= nil and #hashes >= 1 and #hashes <= 6 and ruledLevels[#hashes] then
+            local segText = table.concat(accum, "\n")
+            -- Strip one leading newline from non-first segments: the blank markdown
+            -- separator line between a previous rule panel and this paragraph is
+            -- accounted for by bmargin, so stripping it keeps spacing consistent.
+            if #segments > 0 and string.sub(segText, 1, 1) == "\n" then
+                segText = string.sub(segText, 2)
+            end
             segments[#segments + 1] = {
-                text = table.concat(accum, "\n"),
+                text = segText,
                 ruleLevel = #hashes,
             }
             accum = {}
@@ -952,10 +959,17 @@ local function SplitRunAtRuledHeadings(text, ruledLevels)
         if #segments > 0 and string.sub(segText, 1, 1) == "\n" then
             segText = string.sub(segText, 2)
         end
-        segments[#segments + 1] = { text = segText, ruleLevel = nil }
+        -- Do not emit a trailing segment whose text is empty (e.g. run ends with
+        -- a newline immediately after the last ruled heading).
+        if segText ~= "" then
+            segments[#segments + 1] = { text = segText, ruleLevel = nil }
+        end
     end
     return segments
 end
+
+-- Test hook for unit tests (mirrors __SkinClassTextMarkup pattern).
+MarkdownDocument.__SplitRunAtRuledHeadings = SplitRunAtRuledHeadings
 
 -- Build inline TMP markup from a class's `text` block. Mirrors SkinHeadingMarkup
 -- but covers the full class-text vocabulary (italic/underline/strike/mark). An

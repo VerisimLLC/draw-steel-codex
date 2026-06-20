@@ -682,6 +682,61 @@ end
 -- Test hook.
 MarkdownDocument.__ApplyBlockFrame = ApplyBlockFrame
 
+-- Apply a stylesheet's inner block styling to a built-in block's inner content
+-- (table rows/cells, power-roll tier rows, collapse body). Mirrors ApplyBlockFrame:
+-- re-runs every render, no-ops when inner is unset so default (dark) rendering is
+-- preserved, and restores defaults on a reused panel when inner is later cleared.
+--
+-- The inner darkness is NOT an inline background: every inner element carries the
+-- engine "uiblur" (dark frosted-glass) class, and table rows carry row/oddRow/
+-- evenRow. So we strip uiblur and paint our own opaque backgrounds. Tables expose
+-- their rows via the "row" class; the power roll's tiers and the collapse body are
+-- plain child panels (no row class), so for those block types we paint every
+-- non-root, non-label descendant panel.
+-- blockType is one of "powerRoll" | "table" | "rollableTable" | "collapse".
+local function ApplyBlockInner(panel, inner, blockType)
+    inner = inner or {}
+    local bg  = inner.bgcolor  and SkinColor(inner.bgcolor)  or nil
+    local txt = inner.color    and SkinColor(inner.color)    or nil
+    local alt = inner.altcolor and SkinColor(inner.altcolor) or nil
+    local active = (bg ~= nil) or (txt ~= nil) or (alt ~= nil)
+    local paintRows = (blockType == "table" or blockType == "rollableTable")
+    local rowIndex = 0
+    local function visit(el, isRoot)
+        if el == nil then return end
+        local cls; pcall(function() cls = el.classes end)
+        local ss; pcall(function() ss = el.selfStyle end)
+        local isRow = cls and table.contains(cls, "row")
+        local isLabel = cls and table.contains(cls, "label")
+        local paintsBg = isRow or ((not paintRows) and (not isRoot) and (not isLabel))
+        if ss then
+            if active then
+                pcall(function() el:SetClass("uiblur", false) end)
+                if isRow then
+                    rowIndex = rowIndex + 1
+                    local rc = bg
+                    if alt and (rowIndex % 2 == 0) then rc = alt end
+                    if rc then ss.bgimage = "panels/square.png"; ss.bgcolor = rc end
+                elseif paintsBg and bg then
+                    ss.bgimage = "panels/square.png"; ss.bgcolor = bg
+                end
+                if isLabel and txt then ss.color = txt end
+            else
+                -- inactive: restore the default dark glass and clear what we set
+                pcall(function() el:SetClass("uiblur", true) end)
+                if paintsBg then ss.bgimage = nil; ss.bgcolor = nil end
+                if isLabel then ss.color = nil end
+            end
+        end
+        local kids; pcall(function() kids = el.children end)
+        if kids then for _, c in ipairs(kids) do visit(c, false) end end
+    end
+    visit(panel, true)
+end
+
+-- Test hook.
+MarkdownDocument.__ApplyBlockInner = ApplyBlockInner
+
 -- Build the open/close markup pair for a heading level from its skin entry, and
 -- return the (possibly case-transformed) content.
 local function SkinHeadingMarkup(h, content)
@@ -2032,6 +2087,7 @@ function MarkdownDocument.DisplayPanel(self, args)
                     local panel = treeNodeStack[#treeNodeStack]
                     treeNodeStack[#treeNodeStack] = nil
                     panel:FireEventTree("refreshTreeChildren", children)
+                    ApplyBlockInner(panel, ((resolvedSkin.blocks or {}).collapse or {}).inner, "collapse")
                     children = childrenStack[#childrenStack]
                     childrenStack[#childrenStack] = nil
                 elseif token.type == "embed" then
@@ -2070,6 +2126,7 @@ function MarkdownDocument.DisplayPanel(self, args)
                     local panel = m_powerTables[#newPowerTables + 1] or PowerRollDisplay(self)
                     ApplyBlockFrame(panel, ((resolvedSkin.blocks or {}).powerRoll or {}).box)
                     panel:FireEventTree("refreshPowerRoll", token)
+                    ApplyBlockInner(panel, ((resolvedSkin.blocks or {}).powerRoll or {}).inner, "powerRoll")
                     newPowerTables[#newPowerTables + 1] = panel
                     children[#children + 1] = panel
                 elseif token.type == "divider" then

@@ -884,12 +884,13 @@ local function SkinQuoteText(quote, content)
     return open .. content .. close
 end
 
--- Set of heading levels (1..6) that have a rule (weight > 0), or nil if none.
+-- Set of heading levels (1..5) that have a rule (weight > 0), or nil if none.
 -- Returns nil when NO level has a rule, enabling the fast-path single-label render.
+-- Level 6 is excluded: ApplySkinToText renders it as body text, not a heading.
 local function HeadingRuleLevels(skin)
     local out = nil
     local hs = (skin and skin.headings) or {}
-    for n = 1, 6 do
+    for n = 1, 5 do
         local r = (hs[n] or {}).rule
         if r and (r.weight or 0) > 0 then out = out or {}; out[n] = true end
     end
@@ -906,9 +907,10 @@ local function BuildHeadingRulePanel(panel, h)
     ss.bgimage = "panels/square.png"
     ss.bgcolor = SkinColor(r.color) or SkinColor(h.color)  -- nil -> no override
     ss.height = r.weight or 1
-    ss.width = "100%"
-    ss.lmargin = r.indent or 0
-    ss.rmargin = r.indent or 0
+    local indent = r.indent or 0
+    ss.width = indent > 0 and string.format("100%%-%d", indent * 2) or "100%"
+    ss.lmargin = indent
+    ss.rmargin = indent
     ss.tmargin = r.offset or 0          -- heading -> rule gap
     ss.bmargin = h.spaceAfter or 0      -- rule -> body gap (spaceAfter moves here)
     return panel
@@ -935,7 +937,7 @@ local function SplitRunAtRuledHeadings(text, ruledLevels)
         end
         accum[#accum + 1] = line
         local hashes = string.match(line, "^(#+) ")
-        if hashes ~= nil and #hashes >= 1 and #hashes <= 6 and ruledLevels[#hashes] then
+        if hashes ~= nil and #hashes >= 1 and #hashes <= 5 and ruledLevels[#hashes] then
             local segText = table.concat(accum, "\n")
             -- Strip one leading newline from non-first segments: the blank markdown
             -- separator line between a previous rule panel and this paragraph is
@@ -970,6 +972,30 @@ end
 
 -- Test hook for unit tests (mirrors __SkinClassTextMarkup pattern).
 MarkdownDocument.__SplitRunAtRuledHeadings = SplitRunAtRuledHeadings
+
+-- Returns true if `text` contains at least one line that is a heading at a
+-- level present in ruledLevels (levels 1..5 only). Used as a cheap per-token
+-- gate so runs with no ruled heading stay on the fast path even when the skin
+-- has a heading rule configured.
+local function TextHasRuledHeading(text, ruledLevels)
+    local start = 1
+    while true do
+        local nl = string.find(text, "\n", start, true)
+        local line
+        if nl == nil then
+            line = string.sub(text, start)
+        else
+            line = string.sub(text, start, nl - 1)
+        end
+        local hashes = string.match(line, "^(#+) ")
+        if hashes ~= nil and #hashes >= 1 and #hashes <= 5 and ruledLevels[#hashes] then
+            return true
+        end
+        if nl == nil then break end
+        start = nl + 1
+    end
+    return false
+end
 
 -- Build inline TMP markup from a class's `text` block. Mirrors SkinHeadingMarkup
 -- but covers the full class-text vocabulary (italic/underline/strike/mark). An
@@ -2202,6 +2228,9 @@ function MarkdownDocument.DisplayPanel(self, args)
             local resolvedStylesheet = self:GetResolvedStylesheet()
             local resolvedSkin = resolvedStylesheet.base
             local resolvedClasses = resolvedStylesheet.classes
+            -- Compute once per render: which heading levels (1..5) carry a rule.
+            -- nil means no ruled headings -> every text run uses the fast path.
+            local ruledLevels = HeadingRuleLevels(resolvedSkin)
             -- Page background: paint the content container from the resolved skin.
             -- Re-runs every render (including live stylesheet edits via the monitor).
             -- Unset clears it so a reused panel keeps no stale background and the
@@ -2753,9 +2782,9 @@ function MarkdownDocument.DisplayPanel(self, args)
                             end,
                         }
                     end
-                    local ruledLevels = HeadingRuleLevels(resolvedSkin)
-                    if ruledLevels == nil then
-                        -- Fast path: no ruled headings -> single label, unchanged.
+                    if ruledLevels == nil or not TextHasRuledHeading(token.text, ruledLevels) then
+                        -- Fast path: skin has no ruled headings, or this run
+                        -- contains no ruled heading line -> single label, unchanged.
                         local textPanel = m_textPanels[#newTextPanels + 1] or MakeTextLabel()
 
                         textPanel.selfStyle.halign = token.justification or "left"

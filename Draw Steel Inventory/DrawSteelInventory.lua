@@ -2035,7 +2035,7 @@ function GameHud.CreateInventoryDialog(self, options)
 			children = {
 				gui.Panel{
 					bgimage = 'panels/InventoryArrow.png',
-					className = 'paging-arrow',
+					classes = {'paging-arrow', 'image'},
 					style = {
 						height = '100%',
 						width = '50% height',
@@ -2078,7 +2078,7 @@ function GameHud.CreateInventoryDialog(self, options)
 
 				gui.Panel{
 					bgimage = 'panels/InventoryArrow.png',
-					className = 'paging-arrow',
+					classes = {'paging-arrow', 'image'},
 					style = {
 						scale = {x = -1, y = 1},
 						height = '100%',
@@ -2994,7 +2994,7 @@ function GameHud.CreateInventoryDialog(self, options)
 						children = {
 							gui.Panel{
 								bgimage = 'panels/InventoryArrow.png',
-								className = 'paging-arrow',
+								classes = {'paging-arrow', 'image'},
 								style = {
 									height = '100%',
 									width = '50% height',
@@ -3037,7 +3037,7 @@ function GameHud.CreateInventoryDialog(self, options)
 
 							gui.Panel{
 								bgimage = 'panels/InventoryArrow.png',
-								className = 'paging-arrow',
+								classes = {'paging-arrow', 'image'},
 								style = {
 									scale = {x = -1, y = 1},
 									height = '100%',

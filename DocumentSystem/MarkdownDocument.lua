@@ -931,7 +931,7 @@ local function SkinGapLine(n)
 end
 
 local ApplySkinToText
-ApplySkinToText = function(text, base)
+ApplySkinToText = function(text, base, opts)
     if type(text) ~= "string" or text == "" then return text end
     base = base or {}
     local out = {}
@@ -959,7 +959,8 @@ ApplySkinToText = function(text, base)
             if before then out[#out + 1] = before end
             out[#out + 1] = SkinHeadingMarkup(h, hContent)
             local after = SkinGapLine(h.spaceAfter)
-            if after then out[#out + 1] = after end
+            local ruled = opts and opts.ruledLevels and opts.ruledLevels[#hashes]
+            if after and not ruled then out[#out + 1] = after end
         elseif bmarker ~= nil then
             out[#out + 1] = SkinBulletMarkup(base.bullet, bmarker, bContent)
         elseif onum ~= nil then

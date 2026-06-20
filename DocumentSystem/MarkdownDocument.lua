@@ -884,6 +884,79 @@ local function SkinQuoteText(quote, content)
     return open .. content .. close
 end
 
+-- Set of heading levels (1..6) that have a rule (weight > 0), or nil if none.
+-- Returns nil when NO level has a rule, enabling the fast-path single-label render.
+local function HeadingRuleLevels(skin)
+    local out = nil
+    local hs = (skin and skin.headings) or {}
+    for n = 1, 6 do
+        local r = (hs[n] or {}).rule
+        if r and (r.weight or 0) > 0 then out = out or {}; out[n] = true end
+    end
+    return out
+end
+
+-- Build/refresh a thin rule panel from a heading entry's `rule` sub-table.
+-- `panel` is a reused gui.Panel (or nil to create a new one). Returns the panel.
+local function BuildHeadingRulePanel(panel, h)
+    h = h or {}
+    local r = h.rule or {}
+    panel = panel or gui.Panel { valign = "top", borderBox = true }
+    local ss = panel.selfStyle
+    ss.bgimage = "panels/square.png"
+    ss.bgcolor = SkinColor(r.color) or SkinColor(h.color)  -- nil -> no override
+    ss.height = r.weight or 1
+    ss.width = "100%"
+    ss.lmargin = r.indent or 0
+    ss.rmargin = r.indent or 0
+    ss.tmargin = r.offset or 0          -- heading -> rule gap
+    ss.bmargin = h.spaceAfter or 0      -- rule -> body gap (spaceAfter moves here)
+    return panel
+end
+
+-- Split a text run at ruled heading lines. Returns a list of
+-- { text=..., ruleLevel=n_or_nil } entries; each entry whose ruleLevel is
+-- non-nil ended at (and includes) a heading of that level. The trailing
+-- remainder is its own entry with ruleLevel=nil. A single leading newline is
+-- stripped from non-first trailing segments so the blank markdown separator
+-- line between a heading and the next paragraph does not double the rule
+-- panel bmargin gap.
+local function SplitRunAtRuledHeadings(text, ruledLevels)
+    local segments = {}
+    local accum = {}
+    local start = 1
+    while true do
+        local nl = string.find(text, "\n", start, true)
+        local line
+        if nl == nil then
+            line = string.sub(text, start)
+        else
+            line = string.sub(text, start, nl - 1)
+        end
+        accum[#accum + 1] = line
+        local hashes = string.match(line, "^(#+) ")
+        if hashes ~= nil and #hashes >= 1 and #hashes <= 6 and ruledLevels[#hashes] then
+            segments[#segments + 1] = {
+                text = table.concat(accum, "\n"),
+                ruleLevel = #hashes,
+            }
+            accum = {}
+        end
+        if nl == nil then break end
+        start = nl + 1
+    end
+    if #accum > 0 then
+        local segText = table.concat(accum, "\n")
+        -- Strip one leading newline when this follows a ruled heading: the blank
+        -- markdown line between heading and body is accounted for by bmargin.
+        if #segments > 0 and string.sub(segText, 1, 1) == "\n" then
+            segText = string.sub(segText, 2)
+        end
+        segments[#segments + 1] = { text = segText, ruleLevel = nil }
+    end
+    return segments
+end
+
 -- Build inline TMP markup from a class's `text` block. Mirrors SkinHeadingMarkup
 -- but covers the full class-text vocabulary (italic/underline/strike/mark). An
 -- empty/nil block returns the content unchanged. `font` is intentionally not
@@ -2027,6 +2100,7 @@ function MarkdownDocument.DisplayPanel(self, args)
     local m_tables = {}
     local m_tableRows = {}
     local m_dividers = {}
+    local m_headingRules = {}
     local m_powerTables = {}
     local m_embeds = {}
     local m_treeNodes = {}
@@ -2088,6 +2162,7 @@ function MarkdownDocument.DisplayPanel(self, args)
             local rollableTablesByName = {}
 
             local newDividers = {}
+            local newHeadingRules = {}
 
             local currentRollableTable = nil --the panel controlling the current rollable table.
             local currentTable = nil
@@ -2664,64 +2739,110 @@ function MarkdownDocument.DisplayPanel(self, args)
                             end,
                         }
                     end
-                    local textPanel = m_textPanels[#newTextPanels + 1] or MakeTextLabel()
+                    local ruledLevels = HeadingRuleLevels(resolvedSkin)
+                    if ruledLevels == nil then
+                        -- Fast path: no ruled headings -> single label, unchanged.
+                        local textPanel = m_textPanels[#newTextPanels + 1] or MakeTextLabel()
 
-                    textPanel.selfStyle.halign = token.justification or "left"
+                        textPanel.selfStyle.halign = token.justification or "left"
 
-                    if m_textPanels[#newTextPanels + 1] ~= nil then
-                        textPanel:Unparent()
-                    end
+                        if m_textPanels[#newTextPanels + 1] ~= nil then
+                            textPanel:Unparent()
+                        end
 
-                    local text = token.text
-                    if string.starts_with(text, "\n") then
-                        text = text:sub(2)
-                    end
+                        local text = token.text
+                        if string.starts_with(text, "\n") then
+                            text = text:sub(2)
+                        end
 
-                    --make it so that leading or trailing spaces are non-breaking
-                    if string.starts_with(text, " ") then
-                        text = "<color=#00000000>.</color>" .. text:sub(2)
-                    end
+                        --make it so that leading or trailing spaces are non-breaking
+                        if string.starts_with(text, " ") then
+                            text = "<color=#00000000>.</color>" .. text:sub(2)
+                        end
 
-                    if string.ends_with(text, " ") then
-                        text = text:sub(1, -2) .. "<color=#00000000>.</color>"
-                    end
+                        if string.ends_with(text, " ") then
+                            text = text:sub(1, -2) .. "<color=#00000000>.</color>"
+                        end
 
-                    textPanel.text = ApplySkinToText(ApplyInlineClasses(text, resolvedClasses), resolvedSkin)
-                    newTextPanels[#newTextPanels + 1] = textPanel
+                        textPanel.text = ApplySkinToText(ApplyInlineClasses(text, resolvedClasses), resolvedSkin)
+                        newTextPanels[#newTextPanels + 1] = textPanel
 
-                    --find if the string only has a newline at the end or no newline,
-                    --in which case it can go inline.
-                    if (currentRichRow ~= nil and token.text:match("^[^\n]*\n?$") ~= nil) or (currentRichRow == nil and string.find(token.text, "\n") == nil) then
-                        if currentRichRow == nil then
-                            currentRichRow = m_richRows[#newRichRows + 1] or gui.Panel {
-                                flow = "horizontal",
-                                height = "auto",
-                                vmargin = 0,
-                            }
-                            if m_richRows[#newRichRows + 1] ~= nil then
-                                currentRichRow:Unparent()
+                        --find if the string only has a newline at the end or no newline,
+                        --in which case it can go inline.
+                        if (currentRichRow ~= nil and token.text:match("^[^\n]*\n?$") ~= nil) or (currentRichRow == nil and string.find(token.text, "\n") == nil) then
+                            if currentRichRow == nil then
+                                currentRichRow = m_richRows[#newRichRows + 1] or gui.Panel {
+                                    flow = "horizontal",
+                                    height = "auto",
+                                    vmargin = 0,
+                                }
+                                if m_richRows[#newRichRows + 1] ~= nil then
+                                    currentRichRow:Unparent()
+                                end
+                                currentRichRow.selfStyle.width = "100%"
+                                currentRichRow.selfStyle.valign = "top"
+                                currentRichRow.selfStyle.maxWidth = nil
+                                currentRichRow.data.children = {}
+                                newRichRows[#newRichRows + 1] = currentRichRow
+                                children[#children + 1] = currentRichRow
                             end
-                            currentRichRow.selfStyle.width = "100%"
-                            currentRichRow.selfStyle.valign = "top"
-                            currentRichRow.selfStyle.maxWidth = nil
-                            currentRichRow.data.children = {}
-                            newRichRows[#newRichRows + 1] = currentRichRow
-                            children[#children + 1] = currentRichRow
+
+                            if token.justification then
+                                currentRichRow.selfStyle.width = "100%"
+                            end
+
+                            textPanel.selfStyle.valign = "center"
+                            currentRichRow.data.children[#currentRichRow.data.children + 1] = textPanel
+                        else
+                            textPanel.selfStyle.valign = "top"
+                            children[#children + 1] = textPanel
                         end
 
-                        if token.justification then
-                            currentRichRow.selfStyle.width = "100%"
+                        if currentRichRow ~= nil and string.find(token.text, "\n") then
+                            currentRichRow = nil
                         end
-
-                        textPanel.selfStyle.valign = "center"
-                        currentRichRow.data.children[#currentRichRow.data.children + 1] = textPanel
                     else
-                        textPanel.selfStyle.valign = "top"
-                        children[#children + 1] = textPanel
-                    end
-
-                    if currentRichRow ~= nil and string.find(token.text, "\n") then
+                        -- Split path: ruled headings present; emit one label per
+                        -- segment and a rule panel after each ruled-heading segment.
+                        -- Does NOT use the rich-row inline branch (block content).
                         currentRichRow = nil
+                        local text = token.text
+                        if string.starts_with(text, "\n") then
+                            text = text:sub(2)
+                        end
+                        if string.starts_with(text, " ") then
+                            text = "<color=#00000000>.</color>" .. text:sub(2)
+                        end
+                        if string.ends_with(text, " ") then
+                            text = text:sub(1, -2) .. "<color=#00000000>.</color>"
+                        end
+                        local segments = SplitRunAtRuledHeadings(text, ruledLevels)
+                        for _, seg in ipairs(segments) do
+                            local label = m_textPanels[#newTextPanels + 1] or MakeTextLabel()
+                            label.selfStyle.halign = token.justification or "left"
+                            if m_textPanels[#newTextPanels + 1] ~= nil then
+                                label:Unparent()
+                            end
+                            label.selfStyle.valign = "top"
+                            label.text = ApplySkinToText(
+                                ApplyInlineClasses(seg.text, resolvedClasses),
+                                resolvedSkin,
+                                { ruledLevels = ruledLevels })
+                            newTextPanels[#newTextPanels + 1] = label
+                            children[#children + 1] = label
+                            if seg.ruleLevel ~= nil then
+                                local h = (resolvedSkin.headings or {})[seg.ruleLevel]
+                                local rulePanel = m_headingRules[#newHeadingRules + 1]
+                                if rulePanel == nil then
+                                    rulePanel = BuildHeadingRulePanel(nil, h)
+                                else
+                                    BuildHeadingRulePanel(rulePanel, h)
+                                    rulePanel:Unparent()
+                                end
+                                newHeadingRules[#newHeadingRules + 1] = rulePanel
+                                children[#children + 1] = rulePanel
+                            end
+                        end
                     end
                 elseif token.type == "blockquote" then
                     currentRichRow = nil
@@ -2938,6 +3059,7 @@ function MarkdownDocument.DisplayPanel(self, args)
             m_tableRows = newTableRows
             m_tables = newTables
             m_dividers = newDividers
+            m_headingRules = newHeadingRules
             m_powerTables = newPowerTables
             m_embeds = newEmbeds
             m_treeNodes = newTreeNodes

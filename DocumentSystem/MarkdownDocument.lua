@@ -72,6 +72,7 @@ local g_defaultSkin = {
         rollableTable = { box = {}, inner = {} },
         collapse      = { box = {}, inner = {} },
     },
+    embed   = { box = {} },
 }
 
 -- Read-only accessor (deep copy) so callers/tests cannot mutate the canonical
@@ -110,7 +111,7 @@ local function MergeSkin(parent, child)
         out.headings[level] = MergeSection(ph[level], ch[level])
     end
     -- single-section keys
-    for _, key in ipairs({"body", "bullet", "ordered", "quote", "rule", "link", "page"}) do
+    for _, key in ipairs({"body", "bullet", "ordered", "quote", "rule", "link", "page", "embed"}) do
         out[key] = MergeSection(parent and parent[key], child[key])
     end
     -- blocks: per-block-type box merge (each block type has its own box override)
@@ -2324,6 +2325,7 @@ function MarkdownDocument.DisplayPanel(self, args)
                     end
 
                     if newEmbeds[embed] ~= false then
+                        ApplyBlockFrame(newEmbeds[embed], (resolvedSkin.embed or {}).box)
                         children[#children + 1] = newEmbeds[embed]
                     end
                 elseif token.type == "power_roll" then

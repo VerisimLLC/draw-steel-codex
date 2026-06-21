@@ -2863,7 +2863,9 @@ function MarkdownDocument.DisplayPanel(self, args)
                             textPanel.selfStyle.valign = "center"
                             currentRichRow.data.children[#currentRichRow.data.children + 1] = textPanel
                         else
-                            textPanel.selfStyle.width = usesAlign and "100%" or "auto"
+                            -- Only widen for stylesheet alignment when the author did not set an explicit
+                            -- :>/:<> justification (which positions an auto-width label via panel halign).
+                            textPanel.selfStyle.width = (usesAlign and not token.justification) and "100%" or "auto"
                             textPanel.selfStyle.valign = "top"
                             children[#children + 1] = textPanel
                         end
@@ -2893,7 +2895,9 @@ function MarkdownDocument.DisplayPanel(self, args)
                             if m_textPanels[#newTextPanels + 1] ~= nil then
                                 label:Unparent()
                             end
-                            label.selfStyle.width = usesAlign and "100%" or "auto"
+                            -- Only widen for stylesheet alignment when the author did not set an explicit
+                            -- :>/:<> justification (which positions an auto-width label via panel halign).
+                            label.selfStyle.width = (usesAlign and not token.justification) and "100%" or "auto"
                             label.selfStyle.valign = "top"
                             label.text = ApplySkinToText(
                                 ApplyInlineClasses(seg.text, resolvedClasses),

@@ -909,6 +909,18 @@ local function HeadingRuleLevels(skin)
     return out
 end
 
+-- True if the resolved skin sets a recognized align on any text element
+-- (headings 1..5, body, bullet, ordered). Used to widen block text labels so
+-- short lines have room to align.
+local function SkinUsesAlign(skin)
+    if skin == nil then return false end
+    local function has(sec) return sec ~= nil and g_alignTMP[sec.align] ~= nil end
+    if has(skin.body) or has(skin.bullet) or has(skin.ordered) then return true end
+    local hs = skin.headings or {}
+    for n = 1, 5 do if has(hs[n]) then return true end end
+    return false
+end
+
 -- Build/refresh a thin rule panel from a heading entry's `rule` sub-table.
 -- `panel` is a reused gui.Panel (or nil to create a new one). Returns the panel.
 local function BuildHeadingRulePanel(panel, h)
@@ -2243,6 +2255,7 @@ function MarkdownDocument.DisplayPanel(self, args)
             -- Compute once per render: which heading levels (1..5) carry a rule.
             -- nil means no ruled headings -> every text run uses the fast path.
             local ruledLevels = HeadingRuleLevels(resolvedSkin)
+            local usesAlign = SkinUsesAlign(resolvedSkin)
             -- Page background: paint the content container from the resolved skin.
             -- Re-runs every render (including live stylesheet edits via the monitor).
             -- Unset clears it so a reused panel keeps no stale background and the
@@ -2846,9 +2859,11 @@ function MarkdownDocument.DisplayPanel(self, args)
                                 currentRichRow.selfStyle.width = "100%"
                             end
 
+                            textPanel.selfStyle.width = "auto"
                             textPanel.selfStyle.valign = "center"
                             currentRichRow.data.children[#currentRichRow.data.children + 1] = textPanel
                         else
+                            textPanel.selfStyle.width = usesAlign and "100%" or "auto"
                             textPanel.selfStyle.valign = "top"
                             children[#children + 1] = textPanel
                         end
@@ -2878,6 +2893,7 @@ function MarkdownDocument.DisplayPanel(self, args)
                             if m_textPanels[#newTextPanels + 1] ~= nil then
                                 label:Unparent()
                             end
+                            label.selfStyle.width = usesAlign and "100%" or "auto"
                             label.selfStyle.valign = "top"
                             label.text = ApplySkinToText(
                                 ApplyInlineClasses(seg.text, resolvedClasses),

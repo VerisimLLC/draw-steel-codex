@@ -2,6 +2,11 @@ local mod = dmhub.GetModLoading()
 
 local CreateDiceStudioPanel
 
+-- The root panel of the currently-open Dice Studio dockable, captured in CreateDiceStudioPanel
+-- and cleared on its destroy. Lets RefreshDiceStudioInterface() drive a full widget re-sync from
+-- outside the panel (e.g. after mutating dicestudio.* from a dice script or the MCP bridge).
+local g_studioPanelRoot = nil
+
 print("DiceStudio:: Register")
 DockablePanel.Register{
 	name = "Dice Studio",
@@ -19,6 +24,24 @@ local function RefreshDice()
 	dmhub.SetSettingValue("diceequipped", "xxx")
 	dmhub.SetSettingValue("diceequipped", save)
 	dicestudio:UpdateMaterial()
+end
+
+-- Re-syncs the open Dice Studio panel's widgets to the live dice set, exactly as picking a set in
+-- the "Dice:" dropdown does: bump the 3D preview (RefreshDice), then broadcast "newmaterial"
+-- (rebuilds the material/particle/sound rows from current values) and "refreshDice" (re-reads the
+-- per-property widgets and the 2D preview chips). Call this after mutating dicestudio.* from
+-- outside the panel's own event handlers -- e.g. a dice script edit, a chat macro, or the MCP
+-- bridge -- so the panel reflects the change instead of showing stale slider/dropdown/chip values.
+-- Global on purpose so it is reachable from those external contexts. No-op (returns false) when
+-- the panel is closed; returns true when it drove a refresh.
+function RefreshDiceStudioInterface()
+	RefreshDice()
+	if g_studioPanelRoot == nil or not g_studioPanelRoot.valid then
+		return false
+	end
+	g_studioPanelRoot:FireEventTree("newmaterial")
+	g_studioPanelRoot:FireEventTree("refreshDice")
+	return true
 end
 
 -- Remembers which dice set was last opened in Dice Studio so it reopens on the same
@@ -2142,6 +2165,14 @@ end
 		height = "auto",
 		flow = "vertical",
 
+		-- Drop the captured root when the panel is torn down, so RefreshDiceStudioInterface()
+		-- no-ops instead of firing events at a destroyed element tree.
+		destroy = function(element)
+			if g_studioPanelRoot == element then
+				g_studioPanelRoot = nil
+			end
+		end,
+
 		gui.Label{
 			classes = {"panelTitle"},
             fontSize = 18,
@@ -3097,6 +3128,8 @@ end
 		scriptSection,
 
 	}
+
+	g_studioPanelRoot = resultPanel
 
 	return resultPanel
 end

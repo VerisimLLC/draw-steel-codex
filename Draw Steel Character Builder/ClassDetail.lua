@@ -272,6 +272,27 @@ function CBClassDetail._overviewPanel()
         }
     }
 
+    local masterClassLabel = gui.Panel{
+        classes = {"builder-base", "panel-base", "detail-overview-labels", "collapsed"},
+        gui.Label{
+            classes = {"builder-base", "label", "info", "overview"},
+            fontSize = 30,
+            text = "Master Class",
+            refreshBuilderState = function(element, state)
+                local isMaster = false
+                local classId = state:Get(SELECTOR .. ".selectedId")
+                if classId then
+                    local class = state:Get(SELECTOR .. ".selectedItem")
+                    if not class then
+                        class = dmhub.GetTable(Class.tableName)[classId]
+                    end
+                    if class then isMaster = class:try_get("isMasterClass", false) end
+                end
+                element.parent:SetClass("collapsed", not isMaster)
+            end,
+        }
+    }
+
     local introLabel = gui.Panel{
         classes = {"builder-base", "panel-base", "detail-overview-labels"},
         refreshBuilderState = function(element, state)
@@ -403,6 +424,7 @@ function CBClassDetail._overviewPanel()
 
             spacerPanel,
             nameLabel,
+            masterClassLabel,
             introLabel,
             detailLabel,
         }

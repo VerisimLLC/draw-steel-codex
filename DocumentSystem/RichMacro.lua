@@ -149,14 +149,11 @@ function RichMacro.CreateDisplay(self)
             if doc ~= nil then
                 buttonSkin = (doc:GetResolvedStylesheet().base or {}).button
             end
-            -- Assigning nil to element.styles is not accepted by the engine;
-            -- only assign when the helper returns a non-nil table. On a fresh
-            -- button with no skin configured this is a no-op, leaving styles
-            -- at the engine default (nil), which is what backward-compat needs.
-            local buttonStyles = MacroButtonStyles(buttonSkin)
-            if buttonStyles ~= nil then
-                element.styles = buttonStyles
-            end
+            -- Apply the resolved button skin every render. A nil result means
+            -- "no button styling" -> assign an empty table to CLEAR any prior
+            -- styles (reverting to the engine-default look). Never assign nil:
+            -- the engine's set_styles rejects non-table values.
+            element.styles = MacroButtonStyles(buttonSkin) or {}
         end,
         press = function(element)
             if m_strike ~= "~" then

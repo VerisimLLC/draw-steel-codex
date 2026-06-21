@@ -44,6 +44,12 @@ function dataDiagnostics.DumpMipChain()
 	-- dummy implementation for documentation purposes only
 end
 
+--- DumpRasterMeshBounds: Diagnostic: For each MapRasterMesh on the current floor, dump its height (local Z) range, mesh bounds, whether Unity considers it visible, and whether its RAW height-based bounds (pre z==0 fix) would survive the main camera frustum. Reveals deep flat elevation chunks that get frustum-culled into black holes because the terrain shader renders them at z==0 while Unity culls them at their raw height.
+--- @return string Per-chunk visibility/bounds report plus the camera frustum parameters.
+function dataDiagnostics.DumpRasterMeshBounds()
+	-- dummy implementation for documentation purposes only
+end
+
 --- ToggleRasterMeshes: Diagnostic: Toggle the MeshRenderer of all MapRasterMesh objects in the scene to confirm whether they are drawing the visible water texture.
 --- @param enabled boolean Whether MapRasterMesh renderers should be enabled.
 --- @return number Count of renderers toggled.

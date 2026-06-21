@@ -180,6 +180,17 @@ local panelVar
 panelVar = gui.Panel{ click = function() panelVar:SetClass("hidden", true) end }
 ```
 
+**`cond(a, b, c)` is a function, not a ternary -- it does NOT short-circuit.** It is defined as `function cond(a,b,c) if a then return b else return c end`, so Lua evaluates `a`, `b`, AND `c` before the call. Never put an expression that can error in the branch you expect to be skipped:
+```lua
+-- WRONG: "The " .. token.name is evaluated even when canSeeName is false,
+-- so a nil name throws "concatenate a nil value (field 'name')" regardless.
+local s = cond(token.canLocalPlayerSeeName, "The " .. token.name, "This creature")
+
+-- RIGHT: use a real if/else when either branch can error (e.g. nil concat/index)
+local s = "This creature"
+if token.canLocalPlayerSeeName and token.name ~= nil then s = "The " .. token.name end
+```
+
 ## Monster Reference Documentation
 
 **[monster-reference.md](monster-reference.md)** contains the complete stat blocks for every monster in Draw Steel Book Two: Monsters. Use this as the authoritative source when implementing or auditing monster YAML files in `compendium/bestiary/`. It includes all abilities, traits, villain actions, malice features, power roll tiers, and stat tables for every creature.

@@ -856,19 +856,28 @@ end
 
 -- Unordered bullet. `defmarker` is the original marker character ("-" or "*"),
 -- used as the glyph when no skin glyph is set so unstyled journals are unchanged.
-local function SkinBulletMarkup(bullet, defmarker, content)
+local function SkinBulletMarkup(bullet, defmarker, content, bodyColor)
     bullet = bullet or {}
     local glyph = bullet.glyph
     if glyph == nil or glyph == false or glyph == "" then glyph = defmarker end
-    local color = SkinColor(bullet.color)
+    local bodyCol = SkinColor(bodyColor)
+    -- Marker uses its own color if set, else the body text color so it stays as
+    -- readable as the item text.
+    local markerColor = SkinColor(bullet.color) or bodyCol
     local indent = bullet.indent or 0
     local prefix
-    if color then
-        prefix = string.format("<color=%s>%s</color>", color, glyph)
+    if markerColor then
+        prefix = string.format("<color=%s>%s</color>", markerColor, glyph)
     else
         prefix = glyph
     end
-    local line = prefix .. " " .. content
+    -- Item text inherits the body color so list items read the same as body
+    -- paragraphs. Default skin (body color unset) emits no tag -> unchanged.
+    local body = content
+    if bodyCol then
+        body = string.format("<color=%s>%s</color>", bodyCol, content)
+    end
+    local line = prefix .. " " .. body
     if indent ~= 0 then
         line = string.format("<indent=%dpx>%s</indent>", indent, line)
     end
@@ -876,17 +885,24 @@ local function SkinBulletMarkup(bullet, defmarker, content)
 end
 
 -- Ordered list item. `marker` is the literal "N." token. Default = unchanged.
-local function SkinOrderedMarkup(ordered, marker, content)
+local function SkinOrderedMarkup(ordered, marker, content, bodyColor)
     ordered = ordered or {}
-    local color = SkinColor(ordered.color)
+    local bodyCol = SkinColor(bodyColor)
+    -- Marker uses its own color if set, else the body text color (readable).
+    local markerColor = SkinColor(ordered.color) or bodyCol
     local indent = ordered.indent or 0
     local prefix
-    if color then
-        prefix = string.format("<color=%s>%s</color>", color, marker)
+    if markerColor then
+        prefix = string.format("<color=%s>%s</color>", markerColor, marker)
     else
         prefix = marker
     end
-    local line = prefix .. " " .. content
+    -- Item text inherits the body color (default skin: unset -> no tag).
+    local body = content
+    if bodyCol then
+        body = string.format("<color=%s>%s</color>", bodyCol, content)
+    end
+    local line = prefix .. " " .. body
     if indent ~= 0 then
         line = string.format("<indent=%dpx>%s</indent>", indent, line)
     end
@@ -1095,6 +1111,7 @@ ApplySkinToText = function(text, base, opts)
         start = nl + 1
     end
     local bodyPS = (base.body or {}).paragraphSpacing
+    local bodyColor = (base.body or {}).color
     for _, line in ipairs(lines) do
         local hashes, hContent = string.match(line, "^(#+) (.*)$")
         local bmarker, bContent = string.match(line, "^([%-%*]) (.*)$")
@@ -1108,9 +1125,9 @@ ApplySkinToText = function(text, base, opts)
             local ruled = opts and opts.ruledLevels and opts.ruledLevels[#hashes]
             if after and not ruled then out[#out + 1] = after end
         elseif bmarker ~= nil then
-            out[#out + 1] = SkinBulletMarkup(base.bullet, bmarker, bContent)
+            out[#out + 1] = SkinBulletMarkup(base.bullet, bmarker, bContent, bodyColor)
         elseif onum ~= nil then
-            out[#out + 1] = SkinOrderedMarkup(base.ordered, onum, oContent)
+            out[#out + 1] = SkinOrderedMarkup(base.ordered, onum, oContent, bodyColor)
         elseif line == "" then
             local gap = SkinGapLine(bodyPS)
             out[#out + 1] = gap or SkinBodyMarkup(base.body, line)

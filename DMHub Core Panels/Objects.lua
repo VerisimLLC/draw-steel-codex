@@ -2268,3 +2268,196 @@ dmhub.ObjectEditingEnabled = function()
 
 
 end
+
+-- Live image editing dialog: appears (parented to the world dialog layer, like the vision
+-- perspective dialog) whenever there are active "Live Edit Image" sessions, listing each one with
+-- its state and the appropriate actions. Driven by dmhub.LiveEditSessionsUpdated (fired from C#).
+local liveEditDialog = nil
+
+local CreateLiveEditSessionRow = function(session)
+	local objid = session.objid
+	local changesPending = session.changesPending
+	local uploading = session.uploading
+
+	local statusText
+	local statusColor
+	local buttonsPanel
+
+	if uploading then
+		statusText = "Uploading..."
+		statusColor = "#7fd0ff"
+	elseif changesPending then
+		statusText = "Changes made"
+		statusColor = "#ffd24a"
+		buttonsPanel = gui.Panel{
+			width = "auto",
+			height = "auto",
+			flow = "horizontal",
+			halign = "center",
+			vmargin = 4,
+			gui.PrettyButton{
+				text = "Upload Changes",
+				width = 150,
+				height = 30,
+				fontSize = 14,
+				hmargin = 4,
+				click = function(element)
+					dmhub.UploadLiveEditChanges(objid)
+				end,
+			},
+			gui.PrettyButton{
+				text = "Revert Changes",
+				width = 150,
+				height = 30,
+				fontSize = 14,
+				hmargin = 4,
+				click = function(element)
+					dmhub.RevertLiveEditChanges(objid)
+				end,
+			},
+		}
+	else
+		statusText = "Awaiting changes"
+		statusColor = "#bbbbbb"
+		buttonsPanel = gui.Panel{
+			width = "auto",
+			height = "auto",
+			flow = "horizontal",
+			halign = "center",
+			vmargin = 4,
+			gui.PrettyButton{
+				text = "Close",
+				width = 150,
+				height = 30,
+				fontSize = 14,
+				hmargin = 4,
+				click = function(element)
+					dmhub.CloseLiveEditSession(objid)
+				end,
+			},
+		}
+	end
+
+	local errorLabel = nil
+	if session.error ~= nil then
+		errorLabel = gui.Label{
+			width = "100%",
+			height = "auto",
+			color = "#ff6666",
+			fontSize = 12,
+			bmargin = 2,
+			text = session.error,
+		}
+	end
+
+	return gui.Panel{
+		width = "100%",
+		height = "auto",
+		flow = "vertical",
+		vmargin = 6,
+		hpad = 12,
+		borderBox = true,
+
+		gui.Label{
+			width = "100%",
+			height = "auto",
+			color = "white",
+			fontSize = 15,
+			bold = true,
+			text = session.name,
+		},
+
+		gui.Label{
+			width = "100%",
+			height = "auto",
+			color = statusColor,
+			fontSize = 13,
+			bmargin = 2,
+			text = statusText,
+		},
+
+		errorLabel,
+
+		buttonsPanel,
+	}
+end
+
+dmhub.LiveEditSessionsUpdated = function()
+	local sessions = dmhub.liveEditSessions
+
+	if sessions == nil then
+		if liveEditDialog ~= nil then
+			if liveEditDialog.valid then
+				liveEditDialog:DestroySelf()
+			end
+			liveEditDialog = nil
+		end
+		return
+	end
+
+	if liveEditDialog == nil or (not liveEditDialog.valid) then
+		liveEditDialog = gui.Panel{
+			styles = ThemeEngine.GetStyles(),
+			classes = {"framedPanel"},
+
+			halign = "left",
+			valign = "top",
+
+			width = 360,
+			height = "auto",
+			vmargin = 64,
+			hmargin = 16,
+
+			flow = "vertical",
+
+			draggable = true,
+			drag = function(element)
+				element.x = element.xdrag
+				element.y = element.ydrag
+			end,
+
+			destroy = function(element)
+				if liveEditDialog == element then
+					liveEditDialog = nil
+				end
+			end,
+
+			gui.Panel{
+				margin = 8,
+				halign = "center",
+				valign = "center",
+				flow = "vertical",
+				width = "auto",
+				height = "auto",
+				gui.Label{
+					width = "auto",
+					height = "auto",
+					halign = "center",
+					valign = "center",
+					color = "white",
+					fontSize = 18,
+					text = "Live Image Editing",
+				},
+			},
+
+			gui.Panel{
+				width = "100%",
+				height = "auto",
+				flow = "vertical",
+				halign = "center",
+
+				refreshLiveEdit = function(element)
+					local newChildren = {}
+					for _,session in ipairs(dmhub.liveEditSessions or {}) do
+						newChildren[#newChildren+1] = CreateLiveEditSessionRow(session)
+					end
+					element.children = newChildren
+				end,
+			},
+		}
+
+		gamehud.dialogWorldPanel:AddChild(liveEditDialog)
+	end
+
+	liveEditDialog:FireEventTree("refreshLiveEdit")
+end

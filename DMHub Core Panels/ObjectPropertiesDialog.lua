@@ -2688,6 +2688,118 @@ local CreateObjectEditor = function(nodes, options)
 		--]]
 	end
 
+	local liveEditPanel = nil
+	if options.objectInstances and #nodes == 1 then
+		local function ShowReplaceImageError(msg)
+			local errModal
+			errModal = gui.Panel{
+				classes = {"framedPanel"},
+				styles = ThemeEngine.GetStyles(),
+				width = 440,
+				height = "auto",
+				halign = "center",
+				valign = "center",
+				flow = "vertical",
+				pad = 20,
+				borderBox = true,
+				gui.Label{
+					width = "100%",
+					height = "auto",
+					halign = "center",
+					color = "white",
+					fontSize = 18,
+					bold = true,
+					bmargin = 10,
+					text = "Replace Image Failed",
+				},
+				gui.Label{
+					width = "100%",
+					height = "auto",
+					halign = "center",
+					color = "#ff8888",
+					fontSize = 14,
+					bmargin = 16,
+					text = msg,
+				},
+				gui.PrettyButton{
+					text = "OK",
+					width = 120,
+					height = 32,
+					fontSize = 14,
+					halign = "center",
+					click = function(element)
+						gui.CloseModal()
+					end,
+				},
+			}
+			gui.ShowModal(errModal)
+		end
+
+		local liveEditButton = nil
+		if dmhub.patronTier > 0 then
+			liveEditButton = gui.PrettyButton{
+				text = "Live Edit",
+				width = 130,
+				height = 28,
+				fontSize = 14,
+				vmargin = 3,
+				click = function(element)
+					nodes[1]:LiveEdit()
+				end,
+			}
+		end
+
+		liveEditPanel = gui.Panel{
+			classes = {"sectionPanel", "bordered", cond(options.blueprint, "big")},
+			bgimage = true,
+			height = 72,
+			flow = "horizontal",
+			valign = "top",
+
+			gui.Panel{
+				bgimage = nodes[1].displayImageId,
+				bgcolor = "white",
+				width = 48,
+				height = 48,
+				halign = "left",
+				valign = "center",
+				hmargin = 8,
+				refreshObjects = function(element)
+					element.bgimage = nodes[1].displayImageId
+				end,
+			},
+
+			gui.Panel{
+				width = "auto",
+				height = "auto",
+				flow = "vertical",
+				halign = "right",
+				valign = "center",
+				hmargin = 8,
+
+				liveEditButton,
+
+				gui.PrettyButton{
+					text = "Replace Image",
+					width = 130,
+					height = 28,
+					fontSize = 14,
+					vmargin = 3,
+					click = function(element)
+						dmhub.OpenFileDialog{
+							id = "replaceObjectImage",
+							extensions = {"png", "jpg", "jpeg", "webp"},
+							prompt = "Choose a replacement image",
+							open = function(path)
+								nodes[1]:ReplaceImageFromFile(path, ShowReplaceImageError)
+							end,
+						}
+					end,
+				},
+			},
+		}
+	end
+
 	editorPanel = gui.Panel{
 		classes = {'editor-panel'},
 		children = {
@@ -2695,6 +2807,7 @@ local CreateObjectEditor = function(nodes, options)
 			namePanel,
 			childObjectsPanel,
 			idPanel,
+			liveEditPanel,
 			keywordsPanel,
 			previewImage,
 			previewSelector,

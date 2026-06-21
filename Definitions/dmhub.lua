@@ -9,6 +9,7 @@
 --- @field whiteLabelAppName string The name of the app the engine is running as, suitable for showing to users.
 --- @field cloudFunctionsBaseUrl string Base URL for Firebase cloud functions for the current whitelabel project (e.g. https://us-central1-mcdm-385cf.cloudfunctions.net). Append the function name with a leading slash.
 --- @field platform string The platform the engine is running on. Returns 'windows', 'macOS', or 'linux'.
+--- @field applicationsFolder string The default OS folder where applications/executables live: Program Files on Windows, /Applications on macOS, /usr/bin on Linux. Handy as the 'directory' for a file dialog browsing for an executable.
 --- @field nodiagonals boolean If true, the game rules are set up to have no pythagorean theorem when calculating diagonals.
 --- @field betaBranch nil|string Which branch the app is opted-in to updating from. This is not relevant if the app is being updated from Steam, Itch, or similar.
 --- @field GetSelectedCharacters fun(): string[]|nil A function that can be set to tell the engine which characters are currently selected. Returns a list of token ids.
@@ -28,6 +29,9 @@
 --- @field SelectionToolEnabled fun(): boolean A function that returns whether the selection tool is currently enabled in the UI.
 --- @field GetActiveClipboardItem fun(): ClipboardItem A function that returns the currently active clipboard item, if any.
 --- @field TokenVisionUpdated fun(): nil A function that is called when token vision has been recalculated and updated.
+--- @field LiveEditSessionsUpdated fun(): nil A function that is called when the set of active image live-edit sessions changes, or when a session's state changes (a change detected, uploaded, reverted, or closed).
+--- @field PromptImageEditorSetup fun(floorid: string, objid: string): nil A function that is called when a live-edit is requested but the image editor isn't set up (first use) or the configured editor can't be found. The handler should show the image-editor setup UI, then call dmhub.StartLiveEditForObject(floorid, objid) once the user confirms.
+--- @field liveEditSessions nil|{objid: string, name: string, imageId: string, changesPending: boolean, uploading: boolean, error: string|nil}[] The active image live-edit sessions, or nil when there are none. imageId is the live (updating) thumbnail; changesPending is true once a saved change has not yet been uploaded; uploading is true while an upload is in flight; error holds the most recent upload error message if any.
 --- @field GetFocus fun(): Panel|nil A function that returns the currently focused UI panel, or nil if nothing is focused.
 --- @field CreateLootComponent fun(): table A function that creates a loot component table for attaching to an object.
 --- @field CreateTextComponent fun(): table A function that creates a text component table for attaching to an object.
@@ -259,9 +263,40 @@ function dmhub.CreateObjectImporter(options)
 	-- dummy implementation for documentation purposes only
 end
 
---- OpenFileDialog: Opens an operating system file dialog. id should uniquely identify this 'kind' of file open operation. The folder the user navigates to will be saved and future calls to this function with the same id will begin in that folder. The open callback will be called once for each file opened. If multiFiles is true, then openFiles will be called with a list of files opened. If the user cancels the interaction without opening a file, the cancel callback will be called. Extensions should contain possible file types that may be open, it should be in a format like {'wav', 'mp3', 'ogg'}
---- @param options {id: string, extensions: string[], multiFiles: boolean, prompt: string, open: nil|(fun(path: string): nil), openFiles: nil|(fun(paths: string[]): nil), cancel: nil|(fun(): nil)}
+--- OpenFileDialog: Opens an operating system file dialog. id should uniquely identify this 'kind' of file open operation. The folder the user navigates to will be saved and future calls to this function with the same id will begin in that folder. The optional directory sets the starting folder the first time this id is used (before the user has navigated anywhere); it defaults to the user's Documents folder. The open callback will be called once for each file opened. If multiFiles is true, then openFiles will be called with a list of files opened. If the user cancels the interaction without opening a file, the cancel callback will be called. Extensions should contain possible file types that may be open, it should be in a format like {'wav', 'mp3', 'ogg'}
+--- @param options {id: string, extensions: string[], directory: nil|string, multiFiles: boolean, prompt: string, open: nil|(fun(path: string): nil), openFiles: nil|(fun(paths: string[]): nil), cancel: nil|(fun(): nil)}
 function dmhub.OpenFileDialog(options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- DetectImageEditors: Returns image-editing applications detected as installed on the user's machine, each as a table with 'name' (friendly display name) and 'path' (full executable path), sorted by name. Detection currently only works on Windows; other platforms return an empty list.
+--- @return {name: string, path: string}[]
+function dmhub.DetectImageEditors()
+	-- dummy implementation for documentation purposes only
+end
+
+--- UploadLiveEditChanges: Uploads the pending changes for the given object's live-edit session. The session stays active so further edits can be made.
+--- @param objid string
+function dmhub.UploadLiveEditChanges(objid)
+	-- dummy implementation for documentation purposes only
+end
+
+--- RevertLiveEditChanges: Aborts the given object's live-edit session, restoring the original image and discarding all changes made during the session.
+--- @param objid string
+function dmhub.RevertLiveEditChanges(objid)
+	-- dummy implementation for documentation purposes only
+end
+
+--- CloseLiveEditSession: Closes the given object's live-edit session, keeping the most recently uploaded image (or the original if nothing was uploaded).
+--- @param objid string
+function dmhub.CloseLiveEditSession(objid)
+	-- dummy implementation for documentation purposes only
+end
+
+--- StartLiveEditForObject: Starts a live-edit session for the object with the given floor/object id. Used by the image-editor setup prompt to begin live editing once the user has chosen an editor.
+--- @param floorid string
+--- @param objid string
+function dmhub.StartLiveEditForObject(floorid, objid)
 	-- dummy implementation for documentation purposes only
 end
 

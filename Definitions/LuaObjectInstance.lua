@@ -1,6 +1,7 @@
 --- @class LuaObjectInstance 
 --- @field id string 
---- @field imageid string 
+--- @field imageid string
+--- @field displayImageId string The object's current base image id in a form usable as a bgimage; always reflects the object's actual current image (updates after a live-edit upload or Replace Image), unlike imageid which returns the source blueprint/asset id for blueprinted objects.
 --- @field assetid string 
 --- @field parentid string 
 --- @field childids any 
@@ -103,6 +104,20 @@ end
 --- @param cmdgroupid string?
 --- @return nil
 function LuaObjectInstance:Upload(cmdgroupid)
+	-- dummy implementation for documentation purposes only
+end
+
+--- LiveEdit: Starts a live-edit session for this object's image, opening it in the configured external image editor; the live-edit dialog then tracks the session. No-op if the object is not on a currently loaded floor.
+--- @return nil
+function LuaObjectInstance:LiveEdit()
+	-- dummy implementation for documentation purposes only
+end
+
+--- ReplaceImageFromFile: Replaces this object's image with the image file at the given path, uploading it to the cloud and pointing the object at the new image. onError, if provided, is called with a message string if the file cannot be read or the upload fails.
+--- @param filePath string
+--- @param onError nil|(fun(message: string): nil)
+--- @return nil
+function LuaObjectInstance:ReplaceImageFromFile(filePath, onError)
 	-- dummy implementation for documentation purposes only
 end
 

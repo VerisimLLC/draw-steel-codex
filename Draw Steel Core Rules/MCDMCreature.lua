@@ -4426,7 +4426,10 @@ function DamageModifierChatMessage.Render(self, message)
         if dt ~= nil and dt ~= "" and string.lower(dt) ~= "all" then
             typeWord = string.lower(dt) .. " "
         end
-        local vname = cond(victimToken.canLocalPlayerSeeName, "The " .. victimToken.name, "This creature")
+        local vname = "This creature"
+        if victimToken.canLocalPlayerSeeName and victimToken.name ~= nil then
+            vname = "The " .. victimToken.name
+        end
         hoverDescription = string.format("%s has %sdamage %s %d", vname, typeWord,
             cond(immunity, "immunity", "weakness"), math.abs(rating))
     end

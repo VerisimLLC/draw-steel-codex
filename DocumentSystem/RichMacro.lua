@@ -139,6 +139,24 @@ function RichMacro.CreateDisplay(self)
             end
 
             element.text = text
+
+            -- Apply the stylesheet's button skin (resting + hover/pressed) from
+            -- the host document. Unset/no-document -> nil styles -> the button
+            -- keeps its engine-default look (backward-safe). refreshTag fires
+            -- every render, so live stylesheet edits flow through.
+            local doc = self:GetDocument()
+            local buttonSkin = nil
+            if doc ~= nil then
+                buttonSkin = (doc:GetResolvedStylesheet().base or {}).button
+            end
+            -- Assigning nil to element.styles is not accepted by the engine;
+            -- only assign when the helper returns a non-nil table. On a fresh
+            -- button with no skin configured this is a no-op, leaving styles
+            -- at the engine default (nil), which is what backward-compat needs.
+            local buttonStyles = MacroButtonStyles(buttonSkin)
+            if buttonStyles ~= nil then
+                element.styles = buttonStyles
+            end
         end,
         press = function(element)
             if m_strike ~= "~" then

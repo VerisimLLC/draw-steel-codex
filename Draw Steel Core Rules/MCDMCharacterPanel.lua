@@ -1068,6 +1068,14 @@ TacPanelStyles.HeroicResources = ThemeEngine.MergeTokens{
         brightness = 1.3,
         bgcolor = "@bgAlt",
     },
+    -- "expiring": benefit was active earlier this turn but the resource has since
+    -- been spent below its threshold. It still applies until end of turn, shown
+    -- muted (no brightness boost; child labels fade their accent). See
+    -- GrowingHRTable's high-water-mark logic.
+    {
+        selectors = {"panel", "gr-row", "expiring"},
+        bgcolor = "@bgAlt",
+    },
     {
         selectors = {"label", "gr-value"},
         width = "auto",
@@ -1094,6 +1102,12 @@ TacPanelStyles.HeroicResources = ThemeEngine.MergeTokens{
         borderColor = "@accent",
     },
     {
+        selectors = {"label", "gr-value", "parent:expiring"},
+        color = "@accent",
+        borderColor = "@accent",
+        opacity = 0.6,
+    },
+    {
         selectors = {"label", "gr-text"},
         width = "84%",
         height = "auto",
@@ -1107,6 +1121,11 @@ TacPanelStyles.HeroicResources = ThemeEngine.MergeTokens{
     {
         selectors = {"label", "gr-text", "parent:available"},
         color = "@accent",
+    },
+    {
+        selectors = {"label", "gr-text", "parent:expiring"},
+        color = "@accent",
+        opacity = 0.6,
     }
 }
 TacPanelStyles.SkillsLanguages = ThemeEngine.MergeTokens{
@@ -4225,6 +4244,12 @@ function TacPanel.GrowingHRTable()
 
             local characterLevel = creature:CharacterLevel()
             local characterResources = creature:GetProgressionResource()
+            -- Growing-resource benefits (e.g. the Fury's Growing Ferocity) last
+            -- until the end of the turn even after the resource is spent back below
+            -- the threshold. Track the turn's high-water mark so a benefit that was
+            -- active earlier this turn still shows -- in a muted "expiring" color --
+            -- once the resource drops below it, instead of vanishing immediately.
+            local resourcesHigh = creature:GetProgressionResourceHighWaterMark()
 
             local rows = element.data.rows
             local rowChildren = {}
@@ -4240,7 +4265,9 @@ function TacPanel.GrowingHRTable()
                     index = index + 1
 
                     row:FireEventTree("update", entry)
-                    row:SetClass("available", entry.resources <= characterResources)
+                    local available = entry.resources <= characterResources
+                    row:SetClass("available", available)
+                    row:SetClass("expiring", (not available) and entry.resources <= resourcesHigh)
                     row:SetClass("collapsed", element.data.collapsed)
 
                     rowChildren[#rowChildren + 1] = row

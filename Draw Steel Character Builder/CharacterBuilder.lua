@@ -509,13 +509,16 @@ function CharacterBuilder._safeFeatureName(feature)
         return ""
     end
 
-    local name = CharacterBuilder._safeGet(feature, "name")
+    -- Use _safeDefaultGet (not _safeGet): some features, like
+    -- CharacterCompanionChoice, get their name from the type's default rather
+    -- than setting it on the feature itself. _safeDefaultGet finds those.
+    local name = CharacterBuilder._safeDefaultGet(feature, "name")
     if type(name) == "string" and name ~= "" then
         return name
     end
 
     -- Extract type name without "Character" prefix
-    local typeName = CharacterBuilder._safeGet(feature, "typeName")
+    local typeName = CharacterBuilder._safeDefaultGet(feature, "typeName")
     if type(typeName) ~= "string" or #typeName < 10 then
         return ""
     end
@@ -536,6 +539,26 @@ function CharacterBuilder._safeGet(item, propertyName, defaultValue)
         return item:try_get(propertyName, defaultValue)
     end
     local value = item[propertyName]
+    if value == nil then value = defaultValue end
+    return value
+end
+
+--- Like _safeGet, but also finds values that come from the type's default
+--- instead of being set on the item directly (_safeGet misses those).
+--- Reading a value this way can error in DMHub if the field does not exist at
+--- all, so we wrap it in pcall: pcall runs the read and tells us whether it
+--- succeeded instead of crashing.
+--- @param item table The item to check
+--- @param propertyName string
+--- @param defaultValue? any
+--- @return any
+function CharacterBuilder._safeDefaultGet(item, propertyName, defaultValue)
+    local value = CharacterBuilder._safeGet(item, propertyName)
+    if value == nil then
+        -- ok is false if the read errored; resolved is the value if it worked.
+        local ok, resolved = pcall(function() return item[propertyName] end)
+        if ok then value = resolved end
+    end
     if value == nil then value = defaultValue end
     return value
 end

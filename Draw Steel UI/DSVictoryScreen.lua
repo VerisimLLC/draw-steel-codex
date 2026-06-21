@@ -908,7 +908,10 @@ local function ComputeHeroRolesInternal(live)
         end
     end
 
-    return roles
+    --Also hand back the raw candidate list (every role and its ranked
+    --qualifiers, in priority order) and per-hero data so developer tooling
+    --(the Stats Debugger) can show full eligibility, not just the awarded role.
+    return roles, candidates, data
 end
 
 --Compute the fun role each party member played this encounter.
@@ -924,6 +927,69 @@ function DSVictoryScreen.ComputeHeroRoles(live)
     local ok, result = pcall(ComputeHeroRolesInternal, live)
     if not ok or type(result) ~= "table" then
         return {}
+    end
+
+    return result
+end
+
+--Developer-facing companion to ComputeHeroRoles. Instead of just the single
+--role each hero is awarded, it returns the full picture the Stats Debugger
+--window draws: every hero's whole-encounter stat totals, the complete list of
+--roles they currently qualify for (in the same priority order the awarder
+--walks, with their rank within each role), and which single role they would
+--actually win right now. Like ComputeHeroRoles it never throws -- any failure
+--or a missing/empty live encounter yields an empty array.
+--
+--Returns an array in party order; each element is:
+--  {
+--    charid   = <tokenid>,
+--    name     = <hero name>,
+--    token    = <token>,
+--    totals   = { [statid] = number | sub-table },   -- whole-encounter sums
+--    awarded  = { role=, text=, tooltip= } | nil,     -- the role they would win
+--    eligible = { { role=, rank=, text=, tooltip=, isFloor= }, ... }, -- priority order
+--  }
+function DSVictoryScreen.ComputeHeroRoleDebugInfo(live)
+    if live == nil then
+        return {}
+    end
+
+    local ok, roles, candidates, data = pcall(ComputeHeroRolesInternal, live)
+    if not ok or type(roles) ~= "table" or type(candidates) ~= "table" or type(data) ~= "table" then
+        return {}
+    end
+
+    local result = {}
+    for _, d in ipairs(data) do
+        local charid = d.token.charid
+
+        --Candidates are already in priority order (most interesting first, floor
+        --roles last), so collecting the entries this hero appears in preserves
+        --that order; rank is the hero's standing among that role's qualifiers.
+        local eligible = {}
+        for _, candidate in ipairs(candidates) do
+            for rank, entry in ipairs(candidate.entries) do
+                if entry.d.token.charid == charid then
+                    eligible[#eligible+1] = {
+                        role = candidate.role,
+                        rank = rank,
+                        text = entry.text,
+                        tooltip = entry.tooltip,
+                        isFloor = candidate.allowDuplicates == true,
+                    }
+                    break
+                end
+            end
+        end
+
+        result[#result+1] = {
+            charid = charid,
+            name = d.name,
+            token = d.token,
+            totals = d.totals,
+            awarded = roles[charid],
+            eligible = eligible,
+        }
     end
 
     return result

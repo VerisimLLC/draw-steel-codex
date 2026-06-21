@@ -2842,7 +2842,7 @@ local function MakeGamePanel(gameIndex)
                     classes = { "fgMuted" },
                     text = "This game was created on a different computer. Press Invite Players from that computer to deploy it online so you can access it anywhere.",
                     fontSize = 14,
-                    width = 360,
+                    width = 460,
                     height = "auto",
                     textAlignment = "center",
                     halign = "center",

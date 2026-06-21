@@ -92,22 +92,6 @@ local function MacroButtonStyles(b)
 end
 RichMacro.__MacroButtonStyles = MacroButtonStyles
 
--- Signature of a resolved button skin, to detect when an applied style must be
--- refreshed. Covers resting + hover + pressed box/text fields.
-local function MacroButtonSig(b)
-    b = b or {}
-    local function part(o)
-        o = o or {}
-        local x, t = o.box or {}, o.text or {}
-        return table.concat({
-            tostring(x.bgcolor), tostring(x.border), tostring(x.borderColor),
-            tostring(x.cornerRadius), tostring(x.pad),
-            tostring(t.color), tostring(t.size), tostring(t.weight),
-        }, ",")
-    end
-    return part(b) .. "|" .. part(b.hover) .. "|" .. part(b.pressed)
-end
-RichMacro.__MacroButtonSig = MacroButtonSig
 
 function RichMacro.CreateDisplay(self)
     local resultPanel

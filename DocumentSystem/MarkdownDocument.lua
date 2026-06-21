@@ -772,6 +772,14 @@ end
 -- TMP alignment values keyed by stylesheet value. justify -> TMP "justified".
 local g_alignTMP = { left = "left", center = "center", right = "right", justify = "justified" }
 
+-- Rich-tag types that are standalone embeds (framed by a stylesheet embed.box).
+-- Inline widgets (dice/counter/checkbox/bar/macro/timer/sound/reminder/setting/
+-- fishing) are intentionally excluded -- they often sit next to text.
+local g_standaloneEmbedTags = {
+    encounter = true, image = true, party = true,
+    follower = true, scene = true, map = true,
+}
+
 -- Wrap a built line in a paragraph-level <align> tag when align is recognized.
 -- Unset/unknown -> content unchanged (no tag), so the default skin is a no-op.
 -- The closing </align> resets alignment for the next line (prevents bleed).
@@ -2160,6 +2168,7 @@ function MarkdownDocument.DisplayPanel(self, args)
     local m_rollableTableRowLabels = {}
     local m_textPanels = {}
     local m_richPanels = {}
+    local m_richFrames = {}
     local m_richRows = {}
     local m_rollableTables = {}
     local m_tables = {}
@@ -2216,6 +2225,7 @@ function MarkdownDocument.DisplayPanel(self, args)
             local newRollableTableRowLabels = {}
             local newTextPanels = {}
             local newRichPanels = {}
+            local newRichFrames = {}
             local newRichRows = {}
             local newPowerTables = {}
             local newEmbeds = {}
@@ -3102,7 +3112,19 @@ function MarkdownDocument.DisplayPanel(self, args)
                             panel:FireEventTree("refreshTag", richTag, patternMatch or match, token)
 
                             newRichPanels[candidate] = panel
-                            currentRichRow.data.children[#currentRichRow.data.children + 1] = panel
+                            local embedBox = (resolvedSkin.embed or {}).box
+                            if g_standaloneEmbedTags[string.lower(text)] and embedBox ~= nil and next(embedBox) ~= nil then
+                                -- Wrap so the rich-tag's own look is preserved inside
+                                -- the stylesheet frame (do NOT ApplyBlockFrame the
+                                -- component panel directly).
+                                local frame = m_richFrames[candidate] or gui.Panel { width = "auto", height = "auto", valign = "top" }
+                                ApplyBlockFrame(frame, embedBox)
+                                frame.children = { panel }
+                                newRichFrames[candidate] = frame
+                                currentRichRow.data.children[#currentRichRow.data.children + 1] = frame
+                            else
+                                currentRichRow.data.children[#currentRichRow.data.children + 1] = panel
+                            end
                         end
                     end
                 end
@@ -3132,6 +3154,7 @@ function MarkdownDocument.DisplayPanel(self, args)
             m_rollableTables = newRollableTables
             m_richRows = newRichRows
             m_richPanels = newRichPanels
+            m_richFrames = newRichFrames
             m_textPanels = newTextPanels
             m_tableRows = newTableRows
             m_tables = newTables

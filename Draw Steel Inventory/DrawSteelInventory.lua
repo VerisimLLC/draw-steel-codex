@@ -1452,7 +1452,6 @@ function GameHud.CreateInventoryDialog(self, options)
 				height = dialogHeight,
 				halign = 'center',
 				valign = 'center',
-				bgcolor = 'white',
 				flow = 'none',
 			},
 			SlotStyles,
@@ -2699,7 +2698,11 @@ function GameHud.CreateInventoryDialog(self, options)
 		id = 'inventory-dialog',
         blurBackground = true,
 
-		classes = {'hidden'},
+		-- {framedPanel} gives the standard themed dialog chrome (surface gradient
+		-- + @fg border) so this dialog matches the rest of the app. The charsheet-
+		-- embedded inventory has no frame: it lives inside the character sheet's
+		-- own background, so it stays a bare transparent container.
+		classes = cond(options.charsheet, {'hidden'}, {'hidden', 'framedPanel'}),
 
 		captureEscape = not options.charsheet,
 		escapePriority = EscapePriority.EXIT_INVENTORY_DIALOG,

@@ -53,6 +53,44 @@ local function FindMapObjectForFloor(floor)
 	return nil
 end
 
+--Custom themed styling for the map-appearance gallery tiles. Hover/selected states live in the style
+--cascade (not inline) so they can flip on mouse-over and recolor with the active scheme. Colors use
+--@tokens so the highlight tracks the user's color scheme.
+local appearanceTileStyles = {
+	--Image thumbnail tile: themed border, accent border when selected. Brighten-on-hover comes from the
+	--composed "hoverable" class.
+	{
+		selectors = {"mapAppearanceTile"},
+		bgimage = true,
+		border = 2,
+		borderColor = "@border",
+		transitionTime = 0.1,
+	},
+	{
+		selectors = {"mapAppearanceTile", "selected"},
+		border = 3,
+		borderColor = "@accent",
+		priority = 10,
+	},
+	--The "add appearance" tile: themed surface; the accent border on hover (plus "hoverable" brighten)
+	--signals that it is responsive.
+	{
+		selectors = {"mapAppearanceAdd"},
+		bgimage = true,
+		border = 2,
+		borderColor = "@border",
+		bgcolor = "@bgAlt",
+		transitionTime = 0.1,
+		priority = 1,
+	},
+	{
+		selectors = {"mapAppearanceAdd", "hover"},
+		border = 3,
+		borderColor = "@accent",
+		priority = 5,
+	},
+}
+
 local function ShowFloorSettings(floor)
 
 	--Sub-layers (parentFloor ~= nil) are layers within a floor rather than floors in their
@@ -266,7 +304,7 @@ local function ShowFloorSettings(floor)
 	--drives the map object's Appearance component image-swap list, auto-creating the component on first
 	--use so the user never has to touch the raw component editor.
 	local mapObj = FindMapObjectForFloor(floor)
-	local appearanceSection = gui.Panel{ classes = {"collapsed"}, width = "100%", height = 0 }
+	local appearanceSection
 
 	if mapObj ~= nil then
 		--Dialog-local mirror of the Appearance component's swap state, kept index-aligned:
@@ -276,6 +314,7 @@ local function ShowFloorSettings(floor)
 		local names = {}
 		local selected = 0
 		local uploading = false
+		local baseName = ""
 
 		local existing = mapObj:GetComponent("Appearance")
 		if existing ~= nil and existing.valid then
@@ -284,6 +323,7 @@ local function ShowFloorSettings(floor)
 				swaps = doc.imageSwaps or {}
 				names = doc.imageSwapNames or {}
 				selected = doc.imageNumber or 0
+				baseName = doc.imageDefaultName or ""
 			end
 		end
 
@@ -303,6 +343,7 @@ local function ShowFloorSettings(floor)
 				comp:SetAndUploadProperties{
 					imageSwaps = swaps,
 					imageSwapNames = names,
+					imageDefaultName = baseName,
 					imageNumber = selected,
 				}
 			else
@@ -314,6 +355,7 @@ local function ShowFloorSettings(floor)
 				end
 				comp:SetProperty("imageSwaps", swaps)
 				comp:SetProperty("imageSwapNames", names)
+				comp:SetProperty("imageDefaultName", baseName)
 				comp:SetProperty("imageNumber", selected)
 				mapObj:Upload()
 			end
@@ -374,22 +416,58 @@ local function ShowFloorSettings(floor)
 			}
 		end
 
-		--Build one gallery tile. index 0 is the base image (not removable / not renamable).
+		--Promote a swap to be the object's literal base/default image: re-encode the object to use that
+		--image, and demote the old default into the swap's now-vacant slot. Both the base and the swaps
+		--are GUID-addressable, so this is a clean swap. Requires a GUID-backed map (mapObj.assetid set).
+		--The image change (asset) and the swap-list change (component) are uploaded as one transaction.
+		local function SetAsDefault(index)
+			local newGuid = swaps[index]
+			local oldBaseGuid = mapObj.assetid
+			if newGuid == nil or oldBaseGuid == nil or oldBaseGuid == "" then
+				return
+			end
+
+			local promotedName = names[index] or string.format("Appearance %d", index)
+			local oldDefaultName = (baseName ~= nil and baseName ~= "") and baseName or "Default"
+
+			mapObj:MarkUndo()
+			if not mapObj:SetBaseImageFromAsset(newGuid) then
+				return
+			end
+
+			--The promoted appearance is now the default; the old default takes its slot.
+			swaps[index] = oldBaseGuid
+			names[index] = oldDefaultName
+			baseName = promotedName
+			selected = 0
+
+			local comp = mapObj:GetComponent("Appearance")
+			if comp ~= nil and comp.valid then
+				comp:SetProperty("imageSwaps", swaps)
+				comp:SetProperty("imageSwapNames", names)
+				comp:SetProperty("imageDefaultName", baseName)
+				comp:SetProperty("imageNumber", selected)
+			end
+			mapObj:Upload()
+			RefreshTiles()
+		end
+
+		--Build one gallery tile. index 0 is the base/default image.
 		local function CreateTile(index)
 			local isBase = index == 0
 			local imageId = cond(isBase, mapObj.imageid, swaps[index])
 			local isSelected = selected == index
 
+			--Border/hover/selected coloring comes from the themed mapAppearanceTile styles; "image" keeps
+			--the bgcolor white so the map image shows untinted. "selected" drives the accent highlight.
 			local thumb = gui.Panel{
+				classes = {"mapAppearanceTile", "image", "hoverable", cond(isSelected, "selected")},
 				width = 104,
 				height = 78,
 				halign = "center",
 				valign = "top",
 				bgimage = imageId or "panels/square.png",
-				bgcolor = cond(imageId, "white", "#333333"),
 				cornerRadius = 6,
-				borderWidth = cond(isSelected, 3, 1),
-				borderColor = cond(isSelected, "#ffcc44", "black"),
 				click = function()
 					--Clicking the base when there are no alternates is a no-op (nothing to switch to).
 					if isBase and #swaps == 0 then
@@ -403,16 +481,32 @@ local function ShowFloorSettings(floor)
 
 			local caption
 			if isBase then
-				caption = gui.Label{
-					text = "Default",
-					width = 104,
-					height = 22,
-					halign = "center",
-					textAlignment = "center",
-					fontSize = 12,
-					color = Styles.textColor,
-					vmargin = 2,
-				}
+				if #swaps > 0 then
+					--An appearance component exists, so the default appearance carries an editable name too
+					--(it travels with the image when an alternate is promoted via "Set as Default").
+					caption = gui.Input{
+						text = (baseName ~= nil and baseName ~= "") and baseName or "Default",
+						width = 104,
+						height = 24,
+						halign = "center",
+						fontSize = 12,
+						vmargin = 2,
+						change = function(element)
+							baseName = element.text
+							Persist("Rename default appearance")
+						end,
+					}
+				else
+					caption = gui.Label{
+						text = "Default",
+						width = 104,
+						height = 22,
+						halign = "center",
+						textAlignment = "center",
+						fontSize = 12,
+						vmargin = 2,
+					}
+				end
 			else
 				caption = gui.Input{
 					text = names[index] or string.format("Appearance %d", index),
@@ -420,7 +514,6 @@ local function ShowFloorSettings(floor)
 					height = 24,
 					halign = "center",
 					fontSize = 12,
-					color = Styles.textColor,
 					vmargin = 2,
 					change = function(element)
 						names[index] = element.text
@@ -442,25 +535,37 @@ local function ShowFloorSettings(floor)
 
 			if not isBase then
 				tileArgs.rightClick = function(element)
-					element.popup = gui.ContextMenu{
-						entries = {
-							{
-								text = "Remove Appearance",
-								click = function()
-									element.popup = nil
-									table.remove(swaps, index)
-									table.remove(names, index)
-									if selected == index then
-										selected = 0
-									elseif selected > index then
-										selected = selected - 1
-									end
-									Persist("Remove map appearance")
-									RefreshTiles()
-								end,
-							},
-						},
+					local entries = {}
+
+					--"Set as Default" makes this appearance the object's literal main image. Only offered
+					--for GUID-backed maps, where the old default has a stable id to demote into this slot.
+					if mapObj.assetid ~= nil and mapObj.assetid ~= "" then
+						entries[#entries+1] = {
+							text = "Set as Default",
+							click = function()
+								element.popup = nil
+								SetAsDefault(index)
+							end,
+						}
+					end
+
+					entries[#entries+1] = {
+						text = "Remove Appearance",
+						click = function()
+							element.popup = nil
+							table.remove(swaps, index)
+							table.remove(names, index)
+							if selected == index then
+								selected = 0
+							elseif selected > index then
+								selected = selected - 1
+							end
+							Persist("Remove map appearance")
+							RefreshTiles()
+						end,
 					}
+
+					element.popup = gui.ContextMenu{ entries = entries }
 				end
 			end
 
@@ -469,16 +574,16 @@ local function ShowFloorSettings(floor)
 
 		--The trailing "add" tile.
 		local function CreateAddTile()
+			--Border/surface/hover coloring comes from the themed mapAppearanceAdd styles so the tile shows
+			--it is responsive (accent border + brighten on mouse-over) and tracks the active scheme.
 			local thumb = gui.Panel{
+				classes = {"mapAppearanceAdd", "hoverable"},
 				width = 104,
 				height = 78,
 				halign = "center",
 				valign = "top",
-				bgimage = "panels/square.png",
-				bgcolor = "#222222",
+				bgimage = true,
 				cornerRadius = 6,
-				borderWidth = 1,
-				borderColor = "#888888",
 				click = function()
 					AddAppearance()
 				end,
@@ -487,7 +592,6 @@ local function ShowFloorSettings(floor)
 					halign = "center",
 					valign = "center",
 					fontSize = 40,
-					color = Styles.textColor,
 				},
 			}
 
@@ -508,7 +612,6 @@ local function ShowFloorSettings(floor)
 						halign = "center",
 						textAlignment = "center",
 						fontSize = 12,
-						color = Styles.textColor,
 						vmargin = 2,
 					},
 				},
@@ -557,13 +660,17 @@ local function ShowFloorSettings(floor)
 				tilesPanel,
 			},
 		}
+	else
+		--No map object on this floor; render an empty, collapsed placeholder so the dialog's child list
+		--always has a valid panel in this slot.
+		appearanceSection = gui.Panel{ classes = {"collapsed"}, width = "100%", height = 0 }
 	end
 
 	local dialogPanel = gui.Panel{
 		classes = {"framedPanel"},
 		width = 480,
 		height = "auto",
-		styles = ThemeEngine.GetStyles(),
+		styles = ThemeEngine.MergeStyles(appearanceTileStyles),
 
 		gui.Panel{
 			width = "100%-48",

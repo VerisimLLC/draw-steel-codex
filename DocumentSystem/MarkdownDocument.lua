@@ -813,6 +813,23 @@ local function SkinBodyMarkup(body, content)
         open = open .. string.format("<color=%s>", color)
         close = "</color>" .. close
     end
+    -- line-height: percent of the line's font size. Unset or 100 = no tag, so
+    -- the default skin stays a visual no-op. Wrapped + closed so it does not
+    -- bleed into adjacent heading lines that set no line-height.
+    if body.lineHeight and body.lineHeight ~= 100 then
+        open = open .. string.format("<line-height=%d%%>", body.lineHeight)
+        close = "</line-height>" .. close
+    end
+    -- first-line indent (px). Positive indents the first visual line via a
+    -- horizontal space; negative is a hanging indent (wrapped lines pushed in,
+    -- matching SkinBulletMarkup). 0/nil = no markup.
+    local fli = body.firstLineIndent or 0
+    if fli > 0 then
+        open = open .. string.format("<space=%dpx>", fli)
+    elseif fli < 0 then
+        open = string.format("<indent=%dpx>", -fli) .. open
+        close = close .. "</indent>"
+    end
     return open .. content .. close
 end
 
@@ -906,6 +923,13 @@ end
 -- Test hook.
 MarkdownDocument.__SkinClassTextMarkup = SkinClassTextMarkup
 
+-- A vertical gap rendered inside a single TMP label: a blank line sized to n px.
+-- Returns nil for non-positive n so callers can skip inserting a line.
+local function SkinGapLine(n)
+    if type(n) ~= "number" or n <= 0 then return nil end
+    return string.format("<size=%dpx> </size>", n)
+end
+
 local ApplySkinToText
 ApplySkinToText = function(text, base)
     if type(text) ~= "string" or text == "" then return text end
@@ -924,16 +948,25 @@ ApplySkinToText = function(text, base)
         lines[#lines + 1] = string.sub(text, start, nl - 1)
         start = nl + 1
     end
+    local bodyPS = (base.body or {}).paragraphSpacing
     for _, line in ipairs(lines) do
         local hashes, hContent = string.match(line, "^(#+) (.*)$")
         local bmarker, bContent = string.match(line, "^([%-%*]) (.*)$")
         local onum, oContent = string.match(line, "^(%d+%.) (.*)$")
         if hashes ~= nil and #hashes >= 1 and #hashes <= 5 then
-            out[#out + 1] = SkinHeadingMarkup((base.headings or {})[#hashes], hContent)
+            local h = (base.headings or {})[#hashes] or {}
+            local before = SkinGapLine(h.spaceBefore)
+            if before then out[#out + 1] = before end
+            out[#out + 1] = SkinHeadingMarkup(h, hContent)
+            local after = SkinGapLine(h.spaceAfter)
+            if after then out[#out + 1] = after end
         elseif bmarker ~= nil then
             out[#out + 1] = SkinBulletMarkup(base.bullet, bmarker, bContent)
         elseif onum ~= nil then
             out[#out + 1] = SkinOrderedMarkup(base.ordered, onum, oContent)
+        elseif line == "" then
+            local gap = SkinGapLine(bodyPS)
+            out[#out + 1] = gap or SkinBodyMarkup(base.body, line)
         else
             out[#out + 1] = SkinBodyMarkup(base.body, line)
         end

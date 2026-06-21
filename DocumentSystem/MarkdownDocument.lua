@@ -768,6 +768,18 @@ local function TableInnerSig(inner)
 end
 
 
+-- TMP alignment values keyed by stylesheet value. justify -> TMP "justified".
+local g_alignTMP = { left = "left", center = "center", right = "right", justify = "justified" }
+
+-- Wrap a built line in a paragraph-level <align> tag when align is recognized.
+-- Unset/unknown -> content unchanged (no tag), so the default skin is a no-op.
+-- The closing </align> resets alignment for the next line (prevents bleed).
+local function SkinAlign(align, content)
+    local v = g_alignTMP[align]
+    if v == nil then return content end
+    return string.format("<align=%s>%s</align>", v, content)
+end
+
 -- Build the open/close markup pair for a heading level from its skin entry, and
 -- return the (possibly case-transformed) content.
 local function SkinHeadingMarkup(h, content)
@@ -800,7 +812,7 @@ local function SkinHeadingMarkup(h, content)
         open = open .. "<smallcaps>"
         close = "</smallcaps>" .. close
     end
-    return open .. content .. close
+    return SkinAlign(h.align, open .. content .. close)
 end
 
 -- Wrap a body line per the body skin. Only emits markup for explicitly-set,
@@ -830,7 +842,7 @@ local function SkinBodyMarkup(body, content)
         open = string.format("<indent=%dpx>", -fli) .. open
         close = close .. "</indent>"
     end
-    return open .. content .. close
+    return SkinAlign(body.align, open .. content .. close)
 end
 
 -- Unordered bullet. `defmarker` is the original marker character ("-" or "*"),
@@ -851,7 +863,7 @@ local function SkinBulletMarkup(bullet, defmarker, content)
     if indent ~= 0 then
         line = string.format("<indent=%dpx>%s</indent>", indent, line)
     end
-    return line
+    return SkinAlign(bullet.align, line)
 end
 
 -- Ordered list item. `marker` is the literal "N." token. Default = unchanged.
@@ -869,7 +881,7 @@ local function SkinOrderedMarkup(ordered, marker, content)
     if indent ~= 0 then
         line = string.format("<indent=%dpx>%s</indent>", indent, line)
     end
-    return line
+    return SkinAlign(ordered.align, line)
 end
 
 -- Wrap blockquote body text per the quote skin (color/italic). Default skin

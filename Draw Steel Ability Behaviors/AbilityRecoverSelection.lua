@@ -83,8 +83,8 @@ function ActivatedAbilityRecoverySelectionBehavior:Cast(ability, casterToken, ta
             return
         end
         local cost = calcCost()
-        costLabelElement.text = string.format("%s Cost: %s", casterToken.properties:GetHeroicResourceName(), cost + 1)
-        costLabelElement:SetClass("recovery-cannot-afford", (cost + 1) > casterToken.properties:GetHeroicOrMaliceResourcesAvailableToSpend())
+        costLabelElement.text = string.format("%s Cost: %s", casterToken.properties:GetHeroicResourceName(), cost)
+        costLabelElement:SetClass("recovery-cannot-afford", cost > casterToken.properties:GetHeroicOrMaliceResourcesAvailableToSpend())
     end
 
     --- @param token CharacterToken
@@ -628,7 +628,7 @@ function ActivatedAbilityRecoverySelectionBehavior:Cast(ability, casterToken, ta
         description = "Change Heroic Resource",
         execute = function()
             local cost = calcCost()
-            casterToken.properties:ConsumeResource(CharacterResource.heroicResourceId, "unbounded", cost + 1)
+            casterToken.properties:ConsumeResource(CharacterResource.heroicResourceId, "unbounded", cost)
         end,
     }
 

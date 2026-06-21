@@ -116,6 +116,7 @@ function RichMacro.CreateDisplay(self)
     local m_token
 
     local m_strike = nil
+    local m_buttonStyled = false
 
     resultPanel = gui.Button {
         width = "auto",
@@ -149,11 +150,19 @@ function RichMacro.CreateDisplay(self)
             if doc ~= nil then
                 buttonSkin = (doc:GetResolvedStylesheet().base or {}).button
             end
-            -- Apply the resolved button skin every render. A nil result means
-            -- "no button styling" -> assign an empty table to CLEAR any prior
-            -- styles (reverting to the engine-default look). Never assign nil:
-            -- the engine's set_styles rejects non-table values.
-            element.styles = MacroButtonStyles(buttonSkin) or {}
+            -- Apply the resolved button skin. Assign an empty table ONLY to clear
+            -- styles previously applied by this widget (live re-theme styled ->
+            -- unstyled); a button that was never styled is left untouched so the
+            -- common default-skin case stays a true no-op (no phantom style entry,
+            -- no per-render overhead). Never assign nil: set_styles rejects it.
+            local buttonStyles = MacroButtonStyles(buttonSkin)
+            if buttonStyles ~= nil then
+                element.styles = buttonStyles
+                m_buttonStyled = true
+            elseif m_buttonStyled then
+                element.styles = {}
+                m_buttonStyled = false
+            end
         end,
         press = function(element)
             if m_strike ~= "~" then

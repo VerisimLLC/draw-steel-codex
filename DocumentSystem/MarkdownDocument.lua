@@ -1337,6 +1337,18 @@ BreakdownRichTags = function(content, result, options, extraOutput)
     options = options or {}
     local isPlayer = options.player
 
+    -- Opt-in source-position tracking for the editor's syntax highlighter (off for every
+    -- render caller, so rendering is unaffected). Stamps the 1-based source line range each
+    -- colorable token came from; the highlighter maps that back to character offsets. Purely
+    -- additive. Not propagated into the recursive table-cell call (its lines are cell-relative),
+    -- so cell-inner tokens stay unstamped and the highlighter simply skips them.
+    local trackPositions = options.trackPositions
+    local function StampLine(tok, firstLine, lastLine)
+        if not trackPositions then return end
+        tok.srcLine = firstLine
+        tok.srcLineEnd = lastLine or firstLine
+    end
+
     if isPlayer then
         content = StripSpoilers(content)
     end
@@ -1352,7 +1364,16 @@ BreakdownRichTags = function(content, result, options, extraOutput)
 
     local text = ""
 
+    -- Source-line cursor for SyncPreviewScroll's content-aware scroll mapping (only
+    -- populated when options.trackPositions is set; see StampLine). currentLine is the
+    -- line being parsed; textStartLine remembers the first line that fed visible text into
+    -- the run currently accumulating in `text`, so the emitted text token is stamped at
+    -- its START (where it begins rendering) rather than the line it happened to flush on.
+    local currentLine = 1
+    local textStartLine = nil
+
     local EmitText = function(t, justification)
+        local fromAccumulator = (t == nil)
         if t == nil then
             t = text
             text = ""
@@ -1382,6 +1403,12 @@ BreakdownRichTags = function(content, result, options, extraOutput)
                 player = isPlayer,
                 --trace = debug.traceback(),
             }
+            -- Accumulator runs anchor at textStartLine; an explicitly-passed string
+            -- (e.g. a rich line's prefix) belongs to the line being parsed now.
+            StampLine(result[#result], (fromAccumulator and textStartLine) or currentLine)
+        end
+        if fromAccumulator then
+            textStartLine = nil
         end
     end
 
@@ -1390,6 +1417,7 @@ BreakdownRichTags = function(content, result, options, extraOutput)
     local skipLines = 0
 
     for i, line in ipairs(lines) do
+        currentLine = i
         local currentIndent = ""
         local skipping = false
         local str = line
@@ -1490,6 +1518,7 @@ BreakdownRichTags = function(content, result, options, extraOutput)
                 text = table.concat(blockLines, "\n"),
                 player = isPlayer,
             }
+            StampLine(result[#result], i, i + additionalLines)
 
             skipping = true
             skipLines = additionalLines
@@ -1516,6 +1545,7 @@ BreakdownRichTags = function(content, result, options, extraOutput)
                 text = table.concat(blockLines, "\n"),
                 player = isPlayer,
             }
+            StampLine(result[#result], i, i + consumed)
             skipLines = consumed
             str = ""
         end
@@ -1530,6 +1560,7 @@ BreakdownRichTags = function(content, result, options, extraOutput)
                 dice = rollableTableHeaderMatch.dice,
                 player = isPlayer,
             }
+            StampLine(result[#result], i)
 
             str = ""
             parsingRollableTable = true
@@ -1562,6 +1593,7 @@ BreakdownRichTags = function(content, result, options, extraOutput)
                     tiers = tiers,
                     player = isPlayer,
                 }
+                StampLine(result[#result], i, i + 3)
                 skipLines = 3
                 str = ""
             elseif g_hardwiredPowerTables[nextLine] then
@@ -1577,6 +1609,7 @@ BreakdownRichTags = function(content, result, options, extraOutput)
                     lineIndex = options.lineIndexContext or i,
                     player = isPlayer,
                 }
+                StampLine(result[#result], i, i + 1)
                 str = ""
             end
         end
@@ -1598,6 +1631,7 @@ BreakdownRichTags = function(content, result, options, extraOutput)
                 type = "row",
                 player = isPlayer,
             }
+            StampLine(result[#result], i)
 
             local linePrefix = "|"
 
@@ -1636,6 +1670,7 @@ BreakdownRichTags = function(content, result, options, extraOutput)
                 type = "divider",
                 player = isPlayer,
             }
+            StampLine(result[#result], i)
             str = ""
         end
 
@@ -1650,6 +1685,7 @@ BreakdownRichTags = function(content, result, options, extraOutput)
                     text = str,
                     player = isPlayer,
                 }
+                StampLine(result[#result], i)
                 collapseNodes[#collapseNodes + 1] = #leading
                 str = ""
             end
@@ -1661,6 +1697,7 @@ BreakdownRichTags = function(content, result, options, extraOutput)
             local match = regex.MatchGroups(str,
                 "^(?<prefix>.*?)((?<spoiler>\\{)|(?<justification>:(<>|><|<|>))|(?<embed>\\[:[^\\[\\]]+\\])|(?<tag>\\[[ xX]\\] *(?<checkname>[a-zA-Z0-9 ]*))|\\[\\[(?<tag>[^\\]]*)\\]\\])(?<suffix>.*)$")
             if match == nil then
+                if textStartLine == nil and str ~= "" then textStartLine = currentLine end
                 text = text .. str
                 if str ~= line:sub(#currentIndent + 1) and text ~= "" then
                     --we have emitted rich content this line, so emit this string now.
@@ -1716,6 +1753,7 @@ BreakdownRichTags = function(content, result, options, extraOutput)
                     text = match.justification,
                     player = isPlayer,
                 }
+                StampLine(result[#result], i)
 
                 if match.justification == ":<" then
                     justification = "left"
@@ -1731,6 +1769,7 @@ BreakdownRichTags = function(content, result, options, extraOutput)
                     justification = justification,
                     player = isPlayer,
                 }
+                StampLine(result[#result], i)
             else
                 local linepos = (#line - #str) + #match.prefix
                 local len = #line - (#match.prefix + #match.suffix)
@@ -1756,6 +1795,7 @@ BreakdownRichTags = function(content, result, options, extraOutput)
                     linepos = linepos,
                     length = len,
                 }
+                StampLine(result[#result], i)
             end
 
             str = match.suffix
@@ -2246,7 +2286,10 @@ function MarkdownDocument.DisplayPanel(self, args)
             local tagsSeen = {}
 
             m_tokenExtraInfo = {}
-            local tokens = BreakdownRichTags(self:GetTextContent(), nil, { player = self:IsPlayerView(element) }, m_tokenExtraInfo)
+            -- trackPositions stamps each token's source line (purely additive; rendering
+            -- ignores srcLine) so the rendered blocks below can be tagged for the preview's
+            -- content-aware scroll sync (SyncPreviewScroll).
+            local tokens = BreakdownRichTags(self:GetTextContent(), nil, { player = self:IsPlayerView(element), trackPositions = true }, m_tokenExtraInfo)
 
             if m_tokenExtraInfo.queries ~= nil then
                 element.thinkTime = 0.2
@@ -2287,7 +2330,19 @@ function MarkdownDocument.DisplayPanel(self, args)
                 element.bgimage = nil
                 element.bgcolor = nil
             end
+            -- Content-aware preview scroll: tag each top-level child with the source line
+            -- of the token that produced it. Capture the children array + length at the
+            -- start of each iteration and stamp whatever got appended at the end. This
+            -- survives the collapse-node array swap (the captured ref still points at the
+            -- table the appends went to) and rich-row batching (a row is appended once, in
+            -- its first tag's iteration, so it is stamped with that line). lastStampLine
+            -- carries the last known line forward for the rare token with none.
+            local lastStampLine = 1
             for i, token in ipairs(tokens) do
+                local stampChildren = children
+                local stampFrom = #children + 1
+                local stampLine = token.srcLine or lastStampLine
+                if token.srcLine ~= nil then lastStampLine = token.srcLine end
                 if token.type == "justification" then
                     --pass, nothing needed here.
                 elseif token.type == "collapse_node" then
@@ -3127,6 +3182,12 @@ function MarkdownDocument.DisplayPanel(self, args)
                             end
                         end
                     end
+                end
+
+                -- Stamp the source line onto whatever top-level children this token
+                -- appended (overwrite, so reused/cached panels refresh each render).
+                for k = stampFrom, #stampChildren do
+                    stampChildren[k].data.srcLine = stampLine
                 end
             end
 
@@ -4543,89 +4604,279 @@ function MarkdownDocument:EditPanel(args)
     end
 
     local lastSyncedCaret = -1
-    local function SyncPreviewScroll(input, previewPanel)
-        if previewPanel:HasClass("collapsed") then
+    -- Scroll the live preview so the block under the editor caret stays in view. A flat
+    -- caretLine/totalLines ratio assumes every source line renders at the same height, so it
+    -- drifts whenever an image/table/heading (tall) or blank lines (short) sit above the
+    -- caret. Instead we map the caret's source line to the real rendered pixel offset of the
+    -- block it produced: each top-level preview block is tagged with its source line
+    -- (data.srcLine, stamped during render), so summing rendered heights gives every block's
+    -- pixel top, and we interpolate between the two anchors bracketing the caret line.
+    -- Interpolating (not snapping to a block) keeps scrolling smooth inside a long uniform
+    -- prose run while still jumping the right amount past a tall block. Geometry reads are
+    -- pcall-guarded and read 0 before layout has run; in that case we bail WITHOUT recording
+    -- lastSyncedCaret so the editor's 0.2s think retries next tick. Mirrors the geometry
+    -- pattern in Draw Steel V/DrawSteelChararcterSheet.lua (ScrollCapabilityIntoView).
+    local SYNC_PREVIEW_TOP_BIAS = 0.3   -- keep the active block ~30% down from the top edge.
+    local function SyncPreviewScroll(input, previewPanel, previewBody)
+        if previewPanel:HasClass("collapsed") or previewBody == nil then
             return
         end
         local caret = input.caretPosition or 0
         if caret == lastSyncedCaret then
             return
         end
-        lastSyncedCaret = caret
 
         local text = input.text or ""
-        local caretLine = 0
+        -- 1-based source line of the caret, to match token srcLine.
+        local caretLine = 1
         for i = 1, math.min(caret, #text) do
             if text:sub(i, i) == "\n" then
                 caretLine = caretLine + 1
             end
         end
-
         local _, totalNewlines = text:gsub("\n", "\n")
         local totalLines = totalNewlines + 1
-        local ratio = 0
-        if totalLines > 0 then
-            ratio = caretLine / totalLines
+
+        local windowH = 0
+        pcall(function() windowH = previewPanel.renderedHeight or 0 end)
+
+        -- Walk the rendered blocks once: accumulate heights for the content height and record
+        -- a {line, top} anchor for every block that carries a source line.
+        local anchors = {}
+        local accum = 0
+        pcall(function()
+            for _, child in ipairs(previewBody.children) do
+                local ln = child.data ~= nil and child.data.srcLine or nil
+                if ln ~= nil then
+                    anchors[#anchors + 1] = { line = ln, top = accum }
+                end
+                accum = accum + (child.renderedHeight or 0)
+            end
+        end)
+        local contentH = accum
+
+        if windowH <= 0 or contentH <= 0 then
+            -- Layout not measured yet; do not record lastSyncedCaret so think() retries.
+            return
+        end
+        lastSyncedCaret = caret
+
+        local range = contentH - windowH
+        if range <= 0 then
+            -- Everything fits; nothing to scroll.
+            return
         end
 
-        local clamped = math.max(0, math.min(1, 1 - ratio))
-        previewPanel.vscrollPosition = clamped
+        -- Sentinels bracket the document so A/B always exist. A = last anchor at/above the
+        -- caret line; B = first anchor below it (topmost when several share a line).
+        local A = { line = 0, top = 0 }
+        local B = { line = totalLines + 1, top = contentH }
+        for _, a in ipairs(anchors) do
+            if a.line <= caretLine then
+                if a.line > A.line then A = a end
+            else
+                if a.line < B.line then B = a end
+            end
+        end
+
+        local span = B.line - A.line
+        local frac = 0
+        if span > 0 then
+            frac = (caretLine - A.line) / span
+        end
+        frac = math.max(0, math.min(1, frac))
+        local targetTop = A.top + (B.top - A.top) * frac
+
+        local desiredTop = targetTop - windowH * SYNC_PREVIEW_TOP_BIAS
+        desiredTop = math.max(0, math.min(range, desiredTop))
+        -- vscrollPosition: 1 = top, 0 = bottom.
+        previewPanel.vscrollPosition = 1 - desiredTop / range
     end
 
     local previewPanel
+    local previewBody
 
     -- Find bar (Ctrl+F) state. Defined after editInput; forward-declared here so the
     -- editInput 'find' event handler can call OpenFind.
     local findInput, findBar, findCountLabel
     local OpenFind, CloseFind, UpdateFindUI
 
-    -- BEGIN syntax-highlight smoke test ------------------------------------------------
-    -- Temporary proof that the C# gui.TextEditor:SetColorSpans hook works end-to-end.
-    -- Colors a few markdown constructs using simple Lua patterns (this is NOT the real
-    -- tokenizer -- the production highlighter will reuse BreakdownRichTags for accurate
-    -- source-offset spans). Safe to delete this whole fenced block together with the two
-    -- element:SetColorSpans(...) calls in the editor's create/edit handlers below.
-    local function SyntaxHighlightSmokeTestSpans(text)
-        local spans = {}
-        text = text or ""
-        local len = #text
+    -- Markdown syntax highlighting for the editor. Colors are driven by the journal's own
+    -- tokenizer (BreakdownRichTags, run with trackPositions) so highlighting matches exactly
+    -- how the document is parsed for display. Headings/list markers are not tokenized by
+    -- BreakdownRichTags (they are handled at render time by ApplySkinToText), so they are
+    -- recognized here per line using the same patterns ApplySkinToText uses.
+    local g_journalSyntaxColors = {
+        heading    = "#e5c07b",  -- # headings (whole line)
+        listMarker = "#56b6c2",  -- -, *, 1. list markers
+        tag        = "#61afef",  -- [[ ... ]] rich tags
+        embed      = "#c678dd",  -- [: ... ] embeds
+        blockquote = "#7f848e",  -- > quotes
+        divider    = "#5c6370",  -- --- / ___ dividers
+        collapse   = "#d19a66",  -- + collapsible section headers
+        styleblock = "#98c379",  -- ::: styled blocks
+        table      = "#4ec9b0",  -- | tables / power rolls / rollable tables (teal, not error-red)
+        justify    = "#5c6370",  -- :< :> :<> justification markers
+    }
 
-        -- Inline constructs scanned across the whole document. string.find returns 1-based
-        -- inclusive [start, finish] positions, which is exactly what SetColorSpans wants.
-        local function scanInline(pattern, color)
+    local function ComputeMarkdownColorSpans(text)
+        text = text or ""
+        if text == "" then return {} end
+
+        -- Match how BreakdownRichTags normalizes line breaks before splitting, so our line indexing
+        -- stays aligned with the token srcLine values. '\v' (Shift+Enter soft break) becomes '\n';
+        -- this is length-preserving, so byte offsets are unaffected. (We deliberately do NOT strip
+        -- '\r' the way BreakdownRichTags does -- that would change length and shift our offsets
+        -- relative to the editor's text; the editor normalizes typed '\r' to '\n' anyway.)
+        text = text:gsub("\v", "\n")
+
+        -- Split into lines exactly as BreakdownRichTags does, and record each line's 1-based
+        -- absolute start offset so token line ranges map back to character positions.
+        local lines = string.split_allow_duplicates(text, "\n")
+        local lineOffsets = {}
+        local off = 1
+        for i = 1, #lines do
+            lineOffsets[i] = off
+            off = off + #lines[i] + 1  -- +1 for the '\n' separator
+        end
+
+        local spans = {}
+        local function AddSpan(from, to, color)
+            -- from/to are 1-based and 'to' is inclusive (matches gui.TextEditor:SetColorSpans).
+            if from ~= nil and to ~= nil and color ~= nil and to >= from then
+                spans[#spans + 1] = { from = from, to = to, color = color }
+            end
+        end
+
+        -- Lines claimed by a block token; the heading/list pass skips these so it does not
+        -- recolor e.g. a power-roll tier line or quoted text.
+        local blockLines = {}
+        local function ClaimLines(firstLine, lastLine)
+            for li = firstLine, math.min(lastLine or firstLine, #lines) do
+                blockLines[li] = true
+            end
+        end
+
+        local function LineRangeBounds(firstLine, lastLine)
+            lastLine = math.min(lastLine or firstLine, #lines)
+            if lineOffsets[firstLine] == nil or lines[lastLine] == nil then return nil end
+            return lineOffsets[firstLine], lineOffsets[lastLine] + #lines[lastLine] - 1
+        end
+
+        -- Per-line moving cursor so repeated identical inline literals map in document order.
+        local lineFindCursor = {}
+        local function FindInLine(lineIdx, literal)
+            local line = lines[lineIdx]
+            if line == nil or literal == nil or literal == "" then return nil end
+            local s, e = string.find(line, literal, lineFindCursor[lineIdx] or 1, true)
+            if s == nil then return nil end
+            lineFindCursor[lineIdx] = e + 1
+            local base = lineOffsets[lineIdx]
+            return base + s - 1, base + e - 1
+        end
+
+        -- 1) Structural + inline tokens, straight from the journal's own tokenizer.
+        local tokens = BreakdownRichTags(text, nil, { player = false, trackPositions = true })
+        for _, token in ipairs(tokens) do
+            local ty = token.type
+            if ty == "tag" and token.srcLine ~= nil then
+                -- [[inner]] (text is the inner content), or a [ ]/[x] checkbox whose text
+                -- already includes the brackets. Try the bracketed form first.
+                local from, to = FindInLine(token.srcLine, "[[" .. token.text .. "]]")
+                if from == nil then
+                    from, to = FindInLine(token.srcLine, token.text)
+                end
+                AddSpan(from, to, g_journalSyntaxColors.tag)
+            elseif ty == "embed" and token.srcLine ~= nil then
+                local from, to = FindInLine(token.srcLine, token.text)
+                AddSpan(from, to, g_journalSyntaxColors.embed)
+            elseif ty == "justification" and token.srcLine ~= nil then
+                local from, to = FindInLine(token.srcLine, token.text)
+                AddSpan(from, to, g_journalSyntaxColors.justify)
+            elseif token.srcLine ~= nil then
+                local color = nil
+                if ty == "blockquote" then color = g_journalSyntaxColors.blockquote
+                elseif ty == "divider" then color = g_journalSyntaxColors.divider
+                elseif ty == "collapse_node" then color = g_journalSyntaxColors.collapse
+                elseif ty == "styleblock" then color = g_journalSyntaxColors.styleblock
+                elseif ty == "power_roll" or ty == "rollable_table" or ty == "row" then
+                    color = g_journalSyntaxColors.table
+                end
+                if color ~= nil then
+                    local from, to = LineRangeBounds(token.srcLine, token.srcLineEnd)
+                    AddSpan(from, to, color)
+                    ClaimLines(token.srcLine, token.srcLineEnd)
+                end
+            end
+        end
+
+        -- 2) Headings and list markers (emitted as plain text by BreakdownRichTags). Recognize
+        -- them with the same patterns ApplySkinToText uses on the render side.
+        for i = 1, #lines do
+            if not blockLines[i] then
+                local line = lines[i]
+                local base = lineOffsets[i]
+                local hashes = string.match(line, "^(#+) ")
+                local bmarker = string.match(line, "^([%-%*]) ")
+                local onum = string.match(line, "^(%d+%.) ")
+                if hashes ~= nil and #hashes >= 1 and #hashes <= 5 then
+                    AddSpan(base, base + #line - 1, g_journalSyntaxColors.heading)
+                elseif bmarker ~= nil then
+                    AddSpan(base, base + #bmarker - 1, g_journalSyntaxColors.listMarker)
+                elseif onum ~= nil then
+                    AddSpan(base, base + #onum - 1, g_journalSyntaxColors.listMarker)
+                end
+            end
+        end
+
+        -- 3) Single-bracket links. [Label] is the journal's shorthand link form -- it is stored as
+        -- [Label] and expanded to [[//link "Label"|Label]] at render time, so BreakdownRichTags
+        -- never tokenizes it. Color the [Label] spans like other links. A match that is really the
+        -- inner [..] of a [[..]] tag starts one character later than the tag's own span, so the
+        -- earlier-starting tag span wins in the C# recolor (and both are the same color anyway).
+        for i = 1, #lines do
+            local line = lines[i]
+            local base = lineOffsets[i]
             local init = 1
             while true do
-                local s, e = string.find(text, pattern, init)
+                local s, e = string.find(line, "%[([^%[%]]+)%]", init)
                 if s == nil then break end
-                spans[#spans + 1] = { from = s, to = e, color = color }
+                AddSpan(base + s - 1, base + e - 1, g_journalSyntaxColors.tag)
                 init = e + 1
             end
         end
 
-        scanInline("%*%*[^*]-%*%*", "#c678dd")           -- **bold**
-        scanInline("`[^`]-`", "#98c379")                 -- `code`
-        scanInline("%[[^%]]-%]%([^%)]-%)", "#61afef")    -- [text](url)
-
-        -- Line-leading constructs. Lua patterns have no multiline '^', so walk line by line.
-        local lineStart = 1
-        while lineStart <= len + 1 do
-            local nl = string.find(text, "\n", lineStart, true)
-            local lineStop = (nl or (len + 1)) - 1
-            if lineStop >= lineStart then
-                local line = string.sub(text, lineStart, lineStop)
-                if string.match(line, "^#+%s") ~= nil then
-                    spans[#spans + 1] = { from = lineStart, to = lineStop, color = "#e5c07b" }  -- # heading
-                elseif string.match(line, "^>%s?") ~= nil then
-                    spans[#spans + 1] = { from = lineStart, to = lineStop, color = "#7f848e" }  -- > quote
+        -- All offsets above are Lua BYTE positions, but gui.TextEditor:SetColorSpans indexes by
+        -- character (the C# side uses characterInfo[i].index, i.e. UTF-16 char indices). Multi-byte
+        -- UTF-8 -- curly quotes/apostrophes, accents, em dashes -- makes the two diverge, so a token
+        -- after such a character is colored too far to the right. Translate every span endpoint from
+        -- a byte position to a 1-based character index. ASCII text needs no work (byte == char);
+        -- invalid UTF-8 (utf8.len returns nil) falls back to byte offsets.
+        local charLen = utf8.len(text)
+        if charLen ~= nil and charLen ~= #text and #spans > 0 then
+            -- byteToChar[b] = 1-based character index of the character that byte b belongs to.
+            local starts = {}
+            local ci = 0
+            for p in utf8.codes(text) do
+                ci = ci + 1
+                starts[ci] = p
+            end
+            local byteToChar = {}
+            local total = #text
+            for k = 1, ci do
+                local lastByte = (k < ci) and (starts[k + 1] - 1) or total
+                for b = starts[k], lastByte do
+                    byteToChar[b] = k
                 end
             end
-            if nl == nil then break end
-            lineStart = nl + 1
+            for _, sp in ipairs(spans) do
+                sp.from = byteToChar[sp.from] or sp.from
+                sp.to = byteToChar[sp.to] or sp.to
+            end
         end
 
         return spans
     end
-    -- END syntax-highlight smoke test --------------------------------------------------
 
     editInput = gui.TextEditor {
         id = "editorPanel",
@@ -4644,8 +4895,7 @@ function MarkdownDocument:EditPanel(args)
         thinkTime = 0.2,
         editlag = 0.3,
         create = function(element)
-            -- syntax-highlight smoke test (remove with the fenced block above)
-            element:SetColorSpans(SyntaxHighlightSmokeTestSpans(element.text))
+            element:SetColorSpans(ComputeMarkdownColorSpans(element.text))
         end,
         edit = function(element)
             if resultPanel ~= nil then
@@ -4653,8 +4903,10 @@ function MarkdownDocument:EditPanel(args)
             end
             charactersUsedLabel:FireEvent("refreshLength", element.text)
             UpdateAutocomplete(element)
-            -- syntax-highlight smoke test (remove with the fenced block above)
-            element:SetColorSpans(SyntaxHighlightSmokeTestSpans(element.text))
+            element:SetColorSpans(ComputeMarkdownColorSpans(element.text))
+            -- The preview just re-rendered, so block heights may have changed even if the
+            -- caret line did not (e.g. forward-delete). Force the next think to re-sync.
+            lastSyncedCaret = -1
         end,
         refreshDocument = function(element)
             element.text = self:GetTextContent()
@@ -4676,7 +4928,7 @@ function MarkdownDocument:EditPanel(args)
 
         caretReady = function(element)
             UpdateAutocomplete(element)
-            SyncPreviewScroll(element, previewPanel)
+            SyncPreviewScroll(element, previewPanel, previewBody)
         end,
 
         find = function(element)
@@ -4692,7 +4944,7 @@ function MarkdownDocument:EditPanel(args)
             else
                 UpdateLinkInfo(element)
             end
-            SyncPreviewScroll(element, previewPanel)
+            SyncPreviewScroll(element, previewPanel, previewBody)
         end,
     }
 
@@ -4700,6 +4952,13 @@ function MarkdownDocument:EditPanel(args)
         content = self:GetTextContent(),
         annotations = self.annotations,
         styleSheetId = self.styleSheetId or false,
+    }
+
+    -- Hoisted out of the panel child-list so SyncPreviewScroll can read its rendered blocks
+    -- (data.srcLine + renderedHeight) to map the caret line to a scroll position.
+    previewBody = previewDoc:DisplayPanel{
+        width = "100%",
+        height = "auto",
     }
 
     previewPanel = gui.Panel{
@@ -4719,10 +4978,7 @@ function MarkdownDocument:EditPanel(args)
             element:FireEventTree("refreshDocument", previewDoc)
         end,
 
-        previewDoc:DisplayPanel{
-            width = "100%",
-            height = "auto",
-        },
+        previewBody,
 
         gui.Panel{
             classes = { "previewClickGuard" },

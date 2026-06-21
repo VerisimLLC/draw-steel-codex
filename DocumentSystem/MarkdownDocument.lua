@@ -856,19 +856,28 @@ end
 
 -- Unordered bullet. `defmarker` is the original marker character ("-" or "*"),
 -- used as the glyph when no skin glyph is set so unstyled journals are unchanged.
-local function SkinBulletMarkup(bullet, defmarker, content)
+local function SkinBulletMarkup(bullet, defmarker, content, bodyColor)
     bullet = bullet or {}
     local glyph = bullet.glyph
     if glyph == nil or glyph == false or glyph == "" then glyph = defmarker end
-    local color = SkinColor(bullet.color)
+    local bodyCol = SkinColor(bodyColor)
+    -- Marker uses its own color if set, else the body text color so it stays as
+    -- readable as the item text.
+    local markerColor = SkinColor(bullet.color) or bodyCol
     local indent = bullet.indent or 0
     local prefix
-    if color then
-        prefix = string.format("<color=%s>%s</color>", color, glyph)
+    if markerColor then
+        prefix = string.format("<color=%s>%s</color>", markerColor, glyph)
     else
         prefix = glyph
     end
-    local line = prefix .. " " .. content
+    -- Item text inherits the body color so list items read the same as body
+    -- paragraphs. Default skin (body color unset) emits no tag -> unchanged.
+    local body = content
+    if bodyCol then
+        body = string.format("<color=%s>%s</color>", bodyCol, content)
+    end
+    local line = prefix .. " " .. body
     if indent ~= 0 then
         line = string.format("<indent=%dpx>%s</indent>", indent, line)
     end
@@ -876,17 +885,24 @@ local function SkinBulletMarkup(bullet, defmarker, content)
 end
 
 -- Ordered list item. `marker` is the literal "N." token. Default = unchanged.
-local function SkinOrderedMarkup(ordered, marker, content)
+local function SkinOrderedMarkup(ordered, marker, content, bodyColor)
     ordered = ordered or {}
-    local color = SkinColor(ordered.color)
+    local bodyCol = SkinColor(bodyColor)
+    -- Marker uses its own color if set, else the body text color (readable).
+    local markerColor = SkinColor(ordered.color) or bodyCol
     local indent = ordered.indent or 0
     local prefix
-    if color then
-        prefix = string.format("<color=%s>%s</color>", color, marker)
+    if markerColor then
+        prefix = string.format("<color=%s>%s</color>", markerColor, marker)
     else
         prefix = marker
     end
-    local line = prefix .. " " .. content
+    -- Item text inherits the body color (default skin: unset -> no tag).
+    local body = content
+    if bodyCol then
+        body = string.format("<color=%s>%s</color>", bodyCol, content)
+    end
+    local line = prefix .. " " .. body
     if indent ~= 0 then
         line = string.format("<indent=%dpx>%s</indent>", indent, line)
     end
@@ -1095,6 +1111,7 @@ ApplySkinToText = function(text, base, opts)
         start = nl + 1
     end
     local bodyPS = (base.body or {}).paragraphSpacing
+    local bodyColor = (base.body or {}).color
     for _, line in ipairs(lines) do
         local hashes, hContent = string.match(line, "^(#+) (.*)$")
         local bmarker, bContent = string.match(line, "^([%-%*]) (.*)$")
@@ -1108,9 +1125,9 @@ ApplySkinToText = function(text, base, opts)
             local ruled = opts and opts.ruledLevels and opts.ruledLevels[#hashes]
             if after and not ruled then out[#out + 1] = after end
         elseif bmarker ~= nil then
-            out[#out + 1] = SkinBulletMarkup(base.bullet, bmarker, bContent)
+            out[#out + 1] = SkinBulletMarkup(base.bullet, bmarker, bContent, bodyColor)
         elseif onum ~= nil then
-            out[#out + 1] = SkinOrderedMarkup(base.ordered, onum, oContent)
+            out[#out + 1] = SkinOrderedMarkup(base.ordered, onum, oContent, bodyColor)
         elseif line == "" then
             local gap = SkinGapLine(bodyPS)
             out[#out + 1] = gap or SkinBodyMarkup(base.body, line)
@@ -1741,8 +1758,6 @@ BreakdownRichTags = function(content, result, options, extraOutput)
                         linepos = linepos,
                     }
 
-                    print("SPOILER: ADD spoiler", guid)
-
                     text = text .. ThemeEngine.ResolveTokens(string.format("<color=@accent><size=70%%><link=spoiler:%s>%s</link></size></color>", guid, spoilerText))
                 end
 
@@ -2082,7 +2097,6 @@ local function PowerRollDisplay(doc)
                         return
                     end
 
-                    print("INFO::", token)
                     element.data.token = token
                     element:SetClass("collapsed", false)
                     element.text = string.sub(token.preset, 2)
@@ -2299,7 +2313,6 @@ function MarkdownDocument.DisplayPanel(self, args)
                 element.data.queries = nil
             end
 
-            --print("BREAKDOWN::", tokens)
             -- Plan 2: resolve this document's skin once per render. Memoized in
             -- the resolver, so re-calling per token would also be cheap, but we
             -- hoist it for clarity and to thread into text/divider/quote.
@@ -2381,7 +2394,6 @@ function MarkdownDocument.DisplayPanel(self, args)
                     else
                         local doc = CustomDocument.ResolveLink(original)
                         if doc ~= nil then
-                            print("EMBED:: CREATE", original)
                             newEmbeds[embed] = CustomDocument.CreateEmbeddablePanel(doc, { embedDepth = embedDepth, hostPageColor = pageColor }) or
                             false
                         else
@@ -2458,19 +2470,13 @@ function MarkdownDocument.DisplayPanel(self, args)
                                 end
 
                                 if element.data.rowList ~= nil then
-                                    local n = 0
                                     for i,row in ipairs(element.data.rowList) do
                                         if row.data.range ~= nil and total >= row.data.range.min and total <= row.data.range.max then
                                             row:SetClassTree("highlight", true)
-                                            n = i
                                         else
                                             row:SetClassTree("highlight", false)
                                         end
                                     end
-
-                                    print("DICE ROLL:: HIGHLIGHT:", n, #element.data.rowList)
-                                else
-                                    print("DICE ROLL:: NO ROW LIST")
                                 end
 
                             end
@@ -2489,7 +2495,6 @@ function MarkdownDocument.DisplayPanel(self, args)
                                     }
                                     local ref = rawget(info.properties, "tableRef")
                                     if ref.docid == self.id and ref.tableid == tableName then
-                                        print("DICE ROLL:: BEGIN WITH TIME", info.timeRemaining)
                                         local rolls = info.rolls
                                         for i,roll in ipairs(rolls) do
                                             local events = chat.DiceEvents(roll.guid)
@@ -2717,7 +2722,6 @@ function MarkdownDocument.DisplayPanel(self, args)
                         end
                     end
 
-                    print("CELL COUNT::", cellCount)
                     local cellWidth = math.floor(100 / cellCount)
                     local tableHeaderSpacing = 0
                     if currentRollableTable ~= nil then
@@ -2757,7 +2761,6 @@ function MarkdownDocument.DisplayPanel(self, args)
                             pad = 0,
                             links = true,
                             hoverLink = function(element, link)
-                                print("LINK:: HOVER", link, element.linkHovered)
                                 if string.starts_with(link, "spoiler:") then
                                     return
                                 end
@@ -2803,18 +2806,15 @@ function MarkdownDocument.DisplayPanel(self, args)
                                 end
                                 if element.linkHovered ~= nil then
                                     local link = element.linkHovered
-                                    print("LINK::", element.linkHovered)
                                     if string.starts_with(link, "spoiler:") then
                                         local spoilerValue = link:sub(9)
                                         local spoilerInfo = (m_tokenExtraInfo.spoilers or {})[spoilerValue]
                                         if spoilerInfo == nil then
-                                            print("SPOILER: INVALID INDEX", spoilerValue, "VS", table.keys(m_tokenExtraInfo.spoilers))
                                             return
                                         end
 
                                         local lines = table.shallow_copy(spoilerInfo.lines)
                                         local line = spoilerInfo.lines[spoilerInfo.lineIndex]
-                                        print("SPOILER: SUBSTITUTING...", line)
                                         for i=spoilerInfo.linepos,#line do
                                             if line:sub(i,i) == "{" then
                                                 local nextChar = line:sub(i+1,i+1)
@@ -2823,7 +2823,6 @@ function MarkdownDocument.DisplayPanel(self, args)
                                                 else
                                                     line = line:sub(1,i) .. "!" .. line:sub(i+1)
                                                 end
-                                                print("SPOILER: NEW LINE...", line)
                                                 lines[spoilerInfo.lineIndex] = line
                                                 self:SetTextContent(table.concat(lines, "\n"))
                                                 self:Upload()
@@ -3097,9 +3096,7 @@ function MarkdownDocument.DisplayPanel(self, args)
                     for key, richTag in pairs(MarkdownDocument.RichTagRegistry) do
                         if richTag.pattern then
                             patternMatch = regex.MatchGroups(token.text, richTag.pattern)
-                            print("BREAKDOWN:: TRYMATCH:", key, token.text, "with", richTag.pattern, patternMatch ~= nil)
                             if patternMatch ~= nil then
-                                print("BREAKDOWN:: DO MATCH", token.text)
                                 fullname = key
                                 text = key
                                 richTagFromPattern = richTag
@@ -3349,11 +3346,8 @@ function MarkdownDocument:EditPanel(args)
             press = function(element)
                 local documentPanel = element:FindParentWithClass("documentPanel")
                 if documentPanel ~= nil then
-                    print("DOCUMENT:: Saving document...")
                     resultPanel:SetClassTree("savePending", true)
                     documentPanel:FireEvent("saveDocument")
-                else
-                    print("DOCUMENT:: No document panel found!")
                 end
             end,
 

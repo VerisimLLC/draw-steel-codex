@@ -62,7 +62,7 @@ local g_defaultSkin = {
     body    = { font = nil, color = nil, sizePct = 100, lineHeight = nil, paragraphSpacing = nil, firstLineIndent = 0 },
     bullet  = { glyph = false, glyphFont = nil, color = nil, indent = 0, hangingIndent = 0, spacing = 0 },
     ordered = { color = nil, indent = 0, hangingIndent = 0, spacing = 0 },
-    quote   = { font = nil, color = nil, bold = false, italic = false, justify = nil, barColor = nil, inset = 0 },
+    quote   = { font = nil, color = nil, bgcolor = nil, bold = false, italic = false, justify = nil, barColor = nil, inset = 0 },
     rule    = { image = nil, color = nil, thickness = 1, margin = 0 },
     link    = { color = nil, underline = true },
     page    = { bgcolor = false },
@@ -683,6 +683,25 @@ end
 
 -- Test hook.
 MarkdownDocument.__ApplyBlockFrame = ApplyBlockFrame
+
+-- Theme a blockquote panel from the `quote` skin. The blockquote's bg + left
+-- accent bar come from the {"panel","blockQuote"} theme class; setting selfStyle
+-- overrides the class. Clears to nil when unset so an unstyled blockquote reverts
+-- to the theme (the bar GEOMETRY stays from the class -- only its color changes).
+-- Called every render because the blockquote panel is cached and reused.
+local function ApplyQuoteFrame(panel, quote)
+    quote = quote or {}
+    local ss = panel.selfStyle
+    local bg = SkinColor(quote.bgcolor)
+    if bg then
+        ss.bgimage = "panels/square.png"; ss.bgcolor = bg
+    else
+        ss.bgimage = nil; ss.bgcolor = nil
+    end
+    ss.borderColor = SkinColor(quote.barColor) or nil
+    ss.hpad = (type(quote.inset) == "number" and quote.inset > 0) and quote.inset or nil
+end
+MarkdownDocument.__ApplyQuoteFrame = ApplyQuoteFrame
 
 -- Apply a stylesheet's inner block styling to a built-in block's inner content
 -- (power-roll tier rows, collapse body). Mirrors ApplyBlockFrame: re-runs every
@@ -3051,6 +3070,8 @@ function MarkdownDocument.DisplayPanel(self, args)
                     end
 
                     blockquote:FireEventTree("markdownText", SkinQuoteText(resolvedSkin.quote, token.text))
+
+                    ApplyQuoteFrame(blockquote, resolvedSkin.quote)
 
                     newBlockquotes[#newBlockquotes + 1] = blockquote
 

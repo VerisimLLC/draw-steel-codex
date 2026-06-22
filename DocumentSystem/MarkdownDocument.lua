@@ -59,7 +59,7 @@ local g_defaultSkin = {
         [5] = { sizePct = 120, font = nil, color = nil, weight = "bold", caps = nil, tracking = 0, spaceBefore = 0, spaceAfter = 0 },
         [6] = { sizePct = 120, font = nil, color = nil, weight = "bold", caps = nil, tracking = 0, spaceBefore = 0, spaceAfter = 0 },
     },
-    body    = { font = "berling", color = nil, sizePct = 100, lineHeight = nil, paragraphSpacing = nil, firstLineIndent = 0 },
+    body    = { font = nil, color = nil, sizePct = 100, lineHeight = nil, paragraphSpacing = nil, firstLineIndent = 0 },
     bullet  = { glyph = false, glyphFont = nil, color = nil, indent = 0, hangingIndent = 0, spacing = 0 },
     ordered = { color = nil, indent = 0, hangingIndent = 0, spacing = 0 },
     quote   = { font = nil, color = nil, bold = false, italic = false, justify = nil, barColor = nil, inset = 0 },
@@ -789,6 +789,30 @@ local function SkinAlign(align, content)
     if v == nil then return content end
     return string.format("<align=%s>%s</align>", v, content)
 end
+
+-- Lazily-built lookup of valid font ids from gui.availableFonts (the faces
+-- configured for this build). Built on first use so it is ready even if the
+-- font list populates after this file loads.
+local g_fontSet = nil
+local function FontAvailable(id)
+    if g_fontSet == nil then
+        g_fontSet = {}
+        for _, f in ipairs(gui.availableFonts or {}) do g_fontSet[f] = true end
+    end
+    return g_fontSet[id] == true
+end
+
+-- Wrap content in a per-span <font> tag when `font` is a valid available id.
+-- Unset/unknown -> content unchanged (no tag), so the default skin is a no-op
+-- and an unavailable id falls back to the default face (never leaks a literal
+-- tag). The closing </font> resets the face for the next line (no bleed).
+local function SkinFont(font, content)
+    if type(font) == "string" and font ~= "" and FontAvailable(font) then
+        return string.format("<font=\"%s\">%s</font>", font, content)
+    end
+    return content
+end
+MarkdownDocument.__SkinFont = SkinFont
 
 -- Build the open/close markup pair for a heading level from its skin entry, and
 -- return the (possibly case-transformed) content.

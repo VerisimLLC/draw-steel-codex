@@ -65,6 +65,8 @@ local g_defaultSkin = {
     quote   = { font = nil, color = nil, bgcolor = nil, bold = false, italic = false, justify = nil, barColor = nil, inset = 0 },
     rule    = { image = nil, color = nil, thickness = 1, margin = 0 },
     link    = { color = nil, underline = true },
+    -- page.margin (optional, px): symmetric inner padding insetting content from
+    -- the page edges. Unset/0 = edge-to-edge (default).
     page    = { bgcolor = false },
     blocks  = {
         powerRoll     = { box = {}, inner = {} },
@@ -2390,6 +2392,17 @@ function MarkdownDocument.DisplayPanel(self, args)
             else
                 element.bgimage = nil
                 element.bgcolor = nil
+            end
+            -- Page margin: inset content from the page edges. borderBox keeps the
+            -- pad inside the declared width (no overflow). Unset/0 -> cleared, so
+            -- the default skin stays edge-to-edge.
+            local pageMargin = (resolvedSkin.page or {}).margin
+            if type(pageMargin) == "number" and pageMargin > 0 then
+                element.pad = pageMargin
+                element.borderBox = true
+            else
+                element.pad = nil
+                element.borderBox = nil
             end
             -- Content-aware preview scroll: tag each top-level child with the source line
             -- of the token that produced it. Capture the children array + length at the

@@ -1544,6 +1544,14 @@ function creature:CalculatePotencyValueSelf(potency)
     return potencyValue + potencyBonus
 end
 
+--The amount to shift an ability's *literal* potency gate (e.g. "M < 3") for this
+--creature. Only level-scaled monsters carry a shift (see
+--monster:ScaledPotencyGateBonus); every other creature -- heroes included --
+--returns 0, so non-scaled potency gates are completely unaffected.
+function creature:ScaledPotencyGateBonus()
+    return 0
+end
+
 creature.RegisterSymbol {
     symbol = "recoveriesavailabletospend",
     lookup = function(c)
@@ -2223,6 +2231,19 @@ end
 function creature:Echelon()
     return math.min(4, math.ceil(self:CharacterLevel() / 3))
 end
+
+creature.RegisterSymbol {
+    symbol = "echelon",
+    lookup = function(c)
+        return c:Echelon()
+    end,
+    help = {
+        name = "Echelon",
+        type = "number",
+        desc = "The creature's echelon, derived from its level: 1 (levels 1-3), 2 (4-6), 3 (7-9), 4 (10 and up). Useful for scaling values that step up once per echelon, e.g. a solo's End Effect damage of 5 * Echelon.",
+        seealso = { "Level" },
+    }
+}
 
 function creature:Keywords()
     return {}

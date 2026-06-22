@@ -976,3 +976,595 @@ function monster:Role()
 
     return nil
 end
+
+--==============================================================
+-- Monster level scaling: lookup tables + math foundation.
+--
+-- Data ported (EVALUATED values) from the Monsters sheet of
+-- "Draw Steel Maker Pro.xlsx" -- the authoritative source for this math.
+-- Designer-confirmed rulings and the full design live in
+-- .claude/monster-level-scaling.md. These functions are pure (no creature
+-- mutation, no UI); the feature builder and the damage hook consume them.
+--==============================================================
+
+MCDMMonsterScaling = {}
+
+MCDMMonsterScaling.minLevel = 1
+MCDMMonsterScaling.maxLevel = 11
+
+--Indexed by [org][level] for levels 1-11. stamina holds the three stamina
+--tiers (low/med/high); normal/dps hold the three power-roll tiers {t1,t2,t3}.
+--Leader/Solo rows only populate High stamina and DPS damage (others are nil),
+--matching the sheet.
+local g_scaleTable = {
+    minion = {
+        [1] = {ev=3, stamina={low=3, med=4, high=5}, normal={1, 2, 3}, dps={2, 4, 5}},
+        [2] = {ev=4, stamina={low=4, med=5, high=7}, normal={2, 3, 5}, dps={3, 4, 6}},
+        [3] = {ev=5, stamina={low=5, med=7, high=8}, normal={2, 4, 5}, dps={3, 5, 6}},
+        [4] = {ev=6, stamina={low=7, med=8, high=9}, normal={2, 4, 6}, dps={3, 5, 7}},
+        [5] = {ev=7, stamina={low=8, med=9, high=10}, normal={3, 5, 6}, dps={3, 6, 7}},
+        [6] = {ev=8, stamina={low=9, med=10, high=12}, normal={3, 5, 7}, dps={4, 6, 8}},
+        [7] = {ev=9, stamina={low=10, med=12, high=13}, normal={3, 6, 7}, dps={4, 7, 8}},
+        [8] = {ev=10, stamina={low=12, med=13, high=14}, normal={3, 6, 8}, dps={4, 7, 9}},
+        [9] = {ev=11, stamina={low=13, med=14, high=15}, normal={4, 6, 8}, dps={5, 7, 9}},
+        [10] = {ev=12, stamina={low=14, med=15, high=17}, normal={4, 7, 9}, dps={5, 8, 10}},
+        [11] = {ev=13, stamina={low=14, med=15, high=18}, normal={5, 7, 9}, dps={5, 8, 10}},
+    },
+    horde = {
+        [1] = {ev=3, stamina={low=10, med=15, high=20}, normal={1, 2, 3}, dps={2, 4, 5}},
+        [2] = {ev=4, stamina={low=15, med=20, high=25}, normal={2, 3, 5}, dps={3, 4, 6}},
+        [3] = {ev=5, stamina={low=20, med=25, high=30}, normal={2, 4, 5}, dps={3, 5, 6}},
+        [4] = {ev=6, stamina={low=25, med=30, high=35}, normal={2, 4, 6}, dps={3, 5, 7}},
+        [5] = {ev=7, stamina={low=30, med=35, high=40}, normal={3, 5, 6}, dps={3, 6, 7}},
+        [6] = {ev=8, stamina={low=35, med=40, high=45}, normal={3, 5, 7}, dps={4, 6, 8}},
+        [7] = {ev=9, stamina={low=40, med=45, high=50}, normal={3, 6, 7}, dps={4, 7, 8}},
+        [8] = {ev=10, stamina={low=45, med=50, high=55}, normal={3, 6, 8}, dps={4, 7, 9}},
+        [9] = {ev=11, stamina={low=50, med=55, high=60}, normal={4, 6, 8}, dps={5, 7, 9}},
+        [10] = {ev=12, stamina={low=55, med=60, high=65}, normal={4, 7, 9}, dps={5, 8, 10}},
+        [11] = {ev=13, stamina={low=55, med=60, high=70}, normal={5, 7, 9}, dps={5, 8, 10}},
+    },
+    platoon = {
+        [1] = {ev=6, stamina={low=20, med=30, high=40}, normal={3, 5, 7}, dps={4, 7, 10}},
+        [2] = {ev=8, stamina={low=30, med=40, high=50}, normal={4, 7, 10}, dps={5, 8, 11}},
+        [3] = {ev=10, stamina={low=40, med=50, high=60}, normal={5, 8, 11}, dps={5, 9, 12}},
+        [4] = {ev=12, stamina={low=50, med=60, high=70}, normal={5, 9, 12}, dps={6, 10, 13}},
+        [5] = {ev=14, stamina={low=60, med=70, high=80}, normal={6, 10, 13}, dps={6, 11, 14}},
+        [6] = {ev=16, stamina={low=70, med=80, high=90}, normal={6, 11, 14}, dps={7, 12, 15}},
+        [7] = {ev=18, stamina={low=80, med=90, high=100}, normal={7, 12, 15}, dps={7, 13, 16}},
+        [8] = {ev=20, stamina={low=90, med=100, high=110}, normal={7, 13, 16}, dps={8, 13, 17}},
+        [9] = {ev=22, stamina={low=100, med=110, high=120}, normal={8, 13, 17}, dps={9, 14, 18}},
+        [10] = {ev=24, stamina={low=110, med=120, high=130}, normal={9, 14, 18}, dps={10, 15, 19}},
+        [11] = {ev=26, stamina={low=110, med=120, high=140}, normal={10, 15, 19}, dps={10, 16, 20}},
+    },
+    leader = {
+        [1] = {ev=12, stamina={low=nil, med=nil, high=80}, normal=nil, dps={4, 7, 10}},
+        [2] = {ev=16, stamina={low=nil, med=nil, high=100}, normal=nil, dps={5, 8, 11}},
+        [3] = {ev=20, stamina={low=nil, med=nil, high=120}, normal=nil, dps={5, 9, 12}},
+        [4] = {ev=24, stamina={low=nil, med=nil, high=140}, normal=nil, dps={6, 10, 13}},
+        [5] = {ev=28, stamina={low=nil, med=nil, high=160}, normal=nil, dps={6, 11, 14}},
+        [6] = {ev=32, stamina={low=nil, med=nil, high=180}, normal=nil, dps={7, 12, 15}},
+        [7] = {ev=36, stamina={low=nil, med=nil, high=200}, normal=nil, dps={7, 13, 16}},
+        [8] = {ev=40, stamina={low=nil, med=nil, high=220}, normal=nil, dps={8, 13, 17}},
+        [9] = {ev=44, stamina={low=nil, med=nil, high=240}, normal=nil, dps={9, 14, 18}},
+        [10] = {ev=48, stamina={low=nil, med=nil, high=260}, normal=nil, dps={10, 15, 19}},
+        [11] = {ev=52, stamina={low=nil, med=nil, high=280}, normal=nil, dps={10, 16, 20}},
+    },
+    elite = {
+        [1] = {ev=12, stamina={low=40, med=60, high=80}, normal={4, 7, 10}, dps={5, 8, 11}},
+        [2] = {ev=16, stamina={low=60, med=80, high=100}, normal={5, 8, 11}, dps={5, 9, 12}},
+        [3] = {ev=20, stamina={low=80, med=100, high=120}, normal={5, 9, 12}, dps={6, 10, 13}},
+        [4] = {ev=24, stamina={low=100, med=120, high=140}, normal={6, 10, 13}, dps={6, 11, 14}},
+        [5] = {ev=28, stamina={low=120, med=140, high=160}, normal={6, 11, 14}, dps={7, 12, 15}},
+        [6] = {ev=32, stamina={low=140, med=160, high=180}, normal={7, 12, 15}, dps={7, 13, 16}},
+        [7] = {ev=36, stamina={low=160, med=180, high=200}, normal={7, 13, 16}, dps={8, 13, 17}},
+        [8] = {ev=40, stamina={low=180, med=200, high=220}, normal={8, 13, 17}, dps={9, 14, 18}},
+        [9] = {ev=44, stamina={low=200, med=220, high=240}, normal={9, 14, 18}, dps={10, 15, 19}},
+        [10] = {ev=48, stamina={low=220, med=240, high=260}, normal={10, 15, 19}, dps={10, 16, 20}},
+        [11] = {ev=52, stamina={low=220, med=240, high=280}, normal={10, 16, 20}, dps={11, 17, 21}},
+    },
+    solo = {
+        [1] = {ev=36, stamina={low=nil, med=nil, high=200}, normal=nil, dps={5, 8, 11}},
+        [2] = {ev=48, stamina={low=nil, med=nil, high=250}, normal=nil, dps={5, 9, 12}},
+        [3] = {ev=60, stamina={low=nil, med=nil, high=300}, normal=nil, dps={6, 10, 13}},
+        [4] = {ev=72, stamina={low=nil, med=nil, high=350}, normal=nil, dps={6, 11, 14}},
+        [5] = {ev=84, stamina={low=nil, med=nil, high=400}, normal=nil, dps={7, 12, 15}},
+        [6] = {ev=96, stamina={low=nil, med=nil, high=450}, normal=nil, dps={7, 13, 16}},
+        [7] = {ev=108, stamina={low=nil, med=nil, high=500}, normal=nil, dps={8, 13, 17}},
+        [8] = {ev=120, stamina={low=nil, med=nil, high=550}, normal=nil, dps={9, 14, 18}},
+        [9] = {ev=132, stamina={low=nil, med=nil, high=600}, normal=nil, dps={10, 15, 19}},
+        [10] = {ev=144, stamina={low=nil, med=nil, high=650}, normal=nil, dps={10, 16, 20}},
+        [11] = {ev=156, stamina={low=nil, med=nil, high=700}, normal=nil, dps={11, 17, 21}},
+    },
+}
+
+--Role -> stamina tier and damage type, from the sheet's MonsterIndex.
+local g_roleStaminaTier = {
+    controller = "low", hexer = "low", artillery = "low",
+    harrier = "med", mount = "med", support = "med", ambusher = "med",
+    defender = "high", brute = "high",
+}
+local g_roleDamageType = {
+    controller = "normal", hexer = "normal", harrier = "normal",
+    mount = "normal", support = "normal", defender = "normal",
+    artillery = "dps", ambusher = "dps", brute = "dps",
+}
+
+local g_organizationSet = {
+    minion = true, horde = true, platoon = true,
+    elite = true, leader = true, solo = true,
+}
+local g_roleSet = {
+    controller = true, hexer = true, artillery = true, harrier = true,
+    mount = true, support = true, ambusher = true, defender = true, brute = true,
+}
+
+--Echelon for a level: 1 (L1-3), 2 (L4-6), 3 (L7-9), 4 (L10-11).
+function MCDMMonsterScaling.Echelon(level)
+    if level <= 3 then return 1
+    elseif level <= 6 then return 2
+    elseif level <= 9 then return 3
+    else return 4 end
+end
+
+--Highest characteristic / power-roll bonus: caps at +5.
+function MCDMMonsterScaling.HighestCharacteristic(level, isLeaderSolo)
+    return math.min(5, MCDMMonsterScaling.Echelon(level) + (isLeaderSolo and 2 or 1))
+end
+
+--Strong-tier potency: caps at 6, and is NOT derived from the (capped)
+--characteristic. They diverge for leader/solo at echelon 4 (char +5, potency 6).
+function MCDMMonsterScaling.PotencyStrong(level, isLeaderSolo)
+    return math.min(6, MCDMMonsterScaling.Echelon(level) + (isLeaderSolo and 2 or 1))
+end
+
+--Parse a monster "role" string (which encodes organization and role, e.g.
+--"Elite Brute", "Minion Harrier", "Leader", or just "Harrier") into
+--(organization, role), both lowercase. Word order is tolerated. With no
+--organization keyword the standard organization is Platoon. minionFlag (the
+--engine's creature.minion) forces minion. role may be nil (e.g. bare "Leader").
+function MCDMMonsterScaling.ParseOrgRole(roleString, minionFlag)
+    local org, role
+    for word in string.gmatch(string.lower(roleString or ""), "%a+") do
+        if g_organizationSet[word] then
+            org = word
+        elseif g_roleSet[word] then
+            role = word
+        end
+    end
+    if minionFlag then org = "minion" end
+    if org == nil then org = "platoon" end
+    return org, role
+end
+
+--Stamina tier to read for an (org, role). Leader/Solo always read High.
+function MCDMMonsterScaling.StaminaTier(org, role)
+    if org == "leader" or org == "solo" then return "high" end
+    return g_roleStaminaTier[role] or "med"
+end
+
+--Damage type to read for an (org, role). Leader/Solo always read DPS.
+function MCDMMonsterScaling.DamageType(org, role)
+    if org == "leader" or org == "solo" then return "dps" end
+    return g_roleDamageType[role] or "normal"
+end
+
+--Raw table row for an (org, level), or nil if out of range / unknown org.
+function MCDMMonsterScaling.RowFor(org, level)
+    local orgTbl = g_scaleTable[org]
+    if orgTbl == nil then return nil end
+    return orgTbl[level]
+end
+
+--Per-stat deltas to apply when scaling from baseLevel to targetLevel for an
+--(org, role). Deltas are added on top of the creature's authored stats (the
+--delta-from-base model), so bespoke / hand-tuned stat blocks keep their offset.
+--Returns nil if the org is unknown or either level is out of the 1-11 range.
+--Fields:
+--  ev             EV delta (creature 'ev' attribute)
+--  stamina        Stamina delta (creature 'hitpoints')
+--  t1/t2/t3       Per-tier table-damage deltas (Tier N Damage Bonus)
+--  freeStrike     Free-strike delta = T1 table delta (no characteristic)
+--  characteristic Highest-characteristic / power-roll delta (capped at +5)
+--  potency        Potency delta (own value, capped at 6; Potency Bonus)
+--  strike         Strike Damage Bonus delta = characteristic delta
+function MCDMMonsterScaling.ComputeDeltas(org, role, baseLevel, targetLevel)
+    local b = MCDMMonsterScaling.RowFor(org, baseLevel)
+    local t = MCDMMonsterScaling.RowFor(org, targetLevel)
+    if b == nil or t == nil then return nil end
+
+    local isLeaderSolo = (org == "leader" or org == "solo")
+    local tier = MCDMMonsterScaling.StaminaTier(org, role)
+    local dtype = MCDMMonsterScaling.DamageType(org, role)
+    local bDmg, tDmg = b[dtype], t[dtype]
+
+    local function tierDelta(i)
+        if bDmg == nil or tDmg == nil then return 0 end
+        return (tDmg[i] or 0) - (bDmg[i] or 0)
+    end
+
+    local charBase = MCDMMonsterScaling.HighestCharacteristic(baseLevel, isLeaderSolo)
+    local charTarget = MCDMMonsterScaling.HighestCharacteristic(targetLevel, isLeaderSolo)
+    local potBase = MCDMMonsterScaling.PotencyStrong(baseLevel, isLeaderSolo)
+    local potTarget = MCDMMonsterScaling.PotencyStrong(targetLevel, isLeaderSolo)
+
+    return {
+        ev = t.ev - b.ev,
+        stamina = (t.stamina[tier] or 0) - (b.stamina[tier] or 0),
+        t1 = tierDelta(1),
+        t2 = tierDelta(2),
+        t3 = tierDelta(3),
+        freeStrike = tierDelta(1),
+        characteristic = charTarget - charBase,
+        potency = potTarget - potBase,
+        strike = charTarget - charBase,
+    }
+end
+
+--Convenience: parse this monster's organization and role from its data.
+function monster:ScalingOrgRole()
+    return MCDMMonsterScaling.ParseOrgRole(self:try_get("role", ""), self.minion)
+end
+
+--Potency for monsters. The base creature:Potency() returns the highest
+--characteristic, which is correct for every monster EXCEPT echelon-4
+--leaders/solos: the MCDM monster-math sheet caps the characteristic (power
+--roll) at +5 but lets potency reach 6 at that echelon. Detect that one case by
+--organization + echelon and lift potency by 1, but only when the characteristic
+--is actually at the +5 cap, so a hand-tuned monster with a sub-cap characteristic
+--still gets potency = its highest characteristic. Computed live from level/org,
+--so any new L10/L11 leader or solo gets the right result with no per-monster data.
+function monster:Potency()
+    local summonerToken = self:GetPotencySummonerToken()
+    if summonerToken ~= nil then
+        return summonerToken.properties:Potency()
+    end
+
+    local highest = self:HighestCharacteristic()
+    local org = self:ScalingOrgRole()
+    if (org == "leader" or org == "solo")
+        and MCDMMonsterScaling.Echelon(round(tonumber(self.cr) or 0)) == 4
+        and highest >= 5 then
+        return highest + 1
+    end
+    return highest
+end
+
+--A level-scaled monster's *literal* ability potency gates (e.g. "M < 3") are
+--frozen text baked in at the authored level; unlike the Potencies line and
+--weak/average/strong gates (which recompute from monster:Potency()), they never
+--track the characteristic. So they must be nudged explicitly by the same potency
+--delta the Adjust Level modal previews. Returns 0 when unscaled (zero shift), and
+--mirrors the summoner redirect that Potency()/CalculatePotencyValue use. Both the
+--display pass and the resolution save-check add this, so the shown gate and the
+--actual save always agree. Computed live (no stored modifier) so it cannot stale.
+function monster:ScaledPotencyGateBonus()
+    local summonerToken = self:GetPotencySummonerToken()
+    if summonerToken ~= nil then
+        return summonerToken.properties:ScaledPotencyGateBonus()
+    end
+    if not self:HasLevelAdjustment() then
+        return 0
+    end
+    local org, role = self:ScalingOrgRole()
+    local deltas = MCDMMonsterScaling.ComputeDeltas(org, role, self:GetScalingBaseLevel(), round(tonumber(self.cr) or 0))
+    if deltas == nil then
+        return 0
+    end
+    return deltas.potency or 0
+end
+
+--==============================================================
+-- Monster level scaling: the generated "Level Adjustment" feature.
+--
+-- The only persistent state is the authored base level (scalingBaseLevel);
+-- creature.cr holds the current (target) level. A feature carrying the
+-- base->target stat deltas is regenerated on every modifier calculation via
+-- RegisterFeatureCalculation, so rescaling just changes cr and restoring just
+-- clears scalingBaseLevel -- no stored modifiers to go stale.
+--==============================================================
+
+local g_adjustFeatureName = "Level Adjustment"
+
+--Stable guids for the generated feature and its modifiers. The feature is
+--regenerated (never persisted) per calculation and is only ever alive inside a
+--single creature's modifier list, so these need only be internally distinct.
+local g_adjustFeatureGuid = "c3079d4d-f5a8-48a9-8c6e-b4357209b4a9"
+local g_adjustModGuids = {
+    ev         = "3228246a-90ed-4759-8629-9a967641f6fa",
+    hitpoints  = "64069561-1cbb-47b6-bd01-de9a7a9ce467",
+    freeStrike = "3852aca2-a776-4744-9f67-a92f48210c80",
+    potency    = "831861c3-4d74-4fd1-af15-df1094b2c910",
+    t1         = "5557dadd-a1a1-4338-94e4-f2ffb41470ef",
+    t2         = "ad13299a-108b-47d3-ac21-c1eda5abda26",
+    t3         = "c79b4266-f7c8-49f4-ac52-0a4def6b63b8",
+    strike     = "ea86292d-b78d-47ce-9081-14533f341598",
+    characteristic = "1f7c4d6e-2b9a-4f08-bb51-6e0a9d2c8b34",
+}
+
+--Resolve a custom attribute's GUID (the key an attribute modifier targets) by
+--name, so this survives a compendium re-import that changes the GUIDs.
+local function ScalingCustomAttrId(name)
+    local sym = string.lower(name:gsub("%s+", ""))
+    local attr = CustomAttribute.attributeInfoByLookupSymbol[sym]
+    if attr == nil then
+        return nil
+    end
+    return attr.id
+end
+
+--Build the generated "Level Adjustment" CharacterFeature from a deltas table
+--(see MCDMMonsterScaling.ComputeDeltas). Every entry is a plain add-operation
+--Modify Attribute modifier; zero deltas are skipped. Returns nil if there is
+--nothing to add.
+--
+--charScale (optional) = { attr = <characteristic attribute id>, bump = <delta> }
+--actually raises the creature's highest characteristic so the sheet reflects it
+--and abilities that roll "2d10 + Highest Characteristic" scale. Potency needs no
+--modifier of its own: the engine ties monster:Potency() to the highest
+--characteristic (plus the echelon-4 leader/solo +1), so the characteristic bump
+--and the level change move potency correctly on their own. Strike damage moves
+--by the same `bump` (the characteristic part of a strike's per-tier damage); the
+--static tier text is not re-derived from the characteristic, so no double count.
+function MCDMMonsterScaling.BuildAdjustmentFeature(deltas, charScale)
+    if deltas == nil then
+        return nil
+    end
+
+    local charBump = (charScale ~= nil and charScale.bump) or 0
+
+    -- No Potency Bonus modifier: the computed potency (the Potencies line and
+    -- weak/average/strong gates) follows the characteristic via the engine
+    -- (monster:Potency() = highest characteristic, +1 at echelon-4 leader/solo),
+    -- and scaling already raises both the characteristic and the level, so it
+    -- recomputes on its own; a Potency Bonus here would double-count it. The one
+    -- thing that does NOT recompute is a *literal* potency gate baked into ability
+    -- text (e.g. "M < 3") -- that is nudged separately by monster:ScaledPotencyGateBonus
+    -- at the two gate sites in MCDMAbilityBehavior, not by a modifier here.
+    local specs = {
+        { key = "ev",         attribute = "ev",                  value = deltas.ev },
+        { key = "hitpoints",  attribute = "hitpoints",           value = deltas.stamina },
+        { key = "freeStrike", attribute = "Free Strike Bonus",   value = deltas.freeStrike, custom = true },
+        { key = "t1",         attribute = "Tier 1 Damage Bonus", value = deltas.t1,         custom = true },
+        { key = "t2",         attribute = "Tier 2 Damage Bonus", value = deltas.t2,         custom = true },
+        { key = "t3",         attribute = "Tier 3 Damage Bonus", value = deltas.t3,         custom = true },
+        { key = "strike",     attribute = "Strike Damage Bonus", value = charBump,          custom = true },
+    }
+
+    --Raise the actual highest characteristic (skipped when there is no echelon
+    --change, or no attribute to target).
+    if charScale ~= nil and charScale.attr ~= nil and charBump ~= 0 then
+        specs[#specs+1] = { key = "characteristic", attribute = charScale.attr, value = charBump }
+    end
+
+    local modifiers = {}
+    for _,spec in ipairs(specs) do
+        local value = spec.value or 0
+        if value ~= 0 then
+            local attribute = spec.attribute
+            if spec.custom then
+                attribute = ScalingCustomAttrId(spec.attribute)
+            end
+            if attribute ~= nil then
+                modifiers[#modifiers+1] = CharacterModifier.new{
+                    guid = g_adjustModGuids[spec.key],
+                    sourceguid = g_adjustFeatureGuid,
+                    name = g_adjustFeatureName,
+                    source = g_adjustFeatureName,
+                    description = "",
+                    behavior = "attribute",
+                    operation = "add",
+                    attribute = attribute,
+                    value = value,
+                }
+            end
+        end
+    end
+
+    if #modifiers == 0 then
+        return nil
+    end
+
+    return CharacterFeature.Create{
+        guid = g_adjustFeatureGuid,
+        name = g_adjustFeatureName,
+        source = g_adjustFeatureName,
+        modifiers = modifiers,
+    }
+end
+
+--The authored (base) level: the stored value if scaled, else the current cr.
+function monster:GetScalingBaseLevel()
+    return round(tonumber(self:try_get("scalingBaseLevel", self.cr)) or 0)
+end
+
+--True if a level adjustment is currently in effect.
+function monster:HasLevelAdjustment()
+    local base = self:try_get("scalingBaseLevel")
+    return base ~= nil and round(tonumber(base) or 0) ~= round(tonumber(self.cr) or 0)
+end
+
+--Scale this monster to targetLevel (clamped to 1-11). Stores the authored base
+--level on first use; clears the adjustment if targetLevel returns to base.
+--Mutates creature properties -- callers outside the character sheet must wrap
+--this in token:ModifyProperties.
+function monster:SetLevelAdjustment(targetLevel)
+    targetLevel = round(tonumber(targetLevel) or 0)
+    targetLevel = math.max(MCDMMonsterScaling.minLevel, math.min(MCDMMonsterScaling.maxLevel, targetLevel))
+
+    local base = self:GetScalingBaseLevel()
+    if targetLevel == base then
+        self:ClearLevelAdjustment()
+        return
+    end
+
+    self.scalingBaseLevel = base
+    self.cr = targetLevel
+end
+
+--Remove the level adjustment, restoring the monster to its authored level.
+function monster:ClearLevelAdjustment()
+    if self:has_key("scalingBaseLevel") then
+        self.cr = self:GetScalingBaseLevel()
+        self.scalingBaseLevel = nil
+    end
+end
+
+--==============================================================
+-- Solo conversion: the "Make Solo" button lifecycle.
+--
+-- A non-solo monster can be promoted to a Solo in one action: its organization
+-- is set to Solo (the role word is dropped -- Solos have no role) and the
+-- "Instant Solo" creature template is applied for the stat math (EV x3, Stamina
+-- x2.5, extra turns/action, end effect). The conversion is fully reversible: the
+-- prior role string and minion flag are remembered so Revert restores them
+-- exactly, then the template is removed.
+--
+-- creature.role is the single source of truth for organization (Organization()
+-- regex-parses its first word), so the org->Solo flip is a plain string write. A
+-- template MODIFIER cannot write a string field, which is why this lives on a
+-- code actor (the button) rather than in the template itself.
+--
+-- Mutates creature properties -- callers outside the character sheet must wrap
+-- these in token:ModifyProperties.
+--==============================================================
+local INSTANT_SOLO_TEMPLATE_ID = "231c3a1e-1292-4751-bc23-238b26531e61"
+
+--True if this monster was promoted to Solo by the Make Solo button (as opposed
+--to being authored as a Solo). Only a button conversion is revertible.
+function monster:HasSoloConversion()
+    return self:try_get("soloConversionPriorRole") ~= nil
+end
+
+--Promote this monster to a Solo: remember the prior role/minion, set the
+--organization to Solo (dropping the role word), and apply the Instant Solo
+--template. No-op if already converted.
+function monster:MakeSolo()
+    if self:HasSoloConversion() then
+        return
+    end
+
+    self.soloConversionPriorRole = self:try_get("role", "")
+    self.soloConversionPriorMinion = self:try_get("minion", false)
+
+    --Snapshot the villain actions the creature already has, so Revert removes
+    --only the ones added during the solo conversion and leaves any the creature
+    --owned beforehand (e.g. a Leader's native villain actions) intact.
+    local priorVillainActions = {}
+    for _, a in ipairs(self:try_get("innateActivatedAbilities", {})) do
+        if a.categorization == "Villain Action" then
+            priorVillainActions[#priorVillainActions + 1] = a.guid
+        end
+    end
+    self.soloConversionPriorVillainActions = priorVillainActions
+
+    self.role = "Solo"
+    self.minion = false
+
+    --Apply the Instant Solo template, guarding against a stray duplicate.
+    local templates = self:try_get("creatureTemplates")
+    local hasTemplate = false
+    if templates ~= nil then
+        for _, id in ipairs(templates) do
+            if id == INSTANT_SOLO_TEMPLATE_ID then
+                hasTemplate = true
+                break
+            end
+        end
+    end
+    if not hasTemplate then
+        self:AddTemplate(INSTANT_SOLO_TEMPLATE_ID)
+    end
+end
+
+--Revert a Make Solo conversion: restore the prior role/minion and remove the
+--Instant Solo template. No-op if not converted.
+function monster:RevertSolo()
+    if not self:HasSoloConversion() then
+        return
+    end
+
+    self.role = self:try_get("soloConversionPriorRole", "")
+    self.minion = self:try_get("soloConversionPriorMinion", false)
+
+    --Remove the Instant Solo template we added (RemoveTemplate is index-based,
+    --so locate it first; iterate in reverse so the index stays valid).
+    local templates = self:try_get("creatureTemplates")
+    if templates ~= nil then
+        for i = #templates, 1, -1 do
+            if templates[i] == INSTANT_SOLO_TEMPLATE_ID then
+                self:RemoveTemplate(i)
+                break
+            end
+        end
+    end
+
+    --Remove villain actions added during the solo conversion: any villain
+    --action whose guid is not in the pre-conversion snapshot. This restores the
+    --creature's original villain-action set (none for an Elite, the native ones
+    --for a Leader) rather than leaving solo-only actions behind.
+    local priorVillainActions = {}
+    for _, guid in ipairs(self:try_get("soloConversionPriorVillainActions", {})) do
+        priorVillainActions[guid] = true
+    end
+    local villainActionsToRemove = {}
+    for _, a in ipairs(self:try_get("innateActivatedAbilities", {})) do
+        if a.categorization == "Villain Action" and not priorVillainActions[a.guid] then
+            villainActionsToRemove[#villainActionsToRemove + 1] = a
+        end
+    end
+    for _, a in ipairs(villainActionsToRemove) do
+        self:RemoveInnateActivatedAbility(a)
+    end
+
+    self.soloConversionPriorRole = nil
+    self.soloConversionPriorMinion = nil
+    self.soloConversionPriorVillainActions = nil
+end
+
+creature.RegisterFeatureCalculation{
+    id = "monsterLevelScaling",
+    FillFeatures = function(c, result)
+        if not c:IsMonster() then
+            return
+        end
+        local base = c:try_get("scalingBaseLevel")
+        if base == nil then
+            return
+        end
+        base = round(tonumber(base) or 0)
+        local target = round(tonumber(c.cr) or base)
+        if target == base then
+            return
+        end
+
+        local org, role = MCDMMonsterScaling.ParseOrgRole(c:try_get("role", ""), c:try_get("minion", false))
+        local deltas = MCDMMonsterScaling.ComputeDeltas(org, role, base, target)
+
+        -- Resolve the characteristic bump. Read the highest characteristic from
+        -- the raw stored attributes (GetBaseAttribute -- no modifier pipeline, so
+        -- no recursion during this calculation), apply the formula characteristic
+        -- delta (deltas.strike), and clamp the result to the +5 power-roll cap so
+        -- a hand-tuned monster authored above the curve cannot exceed it.
+        local charScale = nil
+        if deltas ~= nil then
+            local highestAttr, highestVal = nil, nil
+            for _, attrid in ipairs(creature.attributeIds) do
+                local v = 0
+                pcall(function() v = c:GetBaseAttribute(attrid).baseValue or 0 end)
+                if highestVal == nil or v > highestVal then
+                    highestVal = v
+                    highestAttr = attrid
+                end
+            end
+            if highestAttr ~= nil then
+                local newHighest = math.min(5, (highestVal or 0) + (deltas.strike or 0))
+                charScale = { attr = highestAttr, bump = newHighest - (highestVal or 0) }
+            end
+        end
+
+        local feature = MCDMMonsterScaling.BuildAdjustmentFeature(deltas, charScale)
+        if feature ~= nil then
+            result[#result+1] = feature
+        end
+    end,
+}

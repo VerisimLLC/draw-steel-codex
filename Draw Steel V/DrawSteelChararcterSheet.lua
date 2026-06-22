@@ -11,6 +11,21 @@ local g_abilityActionSortOrder = {
     [g_villainActionId] = 1,
 }
 
+-- Villain-action slot vocabulary, shared by the sheet's Villain Actions slots
+-- (CreateAbilityListPanel, earlier in the file) and the picker modal
+-- (ShowVillainActionPicker, far below). The picker is launched for one slot at a
+-- time and only offers candidates authored for that same slot (slot-locked).
+local g_villainSlotMeta = {
+    ["Villain Action 1"] = { label = "Opener",        roman = "I" },
+    ["Villain Action 2"] = { label = "Crowd Control",  roman = "II" },
+    ["Villain Action 3"] = { label = "Showstopper",    roman = "III" },
+}
+local g_villainSlotOrder = { "Villain Action 1", "Villain Action 2", "Villain Action 3" }
+
+-- Forward-declared: defined far below, but referenced by the sheet's Villain
+-- Actions empty-slot Add affordances (CreateAbilityListPanel) which build earlier.
+local ShowVillainActionPicker
+
 --Transient highlight for a capability revealed from search (Phase B). The
 --reveal flashes the accent on instantly, HOLDS it, then fades out over
 --SEARCH_REVEAL_FADE (the rule's transitionTime, eased) with a dark gap before
@@ -801,6 +816,82 @@ local function CreateAbilityListPanel()
         return actionid
     end
 
+    -- Villain Actions empty-slot Add affordances. Solos and leaders are expected
+    -- to field three villain actions (Opener / Crowd Control / Showstopper); when a
+    -- slot is unfilled this surfaces an Add row that launches the picker for that
+    -- slot. Built once; refreshToken toggles each row by which slots are filled and
+    -- whether the group is shown + expanded. Normal monster-building (a non-solo,
+    -- non-leader creature with no villain actions) never sees these.
+    local m_villainSlotRows = {}
+    local m_villainSlotsPanel
+    do
+        local rows = {}
+        for _, slotId in ipairs(g_villainSlotOrder) do
+            local capturedSlot = slotId
+            local slotMeta = g_villainSlotMeta[slotId]
+            -- Card-sized empty slot: mirrors an ability card's footprint (60 tall,
+            -- full width) but reads as a placeholder -- quiet nested fill, a muted
+            -- centered "+ Add <slot>" -- so it signals "this slot is waiting to be
+            -- filled" rather than hiding as a thin row.
+            local row = gui.Panel{
+                classes = { "villainSlotAdd", "hoverable", "collapsed" },
+                width = "100%",
+                height = 60,
+                flow = "horizontal",
+                halign = "center",
+                valign = "center",
+                borderBox = true,
+                vmargin = 3,
+                click = function(element)
+                    local token = CharacterSheet.instance ~= nil
+                        and CharacterSheet.instance.data.info.token or nil
+                    if token ~= nil and ShowVillainActionPicker ~= nil then
+                        ShowVillainActionPicker(token, capturedSlot)
+                    end
+                end,
+                gui.Panel{
+                    width = "auto", height = "auto", flow = "vertical",
+                    halign = "center", valign = "center",
+                    gui.Panel{
+                        width = "auto", height = "auto", flow = "horizontal",
+                        halign = "center", valign = "center",
+                        gui.Panel{
+                            classes = { "villainSlotAddIcon" },
+                            bgimage = "ui-icons/Plus.png",
+                            width = 16, height = 16,
+                            valign = "center",
+                        },
+                        gui.Label{
+                            classes = { "villainSlotAddLabel" },
+                            width = "auto", height = "auto",
+                            valign = "center",
+                            hmargin = 8,
+                            text = string.format("Add %s", slotMeta.label),
+                        },
+                    },
+                    -- Subline naming the slot ("Villain Action I/II/III"), smaller.
+                    gui.Label{
+                        classes = { "villainSlotAddSub" },
+                        width = "auto", height = "auto",
+                        halign = "center",
+                        textAlignment = "center",
+                        text = string.format("Villain Action %s", slotMeta.roman),
+                    },
+                },
+            }
+            m_villainSlotRows[slotId] = row
+            rows[#rows + 1] = row
+        end
+        m_villainSlotsPanel = gui.Panel{
+            classes = { "collapsed" },
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            data = { ord = g_villainActionId },
+            children = rows,
+        }
+    end
+
     local function buildActionMenuStyles()
         return ThemeEngine.MergeTokens{
             Styles.ActionMenu,
@@ -819,6 +910,18 @@ local function CreateAbilityListPanel()
             { selectors = {"abilityTitle"},     color = "@fgStrong" },
             { selectors = {"abilityInfoLabel"}, color = "@fgMuted" },
 
+            -- Villain Actions empty-slot Add cards: a quiet nested placeholder
+            -- (@bgAlt fill, muted glyph + label) that brightens (hoverable) and
+            -- gains an accent frame on hover.
+            { selectors = {"villainSlotAdd"},
+              bgcolor = "@bgAlt", borderColor = "@border", borderWidth = 1,
+              bgimage = true },
+            { selectors = {"villainSlotAdd", "hover"},
+              borderColor = "@accent" },
+            { selectors = {"villainSlotAddLabel"}, color = "@fgMuted", fontSize = 18 },
+            { selectors = {"villainSlotAddSub"}, color = "@fgMuted", fontSize = 12 },
+            { selectors = {"villainSlotAddIcon"}, bgcolor = "@fgMuted" },
+
             SEARCH_REVEAL_RULE,
         }
     end
@@ -829,6 +932,7 @@ local function CreateAbilityListPanel()
         m_triggersLabel,
         m_otherActionsLabel,
         m_villainActionsLabel,
+        m_villainSlotsPanel,
         styles = buildActionMenuStyles(),
         width = "100%-12",
         height = "auto",
@@ -845,14 +949,29 @@ local function CreateAbilityListPanel()
             local abilities = c:GetActivatedAbilities {} -- characterSheet = true }
             local children = {}
 
+            -- Which villain-action slots are already filled, and whether the
+            -- creature is a solo or leader (the orgs expected to have villain
+            -- actions). The Villain Actions group -- and its empty-slot Add rows --
+            -- show when the creature has villain actions OR is a solo/leader, so
+            -- normal monster-building never surfaces them.
             local hasVillainActions = false
+            local slotFilled = {}
             for _, ability in ipairs(abilities) do
                 if IsVillainAction(ability) then
                     hasVillainActions = true
-                    break
+                    local slot = ability:try_get("villainAction")
+                    if slot ~= nil then
+                        slotFilled[slot] = true
+                    end
                 end
             end
-            m_villainActionsLabel:SetClass("collapsed", not hasVillainActions)
+            local isSoloOrLeader = false
+            pcall(function()
+                local org = c:ScalingOrgRole()
+                isSoloOrLeader = (org == "solo" or org == "leader")
+            end)
+            local showVillainGroup = hasVillainActions or isSoloOrLeader
+            m_villainActionsLabel:SetClass("collapsed", not showVillainGroup)
 
             local showAbilities = {}
             if not m_mainActionsLabel:HasClass("collapseSet") then
@@ -867,7 +986,8 @@ local function CreateAbilityListPanel()
                 showAbilities["other"] = true
             end
 
-            if hasVillainActions and not m_villainActionsLabel:HasClass("collapseSet") then
+            local villainExpanded = showVillainGroup and not m_villainActionsLabel:HasClass("collapseSet")
+            if villainExpanded then
                 showAbilities[g_villainActionId] = true
             end
 
@@ -950,6 +1070,20 @@ local function CreateAbilityListPanel()
             for _, heading in ipairs(headings) do
                 children[#children + 1] = heading
             end
+
+            -- Villain Actions empty-slot Add rows: surface each unfilled slot, but
+            -- only when the group is shown and expanded. Appended after the villain
+            -- header / villain abilities (villain actions sort last).
+            local anyEmptySlot = false
+            for _, slotId in ipairs(g_villainSlotOrder) do
+                local emptySlot = villainExpanded and not slotFilled[slotId]
+                m_villainSlotRows[slotId]:SetClass("collapsed", not emptySlot)
+                if emptySlot then
+                    anyEmptySlot = true
+                end
+            end
+            m_villainSlotsPanel:SetClass("collapsed", not anyEmptySlot)
+            children[#children + 1] = m_villainSlotsPanel
 
             for i = #abilities + 1, #m_abilityPanels do
                 m_abilityPanels[i]:SetClass("collapsed", true)
@@ -1045,6 +1179,30 @@ local function CreateAbilityListPanel()
                     return result
                 end)
             end
+        end,
+
+        --Make Solo post-apply signpost: expand the Villain Actions group and
+        --scroll + flash the first empty slot, so a freshly converted solo's
+        --empty slots are seen rather than left hidden off-page. Mirrors
+        --revealCapability's expand-then-pulse, but targets an empty slot row
+        --instead of a filled ability. Reuses the search-reveal pulse, so the
+        --signpost is the same gentle animation the director already knows.
+        revealEmptyVillainSlot = function(element)
+            if CharacterSheet.instance == nil
+                or CharacterSheet.instance.data.info.token == nil then
+                return
+            end
+            m_villainActionsLabel:SetClassTree("collapseSet", false)
+            element:FireEvent("refreshToken")
+            ScheduleRevealAndPulse(function()
+                for _, slotId in ipairs(g_villainSlotOrder) do
+                    local row = m_villainSlotRows[slotId]
+                    if row ~= nil and row.valid and not row:HasClass("collapsed") then
+                        return row
+                    end
+                end
+                return nil
+            end)
         end,
     }
 
@@ -1836,6 +1994,75 @@ function CharSheet.CharacterSheetAndAvatarPanel()
                 end,
             },
 
+            --Make Solo / Revert Solo: promote an Elite or Leader monster to a
+            --Solo (organization -> Solo plus the Instant Solo template) in one
+            --reversible action, then signpost the now-revealed empty villain
+            --action slots. Lives directly under the organization controls it
+            --rewrites; after Apply both the org dropdown (now "Solo") and this
+            --button's revert state surface here together.
+            --
+            --Offered only for Elite and Leader baselines: the Instant Solo
+            --template's x3 EV / x2.5 Stamina math lands exactly on the sheet's
+            --Solo row for those two organizations. Standard / horde / minion
+            --baselines would produce an under-budgeted "half solo", so they are
+            --excluded for now (revisit if there is demand). A button conversion
+            --is always revertible (which is the only way a creature reaches the
+            --converted state, so the revert path stays available).
+            gui.Button {
+                classes = { "sizeM" },
+                text = "Make Solo",
+                width = 160,
+                height = 30,
+                halign = "center",
+                vmargin = 6,
+                refreshToken = function(element, info)
+                    local c = info.token.properties
+                    if not c:IsMonster() then
+                        element:SetClass("collapsed", true)
+                        return
+                    end
+                    if c:HasSoloConversion() then
+                        element:SetClass("collapsed", false)
+                        element.text = "Revert Solo"
+                        return
+                    end
+                    --Not converted: offer Make Solo only for Elite/Leader
+                    --(excludes standard/horde/minion/authored-solo).
+                    local org = c:Organization()
+                    if org ~= "elite" and org ~= "leader" then
+                        element:SetClass("collapsed", true)
+                        return
+                    end
+                    element:SetClass("collapsed", false)
+                    element.text = "Make Solo"
+                end,
+                click = function(element)
+                    local sheet = CharacterSheet.instance
+                    if sheet == nil then
+                        return
+                    end
+                    local token = sheet.data.info.token
+                    if token == nil or token.properties == nil then
+                        return
+                    end
+                    local c = token.properties
+                    if not c:IsMonster() then
+                        return
+                    end
+                    if c:HasSoloConversion() then
+                        c:RevertSolo()
+                        sheet:FireEvent("refreshAll")
+                    else
+                        c:MakeSolo()
+                        sheet:FireEvent("refreshAll")
+                        --Reveal-and-prompt (inform, don't enforce): expand the
+                        --Villain Actions group and flash the first empty slot.
+                        --No picker is forced open.
+                        sheet:FireEventTree("revealEmptyVillainSlot")
+                    end
+                end,
+            },
+
             controllerDropdown,
 
             --Controlled by
@@ -2343,6 +2570,1034 @@ function CharSheet.DSEditImmunitiesPopup(element, info)
         },
         children = children,
     }
+end
+
+--==============================================================
+-- Monster level scaling: the "Adjust Level" dialog (chunk 4).
+--
+-- Opens from the LEVEL indicator in the monster stat-block header. It previews
+-- the full consequence of moving to a target level -- a Now / After compare
+-- table with signed deltas, an echelon callout (only when crossing 3/4, 6/7,
+-- 9/10) and a scaling-down note -- before committing via
+-- monster:SetLevelAdjustment. All math + the generated feature live in
+-- MCDMMonster.lua (MCDMMonsterScaling + monster:Set/Clear/HasLevelAdjustment);
+-- this is presentation only.
+--
+-- Per-creature stats (EV / Stamina / Free strike) read the creature's actual
+-- current value and show After = Now + (current -> target) delta, exactly what
+-- Apply produces. Reference stats (Damage, Highest characteristic, Potency) are
+-- shown from the MCDM table / formula at the current vs target level (there is
+-- no single per-creature damage number, and characteristic / potency are
+-- echelon-derived).
+--==============================================================
+
+local function ScalingSignedString(n)
+    if n > 0 then
+        return string.format("+%d", n)
+    end
+    return string.format("%d", n)
+end
+
+local function ShowAdjustLevelDialog(token)
+    if token == nil or token.properties == nil then
+        return
+    end
+    local props = token.properties
+    if not props:IsMonster() then
+        return
+    end
+
+    local org, role = props:ScalingOrgRole()
+    local isLeaderSolo = (org == "leader" or org == "solo")
+    local dtype = MCDMMonsterScaling.DamageType(org, role)
+
+    -- Strikes add the highest characteristic on top of the table damage and so
+    -- scale differently from non-strike power rolls (table delta + characteristic
+    -- delta vs table delta alone). Only surface a Strike damage row when this
+    -- monster actually has a strike ability, so monsters without one get no dead row.
+    local hasStrike = false
+    for _, a in ipairs(props:GetActivatedAbilities {}) do
+        if a:HasKeyword("Strike") then
+            hasStrike = true
+            break
+        end
+    end
+
+    local minLevel = MCDMMonsterScaling.minLevel
+    local maxLevel = MCDMMonsterScaling.maxLevel
+    local baseLevel = props:GetScalingBaseLevel()
+    local currentLevel = round(tonumber(props:CharacterLevel()) or baseLevel)
+    currentLevel = math.max(minLevel, math.min(maxLevel, currentLevel))
+
+    -- The creature's actual current per-creature stats (these already include
+    -- any adjustment in effect now).
+    local nowEV = round(tonumber(props:EV()) or 0)
+    local nowStamina = round(tonumber(props:MaxHitpoints()) or 0)
+    local nowFreeStrike = round(tonumber(props:OpportunityAttack()) or 0)
+
+    -- Minion squads. A level adjustment normally hits only this token, but a
+    -- minion is one of a squad of identical minions, so scaling one leaves the
+    -- rest behind. When this minion belongs to a squad we offer to scale every
+    -- member together (default on). Squad membership = same MinionSquad name and
+    -- monster type; recomputed fresh at Apply time so deaths mid-dialog can't
+    -- leave a stale target list.
+    local function CollectSquadMembers()
+        local squadName = nil
+        pcall(function() squadName = props:MinionSquad() end)
+        if not props:try_get("minion", false) or squadName == nil then
+            return { token }
+        end
+        local mtype = props:try_get("monster_type", nil)
+        local members = {}
+        for _, t in ipairs(dmhub.GetTokens() or {}) do
+            local tp = t.properties
+            local match = false
+            pcall(function()
+                match = tp ~= nil and tp:try_get("minion", false) == true
+                    and tp:MinionSquad() == squadName
+                    and (mtype == nil or tp:try_get("monster_type", nil) == mtype)
+            end)
+            if match then
+                members[#members + 1] = t
+            end
+        end
+        if #members == 0 then
+            return { token }
+        end
+        return members
+    end
+
+    local squadSize = #CollectSquadMembers()
+    local isSquadMinion = squadSize > 1
+    -- Default on: the common case is scaling the whole squad together.
+    local applyToSquad = isSquadMinion
+
+    -- Mutable selection; starts at the current level (no change).
+    local targetLevel = currentLevel
+
+    -- Forward-declared so the helpers / event handlers below can reach them.
+    local dialog
+    local previewPanel
+    local valueLabel
+    local slider
+    local echelonBanner
+    local noteLabel
+    local footerLabel
+    local squadCheck
+
+    local function signum(n)
+        if n > 0 then return 1 elseif n < 0 then return -1 else return 0 end
+    end
+
+    -- Adjustment-column text: the signed delta, or blank when unchanged.
+    local function adjStr(n)
+        if n == 0 then return "" end
+        return ScalingSignedString(n)
+    end
+
+    -- One Now / After / Adjustment compare row. The Adjustment column is tinted
+    -- success (increase) or danger (decrease); dir is its sign. Unchanged
+    -- echelon rows (dim=true) are quieted so the rows that move stay salient.
+    local function CompareRow(idx, labelText, nowText, afterText, adjText, dir, dim)
+        local changed = dir ~= 0
+        local quiet = dim and not changed
+        local adjClass = { "tableLabel", "bold" }
+        if dir > 0 then
+            adjClass = { "tableLabel", "bold", "adjustInc" }
+        elseif dir < 0 then
+            adjClass = { "tableLabel", "bold", "adjustDec" }
+        end
+        return gui.Panel{
+            classes = { "row", cond(idx % 2 == 0, "evenRow", "oddRow") },
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            borderBox = true,
+            hpad = 10,
+            vpad = 5,
+            opacity = cond(quiet, 0.5, 1.0),
+
+            gui.Label{ classes = { "tableLabel" }, text = labelText, width = "36%", height = "auto", halign = "left", textWrap = true },
+            gui.Label{ classes = { "tableLabel" }, text = nowText, width = "17%", height = "auto", textAlignment = "center" },
+            gui.Label{ classes = { "tableLabel" }, text = afterText, width = "17%", height = "auto", textAlignment = "center" },
+            gui.Label{ classes = adjClass, text = adjText, width = "30%", height = "auto", textAlignment = "center" },
+        }
+    end
+
+    local function BuildPreviewRows()
+        local deltas = MCDMMonsterScaling.ComputeDeltas(org, role, currentLevel, targetLevel) or {}
+        local rows = {}
+
+        rows[#rows+1] = gui.Panel{
+            classes = { "row", "headerRow" },
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            borderBox = true,
+            hpad = 10,
+            vpad = 8,
+            gui.Label{ classes = { "tableLabel", "bold" }, text = "", width = "36%", height = "auto" },
+            gui.Label{ classes = { "tableLabel", "bold" }, text = "Now", width = "17%", height = "auto", textAlignment = "center" },
+            gui.Label{ classes = { "tableLabel", "bold" }, text = "After", width = "17%", height = "auto", textAlignment = "center" },
+            gui.Label{ classes = { "tableLabel", "bold" }, text = "Adjustment", width = "30%", height = "auto", textAlignment = "center" },
+        }
+
+        -- Separator under the header so it reads distinctly from the data rows.
+        rows[#rows+1] = gui.Panel{ classes = { "adjustDivider" }, width = "100%", height = 1, bmargin = 2 }
+
+        local idx = 0
+        local function add(labelText, nowText, afterText, adjText, dir, dim)
+            idx = idx + 1
+            rows[#rows+1] = CompareRow(idx, labelText, nowText, afterText, adjText, dir, dim)
+        end
+
+        -- Encounter value (per-creature)
+        add("Encounter value",
+            string.format("%d", nowEV),
+            string.format("%d", nowEV + (deltas.ev or 0)),
+            adjStr(deltas.ev or 0), signum(deltas.ev or 0), false)
+
+        -- Stamina (per-creature)
+        add("Stamina",
+            string.format("%d", nowStamina),
+            string.format("%d", nowStamina + (deltas.stamina or 0)),
+            adjStr(deltas.stamina or 0), signum(deltas.stamina or 0), false)
+
+        -- Damage T1/T2/T3 (reference: MCDM table for this org/role)
+        local rowCur = MCDMMonsterScaling.RowFor(org, currentLevel)
+        local rowTgt = MCDMMonsterScaling.RowFor(org, targetLevel)
+        local dmgNow = rowCur and rowCur[dtype]
+        local dmgTgt = rowTgt and rowTgt[dtype]
+        if dmgNow ~= nil and dmgTgt ~= nil then
+            local d1, d2, d3 = deltas.t1 or 0, deltas.t2 or 0, deltas.t3 or 0
+            local changed = d1 ~= 0 or d2 ~= 0 or d3 ~= 0
+            local dStr = ""
+            if changed then
+                dStr = string.format("%s / %s / %s",
+                    ScalingSignedString(d1), ScalingSignedString(d2), ScalingSignedString(d3))
+            end
+            add("Damage (T1 / T2 / T3)",
+                string.format("%d / %d / %d", dmgNow[1], dmgNow[2], dmgNow[3]),
+                string.format("%d / %d / %d", dmgTgt[1], dmgTgt[2], dmgTgt[3]),
+                dStr, cond(changed, signum(targetLevel - currentLevel), 0), false)
+
+            -- Strike damage = table damage + highest characteristic, which scales
+            -- by the table delta plus the characteristic delta (so it moves more
+            -- than the row above when an echelon boundary is crossed). Only shown
+            -- when the monster has a strike ability.
+            if hasStrike then
+                local sCharNow = MCDMMonsterScaling.HighestCharacteristic(currentLevel, isLeaderSolo)
+                local sCharTgt = MCDMMonsterScaling.HighestCharacteristic(targetLevel, isLeaderSolo)
+                local s1 = (dmgTgt[1] + sCharTgt) - (dmgNow[1] + sCharNow)
+                local s2 = (dmgTgt[2] + sCharTgt) - (dmgNow[2] + sCharNow)
+                local s3 = (dmgTgt[3] + sCharTgt) - (dmgNow[3] + sCharNow)
+                local sChanged = s1 ~= 0 or s2 ~= 0 or s3 ~= 0
+                local sStr = ""
+                if sChanged then
+                    sStr = string.format("%s / %s / %s",
+                        ScalingSignedString(s1), ScalingSignedString(s2), ScalingSignedString(s3))
+                end
+                add("Strike damage (T1 / T2 / T3)",
+                    string.format("%d / %d / %d", dmgNow[1] + sCharNow, dmgNow[2] + sCharNow, dmgNow[3] + sCharNow),
+                    string.format("%d / %d / %d", dmgTgt[1] + sCharTgt, dmgTgt[2] + sCharTgt, dmgTgt[3] + sCharTgt),
+                    sStr, cond(sChanged, signum(targetLevel - currentLevel), 0), false)
+            end
+        end
+
+        -- Free strike (per-creature; T1 table delta, no characteristic)
+        add("Free strike",
+            string.format("%d", nowFreeStrike),
+            string.format("%d", nowFreeStrike + (deltas.freeStrike or 0)),
+            adjStr(deltas.freeStrike or 0), signum(deltas.freeStrike or 0), false)
+
+        -- Highest characteristic (reference formula; echelon row)
+        local charNow = MCDMMonsterScaling.HighestCharacteristic(currentLevel, isLeaderSolo)
+        local charTgt = MCDMMonsterScaling.HighestCharacteristic(targetLevel, isLeaderSolo)
+        add("Highest characteristic",
+            ScalingSignedString(charNow),
+            ScalingSignedString(charTgt),
+            adjStr(charTgt - charNow), signum(charTgt - charNow), true)
+
+        -- Potency weak/avg/strong (reference formula; echelon row)
+        local function potTriple(level)
+            local s = MCDMMonsterScaling.PotencyStrong(level, isLeaderSolo)
+            return math.max(0, s - 2), math.max(0, s - 1), s
+        end
+        local wNow, aNow, sNow = potTriple(currentLevel)
+        local wTgt, aTgt, sTgt = potTriple(targetLevel)
+        add("Potency (weak / avg / strong)",
+            string.format("%d / %d / %d", wNow, aNow, sNow),
+            string.format("%d / %d / %d", wTgt, aTgt, sTgt),
+            adjStr(sTgt - sNow), signum(sTgt - sNow), true)
+
+        return rows
+    end
+
+    local function Refresh()
+        if valueLabel ~= nil and valueLabel.valid then
+            valueLabel.text = string.format("%d", targetLevel)
+        end
+        if slider ~= nil and slider.valid then
+            -- setValueNoEvent repositions the thumb (fires updateValue) without
+            -- firing 'change'. SetValue(v, false) would skip updateValue too, so
+            -- the thumb would not follow the stepper arrows.
+            slider.data.setValueNoEvent(targetLevel)
+        end
+        if previewPanel ~= nil and previewPanel.valid then
+            previewPanel.children = BuildPreviewRows()
+        end
+
+        local curEch = MCDMMonsterScaling.Echelon(currentLevel)
+        local tgtEch = MCDMMonsterScaling.Echelon(targetLevel)
+        local crossing = (tgtEch ~= curEch)
+        if echelonBanner ~= nil and echelonBanner.valid then
+            -- Report the ACTUAL characteristic and potency deltas, not the echelon
+            -- difference: they diverge at the echelon-4 leader/solo boundary, where
+            -- the characteristic is capped at +5 while potency reaches 6, so
+            -- crossing 9<->10 moves potency but leaves the characteristic unchanged.
+            local charD = MCDMMonsterScaling.HighestCharacteristic(targetLevel, isLeaderSolo)
+                        - MCDMMonsterScaling.HighestCharacteristic(currentLevel, isLeaderSolo)
+            local potD = MCDMMonsterScaling.PotencyStrong(targetLevel, isLeaderSolo)
+                       - MCDMMonsterScaling.PotencyStrong(currentLevel, isLeaderSolo)
+            local moved = (charD ~= 0 or potD ~= 0)
+            echelonBanner:SetClass("collapsed", not (crossing and moved))
+            if crossing and moved then
+                local function phrase(noun, delta)
+                    return string.format("%s %s by %d", noun,
+                        cond(delta > 0, "increases", "decreases"), math.abs(delta))
+                end
+                local body
+                if charD == potD then
+                    body = string.format("Potency and highest characteristic %s by %d",
+                        cond(potD > 0, "increase", "decrease"), math.abs(potD))
+                elseif charD == 0 then
+                    body = phrase("Potency", potD) .. "; highest characteristic is unchanged"
+                elseif potD == 0 then
+                    body = phrase("Highest characteristic", charD) .. "; potency is unchanged"
+                else
+                    body = phrase("Potency", potD) .. " and " .. string.lower(phrase("Highest characteristic", charD))
+                end
+                echelonBanner.text = string.format("Echelon %d. %s.", tgtEch, body)
+            end
+        end
+
+        if noteLabel ~= nil and noteLabel.valid then
+            noteLabel:SetClass("collapsed", not (targetLevel < baseLevel))
+        end
+
+        if footerLabel ~= nil and footerLabel.valid then
+            if targetLevel == baseLevel then
+                footerLabel.text = "At the base level. No adjustment is applied."
+            else
+                footerLabel.text = "Click Reset to restore the creature to its original level."
+            end
+        end
+    end
+
+    local function SetTarget(n)
+        n = math.max(minLevel, math.min(maxLevel, round(tonumber(n) or targetLevel)))
+        if n == targetLevel then
+            return
+        end
+        targetLevel = n
+        Refresh()
+    end
+
+    valueLabel = gui.Label{
+        classes = { "number", "sizeL", "bold" },
+        text = string.format("%d", currentLevel),
+        width = 56,
+        height = "auto",
+        halign = "center",
+        valign = "center",
+        textAlignment = "center",
+    }
+
+    slider = gui.Slider{
+        width = "80%",
+        height = 24,
+        halign = "center",
+        vmargin = 4,
+        minValue = minLevel,
+        maxValue = maxLevel,
+        value = currentLevel,
+        round = true,
+        change = function(element)
+            SetTarget(element:GetValue())
+        end,
+    }
+
+    previewPanel = gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        tmargin = 12,
+    }
+
+    echelonBanner = gui.Label{
+        classes = { "sizeXs", "bold", "collapsed" },
+        width = "100%",
+        height = "auto",
+        halign = "left",
+        textAlignment = "left",
+        textWrap = true,
+        tmargin = 12,
+    }
+
+    noteLabel = gui.Label{
+        classes = { "sizeXs", "collapsed" },
+        text = "Some monsters have been hand-tuned and scaling values are approximate for these creatures.",
+        width = "100%",
+        height = "auto",
+        halign = "left",
+        textAlignment = "left",
+        textWrap = true,
+        tmargin = 8,
+    }
+
+    footerLabel = gui.Label{
+        classes = { "sizeXs" },
+        width = "100%",
+        height = "auto",
+        halign = "left",
+        textAlignment = "left",
+        textWrap = true,
+        tmargin = 12,
+    }
+
+    -- Squad scope toggle (minions only). Collapsed for non-squad creatures.
+    squadCheck = gui.Check{
+        text = string.format("Apply to all %d minions in this squad", squadSize),
+        value = applyToSquad,
+        halign = "left",
+        tmargin = 12,
+        change = function(element)
+            applyToSquad = element.value
+        end,
+    }
+    squadCheck:SetClass("collapsed", not isSquadMinion)
+
+    dialog = gui.Panel{
+        classes = { "dialog" },
+        -- Custom rules: tint the Adjustment column (the base tableLabel rule sets
+        -- @fg, which otherwise wins over a plain success/danger class), and a
+        -- clean 1px themed divider (a bordered box left end-cap artifacts).
+        styles = ThemeEngine.MergeStyles{
+            { selectors = { "tableLabel", "adjustInc" }, color = "@success", priority = 100 },
+            { selectors = { "tableLabel", "adjustDec" }, color = "@danger", priority = 100 },
+            { selectors = { "adjustDivider" }, bgimage = true, bgcolor = "@border" },
+        },
+        width = 660,
+        height = "auto",
+        minHeight = 440,
+        flow = "vertical",
+        borderBox = true,
+        pad = 20,
+
+        gui.Label{
+            classes = { "modalTitle" },
+            text = "Adjust Level",
+            width = "100%",
+            height = "auto",
+            tmargin = 4,
+        },
+
+        gui.Button{
+            classes = { "closeButton" },
+            halign = "right",
+            valign = "top",
+            floating = true,
+            margin = 8,
+            escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+            click = function(element)
+                gui.CloseModal()
+            end,
+        },
+
+        -- Subtitle: "<b>Name</b> - Role", centered. (Base Level lives on the
+        -- stepper row, right-aligned to the slider's edge.)
+        gui.Label{
+            classes = { "sizeS" },
+            text = string.format("<b>%s</b> - %s", token.name or "Monster", props:try_get("role", "")),
+            width = "92%",
+            height = "auto",
+            halign = "center",
+            textAlignment = "center",
+            textWrap = true,
+            tmargin = 4,
+        },
+
+        -- Stepper (minus / value / plus) centered, with Base Level right-aligned
+        -- to the slider's right edge. The wrapper matches the slider's 80% width
+        -- so "right" lands on the scale's edge.
+        gui.Panel{
+            width = "80%",
+            height = "auto",
+            halign = "center",
+            valign = "center",
+            flow = "none",
+            vmargin = 8,
+
+            gui.Panel{
+                width = "auto",
+                height = "auto",
+                flow = "horizontal",
+                halign = "center",
+                valign = "center",
+
+                gui.Button{
+                    classes = { "pagingArrow" },
+                    valign = "center",
+                    click = function(element)
+                        SetTarget(targetLevel - 1)
+                    end,
+                },
+                valueLabel,
+                gui.Button{
+                    classes = { "pagingArrow", "right" },
+                    valign = "center",
+                    click = function(element)
+                        SetTarget(targetLevel + 1)
+                    end,
+                },
+            },
+
+            gui.Label{
+                classes = { "sizeS" },
+                text = string.format("<b>Base Level:</b> %d", baseLevel),
+                width = "auto",
+                height = "auto",
+                halign = "right",
+                valign = "center",
+            },
+        },
+
+        slider,
+        previewPanel,
+        echelonBanner,
+        noteLabel,
+        squadCheck,
+        footerLabel,
+
+        -- Cancel / Reset / Apply
+        gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            halign = "center",
+            valign = "bottom",
+            tmargin = 16,
+
+            gui.Button{
+                text = "Cancel",
+                width = 120,
+                height = 40,
+                hmargin = 6,
+                click = function(element)
+                    gui.CloseModal()
+                end,
+            },
+            gui.Button{
+                text = "Reset",
+                width = 120,
+                height = 40,
+                hmargin = 6,
+                click = function(element)
+                    -- Reset returns the selection to the creature's original
+                    -- (base) level; Apply then commits the restoration.
+                    targetLevel = baseLevel
+                    Refresh()
+                end,
+            },
+            gui.Button{
+                text = "Apply",
+                width = 120,
+                height = 40,
+                hmargin = 6,
+                click = function(element)
+                    -- Recompute the squad fresh so a death mid-dialog can't
+                    -- target a stale member; fall back to this token alone.
+                    local targets = { token }
+                    if isSquadMinion and applyToSquad then
+                        targets = CollectSquadMembers()
+                    end
+                    for _, tok in ipairs(targets) do
+                        tok:ModifyProperties{
+                            description = "Adjust monster level",
+                            combine = true,
+                            execute = function()
+                                tok.properties:SetLevelAdjustment(targetLevel)
+                            end,
+                        }
+                    end
+                    if CharacterSheet.instance ~= nil then
+                        CharacterSheet.instance:FireEvent("refreshAll")
+                    end
+                    gui.CloseModal()
+                end,
+            },
+        },
+    }
+
+    Refresh()
+    gui.ShowModal(dialog)
+end
+
+-- Maps an implementation-status value (gui.ImplementationStatus) to the status
+-- modifier class for the canonical colored dot (DefaultStyles spellImplementationIcon).
+local g_implDotClass = {
+    [0] = "wontimplement",
+    [1] = "unimplemented",
+    [2] = "bronze",
+    [3] = "silver",
+    [4] = "gold",
+}
+
+-- Browse every villain action across the bestiary in a given slot, preview the
+-- real ability card, and duplicate one onto this creature. CHUNK 2 (modal core):
+-- slot-locked alphabetical list + real CreateAbilityTooltip preview + "Add to
+-- this creature" (deep-copy with a fresh guid, categorization + slot preset).
+-- Search, the implementation-status cross-check filter, status dots, and "Create
+-- New Villain Action" arrive in the next pass. Reuses the cached bestiary
+-- ability index (GetBestiaryVillainActions / GetBestiaryAbilityObject) so it
+-- shares the bestiary's single GoblinScript scan rather than re-scanning.
+-- Assigns the forward-declared local (see top of file).
+function ShowVillainActionPicker(token, slot)
+    if token == nil or token.properties == nil then
+        return
+    end
+    if not token.properties:IsMonster() then
+        return
+    end
+
+    local meta = g_villainSlotMeta[slot] or { label = "Villain Action", roman = "" }
+
+    -- Forward-declared so the list / preview / add handlers can reach them.
+    local dialog
+    local listPanel
+    local listContent
+    local previewPanel
+    local addButton
+    local selectedEntry = nil
+
+    -- Filter state. allEntries is the slot's full candidate set (stored once the
+    -- bestiary index is ready); the visible list is derived from it by the search
+    -- needle and the cross-check toggle.
+    local allEntries = {}
+    local searchNeedle = ""
+    -- "Exclude Narrative and Unimplemented" cross-checks the status field (which
+    -- the importer over-marks) against the structural signal: keep only entries
+    -- that are Bronze+ AND carry real behaviors. Default off -- inform, do not
+    -- enforce; the director opts in.
+    local excludeUnimplemented = false
+
+    local function RefreshPreview()
+        if previewPanel == nil or not previewPanel.valid then
+            return
+        end
+        local children
+        if selectedEntry == nil then
+            children = {
+                gui.Label{
+                    classes = { "sizeS" },
+                    text = "Select a villain action to preview it.",
+                    width = "100%", height = "auto",
+                    halign = "center", valign = "center",
+                    textAlignment = "center", textWrap = true,
+                },
+            }
+        else
+            -- The real ability card (1:1 with how it renders in play), not a
+            -- re-render. Fetched on demand for the one selected ability.
+            local obj = GetBestiaryAbilityObject(selectedEntry.monsterId, selectedEntry.name)
+            local card = nil
+            if obj ~= nil then
+                card = CreateAbilityTooltip(obj, { token = token, width = 380, pad = 8 })
+            end
+            if card ~= nil then
+                children = { card }
+            else
+                children = {
+                    gui.Label{
+                        classes = { "sizeS" },
+                        text = "This ability could not be loaded for preview.",
+                        width = "100%", height = "auto",
+                        halign = "center", valign = "center",
+                        textAlignment = "center", textWrap = true,
+                    },
+                }
+            end
+        end
+        previewPanel.children = children
+    end
+
+    local function BuildRows(entries)
+        table.sort(entries, function(a, b)
+            if a.name ~= b.name then
+                return a.name < b.name
+            end
+            return (a.monsterName or "") < (b.monsterName or "")
+        end)
+        local rows = {}
+        for i, entry in ipairs(entries) do
+            local capturedEntry = entry
+            local subText = entry.monsterName or ""
+            if entry.level ~= nil then
+                subText = string.format("%s - Level %d", subText, entry.level)
+            end
+            local status = entry.implementation or 1
+            local dotClass = g_implDotClass[status] or "unimplemented"
+            local row
+            row = gui.Panel{
+                classes = { "row", cond(i % 2 == 0, "evenRow", "oddRow"), "hoverable" },
+                width = "100%",
+                height = "auto",
+                flow = "horizontal",
+                borderBox = true,
+                hpad = 10,
+                vpad = 6,
+                press = function(element)
+                    selectedEntry = capturedEntry
+                    if listContent ~= nil and listContent.valid then
+                        for _, child in ipairs(listContent.children) do
+                            child:SetClass("selected", child == element)
+                        end
+                    end
+                    if addButton ~= nil and addButton.valid then
+                        addButton.interactable = true
+                    end
+                    RefreshPreview()
+                end,
+                gui.Panel{
+                    width = "100%-22", height = "auto", flow = "vertical",
+                    halign = "left", valign = "center",
+                    gui.Label{
+                        classes = { "tableLabel", "bold" },
+                        text = capturedEntry.name,
+                        width = "100%", height = "auto",
+                        halign = "left", textWrap = true,
+                    },
+                    gui.Label{
+                        classes = { "sizeXs" },
+                        text = subText,
+                        width = "100%", height = "auto",
+                        halign = "left", textWrap = true,
+                    },
+                },
+                -- Per-row implementation-status dot (the canonical colored dot
+                -- used on compendium entries; scheme-consistent implStatus tokens).
+                -- Right-aligned so the name leads and the status reads as a marker.
+                gui.Panel{
+                    classes = { "spellImplementationIcon", dotClass },
+                    halign = "right",
+                    valign = "center",
+                },
+            }
+            rows[#rows + 1] = row
+        end
+        if #rows == 0 then
+            local emptyText = cond(#allEntries == 0,
+                "No villain actions found for this slot.",
+                "No villain actions match your search and filter.")
+            rows = {
+                gui.Label{
+                    classes = { "sizeS" },
+                    text = emptyText,
+                    width = "100%", height = "auto",
+                    halign = "center", textAlignment = "center", textWrap = true,
+                },
+            }
+        end
+        return rows
+    end
+
+    -- Derive the visible list from allEntries by the search needle (matched over a
+    -- combined name + monster + level haystack, reusing Search.MatchesText) and
+    -- the cross-check toggle. Then rebuild the rows.
+    local function ApplyFilter()
+        if listContent == nil or not listContent.valid then
+            return
+        end
+        local filtered = {}
+        for _, e in ipairs(allEntries) do
+            local keep = true
+            if excludeUnimplemented then
+                local status = e.implementation or 1
+                keep = (status >= gui.ImplementationStatus.Bronze) and (e.hasBehaviors == true)
+            end
+            if keep and searchNeedle ~= "" then
+                -- Name and monster match fuzzily (substring), but a numeric term
+                -- matches the LEVEL exactly -- "level 1" returns level 1, never
+                -- level 10 or 11. The literal word "level"/"lvl" is ignored so
+                -- "level 1" and a bare "1" behave the same. All terms must match
+                -- (AND), matching the global search's term semantics.
+                local nameHay = string.lower((e.name or "") .. " " .. (e.monsterName or ""))
+                local entryLevel = tostring(e.level or "")
+                for term in string.gmatch(searchNeedle, "%S+") do
+                    if term == "level" or term == "lvl" then
+                        -- ignore the level keyword itself
+                    elseif string.match(term, "^%d+$") ~= nil then
+                        if term ~= entryLevel then
+                            keep = false
+                            break
+                        end
+                    elseif string.find(nameHay, term, 1, true) == nil then
+                        keep = false
+                        break
+                    end
+                end
+            end
+            if keep then
+                filtered[#filtered + 1] = e
+            end
+        end
+        listContent.children = BuildRows(filtered)
+    end
+
+    -- The bestiary index builds lazily in a coroutine. If it is not ready yet,
+    -- show a loading line and re-poll until it is.
+    local function Populate()
+        if listContent == nil or not listContent.valid then
+            return
+        end
+        local entries, ready = GetBestiaryVillainActions(slot)
+        if not ready then
+            listContent.children = {
+                gui.Label{
+                    classes = { "sizeS" },
+                    text = "Loading bestiary...",
+                    width = "100%", height = "auto",
+                    halign = "center", textAlignment = "center",
+                },
+            }
+            dmhub.Schedule(0.3, function()
+                if mod.unloaded then
+                    return
+                end
+                Populate()
+            end)
+            return
+        end
+        allEntries = entries
+        ApplyFilter()
+    end
+
+    -- Inner content panel (height auto) holds the rows and grows downward from the
+    -- top; the vscroll wrapper scrolls it. Setting rows directly on the vscroll
+    -- panel let a short result set drift to the bottom -- the auto-height inner
+    -- panel keeps them anchored at the top.
+    listContent = gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        halign = "left",
+        valign = "top",
+    }
+    listPanel = gui.Panel{
+        vscroll = true,
+        width = "100%",
+        -- Fills the left pane below the search input and the filter checkbox.
+        height = "100%-72",
+        flow = "vertical",
+        valign = "top",
+        listContent,
+    }
+
+    previewPanel = gui.Panel{
+        vscroll = true,
+        width = "100%",
+        height = "100%",
+        flow = "vertical",
+        halign = "center",
+        valign = "top",
+    }
+
+    -- Smart search: ability name, monster name, or level (reuses the global
+    -- search matcher). Results stay grouped alphabetically.
+    local searchInput = gui.SearchInput{
+        width = "100%",
+        height = 26,
+        fontSize = 14,
+        halign = "left",
+        placeholderText = "Search villain actions, monsters, levels...",
+        editlag = 0.25,
+        edit = function(element)
+            searchNeedle = Search.Normalize(element.text) or ""
+            ApplyFilter()
+        end,
+    }
+
+    -- The cross-check filter. gui.Check has intrinsic sizing -- never width 100%.
+    local excludeCheck = gui.Check{
+        text = "Exclude Narrative and Unimplemented",
+        value = excludeUnimplemented,
+        halign = "left",
+        vmargin = 6,
+        change = function(element)
+            excludeUnimplemented = element.value
+            ApplyFilter()
+        end,
+    }
+
+    addButton = gui.Button{
+        text = "Add to this creature",
+        width = 200,
+        height = 40,
+        hmargin = 6,
+        interactable = false,
+        click = function(element)
+            if selectedEntry == nil then
+                return
+            end
+            local source = GetBestiaryAbilityObject(selectedEntry.monsterId, selectedEntry.name)
+            if source == nil then
+                return
+            end
+            -- Duplicate the source onto this creature (the source is untouched).
+            -- Fresh guid so it is a distinct ability; force the categorization and
+            -- the launched slot so it lands in the right group even if the source
+            -- was authored for a different slot. This modal lives outside the sheet
+            -- panel tree, so the mutation is wrapped in ModifyProperties (mirroring
+            -- the Adjust Level Apply) rather than relying on the sheet's own upload.
+            local copy = DeepCopy(source)
+            copy.guid = dmhub.GenerateGuid()
+            copy.categorization = "Villain Action"
+            copy.villainAction = slot
+            token:ModifyProperties{
+                description = "Add villain action",
+                execute = function()
+                    token.properties:AddInnateActivatedAbility(copy)
+                end,
+            }
+            if CharacterSheet.instance ~= nil then
+                CharacterSheet.instance:FireEvent("refreshAll")
+            end
+            gui.CloseModal()
+        end,
+    }
+
+    dialog = gui.Panel{
+        classes = { "dialog" },
+        -- Scoped extras: drop the long filter label a step in size so it does not
+        -- crowd the search row; and tint the Create New button's authoring glyph
+        -- (a floating child so the button keeps its frame -- the icon+text button
+        -- path would add `hasIcon`, which strips the border).
+        styles = ThemeEngine.MergeStyles{
+            { selectors = { "checkboxLabel" }, fontSize = 13 },
+            { selectors = { "createNewIcon" }, bgcolor = "@fg" },
+        },
+        width = 900,
+        height = 660,
+        flow = "vertical",
+        borderBox = true,
+        pad = 20,
+
+        gui.Label{
+            classes = { "modalTitle" },
+            text = "Add Villain Action",
+            width = "100%", height = "auto",
+            tmargin = 4,
+        },
+
+        gui.Button{
+            classes = { "closeButton" },
+            halign = "right",
+            valign = "top",
+            floating = true,
+            margin = 8,
+            escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+            click = function(element)
+                gui.CloseModal()
+            end,
+        },
+
+        -- Context line: "Opener - Villain Action I - <creature>", centered.
+        gui.Label{
+            classes = { "sizeM" },
+            text = string.format("<b>%s</b> - Villain Action %s - %s",
+                meta.label, meta.roman, token.name or "Monster"),
+            width = "100%", height = "auto",
+            halign = "center", textAlignment = "center", textWrap = true,
+            tmargin = 4, bmargin = 12,
+        },
+
+        -- Two-pane body. Left: search + cross-check filter + slot-locked list.
+        -- Right: the real ability-card preview + the cross-check verdict.
+        gui.Panel{
+            width = "100%",
+            height = "100%-150",
+            flow = "horizontal",
+
+            gui.Panel{
+                width = "44%", height = "100%", flow = "vertical",
+                searchInput,
+                excludeCheck,
+                listPanel,
+            },
+            gui.Panel{ width = "4%", height = "100%" },
+            gui.Panel{
+                width = "52%", height = "100%", flow = "vertical",
+                previewPanel,
+            },
+        },
+
+        -- Create New / Add to this creature. (No Cancel button -- the X in the
+        -- top-right dismisses the modal, and two buttons keep the footer roomy.)
+        gui.Panel{
+            width = "100%", height = "auto", flow = "horizontal",
+            halign = "center", valign = "bottom", tmargin = 16,
+
+            -- Build a fresh villain action from scratch in the ability editor,
+            -- preset to this slot. The pencil glyph signals authoring. Mirrors the
+            -- sheet's Create Ability path.
+            gui.Button{
+                classes = { "createNewBtn" },
+                text = "Create New",
+                width = 170, height = 40, hmargin = 6,
+                -- Authoring glyph as a floating child (not the `icon` param, which
+                -- would add `hasIcon` and strip the button frame).
+                gui.Panel{
+                    classes = { "createNewIcon" },
+                    bgimage = "ui-icons/pencil.png",
+                    width = 16, height = 16,
+                    halign = "left", valign = "center",
+                    floating = true,
+                    x = 14,
+                },
+                click = function(element)
+                    gui.CloseModal()
+                    if CharacterSheet.instance == nil then
+                        return
+                    end
+                    local newAbility = ActivatedAbility.Create {
+                        name = "New Villain Action",
+                        categorization = "Villain Action",
+                        villainAction = slot,
+                    }
+                    -- Skip the Template / Duplicate Existing / Blank entry chooser:
+                    -- there are no villain-action templates, and Duplicate Existing
+                    -- is exactly what this picker already does. "Create New" means a
+                    -- fresh blank villain action, so go straight into the editor
+                    -- (already preset to this slot). Clearing the transient new-ability
+                    -- flag suppresses the chooser ActivatedAbility.Create would trigger.
+                    newAbility._tmp_isNewAbility = false
+                    CharacterSheet.instance:AddChild(newAbility:ShowEditActivatedAbilityDialog {
+                        add = function(el)
+                            CharacterSheet.instance.data.info.token.properties:AddInnateActivatedAbility(newAbility)
+                            CharacterSheet.instance:FireEvent("refreshAll")
+                        end,
+                        cancel = function(el)
+                        end,
+                    })
+                end,
+            },
+            addButton,
+        },
+    }
+
+    Populate()
+    RefreshPreview()
+    gui.ShowModal(dialog)
 end
 
 local function DSCharSheet()
@@ -3956,44 +5211,183 @@ local function DSCharSheet()
 
                             },
 
-                            gui.Label {
-
-                                text = "4",
-                                color = "white",
-                                fontSize = 26,
-                                characterLimit = 2,
-
+                            --Level number with the Adjust Level affordance to its
+                            --left (monster level scaling): a small up/down-arrow
+                            --icon button that opens the Adjust Level dialog.
+                            --Monsters only.
+                            gui.Panel {
                                 bgimage = true,
                                 bgcolor = "clear",
                                 width = "100%",
                                 height = "35%",
-
-                                valign = "top",
-                                halign = "center",
-                                textAlignment = "center",
-
-
+                                -- flow "none" so the arrow overlays to the right
+                                -- without displacing the centered level number.
+                                -- The number is declared FIRST and the arrow LAST
+                                -- so the arrow renders on top and stays clickable
+                                -- (later siblings win pointer events).
+                                flow = "none",
+                                valign = "center",
                                 tmargin = 4,
-                                lmargin = 10,
 
-                                refreshToken = function(element, info)
-                                    local level = info.token.properties:CharacterLevel()
-                                    if level == 0 then
-                                        element.text = "-"
-                                    else
-                                        element.text = string.format("%d", level)
-                                    end
+                                gui.Label {
 
-                                    element.editable = info.token.properties:IsMonster()
-                                end,
+                                    text = "4",
+                                    fontSize = 26,
+                                    -- 3 chars so a scaled level fits the appended
+                                    -- asterisk (e.g. "11*").
+                                    characterLimit = 3,
 
-                                change = function(element)
-                                    local token = CharacterSheet.instance.data.info.token
-                                    local n = math.max(0,
-                                        round(tonumber(element.text) or token.properties:CharacterLevel()))
-                                    token.properties.cr = n
-                                    CharacterSheet.instance:FireEvent("refreshAll")
-                                end,
+                                    bgimage = true,
+                                    bgcolor = "clear",
+                                    width = "100%",
+                                    height = "100%",
+
+                                    halign = "center",
+                                    valign = "center",
+                                    textAlignment = "center",
+
+                                    -- Level-scaling signpost. While a Level
+                                    -- Adjustment is in effect the number is
+                                    -- tinted success (scaled up) or danger
+                                    -- (scaled down) and carries a trailing
+                                    -- asterisk, so the adjusted state reads
+                                    -- without relying on color alone.
+                                    classes = { "levelValue" },
+                                    styles = ThemeEngine.MergeTokens{
+                                        { selectors = { "levelValue" }, color = "white" },
+                                        { selectors = { "levelValue", "scaledUp" }, color = "@success", priority = 100 },
+                                        { selectors = { "levelValue", "scaledDown" }, color = "@danger", priority = 100 },
+                                    },
+
+                                    refreshToken = function(element, info)
+                                        local c = info.token.properties
+                                        local level = round(tonumber(c:CharacterLevel()) or 0)
+                                        local adjusted = c:IsMonster() and c:HasLevelAdjustment()
+
+                                        if level == 0 then
+                                            element.text = "-"
+                                        elseif adjusted then
+                                            element.text = string.format("%d*", level)
+                                        else
+                                            element.text = string.format("%d", level)
+                                        end
+
+                                        local up, down = false, false
+                                        if adjusted then
+                                            local base = c:GetScalingBaseLevel()
+                                            up = level > base
+                                            down = level < base
+                                        end
+                                        element:SetClass("scaledUp", up)
+                                        element:SetClass("scaledDown", down)
+
+                                        -- While adjusted the number is a
+                                        -- read-only signpost that opens the
+                                        -- modal on click; direct level edits go
+                                        -- through the Adjust Level dialog so the
+                                        -- stored deltas stay consistent.
+                                        element.editable = c:IsMonster() and not adjusted
+                                    end,
+
+                                    -- Dynamic hover, shown only while adjusted:
+                                    -- names the base level and the revert path.
+                                    hover = function(element)
+                                        local sheet = CharacterSheet.instance
+                                        if sheet == nil then
+                                            return
+                                        end
+                                        local token = sheet.data.info.token
+                                        if token == nil or token.properties == nil then
+                                            return
+                                        end
+                                        local c = token.properties
+                                        if not (c:IsMonster() and c:HasLevelAdjustment()) then
+                                            return
+                                        end
+                                        gui.Tooltip(string.format(
+                                            "Adjusted from Level %d. Click to review.",
+                                            c:GetScalingBaseLevel()))(element)
+                                    end,
+
+                                    -- When adjusted the number is non-editable,
+                                    -- so a click opens the Adjust Level dialog
+                                    -- ("Click to review"). When not adjusted the
+                                    -- label handles its own click for inline
+                                    -- editing and this is a no-op.
+                                    click = function(element)
+                                        local sheet = CharacterSheet.instance
+                                        if sheet == nil then
+                                            return
+                                        end
+                                        local token = sheet.data.info.token
+                                        if token == nil or token.properties == nil then
+                                            return
+                                        end
+                                        if token.properties:IsMonster() and token.properties:HasLevelAdjustment() then
+                                            ShowAdjustLevelDialog(token)
+                                        end
+                                    end,
+
+                                    change = function(element)
+                                        -- Guard against firing during teardown / when the value
+                                        -- did not actually change: a spurious refreshAll mid-destroy
+                                        -- recomputes stats while the modifier pipeline is half torn
+                                        -- down (e.g. Stability transiently nil).
+                                        if CharacterSheet.instance == nil then
+                                            return
+                                        end
+                                        local token = CharacterSheet.instance.data.info.token
+                                        if token == nil or token.properties == nil then
+                                            return
+                                        end
+                                        local n = math.max(0,
+                                            round(tonumber(element.text) or token.properties:CharacterLevel()))
+                                        if n == round(tonumber(token.properties.cr) or 0) then
+                                            return
+                                        end
+                                        token.properties.cr = n
+                                        CharacterSheet.instance:FireEvent("refreshAll")
+                                    end,
+                                },
+
+                                gui.Panel {
+                                    classes = { "bordered", "hoverable" },
+                                    bgimage = "panels/square.png",
+                                    bgcolor = "clear",
+                                    width = 24,
+                                    height = 26,
+                                    halign = "right",
+                                    valign = "center",
+                                    rmargin = 8,
+                                    flow = "vertical",
+
+                                    hover = gui.Tooltip("Adjust Level"),
+
+                                    refreshToken = function(element, info)
+                                        element:SetClass("collapsed", not info.token.properties:IsMonster())
+                                    end,
+
+                                    click = function(element)
+                                        ShowAdjustLevelDialog(CharacterSheet.instance.data.info.token)
+                                    end,
+
+                                    gui.Panel {
+                                        width = 13,
+                                        height = "50%",
+                                        halign = "center",
+                                        valign = "top",
+                                        bgimage = "icons/icon_arrow/icon_arrow_29.png",
+                                        bgcolor = "white",
+                                    },
+                                    gui.Panel {
+                                        width = 13,
+                                        height = "50%",
+                                        halign = "center",
+                                        valign = "bottom",
+                                        bgimage = "icons/icon_arrow/icon_arrow_30.png",
+                                        bgcolor = "white",
+                                    },
+                                },
                             },
                         },
                     },

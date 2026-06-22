@@ -846,7 +846,7 @@ local function SkinHeadingMarkup(h, content)
         open = open .. "<smallcaps>"
         close = "</smallcaps>" .. close
     end
-    return SkinAlign(h.align, open .. content .. close)
+    return SkinAlign(h.align, SkinFont(h.font, open .. content .. close))
 end
 
 -- Wrap a body line per the body skin. Only emits markup for explicitly-set,
@@ -876,12 +876,12 @@ local function SkinBodyMarkup(body, content)
         open = string.format("<indent=%dpx>", -fli) .. open
         close = close .. "</indent>"
     end
-    return SkinAlign(body.align, open .. content .. close)
+    return SkinAlign(body.align, SkinFont(body.font, open .. content .. close))
 end
 
 -- Unordered bullet. `defmarker` is the original marker character ("-" or "*"),
 -- used as the glyph when no skin glyph is set so unstyled journals are unchanged.
-local function SkinBulletMarkup(bullet, defmarker, content, bodyColor)
+local function SkinBulletMarkup(bullet, defmarker, content, bodyColor, bodyFont)
     bullet = bullet or {}
     local glyph = bullet.glyph
     if glyph == nil or glyph == false or glyph == "" then glyph = defmarker end
@@ -902,7 +902,7 @@ local function SkinBulletMarkup(bullet, defmarker, content, bodyColor)
     if bodyCol then
         body = string.format("<color=%s>%s</color>", bodyCol, content)
     end
-    local line = prefix .. " " .. body
+    local line = SkinFont(bullet.font or bodyFont, prefix .. " " .. body)
     if indent ~= 0 then
         line = string.format("<indent=%dpx>%s</indent>", indent, line)
     end
@@ -910,7 +910,7 @@ local function SkinBulletMarkup(bullet, defmarker, content, bodyColor)
 end
 
 -- Ordered list item. `marker` is the literal "N." token. Default = unchanged.
-local function SkinOrderedMarkup(ordered, marker, content, bodyColor)
+local function SkinOrderedMarkup(ordered, marker, content, bodyColor, bodyFont)
     ordered = ordered or {}
     local bodyCol = SkinColor(bodyColor)
     -- Marker uses its own color if set, else the body text color (readable).
@@ -927,7 +927,7 @@ local function SkinOrderedMarkup(ordered, marker, content, bodyColor)
     if bodyCol then
         body = string.format("<color=%s>%s</color>", bodyCol, content)
     end
-    local line = prefix .. " " .. body
+    local line = SkinFont(ordered.font or bodyFont, prefix .. " " .. body)
     if indent ~= 0 then
         line = string.format("<indent=%dpx>%s</indent>", indent, line)
     end
@@ -943,8 +943,11 @@ local function SkinQuoteText(quote, content)
     local color = SkinColor(quote.color)
     if color then open = open .. string.format("<color=%s>", color); close = "</color>" .. close end
     if quote.italic == true then open = open .. "<i>"; close = "</i>" .. close end
-    return open .. content .. close
+    return SkinFont(quote.font, open .. content .. close)
 end
+
+-- Test hook.
+MarkdownDocument.__SkinQuoteText = SkinQuoteText
 
 -- Set of heading levels (1..5) that have a rule (weight > 0), or nil if none.
 -- Returns nil when NO level has a rule, enabling the fast-path single-label render.
@@ -1104,7 +1107,7 @@ local function SkinClassTextMarkup(t, content)
     elseif t.caps == "smallcaps" then
         open = open .. "<smallcaps>"; close = "</smallcaps>" .. close
     end
-    return open .. content .. close
+    return SkinFont(t.font, open .. content .. close)
 end
 
 -- Test hook.
@@ -1137,6 +1140,7 @@ ApplySkinToText = function(text, base, opts)
     end
     local bodyPS = (base.body or {}).paragraphSpacing
     local bodyColor = (base.body or {}).color
+    local bodyFont = (base.body or {}).font
     for _, line in ipairs(lines) do
         local hashes, hContent = string.match(line, "^(#+) (.*)$")
         local bmarker, bContent = string.match(line, "^([%-%*]) (.*)$")
@@ -1150,9 +1154,9 @@ ApplySkinToText = function(text, base, opts)
             local ruled = opts and opts.ruledLevels and opts.ruledLevels[#hashes]
             if after and not ruled then out[#out + 1] = after end
         elseif bmarker ~= nil then
-            out[#out + 1] = SkinBulletMarkup(base.bullet, bmarker, bContent, bodyColor)
+            out[#out + 1] = SkinBulletMarkup(base.bullet, bmarker, bContent, bodyColor, bodyFont)
         elseif onum ~= nil then
-            out[#out + 1] = SkinOrderedMarkup(base.ordered, onum, oContent, bodyColor)
+            out[#out + 1] = SkinOrderedMarkup(base.ordered, onum, oContent, bodyColor, bodyFont)
         elseif line == "" then
             local gap = SkinGapLine(bodyPS)
             out[#out + 1] = gap or SkinBodyMarkup(base.body, line)

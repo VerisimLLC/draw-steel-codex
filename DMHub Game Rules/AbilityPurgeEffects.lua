@@ -131,6 +131,7 @@ ActivatedAbilityPurgeEffectsBehavior.damageToSelf = ""
 ActivatedAbilityPurgeEffectsBehavior.chatMessage = ""
 ActivatedAbilityPurgeEffectsBehavior.reminderText = ""
 ActivatedAbilityPurgeEffectsBehavior.value = ""
+ActivatedAbilityPurgeEffectsBehavior.conferTo = ""
 
 ActivatedAbilityPurgeEffectsBehavior.modeOptions = {
     {
@@ -203,6 +204,21 @@ function ActivatedAbilityPurgeEffectsBehavior:Cast(ability, casterToken, targets
         local effectCaster = dmhub.EvalGoblinScriptToObject(self.fromCaster, casterToken.properties:LookupSymbol(options.symbols), "Determine source of purge")
         if effectCaster ~= nil and type(effectCaster) == "table" and (effectCaster.typeName == "creature" or effectCaster.typeName == "character" or effectCaster.typeName == "monster" or effectCaster.typeName == "follower") then
             limitToCasterid = dmhub.LookupTokenId(effectCaster)
+        end
+    end
+
+    -- Resolve optional confer recipient from GoblinScript (mirrors fromCaster).
+    -- When set, every effect/condition the player purges this cast is ALSO applied
+    -- (conferred) to this creature, carrying its original remaining duration.
+    -- Confer is intentionally wired only for the "chosen"/"one" purge path below.
+    local conferToken = nil
+    if self:try_get("conferTo", "") ~= "" then
+        if options.symbols == nil then
+            options.symbols = {}
+        end
+        local conferObj = dmhub.EvalGoblinScriptToObject(self.conferTo, casterToken.properties:LookupSymbol(options.symbols), "Determine confer recipient")
+        if conferObj ~= nil and type(conferObj) == "table" and (conferObj.typeName == "creature" or conferObj.typeName == "character" or conferObj.typeName == "monster" or conferObj.typeName == "follower") then
+            conferToken = dmhub.GetCharacterById(dmhub.LookupTokenId(conferObj))
         end
     end
 
@@ -366,9 +382,21 @@ function ActivatedAbilityPurgeEffectsBehavior:Cast(ability, casterToken, targets
         local purgedList = options.symbols.cast:get_or_add("purgedOngoingEffectsChosen", {})
         local durationsMap = options.symbols.cast:get_or_add("purgedOngoingEffectDurations", {})
 
+        -- Confer accumulator: every selected item across all targets, applied once
+        -- to conferToken after the per-target purge loop.  Only populated when a
+        -- valid confer recipient was resolved.
+        local conferItems = {}
+
         for _, data in ipairs(targetDataList) do
             local selectedItems = selections[data.token.id] or {}
             if #selectedItems > 0 then
+
+                -- Accumulate selected items for confer (applied after this loop).
+                if conferToken ~= nil and conferToken.valid then
+                    for _, item in ipairs(selectedItems) do
+                        conferItems[#conferItems+1] = item
+                    end
+                end
 
                 -- Count purged conditions and populate symbol tables before ModifyProperties.
                 local purgedConditionsCount = 0
@@ -448,6 +476,42 @@ function ActivatedAbilityPurgeEffectsBehavior:Cast(ability, casterToken, targets
                     end
                 end
             end
+        end
+
+        -- Confer: re-apply every purged item to the resolved recipient, carrying its
+        -- original remaining duration.  Done once, in a single ModifyProperties block,
+        -- AFTER the per-target purge loop.  Only the chosen/one path is wired for confer
+        -- (the "all" and "replace" paths above are intentionally left unchanged).
+        if conferToken ~= nil and conferToken.valid and #conferItems > 0 then
+            conferToken:ModifyProperties{
+                description = "Confer Effect",
+                execute = function()
+                    for _, item in ipairs(conferItems) do
+                        -- casterInfo preserves the original inflicter when known; omitted otherwise.
+                        local casterInfo = nil
+                        if item.casterTokenId ~= nil then
+                            casterInfo = {tokenid = item.casterTokenId}
+                        end
+
+                        if item.type == "effect" then
+                            -- ApplyOngoingEffect(ongoingEffectid, duration, casterInfo, options).
+                            -- duration is the effect-style string (save_ends / end_of_next_turn).
+                            -- Fallback: when the purged effect had no captured remaining duration,
+                            -- use "save_ends" as a safe default (the effect's own natural duration
+                            -- is not reliably available as a plain field here).
+                            local duration = item.inheritedDuration or "save_ends"
+                            conferToken.properties:ApplyOngoingEffect(item.effectId, duration, casterInfo, {})
+                        else
+                            -- "condition" / "conditionOnly": InflictCondition expects the RAW stored
+                            -- duration form ("save" / "eot" / ...), not the effect-style string.
+                            conferToken.properties:InflictCondition(item.conditionId, {
+                                duration = item.inheritedRawDuration,
+                                casterInfo = casterInfo,
+                            })
+                        end
+                    end
+                end,
+            }
         end
     end
 
@@ -736,12 +800,28 @@ function ActivatedAbilityPurgeEffectsBehavior:CollectPurgeItems(targetToken, lim
                 if passFilter and casterOk then
                     conditionFound = true
                     local condDef = conditionsTable[key]
+                    -- Map the stored condition duration to the effect-style duration string
+                    -- (mirrors the "conditionOnly" mapping below) so a conferred condition can
+                    -- carry its original remaining duration.  inheritedRawDuration keeps the raw
+                    -- stored value ("save"/"eot"/...) for InflictCondition, which expects that form.
+                    local d = string.lower(conditionInfo.duration or "")
+                    local inheritedDuration = nil
+                    if d == "eot" then
+                        inheritedDuration = "end_of_next_turn"
+                    elseif d == "save" then
+                        inheritedDuration = "save_ends"
+                    end
                     items[#items+1] = {
                         type = "condition",
                         conditionId = key,
                         displayName = condDef and condDef.name or key,
                         iconid = condDef and condDef.iconid or nil,
                         display = condDef and condDef.display or nil,
+                        inheritedDuration = inheritedDuration,
+                        inheritedRawDuration = conditionInfo.duration,
+                        -- Captured for confer: preserve original caster so the conferred
+                        -- copy is attributed to whoever originally inflicted it.
+                        casterTokenId = conditionInfo.casterInfo and conditionInfo.casterInfo.tokenid or nil,
                     }
                 end
             end
@@ -770,6 +850,7 @@ function ActivatedAbilityPurgeEffectsBehavior:CollectPurgeItems(targetToken, lim
                         elseif effect:try_get("removeAtNextTurnEnd", false) then
                             inheritedDuration = "end_of_next_turn"
                         end
+                        local effectCasterInfo = effect:try_get("casterInfo")
                         items[#items+1] = {
                             type = "effect",
                             effectId = effect.ongoingEffectid,
@@ -778,6 +859,8 @@ function ActivatedAbilityPurgeEffectsBehavior:CollectPurgeItems(targetToken, lim
                             iconid = effectInfo.iconid,
                             display = effectInfo.display,
                             inheritedDuration = inheritedDuration,
+                            -- Captured for confer: original caster of this ongoing effect.
+                            casterTokenId = effectCasterInfo and effectCasterInfo.tokenid or nil,
                         }
                     end
                 end
@@ -809,6 +892,7 @@ function ActivatedAbilityPurgeEffectsBehavior:CollectPurgeItems(targetToken, lim
                         elseif effect:try_get("removeAtNextTurnEnd", false) then
                             inheritedDuration = "end_of_next_turn"
                         end
+                        local effectCasterInfo = effect:try_get("casterInfo")
                         items[#items+1] = {
                             type = "effect",
                             effectId = effect.ongoingEffectid,
@@ -817,6 +901,8 @@ function ActivatedAbilityPurgeEffectsBehavior:CollectPurgeItems(targetToken, lim
                             iconid = effectInfo.iconid,
                             display = effectInfo.display,
                             inheritedDuration = inheritedDuration,
+                            -- Captured for confer: original caster of this ongoing effect.
+                            casterTokenId = effectCasterInfo and effectCasterInfo.tokenid or nil,
                         }
                     end
                 end
@@ -868,6 +954,9 @@ function ActivatedAbilityPurgeEffectsBehavior:CollectPurgeItems(targetToken, lim
                                 effectId = defId,
                                 limitToCasterid = limitToCasterid,
                                 inheritedDuration = inheritedDuration,
+                                inheritedRawDuration = conditionInfo.duration,
+                                -- Captured for confer: original caster of this condition.
+                                casterTokenId = conditionInfo.casterInfo and conditionInfo.casterInfo.tokenid or nil,
                                 displayName = condDef and condDef.name or key,
                                 iconid = condDef and condDef.iconid or nil,
                                 display = condDef and condDef.display or nil,
@@ -896,6 +985,7 @@ function ActivatedAbilityPurgeEffectsBehavior:CollectPurgeItems(targetToken, lim
                         elseif effect:try_get("removeAtNextTurnEnd", false) then
                             inheritedDuration = "end_of_next_turn"
                         end
+                        local effectCasterInfo = effect:try_get("casterInfo")
                         items[#items+1] = {
                             type = "effect",
                             effectId = effect.ongoingEffectid,
@@ -904,6 +994,8 @@ function ActivatedAbilityPurgeEffectsBehavior:CollectPurgeItems(targetToken, lim
                             iconid = effectInfo.iconid,
                             display = effectInfo.display,
                             inheritedDuration = inheritedDuration,
+                            -- Captured for confer: original caster of this ongoing effect.
+                            casterTokenId = effectCasterInfo and effectCasterInfo.tokenid or nil,
                         }
                     end
                 end
@@ -2435,6 +2527,56 @@ function ActivatedAbilityPurgeEffectsBehavior:EditorItems(parentPanel)
 					{
 						script = "Target",
 						text = "Purged effects are limited to those inflicted by the target of this ability.",
+					},
+				},
+				symbols = ActivatedAbility.CatHelpSymbols(ActivatedAbility.helpCasting, {
+                    caster = {
+                        name = "Caster",
+                        type = "creature",
+                        desc = "The creature that is casting the ability.",
+                    },
+                    target = {
+                        name = "Target",
+                        type = "creature",
+                        desc = "The target creature of the ability.",
+                    },
+                    subject = {
+						name = "Subject",
+						type = "creature",
+						desc = "The subject of the triggered ability. Only valid within a triggered ability.",
+					},
+                })
+			},
+        }
+    }
+
+    result[#result+1] = gui.Panel{
+        classes = {"formPanel"},
+        gui.Label{
+            classes = {"formLabel"},
+            text = "Confer To:",
+        },
+        gui.GoblinScriptInput{
+            value = self:try_get("conferTo", ""),
+            events = {
+                change = function(element)
+                    self.conferTo = element.value
+                end,
+            },
+
+			documentation = {
+				help = string.format("When given a creature, each purged effect is also applied (conferred) to that creature with its original duration."),
+				output = "creature",
+                subject = creature.helpSymbols,
+                subjectDescription = "The creature that is casting the spell.",
+				examples = {
+					{
+						script = "Caster",
+						text = "The ended effect is conferred onto the caster of this ability.",
+					},
+					{
+						script = "Target",
+						text = "The ended effect is conferred onto the target of this ability.",
 					},
 				},
 				symbols = ActivatedAbility.CatHelpSymbols(ActivatedAbility.helpCasting, {

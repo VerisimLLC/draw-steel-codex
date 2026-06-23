@@ -158,6 +158,7 @@ Built-in shader properties (name -> what it does; Float/Range are 0..1 unless no
 | `_FontTint` | Color | Number color |
 | `_FontBrightness` | Range 0..2 | Self-illuminate numbers in font tint (0 = scene-lit only) |
 | `_FontGlowColor` | Color | Programmatic landing-result glow color |
+| `_FontGlowSolid` | Bool | When on, the landed result-face number is painted with `_FontGlowColor` as a SOLID albedo (so a black/dark color reads on a bright/fiery die) instead of an additive glow -- emission can only brighten, so this is how you get a *dark* landed number. Off (default) = emissive glow. |
 | `_FontMatcapTexture` | Texture | Paint numbers with a matcap (sets `_EnableFontMatcap`) |
 | `_FontMatcapPower` | Range 0..2 | Font matcap brightness (default 1) |
 | `_SurfaceMetallic` / `_CageMetallic` / `_FontMetallic` | Float | Metallic per region |

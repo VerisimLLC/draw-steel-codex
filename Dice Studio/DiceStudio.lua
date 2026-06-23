@@ -167,6 +167,16 @@ local g_builtinFields = {
 		name = "_FontGlowColor",
 		description = "Font Glow",
 	},
+	-- Font Glow Solid: render the landed result-face number as a SOLID color (using the Font
+	-- Glow color as the number's albedo) instead of an additive glow. The glow is emissive and
+	-- can only brighten, so on a bright / fiery die a black glow color does nothing; with this
+	-- on, set Font Glow to black to get a readable solid-black number on the face that lands.
+	-- Appears on landing (same trigger as the glow). See _FontGlowSolid in DMHub-Dice-Generic.shader.
+	{
+		name = "_FontGlowSolid",
+		description = "Font Glow Solid",
+		type = "Bool",
+	},
 	-- Font Matcap: paints the numbers with a matcap (lit-sphere) reflection instead of a
 	-- flat fill, for chrome / gold / holographic / glass-looking numbers. Setting a texture
 	-- turns it on (the flag writes 1 to _EnableFontMatcap, which the shader reads); clearing
@@ -1372,9 +1382,10 @@ CreateDiceStudioPanel = function()
 
 	-- Builds the row for a SINGLE effect instance within an event (an event can bind several).
 	-- Contains the effect picker, a Raw debug button, the per-effect tunables, and a delete
-	-- button. binding is a DiceEventEffectBindingLua wrapper; rebuildFn rebuilds the owning
+	-- button. binding is a DiceEventEffectBindingLua wrapper; pulse marks a pulse event (vs a
+	-- persistent state effect) and gates the Linger/Fade rows; rebuildFn rebuilds the owning
 	-- event's instance list after a remove changes the count.
-	local MakeEffectInstanceRow = function(eventName, label, binding, rebuildFn)
+	local MakeEffectInstanceRow = function(eventName, label, binding, pulse, rebuildFn)
 		-- The effect picker: a compact button showing the current effect preview thumbnail and
 		-- name; clicking opens the browsable particle picker (MakeParticleBrowser).
 		local previewThumb = gui.Panel{
@@ -1436,7 +1447,36 @@ CreateDiceStudioPanel = function()
 				end, binding.effectName)
 			end,
 		}
-		local controlsChildren = { previewButton }
+		-- Per-effect on/off. Checked by default; unchecking suppresses playback without
+		-- removing the effect (or its tunables) from the list. Re-reads its state on the
+		-- newmaterial/refreshDice tree events so a freshly loaded set shows the saved value.
+		local enabledCheck = gui.Check{
+			text = "",
+			tooltip = "Enable or disable this effect (keeps it in the list).",
+			halign = "left",
+			valign = "center",
+			hmargin = 4,
+			-- The default "checkbox" style reserves minWidth=200 for a label row; this is a
+			-- bare box (empty text), so collapse it to hug just the check mark.
+			width = "auto",
+			minWidth = 0,
+			height = 30,
+			-- "enabled unless explicitly false" so a binding that predates the field (nil)
+			-- reads as checked, matching the C# default.
+			value = binding.enabled ~= false,
+			newmaterial = function(element)
+				element.value = binding.enabled ~= false
+			end,
+			refreshDice = function(element)
+				element.value = binding.enabled ~= false
+			end,
+			change = function(element)
+				binding.enabled = element.value
+				RefreshDice()
+			end,
+		}
+
+		local controlsChildren = { enabledCheck, previewButton }
 		controlsChildren[#controlsChildren+1] = gui.Button{
 			text = "Raw",
 			width = 50,
@@ -1461,13 +1501,18 @@ CreateDiceStudioPanel = function()
 
 		--A labelled slider bound to one of this effect's tunables. getFn/setFn close over the
 		--binding wrapper. Re-reads its value on the newmaterial/refreshDice tree events.
-		local function ParamSlider(slabel, minV, maxV, getFn, setFn)
+		--Optional tooltip is shown on the label (used to explain the Linger/Fade defaults). It is
+		--attached as a lazy hover handler via gui.Tooltip rather than the eager 'tooltip' field,
+		--which on a gui.Label builds the tooltip panel detached at construction and spams a
+		--"created but not attached to a parent" warning. gui.Tooltip(nil) returns nil (no handler).
+		local function ParamSlider(slabel, minV, maxV, getFn, setFn, tooltip)
 			return gui.Panel{
 				classes = {"formPanel"},
 				gui.Label{
 					classes = {"formLabel"},
 					halign = "left",
 					text = slabel,
+					hover = gui.Tooltip(tooltip),
 				},
 				gui.Slider{
 					style = { height = 26, width = 240, fontSize = 14 },
@@ -1489,6 +1534,34 @@ CreateDiceStudioPanel = function()
 				},
 			}
 		end
+
+		--Above/Below opacity sliders. Only meaningful when Layer is "Above & Below" (which spawns
+		--two identical copies, one above the dice and one below); the engine multiplies each copy's
+		--tint alpha and brightness by these so a faint copy can be laid over a stronger one (e.g.
+		--above = 0.2). Hidden for every other Layer value. Its collapsed state is re-evaluated on
+		--the tree refresh events AND driven directly by the Layer dropdown's change handler
+		--(RefreshDice alone does not broadcast "refreshDice").
+		local opacityPanel
+		local function RefreshOpacityPanel(element)
+			element:SetClass("collapsed", binding.layerPlacement ~= "abovebelow")
+		end
+		opacityPanel = gui.Panel{
+			width = "100%",
+			height = "auto",
+			flow = "vertical",
+			create = RefreshOpacityPanel,
+			newmaterial = RefreshOpacityPanel,
+			refreshDice = RefreshOpacityPanel,
+
+			ParamSlider("Above Opacity:", 0, 1,
+				function() return binding.aboveOpacity end,
+				function(v) binding.aboveOpacity = v end,
+				"Opacity of the copy spawned ABOVE the dice (multiplies its tint alpha and brightness, so both alpha-blended and additive effects dim). Lower it to lay a faint copy over a stronger one below. Only used when Layer is 'Above & Below'."),
+			ParamSlider("Below Opacity:", 0, 1,
+				function() return binding.belowOpacity end,
+				function(v) binding.belowOpacity = v end,
+				"Opacity of the copy spawned BELOW the dice (multiplies its tint alpha and brightness, so both alpha-blended and additive effects dim). Only used when Layer is 'Above & Below'."),
+		}
 
 		--Tunables collapse while this slot is unbound ("(None)"), since there's nothing to tune.
 		local tunablesPanel = gui.Panel{
@@ -1518,6 +1591,29 @@ CreateDiceStudioPanel = function()
 			ParamSlider("Brightness:", 0.1, 4,
 				function() return binding.brightness end,
 				function(v) binding.brightness = v end),
+
+			-- Linger/Fade: how long a PULSE effect lasts after firing before it fades out and is
+			-- destroyed (engine: DiceEventEffectBinding.linger/fade). Linger 0 = legacy (a 12s cap,
+			-- no managed fade); raise it to stop a long Exit effect lingering after the die
+			-- disappears (the die is gone ~3.5s after the roll ends). Fade is the tail fade-out.
+			-- State effects (Roll Waiting, Travel Tail) live for the die's whole life and ignore
+			-- this, so the rows are collapsed for them.
+			gui.Panel{
+				width = "100%",
+				height = "auto",
+				flow = "vertical",
+				create = function(element)
+					element:SetClass("collapsed", not pulse)
+				end,
+				ParamSlider("Linger (s):", 0, 10,
+					function() return binding.linger end,
+					function(v) binding.linger = v end,
+					"Seconds the effect lasts after it fires before fading out and being destroyed (default 4). Lower it to clear the effect sooner; set to 0 for the legacy uncapped behavior (a 12s safety cap, no fade)."),
+				ParamSlider("Fade (s):", 0, 5,
+					function() return binding.fade end,
+					function(v) binding.fade = v end,
+					"Length of the opacity fade-out at the end of the Linger window (capped at Linger; default 1). 0 = snap off with no fade. Ignored when Linger is 0."),
+			},
 
 			gui.Panel{
 				classes = {"formPanel"},
@@ -1580,7 +1676,8 @@ CreateDiceStudioPanel = function()
 			},
 
 			-- Force the effect above or beneath the dice. "Auto" keeps the prefab's
-			-- own TopLayer/BottomLayer convention (the historical behavior).
+			-- own TopLayer/BottomLayer convention (the historical behavior). "Above & Below"
+			-- spawns two copies (one above, one below), each dimmed by the opacity sliders.
 			gui.Panel{
 				classes = {"formPanel"},
 				gui.Label{
@@ -1589,14 +1686,15 @@ CreateDiceStudioPanel = function()
 					text = "Layer:",
 				},
 				gui.Dropdown{
-					width = 120,
+					width = 140,
 					height = 30,
 					fontSize = 14,
 					halign = "left",
 					options = {
-						{ id = "auto",  text = "Auto" },
-						{ id = "above", text = "Above Dice" },
-						{ id = "below", text = "Below Dice" },
+						{ id = "auto",       text = "Auto" },
+						{ id = "above",      text = "Above Dice" },
+						{ id = "below",      text = "Below Dice" },
+						{ id = "abovebelow", text = "Above & Below" },
 					},
 					idChosen = binding.layerPlacement,
 					newmaterial = function(element)
@@ -1607,10 +1705,15 @@ CreateDiceStudioPanel = function()
 					end,
 					change = function(element)
 						binding.layerPlacement = element.idChosen
+						-- RefreshDice() does not broadcast "refreshDice", so toggle the opacity
+						-- sliders' visibility directly here.
+						RefreshOpacityPanel(opacityPanel)
 						RefreshDice()
 					end,
 				},
 			},
+
+			opacityPanel,
 		}
 
 		return gui.Panel{
@@ -1639,7 +1742,7 @@ CreateDiceStudioPanel = function()
 		local function RebuildInstances()
 			local children = {}
 			for _,binding in ipairs(studio:GetEventEffectList(eventName)) do
-				children[#children+1] = MakeEffectInstanceRow(eventName, label, binding, function()
+				children[#children+1] = MakeEffectInstanceRow(eventName, label, binding, pulse, function()
 					RebuildInstances()
 				end)
 			end
@@ -1820,12 +1923,15 @@ CreateDiceStudioPanel = function()
 	-- registered sound events, plus a "(None)" entry) and a volume multiplier. Unbound events
 	-- fall back to the engine's built-in behavior (Throw/Impact keep their defaults; the
 	-- spawn/teleport/settle events are silent unless bound). "ThrowStart" is a per-roll sound;
-	-- the rest fire per die. Labels are author-friendly (BounceHit -> "Impact", Exit -> "Settle").
+	-- the rest fire per die. "Teleport" fires when a teleport-movement die begins its jump and
+	-- "Reappear" when it arrives -- "Disappear" is now end-of-roll removal only. Labels are
+	-- author-friendly (BounceHit -> "Impact", Exit -> "Settle").
 	local diceSoundEventList = {
 		{ event = "ThrowStart", label = "Throw:"      },
 		{ event = "Appearance", label = "Appearance:" },
 		{ event = "BounceHit",  label = "Impact:"     },
 		{ event = "Disappear",  label = "Disappear:"  },
+		{ event = "Teleport",   label = "Teleport:"   },
 		{ event = "Reappear",   label = "Reappear:"   },
 		{ event = "Exit",       label = "Settle:"     },
 	}
@@ -1891,6 +1997,7 @@ CreateDiceStudioPanel = function()
 			fontSize = 14,
 			halign = "left",
 			hmargin = 4,
+            hasSearch = true,
 			create = function(element)
 				element.options = BuildSoundOptions()
 				element.idChosen = CurrentId()

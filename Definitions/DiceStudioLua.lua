@@ -168,14 +168,14 @@ function DiceStudioLua:GetSoundEventOptions()
 end
 
 --- GetEventSound: Gets the sound event name bound to the given dice lifecycle event, or an empty string if nothing is bound.
---- @param eventName string  One of: throwstart, appearance, bouncehit, disappear, reappear, exit.
+--- @param eventName string  One of: throwstart, appearance, bouncehit, disappear, teleport, reappear, exit.
 --- @return string
 function DiceStudioLua:GetEventSound(eventName)
 	-- dummy implementation for documentation purposes only
 end
 
 --- SetEventSound: Binds (or clears) a sound event to a dice lifecycle event. Pass nil or an empty string to clear.
---- @param eventName string  One of: throwstart, appearance, bouncehit, disappear, reappear, exit.
+--- @param eventName string  One of: throwstart, appearance, bouncehit, disappear, teleport, reappear, exit.
 --- @param soundEventName string|nil
 function DiceStudioLua:SetEventSound(eventName, soundEventName)
 	-- dummy implementation for documentation purposes only
@@ -196,7 +196,7 @@ function DiceStudioLua:SetEventSoundVolume(eventName, volume)
 end
 
 --- FirePreviewSound: Test-plays the sound bound to the given dice lifecycle event (at the bound volume). No-op if nothing is bound.
---- @param eventName string  One of: throwstart, appearance, bouncehit, disappear, reappear, exit.
+--- @param eventName string  One of: throwstart, appearance, bouncehit, disappear, teleport, reappear, exit.
 function DiceStudioLua:FirePreviewSound(eventName)
 	-- dummy implementation for documentation purposes only
 end

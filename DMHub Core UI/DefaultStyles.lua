@@ -1829,6 +1829,7 @@ ThemeEngine.RegisterTheme{
             textAlignment = "center",
             width = "80%",
             height = "auto",
+            tmargin = 24,
             fontSize = 28,
             color = "@fgStrong",
             bold = true,

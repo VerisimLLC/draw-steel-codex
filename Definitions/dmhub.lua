@@ -30,7 +30,7 @@
 --- @field GetActiveClipboardItem fun(): ClipboardItem A function that returns the currently active clipboard item, if any.
 --- @field TokenVisionUpdated fun(): nil A function that is called when token vision has been recalculated and updated.
 --- @field LiveEditSessionsUpdated fun(): nil A function that is called when the set of active image live-edit sessions changes, or when a session's state changes (a change detected, uploaded, reverted, or closed).
---- @field PromptImageEditorSetup fun(floorid: string, objid: string): nil A function that is called when a live-edit is requested but the image editor isn't set up (first use) or the configured editor can't be found. The handler should show the image-editor setup UI, then call dmhub.StartLiveEditForObject(floorid, objid) once the user confirms.
+--- @field PromptImageEditorSetup function Called when a live-edit is requested but the image editor isn't set up (first use) or the configured editor can't be found. Called from C# with (floorid, objid) for an object live-edit (the handler shows the editor-setup UI then calls dmhub.StartLiveEditForObject(floorid, objid)); may also be called from Lua with a single continuation function that runs once the user confirms (used for generic live edits such as map appearance images).
 --- @field liveEditSessions nil|{objid: string, name: string, imageId: string, changesPending: boolean, uploading: boolean, error: string|nil}[] The active image live-edit sessions, or nil when there are none. imageId is the live (updating) thumbnail; changesPending is true once a saved change has not yet been uploaded; uploading is true while an upload is in flight; error holds the most recent upload error message if any.
 --- @field GetFocus fun(): Panel|nil A function that returns the currently focused UI panel, or nil if nothing is focused.
 --- @field CreateLootComponent fun(): table A function that creates a loot component table for attaching to an object.
@@ -269,7 +269,7 @@ function dmhub.OpenFileDialog(options)
 	-- dummy implementation for documentation purposes only
 end
 
---- DetectImageEditors: Returns image-editing applications detected as installed on the user's machine, each as a table with 'name' (friendly display name) and 'path' (full executable path), sorted by name. Detection currently only works on Windows; other platforms return an empty list.
+--- DetectImageEditors: Returns image-editing applications detected as installed on the user's machine, each as a table with 'name' (friendly display name) and 'path' (full executable path on Windows, or the .app bundle on macOS), sorted by name. Detection works on Windows and macOS; Linux returns an empty list.
 --- @return {name: string, path: string}[]
 function dmhub.DetectImageEditors()
 	-- dummy implementation for documentation purposes only
@@ -297,6 +297,18 @@ end
 --- @param floorid string
 --- @param objid string
 function dmhub.StartLiveEditForObject(floorid, objid)
+	-- dummy implementation for documentation purposes only
+end
+
+--- ImageEditorNeedsSetup: Whether the user still needs to set up their image editor before live editing (true on first use, or when the configured editor cannot be found). Check this before starting a custom live-edit session via dmhub.StartLiveEditImage.
+--- @return boolean
+function dmhub.ImageEditorNeedsSetup()
+	-- dummy implementation for documentation purposes only
+end
+
+--- StartLiveEditImage: Starts a generic live-edit session on the image with the given id ('guid'), opening it in the external editor and listing it in the live-edit dialog alongside object sessions. 'name' is the dialog label. When the user uploads changes, 'commit' is called with the new raw image id (prefix with 'md5:' to use as a bgimage); the session stays active for more edits. 'revert'/'close' are optional. Check dmhub.ImageEditorNeedsSetup() first and show dmhub.PromptImageEditorSetup if needed.
+--- @param options {guid: string, name: nil|string, id: nil|string, commit: fun(newImageId: string), revert: nil|fun(), close: nil|fun()}
+function dmhub.StartLiveEditImage(options)
 	-- dummy implementation for documentation purposes only
 end
 

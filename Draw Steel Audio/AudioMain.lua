@@ -861,28 +861,40 @@ audio.SoundEvent{
 
 --Dice Impacts
 
-audio.SoundEvent{
-    mixgroup = "dice",
-    name = "Dice.Impact",
-    play = function(instance)
-        local speed = instance.args.speed or 0
-        local soundEvent = "DiceImp.Soft"
-        local volume = 1
-        if speed > 10 then
-            soundEvent = "DiceImp.Hard"
-            volume = 0.6 + (speed - 8) * 0.1
-        elseif speed > 4 then
-            soundEvent = "DiceImp.Mild"
-            volume = 0.6 + (speed - 1) * 0.1
-        else
-            soundEvent = "DiceImp.Soft"
-            volume = speed
-        end
 
-        local child = audio.FireSoundEvent(soundEvent, {})
-        child.volume = volume
-    end,
-}
+local function RegisterImpactEvent(name)
+    local suffix = ""
+    if name ~= nil then
+        suffix = "_" .. name
+    end
+
+    audio.SoundEvent{
+        mixgroup = "dice",
+        name = "Dice.Impact" .. suffix,
+        play = function(instance)
+            local speed = instance.args.speed or 0
+            local soundEvent = "DiceImp.Soft" .. suffix
+            local volume = 1
+            if speed > 10 then
+                soundEvent = "DiceImp.Hard" .. suffix
+                volume = 0.6 + (speed - 8) * 0.1
+            elseif speed > 4 then
+                soundEvent = "DiceImp.Mild" .. suffix
+                volume = 0.6 + (speed - 1) * 0.1
+            else
+                soundEvent = "DiceImp.Soft" .. suffix
+                volume = speed
+            end
+
+            local child = audio.FireSoundEvent(soundEvent, {})
+            child.volume = volume
+        end,
+    }
+end
+
+
+RegisterImpactEvent()
+RegisterImpactEvent("BlackAsh")
 
 audio.SoundEvent{
     name = "DiceImp.Hard",

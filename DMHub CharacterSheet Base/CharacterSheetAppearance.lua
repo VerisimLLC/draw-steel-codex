@@ -1062,6 +1062,36 @@ function CharSheet.FramePreviewPanel()
             },
         },
 
+        --Unframed tokens shape their drop shadow from the portrait image's alpha, so an
+        --opaque (non-transparent) image casts a full square shadow. Let the user turn the
+        --shadow off. Only shown for unframed, non-popout tokens (framed/popout shadows are
+        --masked to the frame and never square).
+        gui.Check {
+            id = "castShadowCheck",
+            text = "Cast Shadow",
+            halign = "center",
+            vmargin = 8,
+            refreshAppearance = function(element, info)
+                local hasFrame = info.token.portraitFrame ~= nil and info.token.portraitFrame ~= ''
+                local unframed = (not hasFrame) and (not info.token.popoutPortrait)
+                element:SetClass("collapsed", not unframed)
+                element.value = (info.token.hideShadow == false)
+                if g_previewToken ~= nil and g_previewToken.valid then
+                    g_previewToken.hideShadow = info.token.hideShadow
+                end
+            end,
+            change = function(element)
+                local info = CharacterSheet.instance.data.info
+                info.token.hideShadow = (element.value == false)
+                if g_previewToken ~= nil and g_previewToken.valid then
+                    g_previewToken.hideShadow = info.token.hideShadow
+                    game.Refresh { tokens = { g_previewTokenId } }
+                end
+                info.token:UploadAppearance()
+                CharacterSheet.instance:FireEvent("refreshAll")
+            end,
+        },
+
         --some padding.
         gui.Panel {
             width = 1,

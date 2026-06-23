@@ -1882,16 +1882,44 @@ CharacterPanel.CreatePartyCharacters = function(partyid)
                             end,
                         },
                     }
-                    if #memberPanes == 0 then
-                        entries[#entries + 1] = {
-                            text = "Delete Party",
-                            click = function()
-                                party.hidden = true
-                                dmhub.SetAndUploadTableItem(Party.tableName, party)
-                                element.popup = nil
-                            end,
-                        }
+                    local DeleteParty = function()
+                        party.hidden = true
+                        dmhub.SetAndUploadTableItem(Party.tableName, party)
+                        --rebuild the party list so the now-deleted party
+                        --disappears immediately instead of only on reload.
+                        element:FireEventOnParents("refreshAssets")
                     end
+
+                    entries[#entries + 1] = {
+                        text = "Delete Party",
+                        click = function()
+                            element.popup = nil
+
+                            local memberCount = #dmhub.GetCharacterIdsInParty(party.id)
+                            if memberCount == 0 then
+                                DeleteParty()
+                                return
+                            end
+
+                            gamehud:ModalMessage {
+                                title = "Delete Party?",
+                                message = string.format("This party still has %d %s in it. Are you sure you want to delete it? The %s will not be deleted.", memberCount, cond(memberCount == 1, "character", "characters"), cond(memberCount == 1, "character", "characters")),
+                                options = {
+                                    {
+                                        text = "Delete",
+                                        execute = function()
+                                            DeleteParty()
+                                        end,
+                                    },
+                                    {
+                                        text = "Cancel",
+                                        execute = function()
+                                        end,
+                                    },
+                                }
+                            }
+                        end,
+                    }
                     element.popup = gui.ContextMenu { entries = entries }
                 elseif partyid == "graveyard" then
                     element.popup = gui.ContextMenu{

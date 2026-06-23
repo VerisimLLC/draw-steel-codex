@@ -455,7 +455,7 @@ local function ShowFloorSettings(floor)
 		--Build one gallery tile. index 0 is the base/default image.
 		local function CreateTile(index)
 			local isBase = index == 0
-			local imageId = cond(isBase, mapObj.imageid, swaps[index])
+			local imageId = cond(isBase, mapObj.displayImageId, swaps[index])
 			local isSelected = selected == index
 
 			--Border/hover/selected coloring comes from the themed mapAppearanceTile styles; "image" keeps
@@ -646,6 +646,67 @@ local function ShowFloorSettings(floor)
 
 		RefreshTiles()
 
+		--"Live Edit Image": live-edit the currently selected map appearance (base or a swap) in the
+		--external editor using the same flow as object live editing. The base/default image reuses the
+		--object live-edit path (full live preview); an alternate appearance uses a generic session whose
+		--commit writes the new image into that swap slot.
+		local function StartAppearanceLiveEdit()
+			local editingIndex = selected
+			local function beginEdit()
+				if editingIndex == 0 then
+					mapObj:LiveEdit()
+					return
+				end
+
+				local guid = swaps[editingIndex]
+				if guid == nil or guid == "" then
+					return
+				end
+
+				local originalGuid = guid
+				local label = names[editingIndex] or string.format("Appearance %d", editingIndex)
+				dmhub.StartLiveEditImage{
+					guid = guid,
+					name = string.format("Map: %s", label),
+					commit = function(newImageId)
+						if mod.unloaded then return end
+						swaps[editingIndex] = "md5:" .. newImageId
+						Persist("Live edit map appearance")
+						if tilesPanel.valid then RefreshTiles() end
+					end,
+					revert = function()
+						if mod.unloaded then return end
+						if swaps[editingIndex] ~= originalGuid then
+							swaps[editingIndex] = originalGuid
+							Persist("Revert map appearance")
+							if tilesPanel.valid then RefreshTiles() end
+						end
+					end,
+				}
+			end
+
+			if dmhub.ImageEditorNeedsSetup() then
+				dmhub.PromptImageEditorSetup(beginEdit)
+			else
+				beginEdit()
+			end
+		end
+
+		local liveEditButton = nil
+		if dmhub.patronTier > 0 then
+			liveEditButton = gui.PrettyButton{
+				text = "Live Edit Image",
+				width = 170,
+				height = 30,
+				fontSize = 14,
+				halign = "left",
+				vmargin = 4,
+				click = function(element)
+					StartAppearanceLiveEdit()
+				end,
+			}
+		end
+
 		appearanceSection = gui.Panel{
 			width = "100%",
 			height = "auto",
@@ -658,6 +719,7 @@ local function ShowFloorSettings(floor)
 				},
 				resolutionLabel,
 				tilesPanel,
+				liveEditButton,
 			},
 		}
 	else

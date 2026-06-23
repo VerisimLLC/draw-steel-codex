@@ -934,10 +934,11 @@ local MakeDiceBanner = function(opts)
 			scene.diceScale = m_diceScale
 			scene.fixedTime = false
 
-			--The details showcase gently turns the die so buyers see all its
-			--faces; the featured top banner keeps it static (it reads as held in
-			--the skeleton's hands), as does the admin positioning preview.
-			scene.initialRotation = cond(opts.detailsMode, 30, 0)
+			--Gently turn the die so buyers see all its faces -- both in the details
+			--showcase and on the featured top banner / carousel. Only the admin
+			--positioning preview stays static, so the die can be placed without it
+			--spinning away from the cursor.
+			scene.initialRotation = cond(opts.adminPreview, 0, 30)
 		end,
 
 		--Dev hook for tuning the banner live, e.g.:
@@ -1714,6 +1715,18 @@ local ShowItemDetailsInternal = function(args)
 						halign = "center",
 						valign = "top",
 						data = { item = nil },
+
+						--These dice roll into the open screen (no dice cage), so let them
+						--bounce off the real screen edges and floor instead of the default
+						--mid-screen playfield box. pcall-guarded so a Lua-only reload against
+						--an older binary just keeps the old bounds. Cleared on destroy so the
+						--wider bounds never leak into in-game rolls once the shop closes.
+						create = function(element)
+							pcall(function() dice.SetPreviewRollScreenBounds(true) end)
+						end,
+						destroy = function(element)
+							pcall(function() dice.SetPreviewRollScreenBounds(false) end)
+						end,
 
 						refreshItem = function(element, item)
 							element.data.item = item

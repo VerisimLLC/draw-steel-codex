@@ -68,6 +68,13 @@ function dice.DragEnd()
 	-- dummy implementation for documentation purposes only
 end
 
+--- SetPreviewRollScreenBounds: Sets whether free-rolling preview dice (the shop 'try dice' feature, which has no dice cage panel) bounce off the actual screen edges instead of the default playfield box. When true, a tossed die rolls across the whole screen and only the screen edges and the floor act as boundaries. Ignored while a dice cage panel (SetAsDicePreviewPanel) is active, so embedded cages keep their tight box. The shop should set this true while the try-dice UI is shown and false when it closes.
+--- @param val boolean
+--- @return nil
+function dice.SetPreviewRollScreenBounds(val)
+	-- dummy implementation for documentation purposes only
+end
+
 --- SetRollPreviewModel: Overrides the dice appearance used by subsequent rolls with the given dice-set asset id, so dice the player doesn't own yet (e.g. a shop item being previewed) can still be rolled -- the equipped-dice setting rejects unowned sets, but this bypasses it. Pass nil or an empty string to clear the override and return to the player's equipped set.
 --- @param assetid string
 --- @return nil

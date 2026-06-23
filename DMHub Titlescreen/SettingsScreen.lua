@@ -175,6 +175,236 @@ local CreateGameWideMasterVolumeEditor = function()
 end
 
 --called from DMHub (from DialogLua, reference to script is a Unity property.)
+-- Builds the image-editor chooser UI (heading + blurb + dropdown). Shared by the Settings "Editing"
+-- tab and the first-run / re-prompt setup dialog. The dropdown writes the imageeditor /
+-- imageeditor:usedefault preferences and marks imageeditor:configured so the live-edit setup prompt
+-- stops appearing once the user has made a choice.
+local function CreateImageEditorChooser()
+	local detectedEditors = dmhub.DetectImageEditors()
+	local dropdown
+
+	local function BaseName(path)
+		local result = path
+		for i = #path, 1, -1 do
+			local c = string.sub(path, i, i)
+			if c == "/" or c == "\\" then
+				result = string.sub(path, i + 1)
+				break
+			end
+		end
+		return result
+	end
+
+	local function BuildOptions()
+		local options = {}
+		options[#options + 1] = { id = "", text = "System Default" }
+
+		local useDefault = dmhub.GetSettingValue("imageeditor:usedefault")
+		local currentPath = dmhub.GetSettingValue("imageeditor")
+		local foundCurrent = false
+
+		for _,editor in ipairs(detectedEditors) do
+			options[#options + 1] = { id = editor.path, text = editor.name }
+			if (not useDefault) and editor.path == currentPath then
+				foundCurrent = true
+			end
+		end
+
+		if (not useDefault) and currentPath ~= nil and currentPath ~= "" and (not foundCurrent) then
+			options[#options + 1] = { id = currentPath, text = BaseName(currentPath) }
+		end
+
+		options[#options + 1] = { id = "__browse__", text = "Choose File..." }
+		return options
+	end
+
+	local function CurrentChoice()
+		if dmhub.GetSettingValue("imageeditor:usedefault") then
+			return ""
+		end
+		local path = dmhub.GetSettingValue("imageeditor")
+		if path == nil or path == "" then
+			return ""
+		end
+		return path
+	end
+
+	local function BrowseForEditor()
+		local extensions = {}
+		if dmhub.platform == "windows" then
+			extensions = {"exe"}
+		elseif dmhub.platform == "macOS" then
+			extensions = {"app"}
+		end
+		dmhub.OpenFileDialog{
+			id = "imageeditor",
+			extensions = extensions,
+			directory = dmhub.applicationsFolder,
+			prompt = "Select Image Editor",
+			open = function(path)
+				dmhub.SetSettingValue("imageeditor", path)
+				dmhub.SetSettingValue("imageeditor:usedefault", false)
+				dmhub.SetSettingValue("imageeditor:configured", true)
+				if dropdown ~= nil then
+					dropdown.options = BuildOptions()
+					dropdown.idChosen = path
+				end
+			end,
+		}
+	end
+
+	dropdown = gui.Dropdown{
+		options = BuildOptions(),
+		idChosen = CurrentChoice(),
+		width = 300,
+		height = 40,
+		halign = "right",
+		valign = "center",
+		fontSize = 16,
+
+		multimonitor = {"imageeditor", "imageeditor:usedefault"},
+		events = {
+			monitor = function(element)
+				element.options = BuildOptions()
+				element.idChosen = CurrentChoice()
+			end,
+
+			change = function(element)
+				local id = element.idChosen
+				if id == "__browse__" then
+					element.idChosen = CurrentChoice()
+					BrowseForEditor()
+				elseif id == "" then
+					dmhub.SetSettingValue("imageeditor:usedefault", true)
+					dmhub.SetSettingValue("imageeditor:configured", true)
+				else
+					dmhub.SetSettingValue("imageeditor", id)
+					dmhub.SetSettingValue("imageeditor:usedefault", false)
+					dmhub.SetSettingValue("imageeditor:configured", true)
+				end
+			end,
+		}
+	}
+
+	return {
+		gui.Label{
+			width = "100%",
+			height = 40,
+			fontSize = 26,
+			bold = true,
+			text = "Image Editing",
+		},
+
+		gui.Label{
+			width = "90%",
+			height = "auto",
+			halign = "center",
+			fontSize = 14,
+			vmargin = 4,
+			text = string.format("Choose the program that opens when you use Live Edit Image on a map object. When you save the file in that program, the object's image updates live in %s.", dmhub.whiteLabelAppName),
+		},
+
+		gui.Panel{
+			classes = {"formRow"},
+			width = "90%",
+			halign = "center",
+			gui.Label{
+				classes = {"form"},
+				width = "40%",
+				text = "Image Editor:",
+			},
+			dropdown,
+		},
+	}
+end
+
+local g_imageEditorSetupDialog = nil
+local function ShowImageEditorSetupDialog(onProceed)
+	local function closeDialog()
+		if g_imageEditorSetupDialog ~= nil and g_imageEditorSetupDialog.valid then
+			g_imageEditorSetupDialog:DestroySelf()
+		end
+		g_imageEditorSetupDialog = nil
+	end
+
+	closeDialog()
+
+	local dialog
+	dialog = gui.Panel{
+		classes = {"framedPanel"},
+		styles = ThemeEngine.GetStyles(),
+		width = 620,
+		height = "auto",
+		halign = "center",
+		valign = "center",
+		flow = "vertical",
+		pad = 24,
+		borderBox = true,
+
+		destroy = function(element)
+			if g_imageEditorSetupDialog == element then
+				g_imageEditorSetupDialog = nil
+			end
+		end,
+
+		gui.Panel{
+			width = "100%",
+			height = "auto",
+			flow = "vertical",
+			children = CreateImageEditorChooser(),
+		},
+
+		gui.Panel{
+			width = "100%",
+			height = "auto",
+			flow = "horizontal",
+			halign = "center",
+			vmargin = 16,
+
+			gui.PrettyButton{
+				text = "Cancel",
+				width = 150,
+				height = 36,
+				fontSize = 16,
+				hmargin = 8,
+				click = function(element)
+					closeDialog()
+				end,
+			},
+
+			gui.PrettyButton{
+				text = "Start Editing",
+				width = 150,
+				height = 36,
+				fontSize = 16,
+				hmargin = 8,
+				click = function(element)
+					dmhub.SetSettingValue("imageeditor:configured", true)
+					closeDialog()
+					if onProceed ~= nil then
+						onProceed()
+					end
+				end,
+			},
+		},
+	}
+
+	g_imageEditorSetupDialog = dialog
+	gui.ShowModal(dialog)
+end
+
+dmhub.PromptImageEditorSetup = function(a, b)
+	--Called from C# with (floorid, objid) for an object live-edit, or directly from Lua with a single
+	--continuation function for a generic live-edit (e.g. a map appearance image). Branch on the arg type.
+	if type(a) == "function" then
+		ShowImageEditorSetupDialog(a)
+	else
+		ShowImageEditorSetupDialog(function()
+			dmhub.StartLiveEditForObject(a, b)
+		end)
+	end
+end
+
 function CreateSettingsScreen(dialog, args)
     args = args or {}
 
@@ -451,6 +681,9 @@ function CreateSettingsScreen(dialog, args)
 						text = "Game",
 						dmonly = true,
 					},
+					CreateTab{
+						text = "Editing",
+					},
 					keybindsTab,
 					CreateTab{
 						text = "Account",
@@ -656,6 +889,13 @@ function CreateSettingsScreen(dialog, args)
 
 						SettingsSection("GameStrictRules"),
 						} end,
+					},
+
+					SettingGroup{
+						group = "Editing",
+						build = function()
+							return CreateImageEditorChooser()
+						end,
 					},
 
 					keybinds,

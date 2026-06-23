@@ -2393,15 +2393,21 @@ function MarkdownDocument.DisplayPanel(self, args)
                 element.bgimage = nil
                 element.bgcolor = nil
             end
-            -- Page margin: inset content from the page edges. borderBox keeps the
-            -- pad inside the declared width (no overflow). Unset/0 -> cleared, so
-            -- the default skin stays edge-to-edge.
+            -- Page margin: inset content from the page edges. Use hpad/vpad (NOT
+            -- pad): the container is built with hpad=6 (params.hpad), and hpad
+            -- overrides pad on the horizontal axis, so setting pad alone leaves
+            -- the left/right margin stuck at 6px. borderBox keeps the padding
+            -- inside the declared width (no overflow). Unset/0 -> restore the
+            -- construction defaults (hpad=6, no vpad) so the default skin is
+            -- edge-to-edge as before.
             local pageMargin = (resolvedSkin.page or {}).margin
             if type(pageMargin) == "number" and pageMargin > 0 then
-                element.pad = pageMargin
+                element.hpad = pageMargin
+                element.vpad = pageMargin
                 element.borderBox = true
             else
-                element.pad = nil
+                element.hpad = 6
+                element.vpad = nil
                 element.borderBox = nil
             end
             -- Content-aware preview scroll: tag each top-level child with the source line

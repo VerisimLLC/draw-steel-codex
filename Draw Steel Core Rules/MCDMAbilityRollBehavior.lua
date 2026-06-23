@@ -1266,6 +1266,10 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
         tiers = tiers,
     }
 
+    --Bake in this creature's monster level-scaling tier-damage bonuses before
+    --any ResetMods, so they become the persistent baseTiers.
+    rollProperties:ApplyCreatureTierDamage(caster, ability)
+
     for _,token in ipairs(dmhub.allTokens) do
         for _,mod in ipairs(token.properties:GetActiveModifiers()) do
             for _,target in ipairs(multitargets) do
@@ -2415,6 +2419,60 @@ function RollPropertiesPowerTable:ModifyDamageWithType(damage, damageType)
                 -- Just put damage at the front
                 self.tiers[i] = string.format("%s; %s", extraDamage, tier)
             end
+        end
+    end
+end
+
+--Add `amount` to the first damage number in a single tier string, mirroring the
+--regex rewrite in ModifyDamage but for one tier (so per-tier deltas can differ).
+--Returns the tier unchanged if it contains no damage number.
+local function AddDamageToTierText(tier, amount)
+    local match = regex.MatchGroups(tier, "(?<damage>\\d+)\\s+(\\+\\s*\\d+d\\d+\\s+)?([a-zA-Z]+\\s+)?damage", {indexes = true})
+    if match == nil then
+        return tier
+    end
+
+    local index = match.damage.index
+    local length = match.damage.length
+    local before = string.sub(tier, 1, index-1)
+    local after = string.sub(tier, index+length)
+    local damageValue = max(0, round(round(tonumber(match.damage.value)) + amount))
+    return string.format("%s%d%s", before, damageValue, after)
+end
+
+--Apply this creature's monster level-scaling tier-damage bonuses to a freshly
+--constructed ability power-roll table. Reads the Tier 1/2/3 Damage Bonus custom
+--attributes (added to the matching tier of every power roll) and, for strikes,
+--the Strike Damage Bonus (the highest-characteristic delta, added to every
+--tier). See .claude/monster-level-scaling.md and MCDMMonsterScaling.
+--
+--Call this once, right after constructing the table for an ABILITY DAMAGE roll
+--and before any ResetMods, so the scaled numbers become the persistent
+--baseTiers and situational modifiers stack on top. Only the two ability-damage
+--sites call it; opposed / resistance / characteristic rolls must NOT be scaled.
+--@param caster Creature
+--@param ability ActivatedAbility
+function RollPropertiesPowerTable:ApplyCreatureTierDamage(caster, ability)
+    if caster == nil then
+        return
+    end
+
+    local perTier = {
+        caster:CalculateNamedCustomAttribute("Tier 1 Damage Bonus") or 0,
+        caster:CalculateNamedCustomAttribute("Tier 2 Damage Bonus") or 0,
+        caster:CalculateNamedCustomAttribute("Tier 3 Damage Bonus") or 0,
+    }
+
+    if ability ~= nil and ability:HasKeyword("Strike") then
+        local strikeBonus = caster:CalculateNamedCustomAttribute("Strike Damage Bonus") or 0
+        for i=1,3 do
+            perTier[i] = perTier[i] + strikeBonus
+        end
+    end
+
+    for i=1,math.min(#self.tiers, 3) do
+        if perTier[i] ~= 0 then
+            self.tiers[i] = AddDamageToTierText(self.tiers[i], perTier[i])
         end
     end
 end

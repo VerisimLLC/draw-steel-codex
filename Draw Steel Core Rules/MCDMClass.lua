@@ -348,20 +348,6 @@ function Class:CustomEditor(UploadFn, children)
     print("CLASS:: CUSTOM IS SUB")
 
         -- Master Class
-        if devmode() then
-            children[#children+1] = gui.Panel{
-                classes = {"formStackedRow"},
-                gui.Check{
-                    text = "Beta Testing",
-                    value = self:try_get("isBetaTesting", false),
-                    change = function(element)
-                        self.isBetaTesting = element.value
-                    end,
-                }
-            }
-        end
-
-        -- Master Class
         children[#children+1] = gui.Panel{
             classes = {"formStackedRow"},
             gui.Check{

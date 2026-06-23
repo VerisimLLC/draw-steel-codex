@@ -2941,7 +2941,22 @@ local function ExtractMonsterCapabilities(props)
                 if okn and okc and type(aname) == "string" and aname ~= ""
                     and MONSTER_ABILITY_CATEGORIES[cat] and not seen[aname] then
                     seen[aname] = true
-                    caps[#caps+1] = { name = aname, categorization = cat }
+                    -- Capture the villain-action slot, implementation status, and
+                    -- whether the ability carries real behaviors during this single
+                    -- scan, so the villain-action picker can reuse the cached index
+                    -- (slot-lock, status dot, behaviors cross-check) without a second
+                    -- GoblinScript pass. Cheap field reads, individually guarded.
+                    local slot, status, hasBehaviors = nil, nil, false
+                    pcall(function() slot = a:try_get("villainAction") end)
+                    pcall(function() status = a:try_get("implementation", 1) end)
+                    pcall(function() hasBehaviors = #a:try_get("behaviors", {}) > 0 end)
+                    caps[#caps+1] = {
+                        name = aname,
+                        categorization = cat,
+                        villainAction = slot,
+                        implementation = status,
+                        hasBehaviors = hasBehaviors,
+                    }
                 end
             end
         end
@@ -3002,6 +3017,10 @@ local function EnsureMonsterAbilityIndex()
                 local mname = monster.name
                 local props = monster.properties
                 if props ~= nil and type(mname) == "string" and mname ~= "" then
+                    -- Monster level, read once per monster (cheap; the villain-action
+                    -- picker surfaces it and searches by it).
+                    local mlevel = nil
+                    pcall(function() mlevel = tonumber(props:CharacterLevel()) end)
                     -- Abilities (deduped) + every named trait, classified once by
                     -- the shared extractor and tagged with the owning monster.
                     for _,cap in ipairs(ExtractMonsterCapabilities(props)) do
@@ -3010,6 +3029,10 @@ local function EnsureMonsterAbilityIndex()
                             categorization = cap.categorization,
                             monsterName = mname,
                             monsterId = monsterid,
+                            level = mlevel,
+                            villainAction = cap.villainAction,
+                            implementation = cap.implementation,
+                            hasBehaviors = cap.hasBehaviors,
                         }
                     end
                 end
@@ -3084,3 +3107,47 @@ Search.RegisterProvider{
         return results
     end,
 }
+
+-- Villain-action picker support (Draw Steel). The picker reuses this cached
+-- bestiary index rather than running its own GoblinScript scan: every villain
+-- action across the bestiary is already classified here with its slot, level,
+-- implementation status, and whether it carries real behaviors. Returns the
+-- index entries matching a slot ("Villain Action 1|2|3"; nil = all slots) plus a
+-- readiness flag, so a caller that opens before the build coroutine finishes can
+-- re-poll instead of showing an empty list.
+function GetBestiaryVillainActions(slot)
+    EnsureMonsterAbilityIndex()
+    local index = g_monsterAbilityIndex
+    if index == nil then
+        return {}, false
+    end
+    local out = {}
+    for _,e in ipairs(index) do
+        if e.categorization == "Villain Action"
+            and (slot == nil or e.villainAction == slot) then
+            out[#out+1] = e
+        end
+    end
+    return out, true
+end
+
+-- Fetch the live ability object behind an index entry, for previewing the real
+-- ability card or duplicating it onto another creature. Re-reads just the one
+-- owning monster's abilities (cheap -- one monster, not the whole bestiary) and
+-- matches by name. Returns nil if the monster or ability can no longer be found.
+function GetBestiaryAbilityObject(monsterId, abilityName)
+    local monster = assets.monsters[monsterId]
+    if monster == nil or monster.properties == nil then
+        return nil
+    end
+    local result = nil
+    pcall(function()
+        for _,a in ipairs(monster.properties:GetActivatedAbilities{}) do
+            if a.name == abilityName then
+                result = a
+                return
+            end
+        end
+    end)
+    return result
+end

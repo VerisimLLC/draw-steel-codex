@@ -69,8 +69,56 @@ function ActivatedAbilityAugmentedAbilityBehavior:SynthesizeAbilities(ability, c
 			synth.castingTimeDuration = ability:try_get("castingTimeDuration")
 
             if not self.modifier:try_get("mustPayResourceCost", false) then
+                --mustPayResourceCost off: the routed ability does not pay its own cost; it
+                --inherits (and thus pays) the augmenter ability's cost instead.
     			synth.resourceCost = ability.resourceCost
     			synth.resourceNumber = ability.resourceNumber
+            elseif ability:try_get("resourceCost", "none") ~= "none" then
+                --Force parent ability to pay their resource cost
+                local parentAbility = ability
+                local priorBeginCast = synth:try_get("OnBeginCast")
+                synth.OnBeginCast = function(synthAbility, castOptions)
+                    if priorBeginCast ~= nil then
+                        priorBeginCast(synthAbility, castOptions)
+                    end
+
+                    local casterProps = castOptions.symbols and castOptions.symbols.caster
+                    if casterProps == nil then
+                        return
+                    end
+                    local casterToken = dmhub.LookupToken(casterProps)
+                    if casterToken == nil or not casterToken.valid then
+                        return
+                    end
+
+                    local effectiveResourceCost = parentAbility.resourceCost
+                    if effectiveResourceCost == CharacterResource.heroicResourceId and casterToken.properties.resourceid ~= CharacterResource.heroicResourceId then
+                        effectiveResourceCost = casterToken.properties.resourceid
+                    end
+
+                    local fullCost = parentAbility:GetCost(casterToken)
+                    local resourceDetails = {}
+                    for _,entry in ipairs(fullCost.details or {}) do
+                        if entry.cost == effectiveResourceCost then
+                            resourceDetails[#resourceDetails+1] = entry
+                        end
+                    end
+
+                    if #resourceDetails == 0 then
+                        return
+                    end
+
+                    castOptions.OnFinishCastHandlers = castOptions.OnFinishCastHandlers or {}
+                    castOptions.OnFinishCastHandlers[#castOptions.OnFinishCastHandlers+1] = function(finishedAbility, finishToken, finishOptions)
+                        if finishToken == nil or not finishToken.valid or finishToken.properties == nil then
+                            return
+                        end
+                        if finishOptions.abort or finishOptions.atexit then
+                            return
+                        end
+                        parentAbility:ConsumeResources(finishToken, {costOverride = {details = resourceDetails}})
+                    end
+                end
             end
 
 			synth.usesSpellSlots = ability.usesSpellSlots

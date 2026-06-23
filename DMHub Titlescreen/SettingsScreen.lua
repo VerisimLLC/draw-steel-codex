@@ -11,6 +11,97 @@ local function track(eventType, fields)
     analytics.Event(fields)
 end
 
+-- Gates the codex MCDM Shopify Store UI behind the dev:storepreview testing flag.
+-- Settings are keyed by id, so re-declaring "dev:storepreview" here gives read access
+-- to the same persisted preference the title bar uses (CodexTitleBar.lua). When off,
+-- the Shopify account section is hidden.
+local g_devStorePreviewSetting = setting{
+	id = "dev:storepreview",
+	default = false,
+	storage = "preference",
+}
+
+-- Pure order normalizers for the codex Shopify purchases list. Mirror the companion's
+-- src/shop/orders.js so codex and web render identically. ASCII only; never error.
+
+-- SCREAMING_SNAKE -> "Screaming snake".
+local function TitleCaseStatus(s)
+	if type(s) ~= "string" or s == "" then return "" end
+	local out = {}
+	for word in string.gmatch(s, "[^_]+") do
+		word = string.lower(word)
+		out[#out+1] = string.upper(string.sub(word, 1, 1)) .. string.sub(word, 2)
+	end
+	return table.concat(out, " ")
+end
+
+-- Collapse Shopify financial+fulfillment status into one short label.
+local function DeriveStatusLabel(financialStatus, fulfillmentStatus)
+	if fulfillmentStatus == "FULFILLED" then return "Fulfilled" end
+	if fulfillmentStatus == "PARTIALLY_FULFILLED" then return "Partly fulfilled" end
+	if financialStatus == "REFUNDED" then return "Refunded" end
+	if financialStatus == "PARTIALLY_REFUNDED" then return "Partly refunded" end
+	if financialStatus == "PAID" then return "Paid" end
+	local label = TitleCaseStatus(financialStatus)
+	if label == "" then label = TitleCaseStatus(fulfillmentStatus) end
+	if label == "" then label = "Order" end
+	return label
+end
+
+-- { amount, currencyCode } -> "$19.99" (USD) or "19.99 EUR" or "".
+local function FormatMoney(total)
+	if type(total) ~= "table" or total.amount == nil then return "" end
+	local n = tonumber(total.amount)
+	if n == nil then return "" end
+	local cur = total.currencyCode or "USD"
+	if cur == "USD" then
+		return string.format("$%.2f", n)
+	end
+	return string.format("%.2f %s", n, cur)
+end
+
+local g_shortMonths = {"Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"}
+
+-- ISO timestamp "2026-06-21T..." -> "Jun 21, 2026" (or "" if unparseable).
+local function FormatOrderDate(iso)
+	if type(iso) ~= "string" then return "" end
+	local y, m, d = string.match(iso, "^(%d%d%d%d)%-(%d%d)%-(%d%d)")
+	if y == nil then return "" end
+	local mi = tonumber(m)
+	if mi == nil or mi < 1 or mi > 12 then return "" end
+	return string.format("%s %d, %s", g_shortMonths[mi], tonumber(d), y)
+end
+
+-- Sanitized backend order list -> render-ready rows. Never errors; guards nils.
+local function NormalizeOrders(rawList)
+	local out = {}
+	if type(rawList) ~= "table" then return out end
+	for _, o in ipairs(rawList) do
+		if type(o) == "table" then
+			local lineItems = {}
+			if type(o.lineItems) == "table" then
+				for _, li in ipairs(o.lineItems) do
+					if type(li) == "table" then
+						lineItems[#lineItems+1] = {
+							title = (type(li.title) == "string" and li.title ~= "") and li.title or "Item",
+							quantity = tonumber(li.quantity) or 1,
+						}
+					end
+				end
+			end
+			out[#out+1] = {
+				name = (type(o.name) == "string" and o.name) or "",
+				date = FormatOrderDate(o.createdAt),
+				statusLabel = DeriveStatusLabel(o.financialStatus, o.fulfillmentStatus),
+				total = FormatMoney(o.total),
+				statusPageUrl = (type(o.statusPageUrl) == "string" and o.statusPageUrl ~= "") and o.statusPageUrl or nil,
+				lineItems = lineItems,
+			}
+		end
+	end
+	return out
+end
+
 local CreateBetaBranchEditor = function()
 	local branch = dmhub.betaBranch
 	if branch == nil then
@@ -902,7 +993,280 @@ function CreateSettingsScreen(dialog, args)
 
 					SettingGroup{
 						group = "Account",
-						build = function() return {
+						build = function()
+
+							local shopifyStatusLabel
+							local shopifyConnectButton
+							local shopifyDisconnectButton
+							local shopifyConfirmPanel
+							local shopifyConfirmButton
+							local shopifyErrorLabel
+							local shopifyRefreshButton
+							local RefreshShopifyStatus
+							local shopifyOrdersToggle
+							local shopifyOrdersListPanel
+							local shopifyOrdersLoaded = false
+							local ordersShown = false
+							local ordersCount = nil
+							local FetchShopifyOrders
+							local UpdateOrdersToggleText
+
+							shopifyStatusLabel = gui.Label{
+								fontSize = 14, width = "100%", maxWidth = 600, height = "auto",
+								text = "Checking MCDM Shopify Store...",
+							}
+
+							shopifyErrorLabel = gui.Label{
+								classes = {"collapsed"},
+								fontSize = 14, color = "#ff6666", width = "auto", height = "auto", text = "",
+							}
+
+							shopifyConnectButton = gui.Button{
+								classes = {"collapsed"},
+								width = 240, height = 40, fontSize = 20, halign = "left", vmargin = 4,
+								text = "Connect MCDM Shopify Store",
+								click = function(element)
+									dmhub.OpenURL("https://draw-steel-codex.com/more/account")
+								end,
+							}
+
+							shopifyDisconnectButton = gui.Button{
+								classes = {"collapsed"},
+								width = 120, height = 30, fontSize = 14, halign = "left", vmargin = 4,
+								text = "Disconnect",
+								click = function(element)
+									shopifyDisconnectButton:SetClass("collapsed", true)
+									shopifyRefreshButton:SetClass("collapsed", true)
+									shopifyConfirmPanel:SetClass("collapsed", false)
+									shopifyErrorLabel:SetClass("collapsed", true)
+								end,
+							}
+
+							shopifyConfirmButton = gui.Button{
+								width = 180, height = 36, fontSize = 16, halign = "left", vmargin = 4,
+								text = "Confirm Disconnect",
+								click = function(element)
+									element.text = "Disconnecting..."
+									element.interactable = false
+									shopifyErrorLabel:SetClass("collapsed", true)
+									net.Post{
+										url = dmhub.cloudFunctionsBaseUrl .. "/shopifyUnlink",
+										data = {},
+										success = function(data)
+											element.text = "Confirm Disconnect"
+											element.interactable = true
+											shopifyConfirmPanel:SetClass("collapsed", true)
+											RefreshShopifyStatus()
+										end,
+										error = function(msg)
+											element.text = "Confirm Disconnect"
+											element.interactable = true
+											shopifyErrorLabel.text = "Disconnect failed: " .. tostring(msg)
+											shopifyErrorLabel:SetClass("collapsed", false)
+										end,
+									}
+								end,
+							}
+
+							shopifyConfirmPanel = gui.Panel{
+								classes = {"collapsed"},
+								flow = "vertical", width = "auto", height = "auto", vmargin = 4,
+								gui.Label{
+									fontSize = 14, maxWidth = 600, width = "100%", height = "auto",
+									text = "Disconnect your MCDM Shopify Store account?",
+								},
+								gui.Panel{
+									flow = "horizontal", width = "auto", height = "auto",
+									shopifyConfirmButton,
+									gui.Button{
+										width = 120, height = 36, fontSize = 16, halign = "left", vmargin = 4, hmargin = 8,
+										text = "Cancel",
+										click = function(element)
+											shopifyConfirmPanel:SetClass("collapsed", true)
+											shopifyDisconnectButton:SetClass("collapsed", false)
+											shopifyRefreshButton:SetClass("collapsed", false)
+											shopifyErrorLabel:SetClass("collapsed", true)
+										end,
+									},
+								},
+							}
+
+							shopifyRefreshButton = gui.Button{
+								classes = {"collapsed"},
+								width = 120, height = 30, fontSize = 14, halign = "left", vmargin = 4,
+								text = "Refresh",
+								click = function(element)
+									RefreshShopifyStatus()
+								end,
+							}
+
+							-- Fetch link status from the backend (Lua cannot read /shopLinks directly).
+							-- Called on panel create, on Refresh, and after a successful disconnect.
+							RefreshShopifyStatus = function()
+								shopifyStatusLabel.text = "Checking MCDM Shopify Store..."
+								shopifyConnectButton:SetClass("collapsed", true)
+								shopifyDisconnectButton:SetClass("collapsed", true)
+								shopifyConfirmPanel:SetClass("collapsed", true)
+								shopifyRefreshButton:SetClass("collapsed", true)
+								shopifyErrorLabel:SetClass("collapsed", true)
+								net.Post{
+									url = dmhub.cloudFunctionsBaseUrl .. "/shopifyStatus",
+									data = {},
+									success = function(data)
+										shopifyRefreshButton:SetClass("collapsed", false)
+										if type(data) ~= "table" or not data.ok then
+											shopifyStatusLabel.text = "Could not load MCDM Shopify Store status."
+											return
+										end
+										if data.linked then
+											shopifyStatusLabel.text = (data.email ~= nil and data.email ~= "")
+												and string.format("MCDM Shopify Store: Connected as %s", data.email)
+												or "MCDM Shopify Store: Connected"
+											shopifyDisconnectButton:SetClass("collapsed", false)
+											shopifyOrdersToggle:SetClass("collapsed", false)
+										else
+											shopifyStatusLabel.text = "Connect your MCDM Shopify Store account to link your purchases."
+											shopifyConnectButton:SetClass("collapsed", false)
+											shopifyOrdersToggle:SetClass("collapsed", true)
+											shopifyOrdersListPanel:SetClass("collapsed", true)
+											ordersShown = false
+											shopifyOrdersLoaded = false
+											ordersCount = nil
+											UpdateOrdersToggleText()
+										end
+									end,
+									error = function(msg)
+										shopifyRefreshButton:SetClass("collapsed", false)
+										shopifyStatusLabel.text = "Could not load MCDM Shopify Store status."
+										shopifyErrorLabel.text = "Error: " .. tostring(msg)
+										shopifyErrorLabel:SetClass("collapsed", false)
+									end,
+								}
+							end
+
+							UpdateOrdersToggleText = function()
+								if ordersShown then
+									shopifyOrdersToggle.text = "Hide purchases"
+								elseif ordersCount ~= nil then
+									shopifyOrdersToggle.text = string.format("Show purchases (%d)", ordersCount)
+								else
+									shopifyOrdersToggle.text = "Show purchases"
+								end
+							end
+
+							local function BuildOrderRow(o)
+								local detailChildren = {}
+								if #o.lineItems == 0 then
+									detailChildren[#detailChildren+1] = gui.Label{
+										fontSize = 12, color = "#cfcabb", width = "100%", height = "auto", text = "No item detail",
+									}
+								else
+									for _, li in ipairs(o.lineItems) do
+										detailChildren[#detailChildren+1] = gui.Label{
+											fontSize = 12, color = "#cfcabb", width = "100%", height = "auto",
+											text = string.format("%s  x%d", li.title, li.quantity),
+										}
+									end
+								end
+								if o.statusPageUrl ~= nil then
+									detailChildren[#detailChildren+1] = gui.Label{
+										fontSize = 12, color = "#c8a45a", width = "auto", height = "auto", vmargin = 4,
+										text = "View receipt on Shopify ->",
+										press = function(element)
+											dmhub.OpenURL(o.statusPageUrl)
+										end,
+									}
+								end
+
+								local detail = gui.Panel{
+									classes = {"collapsed"},
+									flow = "vertical", width = "100%", height = "auto", vmargin = 2, hpad = 8, borderBox = true,
+									children = detailChildren,
+								}
+
+								local header = string.format("%s%s%s   [%s]",
+									o.name,
+									(o.date ~= "" and (" - " .. o.date)) or "",
+									(o.total ~= "" and ("   " .. o.total)) or "",
+									o.statusLabel)
+
+								local row = gui.Button{
+									width = "100%", height = "auto", halign = "left", fontSize = 13, vmargin = 2,
+									text = header,
+									click = function(element)
+										detail:SetClass("collapsed", not detail:HasClass("collapsed"))
+									end,
+								}
+
+								return gui.Panel{
+									flow = "vertical", width = "100%", height = "auto",
+									row, detail,
+								}
+							end
+
+							FetchShopifyOrders = function()
+								shopifyOrdersListPanel.children = {
+									gui.Label{ fontSize = 13, color = "#8a8a8a", width = "auto", height = "auto", text = "Loading your purchases..." },
+								}
+								net.Post{
+									url = dmhub.cloudFunctionsBaseUrl .. "/shopifyOrders",
+									data = {},
+									success = function(data)
+										shopifyOrdersLoaded = true
+										if type(data) ~= "table" or not data.ok or type(data.orders) ~= "table" then
+											shopifyOrdersLoaded = false
+											shopifyOrdersListPanel.children = {
+												gui.Label{ fontSize = 13, color = "#d96363", width = "100%", height = "auto", text = "Couldn't load your purchases." },
+											}
+											return
+										end
+										local orders = NormalizeOrders(data.orders)
+										ordersCount = #orders
+										UpdateOrdersToggleText()
+										if #orders == 0 then
+											shopifyOrdersListPanel.children = {
+												gui.Label{ fontSize = 13, color = "#8a8a8a", width = "auto", height = "auto", text = "No purchases yet." },
+											}
+											return
+										end
+										local rows = {}
+										for _, o in ipairs(orders) do
+											rows[#rows+1] = BuildOrderRow(o)
+										end
+										shopifyOrdersListPanel.children = rows
+									end,
+									error = function(msg)
+										shopifyOrdersLoaded = false
+										shopifyOrdersListPanel.children = {
+											gui.Label{ fontSize = 13, color = "#d96363", width = "100%", height = "auto",
+												text = "Couldn't load your purchases: " .. tostring(msg) },
+											gui.Button{ width = 120, height = 30, fontSize = 14, halign = "left", vmargin = 4, text = "Retry",
+												click = function(element) FetchShopifyOrders() end },
+										}
+									end,
+								}
+							end
+
+							shopifyOrdersListPanel = gui.Panel{
+								classes = {"collapsed"},
+								flow = "vertical", width = "100%", height = "auto", vmargin = 2,
+							}
+
+							shopifyOrdersToggle = gui.Button{
+								classes = {"collapsed"},
+								width = "auto", height = 26, fontSize = 14, halign = "left", vmargin = 4,
+								text = "Show purchases",
+								click = function(element)
+									ordersShown = not ordersShown
+									shopifyOrdersListPanel:SetClass("collapsed", not ordersShown)
+									UpdateOrdersToggleText()
+									if ordersShown and not shopifyOrdersLoaded then
+										FetchShopifyOrders()
+									end
+								end,
+							}
+
+							return {
 
 						gui.Panel{
 							flow = "vertical",
@@ -995,7 +1359,32 @@ function CreateSettingsScreen(dialog, args)
 									end,
 
 								},
-							}
+							},
+
+							gui.Panel{
+								vmargin = 16,
+								classes = { cond(not g_devStorePreviewSetting:Get(), "collapsed") },
+								flow = "vertical",
+								width = "100%",
+								height = "auto",
+
+								create = function(element)
+									RefreshShopifyStatus()
+								end,
+
+								gui.Label{
+									bold = true, fontSize = 16, width = "auto", height = "auto",
+									text = "MCDM Shopify Store",
+								},
+								shopifyStatusLabel,
+								shopifyConnectButton,
+								shopifyDisconnectButton,
+								shopifyConfirmPanel,
+								shopifyRefreshButton,
+								shopifyErrorLabel,
+								shopifyOrdersToggle,
+								shopifyOrdersListPanel,
+							},
 						},
 						} end,
 					},

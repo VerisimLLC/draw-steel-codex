@@ -995,6 +995,17 @@ local function CreateSearchBar()
 
         local links = CustomDocument.SearchLinks(text)
         for _,link in ipairs(links) do
+            -- Compendium content (markdown-table entries like items/titles, and
+            -- monsters) is owned by the dedicated compendium-content / monsters
+            -- search providers, which give richer actions ("Open in Compendium",
+            -- "Place on Map" / "Edit Monster") and DM-gating. SearchLinks emits
+            -- these only for the document link picker; skip them here so the
+            -- title-bar search shows no dead duplicate rows (and does not leak
+            -- monster names to players). Prefix suggestions ("Search items...")
+            -- and rulebook / journal / map links are kept.
+            if BucketForLinkType(link.type) == "compendium" and not link.isPrefix then
+                goto continue
+            end
             link.score = scoreMatch(link.name, text)
             -- Render name + a muted type-label chip (like tokens), instead of
             -- baking "(Map)"/"(Document)" into the text -- so maps/journals tag
@@ -1027,6 +1038,7 @@ local function CreateSearchBar()
                 CustomDocument.OpenContent(CustomDocument.ResolveLink(link.link))
             end
             results[#results+1] = link
+            ::continue::
         end
 
         for k,doc in pairs(assets.pdfDocumentsTable) do

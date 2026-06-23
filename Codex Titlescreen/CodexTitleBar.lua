@@ -995,12 +995,15 @@ local function CreateSearchBar()
 
         local links = CustomDocument.SearchLinks(text)
         for _,link in ipairs(links) do
-            -- Monsters are owned by the dedicated "monsters" search provider
-            -- (richer actions: Place on Map / Edit Monster, and DM-gated).
-            -- SearchLinks emits a bare "monster" link only for the document
-            -- link picker; skip it here so the title-bar search does not show a
-            -- dead duplicate row (and does not leak monster names to players).
-            if link.type == "monster" then
+            -- Compendium content (markdown-table entries like items/titles, and
+            -- monsters) is owned by the dedicated compendium-content / monsters
+            -- search providers, which give richer actions ("Open in Compendium",
+            -- "Place on Map" / "Edit Monster") and DM-gating. SearchLinks emits
+            -- these only for the document link picker; skip them here so the
+            -- title-bar search shows no dead duplicate rows (and does not leak
+            -- monster names to players). Prefix suggestions ("Search items...")
+            -- and rulebook / journal / map links are kept.
+            if BucketForLinkType(link.type) == "compendium" and not link.isPrefix then
                 goto continue
             end
             link.score = scoreMatch(link.name, text)

@@ -2590,7 +2590,7 @@ local ApplyImprovements = function()
                 if info ~= nil and info.accumulate ~= nil and param.value ~= nil and param.value ~= "" then
                     local value = ExecuteGoblinScript(param.value, looksym, 0)
                     if value ~= 0 then
-                        info.accumulate(g_currentAbility, value, g_token.properties, g_currentSymbols)
+                        info.accumulate(g_currentAbility, value, g_token, g_currentSymbols)
                     end
                 end
             end

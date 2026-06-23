@@ -7,7 +7,7 @@ CharacterModifier.ImprovementParamsById = {}
 --- @class AbilityImprovementParam
 --- @field id string Unique identifier for this param type.
 --- @field text string Display name shown in the "Add Param..." dropdown.
---- @field apply fun(ability: ActivatedAbility, value: number, caster: creature, symbols: table): fun() Temporarily patches ability fields and returns a restore function called after CalculateSpellTargeting.
+--- @field apply fun(ability: ActivatedAbility, value: number, casterToken: CharacterToken, symbols: table): fun() Temporarily patches ability fields and returns a restore function called after CalculateSpellTargeting.
 --- @field documentation table|nil GoblinScript input documentation shown in the editor value field.
 
 --- @param args AbilityImprovementParam
@@ -246,7 +246,7 @@ local g_improvSymbols = {
 CharacterModifier.RegisterImprovementParam{
     id = "range",
     text = "Range Bonus",
-    accumulate = function(ability, value, caster, symbols)
+    accumulate = function(ability, value, casterToken, symbols)
         symbols.abilityRangeBonus = (symbols.abilityRangeBonus or 0) + value
     end,
     documentation = {
@@ -266,7 +266,7 @@ CharacterModifier.RegisterImprovementParam{
 CharacterModifier.RegisterImprovementParam{
     id = "radius",
     text = "Radius Bonus",
-    accumulate = function(ability, value, caster, symbols)
+    accumulate = function(ability, value, casterToken, symbols)
         -- Burst abilities (targetType == "all") use GetRange as the burst radius,
         -- so accumulate into abilityRangeBonus which GetRange will add.
         if ability:try_get("targetType") == "all" then
@@ -290,11 +290,11 @@ CharacterModifier.RegisterImprovementParam{
 CharacterModifier.RegisterImprovementParam{
     id = "target_count",
     text = "Target Count Bonus",
-    accumulate = function(ability, value, caster, symbols)
+    accumulate = function(ability, value, casterToken, symbols)
         -- Use a helper to accumulate across multiple improvements, then set override.
         local bonus = (symbols._abilityTargetCountBonus or 0) + value
         symbols._abilityTargetCountBonus = bonus
-        symbols.numtargetsoverride = ability:GetNumTargets(caster, {}) + bonus
+        symbols.numtargetsoverride = ability:GetNumTargets(casterToken, {}) + bonus
     end,
     documentation = {
         help = "This GoblinScript is added to the number of targets for the ability.",

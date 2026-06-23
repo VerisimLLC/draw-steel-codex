@@ -995,6 +995,14 @@ local function CreateSearchBar()
 
         local links = CustomDocument.SearchLinks(text)
         for _,link in ipairs(links) do
+            -- Monsters are owned by the dedicated "monsters" search provider
+            -- (richer actions: Place on Map / Edit Monster, and DM-gated).
+            -- SearchLinks emits a bare "monster" link only for the document
+            -- link picker; skip it here so the title-bar search does not show a
+            -- dead duplicate row (and does not leak monster names to players).
+            if link.type == "monster" then
+                goto continue
+            end
             link.score = scoreMatch(link.name, text)
             -- Render name + a muted type-label chip (like tokens), instead of
             -- baking "(Map)"/"(Document)" into the text -- so maps/journals tag
@@ -1027,6 +1035,7 @@ local function CreateSearchBar()
                 CustomDocument.OpenContent(CustomDocument.ResolveLink(link.link))
             end
             results[#results+1] = link
+            ::continue::
         end
 
         for k,doc in pairs(assets.pdfDocumentsTable) do

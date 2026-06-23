@@ -1141,6 +1141,53 @@ local function SkinGapLine(n)
     return string.format("<size=%dpx> </size>", n)
 end
 
+-- Style the visible text of links so they stand out from body copy. Opt-in:
+-- only fires when the skin sets link.color, so the default skin and any sheet
+-- that leaves `link` unset keep the engine's native link look (backward-safe).
+-- The engine still parses and resolves the link target; we only wrap the display
+-- span inside the brackets, leaving the (target) and click/hover behaviour intact.
+-- Handles [display](target) and the bare [Label] shorthand. Injected markup
+-- contains no brackets, so the bare-bracket pass skips spans the first pass
+-- already styled (detected via the embedded <color= tag). An image (![alt](url))
+-- is left alone so its alt text is not turned into a link.
+local function ColorizeLinks(content, link)
+    if type(content) ~= "string" or content == "" then return content end
+    link = link or {}
+    local color = SkinColor(link.color)
+    if color == nil then return content end
+    local open = string.format("<color=%s>", color)
+    local close = "</color>"
+    if link.underline ~= false then
+        open = open .. "<u>"
+        close = "</u>" .. close
+    end
+    local function wrap(inner)
+        if inner == "" or string.find(inner, "<color=", 1, true) ~= nil then
+            return nil
+        end
+        return open .. inner .. close
+    end
+    -- [display](target): style display, keep target. Skip image syntax (![..](..)).
+    content = content:gsub("(!?)(%b[])(%b())", function(bang, disp, target)
+        if bang == "!" then return nil end
+        local styled = wrap(disp:sub(2, -2))
+        if styled == nil then return nil end
+        return "[" .. styled .. "]" .. target
+    end)
+    -- bare [Label]: remaining balanced single-bracket spans. The (!?) prefix
+    -- keeps image alt text ([..] right after a !) from being matched on its own.
+    content = content:gsub("(!?)(%b[])", function(bang, disp)
+        if bang == "!" then return nil end
+        local styled = wrap(disp:sub(2, -2))
+        if styled == nil then return nil end
+        return "[" .. styled .. "]"
+    end)
+    return content
+end
+
+-- Test hook.
+MarkdownDocument.__ColorizeLinks = ColorizeLinks
+
 local ApplySkinToText
 ApplySkinToText = function(text, base, opts)
     if type(text) ~= "string" or text == "" then return text end
@@ -1162,6 +1209,7 @@ ApplySkinToText = function(text, base, opts)
     local bodyPS = (base.body or {}).paragraphSpacing
     local bodyColor = (base.body or {}).color
     local bodyFont = (base.body or {}).font
+    local linkSkin = base.link
     for _, line in ipairs(lines) do
         local hashes, hContent = string.match(line, "^(#+) (.*)$")
         local bmarker, bContent = string.match(line, "^([%-%*]) (.*)$")
@@ -1175,14 +1223,14 @@ ApplySkinToText = function(text, base, opts)
             local ruled = opts and opts.ruledLevels and opts.ruledLevels[#hashes]
             if after and not ruled then out[#out + 1] = after end
         elseif bmarker ~= nil then
-            out[#out + 1] = SkinBulletMarkup(base.bullet, bmarker, bContent, bodyColor, bodyFont)
+            out[#out + 1] = SkinBulletMarkup(base.bullet, bmarker, ColorizeLinks(bContent, linkSkin), bodyColor, bodyFont)
         elseif onum ~= nil then
-            out[#out + 1] = SkinOrderedMarkup(base.ordered, onum, oContent, bodyColor, bodyFont)
+            out[#out + 1] = SkinOrderedMarkup(base.ordered, onum, ColorizeLinks(oContent, linkSkin), bodyColor, bodyFont)
         elseif line == "" then
             local gap = SkinGapLine(bodyPS)
             out[#out + 1] = gap or SkinBodyMarkup(base.body, line)
         else
-            out[#out + 1] = SkinBodyMarkup(base.body, line)
+            out[#out + 1] = SkinBodyMarkup(base.body, ColorizeLinks(line, linkSkin))
         end
     end
     return table.concat(out, "\n")

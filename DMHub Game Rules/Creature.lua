@@ -7299,11 +7299,11 @@ creature.helpSymbols = {
 		examples = {"OBJ.Count Riders('goblin', 'crafty')"},
 	},
 
-	hasconditionrider = {
-		name = "Has Condition Rider",
+	includesconditionrider = {
+		name = "Includes Condition Rider",
 		type = "function",
 		desc = "A function given a condition name and a condition rider name; true if the creature has that condition with that rider attached. The rider name may be omitted to test for any rider on the named condition.",
-		examples = {"OBJ.Has Condition Rider(\"Grabbed\", \"Let's Tussle\")"},
+		examples = {"OBJ.Includes Condition Rider(\"Grabbed\", \"Let's Tussle\")"},
 	},
 
 	level = {
@@ -7945,7 +7945,7 @@ creature.lookupSymbols = {
 
     countriders = countriders,
 
-	hasconditionrider = function(c)
+	includesconditionrider = function(c)
 		return function(conditionName, riderName)
 			conditionName = string.lower(conditionName)
 			riderName = riderName ~= nil and string.lower(riderName) or nil

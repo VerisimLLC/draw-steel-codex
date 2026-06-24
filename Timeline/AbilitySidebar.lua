@@ -1408,7 +1408,7 @@ function GameHud:InitStandaloneRollHost(hostPanel)
         thinkTime = 0.25,
         think = function(element)
             local child = element.children[1]
-            if child ~= nil and ((not child.valid) or child:HasClass("hidden")) then
+            if child ~= nil and not child.valid then
                 element.children = {}
             end
         end,
@@ -1434,6 +1434,16 @@ function CharacterPanel.DisplayAbility(token, ability, symbols, options)
     end
 
     options = options or {}
+
+    -- Hidden-category abilities are almost always invoked sub-abilities / sub-layers
+    -- of a parent ability. When a parent ability card is already on screen, retain it
+    -- instead of replacing it with the hidden sub-ability's tooltip. Returning true
+    -- (without firing showAbility, so g_displayedAbility stays the parent) lets callers
+    -- such as AcquireAbilityRollDialog proceed to embed the roll into the parent card.
+    if ability ~= nil and ability:try_get("categorization") == "Hidden"
+        and g_displayedAbility ~= nil then
+        return true
+    end
 
     local panel = GameHud.instance.abilityDisplay
 

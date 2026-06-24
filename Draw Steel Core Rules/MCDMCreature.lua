@@ -2829,9 +2829,8 @@ function creature:GetActivatedAbilities(options)
     local kit = (not options.excludeKitAbilities) and self:Kit() or nil
     if kit ~= nil then
         for _, a in ipairs(kit:SignatureAbilities()) do
-            local ability = a
+            local ability = a:MakeTemporaryClone()
             if options.bindCaster and (not options.characterSheet) then
-                ability = ability:MakeTemporaryClone()
                 ability._tmp_boundCaster = self
             end
             result[#result + 1] = ability
@@ -2839,9 +2838,8 @@ function creature:GetActivatedAbilities(options)
     end
 
     for i, a in ipairs(self.innateActivatedAbilities) do
-        local ability = a
+        local ability = a:MakeTemporaryClone()
         if options.bindCaster and (not options.characterSheet) then
-            ability = ability:MakeTemporaryClone()
             ability._tmp_boundCaster = self
         end
         result[#result + 1] = ability
@@ -2917,6 +2915,15 @@ function creature:GetActivatedAbilities(options)
                 result[i] = ability
                 ability.rangeBonusFromReach = reach - 1
             end
+        end
+    end
+
+    --all abilities should be temporary clones.
+    for i=1,#result do
+        local ability = result[i]
+        if not rawget(ability, "_tmp_temporaryClone") then
+            ability = ability:MakeTemporaryClone()
+            result[i] = ability
         end
     end
 

@@ -5097,7 +5097,9 @@ function ActivatedAbility:GetDamageTypesSet()
 	local result = {}
 
 	for i,behavior in ipairs(self:try_get("behaviors", {})) do
-		behavior:AccumulateDamageTypes(self, result)
+		if behavior.IsDerivedFrom and behavior.IsDerivedFrom("ActivatedAbilityBehavior") then
+			behavior:AccumulateDamageTypes(self, result)
+		end
 	end
 
 	return StringSet.new{

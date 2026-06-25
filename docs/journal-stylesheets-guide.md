@@ -28,10 +28,13 @@ Every change saves immediately and any open journal using the stylesheet re-rend
 
 The base skin controls the journal's structural typography:
 
-- **Headings 1-6** -- size, color, weight (Regular / Bold / Black), and caps (None / Small Caps / All Caps).
-- **Body** -- text color.
+- **Headings 1-6** -- font, size, color, weight (Regular / Bold / Black), and caps (None / Small Caps / All Caps).
+- **Body** -- font and text color.
 - **Bullet** -- the marker glyph and its color.
-- **Page** -- the journal's overall background color (e.g. a cream/parchment page). When you set a light page, also set dark heading and body colors so the text reads -- the page does not auto-adjust text contrast.
+- **Quote** -- blockquotes can take their own font, text color/italic, a panel background, a colored left accent bar, and an inset.
+- **Page** -- the journal's overall background color (e.g. a cream/parchment page), and a **margin** that insets the content from the page edges. When you set a light page, also set dark heading and body colors so the text reads -- the page does not auto-adjust text contrast.
+
+You can pick a different **font** for headings, body, lists, quotes, and your named classes. Fonts come from the set configured for this build (book/display faces like the ones used in the printed book, plus utility faces). If you pick a font that isn't available it simply falls back to the standard face. Note: the book display faces don't include the straight typewriter apostrophe/quote, so use curly/typographic quotes in text that uses those faces, or the straight ones show as empty boxes.
 
 You only set what you want to change. Anything you leave alone keeps inheriting -- from the parent stylesheet, or from the built-in default.
 
@@ -67,9 +70,16 @@ The door groans open. Dust hangs in the still air, and far below, something stir
 
 Open the fence with `:::` followed by the class name, write your lines, and close with a bare `:::` on its own line.
 
+## Buttons and embeds
+
+A stylesheet can also skin a few non-text pieces:
+
+- **Macro buttons** (the clickable buttons from `[[macro:...]]`) take a button skin -- background, border, corners, padding, and text color/weight -- with optional hover and pressed looks.
+- **Embeds and content blocks** (embedded documents/monsters/maps, images, power rolls, tables, collapsible sections) can be given a frame -- background, border, and padding.
+
 ## The MCDM stylesheet
 
-The **MCDM** stylesheet is modeled on the printed MCDM book: **dark text on a warm parchment page**, with bronze-gold accents -- an all-caps chapter title, a bold dark heading hierarchy, gold small-caps sub-heads, gold bullets, and a gold-bordered read-aloud box. It ships with two ready-to-use classes:
+The **MCDM** stylesheet is modeled on the printed MCDM book: **dark ink text on a warm parchment page**, inset from the edges, with bronze-gold accents throughout. It uses the book typefaces -- a display face for the all-caps chapter title and the Newzald face for the rest of the heading hierarchy, with Berling for body text. The headings get gold underline rules (heaviest under the title, thinning down the hierarchy), the sub-heads are gold small-caps, and bullets are gold. Blockquotes render as a tan panel with a gold left accent bar. Power rolls, tables, rollable tables, and collapsible sections are all framed in gold-bordered cream boxes (tables use cream rows with a slightly darker alternating tint), and macro buttons get a matching gold-bordered tan look. It ships with two ready-to-use classes:
 
 - `{.emphasis text}` -- bronze-gold, bold inline emphasis.
 - `:::read-aloud` -- a gold-bordered tan callout box with dark italic text.
@@ -87,10 +97,11 @@ Assign it from the **Stylesheet:** dropdown to give any journal that look.
 | `:::name` ... `:::` | Block class callout box |
 | `> quoted` | Blockquote |
 | `---` | Divider |
+| `[[macro:...]]` | Macro button (takes the button skin) |
 
 ## Good to know (current limitations)
 
-- **Fonts:** stylesheets style size, weight, caps, spacing, and color -- but text currently renders in the journal's standard typeface. Per-element book fonts (a different face for headings vs. body) aren't applied yet; that's a known follow-up.
+- **Fonts:** you can now pick a per-element font (a different face for headings vs. body, lists, quotes, and named classes), drawn from the faces configured for this build. An unavailable font falls back to the standard typeface, and the book display faces lack the straight apostrophe/quote (use curly quotes).
 - **Clear to inherit:** once you set a field in the editor it stays an override. To make a field inherit again, clear it via import/code (a blank number field does clear that one value).
 - **Inherited classes:** the class editor shows a stylesheet's *own* classes; to change a class it inherits from a parent, re-declare it by name.
 - **Colors:** the editor uses literal colors from the picker.

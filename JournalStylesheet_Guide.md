@@ -87,6 +87,9 @@ s.base = {
         rollableTable = { box = { ... }, inner = { ... } },
         collapse      = { box = { ... }, inner = { ... } },
     },
+    button   = { box = { ... }, text = { ... },          -- macro-button skin (see section 7)
+                 hover = { box = { ... }, text = { ... } },
+                 pressed = { box = { ... }, text = { ... } } },
 }
 s.classes = {
     note      = { kind = "block",  box = { ... }, text = { ... } },
@@ -143,6 +146,27 @@ render as bold in the current font catalog (there is no separate black face yet)
 `"allcaps"` (uppercases the text) or `"smallcaps"` (TMP small caps). Unset = as
 written.
 
+### Font
+A `font` field selects a typeface. It must be one of the **engine font ids**
+configured for this build (`gui.availableFonts`); an unset or unknown id falls
+back to the default face (and never leaks a literal `<font>` tag). `font` is now
+**live** on `body`, every heading level, `bullet`, `ordered`, `quote`, and class
+`text` blocks. List items fall back to `body.font` if they set none.
+
+The faces available on the current build (from `gui.availableFonts`) are:
+
+`colvillain`, `gothville`, `metallord`, `book`, `display`, `berling`,
+`newzald`, `tengwar`, `drawsteelglyphs`, `drawsteelpotencies`, `courier`,
+`liberationsans`.
+
+> Run `for _,f in ipairs(gui.availableFonts) do print(f) end` to re-confirm the
+> list -- white-label builds can differ.
+
+> **Straight-quote gotcha.** The book faces (`newzald`, `display`, `berling`,
+> `book`) lack glyphs for the straight ASCII apostrophe/quote (`'`, `"`), so they
+> render as tofu boxes. Author body text that uses those faces with curly quotes
+> (U+2019/U+201C/U+201D) instead.
+
 ### Align
 `"left"`, `"center"`, `"right"`, or `"justify"`. Applies per element
 (headings per level, body, bullet, ordered). Unset = left/as-authored. Setting
@@ -177,22 +201,25 @@ unset frame is backward-safe.
 | Field     | Type   | Effect                                             |
 |-----------|--------|----------------------------------------------------|
 | `bgcolor` | color  | Page/background color behind the document. `false` = none. |
+| `margin`  | px     | Symmetric inner padding that insets the content from the page edges. Unset/`0` = edge-to-edge (default). |
 
 Embedded documents inherit the host page's background, so a page color flows into
 embeds automatically (frame them separately with `embed.box`).
+
+`page.margin` drives the content container's `hpad`/`vpad` with `borderBox` on, so
+the inset applies on all four sides without overflow. Unset restores the default
+6px horizontal gutter (edge-to-edge feel).
 
 ### `body`
 Applies to ordinary paragraph text.
 | Field             | Type    | Effect                                                      |
 |-------------------|---------|-------------------------------------------------------------|
+| `font`            | font    | Body typeface (an id from `gui.availableFonts`). Also the fallback face for list items. |
 | `color`           | color   | Body text color.                                            |
 | `lineHeight`      | percent | Line height as a percent of font size (e.g. `120`). `100`/unset = no change. |
 | `paragraphSpacing`| px      | Height of the gap rendered for a blank line between paragraphs (vertical rhythm). |
 | `firstLineIndent` | px      | Positive indents the first line; negative is a hanging indent. |
 | `align`           | align   | Paragraph alignment.                                        |
-
-> The default-skin table also lists a `font` key, but **font selection is not
-> emitted** (custom faces are blocked pending the engine font work). Leave it.
 
 ### `headings`
 A map keyed by level. **Levels 1..5 are styled headings**; a level-6 line
@@ -201,6 +228,7 @@ A map keyed by level. **Levels 1..5 are styled headings**; a level-6 line
 Per-level fields:
 | Field         | Type    | Effect                                                    |
 |---------------|---------|-----------------------------------------------------------|
+| `font`        | font    | Heading typeface (an id from `gui.availableFonts`).       |
 | `sizePct`     | percent | Size as a percent of body (e.g. `210`). `100`/unset = body size. |
 | `weight`      | weight  | `regular` / `bold` / `black`.                             |
 | `color`       | color   | Heading color.                                            |
@@ -239,6 +267,7 @@ headings = {
 | Field    | Type   | Effect                                                       |
 |----------|--------|--------------------------------------------------------------|
 | `glyph`  | string | Replacement bullet character. `false`/`nil`/`""` keeps the authored marker. |
+| `font`   | font   | Item typeface. Unset inherits `body.font`.                   |
 | `color`  | color  | Color applied to the bullet glyph.                           |
 | `indent` | px     | Indent the whole item.                                       |
 | `align`  | align  | Item alignment.                                              |
@@ -246,20 +275,28 @@ headings = {
 ### `ordered` (numbered lists: `1. `, `2. ` ...)
 | Field    | Type  | Effect                          |
 |----------|-------|---------------------------------|
+| `font`   | font  | Item typeface. Unset inherits `body.font`. |
 | `color`  | color | Color applied to the `N.` marker.|
 | `indent` | px    | Indent the whole item.          |
 | `align`  | align | Item alignment.                 |
 
 ### `quote` (blockquotes: `> `)
 Currently rendered fields:
-| Field    | Type  | Effect                |
-|----------|-------|-----------------------|
-| `color`  | color | Quote text color.     |
-| `italic` | bool  | Italicize quote text. |
+| Field      | Type  | Effect                                                         |
+|------------|-------|---------------------------------------------------------------|
+| `font`     | font  | Quote typeface (an id from `gui.availableFonts`).             |
+| `color`    | color | Quote text color.                                            |
+| `italic`   | bool  | Italicize quote text.                                        |
+| `bgcolor`  | color | Panel fill behind the blockquote. Unset reverts to the theme's blockquote class. |
+| `barColor` | color | Color of the left accent bar. Unset keeps the theme bar color (the bar *geometry* always comes from the theme class). |
+| `inset`    | px    | Horizontal padding (`hpad`) inside the quote panel. `0`/unset = theme default. |
 
-> `quote.bold`, `quote.justify`, `quote.barColor`, `quote.inset`, `quote.font`
-> exist in the data model but are **reserved** -- not currently drawn by the
-> renderer.
+The bg/bar/inset are applied to the blockquote panel via `selfStyle` over the
+`{"panel","blockQuote"}` theme class, so an unstyled quote falls back to the
+active theme.
+
+> `quote.bold` and `quote.justify` exist in the data model but are still
+> **reserved** -- not currently drawn by the renderer.
 
 ### `rule` (horizontal divider: `---`)
 | Field       | Type | Effect                          |
@@ -322,6 +359,29 @@ blocks = {
 },
 ```
 
+### `button` (macro buttons)
+Styles the clickable buttons produced by macro widgets (`[[macro:...]]`). The
+section has a resting `box`/`text` plus optional `hover` and `pressed` states;
+each state carries only its overrides and the rest cascades from the resting
+entry. Unset/empty = the engine-default button look (backward-safe).
+
+```lua
+button = {
+    box  = { bgcolor = "#efe8d6", border = 1, borderColor = "#8a6a2e",
+             cornerRadius = 4, pad = 6 },
+    text = { color = "#241f17", size = 16, weight = "bold" },
+    hover   = { box = { bgcolor = "#f3edde" } },
+    pressed = { box = { bgcolor = "#e6dcc4" } },
+}
+```
+
+- **`box`** fields: `bgcolor`, `border`, `borderColor`, `cornerRadius`, `pad`.
+- **`text`** fields: `color`, `size` (**absolute px**, not a percent), `weight`
+  (`bold`/`black` both render bold).
+
+> The button skin applies wherever the macro button is drawn (it reads the host
+> document's resolved stylesheet) and refreshes on live stylesheet edits.
+
 ---
 
 ## 8. Classes (callouts and inline spans)
@@ -366,6 +426,7 @@ Unknown class names (or a kind mismatch) fall through to plain text -- the liter
 ### The `text` markup vocabulary (block and inline classes)
 | Field      | Type    | Effect                                  |
 |------------|---------|-----------------------------------------|
+| `font`     | font    | Typeface (an id from `gui.availableFonts`). |
 | `size`     | percent | Font size as a percent (e.g. `90`).     |
 | `weight`   | weight  | `regular` / `bold` / `black`.           |
 | `italic`   | bool    | Italic.                                 |
@@ -375,8 +436,6 @@ Unknown class names (or a kind mismatch) fall through to plain text -- the liter
 | `mark`     | bool    | Highlight (marker) behind the text.     |
 | `color`    | color   | Text color.                             |
 | `caps`     | caps    | `allcaps` / `smallcaps`.                |
-
-(`font` in a class `text` block is intentionally not emitted yet.)
 
 ---
 
@@ -402,6 +461,7 @@ What each markdown token produces and which section styles it:
 | `+ Title` + content                       | Collapsible section   | `blocks.collapse`        |
 | `[:document:id]` / `[:monster:id]` / `[:map:id]` | Content embed  | `embed.box`              |
 | `[[image:...]]`, `[[encounter:...]]`, ... | Rich-tag embed/widget | `embed.box` (standalone only) |
+| `[[macro:...]]`                           | Macro button          | `button` (+ hover/pressed) |
 
 ---
 
@@ -416,19 +476,25 @@ local s = JournalStylesheet.CreateNew()
 s.name = "Book Style"
 s.parentId = false
 s.base = {
-    page = { bgcolor = "#f3edde" },
-    body = { color = "#241f17", lineHeight = 120, paragraphSpacing = 6 },
+    page = { bgcolor = "#f3edde", margin = 24 },
+    body = { font = "newzald", color = "#241f17", lineHeight = 120, paragraphSpacing = 6 },
     headings = {
-        [1] = { sizePct = 300, caps = "allcaps", color = "#8a6a2e", weight = "black",
-                tracking = -20, rule = { weight = 3, color = "#8a6a2e", offset = 6 } },
-        [2] = { sizePct = 210, color = "#241f17", weight = "black", tracking = -20,
-                rule = { weight = 2, color = "#8a6a2e", offset = 4 } },
+        [1] = { font = "display", sizePct = 300, caps = "allcaps", color = "#8a6a2e",
+                weight = "black", tracking = -20,
+                rule = { weight = 3, color = "#8a6a2e", offset = 6 } },
+        [2] = { font = "display", sizePct = 210, color = "#241f17", weight = "black",
+                tracking = -20, rule = { weight = 2, color = "#8a6a2e", offset = 4 } },
         [3] = { sizePct = 185, color = "#241f17", weight = "bold", tracking = -10 },
         [4] = { sizePct = 150, caps = "smallcaps", color = "#8a6a2e", weight = "black" },
         [5] = { sizePct = 130, color = "#241f17", weight = "bold" },
     },
-    quote = { color = "#3a3026", italic = true },
+    quote = { color = "#3a3026", italic = true, bgcolor = "#efe8d6",
+              barColor = "#8a6a2e", inset = 10 },
     rule  = { thickness = 2 },
+    button = { box = { bgcolor = "#efe8d6", border = 1, borderColor = "#8a6a2e",
+                       cornerRadius = 4, pad = 6 },
+               text = { color = "#241f17", weight = "bold" },
+               hover = { box = { bgcolor = "#f3edde" } } },
     embed = { box = { bgcolor = "#efe8d6", border = 2, borderColor = "#8a6a2e",
                       cornerRadius = 4, pad = 8 } },
     blocks = {
@@ -473,9 +539,15 @@ dmhub.SetAndUploadTableItem(JournalStylesheet.tableName, v)
   field. Set the whole embed box in the sheet that needs it.
 - **Tables are theme-driven inside.** Use `blocks.table.inner`
   (`bgcolor`/`altcolor`/`color`), not an outer paint, to color rows.
-- **Reserved/not-yet-rendered:** custom `font` faces, the `link` section, most
-  `quote` fields beyond color/italic, and `rule` fields beyond `thickness`.
-  Setting them does no harm; they simply have no visible effect today.
+- **Fonts are live now.** `font` works on `body`, headings, `bullet`, `ordered`,
+  `quote`, and class `text` -- but only with ids from `gui.availableFonts`; an
+  unknown id silently falls back to the default face. Watch the straight-quote
+  gotcha with the book faces (use curly quotes).
+- **Blockquotes can be framed.** `quote.bgcolor`/`barColor`/`inset` now paint the
+  quote panel; unset reverts to the theme's blockquote class.
+- **Reserved/not-yet-rendered:** the `link` section, `quote.bold` /
+  `quote.justify`, and `rule` fields beyond `thickness`. Setting them does no
+  harm; they simply have no visible effect today.
 - **Preview before going live.** When tuning a production sheet, copy it to a
   scratch sheet, eyeball the preview pane (or a test journal), then port the
   changes back. The preview re-renders live as you edit.

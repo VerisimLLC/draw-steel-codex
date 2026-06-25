@@ -923,6 +923,11 @@ audio.SoundEvent{
 --TO DO
 --Black Ash Dice Impacts
 
+
+
+--TO DO
+--Black Ash Dice Impacts
+
 audio.SoundEvent{
     name = "DiceImp.Hard_BlackAsh",
     mixgroup = "dice",
@@ -943,9 +948,40 @@ audio.SoundEvent{
     name = "DiceImp.Soft_BlackAsh",
     mixgroup = "dice",
     sounds = {"dice/cust/DiceImp_BlackAsh_Soft_v1_01.wav","dice/cust/DiceImp_BlackAsh_Soft_v1_02.wav","dice/cust/DiceImp_BlackAsh_Soft_v1_03.wav","dice/cust/DiceImp_BlackAsh_Soft_v1_04.wav","dice/cust/DiceImp_BlackAsh_Soft_v1_05.wav","dice/cust/DiceImp_BlackAsh_Soft_v1_06.wav"},
-    volume = 0.25,
+    volume = 0.05,
     pitchRand = 0.1,
 }
+
+
+
+
+
+--Glass Dice Impacts
+
+audio.SoundEvent{
+    name = "DiceImp.Hard_Glass",
+    mixgroup = "dice",
+    sounds = {"dice/glass/DiceImp_Glass_Hard_01.wav","dice/glass/DiceImp_Glass_Hard_02.wav","dice/glass/DiceImp_Glass_Hard_03.wav","dice/glass/DiceImp_Glass_Hard_04.wav","dice/glass/DiceImp_Glass_Hard_05.wav","dice/glass/DiceImp_Glass_Hard_06.wav"},
+    volume = 0.1,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Mild_Glass",
+    mixgroup = "dice",
+    sounds = {"dice/glass/DiceImp_Glass_Mild_01.wav","dice/glass/DiceImp_Glass_Mild_02.wav","dice/glass/DiceImp_Glass_Mild_03.wav","dice/glass/DiceImp_Glass_Mild_04.wav","dice/glass/DiceImp_Glass_Mild_05.wav","dice/glass/DiceImp_Glass_Mild_06.wav"},
+    volume = 0.15,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Soft_Glass",
+    mixgroup = "dice",
+    sounds = {"dice/glass/DiceImp_Glass_Soft_01.wav","dice/glass/DiceImp_Glass_Soft_02.wav","dice/glass/DiceImp_Glass_Soft_03.wav","dice/glass/DiceImp_Glass_Soft_04.wav","dice/glass/DiceImp_Glass_Soft_05.wav","dice/glass/DiceImp_Glass_Soft_06.wav"},
+    volume = 0.05,
+    pitchRand = 0.01,
+}
+
 
 
 

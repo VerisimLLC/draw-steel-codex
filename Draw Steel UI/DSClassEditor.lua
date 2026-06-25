@@ -21,6 +21,57 @@ local IsCharacterFeatureType = function(item)
 	return item ~= nil and g_validFeatureTypes[item.typeName] == true
 end
 
+-- Class/ancestry editor search filter. The shared Search.MatchesObject caps its
+-- recursive walk at depth 6, but feature NAMES in deeply-nested structures (a
+-- level's "Domain Feature" choice -> a domain list -> the feature) land at depth
+-- 7. That made deep features (Censor "Blessing of Iron", elementalist wards)
+-- fail this filter and get hidden entirely. This is a private, editor-only copy
+-- of that matcher with a deeper cap so those features match. It is the SAME
+-- algorithm as Search.MatchesObject (verbatim needle, lowered haystack, the same
+-- multi-term AND split), only with a higher depth limit -- so every match the
+-- old filter found is still found, plus the deep ones. The shared
+-- Search.MatchesObject is deliberately NOT changed, so no other consumer (the
+-- compendium-browser list filter, language picker, ...) shifts behaviour or pays
+-- the extra walk cost. Cap 10 covers the deepest real nesting (7) with headroom
+-- (a choice inside a domain feature would be 9); names never sit deeper.
+local FEATURE_SEARCH_DEPTH = 10
+
+local function MatchesFeatureNeedleSingle(obj, needle, depth)
+	depth = depth or 0
+	if depth > FEATURE_SEARCH_DEPTH then
+		return false
+	end
+	if type(obj) == "table" then
+		for k,v in pairs(obj) do
+			if MatchesFeatureNeedleSingle(k, needle, depth+1) or MatchesFeatureNeedleSingle(v, needle, depth+1) then
+				return true
+			end
+		end
+	elseif type(obj) == "string" then
+		if string.find(string.lower(obj), needle, 1, true) ~= nil then
+			return true
+		end
+	end
+	return false
+end
+
+-- Drop-in replacement for the old MatchesSearchRecursive(obj, search) calls in
+-- this editor.
+-- Mirrors Search.MatchesObject's contract exactly (needle used verbatim, terms
+-- AND-matched) so it is a strict superset of the previous behaviour.
+local function MatchesFeatureSearch(obj, search)
+	local terms = Search.SplitTerms(search)
+	if terms == nil then
+		return MatchesFeatureNeedleSingle(obj, search, 0)
+	end
+	for _,term in ipairs(terms) do
+		if not MatchesFeatureNeedleSingle(obj, term, 0) then
+			return false
+		end
+	end
+	return true
+end
+
 local CreateFeatureSummary = function(feature, featuresList, index, parentPanel, DescribeFeature, options)
 	options = options or {}
 
@@ -82,7 +133,7 @@ local CreateFeatureSummary = function(feature, featuresList, index, parentPanel,
             end
 
             element:SetClassTree("searching", true)
-            if MatchesSearchRecursive(feature, text) then
+            if MatchesFeatureSearch(feature, text) then
                 element:SetClassTree("matchSearch", true)
             else
                 element:SetClassTree("matchSearch", false)
@@ -728,7 +779,7 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
             end
 
             element:SetClassTree("searching", true)
-            if MatchesSearchRecursive(feature, text) then
+            if MatchesFeatureSearch(feature, text) then
                 element:SetClassTree("matchSearch", true)
             else
                 element:SetClassTree("matchSearch", false)
@@ -1280,7 +1331,7 @@ function Class.CreateLevelEditor(children, class, UploadClass, startLevel, finis
 				end
 
 				element:SetClassTree("searching", true)
-				if MatchesSearchRecursive(classLevel, text) then
+				if MatchesFeatureSearch(classLevel, text) then
 					element:SetClassTree("matchSearch", true)
 				else
 					element:SetClassTree("matchSearch", false)
@@ -1312,7 +1363,7 @@ function Class.CreateLevelEditor(children, class, UploadClass, startLevel, finis
 				end
 
 				element:SetClass("searching", true)
-				local matched = MatchesSearchRecursive(classLevel, text)
+				local matched = MatchesFeatureSearch(classLevel, text)
 				element:SetClass("matchSearch", matched)
 				if matched then
 					--auto-expanding to show the match: build the deferred body.

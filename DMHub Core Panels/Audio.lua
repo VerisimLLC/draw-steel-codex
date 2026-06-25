@@ -1411,6 +1411,257 @@ CreateSoundPanel = function()
 		masterVolumeSlider,
 	}
 
+	--Anthem node (Phase 1): a collapsible drawer listing each player hero, the
+	--anthem they have loaded, a local preview (audition on the director's own
+	--ears -- asset:Play() is local-only, never broadcast), and a broadcast volume
+	--that writes token.anthemVolume (the same value the token Appearance tab sets).
+	--Now-playing state is polled from g_drawSteelAnthemState, published by the
+	--initiative bar's anthem hook (MCDMInitiativeBar.lua).
+	local CreateAnthemNode = function()
+		local previewingCharid = nil
+		local previewInstance = nil
+
+		local StopPreview = function()
+			if previewInstance ~= nil then
+				pcall(function() previewInstance:Stop() end)
+				previewInstance = nil
+			end
+			previewingCharid = nil
+		end
+
+		local CreateAnthemRow = function(charid)
+			local token = dmhub.GetTokenById(charid)
+			if token == nil then
+				return nil
+			end
+
+			local anthemNameLabel = gui.Label{
+				text = "- no anthem set",
+				fontSize = 11,
+				color = Styles.textColor,
+				width = "auto",
+				height = "auto",
+				halign = "left",
+				valign = "center",
+				hmargin = 4,
+			}
+
+			local nowPlayingLabel = gui.Label{
+				classes = {"hidden"},
+				text = "now playing",
+				fontSize = 10,
+				bold = true,
+				color = "#7ad17a",
+				width = "auto",
+				height = "auto",
+				halign = "left",
+				valign = "center",
+				hmargin = 4,
+			}
+
+			local previewButton = gui.Panel{
+				bgimage = "panels/triangle.png",
+				bgcolor = "white",
+				rotate = 90,
+				width = 12,
+				height = 12,
+				halign = "right",
+				valign = "center",
+				hmargin = 4,
+				press = function(element)
+					local t = dmhub.GetTokenById(charid)
+					if t == nil then
+						return
+					end
+					local anthemId = t.anthem
+					if anthemId == nil or anthemId == "" then
+						return
+					end
+					if previewingCharid == charid and previewInstance ~= nil and previewInstance.playing then
+						StopPreview()
+						return
+					end
+					StopPreview()
+					local asset = assets.audioTable[anthemId]
+					if asset == nil then
+						return
+					end
+					previewInstance = asset:Play()
+					previewingCharid = charid
+					if previewInstance ~= nil then
+						previewInstance.volume = t.anthemVolume or 1
+					end
+				end,
+			}
+
+			local volumeSlider = gui.Slider{
+				value = token.anthemVolume or 1,
+				minValue = 0,
+				maxValue = 1,
+				sliderWidth = 70,
+				labelWidth = 0,
+				labelFormat = "",
+				style = {
+					width = 80,
+					height = 14,
+					halign = "right",
+					valign = "center",
+				},
+				confirm = function(element)
+					local t = dmhub.GetTokenById(charid)
+					if t == nil then
+						return
+					end
+					t.anthemVolume = element.value
+					t:UploadAppearance()
+				end,
+			}
+
+			return gui.Panel{
+				flow = "horizontal",
+				width = "100%",
+				height = 26,
+				valign = "center",
+				vmargin = 1,
+				data = { charid = charid },
+
+				thinkTime = 0.5,
+				think = function(element)
+					local t = dmhub.GetTokenById(charid)
+					if t == nil then
+						return
+					end
+					local anthemId = t.anthem
+					local has = anthemId ~= nil and anthemId ~= ""
+					if has then
+						local a = assets.audioTable[anthemId]
+						anthemNameLabel.text = (a ~= nil and a.description) or "(anthem)"
+					else
+						anthemNameLabel.text = "- no anthem set"
+					end
+					previewButton:SetClass("hidden", not has)
+					volumeSlider:SetClass("hidden", not has)
+					--rawget: g_drawSteelAnthemState is published by MCDMInitiativeBar;
+					--rawget avoids the uninitialized-global read error if that file is
+					--ever absent, instead of erroring every think tick.
+					local st = rawget(_G, "g_drawSteelAnthemState")
+					nowPlayingLabel:SetClass("hidden", st == nil or st.tokenid ~= charid)
+				end,
+
+				gui.CreateTokenImage(token, {
+					width = 22,
+					height = 22,
+					halign = "left",
+					valign = "center",
+					hmargin = 2,
+					interactable = false,
+				}),
+
+				gui.Label{
+					text = token.name or "Hero",
+					fontSize = 13,
+					color = Styles.textColor,
+					width = 80,
+					height = "auto",
+					halign = "left",
+					valign = "center",
+				},
+
+				anthemNameLabel,
+				nowPlayingLabel,
+				previewButton,
+				volumeSlider,
+			}
+		end
+
+		local rowsPanel = gui.Panel{
+			flow = "vertical",
+			width = "100%",
+			height = "auto",
+			create = function(element)
+				local children = {}
+				for _,partyid in ipairs(GetAllParties() or {}) do
+					for _,charid in ipairs(dmhub.GetCharacterIdsInParty(partyid) or {}) do
+						local row = CreateAnthemRow(charid)
+						if row ~= nil then
+							children[#children+1] = row
+						end
+					end
+				end
+				element.children = children
+			end,
+		}
+
+		local body
+		local arrow
+
+		arrow = gui.ExpandoArrow{}
+
+		local header = gui.Panel{
+			flow = "horizontal",
+			width = "100%",
+			height = "auto",
+			valign = "center",
+			vmargin = 2,
+			press = function(element)
+				--expanding when the body is currently collapsed.
+				local expanding = body:HasClass("collapsed")
+				body:SetClass("collapsed", not expanding)
+				arrow:SetClass("expanded", expanding)
+			end,
+
+			arrow,
+
+			gui.Label{
+				text = "Anthems",
+				fontSize = 14,
+				bold = true,
+				color = Styles.textColor,
+				width = "auto",
+				height = "auto",
+				hmargin = 4,
+				halign = "left",
+				valign = "center",
+			},
+		}
+
+		body = gui.Panel{
+			classes = {"collapsed"},
+			flow = "vertical",
+			width = "100%",
+			height = "auto",
+
+			gui.Label{
+				text = "Preview or adjust volume levels for each player's anthem.",
+				fontSize = 11,
+				color = Styles.textColor,
+				width = "100%",
+				height = "auto",
+				textWrap = true,
+				vmargin = 2,
+			},
+
+			rowsPanel,
+		}
+
+		return gui.Panel{
+			flow = "vertical",
+			width = "96%",
+			height = "auto",
+			halign = "center",
+			vmargin = 4,
+
+			destroy = function(element)
+				StopPreview()
+			end,
+
+			header,
+			body,
+		}
+	end
+
+	local anthemNode = CreateAnthemNode()
+
 	local mainPanel = gui.Panel{
 		styles = {
 			Styles.Default,
@@ -1512,6 +1763,8 @@ CreateSoundPanel = function()
 		children = {
 			audioVisualize,
 			masterVolumeContainer,
+
+			anthemNode,
 
 			CreateAudioGrid(),
 

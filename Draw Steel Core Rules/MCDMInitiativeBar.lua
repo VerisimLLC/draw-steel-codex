@@ -1,5 +1,14 @@
 local mod = dmhub.GetModLoading()
 
+--Published anthem playback state, for other panels (the Audio panel's anthem
+--node + the now-playing duck badge) to poll. This is LOCAL UI state only -- the
+--anthem itself plays per-client via asset:Play(), so this just mirrors what this
+--client is currently sounding. `tokenid` is the charid whose anthem is playing
+--(nil if none); `duckActive` is true while the music duck is held for it.
+--rawget avoids the runtime's uninitialized-global read error while still
+--preserving the value across a hot-reload so the badge does not flicker.
+g_drawSteelAnthemState = rawget(_G, "g_drawSteelAnthemState") or { tokenid = nil, duckActive = false }
+
 local function track(eventType, fields)
 	if dmhub.GetSettingValue("telemetry_enabled") == false then
 		return
@@ -2956,6 +2965,8 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 
 			choicePanel.monitorGame = nil
 		end
+		g_drawSteelAnthemState.tokenid = nil
+		g_drawSteelAnthemState.duckActive = false
 		UpdateAnthemIcon()
 	end
 
@@ -3934,6 +3945,8 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
                             --primitive currently takes a single symmetric fadeTime). See brief 14.
                             audio.DuckGroup("music", 0.15, 1.5)
                             m_anthemDuckActive = true
+                            g_drawSteelAnthemState.tokenid = anthemToken.charid
+                            g_drawSteelAnthemState.duckActive = true
                             if anthemLimited:Get() then
                                 m_anthemEventInstance:SetStopAfter(anthemDuration:Get())
                             end
@@ -3972,6 +3985,8 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 			if m_anthemDuckActive and (m_anthemEventInstance == nil or not m_anthemEventInstance.playing) then
 				audio.ReleaseDuck("music")
 				m_anthemDuckActive = false
+				g_drawSteelAnthemState.tokenid = nil
+				g_drawSteelAnthemState.duckActive = false
 			end
 
 			local q = info.initiativeQueue

@@ -2626,7 +2626,7 @@ function TacPanel.Summary()
                         local text = element.text
                         if token.properties:IsMonster() then
                             local role = token.properties:try_get("role", "")
-                            local ev = token.properties:try_get("ev", 1)
+                            local ev = token.properties:EV()
                             if role ~= "" then
                                 text = string.format("LEVEL %d %s  EV %d", level, string.upper(role), ev)
                             else

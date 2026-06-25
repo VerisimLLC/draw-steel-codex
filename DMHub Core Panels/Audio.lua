@@ -1381,12 +1381,13 @@ CreateSoundPanel = function()
 
 	local masterVolumeSlider = gui.Slider{
 		style = {
-			width = 200,
-			height = 20,
-			halign = "center",
+			width = 170,
+			height = 16,
+			halign = "right",
+			valign = "center",
 		},
 
-		sliderWidth = 200,
+		sliderWidth = 150,
 		labelWidth = 0,
 		labelFormat = "",
 
@@ -1421,23 +1422,117 @@ CreateSoundPanel = function()
 
 	}
 
-	--Label the master volume slider so it is clear this controls the
-	--game-wide audio level shared by everyone in the session.
-	local masterVolumeContainer = gui.Panel{
-		flow = "vertical",
-		width = "auto",
+	--"Levels" -- the parent mix-group faders for the table (the one-stop mixing
+	--surface, replacing the standalone game-wide master slider). Master is LIVE
+	--(writes audio.masterVolume). The category + system faders below are meant to
+	--write the shared broadcast layer (GroupShared), which is a deferred engine
+	--follow-up, so until that lands they render dimmed + non-interactable. Per-user
+	--trims + the granular UI Sounds children live in Settings -> Audio. Default
+	--expanded so the master control stays as reachable as it was before.
+	local MakeFaderRow = function(labelText, slider, dimmed)
+		return gui.Panel{
+			flow = "horizontal",
+			width = "100%",
+			height = 22,
+			valign = "center",
+			vmargin = 1,
+			opacity = dimmed and 0.4 or 1,
+			gui.Label{
+				text = labelText,
+				width = 76,
+				height = "auto",
+				fontSize = 12,
+				color = Styles.textColor,
+				halign = "left",
+				valign = "center",
+			},
+			slider,
+		}
+	end
+
+	local MakePendingFader = function()
+		return gui.Slider{
+			value = 0.8,
+			minValue = 0,
+			maxValue = 1,
+			sliderWidth = 150,
+			labelWidth = 0,
+			labelFormat = "",
+			interactable = false,
+			style = {
+				width = 170,
+				height = 16,
+				halign = "right",
+				valign = "center",
+			},
+		}
+	end
+
+	local levelsBody
+	local levelsArrow
+
+	levelsArrow = gui.ExpandoArrow{ classes = {"expanded"} }
+
+	local levelsHeader = gui.Panel{
+		flow = "horizontal",
+		width = "100%",
 		height = "auto",
-		halign = "center",
+		valign = "center",
+		vmargin = 2,
+		press = function(element)
+			--starts expanded; first press collapses.
+			local expanding = levelsBody:HasClass("collapsed")
+			levelsBody:SetClass("collapsed", not expanding)
+			levelsArrow:SetClass("expanded", expanding)
+		end,
+
+		levelsArrow,
+
 		gui.Label{
-			text = "Game-Wide Master Volume",
-			halign = "center",
+			text = "Levels",
+			fontSize = 14,
+			bold = true,
+			color = Styles.textColor,
 			width = "auto",
 			height = "auto",
-			fontSize = 14,
-			color = Styles.textColor,
-			bmargin = 2,
+			hmargin = 4,
+			halign = "left",
+			valign = "center",
 		},
-		masterVolumeSlider,
+	}
+
+	levelsBody = gui.Panel{
+		flow = "vertical",
+		width = "100%",
+		height = "auto",
+
+		gui.Label{
+			text = "Adjust the levels of each mix group for your table. More granular controls can be found in Settings->Audio.",
+			fontSize = 11,
+			color = Styles.textColor,
+			width = "100%",
+			height = "auto",
+			textWrap = true,
+			vmargin = 2,
+		},
+
+		MakeFaderRow("Master", masterVolumeSlider, false),
+		MakeFaderRow("Music", MakePendingFader(), true),
+		MakeFaderRow("Ambience", MakePendingFader(), true),
+		MakeFaderRow("Effects", MakePendingFader(), true),
+		MakeFaderRow("UI Sounds", MakePendingFader(), true),
+		MakeFaderRow("Anthem", MakePendingFader(), true),
+	}
+
+	local levelsSection = gui.Panel{
+		flow = "vertical",
+		width = "96%",
+		height = "auto",
+		halign = "center",
+		vmargin = 4,
+
+		levelsHeader,
+		levelsBody,
 	}
 
 	--Anthem node (Phase 1): a collapsible drawer listing each player hero, the
@@ -1791,7 +1886,7 @@ CreateSoundPanel = function()
 
 		children = {
 			audioVisualize,
-			masterVolumeContainer,
+			levelsSection,
 
 			anthemNode,
 

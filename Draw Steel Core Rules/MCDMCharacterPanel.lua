@@ -6136,19 +6136,32 @@ function TacPanel.Perks()
             local seen = {}
             local levelChoices = creature:GetLevelChoices() or {}
             local featTable = dmhub.GetTableVisible(CharacterFeat.tableName)
-            for _,choices in pairs(levelChoices) do
-                for _,guid in ipairs(choices) do
-                    if not seen[guid] then
-                        seen[guid] = true
-                        local featItem = featTable[guid]
-                        if featItem then
-                            specs[#specs+1] = {
-                                entryKey = "perks",
-                                entryId  = guid,
-                                charid   = charid,
-                                title    = featItem.name,
-                                body     = featItem.description,
-                            }
+            -- Only display perks that belong to a current feature choice. Iterating
+            -- levelChoices directly would also surface stale perks left behind by
+            -- abandoned careers, since their choice guids linger in levelChoices even
+            -- though they no longer map to any active feature. Filtering through
+            -- GetClassFeaturesAndChoicesWithDetails matches the builder and sheet.
+            local features = creature:GetClassFeaturesAndChoicesWithDetails()
+            if features then
+                for _,f in ipairs(features) do
+                    if f.feature and f.feature.typeName == "CharacterFeatChoice" then
+                        local choices = levelChoices[f.feature.guid]
+                        if choices then
+                            for _,guid in ipairs(choices) do
+                                if not seen[guid] then
+                                    seen[guid] = true
+                                    local featItem = featTable[guid]
+                                    if featItem then
+                                        specs[#specs+1] = {
+                                            entryKey = "perks",
+                                            entryId  = guid,
+                                            charid   = charid,
+                                            title    = featItem.name,
+                                            body     = featItem.description,
+                                        }
+                                    end
+                                end
+                            end
                         end
                     end
                 end

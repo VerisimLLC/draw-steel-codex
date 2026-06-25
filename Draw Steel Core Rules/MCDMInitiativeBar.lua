@@ -2932,6 +2932,7 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 	--anthem data.
 	local m_anthemEventInstance = nil
 	local m_anthemTokenId = nil
+	local m_anthemDuckActive = false
 
 	--Speaker icon shown in the top right of the center card while the active
 	--creature's anthem is playing. Created alongside the center container below.
@@ -2944,6 +2945,10 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 	end
 
 	local StopAnthem = function()
+		if m_anthemDuckActive then
+			audio.ReleaseDuck("music")
+			m_anthemDuckActive = false
+		end
 		if m_anthemEventInstance ~= nil then
 			m_anthemEventInstance:Stop()
 			m_anthemEventInstance = nil
@@ -3924,6 +3929,11 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
                         if asset ~= nil then
                             m_anthemEventInstance = asset:Play()
                             m_anthemEventInstance.volume = anthemToken.anthemVolume * GetLocalAnthemVolume(anthemToken.charid)
+                            --TUNING: duck level + fade are interim hardcoded values pending the
+                            --duck-settings config. Wanted: a slower fade-UP than fade-down (the duck
+                            --primitive currently takes a single symmetric fadeTime). See brief 14.
+                            audio.DuckGroup("music", 0.15, 1.5)
+                            m_anthemDuckActive = true
                             if anthemLimited:Get() then
                                 m_anthemEventInstance:SetStopAfter(anthemDuration:Get())
                             end
@@ -3956,6 +3966,13 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 			--Keep the anthem speaker icon in sync with actual playback, so it
 			--hides when a time-limited anthem finishes without a turn change.
 			UpdateAnthemIcon()
+
+			--Release the music duck if a time-limited anthem finished without a
+			--turn change (it would not otherwise funnel through StopAnthem).
+			if m_anthemDuckActive and (m_anthemEventInstance == nil or not m_anthemEventInstance.playing) then
+				audio.ReleaseDuck("music")
+				m_anthemDuckActive = false
+			end
 
 			local q = info.initiativeQueue
 			if q == nil or q.hidden then return end

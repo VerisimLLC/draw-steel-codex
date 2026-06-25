@@ -5,7 +5,8 @@
 --- @field loop any 
 --- @field volume any 
 --- @field duration any 
---- @field color any 
+--- @field color any
+--- @field category any
 AudioAssetLua = {}
 
 --- Play

@@ -984,7 +984,31 @@ audio.SoundEvent{
 
 
 
+--Stone Dice Impacts
 
+audio.SoundEvent{
+    name = "DiceImp.Hard_Stone",
+    mixgroup = "dice",
+    sounds = {"dice/Stone/DiceImp_Stone_Hard_01.wav","dice/Stone/DiceImp_Stone_Hard_02.wav","dice/Stone/DiceImp_Stone_Hard_03.wav","dice/Stone/DiceImp_Stone_Hard_04.wav","dice/Stone/DiceImp_Stone_Hard_05.wav","dice/Stone/DiceImp_Stone_Hard_06.wav"},
+    volume = 0.1,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Mild_Stone",
+    mixgroup = "dice",
+    sounds = {"dice/Stone/DiceImp_Stone_Mild_01.wav","dice/Stone/DiceImp_Stone_Mild_02.wav","dice/Stone/DiceImp_Stone_Mild_03.wav","dice/Stone/DiceImp_Stone_Mild_04.wav","dice/Stone/DiceImp_Stone_Mild_05.wav","dice/Stone/DiceImp_Stone_Mild_06.wav"},
+    volume = 0.15,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Soft_Stone",
+    mixgroup = "dice",
+    sounds = {"dice/Stone/DiceImp_Stone_Soft_01.wav","dice/Stone/DiceImp_Stone_Soft_02.wav","dice/Stone/DiceImp_Stone_Soft_03.wav","dice/Stone/DiceImp_Stone_Soft_04.wav","dice/Stone/DiceImp_Stone_Soft_05.wav","dice/Stone/DiceImp_Stone_Soft_06.wav"},
+    volume = 0.05,
+    pitchRand = 0.01,
+}
 
 
 

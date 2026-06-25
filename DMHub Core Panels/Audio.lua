@@ -1272,6 +1272,31 @@ CreateSoundPanel = function()
 	local globalMuteButton = nil
 	local sampleMeasures = {}
 
+	--Visible "music ducked" badge (Phase 1 feedback, NOT a control): overlays the
+	--now-playing strip whenever an anthem is holding the music duck, so a
+	--hard-of-hearing director can see the music has dipped without hearing it. The
+	--duck on/off + matrix CONFIG lives in Audio Studio, not here. Driven by the
+	--same g_drawSteelAnthemState the anthem node polls.
+	local duckBadge = gui.Label{
+		classes = {"hidden"},
+		floating = true,
+		halign = "center",
+		valign = "top",
+		y = 2,
+		text = "music ducked",
+		fontSize = 10,
+		bold = true,
+		color = "white",
+		bgimage = "panels/square.png",
+		bgcolor = "#9a6a1e",
+		cornerRadius = 6,
+		hpad = 6,
+		vpad = 2,
+		borderBox = true,
+		width = "auto",
+		height = "auto",
+	}
+
 	local audioVisualize = gui.Panel{
 		width = "100%",
 		height = 60,
@@ -1334,6 +1359,7 @@ CreateSoundPanel = function()
 			}
 
 			element:AddChild(globalMuteButton)
+			element:AddChild(duckBadge)
 
 		end,
 
@@ -1347,6 +1373,9 @@ CreateSoundPanel = function()
 
 			globalMuteButton:SetClass("hidden", audio.numPlayingSounds == 0)
 			globalMuteButton:SetClass("muted", audio.muted)
+
+			local anthemState = rawget(_G, "g_drawSteelAnthemState")
+			duckBadge:SetClass("hidden", anthemState == nil or not anthemState.duckActive)
 		end,
 	}
 

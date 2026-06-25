@@ -700,6 +700,60 @@ createAudioPanel = function(audioAsset, options)
 		}
 	end
 
+	--Per-track category selector (Music / Ambience / Effects). Phase 1 interim
+	--authoring path -- writes asset.category, which routes the library track
+	--through the matching mix group. In Phase 2 the categories become the
+	--top-level library folders and this dropdown rides the list row. A dropdown
+	--(not a chip/segment) so the caret advertises that the category is changeable.
+	--Lives in the space the volume slider would occupy, so it is only shown on
+	--library tiles (where options.categorySelector is set), never the soundboard.
+	local categorySelector = nil
+	if options.categorySelector then
+		--Normalise the stored category to a dropdown option id. An unset
+		--category reads back as nil (never set) OR "" (set to nil through the
+		--current AudioAssetLua setter, which stringifies nil to ""); both mean
+		--"uncategorised". NB Lua treats "" as truthy, so a bare `category or
+		--"none"` would surface a blank option for the empty-string case.
+		local CurrentCategoryId = function()
+			local c = audioAsset.category
+			if c == nil or c == "" then
+				return "none"
+			end
+			return c
+		end
+
+		categorySelector = gui.Dropdown{
+			floating = true,
+			valign = "bottom",
+			halign = "center",
+			y = 1,
+			width = "92%",
+			height = 16,
+			fontSize = 11,
+			options = {
+				{ id = "none", text = "-" },
+				{ id = "music", text = "Music" },
+				{ id = "ambience", text = "Ambience" },
+				{ id = "effects", text = "Effects" },
+			},
+			idChosen = CurrentCategoryId(),
+
+			monitorAssets = "audio",
+			refreshAssets = function(element)
+				element.idChosen = CurrentCategoryId()
+			end,
+
+			change = function(element)
+				local newCategory = element.idChosen
+				if newCategory == "none" then
+					newCategory = nil
+				end
+				audioAsset.category = newCategory
+				audioAsset:Upload()
+			end,
+		}
+	end
+
 
 	local body = gui.Panel{
 		classes = {"audioItemBody"},
@@ -707,6 +761,7 @@ createAudioPanel = function(audioAsset, options)
 		playButton,
 		loopButton,
 		volumePanel,
+		categorySelector,
 		colorPanel,
 
 		hueshift = audioAsset.color/8,
@@ -1052,7 +1107,7 @@ CreateSoundPanel = function()
 							halign = "left",
 							uiscale = 0.8,
 							hmargin = 2,
-							createAudioPanel(audioAsset, { volumeSlider = false }),
+							createAudioPanel(audioAsset, { volumeSlider = false, categorySelector = true }),
 							search = function(element, info)
 								element:SetClass("collapsed", not info.assets[k])
 							end,

@@ -327,6 +327,9 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
 	}
 
 	local body
+	-- Captured so the searchCompendium handler can toggle its expanded state when
+	-- auto-expanding along a matched path (mirrors the level card's header).
+	local headerPanel
 
 	local nameLabel = gui.Label{
             classes = {cond(feature:try_get("imported", false), cond(feature:try_get("importOverride", false), "accent", "")), "sizeL", "bold"},
@@ -352,7 +355,7 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
         }
     end
 
-	children[#children+1] = gui.Panel{
+	headerPanel = gui.Panel{
 		classes = {"featureCardHeader"},
 		tri,
 		nameLabel,
@@ -471,6 +474,8 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
 			}
 		end,
 	}
+
+	children[#children+1] = headerPanel
 
 	-- The body's sub-editors are constructed by builder functions invoked from
 	-- BuildChoiceBody (lazily, on first expansion). Constructing them eagerly
@@ -770,20 +775,34 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
 		height = "auto",
 		children = children,
 
+        -- Mirror the level card's filter (see ClassLevel:CreateEditor): element-only
+        -- SetClass (NOT SetClassTree) so a matching choice does NOT force-show its
+        -- non-matching option cards -- each option card sets its own matchSearch via
+        -- its own handler, and the hide rule {hideOnSearchMismatch, searching,
+        -- ~matchSearch} collapses the misses. On a match we also auto-expand the body
+        -- so the buried feature is actually visible: EnsureBuilt builds the deferred
+        -- body (if lazy) and re-fires the filter into the freshly built children, so
+        -- the reveal cascades down the matched path (choice -> option -> feature).
         searchCompendium = function(element, text)
             m_lastSearch = text or ""
             if text == "" then
-                element:SetClassTree("searching", false)
-                element:SetClassTree("matchSearch", false)
+                element:SetClass("searching", false)
+                element:SetClass("matchSearch", false)
+                body:SetClass("collapsed-anim", true)
+                tri:SetClass("expanded", false)
+                headerPanel:SetClass("expanded", false)
                 return
             end
 
-            element:SetClassTree("searching", true)
-            if MatchesFeatureSearch(feature, text) then
-                element:SetClassTree("matchSearch", true)
-            else
-                element:SetClassTree("matchSearch", false)
+            element:SetClass("searching", true)
+            local matched = MatchesFeatureSearch(feature, text)
+            element:SetClass("matchSearch", matched)
+            if matched and body.data ~= nil and body.data.EnsureBuilt ~= nil then
+                body.data.EnsureBuilt(text)
             end
+            body:SetClass("collapsed-anim", not matched)
+            tri:SetClass("expanded", matched)
+            headerPanel:SetClass("expanded", matched)
         end,
 	}
 

@@ -1583,7 +1583,20 @@ CreateSoundPanel = function()
 				hmargin = 4,
 			}
 
-			local previewButton = gui.Panel{
+			local previewButton
+
+			--Swap the glyph between a play triangle and a stop square depending on
+			--whether THIS row's anthem is the one currently previewing (the square
+			--png reads as a stop regardless of the inherited 90deg rotate).
+			local UpdatePreviewIcon = function()
+				if previewButton == nil then
+					return
+				end
+				local previewing = previewingCharid == charid and previewInstance ~= nil and previewInstance.playing
+				previewButton.bgimage = previewing and "panels/square.png" or "panels/triangle.png"
+			end
+
+			previewButton = gui.Panel{
 				bgimage = "panels/triangle.png",
 				bgcolor = "white",
 				rotate = 90,
@@ -1603,6 +1616,7 @@ CreateSoundPanel = function()
 					end
 					if previewingCharid == charid and previewInstance ~= nil and previewInstance.playing then
 						StopPreview()
+						UpdatePreviewIcon()
 						return
 					end
 					StopPreview()
@@ -1615,6 +1629,7 @@ CreateSoundPanel = function()
 					if previewInstance ~= nil then
 						previewInstance.volume = t.anthemVolume or 1
 					end
+					UpdatePreviewIcon()
 				end,
 			}
 
@@ -1631,6 +1646,15 @@ CreateSoundPanel = function()
 					halign = "right",
 					valign = "center",
 				},
+				--Live-adjust the local preview while dragging so the change is
+				--audible immediately rather than only on stop/start.
+				preview = function(element)
+					if previewingCharid == charid and previewInstance ~= nil and previewInstance.playing then
+						previewInstance.volume = element.value
+					end
+				end,
+				--Commit on release. Writing token.anthemVolume + UploadAppearance also
+				--updates a live broadcast anthem via the initiative bar's refreshGame.
 				confirm = function(element)
 					local t = dmhub.GetTokenById(charid)
 					if t == nil then
@@ -1638,6 +1662,9 @@ CreateSoundPanel = function()
 					end
 					t.anthemVolume = element.value
 					t:UploadAppearance()
+					if previewingCharid == charid and previewInstance ~= nil and previewInstance.playing then
+						previewInstance.volume = element.value
+					end
 				end,
 			}
 
@@ -1665,6 +1692,14 @@ CreateSoundPanel = function()
 					end
 					previewButton:SetClass("hidden", not has)
 					volumeSlider:SetClass("hidden", not has)
+					--Clear stale preview ownership if this row's preview finished on
+					--its own, then keep the play/stop glyph in sync (also reverts this
+					--row's glyph when another row takes over the single preview slot).
+					if previewingCharid == charid and (previewInstance == nil or not previewInstance.playing) then
+						previewInstance = nil
+						previewingCharid = nil
+					end
+					UpdatePreviewIcon()
 					--rawget: g_drawSteelAnthemState is published by MCDMInitiativeBar;
 					--rawget avoids the uninitialized-global read error if that file is
 					--ever absent, instead of erroring every think tick.

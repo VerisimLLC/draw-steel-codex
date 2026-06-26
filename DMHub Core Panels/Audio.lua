@@ -13,6 +13,13 @@ local broadcastGroupIds = { "music", "ambience", "effects", "uisounds", "anthem"
 --Keep the DM's broadcast levels in checkpoint backups (game-scoped DM state).
 mod:RegisterDocumentForCheckpointBackups(audioMixDocId)
 
+--Game-scoped doc holding the manual order of clips within each library folder.
+--AudioAssetLua has no writable `ord` (folders do, clips don't), so the Audio
+--Studio library keeps per-folder clip order here: data.order[folderid] = { assetid,
+--... }. Clips not listed sort after the listed ones, alphabetically.
+local audioClipOrderDocId = "audioClipOrder"
+mod:RegisterDocumentForCheckpointBackups(audioClipOrderDocId)
+
 --All-clients broadcast sync. The Audio panel is dmonly, but this file's module-load code
 --runs on EVERY client, so this loop keeps each client's engine in sync with the DM's
 --broadcast levels even on clients that never open the panel (and on late joiners). The
@@ -2156,8 +2163,11 @@ local OpenAudioStudioUpload = function()
 end
 
 --One library row: play/stop + name + per-row category dropdown + volume. Plays
---through the same GameSoundEvent path as the dock tiles.
-local CreateAudioStudioRow = function(audioAsset)
+--through the same GameSoundEvent path as the dock tiles. opts carries the library
+--tree's drag wiring (draggable / canDragOnto / drag) so a clip can be dragged into
+--a folder; it is nil when the row is used outside the tree.
+local CreateAudioStudioRow = function(audioAsset, opts)
+	opts = opts or {}
 	local soundEventDocId = string.format("soundevent-%s", audioAsset.id)
 
 	local playButton = gui.Panel{
@@ -2182,15 +2192,24 @@ local CreateAudioStudioRow = function(audioAsset)
 		end,
 	}
 
+	--Fixed name width so the controls sit left-of-centre with blank space on the
+	--right before the scrollbar (not right-aligned); long names truncate to one line
+	--with the full name on hover.
 	local nameLabel = gui.Label{
 		text = audioAsset.description,
-		width = "100%-240",
+		width = 290,
 		height = "auto",
 		halign = "left",
 		valign = "center",
+		hmargin = 4,
+		textWrap = false,
+		textOverflow = "ellipsis",
 		monitorAssets = "audio",
 		refreshAssets = function(element)
 			element.text = audioAsset.description
+		end,
+		linger = function(element)
+			gui.Tooltip(audioAsset.description)(element)
 		end,
 	}
 
@@ -2203,10 +2222,9 @@ local CreateAudioStudioRow = function(audioAsset)
 	end
 
 	local categorySelector = gui.Dropdown{
-		width = 110,
+		width = 90,
 		height = 22,
 		fontSize = 12,
-		halign = "right",
 		valign = "center",
 		hmargin = 4,
 		options = {
@@ -2237,7 +2255,7 @@ local CreateAudioStudioRow = function(audioAsset)
 		sliderWidth = 70,
 		labelWidth = 0,
 		labelFormat = "",
-		style = { width = 90, height = 16, halign = "right", valign = "center" },
+		style = { width = 80, height = 16, valign = "center" },
 		events = {
 			preview = function(element)
 				audio.SetSoundEventVolume(audioAsset.id, element.value)
@@ -2256,13 +2274,47 @@ local CreateAudioStudioRow = function(audioAsset)
 		},
 	}
 
+	--Floating drop-spacer at the row's top edge: a thin drag target that means
+	--"insert before this row" for reorder. Invisible until the tree marks it active
+	--during a drag, when it shows an accent line in the gap above the row.
+	local reorderSpacer = nil
+	if opts.draggable then
+		reorderSpacer = gui.Panel{
+			classes = {"audioClipSpacer"},
+			floating = true,
+			dragTarget = true,
+			width = "100%",
+			height = 6,
+			y = -3,
+			valign = "top",
+			halign = "center",
+			bgimage = "panels/square.png",
+		}
+	end
+
 	return gui.Panel{
-		classes = {"bordered", "hoverable"},
+		classes = {"bordered", "hoverable", "audioClipRow"},
 		flow = "horizontal",
 		width = "100%",
 		height = 30,
 		valign = "center",
 		vmargin = 1,
+		data = { assetid = audioAsset.id },
+		draggable = opts.draggable,
+		canDragOnto = opts.canDragOnto,
+		drag = opts.drag,
+		dragging = opts.dragging,
+		beginDrag = opts.beginDrag,
+		--Click selects (drag is distinguished by movement). Lives on the whole row so
+		--the click target is reliable; the play button / dropdown / volume keep their
+		--own handlers.
+		click = opts.onSelect and function(element)
+			opts.onSelect(audioAsset.id)
+		end or opts.click,
+		refreshSelection = function(element, selectedSet)
+			element:SetClass("selected", selectedSet ~= nil and selectedSet[audioAsset.id] == true)
+		end,
+		reorderSpacer,
 		playButton,
 		nameLabel,
 		categorySelector,
@@ -2285,46 +2337,542 @@ local CreateStudioPlaceholder = function(title)
 	}
 end
 
-CreateAudioStudio = function()
-	if not dmhub.isDM then
+--Nested folder library tree (Studio left column), replacing the old flat
+--alphabetical list. Folders nest via parentFolder (the engine persists the chain);
+--a clip lives in its parentFolder, or the default "Sounds" folder when unset. The
+--tree is rebuilt eagerly on refreshAssets (the library is small, so no lazy-expand
+--needed). This base renders folders + clip rows with expand/collapse and inline
+--rename; folder ops, drag-move, reorder and multi-select are layered on below.
+local CreateAudioLibraryTree = function()
+	local m_root
+	local CreateFolderNode
+	local CreateFolderContents
+	--Trigger a local tree rebuild right after a drag applies its change, instead of
+	--waiting for the cloud to echo the upload/doc-change back through the monitors
+	--(that round-trip is the post-drop delay). Assigned once m_root + ScheduleRebuild
+	--exist; the data is mutated locally first, so an immediate rebuild reflects it.
+	local RequestRebuild = function() end
+
+	--Persisted manual clip order (per folder) lives in the audioClipOrder doc since
+	--AudioAssetLua has no writable ord. These read/write data.order[folderid].
+	local function GetFolderOrderList(folderid)
+		local doc = mod:GetDocumentSnapshot(audioClipOrderDocId)
+		local order = doc.data.order
+		local src = (order ~= nil and order[folderid]) or nil
+		local out = {}
+		if src ~= nil then
+			for _,id in ipairs(src) do out[#out+1] = id end
+		end
+		return out
+	end
+
+	local function SetFolderOrderList(folderid, list)
+		local doc = mod:GetDocumentSnapshot(audioClipOrderDocId)
+		doc:BeginChange()
+		if doc.data.order == nil then doc.data.order = {} end
+		doc.data.order[folderid] = list
+		doc:CompleteChange("Reorder audio clips")
+	end
+
+	--Group folders by parentFolder ("__root__" for top level) and clips by their
+	--owning folder. Each folder entry carries its id (the table key) since the folder
+	--object itself is not guaranteed to expose one. Folders sort by their own ord then
+	--name; clips sort by the persisted per-folder order (audioClipOrder doc), with
+	--unlisted clips after the listed ones, alphabetically.
+	local function BuildMaps()
+		local foldersByParent = {}
+		local clipsByFolder = {}
+		for id,folder in pairs(assets.audioFoldersTable) do
+			if not folder.hidden then
+				local pk = folder.parentFolder or "__root__"
+				local t = foldersByParent[pk]
+				if t == nil then t = {} foldersByParent[pk] = t end
+				t[#t+1] = { id = id, folder = folder }
+			end
+		end
+		for _,asset in pairs(assets.audioTable) do
+			if not asset.hidden then
+				local fk = asset.parentFolder or defaultFolder
+				local t = clipsByFolder[fk]
+				if t == nil then t = {} clipsByFolder[fk] = t end
+				t[#t+1] = asset
+			end
+		end
+		local function cmpFolder(a,b)
+			local ao,bo = a.folder.ord or 0, b.folder.ord or 0
+			if ao ~= bo then return ao < bo end
+			return (a.folder.description or "") < (b.folder.description or "")
+		end
+		for _,t in pairs(foldersByParent) do table.sort(t, cmpFolder) end
+		for fid,t in pairs(clipsByFolder) do
+			local idx = {}
+			local list = GetFolderOrderList(fid)
+			for i,assetid in ipairs(list) do idx[assetid] = i end
+			table.sort(t, function(a,b)
+				local ia, ib = idx[a.id], idx[b.id]
+				if ia ~= nil and ib ~= nil then return ia < ib end
+				if ia ~= nil then return true end
+				if ib ~= nil then return false end
+				return (a.description or "") < (b.description or "")
+			end)
+		end
+		return foldersByParent, clipsByFolder
+	end
+
+	--Remembered expansion per folderid, so a tree rebuild (any asset/folder change,
+	--including a drag-move) does not collapse everything. Captured from the live
+	--nodes just before each rebuild.
+	local m_expanded = {}
+
+	--Multi-selection state. m_selected is a set of clip assetids; m_anchor is the
+	--last single-clicked clip (the pivot for shift-range). m_folderClips maps each
+	--folderid to its clips in visible order, captured each rebuild so a shift-range
+	--can resolve the slice between anchor and target within one folder.
+	local m_selected = {}
+	local m_anchor = nil
+	local m_folderClips = {}
+
+	local function RefreshSelectionVisuals()
+		if m_root ~= nil and m_root.valid then
+			m_root:FireEventTree("refreshSelection", m_selected)
+		end
+	end
+
+	local function FolderOfClip(assetid)
+		local a = assets.audioTable[assetid]
+		if a == nil then return defaultFolder end
+		return a.parentFolder or defaultFolder
+	end
+
+	--Select every clip between anchor and target in the same folder's visible order.
+	--If they are in different folders, just add the target (range is undefined).
+	local function SelectRange(anchorId, targetId)
+		local fa = FolderOfClip(anchorId)
+		if fa ~= FolderOfClip(targetId) then
+			m_selected[targetId] = true
+			return
+		end
+		local list = m_folderClips[fa] or {}
+		local ai, ti = nil, nil
+		for i,id in ipairs(list) do
+			if id == anchorId then ai = i end
+			if id == targetId then ti = i end
+		end
+		if ai == nil or ti == nil then
+			m_selected[targetId] = true
+			return
+		end
+		if ai > ti then ai, ti = ti, ai end
+		for i = ai, ti do m_selected[list[i]] = true end
+	end
+
+	local function ClipSelectClick(assetid)
+		if dmhub.modKeys['shift'] and m_anchor ~= nil then
+			SelectRange(m_anchor, assetid)
+		elseif dmhub.modKeys['ctrl'] then
+			if m_selected[assetid] then m_selected[assetid] = nil else m_selected[assetid] = true end
+			m_anchor = assetid
+		else
+			m_selected = {}
+			m_selected[assetid] = true
+			m_anchor = assetid
+		end
+		RefreshSelectionVisuals()
+	end
+
+	--The clips a drag should move: the whole selection when the dragged clip is part
+	--of it, otherwise just the dragged clip. Ordered by ord so a multi-move keeps the
+	--clips' relative order.
+	local function SelectionForDrag(draggedId)
+		if not m_selected[draggedId] then return { draggedId } end
+		local ids = {}
+		for id,_ in pairs(m_selected) do ids[#ids+1] = id end
+		if #ids <= 1 then return { draggedId } end
+		--Order the block by visible position so a multi-move keeps relative order.
+		local rank = {}
+		local r = 0
+		for _,list in pairs(m_folderClips) do
+			for _,id in ipairs(list) do r = r + 1 rank[id] = r end
+		end
+		table.sort(ids, function(a,b) return (rank[a] or 1e9) < (rank[b] or 1e9) end)
+		return ids
+	end
+
+	--Resolve the folder a drop landed on: the nearest enclosing folder node, or
+	--"__root__" when dropped on the library root (top level). nil = invalid drop.
+	local function ResolveDrop(target)
+		if target == nil then return nil end
+		local node = target:FindParentWithClass("audioFolderNode")
+		if node ~= nil then return node.data.folderid end
+		if target:FindParentWithClass("audioLibraryRoot") ~= nil then return "__root__" end
 		return nil
 	end
 
-	--Library list (flat, alphabetical, all non-hidden audio assets).
-	local libraryListItems = gui.Panel{
+	--True if maybeAncestorId is folderid itself or any ancestor of it -- used to
+	--block dropping a folder into its own subtree (which would make a cycle).
+	local function IsAncestorOrSelf(folderid, maybeAncestorId)
+		local cur = folderid
+		local guard = 0
+		while cur ~= nil and guard < 50 do
+			if cur == maybeAncestorId then return true end
+			local f = assets.audioFoldersTable[cur]
+			if f == nil then return false end
+			cur = f.parentFolder
+			guard = guard + 1
+		end
+		return false
+	end
+
+	local function MoveClipToFolder(assetid, dest)
+		local asset = assets.audioTable[assetid]
+		if asset == nil or dest == nil then return end
+		--"__root__" for a clip means the default "Sounds" folder (parentFolder nil).
+		asset.parentFolder = cond(dest == "__root__", nil, dest)
+		asset:Upload()
+	end
+
+	local function MoveFolderToFolder(draggedId, dest)
+		local folder = assets.audioFoldersTable[draggedId]
+		if folder == nil or dest == nil then return end
+		if dest ~= "__root__" and IsAncestorOrSelf(dest, draggedId) then
+			return  --dropping a folder into its own subtree would cycle.
+		end
+		folder.parentFolder = cond(dest == "__root__", nil, dest)
+		folder:Upload()
+	end
+
+	--Move one or more clips to sit just before targetRow, persisting the new order in
+	--the audioClipOrder doc (clips have no writable ord). Rebuilds the dest folder's
+	--ordered id list with the dragged ids removed and re-inserted before the target,
+	--then reparents the dragged clips into that folder so a selection can be reordered
+	--across folders in one drag.
+	local function ReorderClipsBefore(ids, targetRow, container)
+		local draggedSet = {}
+		for _,id in ipairs(ids) do draggedSet[id] = true end
+		local folderNode = container:FindParentWithClass("audioFolderNode")
+		local destFolderId = folderNode ~= nil and folderNode.data.folderid or defaultFolder
+		local targetAssetId = (targetRow ~= nil and targetRow.data ~= nil) and targetRow.data.assetid or nil
+
+		--The dest folder's clips in current visible order (captured each rebuild).
+		local current = m_folderClips[destFolderId] or {}
+		local newOrder = {}
+		local inserted = false
+		for _,assetid in ipairs(current) do
+			if assetid == targetAssetId then
+				for _,id in ipairs(ids) do newOrder[#newOrder+1] = id end
+				inserted = true
+			end
+			if not draggedSet[assetid] then
+				newOrder[#newOrder+1] = assetid
+			end
+		end
+		if not inserted then
+			for _,id in ipairs(ids) do newOrder[#newOrder+1] = id end
+		end
+
+		for _,id in ipairs(ids) do
+			local a = assets.audioTable[id]
+			if a ~= nil then
+				a.parentFolder = cond(destFolderId == defaultFolder, nil, destFolderId)
+				a:Upload()
+			end
+		end
+		SetFolderOrderList(destFolderId, newOrder)
+	end
+
+	--Drop-line indicator: the spacer the drag is currently hovering, lit while held.
+	local m_activeSpacer = nil
+	local function ClearDropIndicator()
+		if m_activeSpacer ~= nil and m_activeSpacer.valid then
+			m_activeSpacer:SetClass("active", false)
+		end
+		m_activeSpacer = nil
+	end
+
+	--Drag wiring shared by clip rows: a drop on a sibling row's spacer reorders;
+	--any other drop that resolves to a folder moves the clip into that folder.
+	local clipCanDragOnto = function(element, target)
+		if target ~= nil and target:HasClass("audioClipSpacer") then
+			return true
+		end
+		return ResolveDrop(target) ~= nil
+	end
+	local clipDragging = function(element, target)
+		local spacer = (target ~= nil and target:HasClass("audioClipSpacer")) and target or nil
+		if spacer ~= m_activeSpacer then
+			ClearDropIndicator()
+			if spacer ~= nil then
+				spacer:SetClass("active", true)
+				m_activeSpacer = spacer
+			end
+		end
+	end
+	local clipDrag = function(element, target)
+		ClearDropIndicator()
+		if target == nil then return end
+		--Drag the whole selection when the grabbed clip is part of it.
+		local ids = SelectionForDrag(element.data.assetid)
+		if target:HasClass("audioClipSpacer") then
+			local row = target.parent
+			if row ~= nil and row.parent ~= nil then
+				ReorderClipsBefore(ids, row, row.parent)
+				RequestRebuild()
+			end
+			return
+		end
+		local dest = ResolveDrop(target)
+		if dest == nil then return end
+		for _,id in ipairs(ids) do
+			MoveClipToFolder(id, dest)
+		end
+		RequestRebuild()
+	end
+
+	--contentPanel for one folder: its child folders (recursive) then its clips. It
+	--is a drag target so a clip/folder can be dropped into the folder's body.
+	CreateFolderContents = function(folderid, foldersByParent, clipsByFolder)
+		local children = {}
+		for _,sub in ipairs(foldersByParent[folderid] or {}) do
+			children[#children+1] = CreateFolderNode(sub, foldersByParent, clipsByFolder)
+		end
+		for _,asset in ipairs(clipsByFolder[folderid] or {}) do
+			children[#children+1] = CreateAudioStudioRow(asset, {
+				draggable = true,
+				canDragOnto = clipCanDragOnto,
+				drag = clipDrag,
+				dragging = clipDragging,
+				onSelect = ClipSelectClick,
+			})
+		end
+		local empty = #children == 0
+		local panel = gui.Panel{
+			classes = {"contentPanel"},
+			width = "100%-12",
+			height = "auto",
+			flow = "vertical",
+			lmargin = 12,
+			dragTarget = true,
+			children = children,
+		}
+		return panel, empty
+	end
+
+	CreateFolderNode = function(entry, foldersByParent, clipsByFolder)
+		local folderid = entry.id
+		local folder = entry.folder
+		local contents, empty = CreateFolderContents(folderid, foldersByParent, clipsByFolder)
+		local isDefault = folderid == defaultFolder
+
+		local node
+		node = gui.TreeNode{
+			classes = {"audioFolderNode"},
+			text = folder.description or "Folder",
+			width = "100%",
+			editable = true,
+			expanded = m_expanded[folderid] == true,
+			--dragTarget is consumed by TreeNode and applied to the folder HEADER, so
+			--a clip/folder can be dropped onto the header. All folders are draggable
+			--(incl. the default "Sounds"): a non-draggable folder header would let the
+			--drag fall through to the launchable window and move the whole panel. The
+			--default folder is still protected from DELETE below.
+			dragTarget = true,
+			draggable = true,
+			data = { folderid = folderid },
+			contentPanel = contents,
+
+			canDragOnto = function(element, target)
+				local dest = ResolveDrop(target)
+				return dest ~= nil and not IsAncestorOrSelf(dest, folderid)
+			end,
+			drag = function(element, target)
+				local dest = ResolveDrop(target)
+				if dest == nil then return end
+				MoveFolderToFolder(folderid, dest)
+				RequestRebuild()
+			end,
+
+			create = function(element)
+				element:FireEvent("setempty", empty)
+			end,
+
+			change = function(element, text)
+				text = trim(text)
+				if text == "" then
+					element:FireEventTree("text", folder.description or "Folder")
+					return
+				end
+				folder.description = text
+				folder:Upload()
+			end,
+
+			contextMenu = function(element)
+				if isDefault then
+					return  --the default "Sounds" folder is not deletable.
+				end
+				element.popup = gui.ContextMenu{
+					width = 180,
+					entries = {
+						{
+							text = "Delete Folder",
+							click = function()
+								element.popup = nil
+								if not empty then
+									gui.ModalMessage{
+										title = "Folder Not Empty",
+										message = "Move or delete its contents before deleting this folder.",
+									}
+									return
+								end
+								folder.hidden = true
+								folder:Upload()
+							end,
+						},
+					},
+				}
+			end,
+		}
+		return node
+	end
+
+	--Walk the live tree and record each folder's expansion before a rebuild.
+	local function CaptureExpansion(panel)
+		if panel == nil then return end
+		for _,c in ipairs(panel.children or {}) do
+			if c.data ~= nil and c.data.folderid ~= nil and c.data.isCollapsed ~= nil then
+				m_expanded[c.data.folderid] = not c.data.isCollapsed()
+			end
+			CaptureExpansion(c)
+		end
+	end
+
+	local function DoRebuild(element)
+		CaptureExpansion(element)
+		local foldersByParent, clipsByFolder = BuildMaps()
+		--Capture each folder's clips in visible (sorted) order for shift-range, and
+		--drop any selected ids that no longer exist.
+		m_folderClips = {}
+		local live = {}
+		for fid,list in pairs(clipsByFolder) do
+			local ordered = {}
+			for _,a in ipairs(list) do
+				ordered[#ordered+1] = a.id
+				live[a.id] = true
+			end
+			m_folderClips[fid] = ordered
+		end
+		for id,_ in pairs(m_selected) do
+			if not live[id] then m_selected[id] = nil end
+		end
+		local children = {}
+		for _,entry in ipairs(foldersByParent["__root__"] or {}) do
+			children[#children+1] = CreateFolderNode(entry, foldersByParent, clipsByFolder)
+		end
+		element.children = children
+		element:FireEventTree("refreshPlayingAudio")
+		element:FireEventTree("refreshSelection", m_selected)
+	end
+
+	--Coalesce rebuilds: a single drag/reorder uploads several assets at once, each of
+	--which fires monitorAssets. Rebuilding the whole recursive tree per upload chugs,
+	--so collapse a burst of changes into one deferred rebuild on the next tick.
+	local m_rebuildPending = false
+	local function ScheduleRebuild(element)
+		if m_rebuildPending then return end
+		m_rebuildPending = true
+		dmhub.Schedule(0.01, function()
+			m_rebuildPending = false
+			if mod.unloaded then return end
+			if element ~= nil and element.valid then
+				DoRebuild(element)
+			end
+		end)
+	end
+
+	RequestRebuild = function()
+		if m_root ~= nil and m_root.valid then
+			ScheduleRebuild(m_root)
+		end
+	end
+
+	m_root = gui.Panel{
+		classes = {"audioLibraryRoot"},
 		flow = "vertical",
 		width = "100%",
 		height = "100%-24",
 		vscroll = true,
 		valign = "top",
+		dragTarget = true,
 		monitorAssets = "audio",
+		--Also rebuild when the persisted clip order changes (an intra-folder reorder
+		--may not change any asset, only the order doc).
+		monitorGame = mod:GetDocumentSnapshot(audioClipOrderDocId).path,
 		create = function(element)
-			element:FireEvent("refreshAssets")
+			DoRebuild(element)
 		end,
 		refreshAssets = function(element)
-			local entries = {}
-			for _,audioAsset in pairs(assets.audioTable) do
-				if not audioAsset.hidden then
-					entries[#entries+1] = audioAsset
-				end
-			end
-			table.sort(entries, function(a,b) return (a.description or "") < (b.description or "") end)
-			local children = {}
-			for _,audioAsset in ipairs(entries) do
-				children[#children+1] = CreateAudioStudioRow(audioAsset)
-			end
-			element.children = children
-			element:FireEventTree("refreshPlayingAudio")
+			ScheduleRebuild(element)
+		end,
+		refreshGame = function(element)
+			ScheduleRebuild(element)
 		end,
 	}
+
+	return m_root
+end
+
+CreateAudioStudio = function()
+	if not dmhub.isDM then
+		return nil
+	end
 
 	local leftColumn = gui.Panel{
 		flow = "vertical",
 		width = "58%",
 		height = "100%",
 		hmargin = 4,
-		gui.Label{ classes = {"bold", "sizeS"}, text = "Library", width = "auto", height = "auto", halign = "left", vmargin = 2 },
-		libraryListItems,
+
+		--Library header row: label left, the add buttons right-aligned to this column
+		--(these become glyph buttons later). The label sits in a fixed-width flex
+		--panel since "100% available" collapses to 0 here.
+		gui.Panel{
+			flow = "horizontal",
+			width = "100%",
+			height = "auto",
+			valign = "center",
+			vmargin = 2,
+			gui.Panel{
+				flow = "horizontal",
+				width = "100%-180",
+				height = "auto",
+				halign = "left",
+				valign = "center",
+				gui.Label{ classes = {"bold", "sizeS"}, text = "Library", width = "auto", height = "auto", halign = "left", valign = "center" },
+			},
+			gui.Button{
+				classes = {"sizeXs"},
+				text = "+ New Folder",
+				width = "auto",
+				height = 24,
+				valign = "center",
+				hmargin = 3,
+				press = function(element)
+					assets:UploadNewAudioFolder{ description = "New Folder" }
+				end,
+			},
+			gui.Button{
+				classes = {"sizeXs"},
+				text = "+ Add audio",
+				width = "auto",
+				height = 24,
+				valign = "center",
+				hmargin = 3,
+				press = function(element)
+					OpenAudioStudioUpload()
+				end,
+			},
+		},
+
+		CreateAudioLibraryTree(),
 	}
 
 	local rightColumn = gui.Panel{
@@ -2347,6 +2895,7 @@ CreateAudioStudio = function()
 		rightColumn,
 	}
 
+	--Title centred across the top of the panel.
 	local header = gui.Panel{
 		flow = "horizontal",
 		width = "100%",
@@ -2355,28 +2904,27 @@ CreateAudioStudio = function()
 		gui.Label{
 			classes = {"sizeXl", "bold"},
 			text = "Audio Studio",
-			width = "auto",
+			width = "100%",
 			height = "auto",
-			halign = "left",
+			textAlignment = "center",
+			halign = "center",
 			valign = "center",
 		},
-		gui.Button{
-			classes = {"sizeS"},
-			text = "+ Add audio",
-			width = 120,
-			height = 28,
-			halign = "right",
-			valign = "center",
-			press = function(element)
-				OpenAudioStudioUpload()
-			end,
-		},
+	}
+
+	--Library-tree rules added on top of the base theme: the multi-select row
+	--highlight and the reorder drop-line. Routed through MergeStyles so the @tokens
+	--resolve against the active scheme (re-applied on a scheme switch below).
+	local studioExtraStyles = {
+		{ selectors = {"audioClipRow", "selected"}, bgcolor = "@bgAlt", borderColor = "@accent" },
+		{ selectors = {"audioClipSpacer"}, bgcolor = "clear" },
+		{ selectors = {"audioClipSpacer", "active"}, bgcolor = "@accent", opacity = 0.6 },
 	}
 
 	local root
 	root = gui.Panel{
 		classes = {"launchablePanel"},
-		styles = ThemeEngine.GetStyles(),
+		styles = ThemeEngine.MergeStyles(studioExtraStyles),
 		width = 960,
 		height = 680,
 		flow = "vertical",
@@ -2385,7 +2933,7 @@ CreateAudioStudio = function()
 		create = function(element)
 			element.data.themeSub = ThemeEngine.OnThemeChanged(mod, function()
 				if element.valid then
-					element.styles = ThemeEngine.GetStyles()
+					element.styles = ThemeEngine.MergeStyles(studioExtraStyles)
 				end
 			end)
 		end,

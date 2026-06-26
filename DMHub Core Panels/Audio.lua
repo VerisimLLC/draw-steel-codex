@@ -106,7 +106,7 @@ local ColorStyles = {
 		borderColor = "white",
 		cornerRadius = 2,
 		bgimage = "panels/square.png",
-		bgcolor = "red", --Styles.textColor,
+		bgcolor = "red", --data-driven swatch base; hueshifted per asset color
 	},
 	{
 		selectors = {"audioItemColor", "hover"},
@@ -120,7 +120,9 @@ local CreatePlayerSlot = function(params)
 	local slot = params.slot
 	params.slot = nil
 
-	local classes = {"playerSlot"}
+	--Themed slot chrome: {border} paints the @border frame, {bgAlt} the nested
+	--surface fill. border width + the square bgimage stay inline (layout / glyph).
+	local classes = {"playerSlot", "border", "bgAlt"}
 	if params.classes ~= nil then
 		for _,c in ipairs(params.classes) do
 			classes[#classes+1] = c
@@ -133,14 +135,12 @@ local CreatePlayerSlot = function(params)
 		width = 113,
 		height = 64,
 		border = 2,
-		borderColor = Styles.textColor,
 		flow = "none",
 		vmargin = 2,
 		cornerRadius = 4,
 		halign = "center",
 		valign = "center",
 		bgimage = "panels/square.png",
-		bgcolor = "black",
 	}
 
 	for k,v in pairs(params or {}) do
@@ -259,7 +259,9 @@ end
 
 local CreateSoundboardPreviewPanel = function(playerGrid, slotNumber)
 
-	local tinyClasses = {"tinyPanel"}
+	--{bgAlt} supplies the themed base fill; the per-slot hueshift (data-driven
+	--asset color) is applied on top at runtime in refreshGame.
+	local tinyClasses = {"tinyPanel", "bgAlt"}
 	if (slotNumber%2) ~= 0 then
 		tinyClasses[#tinyClasses+1] = "odd"
 	end
@@ -350,7 +352,6 @@ local CreateGridMenu = function(playerGrid)
 			gui.Style{
 				selectors = {"tinyPanel"},
 				bgimage = "panels/square.png",
-				bgcolor = Styles.textColor,
 				width = 16,
 				height = 11,
 				hmargin = 2,
@@ -423,9 +424,9 @@ createAudioPanel = function(audioAsset, options)
 
 	local sliderFill
 	sliderFill = gui.Panel{
+		classes = {"bgAccent"},
 		bgimage = 'panels/square.png',
 		selfStyle = {
-			bgcolor = '#cc0000',
 			width = '0%',
 			height = '100%',
 			halign = 'left',
@@ -458,11 +459,11 @@ createAudioPanel = function(audioAsset, options)
 	}
 
 	local playerSlider = gui.Panel{
+		classes = {"bgAlt"},
 		bgimage = 'panels/square.png',
 		floating = true,
 		--classes = {'hidden'},
 		style = {
-			bgcolor = 'grey',
 			height = 2,
 			width = '100%',
 			margin = 0,
@@ -537,10 +538,14 @@ createAudioPanel = function(audioAsset, options)
 
 			local parentElement = element
 
+			--Popup: reparented to the popup layer, so it does not inherit the dock
+			--cascade -- route its own ThemeEngine snapshot so {framedPanel} themes.
+			--Transient (rebuilt each open), so it picks up the active scheme without
+			--an OnThemeChanged. ColorStyles is the data-driven swatch (8 hues).
 			element.popup = gui.Panel{
-				styles = {
-					Styles.Panel,
-					ColorStyles,
+				styles = ThemeEngine.MergeStyles{
+					ColorStyles[1],
+					ColorStyles[2],
 					{
 						selectors = {"audioItemColor"},
 						hmargin = 4,
@@ -689,7 +694,14 @@ createAudioPanel = function(audioAsset, options)
 
 		local volumeIcon = nil
 		volumeIcon = gui.Panel{
+			--Icon glyph: bgcolor "white" is image-tint-neutral so the PNG shows
+			--at native colors; {hoverable} supplies token-free hover feedback.
+			classes = {"hoverable"},
 			bgimage = 'ui-icons/AudioVolumeButton.png',
+			bgcolor = "white",
+			width = 12,
+			height = 12,
+			valign = 'center',
 			events = {
 				click = function(element)
 					--swallow
@@ -706,18 +718,6 @@ createAudioPanel = function(audioAsset, options)
 
 					volumeSlider:SetClass('hidden', muted)
 				end,
-			},
-			styles = {
-				{
-					bgcolor = 'black',
-					width = 12,
-					height = 12,
-					valign = 'center',
-				},
-				{
-					selectors = 'hover',
-					bgcolor = '#880000',
-				},
 			},
 		}
 
@@ -1037,7 +1037,7 @@ CreateSoundPanel = function()
 		local folder = assets.audioFoldersTable[folderid]
 
 		local folderLabel = gui.Label{
-				classes = {"folderLabel"},
+				classes = {"folderLabel", "sizeL"},
 				text = folder.description,
 				change = function(element)
 					element.editable = false
@@ -1052,9 +1052,9 @@ CreateSoundPanel = function()
 		local beforeSearchExpanded = nil
 
 		local header = gui.Panel{
-			classes = {"folderHeader", cond(expanded, "expanded")},
+			classes = {"folderHeader", "bgAlt", "hoverable", cond(expanded, "expanded")},
 			gui.Panel{
-				classes = {"triangle"},
+				classes = {"audioFolderTri", "bgFg"},
 			},
 
 			folderLabel,
@@ -1084,7 +1084,7 @@ CreateSoundPanel = function()
 			press = function(element)
 				expanded = not expanded
 				element:SetClass("expanded", expanded)
-				body:SetClass("collapsed-anim", not expanded)
+				body:SetClass("collapseAnim", not expanded)
 				if expanded then
 					body:FireEvent("refreshAssets")
 				end
@@ -1129,7 +1129,7 @@ CreateSoundPanel = function()
 			height = "auto",
 			halign = "left",
 			flow = "horizontal",
-			classes = {cond(expanded, nil, "collapsed-anim")},
+			classes = {cond(expanded, nil, "collapseAnim")},
 			wrap = true,
 
 			monitorAssets = "audio",
@@ -1187,9 +1187,48 @@ CreateSoundPanel = function()
 
 	local audioFolderPanels = {}
 
+	--Layout-only replacement for the legacy folder-library style global. Colors
+	--now ride theme classes on the elements ({bgAlt}+{hoverable} header, {bgFg}
+	--triangle, label default @fgStrong). The triangle uses a local class name
+	--("audioFolderTri") so it does not collide with the themed DefaultStyles
+	--{triangle} rule, while keeping the parent:expanded flip. Drag highlight is
+	--handled by the engine's themed {drag-target} classes on the folder container.
 	local audioLibraryItems = gui.Panel{
 		styles = {
-			Styles.FolderLibrary,
+			{
+				selectors = {"folderContainer"},
+				flow = "vertical",
+				width = "100%",
+				height = "auto",
+				valign = "top",
+			},
+			{
+				selectors = {"folderHeader"},
+				width = "100%",
+				flow = "horizontal",
+				height = 24,
+			},
+			{
+				selectors = {"audioFolderTri"},
+				bgimage = "panels/triangle.png",
+				width = 16,
+				height = 12,
+				hmargin = 4,
+				valign = "center",
+				halign = "left",
+			},
+			{
+				selectors = {"audioFolderTri", "parent:expanded"},
+				scale = {x = 1, y = -1},
+				transitionTime = 0.1,
+			},
+			{
+				selectors = {"folderLabel"},
+				width = "80%",
+				height = "100%",
+				halign = "left",
+				textAlignment = "left",
+			},
 		},
 
 		height = 500,
@@ -1230,10 +1269,10 @@ CreateSoundPanel = function()
 		flow = "vertical",
 
 		gui.Panel{
+			classes = {"bgFg"},
 			width = "100%",
 			height = 2,
 			bgimage = "panels/square.png",
-			bgcolor = Styles.textColor,
 		},
 
 		gui.Panel{
@@ -1273,12 +1312,10 @@ CreateSoundPanel = function()
 
 		audioLibraryItems,
 
-		gui.Panel{
-			classes = {"clickableIcon"},
-			width = 24,
-			height = 24,
+		gui.Button{
+			classes = {"sizeM"},
+			icon = "game-icons/open-folder.png",
 			halign = "right",
-			bgimage = "game-icons/open-folder.png",
 			press = function(element)
 				assets:UploadNewAudioFolder{
 					description = "Sounds",
@@ -1299,8 +1336,8 @@ CreateSoundPanel = function()
 
 	local MakeSpectrumSample = function(index)
 		return gui.Panel{
+			classes = {"bgFg"},
 			bgimage = "panels/square.png",
-			bgcolor = Styles.textColor,
 			valign = "center",
 			halign = "center",
 			width = 3,
@@ -1317,18 +1354,16 @@ CreateSoundPanel = function()
 	--hard-of-hearing director can see the music has dipped without hearing it. The
 	--duck on/off + matrix CONFIG lives in Audio Studio, not here. Driven by the
 	--same g_drawSteelAnthemState the anthem node polls.
+	--{bgWarning} amber pill + {fgInverse} text track the active scheme; {sizeXxs}
+	--= 10pt, {bold} for weight. The square bgimage + corner radius stay inline.
 	local duckBadge = gui.Label{
-		classes = {"hidden"},
+		classes = {"hidden", "bgWarning", "fgInverse", "bold", "sizeXxs"},
 		floating = true,
 		halign = "center",
 		valign = "top",
 		y = 2,
 		text = "music ducked",
-		fontSize = 10,
-		bold = true,
-		color = "white",
 		bgimage = "panels/square.png",
-		bgcolor = "#9a6a1e",
 		cornerRadius = 6,
 		hpad = 6,
 		vpad = 2,
@@ -1361,7 +1396,7 @@ CreateSoundPanel = function()
 				floating = true,
 				width = 45,
 				height = 40,
-				bgcolor = Styles.textColor,
+				bgcolor = "white",
 				halign = "center",
 				valign = "center",
 				press = function(element)
@@ -1547,11 +1582,10 @@ CreateSoundPanel = function()
 			vmargin = 1,
 			opacity = dimmed and 0.4 or 1,
 			gui.Label{
+				classes = {"sizeXs"},
 				text = labelText,
 				width = 76,
 				height = "auto",
-				fontSize = 12,
-				color = Styles.textColor,
 				halign = "left",
 				valign = "center",
 			},
@@ -1580,10 +1614,8 @@ CreateSoundPanel = function()
 		levelsArrow,
 
 		gui.Label{
+			classes = {"bold"},
 			text = "Levels",
-			fontSize = 14,
-			bold = true,
-			color = Styles.textColor,
 			width = "auto",
 			height = "auto",
 			hmargin = 4,
@@ -1600,7 +1632,6 @@ CreateSoundPanel = function()
 		gui.Label{
 			text = "Adjust the levels of each mix group for your table. More granular controls can be found in Settings->Audio.",
 			fontSize = 11,
-			color = Styles.textColor,
 			width = "100%",
 			height = "auto",
 			textWrap = true,
@@ -1658,7 +1689,6 @@ CreateSoundPanel = function()
 			local anthemNameLabel = gui.Label{
 				text = "- no anthem set",
 				fontSize = 11,
-				color = Styles.textColor,
 				width = "auto",
 				height = "auto",
 				halign = "left",
@@ -1666,12 +1696,10 @@ CreateSoundPanel = function()
 				hmargin = 4,
 			}
 
+			--{success} green tracks the scheme; {sizeXxs} = 10pt, {bold} weight.
 			local nowPlayingLabel = gui.Label{
-				classes = {"hidden"},
+				classes = {"hidden", "success", "bold", "sizeXxs"},
 				text = "now playing",
-				fontSize = 10,
-				bold = true,
-				color = "#7ad17a",
 				width = "auto",
 				height = "auto",
 				halign = "left",
@@ -1815,7 +1843,6 @@ CreateSoundPanel = function()
 				gui.Label{
 					text = token.name or "Hero",
 					fontSize = 13,
-					color = Styles.textColor,
 					width = 80,
 					height = "auto",
 					halign = "left",
@@ -1868,10 +1895,8 @@ CreateSoundPanel = function()
 			arrow,
 
 			gui.Label{
+				classes = {"bold"},
 				text = "Anthems",
-				fontSize = 14,
-				bold = true,
-				color = Styles.textColor,
 				width = "auto",
 				height = "auto",
 				hmargin = 4,
@@ -1889,7 +1914,6 @@ CreateSoundPanel = function()
 			gui.Label{
 				text = "Preview or adjust volume levels for each player's anthem.",
 				fontSize = 11,
-				color = Styles.textColor,
 				width = "100%",
 				height = "auto",
 				textWrap = true,
@@ -1917,9 +1941,14 @@ CreateSoundPanel = function()
 
 	local anthemNode = CreateAnthemNode()
 
+	--Content root of the Audio dock panel. It inherits the DockablePanel host's
+	--ThemeEngine cascade (DockablePanel.lua runs GetStyles at the dock root), so
+	--no GetStyles/OnThemeChanged is declared here. The rules below are component
+	--layout plus the data-driven library-tile coloring (asset.color hueshift on a
+	--red/black base) -- a deliberate keep, not chrome; the tiles are replaced by
+	--the list view in the next chunk.
 	local mainPanel = gui.Panel{
 		styles = {
-			Styles.Default,
 			{
 				halign = 'left',
 				valign = 'top',
@@ -1946,7 +1975,6 @@ CreateSoundPanel = function()
 				selectors = {"audioItemTitle"},
 				fontSize = 14,
 				hmargin = 4,
-				color = Styles.textColor,
 				halign = "left",
 				width = "auto",
 				textAlignment = "center",

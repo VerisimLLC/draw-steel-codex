@@ -109,8 +109,8 @@ end
 --- @return table languages Flag table of language ID's
 function DTBusinessRules.GetGlobalLanguages()
     local languages = {}
-    local globalRules = dmhub.GetTable(GlobalRuleMod.TableName)
-    for _, rule in pairs(globalRules) do
+    --Includes the currently-live encounter's rules, applied in the same way as global rules.
+    for _, rule in ipairs(GlobalRuleMod.GetActiveRuleMods()) do
         if rule:try_get("modifierInfo") and rule.modifierInfo:try_get("features") then
             for _, feature in pairs(rule.modifierInfo.features) do
                 if feature.typeName == "CharacterFeature" and feature:try_get("modifiers") then

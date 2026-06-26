@@ -975,6 +975,43 @@ local function createWavePanel(encounter, onWavesChanged)
     return resultPanel
 end
 
+--A "Rule Sets" editor for the encounter dialog: attach any number of named encounter rule-sets
+--(authored in the compendium under Rules -> Encounter Rules) to this encounter. Stored as a set
+--of EncounterRuleSet ids in encounter.ruleSets ({[id]=true}). Built on the standard gui.SetEditor
+--control. Actually activating these rules while the encounter runs is a future phase; for now this
+--only records the attachments.
+local function createRuleSetsPanel(encounter)
+    local options = {}
+    for setid, ruleSet in unhidden_pairs(dmhub.GetTable(EncounterRuleSet.tableName) or {}) do
+        options[#options + 1] = { id = setid, text = ruleSet.name }
+    end
+    table.sort(options, function(a, b) return a.text < b.text end)
+
+    --Normalize to the {[id]=true} set form gui.SetEditor expects, tolerating any earlier
+    --array-form data so previously-attached sets are not silently dropped.
+    local value = {}
+    for k, v in pairs(encounter:try_get("ruleSets", {})) do
+        if type(k) == "number" then
+            value[v] = true
+        else
+            value[k] = true
+        end
+    end
+
+    return gui.SetEditor {
+        width = "90%",
+        halign = "center",
+        valign = "top",
+        tmargin = 4,
+        addItemText = "Add Rule Set...",
+        options = options,
+        value = value,
+        change = function(element, newValue)
+            encounter.ruleSets = DeepCopy(newValue)
+        end,
+    }
+end
+
 function Encounter.Editor(self, options)
     local resultPanel
 
@@ -1508,6 +1545,18 @@ function Encounter.Editor(self, options)
 
         },]]
 
+        gui.Label {
+            classes = { "fgStrong" },
+            text = "Rule Sets:",
+            fontSize = 16,
+            bold = true,
+            halign = "center",
+            valign = "top",
+            tmargin = 8,
+        },
+
+        createRuleSetsPanel(self),
+
         appearancesCheck,
 
         gui.Button {
@@ -1551,7 +1600,7 @@ function Encounter.CreateEditorDialog(encounter, options)
         halign = "center",
         valign = "center",
         width = 800,
-        height = 800,
+        height = 900,
 
         gui.Panel {
 

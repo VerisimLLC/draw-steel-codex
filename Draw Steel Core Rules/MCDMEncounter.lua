@@ -70,6 +70,11 @@ Encounter.victoryDestroyKeyword = nil
 --victory screen (DSVictoryScreen). Defaults to 1.
 Encounter.victories = 1
 
+--The named encounter rule-sets attached to this encounter, stored as a set of EncounterRuleSet
+--ids ({[id]=true}; authored in the compendium under Rules -> Encounter Rules). Activating these
+--rules while the encounter is running is a future phase; for now this just stores the attachments.
+Encounter.ruleSets = {}
+
 --Returns the lowercase organization keyword (the first word of a creature's role, e.g.
 --"Leader Controller" -> "leader") for any creature/monster properties, or nil. Read via
 --try_get + regex so it is safe on plain creature-typed properties: monster:Organization()

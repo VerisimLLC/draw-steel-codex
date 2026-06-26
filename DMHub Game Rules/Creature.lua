@@ -5094,15 +5094,16 @@ function creature.RegisterFeatureCalculation(args)
 end
 
 function creature:FillBaseActiveModifiers(result)
-	local modTable = GetTableCached(GlobalRuleMod.TableName) or {}
 	local globalFeatures = {}
     local isretainer = self:IsRetainer()
 	local ismonster = (not isretainer) and self:IsMonster()
 	local ischaracter = self.typeName == "character"
     local iscompanion = self.typeName == "AnimalCompanion"
 
-	--global features first, to do base-level rules like critical hits etc.
-	for k,mod in pairs(modTable) do
+	--global features first, to do base-level rules like critical hits etc. GetActiveRuleMods also
+	--folds in the rules from any rule-set attached to the currently-live encounter, so encounter
+	--rules are applied here in exactly the same way as global rules.
+	for k,mod in ipairs(GlobalRuleMod.GetActiveRuleMods()) do
 		if (not mod:try_get("hidden")) and ((ischaracter and mod.applyCharacters) or (ismonster and mod.applyMonsters) or (isretainer and mod.applyRetainers) or (iscompanion and mod.applyCompanions)) then
 			mod:FillClassFeatures(self:GetLevelChoices(), globalFeatures)
 		end

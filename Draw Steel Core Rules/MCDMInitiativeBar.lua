@@ -146,6 +146,22 @@ local anthemDuration = setting{
 	end
 }
 
+--Whether a playing anthem ducks (dips) the music mix group. Game-scoped/DM-owned
+--like the other anthem settings: the duck is applied locally on every client, so
+--a per-user pref would only quiet the DM's own mix while players still heard the
+--dip. Game storage makes the toggle authoritative for the whole table. Surfaced
+--as a checkbox on the Audio panel's Expanded view (read/written by id there).
+local anthemDuckMusic = setting{
+    id = "anthemduckmusic",
+    description = "Anthem Ducks Music",
+    editor = "check",
+    default = true,
+    ord = 102,
+    storage = "game",
+    section = "audio",
+    classes = {"dmonly"},
+}
+
 --Per-client anthem volume multipliers, keyed by token charid (0..1, missing = 1).
 --Lets each user locally turn down or mute a specific creature's anthem without
 --affecting what anyone else hears. Edited from the speaker icon on the center
@@ -3944,13 +3960,18 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
                             --fader (GroupShared) and personal anthem trim apply. The anthem
                             --group is not a duck target, so the anthem itself is never ducked.
                             m_anthemEventInstance.mixGroupId = "anthem"
+                            g_drawSteelAnthemState.tokenid = anthemToken.charid
+                            --Ducking is opt-out (DM "Anthem Ducks Music" setting). When off,
+                            --the anthem still plays + reports now-playing, but music is not
+                            --dipped (and duckActive stays false so the panel badge is hidden).
                             --TUNING: duck level + fades are interim hardcoded values pending the
                             --duck-settings config. Asymmetric: music dips fast (1.0s) as the
                             --anthem starts, then swells back slowly (2.5s) on release. See brief 14.
-                            audio.DuckGroup("music", 0.15, 1.0, 2.5)
-                            m_anthemDuckActive = true
-                            g_drawSteelAnthemState.tokenid = anthemToken.charid
-                            g_drawSteelAnthemState.duckActive = true
+                            if anthemDuckMusic:Get() then
+                                audio.DuckGroup("music", 0.15, 1.0, 2.5)
+                                m_anthemDuckActive = true
+                                g_drawSteelAnthemState.duckActive = true
+                            end
                             if anthemLimited:Get() then
                                 m_anthemEventInstance:SetStopAfter(anthemDuration:Get())
                             end

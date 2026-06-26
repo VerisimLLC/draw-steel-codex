@@ -92,6 +92,25 @@ LaunchablePanel.Register{
 
 local defaultFolder = "-MyddEFnH5IOto7qCx-3"
 
+--Per-user remembered dock view: "compact" (default, glanceable) or "expanded"
+--(the live mixing desk). Persists the DM's last choice across panel rebuilds /
+--reopens so a power user does not drop back to compact mid-session. The
+--Compact/Expanded segmented toggle on the panel writes it; the panel reads it on
+--build to pick the initial state.
+local audioPanelView = setting{
+	id = "audiopanelview",
+	description = "Audio panel view mode",
+	storage = "preference",
+	default = "compact",
+}
+
+--Max height of the dock's scrollable body (everything below the pinned now-playing
+--strip + view toggle). The dock host is a fixed 470px (minHeight=maxHeight in the
+--registration, vscroll=false); the pinned top eats ~100px, leaving ~360 for the
+--body. Compact content is shorter than this so it never scrolls; Expanded (with an
+--expanded Anthems drawer / many heroes) scrolls past it instead of clipping.
+local audioScrollMaxHeight = 360
+
 local createAudioPanel
 
 local FormatTime = function(value, maxValue)
@@ -1205,152 +1224,11 @@ CreateSoundPanel = function()
 
 	local audioFolderPanels = {}
 
-	--Layout-only replacement for the legacy folder-library style global. Colors
-	--now ride theme classes on the elements ({bgAlt}+{hoverable} header, {bgFg}
-	--triangle, label default @fgStrong). The triangle uses a local class name
-	--("audioFolderTri") so it does not collide with the themed DefaultStyles
-	--{triangle} rule, while keeping the parent:expanded flip. Drag highlight is
-	--handled by the engine's themed {drag-target} classes on the folder container.
-	local audioLibraryItems = gui.Panel{
-		styles = {
-			{
-				selectors = {"folderContainer"},
-				flow = "vertical",
-				width = "100%",
-				height = "auto",
-				valign = "top",
-			},
-			{
-				selectors = {"folderHeader"},
-				width = "100%",
-				flow = "horizontal",
-				height = 24,
-			},
-			{
-				selectors = {"audioFolderTri"},
-				bgimage = "panels/triangle.png",
-				width = 16,
-				height = 12,
-				hmargin = 4,
-				valign = "center",
-				halign = "left",
-			},
-			{
-				selectors = {"audioFolderTri", "parent:expanded"},
-				scale = {x = 1, y = -1},
-				transitionTime = 0.1,
-			},
-			{
-				selectors = {"folderLabel"},
-				width = "80%",
-				height = "100%",
-				halign = "left",
-				textAlignment = "left",
-			},
-		},
-
-		height = 500,
-
-		vscroll = true,
-
-
-		valign = "top",
-
-		monitorAssets = "audio",
-
-		events = {
-			create = function(element)
-				element:FireEvent('refreshAssets')
-			end,
-
-			refreshAssets = function(element)
-
-				local children = {}
-				local newAudioFolderPanels = {}
-				for k,audioFolder in pairs(assets.audioFoldersTable) do
-					newAudioFolderPanels[k] = audioFolderPanels[k] or CreateAudioFolder(k)
-					children[#children+1] = newAudioFolderPanels[k]
-				end
-
-				table.sort(children, function(a,b) return a.data.ord() < b.data.ord() end)
-				element.children = children
-
-				audioFolderPanels = newAudioFolderPanels
-
-			end,
-		},
-	}
-
-	local audioLibrary = gui.Panel{
-		width = "100%",
-		height = "auto",
-		flow = "vertical",
-
-		gui.Panel{
-			classes = {"bgFg"},
-			width = "100%",
-			height = 2,
-			bgimage = "panels/square.png",
-		},
-
-		gui.Panel{
-			width = "auto",
-			height = "auto",
-			flow = "horizontal",
-			vmargin = 4,
-			halign = "center",
-			gui.SearchInput{
-				search = function(element, str)
-					if str == "" then
-						audioLibraryItems:FireEventTree("clearsearch")
-					else
-						local clips = {}
-						local folders = {}
-						for k,audioAsset in pairs(assets.audioTable) do
-							if (not audioAsset.hidden) and string.find(string.lower(audioAsset.description), str) then
-								clips[k] = true
-								folders[audioAsset.parentFolder or defaultFolder] = true
-							end
-						end
-						audioLibraryItems:FireEventTree("search", { assets = clips, folders = folders })
-					end
-					
-				end,
-			},
-
-			gui.Button{
-				classes = {"addButton", "sizeM"},
-				hmargin = 4,
-				valign = "center",
-				press = function(element)
-					mod.shared.ImportAudio()
-				end,
-			}
-		},
-
-		audioLibraryItems,
-
-		gui.Button{
-			classes = {"sizeM"},
-			icon = "game-icons/open-folder.png",
-			halign = "right",
-			press = function(element)
-				assets:UploadNewAudioFolder{
-					description = "Sounds",
-				}
-			end,
-		},
-
-		classes = {"collapsed"},
-
-		maximize = function(element)
-			element:SetClass("collapsed", false)
-		end,
-
-		minimize = function(element)
-			element:SetClass("collapsed", true)
-		end,
-	}
+	--The folder library used to live here as a maximize-to-reveal drawer in the
+	--dock. It has moved to the Audio Studio (the "Audio Studio" button opens it),
+	--keeping the dock to live controls only. CreateAudioFolder above is kept
+	--dormant for the Studio's later nested-folder rebuild; audioFolderPanels is its
+	--cache. No in-dock library panel is built anymore.
 
 	local MakeSpectrumSample = function(index)
 		return gui.Panel{
@@ -1611,57 +1489,36 @@ CreateSoundPanel = function()
 		}
 	end
 
-	local levelsBody
-	local levelsArrow
+	--Master fader -- the always-visible level (shown in both Compact and Expanded).
+	--Reuses masterVolumeSlider, which writes audio.masterVolume live. A gui element
+	--has a single parent, so master lives here and NOT in categoryFaders below.
+	local masterRow = MakeFaderRow("Master", masterVolumeSlider, false)
 
-	levelsArrow = gui.ExpandoArrow{ classes = {"expanded"} }
-
-	local levelsHeader = gui.Panel{
-		flow = "horizontal",
-		width = "100%",
-		height = "auto",
-		valign = "center",
-		vmargin = 2,
-		press = function(element)
-			--starts expanded; first press collapses.
-			local expanding = levelsBody:HasClass("collapsed")
-			levelsBody:SetClass("collapsed", not expanding)
-			levelsArrow:SetClass("expanded", expanding)
-		end,
-
-		levelsArrow,
-
-		gui.Label{
-			classes = {"bold"},
-			text = "Levels",
-			width = "auto",
-			height = "auto",
-			hmargin = 4,
-			halign = "left",
-			valign = "center",
-		},
-	}
-
-	levelsBody = gui.Panel{
+	--Category broadcast faders -- the Expanded-only half of the mixing desk. These
+	--write the shared "audio mix" doc (the GroupShared table-mix layer). Hidden in
+	--Compact; the Compact/Expanded segmented toggle drives this collapsed class via
+	--ApplyViewMode. No inner collapse header -- the view toggle IS the disclosure,
+	--so Expanded reveals the faders directly (avoids redundant double-disclosure).
+	local categoryFaders = gui.Panel{
+		classes = {"collapsed"},
 		flow = "vertical",
 		width = "100%",
 		height = "auto",
 
+		MakeFaderRow("Music", MakeBroadcastFader("music"), false),
+		MakeFaderRow("Ambience", MakeBroadcastFader("ambience"), false),
+		MakeFaderRow("Effects", MakeBroadcastFader("effects"), false),
+		MakeFaderRow("UI Sounds", MakeBroadcastFader("uisounds"), false),
+		MakeFaderRow("Anthem", MakeBroadcastFader("anthem"), false),
+
 		gui.Label{
-			text = "Adjust the levels of each mix group for your table. More granular controls can be found in Settings->Audio.",
+			text = "More granular controls can be found in Settings->Audio.",
 			fontSize = 11,
 			width = "100%",
 			height = "auto",
 			textWrap = true,
 			vmargin = 2,
 		},
-
-		MakeFaderRow("Master", masterVolumeSlider, false),
-		MakeFaderRow("Music", MakeBroadcastFader("music"), false),
-		MakeFaderRow("Ambience", MakeBroadcastFader("ambience"), false),
-		MakeFaderRow("Effects", MakeBroadcastFader("effects"), false),
-		MakeFaderRow("UI Sounds", MakeBroadcastFader("uisounds"), false),
-		MakeFaderRow("Anthem", MakeBroadcastFader("anthem"), false),
 	}
 
 	--Mirror the persisted broadcast levels into this client's engine as soon as the panel
@@ -1669,15 +1526,15 @@ CreateSoundPanel = function()
 	--the always-on AudioMixBroadcast monitor.
 	ApplyBroadcastToEngine()
 
-	local levelsSection = gui.Panel{
+	local mixerSection = gui.Panel{
 		flow = "vertical",
 		width = "96%",
 		height = "auto",
 		halign = "center",
 		vmargin = 4,
 
-		levelsHeader,
-		levelsBody,
+		masterRow,
+		categoryFaders,
 	}
 
 	--Anthem node (Phase 1): a collapsible drawer listing each player hero, the
@@ -1959,6 +1816,168 @@ CreateSoundPanel = function()
 
 	local anthemNode = CreateAnthemNode()
 
+	--Ducking on/off (Expanded-only). Writes the game-scoped "Anthem Ducks Music"
+	--DM setting (defined in MCDMInitiativeBar.lua); the anthem hook gates its music
+	--duck on it, so turning this off stops the dip for the whole table. The visible
+	--"music ducked" badge on the now-playing strip is the paired feedback. Read by
+	--id (cross-file); the row monitors the setting so it stays in sync if the same
+	--toggle is changed from Settings->Audio.
+	local duckingCheck = gui.Check{
+		text = "Anthem ducks music",
+		fontSize = 13,
+		value = dmhub.GetSettingValue("anthemduckmusic"),
+		change = function(element)
+			dmhub.SetSettingValue("anthemduckmusic", element.value)
+		end,
+		refreshSetting = function(element)
+			element.value = dmhub.GetSettingValue("anthemduckmusic")
+		end,
+	}
+
+	local duckingRow = gui.Panel{
+		classes = {"collapsed"},
+		flow = "horizontal",
+		width = "96%",
+		height = "auto",
+		halign = "center",
+		valign = "center",
+		vmargin = 2,
+		monitor = "anthemduckmusic",
+		events = {
+			monitor = function(element)
+				duckingCheck:FireEvent("refreshSetting")
+			end,
+		},
+		duckingCheck,
+	}
+
+	--Soundboard drawer. Compact shows it collapsed (glance-and-go); Expanded opens
+	--it. The view toggle sets the collapsed state via ApplyViewMode, and the header
+	--arrow lets the DM open/close it manually within either mode.
+	local soundboardBody = gui.Panel{
+		classes = {"collapsed"},
+		flow = "vertical",
+		width = "100%",
+		height = "auto",
+
+		CreateAudioGrid(),
+	}
+
+	local soundboardArrow = gui.ExpandoArrow{}
+
+	local soundboardHeader = gui.Panel{
+		flow = "horizontal",
+		width = "100%",
+		height = "auto",
+		valign = "center",
+		vmargin = 2,
+		press = function(element)
+			local expanding = soundboardBody:HasClass("collapsed")
+			soundboardBody:SetClass("collapsed", not expanding)
+			soundboardArrow:SetClass("expanded", expanding)
+		end,
+
+		soundboardArrow,
+
+		gui.Label{
+			classes = {"bold"},
+			text = "Soundboard",
+			width = "auto",
+			height = "auto",
+			hmargin = 4,
+			halign = "left",
+			valign = "center",
+		},
+	}
+
+	local soundboardSection = gui.Panel{
+		flow = "vertical",
+		width = "96%",
+		height = "auto",
+		halign = "center",
+		vmargin = 4,
+
+		soundboardHeader,
+		soundboardBody,
+	}
+
+	--Compact/Expanded segmented toggle. Compact = glanceable (now-playing, master,
+	--collapsed soundboard); Expanded = the live mixing desk (category faders,
+	--ducking, anthem node, open soundboard). The active segment carries {selected}
+	--(themed filled state). ApplyViewMode drives every Expanded-only section's
+	--collapsed class and persists the choice to the audioPanelView preference.
+	local compactButton, expandedButton
+	local ApplyViewMode
+
+	compactButton = gui.Button{
+		classes = {"sizeXs"},
+		text = "Compact",
+		width = 76,
+		height = 22,
+		press = function()
+			ApplyViewMode("compact", true)
+		end,
+	}
+
+	expandedButton = gui.Button{
+		classes = {"sizeXs"},
+		text = "Expanded",
+		width = 76,
+		height = 22,
+		press = function()
+			ApplyViewMode("expanded", true)
+		end,
+	}
+
+	ApplyViewMode = function(mode, persist)
+		local expanded = (mode == "expanded")
+		compactButton:SetClass("selected", not expanded)
+		expandedButton:SetClass("selected", expanded)
+		categoryFaders:SetClass("collapsed", not expanded)
+		duckingRow:SetClass("collapsed", not expanded)
+		anthemNode:SetClass("collapsed", not expanded)
+		soundboardBody:SetClass("collapsed", not expanded)
+		soundboardArrow:SetClass("expanded", expanded)
+		if persist then
+			audioPanelView:Set(mode)
+		end
+	end
+
+	--Header row: segmented toggle on the left, Audio Studio entry on the right. The
+	--pill container fills the remaining width so the Studio button sits hard right.
+	local viewToggleRow = gui.Panel{
+		flow = "horizontal",
+		width = "96%",
+		height = "auto",
+		halign = "center",
+		valign = "center",
+		vmargin = 4,
+
+		gui.Panel{
+			flow = "horizontal",
+			width = "100% available",
+			height = "auto",
+			halign = "left",
+			valign = "center",
+			compactButton,
+			expandedButton,
+		},
+
+		--Opens the session-prep surface (a floating LaunchablePanel) without
+		--disturbing the dock. Library / mixer / soundboard prep live there.
+		gui.Button{
+			classes = {"sizeXs"},
+			text = "Audio Studio",
+			width = "auto",
+			height = 22,
+			halign = "right",
+			valign = "center",
+			press = function(element)
+				LaunchablePanel.LaunchPanelByName("Audio Studio")
+			end,
+		},
+	}
+
 	--Content root of the Audio dock panel. It inherits the DockablePanel host's
 	--ThemeEngine cascade (DockablePanel.lua runs GetStyles at the dock root), so
 	--no GetStyles/OnThemeChanged is declared here. The rules below are component
@@ -2061,86 +2080,33 @@ CreateSoundPanel = function()
 			element:FireEventTree("refreshPlayingAudio")
 		end,
 
+		--Restore the DM's last view (Compact/Expanded) when the panel builds.
+		create = function(element)
+			ApplyViewMode(audioPanelView:Get(), false)
+		end,
+
 		children = {
+			--Pinned top: now-playing strip (+ duck badge) and the view toggle stay
+			--put. Everything below scrolls so Expanded (esp. an expanded Anthems
+			--drawer with many heroes) scrolls rather than clipping the fixed 470px
+			--dock. Compact content is shorter than audioScrollMaxHeight, so it does
+			--not scroll.
 			audioVisualize,
+			viewToggleRow,
 
-			--Opens the session-prep surface (a floating LaunchablePanel) without
-			--disturbing the dock. Library / mixer / soundboard prep live there.
-			gui.Button{
-				classes = {"sizeS"},
-				text = "Audio Studio",
-				width = "90%",
-				height = 26,
+			gui.Panel{
+				vscroll = true,
+				width = "100%",
+				height = "auto",
+				maxHeight = audioScrollMaxHeight,
+				flow = "vertical",
 				halign = "center",
-				vmargin = 2,
-				press = function(element)
-					LaunchablePanel.LaunchPanelByName("Audio Studio")
-				end,
+
+				mixerSection,
+				duckingRow,
+				anthemNode,
+				soundboardSection,
 			},
-
-			levelsSection,
-
-			anthemNode,
-
-			CreateAudioGrid(),
-
-			gui.DockablePanelMaximizeButton(),
-
-			audioLibrary,
-			gui.Button{
-				classes = {"addButton", "sizeXl", "collapsed"},
-				width = 32,
-				height = 32,
-				valign = 'bottom',
-				halign = 'right',
-				events = {
-					click = function(element)
-
-						dmhub.OpenFileDialog{
-							id = 'AudioAssets',
-							extensions = {'ogg', 'mp3', 'wav', 'flac'},
-							multiFiles = true,
-							prompt = "Choose audio to load",
-							open = function(path)
-	
-								local operation
-								
-							
-								local assetid = assets:UploadAudioAsset{
-									path = path,
-									error = function(text)
-										gui.ModalMessage{
-											title = 'Error creating audio',
-											message = text,
-										}
-									end,
-
-									upload = function(id)
-										if operation ~= nil then
-											operation.progress = 1
-											operation:Update()
-										end
-									end,
-									progress = function(percent)
-										if operation ~= nil then
-											operation.progress = percent
-											operation:Update()
-										end
-									end,
-								}
-
-								if assetid ~= nil then
-									operation = dmhub.CreateNetworkOperation()
-									operation.description = "Uploading Audio..."
-									operation.status = "Uploading..."
-									operation.progress = 0.0
-									operation:Update()
-								end
-							end,
-						}
-					end,
-				},
-			}
 		}
 	}
 

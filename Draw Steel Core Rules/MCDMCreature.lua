@@ -5023,7 +5023,9 @@ function creature.TakeDamage(self, amount, note, info)
                 local selfToken = dmhub.LookupToken(self)
                 if selfToken ~= nil and selfToken.summonerid then
                     local summonerToken = dmhub.GetTokenById(selfToken.summonerid)
-                    if summonerToken ~= nil and summonerToken.valid then
+                    if summonerToken ~= nil and summonerToken.valid
+                        and (summonerToken.properties:CalculateNamedCustomAttribute("Prevent Overflow Damage") or 0) <= 0 then
+                        --The "Prevent Overflow Damage" custom attribute on the summoner exempts them from this rule.
                         local overflowDamage = 2 + summonerToken.properties:CharacterLevel()
                         summonerToken:ModifyProperties {
                             description = "Squad destroyed (excess damage)",

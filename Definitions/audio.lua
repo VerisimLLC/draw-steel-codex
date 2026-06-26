@@ -84,6 +84,28 @@ function audio.MixGroup(args)
 	-- dummy implementation for documentation purposes only
 end
 
+--- DuckGroup: Ducks a mix group's volume to a target level. Refcounted: pair each DuckGroup with a ReleaseDuck. fadeUp (optional) defaults to fadeDown -- pass a slower fadeUp so the bed swells back gently.
+--- @param id string The mix group id to duck (e.g. "music").
+--- @param level number Target volume multiplier 0..1.
+--- @param fadeDown number Fade-in (duck) duration in seconds.
+--- @param fadeUp? number Optional fade-out (release) duration in seconds; defaults to fadeDown.
+function audio.DuckGroup(id, level, fadeDown, fadeUp)
+	-- dummy implementation for documentation purposes only
+end
+
+--- ReleaseDuck: Releases a duck previously applied to a mix group with DuckGroup. Refcounted.
+--- @param id string The mix group id to release.
+function audio.ReleaseDuck(id)
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetGroupShared: Sets a mix group's shared broadcast level (0..1) -- the DM-controlled layer synced to all clients. Folds up the parent chain; defaults to 1.0 (transparent) for untouched groups.
+--- @param id string The mix group id (e.g. "music", "uisounds").
+--- @param value number Broadcast level 0..1.
+function audio.SetGroupShared(id, value)
+	-- dummy implementation for documentation purposes only
+end
+
 --- DispatchSoundEvent: Dispatches a sound event by name to all connected clients and plays it locally.
 --- @param name string The sound event name.
 --- @param args nil|table Optional arguments passed to the sound event.

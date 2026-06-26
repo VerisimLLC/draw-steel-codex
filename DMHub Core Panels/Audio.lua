@@ -1,5 +1,45 @@
 local mod = dmhub.GetModLoading()
 
+--Game-scoped shared document holding the DM's per-mix-group BROADCAST levels (the table
+--mix). The Audio panel "Levels" faders write it; every client mirrors it into the engine
+--via audio.SetGroupShared. See the broadcast helpers in CreateSoundPanel and the
+--all-clients monitor (AudioMixBroadcast) that keeps non-DM clients in sync.
+local audioMixDocId = "audioMix"
+
+--Mix groups whose broadcast level the DM controls from the panel "Levels" faders. Keyed
+--by mix-group id so each maps 1:1 to an audio.SetGroupShared call.
+local broadcastGroupIds = { "music", "ambience", "effects", "uisounds", "anthem" }
+
+--Keep the DM's broadcast levels in checkpoint backups (game-scoped DM state).
+mod:RegisterDocumentForCheckpointBackups(audioMixDocId)
+
+--All-clients broadcast sync. The Audio panel is dmonly, but this file's module-load code
+--runs on EVERY client, so this loop keeps each client's engine in sync with the DM's
+--broadcast levels even on clients that never open the panel (and on late joiners). The
+--doc snapshot syncs from the cloud; there is no panel-less change callback, so we poll it
+--and push only changed values into the local engine via audio.SetGroupShared. Cost is a
+--table read + a few compares per second. Guarded by mod.unloaded so a hot-reload's stale
+--loop stops and the fresh module owns the schedule (see CLAUDE.md module lifecycle).
+local broadcastSyncApplied = {}
+
+local function SyncBroadcastLevelsToEngine()
+	if mod.unloaded then
+		return
+	end
+	local doc = mod:GetDocumentSnapshot(audioMixDocId)
+	local b = doc.data.broadcast or {}
+	for _,g in ipairs(broadcastGroupIds) do
+		local v = b[g] or 1
+		if broadcastSyncApplied[g] ~= v then
+			broadcastSyncApplied[g] = v
+			audio.SetGroupShared(g, v)
+		end
+	end
+	dmhub.Schedule(1, SyncBroadcastLevelsToEngine)
+end
+
+dmhub.Schedule(1, SyncBroadcastLevelsToEngine)
+
 local function track(eventType, fields)
 	if dmhub.GetSettingValue("telemetry_enabled") == false then
 		return
@@ -1429,6 +1469,75 @@ CreateSoundPanel = function()
 	--follow-up, so until that lands they render dimmed + non-interactable. Per-user
 	--trims + the granular UI Sounds children live in Settings -> Audio. Default
 	--expanded so the master control stays as reachable as it was before.
+	--The shared "audio mix" document holds the DM's per-group BROADCAST levels (the table
+	--mix), synced to every client. The faders below write it; every client pushes its
+	--values into the local engine via audio.SetGroupShared (the GroupShared layer). This
+	--is the broadcast half of the two-layer model: final = personal x broadcast x duck;
+	--every factor is 0..1, so a player's personal trim can only attenuate below the
+	--broadcast (the cap rule self-enforces). Uses the module-scope broadcastGroupIds list.
+	local GetBroadcastLevel = function(groupid)
+		local doc = mod:GetDocumentSnapshot(audioMixDocId)
+		local b = doc.data.broadcast
+		if b == nil or b[groupid] == nil then
+			return 1
+		end
+		return b[groupid]
+	end
+
+	--Push every broadcast value from the doc into THIS client's engine cache.
+	local ApplyBroadcastToEngine = function()
+		local doc = mod:GetDocumentSnapshot(audioMixDocId)
+		local b = doc.data.broadcast or {}
+		for _,g in ipairs(broadcastGroupIds) do
+			audio.SetGroupShared(g, b[g] or 1)
+		end
+	end
+
+	local MakeBroadcastFader = function(groupid)
+		return gui.Slider{
+			style = {
+				width = 170,
+				height = 16,
+				halign = "right",
+				valign = "center",
+			},
+
+			sliderWidth = 150,
+			labelWidth = 0,
+			labelFormat = "",
+
+			minValue = 0,
+			maxValue = 1,
+
+			value = GetBroadcastLevel(groupid),
+
+			--A remote change (another client / the loaded doc) repaints the fader and
+			--re-pushes the value to the local engine.
+			monitorGame = mod:GetDocumentSnapshot(audioMixDocId).path,
+			refreshGame = function(element)
+				element.value = GetBroadcastLevel(groupid)
+				audio.SetGroupShared(groupid, element.value)
+			end,
+
+			--Live local feedback while dragging.
+			preview = function(element)
+				audio.SetGroupShared(groupid, element.value)
+			end,
+
+			--Commit to the shared doc so the table mix syncs to all clients.
+			confirm = function(element)
+				audio.SetGroupShared(groupid, element.value)
+				local doc = mod:GetDocumentSnapshot(audioMixDocId)
+				doc:BeginChange()
+				if doc.data.broadcast == nil then
+					doc.data.broadcast = {}
+				end
+				doc.data.broadcast[groupid] = element.value
+				doc:CompleteChange("Set " .. groupid .. " broadcast level")
+			end,
+		}
+	end
+
 	local MakeFaderRow = function(labelText, slider, dimmed)
 		return gui.Panel{
 			flow = "horizontal",
@@ -1447,24 +1556,6 @@ CreateSoundPanel = function()
 				valign = "center",
 			},
 			slider,
-		}
-	end
-
-	local MakePendingFader = function()
-		return gui.Slider{
-			value = 0.8,
-			minValue = 0,
-			maxValue = 1,
-			sliderWidth = 150,
-			labelWidth = 0,
-			labelFormat = "",
-			interactable = false,
-			style = {
-				width = 170,
-				height = 16,
-				halign = "right",
-				valign = "center",
-			},
 		}
 	end
 
@@ -1517,12 +1608,17 @@ CreateSoundPanel = function()
 		},
 
 		MakeFaderRow("Master", masterVolumeSlider, false),
-		MakeFaderRow("Music", MakePendingFader(), true),
-		MakeFaderRow("Ambience", MakePendingFader(), true),
-		MakeFaderRow("Effects", MakePendingFader(), true),
-		MakeFaderRow("UI Sounds", MakePendingFader(), true),
-		MakeFaderRow("Anthem", MakePendingFader(), true),
+		MakeFaderRow("Music", MakeBroadcastFader("music"), false),
+		MakeFaderRow("Ambience", MakeBroadcastFader("ambience"), false),
+		MakeFaderRow("Effects", MakeBroadcastFader("effects"), false),
+		MakeFaderRow("UI Sounds", MakeBroadcastFader("uisounds"), false),
+		MakeFaderRow("Anthem", MakeBroadcastFader("anthem"), false),
 	}
+
+	--Mirror the persisted broadcast levels into this client's engine as soon as the panel
+	--builds (covers the DM opening the panel after a reload). Non-DM clients are handled by
+	--the always-on AudioMixBroadcast monitor.
+	ApplyBroadcastToEngine()
 
 	local levelsSection = gui.Panel{
 		flow = "vertical",

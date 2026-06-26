@@ -72,6 +72,24 @@ DockablePanel.Register{
 	end,
 }
 
+--Audio Studio: the session-prep power surface. Deliberately a LaunchablePanel
+--(a floating window over the table, non-blocking) so it NEVER touches the user's
+--dock layout -- the dock Audio panel stays exactly where they put it. Opened from
+--the dock panel's "Audio Studio" button. This chunk builds the shell + the
+--library LIST; the mixer / ducking / soundboard prep land in later chunks (the
+--right column is a labelled skeleton for now).
+local CreateAudioStudio
+
+LaunchablePanel.Register{
+	name = "Audio Studio",
+	icon = "icons/standard/Icon_App_Audio.png",
+	halign = "center",
+	valign = "center",
+	content = function()
+		return CreateAudioStudio()
+	end,
+}
+
 local defaultFolder = "-MyddEFnH5IOto7qCx-3"
 
 local createAudioPanel
@@ -2045,6 +2063,21 @@ CreateSoundPanel = function()
 
 		children = {
 			audioVisualize,
+
+			--Opens the session-prep surface (a floating LaunchablePanel) without
+			--disturbing the dock. Library / mixer / soundboard prep live there.
+			gui.Button{
+				classes = {"sizeS"},
+				text = "Audio Studio",
+				width = "90%",
+				height = 26,
+				halign = "center",
+				vmargin = 2,
+				press = function(element)
+					LaunchablePanel.LaunchPanelByName("Audio Studio")
+				end,
+			},
+
 			levelsSection,
 
 			anthemNode,
@@ -2116,6 +2149,300 @@ CreateSoundPanel = function()
 	mainPanel:ScheduleEvent("refreshAudio", 0.01)
 
 	return mainPanel
+end
+
+
+--=== Audio Studio (LaunchablePanel content) ===============================
+--A floating session-prep window. It is a STANDALONE surface (not a child of a
+--themed dock host), so it owns its ThemeEngine root: GetStyles() + a paired
+--OnThemeChanged so it recolors live on a scheme switch.
+
+--Upload action for the Studio toolbar "+ Add audio".
+local OpenAudioStudioUpload = function()
+	dmhub.OpenFileDialog{
+		id = 'AudioAssets',
+		extensions = {'ogg', 'mp3', 'wav', 'flac'},
+		multiFiles = true,
+		prompt = "Choose audio to load",
+		open = function(path)
+			local operation
+			local assetid = assets:UploadAudioAsset{
+				path = path,
+				error = function(text)
+					gui.ModalMessage{ title = 'Error creating audio', message = text }
+				end,
+				upload = function(id)
+					if operation ~= nil then operation.progress = 1; operation:Update() end
+				end,
+				progress = function(percent)
+					if operation ~= nil then operation.progress = percent; operation:Update() end
+				end,
+			}
+			if assetid ~= nil then
+				operation = dmhub.CreateNetworkOperation()
+				operation.description = "Uploading Audio..."
+				operation.status = "Uploading..."
+				operation.progress = 0.0
+				operation:Update()
+			end
+		end,
+	}
+end
+
+--One library row: play/stop + name + per-row category dropdown + volume. Plays
+--through the same GameSoundEvent path as the dock tiles.
+local CreateAudioStudioRow = function(audioAsset)
+	local soundEventDocId = string.format("soundevent-%s", audioAsset.id)
+
+	local playButton = gui.Panel{
+		bgimage = "panels/triangle.png",
+		bgcolor = "white",
+		rotate = 90,
+		width = 12,
+		height = 12,
+		halign = "left",
+		valign = "center",
+		hmargin = 6,
+		refreshPlayingAudio = function(element)
+			local playing = audio.currentlyPlaying[audioAsset.id] ~= nil
+			element.bgimage = playing and "panels/square.png" or "panels/triangle.png"
+		end,
+		press = function(element)
+			if audio.currentlyPlaying[audioAsset.id] ~= nil then
+				audio.StopSoundEvent(audioAsset.id)
+			else
+				audio.PlaySoundEvent{ asset = audioAsset, volume = audioAsset.volume }
+			end
+		end,
+	}
+
+	local nameLabel = gui.Label{
+		text = audioAsset.description,
+		width = "100%-240",
+		height = "auto",
+		halign = "left",
+		valign = "center",
+		monitorAssets = "audio",
+		refreshAssets = function(element)
+			element.text = audioAsset.description
+		end,
+	}
+
+	local CurrentCategoryId = function()
+		local c = audioAsset.category
+		if c == nil or c == "" then
+			return "none"
+		end
+		return c
+	end
+
+	local categorySelector = gui.Dropdown{
+		width = 110,
+		height = 22,
+		fontSize = 12,
+		halign = "right",
+		valign = "center",
+		hmargin = 4,
+		options = {
+			{ id = "none", text = "-" },
+			{ id = "music", text = "Music" },
+			{ id = "ambience", text = "Ambience" },
+			{ id = "effects", text = "Effects" },
+		},
+		idChosen = CurrentCategoryId(),
+		monitorAssets = "audio",
+		refreshAssets = function(element)
+			element.idChosen = CurrentCategoryId()
+		end,
+		change = function(element)
+			local newCategory = element.idChosen
+			if newCategory == "none" then
+				newCategory = nil
+			end
+			audioAsset.category = newCategory
+			audioAsset:Upload()
+		end,
+	}
+
+	local volumeSlider = gui.Slider{
+		value = audioAsset.volume,
+		minValue = 0,
+		maxValue = 1,
+		sliderWidth = 70,
+		labelWidth = 0,
+		labelFormat = "",
+		style = { width = 90, height = 16, halign = "right", valign = "center" },
+		events = {
+			preview = function(element)
+				audio.SetSoundEventVolume(audioAsset.id, element.value)
+			end,
+			confirm = function(element)
+				audio.SetSoundEventVolume(audioAsset.id, element.value)
+				local doc = mod:GetDocumentSnapshot(soundEventDocId)
+				doc:BeginChange()
+				doc.data.volume = element.value
+				doc:CompleteChange("Set audio volume")
+			end,
+			refreshPlayingAudio = function(element)
+				local doc = mod:GetDocumentSnapshot(soundEventDocId)
+				element.value = cond(doc.data.volume ~= nil, doc.data.volume, audioAsset.volume)
+			end,
+		},
+	}
+
+	return gui.Panel{
+		classes = {"bordered", "hoverable"},
+		flow = "horizontal",
+		width = "100%",
+		height = 30,
+		valign = "center",
+		vmargin = 1,
+		playButton,
+		nameLabel,
+		categorySelector,
+		volumeSlider,
+	}
+end
+
+--Labelled placeholder for the prep controls that arrive in later chunks.
+local CreateStudioPlaceholder = function(title)
+	return gui.Panel{
+		classes = {"bordered"},
+		flow = "vertical",
+		width = "100%",
+		height = "auto",
+		pad = 8,
+		borderBox = true,
+		vmargin = 4,
+		gui.Label{ classes = {"bold", "sizeS"}, text = title, width = "auto", height = "auto", halign = "left" },
+		gui.Label{ classes = {"fgMuted"}, text = "Coming in a later chunk", width = "auto", height = "auto", halign = "left", vmargin = 2 },
+	}
+end
+
+CreateAudioStudio = function()
+	if not dmhub.isDM then
+		return nil
+	end
+
+	--Library list (flat, alphabetical, all non-hidden audio assets).
+	local libraryListItems = gui.Panel{
+		flow = "vertical",
+		width = "100%",
+		height = "100%-24",
+		vscroll = true,
+		valign = "top",
+		monitorAssets = "audio",
+		create = function(element)
+			element:FireEvent("refreshAssets")
+		end,
+		refreshAssets = function(element)
+			local entries = {}
+			for _,audioAsset in pairs(assets.audioTable) do
+				if not audioAsset.hidden then
+					entries[#entries+1] = audioAsset
+				end
+			end
+			table.sort(entries, function(a,b) return (a.description or "") < (b.description or "") end)
+			local children = {}
+			for _,audioAsset in ipairs(entries) do
+				children[#children+1] = CreateAudioStudioRow(audioAsset)
+			end
+			element.children = children
+			element:FireEventTree("refreshPlayingAudio")
+		end,
+	}
+
+	local leftColumn = gui.Panel{
+		flow = "vertical",
+		width = "58%",
+		height = "100%",
+		hmargin = 4,
+		gui.Label{ classes = {"bold", "sizeS"}, text = "Library", width = "auto", height = "auto", halign = "left", vmargin = 2 },
+		libraryListItems,
+	}
+
+	local rightColumn = gui.Panel{
+		flow = "vertical",
+		width = "40%",
+		height = "100%",
+		hmargin = 4,
+		vscroll = true,
+		CreateStudioPlaceholder("Mixer"),
+		CreateStudioPlaceholder("Ducking"),
+		CreateStudioPlaceholder("Soundboard"),
+	}
+
+	local body = gui.Panel{
+		flow = "horizontal",
+		width = "100%",
+		height = "100%-92",
+		valign = "top",
+		leftColumn,
+		rightColumn,
+	}
+
+	local header = gui.Panel{
+		flow = "horizontal",
+		width = "100%",
+		height = "auto",
+		valign = "center",
+		gui.Label{
+			classes = {"sizeXl", "bold"},
+			text = "Audio Studio",
+			width = "auto",
+			height = "auto",
+			halign = "left",
+			valign = "center",
+		},
+		gui.Button{
+			classes = {"sizeS"},
+			text = "+ Add audio",
+			width = 120,
+			height = 28,
+			halign = "right",
+			valign = "center",
+			press = function(element)
+				OpenAudioStudioUpload()
+			end,
+		},
+	}
+
+	local root
+	root = gui.Panel{
+		classes = {"launchablePanel"},
+		styles = ThemeEngine.GetStyles(),
+		width = 960,
+		height = 680,
+		flow = "vertical",
+		pad = 16,
+		data = {},
+		create = function(element)
+			element.data.themeSub = ThemeEngine.OnThemeChanged(mod, function()
+				if element.valid then
+					element.styles = ThemeEngine.GetStyles()
+				end
+			end)
+		end,
+		destroy = function(element)
+			if element.data.themeSub ~= nil then
+				element.data.themeSub:Deregister()
+				element.data.themeSub = nil
+			end
+		end,
+
+		refreshAudio = function(element)
+			element:FireEventTree("refreshPlayingAudio")
+		end,
+
+		header,
+		gui.MCDMDivider{ bmargin = 8 },
+		body,
+	}
+
+	audio.events:Listen(root)
+	root:ScheduleEvent("refreshAudio", 0.01)
+
+	return root
 end
 
 

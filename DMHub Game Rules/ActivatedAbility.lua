@@ -2406,12 +2406,19 @@ function CastActivatedAbilityChatMessage.Render(self, message)
         refreshMessage = function(element, message)
             self = message.properties
             m_status = message.properties.status
-            if m_status == "executing" then
-                statusLabel.thinkTime = 0.25
-            else
-                statusLabel.thinkTime = nil
+            --statusLabel may have been recycled/destroyed out from under this closure
+            --during teardown (its panel reads as nil once recycled), while the parent
+            --resultPanel that fires refreshMessage is still alive. Setting .thinkTime on
+            --a dead panel NREs in the C# setter, so guard on validity (same pattern the
+            --action log uses for stored message-panel refs).
+            if statusLabel.valid then
+                if m_status == "executing" then
+                    statusLabel.thinkTime = 0.25
+                else
+                    statusLabel.thinkTime = nil
+                end
+                statusLabel:FireEvent("updateMessage")
             end
-            statusLabel:FireEvent("updateMessage")
         end,
 
         card,

@@ -2750,11 +2750,20 @@ local CreateObjectEditor = function(nodes, options)
 		end
 
 		liveEditPanel = gui.Panel{
-			classes = {"sectionPanel", "bordered", cond(options.blueprint, "big")},
+			classes = {"sectionPanel", "bordered", cond(options.blueprint, "big"), cond(selectedComponentName ~= "Core" and selectedComponentName ~= "Map", "collapsed")},
 			bgimage = true,
 			height = 72,
 			flow = "horizontal",
 			valign = "top",
+
+			--Only show the image-editing controls (Live Edit / Replace Image)
+			--when the Core or Map component is selected. Other components
+			--(light, collision, etc.) don't edit the object's image, so this
+			--panel collapses out of the layout for them. Fired via the
+			--editorPanel:FireEventTree('refresh') that runs on component switch.
+			refresh = function(element)
+				element:SetClass("collapsed", selectedComponentName ~= "Core" and selectedComponentName ~= "Map")
+			end,
 
 			gui.Panel{
 				bgimage = nodes[1].displayImageId,

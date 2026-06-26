@@ -116,18 +116,51 @@ function DTInfo:GetFollowerIdsWithRolls()
     return result
 end
 
---- Repairs a stored project that lost its DTProject metatable on deserialization.
---- Legacy projects (created before DTProject used the engine constructor) were stored
---- without a "__typeName" tag, so the engine deserializes them as plain method-less
---- tables. Re-attaching DTProject.mt restores the methods AND causes the project to be
---- re-serialized with its "__typeName" tag, permanently healing the persisted data on
---- the next save. See DTProject.lua / ScriptSerialize.cs (__typeName <-> MetaTable).
+--- Repairs a stored project that lost its DTProject metatable on deserialization
+--- and backfills any structural fields the persisted record is missing.
+---
+--- Two distinct problems are healed here:
+---
+--- 1. Legacy projects (created before DTProject used the engine constructor) were
+---    stored without a "__typeName" tag, so the engine deserializes them as plain
+---    method-less tables. Re-attaching DTProject.mt restores the methods AND causes
+---    the project to be re-serialized with its "__typeName" tag, permanently healing
+---    the persisted data on the next save. See ScriptSerialize.cs (__typeName <-> MetaTable).
+---
+--- 2. Once the DTProject metatable is attached, reading a field that is absent from the
+---    record no longer returns nil -- the RegisterGameType metatable raises "Attempt to
+---    read unknown field" instead (see lua-core RegisterGameType __index). Several
+---    accessors read structural fields raw and only guard with "or {}" AFTER the read
+---    (e.g. DTProject:GetRolls -> "return self.projectRolls or {}", DTProject:GetID ->
+---    "return self.id"), which the guard cannot save because the read itself throws.
+---    Older records predate one or more of these fields, so we backfill the ones that
+---    have no type-level default before any accessor runs. "id" is recovered from the
+---    table key (the project's GUID), which is authoritative, rather than minting a new
+---    one that would desync the project from its share/lookup references.
 --- @param project any A value pulled from the downtimeProjects table
---- @return any project The same value, with its metatable restored if it was a plain table
-local function _rehydrateProject(project)
-    if type(project) == "table" and type(project.GetID) ~= "function" then
+--- @param key string The GUID key this project is stored under (authoritative id)
+--- @return any project The same value, with its metatable and structural fields restored
+local function _rehydrateProject(project, key)
+    if type(project) ~= "table" then
+        return project
+    end
+
+    if type(project.GetID) ~= "function" then
         setmetatable(project, DTProject.mt)
     end
+
+    -- Backfill structural fields with no type-level default. Use has_key (rawget) so the
+    -- presence check itself does not trip the error-raising metatable.
+    if not project:has_key("id") then
+        project.id = key
+    end
+    if not project:has_key("projectRolls") then
+        project.projectRolls = {}
+    end
+    if not project:has_key("progressAdjustments") then
+        project.progressAdjustments = {}
+    end
+
     return project
 end
 
@@ -136,7 +169,7 @@ end
 function DTInfo:GetProjects()
     local projects = self:try_get("downtimeProjects") or {}
     for key, project in pairs(projects) do
-        projects[key] = _rehydrateProject(project)
+        projects[key] = _rehydrateProject(project, key)
     end
     return projects
 end

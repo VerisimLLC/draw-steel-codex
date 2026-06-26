@@ -141,6 +141,10 @@ function GameHud.TokenMoving(self, token, path)
 		if distMoved > 0 then
 			text = string.format(tr("%s\nAlready moved %s %s this turn."), text, MeasurementSystem.NativeToDisplayString(distMoved*dmhub.FeetPerTile), string.lower(MeasurementSystem.UnitName()))
 		end
+
+		if creature:CanTeleport() then
+			text = string.format(tr("%s\n<color=#00ff00>This token can teleport. Hold ctrl to teleport.</color>"), text)
+		end
     elseif creature ~= nil and path.shifting then
 		text = string.format(tr('%s\n%s moves %s %s per round when using <b>disengage</b> to shift'), text, creature.GetTokenDescription(token), MeasurementSystem.NativeToDisplayString(creature:CarefulMovementSpeed()), string.lower(MeasurementSystem.UnitName()))
 

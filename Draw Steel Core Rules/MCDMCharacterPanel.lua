@@ -6765,7 +6765,7 @@ function TacPanel.MultiEdit()
                 lmargin = 0,
                 gui.Label{
                     classes = {"me-eds-label"},
-                    text = "EDS:",
+                    text = "ES:",
                 },
                 gui.Label{
                     classes = {"me-eds-input"},

@@ -44,12 +44,6 @@ function dataDiagnostics.DumpMipChain()
 	-- dummy implementation for documentation purposes only
 end
 
---- DumpRasterMeshBounds: Diagnostic: For each MapRasterMesh on the current floor, dump its height (local Z) range, mesh bounds, whether Unity considers it visible, and whether its RAW height-based bounds (pre z==0 fix) would survive the main camera frustum. Reveals deep flat elevation chunks that get frustum-culled into black holes because the terrain shader renders them at z==0 while Unity culls them at their raw height.
---- @return string Per-chunk visibility/bounds report plus the camera frustum parameters.
-function dataDiagnostics.DumpRasterMeshBounds()
-	-- dummy implementation for documentation purposes only
-end
-
 --- ToggleRasterMeshes: Diagnostic: Toggle the MeshRenderer of all MapRasterMesh objects in the scene to confirm whether they are drawing the visible water texture.
 --- @param enabled boolean Whether MapRasterMesh renderers should be enabled.
 --- @return number Count of renderers toggled.
@@ -62,6 +56,12 @@ end
 --- @param enabled boolean Whether matching renderers should be enabled.
 --- @return number Count of renderers toggled.
 function dataDiagnostics.ToggleRenderersByName(substring, enabled)
+	-- dummy implementation for documentation purposes only
+end
+
+--- DumpRasterMeshBounds: Diagnostic: Enumerate all cameras (near/far/etc), then for each MapRasterMesh on the current floor dump its height (local Z) range, whether Unity considers it visible, and -- per camera -- whether its RAW height-based bounds (pre z==0 fix) would be culled while the FIXED bounds survive. Reveals deep elevation chunks that get frustum-culled into black holes because the terrain shader renders them at the floor's z==0 plane while a tight-clip per-floor camera culls them at their raw negative height.
+--- @return string Per-chunk visibility/bounds report plus the camera frustum parameters.
+function dataDiagnostics.DumpRasterMeshBounds()
 	-- dummy implementation for documentation purposes only
 end
 

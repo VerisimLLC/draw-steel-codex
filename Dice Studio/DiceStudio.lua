@@ -2622,6 +2622,11 @@ end
 					scene.solo = not mcdmMode
 					scene.fixedTime = true
 					scene.initialRotation = 90
+					--Reset the spin AXIS to vertical: the shared preview scene is a
+					--singleton, so a non-zero spinAxisAngle left over from a shop
+					--banner (a Dice item's spinDirection) would otherwise tilt this
+					--recording. pcall-guarded for older engine binaries that lack it.
+					pcall(function() scene.spinAxisAngle = 0 end)
 					scene.diceScale = cond(mcdmMode, 2.5, 4)
 					scene.bgcolor = videobg
 				end

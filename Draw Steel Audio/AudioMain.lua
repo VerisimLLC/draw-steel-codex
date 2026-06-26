@@ -58,6 +58,13 @@ audio.MixGroup{
     name = tr("Footsteps"),
 }
 
+--Anthem: its own top-level bus so the Anthem panel fader scales all anthems. NOT a duck
+--target (anthems ride full over the ducked music bed), so nothing ever DuckGroups it.
+audio.MixGroup{
+    id = "anthem",
+    name = tr("Anthem"),
+}
+
 
 --UI Sounds
 

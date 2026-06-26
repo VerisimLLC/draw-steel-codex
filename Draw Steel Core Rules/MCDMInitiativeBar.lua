@@ -3940,10 +3940,14 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
                         if asset ~= nil then
                             m_anthemEventInstance = asset:Play()
                             m_anthemEventInstance.volume = anthemToken.anthemVolume * GetLocalAnthemVolume(anthemToken.charid)
-                            --TUNING: duck level + fade are interim hardcoded values pending the
-                            --duck-settings config. Wanted: a slower fade-UP than fade-down (the duck
-                            --primitive currently takes a single symmetric fadeTime). See brief 14.
-                            audio.DuckGroup("music", 0.15, 1.5)
+                            --Route the anthem through its own mix group so the Anthem panel
+                            --fader (GroupShared) and personal anthem trim apply. The anthem
+                            --group is not a duck target, so the anthem itself is never ducked.
+                            m_anthemEventInstance.mixGroupId = "anthem"
+                            --TUNING: duck level + fades are interim hardcoded values pending the
+                            --duck-settings config. Asymmetric: music dips fast (1.0s) as the
+                            --anthem starts, then swells back slowly (2.5s) on release. See brief 14.
+                            audio.DuckGroup("music", 0.15, 1.0, 2.5)
                             m_anthemDuckActive = true
                             g_drawSteelAnthemState.tokenid = anthemToken.charid
                             g_drawSteelAnthemState.duckActive = true

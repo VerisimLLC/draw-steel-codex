@@ -4,8 +4,9 @@
 --- @field solo boolean 
 --- @field pitch number 
 --- @field delay number 
---- @field time number 
---- @field duration number 
+--- @field time number
+--- @field duration number
+--- @field mixGroupId any
 SoundEventInstanceLua = {}
 
 --- SetStopAfter

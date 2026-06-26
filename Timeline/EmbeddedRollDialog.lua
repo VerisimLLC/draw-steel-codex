@@ -774,6 +774,45 @@ function GameHud.CreateEmbeddedRollDialog()
 
         local roll = baseRoll
 
+        --Capture the top-level RollDefinition flags from the ORIGINAL base roll
+        --before any normalization, because dmhub.NormalizeRoll / dmhub.RollToString
+        --do not re-emit them and would otherwise silently drop the flags 
+        local function ExtractRollFlags(src)
+            return {
+                minroll   = string.match(src, "minroll%s+(%-?%d+)"),
+                reroll    = string.match(src, "reroll%s+(%-?%d+)"),
+                exploding = string.find(src, "exploding") ~= nil,
+            }
+        end
+        local g_baseRollFlags = ExtractRollFlags(baseRoll)
+
+        --Re-append any flag suffix that is present in the original base roll 
+        local function PreserveRollFlags(text)
+            if g_baseRollFlags == nil then
+                return text
+            end
+
+            if g_baseRollFlags.minroll ~= nil and string.find(text, "minroll") == nil then
+                text = string.format("%s minroll %s", text, g_baseRollFlags.minroll)
+            end
+
+            if g_baseRollFlags.reroll ~= nil and string.find(text, "reroll") == nil then
+                text = string.format("%s reroll %s", text, g_baseRollFlags.reroll)
+            end
+
+            if g_baseRollFlags.exploding and string.find(text, "exploding") == nil then
+                text = string.format("%s exploding", text)
+            end
+
+            return text
+        end
+
+        --Round-trip a roll string through Parse -> ToString while preserving the
+        --top-level flags that ToString drops.
+        local function RestringifyRoll(text)
+            return PreserveRollFlags(dmhub.RollToString(dmhub.ParseRoll(text, creature)))
+        end
+
         local enabledModifiers = GetEnabledModifiers()
 
         if GameSystem.UseBoons then
@@ -841,7 +880,7 @@ function GameHud.CreateEmbeddedRollDialog()
 
         local rollInfo = dmhub.ParseRoll(roll, creature)
 
-        local newText = dmhub.RollToString(rollInfo)
+        local newText = PreserveRollFlags(dmhub.RollToString(rollInfo))
 
         if #afterCritMods > 0 then
             for i, mod in ipairs(afterCritMods) do
@@ -849,7 +888,7 @@ function GameHud.CreateEmbeddedRollDialog()
             end
 
             rollInfo = dmhub.ParseRoll(newText, creature)
-            newText = dmhub.RollToString(rollInfo)
+            newText = PreserveRollFlags(dmhub.RollToString(rollInfo))
         end
 
         if dmhub.isDM and dmhub.GetSettingValue("preroll") then
@@ -859,7 +898,7 @@ function GameHud.CreateEmbeddedRollDialog()
                 newText = string.format("%s%s%s [%s]", newText, cond(newText == "", "", " "), n, k)
             end
 
-            newText = dmhub.RollToString(dmhub.ParseRoll(newText, creature))
+            newText = RestringifyRoll(newText)
         end
 
         if GameSystem.CombineNegativesForRolls then

@@ -584,15 +584,41 @@ CharacterModifier.RegisterAbilityModifier
 		},
 	} ]]
 
+--Top-level roll flags (minroll/reroll/exploding/critical/...) must be appended to the whole
+--roll as trailing tokens. Wrapping them in +(...) like an additive damage term makes the roll
+--parser treat them as an added sub-expression and silently drop the flag -- e.g. "1d6+(minroll 3)"
+--parses as plain "1d6". Detect a flag-led value and append it directly instead.
+local g_directDamageRollFlags = {
+	"minroll", "reroll", "exploding", "critical", "autocritical",
+	"autosuccess", "autofailure", "nottierone", "nottierthree",
+	"tierup", "tierdown", "extradie", "extradice",
+}
+
+local function DirectDamageRollValueIsFlag(value)
+	local trimmed = string.lower(string.trim(value or ""))
+	for _,keyword in ipairs(g_directDamageRollFlags) do
+		if string.find(trimmed, "^" .. keyword) then
+			return true
+		end
+	end
+	return false
+end
+
 CharacterModifier.RegisterAbilityModifier
 	{
 		id = "directdamageroll",
 		text = "Direct Damage Rolls",
 		operations = { "Add" },
 		set = function(modifier, creature, ability, operation, value)
+			local isFlag = DirectDamageRollValueIsFlag(value)
 			for i,behavior in ipairs(ability.behaviors) do
 				if behavior.typeName == "ActivatedAbilityDamageBehavior" then
-					behavior.roll = string.format("%s+(%s)", behavior.roll, value)
+					if isFlag then
+						--append as a trailing top-level roll flag, not an added damage term.
+						behavior.roll = string.format("%s %s", behavior.roll, value)
+					else
+						behavior.roll = string.format("%s+(%s)", behavior.roll, value)
+					end
 				end
 			end
 		end,

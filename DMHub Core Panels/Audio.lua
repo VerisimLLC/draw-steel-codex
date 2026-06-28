@@ -1972,15 +1972,19 @@ CreateSoundPanel = function()
 
 		--Opens the session-prep surface (a floating LaunchablePanel) without
 		--disturbing the dock. Library / mixer / soundboard prep live there.
+		--Icon-only launch (gui.Button only lays out an icon cleanly WITHOUT text -- an
+		--icon+text button garbles in this cramped dock header). Tooltip carries the name.
 		gui.Button{
-			classes = {"sizeXs"},
-			text = "Audio Studio",
-			width = "auto",
-			height = 22,
+			icon = "icons/standard/Icon_App_GameControls.png",
+			width = 18,
+			height = 18,
 			halign = "right",
 			valign = "center",
 			press = function(element)
 				LaunchablePanel.LaunchPanelByName("Audio Studio")
+			end,
+			linger = function(element)
+				gui.Tooltip("Open Audio Studio")(element)
 			end,
 		},
 	}
@@ -2166,22 +2170,41 @@ end
 --through the same GameSoundEvent path as the dock tiles. opts carries the library
 --tree's drag wiring (draggable / canDragOnto / drag) so a clip can be dragged into
 --a folder; it is nil when the row is used outside the tree.
+--DM-only audition ("cue"): only one library clip previews at a time. asset:Play()
+--is local-only (never broadcast) and bypasses the mix groups/master, so a cue is raw
+--local playback for "does this track fit", not a level-matched monitor. Tracked at
+--module scope so starting a cue in one row stops the cue in another.
+local g_studioCueInstance = nil
+local g_studioCueAssetId = nil
+local function StopStudioCue()
+	if g_studioCueInstance ~= nil then
+		pcall(function() g_studioCueInstance:Stop() end)
+	end
+	g_studioCueInstance = nil
+	g_studioCueAssetId = nil
+end
+local function StudioCueActive(assetid)
+	return g_studioCueAssetId == assetid and g_studioCueInstance ~= nil and g_studioCueInstance.playing
+end
+
 local CreateAudioStudioRow = function(audioAsset, opts)
 	opts = opts or {}
 	local soundEventDocId = string.format("soundevent-%s", audioAsset.id)
 
+	--Broadcast Play/Stop (heard by the whole table via PlaySoundEvent). A dedicated
+	--play glyph -- NOT the chevron-like triangle, which read as a folder expander.
+	--Playing state swaps to a stop square tinted "live" (amber via the playing class).
 	local playButton = gui.Panel{
-		bgimage = "panels/triangle.png",
-		bgcolor = "white",
-		rotate = 90,
-		width = 12,
-		height = 12,
-		halign = "left",
+		classes = {"audioBroadcastButton"},
+		bgimage = "ui-icons/AudioPlayButton.png",
+		width = 18,
+		height = 18,
 		valign = "center",
-		hmargin = 6,
+		hmargin = 3,
 		refreshPlayingAudio = function(element)
 			local playing = audio.currentlyPlaying[audioAsset.id] ~= nil
-			element.bgimage = playing and "panels/square.png" or "panels/triangle.png"
+			element.bgimage = playing and "panels/square.png" or "ui-icons/AudioPlayButton.png"
+			element:SetClass("playing", playing)
 		end,
 		press = function(element)
 			if audio.currentlyPlaying[audioAsset.id] ~= nil then
@@ -2190,14 +2213,62 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 				audio.PlaySoundEvent{ asset = audioAsset, volume = audioAsset.volume }
 			end
 		end,
+		linger = function(element)
+			gui.Tooltip("Play to the table")(element)
+		end,
 	}
 
-	--Fixed name width so the controls sit left-of-centre with blank space on the
-	--right before the scrollbar (not right-aligned); long names truncate to one line
-	--with the full name on hover.
+	--DM-only audition (the eye glyph stands in for a headphone -- no headphone icon
+	--ships). Local asset:Play(); turns "active" (green) while this row is cueing and
+	--polls so it clears when the clip ends or another row takes over.
+	local cueButton
+	cueButton = gui.Panel{
+		classes = {"audioCueButton"},
+		bgimage = "icons/standard/Icon_App_Visible.png",
+		width = 18,
+		height = 18,
+		valign = "center",
+		hmargin = 3,
+		press = function(element)
+			if StudioCueActive(audioAsset.id) then
+				StopStudioCue()
+			else
+				StopStudioCue()
+				g_studioCueInstance = audioAsset:Play()
+				g_studioCueAssetId = audioAsset.id
+				if g_studioCueInstance ~= nil then
+					g_studioCueInstance.volume = audioAsset.volume
+				end
+			end
+			element:FireEvent("refreshCue")
+		end,
+		refreshCue = function(element)
+			local active = StudioCueActive(audioAsset.id)
+			element:SetClass("active", active)
+			element.thinkTime = active and 0.3 or nil
+		end,
+		think = function(element)
+			--Stop polling (and clear the active tint) once this row is no longer the
+			--cueing one -- clip finished, or another row started its own cue.
+			if not StudioCueActive(audioAsset.id) then
+				element:SetClass("active", false)
+				element.thinkTime = nil
+			end
+		end,
+		create = function(element)
+			element:FireEvent("refreshCue")
+		end,
+		linger = function(element)
+			gui.Tooltip("Preview (Director Only)")(element)
+		end,
+	}
+
+	--Title is the leftmost scan anchor and flexes to fill; the controls sit to its
+	--right. Width is the column minus the fixed control cluster (play+cue+category+
+	--volume+margins) -- a deterministic complement, since "100% available" collapses.
 	local nameLabel = gui.Label{
 		text = audioAsset.description,
-		width = 290,
+		width = "100%-240",
 		height = "auto",
 		halign = "left",
 		valign = "center",
@@ -2226,7 +2297,7 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 		height = 22,
 		fontSize = 12,
 		valign = "center",
-		hmargin = 4,
+		hmargin = 3,
 		options = {
 			{ id = "none", text = "-" },
 			{ id = "music", text = "Music" },
@@ -2315,8 +2386,9 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 			element:SetClass("selected", selectedSet ~= nil and selectedSet[audioAsset.id] == true)
 		end,
 		reorderSpacer,
-		playButton,
 		nameLabel,
+		playButton,
+		cueButton,
 		categorySelector,
 		volumeSlider,
 	}
@@ -3339,6 +3411,18 @@ CreateAudioStudio = function()
 		{ selectors = {"audioClipRow", "selected"}, bgcolor = "@bgAlt", borderColor = "@accent" },
 		{ selectors = {"audioClipSpacer"}, bgcolor = "clear" },
 		{ selectors = {"audioClipSpacer", "active"}, bgcolor = "@accent", opacity = 0.6 },
+		--Broadcast Play/Stop: neutral glyph; brighter on hover; "live" amber when playing.
+		{ selectors = {"audioBroadcastButton"}, bgcolor = "white" },
+		{ selectors = {"audioBroadcastButton", "hover"}, brightness = 1.4 },
+		{ selectors = {"audioBroadcastButton", "playing"}, bgcolor = "@warning" },
+		--DM cue (eye): dim until hovered; green while this row is auditioning locally.
+		{ selectors = {"audioCueButton"}, bgcolor = "white", opacity = 0.55 },
+		{ selectors = {"audioCueButton", "hover"}, opacity = 1 },
+		{ selectors = {"audioCueButton", "active"}, bgcolor = "@success", opacity = 1 },
+		--Soundboard clear "x": default colour at rest, @danger tint on hover so the
+		--destructive intent reveals when you point at it (no flicker -- only the colour
+		--changes, the element stays present).
+		{ selectors = {"audioStudioClearGlyph", "parent:hover"}, color = "@danger" },
 	}
 
 	local root

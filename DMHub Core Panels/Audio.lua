@@ -2337,6 +2337,402 @@ local CreateStudioPlaceholder = function(title)
 	}
 end
 
+--Studio Soundboard curation card (right column). Five boards of twelve buttons,
+--sharing the same audiogrid-<board>-<slot> documents the dock soundboard plays
+--from: this surface ASSIGNS and CLEARS clips, the dock surface fires them. A clip
+--occupies at most one button per board (de-duped on assign, matching the dock rule
+--at the createAudioPanel drag handler). Clicking a filled button plays/stops it;
+--clicking an empty one opens a searchable clip picker (all clips, Effects first).
+local STUDIO_BOARDS = 5
+local STUDIO_SLOTS = 12
+
+local CreateStudioSoundboard = function()
+	local m_board = 1
+	local gridPanel
+	local boardButtons = {}
+
+	local function SlotDocId(board, slot)
+		return string.format("audiogrid-%d-%d", board, slot)
+	end
+
+	--Every non-hidden library clip, Effects-category first then the rest, each group
+	--alphabetical by name. The picker shows them all (inform, do not enforce); the
+	--Effects-first ordering honours the soundboard's intent without hard-blocking.
+	local function AssignableClips()
+		local out = {}
+		for _,asset in pairs(assets.audioTable) do
+			if not asset.hidden then
+				out[#out+1] = asset
+			end
+		end
+		table.sort(out, function(a, b)
+			local ae = (a.category == "effects")
+			local be = (b.category == "effects")
+			if ae ~= be then return ae end
+			return (a.description or "") < (b.description or "")
+		end)
+		return out
+	end
+
+	local function ClearSlot(board, slot)
+		local doc = mod:GetDocumentSnapshot(SlotDocId(board, slot))
+		doc:BeginChange()
+		doc.data.assetid = nil
+		doc:CompleteChange("Clear soundboard button")
+	end
+
+	local function AssignSlot(board, slot, assetid)
+		--De-dupe: a clip lives in only one button per board.
+		for s = 1, STUDIO_SLOTS do
+			if s ~= slot then
+				local sd = mod:GetDocumentSnapshot(SlotDocId(board, s))
+				if sd.data.assetid == assetid then
+					sd:BeginChange()
+					sd.data.assetid = nil
+					sd:CompleteChange("Clear soundboard button")
+				end
+			end
+		end
+		local doc = mod:GetDocumentSnapshot(SlotDocId(board, slot))
+		doc:BeginChange()
+		doc.data.assetid = assetid
+		doc:CompleteChange("Assign soundboard button")
+	end
+
+	--Searchable clip picker, anchored to the clicked button. Popups are reparented to
+	--the popup layer and do not inherit the Studio cascade, so route their own
+	--ThemeEngine snapshot (transient -- rebuilt each open, no OnThemeChanged needed).
+	local function OpenAssignPopup(buttonElement, board, slot)
+		local searchText = ""
+		local listPanel
+
+		local function MatchClip(asset)
+			if searchText == "" then return true end
+			return string.find(string.lower(asset.description or ""), searchText, 1, true) ~= nil
+		end
+
+		local function RebuildList()
+			local children = {}
+			for _,asset in ipairs(AssignableClips()) do
+				if MatchClip(asset) then
+					local a = asset
+					children[#children+1] = gui.Label{
+						classes = {"sizeS", "hoverable"},
+						text = a.description or "(unnamed)",
+						width = "100%",
+						height = 22,
+						halign = "left",
+						valign = "center",
+						hpad = 6,
+						borderBox = true,
+						textWrap = false,
+						textOverflow = "ellipsis",
+						press = function()
+							AssignSlot(board, slot, a.id)
+							buttonElement.popup = nil
+						end,
+					}
+				end
+			end
+			if #children == 0 then
+				children[1] = gui.Label{
+					classes = {"fgMuted", "sizeXs"},
+					text = "No clips match.",
+					width = "100%",
+					height = 22,
+					hpad = 6,
+					halign = "left",
+					valign = "center",
+				}
+			end
+			listPanel.children = children
+		end
+
+		listPanel = gui.Panel{
+			flow = "vertical",
+			width = "100%",
+			height = "auto",
+			maxHeight = 260,
+			vscroll = true,
+			vmargin = 4,
+		}
+
+		local searchInput = gui.Input{
+			placeholderText = "Search clips...",
+			text = "",
+			width = "100%",
+			height = 24,
+			editlag = 0.1,
+			edit = function(element)
+				searchText = string.lower(element.text or "")
+				RebuildList()
+			end,
+			change = function(element)
+				searchText = string.lower(element.text or "")
+				RebuildList()
+			end,
+		}
+
+		buttonElement.popup = gui.Panel{
+			styles = ThemeEngine.MergeStyles{},
+			classes = {"framedPanel"},
+			width = 240,
+			height = "auto",
+			flow = "vertical",
+			pad = 8,
+			borderBox = true,
+			gui.Label{
+				classes = {"bold", "sizeXs"},
+				text = "Assign clip",
+				width = "auto",
+				height = "auto",
+				halign = "left",
+				vmargin = 1,
+			},
+			searchInput,
+			listPanel,
+			--Focus the search field on open so the DM can type straight away.
+			create = function()
+				RebuildList()
+				searchInput.hasInputFocus = true
+			end,
+		}
+	end
+
+	--One soundboard button. board/slot are captured at build time; the grid is fully
+	--rebuilt on a board switch so each button monitors its own board's document.
+	local function CreateSlotButton(board, slot)
+		local docid = SlotDocId(board, slot)
+		local assetid = nil
+
+		local nameLabel = gui.Label{
+			classes = {"sizeXs", "collapsed"},
+			text = "",
+			width = "100%-4",
+			height = "auto",
+			halign = "center",
+			valign = "center",
+			textAlignment = "center",
+			textWrap = true,
+			maxVisibleLines = 2,
+			textOverflow = "ellipsis",
+		}
+
+		local emptyLabel = gui.Label{
+			classes = {"fgMuted", "sizeXs"},
+			text = "+ Assign",
+			width = "auto",
+			height = "auto",
+			halign = "center",
+			valign = "center",
+		}
+
+		--Clear "x": a plain NON-floating child (floating children render in a separate
+		--layer, so the cursor moving onto them drops the parent's hover state and the
+		--style reveal thrashes in/out). Kept in the flow="none" button via halign/valign
+		--so it overlays the top-right corner. Visibility is style-driven (base hidden;
+		--shown only when the button is filled AND hovered -- parent:hover stays true while
+		--the cursor is anywhere over the button, including over the x).
+		local clearButton = gui.Panel{
+			classes = {"audioStudioClearBtn"},
+			bgimage = "panels/square.png",
+			bgcolor = "clear",
+			width = 16,
+			height = 16,
+			halign = "right",
+			valign = "top",
+			swallowPress = true,
+			press = function()
+				ClearSlot(board, slot)
+			end,
+			gui.Label{
+				classes = {"sizeXs", "audioStudioClearGlyph"},
+				text = "x",
+				bgcolor = "clear",
+				bold = true,
+				width = "auto",
+				height = "auto",
+				halign = "center",
+				valign = "center",
+			},
+		}
+
+		local button
+		button = gui.Panel{
+			classes = {"bordered", "hoverable"},
+			flow = "none",
+			width = 104,
+			height = 46,
+			margin = 4,
+			pad = 4,
+			borderBox = true,
+			popupPositioning = "panel",
+			monitorGame = mod:GetDocumentSnapshot(docid).path,
+			monitorAssets = "audio",
+
+			create = function(element)
+				element:FireEvent("refreshGame")
+			end,
+
+			refreshGame = function(element)
+				local doc = mod:GetDocumentSnapshot(docid)
+				assetid = doc.data.assetid
+				local asset = (assetid ~= nil) and assets.audioTable[assetid] or nil
+				if asset ~= nil then
+					nameLabel.text = asset.description or "(unnamed)"
+					nameLabel:SetClass("collapsed", false)
+					emptyLabel:SetClass("collapsed", true)
+					clearButton:SetClass("filled", true)
+				else
+					assetid = nil
+					nameLabel:SetClass("collapsed", true)
+					emptyLabel:SetClass("collapsed", false)
+					clearButton:SetClass("filled", false)
+				end
+				element:FireEvent("refreshPlayingAudio")
+			end,
+
+			refreshAssets = function(element)
+				element:FireEvent("refreshGame")
+			end,
+
+			refreshPlayingAudio = function(element)
+				element:SetClass("playing", assetid ~= nil and audio.currentlyPlaying[assetid] ~= nil)
+			end,
+
+			click = function(element)
+				if assetid == nil then
+					OpenAssignPopup(element, board, slot)
+				elseif audio.currentlyPlaying[assetid] ~= nil then
+					audio.StopSoundEvent(assetid)
+				else
+					local asset = assets.audioTable[assetid]
+					if asset ~= nil then
+						audio.PlaySoundEvent{ asset = asset, volume = asset.volume }
+					end
+				end
+			end,
+
+			nameLabel,
+			emptyLabel,
+			clearButton,
+		}
+		return button
+	end
+
+	local function BuildGrid()
+		local children = {}
+		for slot = 1, STUDIO_SLOTS do
+			children[#children+1] = CreateSlotButton(m_board, slot)
+		end
+		gridPanel.children = children
+	end
+
+	gridPanel = gui.Panel{
+		flow = "horizontal",
+		wrap = true,
+		width = "100%",
+		height = "auto",
+		halign = "center",
+		vmargin = 4,
+	}
+
+	--Board selector: "Board" label + five segmented buttons. The active board carries
+	--{selected} (themed fill). Switching rebuilds the grid for the new board.
+	local boardRow = { }
+	boardRow[#boardRow+1] = gui.Label{
+		classes = {"sizeXs", "fgMuted"},
+		text = "Board",
+		width = "auto",
+		height = "auto",
+		hmargin = 4,
+		valign = "center",
+	}
+	for i = 1, STUDIO_BOARDS do
+		local idx = i
+		local btn = gui.Button{
+			classes = {"sizeXs"},
+			text = tostring(idx),
+			width = 28,
+			height = 22,
+			hmargin = 2,
+			valign = "center",
+			press = function()
+				if m_board == idx then return end
+				m_board = idx
+				for j, b in ipairs(boardButtons) do
+					b:SetClass("selected", j == idx)
+				end
+				BuildGrid()
+			end,
+		}
+		btn:SetClass("selected", idx == m_board)
+		boardButtons[idx] = btn
+		boardRow[#boardRow+1] = btn
+	end
+
+	local boardSelector = gui.Panel{
+		flow = "horizontal",
+		width = "100%",
+		height = "auto",
+		valign = "center",
+		vmargin = 4,
+		children = boardRow,
+	}
+
+	BuildGrid()
+
+	return gui.Panel{
+		classes = {"bordered"},
+		flow = "vertical",
+		width = "100%",
+		height = "auto",
+		pad = 8,
+		borderBox = true,
+		vmargin = 4,
+
+		--Clear "x": shown on every filled button (dim), brightening on its own hover.
+		--Deliberately NOT gated on parent:hover -- a hover-reveal that overlaps the
+		--button via flow="none" lets the engine's per-frame hover resolution oscillate
+		--between the x and the button when the cursor sits on the x (the flicker). An
+		--always-on dim glyph sidesteps that entirely and reads as a clearer affordance.
+		styles = {
+			{ selectors = {"audioStudioClearBtn"}, hidden = 1, opacity = 0.4 },
+			{ selectors = {"audioStudioClearBtn", "filled"}, hidden = 0 },
+			{ selectors = {"audioStudioClearBtn", "hover"}, opacity = 1 },
+		},
+
+		gui.Panel{
+			flow = "horizontal",
+			width = "100%",
+			height = "auto",
+			valign = "center",
+			vmargin = 2,
+			gui.Panel{
+				flow = "horizontal",
+				width = "100%-110",
+				height = "auto",
+				halign = "left",
+				valign = "center",
+				gui.Label{ classes = {"bold", "sizeS"}, text = "Soundboard", width = "auto", height = "auto", halign = "left", valign = "center" },
+			},
+			gui.Label{ classes = {"fgMuted", "sizeXs"}, text = "", width = "auto", height = "auto", halign = "right", valign = "center" },
+		},
+
+		boardSelector,
+		gridPanel,
+
+		gui.Label{
+			classes = {"fgMuted", "sizeXs"},
+			text = "Click an empty button to assign a clip from your library; hover a filled button to clear it.",
+			width = "100%",
+			height = "auto",
+			halign = "left",
+			vmargin = 2,
+		},
+	}
+end
+
 --Nested folder library tree (Studio left column), replacing the old flat
 --alphabetical list. Folders nest via parentFolder (the engine persists the chain);
 --a clip lives in its parentFolder, or the default "Sounds" folder when unset. The
@@ -2883,7 +3279,7 @@ CreateAudioStudio = function()
 		vscroll = true,
 		CreateStudioPlaceholder("Mixer"),
 		CreateStudioPlaceholder("Ducking"),
-		CreateStudioPlaceholder("Soundboard"),
+		CreateStudioSoundboard(),
 	}
 
 	local body = gui.Panel{

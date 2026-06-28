@@ -36,6 +36,10 @@ local g_numHeroesSetting = setting {
             value = 6,
             text = "Six Heroes",
         },
+        {
+            value = 7,
+            text = "Seven Heroes",
+        },
     }
 }
 

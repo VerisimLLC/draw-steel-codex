@@ -3026,37 +3026,55 @@ local CreateAudioLibraryTree = function()
 
 	--contentPanel for one folder: its child folders (recursive) then its clips. It
 	--is a drag target so a clip/folder can be dropped into the folder's body.
+	--Lazy: build a folder's child nodes/rows only the first time it expands, and keep
+	--them once built (a re-collapse just hides them). A collapsed folder costs only its
+	--header, so a deep/large library no longer spawns every row up front. Returns the
+	--container panel, whether it is empty (computed from the maps, not from built
+	--children), and a builder the node calls when it should be open.
 	CreateFolderContents = function(folderid, foldersByParent, clipsByFolder)
-		local children = {}
-		for _,sub in ipairs(foldersByParent[folderid] or {}) do
-			children[#children+1] = CreateFolderNode(sub, foldersByParent, clipsByFolder)
+		local built = false
+		local panel
+		local function BuildChildren()
+			if built then return end
+			built = true
+			local children = {}
+			for _,sub in ipairs(foldersByParent[folderid] or {}) do
+				children[#children+1] = CreateFolderNode(sub, foldersByParent, clipsByFolder)
+			end
+			for _,asset in ipairs(clipsByFolder[folderid] or {}) do
+				children[#children+1] = CreateAudioStudioRow(asset, {
+					draggable = true,
+					canDragOnto = clipCanDragOnto,
+					drag = clipDrag,
+					dragging = clipDragging,
+					onSelect = ClipSelectClick,
+				})
+			end
+			panel.children = children
+			--Newly built rows missed the root's post-rebuild refresh, so sync them now.
+			panel:FireEventTree("refreshPlayingAudio")
+			panel:FireEventTree("refreshSelection", m_selected)
 		end
-		for _,asset in ipairs(clipsByFolder[folderid] or {}) do
-			children[#children+1] = CreateAudioStudioRow(asset, {
-				draggable = true,
-				canDragOnto = clipCanDragOnto,
-				drag = clipDrag,
-				dragging = clipDragging,
-				onSelect = ClipSelectClick,
-			})
-		end
-		local empty = #children == 0
-		local panel = gui.Panel{
+		panel = gui.Panel{
 			classes = {"contentPanel"},
 			width = "100%-12",
 			height = "auto",
 			flow = "vertical",
 			lmargin = 12,
 			dragTarget = true,
-			children = children,
+			--Fired by TreeNode when the node opens (initial-open and toggle-open).
+			expand = function(element)
+				BuildChildren()
+			end,
 		}
-		return panel, empty
+		local empty = (#(foldersByParent[folderid] or {}) == 0) and (#(clipsByFolder[folderid] or {}) == 0)
+		return panel, empty, BuildChildren
 	end
 
 	CreateFolderNode = function(entry, foldersByParent, clipsByFolder)
 		local folderid = entry.id
 		local folder = entry.folder
-		local contents, empty = CreateFolderContents(folderid, foldersByParent, clipsByFolder)
+		local contents, empty, buildContents = CreateFolderContents(folderid, foldersByParent, clipsByFolder)
 		local isDefault = folderid == defaultFolder
 
 		local node
@@ -3127,6 +3145,12 @@ local CreateAudioLibraryTree = function()
 				}
 			end,
 		}
+		--A folder that starts expanded (remembered state) builds its contents now;
+		--collapsed folders defer until first opened. The expand event covers the
+		--toggle-open case.
+		if m_expanded[folderid] == true then
+			buildContents()
+		end
 		return node
 	end
 

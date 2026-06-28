@@ -99,17 +99,128 @@ LaunchablePanel.Register{
 
 local defaultFolder = "-MyddEFnH5IOto7qCx-3"
 
---Per-user remembered dock view: "compact" (default, glanceable) or "expanded"
---(the live mixing desk). Persists the DM's last choice across panel rebuilds /
---reopens so a power user does not drop back to compact mid-session. The
---Compact/Expanded segmented toggle on the panel writes it; the panel reads it on
---build to pick the initial state.
-local audioPanelView = setting{
-	id = "audiopanelview",
-	description = "Audio panel view mode",
-	storage = "preference",
-	default = "compact",
+--Per-user remembered collapse state for each dock section. Replaces the old
+--Compact/Expanded binary: the panel is now a "Controls" drawer over individually
+--collapsible sections (Levels / Anthems / Soundboard), each persisting its own
+--open/closed so collapsing one to cut scrolling sticks across reopens. Collapsing
+--"Controls" itself is the new "compact". Defaults: Controls + Levels open, the
+--rest closed (glanceable on first open, the desk one tap away).
+local audioSectionSettings = {
+	controls = setting{ id = "audiosec_controls", description = "Audio Controls drawer collapsed", storage = "preference", default = false },
+	levels = setting{ id = "audiosec_levels", description = "Audio Levels section collapsed", storage = "preference", default = false },
+	anthems = setting{ id = "audiosec_anthems", description = "Audio Anthems section collapsed", storage = "preference", default = true },
+	soundboard = setting{ id = "audiosec_soundboard", description = "Audio Soundboard section collapsed", storage = "preference", default = true },
 }
+
+local function GetSectionCollapsed(id)
+	local s = audioSectionSettings[id]
+	if s == nil then return false end
+	return s:Get() == true
+end
+
+local function SetSectionCollapsed(id, collapsed)
+	local s = audioSectionSettings[id]
+	if s ~= nil then s:Set(collapsed) end
+end
+
+--A collapsible section: an UPPERCASE title header with a disclosure chevron on the
+--RIGHT over a body panel, persisting its open/closed to the per-user section setting
+--(id). `prominent` gives the header a filled bar (used for the top-level Controls
+--umbrella); the inner sections (Levels/Anthems/Soundboard) are light headers and are
+--separated by dividers instead. All sections share this one builder for a consistent
+--look. Returns the section panel + its body so callers can wrap pre-built content.
+local MakeCollapsibleSection = function(id, title, body, prominent)
+	local SetArrowState
+	local headerChildren
+
+	if prominent then
+		--Prominent header (the Controls umbrella) mirrors the HEROIC RESOURCES section
+		--bar: a hamburger glyph left, a larger uppercase title, and a chevron (NOT the
+		--filled triangle) on the right that rotates with the open/closed state.
+		--gui.CollapseArrow is the SAME chevron the tactical panel uses: a down-arrow
+		--that flips to point UP when collapsed (collapseSet). Same visual language as the
+		--TacPanel headers; sized up so it is not dwarfed by the sub-section triangles.
+		local chevron = gui.CollapseArrow{
+			width = 20,
+			height = 13,
+			halign = "right",
+			valign = "center",
+		}
+		SetArrowState = function(collapsed)
+			chevron:SetClass("collapseSet", collapsed)
+		end
+		headerChildren = {
+			gui.Panel{
+				bgimage = "icons/icon_common/icon_common_4.png",
+				bgcolor = "#999999",
+				width = 14,
+				height = 14,
+				halign = "left",
+				valign = "center",
+				hmargin = 2,
+			},
+			gui.Label{
+				classes = {"bold", "sizeS"},
+				text = string.upper(title),
+				width = "100%-44",
+				height = "auto",
+				halign = "left",
+				valign = "center",
+				hmargin = 4,
+			},
+			chevron,
+		}
+	else
+		local arrow = gui.ExpandoArrow{ halign = "right", valign = "center" }
+		SetArrowState = function(collapsed)
+			arrow:SetClass("expanded", not collapsed)
+		end
+		headerChildren = {
+			gui.Label{
+				classes = {"bold", "sizeXs"},
+				text = string.upper(title),
+				width = "100%-20",
+				height = "auto",
+				halign = "left",
+				valign = "center",
+			},
+			arrow,
+		}
+	end
+
+	local function Apply(collapsed)
+		body:SetClass("collapsed", collapsed)
+		SetArrowState(collapsed)
+	end
+
+	local headerClasses = { "hoverable" }
+	if prominent then headerClasses[#headerClasses+1] = "bgAlt" end
+	local header = gui.Panel{
+		classes = headerClasses,
+		flow = "horizontal",
+		width = "100%",
+		height = "auto",
+		valign = "center",
+		vmargin = 1,
+		hpad = 8,
+		vpad = 4,
+		borderBox = true,
+		press = function(element)
+			local collapsed = not body:HasClass("collapsed")
+			Apply(collapsed)
+			SetSectionCollapsed(id, collapsed)
+		end,
+		children = headerChildren,
+	}
+	Apply(GetSectionCollapsed(id))
+	return gui.Panel{
+		flow = "vertical",
+		width = "100%",
+		height = "auto",
+		header,
+		body,
+	}
+end
 
 --Max height of the dock's scrollable body (everything below the pinned now-playing
 --strip + view toggle). The dock host is a fixed 470px (minHeight=maxHeight in the
@@ -1237,124 +1348,323 @@ CreateSoundPanel = function()
 	--dormant for the Studio's later nested-folder rebuild; audioFolderPanels is its
 	--cache. No in-dock library panel is built anymore.
 
-	local MakeSpectrumSample = function(index)
-		return gui.Panel{
-			classes = {"bgFg"},
-			bgimage = "panels/square.png",
-			valign = "center",
-			halign = "center",
-			width = 3,
-			height = 4,
-			cornerRadius = 1.5,
-		}
-	end
-
-	local globalMuteButton = nil
-	local sampleMeasures = {}
-
-	--Visible "music ducked" badge (Phase 1 feedback, NOT a control): overlays the
-	--now-playing strip whenever an anthem is holding the music duck, so a
-	--hard-of-hearing director can see the music has dipped without hearing it. The
-	--duck on/off + matrix CONFIG lives in Audio Studio, not here. Driven by the
-	--same g_drawSteelAnthemState the anthem node polls.
-	--{bgWarning} amber pill + {fgInverse} text track the active scheme; {sizeXxs}
-	--= 10pt, {bold} for weight. The square bgimage + corner radius stay inline.
-	local duckBadge = gui.Label{
-		classes = {"hidden", "bgWarning", "fgInverse", "bold", "sizeXxs"},
-		floating = true,
-		halign = "center",
-		valign = "top",
-		y = 2,
-		text = "music ducked",
-		bgimage = "panels/square.png",
-		cornerRadius = 6,
-		hpad = 6,
-		vpad = 2,
-		borderBox = true,
-		width = "auto",
-		height = "auto",
-	}
-
-	local audioVisualize = gui.Panel{
-		width = "100%",
-		height = 60,
-		vmargin = 4,
-		flow = "horizontal",
-
-		create = function(element)
-			local children = {}
-
-			for i=1,16 do
-				children[#children+1] = MakeSpectrumSample(i)
-			end
-
-			sampleMeasures = children
-
-
-			element.children = children
-
-
-			globalMuteButton = gui.Panel{
-				classes = {"hidden"},
-				floating = true,
-				width = 45,
-				height = 40,
-				bgcolor = "white",
-				halign = "center",
-				valign = "center",
-				press = function(element)
-					audio.muted = not audio.muted
-					audio.UploadMuted()
-				end,
-				rightClick = function(element)
-					element.popup = gui.ContextMenu{
-						width = 180,
-						entries = {
-							{
-								text = string.format("Stop All Sounds (%d)", audio.numActiveSoundEvents),
-								click = function()
-									element.popup = nil
-									audio.StopAllSoundEvents()
-								end,
-							},
-						}
-					}
-
-				end,
-				styles = {
+	--Master mute / stop-all. Click toggles mute; right-click opens stop-all. Lives in
+	--the now-playing header so it is always reachable (it used to float on the
+	--spectrum strip, which this section replaces).
+	local globalMuteButton = gui.Panel{
+		bgcolor = "white",
+		width = 18,
+		height = 18,
+		halign = "right",
+		valign = "center",
+		hmargin = 4,
+		press = function(element)
+			audio.muted = not audio.muted
+			audio.UploadMuted()
+		end,
+		rightClick = function(element)
+			element.popup = gui.ContextMenu{
+				width = 180,
+				entries = {
 					{
-						bgimage = 'ui-icons/AudioVolumeButton.png',
-					},
-					{
-						selectors = {"muted"},
-						bgimage = 'ui-icons/AudioMuteButton.png',
-					},
-					{
-						selectors = {"hover"},
-						brightness = 3,
+						text = string.format("Stop All Sounds (%d)", audio.numActiveSoundEvents),
+						click = function()
+							element.popup = nil
+							audio.StopAllSoundEvents()
+						end,
 					},
 				}
 			}
-
-			element:AddChild(globalMuteButton)
-			element:AddChild(duckBadge)
-
 		end,
+		linger = function(element)
+			gui.Tooltip("Mute (right-click: stop all)")(element)
+		end,
+		styles = {
+			{ bgimage = "ui-icons/AudioVolumeButton.png" },
+			{ selectors = {"muted"}, bgimage = "ui-icons/AudioMuteButton.png" },
+			{ selectors = {"hover"}, brightness = 2 },
+		},
+	}
 
-		thinkTime = 0.01,
-		think = function(element)
-			local samples = dmhub.GetAudioSpectrum()
-			for i,s in ipairs(sampleMeasures) do
-				local y = 1 - 1/math.pow(100*i, samples[i])
-				s.selfStyle.height = 4 + y*60
+	--The clip currently playing for a category (Music/Ambience), found by scanning
+	--audio.currentlyPlaying; one track per channel is the norm, so the first match wins.
+	local function PlayingTrackForCategory(cat)
+		for assetid,_ in pairs(audio.currentlyPlaying) do
+			local a = assets.audioTable[assetid]
+			if a ~= nil and a.category == cat then
+				return assetid, a
 			end
+		end
+		return nil, nil
+	end
 
-			globalMuteButton:SetClass("hidden", audio.numPlayingSounds == 0)
-			globalMuteButton:SetClass("muted", audio.muted)
+	--Now-playing hero card. Music is the lead channel (big title + read-only progress +
+	--Stop); Ambience is a slim always-visible footer line (name + stop). Seek (a
+	--draggable scrubber) and pause/resume need engine work -- .time is read-only and
+	--there is no pause API -- so the transport is display-only progress + Stop for now;
+	--the sleek look ships, seek/pause land with the engine pass. m_musicId/m_ambienceId
+	--hold the resolved channel ids so the stop buttons act on the live track.
+	local m_musicId = nil
+	local m_ambienceId = nil
 
-			local anthemState = rawget(_G, "g_drawSteelAnthemState")
-			duckBadge:SetClass("hidden", anthemState == nil or not anthemState.duckActive)
+	local statusDot = gui.Panel{
+		classes = {"npStatusDot"},
+		bgimage = "panels/square.png",
+		width = 8,
+		height = 8,
+		cornerRadius = 4,
+		valign = "center",
+		hmargin = 4,
+	}
+	local statusLabel = gui.Label{
+		classes = {"sizeXxs", "fgMuted"},
+		text = "Nothing playing",
+		width = "100%-72",
+		height = "auto",
+		halign = "left",
+		valign = "center",
+	}
+
+	local titleLabel = gui.Label{
+		classes = {"sizeL", "bold"},
+		text = "Nothing playing",
+		width = "100%-8",
+		height = "auto",
+		halign = "left",
+		valign = "center",
+		hmargin = 4,
+		textWrap = false,
+		textOverflow = "ellipsis",
+	}
+	local subtitleLabel = gui.Label{
+		classes = {"sizeXs", "fgMuted"},
+		text = "",
+		width = "100%-8",
+		height = "auto",
+		halign = "left",
+		valign = "center",
+		hmargin = 4,
+	}
+
+	local stopButton = gui.Panel{
+		classes = {"hidden"},
+		bgimage = "panels/square.png",
+		bgcolor = "white",
+		width = 14,
+		height = 14,
+		valign = "center",
+		hmargin = 4,
+		press = function(element)
+			if m_musicId ~= nil then
+				audio.StopSoundEvent(m_musicId)
+			end
 		end,
+		linger = function(element)
+			gui.Tooltip("Stop")(element)
+		end,
+	}
+	local timeCurrent = gui.Label{
+		classes = {"sizeXxs", "fgMuted"},
+		text = "",
+		width = 32,
+		height = "auto",
+		halign = "right",
+		valign = "center",
+		textAlignment = "right",
+	}
+	local progressFill = gui.Panel{
+		classes = {"bgAccent"},
+		bgimage = "panels/square.png",
+		width = "0%",
+		height = "100%",
+		halign = "left",
+		valign = "center",
+	}
+	local progressBar = gui.Panel{
+		classes = {"bgAlt"},
+		bgimage = "panels/square.png",
+		width = "100%-104",
+		height = 5,
+		valign = "center",
+		hmargin = 6,
+		cornerRadius = 2.5,
+		borderBox = true,
+		progressFill,
+	}
+	local timeTotal = gui.Label{
+		classes = {"sizeXxs", "fgMuted"},
+		text = "",
+		width = 32,
+		height = "auto",
+		halign = "left",
+		valign = "center",
+	}
+
+	local transportRow = gui.Panel{
+		flow = "horizontal",
+		width = "100%",
+		height = 18,
+		valign = "center",
+		vmargin = 2,
+		stopButton,
+		timeCurrent,
+		progressBar,
+		timeTotal,
+	}
+
+	local ambienceName = gui.Label{
+		classes = {"sizeXs", "fgMuted"},
+		text = "silent",
+		width = "100%-110",
+		height = "auto",
+		halign = "left",
+		valign = "center",
+		hmargin = 4,
+		textWrap = false,
+		textOverflow = "ellipsis",
+	}
+	local ambienceStop = gui.Panel{
+		classes = {"hidden"},
+		bgimage = "panels/square.png",
+		bgcolor = "white",
+		width = 12,
+		height = 12,
+		halign = "right",
+		valign = "center",
+		hmargin = 4,
+		press = function(element)
+			if m_ambienceId ~= nil then
+				audio.StopSoundEvent(m_ambienceId)
+			end
+		end,
+		linger = function(element)
+			gui.Tooltip("Stop ambience")(element)
+		end,
+	}
+	local ambienceFooter = gui.Panel{
+		flow = "horizontal",
+		width = "100%",
+		height = 18,
+		valign = "center",
+		vmargin = 1,
+		gui.Label{
+			classes = {"sizeXs", "bold"},
+			text = "Ambience",
+			width = 66,
+			height = "auto",
+			halign = "left",
+			valign = "center",
+			hmargin = 4,
+		},
+		ambienceName,
+		ambienceStop,
+	}
+
+	local function UpdateNowPlaying()
+		--Duck state rides the status dot/line (amber dot + "Music ducked for Anthem")
+		--instead of a separate badge, now that the dot already signals play state.
+		local anthemState = rawget(_G, "g_drawSteelAnthemState")
+		local ducked = anthemState ~= nil and anthemState.duckActive == true
+
+		local mid, ma = PlayingTrackForCategory("music")
+		m_musicId = mid
+		if ma ~= nil then
+			local ev = audio.currentlyPlaying[mid]
+			local t = (ev ~= nil and ev.time) or 0
+			local dur = ma.duration or 0
+			statusDot:SetClass("playing", not ducked)
+			statusDot:SetClass("ducked", ducked)
+			statusLabel.text = ducked and "Music ducked for Anthem" or "Playing to your table"
+			titleLabel.text = ma.description or "(unnamed)"
+			titleLabel:SetClass("fgMuted", false)
+			subtitleLabel.text = "Music"
+			stopButton:SetClass("hidden", false)
+			timeCurrent.text = FormatTime(t, dur)
+			timeTotal.text = FormatTime(dur, dur)
+			progressFill.selfStyle.width = (dur > 0) and string.format("%f%%", math.min(100, (100*t)/dur)) or "0%"
+		else
+			statusDot:SetClass("playing", false)
+			statusDot:SetClass("ducked", false)
+			statusLabel.text = "Nothing playing"
+			titleLabel.text = "Nothing playing"
+			titleLabel:SetClass("fgMuted", true)
+			subtitleLabel.text = ""
+			stopButton:SetClass("hidden", true)
+			timeCurrent.text = ""
+			timeTotal.text = ""
+			progressFill.selfStyle.width = "0%"
+		end
+
+		local aid, aa = PlayingTrackForCategory("ambience")
+		m_ambienceId = aid
+		if aa ~= nil then
+			ambienceName.text = aa.description or "(unnamed)"
+			ambienceName:SetClass("fgMuted", false)
+			ambienceStop:SetClass("hidden", false)
+		else
+			ambienceName.text = "silent"
+			ambienceName:SetClass("fgMuted", true)
+			ambienceStop:SetClass("hidden", true)
+		end
+
+		globalMuteButton:SetClass("muted", audio.muted)
+	end
+
+	--Now-playing section -- replaces the decorative spectrum (brief flagged it as
+	--reclaimable space). UpdateNowPlaying runs on a light poll (progress, natural
+	--track-ends, duck state -- none guaranteed to fire an audio event) and on the
+	--dock's refreshAudio -> refreshPlayingAudio tree fire for instant play/stop.
+	local nowPlayingSection = gui.Panel{
+		flow = "vertical",
+		width = "100%",
+		height = "auto",
+		vmargin = 4,
+		styles = {
+			{ selectors = {"npStatusDot"}, bgcolor = "#888888" },
+			{ selectors = {"npStatusDot", "playing"}, bgcolor = "#5cb85c" },
+			{ selectors = {"npStatusDot", "ducked"}, bgcolor = "#d9a441" },
+		},
+
+		create = function(element)
+			UpdateNowPlaying()
+		end,
+		refreshPlayingAudio = function(element)
+			UpdateNowPlaying()
+		end,
+		thinkTime = 0.2,
+		think = function(element)
+			UpdateNowPlaying()
+		end,
+
+		--Status row: status dot + line, with the Studio launch + mute buttons hard right.
+		gui.Panel{
+			flow = "horizontal",
+			width = "100%",
+			height = "auto",
+			valign = "center",
+			statusDot,
+			statusLabel,
+			globalMuteButton,
+			gui.Button{
+				icon = "icons/standard/Icon_App_GameControls.png",
+				width = 18,
+				height = 18,
+				halign = "right",
+				valign = "center",
+				hmargin = 4,
+				press = function(element)
+					LaunchablePanel.LaunchPanelByName("Audio Studio")
+				end,
+				linger = function(element)
+					gui.Tooltip("Open Audio Studio")(element)
+				end,
+			},
+		},
+
+		titleLabel,
+		subtitleLabel,
+		transportRow,
+		ambienceFooter,
 	}
 
 	local masterVolumeSlider = gui.Slider{
@@ -1366,8 +1676,10 @@ CreateSoundPanel = function()
 		},
 
 		sliderWidth = 150,
-		labelWidth = 0,
-		labelFormat = "",
+		--Editable 0-100 readout to the right (the standard Codex slider affordance):
+		--type a number to set the level exactly.
+		labelWidth = 30,
+		labelFormat = "percent",
 
 		minValue = 0,
 		maxValue = 1,
@@ -1441,8 +1753,8 @@ CreateSoundPanel = function()
 			},
 
 			sliderWidth = 150,
-			labelWidth = 0,
-			labelFormat = "",
+			labelWidth = 30,
+			labelFormat = "percent",
 
 			minValue = 0,
 			maxValue = 1,
@@ -1483,7 +1795,16 @@ CreateSoundPanel = function()
 			height = 22,
 			valign = "center",
 			vmargin = 1,
+			--A few px of horizontal padding so the fader + its readout do not sit flush
+			--against the dock's scrollbar on the right.
+			hpad = 10,
+			borderBox = true,
 			opacity = dimmed and 0.4 or 1,
+			--Match the editable readout to the row's Level title (12pt, not the slider's
+			--default 14) and add a couple px gap between the slider and the number.
+			styles = {
+				{ selectors = {"sliderLabel"}, fontSize = 12, lmargin = 5, priority = 6 },
+			},
 			gui.Label{
 				classes = {"sizeXs"},
 				text = labelText,
@@ -1501,13 +1822,10 @@ CreateSoundPanel = function()
 	--has a single parent, so master lives here and NOT in categoryFaders below.
 	local masterRow = MakeFaderRow("Master", masterVolumeSlider, false)
 
-	--Category broadcast faders -- the Expanded-only half of the mixing desk. These
-	--write the shared "audio mix" doc (the GroupShared table-mix layer). Hidden in
-	--Compact; the Compact/Expanded segmented toggle drives this collapsed class via
-	--ApplyViewMode. No inner collapse header -- the view toggle IS the disclosure,
-	--so Expanded reveals the faders directly (avoids redundant double-disclosure).
+	--Category broadcast faders -- the body of the "Levels" section. These write the
+	--shared "audio mix" doc (the GroupShared table-mix layer). The Levels header
+	--(MakeCollapsibleSection) drives the collapsed state and persists it.
 	local categoryFaders = gui.Panel{
-		classes = {"collapsed"},
 		flow = "vertical",
 		width = "100%",
 		height = "auto",
@@ -1533,16 +1851,9 @@ CreateSoundPanel = function()
 	--the always-on AudioMixBroadcast monitor.
 	ApplyBroadcastToEngine()
 
-	local mixerSection = gui.Panel{
-		flow = "vertical",
-		width = "96%",
-		height = "auto",
-		halign = "center",
-		vmargin = 4,
-
-		masterRow,
-		categoryFaders,
-	}
+	--"Levels" section: collapsible header over the category faders, inside Controls.
+	--Master stays out of it (always visible above Controls).
+	local levelsSection = MakeCollapsibleSection("levels", "Levels", categoryFaders)
 
 	--Anthem node (Phase 1): a collapsible drawer listing each player hero, the
 	--anthem they have loaded, a local preview (audition on the director's own
@@ -1756,42 +2067,16 @@ CreateSoundPanel = function()
 			end,
 		}
 
-		local body
-		local arrow
-
-		arrow = gui.ExpandoArrow{}
-
-		local header = gui.Panel{
-			flow = "horizontal",
-			width = "100%",
-			height = "auto",
-			valign = "center",
-			vmargin = 2,
-			press = function(element)
-				--expanding when the body is currently collapsed.
-				local expanding = body:HasClass("collapsed")
-				body:SetClass("collapsed", not expanding)
-				arrow:SetClass("expanded", expanding)
-			end,
-
-			arrow,
-
-			gui.Label{
-				classes = {"bold"},
-				text = "Anthems",
-				width = "auto",
-				height = "auto",
-				hmargin = 4,
-				halign = "left",
-				valign = "center",
-			},
-		}
-
-		body = gui.Panel{
-			classes = {"collapsed"},
+		--Return just the BODY; the collapsible header + persistence come from
+		--MakeCollapsibleSection at the call site, so every section looks identical.
+		return gui.Panel{
 			flow = "vertical",
 			width = "100%",
 			height = "auto",
+
+			destroy = function(element)
+				StopPreview()
+			end,
 
 			gui.Label{
 				text = "Preview or adjust volume levels for each player's anthem.",
@@ -1804,190 +2089,39 @@ CreateSoundPanel = function()
 
 			rowsPanel,
 		}
-
-		return gui.Panel{
-			flow = "vertical",
-			width = "96%",
-			height = "auto",
-			halign = "center",
-			vmargin = 4,
-
-			destroy = function(element)
-				StopPreview()
-			end,
-
-			header,
-			body,
-		}
 	end
 
-	local anthemNode = CreateAnthemNode()
+	--Each section uses MakeCollapsibleSection so the headers look identical and all
+	--persist their own state. ("Anthem ducks music" has moved to the Studio Anthem
+	--controls, so it no longer lives on the dock.)
+	local anthemsSection = MakeCollapsibleSection("anthems", "Anthems", CreateAnthemNode())
 
-	--Ducking on/off (Expanded-only). Writes the game-scoped "Anthem Ducks Music"
-	--DM setting (defined in MCDMInitiativeBar.lua); the anthem hook gates its music
-	--duck on it, so turning this off stops the dip for the whole table. The visible
-	--"music ducked" badge on the now-playing strip is the paired feedback. Read by
-	--id (cross-file); the row monitors the setting so it stays in sync if the same
-	--toggle is changed from Settings->Audio.
-	local duckingCheck = gui.Check{
-		text = "Anthem ducks music",
-		fontSize = 13,
-		value = dmhub.GetSettingValue("anthemduckmusic"),
-		change = function(element)
-			dmhub.SetSettingValue("anthemduckmusic", element.value)
-		end,
-		refreshSetting = function(element)
-			element.value = dmhub.GetSettingValue("anthemduckmusic")
-		end,
-	}
-
-	local duckingRow = gui.Panel{
-		classes = {"collapsed"},
-		flow = "horizontal",
-		width = "96%",
-		height = "auto",
-		halign = "center",
-		valign = "center",
-		vmargin = 2,
-		monitor = "anthemduckmusic",
-		events = {
-			monitor = function(element)
-				duckingCheck:FireEvent("refreshSetting")
-			end,
-		},
-		duckingCheck,
-	}
-
-	--Soundboard drawer. Compact shows it collapsed (glance-and-go); Expanded opens
-	--it. The view toggle sets the collapsed state via ApplyViewMode, and the header
-	--arrow lets the DM open/close it manually within either mode.
 	local soundboardBody = gui.Panel{
-		classes = {"collapsed"},
 		flow = "vertical",
 		width = "100%",
 		height = "auto",
 
 		CreateAudioGrid(),
 	}
+	local soundboardSection = MakeCollapsibleSection("soundboard", "Soundboard", soundboardBody)
 
-	local soundboardArrow = gui.ExpandoArrow{}
-
-	local soundboardHeader = gui.Panel{
-		flow = "horizontal",
+	--"Controls" -- the single drawer that replaces the Compact/Expanded toggle, with a
+	--prominent (filled-bar) header. Collapsing it is the new "compact"; expanding it
+	--reveals the inner sections, each individually collapsible (state persisted) and
+	--set off by a thin divider so each reads as its own area.
+	local controlsInner = gui.Panel{
+		flow = "vertical",
 		width = "100%",
 		height = "auto",
-		valign = "center",
-		vmargin = 2,
-		press = function(element)
-			local expanding = soundboardBody:HasClass("collapsed")
-			soundboardBody:SetClass("collapsed", not expanding)
-			soundboardArrow:SetClass("expanded", expanding)
-		end,
 
-		soundboardArrow,
-
-		gui.Label{
-			classes = {"bold"},
-			text = "Soundboard",
-			width = "auto",
-			height = "auto",
-			hmargin = 4,
-			halign = "left",
-			valign = "center",
-		},
+		levelsSection,
+		gui.MCDMDivider{ width = "100%", halign = "left", vmargin = 4 },
+		anthemsSection,
+		gui.MCDMDivider{ width = "100%", halign = "left", vmargin = 4 },
+		soundboardSection,
 	}
 
-	local soundboardSection = gui.Panel{
-		flow = "vertical",
-		width = "96%",
-		height = "auto",
-		halign = "center",
-		vmargin = 4,
-
-		soundboardHeader,
-		soundboardBody,
-	}
-
-	--Compact/Expanded segmented toggle. Compact = glanceable (now-playing, master,
-	--collapsed soundboard); Expanded = the live mixing desk (category faders,
-	--ducking, anthem node, open soundboard). The active segment carries {selected}
-	--(themed filled state). ApplyViewMode drives every Expanded-only section's
-	--collapsed class and persists the choice to the audioPanelView preference.
-	local compactButton, expandedButton
-	local ApplyViewMode
-
-	compactButton = gui.Button{
-		classes = {"sizeXs"},
-		text = "Compact",
-		width = 76,
-		height = 22,
-		press = function()
-			ApplyViewMode("compact", true)
-		end,
-	}
-
-	expandedButton = gui.Button{
-		classes = {"sizeXs"},
-		text = "Expanded",
-		width = 76,
-		height = 22,
-		press = function()
-			ApplyViewMode("expanded", true)
-		end,
-	}
-
-	ApplyViewMode = function(mode, persist)
-		local expanded = (mode == "expanded")
-		compactButton:SetClass("selected", not expanded)
-		expandedButton:SetClass("selected", expanded)
-		categoryFaders:SetClass("collapsed", not expanded)
-		duckingRow:SetClass("collapsed", not expanded)
-		anthemNode:SetClass("collapsed", not expanded)
-		soundboardBody:SetClass("collapsed", not expanded)
-		soundboardArrow:SetClass("expanded", expanded)
-		if persist then
-			audioPanelView:Set(mode)
-		end
-	end
-
-	--Header row: segmented toggle on the left, Audio Studio entry on the right. The
-	--pill container fills the remaining width so the Studio button sits hard right.
-	local viewToggleRow = gui.Panel{
-		flow = "horizontal",
-		width = "96%",
-		height = "auto",
-		halign = "center",
-		valign = "center",
-		vmargin = 4,
-
-		gui.Panel{
-			flow = "horizontal",
-			width = "100% available",
-			height = "auto",
-			halign = "left",
-			valign = "center",
-			compactButton,
-			expandedButton,
-		},
-
-		--Opens the session-prep surface (a floating LaunchablePanel) without
-		--disturbing the dock. Library / mixer / soundboard prep live there.
-		--Icon-only launch (gui.Button only lays out an icon cleanly WITHOUT text -- an
-		--icon+text button garbles in this cramped dock header). Tooltip carries the name.
-		gui.Button{
-			icon = "icons/standard/Icon_App_GameControls.png",
-			width = 18,
-			height = 18,
-			halign = "right",
-			valign = "center",
-			press = function(element)
-				LaunchablePanel.LaunchPanelByName("Audio Studio")
-			end,
-			linger = function(element)
-				gui.Tooltip("Open Audio Studio")(element)
-			end,
-		},
-	}
+	local controlsSection = MakeCollapsibleSection("controls", "Controls", controlsInner, true)
 
 	--Content root of the Audio dock panel. It inherits the DockablePanel host's
 	--ThemeEngine cascade (DockablePanel.lua runs GetStyles at the dock root), so
@@ -2091,19 +2225,12 @@ CreateSoundPanel = function()
 			element:FireEventTree("refreshPlayingAudio")
 		end,
 
-		--Restore the DM's last view (Compact/Expanded) when the panel builds.
-		create = function(element)
-			ApplyViewMode(audioPanelView:Get(), false)
-		end,
-
 		children = {
-			--Pinned top: now-playing strip (+ duck badge) and the view toggle stay
-			--put. Everything below scrolls so Expanded (esp. an expanded Anthems
-			--drawer with many heroes) scrolls rather than clipping the fixed 470px
-			--dock. Compact content is shorter than audioScrollMaxHeight, so it does
-			--not scroll.
-			audioVisualize,
-			viewToggleRow,
+			--Pinned top: the now-playing section stays put. Everything below scrolls so
+			--an expanded Controls drawer (esp. an open Anthems section with many heroes)
+			--scrolls rather than clipping the fixed 470px dock. With Controls collapsed
+			--the body is short (now-playing + master only) and does not scroll.
+			nowPlayingSection,
 
 			gui.Panel{
 				vscroll = true,
@@ -2113,10 +2240,12 @@ CreateSoundPanel = function()
 				flow = "vertical",
 				halign = "center",
 
-				mixerSection,
-				duckingRow,
-				anthemNode,
-				soundboardSection,
+				--A divider under the now-playing "Player" sets it off as its own area.
+				gui.MCDMDivider{ width = "100%", halign = "left", vmargin = 4 },
+
+				--Master is always visible above the collapsible Controls drawer.
+				masterRow,
+				controlsSection,
 			},
 		}
 	}

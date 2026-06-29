@@ -6410,6 +6410,255 @@ local ShowJournalStylesheetsPanel = function(parentPanel)
     parentPanel.children = {leftPanel, editorPanel}
 end
 
+--Editor for a single trait (motivation or pitfall) row: name + description +
+--remove. listField is "motivations" or "pitfalls". Mutates the negotiator and
+--uploads on every change; calls onRemove to rebuild the row list.
+local function CreateNegotiatorTraitRow(negotiator, listField, trait, onRemove)
+    local rowPanel
+    rowPanel = gui.Panel{
+        flow = "horizontal",
+        width = "100%",
+        height = "auto",
+        vmargin = 2,
+        gui.Input{
+            classes = {"sizeS"},
+            width = 160,
+            height = 22,
+            valign = "top",
+            placeholderText = "Name",
+            text = trait.name,
+            change = function(element)
+                trait.name = element.text
+                dmhub.SetAndUploadTableItem(Negotiator.tableName, negotiator)
+            end,
+        },
+        gui.Input{
+            classes = {"sizeS"},
+            width = 460,
+            height = "auto",
+            minHeight = 22,
+            hmargin = 8,
+            valign = "top",
+            multiline = true,
+            placeholderText = "Description",
+            text = trait.description,
+            change = function(element)
+                trait.description = element.text
+                dmhub.SetAndUploadTableItem(Negotiator.tableName, negotiator)
+            end,
+        },
+        gui.Button{
+            classes = {"sizeS"},
+            text = "Remove",
+            width = 80,
+            height = 22,
+            valign = "top",
+            hmargin = 8,
+            click = function()
+                for i,t in ipairs(negotiator[listField]) do
+                    if t == trait then
+                        table.remove(negotiator[listField], i)
+                        break
+                    end
+                end
+                dmhub.SetAndUploadTableItem(Negotiator.tableName, negotiator)
+                onRemove()
+            end,
+        },
+    }
+    return rowPanel
+end
+
+--Builds the labelled list of trait rows (motivations or pitfalls) plus an add
+--button. Rebuilds itself in place when rows are added or removed.
+local function CreateNegotiatorTraitList(negotiator, listField, titleText, addLabel)
+    local rowsPanel
+    local Rebuild
+
+    rowsPanel = gui.Panel{
+        flow = "vertical",
+        width = "100%",
+        height = "auto",
+    }
+
+    Rebuild = function()
+        local children = {}
+        for _,trait in ipairs(negotiator[listField]) do
+            children[#children+1] = CreateNegotiatorTraitRow(negotiator, listField, trait, Rebuild)
+        end
+        rowsPanel.children = children
+    end
+
+    Rebuild()
+
+    return gui.Panel{
+        flow = "vertical",
+        width = "100%",
+        height = "auto",
+        vmargin = 8,
+        gui.Label{
+            classes = {"bold"},
+            text = titleText,
+            width = "auto",
+            height = "auto",
+        },
+        rowsPanel,
+        AddButton{
+            text = addLabel,
+            halign = "left",
+            click = function()
+                negotiator[listField][#negotiator[listField]+1] = NegotiatorTrait.Create{}
+                dmhub.SetAndUploadTableItem(Negotiator.tableName, negotiator)
+                Rebuild()
+            end,
+        },
+    }
+end
+
+--Editor for a single negotiator, fetched live from the table by key.
+local function CreateNegotiatorEditor(key)
+    local negotiator = (dmhub.GetTable(Negotiator.tableName) or {})[key]
+    if negotiator == nil then
+        return gui.Panel{ width = 900, height = "95%" }
+    end
+
+    return gui.Panel{
+        width = 900,
+        height = "95%",
+        vscroll = true,
+        flow = "vertical",
+        gui.Input{
+            classes = {"sizeL"},
+            width = 400,
+            height = 26,
+            placeholderText = "Name",
+            text = negotiator.name,
+            change = function(element)
+                negotiator.name = element.text
+                dmhub.SetAndUploadTableItem(Negotiator.tableName, negotiator)
+            end,
+        },
+        gui.Panel{
+            flow = "horizontal",
+            width = "auto",
+            height = "auto",
+            vmargin = 6,
+            gui.Label{
+                classes = {"bold"},
+                text = "Impression Score",
+                width = "auto",
+                height = 22,
+                valign = "center",
+            },
+            gui.Input{
+                classes = {"sizeS"},
+                width = 60,
+                height = 22,
+                hmargin = 8,
+                valign = "center",
+                text = tostring(negotiator.impressionScore),
+                change = function(element)
+                    local n = tonumber(element.text)
+                    if n ~= nil and n < 100 then
+                        negotiator.impressionScore = math.floor(n)
+                    end
+                    element.text = tostring(negotiator.impressionScore)
+                    dmhub.SetAndUploadTableItem(Negotiator.tableName, negotiator)
+                end,
+            },
+        },
+        gui.Input{
+            classes = {"sizeM"},
+            width = 700,
+            height = "auto",
+            minHeight = 24,
+            vmargin = 4,
+            multiline = true,
+            placeholderText = "Flavor Text",
+            text = negotiator.flavorText,
+            change = function(element)
+                negotiator.flavorText = element.text
+                dmhub.SetAndUploadTableItem(Negotiator.tableName, negotiator)
+            end,
+        },
+        gui.Input{
+            classes = {"sizeM"},
+            width = 700,
+            height = "auto",
+            minHeight = 48,
+            vmargin = 4,
+            multiline = true,
+            placeholderText = "Description",
+            text = negotiator.description,
+            change = function(element)
+                negotiator.description = element.text
+                dmhub.SetAndUploadTableItem(Negotiator.tableName, negotiator)
+            end,
+        },
+        CreateNegotiatorTraitList(negotiator, "motivations", "Motivations", "Add Motivation"),
+        CreateNegotiatorTraitList(negotiator, "pitfalls", "Pitfalls", "Add Pitfall"),
+    }
+end
+
+local function ShowNegotiatorsPanel(contentPanel)
+    local itemsListPanel
+    local leftPanel
+
+    itemsListPanel = gui.Panel{
+        classes = {"list-panel"},
+        vscroll = true,
+        monitorAssets = true,
+        refreshAssets = function(element)
+            local dataTable = dmhub.GetTable(Negotiator.tableName) or {}
+            local entries = {}
+            for key,item in unhidden_pairs(dataTable) do
+                entries[#entries+1] = { key = key, item = item }
+            end
+            table.sort(entries, function(a,b)
+                local sa = a.item.impressionScore or 0
+                local sb = b.item.impressionScore or 0
+                if sa ~= sb then return sa < sb end
+                return (a.item.name or "") < (b.item.name or "")
+            end)
+
+            local children = {}
+            for _,entry in ipairs(entries) do
+                local key = entry.key
+                local listItem = CreateListItem{
+                    select = element.aliveTime > 0.2,
+                    tableName = Negotiator.tableName,
+                    key = key,
+                    obliterateOnDelete = true,
+                    click = function()
+                        contentPanel.children = {leftPanel, CreateNegotiatorEditor(key)}
+                    end,
+                }
+                listItem.text = string.format("(%s) %s", tostring(entry.item.impressionScore or 0), entry.item.name or "")
+                children[#children+1] = listItem
+            end
+            itemsListPanel.children = children
+        end,
+    }
+
+    itemsListPanel:FireEvent("refreshAssets")
+
+    leftPanel = gui.Panel{
+        selfStyle = {
+            flow = "vertical",
+            height = "100%",
+            width = "auto",
+        },
+        itemsListPanel,
+        AddButton{
+            click = function()
+                dmhub.SetAndUploadTableItem(Negotiator.tableName, Negotiator.CreateNew{})
+            end,
+        },
+    }
+
+    contentPanel.children = {leftPanel}
+end
+
 Compendium.CreateListItem = CreateListItem
 
 local g_registeredPanels = false

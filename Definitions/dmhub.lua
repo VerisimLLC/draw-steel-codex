@@ -683,7 +683,7 @@ end
 --- @param text string
 --- @param lookupFunction function
 --- @param nil|table options
---- @return {exploding = nil|boolean, categories = table<string, {mod=number, groups={numDice=number, numFaces=number, numKeep=number,subtract=nil|boolean}[]}>}
+--- @return {exploding = nil|boolean, minroll = nil|integer, reroll = nil|integer, critical = nil|integer, tiers = nil|integer, dmonly = nil|boolean, dicetower = nil|boolean, categories = table<string, {mod=number, primary=nil|boolean, groups={numDice=number, numFaces=number, numKeep=number,subtract=nil|boolean}[]}>}
 function dmhub.ParseRoll(text, lookupFunction, options)
 	-- dummy implementation for documentation purposes only
 end

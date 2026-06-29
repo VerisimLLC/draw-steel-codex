@@ -1346,11 +1346,11 @@ function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, 
             return false
         end
 
-        if self.targetAllegiance == 'enemy' and casterToken:IsFriend(targetToken) and (not isAnyObject) then
+        if self.targetAllegiance == 'enemy' and IsFriendForTargeting(casterToken, targetToken) and (not isAnyObject) then
             return false
         end
 
-        if self.targetAllegiance == 'ally' and (not casterToken:IsFriend(targetToken)) and (not isAnyObject) then
+        if self.targetAllegiance == 'ally' and (not IsFriendForTargeting(casterToken, targetToken)) and (not isAnyObject) then
             return false
         end
     end
@@ -1375,7 +1375,7 @@ function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, 
     symbols = table.shallow_copy(symbols or {})
     symbols.invoker = symbols.invoker or caster
     symbols.caster = caster
-    symbols.enemy = not casterToken:IsFriend(targetToken)
+    symbols.enemy = not IsFriendForTargeting(casterToken, targetToken)
 	symbols.target = GenerateSymbols(targetToken.properties)
 
 	local result = filter == "" or GoblinScriptTrue(ExecuteGoblinScript(filter, targetToken.properties:LookupSymbol(symbols), 0, string.format("Target filter for %s", self.name)))

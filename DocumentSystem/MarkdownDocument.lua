@@ -3442,6 +3442,10 @@ function MarkdownDocument:EditPanel(args)
                     selectors = {"savePending"},
                     collapsed = 1,
                 },
+                {
+                    selectors = {"saveError"},
+                    collapsed = 1,
+                },
             },
 
             text = "Changes Saved",
@@ -3509,6 +3513,37 @@ function MarkdownDocument:EditPanel(args)
 
             saveConfirmed = function(element)
                 resultPanel:SetClassTree("savePending", false)
+            end,
+        },
+
+        gui.Label{
+            --shown only when the write-verification watchdog (DocumentSystem.lua) gives up
+            --after a delta save AND a full-write retry both go unconfirmed by the server.
+            --Driven by the 'saveError' class set via resultPanel:SetClassTree. Collapsed
+            --again as soon as the user edits (changes) or a new save is in flight
+            --(savePending), and cleared automatically by a late server confirmation.
+            styles = {
+                {
+                    selectors = {"~saveError"},
+                    collapsed = 1,
+                },
+                {
+                    selectors = {"changes"},
+                    collapsed = 1,
+                },
+                {
+                    selectors = {"savePending"},
+                    collapsed = 1,
+                },
+            },
+
+            color = "#ff5b5b",
+            text = "Save failed!",
+            fontSize = 14,
+            width = "auto",
+            height = "auto",
+            hover = function(element)
+                gui.Tooltip("The server did not confirm your save, so your latest changes may not be stored. Keep this document open -- it will retry automatically and clear this message if the connection recovers. You can also keep editing (each save retries) or press Ctrl+Z to recover text that vanished.")(element)
             end,
         },
     }
@@ -5057,6 +5092,13 @@ function MarkdownDocument:EditPanel(args)
             -- The preview just re-rendered, so block heights may have changed even if the
             -- caret line did not (e.g. forward-delete). Force the next think to re-sync.
             lastSyncedCaret = -1
+
+            -- Notify the document controller so its periodic-autosave timers
+            -- (DocumentSystem.lua) restart their debounce from this edit.
+            local documentPanel = element:FindParentWithClass("documentPanel")
+            if documentPanel ~= nil then
+                documentPanel:FireEvent("documentEdited")
+            end
         end,
         refreshDocument = function(element)
             element.text = self:GetTextContent()

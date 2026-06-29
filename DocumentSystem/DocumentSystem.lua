@@ -654,6 +654,67 @@ function CustomDocument:CreateInterface(args)
 
     local resultPanel
 
+    -- Write verification. After a save we expect the server to echo our document back:
+    -- refreshGame (below) fires when /assets/objectTables/documents/table/<id> changes and
+    -- confirms the save once the echoed doc.updateid matches our pendingUpload. If that
+    -- confirmation does not arrive within SAVE_CONFIRM_TIMEOUT seconds, the watchdog in
+    -- 'think' retries ONCE with a full (non-delta) document write; if the full write is
+    -- also unconfirmed within the timeout, it surfaces a visible save error (red text in
+    -- the journal save status area, driven by the 'saveError' class). The timeout is
+    -- generous so a brief WebSocket reconnect -- whose queued writes replay on reconnect --
+    -- still confirms inside the window rather than tripping a false failure. A late
+    -- confirmation (e.g. after the connection recovers) clears the error automatically.
+    local SAVE_CONFIRM_TIMEOUT = 12
+
+    -- Periodic autosave. After an edit we schedule a save AUTOSAVE_IDLE_DELAY seconds out;
+    -- each further edit pushes that out again (debounce). AUTOSAVE_MAX_DELAY caps the wait
+    -- so continuous typing still flushes -- a save is forced that many seconds after the
+    -- first edit of the current unsaved burst. Timing is stamped by the documentEdited
+    -- handler and consumed by 'think'.
+    local AUTOSAVE_IDLE_DELAY = 15
+    local AUTOSAVE_MAX_DELAY = 60
+
+    -- Issue a save and arm the confirmation watchdog. fullWrite=true forces a complete
+    -- document upload with no delta baseline (used for the retry); otherwise the upload is
+    -- a delta against the last server-confirmed baseline (data.original). Returns true if
+    -- an upload was actually sent.
+    local function BeginSaveAttempt(fullWrite)
+        --flush every editable element's current content into the document object first.
+        resultPanel:FireEventTree("savedoc")
+
+        if not fullWrite and dmhub.DeepEqual(self, resultPanel.data.original) then
+            --nothing changed since the confirmed baseline; nothing to upload.
+            return false
+        end
+
+        local deltaFrom = nil
+        if not fullWrite then
+            deltaFrom = resultPanel.data.original
+        end
+
+        resultPanel.data.pendingUpload = self:Upload(deltaFrom)
+        resultPanel.data.pendingUploadTime = dmhub.Time()
+        resultPanel.data.pendingUploadFull = (fullWrite == true)
+        resultPanel.data.pendingUploadFailed = nil
+
+        --this attempt captures every edit up to now; reset the autosave debounce + cap.
+        --(edits made after this point re-stamp the timers and earn their own save.)
+        resultPanel.data.firstEditTime = nil
+        resultPanel.data.editTime = nil
+
+        --do NOT advance data.original here: it is the baseline the next save's delta is
+        --computed from, and must only move forward once the server confirms this save
+        --landed (see refreshGame). If this upload is lost, the next save's delta still
+        --includes everything from this one.
+        resultPanel.data.pendingOriginal = DeepCopy(self)
+
+        --a new attempt supersedes any previously displayed save error.
+        resultPanel:SetClassTree("saveError", false)
+
+        writePanel:FireEventTree("checkChanges", resultPanel.data.pendingOriginal)
+        return true
+    end
+
     if dmhub.isDM then --and not args.presentationMode then
     -- Present to Players
         m_presentButton = gui.Button {
@@ -1128,7 +1189,13 @@ function CustomDocument:CreateInterface(args)
                         resultPanel.data.pendingOriginal = nil
                     end
                     resultPanel.data.pendingUpload = nil
+                    resultPanel.data.pendingUploadTime = nil
+                    resultPanel.data.pendingUploadFull = nil
+                    resultPanel.data.pendingUploadFailed = nil
                     resultPanel.data.saveConfirmed = true
+                    --a confirmation (even a late one, after the connection recovered)
+                    --clears any save error we may have surfaced in the meantime.
+                    resultPanel:SetClassTree("saveError", false)
                     element:FireEventTree("saveConfirmed")
                 end
 
@@ -1140,22 +1207,22 @@ function CustomDocument:CreateInterface(args)
         end,
 
         saveDocument = function(element)
-            resultPanel:FireEventTree("savedoc")
-            if not dmhub.DeepEqual(self, resultPanel.data.original) then
-                --our original is different, or we are the same object upload.
+            --normal (delta) save. The write-verification watchdog in 'think' escalates to
+            --a full write and then to a visible error if the server never confirms this.
+            BeginSaveAttempt(false)
+        end,
 
-                resultPanel.data.pendingUpload = self:Upload(resultPanel.data.original)
-
-                --do NOT advance data.original here: it is the baseline the
-                --next save's delta is computed from, and it must only move
-                --forward once the server confirms this save landed (see
-                --refreshGame above). If this upload is lost in transit, the
-                --next save's delta still includes everything from this one.
-                --The pending snapshot drives the unsaved-changes indicator
-                --in the meantime.
-                resultPanel.data.pendingOriginal = DeepCopy(self)
-                writePanel:FireEventTree("checkChanges", resultPanel.data.pendingOriginal)
+        documentEdited = function(element)
+            --periodic-autosave bookkeeping, fired by the editor on each edit. firstEditTime
+            --marks the start of the current unsaved burst (drives the AUTOSAVE_MAX_DELAY cap
+            --and is only set on a clean->dirty transition so continuous typing cannot keep
+            --pushing the cap out); editTime is the most recent edit (drives the
+            --AUTOSAVE_IDLE_DELAY debounce, reset by every edit). Both clear when a save runs.
+            local now = dmhub.Time()
+            if resultPanel.data.firstEditTime == nil then
+                resultPanel.data.firstEditTime = now
             end
+            resultPanel.data.editTime = now
         end,
 
         thinkTime = 0.2,
@@ -1166,6 +1233,46 @@ function CustomDocument:CreateInterface(args)
                 if doc ~= nil and doc:GetTextContent() ~= element.data.watcherContent then
                     element.data.watcherContent = doc:GetTextContent()
                     element.data.watcher:WriteContents(doc:GetTextContent())
+                end
+            end
+
+            --periodic autosave. firstEditTime/editTime are stamped by documentEdited. Save
+            --AUTOSAVE_IDLE_DELAY seconds after the last edit (debounce), or force a save once
+            --AUTOSAVE_MAX_DELAY seconds have passed since the first edit of this burst (cap).
+            --Only while actually editing. BeginSaveAttempt clears the timers and no-ops via
+            --its DeepEqual guard if nothing truly changed (e.g. edits that cancelled out), in
+            --which case we clear the timers here so we don't re-check every tick.
+            if resultPanel.data.firstEditTime ~= nil and not writePanel:HasClass("collapsed") then
+                local now = dmhub.Time()
+                if (now - resultPanel.data.editTime) >= AUTOSAVE_IDLE_DELAY or (now - resultPanel.data.firstEditTime) >= AUTOSAVE_MAX_DELAY then
+                    if BeginSaveAttempt(false) then
+                        resultPanel:SetClassTree("savePending", true)
+                    else
+                        resultPanel.data.firstEditTime = nil
+                        resultPanel.data.editTime = nil
+                    end
+                end
+            end
+
+            --write-verification watchdog. A save sets data.pendingUpload (the updateid we
+            --expect echoed back) and data.pendingUploadTime. If the server has not confirmed
+            --within SAVE_CONFIRM_TIMEOUT, retry once with a full document write; if the full
+            --write is also unconfirmed, surface a visible save error. pendingUploadFailed
+            --latches the error state without clearing pendingUpload, so a late confirmation
+            --(refreshGame) can still clear the error if the connection recovers.
+            if resultPanel.data.pendingUpload ~= nil and resultPanel.data.pendingUploadTime ~= nil and not resultPanel.data.pendingUploadFailed then
+                local elapsed = dmhub.Time() - resultPanel.data.pendingUploadTime
+                if elapsed >= SAVE_CONFIRM_TIMEOUT then
+                    if not resultPanel.data.pendingUploadFull then
+                        dmhub.Debug(string.format("JOURNAL_SAVE:: delta upload for document '%s' not confirmed after %.1fs; retrying with a full document write.", tostring(self.id), elapsed))
+                        BeginSaveAttempt(true)
+                    else
+                        dmhub.CloudError(string.format("JOURNAL_SAVE:: full document write for '%s' not confirmed after %.1fs; surfacing save error to user.", tostring(self.id), elapsed))
+                        resultPanel.data.pendingUploadFailed = true
+                        resultPanel:SetClassTree("savePending", false)
+                        resultPanel:SetClassTree("saveError", true)
+                        element:FireEventTree("saveFailed")
+                    end
                 end
             end
         end,

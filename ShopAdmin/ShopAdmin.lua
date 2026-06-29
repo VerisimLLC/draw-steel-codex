@@ -15,6 +15,38 @@ ShowShopPanel = function(parentPanel)
     local m_couponMonitor = nil
     local m_item = nil
 
+    --Left-list view state, shared between the editing panel's Hidden checkbox
+    --and the list's filter / show-hidden controls.
+    local m_filterText = ""
+    local m_showHidden = false
+
+    --Forward-declared so the editing panel's change handlers (defined below but
+    --invoked later) can refresh the side list when an item is hidden/unhidden.
+    local itemsListPanel
+
+    --Read/write item.hidden defensively: the C# field (ShopItem.hidden) only
+    --exists once the matching engine build is present. Pre-build the read
+    --reports "not hidden" and the write no-ops, mirroring the diceBanner setter
+    --guard above, so the panel keeps working against an older binary.
+    local function ItemHidden(item)
+        local ok, val = pcall(function() return item.hidden end)
+        return ok and val == true
+    end
+
+    local function SetItemHidden(item, val)
+        pcall(function() item.hidden = val end)
+    end
+
+    --Same defensive guard for item.featured (only live items may be featured).
+    local function ItemFeatured(item)
+        local ok, val = pcall(function() return item.featured end)
+        return ok and val == true
+    end
+
+    local function SetItemFeatured(item, val)
+        pcall(function() item.featured = val end)
+    end
+
     --------------------------------------------------------------------------
     -- Featured-dice shop banner editor (Type == "Dice").
     --
@@ -301,7 +333,60 @@ ShowShopPanel = function(parentPanel)
             end,
             change = function(element)
                 m_item.onsale = element.value
+                if element.value then
+                    --An item that is live on the store cannot also be hidden.
+                    SetItemHidden(m_item, false)
+                else
+                    --An item that is not live on the store cannot be featured.
+                    SetItemFeatured(m_item, false)
+                end
                 m_item:Upload()
+                --Refresh the Hidden/Featured checkboxes (they enable/disable on
+                --this) and the side list (highlighting + hidden depend on it).
+                editingPanel:FireEventTree("item", m_item)
+                itemsListPanel:FireEvent("refreshAssets")
+            end,
+        },
+
+        gui.Check{
+            text = "Featured",
+            tooltip = "Feature this item in the shop. Only items that are live on the store can be featured.",
+            styles = {
+                {
+                    selectors = {"disabled"},
+                    opacity = 0.4,
+                },
+            },
+            item = function(element, item)
+                element.value = ItemFeatured(item)
+                --Only live items can be featured, so lock the control otherwise.
+                element:SetClass("disabled", not item.onsale)
+            end,
+            change = function(element)
+                SetItemFeatured(m_item, element.value)
+                m_item:Upload()
+                itemsListPanel:FireEvent("refreshAssets")
+            end,
+        },
+
+        gui.Check{
+            text = "Hidden",
+            tooltip = "Hide this item from the shop list. Items that are live on the store cannot be hidden.",
+            styles = {
+                {
+                    selectors = {"disabled"},
+                    opacity = 0.4,
+                },
+            },
+            item = function(element, item)
+                element.value = ItemHidden(item)
+                --Live items cannot be hidden, so lock the control when onsale.
+                element:SetClass("disabled", item.onsale)
+            end,
+            change = function(element)
+                SetItemHidden(m_item, element.value)
+                m_item:Upload()
+                itemsListPanel:FireEvent("refreshAssets")
             end,
         },
 
@@ -657,6 +742,12 @@ ShowShopPanel = function(parentPanel)
             },
 
             BannerSlider("Dice Scale:", "diceScale", 0.5, 8),
+            --Spin direction for the previewed die, in degrees: the slider rotates
+            --the spin AXIS about the screen-normal (Z) axis at a constant speed.
+            --0 = the original vertical spin; +/-180 = reversed; +/-90 = tumbling.
+            --Saved per dice set and applied live in the preview above (and in the
+            --live shop banner).
+            BannerSlider("Spin Direction:", "spinDirection", -180, 180),
             BannerSlider("Dice X (0-1):", "dieX", 0, 1),
             BannerSlider("Dice Y (0-1):", "dieY", 0, 1),
             BannerSlider("Dice Box Size (0=auto):", "dieSize", 0, 1200),
@@ -1228,15 +1319,55 @@ ShowShopPanel = function(parentPanel)
     local m_artistPanels = {}
     local m_itemPanels = {}
 
-    local itemsListPanel
     itemsListPanel = gui.Panel{
         classes = {"list-panel"},
         width = 360,
         vscroll = true,
         monitorAssets = true,
+
+        --Featured items are called out in bold purple in the list. Cascades to
+        --the list-item labels (descendants) that carry the "featured" class.
+        --Only color/bold are set, so the normal hover/selected wash still wins
+        --on the active row while bold keeps it recognizable.
+        styles = {
+            {
+                selectors = {"featured"},
+                color = "#c77dffff",
+                bold = true,
+            },
+        },
+
         refreshAssets = function(element)
             local shopItems = assets.shopItems
             local artists = assets.artists
+
+            --A lowercased substring filter matched against an item's name or
+            --keywords. An empty filter matches everything.
+            local filter = string.lower(m_filterText or "")
+
+            --An item appears in the list unless it is soft-hidden (and we are
+            --not showing hidden items) or it fails the text filter. An item
+            --that is live on the store is never treated as hidden.
+            local function ItemVisible(v)
+                if (not m_showHidden) and (not v.onsale) and ItemHidden(v) then
+                    return false
+                end
+
+                if filter ~= "" then
+                    local name = string.lower(v.name or "")
+                    local keywords = string.lower(v.keywords or "")
+                    if string.find(name, filter, 1, true) == nil and string.find(keywords, filter, 1, true) == nil then
+                        return false
+                    end
+                end
+
+                return true
+            end
+
+            --Build a panel for every artist that has any item, visible or not.
+            --They all stay attached below (empty ones are collapsed), because
+            --removing a cached panel from the tree destroys it and a later
+            --refresh would then reuse a dead reference.
             local artistPanelChildren = {}
             for k,v in pairs(shopItems) do
                 local artistid = v.artistid or "none"
@@ -1295,6 +1426,7 @@ ShowShopPanel = function(parentPanel)
 
 
             for k,v in pairs(shopItems) do
+              if ItemVisible(v) then
                 local list = artistPanelChildren[v.artistid or "none"]
                 local text = v.name
                 if v.onsale then
@@ -1306,7 +1438,7 @@ ShowShopPanel = function(parentPanel)
                         text = string.format("%s: $%d.%02d", text, dollars, cents)
                     end
                 end
-                list[#list+1] = Compendium.CreateListItem{
+                local listItem = Compendium.CreateListItem{
                     ord = v.ctime,
                     text = text,
                     click = function(element)
@@ -1319,11 +1451,20 @@ ShowShopPanel = function(parentPanel)
                         end
                     end,
                 }
+                --Featured (and still live) items stand out in bold purple.
+                if ItemFeatured(v) and v.onsale then
+                    listItem:SetClass("featured", true)
+                end
+                list[#list+1] = listItem
+              end
             end
 
             for k,v in pairs(artistPanelChildren) do
                 table.sort(v, function(a,b) return a.data.ord < b.data.ord end)
                 m_artistPanels[k].children[2].children = v
+                --Hide whole artist groups that have no visible items this refresh
+                --(filtered out / all hidden) without detaching them.
+                m_artistPanels[k]:SetClass("collapsed", #v == 0)
             end
 
             local childItems = {}
@@ -1350,7 +1491,39 @@ ShowShopPanel = function(parentPanel)
             width = 'auto',
         },
 
+        --Live text filter over the item list (matches name or keywords).
+        gui.Input{
+            width = 340,
+            height = 24,
+            halign = "left",
+            vmargin = 4,
+            placeholderText = "Filter items...",
+            editlag = 0.2,
+            edit = function(element)
+                m_filterText = element.text
+                itemsListPanel:FireEvent("refreshAssets")
+            end,
+            change = function(element)
+                m_filterText = element.text
+                itemsListPanel:FireEvent("refreshAssets")
+            end,
+        },
+
         itemsListPanel,
+
+        --Reveal soft-hidden items in the list above. This only affects the
+        --admin view; hidden items are already excluded from the live shop.
+        gui.Check{
+            text = "Show Hidden Items",
+            value = false,
+            fontSize = 14,
+            halign = "left",
+            vmargin = 4,
+            change = function(element)
+                m_showHidden = element.value
+                itemsListPanel:FireEvent("refreshAssets")
+            end,
+        },
 
         gui.Input{
             width = 160,

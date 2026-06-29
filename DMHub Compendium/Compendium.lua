@@ -2268,6 +2268,222 @@ local ShowGlobalModsPanel = function(parentPanel)
 	parentPanel.children = {leftPanel, modPanel}
 end
 
+--Encounter Rules: a collection of named rule-sets (e.g. "Volcano"). Each set is an
+--EncounterRuleSet in the "encounterRuleSets" table; its rules are GlobalRuleMod objects in the
+--flat "encounterRuleMods" table, grouped by encounterId == the set's id. We reuse the global
+--rule editor verbatim (it is already parameterized by table name).
+local ShowEncounterRulesPanel = function(parentPanel)
+	local setsTableName = EncounterRuleSet.tableName
+	local rulesTableName = EncounterRuleSet.rulesTableName
+
+	local selectedSetId = nil
+
+	--right column: the rule editor, reused as-is from Global Rules.
+	local editorPanel = GlobalRuleMod.CreateEditor()
+
+	--middle column: the rules belonging to the selected set.
+	local rulesListPanel = nil
+	local ruleItems = {}
+	local addRuleButton = nil
+
+	rulesListPanel = gui.Panel{
+		classes = {'list-panel'},
+		vscroll = true,
+		monitorAssets = true,
+		refreshAssets = function(element)
+
+			local children = {}
+			local newRuleItems = {}
+
+			if selectedSetId ~= nil then
+				local rulesTable = dmhub.GetTable(rulesTableName) or {}
+				for k,item in pairs(rulesTable) do
+					if item:try_get("encounterId") == selectedSetId then
+						newRuleItems[k] = ruleItems[k] or CreateListItem{
+							select = element.aliveTime > 0.2,
+							tableName = rulesTableName,
+							key = k,
+							click = function()
+								editorPanel.data.SetGlobalRuleMod(rulesTableName, k)
+							end,
+						}
+
+						newRuleItems[k].text = item.name
+
+						children[#children+1] = newRuleItems[k]
+					end
+				end
+			end
+
+			table.sort(children, function(a,b) return a.text < b.text end)
+
+			ruleItems = newRuleItems
+			rulesListPanel.children = children
+
+		end,
+	}
+
+	addRuleButton = AddButton{
+		click = function(element)
+			if selectedSetId == nil then
+				return
+			end
+
+			local rule = GlobalRuleMod.CreateNew("New Rule")
+			rule.encounterId = selectedSetId
+			dmhub.SetAndUploadTableItem(rulesTableName, rule)
+		end,
+	}
+
+	--editable name for the selected set, shown atop the rules column.
+	local setNameInput = gui.Input{
+		classes = {"formStacked"},
+		text = "",
+		change = function(element)
+			if selectedSetId == nil then
+				return
+			end
+			local setsTable = dmhub.GetTable(setsTableName) or {}
+			local set = setsTable[selectedSetId]
+			if set == nil then
+				return
+			end
+			set.name = element.text
+			dmhub.SetAndUploadTableItem(setsTableName, set)
+		end,
+	}
+
+	--Override the formStackedRow's default 70% width (sized for the wide editor panel) so the
+	--name field does not blow out this narrow column.
+	local setNamePanel = gui.Panel{
+		classes = {"formStackedRow"},
+		width = 300,
+		lmargin = 0,
+		gui.Label{
+			classes = {"formStacked"},
+			text = "Rule Set Name:",
+		},
+		setNameInput,
+	}
+
+	local rulesColumn = gui.Panel{
+		selfStyle = {
+			flow = 'vertical',
+			height = '100%',
+			width = 'auto',
+		},
+
+		setNamePanel,
+		gui.Label{
+			text = "Rules",
+			fontSize = 22,
+			color = "white",
+			bold = true,
+			width = "auto",
+			height = "auto",
+			vmargin = 6,
+		},
+		rulesListPanel,
+		addRuleButton,
+	}
+
+	--select a set (or nil to clear): refresh the rule list, load the name field, clear the
+	--editor, gate the add button.
+	local SelectSet = function(setid)
+		selectedSetId = setid
+		editorPanel.children = {}
+		rulesListPanel:FireEvent('refreshAssets')
+		addRuleButton:SetClass('collapsed', setid == nil)
+		setNamePanel:SetClass('collapsed', setid == nil)
+		if setid ~= nil then
+			local setsTable = dmhub.GetTable(setsTableName) or {}
+			local set = setsTable[setid]
+			if set ~= nil then
+				setNameInput.text = set.name
+			end
+		end
+	end
+
+	--left column: the named encounter rule-sets.
+	local setsListPanel = nil
+	local setItems = {}
+
+	setsListPanel = gui.Panel{
+		classes = {'list-panel'},
+		vscroll = true,
+		monitorAssets = true,
+		refreshAssets = function(element)
+
+			local children = {}
+			local setsTable = dmhub.GetTable(setsTableName) or {}
+			local newSetItems = {}
+
+			local selectedStillPresent = false
+			for k,item in pairs(setsTable) do
+				newSetItems[k] = setItems[k] or CreateListItem{
+					select = element.aliveTime > 0.2,
+					tableName = setsTableName,
+					key = k,
+					click = function()
+						SelectSet(k)
+					end,
+				}
+
+				newSetItems[k].text = item.name
+
+				children[#children+1] = newSetItems[k]
+
+				if k == selectedSetId then
+					selectedStillPresent = true
+				end
+			end
+
+			table.sort(children, function(a,b) return a.text < b.text end)
+
+			setItems = newSetItems
+			setsListPanel.children = children
+
+			--if the selected set was deleted out from under us, clear the selection.
+			if selectedSetId ~= nil and selectedStillPresent == false then
+				SelectSet(nil)
+			end
+
+		end,
+	}
+
+	setsListPanel:FireEvent('refreshAssets')
+
+	local setsColumn = gui.Panel{
+		selfStyle = {
+			flow = 'vertical',
+			height = '100%',
+			width = 'auto',
+		},
+
+		gui.Label{
+			text = "Rule Sets",
+			fontSize = 22,
+			color = "white",
+			bold = true,
+			width = "auto",
+			height = "auto",
+			vmargin = 6,
+		},
+		setsListPanel,
+
+		AddButton{
+			click = function(element)
+				dmhub.SetAndUploadTableItem(setsTableName, EncounterRuleSet.CreateNew("New Encounter"))
+			end,
+		}
+	}
+
+	--start with nothing selected.
+	SelectSet(nil)
+
+	parentPanel.children = {setsColumn, rulesColumn, editorPanel}
+end
+
 local ShowRolltablePanel = function(parentPanel, tableName, tableOptions, editOptions)
 	local editorPanel = RollTable.CreateEditor()
 
@@ -6620,6 +6836,15 @@ dmhub.RegisterEventHandler("refreshTables", function(keys)
         contentType = "globalRuleMods",
         click = function(contentPanel)
             ShowGlobalModsPanel(contentPanel)
+        end,
+    }
+
+    Compendium.Register{
+        section = "Rules",
+        text = 'Encounter Rules',
+        contentType = "encounterRuleMods",
+        click = function(contentPanel)
+            ShowEncounterRulesPanel(contentPanel)
         end,
     }
 

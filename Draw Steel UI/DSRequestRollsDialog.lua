@@ -1254,8 +1254,19 @@ function ShowRequireRollDialog(args)
 
                         m_tierInputs = {}
 
+                        --Tier labels: the three standard tiers plus an optional 4th "Critical"
+                        --tier (natural 19-20). The Critical row stays collapsed unless the
+                        --selected power table actually defines a 4th tier, so plain 3-tier
+                        --rolls look unchanged.
+                        local tierLabels = {}
                         for i=1,#GameSystem.TierNames do
-                            local name = GameSystem.TierNames[i]
+                            tierLabels[i] = GameSystem.TierNames[i]
+                        end
+                        tierLabels[#tierLabels+1] = "Critical"
+
+                        for i=1,#tierLabels do
+                            local name = tierLabels[i]
+                            local isCritical = (i > #GameSystem.TierNames)
                             local input = gui.Input{
                                 width = "70%",
                                 height = "auto",
@@ -1282,6 +1293,10 @@ function ShowRequireRollDialog(args)
                             local panel = gui.TableRow{
                                 width = "100%",
                                 height = "auto",
+                                update = isCritical and function(element)
+                                    local powerTable = args.powerRollTable or PowerRollTableGroup.GetPowerTable(g_selectedPowerRoll:Get())
+                                    element:SetClass("collapsed", powerTable == nil or powerTable.tiers[i] == nil)
+                                end or nil,
                                 gui.Label{
                                     width = "30%",
                                     height = 22,
@@ -1292,6 +1307,10 @@ function ShowRequireRollDialog(args)
                                 },
                                 input,
                             }
+
+                            if isCritical then
+                                panel:FireEvent("update")
+                            end
 
                             children[#children+1] = panel
                         end
@@ -1406,6 +1425,12 @@ function ShowRequireRollDialog(args)
                             local tiers = {}
                             for i=1,#m_tierInputs do
                                 tiers[i] = m_tierInputs[i].text
+                            end
+
+                            --Drop an empty trailing "Critical" tier so non-critical rolls stay
+                            --3-tier (never send tiers[4] = "").
+                            if tiers[4] ~= nil and string.match(tiers[4], "%S") == nil then
+                                tiers[4] = nil
                             end
 
                             check.options.tiers = tiers

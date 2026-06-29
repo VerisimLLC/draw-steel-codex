@@ -27,10 +27,20 @@ local function ShortId(id)
     return id
 end
 
--- Engine ImageManager keys are base64 MD5 hashes; bgimage needs the "md5:" prefix to resolve back
--- to the loaded texture. Pass through special ("#..."), already-prefixed (":") and guids ("-").
+-- Engine ImageManager keys are usually base64 MD5 hashes; bgimage needs the "md5:" prefix to
+-- resolve such a key back to the loaded texture. Images on the new s2 / R2 storage backend are
+-- instead keyed by their full download URL (e.g. "https://codexback.com/..."), and the ImageManager
+-- cache stores them under that whole URL. bgimage's "md5:" branch uses everything after the prefix
+-- verbatim as the cache key, so URL-form ids need the "md5:" prefix too -- without it the raw URL
+-- (which contains a ":") fell through the generic pass-through below, missed every resolver, and
+-- rendered as a blank white square. (This is the same prefix the rest of the engine adds when it
+-- exposes these ids as a bgimage, e.g. LuaObjectInstance.imageid.) Pass through special ("#..."),
+-- already-prefixed ("md5:"/"thumb:") ids and asset guids ("-").
 local function ImageRef(id)
     if id == nil or id == "" then return nil end
+    if string.find(id, "://") then
+        return "md5:" .. id
+    end
     if string.find(id, "^#") or string.find(id, ":") or string.find(id, "%-") then
         return id
     end

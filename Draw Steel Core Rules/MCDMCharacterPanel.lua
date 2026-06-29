@@ -127,11 +127,16 @@ TacPanelStyles.TacPanel = ThemeEngine.MergeTokens{
         selectors = {"tpOutline"},
         bgcolor = "@bgAlt",
         borderColor = "@accentHover",
+        border = 1,
+        bgimage = true,
+        pad = 4,
+        cornerRadius = 6,
     },
     {
         selectors = {"tpOutline", "hover"},
-        bgcolor = "@accent",
-        borderColor = "@accentHover",
+        brightness = 2.0,
+        -- bgcolor = "@accent",
+        -- borderColor = "@accentHover",
     },
     {   -- Outer tac panel. Applies margin, padding, alignment, bottom border.
         selectors = {"panel", "tacpanel"},
@@ -1897,10 +1902,10 @@ function TacPanel.Portrait()
             valign = "center",
             hmargin = 1,
             vmargin = 1,
-            pad = 2,
-            bgimage = true,
-            border = 1,
-            cornerRadius = 13,
+            -- pad = 2,
+            -- bgimage = true,
+            -- border = 1,
+            -- cornerRadius = "4",
             btn,
         }
 
@@ -6765,7 +6770,7 @@ function TacPanel.MultiEdit()
                 lmargin = 0,
                 gui.Label{
                     classes = {"me-eds-label"},
-                    text = "EDS:",
+                    text = "ES:",
                 },
                 gui.Label{
                     classes = {"me-eds-input"},

@@ -404,6 +404,14 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
                     local multitargets = CalculateMultitargetsFromRollProperties(m_rollInfo, nil)
                     tier = NormalizeTierBasedOnMultitargets(tier, multitargets)
 
+                    --Promote to the "Critical" row (tier 4) on a natural 19-20, but only for power
+                    --tables that actually define a 4th "Critical" outcome. 3-tier ability rolls are
+                    --untouched (DiceResultToTier is shared and intentionally still returns 1-3).
+                    local critPromoted = rollProperties.tiers[4] ~= nil and (m_rollInfo.naturalRoll or 0) >= 19
+                    if critPromoted then
+                        tier = 4
+                    end
+
                     tier = m_rollInfo.properties:try_get("overrideTier") or tier
 
                     m_tierFinished = tier
@@ -416,7 +424,9 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
                     end
 
                     local eventName = string.format("UI.PowerRoll_Tier%d", tier)
-                    if critEligible and m_rollInfo.naturalRoll >= caster:CalculateNamedCustomAttribute("Critical Threshold") then
+                    if tier == 4 then
+                        eventName = "UI.PowerRoll_Crit"
+                    elseif critEligible and m_rollInfo.naturalRoll >= caster:CalculateNamedCustomAttribute("Critical Threshold") then
                         eventName = "UI.PowerRoll_Crit"
                     end
 
@@ -506,11 +516,21 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
         }
 
         local children = {}
-        for i=1,#g_TierNames do
+        --math.max so power tables with an optional 4th "Critical" tier render a 4th row;
+        --3-tier ability rolls still produce exactly #g_TierNames rows.
+        for i=1, math.max(#g_TierNames, #rollProperties.tiers) do
             local tierText = rollProperties.tiers[i]
 
             if caster ~= nil then
                 tierText = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(caster, tierText, nil, m_fullyImplemented)
+            end
+
+            --Tier 4 = "Critical": DrawSteelGlyphs has no crit glyph, so use a plain text label.
+            local tierIcon
+            if i == 4 then
+                tierIcon = gui.Label{ hpad = 0, textAlignment = "left", text = "Critical", width = "16%", fontSize = 14, height = 20, valign = "center", }
+            else
+                tierIcon = gui.Label{ hpad = 0, textAlignment = "left", fontFace = "DrawSteelGlyphs", text = cond(i == 1, '!', cond(i == 2, '@', '#')), width = "16%", fontSize = 34, height = 20, valign = "center", }
             end
 
             local row = gui.TableRow{
@@ -549,7 +569,7 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
                         element:SetClass("selectable", true)
                     end
                 end,
-                gui.Label{ hpad = 0, textAlignment = "left", fontFace = "DrawSteelGlyphs", text = cond(i == 1, '!', cond(i == 2, '@', '#')), width = "16%", fontSize = 34, height = 20, valign = "center", },
+                tierIcon,
                 gui.Panel{
                     vpad = 2,
                     width = "54%",
@@ -2344,8 +2364,18 @@ end
 
 function RollPropertiesPowerTable:GetOutcome(rollInfo)
     local tier = DiceResultToTier(rollInfo)
+
+    --When this power table defines a 4th "Critical" tier, a natural 19-20 reads as
+    --"Critical" instead of "Tier 3". Gated on tiers[4] so ordinary 3-tier rolls are
+    --unchanged.
+    local outcome = string.format("Tier %d", tier)
+    local tiers = self:try_get("tiers")
+    if tiers ~= nil and tiers[4] ~= nil and (rollInfo.naturalRoll or 0) >= 19 then
+        outcome = "Critical"
+    end
+
     return {
-        outcome = string.format("Tier %d", tier),
+        outcome = outcome,
         --This is a data color consumed inline by roll-result labels (not a
         --cascade rule), so resolve the @fg token to the active scheme's hex
         --at call time rather than shipping a literal token string.

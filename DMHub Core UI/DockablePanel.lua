@@ -567,7 +567,12 @@ function GameHud:CreateSingleDock(params)
 			container:SetClassTree("minimizeSet", false)
 
 			element:FireEvent("fitChildren")
-			element:FireEvent("layoutChanged")
+			--FireEventTree (not FireEvent) so the container's contentPanel re-runs its
+			--own layoutChanged, which clears its "collapsed" class (keyed off
+			--data.minimized). After an F5 restore the panel was deserialized minimized,
+			--leaving the contentPanel collapsed; a dock-level FireEvent doesn't reach it,
+			--so without this the panel un-minimizes to an empty backing panel.
+			element:FireEventTree("layoutChanged")
 			DockablePanel.Serialize()
 		end,
 
@@ -1457,6 +1462,9 @@ CreateDockablePanelTabbedContainer = function(options)
             else
                 element:FireEventOnParents("minimizeChild", element)
             end
+            --Persist the new maximized state (the minimize arrow does the same via
+            --shrinkChild/unshrinkChild). Without this, maximize is lost on reload.
+            DockablePanel.Serialize()
         end,
     }
 
@@ -1482,8 +1490,18 @@ CreateDockablePanelTabbedContainer = function(options)
             element:SetClassTree("mono", numChildren <= 1)
             element:SetClassTree("crowded", numChildren >= 3)
 			metrics = CalculatePanelMetrics()
-			resultPanel.data.minHeight = metrics.minHeight
-			resultPanel.data.maxHeight = metrics.maxHeight
+			--Don't clobber a minimized panel's shrunk min/max constraints (minimize
+			--pins minHeight=maxHeight=shrunkHeight). updatetabs fires after Deserialize
+			--via ApplyDockScale, and overwriting these here would let fitChildren clamp
+			--the panel back up to full size while it stays flagged minimized (broken
+			--render). Stash the fresh metrics in saved* so unshrinkChild restores them.
+			if resultPanel.data.minimized then
+				resultPanel.data.savedMinHeight = metrics.minHeight
+				resultPanel.data.savedMaxHeight = metrics.maxHeight
+			else
+				resultPanel.data.minHeight = metrics.minHeight
+				resultPanel.data.maxHeight = metrics.maxHeight
+			end
 
             local availableWidth = 350
             local tabBaseWidth = 28
@@ -1629,6 +1647,14 @@ CreateDockablePanelTabbedContainer = function(options)
             if data.height then
                 element.selfStyle.height = data.height
             end
+        end,
+
+        --Re-apply the maximized state during Deserialize. Mirrors the collapseArrow
+        --press path: clear the arrow's "collapseSet" class (its maximized visual) and
+        --fire maximizeChild so the siblings collapse and this panel fills the dock.
+        maximizeSelf = function(element)
+            collapseArrow:SetClass("collapseSet", false)
+            collapseArrow:FireEventOnParents("maximizeChild", collapseArrow)
         end,
 
         minimizeFloating = function(element)
@@ -2112,30 +2138,47 @@ DockablePanel = {
 		for _,dock in ipairs(gamehud:Docks()) do
 			local panels = {}
 
-			for _,child in ipairs(dock.data.GetChildren()) do
-				local panel = {
-					height = child.selfStyle.height,
-					tabs = {},
-					selected = child.data.GetSelectedTabIndex(),
-					minimized = child.data.minimized or nil,
-				}
+			--Iterate ALL containers (not dock.data.GetChildren(), which hides
+			--"collapsed" ones) so a maximized panel -- which collapses its siblings --
+			--does not drop those siblings from the saved layout. Skip empty
+			--containers (e.g. a mid-merge/pillaged one with no panel instances).
+			for _,child in ipairs(dock:GetChildrenWithClasses({"dockablePanelContainer"})) do
+				if #child.data.GetPanelInstances() > 0 then
+					local panel = {
+						height = child.selfStyle.height,
+						tabs = {},
+						selected = child.data.GetSelectedTabIndex(),
+						minimized = child.data.minimized or nil,
+						maximized = child.data.maximized or nil,
+					}
 
-				if child.data.minimized and child.data.savedHeight then
-					panel.height = child.data.savedHeight
+					if child.data.minimized and child.data.savedHeight then
+						panel.height = child.data.savedHeight
+					end
+
+					if dock == gamehud.floatingDock then
+						--A maximized floating panel has been resized to fill the dock;
+						--persist the pre-maximize geometry stashed in rememberMaximize so
+						--it restores at its natural size (and re-maximizes cleanly).
+						if child.data.maximized and child.data.rememberMaximize ~= nil then
+							panel.x = child.data.rememberMaximize.x
+							panel.y = child.data.rememberMaximize.y
+							panel.width = child.data.rememberMaximize.width
+							panel.height = child.data.rememberMaximize.height
+						else
+							panel.x = child.x
+							panel.y = child.y
+							panel.width = child.selfStyle.width
+							panel.height = child.selfStyle.height
+						end
+					end
+
+					for _,instance in ipairs(child.data.GetPanelInstances()) do
+						panel.tabs[#panel.tabs+1] = instance.data.identifier
+					end
+
+					panels[#panels+1] = panel
 				end
-
-                if dock == gamehud.floatingDock then
-                    panel.x = child.x
-                    panel.y = child.y
-                    panel.width = child.selfStyle.width
-                    panel.height = child.selfStyle.height
-                end
-
-				for _,instance in ipairs(child.data.GetPanelInstances()) do
-					panel.tabs[#panel.tabs+1] = instance.data.identifier
-				end
-
-				panels[#panels+1] = panel
 			end
 
 			doc.docks[#doc.docks+1] = {
@@ -2218,6 +2261,29 @@ DockablePanel = {
 				end
 				if dock.data.GetChildren()[1] then
 					dock:FireEvent("fitChildren")
+				end
+
+				--Restore a maximized panel (mutually exclusive with minimized panels).
+				--Re-assert the serialized heights first: the fitChildren above ran with
+				--every panel expanded and may have rebalanced them, but once maximize
+				--collapses the siblings their heights are frozen (fitChildren ignores
+				--collapsed containers), so we want the saved sizes in place beforehand.
+				local maxIndex = nil
+				for i,panelInfo in ipairs(panelsAdded) do
+					if panelInfo.maximized then
+						maxIndex = i
+					end
+				end
+				if maxIndex ~= nil then
+					local containers = dock:GetChildrenWithClasses({"dockablePanelContainer"})
+					if containers[maxIndex] ~= nil then
+						for i,c in ipairs(containers) do
+							if panelsAdded[i] ~= nil then
+								c.selfStyle.height = panelsAdded[i].height
+							end
+						end
+						containers[maxIndex]:FireEvent("maximizeSelf")
+					end
 				end
 
 				dock:FireEventTree("layoutChanged")

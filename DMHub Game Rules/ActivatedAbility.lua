@@ -1346,11 +1346,11 @@ function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, 
             return false
         end
 
-        if self.targetAllegiance == 'enemy' and casterToken:IsFriend(targetToken) and (not isAnyObject) then
+        if self.targetAllegiance == 'enemy' and IsFriendForTargeting(casterToken, targetToken) and (not isAnyObject) then
             return false
         end
 
-        if self.targetAllegiance == 'ally' and (not casterToken:IsFriend(targetToken)) and (not isAnyObject) then
+        if self.targetAllegiance == 'ally' and (not IsFriendForTargeting(casterToken, targetToken)) and (not isAnyObject) then
             return false
         end
     end
@@ -1375,7 +1375,7 @@ function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, 
     symbols = table.shallow_copy(symbols or {})
     symbols.invoker = symbols.invoker or caster
     symbols.caster = caster
-    symbols.enemy = not casterToken:IsFriend(targetToken)
+    symbols.enemy = not IsFriendForTargeting(casterToken, targetToken)
 	symbols.target = GenerateSymbols(targetToken.properties)
 
 	local result = filter == "" or GoblinScriptTrue(ExecuteGoblinScript(filter, targetToken.properties:LookupSymbol(symbols), 0, string.format("Target filter for %s", self.name)))
@@ -2406,12 +2406,19 @@ function CastActivatedAbilityChatMessage.Render(self, message)
         refreshMessage = function(element, message)
             self = message.properties
             m_status = message.properties.status
-            if m_status == "executing" then
-                statusLabel.thinkTime = 0.25
-            else
-                statusLabel.thinkTime = nil
+            --statusLabel may have been recycled/destroyed out from under this closure
+            --during teardown (its panel reads as nil once recycled), while the parent
+            --resultPanel that fires refreshMessage is still alive. Setting .thinkTime on
+            --a dead panel NREs in the C# setter, so guard on validity (same pattern the
+            --action log uses for stored message-panel refs).
+            if statusLabel.valid then
+                if m_status == "executing" then
+                    statusLabel.thinkTime = 0.25
+                else
+                    statusLabel.thinkTime = nil
+                end
+                statusLabel:FireEvent("updateMessage")
             end
-            statusLabel:FireEvent("updateMessage")
         end,
 
         card,

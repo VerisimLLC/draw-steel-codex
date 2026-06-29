@@ -5094,15 +5094,16 @@ function creature.RegisterFeatureCalculation(args)
 end
 
 function creature:FillBaseActiveModifiers(result)
-	local modTable = GetTableCached(GlobalRuleMod.TableName) or {}
 	local globalFeatures = {}
     local isretainer = self:IsRetainer()
 	local ismonster = (not isretainer) and self:IsMonster()
 	local ischaracter = self.typeName == "character"
     local iscompanion = self.typeName == "AnimalCompanion"
 
-	--global features first, to do base-level rules like critical hits etc.
-	for k,mod in pairs(modTable) do
+	--global features first, to do base-level rules like critical hits etc. GetActiveRuleMods also
+	--folds in the rules from any rule-set attached to the currently-live encounter, so encounter
+	--rules are applied here in exactly the same way as global rules.
+	for k,mod in ipairs(GlobalRuleMod.GetActiveRuleMods()) do
 		if (not mod:try_get("hidden")) and ((ischaracter and mod.applyCharacters) or (ismonster and mod.applyMonsters) or (isretainer and mod.applyRetainers) or (iscompanion and mod.applyCompanions)) then
 			mod:FillClassFeatures(self:GetLevelChoices(), globalFeatures)
 		end
@@ -6913,6 +6914,36 @@ function creature:GetCustomAttribute(attrInfo)
 	return result
 end
 
+-- Returns whether casterToken treats targetToken as a friend for TARGETING purposes.
+-- Mirrors casterToken:IsFriend, except a creature with the "Count Allies as Enemies"
+-- attribute treats allies within N squares (N = attribute value) as enemies.
+function IsFriendForTargeting(casterToken, targetToken)
+    if casterToken == nil or targetToken == nil then
+        return false
+    end
+
+    local isFriend = casterToken:IsFriend(targetToken)
+    if not isFriend then
+        return false
+    end
+
+    -- Never treat self as an enemy.
+    if casterToken.properties == targetToken.properties then
+        return true
+    end
+
+    local n = casterToken.properties:CalculateNamedCustomAttribute("Count Allies as Enemies")
+    if n ~= nil and n > 0 then
+        local casterLoc = casterToken.loc
+        local targetLoc = targetToken.loc
+        if casterLoc ~= nil and targetLoc ~= nil and casterLoc:DistanceInTiles(targetLoc) <= n then
+            return false -- nearby ally is treated as an enemy
+        end
+    end
+
+    return true
+end
+
 --- @param viewingToken nil|CharacterToken
 --- @param token nil|CharacterToken
 --- @param str string
@@ -6928,11 +6959,11 @@ function creature:MatchesString(viewingToken, token, str)
 
     if viewingToken ~= nil then
         if str == "enemy" then
-            return not viewingToken:IsFriend(token)
+            return not IsFriendForTargeting(viewingToken, token)
         end
 
         if str == "ally" or str == "friend" then
-            return viewingToken:IsFriend(token)
+            return IsFriendForTargeting(viewingToken, token)
         end
     end
 

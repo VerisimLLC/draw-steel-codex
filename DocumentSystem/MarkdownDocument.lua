@@ -1698,6 +1698,18 @@ BreakdownRichTags = function(content, result, options, extraOutput)
                 tiers[#tiers + 1] = match.text
             end
 
+            --Optional 4th |-line is the "Critical" outcome (natural 19-20). Its mere presence
+            --upgrades this power roll to four tiers; existing 3-line rolls are unaffected.
+            local hasCritical = false
+            if hasMatch then
+                local critMatch = lines[i + 4] and
+                regex.MatchGroups(lines[i + 4], "^" .. currentIndent .. "\\|(?<text>[^|]*)$")
+                if critMatch ~= nil then
+                    tiers[#tiers + 1] = critMatch.text
+                    hasCritical = true
+                end
+            end
+
             if hasMatch then
                 EmitText()
 
@@ -1708,8 +1720,8 @@ BreakdownRichTags = function(content, result, options, extraOutput)
                     tiers = tiers,
                     player = isPlayer,
                 }
-                StampLine(result[#result], i, i + 3)
-                skipLines = 3
+                StampLine(result[#result], i, i + cond(hasCritical, 4, 3))
+                skipLines = cond(hasCritical, 4, 3)
                 str = ""
             elseif g_hardwiredPowerTables[nextLine] then
                 EmitText()
@@ -2085,13 +2097,25 @@ function MarkdownDocument:GetRollableTable(tableid)
 end
 
 local function TierRoll(n)
-    return gui.Panel {
-        width = "100%",
-        height = "auto",
-        halign = "left",
-        valign = "top",
-        flow = "horizontal",
-        gui.Label {
+    --Tier 4 is the optional "Critical" outcome. DrawSteelGlyphs has no crit glyph
+    --(only !/@/# for tiers 1-3), so it gets a plain "Critical" text label instead.
+    local iconLabel
+    if n == 4 then
+        iconLabel = gui.Label {
+            width = CustomDocument.ScaleFontSize(54),
+            height = CustomDocument.ScaleFontSize(22),
+            textAlignment = "center",
+            text = "Critical",
+            fontSize = CustomDocument.ScaleFontSize(10),
+            valign = "top",
+            bgimage = true,
+            bgcolor = "clear",
+            fontFace = "book",
+            borderWidth = 1,
+            borderColor = "white",
+        }
+    else
+        iconLabel = gui.Label {
             width = CustomDocument.ScaleFontSize(60),
             height = CustomDocument.ScaleFontSize(30),
             textAlignment = "center",
@@ -2099,7 +2123,21 @@ local function TierRoll(n)
             text = cond(n == 1, '!', cond(n == 2, '@', '#')),
             fontSize = CustomDocument.ScaleFontSize(36),
             valign = "top",
-        },
+        }
+    end
+
+    return gui.Panel {
+        width = "100%",
+        height = "auto",
+        halign = "left",
+        valign = "top",
+        flow = "horizontal",
+        --Collapse rows whose tier text is absent. Tiers 1-3 are always present, so
+        --this only ever hides the optional 4th "Critical" row.
+        refreshPowerRoll = function(element, info)
+            element:SetClass("collapsed", info.tiers[n] == nil)
+        end,
+        iconLabel,
 
         gui.Label {
             id = string.format("tier_%d", n),
@@ -2229,6 +2267,7 @@ local function PowerRollDisplay(doc)
         TierRoll(1),
         TierRoll(2),
         TierRoll(3),
+        TierRoll(4),
     }
 
     return resultPanel

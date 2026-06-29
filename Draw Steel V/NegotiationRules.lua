@@ -418,3 +418,48 @@ MCDMMotivation.motivations = {
 
 
 }
+
+--Prepped negotiator archetype used as reusable compendium content. This is
+--distinct from MCDMNegotiation, which is the live negotiation created on a
+--token during play. A Negotiator is the GM-authored archetype from the manual's
+--"Sample Negotiators": a name, an impression score, flavor text, a description,
+--and free-form named motivations and pitfalls.
+NegotiatorTrait = RegisterGameType("NegotiatorTrait")
+NegotiatorTrait.name = ""
+NegotiatorTrait.description = ""
+
+function NegotiatorTrait.Create(args)
+    args = args or {}
+    return NegotiatorTrait.new{
+        name = args.name or "",
+        description = args.description or "",
+    }
+end
+
+Negotiator = RegisterGameType("Negotiator")
+Negotiator.tableName = "negotiators"
+Negotiator.name = "New Negotiator"
+Negotiator.impressionScore = 1
+Negotiator.flavorText = ""
+Negotiator.description = ""
+--ordered lists of NegotiatorTrait. Always set to fresh tables by CreateNew so
+--instances never share the prototype default.
+Negotiator.motivations = {}
+Negotiator.pitfalls = {}
+
+function Negotiator.CreateNew(args)
+    local result = Negotiator.new{
+        name = "New Negotiator",
+        impressionScore = 1,
+        flavorText = "",
+        description = "",
+        motivations = {},
+        pitfalls = {},
+    }
+    if args then
+        for k,v in pairs(args) do
+            result[k] = v
+        end
+    end
+    return result
+end

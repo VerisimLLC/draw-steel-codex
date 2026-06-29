@@ -1168,3 +1168,38 @@ GameHud.RegisterPresentableDialog {
     keeplocal = false,
     create = CreateMontageTestUI,
 }
+
+--Prepped montage test used as reusable compendium content. It reuses all of
+--MontageDocument's editor and display logic but is stored in its own
+--"montageTests" data table so prepped montages live only in the compendium and
+--do not appear in the journal's document picker.
+MontageTest = RegisterGameType("MontageTest", "MontageDocument")
+MontageTest.tableName = "montageTests"
+
+function MontageTest.CreateNew(args)
+    local result = MontageTest.new{
+        description = "New Montage Test",
+        scene = "",
+        difficulty = {
+            difficulty = true,
+            [3] = { success = 3, failure = 3 },
+            [4] = { success = 4, failure = 4 },
+            [5] = { success = 5, failure = 5 },
+            [6] = { success = 6, failure = 6 },
+        },
+        challenges = {},
+        consequences = {},
+        rewards = {},
+        outcomes = {
+            success = MontageOutcome.new{ victories = 1 },
+            partial = MontageOutcome.new{},
+            failure = MontageOutcome.new{},
+        },
+    }
+    if args then
+        for k,v in pairs(args) do
+            result[k] = v
+        end
+    end
+    return result
+end

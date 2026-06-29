@@ -557,6 +557,14 @@ local function ActionBarDrawer(args)
         m_rightInfoText.events.refresh = function(element)
             element.text = string.format("%d", CharacterResource.GetMalice())
         end
+        -- Malice lives in a shared global-resource document, so it can change
+        -- from another client or the [[resource:malice]] journal counter without
+        -- the action bar firing its own refresh. Monitor that document so the
+        -- displayed value updates live in those cases too.
+        m_rightInfoText.monitorGame = CharacterResource.GlobalResourcePath()
+        m_rightInfoText.events.refreshGame = function(element)
+            element.text = string.format("%d", CharacterResource.GetMalice())
+        end
     end
 
     if args.type == "trigger" then

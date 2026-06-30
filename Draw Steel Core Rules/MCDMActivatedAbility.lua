@@ -1501,6 +1501,41 @@ function ActivatedAbility:Render(options, params)
         }
     end
 
+    --Conditional reminders: non-blocking notes shown in the ability tooltip only
+    --when their GoblinScript condition is currently true for the caster (e.g. the
+    --Dig maneuver warns a burrowing creature that is grabbing a conscious creature
+    --that it can't dig deeper, or confirms a creature with a special modifier CAN
+    --dig while grabbing). Unlike abilityFilters these never suppress or block the
+    --ability -- they are purely informational. Set a reminder's `positive` flag
+    --for a green note instead of the default red warning.
+    local reminderPanel = nil
+    local conditionalReminders = self:try_get("conditionalReminders")
+    if conditionalReminders ~= nil and creatureProperties ~= nil then
+        local reminderLabels = {}
+        for _, reminder in ipairs(conditionalReminders) do
+            local formula = reminder.formula
+            local show = formula == nil or formula == "" or GoblinScriptTrue(ExecuteGoblinScript(formula, creatureProperties:LookupSymbol{}, 0, "Ability reminder condition"))
+            if show then
+                reminderLabels[#reminderLabels+1] = gui.Label {
+                    bgimage = true,
+                    classes = { cond(reminder.positive, "bgSuccess", "bgDanger") },
+                    width = "100%",
+                    height = "auto",
+                    fontSize = 14,
+                    hpad = 16,
+                    vpad = 4,
+                    text = StringInterpolateGoblinScript(reminder.text or "", creatureProperties),
+                }
+            end
+        end
+        if #reminderLabels > 0 then
+            reminderPanel = gui.Panel {
+                width = "100%",
+                height = "auto",
+                flow = "vertical",
+                children = reminderLabels,
+            }
+        end
     -- Optional caller-supplied danger-tinted footer note, appended at the very
     -- bottom of the card. Reuses the suppressPanel styling. Used by the Villain
     -- Action strip to explain a gated drawer ("already used this round/encounter")
@@ -2337,6 +2372,7 @@ function ActivatedAbility:Render(options, params)
         },
 
         suppressPanel,
+        reminderPanel,
 
         footerPanel,
     }

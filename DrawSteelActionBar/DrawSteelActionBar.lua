@@ -2228,6 +2228,21 @@ ActionMenu = function()
                 end
             end
 
+            --Some maneuvers (e.g. Dig) ask to be fully hidden -- rather than
+            --greyed out -- when their ability filter is not satisfied. Drop those
+            --here so they never appear in the menu while the caster is ineligible.
+            --This runs every time the menu opens, so it tracks live state such as
+            --the caster's altitude or whether it currently has a burrow speed.
+            if #abilities > 0 then
+                local visibleAbilities = {}
+                for _, ability in ipairs(abilities) do
+                    if (not ability:try_get("hideWhenFiltered")) or ability:AbilityFilterFailureMessage(g_token.properties) == nil then
+                        visibleAbilities[#visibleAbilities + 1] = ability
+                    end
+                end
+                abilities = visibleAbilities
+            end
+
             local triggers = {}
             if args.type == "trigger" then
                 triggers = g_token.properties:GetTriggeredActions()

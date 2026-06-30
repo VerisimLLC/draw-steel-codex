@@ -783,6 +783,23 @@ local function CreateCampaignTrackerPanel()
         width = "100%",
         height = "auto",
 
+        --The footer (edit/add buttons) sits at the bottom of the content. During
+        --the dockable panel's collapse->expand on first open, the footer's button
+        --children miss their initial style pass: they keep their default 100x100
+        --size and the icon-only add button never resolves its style-driven "+"
+        --image (the parent:addButton rule), so it stays invisible until the panel
+        --is resized. Force a restyle of the footer subtree once the panel has
+        --settled. Staggered to be robust to the open transition's timing.
+        create = function(element)
+            for _, delay in ipairs({ 0.05, 0.2, 0.5 }) do
+                dmhub.Schedule(delay, function()
+                    if mod.unloaded or footer == nil or not footer.valid then return end
+                    footer:SetClassTree("settleLayout", true)
+                    footer:SetClassTree("settleLayout", false)
+                end)
+            end
+        end,
+
         styles = {
             --layout only; the row's fill comes from the "bg"/"bgAlt" surface
             --classes toggled per shared state in refreshRow.

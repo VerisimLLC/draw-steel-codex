@@ -3732,16 +3732,24 @@ function creature:CheckConditionInstances(conditionid, maxInstances, newTokenid)
     end
 end
 
---try to purge a condition, both from ongoing effects and from inflicted conditions.
+--Purge a condition that was applied by an instance-limited effect. Only ongoing
+--effects that count toward the instance limit are removed.
 function creature:PurgeCondition(condid)
-    self:InflictCondition(condid, { purge = true })
-
     local ongoingEffects = self:ActiveOngoingEffects(true)
+    local nonCountingRemains = false
     for i = #ongoingEffects, 1, -1 do
         local ongoingEffectInfo = dmhub.GetTable(CharacterOngoingEffect.tableName)[ongoingEffects[i].ongoingEffectid]
         if ongoingEffectInfo ~= nil and ongoingEffectInfo.condition == condid then
-            self:RemoveOngoingEffect(ongoingEffects[i].ongoingEffectid)
+            if ongoingEffectInfo.countsTowardInstanceLimit then
+                self:RemoveOngoingEffect(ongoingEffects[i].ongoingEffectid)
+            else
+                nonCountingRemains = true
+            end
         end
+    end
+
+    if not nonCountingRemains then
+        self:InflictCondition(condid, { purge = true })
     end
 end
 
@@ -5015,7 +5023,9 @@ function creature.TakeDamage(self, amount, note, info)
                 local selfToken = dmhub.LookupToken(self)
                 if selfToken ~= nil and selfToken.summonerid then
                     local summonerToken = dmhub.GetTokenById(selfToken.summonerid)
-                    if summonerToken ~= nil and summonerToken.valid then
+                    if summonerToken ~= nil and summonerToken.valid
+                        and (summonerToken.properties:CalculateNamedCustomAttribute("Prevent Overflow Damage") or 0) <= 0 then
+                        --The "Prevent Overflow Damage" custom attribute on the summoner exempts them from this rule.
                         local overflowDamage = 2 + summonerToken.properties:CharacterLevel()
                         summonerToken:ModifyProperties {
                             description = "Squad destroyed (excess damage)",

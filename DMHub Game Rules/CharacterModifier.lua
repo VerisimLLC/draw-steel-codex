@@ -1024,7 +1024,7 @@ CharacterModifier.TypeInfo.resistance = {
 		local itemsDesc = string.format("%s%s", nonmagicText, pretty_join_list(items))
 
 		if modifier.resistances[1].apply == 'Damage Reduction' then
-			return string.format("Damage from %s attacks is reduced by %s.", itemsDesc, modifier.resistances[1].dr)
+			return string.format("Damage from %s attacks is reduced by %s.", itemsDesc, GoblinScriptTable.tostring(modifier.resistances[1].dr))
 		elseif modifier.resistances[1].apply == 'Percent Reduction' then
 			return string.format("Damage from %s attacks is reduced by %d%%.", itemsDesc, math.floor(modifier.resistances[1].dr*100))
 
@@ -1037,8 +1037,11 @@ CharacterModifier.TypeInfo.resistance = {
 	getResistances = function(modifier, creature, resistanceList)
 		for i,entry in ipairs(modifier.resistances) do
 			local e = table.shallow_copy_with_meta(entry)
-			if type(e:try_get("dr")) == "string" then
-				e.dr = ExecuteGoblinScript(e.dr, GenerateSymbols(creature, modifier:try_get("_tmp_symbols")), 0, "Damage Resistance")
+			--dr may be a number, a GoblinScript string, or a GoblinScriptTable (Custom Table).
+			--Evaluate the latter two down to a number; ExecuteGoblinScript handles both.
+			local dr = e:try_get("dr")
+			if type(dr) == "string" or type(dr) == "table" then
+				e.dr = ExecuteGoblinScript(dr, GenerateSymbols(creature, modifier:try_get("_tmp_symbols")), 0, "Damage Resistance")
 			end
 
             e.source = modifier.name
@@ -1129,7 +1132,9 @@ CharacterModifier.TypeInfo.resistance = {
 					},
 
 					gui.GoblinScriptInput{
-						value = tostring(modifier.resistances[1].dr),
+						--pass the raw value (number, GoblinScript string, or GoblinScriptTable)
+						--so a Custom Table round-trips instead of stringifying to "table: 0x...".
+						value = modifier.resistances[1].dr,
 						change = function(element)
 							for _,entry in ipairs(modifier.resistances) do
 								entry.dr = element.value

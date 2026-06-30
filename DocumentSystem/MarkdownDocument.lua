@@ -1141,6 +1141,53 @@ local function SkinGapLine(n)
     return string.format("<size=%dpx> </size>", n)
 end
 
+-- Style the visible text of links so they stand out from body copy. Opt-in:
+-- only fires when the skin sets link.color, so the default skin and any sheet
+-- that leaves `link` unset keep the engine's native link look (backward-safe).
+-- The engine still parses and resolves the link target; we only wrap the display
+-- span inside the brackets, leaving the (target) and click/hover behaviour intact.
+-- Handles [display](target) and the bare [Label] shorthand. Injected markup
+-- contains no brackets, so the bare-bracket pass skips spans the first pass
+-- already styled (detected via the embedded <color= tag). An image (![alt](url))
+-- is left alone so its alt text is not turned into a link.
+local function ColorizeLinks(content, link)
+    if type(content) ~= "string" or content == "" then return content end
+    link = link or {}
+    local color = SkinColor(link.color)
+    if color == nil then return content end
+    local open = string.format("<color=%s>", color)
+    local close = "</color>"
+    if link.underline ~= false then
+        open = open .. "<u>"
+        close = "</u>" .. close
+    end
+    local function wrap(inner)
+        if inner == "" or string.find(inner, "<color=", 1, true) ~= nil then
+            return nil
+        end
+        return open .. inner .. close
+    end
+    -- [display](target): style display, keep target. Skip image syntax (![..](..)).
+    content = content:gsub("(!?)(%b[])(%b())", function(bang, disp, target)
+        if bang == "!" then return nil end
+        local styled = wrap(disp:sub(2, -2))
+        if styled == nil then return nil end
+        return "[" .. styled .. "]" .. target
+    end)
+    -- bare [Label]: remaining balanced single-bracket spans. The (!?) prefix
+    -- keeps image alt text ([..] right after a !) from being matched on its own.
+    content = content:gsub("(!?)(%b[])", function(bang, disp)
+        if bang == "!" then return nil end
+        local styled = wrap(disp:sub(2, -2))
+        if styled == nil then return nil end
+        return "[" .. styled .. "]"
+    end)
+    return content
+end
+
+-- Test hook.
+MarkdownDocument.__ColorizeLinks = ColorizeLinks
+
 local ApplySkinToText
 ApplySkinToText = function(text, base, opts)
     if type(text) ~= "string" or text == "" then return text end
@@ -1162,6 +1209,7 @@ ApplySkinToText = function(text, base, opts)
     local bodyPS = (base.body or {}).paragraphSpacing
     local bodyColor = (base.body or {}).color
     local bodyFont = (base.body or {}).font
+    local linkSkin = base.link
     for _, line in ipairs(lines) do
         local hashes, hContent = string.match(line, "^(#+) (.*)$")
         local bmarker, bContent = string.match(line, "^([%-%*]) (.*)$")
@@ -1175,14 +1223,14 @@ ApplySkinToText = function(text, base, opts)
             local ruled = opts and opts.ruledLevels and opts.ruledLevels[#hashes]
             if after and not ruled then out[#out + 1] = after end
         elseif bmarker ~= nil then
-            out[#out + 1] = SkinBulletMarkup(base.bullet, bmarker, bContent, bodyColor, bodyFont)
+            out[#out + 1] = SkinBulletMarkup(base.bullet, bmarker, ColorizeLinks(bContent, linkSkin), bodyColor, bodyFont)
         elseif onum ~= nil then
-            out[#out + 1] = SkinOrderedMarkup(base.ordered, onum, oContent, bodyColor, bodyFont)
+            out[#out + 1] = SkinOrderedMarkup(base.ordered, onum, ColorizeLinks(oContent, linkSkin), bodyColor, bodyFont)
         elseif line == "" then
             local gap = SkinGapLine(bodyPS)
             out[#out + 1] = gap or SkinBodyMarkup(base.body, line)
         else
-            out[#out + 1] = SkinBodyMarkup(base.body, line)
+            out[#out + 1] = SkinBodyMarkup(base.body, ColorizeLinks(line, linkSkin))
         end
     end
     return table.concat(out, "\n")
@@ -1650,6 +1698,18 @@ BreakdownRichTags = function(content, result, options, extraOutput)
                 tiers[#tiers + 1] = match.text
             end
 
+            --Optional 4th |-line is the "Critical" outcome (natural 19-20). Its mere presence
+            --upgrades this power roll to four tiers; existing 3-line rolls are unaffected.
+            local hasCritical = false
+            if hasMatch then
+                local critMatch = lines[i + 4] and
+                regex.MatchGroups(lines[i + 4], "^" .. currentIndent .. "\\|(?<text>[^|]*)$")
+                if critMatch ~= nil then
+                    tiers[#tiers + 1] = critMatch.text
+                    hasCritical = true
+                end
+            end
+
             if hasMatch then
                 EmitText()
 
@@ -1660,8 +1720,8 @@ BreakdownRichTags = function(content, result, options, extraOutput)
                     tiers = tiers,
                     player = isPlayer,
                 }
-                StampLine(result[#result], i, i + 3)
-                skipLines = 3
+                StampLine(result[#result], i, i + cond(hasCritical, 4, 3))
+                skipLines = cond(hasCritical, 4, 3)
                 str = ""
             elseif g_hardwiredPowerTables[nextLine] then
                 EmitText()
@@ -2037,13 +2097,25 @@ function MarkdownDocument:GetRollableTable(tableid)
 end
 
 local function TierRoll(n)
-    return gui.Panel {
-        width = "100%",
-        height = "auto",
-        halign = "left",
-        valign = "top",
-        flow = "horizontal",
-        gui.Label {
+    --Tier 4 is the optional "Critical" outcome. DrawSteelGlyphs has no crit glyph
+    --(only !/@/# for tiers 1-3), so it gets a plain "Critical" text label instead.
+    local iconLabel
+    if n == 4 then
+        iconLabel = gui.Label {
+            width = CustomDocument.ScaleFontSize(54),
+            height = CustomDocument.ScaleFontSize(22),
+            textAlignment = "center",
+            text = "Critical",
+            fontSize = CustomDocument.ScaleFontSize(10),
+            valign = "top",
+            bgimage = true,
+            bgcolor = "clear",
+            fontFace = "book",
+            borderWidth = 1,
+            borderColor = "white",
+        }
+    else
+        iconLabel = gui.Label {
             width = CustomDocument.ScaleFontSize(60),
             height = CustomDocument.ScaleFontSize(30),
             textAlignment = "center",
@@ -2051,7 +2123,21 @@ local function TierRoll(n)
             text = cond(n == 1, '!', cond(n == 2, '@', '#')),
             fontSize = CustomDocument.ScaleFontSize(36),
             valign = "top",
-        },
+        }
+    end
+
+    return gui.Panel {
+        width = "100%",
+        height = "auto",
+        halign = "left",
+        valign = "top",
+        flow = "horizontal",
+        --Collapse rows whose tier text is absent. Tiers 1-3 are always present, so
+        --this only ever hides the optional 4th "Critical" row.
+        refreshPowerRoll = function(element, info)
+            element:SetClass("collapsed", info.tiers[n] == nil)
+        end,
+        iconLabel,
 
         gui.Label {
             id = string.format("tier_%d", n),
@@ -2181,6 +2267,7 @@ local function PowerRollDisplay(doc)
         TierRoll(1),
         TierRoll(2),
         TierRoll(3),
+        TierRoll(4),
     }
 
     return resultPanel
@@ -3355,6 +3442,10 @@ function MarkdownDocument:EditPanel(args)
                     selectors = {"savePending"},
                     collapsed = 1,
                 },
+                {
+                    selectors = {"saveError"},
+                    collapsed = 1,
+                },
             },
 
             text = "Changes Saved",
@@ -3422,6 +3513,37 @@ function MarkdownDocument:EditPanel(args)
 
             saveConfirmed = function(element)
                 resultPanel:SetClassTree("savePending", false)
+            end,
+        },
+
+        gui.Label{
+            --shown only when the write-verification watchdog (DocumentSystem.lua) gives up
+            --after a delta save AND a full-write retry both go unconfirmed by the server.
+            --Driven by the 'saveError' class set via resultPanel:SetClassTree. Collapsed
+            --again as soon as the user edits (changes) or a new save is in flight
+            --(savePending), and cleared automatically by a late server confirmation.
+            styles = {
+                {
+                    selectors = {"~saveError"},
+                    collapsed = 1,
+                },
+                {
+                    selectors = {"changes"},
+                    collapsed = 1,
+                },
+                {
+                    selectors = {"savePending"},
+                    collapsed = 1,
+                },
+            },
+
+            color = "#ff5b5b",
+            text = "Save failed!",
+            fontSize = 14,
+            width = "auto",
+            height = "auto",
+            hover = function(element)
+                gui.Tooltip("The server did not confirm your save, so your latest changes may not be stored. Keep this document open -- it will retry automatically and clear this message if the connection recovers. You can also keep editing (each save retries) or press Ctrl+Z to recover text that vanished.")(element)
             end,
         },
     }
@@ -4970,6 +5092,13 @@ function MarkdownDocument:EditPanel(args)
             -- The preview just re-rendered, so block heights may have changed even if the
             -- caret line did not (e.g. forward-delete). Force the next think to re-sync.
             lastSyncedCaret = -1
+
+            -- Notify the document controller so its periodic-autosave timers
+            -- (DocumentSystem.lua) restart their debounce from this edit.
+            local documentPanel = element:FindParentWithClass("documentPanel")
+            if documentPanel ~= nil then
+                documentPanel:FireEvent("documentEdited")
+            end
         end,
         refreshDocument = function(element)
             element.text = self:GetTextContent()

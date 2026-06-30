@@ -556,10 +556,25 @@ local g_diceBannerDefaults = {
 	dieX = 0.38,
 	dieY = 0.385,
 	dieSize = 0,
+	--Degrees the previewed die's idle spin AXIS is rotated about the screen-normal
+	--(Z) axis. The spin speed stays constant (g_bannerBaseSpinSpeed); this only
+	--changes which way it turns. 0 = original vertical spin; 180 = reversed; 90 = tumbling.
+	spinDirection = 0,
 	textPlacement = "right",
 	textOffsetX = 0,
 	textOffsetY = 0,
 }
+
+--Constant idle spin speed (degrees/sec) for the previewed die. The per-item
+--spinDirection only rotates the spin AXIS (about the screen-normal Z axis), so
+--changing direction never changes how fast the die turns.
+local g_bannerBaseSpinSpeed = 30
+
+--One-time capability flag: scene.spinAxisAngle is a new C# bridge property
+--shipped alongside this code. It is set false the first time the engine binary
+--predates it (Lua hot-reloaded against an older build) so the per-frame think
+--handler stops trying instead of erroring every frame. Resets fresh on reload.
+local g_supportsSpinAxis = true
 
 --Recommended/native source dimensions for custom banner art, shared with the
 --admin editor so it can document the target size.
@@ -571,6 +586,31 @@ ShopDiceBannerArtHeight = 706
 --image is shown uncropped.
 local g_bannerDisplayWidth = 1080
 local g_bannerDisplayHeight = math.floor(g_bannerDisplayWidth * ShopDiceBannerArtHeight / ShopDiceBannerArtWidth)
+
+--The banner die is rendered into the shared "#DicePreview" RT at 1/g_bannerDieRtZoom
+--scale and shown in a die panel g_bannerDieRtZoom times larger, so the on-screen die is
+--the SAME size but its attached particle FX (appearance burst, embers, shockwaves) get
+--that many times more room inside the preview camera frame before being clipped at the
+--RT edges. The die's stage FX are attachToDie Hierarchy-scaled children
+--(DiceController.ApplyHierarchyScaling), so they shrink with the die and ride the same
+--zoom. This is a pure framing change on the shared singleton scene: diceScale is divided
+--here and the panel multiplied, with no change to the 1024x1024 RT (it has resolution to
+--spare for the on-screen size). Only the bare-"#DicePreview" banner uses this; the pooled
+--"#DicePreview:<assetid>:<seq>" tile previews are a separate scene and are unaffected.
+local g_bannerDieRtZoom = 2
+
+--Featured-dice carousel cross-fade timings (seconds). When switching featured
+--sets via the dots, the background/foreground images dissolve over the full
+--time while the text fades out then in around a midpoint, and the (single,
+--shared) preview die hard-cuts at that same midpoint. The text-fade and
+--die-cut times are half the full time so the midpoint stays centered.
+local g_bannerCrossfadeTime = 1.5
+local g_bannerTextFadeTime = 0.75
+local g_bannerDieCutTime = 0.75
+
+--The featured-dice carousel auto-advances to the next set this many seconds
+--after the last switch (manual click or auto). Resets on every switch.
+local g_bannerAutoCycleTime = 12
 
 --Returns a full config table: defaults overlaid with any fields present in cfg
 --(a Dice item's diceBanner table, which may be nil or partial).
@@ -653,12 +693,32 @@ local MakeDiceBanner = function(opts)
 	local m_item = nil
 	local m_suspended = false
 
+	--The top featured banner carousels up to three random "featured" dice
+	--products; the dots in the bottom-right corner switch between them.
+	--m_featuredIndex is the 1-based index of the one currently shown.
+	local m_featuredItems = {}
+	local m_featuredIndex = 1
+
+	--Cross-fade transition state. The shown die is driven from m_dieAssetid
+	--(not m_item) so the carousel can hard-cut the die at the midpoint while
+	--the images dissolve across the full second. m_transitionGen guards the
+	--scheduled midpoint against a newer switch superseding it; m_destroyed
+	--guards against the banner being torn down mid-transition.
+	local m_dieAssetid = nil
+	local m_transitionGen = 0
+	local m_destroyed = false
+
+	--Guards the pending auto-advance timer so a manual switch (or a newer
+	--auto-advance) supersedes an older scheduled one.
+	local m_autoCycleGen = 0
+
 	--Live banner config (see g_diceBannerDefaults). Starts at defaults; the
 	--shop overwrites it from the featured item's diceBanner, and the admin
 	--editor drives it live via the applyBannerConfig event.
 	local m_cfg = NormalizeBannerConfig(nil)
 	local m_diceScale = m_cfg.diceScale
-	local m_dieSize = math.floor(imageHeight)
+	local m_spinDirection = m_cfg.spinDirection
+	local m_dieSize = math.floor(imageHeight * g_bannerDieRtZoom)
 
 	--The die, rendered between the banner background and the foreground layer.
 	--Positioned in full-image coordinates. The preview RT is transparent
@@ -712,58 +772,269 @@ local MakeDiceBanner = function(opts)
 		end,
 	}
 
-	--The foreground overlay in front of the die (e.g. hands holding it).
-	--Solid pixels matching the banner; transparent until a custom image is set.
-	local frontPanel = gui.Panel{
-		floating = true,
-		interactable = false,
-		bgimage = "panels/square.png",
-		bgcolor = "clear",
-		halign = "left",
-		valign = "top",
-		width = bannerWidth,
-		height = imageHeight,
-	}
+	--A two-panel cross-fade image layer sized to the full banner. setImage
+	--swaps the shown image instantly (admin/details/first show); crossfadeImage
+	--dissolves from the current image to a new one over g_bannerCrossfadeTime
+	--seconds (carousel switch). The two stacked panels alternate the "fade"
+	--(opacity 0) class so one dissolves out as the other dissolves in.
+	local function MakeCrossfadeImageLayer()
+		local m_active, m_idle
+
+		--A layer image, or transparent (alpha-0 bgcolor) when the field is empty
+		--(cleared) -- keeping the panel solidly sized either way.
+		local function ApplyImage(panel, image)
+			if image ~= nil and image ~= "" then
+				panel.bgimage = image
+				panel.selfStyle.bgcolor = "white"
+			else
+				panel.bgimage = "panels/square.png"
+				panel.selfStyle.bgcolor = "clear"
+			end
+		end
+
+		local panelA = gui.Panel{
+			classes = {"xfadeLayer"},
+			floating = true,
+			interactable = false,
+			bgimage = "panels/square.png",
+			bgcolor = "clear",
+			halign = "left",
+			valign = "top",
+			width = bannerWidth,
+			height = imageHeight,
+		}
+
+		local panelB = gui.Panel{
+			classes = {"xfadeLayer", "fade"},
+			floating = true,
+			interactable = false,
+			bgimage = "panels/square.png",
+			bgcolor = "clear",
+			halign = "left",
+			valign = "top",
+			width = bannerWidth,
+			height = imageHeight,
+		}
+
+		m_active = panelA
+		m_idle = panelB
+
+		return gui.Panel{
+			floating = true,
+			interactable = false,
+			halign = "left",
+			valign = "top",
+			width = bannerWidth,
+			height = imageHeight,
+
+			--Only the fade class carries a transitionTime (both directions),
+			--so the instant setImage path stays instant while crossfadeImage
+			--dissolves over g_bannerCrossfadeTime. Matches MCDMClassCarousel.
+			styles = {
+				{
+					selectors = {"xfadeLayer", "fade"},
+					opacity = 0,
+					transitionTime = g_bannerCrossfadeTime,
+				},
+			},
+
+			panelA,
+			panelB,
+
+			--Instant swap (no dissolve): set the active layer's image and make
+			--sure only it is visible.
+			setImage = function(element, image)
+				ApplyImage(m_active, image)
+				m_active:SetClassImmediate("fade", false)
+				m_idle:SetClassImmediate("fade", true)
+			end,
+
+			--Dissolve from the current image to a new one: paint the idle layer
+			--with the new image, fade it in while fading the active one out, then
+			--swap their roles.
+			crossfadeImage = function(element, image)
+				ApplyImage(m_idle, image)
+				m_idle:SetClass("fade", false)
+				m_active:SetClass("fade", true)
+				local swap = m_active
+				m_active = m_idle
+				m_idle = swap
+			end,
+		}
+	end
+
+	--The background art (behind the die) and the foreground overlay in front of
+	--the die (e.g. hands holding it). Both are full-banner cross-fade layers.
+	local backLayer = MakeCrossfadeImageLayer()
+	local frontLayer = MakeCrossfadeImageLayer()
 
 	local resultPanel
 
-	--Applies the banner config: the two (uncropped, full-size) layer images,
-	--die size/position, and (via a tree event) the text overlay placement.
-	--Safe to call repeatedly as the admin editor tweaks values. dieX/dieY are
-	--fractions of the full image.
-	local function ApplyConfig(cfg)
-		m_cfg = cfg
+	--Applies the die-only part of a config: size, position, scale, spin axis,
+	--and which dice set the (shared) preview scene shows. Pulled out of
+	--ApplyConfig so the carousel can hard-cut the die at the transition midpoint
+	--independently of the image cross-fade. assetid drives the preview die via
+	--m_dieAssetid (read by think); pass nil for "no die yet".
+	local function ApplyDieState(cfg, assetid)
 		m_diceScale = cfg.diceScale
+		m_spinDirection = cfg.spinDirection
 
 		local dieSize = cfg.dieSize
 		if dieSize == nil or dieSize <= 0 then
 			dieSize = math.floor(imageHeight)
 		end
+		--Render the die small in the RT and show it in a proportionally larger panel so its
+		--FX clear the frame edges; the on-screen die size is unchanged (see g_bannerDieRtZoom).
+		dieSize = math.floor(dieSize * g_bannerDieRtZoom)
 		m_dieSize = dieSize
 		diePanel.width = dieSize
 		diePanel.height = dieSize
-
-		--Each layer shows its custom image, or is transparent when the field is
-		--empty (cleared). A transparent (alpha 0) bgcolor hides the layer while
-		--keeping the panel solidly sized.
-		if cfg.backgroundImage ~= nil and cfg.backgroundImage ~= "" then
-			resultPanel.bgimage = cfg.backgroundImage
-			resultPanel.selfStyle.bgcolor = "white"
-		else
-			resultPanel.selfStyle.bgcolor = "clear"
-		end
-
-		if cfg.foregroundImage ~= nil and cfg.foregroundImage ~= "" then
-			frontPanel.bgimage = cfg.foregroundImage
-			frontPanel.selfStyle.bgcolor = "white"
-		else
-			frontPanel.selfStyle.bgcolor = "clear"
-		end
-
 		diePanel.x = math.floor(bannerWidth * cfg.dieX - dieSize / 2)
 		diePanel.y = math.floor(imageHeight * cfg.dieY - dieSize / 2)
 
+		m_dieAssetid = assetid
+	end
+
+	--Applies a banner config instantly (no cross-fade): the two (uncropped,
+	--full-size) layer images, the die state, and (via a tree event) the text
+	--overlay placement. Used by the admin live preview, the details showcase,
+	--and the carousel's first show. Safe to call repeatedly as the admin editor
+	--tweaks values. dieX/dieY are fractions of the full image.
+	local function ApplyConfig(cfg)
+		m_cfg = cfg
+		backLayer:FireEvent("setImage", cfg.backgroundImage)
+		frontLayer:FireEvent("setImage", cfg.foregroundImage)
+		ApplyDieState(cfg, (m_item ~= nil and m_item.assetid) or nil)
 		resultPanel:FireEventTree("placeBannerText", cfg)
+	end
+
+	--True for a dice product currently flagged featured. featured is read
+	--defensively (the C# field may predate this build, like spinAxisAngle).
+	--Only live (onsale) dice can be featured.
+	local function IsFeaturedDice(item)
+		if item.itemType ~= "Dice" or not item.onsale then
+			return false
+		end
+		local ok, val = pcall(function() return item.featured end)
+		return ok and val == true
+	end
+
+	--Pick up to three featured dice at random (Fisher-Yates shuffle, take 3).
+	local function SelectFeaturedDice()
+		local pool = {}
+		for _,item in pairs(assets.shopItems) do
+			if IsFeaturedDice(item) then
+				pool[#pool+1] = item
+			end
+		end
+
+		for i=#pool,2,-1 do
+			local j = math.random(1, i)
+			pool[i], pool[j] = pool[j], pool[i]
+		end
+
+		local result = {}
+		for i=1,math.min(3, #pool) do
+			result[i] = pool[i]
+		end
+		return result
+	end
+
+	--Cross-fade from the current featured item to newItem. The images dissolve
+	--over the full second; the text fades out then, at the midpoint, swaps and
+	--fades back in; the (single, shared) preview die hard-cuts at that same
+	--midpoint. m_item / die / text stay on the OLD set until the midpoint so
+	--everything visible flips together.
+	local function CrossfadeToItem(newItem)
+		local newCfg = ReadItemBannerConfig(newItem)
+		m_suspended = false
+
+		--Kick off the current die's exit animation (Exit FX + fade-out) as the
+		--cross-fade begins. The fade-out runs over the midpoint time so the die
+		--mesh reaches full transparency exactly at the hard-cut, just as the new
+		--dice set takes over and plays its own appearance. pcall-guarded so a
+		--pre-build engine binary (no PlayExit) simply skips it.
+		pcall(function() dice.GetPreviewScene():PlayExit(g_bannerDieCutTime) end)
+
+		backLayer:FireEvent("crossfadeImage", newCfg.backgroundImage)
+		frontLayer:FireEvent("crossfadeImage", newCfg.foregroundImage)
+		resultPanel:FireEventTree("fadeBannerText", true)
+
+		m_transitionGen = m_transitionGen + 1
+		local gen = m_transitionGen
+		dmhub.Schedule(g_bannerDieCutTime, function()
+			--Skip if the banner is gone, the mod reloaded, or a newer switch
+			--has superseded this one.
+			if mod.unloaded or m_destroyed or gen ~= m_transitionGen then
+				return
+			end
+
+			m_item = newItem
+			m_cfg = newCfg
+			ApplyDieState(newCfg, newItem.assetid)
+			resultPanel:FireEventTree("refreshBannerItem", newItem)
+			resultPanel:FireEventTree("placeBannerText", newCfg)
+			resultPanel:FireEventTree("fadeBannerText", false)
+		end)
+	end
+
+	--Forward-declared because ScheduleAutoCycle (below) advances via it, while
+	--ShowFeatured (re)arms the auto-cycle timer through ScheduleAutoCycle.
+	local ShowFeatured
+
+	--(Re)arm the auto-advance timer: g_bannerAutoCycleTime after the most recent
+	--switch, cross-fade to the next featured set, wrapping around. Only runs when
+	--there is more than one featured set; resets on every switch via the gen
+	--guard. While the banner is suspended (cart/inventory view) it just reschedules
+	--instead of advancing, so it resumes cleanly when the banner is shown again.
+	local function ScheduleAutoCycle()
+		if #m_featuredItems <= 1 then
+			return
+		end
+
+		m_autoCycleGen = m_autoCycleGen + 1
+		local gen = m_autoCycleGen
+		dmhub.Schedule(g_bannerAutoCycleTime, function()
+			if mod.unloaded or m_destroyed or gen ~= m_autoCycleGen then
+				return
+			end
+
+			if m_suspended then
+				ScheduleAutoCycle()
+				return
+			end
+
+			local nextIndex = m_featuredIndex + 1
+			if nextIndex > #m_featuredItems then
+				nextIndex = 1
+			end
+			ShowFeatured(nextIndex, true)
+		end)
+	end
+
+	--Show the featured dice at the given carousel index and light its dot. When
+	--animate is set (a dot click or auto-advance) and there is a previous item,
+	--cross-fade to it; otherwise (the first show) apply it instantly. Either way
+	--the auto-cycle countdown restarts.
+	ShowFeatured = function(index, animate)
+		if #m_featuredItems == 0 then
+			return
+		end
+		index = clamp(index, 1, #m_featuredItems)
+		local newItem = m_featuredItems[index]
+		m_featuredIndex = index
+		resultPanel:FireEventTree("setFeaturedDot", index)
+
+		if animate and m_item ~= nil and newItem ~= m_item then
+			CrossfadeToItem(newItem)
+		else
+			m_item = newItem
+			m_suspended = false
+			ApplyConfig(ReadItemBannerConfig(newItem))
+			resultPanel:FireEventTree("refreshBannerItem", newItem)
+		end
+
+		ScheduleAutoCycle()
 	end
 
 	resultPanel = gui.Panel{
@@ -820,7 +1091,23 @@ local MakeDiceBanner = function(opts)
 				transitionTime = 0.1,
 				bgcolor = "srgb:#f6ddb6",
 			},
+
+			--Carousel text-box fade: toggling "faded" dissolves the whole text
+			--box. Used to fade the old copy out and the new copy in across a
+			--featured switch. transitionTime lives on the faded rule (both
+			--directions), matching the image cross-fade pattern.
+			{
+				selectors = {"bannerTextBox", "faded"},
+				opacity = 0,
+				transitionTime = g_bannerTextFadeTime,
+			},
 		},
+
+		--Marks the banner torn down so an in-flight cross-fade midpoint callback
+		--(dmhub.Schedule) bails instead of touching dead panels.
+		destroy = function(element)
+			m_destroyed = true
+		end,
 
 		create = function(element)
 			if opts.adminPreview or opts.detailsMode then
@@ -836,25 +1123,33 @@ local MakeDiceBanner = function(opts)
 				return
 			end
 
-			--Feature the first dice product we can find; prefer one that
-			--is on sale.
-			local fallback = nil
-			for _,item in pairs(assets.shopItems) do
-				if item.itemType == "Dice" then
-					if item.onsale then
-						m_item = item
-						break
+			--Carousel up to three random featured dice; the dots in the
+			--bottom-right corner switch between them.
+			m_featuredItems = SelectFeaturedDice()
+
+			--Fallback when nothing is flagged featured: show the first dice
+			--product (prefer one on sale), as before -- no dots in that case.
+			if #m_featuredItems == 0 then
+				local fallback = nil
+				for _,item in pairs(assets.shopItems) do
+					if item.itemType == "Dice" then
+						if item.onsale then
+							m_featuredItems = { item }
+							break
+						end
+						fallback = fallback or item
 					end
-					fallback = fallback or item
+				end
+
+				if #m_featuredItems == 0 and fallback ~= nil then
+					m_featuredItems = { fallback }
 				end
 			end
 
-			m_item = m_item or fallback
-
-			if m_item ~= nil then
+			if #m_featuredItems > 0 then
 				element.thinkTime = 0.01
-				ApplyConfig(ReadItemBannerConfig(m_item))
-				element:FireEventTree("refreshBannerItem", m_item)
+				element:FireEventTree("buildFeaturedDots", #m_featuredItems)
+				ShowFeatured(1)
 			end
 		end,
 
@@ -921,7 +1216,10 @@ local MakeDiceBanner = function(opts)
 				return
 			end
 
-			local assetid = m_item.assetid
+			--Driven from m_dieAssetid (not m_item.assetid) so a carousel switch
+			--can hold the old die until its 0.5s hard-cut while m_item/text/images
+			--transition.
+			local assetid = m_dieAssetid
 			if assetid == nil or assetid == "" then
 				return
 			end
@@ -931,14 +1229,21 @@ local MakeDiceBanner = function(opts)
 			scene.selectedIndex = 0
 			scene.solo = true
 			scene.transparent = true
-			scene.diceScale = m_diceScale
+			--Divide by the zoom so the die renders small in the RT (leaving FX headroom); the
+			--die panel is multiplied by the same factor, keeping the on-screen size constant.
+			scene.diceScale = m_diceScale / g_bannerDieRtZoom
 			scene.fixedTime = false
 
-			--Gently turn the die so buyers see all its faces -- both in the details
-			--showcase and on the featured top banner / carousel. Only the admin
-			--positioning preview stays static, so the die can be placed without it
-			--spinning away from the cursor.
-			scene.initialRotation = cond(opts.adminPreview, 0, 30)
+			--Gently turn the die so buyers see all its faces -- on the featured top
+			--banner / carousel, the details showcase, AND the admin preview (so the
+			--admin sees the exact rotation shoppers will). The speed is constant; the
+			--per-item spinDirection only re-aims the spin axis (rotating it about the
+			--screen-normal Z axis), so the admin slider changes direction, not speed.
+			scene.initialRotation = g_bannerBaseSpinSpeed
+			if g_supportsSpinAxis then
+				--pcall-guarded: tolerate a pre-build engine binary (see g_supportsSpinAxis).
+				g_supportsSpinAxis = pcall(function() scene.spinAxisAngle = m_spinDirection end)
+			end
 		end,
 
 		--Dev hook for tuning the banner live, e.g.:
@@ -964,19 +1269,24 @@ local MakeDiceBanner = function(opts)
 		--Dev hook: dump the actual layer geometry for debugging.
 		debugBanner = function(element)
 			printf("BANNER:: banner rendered=%sx%s", json(element.renderedWidth), json(element.renderedHeight))
-			printf("BANNER:: front rendered=%sx%s", json(frontPanel.renderedWidth), json(frontPanel.renderedHeight))
+			printf("BANNER:: front rendered=%sx%s", json(frontLayer.renderedWidth), json(frontLayer.renderedHeight))
 			printf("BANNER:: die pos=(%s,%s) size=%sx%s scale=%s", json(diePanel.x), json(diePanel.y), json(diePanel.renderedWidth), json(diePanel.renderedHeight), json(m_diceScale))
 		end,
 
+		--Order matters: backLayer (background art) behind the die, frontLayer
+		--(foreground overlay) in front of it. Both are cross-fade layers.
+		backLayer,
+
 		diePanel,
 
-		frontPanel,
+		frontLayer,
 
 		--Advertising copy for the featured dice. By default it sits on the
 		--empty rock to the right of the skeleton; per-item config can move it
 		--to any edge/corner. A dark scrim sits behind the text so it stays
 		--readable over the art. ApplyTextPlacement sets halign/valign/x/y.
 		gui.Panel{
+			classes = {"bannerTextBox"},
 			floating = true,
 			flow = "vertical",
 			halign = "right",
@@ -993,6 +1303,12 @@ local MakeDiceBanner = function(opts)
 
 			placeBannerText = function(element, cfg)
 				ApplyTextPlacement(element, cfg.textPlacement, cfg.textOffsetX, cfg.textOffsetY)
+			end,
+
+			--Cross-fade the whole text box out (true) / in (false) during a
+			--featured carousel switch.
+			fadeBannerText = function(element, faded)
+				element:SetClass("faded", faded)
 			end,
 
 			gui.Label{
@@ -1048,6 +1364,78 @@ local MakeDiceBanner = function(opts)
 					end
 				end,
 			},
+		},
+
+		--Carousel dots tucked into the very bottom-right corner: one per featured
+		--dice set, with the currently shown one lit. Clicking a dot cross-fades
+		--to that set. Built by buildFeaturedDots (fired once the featured set is
+		--chosen); stays empty in the admin preview / details showcase.
+		gui.Panel{
+			floating = true,
+			flow = "horizontal",
+			halign = "right",
+			valign = "bottom",
+			width = "auto",
+			height = "auto",
+			hmargin = 6,
+			vmargin = 5,
+
+			styles = {
+				{
+					selectors = {"featuredDot"},
+					bgimage = "panels/square.png",
+					width = 16,
+					height = 16,
+					cornerRadius = 8,
+					hmargin = 5,
+					valign = "center",
+					bgcolor = "#ffffff66",
+					borderWidth = 1,
+					borderColor = "#00000080",
+					transitionTime = 0.1,
+				},
+				{
+					selectors = {"featuredDot", "hover"},
+					bgcolor = "#ffffffbb",
+				},
+				{
+					selectors = {"featuredDot", "selected"},
+					bgcolor = "#ffffffff",
+				},
+			},
+
+			data = {
+				dots = {},
+			},
+
+			--Build one dot per featured set. A single set (or the no-featured
+			--fallback) needs no carousel, so dots only appear when count > 1.
+			buildFeaturedDots = function(element, count)
+				local dots = {}
+				local children = {}
+				if count > 1 then
+					for i=1,count do
+						local idx = i
+						local dot = gui.Panel{
+							classes = {"featuredDot"},
+							press = function()
+								ShowFeatured(idx, true)
+							end,
+						}
+						dots[i] = dot
+						children[i] = dot
+					end
+				end
+				element.data.dots = dots
+				element.children = children
+			end,
+
+			--Light the dot for the currently shown featured set.
+			setFeaturedDot = function(element, index)
+				for i,dot in ipairs(element.data.dots) do
+					dot:SetClass("selected", i == index)
+				end
+			end,
 		},
 	}
 
@@ -1708,67 +2096,124 @@ local ShowItemDetailsInternal = function(args)
 
 					gui.Panel{
 						classes = {"shopTryDie"},
-						bgimage = "ui-icons/dsdice/djordice-d10-filled.png",
+						bgimage = true,
 						bgcolor = "white",
-						width = 56,
-						height = 56,
+						width = 64,
+						height = 64,
 						halign = "center",
-						valign = "top",
-						data = { item = nil },
+						--The resting die anchors to this panel's world centre, so centre the
+						--panel in the column and lift it slightly (negative y = up) so the die
+						--sits above the "Drag to roll dice" label instead of covering it.
+						valign = "center",
+						y = -16,
+						floating = true,
+						draggable = true,
+						dragMove = false,
+						data = { item = nil, reseedPending = false, visible = false },
 
-						--These dice roll into the open screen (no dice cage), so let them
-						--bounce off the real screen edges and floor instead of the default
-						--mid-screen playfield box. pcall-guarded so a Lua-only reload against
-						--an older binary just keeps the old bounds. Cleared on destroy so the
-						--wider bounds never leak into in-game rolls once the shop closes.
+						--Invisible-but-interactable cage, like the Timeline roll dialog's
+						--dice panel (EmbeddedRollDialog): a real 3D die renders over it.
+						--Hover wobble + click/drag-to-roll are driven through the dice.* API.
+						styles = {
+							gui.Style{ opacity = 0 },
+						},
+
+						--Register as the dice-preview cage so resting dice anchor here and
+						--chat typing can't clear them. SetPreviewRollScreenBounds(true) lets the
+						--thrown dice roll out to the real screen edges instead of a tight box
+						--(the C# SimUpdate opts out of the panel cage while this is set), so a
+						--click or drag both produce a normal full-screen roll. pcall-guarded so
+						--a Lua-only reload against an older binary degrades gracefully; all of
+						--it is torn down on destroy so nothing leaks into in-game rolls once the
+						--shop closes.
 						create = function(element)
 							pcall(function() dice.SetPreviewRollScreenBounds(true) end)
+							pcall(function() element:SetAsDicePreviewPanel(true) end)
 						end,
 						destroy = function(element)
+							pcall(function() dmhub.CancelCurrentRoll() end)
+							pcall(function() element:SetAsDicePreviewPanel(false) end)
 							pcall(function() dice.SetPreviewRollScreenBounds(false) end)
+							pcall(function() dice.SetRollPreviewModel("") end)
 						end,
 
+						--The reused details panel toggles visibility via show/hideProductDetails
+						--(it is not destroyed between items), so track visibility ourselves and
+						--seed/clear the resting dice as it is shown/hidden -- otherwise a hidden
+						--panel leaves a die floating on screen, and a scheduled re-seed that lands
+						--after the panel hides would spawn one onto nothing.
 						refreshItem = function(element, item)
 							element.data.item = item
-							local ok, styling = pcall(function() return dmhub.GetDiceStyling(item.assetid, dmhub.GetSettingValue("playercolor")) end)
-							if ok and styling ~= nil then
-								element.selfStyle.bgcolor = styling.bgcolor
-								element:FireEventTree("refreshTrim", styling.trimcolor)
-							end
+							element.data.visible = true
+							element:FireEvent("seedTryDie")
 						end,
 
-						dragMove = false,
-						draggable = true,
-						beginDrag = function(element)
-							if element.data.item == nil then
+						hideProductDetails = function(element)
+							element.data.visible = false
+							element.data.reseedPending = false
+							pcall(function() dmhub.CancelCurrentRoll() end)
+						end,
+
+						--Spawn a resting d10 in the previewed set. preview = true (handled in
+						--dmhub.Roll) seeds the dice at rest on this panel and arms them so a
+						--click or drag executes this same local/silent roll. When it finishes --
+						--or a too-weak drag cancels it -- we re-seed shortly after so a fresh
+						--die is always sitting here.
+						seedTryDie = function(element)
+							if not element.valid or not element.data.visible then
 								return
 							end
-							pcall(function() dice.SetRollPreviewModel(element.data.item.assetid) end)
-							dmhub.Roll{ drag = true, ["local"] = true, silent = true, numDice = 1, numFaces = 10, numKeep = 0, description = "Try Dice" }
+							element.data.reseedPending = false
+							local item = element.data.item
+							if item == nil then
+								return
+							end
+							--Clear any existing resting die first so the freshly seeded die always
+							--picks up the current item's set/material: UpdatePreview retains a
+							--same-size die and would otherwise keep the previous item's look.
+							pcall(function() dmhub.CancelCurrentRoll() end)
+							pcall(function() dice.SetRollPreviewModel(item.assetid) end)
+							dmhub.Roll{
+								preview = true, ["local"] = true, silent = true,
+								numDice = 1, numFaces = 10, numKeep = 0, description = "Try Dice",
+								complete = function()
+									if element.valid then element:FireEvent("requestReseed") end
+								end,
+								cancel = function()
+									if element.valid then element:FireEvent("requestReseed") end
+								end,
+							}
+						end,
+
+						requestReseed = function(element)
+							if not element.valid or element.data.reseedPending then
+								return
+							end
+							element.data.reseedPending = true
+							element:ScheduleEvent("seedTryDie", 0.6)
+						end,
+
+						--Hover wobble + click/drag-to-roll on the resting dice.
+						hover = function(element)
+							dice.MouseEnter()
+						end,
+						dehover = function(element)
+							dice.MouseLeave()
 						end,
 						click = function(element)
-							if element.data.item == nil then
-								return
-							end
-							pcall(function() dice.SetRollPreviewModel(element.data.item.assetid) end)
-							dmhub.Roll{ ["local"] = true, silent = true, numDice = 1, numFaces = 10, numKeep = 0, description = "Try Dice" }
+							dice.Click()
 						end,
-
-						--Trim outline drawn over the filled die in the set's trim color.
-						gui.Panel{
-							interactable = false,
-							width = "100%",
-							height = "100%",
-							bgimage = "ui-icons/dsdice/djordice-d10.png",
-							bgcolor = "white",
-							refreshTrim = function(element, trimcolor)
-								element.selfStyle.bgcolor = trimcolor
-							end,
-						},
+						dragging = function(element)
+							dice.DragThink()
+						end,
+						drag = function(element)
+							dice.DragEnd()
+						end,
 					},
 
 					gui.Label{
 						text = "Drag to roll dice",
+						floating = true,
 						halign = "center",
 						valign = "bottom",
 						width = "auto",
@@ -2640,6 +3085,10 @@ local function CreateShopScreenInternal(arguments)
 								transitionTime = 0.2,
 								bgcolor = "#ff6666bb"
 							},
+                            {
+                                --REMOVED FOR NOW, COLLAPSED UNTIL WE NEED CATEGORIES
+                                collapsed = 1,
+                            },
 						},
 
 						data = {

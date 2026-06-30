@@ -1,5 +1,6 @@
 --- @class DiceEventEffectBindingLua A single particle effect bound to a dice lifecycle event, with its own prefab and tunables. One event can have several. Obtain via DiceStudioLua.GetEventEffectList or AddEventEffect.
 --- @field effectName string The effect prefab name bound here, or an empty string if this slot is unbound (renders nothing). Set to nil/empty to unbind.
+--- @field enabled boolean Whether this effect fires (true by default). Set false to keep the effect in the list with its tunables but suppress playback.
 --- @field scale number Uniform scale multiplier (1 = authored size).
 --- @field speed number Playback-speed multiplier applied to each child ParticleSystem (1 = authored speed).
 --- @field hueShift number Hue-shift amount (0..1 HSV rotation; 0 = unchanged).
@@ -9,6 +10,6 @@
 --- @field layerPlacement "auto"|"above"|"below"|"abovebelow" Where this effect renders relative to the dice: 'auto' (honor the prefab's TopLayer/BottomLayer convention -- the default), 'above' (force above the dice), 'below' (force beneath the dice), or 'abovebelow' (spawn two copies, one above and one below, dimmed by aboveOpacity/belowOpacity).
 --- @field aboveOpacity number Opacity (0..1) of the copy spawned ABOVE the dice when layerPlacement is 'abovebelow'. Multiplies that copy's tint alpha and brightness so it dims uniformly (1 = full intensity). Ignored for other placements.
 --- @field belowOpacity number Opacity (0..1) of the copy spawned BELOW the dice when layerPlacement is 'abovebelow'. Multiplies that copy's tint alpha and brightness so it dims uniformly (1 = full intensity). Ignored for other placements.
---- @field linger number How long (seconds) a pulse effect lasts after it fires before it is faded out and destroyed (default 4). The engine stops + fades the effect so it is gone 'linger' seconds after firing -- this is what stops a long Exit effect lingering after the die disappears. Set to 0 for the legacy uncapped behavior (a 12s safety cap, no managed fade). Only meaningful for pulse events (Appearance/BounceHit/Disappear/Reappear/Exit); state effects ignore it.
+--- @field linger number How long (seconds) a pulse effect lasts after it fires before it is faded out and destroyed (default 4). The engine stops + fades the effect so it is gone 'linger' seconds after firing -- this is what stops a long Exit effect lingering after the die disappears. Set to 0 for the legacy uncapped behavior (a 12s safety cap with no managed fade). Only meaningful for pulse events (Appearance/BounceHit/Disappear/Reappear/Exit); state effects ignore it.
 --- @field fade number Duration (seconds) of the opacity fade-out at the end of the linger window (clamped to <= linger; default 1). 0 = no fade (snap off at 'linger'). Fades both alpha-blended and additive particles. Ignored when linger == 0.
 DiceEventEffectBindingLua = {}

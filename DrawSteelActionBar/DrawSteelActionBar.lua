@@ -358,11 +358,14 @@ local function DrawerTypeForAbility(ability)
     if rid == CharacterResource.actionResourceId then
         return "action"
     end
+    if rid == CharacterResource.respiteActivityId then
+        --Respite activities live in their own respite-mode drawer.
+        return "respite"
+    end
     if rid == CharacterResource.maneuverResourceId
         or rid == "none"
-        or rid == CharacterResource.respiteActivityId
         or rid == CharacterResource.freeManeuverResourceId then
-        --Free / respite / maneuver abilities all surface in the maneuver drawer.
+        --Free / maneuver abilities all surface in the maneuver drawer.
         return "maneuver"
     end
     return nil
@@ -554,6 +557,14 @@ local function ActionBarDrawer(args)
         m_rightInfoText.events.refresh = function(element)
             element.text = string.format("%d", CharacterResource.GetMalice())
         end
+        -- Malice lives in a shared global-resource document, so it can change
+        -- from another client or the [[resource:malice]] journal counter without
+        -- the action bar firing its own refresh. Monitor that document so the
+        -- displayed value updates live in those cases too.
+        m_rightInfoText.monitorGame = CharacterResource.GlobalResourcePath()
+        m_rightInfoText.events.refreshGame = function(element)
+            element.text = string.format("%d", CharacterResource.GetMalice())
+        end
     end
 
     if args.type == "trigger" then
@@ -583,6 +594,8 @@ local function ActionBarDrawer(args)
         m_resourceid = CharacterResource.maliceResourceId
     elseif args.type == "free" then
         --pass.
+    elseif args.type == "respite" then
+        --pass. Respite drawer has no resource counter; it just opens its menu.
     else
         local m_segments = {}
         local m_margin = 2
@@ -821,6 +834,26 @@ local function ActionBarDrawer(args)
             local newToken = g_token.charid ~= element.data.lastcharid
 
             element.data.lastcharid = g_token.charid
+
+            if args.type == "respite" then
+                --Only show the respite drawer while the game is in respite mode.
+                --During a respite the initiative queue is hidden and its gameMode
+                --is "respite" (same check as the End Respite bar in MCDMInitiativeBar).
+                local q = dmhub.initiativeQueue
+                local inRespite = q ~= nil and q.hidden and q.gameMode == "respite"
+                resultPanel:SetClass("hidden", not inRespite)
+                if not inRespite then
+                    return
+                end
+
+                if newToken then
+                    resultPanel:SetClassTreeImmediate("available", true)
+                else
+                    resultPanel:SetClassTree("available", true)
+                end
+
+                return
+            end
 
             if args.type == "free" then
                 local haveFree = false
@@ -1222,6 +1255,16 @@ local function CreateActionBar()
         lmargin = 19,
     } }]]
 
+    --Respite activities get their own drawer, floating above and centered over
+    --the main bar. The drawer hides itself unless the game is in respite mode
+    --(see the args.type == "respite" handling in ActionBarDrawer).
+    local m_respitePanel = ActionBarDrawer { name = "Respite Activity", type = "respite", panel = {
+        floating = true,
+        halign = "center",
+        valign = "bottom",
+        y = -70,
+    } }
+
     local m_malicePanel
 
 
@@ -1344,6 +1387,13 @@ local function CreateActionBar()
 
 
         },
+
+        --m_respitePanel floats above-center, where drawer menus also pop up.
+        --Drawer menus re-parent into their source drawer (see ActionMenu's "menu"
+        --handler), so they paint within the drawer subtrees below. Keep the
+        --respite button first among these so those menus render on top of it
+        --rather than behind it.
+        m_respitePanel,
 
         m_triggerDrawerContainer,
         m_actionPanel,
@@ -2164,9 +2214,15 @@ ActionMenu = function()
                         abilities[#abilities + 1] = ability
                     end
                 end
+            elseif args.type == "respite" then
+                for _, ability in ipairs(g_abilities) do
+                    if ability.actionResourceId == CharacterResource.respiteActivityId and ability.categorization ~= "Hidden" then
+                        abilities[#abilities + 1] = ability
+                    end
+                end
             else
                 for _, ability in ipairs(g_abilities) do
-                    if (ability.actionResourceId == args.resourceid or (args.type == "maneuver" and (ability.actionResourceId == "none" or ability.actionResourceId == CharacterResource.respiteActivityId or ability.actionResourceId == CharacterResource.freeManeuverResourceId) and ability.categorization ~= "Malice" and ability.categorization ~= "Move" and ability.categorization ~= "Trigger")) and ability.categorization ~= "Hidden" then
+                    if (ability.actionResourceId == args.resourceid or (args.type == "maneuver" and (ability.actionResourceId == "none" or ability.actionResourceId == CharacterResource.freeManeuverResourceId) and ability.categorization ~= "Malice" and ability.categorization ~= "Move" and ability.categorization ~= "Trigger")) and ability.categorization ~= "Hidden" then
                         abilities[#abilities + 1] = ability
                     end
                 end

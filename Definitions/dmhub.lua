@@ -9,7 +9,8 @@
 --- @field whiteLabelAppName string The name of the app the engine is running as, suitable for showing to users.
 --- @field cloudFunctionsBaseUrl string Base URL for Firebase cloud functions for the current whitelabel project (e.g. https://us-central1-mcdm-385cf.cloudfunctions.net). Append the function name with a leading slash.
 --- @field platform string The platform the engine is running on. Returns 'windows', 'macOS', or 'linux'.
---- @field applicationsFolder string The default OS folder where applications/executables live: Program Files on Windows, /Applications on macOS, /usr/bin on Linux. Handy as the 'directory' for a file dialog browsing for an executable.
+--- @field applicationsFolder string The default operating-system folder where applications/executables live: the Program Files folder on Windows, /Applications on macOS, /usr/bin on Linux. Useful as a starting directory for a file dialog that browses for an executable.
+--- @field liveEditSessions {objid: string, name: string, imageId: string, changesPending: boolean}[]|nil The active image live-edit sessions, each as a table with 'objid' (the map object being edited), 'name' (a display label), 'imageId' (the live, updating image id, suitable as a thumbnail), and 'changesPending' (true once the external editor has saved a change that has not yet been uploaded). Returns nil when there are no active sessions.
 --- @field nodiagonals boolean If true, the game rules are set up to have no pythagorean theorem when calculating diagonals.
 --- @field betaBranch nil|string Which branch the app is opted-in to updating from. This is not relevant if the app is being updated from Steam, Itch, or similar.
 --- @field GetSelectedCharacters fun(): string[]|nil A function that can be set to tell the engine which characters are currently selected. Returns a list of token ids.
@@ -29,9 +30,6 @@
 --- @field SelectionToolEnabled fun(): boolean A function that returns whether the selection tool is currently enabled in the UI.
 --- @field GetActiveClipboardItem fun(): ClipboardItem A function that returns the currently active clipboard item, if any.
 --- @field TokenVisionUpdated fun(): nil A function that is called when token vision has been recalculated and updated.
---- @field LiveEditSessionsUpdated fun(): nil A function that is called when the set of active image live-edit sessions changes, or when a session's state changes (a change detected, uploaded, reverted, or closed).
---- @field PromptImageEditorSetup function Called when a live-edit is requested but the image editor isn't set up (first use) or the configured editor can't be found. Called from C# with (floorid, objid) for an object live-edit (the handler shows the editor-setup UI then calls dmhub.StartLiveEditForObject(floorid, objid)); may also be called from Lua with a single continuation function that runs once the user confirms (used for generic live edits such as map appearance images).
---- @field liveEditSessions nil|{objid: string, name: string, imageId: string, changesPending: boolean, uploading: boolean, error: string|nil}[] The active image live-edit sessions, or nil when there are none. imageId is the live (updating) thumbnail; changesPending is true once a saved change has not yet been uploaded; uploading is true while an upload is in flight; error holds the most recent upload error message if any.
 --- @field GetFocus fun(): Panel|nil A function that returns the currently focused UI panel, or nil if nothing is focused.
 --- @field CreateLootComponent fun(): table A function that creates a loot component table for attaching to an object.
 --- @field CreateTextComponent fun(): table A function that creates a text component table for attaching to an object.
@@ -66,6 +64,8 @@
 --- @field GetSelectedEncounter fun(): {groups = table<string,number>[]}|nil A function that can be set to tell the engine which encounter is currently selected. The selected encounter should be deployable onto the map.
 --- @field CreateAuraComponent fun(): table A function that creates an aura component to attach to an object.
 --- @field ObjectDirectImport fun(string, vector3): nil A function that is called when we directly import an object.
+--- @field LiveEditSessionsUpdated fun(): nil A function that is called when the set of active image live-edit sessions changes, or when a session's state changes (a change was detected, uploaded, reverted, or closed).
+--- @field PromptImageEditorSetup fun(floorid: string, objid: string): nil Called when a live-edit is requested but the user's image editor isn't set up yet (first use) or the configured editor can't be found. The handler should show the image-editor setup UI, then call dmhub.StartLiveEditForObject(floorid, objid) once the user confirms.
 --- @field tokensLoggedInAs nil|string[] If the GM is forcibly logged in as a token or set of tokens so they can view through their eyes, this returns a list of the token ids that the GM is logged in as.
 --- @field tokenVision nil|string[] If the GM is viewing token vision this is equal to a list of the tokenids whose vision the GM is seeing through.
 --- @field blockTokenSelection boolean Whether token selection via clicking is currently blocked.
@@ -147,6 +147,53 @@ dmhub = {}
 --- TestFunction
 --- @return number
 function dmhub.TestFunction()
+	-- dummy implementation for documentation purposes only
+end
+
+--- DetectImageEditors: Returns the image-editing applications detected as installed on the user's machine, each as a table with 'name' (friendly display name) and 'path' (full path to the executable on Windows, or the .app bundle on macOS), sorted by name. Detection works on Windows (via the registry uninstall and 'App Paths' keys) and macOS (by scanning /Applications and ~/Applications for known editor bundles); Linux returns an empty list. Intended to populate an editor chooser so the user can pick an installed editor without browsing for it.
+--- @return {name: string, path: string}[]
+function dmhub.DetectImageEditors()
+	-- dummy implementation for documentation purposes only
+end
+
+--- UploadLiveEditChanges: Uploads the pending changes for the given live-edit session (an object id, or a generic session id from dmhub.StartLiveEditImage). The session stays active so further edits can be made.
+--- @param objid string
+--- @return nil
+function dmhub.UploadLiveEditChanges(objid)
+	-- dummy implementation for documentation purposes only
+end
+
+--- RevertLiveEditChanges: Aborts the given live-edit session (an object id, or a generic session id from dmhub.StartLiveEditImage), restoring the original image and discarding all changes made during the session.
+--- @param objid string
+--- @return nil
+function dmhub.RevertLiveEditChanges(objid)
+	-- dummy implementation for documentation purposes only
+end
+
+--- CloseLiveEditSession: Closes the given live-edit session (an object id, or a generic session id from dmhub.StartLiveEditImage), keeping the most recently uploaded image (or the original if nothing was uploaded).
+--- @param objid string
+--- @return nil
+function dmhub.CloseLiveEditSession(objid)
+	-- dummy implementation for documentation purposes only
+end
+
+--- StartLiveEditForObject: Starts a live-edit session for the object with the given floor/object id. Used by the image-editor setup prompt to begin live editing once the user has chosen an editor.
+--- @param floorid string
+--- @param objid string
+--- @return nil
+function dmhub.StartLiveEditForObject(floorid, objid)
+	-- dummy implementation for documentation purposes only
+end
+
+--- ImageEditorNeedsSetup: Whether the user still needs to set up their image editor before live editing (true on first use, or when the configured editor can't be found). Use this to decide whether to show the editor-setup prompt (dmhub.PromptImageEditorSetup) before starting a custom live-edit session via dmhub.StartLiveEditImage.
+--- @return boolean
+function dmhub.ImageEditorNeedsSetup()
+	-- dummy implementation for documentation purposes only
+end
+
+--- StartLiveEditImage: Starts a generic live-edit session on the image with the given id ('guid'), opening it in the configured external editor and listing it in the live-edit dialog alongside object sessions. 'name' is the dialog label. When the user clicks Upload Changes, the edited image is uploaded and 'commit' is called with the new raw image id (prefix it with 'md5:' to use as a bgimage); the session stays active so further edits can be made. 'revert' (optional) is called when the user reverts (use it to restore the original image); 'close' (optional) when they close the session. 'id' optionally sets a stable session id (defaults to a fresh guid). Does nothing if the image cannot be opened for editing. Check dmhub.ImageEditorNeedsSetup() first and show dmhub.PromptImageEditorSetup if needed.
+--- @param options {guid: string, name: nil|string, id: nil|string, commit: fun(newImageId: string), revert: nil|fun(), close: nil|fun()}
+function dmhub.StartLiveEditImage(options)
 	-- dummy implementation for documentation purposes only
 end
 
@@ -263,52 +310,9 @@ function dmhub.CreateObjectImporter(options)
 	-- dummy implementation for documentation purposes only
 end
 
---- OpenFileDialog: Opens an operating system file dialog. id should uniquely identify this 'kind' of file open operation. The folder the user navigates to will be saved and future calls to this function with the same id will begin in that folder. The optional directory sets the starting folder the first time this id is used (before the user has navigated anywhere); it defaults to the user's Documents folder. The open callback will be called once for each file opened. If multiFiles is true, then openFiles will be called with a list of files opened. If the user cancels the interaction without opening a file, the cancel callback will be called. Extensions should contain possible file types that may be open, it should be in a format like {'wav', 'mp3', 'ogg'}
---- @param options {id: string, extensions: string[], directory: nil|string, multiFiles: boolean, prompt: string, open: nil|(fun(path: string): nil), openFiles: nil|(fun(paths: string[]): nil), cancel: nil|(fun(): nil)}
+--- OpenFileDialog: Opens an operating system file dialog. id should uniquely identify this 'kind' of file open operation. The folder the user navigates to will be saved and future calls to this function with the same id will begin in that folder. The open callback will be called once for each file opened. If multiFiles is true, then openFiles will be called with a list of files opened. If the user cancels the interaction without opening a file, the cancel callback will be called. Extensions should contain possible file types that may be open, it should be in a format like {'wav', 'mp3', 'ogg'}
+--- @param options {id: string, extensions: string[], multiFiles: boolean, prompt: string, open: nil|(fun(path: string): nil), openFiles: nil|(fun(paths: string[]): nil), cancel: nil|(fun(): nil)}
 function dmhub.OpenFileDialog(options)
-	-- dummy implementation for documentation purposes only
-end
-
---- DetectImageEditors: Returns image-editing applications detected as installed on the user's machine, each as a table with 'name' (friendly display name) and 'path' (full executable path on Windows, or the .app bundle on macOS), sorted by name. Detection works on Windows and macOS; Linux returns an empty list.
---- @return {name: string, path: string}[]
-function dmhub.DetectImageEditors()
-	-- dummy implementation for documentation purposes only
-end
-
---- UploadLiveEditChanges: Uploads the pending changes for the given object's live-edit session. The session stays active so further edits can be made.
---- @param objid string
-function dmhub.UploadLiveEditChanges(objid)
-	-- dummy implementation for documentation purposes only
-end
-
---- RevertLiveEditChanges: Aborts the given object's live-edit session, restoring the original image and discarding all changes made during the session.
---- @param objid string
-function dmhub.RevertLiveEditChanges(objid)
-	-- dummy implementation for documentation purposes only
-end
-
---- CloseLiveEditSession: Closes the given object's live-edit session, keeping the most recently uploaded image (or the original if nothing was uploaded).
---- @param objid string
-function dmhub.CloseLiveEditSession(objid)
-	-- dummy implementation for documentation purposes only
-end
-
---- StartLiveEditForObject: Starts a live-edit session for the object with the given floor/object id. Used by the image-editor setup prompt to begin live editing once the user has chosen an editor.
---- @param floorid string
---- @param objid string
-function dmhub.StartLiveEditForObject(floorid, objid)
-	-- dummy implementation for documentation purposes only
-end
-
---- ImageEditorNeedsSetup: Whether the user still needs to set up their image editor before live editing (true on first use, or when the configured editor cannot be found). Check this before starting a custom live-edit session via dmhub.StartLiveEditImage.
---- @return boolean
-function dmhub.ImageEditorNeedsSetup()
-	-- dummy implementation for documentation purposes only
-end
-
---- StartLiveEditImage: Starts a generic live-edit session on the image with the given id ('guid'), opening it in the external editor and listing it in the live-edit dialog alongside object sessions. 'name' is the dialog label. When the user uploads changes, 'commit' is called with the new raw image id (prefix with 'md5:' to use as a bgimage); the session stays active for more edits. 'revert'/'close' are optional. Check dmhub.ImageEditorNeedsSetup() first and show dmhub.PromptImageEditorSetup if needed.
---- @param options {guid: string, name: nil|string, id: nil|string, commit: fun(newImageId: string), revert: nil|fun(), close: nil|fun()}
-function dmhub.StartLiveEditImage(options)
 	-- dummy implementation for documentation purposes only
 end
 
@@ -401,39 +405,39 @@ function dmhub.SaveImageDialog(options)
 	-- dummy implementation for documentation purposes only
 end
 
---- GetImageAssetOptimizeInfo: Developer texture browser: reports whether the image with the given md5 is backed by editable current-game ImageAssets (ObjectAsset/GenericImageAsset) that can be safely rescaled. Returns { width, height, assets={ {guid, name, type}, ... } }.
---- @param imageid string
---- @return table
-function dmhub.GetImageAssetOptimizeInfo(imageid)
+--- GetLoadedTextures: Developer texture browser: returns a report of all textures currently held by the ImageManager cache, sorted largest-footprint first. Shape: { budgetMegapixels=<GC budget>, summary={count, megapixels, vramMB, sysMB, totalMB, compressed, uncompressed, readable, pinned, video}, textures={ {id, trace, width, height, format, compressed, readable, pinned, liveedit, lowdef, video, status, idleSeconds, mips, vramBytes, sysBytes, totalBytes, megapixels}, ... } }. trace is the dev-mode-captured C#+Lua call stack that first requested the image (empty unless dev mode was on at load time). sysBytes is the system-memory copy and is always 0 -- textures are GPU-only (non-readable); vramBytes is the estimated GPU footprint from format+dimensions+mips; totalBytes = vram + sys (so == vram). Backs the TextureBrowser dev tool.
+--- @return any
+function dmhub.GetLoadedTextures()
 	-- dummy implementation for documentation purposes only
 end
 
---- OptimizeImageAsset: Developer texture browser: rescales the image with the given md5 to targetWidth x targetHeight (snapped to multiples of 4), uploads it as a new content-addressed image, and repoints + re-saves every editable ObjectAsset/GenericImageAsset that referenced it. Writes to the cloud. Returns { ok, error, newid, count }.
+--- FindImageUsage: Developer texture browser: given an image id, scans live game objects -- character tokens (portrait/frame/ribbon/background), placed map objects, and UI panels (bgimage) -- and returns an array of usage entries describing where the image is currently in use. Token entries are { kind='token', charid, slot, onmap } (pass charid to dmhub.FocusToken to jump to it); object/panel entries are { kind='object'|'panel', label }. Complements the load trace (call stack at load time) with a 'who references this right now' answer. Resolves asset GUIDs / md5: / thumb: refs to the canonical image key before matching.
 --- @param imageid string
---- @param targetWidth number
---- @param targetHeight number
---- @return table
-function dmhub.OptimizeImageAsset(imageid, targetWidth, targetHeight)
+--- @return any
+function dmhub.FindImageUsage(imageid)
 	-- dummy implementation for documentation purposes only
 end
 
---- FocusToken: Developer helper: pan the camera to the live token with the given id (if on the current map), pulse-highlight it, and select it if controllable.
+--- FocusToken: Developer helper (TextureBrowser usage scan): if the live token with the given id is on the current map, pan the camera to it; pulse-highlight it; and -- when controllable -- select it. Lets you jump to a token surfaced by FindImageUsage.
 --- @param charid string
 --- @return nil
 function dmhub.FocusToken(charid)
 	-- dummy implementation for documentation purposes only
 end
 
---- FindImageUsage: Developer texture browser: scans live game objects (character tokens, placed map objects, UI panel bgimages) for where the given image id is currently in use, returning an array of human-readable usage strings. Resolves asset GUIDs / md5: / thumb: references before matching.
+--- GetImageAssetOptimizeInfo: Developer texture browser (phase-1 image optimize): reports whether the image with the given md5 is backed by editable current-game ImageAssets that can be safely rescaled. Returns { width, height, assets={ {guid, name, type}, ... } } -- only ObjectAsset/GenericImageAsset in the editable store are included (dimension-sensitive types and read-only Core assets are excluded). width/height are the asset's recorded source dimensions (0 if unknown).
 --- @param imageid string
---- @return table
-function dmhub.FindImageUsage(imageid)
+--- @return any
+function dmhub.GetImageAssetOptimizeInfo(imageid)
 	-- dummy implementation for documentation purposes only
 end
 
---- GetLoadedTextures: Developer texture browser report of all textures held by the ImageManager cache, sorted largest-footprint first. Returns { budgetMegapixels, summary={count, megapixels, vramMB, sysMB, totalMB, compressed, uncompressed, readable, pinned, video}, textures={ {id, trace, width, height, format, compressed, readable, pinned, liveedit, lowdef, video, status, idleSeconds, mips, vramBytes, sysBytes, totalBytes, megapixels}, ... } }.
---- @return table
-function dmhub.GetLoadedTextures()
+--- OptimizeImageAsset: Developer texture browser (phase-1 image optimize): rescales the image with the given md5 to targetWidth x targetHeight (snapped to multiples of 4), uploads it as a new content-addressed image, then repoints + re-saves every editable ObjectAsset/GenericImageAsset that referenced the old image (and reloads their sprites). Source pixels are read from the on-disk cache. Returns { ok, error, newid, count }. WRITES TO THE CLOUD -- call only on a deliberate user action.
+--- @param imageid string
+--- @param targetWidth number
+--- @param targetHeight number
+--- @return any
+function dmhub.OptimizeImageAsset(imageid, targetWidth, targetHeight)
 	-- dummy implementation for documentation purposes only
 end
 
@@ -679,7 +683,7 @@ end
 --- @param text string
 --- @param lookupFunction function
 --- @param nil|table options
---- @return {exploding = nil|boolean, categories = table<string, {mod=number, groups={numDice=number, numFaces=number, numKeep=number,subtract=nil|boolean}[]}>}
+--- @return {exploding = nil|boolean, minroll = nil|integer, reroll = nil|integer, critical = nil|integer, tiers = nil|integer, dmonly = nil|boolean, dicetower = nil|boolean, categories = table<string, {mod=number, primary=nil|boolean, groups={numDice=number, numFaces=number, numKeep=number,subtract=nil|boolean}[]}>}
 function dmhub.ParseRoll(text, lookupFunction, options)
 	-- dummy implementation for documentation purposes only
 end

@@ -36,6 +36,10 @@ local g_numHeroesSetting = setting {
             value = 6,
             text = "Six Heroes",
         },
+        {
+            value = 7,
+            text = "Seven Heroes",
+        },
     }
 }
 
@@ -69,6 +73,11 @@ Encounter.victoryDestroyKeyword = nil
 --The number of Victories each hero earns for winning this encounter. Awarded from the
 --victory screen (DSVictoryScreen). Defaults to 1.
 Encounter.victories = 1
+
+--The named encounter rule-sets attached to this encounter, stored as a set of EncounterRuleSet
+--ids ({[id]=true}; authored in the compendium under Rules -> Encounter Rules). Activating these
+--rules while the encounter is running is a future phase; for now this just stores the attachments.
+Encounter.ruleSets = {}
 
 --Returns the lowercase organization keyword (the first word of a creature's role, e.g.
 --"Leader Controller" -> "leader") for any creature/monster properties, or nil. Read via

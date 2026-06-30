@@ -533,6 +533,7 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                 end
                 element:FireEventTree("updateName", name)
                 element:FireEventTree("updateDesc", option:GetDescription())
+                element:FireEventTree("updateImplementation", option:GetImplementation())
                 element:FireEventTree("customPanel", option:Panel())
 
                 -- Enable dragging if selection is allowed
@@ -603,6 +604,50 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                     text = "",
                     updateName = function(element, text)
                         if element.text ~= text then element.text = text end
+                    end,
+                },
+            },
+            -- Implementation-status badge so the player can see how complete an
+            -- option's mechanics are before choosing it (mirrors the status dot
+            -- the compendium/class editor shows authors). Unset options report
+            -- Unimplemented -- see CBOptionWrapper:GetImplementation.
+            gui.Panel{
+                classes = {"builder-base", "panel-base", "collapsed"},
+                flow = "horizontal",
+                width = "auto",
+                height = "auto",
+                halign = "left",
+                hmargin = 8,
+                tmargin = 2,
+                bmargin = 2,
+                interactable = false,
+                updateImplementation = function(element, impl)
+                    local visible = impl ~= nil
+                    element:SetClass("collapsed", not visible)
+                    if not visible then return end
+                    element:FireEventTree("implementation", impl)
+                    element:FireEventTree("updateImplLabel", impl)
+                end,
+                gui.ImplementationStatusIcon{
+                    halign = "left",
+                    valign = "center",
+                    implementation = 1,
+                },
+                gui.Label{
+                    classes = {"builder-base", "label"},
+                    fontSize = 14,
+                    bold = false,
+                    italics = false,
+                    width = "auto",
+                    height = "auto",
+                    halign = "left",
+                    valign = "center",
+                    text = "",
+                    updateImplLabel = function(element, impl)
+                        element.text = gui.ImplementationStatusValues[impl] or ""
+                        for i = 0, 4 do
+                            element:SetClass("implStatus" .. i, i == impl)
+                        end
                     end,
                 },
             },

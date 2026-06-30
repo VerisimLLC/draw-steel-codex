@@ -881,6 +881,16 @@ function CBOptionWrapper:GetGuid()
     return _safeGet(self.option, "guid", _safeGet(self.option, "id"))
 end
 
+--- The implementation status of this option, matching gui.ImplementationStatus
+--- (0 = Narrative, 1 = Unimplemented, 2 = Bronze, 3 = Silver, 4 = Gold). Mirrors
+--- the class/compendium editor, which treats an unset status as Unimplemented
+--- (see DSClassEditor's feature:try_get("implementation", 1)), so options an
+--- author never marked surface as Unimplemented rather than silently blank.
+--- @return number
+function CBOptionWrapper:GetImplementation()
+    return _safeGet(self.option, "implementation", 1)
+end
+
 --- @return string
 function CBOptionWrapper:GetName()
     return _safeGet(self.option, "name", _safeGet(self.option, "text"))

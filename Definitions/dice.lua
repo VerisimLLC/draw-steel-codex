@@ -68,7 +68,7 @@ function dice.DragEnd()
 	-- dummy implementation for documentation purposes only
 end
 
---- SetPreviewRollScreenBounds: Sets whether free-rolling preview dice (the shop 'try dice' feature, which has no dice cage panel) bounce off the actual screen edges instead of the default playfield box. When true, a tossed die rolls across the whole screen and only the screen edges and the floor act as boundaries. Ignored while a dice cage panel (SetAsDicePreviewPanel) is active, so embedded cages keep their tight box. The shop should set this true while the try-dice UI is shown and false when it closes.
+--- SetPreviewRollScreenBounds: Sets whether preview dice bounce off the actual screen edges instead of the default playfield box. When true, a tossed die rolls across the whole screen and only the screen edges and the floor act as boundaries. This overrides the tight dice-cage box even when a preview panel (SetAsDicePreviewPanel) is registered, so the shop 'try dice' feature can anchor a resting die to its panel yet still roll out across the whole screen. The in-game roll dialog leaves this false, keeping its tight embedded cage. The shop should set this true while the try-dice UI is shown and false when it closes.
 --- @param val boolean
 --- @return nil
 function dice.SetPreviewRollScreenBounds(val)

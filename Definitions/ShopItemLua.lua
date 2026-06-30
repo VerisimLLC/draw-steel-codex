@@ -13,8 +13,10 @@
 --- @field itemType string The type of this shop item as a string ('Dice', 'Module', 'Bundle', 'Bandwidth', 'AnimatedTokens', 'None').
 --- @field assetid string The underlying asset identifier this item grants access to.
 --- @field units number The number of units for quantity-based items (e.g. bandwidth).
---- @field diceBanner table The featured-dice banner customization for this Dice item: a table with backgroundImage, foregroundImage (Core-asset image guids; empty means that layer is transparent), diceScale, dieX, dieY, dieSize (dice transform), textPlacement ('left'/'right'/'topleft'/'topright'/'bottomleft'/'bottomright') and textOffsetX/textOffsetY. Reading returns a full table, or nil if never configured. Writing a table stores it; writing nil clears it. Only meaningful for Dice-type items.
+--- @field diceBanner table The featured-dice banner customization for this Dice item: a table with backgroundImage, foregroundImage (Core-asset image guids; empty means that layer is transparent), diceScale, dieX, dieY, dieSize (dice transform), spinDirection (degrees the idle spin axis is rotated about the screen-normal Z axis; 0 = default vertical spin, 180 = reversed, 90 = tumbling -- speed stays constant), textPlacement ('left'/'right'/'topleft'/'topright'/'bottomleft'/'bottomright') and textOffsetX/textOffsetY. Reading returns a full table, or nil if never configured. Writing a table stores it; writing nil clears it. Only meaningful for Dice-type items.
 --- @field onsale boolean True if this item is currently on sale.
+--- @field hidden boolean True if this item is soft-hidden from the admin shop list. An item that is live on the store (onsale) is never hidden.
+--- @field featured boolean True if this item is featured in the shop. Only items that are live on the store (onsale) can be featured.
 --- @field ctime number The creation timestamp of this shop item.
 ShopItemLua = {}
 

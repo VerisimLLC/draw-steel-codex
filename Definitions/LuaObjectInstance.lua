@@ -1,7 +1,7 @@
 --- @class LuaObjectInstance 
 --- @field id string 
---- @field imageid string
---- @field displayImageId string The object's current base image id in a form usable as a bgimage; always reflects the object's actual current image (updates after a live-edit upload or Replace Image), unlike imageid which returns the source blueprint/asset id for blueprinted objects.
+--- @field imageid string 
+--- @field displayImageId string The object's current base image id in a form usable as a bgimage. Unlike imageid (which returns the source blueprint/asset id for blueprinted objects), this always reflects the object's actual current image, so a preview using it updates after a live-edit upload or a Replace Image.
 --- @field assetid string 
 --- @field parentid string 
 --- @field childids any 
@@ -29,6 +29,13 @@
 --- @field components any 
 --- @field path string 
 LuaObjectInstance = {}
+
+--- SetBaseImageFromAsset
+--- @param imageAssetId string
+--- @return boolean
+function LuaObjectInstance:SetBaseImageFromAsset(imageAssetId)
+	-- dummy implementation for documentation purposes only
+end
 
 --- AddComponentFromJson
 --- @param id any
@@ -113,9 +120,9 @@ function LuaObjectInstance:LiveEdit()
 	-- dummy implementation for documentation purposes only
 end
 
---- ReplaceImageFromFile: Replaces this object's image with the image file at the given path, uploading it to the cloud and pointing the object at the new image. onError, if provided, is called with a message string if the file cannot be read or the upload fails.
+--- ReplaceImageFromFile: Replaces this object's image with the image file at the given path, uploading it to the cloud and pointing the object at the new image. If provided, onError is called with a message string if the file cannot be read or the upload fails.
 --- @param filePath string
---- @param onError nil|(fun(message: string): nil)
+--- @param onError any?
 --- @return nil
 function LuaObjectInstance:ReplaceImageFromFile(filePath, onError)
 	-- dummy implementation for documentation purposes only

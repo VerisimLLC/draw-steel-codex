@@ -5094,15 +5094,16 @@ function creature.RegisterFeatureCalculation(args)
 end
 
 function creature:FillBaseActiveModifiers(result)
-	local modTable = GetTableCached(GlobalRuleMod.TableName) or {}
 	local globalFeatures = {}
     local isretainer = self:IsRetainer()
 	local ismonster = (not isretainer) and self:IsMonster()
 	local ischaracter = self.typeName == "character"
     local iscompanion = self.typeName == "AnimalCompanion"
 
-	--global features first, to do base-level rules like critical hits etc.
-	for k,mod in pairs(modTable) do
+	--global features first, to do base-level rules like critical hits etc. GetActiveRuleMods also
+	--folds in the rules from any rule-set attached to the currently-live encounter, so encounter
+	--rules are applied here in exactly the same way as global rules.
+	for k,mod in ipairs(GlobalRuleMod.GetActiveRuleMods()) do
 		if (not mod:try_get("hidden")) and ((ischaracter and mod.applyCharacters) or (ismonster and mod.applyMonsters) or (isretainer and mod.applyRetainers) or (iscompanion and mod.applyCompanions)) then
 			mod:FillClassFeatures(self:GetLevelChoices(), globalFeatures)
 		end
@@ -6913,6 +6914,36 @@ function creature:GetCustomAttribute(attrInfo)
 	return result
 end
 
+-- Returns whether casterToken treats targetToken as a friend for TARGETING purposes.
+-- Mirrors casterToken:IsFriend, except a creature with the "Count Allies as Enemies"
+-- attribute treats allies within N squares (N = attribute value) as enemies.
+function IsFriendForTargeting(casterToken, targetToken)
+    if casterToken == nil or targetToken == nil then
+        return false
+    end
+
+    local isFriend = casterToken:IsFriend(targetToken)
+    if not isFriend then
+        return false
+    end
+
+    -- Never treat self as an enemy.
+    if casterToken.properties == targetToken.properties then
+        return true
+    end
+
+    local n = casterToken.properties:CalculateNamedCustomAttribute("Count Allies as Enemies")
+    if n ~= nil and n > 0 then
+        local casterLoc = casterToken.loc
+        local targetLoc = targetToken.loc
+        if casterLoc ~= nil and targetLoc ~= nil and casterLoc:DistanceInTiles(targetLoc) <= n then
+            return false -- nearby ally is treated as an enemy
+        end
+    end
+
+    return true
+end
+
 --- @param viewingToken nil|CharacterToken
 --- @param token nil|CharacterToken
 --- @param str string
@@ -6928,11 +6959,11 @@ function creature:MatchesString(viewingToken, token, str)
 
     if viewingToken ~= nil then
         if str == "enemy" then
-            return not viewingToken:IsFriend(token)
+            return not IsFriendForTargeting(viewingToken, token)
         end
 
         if str == "ally" or str == "friend" then
-            return viewingToken:IsFriend(token)
+            return IsFriendForTargeting(viewingToken, token)
         end
     end
 
@@ -7343,6 +7374,13 @@ creature.helpSymbols = {
 		desc = "A function which is given a set of string criteria such as 'goblins' or 'crafty' and tells us how many riders we have that match that filter.",
         seealso = "Count Nearby Creatures",
 		examples = {"OBJ.Count Riders('goblin', 'crafty')"},
+	},
+
+	includesconditionrider = {
+		name = "Includes Condition Rider",
+		type = "function",
+		desc = "A function given a condition name and a condition rider name; true if the creature has that condition with that rider attached. The rider name may be omitted to test for any rider on the named condition.",
+		examples = {"OBJ.Includes Condition Rider(\"Grabbed\", \"Let's Tussle\")"},
 	},
 
 	level = {
@@ -7983,6 +8021,34 @@ creature.lookupSymbols = {
 	countnearbycreatures = countnearbycreatures,
 
     countriders = countriders,
+
+	includesconditionrider = function(c)
+		return function(conditionName, riderName)
+			conditionName = string.lower(conditionName)
+			riderName = riderName ~= nil and string.lower(riderName) or nil
+			local inflicted = c:try_get("inflictedConditions")
+			if inflicted == nil then
+				return false
+			end
+			local conditionsTable = GetTableCached(CharacterCondition.tableName)
+			local ridersTable = GetTableCached(CharacterCondition.ridersTableName)
+			for condid, entry in pairs(inflicted) do
+				local condInfo = conditionsTable[condid]
+				if condInfo ~= nil and string.lower(condInfo.name) == conditionName and entry.riders ~= nil then
+					if riderName == nil then
+						return #entry.riders > 0
+					end
+					for _, riderid in ipairs(entry.riders) do
+						local riderInfo = ridersTable[riderid]
+						if riderInfo ~= nil and string.lower(riderInfo.name) == riderName then
+							return true
+						end
+					end
+				end
+			end
+			return false
+		end
+	end,
 
 	summoned = function(c)
 		local token = dmhub.LookupToken(c)

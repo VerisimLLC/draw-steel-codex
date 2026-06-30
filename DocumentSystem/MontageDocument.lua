@@ -44,10 +44,13 @@ MontageConsequence = RegisterGameType("MontageConsequence")
 
 ---@class MontageOutcome
 ---@field text string
----@field victories number
+---@field victoriesHard number
+---@field victoriesMedium number
 MontageOutcome = RegisterGameType("MontageOutcome")
 MontageOutcome.text = ""
-MontageOutcome.victories = 0
+--Victories awarded for this outcome depend on the montage test difficulty.
+MontageOutcome.victoriesHard = 0
+MontageOutcome.victoriesMedium = 0
 
 ---@class LiveMontageParticipant
 ---@field tokenid string
@@ -543,23 +546,30 @@ function MontageDocument:ChallengesEditor()
                     },
 
                     gui.Panel {
-                        classes = { "form" },
+                        flow = "horizontal",
                         halign = "left",
+                        valign = "center",
+                        width = "auto",
+                        height = "auto",
+                        vmargin = 2,
                         gui.Label {
-                            classes = { "form" },
-                            halign = "left",
                             text = "Attempts:",
+                            width = "auto",
+                            height = "auto",
+                            valign = "center",
+                            rmargin = 8,
                         },
                         gui.Input {
-                            classes = { "form" },
-                            halign = "left",
+                            classes = { "sizeS" },
+                            width = 40,
+                            valign = "center",
                             text = challenge.maximum,
                             characterLimit = 2,
                             change = function(element)
                                 challenge.maximum = math.max(1, tonumber(element.text) or challenge.maximum)
                                 element.text = challenge.maximum
                             end,
-                        }
+                        },
                     },
                 }
                 children[#children + 1] = gui.Panel {
@@ -647,17 +657,45 @@ function MontageDocument:OutcomesEditor()
                     width = "auto",
                     height = "auto",
                     valign = "center",
-                    rmargin = 8,
+                    rmargin = 12,
+                },
+                gui.Label {
+                    text = "Hard:",
+                    width = "auto",
+                    height = "auto",
+                    valign = "center",
+                    rmargin = 6,
                 },
                 gui.Input {
                     classes = { "sizeS" },
                     width = 40,
                     valign = "center",
                     characterLimit = 1,
-                    text = outcome.victories,
+                    text = outcome.victoriesHard,
                     change = function(element)
-                        local n = tonumber(element.text) or outcome.victories
-                        outcome.victories = n
+                        local n = tonumber(element.text) or outcome.victoriesHard
+                        outcome.victoriesHard = n
+                        element.text = tostring(n)
+                    end,
+                },
+                gui.Label {
+                    text = "Medium:",
+                    width = "auto",
+                    height = "auto",
+                    valign = "center",
+                    lmargin = 16,
+                    rmargin = 6,
+                },
+                gui.Input {
+                    classes = { "sizeS" },
+                    width = 40,
+                    valign = "center",
+                    characterLimit = 1,
+                    text = outcome.victoriesMedium,
+                    change = function(element)
+                        local n = tonumber(element.text) or outcome.victoriesMedium
+                        outcome.victoriesMedium = n
+                        element.text = tostring(n)
                     end,
                 },
             }
@@ -1115,8 +1153,8 @@ function MontageTest.CreateNew(args)
         consequences = {},
         rewards = {},
         outcomes = {
-            success = MontageOutcome.new{ victories = 1 },
-            partial = MontageOutcome.new{},
+            success = MontageOutcome.new{ victoriesHard = 2, victoriesMedium = 1 },
+            partial = MontageOutcome.new{ victoriesHard = 1, victoriesMedium = 1 },
             failure = MontageOutcome.new{},
         },
     }

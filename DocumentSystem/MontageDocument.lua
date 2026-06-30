@@ -4,12 +4,17 @@ local g_numbers = { "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eigh
 
 ---@class MontageDocument:CustomDocument
 ---@field scene string
+---@field summary string
+---@field twist string
 ---@field difficulty table<number, {success:number, failure:number}>
 ---@field challenges MontageChallenge[]
 ---@field consequences MontageConsequence[]
 ---@field rewards MontageConsequence[]
 MontageDocument = RegisterGameType("MontageDocument", "CustomDocument")
 MontageDocument.scene = ""
+MontageDocument.summary = ""  -- shown as the "Description" box; the montage title
+                              -- lives in self.description (the CustomDocument name)
+MontageDocument.twist = ""    -- shown as the "Optional Twist" box
 MontageDocument.vscroll = false
 
 function MontageDocument:GetDifficultyInfo(numHeroes)
@@ -381,125 +386,51 @@ end
 function MontageDocument:EditPanel()
     local resultPanel
 
+    --All section headers share one style so every box is clearly labeled.
+    local function sectionLabel(text)
+        return gui.Label {
+            classes = { "bold", "sizeM" },
+            width = "auto",
+            height = "auto",
+            halign = "left",
+            valign = "top",
+            markdown = true,
+            text = text,
+        }
+    end
+
+    --All multiline prose boxes (description, scene, twist) share one style.
+    local function proseInput(getText, setText, placeholder)
+        return gui.Input {
+            classes = { "sizeS" },
+            width = "90%",
+            height = "auto",
+            text = getText(),
+            maxHeight = 200,
+            multiline = true,
+            halign = "left",
+            textAlignment = "topleft",
+            placeholderText = placeholder,
+            valign = "top",
+            vmargin = 4,
+            characterLimit = 4096,
+            change = function(element)
+                setText(element.text)
+            end,
+        }
+    end
+
     local nameInput = gui.Input {
         classes = { "sizeL" },
-        halign = "center",
+        halign = "left",
         valign = "top",
         width = 300,
         height = 20,
         text = self.description,
         vmargin = 4,
+        placeholderText = "Montage test title",
         change = function(element)
             self.description = element.text
-        end,
-    }
-
-    local testDifficulty = gui.Panel {
-        vmargin = 4,
-        flow = "vertical",
-        width = "auto",
-        height = "auto",
-        halign = "left",
-        gui.Panel {
-            flow = "horizontal",
-            height = 24,
-            width = 600,
-            gui.Label {
-                classes = { "bold" },
-                width = 200,
-                text = "Heroes",
-                textAlignment = "left",
-            },
-            gui.Label {
-                classes = { "bold" },
-                width = 200,
-                text = "Success Limit",
-                textAlignment = "left",
-            },
-            gui.Label {
-                classes = { "bold" },
-                width = 200,
-                text = "Failure Limit",
-                textAlignment = "left",
-            },
-        },
-
-        create = function(element)
-            local children = element.children
-            for i = 3, 6 do
-                local difficulty = self.difficulty[i]
-                children[#children + 1] = gui.Panel {
-                    flow = "horizontal",
-                    height = 24,
-                    width = 600,
-                    gui.Label {
-                        width = 200,
-                        height = 24,
-                        text = g_numbers[i],
-                        textAlignment = "left",
-                    },
-
-                    gui.Panel {
-                        width = 200,
-                        height = 24,
-                        gui.Input {
-                            classes = { "sizeS" },
-                            width = 20,
-                            height = 16,
-                            valign = "center",
-                            halign = "left",
-                            vpad = 1,
-                            text = difficulty.success,
-                            characterLimit = 1,
-                            change = function(element)
-                                local n = tonumber(element.text) or difficulty.success
-                                difficulty.success = n
-                                element.text = tostring(n)
-                            end,
-                        },
-                    },
-
-                    gui.Panel {
-                        width = 200,
-                        height = 24,
-                        gui.Input {
-                            classes = { "sizeS" },
-                            width = 20,
-                            height = 16,
-                            valign = "center",
-                            halign = "left",
-                            vpad = 1,
-                            text = difficulty.failure,
-                            characterLimit = 1,
-                            change = function(element)
-                                local n = tonumber(element.text) or difficulty.failure
-                                difficulty.failure = n
-                                element.text = tostring(n)
-                            end,
-                        },
-                    },
-                }
-            end
-
-            element.children = children
-        end,
-    }
-
-    local sceneInput = gui.Input {
-        classes = { "sizeS" },
-        width = "90%",
-        height = "auto",
-        text = self.scene,
-        maxHeight = 200,
-        multiline = true,
-        halign = "left",
-        textAlignment = "topleft",
-        placeholderText = "Enter scene description",
-        valign = "top",
-        vmargin = 4,
-        characterLimit = 4096,
-        change = function(element)
-            self.scene = element.text
         end,
     }
 
@@ -515,43 +446,31 @@ function MontageDocument:EditPanel()
             self:Upload()
         end,
 
+        sectionLabel("## Title"),
         nameInput,
-        testDifficulty,
 
-        gui.Label {
-            classes = { "bold", "sizeM" },
-            width = "auto",
-            height = "auto",
-            halign = "left",
-            valign = "top",
-            markdown = true,
-            text = "## Setting the Scene",
-        },
+        sectionLabel("## Description"),
+        proseInput(
+            function() return self.summary end,
+            function(text) self.summary = text end,
+            "Enter description"),
 
-        sceneInput,
+        sectionLabel("## Setting the Scene"),
+        proseInput(
+            function() return self.scene end,
+            function(text) self.scene = text end,
+            "Enter scene description"),
 
-        gui.Label {
-            classes = { "sizeM" },
-            width = "auto",
-            height = "auto",
-            halign = "left",
-            valign = "top",
-            markdown = true,
-            text = "## Montage Challenges\nThe following challenges can be part of the montage test:",
-        },
-
+        sectionLabel("## Montage Challenges\nThe following challenges can be part of the montage test:"),
         self:ChallengesEditor(),
 
-        gui.Label {
-            classes = { "sizeM" },
-            width = "auto",
-            height = "auto",
-            halign = "left",
-            valign = "top",
-            markdown = true,
-            text = "## Montage Test Outcomes\nThe montage test has the following outcomes:",
-        },
+        sectionLabel("## Optional Twist"),
+        proseInput(
+            function() return self.twist end,
+            function(text) self.twist = text end,
+            "Enter optional twist"),
 
+        sectionLabel("## Montage Test Outcomes\nThe montage test has the following outcomes:"),
         self:OutcomesEditor(),
     }
 

@@ -854,6 +854,30 @@ audio.SoundEvent{
 }
 
 
+--crucible die explosion chargeup
+audio.SoundEvent{
+    name = "Dice.Numglow_Crucible_Charge",
+    mixgroup = "dice",
+    sounds = {"dice/cust/crucible/Dice_NumGlow_Crucible_Charge_01.wav","dice/cust/crucible/Dice_NumGlow_Crucible_Charge_02.wav","dice/cust/crucible/Dice_NumGlow_Crucible_Charge_03.wav","dice/cust/crucible/Dice_NumGlow_Crucible_Charge_04.wav","dice/cust/crucible/Dice_NumGlow_Crucible_Charge_05.wav"},
+    volume = 0.1,
+    pitchRand = 0.1,
+    ignoreDuplicates = 0.01,
+}
+
+--crucible die explosion uh explosion
+audio.SoundEvent{
+    name = "Dice.Numglow_Crucible_Explo",
+    mixgroup = "dice",
+    sounds = {"dice/cust/crucible/Dice_NumGlow_Crucible_Explo_01.wav","dice/cust/crucible/Dice_NumGlow_Crucible_Explo_02.wav","dice/cust/crucible/Dice_NumGlow_Crucible_Explo_03.wav","dice/cust/crucible/Dice_NumGlow_Crucible_Explo_04.wav","dice/cust/crucible/Dice_NumGlow_Crucible_Explo_05.wav"},
+    volume = 0.1,
+    pitchRand = 0.1,
+    ignoreDuplicates = 0.01,
+}
+
+
+
+
+
 
 
 
@@ -873,16 +897,16 @@ local function RegisterImpactEvent(name)
         name = "Dice.Impact" .. suffix,
         play = function(instance)
             local speed = instance.args.speed or 0
-            local soundEvent = "DiceImp.Soft_MetalTiny" .. suffix
+            local soundEvent = "DiceImp.Soft" .. suffix
             local volume = 1
             if speed > 10 then
-                soundEvent = "DiceImp.Hard_MetalTiny" .. suffix
+                soundEvent = "DiceImp.Hard" .. suffix
                 volume = 0.6 + (speed - 8) * 0.1
             elseif speed > 4 then
-                soundEvent = "DiceImp.Mild_MetalTiny" .. suffix
+                soundEvent = "DiceImp.Mild" .. suffix
                 volume = 0.6 + (speed - 1) * 0.1
             else
-                soundEvent = "DiceImp.Soft_MetalTiny" .. suffix
+                soundEvent = "DiceImp.Soft" .. suffix
                 volume = speed
             end
 

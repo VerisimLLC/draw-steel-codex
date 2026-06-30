@@ -1501,6 +1501,25 @@ function ActivatedAbility:Render(options, params)
         }
     end
 
+    -- Optional caller-supplied danger-tinted footer note, appended at the very
+    -- bottom of the card. Reuses the suppressPanel styling. Used by the Villain
+    -- Action strip to explain a gated drawer ("already used this round/encounter")
+    -- while still showing the full ability preview above it.
+    local footerPanel = nil
+    local footerNote = params.footerNote
+    if footerNote ~= nil and footerNote ~= "" then
+        footerPanel = gui.Label {
+            bgimage = true,
+            classes = { "bgDanger" },
+            width = "100%",
+            height = "auto",
+            fontSize = 14,
+            hpad = 16,
+            vpad = 4,
+            text = footerNote,
+        }
+    end
+
     --king panel
     local args = {
         id = 'spellInfo',
@@ -2318,6 +2337,8 @@ function ActivatedAbility:Render(options, params)
         },
 
         suppressPanel,
+
+        footerPanel,
     }
 
 

@@ -873,16 +873,16 @@ local function RegisterImpactEvent(name)
         name = "Dice.Impact" .. suffix,
         play = function(instance)
             local speed = instance.args.speed or 0
-            local soundEvent = "DiceImp.Soft" .. suffix
+            local soundEvent = "DiceImp.Soft_MetalTiny" .. suffix
             local volume = 1
             if speed > 10 then
-                soundEvent = "DiceImp.Hard" .. suffix
+                soundEvent = "DiceImp.Hard_MetalTiny" .. suffix
                 volume = 0.6 + (speed - 8) * 0.1
             elseif speed > 4 then
-                soundEvent = "DiceImp.Mild" .. suffix
+                soundEvent = "DiceImp.Mild_MetalTiny" .. suffix
                 volume = 0.6 + (speed - 1) * 0.1
             else
-                soundEvent = "DiceImp.Soft" .. suffix
+                soundEvent = "DiceImp.Soft_MetalTiny" .. suffix
                 volume = speed
             end
 
@@ -1010,6 +1010,31 @@ audio.SoundEvent{
     pitchRand = 0.01,
 }
 
+--MetalTiny Dice Impacts
+
+audio.SoundEvent{
+    name = "DiceImp.Hard_MetalTiny",
+    mixgroup = "dice",
+    sounds = {"dice/MetalTiny/DiceImp_MetalTiny_Hard_01.wav","dice/MetalTiny/DiceImp_MetalTiny_Hard_02.wav","dice/MetalTiny/DiceImp_MetalTiny_Hard_03.wav","dice/MetalTiny/DiceImp_MetalTiny_Hard_04.wav","dice/MetalTiny/DiceImp_MetalTiny_Hard_05.wav","dice/MetalTiny/DiceImp_MetalTiny_Hard_06.wav"},
+    volume = 0.1,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Mild_MetalTiny",
+    mixgroup = "dice",
+    sounds = {"dice/MetalTiny/DiceImp_MetalTiny_Mild_01.wav","dice/MetalTiny/DiceImp_MetalTiny_Mild_02.wav","dice/MetalTiny/DiceImp_MetalTiny_Mild_03.wav","dice/MetalTiny/DiceImp_MetalTiny_Mild_04.wav","dice/MetalTiny/DiceImp_MetalTiny_Mild_05.wav","dice/MetalTiny/DiceImp_MetalTiny_Mild_06.wav"},
+    volume = 0.15,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Soft_MetalTiny",
+    mixgroup = "dice",
+    sounds = {"dice/MetalTiny/DiceImp_MetalTiny_Soft_01.wav","dice/MetalTiny/DiceImp_MetalTiny_Soft_02.wav","dice/MetalTiny/DiceImp_MetalTiny_Soft_03.wav","dice/MetalTiny/DiceImp_MetalTiny_Soft_04.wav","dice/MetalTiny/DiceImp_MetalTiny_Soft_05.wav","dice/MetalTiny/DiceImp_MetalTiny_Soft_06.wav"},
+    volume = 0.05,
+    pitchRand = 0.01,
+}
 
 
 

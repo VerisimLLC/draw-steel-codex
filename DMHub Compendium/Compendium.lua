@@ -6511,7 +6511,16 @@ local function CreateNegotiatorTraitList(negotiator, listField, titleText, addLa
             text = addLabel,
             halign = "left",
             click = function()
-                negotiator[listField][#negotiator[listField]+1] = NegotiatorTrait.Create{}
+                --Make sure this negotiator owns its own list before mutating it.
+                --If the field is still resolving to the shared prototype default
+                --(or is nil), pushing into it would corrupt every other negotiator,
+                --so allocate a fresh table first.
+                local list = negotiator[listField]
+                if list == nil or list == Negotiator[listField] then
+                    list = {}
+                    negotiator[listField] = list
+                end
+                list[#list+1] = NegotiatorTrait.Create{}
                 dmhub.SetAndUploadTableItem(Negotiator.tableName, negotiator)
                 Rebuild()
             end,

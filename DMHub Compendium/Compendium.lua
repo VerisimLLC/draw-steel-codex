@@ -6659,6 +6659,91 @@ local function ShowNegotiatorsPanel(contentPanel)
     contentPanel.children = {leftPanel}
 end
 
+--Editor for a single montage test, fetched live from the table by key. Reuses
+--MontageDocument:EditPanel (inherited by MontageTest). EditPanel mutates the
+--object in place but does not upload, so a Save button drives the upload.
+local function CreateMontageTestEditor(key)
+    local montage = (dmhub.GetTable(MontageTest.tableName) or {})[key]
+    if montage == nil then
+        return gui.Panel{ width = 900, height = "95%" }
+    end
+
+    return gui.Panel{
+        width = 900,
+        height = "95%",
+        vscroll = true,
+        flow = "vertical",
+        montage:EditPanel(),
+        gui.Button{
+            classes = {"sizeM"},
+            text = "Save",
+            width = 120,
+            height = 30,
+            halign = "left",
+            vmargin = 10,
+            click = function()
+                dmhub.SetAndUploadTableItem(MontageTest.tableName, montage)
+            end,
+        },
+    }
+end
+
+local function ShowMontageTestsPanel(contentPanel)
+    local itemsListPanel
+    local leftPanel
+
+    itemsListPanel = gui.Panel{
+        classes = {"list-panel"},
+        vscroll = true,
+        monitorAssets = true,
+        refreshAssets = function(element)
+            local dataTable = dmhub.GetTable(MontageTest.tableName) or {}
+            local children = {}
+            local entries = {}
+            for key,item in unhidden_pairs(dataTable) do
+                entries[#entries+1] = { key = key, item = item }
+            end
+            table.sort(entries, function(a,b)
+                return (a.item.description or "") < (b.item.description or "")
+            end)
+
+            for _,entry in ipairs(entries) do
+                local key = entry.key
+                local listItem = CreateListItem{
+                    select = element.aliveTime > 0.2,
+                    tableName = MontageTest.tableName,
+                    key = key,
+                    obliterateOnDelete = true,
+                    click = function()
+                        contentPanel.children = {leftPanel, CreateMontageTestEditor(key)}
+                    end,
+                }
+                listItem.text = entry.item.description or "Montage Test"
+                children[#children+1] = listItem
+            end
+            itemsListPanel.children = children
+        end,
+    }
+
+    itemsListPanel:FireEvent("refreshAssets")
+
+    leftPanel = gui.Panel{
+        selfStyle = {
+            flow = "vertical",
+            height = "100%",
+            width = "auto",
+        },
+        itemsListPanel,
+        AddButton{
+            click = function()
+                dmhub.SetAndUploadTableItem(MontageTest.tableName, MontageTest.CreateNew{})
+            end,
+        },
+    }
+
+    contentPanel.children = {leftPanel}
+end
+
 Compendium.CreateListItem = CreateListItem
 
 local g_registeredPanels = false

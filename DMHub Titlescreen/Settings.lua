@@ -92,6 +92,20 @@ setting{
 }
 
 setting{
+    id = "cursortheme",
+    description = "Animated Cursor",
+    help = "Choose an animated themed mouse cursor. Black Ash shows your pointer half-burned to charcoal, shedding black ash on the wind. Has no effect while Use System Cursor is on.",
+    storage = "preference",
+    section = "General",
+    editor = "dropdown",
+    default = "",
+    enum = {
+        { value = "", text = "Default" },
+        { value = "blackash", text = "Black Ash" },
+    },
+}
+
+setting{
     id = "p2p:forcewebsocketrelay",
     description = "Force Server-Relayed Peer Connections",
     help = "Routes all direct (peer-to-peer) traffic -- token drags, pings, live cursors -- through the game server over your existing connection instead of trying a direct UDP link to other players. Turn this on if peer connections never establish (e.g. a firewall, restrictive NAT, or ISP is blocking UDP). The app also switches to this automatically when it detects the peer link can't be reached, so you normally won't need to set it by hand. Only applies to games on the new server backend.",

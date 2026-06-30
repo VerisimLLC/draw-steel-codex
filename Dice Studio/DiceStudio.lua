@@ -781,6 +781,7 @@ local CreateMaterialPropertiesPanel = function(opts)
 										library = p.library or "Textures",
 										searchHidden = true,
 										categoriesHidden = true,
+										liveEdit = true,
 										value = GetProps():GetTexture(p.name),
 										change = function(element)
 											GetProps():SetTexture(p.name, element.value)
@@ -828,6 +829,7 @@ local CreateMaterialPropertiesPanel = function(opts)
 											library = p.library or "Textures",
 											searchHidden = true,
 											categoriesHidden = true,
+											liveEdit = true,
 											value = GetProps():GetTexture(p.name, index),
 											change = function(element)
 												GetProps():SetTexture(p.name, element.value, index)

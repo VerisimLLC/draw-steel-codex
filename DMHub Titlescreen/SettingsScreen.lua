@@ -649,7 +649,7 @@ function CreateSettingsScreen(dialog, args)
 		id = "settingsDialog",
 		classes = {"dialog"},
 
-		width = 1024,
+		width = 1140,
 		height = 900,
 		halign = "center",
 		valign = "center",
@@ -770,6 +770,10 @@ function CreateSettingsScreen(dialog, args)
 					},
 					CreateTab{
 						text = "Game",
+						dmonly = true,
+					},
+					CreateTab{
+						text = "Map",
 						dmonly = true,
 					},
 					CreateTab{
@@ -979,6 +983,29 @@ function CreateSettingsScreen(dialog, args)
 						SettingsHeading("Rules Enforcement"),
 
 						SettingsSection("GameStrictRules"),
+						} end,
+					},
+
+					SettingGroup{
+						group = "Map",
+						build = function() return {
+						Setting("map:playerviewable"),
+						Setting("map:parallaxscale"),
+						Setting("gridcolor"),
+
+						SettingsSection("vision"),
+
+						Setting("maplayout:tiletype"),
+						Setting("maplayout:stagger"),
+						Setting("maplayout:tilewidth"),
+						Setting("maplayout:tileheight"),
+						Setting("maplayout:hexslant"),
+
+						Setting("editor:showpathfinding"),
+						Setting("canlookup"),
+						Setting("maxlookup"),
+
+						SettingsSection("Map"),
 						} end,
 					},
 

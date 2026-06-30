@@ -197,6 +197,14 @@ function dmhub.StartLiveEditImage(options)
 	-- dummy implementation for documentation purposes only
 end
 
+--- SetImageAssetImage: Repoints the editable image asset with the given asset id at a newly committed image (imageid), persisting the change and refreshing the asset's sprite. Used by the IconEditor live-edit feature to commit an 'edit in place': the asset keeps its id but now references the new image, so every use of it updates. Only ObjectAsset/GenericImageAsset (the plain image-container types) are repointed. Returns true if such an asset was found and repointed; false otherwise (e.g. the id is a raw image id rather than an asset, or the asset is read-only).
+--- @param assetid string
+--- @param imageid string
+--- @return boolean
+function dmhub.SetImageAssetImage(assetid, imageid)
+	-- dummy implementation for documentation purposes only
+end
+
 --- RecreateTitlescreen: Recreates the title screen UI from scratch.
 --- @return nil
 function dmhub.RecreateTitlescreen()
@@ -1416,6 +1424,41 @@ end
 --- @param settingid string
 --- @return boolean
 function dmhub.ResetSetting(settingid)
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetSettingDefault: Returns the established default value for a setting. For per-map settings this is the game-wide default (or the registered default if none has been established); for all other settings it is the registered default.
+--- @param settingid string
+--- @return any
+function dmhub.GetSettingDefault(settingid)
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetSettingDefaultFormatted: Returns the established default value of a setting formatted for display (enum text or formatted number), suitable for a 'Default Value: ...' label.
+--- @param settingid string
+--- @return string
+function dmhub.GetSettingDefaultFormatted(settingid)
+	-- dummy implementation for documentation purposes only
+end
+
+--- SettingVariesFromDefault: Returns true if the given per-map setting's value on the current map differs from its established default.
+--- @param settingid string
+--- @return boolean
+function dmhub.SettingVariesFromDefault(settingid)
+	-- dummy implementation for documentation purposes only
+end
+
+--- ResetSettingToDefault: Resets a per-map setting on the current map to its established default by removing the map's explicit value, so it tracks the default. DM only. Returns true if a value was removed.
+--- @param settingid string
+--- @return boolean
+function dmhub.ResetSettingToDefault(settingid)
+	-- dummy implementation for documentation purposes only
+end
+
+--- ChangeSettingDefault: Establishes the current map's value of a per-map setting as the game-wide default for all maps. DM only. Returns true on success.
+--- @param settingid string
+--- @return boolean
+function dmhub.ChangeSettingDefault(settingid)
 	-- dummy implementation for documentation purposes only
 end
 

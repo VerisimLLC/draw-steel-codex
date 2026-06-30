@@ -12,6 +12,32 @@ local g_blurColorHighlight = "srgb:#000000ee"
 local g_borderColor = "srgb:#A48B74"
 local g_forbiddenColor = "srgb:#C73131"
 
+-- Build the candidate retarget list for a triggered ability that changes its
+-- target. Every token passing the all-inclusive changeTargetFilter is returned
+-- in `targets`. A token that additionally fails one of the "reasoned" filters is
+-- still returned (so the player can see it) but gets an entry in `reasons` keyed
+-- by charid -- surfaced to the user as a tooltip explaining why it cannot be
+-- chosen. This mirrors ActivatedAbility:TargetPassesFilter's reasonedFilters.
+local function BuildRetargetCandidates(powerMod, symbols)
+    local filterFormula = powerMod:try_get("changeTargetFilter")
+    local reasonedFilters = powerMod:try_get("changeTargetReasonedFilters", {})
+    local targets = {}
+    local reasons = {}
+    for _,potential in ipairs(dmhub.allTokens) do
+        symbols.target = potential.properties:LookupSymbol{}
+        if trim(filterFormula or "") == "" or GoblinScriptTrue(ExecuteGoblinScript(filterFormula, potential.properties:LookupSymbol(symbols), 1)) then
+            targets[#targets+1] = potential
+            for _,reasonedFilter in ipairs(reasonedFilters) do
+                if trim(reasonedFilter.formula or "") ~= "" and not GoblinScriptTrue(ExecuteGoblinScript(reasonedFilter.formula, potential.properties:LookupSymbol(symbols), 1)) then
+                    reasons[potential.charid] = StringInterpolateGoblinScript(reasonedFilter.reason, symbols)
+                    break
+                end
+            end
+        end
+    end
+    return targets, reasons
+end
+
 mod.shared.triggerGradient = gui.Gradient{
     type = "radial",
     point_a = {x = 0.5, y = 0.5},
@@ -388,14 +414,7 @@ mod.shared.CreateTriggerPanel = function()
                                             triggerer = g_token.properties:LookupSymbol{},
                                             caster = casterToken.properties:LookupSymbol{},
                                         }
-                                        local filterFormula = trigger.powerRollModifier.powerRollModifier:try_get("changeTargetFilter")
-                                        local targets = {}
-                                        for _,potential in ipairs(dmhub.allTokens) do
-                                            symbols.target = potential.properties:LookupSymbol{}
-                                            if trim(filterFormula) == "" or GoblinScriptTrue(ExecuteGoblinScript(filterFormula, potential.properties:LookupSymbol(symbols), 1)) then
-                                                targets[#targets+1] = potential
-                                            end
-                                        end
+                                        local targets, retargetReasons = BuildRetargetCandidates(trigger.powerRollModifier.powerRollModifier, symbols)
 
                                         local sourceToken = g_token
                                         local range = tonumber(ExecuteGoblinScript(trigger.powerRollModifier.range, g_token.properties:LookupSymbol(symbols), 10))
@@ -411,6 +430,7 @@ mod.shared.CreateTriggerPanel = function()
                                             sourceToken = sourceToken,
                                             radius = range,
                                             targets = targets,
+                                            reasons = retargetReasons,
                                             choose = function(newTargetToken)
                                                 if g_token == nil then
                                                     return
@@ -545,14 +565,7 @@ mod.shared.CreateTriggerPanel = function()
                                                 triggerer = g_token.properties:LookupSymbol{},
                                                 caster = casterToken.properties:LookupSymbol{},
                                             }
-                                            local filterFormula = trigger.powerRollModifier.powerRollModifier:try_get("changeTargetFilter")
-                                            local targets = {}
-                                            for _,potential in ipairs(dmhub.allTokens) do
-                                                symbols.target = potential.properties:LookupSymbol{}
-                                                if trim(filterFormula) == "" or GoblinScriptTrue(ExecuteGoblinScript(filterFormula, potential.properties:LookupSymbol(symbols), 1)) then
-                                                    targets[#targets+1] = potential
-                                                end
-                                            end
+                                            local targets, retargetReasons = BuildRetargetCandidates(trigger.powerRollModifier.powerRollModifier, symbols)
 
                                             local sourceToken = g_token
                                             local range = tonumber(ExecuteGoblinScript(trigger.powerRollModifier.range, g_token.properties:LookupSymbol(symbols), 10))
@@ -568,6 +581,7 @@ mod.shared.CreateTriggerPanel = function()
                                                 sourceToken = sourceToken,
                                                 radius = range,
                                                 targets = targets,
+                                                reasons = retargetReasons,
                                                 choose = function(newTargetToken)
                                                     if g_token == nil then
                                                         return
@@ -712,14 +726,7 @@ mod.shared.CreateTriggerPanel = function()
                                             triggerer = g_token.properties:LookupSymbol{},
                                             caster = casterToken.properties:LookupSymbol{},
                                         }
-                                        local filterFormula = trigger.powerRollModifier.powerRollModifier:try_get("changeTargetFilter")
-                                        local targets = {}
-                                        for _,potential in ipairs(dmhub.allTokens) do
-                                            symbols.target = potential.properties:LookupSymbol{}
-                                            if trim(filterFormula) == "" or GoblinScriptTrue(ExecuteGoblinScript(filterFormula, potential.properties:LookupSymbol(symbols), 1)) then
-                                                targets[#targets+1] = potential
-                                            end
-                                        end
+                                        local targets, retargetReasons = BuildRetargetCandidates(trigger.powerRollModifier.powerRollModifier, symbols)
 
                                         local sourceToken = g_token
                                         local range = tonumber(ExecuteGoblinScript(trigger.powerRollModifier.range, g_token.properties:LookupSymbol(symbols), 10))
@@ -735,6 +742,7 @@ mod.shared.CreateTriggerPanel = function()
                                             sourceToken = sourceToken,
                                             radius = range,
                                             targets = targets,
+                                            reasons = retargetReasons,
                                             choose = function(newTargetToken)
                                                 if g_token == nil then
                                                     return
@@ -1098,14 +1106,7 @@ mod.shared.CreateTriggerPanel = function()
                                                 triggerer = g_token.properties:LookupSymbol{},
                                                 caster = casterToken.properties:LookupSymbol{},
                                             }
-                                            local filterFormula = trigger.powerRollModifier.powerRollModifier:try_get("changeTargetFilter")
-                                            local targets = {}
-                                            for _,potential in ipairs(dmhub.allTokens) do
-                                                symbols.target = potential.properties:LookupSymbol{}
-                                                if trim(filterFormula) == "" or GoblinScriptTrue(ExecuteGoblinScript(filterFormula, potential.properties:LookupSymbol(symbols), 1)) then
-                                                    targets[#targets+1] = potential
-                                                end
-                                            end
+                                            local targets, retargetReasons = BuildRetargetCandidates(trigger.powerRollModifier.powerRollModifier, symbols)
 
                                             local sourceToken = g_token
                                             local range = tonumber(ExecuteGoblinScript(trigger.powerRollModifier.range, g_token.properties:LookupSymbol(symbols), 10))
@@ -1121,6 +1122,7 @@ mod.shared.CreateTriggerPanel = function()
                                                 sourceToken = sourceToken,
                                                 radius = range,
                                                 targets = targets,
+                                                reasons = retargetReasons,
                                                 choose = function(newTargetToken)
                                                     if g_token == nil then
                                                         return

@@ -4751,12 +4751,25 @@ CreateAbilityController = function()
             if g_actionBar == nil then return end
             ClearRadiusMarkers()
 
+            --reasons[charid] = reason string for targets that pass the
+            --all-inclusive filter but fail a "reasoned" filter. These targets
+            --stay visible (with a tooltip) but cannot be chosen by players.
+            local reasons = options.reasons or {}
+
             -- _tmp_aicontrol is a counter (incremented while AI is in control),
             -- so the falsy/truthy check must be against `> 0` -- a plain truthy
             -- check matches `0` and silently auto-picks every prompt target,
             -- defeating the "Prompt When Resolving" option on PowerRollBehavior.
             if options.sourceToken ~= nil and options.sourceToken.properties._tmp_aicontrol > 0 then
-                options.choose(options.targets[1])
+                --auto-pick the first target that isn't filtered out with a reason.
+                local pick = options.targets[1]
+                for _,t in ipairs(options.targets or {}) do
+                    if reasons[t.charid] == nil then
+                        pick = t
+                        break
+                    end
+                end
+                options.choose(pick)
                 return
             end
 
@@ -4818,6 +4831,13 @@ CreateAbilityController = function()
                 type = "ActivatedAbility",
                 guid = dmhub.GenerateGuid(),
                 execute = function(targetToken, info) --info has {targetEffects = {list of effect panels}}
+                    --a reasoned filter keeps a target visible (with a tooltip
+                    --reason) but blocks players from choosing it under strict
+                    --targeting. Directors bypass this.
+                    if targetToken ~= nil and reasons[targetToken.charid] ~= nil
+                        and (not dmhub.isDM) and dmhub.GetSettingValue("strict:targeting") then
+                        return
+                    end
                     choose(targetToken)
                     cancel = function() end
                     gui.SetFocus(nil)
@@ -4831,7 +4851,13 @@ CreateAbilityController = function()
                         tok.sheet:FireEvent("untarget")
                     end
                     tok.sheet.data.targetInfo = targetInfo
-                    tok.sheet:FireEvent("target", {})
+                    local reason = reasons[tok.charid]
+                    tok.sheet.data.targetValid = reason == nil
+                    if reason ~= nil then
+                        tok.sheet:FireEvent("target", { valid = false, reason = reason, classes = { 'invalid' } })
+                    else
+                        tok.sheet:FireEvent("target", {})
+                    end
                 end
             end
 

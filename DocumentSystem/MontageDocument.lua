@@ -636,16 +636,23 @@ function MontageDocument:OutcomesEditor()
         local victoriesPanel
         if entry.key ~= "failure" then
             victoriesPanel = gui.Panel {
-                classes = { "form" },
+                flow = "horizontal",
                 halign = "left",
-                width = 20,
+                valign = "center",
+                width = "auto",
+                height = "auto",
+                vmargin = 2,
                 gui.Label {
                     text = "Victories:",
-                    width = 120,
+                    width = "auto",
+                    height = "auto",
+                    valign = "center",
+                    rmargin = 8,
                 },
                 gui.Input {
                     classes = { "sizeS" },
                     width = 40,
+                    valign = "center",
                     characterLimit = 1,
                     text = outcome.victories,
                     change = function(element)
@@ -661,33 +668,31 @@ function MontageDocument:OutcomesEditor()
             width = 800,
             halign = "left",
             valign = "top",
-            gui.Panel {
-                classes = { "form" },
+            vmargin = 6,
+            gui.Label {
+                classes = { "bold", "sizeM" },
+                markdown = true,
+                text = "### " .. entry.text,
+                width = "auto",
+                height = "auto",
                 halign = "left",
+                valign = "top",
+            },
+            gui.Input {
+                classes = { "sizeS" },
+                multiline = true,
+                textAlignment = "topleft",
                 width = 700,
                 height = "auto",
-                gui.Label {
-                    text = entry.text .. ":",
-                    height = "auto",
-                    width = 120,
-                    halign = "left",
-                },
-                gui.Input {
-                    classes = { "sizeS" },
-                    multiline = true,
-                    textAlignment = "topleft",
-                    width = 540,
-                    height = "auto",
-                    maxHeight = 200,
-                    minHeight = 30,
-                    halign = "left",
-                    characterLimit = 512,
-                    placeholderText = "Describe outcome...",
-                    text = outcome.text,
-                    change = function(element)
-                        outcome.text = element.text
-                    end,
-                },
+                maxHeight = 200,
+                minHeight = 30,
+                halign = "left",
+                characterLimit = 512,
+                placeholderText = "Describe outcome...",
+                text = outcome.text,
+                change = function(element)
+                    outcome.text = element.text
+                end,
             },
             victoriesPanel,
         }

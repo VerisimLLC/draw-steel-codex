@@ -6141,7 +6141,9 @@ function TacPanel.Perks()
             -- abandoned careers, since their choice guids linger in levelChoices even
             -- though they no longer map to any active feature. Filtering through
             -- GetClassFeaturesAndChoicesWithDetails matches the builder and sheet.
-            local features = creature:GetClassFeaturesAndChoicesWithDetails()
+            -- The cached variant is a TTL memo so this frequently-fired refresh
+            -- stays cheap and shares its build with the Features section.
+            local features = creature:GetClassFeaturesAndChoicesWithDetailsCached()
             if features then
                 for _,f in ipairs(features) do
                     if f.feature and f.feature.typeName == "CharacterFeatChoice" then

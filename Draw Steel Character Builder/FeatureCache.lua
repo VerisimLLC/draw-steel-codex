@@ -1309,7 +1309,10 @@ end
 local function categoriserAddBuildFeatures(creature, addEntry)
     if creature.typeName ~= "character" then return end
 
-    local ok, details = pcall(function() return creature:GetClassFeaturesAndChoicesWithDetails() end)
+    -- Cached (TTL memo) variant: this index is itself rebuilt on a short TTL, so
+    -- a slightly stale details table changes nothing here, and it lets the tac
+    -- panel Perks section share one build per creature per window.
+    local ok, details = pcall(function() return creature:GetClassFeaturesAndChoicesWithDetailsCached() end)
     if not ok or type(details) ~= "table" then return end
 
     --Pass 1: resolve the chosen option features of every made generic

@@ -208,6 +208,29 @@ function character:GetClassFeaturesAndChoicesWithDetails()
 	return passedResult
 end
 
+-- TTL memo over GetClassFeaturesAndChoicesWithDetails. That call rebuilds a
+-- large table (it walks every source and resolves choices) and is polled by
+-- panels that refresh many times a second (the tac panel Features and Perks
+-- sections). A short time-to-live, keyed by creature identity (weak so it
+-- self-prunes), collapses that storm into one build per creature per window --
+-- the same idiom FeatureCache.lua uses for its categoriser index. The result is
+-- treated as read-only by callers; do not mutate the returned table.
+local g_classFeatureDetailsCache = setmetatable({}, { __mode = "k" })
+local CLASS_FEATURE_DETAILS_TTL = 1.0
+
+--returns a list of { class/race/background/characterType = Class/Race/Background, levels = {list of ints}, feature = CharacterFeature or CharacterChoice }
+function character:GetClassFeaturesAndChoicesWithDetailsCached()
+	local now = dmhub.Time()
+	local cached = g_classFeatureDetailsCache[self]
+	if cached ~= nil and (now - cached.time) < CLASS_FEATURE_DETAILS_TTL then
+		return cached.result
+	end
+
+	local result = self:GetClassFeaturesAndChoicesWithDetails()
+	g_classFeatureDetailsCache[self] = { time = now, result = result }
+	return result
+end
+
 --- Returns an array of { feature = CharacterChoice, ... } entries for every
 --- CharacterChoice-derived feature reachable from this creature's "catch-all"
 --- sources -- the ones not covered by the per-source builder tabs.

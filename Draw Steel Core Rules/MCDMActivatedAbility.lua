@@ -1536,6 +1536,8 @@ function ActivatedAbility:Render(options, params)
                 children = reminderLabels,
             }
         end
+    end
+
     -- Optional caller-supplied danger-tinted footer note, appended at the very
     -- bottom of the card. Reuses the suppressPanel styling. Used by the Villain
     -- Action strip to explain a gated drawer ("already used this round/encounter")

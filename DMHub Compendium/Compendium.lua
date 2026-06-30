@@ -6260,6 +6260,10 @@ Compendium.RegisterSection{
     ord = 0,
 }
 Compendium.RegisterSection{
+    text = "Prepped",
+    ord = 5,
+}
+Compendium.RegisterSection{
     text = "Rules",
     ord = 10,
 }
@@ -6754,6 +6758,24 @@ dmhub.RegisterEventHandler("refreshTables", function(keys)
     end
 
     g_registeredPanels = true;
+
+    Compendium.Register{
+        section = "Prepped",
+        text = "Negotiators",
+        contentType = "negotiators",
+        click = function(contentPanel)
+            ShowNegotiatorsPanel(contentPanel)
+        end,
+    }
+
+    Compendium.Register{
+        section = "Prepped",
+        text = "Montage Tests",
+        contentType = "montageTests",
+        click = function(contentPanel)
+            ShowMontageTestsPanel(contentPanel)
+        end,
+    }
 
     Compendium.Register{
         section = "Character",

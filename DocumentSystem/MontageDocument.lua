@@ -390,13 +390,15 @@ function MontageDocument:EditPanel()
     local resultPanel
 
     --All section headers share one style so every box is clearly labeled.
-    local function sectionLabel(text)
+    --topMargin adds extra space above a header to delineate major sections.
+    local function sectionLabel(text, topMargin)
         return gui.Label {
             classes = { "bold", "sizeM" },
             width = "auto",
             height = "auto",
             halign = "left",
             valign = "top",
+            tmargin = topMargin or 0,
             markdown = true,
             text = text,
         }
@@ -464,16 +466,16 @@ function MontageDocument:EditPanel()
             function(text) self.scene = text end,
             "Enter scene description"),
 
-        sectionLabel("## Montage Challenges\nThe following challenges can be part of the montage test:"),
+        sectionLabel("## Montage Challenges\nThe following challenges can be part of the montage test:", 24),
         self:ChallengesEditor(),
 
-        sectionLabel("## Optional Twist"),
+        sectionLabel("## Optional Twist", 24),
         proseInput(
             function() return self.twist end,
             function(text) self.twist = text end,
             "Enter optional twist"),
 
-        sectionLabel("## Montage Test Outcomes\nThe montage test has the following outcomes:"),
+        sectionLabel("## Montage Test Outcomes\nThe montage test has the following outcomes:", 24),
         self:OutcomesEditor(),
     }
 

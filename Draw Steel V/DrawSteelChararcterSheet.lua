@@ -5936,6 +5936,7 @@ local function DSCharSheet()
 
                                     change = function(element)
                                         local token = CharacterSheet.instance.data.info.token
+                                        local creature = token.properties
                                         local t = element.text
                                         if t:sub(1, 1) == "/" then
                                             t = t:sub(2)
@@ -5944,7 +5945,12 @@ local function DSCharSheet()
                                         local n = tonumber(t)
                                         if n ~= nil then
                                             n = round(n)
-                                            token.properties.max_hitpoints = n
+                                            --the label shows MaxHitpoints() (base + modifiers) but max_hitpoints is
+                                            --the BASE value, so subtract the modifier contribution before storing.
+                                            --otherwise the modifiers (e.g. a retainer's Stamina Bonus) get applied a
+                                            --second time and the stamina inflates (doubles when the base is 0).
+                                            local modifierDelta = creature:MaxHitpoints() - creature:BaseHitpoints()
+                                            creature.max_hitpoints = n - modifierDelta
                                         end
 
                                         CharacterSheet.instance:FireEvent("refreshAll")

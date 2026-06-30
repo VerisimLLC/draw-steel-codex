@@ -7136,15 +7136,41 @@ Search.RegisterProvider{
     end,
 }
 
--- Global-search provider: buried class/subclass sub-features (e.g. "Healing
--- Grace", "Sermon of Grace") surfaced as first-class results that deep-link to
--- the class filtered to that feature -- not just the opaque "Conduit" container.
--- The feature names are indexed lazily and cached (the index is large and
--- rarely changes); a class/subclass table refresh invalidates it.
+-- Global-search provider: buried sub-features surfaced as first-class results
+-- that deep-link to their container filtered to that feature -- not just the
+-- opaque "Conduit"/"Dragon Knight" container. Covers class/subclass features
+-- (e.g. "Healing Grace", "Sermon of Grace") AND ancestry traits, including
+-- deeply-nested purchased traits (e.g. "Draconian Guard"), since VisitAllFeatures
+-- walks the whole feature tree. The feature names are indexed lazily and cached
+-- (the index is large and rarely changes); a classes/subclasses/races table
+-- refresh invalidates it.
 local g_classFeatureIndex = nil
 
 local function BuildClassFeatureIndex()
     local index = {}
+
+    -- Shared per-content-object walk: append every uniquely-named feature in a
+    -- single ClassLevel to the index. `seen` dedupes names within one container
+    -- (a feature gained at several levels appears once). Guarded so a malformed
+    -- level doesn't drop the whole index.
+    local function indexClassLevel(classLevel, displayName, contentType, key, seen)
+        pcall(function()
+            classLevel:VisitAllFeatures(function(feature)
+                local fname = feature:try_get("name")
+                if type(fname) == "string" and #fname > 0 and not seen[fname] then
+                    seen[fname] = true
+                    index[#index+1] = {
+                        name = fname,
+                        className = displayName,
+                        contentType = contentType,
+                        classKey = key,
+                    }
+                end
+            end)
+        end)
+    end
+
+    -- Classes/subclasses expose a map of named levels.
     for _,tableName in ipairs({"classes", "subclasses"}) do
         local t = dmhub.GetTable(tableName) or {}
         for ck, class in unhidden_pairs(t) do
@@ -7152,31 +7178,34 @@ local function BuildClassFeatureIndex()
             local levels = class:try_get("levels")
             if type(className) == "string" and type(levels) == "table" then
                 local seen = {}
-                -- Guard per-class: a malformed level shouldn't drop the whole index.
-                pcall(function()
-                    for _,classLevel in pairs(levels) do
-                        classLevel:VisitAllFeatures(function(feature)
-                            local fname = feature:try_get("name")
-                            if type(fname) == "string" and #fname > 0 and not seen[fname] then
-                                seen[fname] = true
-                                index[#index+1] = {
-                                    name = fname,
-                                    className = className,
-                                    contentType = tableName,
-                                    classKey = ck,
-                                }
-                            end
-                        end)
-                    end
-                end)
+                for _,classLevel in pairs(levels) do
+                    indexClassLevel(classLevel, className, tableName, ck, seen)
+                end
             end
         end
     end
+
+    -- Ancestries (races) expose a single class level via GetClassLevel(); their
+    -- signature and purchased traits live as nested features under it. The same
+    -- editor (ClassLevel:CreateEditor) renders both, so the deep-link target key
+    -- works identically.
+    local raceTable = dmhub.GetTable(Race.tableName) or {}
+    for rk, race in unhidden_pairs(raceTable) do
+        local raceName = race.name
+        if type(raceName) == "string" then
+            local classLevel = nil
+            pcall(function() classLevel = race:GetClassLevel() end)
+            if classLevel ~= nil then
+                indexClassLevel(classLevel, raceName, Race.tableName, rk, {})
+            end
+        end
+    end
+
     return index
 end
 
 dmhub.RegisterEventHandler("refreshTables", function(keys)
-    if keys == nil or keys.classes ~= nil or keys.subclasses ~= nil then
+    if keys == nil or keys.classes ~= nil or keys.subclasses ~= nil or keys[Race.tableName] ~= nil then
         g_classFeatureIndex = nil
     end
 end)

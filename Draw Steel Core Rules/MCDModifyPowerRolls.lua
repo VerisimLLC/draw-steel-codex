@@ -844,19 +844,27 @@ CharacterModifier.TypeInfo.power = {
         end
 
         for i,adjustment in ipairs(self:try_get("adjustments", {})) do
-            local pattern = "^(?<prefix>.*)(?<type>" .. adjustment.type .. ")\\s+(?<value>\\d+)(?<postfix>.*)$"
+            local typePattern = adjustment.type
+            if typePattern == "any" then typePattern = "push|pull|slide" end
+            local pattern = "^(?<prefix>.*)(?<type>" .. typePattern .. ")\\s+(?<value>\\d+)(?<postfix>.*)$"
 
             for j,tier in ipairs(rollProperties.tiers) do
                 local match = regex.MatchGroups(tier, pattern)
                 if match ~= nil then
-                    local adj = ExecuteGoblinScript(adjustment.value, lookupFunction, 1, "Determine adjustment")
                     local value = safe_toint(match.value)
-                    local newValue = math.max(0, value + (adj or 0))
+                    local newValue
+                    if adjustment.operation == "multiply" then
+                        local adj = ExecuteGoblinScript(adjustment.value, lookupFunction, 1, "Determine adjustment")
+                        newValue = math.max(0, math.floor(value * (adj or 1)))
+                    else
+                        local adj = ExecuteGoblinScript(adjustment.value, lookupFunction, 1, "Determine adjustment")
+                        newValue = math.max(0, value + (adj or 0))
+                    end
                     local prefix = match.prefix
                     local typeOutput = match.type
-                    if self:try_get("vertical", false) and adjustment.type ~= "jump" then
+                    if self:try_get("vertical", false) and match.type ~= "jump" then
                         prefix = regex.ReplaceAll(prefix, "vertical\\s+$", "")
-                        typeOutput = "vertical " .. adjustment.type
+                        typeOutput = "vertical " .. match.type
                     end
                     rollProperties.tiers[j] = string.format("%s%s %d%s", prefix, typeOutput, newValue, match.postfix)
                 end
@@ -2225,10 +2233,35 @@ CharacterModifier.TypeInfo.power = {
                                             id = "jump",
                                             text = "jump",
                                         },
+                                        {
+                                            id = "any",
+                                            text = "any",
+                                        },
                                     },
                                     idChosen = adjustment.type,
                                     change = function(element)
                                         adjustments[i].type = element.idChosen
+                                        Refresh()
+                                    end,
+                                },
+
+                                gui.Dropdown{
+                                    styles = ThemeEngine.GetStyles(),
+                                    width = 110,
+                                    halign = "left",
+                                    options = {
+                                        {
+                                            id = "add",
+                                            text = "add",
+                                        },
+                                        {
+                                            id = "multiply",
+                                            text = "multiply",
+                                        },
+                                    },
+                                    idChosen = adjustment.operation or "add",
+                                    change = function(element)
+                                        adjustments[i].operation = element.idChosen
                                         Refresh()
                                     end,
                                 },

@@ -30,10 +30,15 @@ function ActivatedAbilityDramaticBannerBehavior:Cast(ability, casterToken, targe
         if tok ~= nil and tok.valid then
             -- Title/subtitle support GoblinScript interpolation: any
             -- {formula} is evaluated against the banner token's symbols.
+            -- Override 'name' with the token's display name so {name}
+            -- shows the creature's actual name. The built-in creature
+            -- 'name' symbol returns the monster_type, which is empty for
+            -- hero characters and would render a blank banner.
+            local symbols = tok.properties:LookupSymbol{ name = tok.name }
             DramaticBanner.Show{
                 tokenid = tok.charid,
-                text = StringInterpolateGoblinScript(self.title, tok.properties),
-                subtitle = StringInterpolateGoblinScript(self.subtitle, tok.properties),
+                text = StringInterpolateGoblinScript(self.title, symbols),
+                subtitle = StringInterpolateGoblinScript(self.subtitle, symbols),
             }
             shown = true
         end

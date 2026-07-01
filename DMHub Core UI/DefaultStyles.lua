@@ -1244,13 +1244,14 @@ ThemeEngine.RegisterTheme{
         -- when both classes apply (cascade specificity is equal otherwise).
         {
             selectors = {"iconButton", "selected"},
-            bgcolor = "@border",
+            bgcolor = "@accent",
             borderColor = "@borderInverse",
             priority = 5,
         },
         {
             selectors = {"panel", "buttonIcon", "parent:selected"},
-            brightness = 2,
+            bgcolor = "@bg",
+            priority = 5,
         },
 
         --[[

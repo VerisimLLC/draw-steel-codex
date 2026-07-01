@@ -844,19 +844,27 @@ CharacterModifier.TypeInfo.power = {
         end
 
         for i,adjustment in ipairs(self:try_get("adjustments", {})) do
-            local pattern = "^(?<prefix>.*)(?<type>" .. adjustment.type .. ")\\s+(?<value>\\d+)(?<postfix>.*)$"
+            local typePattern = adjustment.type
+            if typePattern == "any" then typePattern = "push|pull|slide" end
+            local pattern = "^(?<prefix>.*)(?<type>" .. typePattern .. ")\\s+(?<value>\\d+)(?<postfix>.*)$"
 
             for j,tier in ipairs(rollProperties.tiers) do
                 local match = regex.MatchGroups(tier, pattern)
                 if match ~= nil then
-                    local adj = ExecuteGoblinScript(adjustment.value, lookupFunction, 1, "Determine adjustment")
                     local value = safe_toint(match.value)
-                    local newValue = math.max(0, value + (adj or 0))
+                    local newValue
+                    if adjustment.operation == "multiply" then
+                        local adj = ExecuteGoblinScript(adjustment.value, lookupFunction, 1, "Determine adjustment")
+                        newValue = math.max(0, math.floor(value * (adj or 1)))
+                    else
+                        local adj = ExecuteGoblinScript(adjustment.value, lookupFunction, 1, "Determine adjustment")
+                        newValue = math.max(0, value + (adj or 0))
+                    end
                     local prefix = match.prefix
                     local typeOutput = match.type
-                    if self:try_get("vertical", false) and adjustment.type ~= "jump" then
+                    if self:try_get("vertical", false) and match.type ~= "jump" then
                         prefix = regex.ReplaceAll(prefix, "vertical\\s+$", "")
-                        typeOutput = "vertical " .. adjustment.type
+                        typeOutput = "vertical " .. match.type
                     end
                     rollProperties.tiers[j] = string.format("%s%s %d%s", prefix, typeOutput, newValue, match.postfix)
                 end
@@ -1785,6 +1793,100 @@ CharacterModifier.TypeInfo.power = {
                         }
                     }
 
+                    --Reasoned retarget filters: in addition to the all-inclusive
+                    --filter above, these mark a target as invalid (with a reason
+                    --surfaced to the user as a tooltip) rather than hiding it.
+                    local reasonedFilters = modifier:try_get("changeTargetReasonedFilters", {})
+
+                    if #reasonedFilters > 0 then
+                        children[#children+1] = gui.Label{
+                            classes = {"formLabel"},
+                            width = "auto",
+                            height = "auto",
+                            halign = "left",
+                            tmargin = 6,
+                            text = "Reasoned Filters:",
+                        }
+                    end
+
+                    for index,reasonedFilter in ipairs(reasonedFilters) do
+                        children[#children+1] = gui.Panel{
+                            classes = {"formPanel"},
+                            gui.Label{
+                                classes = {"formLabel"},
+                                text = "Filter:",
+                            },
+                            gui.GoblinScriptInput{
+                                value = reasonedFilter.formula or "",
+                                change = function(element)
+                                    reasonedFilter.formula = element.value
+                                    Refresh()
+                                end,
+
+                                documentation = {
+                                    domains = modifier:Domains(),
+                                    help = "A target that fails this GoblinScript is still shown but cannot be selected, and the reason below is surfaced to the user as a tooltip.",
+                                    output = "boolean",
+                                    examples = {
+                                    },
+                                    subject = creature.helpSymbols,
+                                    subjectDescription = "The potential new target of the power roll.",
+                                    symbols = helpSymbols,
+                                },
+                            },
+                            gui.Button{
+                                classes = {"deleteButton", "sizeXs"},
+                                halign = "right",
+                                valign = "center",
+                                x = 30,
+                                press = function()
+                                    table.remove(reasonedFilters, index)
+                                    modifier.changeTargetReasonedFilters = reasonedFilters
+                                    Refresh()
+                                end,
+                            },
+                        }
+
+                        children[#children+1] = gui.Panel{
+                            classes = {"formPanel"},
+                            gui.Label{
+                                classes = {"formLabel"},
+                                text = "Reason:",
+                            },
+                            gui.Input{
+                                classes = {"formInput"},
+                                width = 300,
+                                characterLimit = 200,
+                                placeholderText = "Enter reason...",
+                                text = reasonedFilter.reason or "",
+                                change = function(element)
+                                    reasonedFilter.reason = element.text
+                                    Refresh()
+                                end,
+                            },
+                        }
+                    end
+
+                    children[#children+1] = gui.Button{
+                        width = "auto",
+                        height = "auto",
+                        minWidth = 220,
+                        hpad = 16,
+                        vpad = 6,
+                        borderBox = true,
+                        fontSize = 16,
+                        halign = "left",
+                        text = "Add Reasoned Filter",
+                        click = function(element)
+                            modifier.changeTargetReasonedFilters = modifier:try_get("changeTargetReasonedFilters", {})
+                            modifier.changeTargetReasonedFilters[#modifier.changeTargetReasonedFilters+1] = {
+                                formula = "",
+                                reason = "",
+                            }
+                            Refresh()
+                        end,
+                    }
+
                     children[#children+1] = gui.Panel{
                         classes = {"formPanel"},
                         gui.Label{
@@ -2131,10 +2233,35 @@ CharacterModifier.TypeInfo.power = {
                                             id = "jump",
                                             text = "jump",
                                         },
+                                        {
+                                            id = "any",
+                                            text = "any",
+                                        },
                                     },
                                     idChosen = adjustment.type,
                                     change = function(element)
                                         adjustments[i].type = element.idChosen
+                                        Refresh()
+                                    end,
+                                },
+
+                                gui.Dropdown{
+                                    styles = ThemeEngine.GetStyles(),
+                                    width = 110,
+                                    halign = "left",
+                                    options = {
+                                        {
+                                            id = "add",
+                                            text = "add",
+                                        },
+                                        {
+                                            id = "multiply",
+                                            text = "multiply",
+                                        },
+                                    },
+                                    idChosen = adjustment.operation or "add",
+                                    change = function(element)
+                                        adjustments[i].operation = element.idChosen
                                         Refresh()
                                     end,
                                 },

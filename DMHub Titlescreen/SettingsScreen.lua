@@ -496,6 +496,311 @@ dmhub.PromptImageEditorSetup = function(a, b)
 	end
 end
 
+--Email confirmation (double opt-in). Lets the user register + confirm a contact
+--email and opt in to notifications. Talks to the email-service Worker via the
+--"emailConfirmation" C# interface (registered in ScriptEngine) and listens to
+--/users/{uid} for the confirmed state. No polling: it uses the cloud realtime listener.
+local CreateEmailConfirmationPanel = function()
+	local m_state = nil        --latest {email, emailConfirmed, allowEmails} from the cloud.
+	local m_waiting = false     --true once we've sent a mail and are waiting on the user to click the link.
+	local m_pendingEmail = nil  --the address we last submitted.
+	local m_monitor = nil       --realtime listener handle.
+	local m_sending = false     --guards against overlapping/duplicate requests.
+
+	local emailInput
+	local submitButton
+	local statusLabel
+	local inputRow
+	local waitingRow
+	local waitingLabel
+	local confirmedRow
+	local confirmedLabel
+	local allowEmailsCheck
+
+	local IsConfirmed = function()
+		return m_state ~= nil and m_state.emailConfirmed == true
+	end
+
+	local RefreshState = function()
+		local confirmed = IsConfirmed()
+
+		inputRow:SetClass("collapsed", confirmed or m_waiting)
+		waitingRow:SetClass("collapsed", confirmed or (m_waiting == false))
+		confirmedRow:SetClass("collapsed", confirmed == false)
+
+		--the opt-in checkbox is only interactable once the address is confirmed.
+		allowEmailsCheck.interactable = confirmed
+		if m_state ~= nil then
+			allowEmailsCheck.value = (m_state.allowEmails == true)
+		end
+
+		local addr = m_pendingEmail
+		if addr == nil and m_state ~= nil then
+			addr = m_state.email
+		end
+		addr = addr or ""
+
+		waitingLabel.text = string.format("We've emailed a confirmation link to %s. Click the link in that email to finish confirming.", addr)
+
+		if m_state ~= nil and m_state.email ~= nil and m_state.email ~= "" then
+			confirmedLabel.text = string.format("%s is confirmed.", m_state.email)
+		else
+			confirmedLabel.text = "Your email address is confirmed."
+		end
+	end
+
+	local SetStatus = function(text, isError)
+		statusLabel.text = text or ""
+		statusLabel:SetClass("collapsed", text == nil or text == "")
+		statusLabel.selfStyle.color = cond(isError, "#ff6666", "#88ff88")
+	end
+
+	local SendRequest
+	SendRequest = function(email)
+		if m_sending then
+			return
+		end
+
+		m_sending = true
+		m_pendingEmail = email
+		submitButton.interactable = false
+		SetStatus("Sending...", false)
+
+		emailConfirmation.RequestEmail{
+			email = email,
+			complete = function(result)
+				m_sending = false
+				submitButton.interactable = true
+
+				if result ~= nil and result.ok and result.status == "sent" then
+					m_waiting = true
+					SetStatus(nil, false)
+					RefreshState()
+				elseif result ~= nil and (result.httpStatus == 429 or result.error == "rate_limited") then
+					local secs = result.retryAfterSeconds or 60
+					SetStatus(string.format("Too many attempts. Please try again in %d seconds.", math.floor(secs)), true)
+				elseif result ~= nil and (result.httpStatus == 400 or result.error == "invalid_email") then
+					SetStatus("That doesn't look like a valid email address.", true)
+				elseif result ~= nil and (result.httpStatus == 401 or result.error == "invalid_token") then
+					SetStatus("Your session has expired. Please try again.", true)
+				else
+					local msg = "Something went wrong. Please try again."
+					if result ~= nil and result.error ~= nil then
+						msg = string.format("Error: %s", tostring(result.error))
+					end
+					SetStatus(msg, true)
+				end
+			end,
+		}
+	end
+
+	local TrySubmit = function()
+		if m_sending then
+			return
+		end
+
+		local email = emailInput.text or ""
+		if string.len(email) < 4 or string.find(email, "@") == nil or string.find(email, "%.") == nil then
+			SetStatus("Please enter a valid email address.", true)
+			return
+		end
+		SendRequest(email)
+	end
+
+	emailInput = gui.Input{
+		id = "emailInput",
+		placeholderText = "Enter your email address...",
+		characterLimit = 64,
+		width = 280,
+		height = 26,
+		fontSize = 16,
+		bgimage = "panels/square.png",
+		borderWidth = 2,
+		borderColor = "#c8a45a",
+		halign = "left",
+		valign = "center",
+	}
+
+	submitButton = gui.Button{
+		text = "Send Confirmation Email",
+		width = 260,
+		height = 40,
+		fontSize = 18,
+		halign = "left",
+		vmargin = 4,
+		click = function(element)
+			TrySubmit()
+		end,
+	}
+
+	inputRow = gui.Panel{
+		id = "emailInputRow",
+		flow = "vertical",
+		width = "100%",
+		height = "auto",
+		emailInput,
+		submitButton,
+	}
+
+	waitingLabel = gui.Label{
+		width = "100%",
+		maxWidth = 600,
+		height = "auto",
+		fontSize = 14,
+		text = "",
+	}
+
+	waitingRow = gui.Panel{
+		id = "emailWaitingRow",
+		classes = {"collapsed"},
+		flow = "vertical",
+		width = "100%",
+		height = "auto",
+		waitingLabel,
+		gui.Panel{
+			flow = "horizontal",
+			width = "100%",
+			height = "auto",
+			gui.Button{
+				text = "Resend Email",
+				width = 180,
+				height = 36,
+				fontSize = 16,
+				halign = "left",
+				vmargin = 4,
+				click = function(element)
+					local addr = m_pendingEmail
+					if addr == nil and m_state ~= nil then
+						addr = m_state.email
+					end
+					if addr ~= nil and addr ~= "" then
+						SendRequest(addr)
+					end
+				end,
+			},
+			gui.Label{
+				text = "Use a different address",
+				color = "#00FFFF",
+				fontSize = 14,
+				width = "auto",
+				height = "auto",
+				halign = "left",
+				valign = "center",
+				hmargin = 16,
+				press = function(element)
+					m_waiting = false
+					SetStatus(nil, false)
+					RefreshState()
+				end,
+			},
+		},
+	}
+
+	confirmedLabel = gui.Label{
+		width = "100%",
+		height = "auto",
+		fontSize = 14,
+		text = "",
+	}
+
+	confirmedRow = gui.Panel{
+		id = "emailConfirmedRow",
+		classes = {"collapsed"},
+		flow = "vertical",
+		width = "100%",
+		height = "auto",
+		confirmedLabel,
+	}
+
+	statusLabel = gui.Label{
+		id = "emailStatus",
+		classes = {"collapsed"},
+		width = "100%",
+		maxWidth = 600,
+		height = "auto",
+		fontSize = 13,
+		vmargin = 2,
+		color = "#ff6666",
+		text = "",
+	}
+
+	allowEmailsCheck = gui.Check{
+		id = "allowEmailsCheck",
+		text = "Send me occasional email updates",
+		value = false,
+		interactable = false,
+		halign = "left",
+		width = "100%",
+		height = 36,
+		fontSize = 14,
+		vmargin = 4,
+		change = function(element)
+			emailConfirmation.SetAllowEmails(element.value)
+		end,
+	}
+
+	local resultPanel = gui.Panel{
+		-- Gate the email-update interface behind the same dev:storepreview
+		-- preference that controls whether the shop is available (the
+		-- Shop/Inventory title-bar menu and the MCDM Shopify Store section
+		-- below). When the store isn't live, the email section stays hidden.
+		classes = { cond(not g_devStorePreviewSetting:Get(), "collapsed") },
+		flow = "vertical",
+		width = "100%",
+		height = "auto",
+		vmargin = 12,
+
+		create = function(element)
+			m_monitor = emailConfirmation.MonitorStatus(function(state)
+				m_state = state
+				if state ~= nil and state.emailConfirmed then
+					m_waiting = false
+				end
+
+				--prefill the input with the known address while we're still collecting it.
+				if IsConfirmed() == false and m_waiting == false and state ~= nil and state.email ~= nil and (emailInput.text == nil or emailInput.text == "") then
+					emailInput.text = state.email
+				end
+
+				RefreshState()
+			end)
+
+			RefreshState()
+		end,
+
+		destroy = function(element)
+			if m_monitor ~= nil then
+				m_monitor:Stop()
+				m_monitor = nil
+			end
+		end,
+
+		gui.Label{
+			classes = {"sizeL", "bold"},
+			width = "auto",
+			height = "auto",
+			vmargin = 8,
+			text = "Email Notifications",
+		},
+
+		gui.Label{
+			width = "100%",
+			maxWidth = 600,
+			height = "auto",
+			fontSize = 14,
+			text = string.format("Confirm an email address to receive notifications from %s. We'll send you a link to confirm it's yours.", dmhub.whiteLabelAppName),
+		},
+
+		inputRow,
+		waitingRow,
+		confirmedRow,
+		statusLabel,
+		allowEmailsCheck,
+	}
+
+	return resultPanel
+end
+
 function CreateSettingsScreen(dialog, args)
     args = args or {}
 
@@ -649,7 +954,7 @@ function CreateSettingsScreen(dialog, args)
 		id = "settingsDialog",
 		classes = {"dialog"},
 
-		width = 1024,
+		width = 1140,
 		height = 900,
 		halign = "center",
 		valign = "center",
@@ -770,6 +1075,10 @@ function CreateSettingsScreen(dialog, args)
 					},
 					CreateTab{
 						text = "Game",
+						dmonly = true,
+					},
+					CreateTab{
+						text = "Map",
 						dmonly = true,
 					},
 					CreateTab{
@@ -979,6 +1288,29 @@ function CreateSettingsScreen(dialog, args)
 						SettingsHeading("Rules Enforcement"),
 
 						SettingsSection("GameStrictRules"),
+						} end,
+					},
+
+					SettingGroup{
+						group = "Map",
+						build = function() return {
+						Setting("map:playerviewable"),
+						Setting("map:parallaxscale"),
+						Setting("gridcolor"),
+
+						SettingsSection("vision"),
+
+						Setting("maplayout:tiletype"),
+						Setting("maplayout:stagger"),
+						Setting("maplayout:tilewidth"),
+						Setting("maplayout:tileheight"),
+						Setting("maplayout:hexslant"),
+
+						Setting("editor:showpathfinding"),
+						Setting("canlookup"),
+						Setting("maxlookup"),
+
+						SettingsSection("Map"),
 						} end,
 					},
 
@@ -1277,6 +1609,13 @@ function CreateSettingsScreen(dialog, args)
 								width = "auto",
 								height = "auto",
 							},
+
+							gui.Panel{
+								width = 16,
+								height = 16,
+							},
+
+							CreateEmailConfirmationPanel(),
 
 							gui.Panel{
 								width = 16,

@@ -2631,7 +2631,7 @@ function TacPanel.Summary()
                         local text = element.text
                         if token.properties:IsMonster() then
                             local role = token.properties:try_get("role", "")
-                            local ev = token.properties:try_get("ev", 1)
+                            local ev = token.properties:EV()
                             if role ~= "" then
                                 text = string.format("LEVEL %d %s  EV %d", level, string.upper(role), ev)
                             else
@@ -5574,15 +5574,47 @@ end
 ---        section lock its filter so a later title-bar search change does not
 ---        rebuild the list and tear this popup down)
 --- @return Panel
+-- A feature chip. Built to be REUSED across refreshes rather than rebuilt: the
+-- acting token, description source, filter haystack, and label are all kept in
+-- `data` and refreshed by the `update` event, so a single chip instance can be
+-- retargeted to a new entry (or a new selected token) without reallocation.
 function TacPanel.FeatureChip(token, name, descFn, onOpen)
     local chip
+    local nameLabel
+    nameLabel = gui.Label{
+        classes = {"label", "cond-name"},
+        text = name,
+    }
     chip = gui.Panel{
         classes = {"panel", "cond-chip", "feature-chip"},
-        data = { matchName = string.lower(name or "") },
+        data = {
+            token = token,
+            name = name,
+            descFn = descFn,
+            onOpen = onOpen,
+            -- Pre-lowered filter haystack so applyFilter can use the hot-path
+            -- Search.MatchesLoweredText without re-lowering on every keystroke.
+            searchLower = string.lower(name or ""),
+        },
+        -- Retarget a reused chip in place: refresh the acting token, description
+        -- source, filter haystack, and (only if it changed) the label text.
+        update = function(element, tok, newName, newDescFn, newSearchText)
+            element.data.token = tok
+            element.data.descFn = newDescFn
+            element.data.searchLower = string.lower(newSearchText or newName or "")
+            if newName ~= element.data.name then
+                element.data.name = newName
+                nameLabel.text = newName or ""
+            end
+        end,
         click = function(element)
-            if onOpen ~= nil then onOpen() end
-            local capturedId = token.id
-            local desc = (descFn and descFn()) or "*No description.*"
+            local tok = element.data.token
+            if tok == nil then return end
+            if element.data.onOpen ~= nil then element.data.onOpen() end
+            local capturedId = tok.id
+            local displayName = element.data.name
+            local descFnNow = element.data.descFn
+            local desc = (descFnNow and descFnNow()) or "*No description.*"
             element.popupsInheritStyles = true
             element.popup = gui.Panel{
                 classes = {"dialog"},
@@ -5594,7 +5626,7 @@ function TacPanel.FeatureChip(token, name, descFn, onOpen)
                 gui.Label{
                     width = "100%", height = "auto",
                     bold = true, fontSize = 14, color = "@fg",
-                    text = name,
+                    text = displayName,
                 },
                 gui.Label{
                     width = "100%", height = "auto",
@@ -5609,15 +5641,12 @@ function TacPanel.FeatureChip(token, name, descFn, onOpen)
                     text = "Open on sheet",
                     click = function(linkEl)
                         chip.popup = nil
-                        FeatureCategoriser.OpenSheetAtFeaturesTab(capturedId, name)
+                        FeatureCategoriser.OpenSheetAtFeaturesTab(capturedId, displayName)
                     end,
                 },
             }
         end,
-        gui.Label{
-            classes = {"label", "cond-name"},
-            text = name,
-        },
+        nameLabel,
     }
     return chip
 end
@@ -5637,6 +5666,15 @@ function TacPanel.Features()
 
     local section, filterInput, clearButton, countLabel, groupsContainer
 
+    --Panel-reuse caches. Building gui panels is expensive, so the Features list
+    --keeps its group/level/chip panels alive across refreshes, updates them in
+    --place, and only reassigns children when the ordered membership changes.
+    local m_groupPanels = {}       -- bucketId -> group panel (reused)
+    local m_withCaptainChip = nil  -- synthetic "With Captain" chip (reused)
+    local m_withCaptainWrap = nil  -- its chip-wrap container (reused)
+    local m_currentOrder = {}      -- bucket ids currently shown, in order
+    local m_lastTotal = 0          -- feature count, for the count label
+
     --Opening a feature popup "locks" a title-bar-driven filter in place: we
     --promote it to a user-owned filter so applyGlobalQuery stops touching it.
     --Without this, clearing/changing the title-bar search rebuilds the list and
@@ -5646,137 +5684,257 @@ function TacPanel.Features()
         m_filterFromGlobal = false
     end
 
-    --A wrapped chip body for a set of entries.
-    local function chipWrap(token, entries)
-        local chipPanels = {}
-        for _,e in ipairs(entries) do
-            local captured = e
-            chipPanels[#chipPanels+1] = TacPanel.FeatureChip(token, e.name or "Feature",
-                function() return FeatureTacDescription(captured) end, lockFilterOnOpen)
+    --Key a feature entry for reuse. The index dedupes by bucket|name, so a name
+    --is a stable, unique chip key within a single group/level.
+    local function entryKey(e)
+        return e.name or ""
+    end
+
+    --Generic keyed child reconciliation (mirrors DTProjectEditor._reconcile-
+    --ProgressItemsList / DTHelpers.SyncArrays): reuse panels from `cache` by key,
+    --build only the genuinely-new ones, update every panel in place, reorder to
+    --match `items`, and reassign container.children ONLY when the ordered set
+    --actually changed -- so a no-op refresh does no relayout. Returns the new
+    --cache (dropping any panels whose keys are gone).
+    local function reconcileChildren(container, cache, items, keyOf, buildFn, updateFn)
+        local newCache = {}
+        local children = {}
+        for _,item in ipairs(items) do
+            local key = keyOf(item)
+            local panel = cache[key] or buildFn(item, key)
+            updateFn(panel, item, key)
+            newCache[key] = panel
+            children[#children+1] = panel
         end
+        local changed = #children ~= #container.children
+        if not changed then
+            for i = 1, #children do
+                if container.children[i] ~= children[i] then
+                    changed = true
+                    break
+                end
+            end
+        end
+        if changed then
+            container.children = children
+        end
+        return newCache
+    end
+
+    --An empty chip-wrap body that owns a name-keyed chip cache in its data, so its
+    --chips persist across refreshes (syncChipBody reconciles, filterChipBody hides).
+    local function buildChipBody()
         return gui.Panel{
             classes = {"panel", "cond-chips"},
             wrap = true,
             lmargin = 6,
-            children = chipPanels,
+            data = { chipCache = {}, visibleCount = 0 },
         }
     end
 
-    --A collapsible "Level N (count)" sub-group (Class bucket only), mirroring
-    --the ch5 sheet's by-level sub-grouping. Toggles in place; filtering forces
-    --it open and disables the toggle.
-    local function buildLevelGroup(token, lvl, entries, locked)
-        local expanded = locked or (m_expandedLevels[lvl] == true)
-        local body = chipWrap(token, entries)
-        body:SetClass("collapsed", not expanded)
+    --Reconcile a chip body's chips to `entries`, reusing chips by name.
+    local function syncChipBody(body, entries)
+        body.data.chipCache = reconcileChildren(
+            body, body.data.chipCache, entries,
+            entryKey,
+            function(e)
+                return TacPanel.FeatureChip(m_token, e.name or "Feature", nil, lockFilterOnOpen)
+            end,
+            function(chip, e)
+                local captured = e
+                chip:FireEvent("update", m_token, e.name or "Feature",
+                    function() return FeatureTacDescription(captured) end, e.searchText)
+            end)
+    end
 
+    --Show/hide a chip body's chips against a (normalised) needle -- no rebuild, just
+    --collapse toggles. Empty needle shows all. Returns and stashes the visible count.
+    local function filterChipBody(body, needle)
+        local visible = 0
+        for _,chip in ipairs(body.children) do
+            local match = needle == "" or Search.MatchesLoweredText(chip.data.searchLower, needle)
+            chip:SetClass("collapsed", not match)
+            if match then visible = visible + 1 end
+        end
+        body.data.visibleCount = visible
+        return visible
+    end
+
+    --A flat origin group: header (arrow + "Bucket - Origin (N)") over a chip body.
+    --Expansion toggles in place via m_expanded[bid]; while filtering the group is
+    --forced open + locked, and hidden entirely when nothing matches.
+    local function buildFlatGroupShell(bid)
+        local body = buildChipBody()
+        local arrow = gui.CollapseArrow{ width = 10, height = 10, valign = "center", hmargin = 4 }
+        local titleLabel = gui.Label{
+            width = "auto", height = "auto", valign = "center",
+            fontSize = 12, bold = true, color = "@fg", text = "",
+        }
+        local header = gui.Panel{
+            width = "100%", height = "auto", flow = "horizontal", valign = "center", vmargin = 2,
+            data = { locked = false },
+            press = function(element)
+                if element.data.locked then return end
+                local now = not (m_expanded[bid] == true)
+                if now then m_expanded[bid] = true else m_expanded[bid] = nil end
+                body:SetClass("collapsed", not now)
+                arrow:SetClass("collapseSet", not now)
+            end,
+            arrow,
+            titleLabel,
+        }
+        return gui.Panel{
+            width = "100%", height = "auto", flow = "vertical",
+            data = { bid = bid, body = body, arrow = arrow, header = header, titleLabel = titleLabel, visibleCount = 0 },
+            syncGroup = function(element, grp)
+                element.data.titleLabel.text = string.format("%s (%d)", FeatureGroupHeaderText(grp), #grp.items)
+                syncChipBody(element.data.body, grp.items)
+            end,
+            filterGroup = function(element, needle, filtering)
+                local visible = filterChipBody(element.data.body, needle)
+                if filtering then
+                    element.data.header.data.locked = true
+                    element.data.body:SetClass("collapsed", false)
+                    element.data.arrow:SetClass("collapseSet", false)
+                    element:SetClass("collapsed", visible == 0)
+                else
+                    element.data.header.data.locked = false
+                    element:SetClass("collapsed", false)
+                    local expanded = m_expanded[element.data.bid] == true
+                    element.data.body:SetClass("collapsed", not expanded)
+                    element.data.arrow:SetClass("collapseSet", not expanded)
+                end
+                element.data.visibleCount = visible
+            end,
+            header,
+            body,
+        }
+    end
+
+    --A collapsible "Level N (count)" sub-group (Class bucket only). Chips reused by
+    --name; toggles in place via m_expandedLevels[lvl]; forced open while filtering.
+    local function buildLevelShell(lvl)
+        local body = buildChipBody()
         local arrow = gui.CollapseArrow{ width = 9, height = 9, valign = "center", hmargin = 4 }
-        arrow:SetClass("collapseSet", not expanded)
-
+        local titleLabel = gui.Label{
+            width = "auto", height = "auto", valign = "center",
+            fontSize = 11, color = "@fgMuted", text = "",
+        }
         local header = gui.Panel{
             width = "100%", height = "auto", flow = "horizontal", valign = "center", vmargin = 1,
-            press = function()
-                if locked then return end
+            data = { locked = false },
+            press = function(element)
+                if element.data.locked then return end
                 local now = not (m_expandedLevels[lvl] == true)
                 if now then m_expandedLevels[lvl] = true else m_expandedLevels[lvl] = nil end
                 body:SetClass("collapsed", not now)
                 arrow:SetClass("collapseSet", not now)
             end,
             arrow,
-            gui.Label{
-                width = "auto", height = "auto", valign = "center",
-                fontSize = 11, color = "@fgMuted",
-                text = string.format("%s (%d)",
-                    cond(lvl > 0, string.format("Level %d", lvl), "Other"), #entries),
-            },
+            titleLabel,
         }
-        return gui.Panel{ width = "100%-8", halign = "right", height = "auto", flow = "vertical", header, body }
-    end
-
-    --Build a collapsible origin group: header (arrow + "Bucket - Origin (N)")
-    --over a chip body. The Class bucket sub-groups its chips by level; other
-    --buckets are a flat chip wrap. Expansion toggles in place (no rebuild).
-    --When filtering the group is forced open and only matching chips are built.
-    --`locked` = filtering (no manual collapse while a filter is active).
-    local function buildGroup(token, group, locked, needle)
-        local items = {}
-        for _,e in ipairs(group.items) do
-            if not locked or Search.MatchesText(e.searchText or e.name or "", needle) then
-                items[#items+1] = e
-            end
-        end
-        if #items == 0 then return nil, 0 end
-
-        local expanded = locked or (m_expanded[group.bucket.id] == true)
-
-        local body
-        if group.bucket.id == "class" then
-            --Sub-group the matching items by level (ascending; "Other" = 0).
-            local byLevel, levelsSeen = {}, {}
-            for _,e in ipairs(items) do
-                local lvl = e.level or 0
-                if byLevel[lvl] == nil then
-                    byLevel[lvl] = {}
-                    levelsSeen[#levelsSeen+1] = lvl
-                end
-                local t = byLevel[lvl]
-                t[#t+1] = e
-            end
-            table.sort(levelsSeen)
-            local levelPanels = {}
-            for _,lvl in ipairs(levelsSeen) do
-                levelPanels[#levelPanels+1] = buildLevelGroup(token, lvl, byLevel[lvl], locked)
-            end
-            body = gui.Panel{
-                width = "100%", height = "auto", flow = "vertical", lmargin = 4,
-                children = levelPanels,
-            }
-        else
-            body = chipWrap(token, items)
-        end
-        body:SetClass("collapsed", not expanded)
-
-        local arrow = gui.CollapseArrow{
-            width = 10,
-            height = 10,
-            valign = "center",
-            hmargin = 4,
-        }
-        arrow:SetClass("collapseSet", not expanded)
-
-        local header = gui.Panel{
-            width = "100%",
-            height = "auto",
-            flow = "horizontal",
-            valign = "center",
-            vmargin = 2,
-            press = function()
-                if locked then return end
-                local nowExpanded = not (m_expanded[group.bucket.id] == true)
-                if nowExpanded then m_expanded[group.bucket.id] = true
-                else m_expanded[group.bucket.id] = nil end
-                body:SetClass("collapsed", not nowExpanded)
-                arrow:SetClass("collapseSet", not nowExpanded)
-            end,
-            arrow,
-            gui.Label{
-                width = "auto",
-                height = "auto",
-                valign = "center",
-                fontSize = 12,
-                bold = true,
-                color = "@fg",
-                text = string.format("%s (%d)", FeatureGroupHeaderText(group), #group.items),
-            },
-        }
-
         return gui.Panel{
-            width = "100%",
-            height = "auto",
-            flow = "vertical",
+            width = "100%-8", halign = "right", height = "auto", flow = "vertical",
+            data = { lvl = lvl, body = body, arrow = arrow, header = header, titleLabel = titleLabel, visibleCount = 0 },
+            syncLevel = function(element, entries)
+                element.data.titleLabel.text = string.format("%s (%d)",
+                    cond(lvl > 0, string.format("Level %d", lvl), "Other"), #entries)
+                syncChipBody(element.data.body, entries)
+            end,
+            filterLevel = function(element, needle, filtering)
+                local visible = filterChipBody(element.data.body, needle)
+                if filtering then
+                    element.data.header.data.locked = true
+                    element.data.body:SetClass("collapsed", false)
+                    element.data.arrow:SetClass("collapseSet", false)
+                    element:SetClass("collapsed", visible == 0)
+                else
+                    element.data.header.data.locked = false
+                    element:SetClass("collapsed", false)
+                    local expanded = m_expandedLevels[element.data.lvl] == true
+                    element.data.body:SetClass("collapsed", not expanded)
+                    element.data.arrow:SetClass("collapseSet", not expanded)
+                end
+                element.data.visibleCount = visible
+            end,
             header,
             body,
-        }, #items
+        }
+    end
+
+    --The Class bucket group: header over a container of by-level sub-groups. Level
+    --panels are reused by level number across refreshes.
+    local function buildClassGroupShell(bid)
+        local levels = gui.Panel{
+            width = "100%", height = "auto", flow = "vertical", lmargin = 4,
+            data = { levelCache = {} },
+        }
+        local arrow = gui.CollapseArrow{ width = 10, height = 10, valign = "center", hmargin = 4 }
+        local titleLabel = gui.Label{
+            width = "auto", height = "auto", valign = "center",
+            fontSize = 12, bold = true, color = "@fg", text = "",
+        }
+        local header = gui.Panel{
+            width = "100%", height = "auto", flow = "horizontal", valign = "center", vmargin = 2,
+            data = { locked = false },
+            press = function(element)
+                if element.data.locked then return end
+                local now = not (m_expanded[bid] == true)
+                if now then m_expanded[bid] = true else m_expanded[bid] = nil end
+                levels:SetClass("collapsed", not now)
+                arrow:SetClass("collapseSet", not now)
+            end,
+            arrow,
+            titleLabel,
+        }
+        return gui.Panel{
+            width = "100%", height = "auto", flow = "vertical",
+            data = { bid = bid, body = levels, arrow = arrow, header = header, titleLabel = titleLabel, visibleCount = 0 },
+            syncGroup = function(element, grp)
+                element.data.titleLabel.text = string.format("%s (%d)", FeatureGroupHeaderText(grp), #grp.items)
+                --Sub-group the items by level (ascending; "Other" = 0).
+                local byLevel, levelsSeen = {}, {}
+                for _,e in ipairs(grp.items) do
+                    local lvl = e.level or 0
+                    if byLevel[lvl] == nil then
+                        byLevel[lvl] = {}
+                        levelsSeen[#levelsSeen+1] = lvl
+                    end
+                    local t = byLevel[lvl]
+                    t[#t+1] = e
+                end
+                table.sort(levelsSeen)
+                local lc = element.data.body
+                lc.data.levelCache = reconcileChildren(
+                    lc, lc.data.levelCache, levelsSeen,
+                    function(lvl) return lvl end,
+                    function(lvl) return buildLevelShell(lvl) end,
+                    function(panel, lvl) panel:FireEvent("syncLevel", byLevel[lvl]) end)
+            end,
+            filterGroup = function(element, needle, filtering)
+                local lc = element.data.body
+                local visible = 0
+                for _,levelPanel in ipairs(lc.children) do
+                    levelPanel:FireEvent("filterLevel", needle, filtering)
+                    visible = visible + (levelPanel.data.visibleCount or 0)
+                end
+                if filtering then
+                    element.data.header.data.locked = true
+                    lc:SetClass("collapsed", false)
+                    element.data.arrow:SetClass("collapseSet", false)
+                    element:SetClass("collapsed", visible == 0)
+                else
+                    element.data.header.data.locked = false
+                    element:SetClass("collapsed", false)
+                    local expanded = m_expanded[element.data.bid] == true
+                    lc:SetClass("collapsed", not expanded)
+                    element.data.arrow:SetClass("collapseSet", not expanded)
+                end
+                element.data.visibleCount = visible
+            end,
+            header,
+            levels,
+        }
     end
 
     --Whether the curated index (or the With-Captain synthetic) matches a needle.
@@ -5803,54 +5961,45 @@ function TacPanel.Features()
         if clearButton ~= nil then clearButton:SetClass("collapsed", m_filter == "") end
     end
 
-    --Rebuild the groups container + count from the curated index. Collapses the
-    --whole section when there is nothing to show. The Filter box drives all
-    --filtering; the title-bar search populates that box (see onGlobalQuery).
-    local function rebuild()
+    --Apply the active filter to the ALREADY-BUILT group/chip panels by toggling
+    --collapsed classes -- no index build, no panel allocation, no children churn.
+    --This is the hot path: it runs on every filter keystroke.
+    local function applyFilter()
         if section == nil then return end
         local token = m_token
         if token == nil or not token.valid or token.properties == nil then
             section:SetClass("collapsed", true)
             return
         end
-        local creature = token.properties
-        local index = FeatureCategoriser.BuildTacIndexCached(creature)
-
         local filtering = m_filter ~= ""
         local needle = Search.Normalize(m_filter)
-
-        local children = {}
         local shown = 0
 
-        --Minion "With Captain": preserved as a standalone chip (it is not a
-        --characterFeatures entry, so the categoriser never sees it).
-        if creature.withCaptain and creature.minion then
-            local captainText = creature.withCaptain
-            if not filtering or Search.MatchesText("With Captain", needle)
-                or Search.MatchesText(captainText or "", needle) then
-                children[#children+1] = gui.Panel{
-                    classes = {"panel", "cond-chips"},
-                    wrap = true,
-                    lmargin = 6,
-                    TacPanel.FeatureChip(token, "With Captain", function() return captainText end, lockFilterOnOpen),
-                }
-                shown = shown + 1
+        --Minion "With Captain": a standalone chip outside the grouped list.
+        if m_withCaptainWrap ~= nil then
+            if m_withCaptainChip ~= nil and m_withCaptainChip.data.active then
+                local match = not filtering
+                    or Search.MatchesLoweredText(m_withCaptainChip.data.searchLower, needle)
+                m_withCaptainChip:SetClass("collapsed", not match)
+                m_withCaptainWrap:SetClass("collapsed", not match)
+                if match then shown = shown + 1 end
+            else
+                m_withCaptainWrap:SetClass("collapsed", true)
             end
         end
 
-        for _,bid in ipairs(index.order) do
-            local groupPanel, n = buildGroup(token, index.groups[bid], filtering, needle)
-            if groupPanel ~= nil then
-                children[#children+1] = groupPanel
-                shown = shown + n
+        for _,bid in ipairs(m_currentOrder) do
+            local gp = m_groupPanels[bid]
+            if gp ~= nil then
+                gp:FireEvent("filterGroup", needle, filtering)
+                shown = shown + (gp.data.visibleCount or 0)
             end
         end
 
-        if #children == 0 then
+        if shown == 0 then
             if filtering then
-                countLabel.text = string.format("No matches in %d features", index.total)
+                countLabel.text = string.format("No matches in %d features", m_lastTotal)
                 countLabel:SetClass("collapsed", false)
-                groupsContainer.children = {}
                 section:SetClass("collapsed", false)
                 return
             end
@@ -5859,13 +6008,92 @@ function TacPanel.Features()
         end
 
         section:SetClass("collapsed", false)
-        groupsContainer.children = children
         if filtering then
-            countLabel.text = string.format("Showing %d of %d features", shown, index.total)
+            countLabel.text = string.format("Showing %d of %d features", shown, m_lastTotal)
         else
-            countLabel.text = string.format("%d features", index.total)
+            countLabel.text = string.format("%d features", m_lastTotal)
         end
         countLabel:SetClass("collapsed", false)
+    end
+
+    --Reconcile the groups container from the curated index: reuse group/level/chip
+    --panels, update them in place, and reassign children ONLY when the ordered set
+    --changed. Runs on token switch / token-data change (NOT on filter keystrokes),
+    --and finishes by applying the active filter to the refreshed panels.
+    local function reconcile()
+        if section == nil then return end
+        local token = m_token
+        if token == nil or not token.valid or token.properties == nil then
+            section:SetClass("collapsed", true)
+            return
+        end
+        local creature = token.properties
+        local index = FeatureCategoriser.BuildTacIndexCached(creature)
+        m_lastTotal = index.total
+
+        local children = {}
+
+        --Minion "With Captain": a standalone chip (not a characterFeatures entry,
+        --so the categoriser never sees it). Built once, then reused.
+        if creature.withCaptain and creature.minion then
+            local captainText = creature.withCaptain
+            if m_withCaptainChip == nil then
+                m_withCaptainChip = TacPanel.FeatureChip(token, "With Captain",
+                    function() return captainText end, lockFilterOnOpen)
+                m_withCaptainWrap = gui.Panel{
+                    classes = {"panel", "cond-chips"},
+                    wrap = true,
+                    lmargin = 6,
+                    m_withCaptainChip,
+                }
+            end
+            m_withCaptainChip:FireEvent("update", token, "With Captain",
+                function() return captainText end, "With Captain " .. (captainText or ""))
+            m_withCaptainChip.data.active = true
+            children[#children+1] = m_withCaptainWrap
+        elseif m_withCaptainChip ~= nil then
+            m_withCaptainChip.data.active = false
+        end
+
+        --Group panels, reused by bucket id, in the index's bucket order.
+        m_currentOrder = {}
+        for _,bid in ipairs(index.order) do
+            local gp = m_groupPanels[bid]
+            if gp == nil then
+                if bid == "class" then
+                    gp = buildClassGroupShell(bid)
+                else
+                    gp = buildFlatGroupShell(bid)
+                end
+                m_groupPanels[bid] = gp
+            end
+            gp:FireEvent("syncGroup", index.groups[bid])
+            children[#children+1] = gp
+            m_currentOrder[#m_currentOrder+1] = bid
+        end
+
+        --Drop cached group panels no longer present (cache handoff).
+        local present = {}
+        for _,bid in ipairs(m_currentOrder) do present[bid] = true end
+        for bid in pairs(m_groupPanels) do
+            if not present[bid] then m_groupPanels[bid] = nil end
+        end
+
+        --Only reassign children when the ordered membership actually changed.
+        local changed = #children ~= #groupsContainer.children
+        if not changed then
+            for i = 1, #children do
+                if groupsContainer.children[i] ~= children[i] then
+                    changed = true
+                    break
+                end
+            end
+        end
+        if changed then
+            groupsContainer.children = children
+        end
+
+        applyFilter()
     end
 
     --Set the filter (used by the title-bar search path). When it populates the
@@ -5875,7 +6103,7 @@ function TacPanel.Features()
         m_filter = text or ""
         m_filterFromGlobal = fromGlobal == true
         syncFilterInput()
-        rebuild()
+        applyFilter()
         if m_filter ~= "" and section ~= nil and section.data ~= nil and section.data.collapsed then
             section.data.collapsed = false
             section:FireEventTree("setCollapse", false)
@@ -5953,7 +6181,7 @@ function TacPanel.Features()
             m_filterFromGlobal = false
             if filterInput ~= nil then filterInput.text = "" end
             clearButton:SetClass("collapsed", true)
-            rebuild()
+            applyFilter()
         end,
     }
 
@@ -5973,7 +6201,7 @@ function TacPanel.Features()
             m_filter = element.text or ""
             m_filterFromGlobal = false   -- the user is driving the filter now
             clearButton:SetClass("collapsed", m_filter == "")
-            rebuild()
+            applyFilter()
         end,
         clearButton,
     }
@@ -6015,7 +6243,7 @@ function TacPanel.Features()
 
         refreshCharacter = function(element, token)
             m_token = token
-            rebuild()
+            reconcile()
             --Re-evaluate any active title-bar search against the new creature so
             --a search-driven filter follows token switches (immediate, not
             --debounced -- a switch is not typing).
@@ -6141,19 +6369,29 @@ function TacPanel.Perks()
             local seen = {}
             local levelChoices = creature:GetLevelChoices() or {}
             local featTable = dmhub.GetTableVisible(CharacterFeat.tableName)
-            for _,choices in pairs(levelChoices) do
-                for _,guid in ipairs(choices) do
-                    if not seen[guid] then
-                        seen[guid] = true
-                        local featItem = featTable[guid]
-                        if featItem then
-                            specs[#specs+1] = {
-                                entryKey = "perks",
-                                entryId  = guid,
-                                charid   = charid,
-                                title    = featItem.name,
-                                body     = featItem.description,
-                            }
+            -- Only surface perks tied to a LIVE CharacterFeatChoice feature.
+            -- Iterating levelChoices directly would keep stale perks left behind
+            -- by abandoned careers, whose choice guids linger in levelChoices even
+            -- though they no longer map to any active feature. Reuse the categoriser
+            -- index the Features section already builds this refresh (shared 1s memo)
+            -- rather than recomputing the feature list here.
+            local index = FeatureCategoriser.BuildIndexCached(creature)
+            for _,entry in ipairs(index.features) do
+                local feature = entry.feature
+                if feature ~= nil and feature.typeName == "CharacterFeatChoice" then
+                    for _,guid in ipairs(levelChoices[entry.guid] or {}) do
+                        if not seen[guid] then
+                            seen[guid] = true
+                            local featItem = featTable[guid]
+                            if featItem then
+                                specs[#specs+1] = {
+                                    entryKey = "perks",
+                                    entryId  = guid,
+                                    charid   = charid,
+                                    title    = featItem.name,
+                                    body     = featItem.description,
+                                }
+                            end
                         end
                     end
                 end

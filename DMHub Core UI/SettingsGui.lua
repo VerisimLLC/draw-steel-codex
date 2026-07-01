@@ -548,6 +548,122 @@ function CreateSettingsDisplay(var, options)
 	return gui.Label(args)
 end
 
+-- Whether the running engine exposes the per-map setting default API (dmhub.SettingVariesFromDefault
+-- etc., added to the C# engine alongside this code). Detected with pcall so that loading this Lua on
+-- an engine build that predates the API does not error -- the "Default Value" row is simply omitted
+-- until the engine is rebuilt.
+local g_mapDefaultsSupported
+local function MapDefaultsSupported()
+	if g_mapDefaultsSupported == nil then
+		local ok, fn = pcall(function() return dmhub.SettingVariesFromDefault end)
+		g_mapDefaultsSupported = (ok and fn ~= nil) or false
+	end
+	return g_mapDefaultsSupported
+end
+
+-- For a per-map setting, an info row shown beneath its editor when the current map's value differs
+-- from the established (game-wide) default. Reads as a directional sentence so the two actions are
+-- unambiguous: "Revert to Default" pulls the default onto THIS map (clearing its override so it tracks
+-- the default); "Make This the Default" pushes this map's value up to become the default for ALL maps.
+-- Backed by the engine's 'mapdefault:<id>' companion variable; monitors both the setting and its
+-- companion so it refreshes live as either changes.
+local function CreateMapSettingDefaultRow(var, options)
+	options = options or {}
+	local stacked = options.stacked
+
+	local statusLabel = gui.Label{
+		width = "auto",
+		height = "auto",
+		fontSize = 12,
+		color = "@fgMuted",
+		halign = "left",
+		text = "",
+	}
+
+	local revertLink = gui.Label{
+		-- 'link' gives accent color + hover/press states; 'underline' adds the at-rest hyperlink
+		-- affordance so the action reads as clickable even in monochrome schemes where @accent is grey.
+		classes = {"link", "underline"},
+		width = "auto",
+		height = "auto",
+		fontSize = 12,
+		valign = "center",
+		text = "Revert to Default",
+		events = {
+			click = function(element)
+				dmhub.ResetSettingToDefault(var.id)
+			end,
+			linger = gui.Tooltip("Discard this map's value and use the default instead."),
+		},
+	}
+
+	local divider = gui.Label{
+		width = "auto",
+		height = "auto",
+		fontSize = 12,
+		color = "@fgMuted",
+		valign = "center",
+		hmargin = 8,
+		text = "|",
+	}
+
+	local makeDefaultLink = gui.Label{
+		classes = {"link", "underline"},
+		width = "auto",
+		height = "auto",
+		fontSize = 12,
+		valign = "center",
+		text = "Make This the Default",
+		events = {
+			click = function(element)
+				dmhub.ChangeSettingDefault(var.id)
+			end,
+			linger = gui.Tooltip("Use this map's value as the default for all maps that haven't set their own."),
+		},
+	}
+
+	local actionsRow = gui.Panel{
+		flow = "horizontal",
+		width = "auto",
+		height = "auto",
+		halign = "left",
+		valign = "center",
+		children = { revertLink, divider, makeDefaultLink },
+	}
+
+	local row
+	row = gui.Panel{
+		classes = {"collapsed"},
+		flow = "vertical",
+		width = stacked and "98%" or "90%",
+		height = "auto",
+		halign = stacked and "left" or "center",
+		valign = "center",
+		vmargin = 2,
+		lmargin = stacked and 6 or 0,
+
+		multimonitor = { var.id, "mapdefault:" .. var.id },
+
+		create = function(element)
+			element:FireEvent("monitor")
+		end,
+
+		events = {
+			monitor = function(element)
+				local varies = dmhub.SettingVariesFromDefault(var.id)
+				element:SetClass("collapsed", not varies)
+				if varies then
+					statusLabel.text = string.format("Overrides the default (%s).", dmhub.GetSettingDefaultFormatted(var.id))
+				end
+			end,
+		},
+
+		children = { statusLabel, actionsRow },
+	}
+
+	return row
+end
+
 function CreateSettingsEditor(var, options)
 	if type(var) == 'string' then
 		local setting = Settings[var]
@@ -562,9 +678,24 @@ function CreateSettingsEditor(var, options)
 	if var.editor ~= nil then
 		local panel = SettingsEditors[var.editor](var, options)
 		if panel ~= nil then
+			-- Per-map settings get a "Default Value: ... [Reset to Default] [Change Default]" row
+			-- beneath the editor (only on engine builds that expose the API).
+			local defaultRow = nil
+			if var.storage == "map" and MapDefaultsSupported() then
+				defaultRow = CreateMapSettingDefaultRow(var, options)
+			end
+
+			local function ContainerChildren()
+				if defaultRow ~= nil then
+					return { panel, defaultRow }
+				end
+				return { panel }
+			end
+
 			local container = gui.Panel({
 				classes = var.classes,
 				halign = "center",
+				flow = "vertical",
 				selfStyle = {
 					width = 'auto',
 					height = 'auto',
@@ -581,15 +712,13 @@ function CreateSettingsEditor(var, options)
 					end,
 				},
 
-				children = {
-					panel
-				}
+				children = ContainerChildren()
 			})
 
 			if var.assetsRefresh then
 				container.events.refreshAssets = function(element)
 					panel = SettingsEditors[var.editor](var, options)
-					container.children = {panel}
+					container.children = ContainerChildren()
 				end
 			end
 

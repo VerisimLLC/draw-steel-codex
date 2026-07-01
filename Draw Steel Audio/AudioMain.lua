@@ -893,6 +893,30 @@ audio.SoundEvent{
 }
 
 
+--crucible die explosion chargeup
+audio.SoundEvent{
+    name = "Dice.Numglow_Crucible_Charge",
+    mixgroup = "dice",
+    sounds = {"dice/cust/crucible/Dice_NumGlow_Crucible_Charge_01.wav","dice/cust/crucible/Dice_NumGlow_Crucible_Charge_02.wav","dice/cust/crucible/Dice_NumGlow_Crucible_Charge_03.wav","dice/cust/crucible/Dice_NumGlow_Crucible_Charge_04.wav","dice/cust/crucible/Dice_NumGlow_Crucible_Charge_05.wav"},
+    volume = 0.1,
+    pitchRand = 0.1,
+    ignoreDuplicates = 0.01,
+}
+
+--crucible die explosion uh explosion
+audio.SoundEvent{
+    name = "Dice.Numglow_Crucible_Explo",
+    mixgroup = "dice",
+    sounds = {"dice/cust/crucible/Dice_NumGlow_Crucible_Explo_01.wav","dice/cust/crucible/Dice_NumGlow_Crucible_Explo_02.wav","dice/cust/crucible/Dice_NumGlow_Crucible_Explo_03.wav","dice/cust/crucible/Dice_NumGlow_Crucible_Explo_04.wav","dice/cust/crucible/Dice_NumGlow_Crucible_Explo_05.wav"},
+    volume = 0.1,
+    pitchRand = 0.1,
+    ignoreDuplicates = 0.01,
+}
+
+
+
+
+
 
 
 
@@ -1048,6 +1072,62 @@ audio.SoundEvent{
     volume = 0.05,
     pitchRand = 0.01,
 }
+
+--MetalTiny Dice Impacts
+
+audio.SoundEvent{
+    name = "DiceImp.Hard_MetalTiny",
+    mixgroup = "dice",
+    sounds = {"dice/MetalTiny/DiceImp_MetalTiny_Hard_01.wav","dice/MetalTiny/DiceImp_MetalTiny_Hard_02.wav","dice/MetalTiny/DiceImp_MetalTiny_Hard_03.wav","dice/MetalTiny/DiceImp_MetalTiny_Hard_04.wav","dice/MetalTiny/DiceImp_MetalTiny_Hard_05.wav","dice/MetalTiny/DiceImp_MetalTiny_Hard_06.wav"},
+    volume = 0.1,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Mild_MetalTiny",
+    mixgroup = "dice",
+    sounds = {"dice/MetalTiny/DiceImp_MetalTiny_Mild_01.wav","dice/MetalTiny/DiceImp_MetalTiny_Mild_02.wav","dice/MetalTiny/DiceImp_MetalTiny_Mild_03.wav","dice/MetalTiny/DiceImp_MetalTiny_Mild_04.wav","dice/MetalTiny/DiceImp_MetalTiny_Mild_05.wav","dice/MetalTiny/DiceImp_MetalTiny_Mild_06.wav"},
+    volume = 0.15,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Soft_MetalTiny",
+    mixgroup = "dice",
+    sounds = {"dice/MetalTiny/DiceImp_MetalTiny_Soft_01.wav","dice/MetalTiny/DiceImp_MetalTiny_Soft_02.wav","dice/MetalTiny/DiceImp_MetalTiny_Soft_03.wav","dice/MetalTiny/DiceImp_MetalTiny_Soft_04.wav","dice/MetalTiny/DiceImp_MetalTiny_Soft_05.wav","dice/MetalTiny/DiceImp_MetalTiny_Soft_06.wav"},
+    volume = 0.05,
+    pitchRand = 0.01,
+}
+
+
+--metalblade Dice Impacts
+
+audio.SoundEvent{
+    name = "DiceImp.Hard_MetalBlade",
+    mixgroup = "dice",
+    sounds = {"dice/metalblade/DiceImp_metalblade_Hard_01.wav","dice/metalblade/DiceImp_metalblade_Hard_02.wav","dice/metalblade/DiceImp_metalblade_Hard_03.wav","dice/metalblade/DiceImp_metalblade_Hard_04.wav","dice/metalblade/DiceImp_metalblade_Hard_05.wav","dice/metalblade/DiceImp_metalblade_Hard_06.wav"},
+    volume = 0.1,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Mild_MetalBlade",
+    mixgroup = "dice",
+    sounds = {"dice/metalblade/DiceImp_metalblade_Mild_01.wav","dice/metalblade/DiceImp_metalblade_Mild_02.wav","dice/metalblade/DiceImp_metalblade_Mild_03.wav","dice/metalblade/DiceImp_metalblade_Mild_04.wav","dice/metalblade/DiceImp_metalblade_Mild_05.wav","dice/metalblade/DiceImp_metalblade_Mild_06.wav"},
+    volume = 0.15,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Soft_MetalBlade",
+    mixgroup = "dice",
+    sounds = {"dice/metalblade/DiceImp_metalblade_Soft_01.wav","dice/metalblade/DiceImp_metalblade_Soft_02.wav","dice/metalblade/DiceImp_metalblade_Soft_03.wav","dice/metalblade/DiceImp_metalblade_Soft_04.wav","dice/metalblade/DiceImp_metalblade_Soft_05.wav","dice/metalblade/DiceImp_metalblade_Soft_06.wav"},
+    volume = 0.05,
+    pitchRand = 0.01,
+}
+
+
+
 
 
 

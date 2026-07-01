@@ -1094,7 +1094,7 @@ end
 --- @return boolean
 function ActivatedAbility:VerticalTargeting()
     local forcedMovement = self:try_get("forcedMovement")
-    if string.starts_with(forcedMovement, "vertical_") then
+    if forcedMovement ~= nil and string.starts_with(forcedMovement, "vertical_") then
         return true
     end
 

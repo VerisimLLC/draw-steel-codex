@@ -1515,22 +1515,21 @@ local function CreateVillainActionDrawer(slotKey, slotNumeral)
         hover = function(element)
             if m_token == nil or m_ability == nil or not m_token.valid then return end
 
+            -- Always show the full ability preview card. When the drawer is
+            -- gated, append a danger-tinted footer note to the card explaining
+            -- why, rather than replacing the preview with a bare text tooltip.
+            local footerNote = nil
             if VillainActionState.HasUsed(m_token.charid, slotKey) then
-                gui.Tooltip{
-                    text = (m_ability.name or "This Villain Action") .. " has already been used this encounter.",
-                }(element)
+                footerNote = (m_ability.name or "This Villain Action") .. " has already been used this encounter."
             elseif CharacterResource.GetVillainActions() <= 0 then
-                gui.Tooltip{
-                    text = "You have already used a Villain Action this round.",
-                }(element)
+                footerNote = "You have already used a Villain Action this round."
+            end
+
+            local tooltip = CreateAbilityTooltip(m_ability, {token = m_token, width = 480, footerNote = footerNote})
+            if tooltip ~= nil then
+                element.tooltip = tooltip
             else
-                -- Full ability preview card for available drawers.
-                local tooltip = CreateAbilityTooltip(m_ability, {token = m_token, width = 480})
-                if tooltip ~= nil then
-                    element.tooltip = tooltip
-                else
-                    gui.Tooltip{text = m_ability.name or ""}(element)
-                end
+                gui.Tooltip{text = m_ability.name or ""}(element)
             end
         end,
 
@@ -1569,6 +1568,22 @@ local function CreateVillainActionDrawer(slotKey, slotNumeral)
                             element.popup = nil
                             InvokeVillainAction(token, ability)
                         end,
+                    },
+                    {
+                        text = "Mark as Used",
+                        click = function()
+                            element.popup = nil
+                            -- Mirror the engine's normal consumption hook
+                            -- (the cast-cleanup path in ActivatedAbility):
+                            -- mark this slot used for the encounter and spend
+                            -- the per-round Villain Action budget, without
+                            -- firing the ability. Both writes are undoable.
+                            VillainActionState.MarkUsed(token.charid, slotKey)
+                            if CharacterResource.GetVillainActions() > 0 then
+                                CharacterResource.SetVillainActions(0, "Villain Action used")
+                            end
+                        end,
+                        hidden = consumed,
                     },
                     {
                         text = "Reset this Villain Action",

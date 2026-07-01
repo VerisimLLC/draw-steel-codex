@@ -11,6 +11,7 @@ local mod = dmhub.GetModLoading()
 --- @field searchHidden nil|boolean If true, hides the search.
 --- @field categoriesHidden nil|boolean if true, hides the categories. The user will *have to* select from the image library and cannot switch to a different image library.
 --- @field restrictImageType nil|string
+--- @field liveEdit nil|boolean If set, a right-click "Live Edit" option opens the current image in an external editor and replaces the underlying image asset in place on commit (patron-gated).
 
 --- @class IconEditorPanel:Panel
 --- @field value nil|string The assetid of the image.
@@ -54,6 +55,9 @@ function gui.IconEditor(args)
 	local restrictImageType = args.restrictImageType
 	args.restrictImageType = nil
 
+	local allowLiveEdit = args.liveEdit or false
+	args.liveEdit = nil
+
 	local resultPanel = nil
 
 	local category = ''
@@ -88,11 +92,84 @@ function gui.IconEditor(args)
 		imageType = ImageTypeMapping[library]
 	end
 
+	--Live-edit: open the currently-selected image in the external editor and, on commit, replace the
+	--underlying image asset in place (same asset id, new image bytes) so every use of it updates --
+	--mirrors the map-object "Live Edit" flow but driven from this picker. Patron-gated.
+	local function StartIconLiveEdit()
+		local val = resultPanel.value
+		if val == nil or val == '' then
+			return
+		end
+
+		--The widget value is an image-asset guid for library images, or a raw image id for some uses.
+		--Resolve it to the underlying image id to open in the editor; fall back to the value itself.
+		local imageId = val
+		local node = assets.imagesTable[val]
+		if node ~= nil then
+			imageId = node.imageid
+		end
+
+		if imageId == nil or imageId == '' then
+			return
+		end
+
+		local originalImageId = imageId
+
+		--Force the bgimage to re-resolve the (now repointed) asset: the setter short-circuits on an
+		--unchanged value, so bounce through the concrete image id first, then restore the value.
+		local function refreshTo(displayImageId)
+			if not resultPanel.valid then return end
+			resultPanel.bgimage = "md5:" .. displayImageId
+			resultPanel.bgimage = val
+			resultPanel:FireEvent("change")
+		end
+
+		local function beginEdit()
+			dmhub.StartLiveEditImage{
+				guid = imageId,
+				name = "Edit Image",
+				commit = function(newImageId)
+					if mod.unloaded or not resultPanel.valid then return end
+					if newImageId == nil or newImageId == '' then return end
+					if dmhub.SetImageAssetImage(val, newImageId) then
+						refreshTo(newImageId)
+					else
+						--No editable asset behind this value (e.g. a raw image id): swap the widget
+						--directly to the edited image.
+						resultPanel.value = "md5:" .. newImageId
+					end
+				end,
+				revert = function()
+					if mod.unloaded or not resultPanel.valid then return end
+					if dmhub.SetImageAssetImage(val, originalImageId) then
+						refreshTo(originalImageId)
+					end
+				end,
+			}
+		end
+
+		if dmhub.ImageEditorNeedsSetup() then
+			dmhub.PromptImageEditorSetup(beginEdit)
+		else
+			beginEdit()
+		end
+	end
+
 	if args.rightClick == nil then
 
 		args.rightClick = function(element)
 
             local entries = {}
+
+            if allowLiveEdit and dmhub.patronTier > 0 and resultPanel.value ~= nil and resultPanel.value ~= '' then
+                entries[#entries+1] = {
+                    text = "Live Edit",
+                    click = function()
+                        element.popup = nil
+                        StartIconLiveEdit()
+                    end,
+                }
+            end
 
             entries[#entries+1] = {
                 text = "Copy Image",

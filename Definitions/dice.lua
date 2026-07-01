@@ -75,6 +75,13 @@ function dice.SetPreviewRollScreenBounds(val)
 	-- dummy implementation for documentation purposes only
 end
 
+--- SetPreviewDiceSpacing: Scales the gap between resting dice on an embedded preview panel (e.g. the shop 'try dice' pair). 1 is the default spacing; values below 1 pull the dice closer together, above 1 push them apart. Only affects panel-anchored preview dice, not the in-game roll dialog. The shop should set this while its try-dice UI is shown and reset it to 1 when the UI closes.
+--- @param scale number
+--- @return nil
+function dice.SetPreviewDiceSpacing(scale)
+	-- dummy implementation for documentation purposes only
+end
+
 --- SetRollPreviewModel: Overrides the dice appearance used by subsequent rolls with the given dice-set asset id, so dice the player doesn't own yet (e.g. a shop item being previewed) can still be rolled -- the equipped-dice setting rejects unowned sets, but this bypasses it. Pass nil or an empty string to clear the override and return to the player's equipped set.
 --- @param assetid string
 --- @return nil

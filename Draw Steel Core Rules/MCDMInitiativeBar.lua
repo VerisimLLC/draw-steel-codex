@@ -162,6 +162,41 @@ local anthemDuckMusic = setting{
     classes = {"dmonly"},
 }
 
+--How far the music mix group dips (0..1 target level) while an anthem plays. The DM
+--controls this from the Audio Studio "Ducking" card; the anthem hook reads it below.
+--Game-scoped/DM-owned like the on/off toggle above so the whole table dips together.
+--Panel-only (no Settings editor); default 0.15 is the ear-tested interim value.
+local anthemDuckDepth = setting{
+    id = "anthemduckdepth",
+    description = "Anthem Duck Depth",
+    default = 0.15,
+    ord = 103,
+    storage = "game",
+    classes = {"dmonly"},
+}
+
+--How fast the music dips when an anthem starts (fade-in, seconds) and how slowly it
+--swells back when the anthem ends (fade-out, seconds). Fed to DuckGroup's fadeDown/fadeUp.
+--DM controls both from the Audio Studio "Ducking" card. Asymmetric by default (quick dip,
+--slow swell); game-scoped/DM-owned like the toggle + depth above.
+local anthemDuckFadeIn = setting{
+    id = "anthemduckfadein",
+    description = "Anthem Duck Fade In",
+    default = 1.0,
+    ord = 104,
+    storage = "game",
+    classes = {"dmonly"},
+}
+
+local anthemDuckFadeOut = setting{
+    id = "anthemduckfadeout",
+    description = "Anthem Duck Fade Out",
+    default = 2.5,
+    ord = 105,
+    storage = "game",
+    classes = {"dmonly"},
+}
+
 --Per-client anthem volume multipliers, keyed by token charid (0..1, missing = 1).
 --Lets each user locally turn down or mute a specific creature's anthem without
 --affecting what anyone else hears. Edited from the speaker icon on the center
@@ -3983,7 +4018,7 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
                             --duck-settings config. Asymmetric: music dips fast (1.0s) as the
                             --anthem starts, then swells back slowly (2.5s) on release. See brief 14.
                             if anthemDuckMusic:Get() then
-                                audio.DuckGroup("music", 0.15, 1.0, 2.5)
+                                audio.DuckGroup("music", anthemDuckDepth:Get(), anthemDuckFadeIn:Get(), anthemDuckFadeOut:Get())
                                 m_anthemDuckActive = true
                                 g_drawSteelAnthemState.duckActive = true
                             end

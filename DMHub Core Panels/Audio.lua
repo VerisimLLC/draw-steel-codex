@@ -47,6 +47,153 @@ end
 
 dmhub.Schedule(1, SyncBroadcastLevelsToEngine)
 
+--Parent mix-group faders, shared by the dock panel and the Audio Studio Mixer card.
+--Hoisted to module scope so both surfaces build from ONE implementation and cannot
+--drift. The category faders write the shared "audio mix" doc (the broadcast/GroupShared
+--layer); every client mirrors the doc into its engine via the SyncBroadcastLevelsToEngine
+--poll above, so the dock and Studio stay in lockstep automatically.
+
+--Broadcast level (0..1) the DM set for a group, 1.0 if untouched.
+local function GetBroadcastLevel(groupid)
+	local doc = mod:GetDocumentSnapshot(audioMixDocId)
+	local b = doc.data.broadcast
+	if b == nil or b[groupid] == nil then
+		return 1
+	end
+	return b[groupid]
+end
+
+--Push every broadcast value from the doc into THIS client's engine cache.
+local function ApplyBroadcastToEngine()
+	local doc = mod:GetDocumentSnapshot(audioMixDocId)
+	local b = doc.data.broadcast or {}
+	for _,g in ipairs(broadcastGroupIds) do
+		audio.SetGroupShared(g, b[g] or 1)
+	end
+end
+
+--Master fader: live, writes audio.masterVolume (and un-mutes on a raise). A gui element
+--has a single parent, so each surface needs its OWN master slider -- this is a factory,
+--not a shared instance.
+local function MakeMasterFader()
+	return gui.Slider{
+		style = {
+			width = 170,
+			height = 16,
+			halign = "right",
+			valign = "center",
+		},
+
+		sliderWidth = 150,
+		labelWidth = 30,
+		labelFormat = "percent",
+
+		minValue = 0,
+		maxValue = 1,
+
+		refreshPlayingAudio = function(element)
+			element.value = cond(audio.muted, 0, audio.masterVolume)
+		end,
+
+		value = cond(audio.muted, 0, audio.masterVolume),
+
+		confirm = function(element)
+			audio.masterVolume = element.value
+			if audio.masterVolume > 0 and audio.muted then
+				audio.muted = false
+				audio.UploadMuted()
+			end
+			audio.UploadMasterVolume()
+		end,
+
+		preview = function(element)
+			audio.masterVolume = element.value
+			if audio.masterVolume > 0 and audio.muted then
+				audio.muted = false
+				audio.UploadMuted()
+				audio.UploadMasterVolume()
+			end
+		end,
+	}
+end
+
+--A broadcast (table-mix) fader for one mix group. Writes the shared doc on confirm,
+--previews live while dragging, and repaints + re-pushes on a remote change.
+local function MakeBroadcastFader(groupid)
+	return gui.Slider{
+		style = {
+			width = 170,
+			height = 16,
+			halign = "right",
+			valign = "center",
+		},
+
+		sliderWidth = 150,
+		labelWidth = 30,
+		labelFormat = "percent",
+
+		minValue = 0,
+		maxValue = 1,
+
+		value = GetBroadcastLevel(groupid),
+
+		--A remote change (another client / the loaded doc) repaints the fader and
+		--re-pushes the value to the local engine.
+		monitorGame = mod:GetDocumentSnapshot(audioMixDocId).path,
+		refreshGame = function(element)
+			element.value = GetBroadcastLevel(groupid)
+			audio.SetGroupShared(groupid, element.value)
+		end,
+
+		--Live local feedback while dragging.
+		preview = function(element)
+			audio.SetGroupShared(groupid, element.value)
+		end,
+
+		--Commit to the shared doc so the table mix syncs to all clients.
+		confirm = function(element)
+			audio.SetGroupShared(groupid, element.value)
+			local doc = mod:GetDocumentSnapshot(audioMixDocId)
+			doc:BeginChange()
+			if doc.data.broadcast == nil then
+				doc.data.broadcast = {}
+			end
+			doc.data.broadcast[groupid] = element.value
+			doc:CompleteChange("Set " .. groupid .. " broadcast level")
+		end,
+	}
+end
+
+--One "label + fader" row. dimmed renders the row muted (used for faders whose backing
+--engine layer is not wired yet). A few px of horizontal padding keeps the fader + its
+--editable readout off any scrollbar on the right.
+local function MakeFaderRow(labelText, slider, dimmed)
+	return gui.Panel{
+		flow = "horizontal",
+		width = "100%",
+		height = 22,
+		valign = "center",
+		vmargin = 1,
+		hpad = 10,
+		borderBox = true,
+		opacity = dimmed and 0.4 or 1,
+		--Match the editable readout to the row's Level title (12pt, not the slider's
+		--default 14) and add a couple px gap between the slider and the number.
+		styles = {
+			{ selectors = {"sliderLabel"}, fontSize = 12, lmargin = 5, priority = 6 },
+		},
+		gui.Label{
+			classes = {"sizeXs"},
+			text = labelText,
+			width = 76,
+			height = "auto",
+			halign = "left",
+			valign = "center",
+		},
+		slider,
+	}
+end
+
 local function track(eventType, fields)
 	if dmhub.GetSettingValue("telemetry_enabled") == false then
 		return
@@ -1667,159 +1814,15 @@ CreateSoundPanel = function()
 		ambienceFooter,
 	}
 
-	local masterVolumeSlider = gui.Slider{
-		style = {
-			width = 170,
-			height = 16,
-			halign = "right",
-			valign = "center",
-		},
+	--Master fader + the broadcast Levels faders. The fader helpers (MakeMasterFader /
+	--MakeBroadcastFader / MakeFaderRow) are module-scoped so the dock and the Audio
+	--Studio Mixer card build from ONE implementation; both write the same shared
+	--"audio mix" doc, so the two surfaces stay in lockstep.
+	local masterVolumeSlider = MakeMasterFader()
 
-		sliderWidth = 150,
-		--Editable 0-100 readout to the right (the standard Codex slider affordance):
-		--type a number to set the level exactly.
-		labelWidth = 30,
-		labelFormat = "percent",
-
-		minValue = 0,
-		maxValue = 1,
-
-		refreshPlayingAudio = function(element)
-			element.value = cond(audio.muted, 0, audio.masterVolume)
-		end,
-
-		value = cond(audio.muted, 0, audio.masterVolume),
-
-		confirm = function(element)
-			audio.masterVolume = element.value
-			if audio.masterVolume > 0 and audio.muted then
-				audio.muted = false
-				audio.UploadMuted()
-			end
-			audio.UploadMasterVolume()
-
-		end,
-
-		preview = function(element)
-
-			audio.masterVolume = element.value
-			if audio.masterVolume > 0 and audio.muted then
-				audio.muted = false
-				audio.UploadMuted()
-				audio.UploadMasterVolume()
-			end
-		end,
-
-	}
-
-	--"Levels" -- the parent mix-group faders for the table (the one-stop mixing
-	--surface, replacing the standalone game-wide master slider). Master is LIVE
-	--(writes audio.masterVolume). The category + system faders below are meant to
-	--write the shared broadcast layer (GroupShared), which is a deferred engine
-	--follow-up, so until that lands they render dimmed + non-interactable. Per-user
-	--trims + the granular UI Sounds children live in Settings -> Audio. Default
-	--expanded so the master control stays as reachable as it was before.
-	--The shared "audio mix" document holds the DM's per-group BROADCAST levels (the table
-	--mix), synced to every client. The faders below write it; every client pushes its
-	--values into the local engine via audio.SetGroupShared (the GroupShared layer). This
-	--is the broadcast half of the two-layer model: final = personal x broadcast x duck;
-	--every factor is 0..1, so a player's personal trim can only attenuate below the
-	--broadcast (the cap rule self-enforces). Uses the module-scope broadcastGroupIds list.
-	local GetBroadcastLevel = function(groupid)
-		local doc = mod:GetDocumentSnapshot(audioMixDocId)
-		local b = doc.data.broadcast
-		if b == nil or b[groupid] == nil then
-			return 1
-		end
-		return b[groupid]
-	end
-
-	--Push every broadcast value from the doc into THIS client's engine cache.
-	local ApplyBroadcastToEngine = function()
-		local doc = mod:GetDocumentSnapshot(audioMixDocId)
-		local b = doc.data.broadcast or {}
-		for _,g in ipairs(broadcastGroupIds) do
-			audio.SetGroupShared(g, b[g] or 1)
-		end
-	end
-
-	local MakeBroadcastFader = function(groupid)
-		return gui.Slider{
-			style = {
-				width = 170,
-				height = 16,
-				halign = "right",
-				valign = "center",
-			},
-
-			sliderWidth = 150,
-			labelWidth = 30,
-			labelFormat = "percent",
-
-			minValue = 0,
-			maxValue = 1,
-
-			value = GetBroadcastLevel(groupid),
-
-			--A remote change (another client / the loaded doc) repaints the fader and
-			--re-pushes the value to the local engine.
-			monitorGame = mod:GetDocumentSnapshot(audioMixDocId).path,
-			refreshGame = function(element)
-				element.value = GetBroadcastLevel(groupid)
-				audio.SetGroupShared(groupid, element.value)
-			end,
-
-			--Live local feedback while dragging.
-			preview = function(element)
-				audio.SetGroupShared(groupid, element.value)
-			end,
-
-			--Commit to the shared doc so the table mix syncs to all clients.
-			confirm = function(element)
-				audio.SetGroupShared(groupid, element.value)
-				local doc = mod:GetDocumentSnapshot(audioMixDocId)
-				doc:BeginChange()
-				if doc.data.broadcast == nil then
-					doc.data.broadcast = {}
-				end
-				doc.data.broadcast[groupid] = element.value
-				doc:CompleteChange("Set " .. groupid .. " broadcast level")
-			end,
-		}
-	end
-
-	local MakeFaderRow = function(labelText, slider, dimmed)
-		return gui.Panel{
-			flow = "horizontal",
-			width = "100%",
-			height = 22,
-			valign = "center",
-			vmargin = 1,
-			--A few px of horizontal padding so the fader + its readout do not sit flush
-			--against the dock's scrollbar on the right.
-			hpad = 10,
-			borderBox = true,
-			opacity = dimmed and 0.4 or 1,
-			--Match the editable readout to the row's Level title (12pt, not the slider's
-			--default 14) and add a couple px gap between the slider and the number.
-			styles = {
-				{ selectors = {"sliderLabel"}, fontSize = 12, lmargin = 5, priority = 6 },
-			},
-			gui.Label{
-				classes = {"sizeXs"},
-				text = labelText,
-				width = 76,
-				height = "auto",
-				halign = "left",
-				valign = "center",
-			},
-			slider,
-		}
-	end
-
-	--Master fader -- the always-visible level (shown in both Compact and Expanded).
-	--Reuses masterVolumeSlider, which writes audio.masterVolume live. A gui element
-	--has a single parent, so master lives here and NOT in categoryFaders below.
+	--Master fader -- the always-visible level; reuses masterVolumeSlider, which
+	--writes audio.masterVolume live. A gui element has one parent, so master lives
+	--here and NOT in categoryFaders below.
 	local masterRow = MakeFaderRow("Master", masterVolumeSlider, false)
 
 	--Category broadcast faders -- the body of the "Levels" section. These write the
@@ -2523,21 +2526,6 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 	}
 end
 
---Labelled placeholder for the prep controls that arrive in later chunks.
-local CreateStudioPlaceholder = function(title)
-	return gui.Panel{
-		classes = {"bordered"},
-		flow = "vertical",
-		width = "100%",
-		height = "auto",
-		pad = 8,
-		borderBox = true,
-		vmargin = 4,
-		gui.Label{ classes = {"bold", "sizeS"}, text = title, width = "auto", height = "auto", halign = "left" },
-		gui.Label{ classes = {"fgMuted"}, text = "Coming in a later chunk", width = "auto", height = "auto", halign = "left", vmargin = 2 },
-	}
-end
-
 --Studio Soundboard curation card (right column). Five boards of twelve buttons,
 --sharing the same audiogrid-<board>-<slot> documents the dock soundboard plays
 --from: this surface ASSIGNS and CLEARS clips, the dock surface fires them. A clip
@@ -2931,6 +2919,200 @@ local CreateStudioSoundboard = function()
 			halign = "left",
 			vmargin = 2,
 		},
+	}
+end
+
+--Studio Mixer card (right column): a full duplicate of the dock's parent faders so a DM
+--who works from the Studio finds the core table mix here too. Same faders + same shared
+--"audio mix" doc / SetGroupShared wiring as the dock (module-scoped helpers), so the two
+--surfaces stay in lockstep. Master is live (audio.masterVolume); the five category faders
+--write the broadcast layer.
+local CreateStudioMixerCard = function()
+	--Mirror the persisted broadcast levels into this client's engine on build.
+	ApplyBroadcastToEngine()
+
+	return gui.Panel{
+		classes = {"bordered"},
+		flow = "vertical",
+		width = "100%",
+		height = "auto",
+		pad = 8,
+		borderBox = true,
+		vmargin = 4,
+
+		gui.Panel{
+			flow = "horizontal",
+			width = "100%",
+			height = "auto",
+			valign = "center",
+			vmargin = 2,
+			gui.Label{ classes = {"bold", "sizeS"}, text = "Mixer", width = "auto", height = "auto", halign = "left", valign = "center" },
+		},
+
+		gui.Label{
+			classes = {"fgMuted", "sizeXs"},
+			text = "These are the broadcast levels (what the table hears). Players can manage their own mixing levels but the above levels set the ceiling.",
+			width = "100%",
+			height = "auto",
+			textWrap = true,
+			vmargin = 2,
+		},
+
+		gui.Label{ classes = {"bold", "sizeXs"}, text = "Broadcast Mixer Group Levels", width = "auto", height = "auto", halign = "left", vmargin = 2 },
+
+		MakeFaderRow("Master", MakeMasterFader(), false),
+		MakeFaderRow("Music", MakeBroadcastFader("music"), false),
+		MakeFaderRow("Ambience", MakeBroadcastFader("ambience"), false),
+		MakeFaderRow("Effects", MakeBroadcastFader("effects"), false),
+		MakeFaderRow("UI Sounds", MakeBroadcastFader("uisounds"), false),
+		MakeFaderRow("Anthem", MakeBroadcastFader("anthem"), false),
+	}
+end
+
+--Studio Ducking card (right column). P1 = the "Duck Music Under Anthems" toggle (the
+--anthemduckmusic game setting, also surfaced in Settings->Audio and read by the anthem
+--hook) plus a depth control setting how far music dips while an anthem plays
+--(anthemduckdepth, read live by the anthem hook). The per-target duck matrix is Phase 3-4,
+--shown as a dimmed placeholder. Both settings are game-scoped/DM-owned; the toggle is
+--think-synced so it tracks changes made from Settings->Audio.
+local CreateStudioDuckingCard = function()
+	local duckCheck
+	duckCheck = gui.Check{
+		text = "Duck Music Under Anthems",
+		value = dmhub.GetSettingValue("anthemduckmusic"),
+		change = function(element)
+			dmhub.SetSettingValue("anthemduckmusic", element.value)
+		end,
+		--Track changes made elsewhere (Settings->Audio) so the toggle stays truthful.
+		thinkTime = 0.5,
+		think = function(element)
+			local v = dmhub.GetSettingValue("anthemduckmusic")
+			if v ~= element.value then
+				element.value = v
+			end
+		end,
+	}
+
+	--Depth: the target level (0..1) music dips to while an anthem plays. Read on build;
+	--committed on release (no think-sync, so it never fights an in-progress drag). The
+	--editable percent readout is the source of truth for the current dip.
+	local depthSlider = gui.Slider{
+		style = {
+			width = 170,
+			height = 16,
+			halign = "right",
+			valign = "center",
+		},
+		sliderWidth = 130,
+		labelWidth = 30,
+		labelFormat = "percent",
+		minValue = 0,
+		maxValue = 1,
+		value = dmhub.GetSettingValue("anthemduckdepth") or 0.15,
+		confirm = function(element)
+			dmhub.SetSettingValue("anthemduckdepth", element.value)
+		end,
+	}
+
+	--A "label + seconds slider" row (0..5s) for the two duck fade times. Reads the game
+	--setting on build; commits on release. The readout is editable (type a number).
+	local function MakeSecondsRow(labelText, settingId, defaultVal)
+		local slider = gui.Slider{
+			style = { width = 170, height = 16, halign = "right", valign = "center" },
+			sliderWidth = 130,
+			labelWidth = 34,
+			labelFormat = "%.1f",
+			minValue = 0,
+			maxValue = 5,
+			value = dmhub.GetSettingValue(settingId) or defaultVal,
+			confirm = function(element)
+				dmhub.SetSettingValue(settingId, element.value)
+			end,
+		}
+		return gui.Panel{
+			flow = "horizontal",
+			width = "100%",
+			height = 22,
+			valign = "center",
+			vmargin = 2,
+			hpad = 4,
+			borderBox = true,
+			styles = {
+				{ selectors = {"sliderLabel"}, fontSize = 12, lmargin = 5, priority = 6 },
+			},
+			gui.Label{ classes = {"sizeXs"}, text = labelText, width = 96, height = "auto", halign = "left", valign = "center" },
+			slider,
+		}
+	end
+
+	local depthRow = gui.Panel{
+		flow = "horizontal",
+		width = "100%",
+		height = 22,
+		valign = "center",
+		vmargin = 2,
+		hpad = 4,
+		borderBox = true,
+		styles = {
+			{ selectors = {"sliderLabel"}, fontSize = 12, lmargin = 5, priority = 6 },
+		},
+		gui.Label{ classes = {"sizeXs"}, text = "Music ducks to", width = 96, height = "auto", halign = "left", valign = "center" },
+		depthSlider,
+	}
+
+	--Per-target duck matrix: Phase 3-4. Dimmed, non-interactive placeholder for now.
+	local matrixPlaceholder = gui.Panel{
+		flow = "vertical",
+		width = "100%",
+		height = "auto",
+		vmargin = 4,
+		opacity = 0.4,
+		gui.Label{ classes = {"bold", "sizeXs"}, text = "Manage Ducking", width = "auto", height = "auto", halign = "left" },
+		gui.Label{ classes = {"fgMuted", "sizeXs"}, text = "Anthem -> Music", width = "auto", height = "auto", halign = "left", vmargin = 1 },
+		gui.Label{ classes = {"fgMuted", "sizeXs"}, text = "Anthem -> Ambience", width = "auto", height = "auto", halign = "left", vmargin = 1 },
+		gui.Label{ classes = {"fgMuted", "sizeXs"}, text = "Per-target duck depth + fade. Placement only - depends on the duck-settings document & asymmetric-fade engine work.", width = "100%", height = "auto", textWrap = true, vmargin = 2 },
+	}
+
+	return gui.Panel{
+		classes = {"bordered"},
+		flow = "vertical",
+		width = "100%",
+		height = "auto",
+		pad = 8,
+		borderBox = true,
+		vmargin = 4,
+
+		--Match the toggle label to the rest of the studio text (12pt); the default
+		--checkbox label renders larger than everything else on the card.
+		styles = {
+			{ selectors = {"checkboxLabel"}, fontSize = 12, priority = 20 },
+		},
+
+		gui.Panel{
+			flow = "horizontal",
+			width = "100%",
+			height = "auto",
+			valign = "center",
+			vmargin = 2,
+			gui.Label{ classes = {"bold", "sizeS"}, text = "Ducking", width = "auto", height = "auto", halign = "left", valign = "center" },
+		},
+
+		duckCheck,
+
+		gui.Label{
+			classes = {"fgMuted", "sizeXs"},
+			text = "While an Anthem plays, music automatically ducks to the level set below.",
+			width = "100%",
+			height = "auto",
+			textWrap = true,
+			vmargin = 2,
+		},
+
+		depthRow,
+		MakeSecondsRow("Fade in (s)", "anthemduckfadein", 1.0),
+		MakeSecondsRow("Fade out (s)", "anthemduckfadeout", 2.5),
+
+		matrixPlaceholder,
 	}
 end
 
@@ -3502,8 +3684,8 @@ CreateAudioStudio = function()
 		height = "100%",
 		hmargin = 4,
 		vscroll = true,
-		CreateStudioPlaceholder("Mixer"),
-		CreateStudioPlaceholder("Ducking"),
+		CreateStudioMixerCard(),
+		CreateStudioDuckingCard(),
 		CreateStudioSoundboard(),
 	}
 
@@ -3558,8 +3740,10 @@ CreateAudioStudio = function()
 	root = gui.Panel{
 		classes = {"launchablePanel"},
 		styles = ThemeEngine.MergeStyles(studioExtraStyles),
-		width = 960,
-		height = 680,
+		width = 1000,
+		--Tall enough to show all right-column cards without scrolling, but never taller
+		--than the screen (small displays cap at screenHeight - 80 so it never overflows).
+		height = math.min(920, dmhub.screenDimensions.y - 80),
 		flow = "vertical",
 		pad = 16,
 		data = {},

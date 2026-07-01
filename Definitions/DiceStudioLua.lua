@@ -8,6 +8,11 @@
 --- @field borderOptions string[] Gets a list of available border style names, including 'None'.
 --- @field customDiceModel string Gets or sets the custom dice 3D model name, or nil if using the default model.
 --- @field script string The custom Lua script attached to this dice set, or an empty string if none. The script runs once per die instance as a sandboxed coroutine and may inspect/modify each die (see DiceInstanceLua). Setting it re-binds any live preview dice so the studio shows the effect immediately.
+--- @field haloEnabled boolean Whether this dice set draws a glowing outline/halo around each die (see haloColor/haloRadius/haloSoftness/haloIntensity). A dice script can also toggle this per-die via die.halo.
+--- @field haloColor Color The color of the dice outline/halo. HDR: values above 1 make it glow brighter.
+--- @field haloRadius number The thickness of the dice outline/halo in die-local units. 0 == no halo.
+--- @field haloSoftness number Softness of the outline/halo outer edge, 0 (crisp outline) to 1 (soft glow).
+--- @field haloIntensity number HDR brightness multiplier of the outline/halo (higher = glows brighter).
 --- @field specialMovement "none"|"teleport"|"portal" The special movement dice in this set perform during a roll: 'none', 'teleport', or 'portal'. 'teleport' makes a die freeze and jump across the playfield (wrapping at the edges) near the end of its roll. 'portal' spawns a pair of portals on the playfield surfaces when the die is hurled and the die passes through one to emerge from the other. Reconciles with legacy teleporting dice sets.
 --- @field teleporting boolean Deprecated: use specialMovement instead. True iff specialMovement == 'teleport'. Kept so existing UI that toggles teleporting keeps working; setting it true selects 'teleport', false selects 'none'.
 --- @field teleportVelocity number For teleporting dice: the linear speed at or below which a die's teleport jump triggers (it is then 'almost at a stop').
@@ -59,6 +64,13 @@ end
 --- @param name string
 --- @return nil
 function DiceStudioLua:SaveAs(name)
+	-- dummy implementation for documentation purposes only
+end
+
+--- New: Creates a brand-new dice set from the Dice Studio defaults and saves it to a new local file with the given name. Unlike SaveAs (which copies the currently-loaded dice), New discards the current edits and starts from a clean slate.
+--- @param name string
+--- @return nil
+function DiceStudioLua:New(name)
 	-- dummy implementation for documentation purposes only
 end
 

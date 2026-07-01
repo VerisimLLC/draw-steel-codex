@@ -2627,8 +2627,17 @@ end
 				flow = "horizontal",
 
 				gui.Button{
+					text = "New",
+					width = "24%",
+					height = 24,
+					fontSize = 18,
+					click = function(element)
+						element.parent.parent:FireEventTree("newdice")
+					end,
+				},
+				gui.Button{
 					text = "Save",
-					width = "30%",
+					width = "24%",
 					height = 24,
 					fontSize = 18,
 					click = function(element)
@@ -2641,7 +2650,7 @@ end
 				},
 				gui.Button{
 					text = "Save As...",
-					width = "30%",
+					width = "24%",
 					height = 24,
 					fontSize = 18,
 					click = function(element)
@@ -2651,7 +2660,7 @@ end
 
 				gui.Button{
 					text = "Revert",
-					width = "30%",
+					width = "24%",
 					height = 24,
 					fontSize = 18,
 					click = function(element)
@@ -2690,6 +2699,55 @@ end
 							localFiles = dicestudio:GetLocalFiles()
 							diceDropdown.options = localFiles
 							diceDropdown.idChosen = element.text
+							element.root:FireEventTree("refreshDice")
+						end
+						element.parent:SetClass("collapsed", true)
+					end,
+				},
+				gui.Button{
+					text = "Cancel",
+					width = "30%",
+					height = 20,
+					fontSize = 12,
+					click = function(element)
+						element.parent:SetClass("collapsed", true)
+					end,
+				},
+			},
+
+			gui.Panel{
+				classes = {"collapsed"},
+				width = "100%",
+				height = "auto",
+				flow = "horizontal",
+
+				newdice = function(element)
+					element:SetClass("collapsed", false)
+				end,
+
+
+				gui.Input{
+					height = 22,
+					fontSize = 18,
+					width = "60%",
+					placeholderText = "Enter dice name...",
+					text = "",
+					newdice = function(element)
+						element.textNoNotify = ""
+						element.hasInputFocus = true
+					end,
+					change = function(element)
+						if element.text ~= "" then
+							studio:New(element.text)
+							dropdownForm:SetClass("collapsed", false)
+							localFiles = dicestudio:GetLocalFiles()
+							diceDropdown.options = localFiles
+							diceDropdown.idChosen = element.text
+							-- New resets the dice to defaults, so rebuild the
+							-- material/particle/sound rows (newmaterial) as well as
+							-- re-reading every control (refreshDice) -- mirrors the
+							-- full refresh the Dice: dropdown does on Load.
+							element.root:FireEventTree("newmaterial")
 							element.root:FireEventTree("refreshDice")
 						end
 						element.parent:SetClass("collapsed", true)

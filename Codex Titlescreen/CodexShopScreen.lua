@@ -718,31 +718,56 @@ local MakeDiceBanner = function(opts)
 	local m_cfg = NormalizeBannerConfig(nil)
 	local m_diceScale = m_cfg.diceScale
 	local m_spinDirection = m_cfg.spinDirection
+	--m_dieSize is the RENDER size of the die panel (2x, for FX headroom, see
+	--g_bannerDieRtZoom). m_hitSize is the on-screen size of the VISIBLE die (1x),
+	--which is the only part that is interactive (see the diePanel/dieHit split).
 	local m_dieSize = math.floor(imageHeight * g_bannerDieRtZoom)
+	local m_hitSize = math.floor(imageHeight)
 
-	--The die, rendered between the banner background and the foreground layer.
-	--Positioned in full-image coordinates. The preview RT is transparent
-	--outside the die, so the panel harmlessly overflows the banner bounds.
+	--The die render + interaction are split into two panels so the transparent
+	--FX margin around the die does not block the editor controls behind it:
 	--
-	--The die is interactive in two modes:
-	--  * adminPreview: drag it on the banner to set its POSITION. dragMove lets
-	--    the engine move it live; 'drag' (on release) bakes the final spot (via
-	--    dragDelta), clamps it, and reports dieX/dieY up via 'dieDragged'.
-	--  * detailsMode (shop showcase): grab it to SPIN it. beginDrag flips the
-	--    shared preview scene into drag mode (the cursor motion drives the spin
-	--    velocity and direction); on release it decays back to the gentle idle
-	--    spin (handled C#-side in DicePreviewScene). The panel itself stays put
-	--    (dragMove off).
+	--  * diePanel renders the "#DicePreview" RT (die + attached FX). It is 2x the
+	--    visible die (g_bannerDieRtZoom) so FX clear the frame edges, and the RT
+	--    is transparent outside the die. It is NON-interactive, so its oversized
+	--    bounding box never eats clicks (a panel is hit-tested by its box, not by
+	--    which pixels are opaque). It is a centered child of dieHit.
+	--
+	--  * dieHit is a small, invisible hit box sized to the VISIBLE die (1x). It is
+	--    the only interactive part, so grabbing works on the die itself and the
+	--    surrounding FX margin passes clicks through. Because it is the dragged
+	--    element, the render child rides along with it during a live drag.
+	--
+	--dieHit is interactive in two modes:
+	--  * adminPreview: drag it on the banner to set the die POSITION. dragMove lets
+	--    the engine move it (and its render child) live; 'drag' (on release) bakes
+	--    the final spot (via dragDelta), clamps it, reports dieX/dieY via 'dieDragged'.
+	--  * detailsMode (shop showcase): grab it to SPIN the die. beginDrag flips the
+	--    shared preview scene into drag mode (cursor motion drives the spin velocity
+	--    and direction); on release it decays back to the gentle idle spin (handled
+	--    C#-side in DicePreviewScene). The box itself stays put (dragMove off).
 	--Other banners leave the die non-interactive.
 	local diePanel = gui.Panel{
 		floating = true,
-		interactable = opts.adminPreview == true or opts.detailsMode == true,
-		draggable = opts.adminPreview == true or opts.detailsMode == true,
-		dragMove = opts.adminPreview == true,
+		interactable = false,
 		bgimage = "#DicePreview",
 		bgcolor = "white",
 		width = m_dieSize,
 		height = m_dieSize,
+		halign = "center",
+		valign = "center",
+	}
+
+	local dieHit = gui.Panel{
+		floating = true,
+		interactable = opts.adminPreview == true or opts.detailsMode == true,
+		draggable = opts.adminPreview == true or opts.detailsMode == true,
+		dragMove = opts.adminPreview == true,
+		--Transparent, but a bgimage keeps a solid (bounding-box) hit surface.
+		bgimage = "panels/square.png",
+		bgcolor = "clear",
+		width = m_hitSize,
+		height = m_hitSize,
 		halign = "left",
 		valign = "top",
 
@@ -762,14 +787,16 @@ local MakeDiceBanner = function(opts)
 			--Admin: reposition the die and report the new dieX/dieY.
 			element.x = element.x + element.dragDelta.x
 			element.y = element.y + element.dragDelta.y
-			local dieX = clamp((element.x + m_dieSize / 2) / bannerWidth, 0, 1)
-			local dieY = clamp((element.y + m_dieSize / 2) / imageHeight, 0, 1)
+			local dieX = clamp((element.x + m_hitSize / 2) / bannerWidth, 0, 1)
+			local dieY = clamp((element.y + m_hitSize / 2) / imageHeight, 0, 1)
 			m_cfg.dieX = dieX
 			m_cfg.dieY = dieY
-			element.x = math.floor(bannerWidth * dieX - m_dieSize / 2)
-			element.y = math.floor(imageHeight * dieY - m_dieSize / 2)
+			element.x = math.floor(bannerWidth * dieX - m_hitSize / 2)
+			element.y = math.floor(imageHeight * dieY - m_hitSize / 2)
 			element:FireEventOnParents("dieDragged", { dieX = dieX, dieY = dieY })
 		end,
+
+		diePanel,
 	}
 
 	--A two-panel cross-fade image layer sized to the full banner. setImage
@@ -879,18 +906,24 @@ local MakeDiceBanner = function(opts)
 		m_diceScale = cfg.diceScale
 		m_spinDirection = cfg.spinDirection
 
-		local dieSize = cfg.dieSize
-		if dieSize == nil or dieSize <= 0 then
-			dieSize = math.floor(imageHeight)
+		local hitSize = cfg.dieSize
+		if hitSize == nil or hitSize <= 0 then
+			hitSize = math.floor(imageHeight)
 		end
+		m_hitSize = hitSize
 		--Render the die small in the RT and show it in a proportionally larger panel so its
 		--FX clear the frame edges; the on-screen die size is unchanged (see g_bannerDieRtZoom).
-		dieSize = math.floor(dieSize * g_bannerDieRtZoom)
-		m_dieSize = dieSize
-		diePanel.width = dieSize
-		diePanel.height = dieSize
-		diePanel.x = math.floor(bannerWidth * cfg.dieX - dieSize / 2)
-		diePanel.y = math.floor(imageHeight * cfg.dieY - dieSize / 2)
+		m_dieSize = math.floor(hitSize * g_bannerDieRtZoom)
+
+		--The hit box tracks the VISIBLE die (1x), positioned in banner coords.
+		--The render panel is a centered child, so it overflows the hit box
+		--symmetrically with its (non-interactive) 2x FX margin.
+		dieHit.width = hitSize
+		dieHit.height = hitSize
+		dieHit.x = math.floor(bannerWidth * cfg.dieX - hitSize / 2)
+		dieHit.y = math.floor(imageHeight * cfg.dieY - hitSize / 2)
+		diePanel.width = m_dieSize
+		diePanel.height = m_dieSize
 
 		m_dieAssetid = assetid
 	end
@@ -1270,14 +1303,15 @@ local MakeDiceBanner = function(opts)
 		debugBanner = function(element)
 			printf("BANNER:: banner rendered=%sx%s", json(element.renderedWidth), json(element.renderedHeight))
 			printf("BANNER:: front rendered=%sx%s", json(frontLayer.renderedWidth), json(frontLayer.renderedHeight))
-			printf("BANNER:: die pos=(%s,%s) size=%sx%s scale=%s", json(diePanel.x), json(diePanel.y), json(diePanel.renderedWidth), json(diePanel.renderedHeight), json(m_diceScale))
+			printf("BANNER:: die pos=(%s,%s) hit=%sx%s render=%sx%s scale=%s", json(dieHit.x), json(dieHit.y), json(dieHit.renderedWidth), json(dieHit.renderedHeight), json(diePanel.renderedWidth), json(diePanel.renderedHeight), json(m_diceScale))
 		end,
 
 		--Order matters: backLayer (background art) behind the die, frontLayer
 		--(foreground overlay) in front of it. Both are cross-fade layers.
+		--dieHit carries the die render panel (diePanel) as its child.
 		backLayer,
 
-		diePanel,
+		dieHit,
 
 		frontLayer,
 
@@ -2098,12 +2132,15 @@ local ShowItemDetailsInternal = function(args)
 						classes = {"shopTryDie"},
 						bgimage = true,
 						bgcolor = "white",
-						width = 64,
-						height = 64,
+						--Oversized invisible cage: the dice render over it and anchor to its
+						--world centre, so a bigger panel just widens the click/drag hitbox
+						--(easier to grab the spread-out pair) without moving the dice.
+						width = 170,
+						height = 108,
 						halign = "center",
-						--The resting die anchors to this panel's world centre, so centre the
-						--panel in the column and lift it slightly (negative y = up) so the die
-						--sits above the "Drag to roll dice" label instead of covering it.
+						--The resting dice anchor to this panel's world centre, so centre the
+						--panel in the column and lift it slightly (negative y = up) so the dice
+						--sit above the "Drag to roll dice" label instead of covering it.
 						valign = "center",
 						y = -16,
 						floating = true,
@@ -2129,11 +2166,15 @@ local ShowItemDetailsInternal = function(args)
 						create = function(element)
 							pcall(function() dice.SetPreviewRollScreenBounds(true) end)
 							pcall(function() element:SetAsDicePreviewPanel(true) end)
+							--Pull the pair of try-dice a little closer together than the default
+							--embedded spacing. Tunable: lower = closer, 1 = default.
+							pcall(function() dice.SetPreviewDiceSpacing(0.78) end)
 						end,
 						destroy = function(element)
 							pcall(function() dmhub.CancelCurrentRoll() end)
 							pcall(function() element:SetAsDicePreviewPanel(false) end)
 							pcall(function() dice.SetPreviewRollScreenBounds(false) end)
+							pcall(function() dice.SetPreviewDiceSpacing(1.0) end)
 							pcall(function() dice.SetRollPreviewModel("") end)
 						end,
 
@@ -2154,11 +2195,12 @@ local ShowItemDetailsInternal = function(args)
 							pcall(function() dmhub.CancelCurrentRoll() end)
 						end,
 
-						--Spawn a resting d10 in the previewed set. preview = true (handled in
-						--dmhub.Roll) seeds the dice at rest on this panel and arms them so a
-						--click or drag executes this same local/silent roll. When it finishes --
-						--or a too-weak drag cancels it -- we re-seed shortly after so a fresh
-						--die is always sitting here.
+						--Spawn a resting pair of d10s (the Draw Steel 2d10 power roll) in the
+						--previewed set. preview = true (handled in dmhub.Roll) seeds the dice at
+						--rest on this panel and arms them so a click or drag executes this same
+						--local/silent roll. The preview layout (DiceHarness) spreads the two dice
+						--side by side and rolls them both. When it finishes -- or a too-weak drag
+						--cancels it -- we re-seed shortly after so a fresh pair is always sitting here.
 						seedTryDie = function(element)
 							if not element.valid or not element.data.visible then
 								return
@@ -2175,7 +2217,7 @@ local ShowItemDetailsInternal = function(args)
 							pcall(function() dice.SetRollPreviewModel(item.assetid) end)
 							dmhub.Roll{
 								preview = true, ["local"] = true, silent = true,
-								numDice = 1, numFaces = 10, numKeep = 0, description = "Try Dice",
+								numDice = 2, numFaces = 10, numKeep = 0, description = "Try Dice",
 								complete = function()
 									if element.valid then element:FireEvent("requestReseed") end
 								end,
@@ -3537,8 +3579,22 @@ local function CreateShopScreenInternal(arguments)
 							{
 								selectors = {"showingCart"},
 								hidden = 1,
-							}
+							},
+							{
+								selectors = {"viewingItem"},
+								hidden = 1,
+							},
 						},
+
+						--Hide the search box while a single item's details
+						--are showing; restore it on the product list.
+						showProductDetails = function(element)
+							element:SetClass("viewingItem", true)
+						end,
+
+						showProducts = function(element)
+							element:SetClass("viewingItem", false)
+						end,
 
 						gui.Input{
 							placeholderText = "Search",
@@ -3743,10 +3799,25 @@ local function CreateShopScreenInternal(arguments)
 											text = "Who will receive this gift?",
 										},
 
+										gui.Input{
+											classes = {"giftFilterInput"},
+											width = 800,
+											height = 40,
+											vmargin = 8,
+											halign = "center",
+											placeholderText = "Filter by name...",
+											text = "",
+											editlag = 0.1,
+											edit = function(element)
+												element:FireEvent("change")
+											end,
+											change = function(element)
+												element.parent:FireEventTree("filterFriends", string.lower(element.text))
+											end,
+										},
+
 										gui.Panel{
-											vscroll = true,
 											height = "auto",
-											maxHeight = 200,
 											flow = "vertical",
 											width = 800,
 											vmargin = 12,
@@ -3770,6 +3841,11 @@ local function CreateShopScreenInternal(arguments)
 
 														element:Get("giftNoteInput"):SetClass("collapsed", true)
 													end,
+
+													--the coupon option is not a person, so it stays visible regardless of the filter.
+													filterFriends = function(element)
+														element:SetClass("collapsed", false)
+													end,
 												}
 
 												for friendid,friend in pairs(friends) do
@@ -3777,6 +3853,7 @@ local function CreateShopScreenInternal(arguments)
 														classes = {"friendLabel"},
 														data = {
 															friendid = friendid,
+															searchText = string.lower((friend.aliases[1] or "") .. " " .. (friend.games[1] or "")),
 														},
 														text = string.format("%s\n<i>%s</i>", friend.aliases[1], friend.games[1]),
 														press = function(element)
@@ -3785,6 +3862,15 @@ local function CreateShopScreenInternal(arguments)
 															end
 
 															element:Get("giftNoteInput"):SetClass("collapsed", false)
+														end,
+
+														filterFriends = function(element, filterText)
+															if filterText == nil or filterText == "" then
+																element:SetClass("collapsed", false)
+																return
+															end
+
+															element:SetClass("collapsed", string.find(element.data.searchText, filterText, 1, true) == nil)
 														end,
 													}
 												end

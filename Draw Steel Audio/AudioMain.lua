@@ -854,6 +854,30 @@ audio.SoundEvent{
 }
 
 
+--crucible die explosion chargeup
+audio.SoundEvent{
+    name = "Dice.Numglow_Crucible_Charge",
+    mixgroup = "dice",
+    sounds = {"dice/cust/crucible/Dice_NumGlow_Crucible_Charge_01.wav","dice/cust/crucible/Dice_NumGlow_Crucible_Charge_02.wav","dice/cust/crucible/Dice_NumGlow_Crucible_Charge_03.wav","dice/cust/crucible/Dice_NumGlow_Crucible_Charge_04.wav","dice/cust/crucible/Dice_NumGlow_Crucible_Charge_05.wav"},
+    volume = 0.1,
+    pitchRand = 0.1,
+    ignoreDuplicates = 0.01,
+}
+
+--crucible die explosion uh explosion
+audio.SoundEvent{
+    name = "Dice.Numglow_Crucible_Explo",
+    mixgroup = "dice",
+    sounds = {"dice/cust/crucible/Dice_NumGlow_Crucible_Explo_01.wav","dice/cust/crucible/Dice_NumGlow_Crucible_Explo_02.wav","dice/cust/crucible/Dice_NumGlow_Crucible_Explo_03.wav","dice/cust/crucible/Dice_NumGlow_Crucible_Explo_04.wav","dice/cust/crucible/Dice_NumGlow_Crucible_Explo_05.wav"},
+    volume = 0.1,
+    pitchRand = 0.1,
+    ignoreDuplicates = 0.01,
+}
+
+
+
+
+
 
 
 
@@ -873,16 +897,16 @@ local function RegisterImpactEvent(name)
         name = "Dice.Impact" .. suffix,
         play = function(instance)
             local speed = instance.args.speed or 0
-            local soundEvent = "DiceImp.Soft_MetalTiny" .. suffix
+            local soundEvent = "DiceImp.Soft" .. suffix
             local volume = 1
             if speed > 10 then
-                soundEvent = "DiceImp.Hard_MetalTiny" .. suffix
+                soundEvent = "DiceImp.Hard" .. suffix
                 volume = 0.6 + (speed - 8) * 0.1
             elseif speed > 4 then
-                soundEvent = "DiceImp.Mild_MetalTiny" .. suffix
+                soundEvent = "DiceImp.Mild" .. suffix
                 volume = 0.6 + (speed - 1) * 0.1
             else
-                soundEvent = "DiceImp.Soft_MetalTiny" .. suffix
+                soundEvent = "DiceImp.Soft" .. suffix
                 volume = speed
             end
 
@@ -1035,6 +1059,37 @@ audio.SoundEvent{
     volume = 0.05,
     pitchRand = 0.01,
 }
+
+
+--metalblade Dice Impacts
+
+audio.SoundEvent{
+    name = "DiceImp.Hard_MetalBlade",
+    mixgroup = "dice",
+    sounds = {"dice/metalblade/DiceImp_metalblade_Hard_01.wav","dice/metalblade/DiceImp_metalblade_Hard_02.wav","dice/metalblade/DiceImp_metalblade_Hard_03.wav","dice/metalblade/DiceImp_metalblade_Hard_04.wav","dice/metalblade/DiceImp_metalblade_Hard_05.wav","dice/metalblade/DiceImp_metalblade_Hard_06.wav"},
+    volume = 0.1,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Mild_MetalBlade",
+    mixgroup = "dice",
+    sounds = {"dice/metalblade/DiceImp_metalblade_Mild_01.wav","dice/metalblade/DiceImp_metalblade_Mild_02.wav","dice/metalblade/DiceImp_metalblade_Mild_03.wav","dice/metalblade/DiceImp_metalblade_Mild_04.wav","dice/metalblade/DiceImp_metalblade_Mild_05.wav","dice/metalblade/DiceImp_metalblade_Mild_06.wav"},
+    volume = 0.15,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Soft_MetalBlade",
+    mixgroup = "dice",
+    sounds = {"dice/metalblade/DiceImp_metalblade_Soft_01.wav","dice/metalblade/DiceImp_metalblade_Soft_02.wav","dice/metalblade/DiceImp_metalblade_Soft_03.wav","dice/metalblade/DiceImp_metalblade_Soft_04.wav","dice/metalblade/DiceImp_metalblade_Soft_05.wav","dice/metalblade/DiceImp_metalblade_Soft_06.wav"},
+    volume = 0.05,
+    pitchRand = 0.01,
+}
+
+
+
+
 
 
 

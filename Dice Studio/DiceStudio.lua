@@ -2243,6 +2243,167 @@ end
 		},
 	}
 
+	-- Halo / outline: a glowing outline that hugs each die. Authored per set (dicestudio.halo*)
+	-- and overridable per die from a dice script (die.halo / die.haloColor / die.haloRadius).
+	-- The color/radius/softness/intensity rows collapse while the effect is disabled.
+	local haloSection = gui.TreeNode{
+		text = "Halo / Outline",
+		width = "100%",
+		contentPanel = gui.Panel{
+			width = "100%",
+			height = "auto",
+			flow = "vertical",
+
+			gui.Label{
+				width = "100%",
+				height = "auto",
+				halign = "left",
+				fontSize = 12,
+				color = "#bbbbbbff",
+				text = "Draws a glowing outline that hugs each die. A dice script can override this per die (die.halo, die.haloColor, die.haloRadius).",
+			},
+
+			-- Enabled
+			gui.Panel{
+				classes = {"formPanel"},
+				gui.Label{
+					classes = {"formLabel"},
+					halign = "left",
+					text = "Enabled:",
+				},
+				gui.Check{
+					text = "",
+					halign = "left",
+					-- The default checkbox style reserves minWidth for a label row; this is a bare
+					-- box (the "Enabled:" label is the formLabel above), so collapse to the mark.
+					width = "auto",
+					minWidth = 0,
+					value = dicestudio.haloEnabled,
+					newmaterial = function(element)
+						element.value = dicestudio.haloEnabled
+					end,
+					change = function(element)
+						dicestudio.haloEnabled = element.value
+						RefreshDice()
+						element.root:FireEventTree("refreshDice")
+					end,
+				},
+			},
+
+			-- Color / radius / softness / intensity (collapsed while disabled)
+			gui.Panel{
+				width = "100%",
+				height = "auto",
+				flow = "vertical",
+
+				create = function(element)
+					element:SetClass("collapsed", dicestudio.haloEnabled == false)
+				end,
+				refreshDice = function(element)
+					element:SetClass("collapsed", dicestudio.haloEnabled == false)
+				end,
+
+				gui.Panel{
+					classes = {"formPanel"},
+					gui.Label{
+						classes = {"formLabel"},
+						halign = "left",
+						text = "Color:",
+					},
+					gui.ColorPicker{
+						border = 2,
+						borderColor = "white",
+						width = 16,
+						height = 16,
+						-- The "or default" fallbacks only fire before a build ships the C#
+						-- dicestudio.halo* bridge properties (they return nil then); post-build
+						-- they are always non-nil so the authored value flows through.
+						value = dicestudio.haloColor or "#59a6ff",
+						newmaterial = function(element)
+							element.value = dicestudio.haloColor or "#59a6ff"
+						end,
+						change = function(element)
+							dicestudio.haloColor = element.value
+							RefreshDice()
+						end,
+					},
+				},
+
+				gui.Panel{
+					classes = {"formPanel"},
+					gui.Label{
+						classes = {"formLabel"},
+						halign = "left",
+						text = "Radius:",
+					},
+					gui.Slider{
+						style = { height = 26, width = 240, fontSize = 14 },
+						sliderWidth = 180,
+						labelWidth = 50,
+						minValue = 0,
+						maxValue = 0.25,
+						value = dicestudio.haloRadius or 0.06,
+						newmaterial = function(element)
+							element.value = dicestudio.haloRadius or 0.06
+						end,
+						change = function(element)
+							dicestudio.haloRadius = element.value
+							RefreshDice()
+						end,
+					},
+				},
+
+				gui.Panel{
+					classes = {"formPanel"},
+					gui.Label{
+						classes = {"formLabel"},
+						halign = "left",
+						text = "Softness:",
+					},
+					gui.Slider{
+						style = { height = 26, width = 240, fontSize = 14 },
+						sliderWidth = 180,
+						labelWidth = 50,
+						minValue = 0,
+						maxValue = 1,
+						value = dicestudio.haloSoftness or 0.5,
+						newmaterial = function(element)
+							element.value = dicestudio.haloSoftness or 0.5
+						end,
+						change = function(element)
+							dicestudio.haloSoftness = element.value
+							RefreshDice()
+						end,
+					},
+				},
+
+				gui.Panel{
+					classes = {"formPanel"},
+					gui.Label{
+						classes = {"formLabel"},
+						halign = "left",
+						text = "Intensity:",
+					},
+					gui.Slider{
+						style = { height = 26, width = 240, fontSize = 14 },
+						sliderWidth = 180,
+						labelWidth = 50,
+						minValue = 0,
+						maxValue = 8,
+						value = dicestudio.haloIntensity or 1.5,
+						newmaterial = function(element)
+							element.value = dicestudio.haloIntensity or 1.5
+						end,
+						change = function(element)
+							dicestudio.haloIntensity = element.value
+							RefreshDice()
+						end,
+					},
+				},
+			},
+		},
+	}
+
 	local resultPanel
 
 	resultPanel = gui.Panel{
@@ -3238,6 +3399,8 @@ end
 				}
 			},
 		},
+
+		haloSection,
 
 		scriptSection,
 

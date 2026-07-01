@@ -6141,19 +6141,29 @@ function TacPanel.Perks()
             local seen = {}
             local levelChoices = creature:GetLevelChoices() or {}
             local featTable = dmhub.GetTableVisible(CharacterFeat.tableName)
-            for _,choices in pairs(levelChoices) do
-                for _,guid in ipairs(choices) do
-                    if not seen[guid] then
-                        seen[guid] = true
-                        local featItem = featTable[guid]
-                        if featItem then
-                            specs[#specs+1] = {
-                                entryKey = "perks",
-                                entryId  = guid,
-                                charid   = charid,
-                                title    = featItem.name,
-                                body     = featItem.description,
-                            }
+            -- Only surface perks tied to a LIVE CharacterFeatChoice feature.
+            -- Iterating levelChoices directly would keep stale perks left behind
+            -- by abandoned careers, whose choice guids linger in levelChoices even
+            -- though they no longer map to any active feature. Reuse the categoriser
+            -- index the Features section already builds this refresh (shared 1s memo)
+            -- rather than recomputing the feature list here.
+            local index = FeatureCategoriser.BuildIndexCached(creature)
+            for _,entry in ipairs(index.features) do
+                local feature = entry.feature
+                if feature ~= nil and feature.typeName == "CharacterFeatChoice" then
+                    for _,guid in ipairs(levelChoices[entry.guid] or {}) do
+                        if not seen[guid] then
+                            seen[guid] = true
+                            local featItem = featTable[guid]
+                            if featItem then
+                                specs[#specs+1] = {
+                                    entryKey = "perks",
+                                    entryId  = guid,
+                                    charid   = charid,
+                                    title    = featItem.name,
+                                    body     = featItem.description,
+                                }
+                            end
                         end
                     end
                 end

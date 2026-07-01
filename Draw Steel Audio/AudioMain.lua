@@ -1061,6 +1061,37 @@ audio.SoundEvent{
 }
 
 
+--metalblade Dice Impacts
+
+audio.SoundEvent{
+    name = "DiceImp.Hard_MetalBlade",
+    mixgroup = "dice",
+    sounds = {"dice/metalblade/DiceImp_metalblade_Hard_01.wav","dice/metalblade/DiceImp_metalblade_Hard_02.wav","dice/metalblade/DiceImp_metalblade_Hard_03.wav","dice/metalblade/DiceImp_metalblade_Hard_04.wav","dice/metalblade/DiceImp_metalblade_Hard_05.wav","dice/metalblade/DiceImp_metalblade_Hard_06.wav"},
+    volume = 0.1,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Mild_MetalBlade",
+    mixgroup = "dice",
+    sounds = {"dice/metalblade/DiceImp_metalblade_Mild_01.wav","dice/metalblade/DiceImp_metalblade_Mild_02.wav","dice/metalblade/DiceImp_metalblade_Mild_03.wav","dice/metalblade/DiceImp_metalblade_Mild_04.wav","dice/metalblade/DiceImp_metalblade_Mild_05.wav","dice/metalblade/DiceImp_metalblade_Mild_06.wav"},
+    volume = 0.15,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Soft_MetalBlade",
+    mixgroup = "dice",
+    sounds = {"dice/metalblade/DiceImp_metalblade_Soft_01.wav","dice/metalblade/DiceImp_metalblade_Soft_02.wav","dice/metalblade/DiceImp_metalblade_Soft_03.wav","dice/metalblade/DiceImp_metalblade_Soft_04.wav","dice/metalblade/DiceImp_metalblade_Soft_05.wav","dice/metalblade/DiceImp_metalblade_Soft_06.wav"},
+    volume = 0.05,
+    pitchRand = 0.01,
+}
+
+
+
+
+
+
 
 
 

@@ -2153,6 +2153,25 @@ end
 --uploading a batch of the same kind of clip does not require re-picking each time.
 local g_lastUploadCategory = "music"
 
+--Stamp the chosen category onto a newly uploaded asset. The upload callback fires
+--when the file TRANSFER completes, but the asset only appears in assets.audioTable
+--once the cloud echo lands -- typically AFTER that callback (verified live), so a
+--direct table read there silently misses. Poll briefly until the asset shows up.
+local function StampUploadedAudioAsset(assetid, category, attemptsLeft)
+	if attemptsLeft == nil then attemptsLeft = 40 end
+	local asset = assets.audioTable[assetid]
+	if asset ~= nil then
+		asset.category = category
+		asset:Upload()
+		return
+	end
+	if attemptsLeft <= 0 then return end
+	dmhub.Schedule(0.5, function()
+		if mod.unloaded then return end
+		StampUploadedAudioAsset(assetid, category, attemptsLeft - 1)
+	end)
+end
+
 --File-choose + upload flow (the second half of C7, after the category popup below
 --commits a category and calls this). Unchanged upload mechanics; the only addition
 --is stamping the chosen category onto each newly uploaded asset once the id is
@@ -2172,11 +2191,7 @@ local function DoAudioStudioUpload(category)
 					gui.ModalMessage{ title = 'Error creating audio', message = text }
 				end,
 				upload = function(id)
-					local asset = assets.audioTable[id]
-					if asset ~= nil then
-						asset.category = category
-						asset:Upload()
-					end
+					StampUploadedAudioAsset(id, category)
 					if operation ~= nil then operation.progress = 1; operation:Update() end
 				end,
 				progress = function(percent)
@@ -2534,7 +2549,7 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 	nameLabel = gui.Label{
 		editableOnDoubleClick = true,
 		text = DisplayNameForAsset(audioAsset),
-		width = "100%-336",
+		width = "100%-348",
 		height = "auto",
 		halign = "left",
 		valign = "center",
@@ -2711,6 +2726,9 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 		muteButton,
 		categorySelector,
 		volumeSlider,
+		--Reserved gutter: the library vscroll bar overlays the right edge of each
+		--row, hiding the slider diamond + editable value without this spacer.
+		gui.Panel{ width = 12, height = 1 },
 	}
 end
 
@@ -4131,7 +4149,14 @@ CreateAudioStudio = function()
 
 	local root
 	root = gui.Panel{
-		classes = {"launchablePanel"},
+		--surfaceLinear: the launchable-panel host draws only engine-default (black)
+		--chrome outside the ThemeEngine cascade, and DefaultStyles deliberately keeps
+		--{launchablePanel} transparent -- so the Studio paints its own content area
+		--with the scheme's standard dialog surface via the {panel, surfaceLinear}
+		--utility class (the DSVictoryScreen hero-card pattern). The bgimage property
+		--is required for the class's gradient to have something to paint on.
+		classes = {"launchablePanel", "surfaceLinear"},
+		bgimage = "panels/square.png",
 		styles = ThemeEngine.MergeStyles(studioExtraStyles),
 		--borderBox makes pad below shrink the content area inward rather than adding on
 		--top, so width/height here are bumped by 2*pad (32) over the original content-box
@@ -4148,6 +4173,12 @@ CreateAudioStudio = function()
 			element.data.themeSub = ThemeEngine.OnThemeChanged(mod, function()
 				if element.valid then
 					element.styles = ThemeEngine.MergeStyles(studioExtraStyles)
+					--Reassigning .styles updates the rule array but does not mark
+					--descendants dirty, so the previous scheme keeps painting until a
+					--pseudo-class churns. Toggle a no-op class across the subtree to
+					--force the re-cascade (the CodexTitleBar themeRefreshTick pattern).
+					element.data.themeTick = not element.data.themeTick
+					element:SetClassTree("themeRefreshTick", element.data.themeTick == true)
 				end
 			end)
 		end,

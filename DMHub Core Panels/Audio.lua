@@ -717,6 +717,27 @@ end
 --dropdown options, "-"/unset normalisation and change behavior cannot drift between
 --the two surfaces. Styling differs per call site, so that is passed in via opts.
 
+--Recognised raw audio file extensions. Used only to decide whether a stored
+--description looks like an un-renamed upload filename, for DISPLAY purposes.
+local audioFileExtensions = { "mp3", "ogg", "wav", "flac" }
+
+--Display name for an asset: strips a recognised file extension (case-insensitive)
+--from the stored description for DISPLAY ONLY -- the stored description itself is
+--never modified by this transform. Shared by every Studio surface that shows a
+--clip name (the library row, the soundboard assign popup, filled board buttons)
+--so the "looks like a raw filename" heuristic cannot drift between them.
+local function DisplayNameForAsset(asset)
+	local name = (asset ~= nil and asset.description) or ""
+	local lower = string.lower(name)
+	for _,ext in ipairs(audioFileExtensions) do
+		local suffix = "." .. ext
+		if string.len(lower) > string.len(suffix) and string.sub(lower, -string.len(suffix)) == suffix then
+			return string.sub(name, 1, string.len(name) - string.len(suffix))
+		end
+	end
+	return name
+end
+
 --Normalise the stored category to a dropdown option id. An unset category reads back
 --as nil (never set) OR "" (set to nil through the current AudioAssetLua setter, which
 --stringifies nil to ""); both mean "uncategorised". NB Lua treats "" as truthy, so a
@@ -732,8 +753,15 @@ end
 --Builds the category dropdown for one asset. opts carries only presentation
 --differences between the dock tile and the Studio row (width/height/fontSize/etc);
 --behavior (options list, idChosen normalisation, refreshAssets, change) is identical.
+--opts.unroutedHint (Studio row only) turns on the "unrouted" warning tint + tooltip
+--while the asset has no category, nudging the DM to route it before it gets ignored
+--by the Levels faders.
 local function CreateCategoryDropdown(asset, opts)
 	opts = opts or {}
+
+	local function IsUnrouted()
+		return opts.unroutedHint and GetAssetCategoryId(asset) == "none"
+	end
 
 	local dropdown
 	dropdown = gui.Dropdown{
@@ -756,6 +784,7 @@ local function CreateCategoryDropdown(asset, opts)
 		monitorAssets = "audio",
 		refreshAssets = function(element)
 			element.idChosen = GetAssetCategoryId(asset)
+			element:SetClass("unrouted", IsUnrouted())
 		end,
 
 		change = function(element)
@@ -765,8 +794,16 @@ local function CreateCategoryDropdown(asset, opts)
 			end
 			asset.category = newCategory
 			asset:Upload()
+			element:SetClass("unrouted", IsUnrouted())
+		end,
+
+		linger = function(element)
+			if IsUnrouted() then
+				gui.Tooltip("Set a Category. This clip will ignore Levels faders until you set a category.")(element)
+			end
 		end,
 	}
+	dropdown:SetClass("unrouted", IsUnrouted())
 	return dropdown
 end
 
@@ -1183,66 +1220,6 @@ createAudioPanel = function(audioAsset, options)
 
 		click = function(element)
 			element.popup = nil
-		end,
-
-		rightClick = function(element)
-			if slot ~= nil then
-				return
-			end
-
-			local moveEntries = {}
-			for k,folder in pairs(assets.audioFoldersTable) do
-				if k ~= (audioAsset.parentFolder or defaultFolder) then
-					moveEntries[#moveEntries+1] = {
-						text = folder.description,
-						click = function()
-							audioAsset.parentFolder = k
-							audioAsset:Upload()
-							element.popup = nil
-						end
-					}
-				end
-			end
-
-			local popupEntries ={
-				{
-					text = "Rename",
-					click = function()
-						element.popup = nil
-						StopScroll()
-						titleLabel:BeginEditing()
-					end,
-				},
-
-				{
-					text = "Delete",
-					click = function()
-						audioAsset.hidden = true
-						audioAsset:Upload()
-					end,
-
-				},
-			}
-
-			if dmhub.GetSettingValue("dev") then
-				popupEntries[#popupEntries+1] = {
-					text = "Copy ID",
-					click = function()
-						dmhub.CopyToClipboard(audioAsset.id)
-						element.popup = nil
-					end,
-				}
-			end
-
-            popupEntries[#popupEntries+1] = {
-				text = "Move to...",
-				submenu = moveEntries,
-            }
-
-			element.popup = gui.ContextMenu{
-				width = 180,
-				entries = popupEntries,
-			}
 		end,
 
 		hover = function(element)
@@ -2171,8 +2148,17 @@ end
 --themed dock host), so it owns its ThemeEngine root: GetStyles() + a paired
 --OnThemeChanged so it recolors live on a scheme switch.
 
---Upload action for the Studio toolbar "+ Add audio".
-local OpenAudioStudioUpload = function()
+--Last category chosen at upload THIS SESSION (not persisted); falls back to
+--"music" on first use each session. C7's pre-upload popup remembers this so
+--uploading a batch of the same kind of clip does not require re-picking each time.
+local g_lastUploadCategory = "music"
+
+--File-choose + upload flow (the second half of C7, after the category popup below
+--commits a category and calls this). Unchanged upload mechanics; the only addition
+--is stamping the chosen category onto each newly uploaded asset once the id is
+--known, and remembering the choice for next time.
+local function DoAudioStudioUpload(category)
+	g_lastUploadCategory = category
 	dmhub.OpenFileDialog{
 		id = 'AudioAssets',
 		extensions = {'ogg', 'mp3', 'wav', 'flac'},
@@ -2186,6 +2172,11 @@ local OpenAudioStudioUpload = function()
 					gui.ModalMessage{ title = 'Error creating audio', message = text }
 				end,
 				upload = function(id)
+					local asset = assets.audioTable[id]
+					if asset ~= nil then
+						asset.category = category
+						asset:Upload()
+					end
 					if operation ~= nil then operation.progress = 1; operation:Update() end
 				end,
 				progress = function(percent)
@@ -2200,6 +2191,98 @@ local OpenAudioStudioUpload = function()
 				operation:Update()
 			end
 		end,
+	}
+end
+
+--Upload action for the Studio toolbar "+ Add audio" (C7): a small pre-upload popup
+--asking for the category up front (defaulting to the last one chosen this session)
+--rather than leaving every new clip uncategorised until the DM visits the row
+--dropdown later. Popups are reparented to the popup layer and do not inherit the
+--Studio cascade, so this routes its own ThemeEngine snapshot (transient, mirrors
+--the soundboard assign popup / color swatch popup pattern elsewhere in this file).
+local OpenAudioStudioUpload = function(buttonElement)
+	local chosen = g_lastUploadCategory or "music"
+
+	local categoryDropdown = gui.Dropdown{
+		width = 150,
+		height = 24,
+		valign = "center",
+		options = {
+			{ id = "music", text = "Music" },
+			{ id = "ambience", text = "Ambience" },
+			{ id = "effects", text = "Effects" },
+		},
+		idChosen = chosen,
+		change = function(element)
+			chosen = element.idChosen
+		end,
+	}
+
+	buttonElement.popup = gui.Panel{
+		styles = ThemeEngine.MergeStyles{},
+		classes = {"framedPanel"},
+		width = 260,
+		height = "auto",
+		flow = "vertical",
+		pad = 10,
+		borderBox = true,
+
+		gui.Label{
+			classes = {"bold", "sizeS"},
+			text = "Add audio",
+			width = "auto",
+			height = "auto",
+			halign = "left",
+			vmargin = 2,
+		},
+
+		gui.Panel{
+			flow = "horizontal",
+			width = "100%",
+			height = "auto",
+			valign = "center",
+			vmargin = 4,
+			gui.Label{
+				classes = {"sizeXs"},
+				text = "Category",
+				width = "auto",
+				height = "auto",
+				halign = "left",
+				valign = "center",
+				hmargin = 4,
+			},
+			categoryDropdown,
+		},
+
+		gui.Panel{
+			flow = "horizontal",
+			width = "100%",
+			height = "auto",
+			halign = "right",
+			valign = "center",
+			vmargin = 6,
+			gui.Button{
+				classes = {"sizeXs"},
+				text = "Cancel",
+				width = "auto",
+				height = 24,
+				hmargin = 3,
+				press = function()
+					buttonElement.popup = nil
+				end,
+			},
+			gui.Button{
+				classes = {"sizeXs"},
+				text = "Choose Files...",
+				width = "auto",
+				height = 24,
+				hmargin = 3,
+				press = function()
+					buttonElement.popup = nil
+					DoAudioStudioUpload(chosen)
+				end,
+			},
+		},
 	}
 end
 
@@ -2222,6 +2305,67 @@ local function StopStudioCue()
 end
 local function StudioCueActive(assetid)
 	return g_studioCueAssetId == assetid and g_studioCueInstance ~= nil and g_studioCueInstance.playing
+end
+
+--Shared delete confirm for one or more library clips (C2 context menu / future
+--callers). ids is a list of assetids; names is used only for the single-clip
+--message. Soft-deletes (hidden = true) rather than a hard delete, matching every
+--other delete path in this file.
+local function ConfirmDeleteAudioClips(ids)
+	if #ids == 0 then return end
+	local title = "Delete Audio?"
+	local message
+	if #ids == 1 then
+		local a = assets.audioTable[ids[1]]
+		message = string.format('Are you sure you want to delete "%s"? It will be removed from your library and any soundboard buttons that use it.', DisplayNameForAsset(a))
+	else
+		message = string.format("Are you sure you want to delete these %d clips? They will be removed from your library and any soundboard buttons that use them.", #ids)
+	end
+	gui.ModalMessage{
+		title = title,
+		message = message,
+		options = {
+			{
+				text = "Delete",
+				execute = function()
+					for _,id in ipairs(ids) do
+						local a = assets.audioTable[id]
+						if a ~= nil then
+							a.hidden = true
+							a:Upload()
+						end
+					end
+				end,
+			},
+			{
+				text = "Cancel",
+				execute = function()
+				end,
+			},
+		},
+	}
+end
+
+--Shared "set category for these clips" (C2 row menu / folder menu). ids is a list
+--of assetids; category is "music"/"ambience"/"effects"/nil (nil clears).
+local function SetCategoryForAudioClips(ids, category)
+	for _,id in ipairs(ids) do
+		local a = assets.audioTable[id]
+		if a ~= nil then
+			a.category = category
+			a:Upload()
+		end
+	end
+end
+
+--Submenu entries for "Set Category" (row + folder context menus share this list).
+local function CategorySubmenuEntries(applyFn)
+	return {
+		{ text = "Music", click = function() applyFn("music") end },
+		{ text = "Ambience", click = function() applyFn("ambience") end },
+		{ text = "Effects", click = function() applyFn("effects") end },
+		{ text = "Clear category", click = function() applyFn(nil) end },
+	}
 end
 
 local CreateAudioStudioRow = function(audioAsset, opts)
@@ -2300,47 +2444,148 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 		end,
 	}
 
+	--Loop toggle: reuses the dock tile's loop icon asset + disabled-when-off styling
+	--approach (see loopButton in createAudioPanel), sized to sit inline in the row.
+	--bgimage is set directly (NOT via the {loopIcon} class): that class's bgimage rule
+	--lives in the dock panel's local styles, which this Studio surface never inherits.
+	local loopButton = gui.Panel{
+		classes = {"audioRowLoopButton", cond(audioAsset.loop, nil, "disabled")},
+		bgimage = "game-icons/infinity.png",
+		width = 16,
+		height = 16,
+		valign = "center",
+		hmargin = 3,
+		monitorAssets = "audio",
+		refreshAssets = function(element)
+			element:SetClass("disabled", not audioAsset.loop)
+		end,
+		press = function(element)
+			audioAsset.loop = not audioAsset.loop
+			audioAsset:Upload()
+			element:SetClass("disabled", not audioAsset.loop)
+		end,
+		linger = function(element)
+			gui.Tooltip("Loop")(element)
+		end,
+	}
+
+	--Mute: local-only, mirrors the dock tile mute (SetSoundEventVolume(id, 0) vs
+	--restore-to-slider-volume). volumeSlider is forward-declared since the press
+	--handler reads its current value on unmute.
+	local volumeSlider
+	local muted = false
+	local muteButton = gui.Panel{
+		classes = {"hoverable", "audioRowMuteButton"},
+		bgimage = "ui-icons/AudioVolumeButton.png",
+		bgcolor = "white",
+		width = 16,
+		height = 16,
+		valign = "center",
+		hmargin = 3,
+		press = function(element)
+			muted = not muted
+			element:SetClass("muted", muted)
+			if muted then
+				element.bgimage = "ui-icons/AudioMuteButton.png"
+				audio.SetSoundEventVolume(audioAsset.id, 0)
+			else
+				element.bgimage = "ui-icons/AudioVolumeButton.png"
+				audio.SetSoundEventVolume(audioAsset.id, volumeSlider.value)
+			end
+		end,
+		linger = function(element)
+			gui.Tooltip("Mute")(element)
+		end,
+	}
+
+	--Duration: muted mm:ss readout, matching the dock tile's FormatTime(duration,
+	--duration) source (no live playback progress here -- that lives on the dock).
+	local durationLabel = gui.Label{
+		classes = {"sizeXs", "fgMuted"},
+		text = FormatTime(audioAsset.duration, audioAsset.duration),
+		width = 40,
+		height = "auto",
+		halign = "right",
+		valign = "center",
+		hmargin = 3,
+		fontSize = 11,
+		textAlignment = "right",
+		monitorAssets = "audio",
+		refreshAssets = function(element)
+			element.text = FormatTime(audioAsset.duration, audioAsset.duration)
+		end,
+	}
+
 	--Title is the leftmost scan anchor and flexes to fill; the controls sit to its
-	--right. Width is the column minus the fixed control cluster (play+cue+category+
-	--volume+margins) -- a deterministic complement, since "100% available" collapses.
-	local nameLabel = gui.Label{
-		text = audioAsset.description,
-		width = "100%-240",
+	--right. Width is the column minus the fixed control cluster (duration+loop+play+
+	--cue+mute+category+volume+margins) -- a deterministic complement, since "100%
+	--available" collapses. Editable on double-click (C1); displays the extension-
+	--stripped name via DisplayNameForAsset, but edits the full stored description.
+	--There is no engine hook to intercept "editing is about to begin" on a Label, so
+	--a double-click edits the displayed (extension-stripped) text -- the brief's
+	--documented fallback. The "Rename" context-menu entry (BeginRenameEditing below)
+	--takes a cleaner path: it controls the BeginEditing() call directly, so it loads
+	--the full stored description into the field first.
+	local nameLabel
+	local function BeginRenameEditing()
+		nameLabel.text = audioAsset.description
+		nameLabel:BeginEditing()
+	end
+	nameLabel = gui.Label{
+		editableOnDoubleClick = true,
+		text = DisplayNameForAsset(audioAsset),
+		width = "100%-336",
 		height = "auto",
 		halign = "left",
 		valign = "center",
 		hmargin = 4,
 		textWrap = false,
 		textOverflow = "ellipsis",
+
+		change = function(element)
+			audioAsset.description = element.text
+			audioAsset:Upload()
+			element.text = DisplayNameForAsset(audioAsset)
+		end,
+
 		monitorAssets = "audio",
 		refreshAssets = function(element)
-			element.text = audioAsset.description
+			if not element.editing then
+				element.text = DisplayNameForAsset(audioAsset)
+			end
 		end,
 		linger = function(element)
-			gui.Tooltip(audioAsset.description)(element)
+			gui.Tooltip(DisplayNameForAsset(audioAsset))(element)
 		end,
 	}
 
 	--Behavior (options/normalisation/change) is shared with the dock tile version via
 	--CreateCategoryDropdown; only the row-specific layout is passed in here.
+	--unroutedHint (C8) is Studio-row-only: the dock tile dropdown never gets the
+	--warning tint/tooltip.
 	local categorySelector = CreateCategoryDropdown(audioAsset, {
 		hmargin = 3,
+		unroutedHint = true,
 	})
 
-	local volumeSlider = gui.Slider{
+	volumeSlider = gui.Slider{
 		value = audioAsset.volume,
 		minValue = 0,
 		maxValue = 1,
 		sliderWidth = 70,
 		labelWidth = 0,
 		labelFormat = "",
-		style = { width = 80, height = 16, valign = "center" },
+		style = { width = 80, height = 16, valign = "center", hmargin = 3 },
 		events = {
 			preview = function(element)
-				audio.SetSoundEventVolume(audioAsset.id, element.value)
+				if not muted then
+					audio.SetSoundEventVolume(audioAsset.id, element.value)
+				end
 			end,
 			confirm = function(element)
-				audio.SetSoundEventVolume(audioAsset.id, element.value)
+				if not muted then
+					audio.SetSoundEventVolume(audioAsset.id, element.value)
+				end
 				local doc = mod:GetDocumentSnapshot(soundEventDocId)
 				doc:BeginChange()
 				doc.data.volume = element.value
@@ -2371,6 +2616,67 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 		}
 	end
 
+	--C2: right-click context menu. Multi-select aware -- when this row's assetid is
+	--part of an active multi-selection (opts.getSelection, threaded from the tree),
+	--Delete and Set Category apply to the whole selection instead of just this row.
+	local function TargetIds()
+		if opts.getSelection ~= nil then
+			local sel = opts.getSelection()
+			if sel ~= nil and sel[audioAsset.id] == true then
+				local ids = {}
+				local count = 0
+				for id,_ in pairs(sel) do
+					ids[#ids+1] = id
+					count = count + 1
+				end
+				if count > 1 then
+					return ids
+				end
+			end
+		end
+		return { audioAsset.id }
+	end
+
+	local function OpenRowContextMenu(element)
+		local ids = TargetIds()
+		local entries = {
+			{
+				text = "Rename",
+				click = function()
+					element.popup = nil
+					BeginRenameEditing()
+				end,
+			},
+			{
+				text = "Set Category",
+				submenu = CategorySubmenuEntries(function(category)
+					element.popup = nil
+					SetCategoryForAudioClips(ids, category)
+				end),
+			},
+			{
+				text = "Delete",
+				click = function()
+					element.popup = nil
+					ConfirmDeleteAudioClips(ids)
+				end,
+			},
+		}
+		if devmode() then
+			entries[#entries+1] = {
+				text = "Copy ID",
+				click = function()
+					element.popup = nil
+					dmhub.CopyToClipboard(audioAsset.id)
+				end,
+			}
+		end
+		element.popup = gui.ContextMenu{
+			width = 180,
+			entries = entries,
+		}
+	end
+
 	return gui.Panel{
 		classes = {"bordered", "hoverable", "audioClipRow"},
 		flow = "horizontal",
@@ -2390,13 +2696,19 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 		click = opts.onSelect and function(element)
 			opts.onSelect(audioAsset.id)
 		end or opts.click,
+		rightClick = function(element)
+			OpenRowContextMenu(element)
+		end,
 		refreshSelection = function(element, selectedSet)
 			element:SetClass("selected", selectedSet ~= nil and selectedSet[audioAsset.id] == true)
 		end,
 		reorderSpacer,
 		nameLabel,
+		durationLabel,
+		loopButton,
 		playButton,
 		cueButton,
+		muteButton,
 		categorySelector,
 		volumeSlider,
 	}
@@ -2473,7 +2785,7 @@ local CreateStudioSoundboard = function()
 
 		local function MatchClip(asset)
 			if searchText == "" then return true end
-			return string.find(string.lower(asset.description or ""), searchText, 1, true) ~= nil
+			return string.find(string.lower(DisplayNameForAsset(asset)), searchText, 1, true) ~= nil
 		end
 
 		local function RebuildList()
@@ -2481,9 +2793,11 @@ local CreateStudioSoundboard = function()
 			for _,asset in ipairs(AssignableClips()) do
 				if MatchClip(asset) then
 					local a = asset
+					local displayName = DisplayNameForAsset(a)
+					if displayName == "" then displayName = "(unnamed)" end
 					children[#children+1] = gui.Label{
 						classes = {"sizeS", "hoverable"},
-						text = a.description or "(unnamed)",
+						text = displayName,
 						width = "100%",
 						height = 22,
 						halign = "left",
@@ -2646,7 +2960,9 @@ local CreateStudioSoundboard = function()
 				assetid = doc.data.assetid
 				local asset = (assetid ~= nil) and assets.audioTable[assetid] or nil
 				if asset ~= nil then
-					nameLabel.text = asset.description or "(unnamed)"
+					local displayName = DisplayNameForAsset(asset)
+					if displayName == "" then displayName = "(unnamed)" end
+					nameLabel.text = displayName
 					nameLabel:SetClass("collapsed", false)
 					emptyLabel:SetClass("collapsed", true)
 					clearButton:SetClass("filled", true)
@@ -3017,6 +3333,15 @@ local CreateAudioLibraryTree = function()
 	--exist; the data is mutated locally first, so an immediate rebuild reflects it.
 	local RequestRebuild = function() end
 
+	--C6 library search. m_searchText is the active lowercase filter ("" = none).
+	--m_preSearchExpanded snapshots the user's expansion state (m_expanded) the moment
+	--a search session STARTS (first non-empty search text), so clearing the search
+	--restores exactly what they had open before -- captured once, not on every
+	--keystroke, so typing further into an active search does not re-snapshot the
+	--already-filtered (all-expanded) state.
+	local m_searchText = ""
+	local m_preSearchExpanded = nil
+
 	--Persisted manual clip order (per folder) lives in the audioClipOrder doc since
 	--AudioAssetLua has no writable ord. These read/write data.order[folderid].
 	local function GetFolderOrderList(folderid)
@@ -3094,10 +3419,88 @@ local CreateAudioLibraryTree = function()
 		return foldersByParent, clipsByFolder
 	end
 
+	--C6: restrict the maps BuildMaps produced to what an active search should show.
+	--A folder is kept if its OWN name matches, or it contains a matching clip, or ANY
+	--descendant folder does (recursively) -- so a match three folders deep still pulls
+	--its whole ancestor chain into view. Clips are filtered to matches only, within
+	--whichever folders survive. Matched folders are recorded into matchedFolderSet so
+	--CreateFolderNode can force them open + built regardless of remembered expansion.
+	local function FilterMaps(foldersByParent, clipsByFolder, searchText, matchedFolderSet)
+		if searchText == "" then
+			return foldersByParent, clipsByFolder
+		end
+
+		--Recursively decide (and memoise) whether folderid should survive the filter:
+		--its own name matches, one of its direct clips matches, or a child folder does.
+		local decided = {}
+		local function FolderSurvives(folderid, folder)
+			if decided[folderid] ~= nil then
+				return decided[folderid]
+			end
+			--Guard against re-entrancy on a malformed cycle (should not happen).
+			decided[folderid] = false
+
+			local survives = false
+			if folder ~= nil and string.find(string.lower(folder.description or ""), searchText, 1, true) ~= nil then
+				survives = true
+			end
+			if not survives then
+				for _,asset in ipairs(clipsByFolder[folderid] or {}) do
+					if string.find(string.lower(DisplayNameForAsset(asset)), searchText, 1, true) ~= nil then
+						survives = true
+						break
+					end
+				end
+			end
+			if not survives then
+				for _,sub in ipairs(foldersByParent[folderid] or {}) do
+					if FolderSurvives(sub.id, sub.folder) then
+						survives = true
+						break
+					end
+				end
+			end
+
+			decided[folderid] = survives
+			if survives then
+				matchedFolderSet[folderid] = true
+			end
+			return survives
+		end
+
+		local outFoldersByParent = {}
+		local outClipsByFolder = {}
+		local function FilterLevel(parentKey)
+			for _,entry in ipairs(foldersByParent[parentKey] or {}) do
+				if FolderSurvives(entry.id, entry.folder) then
+					local t = outFoldersByParent[parentKey]
+					if t == nil then t = {} outFoldersByParent[parentKey] = t end
+					t[#t+1] = entry
+
+					local clips = {}
+					for _,asset in ipairs(clipsByFolder[entry.id] or {}) do
+						if string.find(string.lower(DisplayNameForAsset(asset)), searchText, 1, true) ~= nil then
+							clips[#clips+1] = asset
+						end
+					end
+					outClipsByFolder[entry.id] = clips
+
+					FilterLevel(entry.id)
+				end
+			end
+		end
+		FilterLevel("__root__")
+
+		return outFoldersByParent, outClipsByFolder
+	end
+
 	--Remembered expansion per folderid, so a tree rebuild (any asset/folder change,
 	--including a drag-move) does not collapse everything. Captured from the live
 	--nodes just before each rebuild.
 	local m_expanded = {}
+	--Folders an active search matched (directly or via a descendant/clip match);
+	--CreateFolderNode force-opens + force-builds these regardless of m_expanded.
+	local m_searchMatched = {}
 
 	--Multi-selection state. m_selected is a set of clip assetids; m_anchor is the
 	--last single-clicked clip (the pivot for shift-range). m_folderClips maps each
@@ -3330,6 +3733,9 @@ local CreateAudioLibraryTree = function()
 					drag = clipDrag,
 					dragging = clipDragging,
 					onSelect = ClipSelectClick,
+					--Threaded (not a global read) so the row's C2 context menu can tell
+					--whether it is right-clicked as part of a live multi-selection.
+					getSelection = function() return m_selected end,
 				})
 			end
 			panel.children = children
@@ -3358,6 +3764,10 @@ local CreateAudioLibraryTree = function()
 		local folder = entry.folder
 		local contents, empty, buildContents = CreateFolderContents(folderid, foldersByParent, clipsByFolder)
 		local isDefault = folderid == defaultFolder
+		--An active search force-opens every folder it matched (C6 "auto-expand every
+		--folder shown"), regardless of the user's remembered expansion.
+		local forceOpen = m_searchMatched[folderid] == true
+		local startOpen = forceOpen or m_expanded[folderid] == true
 
 		local node
 		node = gui.TreeNode{
@@ -3365,7 +3775,7 @@ local CreateAudioLibraryTree = function()
 			text = folder.description or "Folder",
 			width = "100%",
 			editable = true,
-			expanded = m_expanded[folderid] == true,
+			expanded = startOpen,
 			--dragTarget is consumed by TreeNode and applied to the folder HEADER, so
 			--a clip/folder can be dropped onto the header. All folders are draggable
 			--(incl. the default "Sounds"): a non-draggable folder header would let the
@@ -3402,35 +3812,53 @@ local CreateAudioLibraryTree = function()
 			end,
 
 			contextMenu = function(element)
-				if isDefault then
-					return  --the default "Sounds" folder is not deletable.
+				local entries = {
+					{
+						text = "Set category for all clips in this folder",
+						submenu = CategorySubmenuEntries(function(category)
+							element.popup = nil
+							--Read directly from the live asset table (not the closure's
+							--clipsByFolder) so this applies to every direct, non-hidden
+							--clip in the folder even while a library search filter has
+							--narrowed clipsByFolder down to only the matching clips.
+							local ids = {}
+							for id,asset in pairs(assets.audioTable) do
+								if not asset.hidden and (asset.parentFolder or defaultFolder) == folderid then
+									ids[#ids+1] = id
+								end
+							end
+							SetCategoryForAudioClips(ids, category)
+						end),
+					},
+				}
+				if not isDefault then
+					--The default "Sounds" folder is not deletable.
+					entries[#entries+1] = {
+						text = "Delete Folder",
+						click = function()
+							element.popup = nil
+							if not empty then
+								gui.ModalMessage{
+									title = "Folder Not Empty",
+									message = "Move or delete its contents before deleting this folder.",
+								}
+								return
+							end
+							folder.hidden = true
+							folder:Upload()
+						end,
+					}
 				end
 				element.popup = gui.ContextMenu{
-					width = 180,
-					entries = {
-						{
-							text = "Delete Folder",
-							click = function()
-								element.popup = nil
-								if not empty then
-									gui.ModalMessage{
-										title = "Folder Not Empty",
-										message = "Move or delete its contents before deleting this folder.",
-									}
-									return
-								end
-								folder.hidden = true
-								folder:Upload()
-							end,
-						},
-					},
+					width = 220,
+					entries = entries,
 				}
 			end,
 		}
-		--A folder that starts expanded (remembered state) builds its contents now;
-		--collapsed folders defer until first opened. The expand event covers the
-		--toggle-open case.
-		if m_expanded[folderid] == true then
+		--A folder that starts expanded (remembered state, or force-opened by an active
+		--search match) builds its contents now; collapsed folders defer until first
+		--opened. The expand event covers the toggle-open case.
+		if startOpen then
 			buildContents()
 		end
 		return node
@@ -3448,8 +3876,19 @@ local CreateAudioLibraryTree = function()
 	end
 
 	local function DoRebuild(element)
-		CaptureExpansion(element)
-		local foldersByParent, clipsByFolder = BuildMaps()
+		--While a search is active, the live tree's expansion is search-driven (every
+		--matched folder force-opened), not the user's real preference -- capturing it
+		--into m_expanded would clobber what they had open before the search started.
+		--m_preSearchExpanded already holds that pre-search snapshot (taken once, see
+		--below), so skip the live capture entirely for the duration of the search.
+		if m_searchText == "" then
+			CaptureExpansion(element)
+		end
+
+		local rawFoldersByParent, rawClipsByFolder = BuildMaps()
+		m_searchMatched = {}
+		local foldersByParent, clipsByFolder = FilterMaps(rawFoldersByParent, rawClipsByFolder, m_searchText, m_searchMatched)
+
 		--Capture each folder's clips in visible (sorted) order for shift-range, and
 		--drop any selected ids that no longer exist.
 		m_folderClips = {}
@@ -3472,6 +3911,30 @@ local CreateAudioLibraryTree = function()
 		element.children = children
 		element:FireEventTree("refreshPlayingAudio")
 		element:FireEventTree("refreshSelection", m_selected)
+	end
+
+	--C6: apply a new search string and rebuild. Captures the pre-search expansion
+	--once, on the transition from no-filter to filtered, and restores it once, on the
+	--transition back to no-filter (clearing the search) -- typing further within an
+	--active search does not touch the snapshot.
+	local function SetSearchFilter(rawText)
+		local text = string.lower(trim(rawText or ""))
+		if text == m_searchText then
+			return
+		end
+		if m_searchText == "" and text ~= "" then
+			--Search session starting: snapshot current expansion once.
+			m_preSearchExpanded = {}
+			for k,v in pairs(m_expanded) do m_preSearchExpanded[k] = v end
+		elseif m_searchText ~= "" and text == "" then
+			--Search session ending: restore what the user had open before it started.
+			if m_preSearchExpanded ~= nil then
+				m_expanded = m_preSearchExpanded
+			end
+			m_preSearchExpanded = nil
+		end
+		m_searchText = text
+		RequestRebuild()
 	end
 
 	--Coalesce rebuilds: a single drag/reorder uploads several assets at once, each of
@@ -3500,7 +3963,7 @@ local CreateAudioLibraryTree = function()
 		classes = {"audioLibraryRoot"},
 		flow = "vertical",
 		width = "100%",
-		height = "100%-24",
+		height = "100%-28",
 		vscroll = true,
 		valign = "top",
 		dragTarget = true,
@@ -3519,7 +3982,26 @@ local CreateAudioLibraryTree = function()
 		end,
 	}
 
-	return m_root
+	--C6: search bar above the tree. gui.SearchInput fires "search" with the already
+	--lowercased/trimmed text; SetSearchFilter re-lowercases/trims defensively (cheap)
+	--so this does not depend on that internal behavior.
+	local searchInput = gui.SearchInput{
+		placeholderText = "Search library...",
+		width = "100%",
+		height = 24,
+		vmargin = 2,
+		search = function(element, text)
+			SetSearchFilter(text)
+		end,
+	}
+
+	return gui.Panel{
+		flow = "vertical",
+		width = "100%",
+		height = "100%-24",
+		searchInput,
+		m_root,
+	}
 end
 
 CreateAudioStudio = function()
@@ -3569,7 +4051,7 @@ CreateAudioStudio = function()
 				valign = "center",
 				hmargin = 3,
 				press = function(element)
-					OpenAudioStudioUpload()
+					OpenAudioStudioUpload(element)
 				end,
 			},
 		},
@@ -3633,6 +4115,18 @@ CreateAudioStudio = function()
 		--destructive intent reveals when you point at it (no flicker -- only the colour
 		--changes, the element stays present).
 		{ selectors = {"audioStudioClearGlyph", "parent:hover"}, color = "@danger" },
+		--Row loop/mute glyphs. Loop dims when off, tints @accent when on; mute dims
+		--normally and tints @danger while active. (The dock's {loopIcon} styles live in
+		--the dock panel's local cascade, so the row styles here stand alone.)
+		{ selectors = {"audioRowLoopButton"}, bgcolor = "white" },
+		{ selectors = {"audioRowLoopButton", "disabled"}, opacity = 0.4 },
+		{ selectors = {"audioRowLoopButton", "~disabled"}, bgcolor = "@accent" },
+		{ selectors = {"audioRowMuteButton"}, opacity = 0.55 },
+		{ selectors = {"audioRowMuteButton", "hover"}, opacity = 1 },
+		{ selectors = {"audioRowMuteButton", "muted"}, bgcolor = "@danger", opacity = 1 },
+		--Unrouted category dropdown (C8): a subtle warning border, not a loud fill --
+		--nudges without shouting. Cleared automatically once a category is chosen.
+		{ selectors = {"unrouted"}, borderColor = "@warning", border = 1 },
 	}
 
 	local root

@@ -738,6 +738,82 @@ local function DisplayNameForAsset(asset)
 	return name
 end
 
+--Play-start order registry. audio.currentlyPlaying keys have no stable
+--ordering, and a looping track's elapsed .time resets to 0 on every loop --
+--sorting by elapsed made the "most recent" track cycle whenever a loop
+--restarted (visually distracting). Instead each playing id gets a
+--monotonically increasing sequence number the first time it is seen;
+--ids that stop are pruned so a later replay re-registers as new. Module-scoped
+--(chunk D7) so PlayBroadcastClip and the Studio strip (D9) can share it with
+--CreateSoundPanel's now-playing card instead of keeping separate registries.
+local m_playOrder = {}
+local m_playOrderNext = 1
+local function PlayOrderOf(assetid)
+	if m_playOrder[assetid] == nil then
+		m_playOrder[assetid] = m_playOrderNext
+		m_playOrderNext = m_playOrderNext + 1
+	end
+	return m_playOrder[assetid]
+end
+local function PrunePlayOrder()
+	for assetid,_ in pairs(m_playOrder) do
+		if audio.currentlyPlaying[assetid] == nil then
+			m_playOrder[assetid] = nil
+		end
+	end
+end
+
+--All clips currently playing for a category (Music/Ambience/Effects), found by
+--scanning audio.currentlyPlaying. Sorted by play-start order ascending
+--(oldest first) -- stable across loop restarts.
+local function PlayingTracksForCategory(cat)
+	local list = {}
+	for assetid,_ in pairs(audio.currentlyPlaying) do
+		local a = assets.audioTable[assetid]
+		if a ~= nil and a.category == cat then
+			list[#list+1] = { id = assetid, asset = a, order = PlayOrderOf(assetid) }
+		end
+	end
+	table.sort(list, function(x, y) return x.order < y.order end)
+	return list
+end
+
+--Broadcast play helper (chunk D7): routes every table-facing Play button (dock tile,
+--Studio library row, Studio soundboard) through one place so music can be kept to a
+--single track. Music does not layer -- starting a new music clip stops every OTHER
+--currently-playing music clip first. Ambience/effects are unaffected (those are
+--allowed to layer). opts is an optional table of extra PlaySoundEvent fields (e.g.
+--volume) forwarded as-is; asset is always set from the asset parameter.
+--Chunk G upgrades the stop to a crossfade; deliberate music layering is chunk H's
+--simultaneous playlist mode.
+local function PlayBroadcastClip(asset, opts)
+	if asset == nil then
+		return
+	end
+	if asset.category == "music" then
+		local stopIds = {}
+		for assetid,_ in pairs(audio.currentlyPlaying) do
+			if assetid ~= asset.id then
+				local a = assets.audioTable[assetid]
+				if a ~= nil and a.category == "music" then
+					stopIds[#stopIds+1] = assetid
+				end
+			end
+		end
+		for _,id in ipairs(stopIds) do
+			audio.StopSoundEvent(id)
+		end
+	end
+	local playArgs = {}
+	if opts ~= nil then
+		for k,v in pairs(opts) do
+			playArgs[k] = v
+		end
+	end
+	playArgs.asset = asset
+	audio.PlaySoundEvent(playArgs)
+end
+
 --Normalise the stored category to a dropdown option id. An unset category reads back
 --as nil (never set) OR "" (set to nil through the current AudioAssetLua setter, which
 --stringifies nil to ""); both mean "uncategorised". NB Lua treats "" as truthy, so a
@@ -1190,10 +1266,7 @@ createAudioPanel = function(audioAsset, options)
 				if volumeSlider ~= nil then
 					volume = volumeSlider.value
 				end
-				audio.PlaySoundEvent{
-					asset = audioAsset,
-					volume = volume,
-				}
+				PlayBroadcastClip(audioAsset, { volume = volume })
 			end
 
 
@@ -1341,9 +1414,11 @@ CreateSoundPanel = function()
 	--see CreateAudioLibraryTree / CreateFolderNode), keeping the dock to live
 	--controls only. No in-dock library panel is built anymore.
 
-	--Master mute / stop-all. Click toggles mute; right-click opens stop-all. Lives in
-	--the now-playing header so it is always reachable (it used to float on the
-	--spectrum strip, which this section replaces).
+	--Master mute. Lives in the now-playing header so it is always reachable (it
+	--used to float on the spectrum strip, which this section replaces). Stop-all
+	--used to be a right-click menu here (D10 moved it to its own always-visible
+	--button, stopAllButton, so it is discoverable instead of hidden behind a
+	--right-click) -- this button is mute-only now.
 	local globalMuteButton = gui.Panel{
 		bgcolor = "white",
 		width = 18,
@@ -1355,22 +1430,8 @@ CreateSoundPanel = function()
 			audio.muted = not audio.muted
 			audio.UploadMuted()
 		end,
-		rightClick = function(element)
-			element.popup = gui.ContextMenu{
-				width = 180,
-				entries = {
-					{
-						text = string.format("Stop All Sounds (%d)", audio.numActiveSoundEvents),
-						click = function()
-							element.popup = nil
-							audio.StopAllSoundEvents()
-						end,
-					},
-				}
-			}
-		end,
 		linger = function(element)
-			gui.Tooltip("Mute (right-click: stop all)")(element)
+			gui.Tooltip("Mute")(element)
 		end,
 		styles = {
 			{ bgimage = "ui-icons/AudioVolumeButton.png" },
@@ -1379,52 +1440,39 @@ CreateSoundPanel = function()
 		},
 	}
 
-	--Play-start order registry. audio.currentlyPlaying keys have no stable
-	--ordering, and a looping track's elapsed .time resets to 0 on every loop --
-	--sorting by elapsed made the "most recent" track cycle whenever a loop
-	--restarted (visually distracting). Instead each playing id gets a
-	--monotonically increasing sequence number the first time it is seen;
-	--ids that stop are pruned so a later replay re-registers as new.
-	local m_playOrder = {}
-	local m_playOrderNext = 1
-	local function PlayOrderOf(assetid)
-		if m_playOrder[assetid] == nil then
-			m_playOrder[assetid] = m_playOrderNext
-			m_playOrderNext = m_playOrderNext + 1
-		end
-		return m_playOrder[assetid]
-	end
-	local function PrunePlayOrder()
-		for assetid,_ in pairs(m_playOrder) do
-			if audio.currentlyPlaying[assetid] == nil then
-				m_playOrder[assetid] = nil
-			end
-		end
-	end
+	--Stop-all (D10): a visible button, not a right-click secret, directly left of
+	--the mute button. Same visual family as the hero stopButton (white square
+	--glyph). Hidden entirely when nothing is playing so the status row does not
+	--show a dead control at rest.
+	local stopAllButton = gui.Panel{
+		classes = {"hidden"},
+		bgimage = "panels/square.png",
+		bgcolor = "white",
+		width = 12,
+		height = 12,
+		valign = "center",
+		hmargin = 4,
+		halign = "right",
+		press = function(element)
+			audio.StopAllSoundEvents()
+		end,
+		linger = function(element)
+			gui.Tooltip("Stop all audio")(element)
+		end,
+	}
 
-	--All clips currently playing for a category (Music/Ambience), found by
-	--scanning audio.currentlyPlaying. Sorted by play-start order ascending
-	--(oldest first) -- stable across loop restarts.
-	local function PlayingTracksForCategory(cat)
-		local list = {}
-		for assetid,_ in pairs(audio.currentlyPlaying) do
-			local a = assets.audioTable[assetid]
-			if a ~= nil and a.category == cat then
-				list[#list+1] = { id = assetid, asset = a, order = PlayOrderOf(assetid) }
-			end
-		end
-		table.sort(list, function(x, y) return x.order < y.order end)
-		return list
-	end
+	--Play-start order registry and PlayingTracksForCategory are module-scoped
+	--(chunk D7 -- see near DisplayNameForAsset) so PlayBroadcastClip and the
+	--Studio strip (D9) share the same ordering with this card.
 
 	--Now-playing hero card. Music is the lead channel (big title + read-only progress +
 	--Stop); Ambience is a slim always-visible footer line (name + stop). Seek (a
 	--draggable scrubber) and pause/resume need engine work -- .time is read-only and
 	--there is no pause API -- so the transport is display-only progress + Stop for now;
-	--the sleek look ships, seek/pause land with the engine pass. m_musicId/m_ambienceId
-	--hold the resolved channel ids so the stop buttons act on the live track.
+	--the sleek look ships, seek/pause land with the engine pass. m_musicId holds
+	--the resolved music channel id so the hero Stop button acts on the live
+	--track (ambience beds each carry their own id via ambienceRows -- D8).
 	local m_musicId = nil
-	local m_ambienceId = nil
 
 	local statusDot = gui.Panel{
 		classes = {"npStatusDot"},
@@ -1440,8 +1488,9 @@ CreateSoundPanel = function()
 		text = "Nothing playing",
 		--Complement of statusDot + globalMuteButton + the "Studio" icon+text button
 		--(wider than the old icon-only glyph -- see D4). Bumped from 100%-72 to
-		--100%-112 (+40) to keep the label from clipping the wider control.
-		width = "100%-112",
+		--100%-112 (+40), then to 100%-132 (+20, chunk D10) to make room for the
+		--new stopAllButton alongside globalMuteButton.
+		width = "100%-132",
 		height = "auto",
 		halign = "left",
 		valign = "center",
@@ -1587,16 +1636,17 @@ CreateSoundPanel = function()
 		width = "100%",
 		height = "auto",
 	}
-	local ambienceExtrasSig = nil
-	local ambienceExtras = gui.Panel{
+	local ambienceRowsSig = nil
+	local ambienceRows = gui.Panel{
 		flow = "vertical",
 		width = "100%",
 		height = "auto",
 	}
 
-	--Rebuilds an extras container's children from an extras array (the tracks
-	--NOT shown by the hero card / footer) only when the ordered id signature
-	--differs from last time.
+	--Rebuilds a row container's children from a tracks array only when the ordered
+	--id signature differs from last time. Shared by musicExtras (tracks NOT shown
+	--by the hero card -- everything but the newest) and, since D8, ambienceRows
+	--(every playing ambience bed -- there is no ambience hero card to exclude).
 	local function RefreshExtrasContainer(container, extras, lastSig)
 		local ids = {}
 		for i=1,#extras do
@@ -1614,52 +1664,27 @@ CreateSoundPanel = function()
 		return sig
 	end
 
-	local ambienceName = gui.Label{
+	--Ambience is no longer a single "primary bed + extras" footer line (D8) --
+	--every playing ambience bed is an equal layer, so it gets a header (styled
+	--like subtitleLabel) followed by one row per bed via ambienceRows, exactly
+	--like music's musicExtras rows read below the hero card.
+	local ambienceHeader = gui.Label{
 		classes = {"sizeXs", "fgMuted"},
-		text = "silent",
-		width = "100%-110",
+		text = "Ambience",
+		width = "100%-8",
 		height = "auto",
 		halign = "left",
 		valign = "center",
 		hmargin = 4,
-		textWrap = false,
-		textOverflow = "ellipsis",
 	}
-	local ambienceStop = gui.Panel{
-		classes = {"hidden"},
-		bgimage = "panels/square.png",
-		bgcolor = "white",
-		width = 12,
-		height = 12,
-		halign = "right",
+	local ambienceIdleLabel = gui.Label{
+		classes = {"sizeXs", "fgMuted"},
+		text = "Silent",
+		width = "100%-10",
+		height = "auto",
+		halign = "left",
 		valign = "center",
-		hmargin = 4,
-		press = function(element)
-			if m_ambienceId ~= nil then
-				audio.StopSoundEvent(m_ambienceId)
-			end
-		end,
-		linger = function(element)
-			gui.Tooltip("Stop ambience")(element)
-		end,
-	}
-	local ambienceFooter = gui.Panel{
-		flow = "horizontal",
-		width = "100%",
-		height = 18,
-		valign = "center",
-		vmargin = 1,
-		gui.Label{
-			classes = {"sizeXs", "bold"},
-			text = "Ambience",
-			width = 66,
-			height = "auto",
-			halign = "left",
-			valign = "center",
-			hmargin = 4,
-		},
-		ambienceName,
-		ambienceStop,
+		lmargin = 10,
 	}
 
 	--Idle-state CTA: shown only when nothing is playing at all (replaces
@@ -1743,35 +1768,18 @@ CreateSoundPanel = function()
 		end
 		musicExtrasSig = RefreshExtrasContainer(musicExtras, musicExtrasList, musicExtrasSig)
 
-		--Ambience footer = the OLDEST still-playing bed (stable), with newer
-		--layers appending underneath in start order -- new tracks never displace
-		--existing rows, so the list reads calmly while beds come and go.
+		--Ambience rows -- every playing bed is an equal layer (D8), listed in
+		--start order under the "Ambience" header. No single bed is promoted to
+		--a hero line; ambienceIdleLabel covers the nothing-playing case.
 		local ambienceList = PlayingTracksForCategory("ambience")
-		local aid, aa = nil, nil
-		local ambienceExtrasList = {}
-		if #ambienceList > 0 then
-			aid, aa = ambienceList[1].id, ambienceList[1].asset
-			for i=2,#ambienceList do
-				ambienceExtrasList[#ambienceExtrasList+1] = ambienceList[i]
-			end
-		end
-		m_ambienceId = aid
-		if aa ~= nil then
-			ambienceName.text = DisplayNameForAsset(aa)
-			ambienceName:SetClass("fgMuted", false)
-			ambienceStop:SetClass("hidden", false)
-		else
-			ambienceName.text = "Silent"
-			ambienceName:SetClass("fgMuted", true)
-			ambienceStop:SetClass("hidden", true)
-		end
-		ambienceExtrasSig = RefreshExtrasContainer(ambienceExtras, ambienceExtrasList, ambienceExtrasSig)
+		local ambiencePlaying = #ambienceList > 0
+		ambienceRowsSig = RefreshExtrasContainer(ambienceRows, ambienceList, ambienceRowsSig)
+		ambienceIdleLabel:SetClass("hidden", ambiencePlaying)
 
 		--Idle-state layout: CTA replaces title/subtitle/transport only when BOTH
 		--channels are silent. Music-idle-but-ambience-playing shows "Silent" / "Music"
 		--in the hero slot instead (no CTA -- the table is not actually quiet).
 		local musicPlaying = ma ~= nil
-		local ambiencePlaying = aa ~= nil
 		local nothingPlaying = (not musicPlaying) and (not ambiencePlaying)
 		if nothingPlaying then
 			titleLabel:SetClass("collapsed", true)
@@ -1791,6 +1799,17 @@ CreateSoundPanel = function()
 		end
 
 		globalMuteButton:SetClass("muted", audio.muted)
+
+		--Stop-all (D10) is only shown when something is actually playing, across
+		--ANY category -- not just music/ambience. currentlyPlaying is engine
+		--userdata, not a plain Lua table, so this checks membership by iterating
+		--and bailing on the first entry rather than calling next() on it.
+		local anyPlaying = false
+		for _,_ in pairs(audio.currentlyPlaying) do
+			anyPlaying = true
+			break
+		end
+		stopAllButton:SetClass("hidden", not anyPlaying)
 	end
 
 	--Now-playing section -- replaces the decorative spectrum (brief flagged it as
@@ -1827,6 +1846,7 @@ CreateSoundPanel = function()
 			valign = "center",
 			statusDot,
 			statusLabel,
+			stopAllButton,
 			globalMuteButton,
 			--Icon + "Studio" label chip. NOT a gui.Button: the theme's
 			--{button, hasIcon} rules assume icon-ONLY buttons (square chrome,
@@ -1875,12 +1895,13 @@ CreateSoundPanel = function()
 		subtitleLabel,
 		transportRow,
 		musicExtras,
-		--CTA sits in the hero (Music) slot it replaces, ABOVE the ambience footer,
+		--CTA sits in the hero (Music) slot it replaces, ABOVE the ambience header,
 		--so the idle card reads status -> CTA -> Ambience like the playing card
 		--reads status -> title/transport -> Ambience.
 		ctaBlock,
-		ambienceFooter,
-		ambienceExtras,
+		ambienceHeader,
+		ambienceRows,
+		ambienceIdleLabel,
 	}
 
 	--Master fader + the broadcast Levels faders. The fader helpers (MakeMasterFader /
@@ -2629,7 +2650,7 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 			if audio.currentlyPlaying[audioAsset.id] ~= nil then
 				audio.StopSoundEvent(audioAsset.id)
 			else
-				audio.PlaySoundEvent{ asset = audioAsset, volume = audioAsset.volume }
+				PlayBroadcastClip(audioAsset, { volume = audioAsset.volume })
 			end
 		end,
 		linger = function(element)
@@ -3232,7 +3253,7 @@ local CreateStudioSoundboard = function()
 				else
 					local asset = assets.audioTable[assetid]
 					if asset ~= nil then
-						audio.PlaySoundEvent{ asset = asset, volume = asset.volume }
+						PlayBroadcastClip(asset, { volume = asset.volume })
 					end
 				end
 			end,
@@ -4265,30 +4286,48 @@ local CreateAudioLibraryTree = function()
 	}
 end
 
---Studio now-playing strip -- a slim horizontal bar under the header showing every
---playing track across all categories at once (the dock only surfaces the primary
---music/ambience pair). Collapses to zero height when nothing is playing. Updated
---by the root's refreshAudio -> refreshPlayingAudio tree fire (instant on
+--Fixed category row order for the Studio now-playing strip (D9) -- mirrors the
+--dock's Music/Ambience layout, then Effects, then anything with no category at
+--all under "Unrouted". id is the value stored on asset.category (GetAssetCategoryId
+--normalises nil/"" to "none"); label is the row's display name.
+local STUDIO_STRIP_CATEGORY_ORDER = {
+	{ id = "music", label = "Music" },
+	{ id = "ambience", label = "Ambience" },
+	{ id = "effects", label = "Effects" },
+	{ id = "none", label = "Unrouted" },
+}
+
+--Studio now-playing strip -- a slim area under the header showing every playing
+--track across all categories at once (the dock only surfaces the primary
+--music/ambience pair), as one row per active category (chunk D9) instead of a
+--single flat chip list -- this mirrors the dock's per-category grouping so the
+--two surfaces read the same way. A category with nothing playing gets no row,
+--and the whole strip collapses to zero height when nothing at all is playing.
+--Updated by the root's refreshAudio -> refreshPlayingAudio tree fire (instant on
 --play/stop) plus its own 0.5s poll (a track ending naturally fires no event).
---onVisibility(visible) fires whenever the strip toggles between shown and
---collapsed, so the caller can re-derive any fixed-complement sibling heights.
-local function CreateStudioNowPlayingStrip(onVisibility)
-	local rowsContainer = gui.Panel{
-		flow = "horizontal",
-		width = "auto",
+--onLayout(numRows) fires whenever the ACTIVE ROW COUNT changes (including to/from
+--0), so the caller can re-derive any fixed-complement sibling heights.
+local function CreateStudioNowPlayingStrip(onLayout)
+	local rowsColumn = gui.Panel{
+		flow = "vertical",
+		width = "100%-70",
 		height = "auto",
-		valign = "center",
 	}
 	local lastSig = nil
-	local lastVisible = nil
+	local lastNumRows = nil
 
 	local function CreateChip(id, asset)
 		return gui.Panel{
+			classes = {"bgAlt", "border"},
 			flow = "horizontal",
+			border = 1,
+			cornerRadius = 3,
 			width = "auto",
-			height = "auto",
+			height = 20,
+			hmargin = 4,
+			hpad = 6,
+			borderBox = true,
 			valign = "center",
-			hmargin = 8,
 			gui.Label{
 				classes = {"sizeXs"},
 				text = DisplayNameForAsset(asset),
@@ -4316,32 +4355,84 @@ local function CreateStudioNowPlayingStrip(onVisibility)
 		}
 	end
 
+	--One row per active category: a fixed-width label + that category's chips in
+	--play-start order. table.sort is not needed here -- PlayOrderOf/PlayingTracksForCategory
+	--(module-scoped, chunk D7) already return tracks oldest-first.
+	local function CreateCategoryRow(categoryLabel, entries)
+		local children = {
+			gui.Label{
+				classes = {"sizeXs", "bold"},
+				text = categoryLabel,
+				width = 64,
+				height = "auto",
+				halign = "left",
+				valign = "center",
+			},
+		}
+		for i=1,#entries do
+			children[#children+1] = CreateChip(entries[i].id, entries[i].asset)
+		end
+		return gui.Panel{
+			flow = "horizontal",
+			width = "100%",
+			height = "auto",
+			vmargin = 2,
+			children = children,
+		}
+	end
+
 	local function Refresh(element)
-		local ids = {}
-		local entries = {}
+		--Signature encodes both category grouping AND order within each category
+		--("cat:id" per entry, in display order) so a track moving between
+		--categories or reordering within one triggers a rebuild.
+		local sigParts = {}
+		local rowsByCategory = {}
+		for _,cat in ipairs(STUDIO_STRIP_CATEGORY_ORDER) do
+			rowsByCategory[cat.id] = {}
+		end
 		for assetid,_ in pairs(audio.currentlyPlaying) do
 			local a = assets.audioTable[assetid]
 			if a ~= nil then
-				entries[#entries+1] = { id = assetid, asset = a }
-				ids[#ids+1] = assetid
+				local catId = GetAssetCategoryId(a)
+				if rowsByCategory[catId] == nil then
+					rowsByCategory[catId] = {}
+				end
+				table.insert(rowsByCategory[catId], { id = assetid, asset = a, order = PlayOrderOf(assetid) })
 			end
 		end
-		table.sort(ids)
-		local sig = table.concat(ids, "|")
+
+		--Two passes: compute the signature first, and only CONSTRUCT row panels
+		--when it changed. Building rows unconditionally would orphan a fresh set
+		--of panels on every 0.5s think ("created but not attached" warnings).
+		local numRows = 0
+		local activeRows = {}
+		for _,cat in ipairs(STUDIO_STRIP_CATEGORY_ORDER) do
+			local entries = rowsByCategory[cat.id]
+			if entries ~= nil and #entries > 0 then
+				table.sort(entries, function(x, y) return x.order < y.order end)
+				for _,entry in ipairs(entries) do
+					sigParts[#sigParts+1] = cat.id .. ":" .. entry.id
+				end
+				numRows = numRows + 1
+				activeRows[#activeRows+1] = { label = cat.label, entries = entries }
+			end
+		end
+
+		local sig = table.concat(sigParts, "|")
 		if sig ~= lastSig then
 			local rows = {}
-			for _,entry in ipairs(entries) do
-				rows[#rows+1] = CreateChip(entry.id, entry.asset)
+			for _,row in ipairs(activeRows) do
+				rows[#rows+1] = CreateCategoryRow(row.label, row.entries)
 			end
-			rowsContainer.children = rows
+			rowsColumn.children = rows
 			lastSig = sig
 		end
-		local visible = #entries > 0
-		element:SetClass("collapsed", not visible)
-		if visible ~= lastVisible then
-			lastVisible = visible
-			if onVisibility ~= nil then
-				onVisibility(visible)
+
+		element:SetClass("collapsed", numRows == 0)
+		if numRows ~= lastNumRows then
+			lastNumRows = numRows
+			if onLayout ~= nil then
+				onLayout(numRows)
 			end
 		end
 	end
@@ -4352,7 +4443,7 @@ local function CreateStudioNowPlayingStrip(onVisibility)
 		flow = "horizontal",
 		width = "100%",
 		height = "auto",
-		valign = "center",
+		valign = "top",
 		vmargin = 4,
 
 		create = function(element)
@@ -4366,15 +4457,14 @@ local function CreateStudioNowPlayingStrip(onVisibility)
 			Refresh(element)
 		end,
 
-		gui.Label{ classes = {"bold", "sizeXs"}, text = "Now Playing", width = "auto", height = "auto", halign = "left", valign = "center", hmargin = 4 },
-		rowsContainer,
+		rowsColumn,
 		gui.Button{
 			classes = {"sizeXs"},
 			text = "Stop all",
 			width = "auto",
 			height = 20,
 			halign = "right",
-			valign = "center",
+			valign = "top",
 			hmargin = 4,
 			press = function(element)
 				audio.StopAllSoundEvents()
@@ -4460,12 +4550,12 @@ CreateAudioStudio = function()
 		rightColumn,
 	}
 
-	--The now-playing strip toggles between zero height (idle) and one chip row
-	--(~28px) when tracks play; body's fixed height complement must follow or
-	--the columns overflow the window bottom while the strip is shown.
-	local nowPlayingStrip = CreateStudioNowPlayingStrip(function(visible)
-		if visible then
-			body.selfStyle.height = "100%-120"
+	--The now-playing strip toggles between zero height (idle) and one row per
+	--active category (~26px each, chunk D9); body's fixed height complement must
+	--follow or the columns overflow the window bottom while the strip is shown.
+	local nowPlayingStrip = CreateStudioNowPlayingStrip(function(numRows)
+		if numRows > 0 then
+			body.selfStyle.height = "100%-" .. tostring(92 + numRows * 26 + 8)
 		else
 			body.selfStyle.height = "100%-92"
 		end

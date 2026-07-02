@@ -1379,20 +1379,41 @@ CreateSoundPanel = function()
 		},
 	}
 
-	--All clips currently playing for a category (Music/Ambience), found by scanning
-	--audio.currentlyPlaying. Sorted by elapsed .time ascending -- the most recently
-	--started track has the smallest elapsed time, so it sorts first and is treated
-	--as the primary (hero card / footer) track. ev.time can be nil briefly right
-	--after a track starts; treated as 0 so it still sorts to the front.
-	local function PlayingTracksForCategory(cat)
-		local list = {}
-		for assetid,ev in pairs(audio.currentlyPlaying) do
-			local a = assets.audioTable[assetid]
-			if a ~= nil and a.category == cat then
-				list[#list+1] = { id = assetid, asset = a, elapsed = (ev ~= nil and ev.time) or 0 }
+	--Play-start order registry. audio.currentlyPlaying keys have no stable
+	--ordering, and a looping track's elapsed .time resets to 0 on every loop --
+	--sorting by elapsed made the "most recent" track cycle whenever a loop
+	--restarted (visually distracting). Instead each playing id gets a
+	--monotonically increasing sequence number the first time it is seen;
+	--ids that stop are pruned so a later replay re-registers as new.
+	local m_playOrder = {}
+	local m_playOrderNext = 1
+	local function PlayOrderOf(assetid)
+		if m_playOrder[assetid] == nil then
+			m_playOrder[assetid] = m_playOrderNext
+			m_playOrderNext = m_playOrderNext + 1
+		end
+		return m_playOrder[assetid]
+	end
+	local function PrunePlayOrder()
+		for assetid,_ in pairs(m_playOrder) do
+			if audio.currentlyPlaying[assetid] == nil then
+				m_playOrder[assetid] = nil
 			end
 		end
-		table.sort(list, function(x, y) return x.elapsed < y.elapsed end)
+	end
+
+	--All clips currently playing for a category (Music/Ambience), found by
+	--scanning audio.currentlyPlaying. Sorted by play-start order ascending
+	--(oldest first) -- stable across loop restarts.
+	local function PlayingTracksForCategory(cat)
+		local list = {}
+		for assetid,_ in pairs(audio.currentlyPlaying) do
+			local a = assets.audioTable[assetid]
+			if a ~= nil and a.category == cat then
+				list[#list+1] = { id = assetid, asset = a, order = PlayOrderOf(assetid) }
+			end
+		end
+		table.sort(list, function(x, y) return x.order < y.order end)
 		return list
 	end
 
@@ -1526,7 +1547,10 @@ CreateSoundPanel = function()
 			vmargin = 1,
 			lmargin = 10,
 			gui.Label{
-				classes = {"sizeXs", "fgMuted"},
+				--Same non-muted color as the primary track's name: every row here
+				--is equally "playing", so a dimmer tint would misread as a
+				--different (inactive) state.
+				classes = {"sizeXs"},
 				text = DisplayNameForAsset(asset),
 				width = "100%-20",
 				height = "auto",
@@ -1570,21 +1594,21 @@ CreateSoundPanel = function()
 		height = "auto",
 	}
 
-	--Rebuilds an extras container's children from `list[2..]` (list[1] is the
-	--primary track, already shown by the hero card / footer) only when the ordered
-	--id signature differs from last time.
-	local function RefreshExtrasContainer(container, list, lastSig)
+	--Rebuilds an extras container's children from an extras array (the tracks
+	--NOT shown by the hero card / footer) only when the ordered id signature
+	--differs from last time.
+	local function RefreshExtrasContainer(container, extras, lastSig)
 		local ids = {}
-		for i=2,#list do
-			ids[#ids+1] = list[i].id
+		for i=1,#extras do
+			ids[#ids+1] = extras[i].id
 		end
 		local sig = table.concat(ids, "|")
 		if sig == lastSig then
 			return sig
 		end
 		local rows = {}
-		for i=2,#list do
-			rows[#rows+1] = CreateExtraTrackRow(list[i].id, list[i].asset)
+		for i=1,#extras do
+			rows[#rows+1] = CreateExtraTrackRow(extras[i].id, extras[i].asset)
 		end
 		container.children = rows
 		return sig
@@ -1679,10 +1703,19 @@ CreateSoundPanel = function()
 		local anthemState = rawget(_G, "g_drawSteelAnthemState")
 		local ducked = anthemState ~= nil and anthemState.duckActive == true
 
+		PrunePlayOrder()
+
+		--Music hero = the most recently STARTED track (starting a new track is
+		--an intentional act, so it takes the big slot); earlier tracks remain
+		--as extra rows in start order.
 		local musicList = PlayingTracksForCategory("music")
 		local mid, ma = nil, nil
+		local musicExtrasList = {}
 		if #musicList > 0 then
-			mid, ma = musicList[1].id, musicList[1].asset
+			mid, ma = musicList[#musicList].id, musicList[#musicList].asset
+			for i=1,#musicList-1 do
+				musicExtrasList[#musicExtrasList+1] = musicList[i]
+			end
 		end
 		m_musicId = mid
 		if ma ~= nil then
@@ -1708,12 +1741,19 @@ CreateSoundPanel = function()
 			timeTotal.text = ""
 			progressFill.selfStyle.width = "0%"
 		end
-		musicExtrasSig = RefreshExtrasContainer(musicExtras, musicList, musicExtrasSig)
+		musicExtrasSig = RefreshExtrasContainer(musicExtras, musicExtrasList, musicExtrasSig)
 
+		--Ambience footer = the OLDEST still-playing bed (stable), with newer
+		--layers appending underneath in start order -- new tracks never displace
+		--existing rows, so the list reads calmly while beds come and go.
 		local ambienceList = PlayingTracksForCategory("ambience")
 		local aid, aa = nil, nil
+		local ambienceExtrasList = {}
 		if #ambienceList > 0 then
 			aid, aa = ambienceList[1].id, ambienceList[1].asset
+			for i=2,#ambienceList do
+				ambienceExtrasList[#ambienceExtrasList+1] = ambienceList[i]
+			end
 		end
 		m_ambienceId = aid
 		if aa ~= nil then
@@ -1725,7 +1765,7 @@ CreateSoundPanel = function()
 			ambienceName:SetClass("fgMuted", true)
 			ambienceStop:SetClass("hidden", true)
 		end
-		ambienceExtrasSig = RefreshExtrasContainer(ambienceExtras, ambienceList, ambienceExtrasSig)
+		ambienceExtrasSig = RefreshExtrasContainer(ambienceExtras, ambienceExtrasList, ambienceExtrasSig)
 
 		--Idle-state layout: CTA replaces title/subtitle/transport only when BOTH
 		--channels are silent. Music-idle-but-ambience-playing shows "Silent" / "Music"
@@ -1788,10 +1828,16 @@ CreateSoundPanel = function()
 			statusDot,
 			statusLabel,
 			globalMuteButton,
-			gui.Button{
-				classes = {"sizeXs"},
-				icon = "icons/standard/Icon_App_GameControls.png",
-				text = "Studio",
+			--Icon + "Studio" label chip. NOT a gui.Button: the theme's
+			--{button, hasIcon} rules assume icon-ONLY buttons (square chrome,
+			--icon child stretched to 100%), so icon+text through gui.Button
+			--renders the glyph smeared across the label. Composite instead:
+			--a bordered hoverable panel with a fixed-size tinted icon + label.
+			gui.Panel{
+				classes = {"bgAlt", "border", "hoverable"},
+				flow = "horizontal",
+				border = 1,
+				cornerRadius = 3,
 				width = "auto",
 				height = 20,
 				halign = "right",
@@ -1805,6 +1851,23 @@ CreateSoundPanel = function()
 				linger = function(element)
 					gui.Tooltip("Open Audio Studio")(element)
 				end,
+				gui.Panel{
+					--buttonIcon supplies the @fg tint; inline size overrides the
+					--class's 100% fill so the glyph stays square.
+					classes = {"buttonIcon"},
+					bgimage = "icons/standard/Icon_App_GameControls.png",
+					width = 13,
+					height = 13,
+					valign = "center",
+				},
+				gui.Label{
+					classes = {"sizeXs"},
+					text = "Studio",
+					width = "auto",
+					height = "auto",
+					valign = "center",
+					lmargin = 4,
+				},
 			},
 		},
 

@@ -2148,11 +2148,6 @@ end
 --themed dock host), so it owns its ThemeEngine root: GetStyles() + a paired
 --OnThemeChanged so it recolors live on a scheme switch.
 
---Last category chosen at upload THIS SESSION (not persisted); falls back to
---"music" on first use each session. C7's pre-upload popup remembers this so
---uploading a batch of the same kind of clip does not require re-picking each time.
-local g_lastUploadCategory = "music"
-
 --Stamp the chosen category onto a newly uploaded asset. The upload callback fires
 --when the file TRANSFER completes, but the asset only appears in assets.audioTable
 --once the cloud echo lands -- typically AFTER that callback (verified live), so a
@@ -2172,12 +2167,10 @@ local function StampUploadedAudioAsset(assetid, category, attemptsLeft)
 	end)
 end
 
---File-choose + upload flow (the second half of C7, after the category popup below
---commits a category and calls this). Unchanged upload mechanics; the only addition
---is stamping the chosen category onto each newly uploaded asset once the id is
---known, and remembering the choice for next time.
+--File-choose + upload flow (the second half of C7; the Add-audio menu below picks
+--the category and calls this). Unchanged upload mechanics; the only addition is
+--stamping the chosen category onto each newly uploaded asset once the id is known.
 local function DoAudioStudioUpload(category)
-	g_lastUploadCategory = category
 	dmhub.OpenFileDialog{
 		id = 'AudioAssets',
 		extensions = {'ogg', 'mp3', 'wav', 'flac'},
@@ -2209,92 +2202,33 @@ local function DoAudioStudioUpload(category)
 	}
 end
 
---Upload action for the Studio toolbar "+ Add audio" (C7): a small pre-upload popup
---asking for the category up front (defaulting to the last one chosen this session)
---rather than leaving every new clip uncategorised until the DM visits the row
---dropdown later. Popups are reparented to the popup layer and do not inherit the
---Studio cascade, so this routes its own ThemeEngine snapshot (transient, mirrors
---the soundboard assign popup / color swatch popup pattern elsewhere in this file).
+--Upload action for the Studio toolbar "+ Add audio" (C7, reshaped per James's
+--field feedback): a menu of the three categories going straight to the native file
+--dialog. One explicit choice per upload -- no popup to parse, no stale "last used"
+--default -- and a multi-file selection gets the chosen category as a batch.
 local OpenAudioStudioUpload = function(buttonElement)
-	local chosen = g_lastUploadCategory or "music"
-
-	local categoryDropdown = gui.Dropdown{
-		width = 150,
-		height = 24,
-		valign = "center",
-		options = {
-			{ id = "music", text = "Music" },
-			{ id = "ambience", text = "Ambience" },
-			{ id = "effects", text = "Effects" },
-		},
-		idChosen = chosen,
-		change = function(element)
-			chosen = element.idChosen
-		end,
-	}
-
-	buttonElement.popup = gui.Panel{
-		styles = ThemeEngine.MergeStyles{},
-		classes = {"framedPanel"},
-		width = 260,
-		height = "auto",
-		flow = "vertical",
-		pad = 10,
-		borderBox = true,
-
-		gui.Label{
-			classes = {"bold", "sizeS"},
-			text = "Add audio",
-			width = "auto",
-			height = "auto",
-			halign = "left",
-			vmargin = 2,
-		},
-
-		gui.Panel{
-			flow = "horizontal",
-			width = "100%",
-			height = "auto",
-			valign = "center",
-			vmargin = 4,
-			gui.Label{
-				classes = {"sizeXs"},
-				text = "Category",
-				width = "auto",
-				height = "auto",
-				halign = "left",
-				valign = "center",
-				hmargin = 4,
-			},
-			categoryDropdown,
-		},
-
-		gui.Panel{
-			flow = "horizontal",
-			width = "100%",
-			height = "auto",
-			halign = "right",
-			valign = "center",
-			vmargin = 6,
-			gui.Button{
-				classes = {"sizeXs"},
-				text = "Cancel",
-				width = "auto",
-				height = 24,
-				hmargin = 3,
-				press = function()
+	buttonElement.popup = gui.ContextMenu{
+		width = 180,
+		entries = {
+			{
+				text = "Add Music",
+				click = function()
 					buttonElement.popup = nil
+					DoAudioStudioUpload("music")
 				end,
 			},
-			gui.Button{
-				classes = {"sizeXs"},
-				text = "Choose Files...",
-				width = "auto",
-				height = 24,
-				hmargin = 3,
-				press = function()
+			{
+				text = "Add Ambience",
+				click = function()
 					buttonElement.popup = nil
-					DoAudioStudioUpload(chosen)
+					DoAudioStudioUpload("ambience")
+				end,
+			},
+			{
+				text = "Add Effects",
+				click = function()
+					buttonElement.popup = nil
+					DoAudioStudioUpload("effects")
 				end,
 			},
 		},
@@ -3835,13 +3769,26 @@ local CreateAudioLibraryTree = function()
 						text = "Set category for all clips in this folder",
 						submenu = CategorySubmenuEntries(function(category)
 							element.popup = nil
-							--Read directly from the live asset table (not the closure's
-							--clipsByFolder) so this applies to every direct, non-hidden
-							--clip in the folder even while a library search filter has
-							--narrowed clipsByFolder down to only the matching clips.
+							--RECURSIVE (James's field call): applies to the folder's own
+							--clips AND every clip in descendant subfolders, so bulk-setting
+							--"Effects" from the top folder routes its whole subtree. Reads
+							--the live asset/folder tables (not the closure's clipsByFolder)
+							--so an active library search filter cannot narrow the target
+							--set. The visited guard stops a malformed parentFolder cycle.
+							local targetFolders = { [folderid] = true }
+							local added = true
+							while added do
+								added = false
+								for fid,f in pairs(assets.audioFoldersTable) do
+									if not targetFolders[fid] and f.parentFolder ~= nil and targetFolders[f.parentFolder] then
+										targetFolders[fid] = true
+										added = true
+									end
+								end
+							end
 							local ids = {}
 							for id,asset in pairs(assets.audioTable) do
-								if not asset.hidden and (asset.parentFolder or defaultFolder) == folderid then
+								if not asset.hidden and targetFolders[asset.parentFolder or defaultFolder] then
 									ids[#ids+1] = id
 								end
 							end

@@ -887,7 +887,6 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 		bgcolor = "clear",
 		width = 56,
 		height = 16,
-		halign = "left",
 		valign = "center",
 		borderBox = true,
 		swallowPress = true,
@@ -923,7 +922,7 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 		bgimage = "panels/square.png",
 		width = 14,
 		height = 14,
-		halign = "right",
+		hmargin = 4,
 		valign = "center",
 		popupPositioning = "panel",
 		swallowPress = true,
@@ -985,17 +984,16 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 	--only visible on filled buttons in edit mode (style-gated on the row itself, see
 	--AudioSoundboardButtonStyles). Being an in-flow row keeps both affordances off
 	--the rounded corners (the old absolute-corner swatch touched the curved border).
+	--Auto width so the Delete + swatch pair shrinks to fit and centers as a unit
+	--at the bottom of the button (James: centred, next to each other).
 	local editRow = gui.Panel{
 		classes = {"audioSbEditRow"},
 		flow = "horizontal",
-		width = "100%",
+		width = "auto",
 		height = 18,
 		halign = "center",
 		valign = "bottom",
 		deleteButton,
-		--Flex spacer pushes the swatch to the row's right edge (deterministic
-		--complement: 56 Delete + 14 swatch = 70).
-		gui.Panel{ width = "100%-70", height = 1 },
 		swatchButton,
 	}
 

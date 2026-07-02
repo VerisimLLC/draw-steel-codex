@@ -4203,6 +4203,39 @@ CreateAudioStudio = function()
 					element:SetClassTree("themeRefreshTick", element.data.themeTick == true)
 				end
 			end)
+
+			--The launchable-panel host adds its floating close X BEFORE the content
+			--panel, and paint order follows child order, so this root's opaque
+			--themed surface covers the X. Move the host's close button to the end
+			--of its children so it paints above us. At create time we are not yet
+			--parented (the host constructs content first), so retry briefly on a
+			--schedule. No-ops once the button is already last (e.g. on engine
+			--builds where game-hud-menu.txt orders it after the content).
+			local attempts = 0
+			local function RaiseHostCloseButton()
+				if mod.unloaded or (not element.valid) then
+					return
+				end
+				local host = element.parent
+				if host ~= nil then
+					local kids = host.children
+					if kids[#kids] ~= nil and kids[#kids]:HasClass("closeButton") then
+						return
+					end
+					for _,child in ipairs(kids) do
+						if child ~= element and child:HasClass("closeButton") then
+							host:AddChild(child)
+							return
+						end
+					end
+					return
+				end
+				attempts = attempts + 1
+				if attempts < 20 then
+					dmhub.Schedule(0.1, RaiseHostCloseButton)
+				end
+			end
+			RaiseHostCloseButton()
 		end,
 		destroy = function(element)
 			if element.data.themeSub ~= nil then

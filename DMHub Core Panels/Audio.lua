@@ -1994,24 +1994,29 @@ CreateSoundPanel = function()
 			}
 
 			local previewButton
+			--Last master level applied by the row think's mid-preview re-scale; the
+			--think only rewrites the preview volume when the master fader actually
+			--moved, so it cannot stomp the volume slider's live drag-preview value
+			--(which uses the not-yet-committed drag value) every poll.
+			local lastAppliedMaster = nil
 
-			--Swap the glyph between a play triangle and a stop square depending on
-			--whether THIS row's anthem is the one currently previewing (the square
-			--png reads as a stop regardless of the inherited 90deg rotate).
+			--Swap the glyph between the headphones cue glyph and a stop square
+			--depending on whether THIS row's anthem is the one currently previewing.
+			--No rotate on this button (unlike the old triangle) since the headphones
+			--glyph and the stop square both read fine upright.
 			local UpdatePreviewIcon = function()
 				if previewButton == nil then
 					return
 				end
 				local previewing = previewingCharid == charid and previewInstance ~= nil and previewInstance.playing
-				previewButton.bgimage = previewing and "panels/square.png" or "panels/triangle.png"
+				previewButton.bgimage = previewing and "panels/square.png" or "icons/icon_app/icon_app_23.png"
 			end
 
 			previewButton = gui.Panel{
-				bgimage = "panels/triangle.png",
+				bgimage = "icons/icon_app/icon_app_23.png",
 				bgcolor = "white",
-				rotate = 90,
-				width = 12,
-				height = 12,
+				width = 14,
+				height = 14,
 				halign = "right",
 				valign = "center",
 				hmargin = 4,
@@ -2037,9 +2042,12 @@ CreateSoundPanel = function()
 					previewInstance = asset:Play()
 					previewingCharid = charid
 					if previewInstance ~= nil then
-						previewInstance.volume = t.anthemVolume or 1
+						previewInstance.volume = (t.anthemVolume or 1) * audio.masterVolume
 					end
 					UpdatePreviewIcon()
+				end,
+				linger = function(element)
+					gui.Tooltip("Preview (only you)")(element)
 				end,
 			}
 
@@ -2060,7 +2068,7 @@ CreateSoundPanel = function()
 				--audible immediately rather than only on stop/start.
 				preview = function(element)
 					if previewingCharid == charid and previewInstance ~= nil and previewInstance.playing then
-						previewInstance.volume = element.value
+						previewInstance.volume = element.value * audio.masterVolume
 					end
 				end,
 				--Commit on release. Writing token.anthemVolume + UploadAppearance also
@@ -2073,7 +2081,7 @@ CreateSoundPanel = function()
 					t.anthemVolume = element.value
 					t:UploadAppearance()
 					if previewingCharid == charid and previewInstance ~= nil and previewInstance.playing then
-						previewInstance.volume = element.value
+						previewInstance.volume = element.value * audio.masterVolume
 					end
 				end,
 			}
@@ -2110,6 +2118,17 @@ CreateSoundPanel = function()
 						previewingCharid = nil
 					end
 					UpdatePreviewIcon()
+					--Re-apply master scaling when the master fader moves mid-preview.
+					--Gated on the master actually changing so this poll never fights
+					--the volume slider's live drag-preview writes.
+					if previewingCharid == charid and previewInstance ~= nil and previewInstance.playing then
+						if lastAppliedMaster ~= audio.masterVolume then
+							lastAppliedMaster = audio.masterVolume
+							previewInstance.volume = (t.anthemVolume or 1) * audio.masterVolume
+						end
+					else
+						lastAppliedMaster = nil
+					end
 					--rawget: g_drawSteelAnthemState is published by MCDMInitiativeBar;
 					--rawget avoids the uninitialized-global read error if that file is
 					--ever absent, instead of erroring every think tick.
@@ -2550,9 +2569,12 @@ end
 --tree's drag wiring (draggable / canDragOnto / drag) so a clip can be dragged into
 --a folder; it is nil when the row is used outside the tree.
 --DM-only audition ("cue"): only one library clip previews at a time. asset:Play()
---is local-only (never broadcast) and bypasses the mix groups/master, so a cue is raw
---local playback for "does this track fit", not a level-matched monitor. Tracked at
---module scope so starting a cue in one row stops the cue in another.
+--is local-only (never broadcast) and bypasses the mix groups, so a cue is not a
+--level-matched monitor of what the table hears -- but its volume is scaled by
+--audio.masterVolume (applied at cue start and refreshed on the cueButton's think)
+--so it at least tracks the DM's master fader instead of blasting at raw asset
+--volume. Tracked at module scope so starting a cue in one row stops the cue in
+--another.
 local g_studioCueInstance = nil
 local g_studioCueAssetId = nil
 local function StopStudioCue()
@@ -2654,17 +2676,18 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 			end
 		end,
 		linger = function(element)
-			gui.Tooltip("Play to the table")(element)
+			gui.Tooltip("Play to table")(element)
 		end,
 	}
 
-	--DM-only audition (the eye glyph stands in for a headphone -- no headphone icon
-	--ships). Local asset:Play(); turns "active" (green) while this row is cueing and
-	--polls so it clears when the clip ends or another row takes over.
+	--DM-only audition: headphones glyph (icon_app_23) stands in for "only you hear
+	--this" -- a placeholder until better art lands (glyph upgrade bucket, plan M0).
+	--Local asset:Play(); turns "active" (green) while this row is cueing and polls
+	--so it clears when the clip ends or another row takes over.
 	local cueButton
 	cueButton = gui.Panel{
 		classes = {"audioCueButton"},
-		bgimage = "icons/standard/Icon_App_Visible.png",
+		bgimage = "icons/icon_app/icon_app_23.png",
 		width = 18,
 		height = 18,
 		valign = "center",
@@ -2677,7 +2700,7 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 				g_studioCueInstance = audioAsset:Play()
 				g_studioCueAssetId = audioAsset.id
 				if g_studioCueInstance ~= nil then
-					g_studioCueInstance.volume = audioAsset.volume
+					g_studioCueInstance.volume = audioAsset.volume * audio.masterVolume
 				end
 			end
 			element:FireEvent("refreshCue")
@@ -2693,13 +2716,17 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 			if not StudioCueActive(audioAsset.id) then
 				element:SetClass("active", false)
 				element.thinkTime = nil
+			else
+				--Re-apply master scaling each poll so dragging the master fader
+				--mid-cue takes effect immediately, not just at cue start.
+				g_studioCueInstance.volume = audioAsset.volume * audio.masterVolume
 			end
 		end,
 		create = function(element)
 			element:FireEvent("refreshCue")
 		end,
 		linger = function(element)
-			gui.Tooltip("Preview (Director Only)")(element)
+			gui.Tooltip("Preview (only you)")(element)
 		end,
 	}
 
@@ -4624,7 +4651,7 @@ CreateAudioStudio = function()
 		{ selectors = {"audioBroadcastButton"}, bgcolor = "white" },
 		{ selectors = {"audioBroadcastButton", "hover"}, brightness = 1.4 },
 		{ selectors = {"audioBroadcastButton", "playing"}, bgcolor = "@warning" },
-		--DM cue (eye): dim until hovered; green while this row is auditioning locally.
+		--DM cue (headphones): dim until hovered; green while this row is auditioning locally.
 		{ selectors = {"audioCueButton"}, bgcolor = "white", opacity = 0.55 },
 		{ selectors = {"audioCueButton", "hover"}, opacity = 1 },
 		{ selectors = {"audioCueButton", "active"}, bgcolor = "@success", opacity = 1 },

@@ -4288,25 +4288,29 @@ end
 
 --Fixed category row order for the Studio now-playing strip (D9) -- mirrors the
 --dock's Music/Ambience layout, then Effects, then anything with no category at
---all under "Unrouted". id is the value stored on asset.category (GetAssetCategoryId
---normalises nil/"" to "none"); label is the row's display name.
+--all under "Uncategorised". id is the value stored on asset.category
+--(GetAssetCategoryId normalises nil/"" to "none"); label is the row's display
+--name. Music and Ambience rows are RESERVED (James, 2026-07-02): they render
+--"Silent" when idle instead of disappearing, so the Studio layout does not
+--grow and shrink as tracks start and stop. Effects/Uncategorised rows stay
+--transient -- one-shots are brief and rarely playing.
 local STUDIO_STRIP_CATEGORY_ORDER = {
-	{ id = "music", label = "Music" },
-	{ id = "ambience", label = "Ambience" },
+	{ id = "music", label = "Music", reserved = true },
+	{ id = "ambience", label = "Ambience", reserved = true },
 	{ id = "effects", label = "Effects" },
-	{ id = "none", label = "Unrouted" },
+	{ id = "none", label = "Uncategorised" },
 }
 
---Studio now-playing strip -- a slim area under the header showing every playing
---track across all categories at once (the dock only surfaces the primary
---music/ambience pair), as one row per active category (chunk D9) instead of a
+--Studio now-playing strip -- a slim always-visible area under the header showing
+--every playing track across all categories at once (the dock only surfaces the
+--primary music/ambience pair), as one row per category (chunk D9) instead of a
 --single flat chip list -- this mirrors the dock's per-category grouping so the
---two surfaces read the same way. A category with nothing playing gets no row,
---and the whole strip collapses to zero height when nothing at all is playing.
+--two surfaces read the same way. Music/Ambience rows are always present ("Silent"
+--when idle); other categories appear only while something of theirs plays.
 --Updated by the root's refreshAudio -> refreshPlayingAudio tree fire (instant on
 --play/stop) plus its own 0.5s poll (a track ending naturally fires no event).
---onLayout(numRows) fires whenever the ACTIVE ROW COUNT changes (including to/from
---0), so the caller can re-derive any fixed-complement sibling heights.
+--onLayout(numRows) fires whenever the ROW COUNT changes (always >= 2 with the
+--reserved rows), so the caller can re-derive any fixed-complement sibling heights.
 local function CreateStudioNowPlayingStrip(onLayout)
 	local rowsColumn = gui.Panel{
 		flow = "vertical",
@@ -4315,6 +4319,21 @@ local function CreateStudioNowPlayingStrip(onLayout)
 	}
 	local lastSig = nil
 	local lastNumRows = nil
+
+	--Hidden while nothing plays (a dead control at rest); the strip itself stays
+	--visible with its reserved rows, so toggling this never changes the height.
+	local stopAllButton = gui.Button{
+		classes = {"sizeXs", "hidden"},
+		text = "Stop all",
+		width = "auto",
+		height = 20,
+		halign = "right",
+		valign = "top",
+		hmargin = 4,
+		press = function(element)
+			audio.StopAllSoundEvents()
+		end,
+	}
 
 	local function CreateChip(id, asset)
 		return gui.Panel{
@@ -4355,8 +4374,11 @@ local function CreateStudioNowPlayingStrip(onLayout)
 		}
 	end
 
-	--One row per active category: a fixed-width label + that category's chips in
-	--play-start order. table.sort is not needed here -- PlayOrderOf/PlayingTracksForCategory
+	--One row per category: a fixed-width label + that category's chips in
+	--play-start order (or a muted "Silent" for an idle reserved row -- matching
+	--the dock's idle vocabulary). Fixed height so an idle row occupies exactly
+	--the space its chips will: the strip never grows or shrinks as tracks start
+	--and stop. table.sort is not needed here -- PlayOrderOf/PlayingTracksForCategory
 	--(module-scoped, chunk D7) already return tracks oldest-first.
 	local function CreateCategoryRow(categoryLabel, entries)
 		local children = {
@@ -4369,13 +4391,25 @@ local function CreateStudioNowPlayingStrip(onLayout)
 				valign = "center",
 			},
 		}
+		if #entries == 0 then
+			children[#children+1] = gui.Label{
+				classes = {"sizeXs", "fgMuted"},
+				text = "Silent",
+				width = "auto",
+				height = "auto",
+				halign = "left",
+				valign = "center",
+				hmargin = 4,
+			}
+		end
 		for i=1,#entries do
 			children[#children+1] = CreateChip(entries[i].id, entries[i].asset)
 		end
 		return gui.Panel{
 			flow = "horizontal",
 			width = "100%",
-			height = "auto",
+			height = 24,
+			valign = "center",
 			vmargin = 2,
 			children = children,
 		}
@@ -4404,7 +4438,10 @@ local function CreateStudioNowPlayingStrip(onLayout)
 		--Two passes: compute the signature first, and only CONSTRUCT row panels
 		--when it changed. Building rows unconditionally would orphan a fresh set
 		--of panels on every 0.5s think ("created but not attached" warnings).
+		--Reserved rows (Music/Ambience) are always emitted, idle or not, with a
+		--"-" marker in the signature so idle <-> playing transitions rebuild.
 		local numRows = 0
+		local anyPlaying = false
 		local activeRows = {}
 		for _,cat in ipairs(STUDIO_STRIP_CATEGORY_ORDER) do
 			local entries = rowsByCategory[cat.id]
@@ -4413,8 +4450,13 @@ local function CreateStudioNowPlayingStrip(onLayout)
 				for _,entry in ipairs(entries) do
 					sigParts[#sigParts+1] = cat.id .. ":" .. entry.id
 				end
+				anyPlaying = true
 				numRows = numRows + 1
 				activeRows[#activeRows+1] = { label = cat.label, entries = entries }
+			elseif cat.reserved then
+				sigParts[#sigParts+1] = cat.id .. ":-"
+				numRows = numRows + 1
+				activeRows[#activeRows+1] = { label = cat.label, entries = {} }
 			end
 		end
 
@@ -4428,7 +4470,7 @@ local function CreateStudioNowPlayingStrip(onLayout)
 			lastSig = sig
 		end
 
-		element:SetClass("collapsed", numRows == 0)
+		stopAllButton:SetClass("hidden", not anyPlaying)
 		if numRows ~= lastNumRows then
 			lastNumRows = numRows
 			if onLayout ~= nil then
@@ -4437,9 +4479,10 @@ local function CreateStudioNowPlayingStrip(onLayout)
 		end
 	end
 
+	--Always visible -- the reserved rows give the strip a constant footprint, so
+	--there is no collapsed state to toggle.
 	local strip
 	strip = gui.Panel{
-		classes = {"collapsed"},
 		flow = "horizontal",
 		width = "100%",
 		height = "auto",
@@ -4458,18 +4501,7 @@ local function CreateStudioNowPlayingStrip(onLayout)
 		end,
 
 		rowsColumn,
-		gui.Button{
-			classes = {"sizeXs"},
-			text = "Stop all",
-			width = "auto",
-			height = 20,
-			halign = "right",
-			valign = "top",
-			hmargin = 4,
-			press = function(element)
-				audio.StopAllSoundEvents()
-			end,
-		},
+		stopAllButton,
 	}
 
 	return strip
@@ -4550,15 +4582,12 @@ CreateAudioStudio = function()
 		rightColumn,
 	}
 
-	--The now-playing strip toggles between zero height (idle) and one row per
-	--active category (~26px each, chunk D9); body's fixed height complement must
-	--follow or the columns overflow the window bottom while the strip is shown.
+	--The now-playing strip always shows at least the two reserved rows (Music /
+	--Ambience) and can add Effects/Uncategorised rows while one-shots play (24px
+	--rows + 2px margins + the strip's own 4px margins); body's fixed height
+	--complement must follow or the columns overflow the window bottom.
 	local nowPlayingStrip = CreateStudioNowPlayingStrip(function(numRows)
-		if numRows > 0 then
-			body.selfStyle.height = "100%-" .. tostring(92 + numRows * 26 + 8)
-		else
-			body.selfStyle.height = "100%-92"
-		end
+		body.selfStyle.height = "100%-" .. tostring(92 + numRows * 28 + 8)
 	end)
 
 	--Title centred across the top of the panel.

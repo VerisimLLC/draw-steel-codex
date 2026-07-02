@@ -77,10 +77,12 @@ end
 --not a shared instance.
 local function MakeMasterFader()
 	return gui.Slider{
+		--halign="right" removed (chunk F, L2): the default left-align sits the
+		--slider immediately after its 76px label in MakeFaderRow, instead of
+		--pushed to the row's far right with a gap between them.
 		style = {
 			width = 170,
 			height = 16,
-			halign = "right",
 			valign = "center",
 		},
 
@@ -121,10 +123,11 @@ end
 --previews live while dragging, and repaints + re-pushes on a remote change.
 local function MakeBroadcastFader(groupid)
 	return gui.Slider{
+		--halign="right" removed (chunk F, L2): matches MakeMasterFader -- default
+		--left-align sits the slider immediately after its label.
 		style = {
 			width = 170,
 			height = 16,
-			halign = "right",
 			valign = "center",
 		},
 
@@ -462,29 +465,50 @@ local STUDIO_SLOTS = 12
 --unified CreateSoundboardButton (surface="dock"); the grid rebuilds its 12 buttons
 --whenever the board number cycles (SetGridNumber) since that is simpler and no more
 --expensive than threading the new board through every button's refreshGrid.
+--Fixed grid dimensions (chunk F, P4): 3 columns x (110 button + 2+2 hmargins) =
+--342; 4 rows x (62 + 2+2 vmargins) = 264. A deterministic size (instead of the old
+--wrap=true/width=100%/height=auto auto-flow) is cheap to lay out AND reports its
+--true height correctly -- the old auto-height wrap was under-measuring, which is
+--why the dock's vscroll body could not be scrolled all the way to the bottom.
+--halign="center" also satisfies the centering ask for free once the box has a
+--known width. Shared by both surfaces (see CreateStudioSoundboard's gridPanel).
+local AUDIO_SB_GRID_WIDTH = 342
+local AUDIO_SB_GRID_HEIGHT = 264
+
 local CreatePlayerGrid = function()
 	local resultPanel
 	local gridNumber = 1
 
+	local function GetBoard()
+		return gridNumber
+	end
+
+	--Built ONCE (chunk F, P2): the 12 buttons are constructed a single time with a
+	--getBoard getter, not rebuilt on every board switch. SetGridNumber below just
+	--updates gridNumber and fires refreshGrid across the subtree so each button
+	--recomputes its own docid.
 	local function BuildSlots()
 		local children = {}
 		for i=1,STUDIO_SLOTS do
-			children[#children+1] = CreateSoundboardButton(gridNumber, i, { surface = "dock" })
+			children[#children+1] = CreateSoundboardButton(nil, i, { surface = "dock", getBoard = GetBoard })
 		end
 		resultPanel.children = children
 	end
 
 	resultPanel = gui.Panel{
 		flow = "horizontal",
-		width = "100%",
-		height = "auto",
 		wrap = true,
+		width = AUDIO_SB_GRID_WIDTH,
+		height = AUDIO_SB_GRID_HEIGHT,
+		halign = "center",
 		data = {
 			gridNumber = 1,
+			--No-rebuild board switch (chunk F, P2): DELETE the old BuildSlots-on-switch
+			--rebuild. Only the initial BuildSlots() below still constructs buttons.
 			SetGridNumber = function(num)
 				gridNumber = num
 				resultPanel.data.gridNumber = num
-				BuildSlots()
+				resultPanel:FireEventTree("refreshGrid")
 			end,
 		},
 	}
@@ -715,9 +739,11 @@ local function CreateCategoryDropdown(asset, opts)
 end
 
 --Unified soundboard button style rules (chunk F1a/F1d). Shared verbatim by BOTH
---surfaces: the dock attaches these via ThemeEngine.MergeStyles on its own root (see
---mainPanel above), the Studio appends them into studioExtraStyles. Kept as one
---module-level table so the two surfaces cannot drift apart visually.
+--surfaces: the dock attaches these via ThemeEngine.MergeTokens on soundboardBody
+--(chunk F, P1 -- NOT the dock content root, to avoid duplicating the full base
+--theme), the Studio appends them into studioExtraStyles on its own standalone
+--root. Kept as one module-level table so the two surfaces cannot drift apart
+--visually.
 --
 --Fill/playing states are class-driven (idle = dim tint, playing = full tint + accent
 --border) on the button itself; the actual per-asset hue is data-driven (set via
@@ -770,10 +796,17 @@ local AUDIO_SB_BUTTON_WIDTH = 110
 local AUDIO_SB_BUTTON_HEIGHT = 62
 
 --Unified soundboard button (chunk F1a): the ONE builder for both the dock grid and
---the Studio soundboard grid. board/slot identify the audiogrid-<board>-<slot> doc
---this button monitors directly (refreshGame). opts.surface = "dock" | "studio";
---opts.isEditMode() (Studio only) reports whether edit-mode affordances should show.
-CreateSoundboardButton = function(board, slot, opts)
+--the Studio soundboard grid. slot + opts.getBoard() identify the
+--audiogrid-<board>-<slot> doc this button monitors (refreshGame). opts.surface =
+--"dock" | "studio"; opts.isEditMode() (Studio only) reports whether edit-mode
+--affordances should show.
+--
+--(chunk F, P2): the board number is DYNAMIC, not fixed at construction. opts.getBoard
+--is a function returning the current board number, so a board switch no longer needs
+--to rebuild the 12 buttons on a surface -- it just calls refreshGrid (below), which
+--recomputes docid and re-fires refreshGame. This is what lets SetGridNumber (dock)
+--and the Studio board selector avoid a full grid rebuild.
+CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 	opts = opts or {}
 	local surface = opts.surface or "dock"
 	local isStudio = surface == "studio"
@@ -782,7 +815,19 @@ CreateSoundboardButton = function(board, slot, opts)
 		return isStudio and opts.isEditMode ~= nil and opts.isEditMode()
 	end
 
-	local docid = string.format("audiogrid-%d-%d", board, slot)
+	--Accept either opts.getBoard (preferred) or, for safety, a plain number passed
+	--positionally -- both resolve through GetBoard() so CurrentDocId() has one path.
+	local getBoard = opts.getBoard
+	if getBoard == nil then
+		local fixedBoard = getBoardOrLegacyBoard
+		getBoard = function() return fixedBoard end
+	end
+
+	local function CurrentDocId()
+		return string.format("audiogrid-%d-%d", getBoard(), slot)
+	end
+
+	local docid = CurrentDocId()
 	local assetid = nil
 	local muted = false
 
@@ -1105,9 +1150,10 @@ CreateSoundboardButton = function(board, slot, opts)
 		monitorGame = mod:GetDocumentSnapshot(docid).path,
 		monitorAssets = "audio",
 
-		--Studio only: draggable for slot-to-slot swap. Gated on edit mode at build
-		--time; the Studio grid does a full rebuild on mode toggle (BuildGrid), so a
-		--stale draggable flag from a previous mode never lingers.
+		--Studio only: draggable for slot-to-slot swap. Set at build time AND kept
+		--current on every refreshGame/refreshGrid (chunk F, P3) -- edit-mode toggling
+		--no longer rebuilds the grid, so a construction-time-only flag would go stale
+		--the moment the mode flipped.
 		draggable = isStudio and IsEditMode(),
 		dragTarget = isStudio,
 		canDragOnto = isStudio and function(element, target)
@@ -1131,6 +1177,19 @@ CreateSoundboardButton = function(board, slot, opts)
 		data = { docid = docid },
 
 		create = function(element)
+			element:FireEvent("refreshGame")
+		end,
+
+		--Board switch, no rebuild (chunk F, P2): recomputes docid from the CURRENT
+		--getBoard() result, updates the monitored doc + the data.docid the drag
+		--handler/drag targets read, then re-fires refreshGame so the button's
+		--content matches the new board. Fired via FireEventTree("refreshGrid") from
+		--SetGridNumber (dock) and the Studio board selector -- this restores the OLD
+		--dock pattern (no full 12-button rebuild on every board switch).
+		refreshGrid = function(element)
+			docid = CurrentDocId()
+			element.data.docid = docid
+			element.monitorGame = mod:GetDocumentSnapshot(docid).path
 			element:FireEvent("refreshGame")
 		end,
 
@@ -1165,6 +1224,10 @@ CreateSoundboardButton = function(board, slot, opts)
 			end
 			element.selfStyle.bgcolor = FillColorHex(asset, assetid ~= nil and audio.currentlyPlaying[assetid] ~= nil)
 			element:SetClass("editMode", IsEditMode())
+			--Dynamic draggable (chunk F, P3): edit-mode toggling no longer rebuilds the
+			--grid, so this flag must be re-applied on every refresh instead of only at
+			--construction time.
+			element.draggable = (isStudio and IsEditMode()) or false
 			element:FireEvent("refreshPlayingAudio")
 		end,
 
@@ -1187,7 +1250,7 @@ CreateSoundboardButton = function(board, slot, opts)
 		click = function(element)
 			if IsEditMode() then
 				if assetid == nil and opts.openAssignPopup ~= nil then
-					opts.openAssignPopup(element, board, slot)
+					opts.openAssignPopup(element, getBoard(), slot)
 				end
 				return
 			end
@@ -2058,10 +2121,38 @@ CreateSoundPanel = function()
 	local anthemsSection = MakeCollapsibleSection("anthems", "Anthems", CreateAnthemNode())
 
 	local dockPlayerGrid = CreatePlayerGrid()
-	local soundboardBody = gui.Panel{
+	--The unified soundboard button rules (AudioSoundboardButtonStyles) are
+	--attached HERE, not on the dock content root -- MergeTokens resolves the
+	--small custom rule list's @token references against the active scheme
+	--WITHOUT merging the full base theme (unlike MergeStyles), so this stays
+	--cheap: only the soundboard subtree gets the extra cascade, and the rest of
+	--the dock keeps inheriting the DockablePanel host cascade untouched.
+	local soundboardBody
+	soundboardBody = gui.Panel{
 		flow = "vertical",
 		width = "100%",
 		height = "auto",
+
+		styles = ThemeEngine.MergeTokens(AudioSoundboardButtonStyles),
+
+		data = {},
+
+		create = function(element)
+			element.data.themeSub = ThemeEngine.OnThemeChanged(mod, function()
+				if element.valid then
+					element.styles = ThemeEngine.MergeTokens(AudioSoundboardButtonStyles)
+					element.data.themeTick = not element.data.themeTick
+					element:SetClassTree("themeRefreshTick", element.data.themeTick == true)
+				end
+			end)
+		end,
+
+		destroy = function(element)
+			if element.data.themeSub ~= nil then
+				element.data.themeSub:Deregister()
+				element.data.themeSub = nil
+			end
+		end,
 
 		CreateDockBoardSelector(dockPlayerGrid),
 		dockPlayerGrid,
@@ -2099,11 +2190,12 @@ CreateSoundPanel = function()
 
 	--Content root of the Audio dock panel. It inherits the DockablePanel host's
 	--ThemeEngine cascade (DockablePanel.lua runs GetStyles at the dock root), so
-	--no GetStyles/OnThemeChanged is declared here for the base theme -- but the
-	--unified soundboard button (F1a/F1d) needs its own extra rules routed through
-	--MergeStyles (inline @tokens do not reliably resolve under the dock cascade),
-	--so this root gets its own OnThemeChanged to re-merge + re-cascade on a scheme
-	--switch, same pattern as the Studio root.
+	--NO local style root is declared here -- a MergeStyles snapshot on this root
+	--used to duplicate the entire base theme on top of the host cascade every
+	--panel under the dock already inherits (perf regression, chunk F). The
+	--unified soundboard button's extra rules are attached ONLY where they are
+	--needed -- on soundboardBody, via ThemeEngine.MergeTokens (see above) -- not
+	--here.
 	local mainPanel
 	mainPanel = gui.Panel{
 		halign = 'left',
@@ -2111,27 +2203,6 @@ CreateSoundPanel = function()
 		width = "100%",
 		height = "auto",
 		flow = "vertical",
-
-		styles = ThemeEngine.MergeStyles(AudioSoundboardButtonStyles),
-
-		data = {},
-
-		create = function(element)
-			element.data.themeSub = ThemeEngine.OnThemeChanged(mod, function()
-				if element.valid then
-					element.styles = ThemeEngine.MergeStyles(AudioSoundboardButtonStyles)
-					element.data.themeTick = not element.data.themeTick
-					element:SetClassTree("themeRefreshTick", element.data.themeTick == true)
-				end
-			end)
-		end,
-
-		destroy = function(element)
-			if element.data.themeSub ~= nil then
-				element.data.themeSub:Deregister()
-				element.data.themeSub = nil
-			end
-		end,
 
 		refreshAudio = function(element)
 			element:FireEventTree("refreshPlayingAudio")
@@ -2931,33 +3002,45 @@ local CreateStudioSoundboard = function()
 		return m_editMode
 	end
 
+	local function GetBoard()
+		return m_board
+	end
+
+	--Built ONCE at card build (chunk F, P2/P3): the 12 buttons are constructed a
+	--single time with a getBoard getter and never rebuilt again. Board switches and
+	--edit-mode toggles both now just fire refreshGrid across the subtree instead of
+	--calling this a second time.
 	local function BuildGrid()
 		local children = {}
 		for slot = 1, STUDIO_SLOTS do
-			children[#children+1] = CreateSoundboardButton(m_board, slot, {
+			children[#children+1] = CreateSoundboardButton(nil, slot, {
 				surface = "studio",
 				isEditMode = IsEditMode,
+				getBoard = GetBoard,
 				openAssignPopup = OpenAssignPopup,
 			})
 		end
 		gridPanel.children = children
 	end
 
-	--Width pinned to 350 (task 6c, right-column placement): the right column's
-	--38%-of-1100 share leaves ~400px of card interior, which is just wide enough
-	--for a 4th button (114px each including margin) to sneak onto the row. 350
-	--forces a clean 3-column wrap (342px), matching the dock's 3x4 grid shape.
+	--Fixed size + centered (chunk F, P4): shared AUDIO_SB_GRID_WIDTH/HEIGHT constants
+	--(342 x 264 -- 3 columns x 4 rows of 114/66 cells) with the dock grid, so both
+	--surfaces present the same deterministic 3x4 shape. Replaces the old
+	--width=350/height="auto" wrap, which cost more to lay out and, being
+	--auto-height, is also why the width could drift from the dock's true 342.
 	gridPanel = gui.Panel{
 		flow = "horizontal",
 		wrap = true,
-		width = 350,
-		height = "auto",
-		halign = "left",
+		width = AUDIO_SB_GRID_WIDTH,
+		height = AUDIO_SB_GRID_HEIGHT,
+		halign = "center",
 		vmargin = 4,
 	}
 
 	--Board selector: "Board" label + five segmented buttons. The active board carries
-	--{selected} (themed fill). Switching rebuilds the grid for the new board.
+	--{selected} (themed fill). Switching no longer rebuilds the grid (chunk F, P2) --
+	--it just updates m_board + the selected classes, then fires refreshGrid so every
+	--button recomputes its own docid.
 	local boardRow = { }
 	boardRow[#boardRow+1] = gui.Label{
 		classes = {"sizeXs", "fgMuted"},
@@ -2982,7 +3065,7 @@ local CreateStudioSoundboard = function()
 				for j, b in ipairs(boardButtons) do
 					b:SetClass("selected", j == idx)
 				end
-				BuildGrid()
+				gridPanel:FireEventTree("refreshGrid")
 			end,
 		}
 		btn:SetClass("selected", idx == m_board)
@@ -2999,9 +3082,11 @@ local CreateStudioSoundboard = function()
 		children = boardRow,
 	}
 
-	--Edit board toggle: flips m_editMode and rebuilds the grid (simplest way to
-	--re-gate every button's draggable/affordance wiring, F1b) plus updates the
-	--caption copy. {selected} mirrors the board-selector button's active look.
+	--Edit board toggle: flips m_editMode, updates its own text/selected class and the
+	--caption copy, then fires refreshGrid (chunk F, P3) -- no more grid rebuild on
+	--every toggle. refreshGame (fired by refreshGrid) already applies
+	--element:SetClass("editMode", IsEditMode()) and the dynamic draggable flag, so
+	--this is the only thing the toggle needs to do.
 	editToggle = gui.Button{
 		classes = {"sizeXs"},
 		text = "Edit board",
@@ -3015,7 +3100,7 @@ local CreateStudioSoundboard = function()
 			m_editMode = not m_editMode
 			element:SetClass("selected", m_editMode)
 			element.text = m_editMode and "Stop editing" or "Edit board"
-			BuildGrid()
+			gridPanel:FireEventTree("refreshGrid")
 			captionLabel.text = m_editMode
 				and "Click an empty button to assign a clip. Use x to clear a button, drag to reorder, and the swatch to set its color."
 				or "Click a button to play or stop its clip. Use Edit board to change assignments."
@@ -3109,10 +3194,13 @@ local function CreateStudioDuckingBody()
 	--committed on release (no think-sync, so it never fights an in-progress drag). The
 	--editable percent readout is the source of truth for the current dip.
 	local depthSlider = gui.Slider{
+		--halign="right" removed (chunk F, L2): sits immediately after its label,
+		--like the fader rows; label widths (96, both here and in MakeSecondsRow
+		--below) are kept equal so the three sliders in this popover still line up
+		--with EACH OTHER.
 		style = {
 			width = 170,
 			height = 16,
-			halign = "right",
 			valign = "center",
 		},
 		sliderWidth = 130,
@@ -3129,8 +3217,9 @@ local function CreateStudioDuckingBody()
 	--A "label + seconds slider" row (0..5s) for the two duck fade times. Reads the game
 	--setting on build; commits on release. The readout is editable (type a number).
 	local function MakeSecondsRow(labelText, settingId, defaultVal)
+		--halign="right" removed (chunk F, L2): matches depthSlider above.
 		local slider = gui.Slider{
-			style = { width = 170, height = 16, halign = "right", valign = "center" },
+			style = { width = 170, height = 16, valign = "center" },
 			sliderWidth = 130,
 			labelWidth = 34,
 			labelFormat = "%.1f",
@@ -4283,21 +4372,24 @@ local function CreateStudioNowPlayingStrip()
 	}
 
 	--Always visible -- the reserved rows give the block a constant footprint, so
-	--there is no collapsed state to toggle. Painted {bgAlt} (the same fill the
-	--search input and library folder rows use) so the block reads as its own
-	--distinct card against the Studio surface. Fixed height
-	--(AUDIO_STUDIO_NOWPLAYING_BLOCK_HEIGHT) -- see the constant's comment for the
-	--derivation -- so the Library below it never shifts as tracks start/stop.
+	--there is no collapsed state to toggle. {bordered} card (chunk F, L4) matching
+	--the Soundboard/Levels/Library cards -- REMOVED the old {bgAlt} full-block fill
+	--+ cornerRadius=4, which painted the whole block one flat color and made the
+	--"Now Playing" header read as just another row instead of the card's title (the
+	--other cards' bold sizeS title already reads correctly against a plain
+	--surface, so this title needed the same treatment, not a special fill). Fixed
+	--height (AUDIO_STUDIO_NOWPLAYING_BLOCK_HEIGHT) -- see the constant's comment
+	--for the derivation (pad=8 unchanged, so the constant's arithmetic still
+	--holds) -- so the Library card below it never shifts as tracks start/stop.
 	local block
 	block = gui.Panel{
-		classes = {"bgAlt"},
+		classes = {"bordered"},
 		flow = "vertical",
 		width = "100%",
 		height = AUDIO_STUDIO_NOWPLAYING_BLOCK_HEIGHT,
 		valign = "top",
 		vmargin = 4,
 		pad = 8,
-		cornerRadius = 4,
 		borderBox = true,
 
 		create = function(element)
@@ -4318,16 +4410,28 @@ local function CreateStudioNowPlayingStrip()
 	return block
 end
 
---Left-column height allowances (Option A, task 6b): the Soundboard card no
---longer lives in the left column (it moved to the RIGHT column, above the
---Mixer -- see CreateAudioStudio), so the tree wrapper's complement only has to
---account for the now-playing block above it plus the library header row above
---that. The tree keeps its own internal vscroll for overflow within its share.
+--Left-column height allowances (Option A, task 6b; card chrome accounted for in
+--chunk F, L3): the Soundboard card no longer lives in the left column (it moved
+--to the RIGHT column, above the Mixer -- see CreateAudioStudio), so the library
+--card's complement only has to account for the now-playing block above it. The
+--tree keeps its own internal vscroll for overflow within its share.
 --Now-playing block: AUDIO_STUDIO_NOWPLAYING_BLOCK_HEIGHT (fixed, see above) plus
---its own 4px top/bottom vmargin.
+--its own 4px top/bottom vmargin (8).
 local AUDIO_STUDIO_NOWPLAYING_ALLOWANCE = AUDIO_STUDIO_NOWPLAYING_BLOCK_HEIGHT + 8
---Library header row (label + New Folder/Add audio buttons) above the tree.
+--Library header row (label + New Folder/Add audio buttons) above the tree,
+--INSIDE the library card now (chunk F, L3): still 32 for the row itself, since
+--the card's own pad is accounted for separately (borderBox on the card already
+--shrinks its content box by 2*pad, so the header allowance only needs to cover
+--the header row's own height/vmargin, unchanged from before the card wrap).
 local AUDIO_STUDIO_LIBRARY_HEADER_ALLOWANCE = 32
+--Library card's own vmargin (chunk F, L3): the Library header + tree wrapper are
+--now wrapped in a {bordered} card matching Soundboard/Levels (pad 8, borderBox,
+--vmargin 4). borderBox already keeps the card's pad OUT of its declared
+--height (the height IS the outer box), but vmargin is external spacing added on
+--TOP of that box -- with the card as leftColumn's last (only remaining) child,
+--its own top+bottom vmargin (2*4=8) must be subtracted from the card's declared
+--height too, or the card would overflow leftColumn's 100% by that much.
+local AUDIO_STUDIO_LIBRARY_CARD_VMARGIN = 8
 
 CreateAudioStudio = function()
 	if not dmhub.isDM then
@@ -4335,33 +4439,43 @@ CreateAudioStudio = function()
 	end
 
 	--Left column (Option A, task 6b): the now-playing BLOCK (fixed height, always
-	--visible), THEN the Library header + tree. The Studio Soundboard card has
-	--moved OUT of this column entirely -- it now sits at the top of the right
-	--column, next to the Mixer, so curation and playback assignment share the
-	--same column as the levels they route into. The tree gets a deterministic
-	--height complement (now-playing block + library header allowances) so its
-	--auto-height content fits below both without overflow; the tree keeps its
-	--own internal vscroll for its share.
+	--visible), THEN a Library CARD (header + tree, chunk F L3) matching the
+	--Soundboard/Levels card look. The Studio Soundboard card has moved OUT of this
+	--column entirely -- it now sits at the top of the right column, next to the
+	--Mixer, so curation and playback assignment share the same column as the
+	--levels they route into. The tree gets a deterministic height complement (the
+	--library card's own content box, minus the header row) so its auto-height
+	--content fits below both without overflow; the tree keeps its own internal
+	--vscroll for its share.
 	local nowPlayingBlock = CreateStudioNowPlayingStrip()
 
 	local libraryTreeWrapper = gui.Panel{
 		flow = "vertical",
 		width = "100%",
-		height = "100%-" .. tostring(AUDIO_STUDIO_NOWPLAYING_ALLOWANCE + AUDIO_STUDIO_LIBRARY_HEADER_ALLOWANCE),
+		height = "100%-" .. tostring(AUDIO_STUDIO_LIBRARY_HEADER_ALLOWANCE),
 		CreateAudioLibraryTree(),
 	}
 
-	local leftColumn = gui.Panel{
+	--Library card (chunk F, L3): {bordered} card matching the Soundboard/Levels
+	--cards on the right column. borderBox=true means its OWN pad is already
+	--excluded from libraryTreeWrapper's "100%" above -- libraryTreeWrapper only
+	--has to subtract the header row's own allowance, not the card's pad. The
+	--card's declared height DOES have to subtract its own vmargin
+	--(AUDIO_STUDIO_LIBRARY_CARD_VMARGIN) on top of the now-playing allowance,
+	--since vmargin is external spacing that is NOT covered by borderBox.
+	local libraryCard = gui.Panel{
+		classes = {"bordered"},
 		flow = "vertical",
-		width = "60%",
-		height = "100%",
-		hmargin = 4,
-
-		nowPlayingBlock,
+		width = "100%",
+		height = "100%-" .. tostring(AUDIO_STUDIO_NOWPLAYING_ALLOWANCE + AUDIO_STUDIO_LIBRARY_CARD_VMARGIN),
+		pad = 8,
+		borderBox = true,
+		vmargin = 4,
 
 		--Library header row: label left, the add buttons right-aligned to this column
 		--(these become glyph buttons later). The label sits in a fixed-width flex
-		--panel since "100% available" collapses to 0 here.
+		--panel since "100% available" collapses to 0 here. The bold sizeS "Library"
+		--label is this card's title, matching the other cards' title styling.
 		gui.Panel{
 			flow = "horizontal",
 			width = "100%",
@@ -4403,15 +4517,38 @@ CreateAudioStudio = function()
 		libraryTreeWrapper,
 	}
 
-	--Right column (task 6c): Soundboard FIRST (curation lives with the levels it
-	--feeds), then the Mixer/Levels card (which now also hosts the "Ducking
-	--settings" popover trigger -- see CreateStudioMixerCard). vscroll stays on as
-	--a safety net for small displays; the soundboard's own gridPanel is pinned to
-	--350px so its 12 buttons wrap at 3 columns like the dock, matching this
-	--column's narrower share.
+	--Left column width (chunk F, L1): "100% available" is no longer a percentage
+	--share -- rightColumn is now a FIXED 372 (see below), so leftColumn is sized as
+	--a precise, deterministic complement instead of a "60%"/"38%" split that could
+	--drift out of sync with the right column's real content width. Consumed by the
+	--right side: rightColumn's own hmargin (4 left + 4 right = 8) + rightColumn's
+	--fixed box width (372) + leftColumn's own hmargin (4 left + 4 right = 8) =
+	--388. The Library absorbs all width freed by pinning the soundboard column.
+	local leftColumn = gui.Panel{
+		flow = "vertical",
+		width = "100%-388",
+		height = "100%",
+		hmargin = 4,
+
+		nowPlayingBlock,
+
+		libraryCard,
+	}
+
+	--Right column (task 6c; chunk F, L1 fixes the width): Soundboard FIRST
+	--(curation lives with the levels it feeds), then the Mixer/Levels card (which
+	--now also hosts the "Ducking settings" popover trigger -- see
+	--CreateStudioMixerCard). vscroll stays on as a safety net for small displays.
+	--Width FIXED at 372 (was "38%", which could drift the card interior away from
+	--the soundboard grid's own fixed 342 width): the soundboard card below is
+	--width="100%" of this column with pad=8/borderBox=true, so its content box is
+	--372-16=356 -- 14px wider than the 342 grid, split evenly by the grid's own
+	--halign="center" (AUDIO_SB_GRID_WIDTH/HEIGHT, see CreateStudioSoundboard) into
+	--equal 7px left/right gaps inside the card, matching the user's "right gap ==
+	--left gap" ask.
 	local rightColumn = gui.Panel{
 		flow = "vertical",
-		width = "38%",
+		width = 372,
 		height = "100%",
 		hmargin = 4,
 		vscroll = true,
@@ -4478,9 +4615,11 @@ CreateAudioStudio = function()
 		--nudges without shouting. Cleared automatically once a category is chosen.
 		{ selectors = {"unrouted"}, borderColor = "@warning", border = 1 },
 	}
-	--Unified soundboard button rules (F1a/F1d), shared with the dock (see mainPanel's
-	--own MergeStyles). Appended here (not just referenced) so a single MergeStyles
-	--call produces the full Studio cascade.
+	--Unified soundboard button rules (F1a/F1d), shared with the dock (see
+	--soundboardBody's own MergeTokens, chunk F P1). Appended here (not just
+	--referenced) so a single MergeStyles call produces the full Studio cascade --
+	--the Studio root is a standalone LaunchablePanel outside any host cascade, so
+	--MergeStyles (the full base theme + extras) is correct here, unlike the dock.
 	for _,rule in ipairs(AudioSoundboardButtonStyles) do
 		studioExtraStyles[#studioExtraStyles+1] = rule
 	end

@@ -777,11 +777,9 @@ local AudioSoundboardButtonStyles = {
 	--their own. Never hover-gated, per the flicker rule.
 	{ selectors = {"audioSbEditRow"}, hidden = 1 },
 	{ selectors = {"audioSbEditRow", "filled", "parent:editMode"}, hidden = 0 },
-	--Delete: a small explicit text button (was a corner "x" - too subtle, and it
-	--collided with the duration text). @danger label on hover = destructive intent.
-	{ selectors = {"audioSbDeleteLabel"}, fontSize = 10, color = "@fg" },
-	{ selectors = {"audioSbDeleteLabel", "parent:hover"}, color = "@danger" },
-	--Color swatch: sits beside Delete in the edit row.
+	--Delete is the house bin button (gui.DeleteItemButton) - it carries its own
+	--styles, so no rules needed here.
+	--Color swatch: sits beside the bin in the edit row.
 	{ selectors = {"audioSbSwatch"}, borderColor = "white", border = 1 },
 	{ selectors = {"audioSbSwatch", "hover"}, brightness = 1.4 },
 	--"+ Assign" only makes sense in edit mode; perform mode leaves empty buttons inert.
@@ -877,34 +875,20 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 		end,
 	}
 
-	--Delete button: edit-mode-only, clears the slot assignment. Lives in the edit
-	--row at the bottom of the button (replaces the old top-right corner "x", which
-	--was easy to miss and sat on top of the duration text). The freed space is real:
-	--edit mode hides duration/volume/loop, so the bottom strip belongs to curation.
-	local deleteButton = gui.Panel{
-		classes = {"bordered", "hoverable"},
-		bgimage = "panels/square.png",
-		bgcolor = "clear",
-		width = 56,
+	--Delete: the house bin button (gui.DeleteItemButton - same delete affordance as
+	--everywhere else in the app; James swapped it in over a text "Delete" button).
+	--Edit-mode-only via the edit row's gating; clears the slot assignment.
+	local deleteButton = gui.DeleteItemButton{
+		width = 16,
 		height = 16,
 		valign = "center",
-		borderBox = true,
-		swallowPress = true,
-		press = function()
+		hmargin = 4,
+		click = function()
 			local doc = mod:GetDocumentSnapshot(docid)
 			doc:BeginChange()
 			doc.data.assetid = nil
 			doc:CompleteChange("Clear soundboard button")
 		end,
-		gui.Label{
-			classes = {"audioSbDeleteLabel"},
-			text = "Delete",
-			bgcolor = "clear",
-			width = "auto",
-			height = "auto",
-			halign = "center",
-			valign = "center",
-		},
 	}
 
 	--Color swatch: bottom-right corner, edit-mode-only. Opens the 8-hue popup (ported
@@ -3113,7 +3097,7 @@ local CreateStudioSoundboard = function()
 			element.text = m_editMode and "Stop editing" or "Edit board"
 			gridPanel:FireEventTree("refreshGrid")
 			captionLabel.text = m_editMode
-				and "Click an empty button to assign a clip. Use Delete to clear a button, drag to reorder, and the swatch to set its color."
+				and "Click an empty button to assign a clip. Use the bin to clear a button, drag to reorder, and the swatch to set its color."
 				or "Click a button to play or stop its clip. Use Edit board to change assignments."
 		end,
 	}

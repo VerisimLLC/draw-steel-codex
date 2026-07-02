@@ -106,6 +106,12 @@ function audio.SetGroupShared(id, value)
 	-- dummy implementation for documentation purposes only
 end
 
+--- ResetMixState: Clears all mix-group duck and shared-broadcast state. Happens automatically on game load/switch; exposed as a manual escape hatch for recovering from a leaked duck or for testing.
+--- @return nil
+function audio.ResetMixState()
+	-- dummy implementation for documentation purposes only
+end
+
 --- DispatchSoundEvent: Dispatches a sound event by name to all connected clients and plays it locally.
 --- @param name string The sound event name.
 --- @param args nil|table Optional arguments passed to the sound event.

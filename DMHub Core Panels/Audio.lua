@@ -380,7 +380,13 @@ end
 --expanded Anthems drawer / many heroes) scrolls past it instead of clipping.
 local audioScrollMaxHeight = 360
 
-local createAudioPanel
+--Unified soundboard button builder (chunk F1a), forward-declared here since the dock
+--grid (CreatePlayerGrid, below) is defined before the helpers (DisplayNameForAsset,
+--PlayBroadcastClip) the real implementation needs. Assigned further down, once those
+--helpers exist; CreatePlayerGrid only calls it at build time (when the dock panel is
+--actually opened), by which point the module has finished loading top to bottom, so
+--the forward-declared upvalue is populated.
+local CreateSoundboardButton
 
 local FormatTime = function(value, maxValue)
 	if maxValue >= 60 then
@@ -420,46 +426,53 @@ local ColorStyles = {
 	},
 }
 
+--Precomputed swatch palette (chunk F1a) for the unified soundboard button's fill
+--tint. asset.color is an index 0-7; index 0 is the base red (hue 0), the rest are
+--hue-rotated 1/8 turn apart. Deep/muted (F polish, 2026-07-02 review): the fill
+--paints the button itself now (see FillColorHex in CreateSoundboardButton) with
+--white name/duration text pinned on top while playing, so every hue must stay
+--comfortably legible under white text at ~90% alpha over a dark surface -- the
+--original bright hues were too light for that. Idle states (~30% alpha) let the
+--theme surface dominate, so the theme's own contrast still holds there.
+local AudioSwatchColors = {
+	[0] = "#8F2626",
+	[1] = "#8A6420",
+	[2] = "#5E7A22",
+	[3] = "#1F7040",
+	[4] = "#1F6E6E",
+	[5] = "#2A4A8F",
+	[6] = "#5E2E8F",
+	[7] = "#8F2670",
+}
 
-
-local CreatePlayerSlot = function(params)
-	local slot = params.slot
-	params.slot = nil
-
-	--Themed slot chrome: {border} paints the @border frame, {bgAlt} the nested
-	--surface fill. border width + the square bgimage stay inline (layout / glyph).
-	local classes = {"playerSlot", "border", "bgAlt"}
-	if params.classes ~= nil then
-		for _,c in ipairs(params.classes) do
-			classes[#classes+1] = c
-		end
-	end
-	params.classes = nil
-
-	local args = {
-		classes = classes,
-		width = 113,
-		height = 64,
-		border = 2,
-		flow = "none",
-		vmargin = 2,
-		cornerRadius = 4,
-		halign = "center",
-		valign = "center",
-		bgimage = "panels/square.png",
-	}
-
-	for k,v in pairs(params or {}) do
-		args[k] = v
-	end
-
-	local slot = gui.Panel(args)
-
-	return slot
+local function AudioSwatchColor(colorIndex)
+	return AudioSwatchColors[colorIndex] or AudioSwatchColors[0]
 end
 
+
+
+--Board/slot counts for the soundboard documents (audiogrid-<board>-<slot>),
+--shared by the dock grid (CreatePlayerGrid) and the Studio soundboard card
+--(CreateStudioSoundboard) below -- hoisted here since the dock grid builds
+--first but both surfaces must agree on the same 5 boards x 12 slots.
+local STUDIO_BOARDS = 5
+local STUDIO_SLOTS = 12
+
+--Dock soundboard grid (chunk F1c): pure perform surface, no drag. Each button is the
+--unified CreateSoundboardButton (surface="dock"); the grid rebuilds its 12 buttons
+--whenever the board number cycles (SetGridNumber) since that is simpler and no more
+--expensive than threading the new board through every button's refreshGrid.
 local CreatePlayerGrid = function()
 	local resultPanel
+	local gridNumber = 1
+
+	local function BuildSlots()
+		local children = {}
+		for i=1,STUDIO_SLOTS do
+			children[#children+1] = CreateSoundboardButton(gridNumber, i, { surface = "dock" })
+		end
+		resultPanel.children = children
+	end
 
 	resultPanel = gui.Panel{
 		flow = "horizontal",
@@ -469,253 +482,71 @@ local CreatePlayerGrid = function()
 		data = {
 			gridNumber = 1,
 			SetGridNumber = function(num)
+				gridNumber = num
 				resultPanel.data.gridNumber = num
-				resultPanel:FireEventTree("refreshGrid")
+				BuildSlots()
 			end,
-		},
-		styles = {
-			{
-				selectors = {"playerSlot", "drag-target"},
-				brightness = 2,
-			},
-			{
-				selectors = {"playerSlot", "drag-target-hover"},
-				brightness = 4,
-			},
 		},
 	}
 
-	local children = {}
-	for i=1,12 do
-		local previewAudioPanel = nil
-		local audioPanel = nil
-		local assetid = nil
-		local docid = string.format("audiogrid-%d-%d", resultPanel.data.gridNumber, i)
-		local doc = mod:GetDocumentSnapshot(docid)
-		local slot = CreatePlayerSlot{
-			classes = {"playgrid"},
-			slot = i,
-			dragTarget = true,
-			monitorGame = doc.path,
-
-			data = {
-				docid = docid,
-			},
-
-			preview = function(element, previewAssetid)
-				if previewAudioPanel ~= nil then
-					dmhub.Debug(string.format("PANEL:: DESTROY: %f", dmhub.Time()))
-					previewAudioPanel:DestroySelf()
-					if audioPanel ~= nil and assetid ~= nil then
-						audioPanel:SetClass("hidden", false)
-					end
-				end
-				previewAudioPanel = nil
-
-				if previewAssetid == nil then
-					return
-				end
-
-				previewAudioPanel = createAudioPanel(assets.audioTable[previewAssetid], { slot = i, preview = true })
-				element.children = {audioPanel, previewAudioPanel}
-				if audioPanel ~= nil then
-					audioPanel:SetClass("hidden", true)
-				end
-			end,
-
-			refreshGrid = function(element)
-				docid = string.format("audiogrid-%d-%d", resultPanel.data.gridNumber, i)
-				element.data.docid = docid
-				element:FireEvent("refreshGame")
-				element.monitorGame = doc.path
-			end,
-
-			refreshGame = function(element)
-				doc = mod:GetDocumentSnapshot(docid)
-				if previewAudioPanel ~= nil then
-					previewAudioPanel:DestroySelf()
-					previewAudioPanel = nil
-				end
-				if assetid ~= doc.data.assetid then
-					assetid = doc.data.assetid
-					if assetid == nil then
-						if audioPanel ~= nil then
-							audioPanel:SetClass("hidden", true)
-						end
-					else
-						if audioPanel == nil then
-							audioPanel = createAudioPanel(assets.audioTable[assetid], { slot = i })
-							element.children = {audioPanel}
-						else
-							audioPanel:SetClass("hidden", false)
-							audioPanel:FireEvent("setAudio", assetid)
-						end
-					end
-				end
-			end,
-
-		}
-		children[#children+1] = slot
-	end
-
-	resultPanel.children = children
+	BuildSlots()
 
 	return resultPanel
 end
 
-local CreateSoundboardPreviewPanel = function(playerGrid, slotNumber)
-
-	--{bgAlt} supplies the themed base fill; the per-slot hueshift (data-driven
-	--asset color) is applied on top at runtime in refreshGame.
-	local tinyClasses = {"tinyPanel", "bgAlt"}
-	if (slotNumber%2) ~= 0 then
-		tinyClasses[#tinyClasses+1] = "odd"
-	end
-
-	local children = {}
-	for i=1,12 do
-
-		local docid = string.format("audiogrid-%d-%d", slotNumber, i)
-		local doc = mod:GetDocumentSnapshot(docid)
-
-		children[#children+1] = gui.Panel{
-			classes = tinyClasses,
-
-
-			create = function(element)
-				element:FireEvent("refreshGame")
-			end,
-
-			monitorGame = doc.path,
-
-			refreshGame = function(element)
-
-				doc = mod:GetDocumentSnapshot(docid)
-				if doc.data.assetid == nil then
-					element.selfStyle.hueshift = 0
-					element:SetClass("empty", true)
-					doc = nil
-					return
+--Dock board selector (F polish, task 3): a compact segmented row matching the
+--Studio's "Board" + five buttons, wired directly to the dock grid's
+--data.SetGridNumber. Replaces the old tiny board-preview strips (deleted --
+--see CreateSoundboardPreviewPanel/CreateGridMenu/CreateAudioGrid removal),
+--which were the only thing that had called SetGridNumber from the dock; the
+--dock previously had no way to switch boards at all.
+local function CreateDockBoardSelector(playerGrid)
+	local boardButtons = {}
+	local children = {
+		gui.Label{
+			classes = {"sizeXs", "fgMuted"},
+			text = "Board",
+			width = "auto",
+			height = "auto",
+			hmargin = 4,
+			valign = "center",
+		},
+	}
+	for i = 1, STUDIO_BOARDS do
+		local idx = i
+		local btn = gui.Button{
+			classes = {"sizeXs"},
+			text = tostring(idx),
+			width = 28,
+			height = 22,
+			hmargin = 2,
+			valign = "center",
+			press = function()
+				playerGrid.data.SetGridNumber(idx)
+				for j, b in ipairs(boardButtons) do
+					b:SetClass("selected", j == idx)
 				end
-
-				element:SetClass("empty", false)
-				local audioAsset = assets.audioTable[doc.data.assetid]
-				if audioAsset ~= nil then
-					element.selfStyle.hueshift = audioAsset.color/8
-				end
-			end,
-
-			monitorAssets = "audio",
-			refreshAssets = function(element)
-				if doc == nil then
-					return
-				end
-
-				doc = mod:GetDocumentSnapshot(docid)
-
-				if doc == nil or doc.data.assetid == nil or assets.audioTable[doc.data.assetid] == nil then
-					return
-				end
-
-				local audioAsset = assets.audioTable[doc.data.assetid]
-				element.selfStyle.hueshift = audioAsset.color/8
 			end,
 		}
+		btn:SetClass("selected", idx == playerGrid.data.gridNumber)
+		boardButtons[idx] = btn
+		children[#children+1] = btn
 	end
 
 	return gui.Panel{
-		classes = {"soundboardPreview"},
-		wrap = true,
-		children = children,
-		press = function(element)
-			playerGrid.data.SetGridNumber(slotNumber)
-			for i,panel in ipairs(element.parent.children) do
-				panel:SetClass("selected", i == slotNumber)
-			end
-		end,
-	}
-end
-
-local CreateGridMenu = function(playerGrid)
-
-	local children = {}
-	for i=1,5 do
-		children[#children+1] = CreateSoundboardPreviewPanel(playerGrid, i)
-		if i == playerGrid.data.gridNumber then
-			children[#children]:SetClass("selected", true)
-		end
-	end
-
-	local resultPanel
-
-	resultPanel = gui.Panel{
 		flow = "horizontal",
 		width = "100%",
 		height = "auto",
+		valign = "center",
 		vmargin = 4,
 		children = children,
-		styles = {
-			gui.Style{
-				selectors = {"tinyPanel"},
-				bgimage = "panels/square.png",
-				width = 16,
-				height = 11,
-				hmargin = 2,
-				vmargin = 2,
-			},
-			gui.Style{
-				selectors = {"tinyPanel", "empty"},
-				saturation = 0.4,
-			},
-			gui.Style{
-				selectors = {"tinyPanel", "~odd"},
-				brightness = 0.3,
-			},
-			gui.Style{
-				selectors = {"tinyPanel", "parent:hover"},
-				brightness = 2,
-			},
-			gui.Style{
-				selectors = {"tinyPanel", "parent:selected"},
-				brightness = 2,
-			},
-			gui.Style{
-				selectors = {"soundboardPreview"},
-				bgimage = "panels/square.png",
-				bgcolor = "clear",
-				flow = "horizontal",
-				halign = "left",
-				x = -3,
-				hmargin = 4,
-				width = 64.6,
-				height = "auto",
-			},
-		}
 	}
-
-	return resultPanel
-
 end
 
-local CreateAudioGrid = function()
-	local playerGrid = CreatePlayerGrid()
-	local resultPanel
-	resultPanel = gui.Panel{
-		flow = "vertical",
-		width = "100%",
-		height = "auto",
-
-		playerGrid,
-		CreateGridMenu(playerGrid),
-	}
-
-	return resultPanel
-end
-
---Shared category (Music / Ambience / Effects) helpers, used by both the dock tile
---builder (createAudioPanel) and the Studio row builder (CreateAudioStudioRow) so the
---dropdown options, "-"/unset normalisation and change behavior cannot drift between
---the two surfaces. Styling differs per call site, so that is passed in via opts.
+--Shared category (Music / Ambience / Effects) dropdown, used by the Studio library
+--row builder (CreateAudioStudioRow) so the dropdown options, "-"/unset
+--normalisation and change behavior stay in one place. Styling differs per call
+--site, so that is passed in via opts.
 
 --Recognised raw audio file extensions. Used only to decide whether a stored
 --description looks like an un-renamed upload filename, for DISPLAY purposes.
@@ -883,150 +714,203 @@ local function CreateCategoryDropdown(asset, opts)
 	return dropdown
 end
 
-createAudioPanel = function(audioAsset, options)
-	options = options or {}
+--Unified soundboard button style rules (chunk F1a/F1d). Shared verbatim by BOTH
+--surfaces: the dock attaches these via ThemeEngine.MergeStyles on its own root (see
+--mainPanel above), the Studio appends them into studioExtraStyles. Kept as one
+--module-level table so the two surfaces cannot drift apart visually.
+--
+--Fill/playing states are class-driven (idle = dim tint, playing = full tint + accent
+--border) on the button itself; the actual per-asset hue is data-driven (set via
+--selfStyle.bgcolor in refreshGame, see CreateSoundboardButton) since there is no
+--fixed set of classes for "which of 8 colors". Progress line is a thin bottom bar.
+local AudioSoundboardButtonStyles = {
+	{ selectors = {"audioSbButton"}, transitionTime = 0.15 },
+	{ selectors = {"audioSbButton", "playing"}, borderColor = "@accent", border = 2 },
+	{ selectors = {"audioSbProgress"}, bgcolor = "@accent" },
+	{ selectors = {"audioSbName"}, fontSize = 11, color = "@fg" },
+	{ selectors = {"audioSbName", "parent:playing"}, color = "#FFFFFF" },
+	{ selectors = {"audioSbDuration"}, fontSize = 10, color = "@fgMuted" },
+	{ selectors = {"audioSbDuration", "parent:playing"}, color = "#FFFFFF" },
+	--Edit-mode declutter (F polish): only fill/name/clear-x/swatch/drag matter while
+	--curating, so duration, the mute/volume row, and the loop glyph are hidden while
+	--editMode is set on the button. The old {audioSbDuration, parent:editMode}
+	--hmargin=20 nudge is gone with it -- the label is not shown at all now.
+	{ selectors = {"audioSbDuration", "parent:editMode"}, hidden = 1 },
+	{ selectors = {"audioSbVolumeRow", "parent:editMode"}, hidden = 1 },
+	{ selectors = {"audioSbLoop", "parent:editMode"}, hidden = 1 },
+	--Loop glyph: dim when off, accent-tinted when on. Always visible on filled buttons.
+	{ selectors = {"audioSbLoop"}, bgcolor = "white", opacity = 0.4 },
+	{ selectors = {"audioSbLoop", "active"}, bgcolor = "@accent", opacity = 1 },
+	--Mute glyph: image-tint-neutral white, dims when idle, brightens on hover/muted.
+	{ selectors = {"audioSbMute"}, bgcolor = "white", opacity = 0.6 },
+	{ selectors = {"audioSbMute", "hover"}, opacity = 1 },
+	{ selectors = {"audioSbMute", "muted"}, bgcolor = "@danger", opacity = 1 },
+	--Clear "x": always-visible-dim on filled buttons in edit mode (never hover-gated,
+	--per the flicker rule); brightens to full + @danger on its own hover. filled is
+	--set directly on the glyph (it already tracks the button's fill state); editMode
+	--is only set on the button itself, so read it via parent:editMode.
+	{ selectors = {"audioSbClear"}, hidden = 1, opacity = 0.4 },
+	{ selectors = {"audioSbClear", "filled", "parent:editMode"}, hidden = 0 },
+	{ selectors = {"audioSbClear", "hover"}, opacity = 1 },
+	{ selectors = {"audioSbClearGlyph", "parent:hover"}, color = "@danger" },
+	--Color swatch: only shown filled+editMode, matches the always-visible-dim rule.
+	{ selectors = {"audioSbSwatch"}, hidden = 1, borderColor = "white", border = 1 },
+	{ selectors = {"audioSbSwatch", "filled", "parent:editMode"}, hidden = 0 },
+	{ selectors = {"audioSbSwatch", "hover"}, brightness = 1.4 },
+	--"+ Assign" only makes sense in edit mode; perform mode leaves empty buttons inert.
+	{ selectors = {"audioSbAssignLabel"}, hidden = 1 },
+	{ selectors = {"audioSbAssignLabel", "parent:editMode"}, hidden = 0 },
+}
 
-	local resultPanel
-	local durationLabel
-	local volumeSlider
+--Soundboard button dimensions (F1a). 110 wide + 2px margins = 114 per cell, so 3
+--columns need 342px, inside the dock's ~355px usable interior (116+4 margins = 124
+--per cell rendered only 2 columns - verified live); 62 tall fits name (2 lines) +
+--loop corner + mute/volume row + duration without crowding. Same on both surfaces.
+local AUDIO_SB_BUTTON_WIDTH = 110
+local AUDIO_SB_BUTTON_HEIGHT = 62
 
-	local slot = options.slot
-	options.slot = nil
+--Unified soundboard button (chunk F1a): the ONE builder for both the dock grid and
+--the Studio soundboard grid. board/slot identify the audiogrid-<board>-<slot> doc
+--this button monitors directly (refreshGame). opts.surface = "dock" | "studio";
+--opts.isEditMode() (Studio only) reports whether edit-mode affordances should show.
+CreateSoundboardButton = function(board, slot, opts)
+	opts = opts or {}
+	local surface = opts.surface or "dock"
+	local isStudio = surface == "studio"
 
-	local preview = options.preview
-	options.preview = nil
+	local function IsEditMode()
+		return isStudio and opts.isEditMode ~= nil and opts.isEditMode()
+	end
 
-	local soundEventDocId = string.format("soundevent-%s", audioAsset.id)
+	local docid = string.format("audiogrid-%d-%d", board, slot)
+	local assetid = nil
+	local muted = false
 
-
-	local sliderFill
-	sliderFill = gui.Panel{
-		classes = {"bgAccent"},
-		bgimage = 'panels/square.png',
-		selfStyle = {
-			width = '0%',
-			height = '100%',
-			halign = 'left',
-		},
-
-		refreshPlayingAudio = function(element)
-			local soundEvent = audio.currentlyPlaying[audioAsset.id]
-			if soundEvent ~= nil then
-				element.thinkTime = 0.1
-			else
-				durationLabel.text = string.format("%s", FormatTime(audioAsset.duration, audioAsset.duration))
-				sliderFill.selfStyle.width = "0%"
-				element.thinkTime = nil
-			end
-		end,
-
-
-		think = function(element)
-			local soundEvent = audio.currentlyPlaying[audioAsset.id]
-			if soundEvent ~= nil then
-				durationLabel.text = string.format("%s/%s", FormatTime(soundEvent.time, audioAsset.duration), FormatTime(audioAsset.duration, audioAsset.duration))
-				sliderFill.selfStyle.width = string.format("%f%%", (100*soundEvent.time)/audioAsset.duration)
-			else
-				durationLabel.text = string.format("%s", FormatTime(audioAsset.duration, audioAsset.duration))
-				sliderFill.selfStyle.width = "0%"
-				element.thinkTime = nil
-			end
-		end,
-
+	local nameLabel = gui.Label{
+		classes = {"audioSbName", "collapsed"},
+		text = "",
+		width = "100%-4",
+		height = "auto",
+		halign = "center",
+		valign = "top",
+		y = 14,
+		textAlignment = "center",
+		textWrap = true,
+		maxVisibleLines = 2,
+		textOverflow = "ellipsis",
 	}
 
-	local playerSlider = gui.Panel{
-		classes = {"bgAlt"},
-		bgimage = 'panels/square.png',
-		floating = true,
-		--classes = {'hidden'},
-		style = {
-			height = 2,
-			width = '100%',
-			margin = 0,
-			pad = 0,
-			halign = 'center',
-			valign = 'bottom',
-			flow = 'none',
-		},
-		children = {
-			sliderFill,
-		},
+	local emptyLabel = gui.Label{
+		classes = {"audioSbAssignLabel", "fgMuted", "sizeXs"},
+		text = "+ Assign",
+		width = "auto",
+		height = "auto",
+		halign = "center",
+		valign = "center",
 	}
 
-
-	local titleLabel = gui.Label{
-		classes = {"audioItemTitle"},
-		editableOnDoubleClick = true,
-		text = audioAsset.description,
-
-		change = function(element)
-			audioAsset.description = element.text
-			audioAsset:Upload()
-		end,
-
-		monitorAssets = "audio",
-		refreshAssets = function(element)
-			element.text = audioAsset.description
-		end,
-
-		think = function(element)
-			element.x = element.x - 1
-			if element.x < -element.renderedWidth then
-				element.x = element.parent.renderedWidth
-			end
-		end,
-
-	}
-
-	local titleLabelContainer = gui.Panel{
-		classes = {"audioItemTitleContainer"},
-		titleLabel,
-		gui.NewContentAlertConditional("audio", audioAsset.id, { x = -8 }),
-
-		bgimage = "panels/square.png",
-		clip = true,
-		clipHidden = true,
-
-		playerSlider,
-	}
-
-	local colorPanel = gui.Panel{
-		classes = {"audioItemColor"},
-		y = -8,
-		hmargin = 24,
-		popupPositioning = "panel",
-
-		hueshift = audioAsset.color/8,
-
-		monitorAssets = "audio",
-		refreshAssets = function(element)
-			element.selfStyle.hueshift = audioAsset.color/8
-		end,
-
-		click = function(element)
-		end,
-
+	--Loop glyph: top-left corner, always visible on filled buttons (both surfaces).
+	--bgimage set directly (not via a class rule) so it renders under any cascade.
+	local loopGlyph = gui.Panel{
+		classes = {"audioSbLoop", "collapsed"},
+		bgimage = "game-icons/infinity.png",
+		width = 13,
+		height = 13,
+		halign = "left",
+		valign = "top",
 		swallowPress = true,
 		press = function(element)
+			local asset = assets.audioTable[assetid]
+			if asset == nil then return end
+			asset.loop = not asset.loop
+			asset:Upload()
+			element:SetClass("active", asset.loop == true)
+		end,
+		linger = function(element)
+			gui.Tooltip("Loop")(element)
+		end,
+	}
+
+	--Clear "x": edit-mode-only affordance on a filled button. Non-floating (a
+	--floating overlay drops the parent's hover state and thrashes) -- positioned via
+	--halign/valign in the flow="none" button instead. Visibility is style-driven
+	--(base hidden; shown at dim opacity for {filled, editMode}), never gated on
+	--parent:hover, so there is no overlay-hover flicker.
+	--Only ever visible in edit mode (style-driven, see AudioSoundboardButtonStyles),
+	--so the bigger hit target costs perform mode nothing.
+	local clearButton = gui.Panel{
+		classes = {"audioSbClear"},
+		bgimage = "panels/square.png",
+		bgcolor = "clear",
+		width = 20,
+		height = 20,
+		halign = "right",
+		valign = "top",
+		swallowPress = true,
+		press = function()
+			local doc = mod:GetDocumentSnapshot(docid)
+			doc:BeginChange()
+			doc.data.assetid = nil
+			doc:CompleteChange("Clear soundboard button")
+		end,
+		gui.Label{
+			classes = {"sizeS", "audioSbClearGlyph"},
+			text = "x",
+			bgcolor = "clear",
+			bold = true,
+			width = "auto",
+			height = "auto",
+			halign = "center",
+			valign = "center",
+		},
+	}
+
+	--Color swatch: bottom-right corner, edit-mode-only. Opens the 8-hue popup (ported
+	--from the old createAudioPanel colorPanel) on click. No title on the popup.
+	--The swatch face shows the asset's CURRENT color: data-driven bgcolor set in
+	--refreshGame (the audioItemColor class rules only exist inside the popup's own
+	--MergeStyles snapshot, so the face cannot rely on that class here).
+	--Popup squares (F polish): plain AudioSwatchColors[i] bgcolor at full alpha,
+	--NOT the old hueshift transform -- the picker must show exactly what the
+	--button will look like, and the button now paints the swatch color directly
+	--(FillColorHex) rather than hueshifting a fixed base image.
+	local swatchButton
+	swatchButton = gui.Panel{
+		classes = {"audioSbSwatch"},
+		bgimage = "panels/square.png",
+		width = 13,
+		height = 13,
+		halign = "right",
+		valign = "bottom",
+		popupPositioning = "panel",
+		swallowPress = true,
+		press = function(element)
+			if not IsEditMode() then return end
+			local asset = assets.audioTable[assetid]
+			if asset == nil then return end
 			if element.popup ~= nil then
 				element.popup = nil
+				return
 			end
-
 			local parentElement = element
-
-			--Popup: reparented to the popup layer, so it does not inherit the dock
-			--cascade -- route its own ThemeEngine snapshot so {framedPanel} themes.
-			--Transient (rebuilt each open), so it picks up the active scheme without
-			--an OnThemeChanged. ColorStyles is the data-driven swatch (8 hues).
 			element.popup = gui.Panel{
 				styles = ThemeEngine.MergeStyles{
-					ColorStyles[1],
-					ColorStyles[2],
 					{
 						selectors = {"audioItemColor"},
+						halign = "left",
+						valign = "center",
+						width = 12,
+						height = 12,
+						border = 0.5,
+						borderColor = "white",
+						cornerRadius = 2,
+						bgimage = "panels/square.png",
 						hmargin = 4,
 						vmargin = 4,
+					},
+					{
+						selectors = {"audioItemColor", "hover"},
+						brightness = 1.5,
 					},
 				},
 				classes = {"framedPanel"},
@@ -1035,371 +919,300 @@ createAudioPanel = function(audioAsset, options)
 				halign = "right",
 				flow = "horizontal",
 				wrap = true,
-				create = function(element)
+				create = function(popupElement)
 					local children = {}
 					for i=0,7 do
 						children[#children+1] = gui.Panel{
 							classes = {"audioItemColor"},
-							hueshift = i/8,
+							bgcolor = AudioSwatchColors[i],
 							press = function()
-								audioAsset.color = i
-								audioAsset:Upload()
+								asset.color = i
+								asset:Upload()
 								parentElement.popup = nil
-
 							end,
 						}
-
 					end
-
-					element.children = children
+					popupElement.children = children
 				end,
 			}
-
 		end,
 	}
 
-	local playButton
+	--Mute + per-track volume row, bottom of the button. Wiring copied from the old
+	--createAudioPanel volume slider: preview/confirm write audio.SetSoundEventVolume
+	--live, confirm additionally persists to the soundevent-<assetid> doc.
+	local volumeSlider
+	volumeSlider = gui.Slider{
+		minValue = 0,
+		maxValue = 1,
+		sliderWidth = 62,
+		labelWidth = 0,
+		labelFormat = "",
+		style = { width = "100%-18", height = 12, valign = "center" },
+		events = {
+			preview = function(element)
+				if assetid ~= nil and not muted then
+					audio.SetSoundEventVolume(assetid, element.value)
+				end
+			end,
+			confirm = function(element)
+				if assetid == nil then return end
+				if not muted then
+					audio.SetSoundEventVolume(assetid, element.value)
+				end
+				local doc = mod:GetDocumentSnapshot(string.format("soundevent-%s", assetid))
+				doc:BeginChange()
+				doc.data.volume = element.value
+				doc:CompleteChange("Set audio volume")
+			end,
+			refreshPlayingAudio = function(element)
+				if assetid == nil then return end
+				local doc = mod:GetDocumentSnapshot(string.format("soundevent-%s", assetid))
+				local asset = assets.audioTable[assetid]
+				local base = (asset ~= nil) and asset.volume or 1
+				element.value = cond(doc.data.volume ~= nil, doc.data.volume, base)
+			end,
+		},
+	}
 
-	local hovered = false
+	local muteButton
+	muteButton = gui.Panel{
+		classes = {"audioSbMute", "hoverable"},
+		bgimage = "ui-icons/AudioVolumeButton.png",
+		width = 12,
+		height = 12,
+		valign = "center",
+		swallowPress = true,
+		press = function(element)
+			if assetid == nil then return end
+			muted = not muted
+			element:SetClass("muted", muted)
+			if muted then
+				element.bgimage = "ui-icons/AudioMuteButton.png"
+				audio.SetSoundEventVolume(assetid, 0)
+			else
+				element.bgimage = "ui-icons/AudioVolumeButton.png"
+				audio.SetSoundEventVolume(assetid, volumeSlider.value)
+			end
+		end,
+		linger = function(element)
+			gui.Tooltip("Mute")(element)
+		end,
+	}
 
-	local BeginScroll = function()
-		if preview or titleLabel.editing then
-			return
-		end
+	local volumeRow = gui.Panel{
+		classes = {"audioSbVolumeRow"},
+		flow = "horizontal",
+		width = "100%",
+		height = 14,
+		halign = "center",
+		valign = "bottom",
+		y = -2,
+		floating = true,
+		muteButton,
+		volumeSlider,
+	}
 
-		if titleLabel.renderedWidth > titleLabelContainer.renderedWidth then
-			titleLabel.thinkTime = 0.01
-		end
-	end
-
-	local StopScroll = function()
-		titleLabel.x = 0
-		titleLabel.thinkTime = nil
-	end
-
-	local CalculateScroll = function()
-		if hovered or (audioAsset.duration > 20 and playButton:HasClass("playing")) then
-			BeginScroll()
-		else
-			StopScroll()
-		end
-	end
-
-
-	durationLabel = gui.Label{
-		classes = {"durationLabel"},
-		text = FormatTime(audioAsset.duration, audioAsset.duration),
+	local durationLabel = gui.Label{
+		classes = {"audioSbDuration"},
+		text = "",
+		width = "auto",
+		height = "auto",
 		halign = "right",
 		valign = "top",
-		hmargin = 4,
-		vmargin = 0,
-
-		monitorAssets = "audio",
-		refreshAssets = function(element)
-			element.text = FormatTime(audioAsset.duration, audioAsset.duration)
-		end,
+		hmargin = 3,
+		vmargin = 2,
 	}
 
-	playButton = gui.Panel{
-		classes = {"playButton"},
-		rotate = 90,
-		y = -3,
-		halign = "center",
-		valign = "center",
-		floating = true,
+	--Progress line: thin bottom bar that fills while playing, reusing the old tile's
+	--sliderFill think pattern (poll every 0.1s while audio.currentlyPlaying holds
+	--this asset). Cleared (0-width, no think) once stopped.
+	local progressFill
+	progressFill = gui.Panel{
+		classes = {"audioSbProgress"},
+		bgimage = "panels/square.png",
+		selfStyle = { width = "0%", height = "100%", halign = "left" },
+
 		refreshPlayingAudio = function(element)
-			local soundEvent = audio.currentlyPlaying[audioAsset.id]
-			element:SetClass("playing", soundEvent ~= nil)
-
-			CalculateScroll()
-		end,
-	}
-
-	local loopButton = gui.Panel{
-		classes = {"loopIcon", cond(audioAsset.loop, nil, "disabled")},
-		halign = "left",
-		valign = "top",
-		floating = true,
-		monitorAssets = "audio",
-		refreshAssets = function(element)
-			element:SetClass("disabled", not audioAsset.loop)
-		end,
-		click = function(element)
-			--swallow click.
-		end,
-		press = function(element)
-			audioAsset.loop = not audioAsset.loop
-			audioAsset:Upload()
-
-			element:SetClass("disabled", not audioAsset.loop)
-		end,
-	}
-
-	local muted = false
-	local volumePanel
-
-	if options.volumeSlider ~= false then
-		volumeSlider = gui.Slider{
-			value = audioAsset.volume,
-			minValue = 0,
-			maxValue = 1,
-			handleSize = "100%",
-			sliderWidth = 80,
-			style = {
-				width = '60%',
-				height = 16,
-			},
-			events = {
-				preview = function(element)
-					--change to only preview locally?
-					audio.SetSoundEventVolume(audioAsset.id, element.value)
-				end,
-				confirm = function(element)
-					audio.SetSoundEventVolume(audioAsset.id, element.value)
-
-					local doc = mod:GetDocumentSnapshot(soundEventDocId)
-					doc:BeginChange()
-					doc.data.volume = element.value
-					doc:CompleteChange("Set audio volume")
-				end,
-				refreshPlayingAudio = function(element)
-					local doc = mod:GetDocumentSnapshot(soundEventDocId)
-					element.value = cond(doc.data.volume ~= nil, doc.data.volume, audioAsset.volume)
-				end,
-			}
-		}
-
-		local volumeIcon = nil
-		volumeIcon = gui.Panel{
-			--Icon glyph: bgcolor "white" is image-tint-neutral so the PNG shows
-			--at native colors; {hoverable} supplies token-free hover feedback.
-			classes = {"hoverable"},
-			bgimage = 'ui-icons/AudioVolumeButton.png',
-			bgcolor = "white",
-			width = 12,
-			height = 12,
-			valign = 'center',
-			events = {
-				click = function(element)
-					--swallow
-				end,
-				press = function(element)
-					muted = not muted
-					if muted then
-						volumeIcon.bgimage = 'ui-icons/AudioMuteButton.png'
-						audio.SetSoundEventVolume(audioAsset.id, 0)
-					else
-						volumeIcon.bgimage = 'ui-icons/AudioVolumeButton.png'
-						audio.SetSoundEventVolume(audioAsset.id, volumeSlider.value)
-					end
-
-					volumeSlider:SetClass('hidden', muted)
-				end,
-			},
-		}
-
-		volumePanel = gui.Panel{
-			style = {
-				height = 'auto',
-				width = '90%',
-				flow = 'horizontal',
-			},
-			y = 2,
-			floating = true,
-			valign = "bottom",
-			halign = "center",
-			children = {
-				volumeIcon,
-
-				volumeSlider,
-
-			}
-		}
-	end
-
-	--Per-track category selector (Music / Ambience / Effects). Phase 1 interim
-	--authoring path -- writes asset.category, which routes the library track
-	--through the matching mix group. In Phase 2 the categories become the
-	--top-level library folders and this dropdown rides the list row. A dropdown
-	--(not a chip/segment) so the caret advertises that the category is changeable.
-	--Lives in the space the volume slider would occupy, so it is only shown on
-	--library tiles (where options.categorySelector is set), never the soundboard.
-	--Behavior (options/normalisation/change) is shared via CreateCategoryDropdown;
-	--only the tile-specific floating layout is passed in here.
-	local categorySelector = nil
-	if options.categorySelector then
-		categorySelector = CreateCategoryDropdown(audioAsset, {
-			floating = true,
-			valign = "bottom",
-			halign = "center",
-			y = 1,
-			width = "92%",
-			height = 16,
-			fontSize = 11,
-		})
-	end
-
-
-	local body = gui.Panel{
-		classes = {"audioItemBody"},
-		durationLabel,
-		playButton,
-		loopButton,
-		volumePanel,
-		categorySelector,
-		colorPanel,
-
-		hueshift = audioAsset.color/8,
-
-		monitorAssets = "audio",
-		refreshAssets = function(element)
-			element.selfStyle.hueshift = audioAsset.color/8
-		end,
-
-		click = function(element)
-
-			if playButton:HasClass("playing") then
-				audio.StopSoundEvent(audioAsset.id)
+			local asset = assets.audioTable[assetid]
+			local soundEvent = (assetid ~= nil) and audio.currentlyPlaying[assetid] or nil
+			if soundEvent ~= nil and asset ~= nil then
+				element.thinkTime = 0.1
+				durationLabel.text = string.format("%s/%s", FormatTime(soundEvent.time, asset.duration), FormatTime(asset.duration, asset.duration))
 			else
-				local volume = 1
-				
-				if volumeSlider ~= nil then
-					volume = volumeSlider.value
+				element.thinkTime = nil
+				progressFill.selfStyle.width = "0%"
+				if asset ~= nil then
+					durationLabel.text = FormatTime(asset.duration, asset.duration)
 				end
-				PlayBroadcastClip(audioAsset, { volume = volume })
 			end
+		end,
 
-
+		think = function(element)
+			local asset = assets.audioTable[assetid]
+			local soundEvent = (assetid ~= nil) and audio.currentlyPlaying[assetid] or nil
+			if soundEvent ~= nil and asset ~= nil and asset.duration > 0 then
+				durationLabel.text = string.format("%s/%s", FormatTime(soundEvent.time, asset.duration), FormatTime(asset.duration, asset.duration))
+				progressFill.selfStyle.width = string.format("%f%%", (100*soundEvent.time)/asset.duration)
+			else
+				element.thinkTime = nil
+				progressFill.selfStyle.width = "0%"
+			end
 		end,
 	}
 
-	local currentDragParent = nil --our parent slot when the drag started.
-	local currentDragTarget = nil
+	local progressBar = gui.Panel{
+		bgimage = "panels/square.png",
+		bgcolor = "clear",
+		floating = true,
+		width = "100%",
+		height = 2,
+		halign = "center",
+		valign = "bottom",
+		progressFill,
+	}
 
-	resultPanel = gui.Panel{
-		classes = {"audioItemPanel"},
-		draggable = true,
+	--Color fill (F polish): painted directly on the BUTTON's own bgimage/bgcolor
+	--instead of an inset child panel, so the fill is full-bleed with the button's
+	--rounded corners and has zero gap at the 4px pad (the old fillPanel sat INSIDE
+	--the padded content box and read as a small square floating in the button --
+	--the exact artifact flagged in review). The hue is data-driven (asset.color),
+	--so idle/playing use alpha-carrying hex strings computed once per refresh
+	--(refreshGame AND refreshPlayingAudio, since only the latter knows the live
+	--playing state) rather than class-driven opacity.
+	local function FillColorHex(asset, playing)
+		if asset == nil then
+			return "clear"
+		end
+		local base = AudioSwatchColor(asset.color)
+		if playing then
+			return base .. "E6" --~90% alpha
+		end
+		return base .. "4D" --~30% alpha
+	end
 
-		data = {
-			slot = slot,
-		},
+	local button
+	button = gui.Panel{
+		classes = {"bordered", "hoverable", "audioSbButton"},
+		flow = "none",
+		width = AUDIO_SB_BUTTON_WIDTH,
+		height = AUDIO_SB_BUTTON_HEIGHT,
+		margin = 2,
+		pad = 4,
+		borderBox = true,
+		bgimage = "panels/square.png",
+		popupPositioning = "panel",
+		monitorGame = mod:GetDocumentSnapshot(docid).path,
+		monitorAssets = "audio",
 
-		setAudio = function(element, assetid)
-			audioAsset = assets.audioTable[assetid]
-			soundEventDocId = string.format("soundevent-%s", audioAsset.id)
-			element:FireEventTree("refreshAssets")
-			element:FireEventTree("refreshPlayingAudio")
+		--Studio only: draggable for slot-to-slot swap. Gated on edit mode at build
+		--time; the Studio grid does a full rebuild on mode toggle (BuildGrid), so a
+		--stale draggable flag from a previous mode never lingers.
+		draggable = isStudio and IsEditMode(),
+		dragTarget = isStudio,
+		canDragOnto = isStudio and function(element, target)
+			return target ~= nil and target:HasClass("audioSbButton")
+		end or nil,
+		drag = isStudio and function(element, target)
+			if target == nil or not target:HasClass("audioSbButton") then return end
+			if target == element then return end
+			local srcDoc = mod:GetDocumentSnapshot(docid)
+			local dstDoc = mod:GetDocumentSnapshot(target.data.docid)
+			local srcId = srcDoc.data.assetid
+			local dstId = dstDoc.data.assetid
+			srcDoc:BeginChange()
+			srcDoc.data.assetid = dstId
+			srcDoc:CompleteChange("Swap soundboard buttons")
+			dstDoc:BeginChange()
+			dstDoc.data.assetid = srcId
+			dstDoc:CompleteChange("Swap soundboard buttons")
+		end or nil,
+
+		data = { docid = docid },
+
+		create = function(element)
+			element:FireEvent("refreshGame")
 		end,
 
+		refreshGame = function(element)
+			local doc = mod:GetDocumentSnapshot(docid)
+			assetid = doc.data.assetid
+			local asset = (assetid ~= nil) and assets.audioTable[assetid] or nil
+			if asset ~= nil then
+				local displayName = DisplayNameForAsset(asset)
+				if displayName == "" then displayName = "(unnamed)" end
+				nameLabel.text = displayName
+				nameLabel:SetClass("collapsed", false)
+				emptyLabel:SetClass("collapsed", true)
+				element:SetClass("filled", true)
+				clearButton:SetClass("filled", true)
+				swatchButton:SetClass("filled", true)
+				swatchButton.selfStyle.bgcolor = AudioSwatchColor(asset.color)
+				loopGlyph:SetClass("collapsed", false)
+				loopGlyph:SetClass("active", asset.loop == true)
+				volumeRow:SetClass("collapsed", false)
+				durationLabel.text = FormatTime(asset.duration, asset.duration)
+			else
+				assetid = nil
+				nameLabel:SetClass("collapsed", true)
+				emptyLabel:SetClass("collapsed", false)
+				element:SetClass("filled", false)
+				clearButton:SetClass("filled", false)
+				swatchButton:SetClass("filled", false)
+				loopGlyph:SetClass("collapsed", true)
+				volumeRow:SetClass("collapsed", true)
+				durationLabel.text = ""
+			end
+			element.selfStyle.bgcolor = FillColorHex(asset, assetid ~= nil and audio.currentlyPlaying[assetid] ~= nil)
+			element:SetClass("editMode", IsEditMode())
+			element:FireEvent("refreshPlayingAudio")
+		end,
+
+		refreshAssets = function(element)
+			element:FireEvent("refreshGame")
+		end,
+
+		refreshPlayingAudio = function(element)
+			local asset = (assetid ~= nil) and assets.audioTable[assetid] or nil
+			local playing = assetid ~= nil and audio.currentlyPlaying[assetid] ~= nil
+			element:SetClass("playing", playing)
+			element.selfStyle.bgcolor = FillColorHex(asset, playing)
+			progressFill:FireEvent("refreshPlayingAudio")
+			volumeSlider:FireEvent("refreshPlayingAudio")
+		end,
+
+		--Perform mode (dock always; Studio with edit mode off): filled = play/stop,
+		--empty = inert. Studio edit mode: filled is inert (affordances only), empty
+		--opens the assign popup (opts.openAssignPopup, Studio-only).
 		click = function(element)
-			element.popup = nil
-		end,
-
-		hover = function(element)
-			hovered = true
-			CalculateScroll()
-		end,
-
-		dehover = function(element)
-			hovered = false
-			CalculateScroll()
-		end,
-
-		canDragOnto = function(element, target)
-        	return target:HasClass("playgrid") or target:HasClass("audioFolder")
-        end,
-
-		beginDrag = function(element)
-			currentDragParent = element.parent
-			--currentDragParent:FireEvent("preview", audioAsset.id)
-
-			currentDragTarget = nil
-		end,
-
-		dragging = function(element, target)
-			if target == currentDragParent then
-				target = nil
-			end
-
-			if currentDragTarget == target then
+			if IsEditMode() then
+				if assetid == nil and opts.openAssignPopup ~= nil then
+					opts.openAssignPopup(element, board, slot)
+				end
 				return
 			end
-
-			if currentDragTarget ~= nil and currentDragTarget.valid then
-				currentDragTarget:FireEvent("preview") --clear the preview.
-			end
-
-			if target ~= nil then
-				target:FireEvent("preview", audioAsset.id)
-			end
-
-			currentDragTarget = target
-		end,
-
-		drag = function(element, target)
-			if currentDragParent ~= nil then
-				currentDragParent:FireEvent("preview")
-			end
-
-			currentDragParent = nil
-
-			if currentDragTarget ~= nil and currentDragTarget.valid and target ~= currentDragTarget then
-				--this shouldn't really happen but just in case we get a drag without a dragging first where
-				--the target has changed.
-				currentDragTarget:FireEvent("preview") --clear the preview.
-			end
-
-			currentDragTarget = nil
-
-			if target == nil then
-				return
-			end
-
-			if target:HasClass("audioFolder") then
-				audioAsset.parentFolder = target.data.folderid
-				audioAsset:Upload()
-			elseif target:HasClass("playgrid") then
-				local doc = mod:GetDocumentSnapshot(target.data.docid)
-				local id = audioAsset.id
-
-				if slot ~= nil and resultPanel.parent.data.docid ~= nil then
-					--if this is a drag to the same grid, then it exchanges documents.
-					if resultPanel.parent == target then
-						--just dragging onto ourselves, so a no-op.
-						return
-					end
-
-					local src = mod:GetDocumentSnapshot(resultPanel.parent.data.docid)
-					src:BeginChange()
-					src.data.assetid = doc.data.assetid
-					src:CompleteChange("Set Sound Slot")
+			if assetid == nil then return end
+			if audio.currentlyPlaying[assetid] ~= nil then
+				audio.StopSoundEvent(assetid)
+			else
+				local asset = assets.audioTable[assetid]
+				if asset ~= nil then
+					PlayBroadcastClip(asset, { volume = volumeSlider.value })
 				end
-
-				--only allow a sound to be assigned to one item in the grid.
-				for _,sibling in ipairs(target.parent.children) do
-					if sibling ~= target and sibling ~= resultPanel.parent and sibling.data.docid ~= nil then
-						local siblingdoc = mod:GetDocumentSnapshot(sibling.data.docid)
-						if siblingdoc.data.assetid == audioAsset.id then
-							siblingdoc:BeginChange()
-							siblingdoc.data.assetid = nil
-							siblingdoc:CompleteChange("Set Sound Slot")
-						end
-					end
-				end
-
-				doc:BeginChange()
-				doc.data.assetid = id
-				doc:CompleteChange("Set Sound Slot")
 			end
 		end,
 
-
-		titleLabelContainer,
-		body,
-
+		loopGlyph,
+		nameLabel,
+		emptyLabel,
+		volumeRow,
+		durationLabel,
+		progressBar,
+		clearButton,
+		swatchButton,
 	}
 
-	return resultPanel
+	return button
 end
 
 
@@ -2244,12 +2057,25 @@ CreateSoundPanel = function()
 	--controls, so it no longer lives on the dock.)
 	local anthemsSection = MakeCollapsibleSection("anthems", "Anthems", CreateAnthemNode())
 
+	local dockPlayerGrid = CreatePlayerGrid()
 	local soundboardBody = gui.Panel{
 		flow = "vertical",
 		width = "100%",
 		height = "auto",
 
-		CreateAudioGrid(),
+		CreateDockBoardSelector(dockPlayerGrid),
+		dockPlayerGrid,
+
+		--Perform-only surface (F1c): assignment/curation lives in the Studio now.
+		gui.Label{
+			classes = {"fgMuted", "sizeXs"},
+			text = "Open Audio Studio to manage your soundboard.",
+			width = "100%",
+			height = "auto",
+			textWrap = true,
+			halign = "left",
+			vmargin = 2,
+		},
 	}
 	local soundboardSection = MakeCollapsibleSection("soundboard", "Soundboard", soundboardBody)
 
@@ -2273,101 +2099,39 @@ CreateSoundPanel = function()
 
 	--Content root of the Audio dock panel. It inherits the DockablePanel host's
 	--ThemeEngine cascade (DockablePanel.lua runs GetStyles at the dock root), so
-	--no GetStyles/OnThemeChanged is declared here. The rules below are component
-	--layout plus the data-driven library-tile coloring (asset.color hueshift on a
-	--red/black base) -- a deliberate keep, not chrome; the tiles are replaced by
-	--the list view in the next chunk.
-	local mainPanel = gui.Panel{
-		styles = {
-			{
-				halign = 'left',
-				valign = 'top',
-				width = "100%",
-				height = "auto",
-				flow = "vertical",
-			},
-			{
-				selectors = {"audioItemPanel"},
-				width = 113,
-				height = 64,
-				flow = "vertical",
-				halign = "center",
-				valign = "center",
-			},
-			{
-				selectors = {"audioItemTitleContainer"},
-				width = "95%",
-				height = "30%",
-				flow = "vertical",
+	--no GetStyles/OnThemeChanged is declared here for the base theme -- but the
+	--unified soundboard button (F1a/F1d) needs its own extra rules routed through
+	--MergeStyles (inline @tokens do not reliably resolve under the dock cascade),
+	--so this root gets its own OnThemeChanged to re-merge + re-cascade on a scheme
+	--switch, same pattern as the Studio root.
+	local mainPanel
+	mainPanel = gui.Panel{
+		halign = 'left',
+		valign = 'top',
+		width = "100%",
+		height = "auto",
+		flow = "vertical",
 
-			},
-			{
-				selectors = {"audioItemTitle"},
-				fontSize = 14,
-				hmargin = 4,
-				halign = "left",
-				width = "auto",
-				textAlignment = "center",
-				height = "100%",
-			},
+		styles = ThemeEngine.MergeStyles(AudioSoundboardButtonStyles),
 
-			ColorStyles,
+		data = {},
 
-			{
-				selectors = {"playButton"},
-				bgimage = "panels/triangle.png",
-				bgcolor = "black",
-				width = 45*0.5,
-				height = 40*0.5,
-				y = 2,
-			},
-			{
-				selectors = {"playButton", "playing"},
-				bgimage = "panels/square.png",
-				scale = 0.9,
-				y = 2,
-			},
+		create = function(element)
+			element.data.themeSub = ThemeEngine.OnThemeChanged(mod, function()
+				if element.valid then
+					element.styles = ThemeEngine.MergeStyles(AudioSoundboardButtonStyles)
+					element.data.themeTick = not element.data.themeTick
+					element:SetClassTree("themeRefreshTick", element.data.themeTick == true)
+				end
+			end)
+		end,
 
-			{
-				selectors = {"loopIcon"},
-				bgimage = "game-icons/infinity.png",
-				bgcolor = "black",
-				width = 16,
-				height = 16,
-				hmargin = 4,
-			},
-
-			{
-				selectors = {"loopIcon", "disabled"},
-				opacity = 0.7,
-			},
-
-			{
-				selectors = {"audioItemBody"},
-				width = "100%",
-				height = "70%",
-				halign = "center",
-				valign = "bottom",
-				bgimage = "panels/square.png",
-                saturation = 0.3,
-				bgcolor = "red",
-				cornerRadius = 4,
-
-			},
-			{
-				selectors = {"audioItemBody", "hover"},
-				brightness = 1.8,
-			},
-			{
-				selectors = {"durationLabel"},
-				fontSize = 12,
-				bold = true,
-				color = "black",
-				width = "auto",
-				height = "auto",
-
-			},
-		},
+		destroy = function(element)
+			if element.data.themeSub ~= nil then
+				element.data.themeSub:Deregister()
+				element.data.themeSub = nil
+			end
+		end,
 
 		refreshAudio = function(element)
 			element:FireEventTree("refreshPlayingAudio")
@@ -2730,10 +2494,10 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 		end,
 	}
 
-	--Loop toggle: reuses the dock tile's loop icon asset + disabled-when-off styling
-	--approach (see loopButton in createAudioPanel), sized to sit inline in the row.
-	--bgimage is set directly (NOT via the {loopIcon} class): that class's bgimage rule
-	--lives in the dock panel's local styles, which this Studio surface never inherits.
+	--Loop toggle: same "game-icons/infinity.png" glyph + disabled-when-off styling
+	--approach as the unified soundboard button's loop glyph, sized to sit inline in
+	--the row. bgimage is set directly (not via a class rule) so it renders under any
+	--cascade -- this Studio row is a separate surface from the soundboard buttons.
 	local loopButton = gui.Panel{
 		classes = {"audioRowLoopButton", cond(audioAsset.loop, nil, "disabled")},
 		bgimage = "game-icons/infinity.png",
@@ -3006,16 +2770,18 @@ end
 --Studio Soundboard curation card (right column). Five boards of twelve buttons,
 --sharing the same audiogrid-<board>-<slot> documents the dock soundboard plays
 --from: this surface ASSIGNS and CLEARS clips, the dock surface fires them. A clip
---occupies at most one button per board (de-duped on assign, matching the dock rule
---at the createAudioPanel drag handler). Clicking a filled button plays/stops it;
---clicking an empty one opens a searchable clip picker (all clips, Effects first).
-local STUDIO_BOARDS = 5
-local STUDIO_SLOTS = 12
+--occupies at most one button per board (de-duped on assign). Buttons are the
+--unified CreateSoundboardButton (surface="studio"); the card's own edit mode gates
+--the assign/clear/swatch/drag affordances (chunk F1b) -- see the "Edit board"
+--toggle below.
 
 local CreateStudioSoundboard = function()
 	local m_board = 1
+	local m_editMode = false
 	local gridPanel
 	local boardButtons = {}
+	local editToggle
+	local captionLabel
 
 	local function SlotDocId(board, slot)
 		return string.format("audiogrid-%d-%d", board, slot)
@@ -3038,13 +2804,6 @@ local CreateStudioSoundboard = function()
 			return (a.description or "") < (b.description or "")
 		end)
 		return out
-	end
-
-	local function ClearSlot(board, slot)
-		local doc = mod:GetDocumentSnapshot(SlotDocId(board, slot))
-		doc:BeginChange()
-		doc.data.assetid = nil
-		doc:CompleteChange("Clear soundboard button")
 	end
 
 	local function AssignSlot(board, slot, assetid)
@@ -3168,144 +2927,32 @@ local CreateStudioSoundboard = function()
 		}
 	end
 
-	--One soundboard button. board/slot are captured at build time; the grid is fully
-	--rebuilt on a board switch so each button monitors its own board's document.
-	local function CreateSlotButton(board, slot)
-		local docid = SlotDocId(board, slot)
-		local assetid = nil
-
-		local nameLabel = gui.Label{
-			classes = {"sizeXs", "collapsed"},
-			text = "",
-			width = "100%-4",
-			height = "auto",
-			halign = "center",
-			valign = "center",
-			textAlignment = "center",
-			textWrap = true,
-			maxVisibleLines = 2,
-			textOverflow = "ellipsis",
-		}
-
-		local emptyLabel = gui.Label{
-			classes = {"fgMuted", "sizeXs"},
-			text = "+ Assign",
-			width = "auto",
-			height = "auto",
-			halign = "center",
-			valign = "center",
-		}
-
-		--Clear "x": a plain NON-floating child (floating children render in a separate
-		--layer, so the cursor moving onto them drops the parent's hover state and the
-		--style reveal thrashes in/out). Kept in the flow="none" button via halign/valign
-		--so it overlays the top-right corner. Visibility is style-driven (base hidden;
-		--shown at dim opacity whenever the slot is filled, brightening to full opacity
-		--on hover of the button itself -- always-visible-dim rather than hover-revealed,
-		--so there is no overlay-hover thrashing).
-		local clearButton = gui.Panel{
-			classes = {"audioStudioClearBtn"},
-			bgimage = "panels/square.png",
-			bgcolor = "clear",
-			width = 16,
-			height = 16,
-			halign = "right",
-			valign = "top",
-			swallowPress = true,
-			press = function()
-				ClearSlot(board, slot)
-			end,
-			gui.Label{
-				classes = {"sizeXs", "audioStudioClearGlyph"},
-				text = "x",
-				bgcolor = "clear",
-				bold = true,
-				width = "auto",
-				height = "auto",
-				halign = "center",
-				valign = "center",
-			},
-		}
-
-		local button
-		button = gui.Panel{
-			classes = {"bordered", "hoverable"},
-			flow = "none",
-			width = 104,
-			height = 46,
-			margin = 4,
-			pad = 4,
-			borderBox = true,
-			popupPositioning = "panel",
-			monitorGame = mod:GetDocumentSnapshot(docid).path,
-			monitorAssets = "audio",
-
-			create = function(element)
-				element:FireEvent("refreshGame")
-			end,
-
-			refreshGame = function(element)
-				local doc = mod:GetDocumentSnapshot(docid)
-				assetid = doc.data.assetid
-				local asset = (assetid ~= nil) and assets.audioTable[assetid] or nil
-				if asset ~= nil then
-					local displayName = DisplayNameForAsset(asset)
-					if displayName == "" then displayName = "(unnamed)" end
-					nameLabel.text = displayName
-					nameLabel:SetClass("collapsed", false)
-					emptyLabel:SetClass("collapsed", true)
-					clearButton:SetClass("filled", true)
-				else
-					assetid = nil
-					nameLabel:SetClass("collapsed", true)
-					emptyLabel:SetClass("collapsed", false)
-					clearButton:SetClass("filled", false)
-				end
-				element:FireEvent("refreshPlayingAudio")
-			end,
-
-			refreshAssets = function(element)
-				element:FireEvent("refreshGame")
-			end,
-
-			refreshPlayingAudio = function(element)
-				element:SetClass("playing", assetid ~= nil and audio.currentlyPlaying[assetid] ~= nil)
-			end,
-
-			click = function(element)
-				if assetid == nil then
-					OpenAssignPopup(element, board, slot)
-				elseif audio.currentlyPlaying[assetid] ~= nil then
-					audio.StopSoundEvent(assetid)
-				else
-					local asset = assets.audioTable[assetid]
-					if asset ~= nil then
-						PlayBroadcastClip(asset, { volume = asset.volume })
-					end
-				end
-			end,
-
-			nameLabel,
-			emptyLabel,
-			clearButton,
-		}
-		return button
+	local function IsEditMode()
+		return m_editMode
 	end
 
 	local function BuildGrid()
 		local children = {}
 		for slot = 1, STUDIO_SLOTS do
-			children[#children+1] = CreateSlotButton(m_board, slot)
+			children[#children+1] = CreateSoundboardButton(m_board, slot, {
+				surface = "studio",
+				isEditMode = IsEditMode,
+				openAssignPopup = OpenAssignPopup,
+			})
 		end
 		gridPanel.children = children
 	end
 
+	--Width pinned to 350 (task 6c, right-column placement): the right column's
+	--38%-of-1100 share leaves ~400px of card interior, which is just wide enough
+	--for a 4th button (114px each including margin) to sneak onto the row. 350
+	--forces a clean 3-column wrap (342px), matching the dock's 3x4 grid shape.
 	gridPanel = gui.Panel{
 		flow = "horizontal",
 		wrap = true,
-		width = "100%",
+		width = 350,
 		height = "auto",
-		halign = "center",
+		halign = "left",
 		vmargin = 4,
 	}
 
@@ -3352,6 +2999,38 @@ local CreateStudioSoundboard = function()
 		children = boardRow,
 	}
 
+	--Edit board toggle: flips m_editMode and rebuilds the grid (simplest way to
+	--re-gate every button's draggable/affordance wiring, F1b) plus updates the
+	--caption copy. {selected} mirrors the board-selector button's active look.
+	editToggle = gui.Button{
+		classes = {"sizeXs"},
+		text = "Edit board",
+		--Fixed width: "auto" wrapped the two-word label onto two lines here.
+		--"Stop editing" is the longest label this button shows; 84 still fits it
+		--at sizeXs (verified live), so the width is unchanged.
+		width = 84,
+		height = 24,
+		valign = "center",
+		press = function(element)
+			m_editMode = not m_editMode
+			element:SetClass("selected", m_editMode)
+			element.text = m_editMode and "Stop editing" or "Edit board"
+			BuildGrid()
+			captionLabel.text = m_editMode
+				and "Click an empty button to assign a clip. Use x to clear a button, drag to reorder, and the swatch to set its color."
+				or "Click a button to play or stop its clip. Use Edit board to change assignments."
+		end,
+	}
+
+	captionLabel = gui.Label{
+		classes = {"fgMuted", "sizeXs"},
+		text = "Click a button to play or stop its clip. Use Edit board to change assignments.",
+		width = "100%",
+		height = "auto",
+		halign = "left",
+		vmargin = 2,
+	}
+
 	BuildGrid()
 
 	return gui.Panel{
@@ -3363,17 +3042,6 @@ local CreateStudioSoundboard = function()
 		borderBox = true,
 		vmargin = 4,
 
-		--Clear "x": shown on every filled button (dim), brightening on its own hover.
-		--Deliberately NOT gated on parent:hover -- a hover-reveal that overlaps the
-		--button via flow="none" lets the engine's per-frame hover resolution oscillate
-		--between the x and the button when the cursor sits on the x (the flicker). An
-		--always-on dim glyph sidesteps that entirely and reads as a clearer affordance.
-		styles = {
-			{ selectors = {"audioStudioClearBtn"}, hidden = 1, opacity = 0.4 },
-			{ selectors = {"audioStudioClearBtn", "filled"}, hidden = 0 },
-			{ selectors = {"audioStudioClearBtn", "hover"}, opacity = 1 },
-		},
-
 		gui.Panel{
 			flow = "horizontal",
 			width = "100%",
@@ -3382,86 +3050,42 @@ local CreateStudioSoundboard = function()
 			vmargin = 2,
 			gui.Panel{
 				flow = "horizontal",
-				width = "100%-110",
+				width = "100%-90",
 				height = "auto",
 				halign = "left",
 				valign = "center",
 				gui.Label{ classes = {"bold", "sizeS"}, text = "Soundboard", width = "auto", height = "auto", halign = "left", valign = "center" },
 			},
+			editToggle,
 		},
 
 		boardSelector,
 		gridPanel,
 
-		gui.Label{
-			classes = {"fgMuted", "sizeXs"},
-			text = "Click an empty button to assign a clip from your library; hover a filled button to clear it.",
-			width = "100%",
-			height = "auto",
-			halign = "left",
-			vmargin = 2,
-		},
+		captionLabel,
 	}
 end
 
---Studio Mixer card (right column): a full duplicate of the dock's parent faders so a DM
---who works from the Studio finds the core table mix here too. Same faders + same shared
---"audio mix" doc / SetGroupShared wiring as the dock (module-scoped helpers), so the two
---surfaces stay in lockstep. Master is live (audio.masterVolume); the five category faders
---write the broadcast layer.
-local CreateStudioMixerCard = function()
-	--Mirror the persisted broadcast levels into this client's engine on build.
-	ApplyBroadcastToEngine()
-
-	return gui.Panel{
-		classes = {"bordered"},
-		flow = "vertical",
-		width = "100%",
-		height = "auto",
-		pad = 8,
-		borderBox = true,
-		vmargin = 4,
-
-		gui.Panel{
-			flow = "horizontal",
-			width = "100%",
-			height = "auto",
-			valign = "center",
-			vmargin = 2,
-			gui.Label{ classes = {"bold", "sizeS"}, text = "Levels", width = "auto", height = "auto", halign = "left", valign = "center" },
-		},
-
-		gui.Label{
-			classes = {"fgMuted", "sizeXs"},
-			text = "These are the broadcast levels (what the table hears). Players can manage their own mixing levels but the above levels set the ceiling.",
-			width = "100%",
-			height = "auto",
-			textWrap = true,
-			vmargin = 2,
-		},
-
-		MakeFaderRow("Master", MakeMasterFader(), false),
-		MakeFaderRow("Music", MakeBroadcastFader("music"), false),
-		MakeFaderRow("Ambience", MakeBroadcastFader("ambience"), false),
-		MakeFaderRow("Effects", MakeBroadcastFader("effects"), false),
-		MakeFaderRow("UI Sounds", MakeBroadcastFader("uisounds"), false),
-		MakeFaderRow("Anthem", MakeBroadcastFader("anthem"), false),
-	}
-end
-
---Studio Ducking card (right column). P1 = the "Duck Music Under Anthems" toggle (the
---anthemduckmusic game setting, also surfaced in Settings->Audio and read by the anthem
---hook) plus a depth control setting how far music dips while an anthem plays
---(anthemduckdepth, read live by the anthem hook). The per-target duck matrix is Phase 3-4,
---shown as a dimmed placeholder. Both settings are game-scoped/DM-owned; the toggle is
---think-synced so it tracks changes made from Settings->Audio.
+--Studio Ducking controls (F polish, task 6d: moved off the right column into a
+--popover off the Levels card's "Ducking settings" button -- the right column only
+--has room for the soundboard + mixer now). P1 = the "Duck Music Under Anthems"
+--toggle (the anthemduckmusic game setting, also surfaced in Settings->Audio and
+--read by the anthem hook) plus a depth control setting how far music dips while an
+--anthem plays (anthemduckdepth, read live by the anthem hook). The per-target duck
+--matrix is Phase 3-4, shown as a dimmed placeholder. Both settings are
+--game-scoped/DM-owned; the toggle is think-synced so it tracks changes made from
+--Settings->Audio.
 --Fallback-only mirror of MCDMInitiativeBar.lua's anthemDuckDefaults, used only if the
 --Draw Steel rules layer has not loaded (should not happen in practice since this file
 --loads after it, but keeps this card from erroring in isolation). Keep these three
 --values in sync with g_drawSteelAnthemDuckDefaults if that source ever changes.
 local kFallbackAnthemDuckDefaults = { depth = 0.15, fadeIn = 1.0, fadeOut = 2.5 }
 
-local CreateStudioDuckingCard = function()
+--Body builder: just the ducking CONTROLS (no card frame), so it can be reused by
+--both a standalone card shell and the popover without duplicating the wiring. The
+--think-based settings sync (duckCheck) keeps working wherever this is parented,
+--including inside a transient popup.
+local function CreateStudioDuckingBody()
 	local duckDefaults = rawget(_G, "g_drawSteelAnthemDuckDefaults") or kFallbackAnthemDuckDefaults
 
 	local duckCheck
@@ -3561,14 +3185,14 @@ local CreateStudioDuckingCard = function()
 		gui.Label{ classes = {"fgMuted", "sizeXs"}, text = "Per-track ducking controls are planned for a future update.", width = "100%", height = "auto", textWrap = true, vmargin = 2 },
 	}
 
+	--No card frame here -- the caller (the standalone popover) supplies its own
+	--framedPanel shell; this panel is just the stacked controls, so it also picks
+	--up whatever cascade its parent provides (the popover routes its own
+	--MergeStyles snapshot, same as every other popup in this file).
 	return gui.Panel{
-		classes = {"bordered"},
 		flow = "vertical",
 		width = "100%",
 		height = "auto",
-		pad = 8,
-		borderBox = true,
-		vmargin = 4,
 
 		--Match the toggle label to the rest of the studio text (12pt); the default
 		--checkbox label renders larger than everything else on the card.
@@ -3601,6 +3225,96 @@ local CreateStudioDuckingCard = function()
 		MakeSecondsRow("Fade out (s)", "anthemduckfadeout", duckDefaults.fadeOut),
 
 		matrixPlaceholder,
+	}
+end
+
+--Studio Mixer card (right column): a full duplicate of the dock's parent faders so a DM
+--who works from the Studio finds the core table mix here too. Same faders + same shared
+--"audio mix" doc / SetGroupShared wiring as the dock (module-scoped helpers), so the two
+--surfaces stay in lockstep. Master is live (audio.masterVolume); the five category faders
+--write the broadcast layer. The header row also carries the "Ducking settings" button
+--(F polish, task 6d) that opens the ducking controls in a popover -- same placement
+--pattern as the Studio soundboard's "Edit board" toggle (right side of the title row).
+local CreateStudioMixerCard = function()
+	--Mirror the persisted broadcast levels into this client's engine on build.
+	ApplyBroadcastToEngine()
+
+	--Popover trigger. Popups are reparented to the popup layer and do not inherit
+	--the Studio cascade, so route their own ThemeEngine snapshot (transient --
+	--rebuilt each open, no OnThemeChanged), same pattern as the swatch/assign
+	--popups elsewhere in this file. The body content is CreateStudioDuckingBody(),
+	--the same reusable builder the ducking controls always used -- there is no
+	--separate card frame to duplicate the wiring against.
+	local duckingButton
+	duckingButton = gui.Button{
+		classes = {"sizeXs"},
+		text = "Ducking settings",
+		--Fits "Ducking settings" at sizeXs; wider than the old "Ducking..." button
+		--since the label is now the full descriptive string (signed, 2026-07-02).
+		width = 106,
+		height = 24,
+		valign = "center",
+		popupPositioning = "panel",
+		press = function(element)
+			if element.popup ~= nil then
+				element.popup = nil
+				return
+			end
+			element.popup = gui.Panel{
+				styles = ThemeEngine.MergeStyles{},
+				classes = {"framedPanel"},
+				width = 380,
+				height = "auto",
+				halign = "right",
+				flow = "vertical",
+				pad = 8,
+				borderBox = true,
+				CreateStudioDuckingBody(),
+			}
+		end,
+	}
+
+	return gui.Panel{
+		classes = {"bordered"},
+		flow = "vertical",
+		width = "100%",
+		height = "auto",
+		pad = 8,
+		borderBox = true,
+		vmargin = 4,
+
+		gui.Panel{
+			flow = "horizontal",
+			width = "100%",
+			height = "auto",
+			valign = "center",
+			vmargin = 2,
+			gui.Panel{
+				flow = "horizontal",
+				width = "100%-114",
+				height = "auto",
+				halign = "left",
+				valign = "center",
+				gui.Label{ classes = {"bold", "sizeS"}, text = "Levels", width = "auto", height = "auto", halign = "left", valign = "center" },
+			},
+			duckingButton,
+		},
+
+		gui.Label{
+			classes = {"fgMuted", "sizeXs"},
+			text = "These are the broadcast levels (what the table hears). Players can manage their own mixing levels but the above levels set the ceiling.",
+			width = "100%",
+			height = "auto",
+			textWrap = true,
+			vmargin = 2,
+		},
+
+		MakeFaderRow("Master", MakeMasterFader(), false),
+		MakeFaderRow("Music", MakeBroadcastFader("music"), false),
+		MakeFaderRow("Ambience", MakeBroadcastFader("ambience"), false),
+		MakeFaderRow("Effects", MakeBroadcastFader("effects"), false),
+		MakeFaderRow("UI Sounds", MakeBroadcastFader("uisounds"), false),
+		MakeFaderRow("Anthem", MakeBroadcastFader("anthem"), false),
 	}
 end
 
@@ -4175,6 +3889,20 @@ local CreateAudioLibraryTree = function()
 		end
 	end
 
+	--Chunk F5: true when the library has no non-hidden clips at all (independent of
+	--folders existing or an active search). Checked directly against the live asset
+	--table rather than derived from BuildMaps/FilterMaps so an active search filter
+	--never triggers this -- an empty SEARCH RESULT is a different, already-handled
+	--case (the folder tree just renders empty under the search bar).
+	local function LibraryIsEmpty()
+		for _,asset in pairs(assets.audioTable) do
+			if not asset.hidden then
+				return false
+			end
+		end
+		return true
+	end
+
 	local function DoRebuild(element)
 		--While a search is active, the live tree's expansion is search-driven (every
 		--matched folder force-opened), not the user's real preference -- capturing it
@@ -4192,6 +3920,24 @@ local CreateAudioLibraryTree = function()
 		if g_pendingRevealFolder ~= nil then
 			m_expanded[g_pendingRevealFolder] = true
 			g_pendingRevealFolder = nil
+		end
+
+		--F5: empty-library hint replaces the (otherwise empty) folder tree entirely.
+		--Constructed only in this branch (never speculatively) and disappears on the
+		--next rebuild once a clip exists, since monitorAssets already drives rebuilds.
+		if LibraryIsEmpty() then
+			element.children = {
+				gui.Label{
+					classes = {"fgMuted", "sizeS"},
+					text = "Your library is empty. Click + Add audio to get started.",
+					width = "100%",
+					height = "100%",
+					textAlignment = "center",
+					halign = "center",
+					valign = "center",
+				},
+			}
+			return
 		end
 
 		local rawFoldersByParent, rawClipsByFolder = BuildMaps()
@@ -4313,41 +4059,58 @@ local CreateAudioLibraryTree = function()
 	}
 end
 
---Fixed category row order for the Studio now-playing strip (D9) -- mirrors the
---dock's Music/Ambience layout, then Effects, then anything with no category at
---all under "Uncategorised". id is the value stored on asset.category
+--Fixed category row order for the Studio now-playing BLOCK (D9, restructured
+--under Option A -- see CreateStudioNowPlayingStrip below). Mirrors the dock's
+--Music/Ambience layout, then Effects, then anything with no category at all
+--under "Uncategorised". id is the value stored on asset.category
 --(GetAssetCategoryId normalises nil/"" to "none"); label is the row's display
---name. Music and Ambience rows are RESERVED (James, 2026-07-02): they render
---"Silent" when idle instead of disappearing, so the Studio layout does not
---grow and shrink as tracks start and stop. Effects/Uncategorised rows stay
---transient -- one-shots are brief and rarely playing.
+--name. ALL FOUR rows are now permanently reserved (Option A, 2026-07-02 review):
+--every row renders "Silent" when idle instead of disappearing, so the block is a
+--fixed height and the Library below it never shifts when a one-shot fires.
 local STUDIO_STRIP_CATEGORY_ORDER = {
 	{ id = "music", label = "Music", reserved = true },
 	{ id = "ambience", label = "Ambience", reserved = true },
-	{ id = "effects", label = "Effects" },
-	{ id = "none", label = "Uncategorised" },
+	{ id = "effects", label = "Effects", reserved = true },
+	{ id = "none", label = "Uncategorised", reserved = true },
 }
 
---Studio now-playing strip -- a slim always-visible area under the header showing
---every playing track across all categories at once (the dock only surfaces the
---primary music/ambience pair), as one row per category (chunk D9) instead of a
---single flat chip list -- this mirrors the dock's per-category grouping so the
---two surfaces read the same way. Music/Ambience rows are always present ("Silent"
---when idle); other categories appear only while something of theirs plays.
+--Row height (each of the 4 reserved category rows) and the header row height,
+--shared between the block's own layout and AUDIO_STUDIO_NOWPLAYING_BLOCK_HEIGHT
+--below so the two cannot drift apart.
+local AUDIO_STUDIO_NOWPLAYING_ROW_HEIGHT = 24
+local AUDIO_STUDIO_NOWPLAYING_HEADER_HEIGHT = 20
+
+--Fixed total height of the now-playing block (Option A): header row (20 + 2*2
+--vmargin = 24) + 4 category rows (24 + 2*2 vmargin = 28 each -> 112) + the
+--block's own 8px top/bottom pad (16) = 152. Computed once here so the left
+--column's constants (below, near CreateAudioStudio) can reference it instead of
+--re-deriving the same arithmetic.
+local AUDIO_STUDIO_NOWPLAYING_BLOCK_HEIGHT = AUDIO_STUDIO_NOWPLAYING_HEADER_HEIGHT + 4
+	+ 4 * (AUDIO_STUDIO_NOWPLAYING_ROW_HEIGHT + 4) + 16
+
+--Studio now-playing BLOCK (Option A, 2026-07-02 review -- replaces the old
+--full-width top strip): a fixed-height card at the top of the LEFT column,
+--above the Library, showing every playing track across all categories at once
+--(the dock only surfaces the primary music/ambience pair), one row per category
+--(chunk D9). ALL FOUR rows (Music/Ambience/Effects/Uncategorised) are always
+--present ("Silent" when idle) so the block never grows or shrinks and the
+--Library tree below it never shifts when a one-shot starts or ends -- there is
+--no more onLayout/numRows callback; height is the fixed
+--AUDIO_STUDIO_NOWPLAYING_BLOCK_HEIGHT constant, computed once above.
 --Updated by the root's refreshAudio -> refreshPlayingAudio tree fire (instant on
 --play/stop) plus its own 0.5s poll (a track ending naturally fires no event).
---onLayout(numRows) fires whenever the ROW COUNT changes (always >= 2 with the
---reserved rows), so the caller can re-derive any fixed-complement sibling heights.
-local function CreateStudioNowPlayingStrip(onLayout)
+local function CreateStudioNowPlayingStrip()
+	--Full width now -- "Stop all" moved from a floating overlay on this column
+	--into a normal child of headerRow (below), so rowsColumn no longer needs to
+	--leave a gutter for it.
 	local rowsColumn = gui.Panel{
 		flow = "vertical",
-		width = "100%-70",
+		width = "100%",
 		height = "auto",
 	}
 	local lastSig = nil
-	local lastNumRows = nil
 
-	--Hidden while nothing plays (a dead control at rest); the strip itself stays
+	--Hidden while nothing plays (a dead control at rest); the block itself stays
 	--visible with its reserved rows, so toggling this never changes the height.
 	local stopAllButton = gui.Button{
 		classes = {"sizeXs", "hidden"},
@@ -4404,7 +4167,7 @@ local function CreateStudioNowPlayingStrip(onLayout)
 	--One row per category: a fixed-width label + that category's chips in
 	--play-start order (or a muted "Silent" for an idle reserved row -- matching
 	--the dock's idle vocabulary). Fixed height so an idle row occupies exactly
-	--the space its chips will: the strip never grows or shrinks as tracks start
+	--the space its chips will: the block never grows or shrinks as tracks start
 	--and stop. table.sort is not needed here -- PlayOrderOf/PlayingTracksForCategory
 	--(module-scoped, chunk D7) already return tracks oldest-first.
 	local function CreateCategoryRow(categoryLabel, entries)
@@ -4412,8 +4175,11 @@ local function CreateStudioNowPlayingStrip(onLayout)
 			gui.Label{
 				classes = {"sizeXs", "bold"},
 				text = categoryLabel,
-				width = 64,
+				--Wide enough for "Uncategorised" (the longest label) on one line --
+				--64 wrapped it onto two lines inside the 24px row.
+				width = 92,
 				height = "auto",
+				textWrap = false,
 				halign = "left",
 				valign = "center",
 			},
@@ -4435,7 +4201,7 @@ local function CreateStudioNowPlayingStrip(onLayout)
 		return gui.Panel{
 			flow = "horizontal",
 			width = "100%",
-			height = 24,
+			height = AUDIO_STUDIO_NOWPLAYING_ROW_HEIGHT,
 			valign = "center",
 			vmargin = 2,
 			children = children,
@@ -4464,10 +4230,11 @@ local function CreateStudioNowPlayingStrip(onLayout)
 
 		--Two passes: compute the signature first, and only CONSTRUCT row panels
 		--when it changed. Building rows unconditionally would orphan a fresh set
-		--of panels on every 0.5s think ("created but not attached" warnings).
-		--Reserved rows (Music/Ambience) are always emitted, idle or not, with a
-		--"-" marker in the signature so idle <-> playing transitions rebuild.
-		local numRows = 0
+		--of panels on every 0.5s think ("created but not attached" warnings). All
+		--four rows are reserved now (Option A) -- always emitted, idle or not,
+		--with a "-" marker in the signature so idle <-> playing transitions
+		--rebuild. Row count is therefore always 4; the block height is fixed
+		--(AUDIO_STUDIO_NOWPLAYING_BLOCK_HEIGHT), so there is no onLayout callback.
 		local anyPlaying = false
 		local activeRows = {}
 		for _,cat in ipairs(STUDIO_STRIP_CATEGORY_ORDER) do
@@ -4478,11 +4245,9 @@ local function CreateStudioNowPlayingStrip(onLayout)
 					sigParts[#sigParts+1] = cat.id .. ":" .. entry.id
 				end
 				anyPlaying = true
-				numRows = numRows + 1
 				activeRows[#activeRows+1] = { label = cat.label, entries = entries }
-			elseif cat.reserved then
+			else
 				sigParts[#sigParts+1] = cat.id .. ":-"
-				numRows = numRows + 1
 				activeRows[#activeRows+1] = { label = cat.label, entries = {} }
 			end
 		end
@@ -4498,24 +4263,37 @@ local function CreateStudioNowPlayingStrip(onLayout)
 		end
 
 		stopAllButton:SetClass("hidden", not anyPlaying)
-		if numRows ~= lastNumRows then
-			lastNumRows = numRows
-			if onLayout ~= nil then
-				onLayout(numRows)
-			end
-		end
 	end
 
-	--Always visible -- the reserved rows give the strip a constant footprint, so
-	--there is no collapsed state to toggle. Painted {bgAlt} (the same fill the
-	--search input and library folder rows use) so the strip reads as its own
-	--distinct row against the Studio surface.
-	local strip
-	strip = gui.Panel{
-		classes = {"bgAlt"},
+	local headerRow = gui.Panel{
 		flow = "horizontal",
 		width = "100%",
-		height = "auto",
+		height = AUDIO_STUDIO_NOWPLAYING_HEADER_HEIGHT,
+		valign = "center",
+		vmargin = 2,
+		gui.Label{
+			classes = {"bold", "sizeS"},
+			text = "Now Playing",
+			width = "auto",
+			height = "auto",
+			halign = "left",
+			valign = "center",
+		},
+		stopAllButton,
+	}
+
+	--Always visible -- the reserved rows give the block a constant footprint, so
+	--there is no collapsed state to toggle. Painted {bgAlt} (the same fill the
+	--search input and library folder rows use) so the block reads as its own
+	--distinct card against the Studio surface. Fixed height
+	--(AUDIO_STUDIO_NOWPLAYING_BLOCK_HEIGHT) -- see the constant's comment for the
+	--derivation -- so the Library below it never shifts as tracks start/stop.
+	local block
+	block = gui.Panel{
+		classes = {"bgAlt"},
+		flow = "vertical",
+		width = "100%",
+		height = AUDIO_STUDIO_NOWPLAYING_BLOCK_HEIGHT,
 		valign = "top",
 		vmargin = 4,
 		pad = 8,
@@ -4533,23 +4311,53 @@ local function CreateStudioNowPlayingStrip(onLayout)
 			Refresh(element)
 		end,
 
+		headerRow,
 		rowsColumn,
-		stopAllButton,
 	}
 
-	return strip
+	return block
 end
+
+--Left-column height allowances (Option A, task 6b): the Soundboard card no
+--longer lives in the left column (it moved to the RIGHT column, above the
+--Mixer -- see CreateAudioStudio), so the tree wrapper's complement only has to
+--account for the now-playing block above it plus the library header row above
+--that. The tree keeps its own internal vscroll for overflow within its share.
+--Now-playing block: AUDIO_STUDIO_NOWPLAYING_BLOCK_HEIGHT (fixed, see above) plus
+--its own 4px top/bottom vmargin.
+local AUDIO_STUDIO_NOWPLAYING_ALLOWANCE = AUDIO_STUDIO_NOWPLAYING_BLOCK_HEIGHT + 8
+--Library header row (label + New Folder/Add audio buttons) above the tree.
+local AUDIO_STUDIO_LIBRARY_HEADER_ALLOWANCE = 32
 
 CreateAudioStudio = function()
 	if not dmhub.isDM then
 		return nil
 	end
 
+	--Left column (Option A, task 6b): the now-playing BLOCK (fixed height, always
+	--visible), THEN the Library header + tree. The Studio Soundboard card has
+	--moved OUT of this column entirely -- it now sits at the top of the right
+	--column, next to the Mixer, so curation and playback assignment share the
+	--same column as the levels they route into. The tree gets a deterministic
+	--height complement (now-playing block + library header allowances) so its
+	--auto-height content fits below both without overflow; the tree keeps its
+	--own internal vscroll for its share.
+	local nowPlayingBlock = CreateStudioNowPlayingStrip()
+
+	local libraryTreeWrapper = gui.Panel{
+		flow = "vertical",
+		width = "100%",
+		height = "100%-" .. tostring(AUDIO_STUDIO_NOWPLAYING_ALLOWANCE + AUDIO_STUDIO_LIBRARY_HEADER_ALLOWANCE),
+		CreateAudioLibraryTree(),
+	}
+
 	local leftColumn = gui.Panel{
 		flow = "vertical",
-		width = "58%",
+		width = "60%",
 		height = "100%",
 		hmargin = 4,
+
+		nowPlayingBlock,
 
 		--Library header row: label left, the add buttons right-aligned to this column
 		--(these become glyph buttons later). The label sits in a fixed-width flex
@@ -4592,36 +4400,38 @@ CreateAudioStudio = function()
 			},
 		},
 
-		CreateAudioLibraryTree(),
+		libraryTreeWrapper,
 	}
 
+	--Right column (task 6c): Soundboard FIRST (curation lives with the levels it
+	--feeds), then the Mixer/Levels card (which now also hosts the "Ducking
+	--settings" popover trigger -- see CreateStudioMixerCard). vscroll stays on as
+	--a safety net for small displays; the soundboard's own gridPanel is pinned to
+	--350px so its 12 buttons wrap at 3 columns like the dock, matching this
+	--column's narrower share.
 	local rightColumn = gui.Panel{
 		flow = "vertical",
-		width = "40%",
+		width = "38%",
 		height = "100%",
 		hmargin = 4,
 		vscroll = true,
-		CreateStudioMixerCard(),
-		CreateStudioDuckingCard(),
 		CreateStudioSoundboard(),
+		CreateStudioMixerCard(),
 	}
 
+	--Body height is a simple fixed complement now (header + divider only) -- the
+	--now-playing block lives IN the left column at a fixed height (Option A), so
+	--it no longer spans the window above both columns and there is no more
+	--onLayout/numRows churn to react to. ~30px title (sizeXl, auto) + divider
+	--(1px + 4 tmargin + 8 bmargin = 13) = ~43; rounded up for breathing room.
 	local body = gui.Panel{
 		flow = "horizontal",
 		width = "100%",
-		height = "100%-92",
+		height = "100%-44",
 		valign = "top",
 		leftColumn,
 		rightColumn,
 	}
-
-	--The now-playing strip always shows at least the two reserved rows (Music /
-	--Ambience) and can add Effects/Uncategorised rows while one-shots play (24px
-	--rows + 2px margins, plus the strip's 4px margins and 8px pad); body's fixed
-	--height complement must follow or the columns overflow the window bottom.
-	local nowPlayingStrip = CreateStudioNowPlayingStrip(function(numRows)
-		body.selfStyle.height = "100%-" .. tostring(116 + numRows * 28)
-	end)
 
 	--Title centred across the top of the panel.
 	local header = gui.Panel{
@@ -4655,13 +4465,9 @@ CreateAudioStudio = function()
 		{ selectors = {"audioCueButton"}, bgcolor = "white", opacity = 0.55 },
 		{ selectors = {"audioCueButton", "hover"}, opacity = 1 },
 		{ selectors = {"audioCueButton", "active"}, bgcolor = "@success", opacity = 1 },
-		--Soundboard clear "x": default colour at rest, @danger tint on hover so the
-		--destructive intent reveals when you point at it (no flicker -- only the colour
-		--changes, the element stays present).
-		{ selectors = {"audioStudioClearGlyph", "parent:hover"}, color = "@danger" },
 		--Row loop/mute glyphs. Loop dims when off, tints @accent when on; mute dims
-		--normally and tints @danger while active. (The dock's {loopIcon} styles live in
-		--the dock panel's local cascade, so the row styles here stand alone.)
+		--normally and tints @danger while active. (Separate from the soundboard
+		--button's own audioSbLoop/audioSbMute rules above -- this is the library row.)
 		{ selectors = {"audioRowLoopButton"}, bgcolor = "white" },
 		{ selectors = {"audioRowLoopButton", "disabled"}, opacity = 0.4 },
 		{ selectors = {"audioRowLoopButton", "~disabled"}, bgcolor = "@accent" },
@@ -4672,6 +4478,12 @@ CreateAudioStudio = function()
 		--nudges without shouting. Cleared automatically once a category is chosen.
 		{ selectors = {"unrouted"}, borderColor = "@warning", border = 1 },
 	}
+	--Unified soundboard button rules (F1a/F1d), shared with the dock (see mainPanel's
+	--own MergeStyles). Appended here (not just referenced) so a single MergeStyles
+	--call produces the full Studio cascade.
+	for _,rule in ipairs(AudioSoundboardButtonStyles) do
+		studioExtraStyles[#studioExtraStyles+1] = rule
+	end
 
 	local root
 	root = gui.Panel{
@@ -4685,12 +4497,15 @@ CreateAudioStudio = function()
 		bgimage = "panels/square.png",
 		styles = ThemeEngine.MergeStyles(studioExtraStyles),
 		--borderBox makes pad below shrink the content area inward rather than adding on
-		--top, so width/height here are bumped by 2*pad (32) over the original content-box
-		--values (1000 / min(920, screenHeight-80)) to keep the CONTENT area unchanged.
-		width = 1032,
-		--Tall enough to show all right-column cards without scrolling, but never taller
-		--than the screen (small displays cap at screenHeight - 80 so it never overflows).
-		height = math.min(952, dmhub.screenDimensions.y - 48),
+		--top, so width/height here are bumped by 2*pad (32) over the CONTENT-box
+		--values (chunk F3: content widened 1000 -> 1100 to give the reflowed left
+		--column room for the library tree + soundboard card; content height target
+		--min(760, screenHeight-80) so it never overflows a small display) to keep
+		--the CONTENT area at exactly those numbers.
+		width = 1132,
+		--Tall enough for the reflowed columns without scrolling, but never taller
+		--than the screen (small displays cap at screenHeight - 48 so it never overflows).
+		height = math.min(792, dmhub.screenDimensions.y - 48),
 		flow = "vertical",
 		pad = 16,
 		borderBox = true,
@@ -4759,7 +4574,6 @@ CreateAudioStudio = function()
 
 		header,
 		gui.MCDMDivider{ bmargin = 8 },
-		nowPlayingStrip,
 		body,
 	}
 

@@ -162,14 +162,22 @@ local anthemDuckMusic = setting{
     classes = {"dmonly"},
 }
 
+--Single source for the duck default literals, shared with the Audio Studio "Ducking"
+--card (Audio.lua reads this via rawget so its `or <default>` fallbacks never drift from
+--the setting registrations below). Published as a global since Audio.lua loads after
+--this file but should not have to reach into MCDMInitiativeBar's locals.
+local anthemDuckDefaults = { depth = 0.15, fadeIn = 1.0, fadeOut = 2.5 }
+g_drawSteelAnthemDuckDefaults = anthemDuckDefaults
+
 --How far the music mix group dips (0..1 target level) while an anthem plays. The DM
 --controls this from the Audio Studio "Ducking" card; the anthem hook reads it below.
 --Game-scoped/DM-owned like the on/off toggle above so the whole table dips together.
---Panel-only (no Settings editor); default 0.15 is the ear-tested interim value.
+--Panel-only (no Settings editor); default is the ear-tested interim value (see
+--anthemDuckDefaults above).
 local anthemDuckDepth = setting{
     id = "anthemduckdepth",
     description = "Anthem Duck Depth",
-    default = 0.15,
+    default = anthemDuckDefaults.depth,
     ord = 103,
     storage = "game",
     classes = {"dmonly"},
@@ -182,7 +190,7 @@ local anthemDuckDepth = setting{
 local anthemDuckFadeIn = setting{
     id = "anthemduckfadein",
     description = "Anthem Duck Fade In",
-    default = 1.0,
+    default = anthemDuckDefaults.fadeIn,
     ord = 104,
     storage = "game",
     classes = {"dmonly"},
@@ -191,7 +199,7 @@ local anthemDuckFadeIn = setting{
 local anthemDuckFadeOut = setting{
     id = "anthemduckfadeout",
     description = "Anthem Duck Fade Out",
-    default = 2.5,
+    default = anthemDuckDefaults.fadeOut,
     ord = 105,
     storage = "game",
     classes = {"dmonly"},
@@ -4005,27 +4013,30 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
                         local asset = assets.audioTable[anthemToken.anthem]
                         if asset ~= nil then
                             m_anthemEventInstance = asset:Play()
-                            m_anthemEventInstance.volume = anthemToken.anthemVolume * GetLocalAnthemVolume(anthemToken.charid)
-                            --Route the anthem through its own mix group so the Anthem panel
-                            --fader (GroupShared) and personal anthem trim apply. The anthem
-                            --group is not a duck target, so the anthem itself is never ducked.
-                            m_anthemEventInstance.mixGroupId = "anthem"
-                            g_drawSteelAnthemState.tokenid = anthemToken.charid
-                            --Ducking is opt-out (DM "Anthem Ducks Music" setting). When off,
-                            --the anthem still plays + reports now-playing, but music is not
-                            --dipped (and duckActive stays false so the panel badge is hidden).
-                            --TUNING: duck level + fades are interim hardcoded values pending the
-                            --duck-settings config. Asymmetric: music dips fast (1.0s) as the
-                            --anthem starts, then swells back slowly (2.5s) on release. See brief 14.
-                            if anthemDuckMusic:Get() then
-                                audio.DuckGroup("music", anthemDuckDepth:Get(), anthemDuckFadeIn:Get(), anthemDuckFadeOut:Get())
-                                m_anthemDuckActive = true
-                                g_drawSteelAnthemState.duckActive = true
+                            if m_anthemEventInstance ~= nil then
+                                m_anthemEventInstance.volume = anthemToken.anthemVolume * GetLocalAnthemVolume(anthemToken.charid)
+                                --Route the anthem through its own mix group so the Anthem panel
+                                --fader (GroupShared) and personal anthem trim apply. The anthem
+                                --group is not a duck target, so the anthem itself is never ducked.
+                                m_anthemEventInstance.mixGroupId = "anthem"
+                                g_drawSteelAnthemState.tokenid = anthemToken.charid
+                                --Ducking is opt-out (DM "Anthem Ducks Music" setting). When off,
+                                --the anthem still plays + reports now-playing, but music is not
+                                --dipped (and duckActive stays false so the panel badge is hidden).
+                                --Duck depth + fades are DM-tunable game settings (Audio Studio
+                                --"Ducking" card); defaults live in anthemDuckDefaults above.
+                                --Asymmetric by default: music dips fast as the anthem starts,
+                                --then swells back slowly on release.
+                                if anthemDuckMusic:Get() then
+                                    audio.DuckGroup("music", anthemDuckDepth:Get(), anthemDuckFadeIn:Get(), anthemDuckFadeOut:Get())
+                                    m_anthemDuckActive = true
+                                    g_drawSteelAnthemState.duckActive = true
+                                end
+                                if anthemLimited:Get() then
+                                    m_anthemEventInstance:SetStopAfter(anthemDuration:Get())
+                                end
+                                element.monitorGame = anthemToken.monitorPath
                             end
-                            if anthemLimited:Get() then
-                                m_anthemEventInstance:SetStopAfter(anthemDuration:Get())
-                            end
-                            element.monitorGame = anthemToken.monitorPath
                         end
                     end
                 else
@@ -4042,6 +4053,14 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 
 
 		disable = function(element)
+			StopAnthem()
+		end,
+
+		--Mirrors disable above: if the panel is torn down without disable firing (HUD
+		--rebuild, map change, hot-reload) the music duck would otherwise leak forever.
+		--StopAnthem is a local closure in scope here, so this is safe even if the panel
+		--never finished initializing.
+		destroy = function(element)
 			StopAnthem()
 		end,
 

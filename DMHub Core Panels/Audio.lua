@@ -145,9 +145,13 @@ local function MakeBroadcastFader(groupid)
 			audio.SetGroupShared(groupid, element.value)
 		end,
 
-		--Live local feedback while dragging.
+		--Live local feedback while dragging. Invalidate the sync cache so a drag that
+		--ends WITHOUT confirm (cancelled) is not left stuck at the preview level: since
+		--the doc value has not changed, SyncBroadcastLevelsToEngine's cache compare
+		--would otherwise think the engine already matches the doc and skip re-pushing it.
 		preview = function(element)
 			audio.SetGroupShared(groupid, element.value)
+			broadcastSyncApplied[groupid] = nil
 		end,
 
 		--Commit to the shared doc so the table mix syncs to all clients.
@@ -708,6 +712,64 @@ local CreateAudioGrid = function()
 	return resultPanel
 end
 
+--Shared category (Music / Ambience / Effects) helpers, used by both the dock tile
+--builder (createAudioPanel) and the Studio row builder (CreateAudioStudioRow) so the
+--dropdown options, "-"/unset normalisation and change behavior cannot drift between
+--the two surfaces. Styling differs per call site, so that is passed in via opts.
+
+--Normalise the stored category to a dropdown option id. An unset category reads back
+--as nil (never set) OR "" (set to nil through the current AudioAssetLua setter, which
+--stringifies nil to ""); both mean "uncategorised". NB Lua treats "" as truthy, so a
+--bare `category or "none"` would surface a blank option for the empty-string case.
+local function GetAssetCategoryId(asset)
+	local c = asset.category
+	if c == nil or c == "" then
+		return "none"
+	end
+	return c
+end
+
+--Builds the category dropdown for one asset. opts carries only presentation
+--differences between the dock tile and the Studio row (width/height/fontSize/etc);
+--behavior (options list, idChosen normalisation, refreshAssets, change) is identical.
+local function CreateCategoryDropdown(asset, opts)
+	opts = opts or {}
+
+	local dropdown
+	dropdown = gui.Dropdown{
+		floating = opts.floating,
+		valign = opts.valign or "center",
+		halign = opts.halign,
+		y = opts.y,
+		width = opts.width or 90,
+		height = opts.height or 22,
+		fontSize = opts.fontSize or 12,
+		hmargin = opts.hmargin,
+		options = {
+			{ id = "none", text = "-" },
+			{ id = "music", text = "Music" },
+			{ id = "ambience", text = "Ambience" },
+			{ id = "effects", text = "Effects" },
+		},
+		idChosen = GetAssetCategoryId(asset),
+
+		monitorAssets = "audio",
+		refreshAssets = function(element)
+			element.idChosen = GetAssetCategoryId(asset)
+		end,
+
+		change = function(element)
+			local newCategory = element.idChosen
+			if newCategory == "none" then
+				newCategory = nil
+			end
+			asset.category = newCategory
+			asset:Upload()
+		end,
+	}
+	return dropdown
+end
+
 createAudioPanel = function(audioAsset, options)
 	options = options or {}
 
@@ -1049,22 +1111,11 @@ createAudioPanel = function(audioAsset, options)
 	--(not a chip/segment) so the caret advertises that the category is changeable.
 	--Lives in the space the volume slider would occupy, so it is only shown on
 	--library tiles (where options.categorySelector is set), never the soundboard.
+	--Behavior (options/normalisation/change) is shared via CreateCategoryDropdown;
+	--only the tile-specific floating layout is passed in here.
 	local categorySelector = nil
 	if options.categorySelector then
-		--Normalise the stored category to a dropdown option id. An unset
-		--category reads back as nil (never set) OR "" (set to nil through the
-		--current AudioAssetLua setter, which stringifies nil to ""); both mean
-		--"uncategorised". NB Lua treats "" as truthy, so a bare `category or
-		--"none"` would surface a blank option for the empty-string case.
-		local CurrentCategoryId = function()
-			local c = audioAsset.category
-			if c == nil or c == "" then
-				return "none"
-			end
-			return c
-		end
-
-		categorySelector = gui.Dropdown{
+		categorySelector = CreateCategoryDropdown(audioAsset, {
 			floating = true,
 			valign = "bottom",
 			halign = "center",
@@ -1072,28 +1123,7 @@ createAudioPanel = function(audioAsset, options)
 			width = "92%",
 			height = 16,
 			fontSize = 11,
-			options = {
-				{ id = "none", text = "-" },
-				{ id = "music", text = "Music" },
-				{ id = "ambience", text = "Ambience" },
-				{ id = "effects", text = "Effects" },
-			},
-			idChosen = CurrentCategoryId(),
-
-			monitorAssets = "audio",
-			refreshAssets = function(element)
-				element.idChosen = CurrentCategoryId()
-			end,
-
-			change = function(element)
-				local newCategory = element.idChosen
-				if newCategory == "none" then
-					newCategory = nil
-				end
-				audioAsset.category = newCategory
-				audioAsset:Upload()
-			end,
-		}
+		})
 	end
 
 
@@ -1329,171 +1359,10 @@ CreateSoundPanel = function()
 	end
 	
 
-	local assetEntries = {}
-	local currentlyPlayingEntries = {}
-
-	local CreateAudioFolder = function(folderid)
-		local expanded = false
-		local body
-
-		local folder = assets.audioFoldersTable[folderid]
-
-		local folderLabel = gui.Label{
-				classes = {"folderLabel", "sizeL"},
-				text = folder.description,
-				change = function(element)
-					element.editable = false
-					if element.text == "" then
-						element.text = folder.description
-					end
-					folder.description = element.text
-					folder:Upload()
-				end,
-			}
-
-		local beforeSearchExpanded = nil
-
-		local header = gui.Panel{
-			classes = {"folderHeader", "bgAlt", "hoverable", cond(expanded, "expanded")},
-			gui.Panel{
-				classes = {"audioFolderTri", "bgFg"},
-			},
-
-			folderLabel,
-
-			setExpanded = function(element, val)
-				if cond(val, true, false) ~= element:HasClass("expanded") then
-					element:FireEvent("press")
-				end
-			end,
-
-			search = function(element, info)
-				if beforeSearchExpanded == nil then
-					beforeSearchExpanded = element:HasClass("expanded")
-				end
-				element:FireEvent("setExpanded", info.folders[folderid])
-				element:SetClass("collapsed", not info.folders[folderid])
-			end,
-
-			clearsearch = function(element, info)
-				element:SetClass("collapsed", false)
-				if beforeSearchExpanded ~= nil then
-					element:FireEvent("setExpanded", beforeSearchExpanded)
-					beforeSearchExpanded = nil
-				end
-			end,
-
-			press = function(element)
-				expanded = not expanded
-				element:SetClass("expanded", expanded)
-				body:SetClass("collapseAnim", not expanded)
-				if expanded then
-					body:FireEvent("refreshAssets")
-				end
-			end,
-
-
-			rightClick = function(element)
-				local entries = {
-					{
-						text = "Rename Folder",
-						click = function()
-							folderLabel.editable = true
-							folderLabel:BeginEditing()
-
-							element.popup = nil
-						end,
-					},
-				}
-
-				if #body.children == 0 then
-					entries[#entries+1] = {
-						text = "Delete Folder",
-						hidden = true,
-						click = function()
-							folder.hidden = true
-							folder:Upload()
-						end,
-					}
-				end
-
-				element.popup = gui.ContextMenu{
-					width = 180,
-					entries = entries,
-				}
-			end,
-		}
-
-		local assetEntries = {}
-
-		body = gui.Panel{
-			width = "100%",
-			height = "auto",
-			halign = "left",
-			flow = "horizontal",
-			classes = {cond(expanded, nil, "collapseAnim")},
-			wrap = true,
-
-			monitorAssets = "audio",
-			refreshAssets = function(element)
-				if not expanded then
-					return
-				end
-
-
-				local newChildren = {}
-				local newAssetEntries = {}
-				for k,audioAsset in pairs(assets.audioTable) do
-					if (not audioAsset.hidden) and (audioAsset.parentFolder or defaultFolder) == folderid then
-						newAssetEntries[k] = assetEntries[k] or CreatePlayerSlot{
-							halign = "left",
-							uiscale = 0.8,
-							hmargin = 2,
-							createAudioPanel(audioAsset, { volumeSlider = false, categorySelector = true }),
-							search = function(element, info)
-								element:SetClass("collapsed", not info.assets[k])
-							end,
-							clearsearch = function(element)
-								element:SetClass("collapsed", false)
-							end,
-						}
-							
-						newChildren[#newChildren+1] = newAssetEntries[k]
-					end
-				end
-
-				assetEntries = newAssetEntries
-				element.children = newChildren
-
-
-			end,
-		}
-
-		return gui.Panel{
-			classes = {"folderContainer", "audioFolder"},
-
-			dragTarget = true,
-
-			data = {
-				folderid = folderid,
-				ord = function()
-					return folder.ord
-				end,
-			},
-
-			header,
-			body,
-		}
-
-	end
-
-	local audioFolderPanels = {}
-
 	--The folder library used to live here as a maximize-to-reveal drawer in the
-	--dock. It has moved to the Audio Studio (the "Audio Studio" button opens it),
-	--keeping the dock to live controls only. CreateAudioFolder above is kept
-	--dormant for the Studio's later nested-folder rebuild; audioFolderPanels is its
-	--cache. No in-dock library panel is built anymore.
+	--dock. It has moved to the Audio Studio (the "Audio Studio" button opens it;
+	--see CreateAudioLibraryTree / CreateFolderNode), keeping the dock to live
+	--controls only. No in-dock library panel is built anymore.
 
 	--Master mute / stop-all. Click toggles mute; right-click opens stop-all. Lives in
 	--the now-playing header so it is always reachable (it used to float on the
@@ -2052,21 +1921,57 @@ CreateSoundPanel = function()
 			}
 		end
 
-		local rowsPanel = gui.Panel{
+		--Ordered list of every hero charid across all parties, used both to build the rows
+		--and as a cheap "did the roster change" signature (joined string compare) for the
+		--periodic re-scan below.
+		local function GetAnthemRowCharids()
+			local ids = {}
+			for _,partyid in ipairs(GetAllParties() or {}) do
+				for _,charid in ipairs(dmhub.GetCharacterIdsInParty(partyid) or {}) do
+					ids[#ids+1] = charid
+				end
+			end
+			return ids
+		end
+
+		local rowsPanel
+		rowsPanel = gui.Panel{
 			flow = "vertical",
 			width = "100%",
 			height = "auto",
+			data = { rosterSignature = nil },
+
 			create = function(element)
+				local ids = GetAnthemRowCharids()
 				local children = {}
-				for _,partyid in ipairs(GetAllParties() or {}) do
-					for _,charid in ipairs(dmhub.GetCharacterIdsInParty(partyid) or {}) do
+				for _,charid in ipairs(ids) do
+					local row = CreateAnthemRow(charid)
+					if row ~= nil then
+						children[#children+1] = row
+					end
+				end
+				element.children = children
+				element.data.rosterSignature = table.concat(ids, ",")
+			end,
+
+			--Rows are built once above from the party list; heroes added/removed while
+			--the dock is open would otherwise never appear/disappear. Cheap periodic
+			--re-scan: only rebuild when the joined-id signature actually changes.
+			thinkTime = 2,
+			think = function(element)
+				local ids = GetAnthemRowCharids()
+				local sig = table.concat(ids, ",")
+				if sig ~= element.data.rosterSignature then
+					element.data.rosterSignature = sig
+					local children = {}
+					for _,charid in ipairs(ids) do
 						local row = CreateAnthemRow(charid)
 						if row ~= nil then
 							children[#children+1] = row
 						end
 					end
+					element.children = children
 				end
-				element.children = children
 			end,
 		}
 
@@ -2416,40 +2321,11 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 		end,
 	}
 
-	local CurrentCategoryId = function()
-		local c = audioAsset.category
-		if c == nil or c == "" then
-			return "none"
-		end
-		return c
-	end
-
-	local categorySelector = gui.Dropdown{
-		width = 90,
-		height = 22,
-		fontSize = 12,
-		valign = "center",
+	--Behavior (options/normalisation/change) is shared with the dock tile version via
+	--CreateCategoryDropdown; only the row-specific layout is passed in here.
+	local categorySelector = CreateCategoryDropdown(audioAsset, {
 		hmargin = 3,
-		options = {
-			{ id = "none", text = "-" },
-			{ id = "music", text = "Music" },
-			{ id = "ambience", text = "Ambience" },
-			{ id = "effects", text = "Effects" },
-		},
-		idChosen = CurrentCategoryId(),
-		monitorAssets = "audio",
-		refreshAssets = function(element)
-			element.idChosen = CurrentCategoryId()
-		end,
-		change = function(element)
-			local newCategory = element.idChosen
-			if newCategory == "none" then
-				newCategory = nil
-			end
-			audioAsset.category = newCategory
-			audioAsset:Upload()
-		end,
-	}
+	})
 
 	local volumeSlider = gui.Slider{
 		value = audioAsset.volume,
@@ -2630,6 +2506,7 @@ local CreateStudioSoundboard = function()
 					width = "100%",
 					height = 22,
 					hpad = 6,
+					borderBox = true,
 					halign = "left",
 					valign = "center",
 				}
@@ -2720,8 +2597,9 @@ local CreateStudioSoundboard = function()
 		--layer, so the cursor moving onto them drops the parent's hover state and the
 		--style reveal thrashes in/out). Kept in the flow="none" button via halign/valign
 		--so it overlays the top-right corner. Visibility is style-driven (base hidden;
-		--shown only when the button is filled AND hovered -- parent:hover stays true while
-		--the cursor is anywhere over the button, including over the x).
+		--shown at dim opacity whenever the slot is filled, brightening to full opacity
+		--on hover of the button itself -- always-visible-dim rather than hover-revealed,
+		--so there is no overlay-hover thrashing).
 		local clearButton = gui.Panel{
 			classes = {"audioStudioClearBtn"},
 			bgimage = "panels/square.png",
@@ -2905,7 +2783,6 @@ local CreateStudioSoundboard = function()
 				valign = "center",
 				gui.Label{ classes = {"bold", "sizeS"}, text = "Soundboard", width = "auto", height = "auto", halign = "left", valign = "center" },
 			},
-			gui.Label{ classes = {"fgMuted", "sizeXs"}, text = "", width = "auto", height = "auto", halign = "right", valign = "center" },
 		},
 
 		boardSelector,
@@ -2975,7 +2852,15 @@ end
 --(anthemduckdepth, read live by the anthem hook). The per-target duck matrix is Phase 3-4,
 --shown as a dimmed placeholder. Both settings are game-scoped/DM-owned; the toggle is
 --think-synced so it tracks changes made from Settings->Audio.
+--Fallback-only mirror of MCDMInitiativeBar.lua's anthemDuckDefaults, used only if the
+--Draw Steel rules layer has not loaded (should not happen in practice since this file
+--loads after it, but keeps this card from erroring in isolation). Keep these three
+--values in sync with g_drawSteelAnthemDuckDefaults if that source ever changes.
+local kFallbackAnthemDuckDefaults = { depth = 0.15, fadeIn = 1.0, fadeOut = 2.5 }
+
 local CreateStudioDuckingCard = function()
+	local duckDefaults = rawget(_G, "g_drawSteelAnthemDuckDefaults") or kFallbackAnthemDuckDefaults
+
 	local duckCheck
 	duckCheck = gui.Check{
 		text = "Duck Music Under Anthems",
@@ -3008,7 +2893,7 @@ local CreateStudioDuckingCard = function()
 		labelFormat = "percent",
 		minValue = 0,
 		maxValue = 1,
-		value = dmhub.GetSettingValue("anthemduckdepth") or 0.15,
+		value = dmhub.GetSettingValue("anthemduckdepth") or duckDefaults.depth,
 		confirm = function(element)
 			dmhub.SetSettingValue("anthemduckdepth", element.value)
 		end,
@@ -3109,8 +2994,8 @@ local CreateStudioDuckingCard = function()
 		},
 
 		depthRow,
-		MakeSecondsRow("Fade in (s)", "anthemduckfadein", 1.0),
-		MakeSecondsRow("Fade out (s)", "anthemduckfadeout", 2.5),
+		MakeSecondsRow("Fade in (s)", "anthemduckfadein", duckDefaults.fadeIn),
+		MakeSecondsRow("Fade out (s)", "anthemduckfadeout", duckDefaults.fadeOut),
 
 		matrixPlaceholder,
 	}
@@ -3146,10 +3031,21 @@ local CreateAudioLibraryTree = function()
 	end
 
 	local function SetFolderOrderList(folderid, list)
+		--Prune ids of clips that were since deleted or moved to a different folder, so
+		--the doc does not accumulate stale ids forever (only runs on reorder writes, not
+		--per frame). Uses the live asset table rather than an extra scan of the folder.
+		local pruned = {}
+		for _,id in ipairs(list) do
+			local a = assets.audioTable[id]
+			if a ~= nil and not a.hidden and (a.parentFolder or defaultFolder) == folderid then
+				pruned[#pruned+1] = id
+			end
+		end
+
 		local doc = mod:GetDocumentSnapshot(audioClipOrderDocId)
 		doc:BeginChange()
 		if doc.data.order == nil then doc.data.order = {} end
-		doc.data.order[folderid] = list
+		doc.data.order[folderid] = pruned
 		doc:CompleteChange("Reorder audio clips")
 	end
 
@@ -3349,9 +3245,12 @@ local CreateAudioLibraryTree = function()
 			for _,id in ipairs(ids) do newOrder[#newOrder+1] = id end
 		end
 
+		--Only touch the asset (and pay for a cloud Upload + monitorAssets rebuild on every
+		--client) when the drag actually moved it to a different folder. A pure
+		--intra-folder reorder only needs the audioClipOrder doc write below.
 		for _,id in ipairs(ids) do
 			local a = assets.audioTable[id]
-			if a ~= nil then
+			if a ~= nil and (a.parentFolder or defaultFolder) ~= destFolderId then
 				a.parentFolder = cond(destFolderId == defaultFolder, nil, destFolderId)
 				a:Upload()
 			end
@@ -3740,12 +3639,16 @@ CreateAudioStudio = function()
 	root = gui.Panel{
 		classes = {"launchablePanel"},
 		styles = ThemeEngine.MergeStyles(studioExtraStyles),
-		width = 1000,
+		--borderBox makes pad below shrink the content area inward rather than adding on
+		--top, so width/height here are bumped by 2*pad (32) over the original content-box
+		--values (1000 / min(920, screenHeight-80)) to keep the CONTENT area unchanged.
+		width = 1032,
 		--Tall enough to show all right-column cards without scrolling, but never taller
 		--than the screen (small displays cap at screenHeight - 80 so it never overflows).
-		height = math.min(920, dmhub.screenDimensions.y - 80),
+		height = math.min(952, dmhub.screenDimensions.y - 48),
 		flow = "vertical",
 		pad = 16,
+		borderBox = true,
 		data = {},
 		create = function(element)
 			element.data.themeSub = ThemeEngine.OnThemeChanged(mod, function()
@@ -3759,6 +3662,11 @@ CreateAudioStudio = function()
 				element.data.themeSub:Deregister()
 				element.data.themeSub = nil
 			end
+
+			--The DM-local audition cue (Studio row "eye" preview) must not keep playing
+			--after the Studio window closes. Mirrors the dock anthem preview's
+			--`destroy = StopPreview` pattern above.
+			StopStudioCue()
 		end,
 
 		refreshAudio = function(element)

@@ -6,7 +6,7 @@
 --- @field delay number 
 --- @field time number
 --- @field duration number
---- @field mixGroupId any
+--- @field mixGroupId string
 SoundEventInstanceLua = {}
 
 --- SetStopAfter

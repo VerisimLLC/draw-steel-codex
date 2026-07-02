@@ -771,17 +771,18 @@ local AudioSoundboardButtonStyles = {
 	{ selectors = {"audioSbMute"}, bgcolor = "white", opacity = 0.6 },
 	{ selectors = {"audioSbMute", "hover"}, opacity = 1 },
 	{ selectors = {"audioSbMute", "muted"}, bgcolor = "@danger", opacity = 1 },
-	--Clear "x": always-visible-dim on filled buttons in edit mode (never hover-gated,
-	--per the flicker rule); brightens to full + @danger on its own hover. filled is
-	--set directly on the glyph (it already tracks the button's fill state); editMode
-	--is only set on the button itself, so read it via parent:editMode.
-	{ selectors = {"audioSbClear"}, hidden = 1, opacity = 0.4 },
-	{ selectors = {"audioSbClear", "filled", "parent:editMode"}, hidden = 0 },
-	{ selectors = {"audioSbClear", "hover"}, opacity = 1 },
-	{ selectors = {"audioSbClearGlyph", "parent:hover"}, color = "@danger" },
-	--Color swatch: only shown filled+editMode, matches the always-visible-dim rule.
-	{ selectors = {"audioSbSwatch"}, hidden = 1, borderColor = "white", border = 1 },
-	{ selectors = {"audioSbSwatch", "filled", "parent:editMode"}, hidden = 0 },
+	--Edit row (Delete + swatch, bottom of the button): only shown on filled buttons
+	--in edit mode. The gating lives on the ROW (its parent is the button, so
+	--parent:editMode resolves); the Delete button and swatch inside need none of
+	--their own. Never hover-gated, per the flicker rule.
+	{ selectors = {"audioSbEditRow"}, hidden = 1 },
+	{ selectors = {"audioSbEditRow", "filled", "parent:editMode"}, hidden = 0 },
+	--Delete: a small explicit text button (was a corner "x" - too subtle, and it
+	--collided with the duration text). @danger label on hover = destructive intent.
+	{ selectors = {"audioSbDeleteLabel"}, fontSize = 10, color = "@fg" },
+	{ selectors = {"audioSbDeleteLabel", "parent:hover"}, color = "@danger" },
+	--Color swatch: sits beside Delete in the edit row.
+	{ selectors = {"audioSbSwatch"}, borderColor = "white", border = 1 },
 	{ selectors = {"audioSbSwatch", "hover"}, brightness = 1.4 },
 	--"+ Assign" only makes sense in edit mode; perform mode leaves empty buttons inert.
 	{ selectors = {"audioSbAssignLabel"}, hidden = 1 },
@@ -876,21 +877,19 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 		end,
 	}
 
-	--Clear "x": edit-mode-only affordance on a filled button. Non-floating (a
-	--floating overlay drops the parent's hover state and thrashes) -- positioned via
-	--halign/valign in the flow="none" button instead. Visibility is style-driven
-	--(base hidden; shown at dim opacity for {filled, editMode}), never gated on
-	--parent:hover, so there is no overlay-hover flicker.
-	--Only ever visible in edit mode (style-driven, see AudioSoundboardButtonStyles),
-	--so the bigger hit target costs perform mode nothing.
-	local clearButton = gui.Panel{
-		classes = {"audioSbClear"},
+	--Delete button: edit-mode-only, clears the slot assignment. Lives in the edit
+	--row at the bottom of the button (replaces the old top-right corner "x", which
+	--was easy to miss and sat on top of the duration text). The freed space is real:
+	--edit mode hides duration/volume/loop, so the bottom strip belongs to curation.
+	local deleteButton = gui.Panel{
+		classes = {"bordered", "hoverable"},
 		bgimage = "panels/square.png",
 		bgcolor = "clear",
-		width = 20,
-		height = 20,
-		halign = "right",
-		valign = "top",
+		width = 56,
+		height = 16,
+		halign = "left",
+		valign = "center",
+		borderBox = true,
 		swallowPress = true,
 		press = function()
 			local doc = mod:GetDocumentSnapshot(docid)
@@ -899,10 +898,9 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 			doc:CompleteChange("Clear soundboard button")
 		end,
 		gui.Label{
-			classes = {"sizeS", "audioSbClearGlyph"},
-			text = "x",
+			classes = {"audioSbDeleteLabel"},
+			text = "Delete",
 			bgcolor = "clear",
-			bold = true,
 			width = "auto",
 			height = "auto",
 			halign = "center",
@@ -923,10 +921,10 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 	swatchButton = gui.Panel{
 		classes = {"audioSbSwatch"},
 		bgimage = "panels/square.png",
-		width = 13,
-		height = 13,
+		width = 14,
+		height = 14,
 		halign = "right",
-		valign = "bottom",
+		valign = "center",
 		popupPositioning = "panel",
 		swallowPress = true,
 		press = function(element)
@@ -981,6 +979,24 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 				end,
 			}
 		end,
+	}
+
+	--Edit row: Delete (left) + color swatch (right) along the bottom of the button,
+	--only visible on filled buttons in edit mode (style-gated on the row itself, see
+	--AudioSoundboardButtonStyles). Being an in-flow row keeps both affordances off
+	--the rounded corners (the old absolute-corner swatch touched the curved border).
+	local editRow = gui.Panel{
+		classes = {"audioSbEditRow"},
+		flow = "horizontal",
+		width = "100%",
+		height = 18,
+		halign = "center",
+		valign = "bottom",
+		deleteButton,
+		--Flex spacer pushes the swatch to the row's right edge (deterministic
+		--complement: 56 Delete + 14 swatch = 70).
+		gui.Panel{ width = "100%-70", height = 1 },
+		swatchButton,
 	}
 
 	--Mute + per-track volume row, bottom of the button. Wiring copied from the old
@@ -1204,8 +1220,7 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 				nameLabel:SetClass("collapsed", false)
 				emptyLabel:SetClass("collapsed", true)
 				element:SetClass("filled", true)
-				clearButton:SetClass("filled", true)
-				swatchButton:SetClass("filled", true)
+				editRow:SetClass("filled", true)
 				swatchButton.selfStyle.bgcolor = AudioSwatchColor(asset.color)
 				loopGlyph:SetClass("collapsed", false)
 				loopGlyph:SetClass("active", asset.loop == true)
@@ -1216,8 +1231,7 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 				nameLabel:SetClass("collapsed", true)
 				emptyLabel:SetClass("collapsed", false)
 				element:SetClass("filled", false)
-				clearButton:SetClass("filled", false)
-				swatchButton:SetClass("filled", false)
+				editRow:SetClass("filled", false)
 				loopGlyph:SetClass("collapsed", true)
 				volumeRow:SetClass("collapsed", true)
 				durationLabel.text = ""
@@ -1271,8 +1285,7 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 		volumeRow,
 		durationLabel,
 		progressBar,
-		clearButton,
-		swatchButton,
+		editRow,
 	}
 
 	return button
@@ -3102,7 +3115,7 @@ local CreateStudioSoundboard = function()
 			element.text = m_editMode and "Stop editing" or "Edit board"
 			gridPanel:FireEventTree("refreshGrid")
 			captionLabel.text = m_editMode
-				and "Click an empty button to assign a clip. Use x to clear a button, drag to reorder, and the swatch to set its color."
+				and "Click an empty button to assign a clip. Use Delete to clear a button, drag to reorder, and the swatch to set its color."
 				or "Click a button to play or stop its clip. Use Edit board to change assignments."
 		end,
 	}
@@ -4131,8 +4144,11 @@ local CreateAudioLibraryTree = function()
 	--so this does not depend on that internal behavior.
 	local searchInput = gui.SearchInput{
 		placeholderText = "Search library...",
-		width = "100%",
+		--Shorter than the card so it cannot clip the bordered edge (a 100% row ran
+		--under the border); it does not need the full width to do its job.
+		width = 300,
 		height = 24,
+		halign = "left",
 		vmargin = 2,
 		search = function(element, text)
 			SetSearchFilter(text)
@@ -4495,6 +4511,9 @@ CreateAudioStudio = function()
 				text = "+ New Folder",
 				width = "auto",
 				height = 24,
+				--Breathing room: auto-width buttons rendered the border tight
+				--against the letters.
+				hpad = 8,
 				valign = "center",
 				hmargin = 3,
 				press = function(element)
@@ -4506,6 +4525,7 @@ CreateAudioStudio = function()
 				text = "+ Add audio",
 				width = "auto",
 				height = 24,
+				hpad = 8,
 				valign = "center",
 				hmargin = 3,
 				press = function(element)

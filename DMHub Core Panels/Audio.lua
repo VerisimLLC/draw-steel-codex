@@ -2148,6 +2148,64 @@ end
 --themed dock host), so it owns its ThemeEngine root: GetStyles() + a paired
 --OnThemeChanged so it recolors live on a scheme switch.
 
+--Category id -> the top-level library folder new uploads of that category land in.
+--An incremental step toward the locked design (brief 7.1: the categories ARE the
+--top-level folders); legacy folders (Sounds/Soundscapes/...) are left alone for the
+--user to merge manually.
+local g_categoryFolderNames = { music = "Music", ambience = "Ambience", effects = "Effects" }
+
+--Set by an upload once its landing folder is known; the library tree's next rebuild
+--consumes it and force-expands that folder so the newly uploaded clip is visible
+--immediately (folders remember collapse state, so a fresh upload into a collapsed
+--folder would otherwise land invisibly).
+local g_pendingRevealFolder = nil
+
+--Id of the top-level, non-hidden folder with the given name (case-insensitive).
+local function FindTopLevelFolderByName(name)
+	local lower = string.lower(name)
+	for fid,f in pairs(assets.audioFoldersTable) do
+		if not f.hidden and f.parentFolder == nil and string.lower(f.description or "") == lower then
+			return fid
+		end
+	end
+	return nil
+end
+
+--Find-or-create the category's landing folder, then callback(folderid).
+--UploadNewAudioFolder returns nothing and the new folder only appears in
+--audioFoldersTable after the cloud echo (verified live), so the create path polls
+--for the folder by name. callback(nil) if the retries exhaust - the upload then
+--proceeds unfoldered and displays under the default folder.
+local function EnsureCategoryFolder(category, callback)
+	local name = g_categoryFolderNames[category]
+	if name == nil then
+		callback(nil)
+		return
+	end
+	local existing = FindTopLevelFolderByName(name)
+	if existing ~= nil then
+		callback(existing)
+		return
+	end
+	assets:UploadNewAudioFolder{ description = name }
+	local attempts = 20
+	local function poll()
+		if mod.unloaded then return end
+		local fid = FindTopLevelFolderByName(name)
+		if fid ~= nil then
+			callback(fid)
+			return
+		end
+		attempts = attempts - 1
+		if attempts <= 0 then
+			callback(nil)
+			return
+		end
+		dmhub.Schedule(0.25, poll)
+	end
+	dmhub.Schedule(0.25, poll)
+end
+
 --Stamp the chosen category onto a newly uploaded asset. The upload callback fires
 --when the file TRANSFER completes, but the asset only appears in assets.audioTable
 --once the cloud echo lands -- typically AFTER that callback (verified live), so a
@@ -2168,9 +2226,12 @@ local function StampUploadedAudioAsset(assetid, category, attemptsLeft)
 end
 
 --File-choose + upload flow (the second half of C7; the Add-audio menu below picks
---the category and calls this). Unchanged upload mechanics; the only addition is
---stamping the chosen category onto each newly uploaded asset once the id is known.
+--the category and calls this). The landing folder is resolved (find-or-create)
+--BEFORE the file dialog opens so the upload can carry parentFolder directly; each
+--uploaded asset is then stamped with the category once its cloud echo lands, and
+--the tree is told to reveal the landing folder.
 local function DoAudioStudioUpload(category)
+	EnsureCategoryFolder(category, function(folderid)
 	dmhub.OpenFileDialog{
 		id = 'AudioAssets',
 		extensions = {'ogg', 'mp3', 'wav', 'flac'},
@@ -2180,11 +2241,15 @@ local function DoAudioStudioUpload(category)
 			local operation
 			local assetid = assets:UploadAudioAsset{
 				path = path,
+				parentFolder = folderid,
 				error = function(text)
 					gui.ModalMessage{ title = 'Error creating audio', message = text }
 				end,
 				upload = function(id)
 					StampUploadedAudioAsset(id, category)
+					if folderid ~= nil then
+						g_pendingRevealFolder = folderid
+					end
 					if operation ~= nil then operation.progress = 1; operation:Update() end
 				end,
 				progress = function(percent)
@@ -2200,6 +2265,7 @@ local function DoAudioStudioUpload(category)
 			end
 		end,
 	}
+	end)
 end
 
 --Upload action for the Studio toolbar "+ Add audio" (C7, reshaped per James's
@@ -3848,6 +3914,15 @@ local CreateAudioLibraryTree = function()
 		--below), so skip the live capture entirely for the duration of the search.
 		if m_searchText == "" then
 			CaptureExpansion(element)
+		end
+
+		--A fresh upload asks the tree to reveal its landing folder (consumed once,
+		--AFTER CaptureExpansion so the live collapsed state cannot overwrite it).
+		--m_expanded persists across rebuilds, so the folder stays open afterwards
+		--like any user-expanded folder.
+		if g_pendingRevealFolder ~= nil then
+			m_expanded[g_pendingRevealFolder] = true
+			g_pendingRevealFolder = nil
 		end
 
 		local rawFoldersByParent, rawClipsByFolder = BuildMaps()

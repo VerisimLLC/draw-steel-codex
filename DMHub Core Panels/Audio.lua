@@ -4480,14 +4480,20 @@ local function CreateStudioNowPlayingStrip(onLayout)
 	end
 
 	--Always visible -- the reserved rows give the strip a constant footprint, so
-	--there is no collapsed state to toggle.
+	--there is no collapsed state to toggle. Painted {bgAlt} (the same fill the
+	--search input and library folder rows use) so the strip reads as its own
+	--distinct row against the Studio surface.
 	local strip
 	strip = gui.Panel{
+		classes = {"bgAlt"},
 		flow = "horizontal",
 		width = "100%",
 		height = "auto",
 		valign = "top",
 		vmargin = 4,
+		pad = 8,
+		cornerRadius = 4,
+		borderBox = true,
 
 		create = function(element)
 			Refresh(element)
@@ -4584,10 +4590,10 @@ CreateAudioStudio = function()
 
 	--The now-playing strip always shows at least the two reserved rows (Music /
 	--Ambience) and can add Effects/Uncategorised rows while one-shots play (24px
-	--rows + 2px margins + the strip's own 4px margins); body's fixed height
-	--complement must follow or the columns overflow the window bottom.
+	--rows + 2px margins, plus the strip's 4px margins and 8px pad); body's fixed
+	--height complement must follow or the columns overflow the window bottom.
 	local nowPlayingStrip = CreateStudioNowPlayingStrip(function(numRows)
-		body.selfStyle.height = "100%-" .. tostring(92 + numRows * 28 + 8)
+		body.selfStyle.height = "100%-" .. tostring(116 + numRows * 28)
 	end)
 
 	--Title centred across the top of the panel.

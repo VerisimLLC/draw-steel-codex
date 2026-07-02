@@ -106,6 +106,14 @@ function audio.SetGroupShared(id, value)
 	-- dummy implementation for documentation purposes only
 end
 
+--- CrossfadeSoundEvents: Crossfades between two sound events with an equal-power curve: fades stopAssetId out and startAssetId in over the given duration. Either side may be nil to just fade one in or out. Synced to all clients. Crossfading an asset to itself is a no-op.
+--- @param stopAssetId nil|string The asset id (guid) of the sound event to fade out, or nil for fade-in only.
+--- @param startAssetId nil|string The asset id (guid) of the sound event to fade in, or nil for fade-out only.
+--- @param seconds? number Crossfade duration in seconds; defaults to 3.0, minimum 0.05.
+function audio.CrossfadeSoundEvents(stopAssetId, startAssetId, seconds)
+	-- dummy implementation for documentation purposes only
+end
+
 --- ResetMixState: Clears all mix-group duck and shared-broadcast state. Happens automatically on game load/switch; exposed as a manual escape hatch for recovering from a leaked duck or for testing.
 --- @return nil
 function audio.ResetMixState()

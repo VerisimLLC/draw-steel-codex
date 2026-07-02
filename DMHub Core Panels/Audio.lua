@@ -1379,16 +1379,21 @@ CreateSoundPanel = function()
 		},
 	}
 
-	--The clip currently playing for a category (Music/Ambience), found by scanning
-	--audio.currentlyPlaying; one track per channel is the norm, so the first match wins.
-	local function PlayingTrackForCategory(cat)
-		for assetid,_ in pairs(audio.currentlyPlaying) do
+	--All clips currently playing for a category (Music/Ambience), found by scanning
+	--audio.currentlyPlaying. Sorted by elapsed .time ascending -- the most recently
+	--started track has the smallest elapsed time, so it sorts first and is treated
+	--as the primary (hero card / footer) track. ev.time can be nil briefly right
+	--after a track starts; treated as 0 so it still sorts to the front.
+	local function PlayingTracksForCategory(cat)
+		local list = {}
+		for assetid,ev in pairs(audio.currentlyPlaying) do
 			local a = assets.audioTable[assetid]
 			if a ~= nil and a.category == cat then
-				return assetid, a
+				list[#list+1] = { id = assetid, asset = a, elapsed = (ev ~= nil and ev.time) or 0 }
 			end
 		end
-		return nil, nil
+		table.sort(list, function(x, y) return x.elapsed < y.elapsed end)
+		return list
 	end
 
 	--Now-playing hero card. Music is the lead channel (big title + read-only progress +
@@ -1412,7 +1417,10 @@ CreateSoundPanel = function()
 	local statusLabel = gui.Label{
 		classes = {"sizeXxs", "fgMuted"},
 		text = "Nothing playing",
-		width = "100%-72",
+		--Complement of statusDot + globalMuteButton + the "Studio" icon+text button
+		--(wider than the old icon-only glyph -- see D4). Bumped from 100%-72 to
+		--100%-112 (+40) to keep the label from clipping the wider control.
+		width = "100%-112",
 		height = "auto",
 		halign = "left",
 		valign = "center",
@@ -1505,6 +1513,83 @@ CreateSoundPanel = function()
 		timeTotal,
 	}
 
+	--Extra-row factory for tracks beyond the primary one in a channel (e.g. two
+	--ambience beds layered at once). A gui element has one parent, so each row is
+	--built fresh by this factory rather than shared between the music/ambience
+	--containers. Indented ~10px so the rows read as children of the channel above.
+	local function CreateExtraTrackRow(id, asset)
+		return gui.Panel{
+			flow = "horizontal",
+			width = "100%-10",
+			height = 16,
+			valign = "center",
+			vmargin = 1,
+			lmargin = 10,
+			gui.Label{
+				classes = {"sizeXs", "fgMuted"},
+				text = DisplayNameForAsset(asset),
+				width = "100%-20",
+				height = "auto",
+				halign = "left",
+				valign = "center",
+				textWrap = false,
+				textOverflow = "ellipsis",
+			},
+			gui.Panel{
+				bgimage = "panels/square.png",
+				bgcolor = "white",
+				width = 11,
+				height = 11,
+				halign = "right",
+				valign = "center",
+				hmargin = 4,
+				press = function(element)
+					audio.StopSoundEvent(id)
+				end,
+				linger = function(element)
+					gui.Tooltip("Stop")(element)
+				end,
+			},
+		}
+	end
+
+	--Extra-track containers. UpdateNowPlaying runs on a 0.2s think, so children are
+	--only rebuilt when the signature of extra ids changes (rebuilding every tick
+	--would be wasted work -- the row count is usually 0). Signatures are stored as
+	--upvalues local to this section.
+	local musicExtrasSig = nil
+	local musicExtras = gui.Panel{
+		flow = "vertical",
+		width = "100%",
+		height = "auto",
+	}
+	local ambienceExtrasSig = nil
+	local ambienceExtras = gui.Panel{
+		flow = "vertical",
+		width = "100%",
+		height = "auto",
+	}
+
+	--Rebuilds an extras container's children from `list[2..]` (list[1] is the
+	--primary track, already shown by the hero card / footer) only when the ordered
+	--id signature differs from last time.
+	local function RefreshExtrasContainer(container, list, lastSig)
+		local ids = {}
+		for i=2,#list do
+			ids[#ids+1] = list[i].id
+		end
+		local sig = table.concat(ids, "|")
+		if sig == lastSig then
+			return sig
+		end
+		local rows = {}
+		for i=2,#list do
+			rows[#rows+1] = CreateExtraTrackRow(list[i].id, list[i].asset)
+		end
+		container.children = rows
+		return sig
+	end
+
 	local ambienceName = gui.Label{
 		classes = {"sizeXs", "fgMuted"},
 		text = "silent",
@@ -1553,13 +1638,52 @@ CreateSoundPanel = function()
 		ambienceStop,
 	}
 
+	--Idle-state CTA: shown only when nothing is playing at all (replaces
+	--titleLabel/subtitleLabel/transportRow, which are collapsed in that state so
+	--the CTA does not leave a gap above it). Points the DM at the Studio instead
+	--of leaving the dock looking dead.
+	local ctaBlock = gui.Panel{
+		classes = {"collapsed"},
+		flow = "vertical",
+		width = "100%",
+		height = "auto",
+		vmargin = 4,
+		gui.Button{
+			classes = {"sizeXs"},
+			text = "Open Audio Studio",
+			width = "100%-8",
+			height = 26,
+			halign = "center",
+			hmargin = 4,
+			hpad = 8,
+			borderBox = true,
+			press = function(element)
+				LaunchablePanel.LaunchPanelByName("Audio Studio")
+			end,
+		},
+		gui.Label{
+			classes = {"sizeXs", "fgMuted"},
+			text = "Play music and ambience for your table.",
+			width = "100%-8",
+			height = "auto",
+			textAlignment = "center",
+			halign = "center",
+			hmargin = 4,
+			vmargin = 2,
+		},
+	}
+
 	local function UpdateNowPlaying()
 		--Duck state rides the status dot/line (amber dot + "Music ducked for Anthem")
 		--instead of a separate badge, now that the dot already signals play state.
 		local anthemState = rawget(_G, "g_drawSteelAnthemState")
 		local ducked = anthemState ~= nil and anthemState.duckActive == true
 
-		local mid, ma = PlayingTrackForCategory("music")
+		local musicList = PlayingTracksForCategory("music")
+		local mid, ma = nil, nil
+		if #musicList > 0 then
+			mid, ma = musicList[1].id, musicList[1].asset
+		end
 		m_musicId = mid
 		if ma ~= nil then
 			local ev = audio.currentlyPlaying[mid]
@@ -1568,7 +1692,7 @@ CreateSoundPanel = function()
 			statusDot:SetClass("playing", not ducked)
 			statusDot:SetClass("ducked", ducked)
 			statusLabel.text = ducked and "Music ducked for Anthem" or "Playing to your table"
-			titleLabel.text = ma.description or "(unnamed)"
+			titleLabel.text = DisplayNameForAsset(ma)
 			titleLabel:SetClass("fgMuted", false)
 			subtitleLabel.text = "Music"
 			stopButton:SetClass("hidden", false)
@@ -1579,25 +1703,51 @@ CreateSoundPanel = function()
 			statusDot:SetClass("playing", false)
 			statusDot:SetClass("ducked", false)
 			statusLabel.text = "Nothing playing"
-			titleLabel.text = "Nothing playing"
-			titleLabel:SetClass("fgMuted", true)
-			subtitleLabel.text = ""
 			stopButton:SetClass("hidden", true)
 			timeCurrent.text = ""
 			timeTotal.text = ""
 			progressFill.selfStyle.width = "0%"
 		end
+		musicExtrasSig = RefreshExtrasContainer(musicExtras, musicList, musicExtrasSig)
 
-		local aid, aa = PlayingTrackForCategory("ambience")
+		local ambienceList = PlayingTracksForCategory("ambience")
+		local aid, aa = nil, nil
+		if #ambienceList > 0 then
+			aid, aa = ambienceList[1].id, ambienceList[1].asset
+		end
 		m_ambienceId = aid
 		if aa ~= nil then
-			ambienceName.text = aa.description or "(unnamed)"
+			ambienceName.text = DisplayNameForAsset(aa)
 			ambienceName:SetClass("fgMuted", false)
 			ambienceStop:SetClass("hidden", false)
 		else
-			ambienceName.text = "silent"
+			ambienceName.text = "Silent"
 			ambienceName:SetClass("fgMuted", true)
 			ambienceStop:SetClass("hidden", true)
+		end
+		ambienceExtrasSig = RefreshExtrasContainer(ambienceExtras, ambienceList, ambienceExtrasSig)
+
+		--Idle-state layout: CTA replaces title/subtitle/transport only when BOTH
+		--channels are silent. Music-idle-but-ambience-playing shows "Silent" / "Music"
+		--in the hero slot instead (no CTA -- the table is not actually quiet).
+		local musicPlaying = ma ~= nil
+		local ambiencePlaying = aa ~= nil
+		local nothingPlaying = (not musicPlaying) and (not ambiencePlaying)
+		if nothingPlaying then
+			titleLabel:SetClass("collapsed", true)
+			subtitleLabel:SetClass("collapsed", true)
+			transportRow:SetClass("collapsed", true)
+			ctaBlock:SetClass("collapsed", false)
+		else
+			ctaBlock:SetClass("collapsed", true)
+			transportRow:SetClass("collapsed", not musicPlaying)
+			titleLabel:SetClass("collapsed", false)
+			subtitleLabel:SetClass("collapsed", false)
+			if not musicPlaying then
+				titleLabel.text = "Silent"
+				titleLabel:SetClass("fgMuted", true)
+				subtitleLabel.text = "Music"
+			end
 		end
 
 		globalMuteButton:SetClass("muted", audio.muted)
@@ -1639,12 +1789,16 @@ CreateSoundPanel = function()
 			statusLabel,
 			globalMuteButton,
 			gui.Button{
+				classes = {"sizeXs"},
 				icon = "icons/standard/Icon_App_GameControls.png",
-				width = 18,
-				height = 18,
+				text = "Studio",
+				width = "auto",
+				height = 20,
 				halign = "right",
 				valign = "center",
 				hmargin = 4,
+				hpad = 6,
+				borderBox = true,
 				press = function(element)
 					LaunchablePanel.LaunchPanelByName("Audio Studio")
 				end,
@@ -1657,7 +1811,13 @@ CreateSoundPanel = function()
 		titleLabel,
 		subtitleLabel,
 		transportRow,
+		musicExtras,
+		--CTA sits in the hero (Music) slot it replaces, ABOVE the ambience footer,
+		--so the idle card reads status -> CTA -> Ambience like the playing card
+		--reads status -> title/transport -> Ambience.
+		ctaBlock,
 		ambienceFooter,
+		ambienceExtras,
 	}
 
 	--Master fader + the broadcast Levels faders. The fader helpers (MakeMasterFader /
@@ -3157,7 +3317,7 @@ local CreateStudioMixerCard = function()
 			height = "auto",
 			valign = "center",
 			vmargin = 2,
-			gui.Label{ classes = {"bold", "sizeS"}, text = "Mixer", width = "auto", height = "auto", halign = "left", valign = "center" },
+			gui.Label{ classes = {"bold", "sizeS"}, text = "Levels", width = "auto", height = "auto", halign = "left", valign = "center" },
 		},
 
 		gui.Label{
@@ -3168,8 +3328,6 @@ local CreateStudioMixerCard = function()
 			textWrap = true,
 			vmargin = 2,
 		},
-
-		gui.Label{ classes = {"bold", "sizeXs"}, text = "Broadcast Mixer Group Levels", width = "auto", height = "auto", halign = "left", vmargin = 2 },
 
 		MakeFaderRow("Master", MakeMasterFader(), false),
 		MakeFaderRow("Music", MakeBroadcastFader("music"), false),
@@ -3289,7 +3447,7 @@ local CreateStudioDuckingCard = function()
 		gui.Label{ classes = {"bold", "sizeXs"}, text = "Manage Ducking", width = "auto", height = "auto", halign = "left" },
 		gui.Label{ classes = {"fgMuted", "sizeXs"}, text = "Anthem -> Music", width = "auto", height = "auto", halign = "left", vmargin = 1 },
 		gui.Label{ classes = {"fgMuted", "sizeXs"}, text = "Anthem -> Ambience", width = "auto", height = "auto", halign = "left", vmargin = 1 },
-		gui.Label{ classes = {"fgMuted", "sizeXs"}, text = "Per-target duck depth + fade. Placement only - depends on the duck-settings document & asymmetric-fade engine work.", width = "100%", height = "auto", textWrap = true, vmargin = 2 },
+		gui.Label{ classes = {"fgMuted", "sizeXs"}, text = "Per-track ducking controls are planned for a future update.", width = "100%", height = "auto", textWrap = true, vmargin = 2 },
 	}
 
 	return gui.Panel{
@@ -4044,6 +4202,126 @@ local CreateAudioLibraryTree = function()
 	}
 end
 
+--Studio now-playing strip -- a slim horizontal bar under the header showing every
+--playing track across all categories at once (the dock only surfaces the primary
+--music/ambience pair). Collapses to zero height when nothing is playing. Updated
+--by the root's refreshAudio -> refreshPlayingAudio tree fire (instant on
+--play/stop) plus its own 0.5s poll (a track ending naturally fires no event).
+--onVisibility(visible) fires whenever the strip toggles between shown and
+--collapsed, so the caller can re-derive any fixed-complement sibling heights.
+local function CreateStudioNowPlayingStrip(onVisibility)
+	local rowsContainer = gui.Panel{
+		flow = "horizontal",
+		width = "auto",
+		height = "auto",
+		valign = "center",
+	}
+	local lastSig = nil
+	local lastVisible = nil
+
+	local function CreateChip(id, asset)
+		return gui.Panel{
+			flow = "horizontal",
+			width = "auto",
+			height = "auto",
+			valign = "center",
+			hmargin = 8,
+			gui.Label{
+				classes = {"sizeXs"},
+				text = DisplayNameForAsset(asset),
+				width = 180,
+				height = "auto",
+				halign = "left",
+				valign = "center",
+				textWrap = false,
+				textOverflow = "ellipsis",
+			},
+			gui.Panel{
+				bgimage = "panels/square.png",
+				bgcolor = "white",
+				width = 11,
+				height = 11,
+				valign = "center",
+				hmargin = 4,
+				press = function(element)
+					audio.StopSoundEvent(id)
+				end,
+				linger = function(element)
+					gui.Tooltip("Stop")(element)
+				end,
+			},
+		}
+	end
+
+	local function Refresh(element)
+		local ids = {}
+		local entries = {}
+		for assetid,_ in pairs(audio.currentlyPlaying) do
+			local a = assets.audioTable[assetid]
+			if a ~= nil then
+				entries[#entries+1] = { id = assetid, asset = a }
+				ids[#ids+1] = assetid
+			end
+		end
+		table.sort(ids)
+		local sig = table.concat(ids, "|")
+		if sig ~= lastSig then
+			local rows = {}
+			for _,entry in ipairs(entries) do
+				rows[#rows+1] = CreateChip(entry.id, entry.asset)
+			end
+			rowsContainer.children = rows
+			lastSig = sig
+		end
+		local visible = #entries > 0
+		element:SetClass("collapsed", not visible)
+		if visible ~= lastVisible then
+			lastVisible = visible
+			if onVisibility ~= nil then
+				onVisibility(visible)
+			end
+		end
+	end
+
+	local strip
+	strip = gui.Panel{
+		classes = {"collapsed"},
+		flow = "horizontal",
+		width = "100%",
+		height = "auto",
+		valign = "center",
+		vmargin = 4,
+
+		create = function(element)
+			Refresh(element)
+		end,
+		refreshPlayingAudio = function(element)
+			Refresh(element)
+		end,
+		thinkTime = 0.5,
+		think = function(element)
+			Refresh(element)
+		end,
+
+		gui.Label{ classes = {"bold", "sizeXs"}, text = "Now Playing", width = "auto", height = "auto", halign = "left", valign = "center", hmargin = 4 },
+		rowsContainer,
+		gui.Button{
+			classes = {"sizeXs"},
+			text = "Stop all",
+			width = "auto",
+			height = 20,
+			halign = "right",
+			valign = "center",
+			hmargin = 4,
+			press = function(element)
+				audio.StopAllSoundEvents()
+			end,
+		},
+	}
+
+	return strip
+end
+
 CreateAudioStudio = function()
 	if not dmhub.isDM then
 		return nil
@@ -4118,6 +4396,17 @@ CreateAudioStudio = function()
 		leftColumn,
 		rightColumn,
 	}
+
+	--The now-playing strip toggles between zero height (idle) and one chip row
+	--(~28px) when tracks play; body's fixed height complement must follow or
+	--the columns overflow the window bottom while the strip is shown.
+	local nowPlayingStrip = CreateStudioNowPlayingStrip(function(visible)
+		if visible then
+			body.selfStyle.height = "100%-120"
+		else
+			body.selfStyle.height = "100%-92"
+		end
+	end)
 
 	--Title centred across the top of the panel.
 	local header = gui.Panel{
@@ -4255,6 +4544,7 @@ CreateAudioStudio = function()
 
 		header,
 		gui.MCDMDivider{ bmargin = 8 },
+		nowPlayingStrip,
 		body,
 	}
 

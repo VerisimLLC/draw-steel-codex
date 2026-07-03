@@ -69,7 +69,13 @@ CreateDicePanel = function()
 	local amendableRoll = nil
 
 	local diceStyle = dmhub.GetDiceStyling(dmhub.GetSettingValue("diceequipped"), dmhub.GetSettingValue("playercolor"))
-	
+
+	-- When a non-default dice set is equipped, draw each die as its real 3D model rendered
+	-- off-screen (transparent, numberless) instead of the flat PNG icon. equipped/use3D are
+	-- recomputed by the diceequipped/playercolor monitor below so the panel rebuilds on change.
+	local equipped = dmhub.GetSettingValue("diceequipped")
+	local use3D = equipped ~= nil and equipped ~= "" and equipped ~= "Default"
+
 	local CreateDice = function(faces, params)
 
 		local imageFaces = faces
@@ -79,49 +85,67 @@ CreateDicePanel = function()
 		local selectedFaces = nil
 		local selectedString = nil
 		local textColor = nil
+		-- Which 3D die geometry this tile renders when use3D (d3 uses the d6 model; the d20
+		-- "Power Roll" renders as the two-d10 pair). nil = fall back to the whitelabel default.
+		local selectedGeo = nil
 
 		if imageFaces == 3 then
 			selectedDie = "ui-icons/dsdice/djordice-d6.png"
-			selectedDieFilled = "ui-icons/dsdice/djordice-d6-filled.png"			
+			selectedDieFilled = "ui-icons/dsdice/djordice-d6-filled.png"
 			selectedNum = 1
 			selectedFaces = 3
 			selectedString = "3"
 			selectedFontSize = 18
-			selectedYAdjust = 2		
+			selectedYAdjust = 2
+			selectedGeo = "d6"
 		elseif imageFaces == 6 then
 			selectedDie = "ui-icons/dsdice/djordice-d6.png"
-			selectedDieFilled = "ui-icons/dsdice/djordice-d6-filled.png"	
+			selectedDieFilled = "ui-icons/dsdice/djordice-d6-filled.png"
 			selectedNum = 1
 			selectedFaces = 6
 			selectedString = "6"
 			selectedFontSize = 18
-			selectedYAdjust = 2			
+			selectedYAdjust = 2
+			selectedGeo = "d6"
 		elseif imageFaces == 10 then
 			selectedDie = "ui-icons/dsdice/djordice-d10.png"
-			selectedDieFilled = "ui-icons/dsdice/djordice-d10-filled.png"	
+			selectedDieFilled = "ui-icons/dsdice/djordice-d10-filled.png"
 			selectedNum = 1
 			selectedFaces = 10
 			selectedString = "10"
 			selectedFontSize = 14
-			selectedYAdjust = 0			
+			selectedYAdjust = 0
+			selectedGeo = "d10"
 		elseif imageFaces == 20 then
-			selectedDie = "ui-icons/dsdice/djordice-2d10.png"	
-			selectedDieFilled = "ui-icons/dsdice/djordice-2d10-filled.png"		
+			selectedDie = "ui-icons/dsdice/djordice-2d10.png"
+			selectedDieFilled = "ui-icons/dsdice/djordice-2d10-filled.png"
 			selectedNum = 2
 			selectedFaces = 10
 			selectedString = "Power Roll"
-			selectedFontSize = 10		
+			selectedFontSize = 10
 			selectedYAdjust = 0
+			selectedGeo = "power"
 		end
 
 	
 		--a single dice
+
+		-- In 3D mode draw the real die rendered off-screen (transparent, numberless) as the panel
+		-- background; otherwise keep the flat filled PNG icon.
+		local dieBgImage = selectedDieFilled
+		local dieBgColor = diceStyle.bgcolor
+		if use3D then
+			-- Static, numberless icon rendered once from the real 3D die and cached (see
+			-- DiceIconManager). Same (assetid, geo) is shared across tiles and panel rebuilds.
+			dieBgImage = string.format("#DiceIcon:%s:%s", tostring(equipped), tostring(selectedGeo))
+			dieBgColor = "white"
+		end
+
 		local args = {
-		
+
 			classes = "dice",
-			bgimage = selectedDieFilled,
-			--bgimage = string.format("ui-icons/d%d-filled.png", imageFaces),
-			bgcolor = diceStyle.bgcolor,
+			bgimage = dieBgImage,
+			bgcolor = dieBgColor,
 
             dragMove = false,
             draggable = true,
@@ -160,16 +184,6 @@ CreateDicePanel = function()
             end,
 
 			--hover = gui.Tooltip(string.format("D%d", faces)),
-
-			gui.Panel{
-				classes = {"diceLines"},
-				interactable = false,
-				width = "100%",
-				height = "100%",
-				bgimage = selectedDie,
-				--bgimage = string.format("ui-icons/d%d.png", imageFaces),
-				bgcolor = diceStyle.trimcolor,
-			},
 
 			checklighting = function(element)
 				local lightbg = TokenHud.UseLightBackgroundColor(core.Color(textColor))
@@ -212,6 +226,23 @@ CreateDicePanel = function()
 			}
 
 		}
+
+		-- The flat colored die outline only makes sense for the 2D icon; in 3D mode the model
+		-- replaces it. Insert it as the first (bottom) child so the labels still sit on top.
+		if not use3D then
+			table.insert(args, 1, gui.Panel{
+				classes = {"diceLines"},
+				interactable = false,
+				width = "100%",
+				height = "100%",
+				bgimage = selectedDie,
+				bgcolor = diceStyle.trimcolor,
+			})
+		else
+			-- Show the live 3D die in its natural color, not dimmed by the flat-icon "dice" style.
+			args.saturation = 1
+			args.brightness = 1
+		end
 
 		if params ~= nil then
 			for k,v in pairs(params) do
@@ -274,6 +305,8 @@ CreateDicePanel = function()
 			events = {
 				monitor = function(element)
 					diceStyle = dmhub.GetDiceStyling(dmhub.GetSettingValue("diceequipped"), dmhub.GetSettingValue("playercolor"))
+					equipped = dmhub.GetSettingValue("diceequipped")
+					use3D = equipped ~= nil and equipped ~= "" and equipped ~= "Default"
 					element:FireEvent("create")
 				end,
 

@@ -738,6 +738,58 @@ local function CreateMonsterEntry(nodeid)
                 },
             }),
 
+            --Implementation status diamond next to the monster's name,
+            --mirroring the diamond on ability cards. Styled inline because
+            --the implementationDiamond style rules live in SpellRenderStyles,
+            --which is scoped to ability rendering. Hover for an explanation
+            --of the tiers plus this monster's per-ability/trait accounting.
+            --Only shown for creature types with the implementation-status
+            --API (Draw Steel monsters).
+            gui.Panel({
+                classes = { "implementationDiamond" },
+                rotate = 45,
+                width = 10,
+                height = 10,
+                bgimage = "panels/square.png",
+                halign = "left",
+                valign = "center",
+                hmargin = 6,
+                events = {
+                    create = function(element)
+                        element:FireEvent("refreshAssets")
+                    end,
+                    refreshAssets = function(element)
+                        local props = monster.properties
+                        if props == nil or props.GetImplementationStatus == nil then
+                            element:SetClass("hidden", true)
+                            return
+                        end
+                        element:SetClass("hidden", false)
+                        local impl = props:GetImplementationStatus()
+                        element.selfStyle.bgcolor = Styles.ImplementationStatusColors[impl]
+                            or Styles.ImplementationStatusColors[1]
+                    end,
+                    hover = function(element)
+                        local props = monster.properties
+                        if props == nil or props.RenderImplementationSummaryPanel == nil then
+                            return
+                        end
+                        local halign = "right"
+                        local dock = element:FindParentWithClass("dock")
+                        if dock ~= nil then
+                            halign = dock.data.TooltipAlignment()
+                        end
+                        element.tooltip = gui.TooltipFrame(
+                            props:RenderImplementationSummaryPanel{ includeExplanation = true },
+                            {
+                                halign = halign,
+                                valign = "center",
+                            }
+                        )
+                    end,
+                },
+            }),
+
             gui.Label({
                 classes = { "bestiaryLabel" },
                 text = creature.GetTokenDescription(monster),

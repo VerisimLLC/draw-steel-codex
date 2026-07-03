@@ -281,6 +281,180 @@ function monster:GetSignatureAbility()
     return nil
 end
 
+--- Per-item accounting of implementation status across this monster's own
+--- abilities and traits (group traits are not included). Each entry is
+--- { name, kind ("Ability"/"Trait"), implementation } using the
+--- gui.ImplementationStatus scale (0 = Narrative ... 4 = Gold). An item with
+--- no status set reports Unimplemented, matching the compendium editors.
+--- @return {name: string, kind: string, implementation: number}[]
+function monster:ImplementationStatusAccounting()
+    local entries = {}
+    for _,ability in ipairs(self:try_get("innateActivatedAbilities", {})) do
+        entries[#entries+1] = {
+            name = ability.name,
+            kind = "Ability",
+            implementation = ability:try_get("implementation", 1),
+        }
+    end
+    for _,feature in ipairs(self:try_get("characterFeatures", {})) do
+        entries[#entries+1] = {
+            name = feature.name,
+            kind = "Trait",
+            implementation = feature:try_get("implementation", 1),
+        }
+    end
+    return entries
+end
+
+--- The calculated implementation status of this monster: the lowest tier
+--- across its abilities and traits. Narrative (0) entries are neutral --
+--- they mark content with nothing to automate, so they do not drag the
+--- status down and are skipped. A monster with no abilities or traits (or
+--- only Narrative ones) reports Gold, since it has nothing left to implement.
+--- @return number
+function monster:CalculateImplementationStatus()
+    local result = nil
+    for _,entry in ipairs(self:ImplementationStatusAccounting()) do
+        if entry.implementation ~= gui.ImplementationStatus.WontImplement then
+            if result == nil or entry.implementation < result then
+                result = entry.implementation
+            end
+        end
+    end
+    return result or gui.ImplementationStatus.Gold
+end
+
+--- The effective implementation status: an explicit override stored on the
+--- monster if one is set, otherwise the calculated (lowest-tier) status.
+--- @return number
+function monster:GetImplementationStatus()
+    local override = self:try_get("implementation")
+    if override ~= nil then
+        return override
+    end
+    return self:CalculateImplementationStatus()
+end
+
+--- @return boolean
+function monster:HasImplementationStatusOverride()
+    return self:try_get("implementation") ~= nil
+end
+
+--- Set or clear (nil) the implementation status override.
+--- @param value number|nil
+function monster:SetImplementationStatusOverride(value)
+    self.implementation = value
+end
+
+--- Build a panel summarizing this monster's implementation status: an
+--- optional explanation of the status tiers, the calculated/override
+--- summary, and a per-ability/trait accounting with colored status dots.
+--- Callers wrap the returned panel in gui.TooltipFrame with their own
+--- alignment. Theme styles are resolved here because tooltips render
+--- outside the caller's style tree.
+--- @param args nil|{includeExplanation: boolean}
+--- @return Panel
+function monster:RenderImplementationSummaryPanel(args)
+    args = args or {}
+
+    local rows = {}
+
+    rows[#rows+1] = gui.Label{
+        fontSize = 16,
+        bold = true,
+        width = "auto",
+        height = "auto",
+        text = "Implementation Status",
+    }
+
+    if args.includeExplanation then
+        rows[#rows+1] = gui.Label{
+            fontSize = 14,
+            width = "100%",
+            height = "auto",
+            wrap = true,
+            tmargin = 2,
+            text = [[<b>Gold:</b> Fully automated.
+<b>Silver:</b> Automated with some table adjudication necessary.
+<b>Bronze:</b> Partially automated.
+<b>Unimplemented:</b> Requires manual adjudication.
+<b>Narrative:</b> Role play only, no automation.
+
+A monster's status is the lowest tier across its abilities and traits; Narrative entries are neutral and do not lower it.]],
+        }
+    end
+
+    local entries = self:ImplementationStatusAccounting()
+    local calculated = self:CalculateImplementationStatus()
+
+    local summary = string.format("Calculated: %s", gui.ImplementationStatusValues[calculated] or "Unknown")
+    if self:HasImplementationStatusOverride() then
+        local override = self:GetImplementationStatus()
+        summary = string.format("%s  |  Override: %s", summary, gui.ImplementationStatusValues[override] or "Unknown")
+    end
+    rows[#rows+1] = gui.Label{
+        fontSize = 14,
+        width = "auto",
+        height = "auto",
+        tmargin = 4,
+        text = summary,
+    }
+
+    if #entries == 0 then
+        rows[#rows+1] = gui.Label{
+            fontSize = 14,
+            width = "auto",
+            height = "auto",
+            tmargin = 6,
+            text = "This monster has no abilities or traits.",
+        }
+    end
+
+    for _,entry in ipairs(entries) do
+        rows[#rows+1] = gui.Panel{
+            flow = "horizontal",
+            width = "100%",
+            height = "auto",
+            tmargin = 4,
+
+            gui.ImplementationStatusIcon{
+                halign = "left",
+                valign = "center",
+                implementation = entry.implementation,
+            },
+            gui.Label{
+                fontSize = 14,
+                width = 200,
+                height = "auto",
+                halign = "left",
+                valign = "center",
+                lmargin = 6,
+                textWrap = true,
+                text = string.format("%s (%s)", entry.name, entry.kind),
+            },
+            gui.Label{
+                classes = { "implStatus" .. tostring(entry.implementation) },
+                fontSize = 14,
+                width = "auto",
+                height = "auto",
+                halign = "right",
+                valign = "center",
+                text = gui.ImplementationStatusValues[entry.implementation] or "Unknown",
+            },
+        }
+    end
+
+    return gui.Panel{
+        styles = ThemeEngine.GetStyles(),
+        flow = "vertical",
+        width = 340,
+        height = "auto",
+        pad = 8,
+        borderBox = true,
+        children = rows,
+    }
+end
+
 function monster:CharacterLevel()
     return self.cr
 end

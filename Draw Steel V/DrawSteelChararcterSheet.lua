@@ -1216,6 +1216,36 @@ local function CreateAbilityListPanel()
 end
 
 
+--Builds the hover tooltip for the monster implementation-status editor: the
+--calculated (lowest-tier) status, any manual override, then a per-ability and
+--per-trait accounting. Content comes from the shared summary panel on the
+--monster type (MCDMMonster.lua), which the bestiary diamond also uses.
+local function CreateImplementationAccountingTooltip(c)
+    return gui.TooltipFrame(
+        c:RenderImplementationSummaryPanel(),
+        {
+            halign = "right",
+            valign = "center",
+        }
+    )
+end
+
+--Hover handler for the implementation-status editor. Uses hover rather than
+--linger because linger only fires on the deepest panel under the cursor and
+--does not propagate to ancestors, while hover propagates from the editor's
+--inner widgets up to the container this is attached to.
+local function ImplementationStatusHover(element)
+    local sheet = CharacterSheet.instance
+    if sheet == nil then
+        return
+    end
+    local token = sheet.data.info.token
+    if token == nil or token.properties == nil or not token.properties:IsMonster() then
+        return
+    end
+    element.tooltip = CreateImplementationAccountingTooltip(token.properties)
+end
+
 function CharSheet.CharacterSheetAndAvatarPanel()
     local controllerDropdown
     if dmhub.isDM then
@@ -2135,6 +2165,111 @@ function CharSheet.CharacterSheetAndAvatarPanel()
 
                 refreshToken = function(element, info)
                     element:SetClass("collapsed", info.token.properties:IsMonster())
+                end,
+            },
+        },
+
+        --Implementation status (monsters only). Shows the effective status:
+        --a manual override stored on the monster if one is set, otherwise the
+        --calculated status (the lowest tier across the monster's abilities
+        --and traits). Using the arrows stores an override; the revert button
+        --clears it back to the calculated value. Hover for a per-ability and
+        --per-trait accounting.
+        gui.Panel {
+            classes = { "monsteronly" },
+            --hit-testable surface so hover fires anywhere on the editor
+            bgimage = true,
+            bgcolor = "clear",
+            width = 256,
+            height = "auto",
+            flow = "vertical",
+            halign = "center",
+            valign = "top",
+            tmargin = 15,
+            bmargin = 15,
+
+            hover = ImplementationStatusHover,
+
+            gui.Panel {
+                flow = "horizontal",
+                width = "100%",
+                height = "auto",
+                halign = "center",
+
+                --width 200 so the widget's internal 180-wide status label fits
+                --inside the declared bounds instead of overflowing rightward
+                --and skewing the centering.
+                gui.ImplementationStatusPanel {
+                    width = 200,
+                    halign = "center",
+                    valign = "center",
+                    refreshToken = function(element, info)
+                        if not info.token.properties:IsMonster() then
+                            return
+                        end
+                        element.value = info.token.properties:GetImplementationStatus()
+                    end,
+                    change = function(element)
+                        local sheet = CharacterSheet.instance
+                        if sheet == nil then
+                            return
+                        end
+                        local c = sheet.data.info.token.properties
+                        if not c:IsMonster() then
+                            return
+                        end
+                        c:SetImplementationStatusOverride(element.value)
+                        sheet:FireEvent("refreshAll")
+                    end,
+                },
+
+                --Revert to the calculated status; only shown while an
+                --override is set. Floating so its visibility never shifts
+                --the centered status widget.
+                gui.Button {
+                    classes = { "deleteButton" },
+                    floating = true,
+                    width = 16,
+                    height = 16,
+                    halign = "right",
+                    valign = "center",
+                    hover = gui.Tooltip("Revert to the calculated status."),
+                    refreshToken = function(element, info)
+                        local c = info.token.properties
+                        element:SetClass("collapsed", not (c:IsMonster() and c:HasImplementationStatusOverride()))
+                    end,
+                    click = function(element)
+                        local sheet = CharacterSheet.instance
+                        if sheet == nil then
+                            return
+                        end
+                        local c = sheet.data.info.token.properties
+                        if not c:IsMonster() then
+                            return
+                        end
+                        c:SetImplementationStatusOverride(nil)
+                        sheet:FireEvent("refreshAll")
+                    end,
+                },
+            },
+
+            gui.Label {
+                text = "Implementation",
+                fontSize = 12,
+                textAlignment = "center",
+                width = "100%",
+                height = "auto",
+                halign = "center",
+                refreshToken = function(element, info)
+                    local c = info.token.properties
+                    if not c:IsMonster() then
+                        return
+                    end
+                    if c:HasImplementationStatusOverride() then
+                        element.text = "Implementation (Manual)"
+                    else
+                        element.text = "Implementation (Auto)"
+                    end
                 end,
             },
         },

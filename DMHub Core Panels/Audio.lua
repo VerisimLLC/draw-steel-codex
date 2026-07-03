@@ -4491,6 +4491,47 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 		return { audioAsset.id }
 	end
 
+	local function OpenNormalizeTrimPopup(parentElement, audioAsset)
+		local slider
+		slider = gui.Slider{
+			minValue = -12,
+			maxValue = 12,
+			value = audioAsset.normalizeGainTrimDb,
+			sliderWidth = 110,
+			labelWidth = 40,
+			labelFormat = "%.1fdB",
+			confirm = function(element)
+				audioAsset.normalizeGainTrimDb = element.value
+				audioAsset:Upload()
+			end,
+		}
+
+		parentElement.popup = gui.Panel{
+			classes = {"framedPanel"},
+			width = 220,
+			height = "auto",
+			halign = "right",
+			flow = "vertical",
+			gui.Label{
+				text = "Loudness trim",
+				width = "100%",
+				height = 20,
+			},
+			slider,
+			gui.Button{
+				text = "Reset",
+				width = 80,
+				height = 24,
+				vmargin = 4,
+				press = function()
+					slider.value = 0
+					audioAsset.normalizeGainTrimDb = 0
+					audioAsset:Upload()
+				end,
+			},
+		}
+	end
+
 	local function OpenRowContextMenu(element)
 		local ids = TargetIds()
 		local entries = {
@@ -4507,6 +4548,13 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 					element.popup = nil
 					SetCategoryForAudioClips(ids, category)
 				end),
+			},
+			{
+				text = "Adjust normalization trim",
+				click = function()
+					element.popup = nil
+					OpenNormalizeTrimPopup(element, audioAsset)
+				end,
 			},
 			{
 				text = "Delete",

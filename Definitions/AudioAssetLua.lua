@@ -7,6 +7,9 @@
 --- @field duration any 
 --- @field color any
 --- @field category any
+--- @field loudnessLufs any
+--- @field loudnessMeasured any
+--- @field normalizeGainTrimDb any
 AudioAssetLua = {}
 
 --- Play

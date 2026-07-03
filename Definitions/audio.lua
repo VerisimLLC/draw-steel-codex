@@ -2,6 +2,7 @@
 --- @field events EventSourceLua An event source for subscribing to audio-related events.
 --- @field muted boolean Whether all game audio is currently muted.
 --- @field masterVolume number The master volume level for all game audio, from 0 to 1.
+--- @field normalizeLoudness boolean Whether library/anthem track loudness is automatically normalized for this game.
 --- @field currentlyPlaying table A table of currently playing game sound events.
 --- @field numPlayingSounds number The number of sound instances currently playing.
 --- @field numActiveSoundEvents number The number of active sound events in the current game.
@@ -17,6 +18,12 @@ end
 --- UploadMasterVolume: Uploads the current master volume to the server.
 --- @return nil
 function audio.UploadMasterVolume()
+	-- dummy implementation for documentation purposes only
+end
+
+--- UploadNormalizeLoudness: Uploads the current loudness-normalization toggle to the server.
+--- @return nil
+function audio.UploadNormalizeLoudness()
 	-- dummy implementation for documentation purposes only
 end
 

@@ -265,6 +265,32 @@ local CreateGameWideMasterVolumeEditor = function()
 	}
 end
 
+--A checkbox that controls whether library/anthem track loudness is automatically
+--normalized for this game (audio.normalizeLoudness / gameDetails.audio). Only shown
+--to the Director, and only while in a game, since the value lives on the game's
+--shared audio state rather than a per-machine preference. Mirrors
+--CreateGameWideMasterVolumeEditor's guard.
+local CreateNormalizeLoudnessToggle = function()
+	if (not dmhub.inGame) or (not dmhub.isDM) then
+		return nil
+	end
+
+	return gui.Panel{
+		classes = {"formRow"},
+		width = "90%",
+		halign = "center",
+		gui.Check{
+			value = audio.normalizeLoudness,
+			text = "Normalize track loudness",
+			tooltip = "Automatically balances volume across tracks so quiet and loud clips play at a similar level. Does not affect sound effects.",
+			change = function(element)
+				audio.normalizeLoudness = element.value
+				audio.UploadNormalizeLoudness()
+			end,
+		},
+	}
+end
+
 --called from DMHub (from DialogLua, reference to script is a Unity property.)
 -- Builds the image-editor chooser UI (heading + blurb + dropdown). Shared by the Settings "Editing"
 -- tab and the first-run / re-prompt setup dialog. The dropdown writes the imageeditor /
@@ -1259,6 +1285,7 @@ function CreateSettingsScreen(dialog, args)
 						build = function() return {
 						SettingsSection("Audio"),
 						CreateGameWideMasterVolumeEditor(),
+						CreateNormalizeLoudnessToggle(),
 						} end,
 					},
 

@@ -51,6 +51,42 @@ local function ResolveRollCharacteristic(creature, options)
     return nil
 end
 
+--A damageTypeMappings value may be a plain string (legacy: one destination
+--type) or a list of strings (the user picks one at roll time). Returns the
+--value normalized to a list of destination damage types.
+--- @param value string|string[]
+--- @return string[]
+function CharacterModifier.DamageMappingDestinations(value)
+    if type(value) == "table" then
+        return value
+    end
+    return {value}
+end
+
+--Resolves which destination damage type a mapping should convert to, taking
+--into account any roll-time choice stored on this modifier instance (set by
+--the roll dialog's badge dropdown). Falls back to the first destination.
+--- @param source string
+--- @param value string|string[]
+--- @return string
+function CharacterModifier:ResolveDamageMappingDestination(source, value)
+    local dests = CharacterModifier.DamageMappingDestinations(value)
+    if #dests <= 1 then
+        return dests[1]
+    end
+
+    local choices = self:try_get("_tmp_damageTypeChoices")
+    if choices ~= nil then
+        for _,d in ipairs(dests) do
+            if d == choices[source] then
+                return d
+            end
+        end
+    end
+
+    return dests[1]
+end
+
 local function RollTypeMatches(modifier, rollType, options)
     if modifier.rollType == "all" and rollType ~= "enemy_ability_power_roll" then
         return true
@@ -718,18 +754,29 @@ CharacterModifier.TypeInfo.power = {
 
         local damageTypeMappings = self:try_get("damageTypeMappings")
         if damageTypeMappings ~= nil then
+            --Resolve each mapping value (possibly a list of candidate
+            --destinations) down to the single chosen destination type.
             if damageTypeMappings["all"] ~= nil then
-                local mapto = damageTypeMappings["all"]
+                local mapto = self:ResolveDamageMappingDestination("all", damageTypeMappings["all"])
                 damageTypeMappings = {}
                 for _,damageType in ipairs(rules.damageTypesAvailable) do
                     damageTypeMappings[damageType] = mapto
                 end
+            else
+                local resolved = {}
+                for k,v in pairs(damageTypeMappings) do
+                    resolved[k] = self:ResolveDamageMappingDestination(k, v)
+                end
+                damageTypeMappings = resolved
             end
             for i=1,#rollProperties.tiers do
                 local tier = rollProperties.tiers[i]
                 for k,v in pairs(damageTypeMappings) do
                     if k == "untyped" then
-                        local m = regex.MatchGroups(tier, "^(?<prefix>.*?)(?<damage>\\d+)\\s+([a-zA-Z]+\\s+)?damage(?<suffix>.*)$")
+                        --Untyped means untyped: only match a number followed directly by
+                        --"damage" with no damage-type word in between. Typed damage is
+                        --only converted when its own type key is in the mappings.
+                        local m = regex.MatchGroups(tier, "^(?<prefix>.*?)(?<damage>\\d+)\\s+damage(?<suffix>.*)$")
                         if m ~= nil then
                             tier = m.prefix .. m.damage .. " " .. v .. " damage" .. m.suffix
                         end
@@ -2067,38 +2114,75 @@ CharacterModifier.TypeInfo.power = {
                     return
                 end
 
+                local source = dropdownSourceType.idChosen
+                local destType = dropdownDestType.idChosen
+
+                --A source may map to multiple candidate destinations; the user
+                --chooses between them at roll time. Single mappings stay stored
+                --as a plain string for compatibility with existing content.
                 local mappings = modifier:get_or_add("damageTypeMappings", {})
-                mappings[dropdownSourceType.idChosen] = dropdownDestType.idChosen
+                local existing = mappings[source]
+                if existing == nil then
+                    mappings[source] = destType
+                elseif type(existing) == "table" then
+                    local found = false
+                    for _,d in ipairs(existing) do
+                        if d == destType then
+                            found = true
+                            break
+                        end
+                    end
+                    if not found then
+                        existing[#existing+1] = destType
+                    end
+                elseif existing ~= destType then
+                    mappings[source] = {existing, destType}
+                end
                 Refresh()
             end
 
             local damageTypeChildren = {}
 
             for k,v in sorted_pairs(modifier:try_get("damageTypeMappings", {})) do
-                damageTypeChildren[#damageTypeChildren+1] = gui.Label{
-                    text = string.format("%s -> %s", k, v),
-                    width = "auto",
-                    height = "auto",
-                    fontSize = 14,
-                    gui.Button{
-                        classes = {"deleteItemButton", "sizeXxs"},
-                        x = 12,
-                        halign = "right",
-                        valign = "center",
-                        press = function()
-                            modifier.damageTypeMappings[k] = nil
-                            Refresh()
-                        end,
-                    },
-                }
+                for _,destType in ipairs(CharacterModifier.DamageMappingDestinations(v)) do
+                    damageTypeChildren[#damageTypeChildren+1] = gui.Label{
+                        text = string.format("%s -> %s", k, destType),
+                        width = "auto",
+                        height = "auto",
+                        fontSize = 14,
+                        gui.Button{
+                            classes = {"deleteButton", "sizeXxs"},
+                            styles = ThemeEngine.GetStyles(),
+                            x = 12,
+                            halign = "right",
+                            valign = "center",
+                            press = function()
+                                local mappings = modifier.damageTypeMappings
+                                local dests = {}
+                                for _,d in ipairs(CharacterModifier.DamageMappingDestinations(mappings[k])) do
+                                    if d ~= destType then
+                                        dests[#dests+1] = d
+                                    end
+                                end
+                                if #dests == 0 then
+                                    mappings[k] = nil
+                                elseif #dests == 1 then
+                                    mappings[k] = dests[1]
+                                else
+                                    mappings[k] = dests
+                                end
+                                Refresh()
+                            end,
+                        },
+                    }
+                end
             end
 
-            local hasAll = modifier:try_get("damageTypeMappings", {})["all"] ~= nil
             damageTypeChildren[#damageTypeChildren+1] = gui.Panel{
                 flow = "horizontal",
                 width = "auto",
                 height = "auto",
-                classes = {cond(hasAll, "collapsed"), cond(modifier.rollType == "project_roll", "collapsed-anim")},
+                classes = {cond(modifier.rollType == "project_roll", "collapsed-anim")},
 
                 dropdownSourceType,
                 gui.Label{

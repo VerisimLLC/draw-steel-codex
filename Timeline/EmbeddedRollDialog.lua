@@ -117,6 +117,11 @@ local function ModifierPanel(args)
     local m_text = args.text
     args.text = nil
 
+    --Optional extra content (e.g. a damage type chooser dropdown) embedded in
+    --the badge after the label.
+    local m_content = args.content
+    args.content = nil
+
     local classes = args.classes or {}
     classes[#classes+1] = "modifierPanel"
     classes[#classes+1] = "bgAlt"
@@ -186,6 +191,10 @@ local function ModifierPanel(args)
             ApplySelectionColors(value)
         end,
     }
+
+    if m_content ~= nil then
+        params[#params+1] = m_content
+    end
 
     for k, v in pairs(args) do
         params[k] = v
@@ -2775,12 +2784,103 @@ function GameHud.CreateEmbeddedRollDialog()
                             classes = { "collapsed-anim" }
                         end
 
+                        --If this modifier maps a damage type to multiple possible
+                        --destination types, embed a small dropdown in the badge so
+                        --the user can choose which type this use converts to.
+                        local mappingContent = nil
+                        local damageTypeMappings = mod.modifier:try_get("damageTypeMappings")
+                        if ischecked and damageTypeMappings ~= nil then
+                            local dropdowns = {}
+                            local multiSources = 0
+                            for _,value in pairs(damageTypeMappings) do
+                                if #CharacterModifier.DamageMappingDestinations(value) > 1 then
+                                    multiSources = multiSources + 1
+                                end
+                            end
+                            for source,value in sorted_pairs(damageTypeMappings) do
+                                local dests = CharacterModifier.DamageMappingDestinations(value)
+                                if #dests > 1 then
+                                    local destOptions = {}
+                                    for _,d in ipairs(dests) do
+                                        destOptions[#destOptions+1] = { id = d, text = d }
+                                    end
+
+                                    --Only label the source type when more than one
+                                    --source has a choice; the common case is a single
+                                    --dropdown, which reads fine on its own.
+                                    if multiSources > 1 then
+                                        dropdowns[#dropdowns+1] = gui.Label{
+                                            classes = {"sizeXxs", "fgMuted"},
+                                            text = source .. ":",
+                                            width = "auto",
+                                            height = "auto",
+                                            valign = "center",
+                                            rmargin = 2,
+                                        }
+                                    end
+
+                                    dropdowns[#dropdowns+1] = gui.Dropdown{
+                                        width = 92,
+                                        height = 14,
+                                        fontSize = 11,
+                                        valign = "center",
+                                        idChosen = mod.modifier:ResolveDamageMappingDestination(source, value),
+                                        options = destOptions,
+                                        change = function(element)
+                                            local chosen = element.idChosen
+                                            local guid = mod.modifier:try_get("guid")
+                                            local function SetChoice(m)
+                                                local choices = m:get_or_add("_tmp_damageTypeChoices", {})
+                                                choices[source] = chosen
+                                            end
+
+                                            SetChoice(mod.modifier)
+
+                                            --Multi-target rolls keep a separate copy of the
+                                            --modifier for each target; propagate the choice to
+                                            --all copies so one selection covers the whole use.
+                                            if m_multitargets ~= nil and guid ~= nil then
+                                                for _,target in ipairs(m_multitargets) do
+                                                    for _,entry in ipairs(target.modifiers or {}) do
+                                                        if entry.modifier ~= nil and entry.modifier ~= mod.modifier and entry.modifier:try_get("guid") == guid then
+                                                            SetChoice(entry.modifier)
+                                                        end
+                                                    end
+                                                end
+                                            end
+
+                                            resultPanel:FireEventTree('prepare', m_options)
+                                            CalculateRollText()
+                                            RecalculateMultiTargets()
+                                        end,
+                                    }
+                                end
+                            end
+
+                            if #dropdowns > 0 then
+                                mappingContent = gui.Panel{
+                                    flow = "horizontal",
+                                    width = "auto",
+                                    --Span the badge's full height so valign="center" on the
+                                    --dropdown centers it against the label text.
+                                    height = "100%",
+                                    valign = "center",
+                                    rmargin = 2,
+                                    --Clicks on the dropdown must not bubble up to the
+                                    --badge, which would toggle the modifier.
+                                    swallowPress = true,
+                                    children = dropdowns,
+                                }
+                            end
+                        end
+
                         check = ModifierPanel{
                             classes = classes,
                             text = text,
                             value = ischecked,
                             hmargin = 2,
                             mod = mod,
+                            content = mappingContent,
                             data = {
                                 mod = mod,
                                 modifierIndex = modifierIndex,

@@ -3594,12 +3594,17 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 
 	--H-studio [+] button: only built while a Library "add tracks" build mode is
 	--active. Appends this clip to the target playlist (duplicates allowed by
-	--design) and bumps the running count in the build banner.
+	--design) and bumps the running count in the build banner. Once this clip has
+	--been added during the session the glyph flips to a check (still pressable --
+	--re-adding is legal; the check just marks "already grabbed"). Initialised from
+	--the session's added set so a mid-session tree rebuild (search, upload echo)
+	--does not lose the checkmarks.
 	local plusButton
 	if buildMode ~= nil then
+		local alreadyAdded = buildMode.added ~= nil and buildMode.added[audioAsset.id] == true
 		plusButton = gui.Panel{
 			classes = {"audioAddTrackButton"},
-			bgimage = "ui-icons/Plus.png",
+			bgimage = alreadyAdded and "icons/standard/Icon_App_Check.png" or "ui-icons/Plus.png",
 			width = 18,
 			height = 18,
 			valign = "center",
@@ -3615,6 +3620,7 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 				local pl = (GetPlaylistsDoc().data.playlists or {})[m_studioBuildMode.playlistid]
 				if pl == nil then
 					m_studioBuildMode = nil
+					StopStudioCue()
 					if g_audioLibraryRequestRebuild ~= nil then
 						g_audioLibraryRequestRebuild()
 					end
@@ -3625,6 +3631,11 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 				end
 				AddTrackToPlaylist(m_studioBuildMode.playlistid, audioAsset.id)
 				m_studioBuildMode.count = m_studioBuildMode.count + 1
+				if m_studioBuildMode.added == nil then
+					m_studioBuildMode.added = {}
+				end
+				m_studioBuildMode.added[audioAsset.id] = true
+				element.bgimage = "icons/standard/Icon_App_Check.png"
 				if g_studioRefreshBuildMode ~= nil then
 					g_studioRefreshBuildMode()
 				end
@@ -5340,6 +5351,13 @@ local CreateStudioPlaylistsCard = function(heightSpec)
 			hmargin = 4,
 			textWrap = false,
 			textOverflow = "ellipsis",
+			--Swallow single clicks: without this they bubble to the header's
+			--expand-toggle, whose REBUILD destroys this label between the two clicks
+			--of a double-click -- so rename-on-double-click could never fire (James
+			--field report, 2026-07-03). The name is the rename zone; the caret and
+			--the rest of the header row remain the expand zone.
+			click = function(element)
+			end,
 			change = function(element)
 				local newName = trim(element.text or "")
 				if newName == "" then
@@ -5523,7 +5541,11 @@ local CreateStudioPlaylistsCard = function(heightSpec)
 				valign = "center",
 				halign = "right",
 				press = function(element)
-					m_studioBuildMode = { playlistid = playlistid, count = 0 }
+					--added tracks this session (assetid set): rows swap their [+] to a
+					--check glyph once a clip has been added at least once (James field
+					--report, 2026-07-03) -- pressing again still adds (duplicates are
+					--allowed by design), the check is purely "you already grabbed this".
+					m_studioBuildMode = { playlistid = playlistid, count = 0, added = {} }
 					if g_audioLibraryRequestRebuild ~= nil then
 						g_audioLibraryRequestRebuild()
 					end
@@ -5916,7 +5938,11 @@ local function CreateStudioNowPlayingStrip()
 		end,
 	}
 
-	local function CreateChip(id, asset)
+	--nameWidth is computed per-row by CreateCategoryRow so a crowded row (e.g. a
+	--playTogether ambience playlist) shrinks its chips instead of overflowing the
+	--card edge (James field report, 2026-07-03). The full name rides a hover
+	--tooltip since a shrunk chip may ellipsize hard.
+	local function CreateChip(id, asset, nameWidth)
 		return gui.Panel{
 			classes = {"bgAlt", "border"},
 			flow = "horizontal",
@@ -5928,10 +5954,13 @@ local function CreateStudioNowPlayingStrip()
 			hpad = 6,
 			borderBox = true,
 			valign = "center",
+			linger = function(element)
+				gui.Tooltip(DisplayNameForAsset(asset))(element)
+			end,
 			gui.Label{
 				classes = {"sizeXs"},
 				text = DisplayNameForAsset(asset),
-				width = 180,
+				width = nameWidth,
 				height = "auto",
 				halign = "left",
 				valign = "center",
@@ -5986,8 +6015,23 @@ local function CreateStudioNowPlayingStrip()
 				hmargin = 4,
 			}
 		end
+		--Per-chip name width: shrink to fit the row instead of overflowing the card
+		--(the block is fixed-height Option A, so wrapping to a second line is not an
+		--option -- it would shift the Library below). The chip area is deterministic:
+		--Studio content is a fixed 1100 wide, leftColumn = 1100-388 = 712, minus its
+		--own 2x4 hmargin (704), minus the block's 2x8 borderBox pad (688), minus the
+		--92px category label = 596. Each chip adds ~39px of fixed chrome around its
+		--name (2x6 pad + stop 11 + stop margins 8 + chip hmargin 8). Floor of 40px
+		--keeps ~8 simultaneous tracks legible; beyond that the ellipsis + hover
+		--tooltip carry the name.
+		local chipChrome = 39
+		local chipArea = 596
+		local nameWidth = 180
+		if #entries > 0 then
+			nameWidth = math.max(40, math.min(180, math.floor(chipArea / #entries) - chipChrome))
+		end
 		for i=1,#entries do
-			children[#children+1] = CreateChip(entries[i].id, entries[i].asset)
+			children[#children+1] = CreateChip(entries[i].id, entries[i].asset, nameWidth)
 		end
 		return gui.Panel{
 			flow = "horizontal",
@@ -6242,6 +6286,9 @@ CreateAudioStudio = function()
 			hmargin = 3,
 			press = function(element)
 				m_studioBuildMode = nil
+				--A cue auditioned while picking tracks should not keep playing once
+				--the adding session ends (James field report, 2026-07-03).
+				StopStudioCue()
 				if g_audioLibraryRequestRebuild ~= nil then
 					g_audioLibraryRequestRebuild()
 				end

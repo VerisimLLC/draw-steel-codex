@@ -2072,7 +2072,7 @@ CreateSoundPanel = function()
 	levelsButton = gui.Button{
 		classes = {"sizeXs"},
 		text = "Levels",
-		width = "33%",
+		width = 106,
 		height = 24,
 		hmargin = 2,
 		borderBox = true,
@@ -2085,7 +2085,7 @@ CreateSoundPanel = function()
 	anthemsButton = gui.Button{
 		classes = {"sizeXs"},
 		text = "Anthems",
-		width = "33%",
+		width = 106,
 		height = 24,
 		hmargin = 2,
 		borderBox = true,
@@ -2098,7 +2098,7 @@ CreateSoundPanel = function()
 	soundboardButton = gui.Button{
 		classes = {"sizeXs"},
 		text = "Soundboard",
-		width = "33%",
+		width = 106,
 		height = 24,
 		hmargin = 2,
 		borderBox = true,
@@ -2108,10 +2108,16 @@ CreateSoundPanel = function()
 		end,
 	}
 
+	--Deterministic widths + a centred auto-width row: 33% x3 plus margins overran the
+	--dock's real content width and clipped the right button against the panel edge
+	--(percent widths ignore the margins), so the buttons are fixed-size and the row
+	--shrinks to fit and centres, leaving equal space either side by construction --
+	--same lesson as the fixed 342px soundboard grids (chunk F).
 	local dockSectionSelectorRow = gui.Panel{
 		flow = "horizontal",
-		width = "100%",
+		width = "auto",
 		height = "auto",
+		halign = "center",
 		vmargin = 4,
 
 		levelsButton,

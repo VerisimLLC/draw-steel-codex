@@ -246,6 +246,14 @@ LaunchablePanel.Register{
 	icon = "icons/standard/Icon_App_Audio.png",
 	halign = "center",
 	valign = "center",
+	--Keep the Studio OUT of the title-bar Codex menu (which lists every
+	--unfiltered LaunchablePanel): it opens from the dock's button and the
+	--top-bar audio indicator only (James, 2026-07-03). LaunchPanelByName
+	--still works -- it looks up GetMenuItems(true), which includes
+	--filtered panels.
+	filtered = function()
+		return true
+	end,
 	content = function()
 		return CreateAudioStudio()
 	end,

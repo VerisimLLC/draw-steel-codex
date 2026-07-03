@@ -1195,7 +1195,11 @@ local function CreateSearchBar()
         bgimage = true,
         -- Tracks the right dock's rendered width (364 * dockscale, default 1.0)
         -- so the box lines up with the dock below it at any scale (HB1). Kept
-        -- live by the think handler below.
+        -- live by the think handler below. borderBox is load-bearing:
+        -- gui.SearchInput ships hpad=24 WITHOUT borderBox, so the rendered box
+        -- would otherwise be 48px wider than the declared width and overhang
+        -- the dock (James field report, 2026-07-03).
+        borderBox = true,
         width = math.floor(364 * (dmhub.GetSettingValue("dockscale") or 1)),
         height = 20,
         halign = "right",
@@ -1358,17 +1362,33 @@ local function CreateAudioIndicator()
         }
         muteToggle:SetClass("muted", audio.muted)
 
-        local muteRow = gui.Panel{
+        -- Mute rides the RIGHT end of the Master row (its own row read as
+        -- orphaned chrome -- James field report, 2026-07-03). Master keeps the
+        -- left slot so its slider stays column-aligned with the Levels sliders
+        -- below; MakeFaderRow hardcodes width 100%, so the fader row is
+        -- narrowed post-construction to make room for the toggle.
+        local masterFaderRow = bar.MakeFaderRow("Master", bar.MakeMasterFader(), false)
+        masterFaderRow.selfStyle.width = "100%-26"
+        local masterRow = gui.Panel{
             flow = "horizontal",
             width = "100%",
             height = 22,
             valign = "center",
+            masterFaderRow,
             muteToggle,
         }
 
-        local masterRow = bar.MakeFaderRow("Master", bar.MakeMasterFader(), false)
-
         local children = {
+            -- "Now Playing" header (bold, pinned white -- the popover bg is
+            -- known-dark in every scheme) with the track title on its own
+            -- line beneath, mirroring the Studio's Now Playing card.
+            gui.Label{
+                classes = {"sizeXs", "bold"},
+                color = "#ffffff",
+                width = "100%",
+                height = "auto",
+                text = "Now Playing",
+            },
             gui.Label{
                 classes = {"sizeXs", cond(nowPlayingName == nil, "fgMuted", nil)},
                 width = "100%",
@@ -1378,7 +1398,6 @@ local function CreateAudioIndicator()
                 text = nowPlayingName or "Nothing playing",
             },
             masterRow,
-            muteRow,
         }
 
         if dmhub.isDM then
@@ -1971,8 +1990,19 @@ local function CreateTopBar()
 
         m_presentationBar,
         CreateStatusBar(),
-        m_audioIndicator,
-        m_searchBar,
+        -- Glyph + search travel as ONE right-aligned cluster: the search box
+        -- floats right and its width tracks the dock scale, so a sibling at a
+        -- flow position drifts away from it as the box narrows. Wrapping both
+        -- keeps the glyph pressed against the box's left edge at any scale
+        -- (James field report, 2026-07-03).
+        gui.Panel{
+            flow = "horizontal",
+            width = "auto",
+            height = "100%",
+            halign = "right",
+            m_audioIndicator,
+            m_searchBar,
+        },
     }
 
     local titleBarStyleExtras = {

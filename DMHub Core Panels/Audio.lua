@@ -4545,8 +4545,8 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 			halign = "left",
 			vmargin = 2,
 		}
-		--Inform, don't enforce: trim stays editable either way; this just explains
-		--why dragging it changes nothing audible right now.
+		--Inform, don't enforce: trim stays editable either way; these notes just
+		--explain why dragging it changes nothing audible right now.
 		if not audio.normalizeLoudness then
 			children[#children+1] = gui.Label{
 				classes = {"sizeXs", "fgMuted"},
@@ -4557,6 +4557,21 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 				vmargin = 2,
 			}
 		end
+		--Effects keep their authored dynamics (a distant explosion should stay
+		--distant); the engine skips the gain for category == "effects".
+		if audioAsset.category == "effects" then
+			children[#children+1] = gui.Label{
+				classes = {"sizeXs", "fgMuted"},
+				text = "Clips categorised as Effects are intentionally excluded from normalization",
+				width = "100%",
+				height = "auto",
+				textWrap = true,
+				vmargin = 2,
+			}
+		end
+		--Effects clips: show the measurement (informative) but not the auto/total
+		--lines -- no gain is applied to them, so "Total applied" would be a lie.
+		local isEffects = audioAsset.category == "effects"
 		if measured then
 			children[#children+1] = gui.Label{
 				classes = {"sizeXs", "fgMuted"},
@@ -4565,13 +4580,15 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 				height = "auto",
 				halign = "left",
 			}
-			children[#children+1] = gui.Label{
-				classes = {"sizeXs", "fgMuted"},
-				text = string.format("Auto adjustment: %+.1fdB", AutoCorrectionDb()),
-				width = "auto",
-				height = "auto",
-				halign = "left",
-			}
+			if not isEffects then
+				children[#children+1] = gui.Label{
+					classes = {"sizeXs", "fgMuted"},
+					text = string.format("Auto adjustment: %+.1fdB", AutoCorrectionDb()),
+					width = "auto",
+					height = "auto",
+					halign = "left",
+				}
+			end
 		else
 			children[#children+1] = gui.Label{
 				classes = {"sizeXs", "fgMuted"},
@@ -4583,7 +4600,7 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 			}
 		end
 		children[#children+1] = slider
-		if measured then
+		if measured and not isEffects then
 			totalLabel = gui.Label{
 				classes = {"sizeXs"},
 				text = string.format("Total applied: %+.1fdB", TotalAppliedDb(audioAsset.normalizeGainTrimDb)),
@@ -4649,7 +4666,15 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 				text = "Adjust normalization trim",
 				click = function()
 					element.popup = nil
-					OpenNormalizeTrimPopup(element, audioAsset)
+					--Deferred a tick: opening the popup during the menu item's own
+					--click lets that same physical click reach the click-outside
+					--dismiss logic and instantly close it (flicker). FireEvent-based
+					--tests never catch this -- only a real mouse click does.
+					local row = element
+					dmhub.Schedule(0.1, function()
+						if mod.unloaded or not row.valid then return end
+						OpenNormalizeTrimPopup(row, audioAsset)
+					end)
 				end,
 			},
 			{

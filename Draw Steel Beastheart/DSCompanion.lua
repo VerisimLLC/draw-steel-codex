@@ -467,6 +467,20 @@ function AnimalCompanion:GetHeroicOrMaliceResources()
     return 0
 end
 
+--Companions pay heroic-resource ability costs from their summoner's shared
+--pool (Ferocity), not from Malice. The ability cost pipeline (see
+--ActivatedAbility:GetCost and DSAugmentAbilities) remaps a heroic resource
+--cost to creature.resourceid / GetHeroicOrMaliceId, which AnimalCompanion
+--would otherwise inherit from monster (= Malice). Resolving to the hero
+--heroic resource id keeps the cost on the shared pool, where GetResources /
+--ConsumeResource above already route reads and writes through the summoner.
+AnimalCompanion.resourceid = CharacterResource.heroicResourceId
+AnimalCompanion.resourceRefresh = "unbounded"
+
+function AnimalCompanion:GetHeroicOrMaliceId()
+    return CharacterResource.heroicResourceId
+end
+
 
 function AnimalCompanion:ConsumeResource(key, refreshType, quantity, note)
     if g_companionSharedResourcesKeyed[key] then
@@ -579,6 +593,18 @@ end
 --rolls inside Feral Strike still pick up the bonus.
 local function applyCompanionMeleeBonus(ability, bonuses)
     local function recurse(currentAbility)
+        --Idempotence stamp: the same ability object can reach this function
+        --twice -- once when GetActivatedAbilities merges the summoner's
+        --abilities onto the companion (descending into nested InvokeAbility
+        --customAbilities), and again when the InvokeAbility behavior clones
+        --the nested ability and PostProcessInvokedAbility runs on the clone.
+        --_tmp_ fields survive DeepCopy/MakeTemporaryClone/bifurcation but are
+        --never serialized, so the stamp follows the clone without polluting
+        --saved data.
+        if currentAbility:try_get("_tmp_companionMeleeBonusApplied") then
+            return
+        end
+        currentAbility._tmp_companionMeleeBonusApplied = true
         for _, behavior in ipairs(currentAbility.behaviors or {}) do
             if behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
                 for i, bonus in ipairs(bonuses) do

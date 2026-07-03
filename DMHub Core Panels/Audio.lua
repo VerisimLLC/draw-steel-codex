@@ -636,6 +636,17 @@ end
 --subsequent loop instead of stalling after the first.
 local m_lastAdvance = nil
 
+--Last observed playback time of the driven track, for loop-wrap detection. A track
+--whose ASSET has loop=true never ends -- the engine wraps instance.time back to 0 --
+--so a sequential playlist could sit on it forever if the end-of-track trigger window
+--is missed (possible at crossfade 0, whose window is only 0.25s against a 0.5s poll).
+--James's ruling (2026-07-03): in a SEQUENTIAL playlist the asset's loop flag does not
+--hold the playlist -- advance anyway; loop only matters for playTogether layering.
+--A time value that moved backwards by more than a second means the clip wrapped ->
+--advance now. NB if a seek/scrub UI ever lands (future transport chunk), a manual
+--backward seek of a driven track will read as a wrap and skip -- revisit then.
+local m_lastTrackTime = nil
+
 --Forward declarations -- AudioPlaylistPlay, AudioPlaylistStop, AdvancePlaylist, and
 --the driver poll all call each other out of order (Lua locals must exist before use).
 local AudioPlaylistPlay
@@ -1047,6 +1058,15 @@ PollAudioPlaylists = function()
 				if not instance.paused then
 					local remaining = asset.duration - instance.time
 					shouldAdvance = remaining <= math.max(xf, 0.25)
+					--Loop-wrap detection (see m_lastTrackTime banner): a looping
+					--asset's time jumping backwards means the clip restarted --
+					--advance instead of letting it hold the playlist.
+					if not shouldAdvance and m_lastTrackTime ~= nil
+						and m_lastTrackTime.assetid == cur and m_lastTrackTime.index == index
+						and instance.time < m_lastTrackTime.time - 1.0 then
+						shouldAdvance = true
+					end
+					m_lastTrackTime = { assetid = cur, index = index, time = instance.time }
 				end
 			elseif instance == nil then
 				shouldAdvance = true

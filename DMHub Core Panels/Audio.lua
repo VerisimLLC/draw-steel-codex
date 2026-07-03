@@ -253,134 +253,21 @@ LaunchablePanel.Register{
 
 local defaultFolder = "-MyddEFnH5IOto7qCx-3"
 
---Per-user remembered collapse state for each dock section. Replaces the old
---Compact/Expanded binary: the panel is now a "Controls" drawer over individually
---collapsible sections (Levels / Anthems / Soundboard), each persisting its own
---open/closed so collapsing one to cut scrolling sticks across reopens. Collapsing
---"Controls" itself is the new "compact". Defaults: Controls + Levels open, the
---rest closed (glanceable on first open, the desk one tap away).
-local audioSectionSettings = {
-	controls = setting{ id = "audiosec_controls", description = "Audio Controls drawer collapsed", storage = "preference", default = false },
-	levels = setting{ id = "audiosec_levels", description = "Audio Levels section collapsed", storage = "preference", default = false },
-	anthems = setting{ id = "audiosec_anthems", description = "Audio Anthems section collapsed", storage = "preference", default = true },
-	soundboard = setting{ id = "audiosec_soundboard", description = "Audio Soundboard section collapsed", storage = "preference", default = true },
-}
-
-local function GetSectionCollapsed(id)
-	local s = audioSectionSettings[id]
-	if s == nil then return false end
-	return s:Get() == true
-end
-
-local function SetSectionCollapsed(id, collapsed)
-	local s = audioSectionSettings[id]
-	if s ~= nil then s:Set(collapsed) end
-end
-
---A collapsible section: an UPPERCASE title header with a disclosure chevron on the
---RIGHT over a body panel, persisting its open/closed to the per-user section setting
---(id). `prominent` gives the header a filled bar (used for the top-level Controls
---umbrella); the inner sections (Levels/Anthems/Soundboard) are light headers and are
---separated by dividers instead. All sections share this one builder for a consistent
---look. Returns the section panel + its body so callers can wrap pre-built content.
-local MakeCollapsibleSection = function(id, title, body, prominent)
-	local SetArrowState
-	local headerChildren
-
-	if prominent then
-		--Prominent header (the Controls umbrella) mirrors the HEROIC RESOURCES section
-		--bar: a hamburger glyph left, a larger uppercase title, and a chevron (NOT the
-		--filled triangle) on the right that rotates with the open/closed state.
-		--gui.CollapseArrow is the SAME chevron the tactical panel uses: a down-arrow
-		--that flips to point UP when collapsed (collapseSet). Same visual language as the
-		--TacPanel headers; sized up so it is not dwarfed by the sub-section triangles.
-		local chevron = gui.CollapseArrow{
-			width = 20,
-			height = 13,
-			halign = "right",
-			valign = "center",
-		}
-		SetArrowState = function(collapsed)
-			chevron:SetClass("collapseSet", collapsed)
-		end
-		headerChildren = {
-			gui.Panel{
-				bgimage = "icons/icon_common/icon_common_4.png",
-				bgcolor = "#999999",
-				width = 14,
-				height = 14,
-				halign = "left",
-				valign = "center",
-				hmargin = 2,
-			},
-			gui.Label{
-				classes = {"bold", "sizeS"},
-				text = string.upper(title),
-				width = "100%-44",
-				height = "auto",
-				halign = "left",
-				valign = "center",
-				hmargin = 4,
-			},
-			chevron,
-		}
-	else
-		local arrow = gui.ExpandoArrow{ halign = "right", valign = "center" }
-		SetArrowState = function(collapsed)
-			arrow:SetClass("expanded", not collapsed)
-		end
-		headerChildren = {
-			gui.Label{
-				classes = {"bold", "sizeXs"},
-				text = string.upper(title),
-				width = "100%-20",
-				height = "auto",
-				halign = "left",
-				valign = "center",
-			},
-			arrow,
-		}
-	end
-
-	local function Apply(collapsed)
-		body:SetClass("collapsed", collapsed)
-		SetArrowState(collapsed)
-	end
-
-	local headerClasses = { "hoverable" }
-	if prominent then headerClasses[#headerClasses+1] = "bgAlt" end
-	local header = gui.Panel{
-		classes = headerClasses,
-		flow = "horizontal",
-		width = "100%",
-		height = "auto",
-		valign = "center",
-		vmargin = 1,
-		hpad = 8,
-		vpad = 4,
-		borderBox = true,
-		press = function(element)
-			local collapsed = not body:HasClass("collapsed")
-			Apply(collapsed)
-			SetSectionCollapsed(id, collapsed)
-		end,
-		children = headerChildren,
-	}
-	Apply(GetSectionCollapsed(id))
-	return gui.Panel{
-		flow = "vertical",
-		width = "100%",
-		height = "auto",
-		header,
-		body,
-	}
-end
+--Session-only memory of which dock section (Levels/Anthems/Soundboard) is expanded.
+--Replaces the old per-user "Controls" drawer + three persisted collapse settings: the
+--umbrella header is gone and the three sections are now an exclusive segmented
+--selector (one open at a time, or none). Deliberately NOT a setting -- a fresh app
+--session always starts with nothing expanded; this local only survives the dock panel
+--being rebuilt while the app stays open, so reopening the dock mid-session restores
+--the last choice.
+local g_dockControlsSelected = nil
 
 --Max height of the dock's scrollable body (everything below the pinned now-playing
 --strip + view toggle). The dock host is a fixed 470px (minHeight=maxHeight in the
 --registration, vscroll=false); the pinned top eats ~100px, leaving ~360 for the
---body. Compact content is shorter than this so it never scrolls; Expanded (with an
---expanded Anthems drawer / many heroes) scrolls past it instead of clipping.
+--body. With nothing selected in the segmented selector the content is shorter than
+--this so it never scrolls; an expanded section (esp. Anthems with many heroes)
+--scrolls past it instead of clipping.
 local audioScrollMaxHeight = 360
 
 --Unified soundboard button builder (chunk F1a), forward-declared here since the dock
@@ -1787,8 +1674,8 @@ CreateSoundPanel = function()
 	local masterRow = MakeFaderRow("Master", masterVolumeSlider, false)
 
 	--Category broadcast faders -- the body of the "Levels" section. These write the
-	--shared "audio mix" doc (the GroupShared table-mix layer). The Levels header
-	--(MakeCollapsibleSection) drives the collapsed state and persists it.
+	--shared "audio mix" doc (the GroupShared table-mix layer). The segmented
+	--selector row (SelectDockSection) drives its collapsed state; see below.
 	local categoryFaders = gui.Panel{
 		flow = "vertical",
 		width = "100%",
@@ -1815,9 +1702,10 @@ CreateSoundPanel = function()
 	--the always-on AudioMixBroadcast monitor.
 	ApplyBroadcastToEngine()
 
-	--"Levels" section: collapsible header over the category faders, inside Controls.
-	--Master stays out of it (always visible above Controls).
-	local levelsSection = MakeCollapsibleSection("levels", "Levels", categoryFaders)
+	--"Levels" body is categoryFaders itself -- the segmented selector row below
+	--toggles its "collapsed" class directly (SelectDockSection), same mechanism the
+	--old MakeCollapsibleSection used, just driven by the selector instead of its own
+	--header. Master stays out of it (always visible above the selector).
 
 	--Anthem node (Phase 1): a collapsible drawer listing each player hero, the
 	--anthem they have loaded, a local preview (audition on the director's own
@@ -2086,8 +1974,8 @@ CreateSoundPanel = function()
 			end,
 		}
 
-		--Return just the BODY; the collapsible header + persistence come from
-		--MakeCollapsibleSection at the call site, so every section looks identical.
+		--Return just the BODY; show/hide is driven by the segmented selector row
+		--(SelectDockSection) at the call site, same as Levels and Soundboard.
 		return gui.Panel{
 			flow = "vertical",
 			width = "100%",
@@ -2110,10 +1998,10 @@ CreateSoundPanel = function()
 		}
 	end
 
-	--Each section uses MakeCollapsibleSection so the headers look identical and all
-	--persist their own state. ("Anthem ducks music" has moved to the Studio Anthem
-	--controls, so it no longer lives on the dock.)
-	local anthemsSection = MakeCollapsibleSection("anthems", "Anthems", CreateAnthemNode())
+	--The Anthems body is CreateAnthemNode()'s returned panel, toggled by the segmented
+	--selector below (same as Levels/Soundboard). ("Anthem ducks music" has moved to
+	--the Studio Anthem controls, so it no longer lives on the dock.)
+	local anthemsBody = CreateAnthemNode()
 
 	local dockPlayerGrid = CreatePlayerGrid()
 	--The unified soundboard button rules (AudioSoundboardButtonStyles) are
@@ -2163,25 +2051,87 @@ CreateSoundPanel = function()
 			vmargin = 2,
 		},
 	}
-	local soundboardSection = MakeCollapsibleSection("soundboard", "Soundboard", soundboardBody)
+	--Segmented selector row replacing the old "Controls" umbrella drawer: three
+	--equal-width toggle buttons, exclusive selection (picking one hides whichever
+	--else was open; picking the active one again collapses back to none). Mirrors
+	--the Studio soundboard's "Edit board" toggle (gui.Button + press + SetClass
+	--"selected") since that affordance is already verified working and themed.
+	local levelsButton, anthemsButton, soundboardButton
+	local SelectDockSection
 
-	--"Controls" -- the single drawer that replaces the Compact/Expanded toggle, with a
-	--prominent (filled-bar) header. Collapsing it is the new "compact"; expanding it
-	--reveals the inner sections, each individually collapsible (state persisted) and
-	--set off by a thin divider so each reads as its own area.
-	local controlsInner = gui.Panel{
+	SelectDockSection = function(id)
+		g_dockControlsSelected = id
+		categoryFaders:SetClass("collapsed", id ~= "levels")
+		anthemsBody:SetClass("collapsed", id ~= "anthems")
+		soundboardBody:SetClass("collapsed", id ~= "soundboard")
+		levelsButton:SetClass("selected", id == "levels")
+		anthemsButton:SetClass("selected", id == "anthems")
+		soundboardButton:SetClass("selected", id == "soundboard")
+	end
+
+	levelsButton = gui.Button{
+		classes = {"sizeXs"},
+		text = "Levels",
+		width = "33%",
+		height = 24,
+		hmargin = 2,
+		borderBox = true,
+		valign = "center",
+		press = function()
+			SelectDockSection(cond(g_dockControlsSelected == "levels", nil, "levels"))
+		end,
+	}
+
+	anthemsButton = gui.Button{
+		classes = {"sizeXs"},
+		text = "Anthems",
+		width = "33%",
+		height = 24,
+		hmargin = 2,
+		borderBox = true,
+		valign = "center",
+		press = function()
+			SelectDockSection(cond(g_dockControlsSelected == "anthems", nil, "anthems"))
+		end,
+	}
+
+	soundboardButton = gui.Button{
+		classes = {"sizeXs"},
+		text = "Soundboard",
+		width = "33%",
+		height = 24,
+		hmargin = 2,
+		borderBox = true,
+		valign = "center",
+		press = function()
+			SelectDockSection(cond(g_dockControlsSelected == "soundboard", nil, "soundboard"))
+		end,
+	}
+
+	local dockSectionSelectorRow = gui.Panel{
+		flow = "horizontal",
+		width = "100%",
+		height = "auto",
+		vmargin = 4,
+
+		levelsButton,
+		anthemsButton,
+		soundboardButton,
+	}
+
+	local dockSectionBodies = gui.Panel{
 		flow = "vertical",
 		width = "100%",
 		height = "auto",
 
-		levelsSection,
-		gui.MCDMDivider{ width = "100%", halign = "left", vmargin = 4 },
-		anthemsSection,
-		gui.MCDMDivider{ width = "100%", halign = "left", vmargin = 4 },
-		soundboardSection,
+		categoryFaders,
+		anthemsBody,
+		soundboardBody,
 	}
 
-	local controlsSection = MakeCollapsibleSection("controls", "Controls", controlsInner, true)
+	--Restore whatever was selected earlier this session (nil on a fresh app session,
+	--since g_dockControlsSelected is a plain local, never a persisted setting).
+	SelectDockSection(g_dockControlsSelected)
 
 	--Content root of the Audio dock panel. It inherits the DockablePanel host's
 	--ThemeEngine cascade (DockablePanel.lua runs GetStyles at the dock root), so
@@ -2205,9 +2155,9 @@ CreateSoundPanel = function()
 
 		children = {
 			--Pinned top: the now-playing section stays put. Everything below scrolls so
-			--an expanded Controls drawer (esp. an open Anthems section with many heroes)
-			--scrolls rather than clipping the fixed 470px dock. With Controls collapsed
-			--the body is short (now-playing + master only) and does not scroll.
+			--an expanded section (esp. Anthems with many heroes) scrolls rather than
+			--clipping the fixed 470px dock. With nothing selected in the segmented
+			--selector the body is short (now-playing + master only) and does not scroll.
 			nowPlayingSection,
 
 			gui.Panel{
@@ -2221,9 +2171,10 @@ CreateSoundPanel = function()
 				--A divider under the now-playing "Player" sets it off as its own area.
 				gui.MCDMDivider{ width = "100%", halign = "left", vmargin = 4 },
 
-				--Master is always visible above the collapsible Controls drawer.
+				--Master is always visible above the segmented selector.
 				masterRow,
-				controlsSection,
+				dockSectionSelectorRow,
+				dockSectionBodies,
 			},
 		}
 	}

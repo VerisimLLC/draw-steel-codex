@@ -871,6 +871,27 @@ local function StopAllBroadcastAudio()
 	stateDoc:CompleteChange("Stop all audio", {undoable = false})
 end
 
+--=====================================================================================
+--H-studio: playlist UI support helpers. Engine-only (no gui.Panel here) -- these back
+--the Playlists card and the library's "Add to playlist" affordances added in this
+--chunk. Kept in the H-core block so they sit next to the doc shapes/forward decls they
+--depend on (AudioPlaylistPlay/Stop, ShuffledCopy, m_lastAdvance/m_lastTrackTime).
+--=====================================================================================
+
+--Deliberate stop of a driven playlist (as opposed to AudioPlaylistStop, which is the
+--low-level "kill the tracks and clear state.playing" primitive with no opinion on the
+--auto-switch bracket). Any UI-initiated stop -- the playlist row's stop button, the
+--Library row/StopBroadcastClip path below -- is a manual action, so it also closes any
+--open game-mode bracket, same as StopAllBroadcastAudio. Defined BEFORE StopBroadcastClip
+--(which calls it) since Lua locals must exist before use.
+local function StopDrivenPlaylist()
+	AudioPlaylistStop()
+	local closeDoc = GetPlaylistStateDoc()
+	closeDoc:BeginChange()
+	closeDoc.data.auto = { active = false, saved = nil }
+	closeDoc:CompleteChange("Stop playlist", {undoable = false})
+end
+
 --Deliberate user stop of ONE broadcast track (dock hero stop, now-playing row stops,
 --Studio strip chips, soundboard/library play-toggles). If the track is the CURRENT
 --track of a driven sequential playlist, a raw StopSoundEvent would be undone within a
@@ -886,15 +907,257 @@ local function StopBroadcastClip(assetid)
 		local plDoc = GetPlaylistsDoc()
 		local pl = (plDoc.data.playlists or {})[playing.playlistid]
 		if pl == nil or not pl.playTogether then
-			AudioPlaylistStop()
-			local closeDoc = GetPlaylistStateDoc()
-			closeDoc:BeginChange()
-			closeDoc.data.auto = { active = false, saved = nil }
-			closeDoc:CompleteChange("Stop playlist track", {undoable = false})
+			StopDrivenPlaylist()
 			return
 		end
 	end
 	audio.StopSoundEvent(assetid)
+end
+
+--Jump directly to one track of the currently-driven playlist (playlist row click).
+--Only meaningful while THIS playlist is actually driving -- clicking a track in a
+--playlist that is not playing does nothing (there is no "start at track N" entry
+--point yet; that is a future chunk if wanted). playTogether has no "current track"
+--concept, so it is excluded too.
+local function AudioPlaylistJumpTo(playlistid, trackIndex)
+	local stateDoc = GetPlaylistStateDoc()
+	local playing = stateDoc.data.playing
+	if playing == nil or playing.playlistid ~= playlistid then
+		return
+	end
+	local plDoc = GetPlaylistsDoc()
+	local pl = (plDoc.data.playlists or {})[playlistid]
+	if pl == nil or pl.playTogether then
+		return
+	end
+	local target = pl.tracks[trackIndex]
+	if target == nil then
+		return
+	end
+	local oldCur = playing.order[playing.index]
+	--Duplicates are allowed in a playlist, so the clicked row can hold the SAME clip
+	--that is already driving. The audio must not restart (a self-crossfade is a no-op
+	--anyway), but in sequential mode the pointer still moves to the clicked position
+	--so the playlist continues from THERE. In shuffle mode duplicate positions are
+	--indistinguishable (the shuffled order lost the authored mapping) -- true no-op.
+	local sameTrack = target == oldCur
+	if sameTrack and (pl.shuffle or trackIndex == playing.index) then
+		return
+	end
+
+	local order
+	local index
+	if pl.shuffle then
+		order = ShuffledCopy(pl.tracks)
+		for i,assetid in ipairs(order) do
+			if assetid == target then
+				order[i], order[1] = order[1], order[i]
+				break
+			end
+		end
+		index = 1
+	else
+		order = {}
+		for i,assetid in ipairs(pl.tracks) do
+			order[i] = assetid
+		end
+		index = trackIndex
+	end
+
+	--Arm the double-advance guard exactly like AdvancePlaylist does, so the driver
+	--poll does not re-fire this same transition while the write below is echoing.
+	m_lastAdvance = { assetid = oldCur, index = playing.index }
+	m_lastTrackTime = nil
+
+	if not sameTrack then
+		local xf = pl.crossfadeSeconds or 3.0
+		local fadeFrom = oldCur
+		if audio.currentlyPlaying[oldCur] == nil then
+			fadeFrom = nil
+		end
+		if xf < 0.05 then
+			if audio.currentlyPlaying[oldCur] ~= nil then
+				audio.StopSoundEvent(oldCur)
+			end
+			local asset = assets.audioTable[target]
+			if asset ~= nil then
+				audio.PlaySoundEvent{asset = asset}
+			end
+		else
+			audio.CrossfadeSoundEvents(fadeFrom, target, xf)
+		end
+	end
+
+	local writeDoc = GetPlaylistStateDoc()
+	writeDoc:BeginChange()
+	writeDoc.data.playing = {
+		playlistid = playlistid,
+		order = order,
+		index = index,
+		driver = dmhub.userid,
+		startedBy = playing.startedBy,
+	}
+	writeDoc:CompleteChange("Jump to track", {undoable = false})
+end
+
+--Live shuffle toggle: writes the persisted flag AND, if this playlist is currently
+--driving (and not playTogether), reshuffles/unshuffles the LIVE order in place without
+--restarting the current track -- so toggling shuffle mid-playback never causes an
+--audible cut.
+local function AudioPlaylistSetShuffle(playlistid, on)
+	local plDoc = GetPlaylistsDoc()
+	local pl = (plDoc.data.playlists or {})[playlistid]
+	if pl == nil then
+		return
+	end
+	plDoc:BeginChange()
+	pl.shuffle = on
+	plDoc:CompleteChange("Set shuffle")
+
+	local stateDoc = GetPlaylistStateDoc()
+	local playing = stateDoc.data.playing
+	if playing == nil or playing.playlistid ~= playlistid or pl.playTogether then
+		return
+	end
+
+	local cur = playing.order[playing.index]
+	local order
+	local index
+	if on then
+		order = ShuffledCopy(pl.tracks)
+		index = 1
+		local found = false
+		for i,assetid in ipairs(order) do
+			if assetid == cur then
+				order[i], order[1] = order[1], order[i]
+				found = true
+				break
+			end
+		end
+		if not found then
+			table.insert(order, 1, cur)
+		end
+	else
+		order = {}
+		for i,assetid in ipairs(pl.tracks) do
+			order[i] = assetid
+		end
+		--First occurrence of the driven clip. With duplicates this is a deliberate
+		--disambiguation, not a lookup: the shuffled order lost the authored-position
+		--mapping, so "which copy was playing" has no ground truth -- the earliest
+		--position is as correct as any and keeps the most upcoming tracks in play.
+		index = nil
+		for i,assetid in ipairs(order) do
+			if assetid == cur then
+				index = i
+				break
+			end
+		end
+		if index == nil then
+			table.insert(order, 1, cur)
+			index = 1
+		end
+	end
+
+	local writeDoc = GetPlaylistStateDoc()
+	writeDoc:BeginChange()
+	writeDoc.data.playing.order = order
+	writeDoc.data.playing.index = index
+	writeDoc:CompleteChange("Set shuffle order", {undoable = false})
+end
+
+--Shared read-modify-write for one playlist's DEFINITION fields (name/pinned/shuffle/
+--playTogether/crossfadeSeconds/tracks-via-CRUD-helpers-below). No-op if the playlist
+--was deleted out from under the caller (e.g. a stale popover).
+local function ModifyPlaylist(playlistid, description, fn)
+	local doc = GetPlaylistsDoc()
+	local pl = (doc.data.playlists or {})[playlistid]
+	if pl == nil then
+		return
+	end
+	doc:BeginChange()
+	fn(pl)
+	doc:CompleteChange(description, {undoable = false})
+end
+
+--Creates a new empty playlist ("New playlist" default name is signed copy), ordered
+--after every existing playlist. Returns the new id so the caller can auto-expand it.
+local function AudioCreatePlaylist()
+	local doc = GetPlaylistsDoc()
+	doc:BeginChange()
+	if doc.data.playlists == nil then
+		doc.data.playlists = {}
+	end
+	local maxOrd = 0
+	for _,pl in pairs(doc.data.playlists) do
+		if (pl.ord or 0) > maxOrd then
+			maxOrd = pl.ord or 0
+		end
+	end
+	local id = dmhub.GenerateGuid()
+	doc.data.playlists[id] = {
+		name = "New playlist", ord = maxOrd + 1, pinned = false,
+		tracks = {}, shuffle = false, playTogether = false,
+		crossfadeSeconds = 3.0, loop = true,
+	}
+	doc:CompleteChange("Create playlist")
+	return id
+end
+
+--Deletes a playlist entirely: stops it first if it is currently driving, then removes
+--its definition and scrubs any game-mode bindings that pointed at it (an orphaned
+--binding id would silently never match a playlist again, which reads as "quietly
+--broken" rather than failing loudly -- better to clear it).
+local function AudioDeletePlaylist(playlistid)
+	local stateDoc = GetPlaylistStateDoc()
+	local playing = stateDoc.data.playing
+	if playing ~= nil and playing.playlistid == playlistid then
+		StopDrivenPlaylist()
+	end
+
+	local doc = GetPlaylistsDoc()
+	doc:BeginChange()
+	if doc.data.playlists ~= nil then
+		doc.data.playlists[playlistid] = nil
+	end
+	local modes = doc.data.bindings ~= nil and doc.data.bindings.modes or nil
+	if modes ~= nil then
+		for modeid,pid in pairs(modes) do
+			if pid == playlistid then
+				modes[modeid] = nil
+			end
+		end
+	end
+	doc:CompleteChange("Delete playlist")
+end
+
+--Duplicates ALLOWED by design (the same clip can appear more than once in a playlist).
+local function AddTrackToPlaylist(playlistid, assetid)
+	ModifyPlaylist(playlistid, "Add track to playlist", function(pl)
+		pl.tracks[#pl.tracks+1] = assetid
+	end)
+end
+
+local function RemoveTrackFromPlaylist(playlistid, trackIndex)
+	ModifyPlaylist(playlistid, "Remove track from playlist", function(pl)
+		table.remove(pl.tracks, trackIndex)
+	end)
+end
+
+--Reorders a playlist's track list. toIndex is "insert before the item currently at
+--toIndex", counted BEFORE the fromIndex removal -- so toIndex may be #tracks+1 to mean
+--"move to the end". A drop back onto the same gap it came from is a no-op.
+local function MoveTrackInPlaylist(playlistid, fromIndex, toIndex)
+	if fromIndex == toIndex or fromIndex == toIndex - 1 then
+		return
+	end
+	ModifyPlaylist(playlistid, "Reorder playlist", function(pl)
+		local v = table.remove(pl.tracks, fromIndex)
+		if fromIndex < toIndex then
+			toIndex = toIndex - 1
+		end
+		table.insert(pl.tracks, toIndex, v)
+	end)
 end
 
 --Module-local poll flags. m_lastMode deliberately lives off-doc: while bindings are
@@ -1092,9 +1355,10 @@ end
 
 dmhub.Schedule(0.5, PollAudioPlaylists)
 
---Dev-only test hooks: the playlist core is module-local with no UI yet (H-studio and
---H-dock are later chunks), so MCP-bridge verification has no event path to drive it.
---Gated on the house devmode() so nothing leaks into normal play.
+--Dev-only test hooks: the playlist core is module-local, so MCP-bridge verification
+--needs these to drive it directly (the Studio UI exists as of H-studio, but bridge
+--tests still exercise the engine without clicking). Gated on the house devmode() so
+--nothing leaks into normal play.
 if rawget(_G, "devmode") ~= nil and devmode() then
 	DrawSteelAudioDev = {
 		GetPlaylistsDoc = function() return GetPlaylistsDoc() end,
@@ -1104,8 +1368,29 @@ if rawget(_G, "devmode") ~= nil and devmode() then
 		Next = function() AudioPlaylistNext() end,
 		StopAll = function() StopAllBroadcastAudio() end,
 		StopClip = function(assetid) StopBroadcastClip(assetid) end,
+		--H-studio additions: jump/shuffle/CRUD hooks for the playlists UI added in
+		--this chunk, so MCP-bridge verification can drive them without clicking.
+		JumpTo = function(pid, i) AudioPlaylistJumpTo(pid, i) end,
+		SetShuffle = function(pid, on) AudioPlaylistSetShuffle(pid, on) end,
+		CreatePlaylist = function() return AudioCreatePlaylist() end,
+		DeletePlaylist = function(pid) AudioDeletePlaylist(pid) end,
+		AddTrack = function(pid, aid) AddTrackToPlaylist(pid, aid) end,
+		RemoveTrack = function(pid, i) RemoveTrackFromPlaylist(pid, i) end,
+		MoveTrack = function(pid, f, t) MoveTrackInPlaylist(pid, f, t) end,
+		StopDriven = function() StopDrivenPlaylist() end,
 	}
 end
+
+--H-studio: session-only UI state shared between the Studio tab row, the Playlists
+--card, and the library rows' build mode. Deliberately NOT settings (James: session
+--memory only, mirrors g_dockControlsSelected).
+local g_studioLeftTab = "library"
+local m_studioBuildMode = nil   --nil, or { playlistid = <id>, count = <n> }
+--Assigned inside CreateAudioStudio / CreateAudioLibraryTree so distant code
+--(playlist rows, library rows) can drive tab switches and tree rebuilds.
+local g_studioSelectTab = nil        --function(tabid)
+local g_studioRefreshBuildMode = nil --function() fires refreshBuildMode on the studio root
+local g_audioLibraryRequestRebuild = nil --function() rebuilds the library tree
 
 --Broadcast play helper (chunk D7): routes every table-facing Play button (dock tile,
 --Studio library row, Studio soundboard) through one place so music can be kept to a
@@ -3051,32 +3336,42 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 	opts = opts or {}
 	local soundEventDocId = string.format("soundevent-%s", audioAsset.id)
 
+	--H-studio: read once (rows are rebuilt via RequestRebuild whenever build mode
+	--toggles on/off, so a stale read here never lingers). Non-nil while the Library
+	--tab is in "adding tracks to <playlist>" mode -- the row declutters to
+	--name+duration+cue+[+] and every other control below is skipped entirely.
+	local buildMode = m_studioBuildMode
+
 	--Broadcast Play/Stop (heard by the whole table via PlaySoundEvent). A dedicated
 	--play glyph -- NOT the chevron-like triangle, which read as a folder expander.
 	--Playing state swaps to a stop square tinted "live" (amber via the playing class).
-	local playButton = gui.Panel{
-		classes = {"audioBroadcastButton"},
-		bgimage = "ui-icons/AudioPlayButton.png",
-		width = 18,
-		height = 18,
-		valign = "center",
-		hmargin = 3,
-		refreshPlayingAudio = function(element)
-			local playing = audio.currentlyPlaying[audioAsset.id] ~= nil
-			element.bgimage = playing and "panels/square.png" or "ui-icons/AudioPlayButton.png"
-			element:SetClass("playing", playing)
-		end,
-		press = function(element)
-			if audio.currentlyPlaying[audioAsset.id] ~= nil then
-				StopBroadcastClip(audioAsset.id)
-			else
-				PlayBroadcastClip(audioAsset, { volume = audioAsset.volume })
-			end
-		end,
-		linger = function(element)
-			gui.Tooltip("Play to table")(element)
-		end,
-	}
+	--Skipped entirely in build mode (see buildMode above) so no orphan panel is built.
+	local playButton
+	if buildMode == nil then
+		playButton = gui.Panel{
+			classes = {"audioBroadcastButton"},
+			bgimage = "ui-icons/AudioPlayButton.png",
+			width = 18,
+			height = 18,
+			valign = "center",
+			hmargin = 3,
+			refreshPlayingAudio = function(element)
+				local playing = audio.currentlyPlaying[audioAsset.id] ~= nil
+				element.bgimage = playing and "panels/square.png" or "ui-icons/AudioPlayButton.png"
+				element:SetClass("playing", playing)
+			end,
+			press = function(element)
+				if audio.currentlyPlaying[audioAsset.id] ~= nil then
+					StopBroadcastClip(audioAsset.id)
+				else
+					PlayBroadcastClip(audioAsset, { volume = audioAsset.volume })
+				end
+			end,
+			linger = function(element)
+				gui.Tooltip("Play to table")(element)
+			end,
+		}
+	end
 
 	--DM-only audition: headphones glyph (icon_app_23) stands in for "only you hear
 	--this" -- a placeholder until better art lands (glyph upgrade bucket, plan M0).
@@ -3132,55 +3427,62 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 	--approach as the unified soundboard button's loop glyph, sized to sit inline in
 	--the row. bgimage is set directly (not via a class rule) so it renders under any
 	--cascade -- this Studio row is a separate surface from the soundboard buttons.
-	local loopButton = gui.Panel{
-		classes = {"audioRowLoopButton", cond(audioAsset.loop, nil, "disabled")},
-		bgimage = "game-icons/infinity.png",
-		width = 16,
-		height = 16,
-		valign = "center",
-		hmargin = 3,
-		monitorAssets = "audio",
-		refreshAssets = function(element)
-			element:SetClass("disabled", not audioAsset.loop)
-		end,
-		press = function(element)
-			audioAsset.loop = not audioAsset.loop
-			audioAsset:Upload()
-			element:SetClass("disabled", not audioAsset.loop)
-		end,
-		linger = function(element)
-			gui.Tooltip("Loop")(element)
-		end,
-	}
+	--Skipped entirely in build mode (see buildMode above).
+	local loopButton
+	if buildMode == nil then
+		loopButton = gui.Panel{
+			classes = {"audioRowLoopButton", cond(audioAsset.loop, nil, "disabled")},
+			bgimage = "game-icons/infinity.png",
+			width = 16,
+			height = 16,
+			valign = "center",
+			hmargin = 3,
+			monitorAssets = "audio",
+			refreshAssets = function(element)
+				element:SetClass("disabled", not audioAsset.loop)
+			end,
+			press = function(element)
+				audioAsset.loop = not audioAsset.loop
+				audioAsset:Upload()
+				element:SetClass("disabled", not audioAsset.loop)
+			end,
+			linger = function(element)
+				gui.Tooltip("Loop")(element)
+			end,
+		}
+	end
 
 	--Mute: local-only, mirrors the dock tile mute (SetSoundEventVolume(id, 0) vs
 	--restore-to-slider-volume). volumeSlider is forward-declared since the press
-	--handler reads its current value on unmute.
+	--handler reads its current value on unmute. Skipped entirely in build mode.
 	local volumeSlider
 	local muted = false
-	local muteButton = gui.Panel{
-		classes = {"hoverable", "audioRowMuteButton"},
-		bgimage = "ui-icons/AudioVolumeButton.png",
-		bgcolor = "white",
-		width = 16,
-		height = 16,
-		valign = "center",
-		hmargin = 3,
-		press = function(element)
-			muted = not muted
-			element:SetClass("muted", muted)
-			if muted then
-				element.bgimage = "ui-icons/AudioMuteButton.png"
-				audio.SetSoundEventVolume(audioAsset.id, 0)
-			else
-				element.bgimage = "ui-icons/AudioVolumeButton.png"
-				audio.SetSoundEventVolume(audioAsset.id, volumeSlider.value)
-			end
-		end,
-		linger = function(element)
-			gui.Tooltip("Mute")(element)
-		end,
-	}
+	local muteButton
+	if buildMode == nil then
+		muteButton = gui.Panel{
+			classes = {"hoverable", "audioRowMuteButton"},
+			bgimage = "ui-icons/AudioVolumeButton.png",
+			bgcolor = "white",
+			width = 16,
+			height = 16,
+			valign = "center",
+			hmargin = 3,
+			press = function(element)
+				muted = not muted
+				element:SetClass("muted", muted)
+				if muted then
+					element.bgimage = "ui-icons/AudioMuteButton.png"
+					audio.SetSoundEventVolume(audioAsset.id, 0)
+				else
+					element.bgimage = "ui-icons/AudioVolumeButton.png"
+					audio.SetSoundEventVolume(audioAsset.id, volumeSlider.value)
+				end
+			end,
+			linger = function(element)
+				gui.Tooltip("Mute")(element)
+			end,
+		}
+	end
 
 	--Duration: muted mm:ss readout, matching the dock tile's FormatTime(duration,
 	--duration) source (no live playback progress here -- that lives on the dock).
@@ -3218,7 +3520,10 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 	nameLabel = gui.Label{
 		editableOnDoubleClick = true,
 		text = DisplayNameForAsset(audioAsset),
-		width = "100%-348",
+		--Build mode declutters the fixed control cluster down to duration+cue+[+], so
+		--the name gets to reclaim most of that width (complement recomputed for the
+		--smaller cluster; see the [+] button and final children list below).
+		width = cond(buildMode == nil, "100%-348", "100%-120"),
 		height = "auto",
 		halign = "left",
 		valign = "center",
@@ -3246,41 +3551,89 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 	--Behavior (options/normalisation/change) is shared with the dock tile version via
 	--CreateCategoryDropdown; only the row-specific layout is passed in here.
 	--unroutedHint (C8) is Studio-row-only: the dock tile dropdown never gets the
-	--warning tint/tooltip.
-	local categorySelector = CreateCategoryDropdown(audioAsset, {
-		hmargin = 3,
-		unroutedHint = true,
-	})
+	--warning tint/tooltip. Skipped entirely in build mode.
+	local categorySelector
+	if buildMode == nil then
+		categorySelector = CreateCategoryDropdown(audioAsset, {
+			hmargin = 3,
+			unroutedHint = true,
+		})
+	end
 
-	volumeSlider = gui.Slider{
-		value = audioAsset.volume,
-		minValue = 0,
-		maxValue = 1,
-		sliderWidth = 70,
-		labelWidth = 0,
-		labelFormat = "",
-		style = { width = 80, height = 16, valign = "center", hmargin = 3 },
-		events = {
-			preview = function(element)
-				if not muted then
-					audio.SetSoundEventVolume(audioAsset.id, element.value)
+	if buildMode == nil then
+		volumeSlider = gui.Slider{
+			value = audioAsset.volume,
+			minValue = 0,
+			maxValue = 1,
+			sliderWidth = 70,
+			labelWidth = 0,
+			labelFormat = "",
+			style = { width = 80, height = 16, valign = "center", hmargin = 3 },
+			events = {
+				preview = function(element)
+					if not muted then
+						audio.SetSoundEventVolume(audioAsset.id, element.value)
+					end
+				end,
+				confirm = function(element)
+					if not muted then
+						audio.SetSoundEventVolume(audioAsset.id, element.value)
+					end
+					local doc = mod:GetDocumentSnapshot(soundEventDocId)
+					doc:BeginChange()
+					doc.data.volume = element.value
+					doc:CompleteChange("Set audio volume")
+				end,
+				refreshPlayingAudio = function(element)
+					local doc = mod:GetDocumentSnapshot(soundEventDocId)
+					element.value = cond(doc.data.volume ~= nil, doc.data.volume, audioAsset.volume)
+				end,
+			},
+		}
+	end
+
+	--H-studio [+] button: only built while a Library "add tracks" build mode is
+	--active. Appends this clip to the target playlist (duplicates allowed by
+	--design) and bumps the running count in the build banner.
+	local plusButton
+	if buildMode ~= nil then
+		plusButton = gui.Panel{
+			classes = {"audioAddTrackButton"},
+			bgimage = "ui-icons/Plus.png",
+			width = 18,
+			height = 18,
+			valign = "center",
+			hmargin = 3,
+			press = function(element)
+				if m_studioBuildMode == nil then
+					return
+				end
+				--Self-heal: the target playlist can be deleted out from under an open
+				--build mode (another DM client). AddTrackToPlaylist would silently
+				--no-op then, so the banner count would drift from reality -- end the
+				--adding session instead.
+				local pl = (GetPlaylistsDoc().data.playlists or {})[m_studioBuildMode.playlistid]
+				if pl == nil then
+					m_studioBuildMode = nil
+					if g_audioLibraryRequestRebuild ~= nil then
+						g_audioLibraryRequestRebuild()
+					end
+					if g_studioRefreshBuildMode ~= nil then
+						g_studioRefreshBuildMode()
+					end
+					return
+				end
+				AddTrackToPlaylist(m_studioBuildMode.playlistid, audioAsset.id)
+				m_studioBuildMode.count = m_studioBuildMode.count + 1
+				if g_studioRefreshBuildMode ~= nil then
+					g_studioRefreshBuildMode()
 				end
 			end,
-			confirm = function(element)
-				if not muted then
-					audio.SetSoundEventVolume(audioAsset.id, element.value)
-				end
-				local doc = mod:GetDocumentSnapshot(soundEventDocId)
-				doc:BeginChange()
-				doc.data.volume = element.value
-				doc:CompleteChange("Set audio volume")
+			linger = function(element)
+				gui.Tooltip("Add to playlist")(element)
 			end,
-			refreshPlayingAudio = function(element)
-				local doc = mod:GetDocumentSnapshot(soundEventDocId)
-				element.value = cond(doc.data.volume ~= nil, doc.data.volume, audioAsset.volume)
-			end,
-		},
-	}
+		}
+	end
 
 	--Floating drop-spacer at the row's top edge: a thin drag target that means
 	--"insert before this row" for reorder. Invisible until the tree marks it active
@@ -3346,6 +3699,39 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 				end,
 			},
 		}
+		--H-studio: "Add to playlist" submenu, ALWAYS available (not just in build
+		--mode) -- this is the fast path for adding a clip without switching tabs.
+		--Read fresh (not cached) since playlists can be created/renamed elsewhere
+		--while this menu is closed. Omitted entirely when there are no playlists yet
+		--(nothing to add to).
+		local plEntries = {}
+		local plList = {}
+		for id,pl in pairs(GetPlaylistsDoc().data.playlists or {}) do
+			plList[#plList+1] = { id = id, pl = pl }
+		end
+		table.sort(plList, function(a, b)
+			local oa, ob = a.pl.ord or 0, b.pl.ord or 0
+			if oa ~= ob then return oa < ob end
+			return (a.pl.name or "") < (b.pl.name or "")
+		end)
+		for _,entry in ipairs(plList) do
+			local plid = entry.id
+			plEntries[#plEntries+1] = {
+				text = entry.pl.name,
+				click = function()
+					element.popup = nil
+					for _,id in ipairs(TargetIds()) do
+						AddTrackToPlaylist(plid, id)
+					end
+				end,
+			}
+		end
+		if #plEntries > 0 then
+			entries[#entries+1] = {
+				text = "Add to playlist",
+				submenu = plEntries,
+			}
+		end
 		if devmode() then
 			entries[#entries+1] = {
 				text = "Copy ID",
@@ -3361,6 +3747,27 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 		}
 	end
 
+	--H-studio: children built into a plain array (not a positional literal) since
+	--several are now conditional on build mode -- a nil in the middle of a table
+	--constructor child list silently drops every child after it, so this avoids
+	--that trap entirely (see CLAUDE.md NIL-HOLE TRAP).
+	local children = { reorderSpacer, nameLabel, durationLabel }
+	if buildMode == nil then
+		children[#children+1] = loopButton
+		children[#children+1] = playButton
+	end
+	children[#children+1] = cueButton
+	if buildMode == nil then
+		children[#children+1] = muteButton
+		children[#children+1] = categorySelector
+		children[#children+1] = volumeSlider
+	else
+		children[#children+1] = plusButton
+	end
+	--Reserved gutter: the library vscroll bar overlays the right edge of each
+	--row, hiding the slider diamond + editable value without this spacer.
+	children[#children+1] = gui.Panel{ width = 12, height = 1 }
+
 	return gui.Panel{
 		classes = {"bordered", "hoverable", "audioClipRow"},
 		flow = "horizontal",
@@ -3369,7 +3776,10 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 		valign = "center",
 		vmargin = 1,
 		data = { assetid = audioAsset.id },
-		draggable = opts.draggable,
+		--No reorder while adding tracks to a playlist (build mode) -- dragging a row
+		--to reorder the library would be a confusing double-duty for the same drag
+		--gesture the playlist track list also uses.
+		draggable = opts.draggable and buildMode == nil,
 		canDragOnto = opts.canDragOnto,
 		drag = opts.drag,
 		dragging = opts.dragging,
@@ -3386,18 +3796,7 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 		refreshSelection = function(element, selectedSet)
 			element:SetClass("selected", selectedSet ~= nil and selectedSet[audioAsset.id] == true)
 		end,
-		reorderSpacer,
-		nameLabel,
-		durationLabel,
-		loopButton,
-		playButton,
-		cueButton,
-		muteButton,
-		categorySelector,
-		volumeSlider,
-		--Reserved gutter: the library vscroll bar overlays the right edge of each
-		--row, hiding the slider diamond + editable value without this spacer.
-		gui.Panel{ width = 12, height = 1 },
+		children = children,
 	}
 end
 
@@ -4665,6 +5064,11 @@ local CreateAudioLibraryTree = function()
 			ScheduleRebuild(m_root)
 		end
 	end
+	--H-studio: expose this tree's rebuild to the Playlists card ("+ Add tracks")
+	--and the library header's build-mode "Done" button, both of which live outside
+	--this closure and need to force a fresh row set (with/without build mode's
+	--decluttered layout) without waiting for a doc/asset monitor to fire.
+	g_audioLibraryRequestRebuild = RequestRebuild
 
 	m_root = gui.Panel{
 		classes = {"audioLibraryRoot"},
@@ -4711,6 +5115,738 @@ local CreateAudioLibraryTree = function()
 		height = "100%-24",
 		searchInput,
 		m_root,
+	}
+end
+
+--=====================================================================================
+--H-studio: Playlists card (left column, second tab). Rows are pin/name/count/play-stop
+--headers that expand into a controls row (shuffle/crossfade/playTogether/add tracks)
+--plus a reorderable track list. All mutation goes through the CRUD helpers in the
+--H-core block above (ModifyPlaylist/AudioCreatePlaylist/AudioDeletePlaylist/
+--AddTrackToPlaylist/RemoveTrackFromPlaylist/MoveTrackInPlaylist/AudioPlaylistJumpTo/
+--AudioPlaylistSetShuffle) -- this builder only reads docs and renders.
+--=====================================================================================
+
+--Popover body for the "Game mode music" button: the enable toggle + one dropdown per
+--registered Draw Steel game mode, binding it to a playlist (or "None"). Rebuilt fresh
+--every time the popover opens (same pattern as CreateStudioDuckingBody), so static
+--reads here are fine -- no monitors needed inside a throwaway popup body.
+local function CreateGameModeMusicBody()
+	local plDoc = GetPlaylistsDoc()
+	local bindings = plDoc.data.bindings or {}
+
+	local function SortedPlaylistOptions()
+		local list = {}
+		for id,pl in pairs(plDoc.data.playlists or {}) do
+			list[#list+1] = { id = id, pl = pl }
+		end
+		table.sort(list, function(a, b)
+			local oa, ob = a.pl.ord or 0, b.pl.ord or 0
+			if oa ~= ob then return oa < ob end
+			return (a.pl.name or "") < (b.pl.name or "")
+		end)
+		local options = { { id = "none", text = "None" } }
+		for _,entry in ipairs(list) do
+			options[#options+1] = { id = entry.id, text = entry.pl.name }
+		end
+		return options
+	end
+
+	local modeRows = {}
+	local IQ = rawget(_G, "InitiativeQueue")
+	if IQ ~= nil then
+		for _,gameMode in ipairs(IQ.GameModes) do
+			local modeid = gameMode.id
+			modeRows[#modeRows+1] = gui.Panel{
+				flow = "horizontal",
+				width = "100%",
+				height = 24,
+				valign = "center",
+				vmargin = 2,
+				gui.Label{
+					classes = {"sizeXs"},
+					text = gameMode.text,
+					width = 96,
+					height = "auto",
+					halign = "left",
+					valign = "center",
+				},
+				gui.Dropdown{
+					width = 170,
+					height = 22,
+					fontSize = 12,
+					valign = "center",
+					options = SortedPlaylistOptions(),
+					idChosen = (bindings.modes or {})[modeid] or "none",
+					change = function(element)
+						local doc = GetPlaylistsDoc()
+						doc:BeginChange()
+						if doc.data.bindings == nil then
+							doc.data.bindings = { enabled = false, modes = {} }
+						end
+						if doc.data.bindings.modes == nil then
+							doc.data.bindings.modes = {}
+						end
+						if element.idChosen == "none" then
+							doc.data.bindings.modes[modeid] = nil
+						else
+							doc.data.bindings.modes[modeid] = element.idChosen
+						end
+						doc:CompleteChange("Bind game mode playlist")
+					end,
+				},
+			}
+		end
+	end
+
+	return gui.Panel{
+		flow = "vertical",
+		width = "100%",
+		height = "auto",
+
+		--Match the toggle label to the rest of the studio text (12pt), same override
+		--as CreateStudioDuckingBody's popover.
+		styles = {
+			{ selectors = {"checkboxLabel"}, fontSize = 12, priority = 20 },
+		},
+
+		gui.Panel{
+			flow = "horizontal",
+			width = "100%",
+			height = "auto",
+			valign = "center",
+			vmargin = 2,
+			gui.Label{ classes = {"bold", "sizeS"}, text = "Game mode music", width = "auto", height = "auto", halign = "left", valign = "center" },
+		},
+
+		gui.Label{
+			classes = {"fgMuted", "sizeXs"},
+			text = "When the game mode changes, its playlist starts automatically. Music you started yourself returns afterwards.",
+			width = "100%",
+			height = "auto",
+			textWrap = true,
+			vmargin = 2,
+		},
+
+		gui.Check{
+			text = "Change music with the game mode",
+			value = bindings.enabled == true,
+			change = function(element)
+				local doc = GetPlaylistsDoc()
+				doc:BeginChange()
+				if doc.data.bindings == nil then
+					doc.data.bindings = { enabled = false, modes = {} }
+				end
+				doc.data.bindings.enabled = element.value
+				doc:CompleteChange("Toggle game mode music")
+			end,
+		},
+
+		children = modeRows,
+	}
+end
+
+local CreateStudioPlaylistsCard = function(heightSpec)
+	local m_expanded = {}
+	local m_listPanel
+	--Forward-declared: CreatePlaylistRow's caret/header press handlers call this
+	--before its real definition (the debounced rebuild) is assigned further down,
+	--and closures need the local to already be in scope (CLAUDE.md forward-decl rule).
+	local RequestPlaylistsRebuild = function() end
+	--Drop-line indicator for track-row drag reorder, mirroring the library tree's
+	--m_activeSpacer/ClearDropIndicator pattern (see CreateAudioLibraryTree).
+	local m_dropIndicator = nil
+	local function ClearTrackDropIndicator()
+		if m_dropIndicator ~= nil and m_dropIndicator.valid then
+			m_dropIndicator:SetClass("active", false)
+		end
+		m_dropIndicator = nil
+	end
+
+	local function SortedPlaylists()
+		local doc = GetPlaylistsDoc()
+		local list = {}
+		for id,pl in pairs(doc.data.playlists or {}) do
+			list[#list+1] = { id = id, pl = pl }
+		end
+		table.sort(list, function(a, b)
+			local oa, ob = a.pl.ord or 0, b.pl.ord or 0
+			if oa ~= ob then return oa < ob end
+			return (a.pl.name or "") < (b.pl.name or "")
+		end)
+		return list
+	end
+
+	--Currently-driven playlist/track, or nil/nil when idle. Read fresh each call --
+	--this is cheap (one doc snapshot) and called only from refresh handlers, never
+	--per-frame outside those.
+	local function DrivenInfo()
+		local playing = GetPlaylistStateDoc().data.playing
+		if playing == nil then
+			return nil, nil
+		end
+		return playing.playlistid, playing.order[playing.index]
+	end
+
+	local function CreatePlaylistRow(playlistid, pl)
+		local expanded = m_expanded[playlistid] == true
+
+		--Caret: gui.ExpandoArrow is the house expand/collapse triangle (closed =
+		--right-pointing, "expanded" class rotates it down) -- the same visual as the
+		--signed mock. CollapseArrow is the WRONG widget here: it is the dock panels'
+		--up/down chevron ("collapse the area below"), not a tree-node caret.
+		local caret
+		caret = gui.ExpandoArrow{
+			width = 16,
+			height = 16,
+			valign = "center",
+			hmargin = 3,
+			press = function(element)
+				m_expanded[playlistid] = not (m_expanded[playlistid] == true)
+				RequestPlaylistsRebuild()
+			end,
+		}
+		caret:SetClass("expanded", expanded)
+
+		local pin
+		pin = gui.Panel{
+			classes = {"audioPlPin", cond(pl.pinned, "pinned", nil)},
+			bgimage = "icons/icon_simpleshape/icon_simpleshape_31.png",
+			width = 16,
+			height = 16,
+			valign = "center",
+			hmargin = 3,
+			press = function(element)
+				ModifyPlaylist(playlistid, "Pin playlist", function(pl2)
+					pl2.pinned = not pl2.pinned
+				end)
+			end,
+			linger = function(element)
+				local doc = GetPlaylistsDoc()
+				local live = (doc.data.playlists or {})[playlistid]
+				local isPinned = live ~= nil and live.pinned == true
+				gui.Tooltip(isPinned and "Unpin from dock" or "Pin to dock")(element)
+			end,
+		}
+
+		local nameLabel
+		nameLabel = gui.Label{
+			editableOnDoubleClick = true,
+			text = pl.name,
+			width = "100%-160",
+			height = "auto",
+			halign = "left",
+			valign = "center",
+			hmargin = 4,
+			textWrap = false,
+			textOverflow = "ellipsis",
+			change = function(element)
+				local newName = trim(element.text or "")
+				if newName == "" then
+					element.text = pl.name
+					return
+				end
+				ModifyPlaylist(playlistid, "Rename playlist", function(pl2)
+					pl2.name = newName
+				end)
+			end,
+		}
+
+		local countLabel = gui.Label{
+			classes = {"sizeXs", "fgMuted"},
+			text = cond(#pl.tracks == 1, "1 track", string.format("%d tracks", #pl.tracks)),
+			width = 56,
+			height = "auto",
+			halign = "right",
+			valign = "center",
+			textAlignment = "right",
+		}
+
+		local playButton
+		playButton = gui.Panel{
+			classes = {"audioBroadcastButton"},
+			bgimage = "ui-icons/AudioPlayButton.png",
+			width = 18,
+			height = 18,
+			valign = "center",
+			hmargin = 3,
+			refreshPlayingAudio = function(element)
+				local drivingId = DrivenInfo()
+				local driving = drivingId == playlistid
+				element.bgimage = driving and "panels/square.png" or "ui-icons/AudioPlayButton.png"
+				element:SetClass("playing", driving)
+			end,
+			press = function(element)
+				local drivingId = DrivenInfo()
+				if drivingId == playlistid then
+					StopDrivenPlaylist()
+				else
+					AudioPlaylistPlay(playlistid, "manual")
+				end
+			end,
+			linger = function(element)
+				local drivingId = DrivenInfo()
+				gui.Tooltip(drivingId == playlistid and "Stop" or "Play to table")(element)
+			end,
+		}
+
+		local function ToggleExpand()
+			m_expanded[playlistid] = not (m_expanded[playlistid] == true)
+			RequestPlaylistsRebuild()
+		end
+
+		local header
+		header = gui.Panel{
+			classes = {"hoverable"},
+			flow = "horizontal",
+			width = "100%",
+			height = 30,
+			valign = "center",
+			click = function(element)
+				ToggleExpand()
+			end,
+			rightClick = function(element)
+				local isPinned = pl.pinned == true
+				element.popup = gui.ContextMenu{
+					width = 180,
+					entries = {
+						{
+							text = "Rename",
+							click = function()
+								element.popup = nil
+								nameLabel.text = pl.name
+								nameLabel:BeginEditing()
+							end,
+						},
+						{
+							text = cond(isPinned, "Unpin from dock", "Pin to dock"),
+							click = function()
+								element.popup = nil
+								ModifyPlaylist(playlistid, "Pin playlist", function(pl2)
+									pl2.pinned = not pl2.pinned
+								end)
+							end,
+						},
+						{
+							text = "Delete",
+							click = function()
+								element.popup = nil
+								gui.ModalMessage{
+									title = "Delete Playlist?",
+									message = string.format('Are you sure you want to delete "%s"? Its tracks stay in your library.', pl.name),
+									options = {
+										{
+											text = "Delete",
+											execute = function()
+												AudioDeletePlaylist(playlistid)
+											end,
+										},
+										{
+											text = "Cancel",
+											execute = function()
+											end,
+										},
+									},
+								}
+							end,
+						},
+					},
+				}
+			end,
+
+			caret,
+			pin,
+			nameLabel,
+			countLabel,
+			playButton,
+		}
+
+		local rowChildren = { header }
+
+		if expanded then
+			--Controls row: shuffle toggle, crossfade slider, playTogether check,
+			--"+ Add tracks". Split is not needed at the card's real width (matches
+			--the ducking popover's 380px sliders comfortably within this column).
+			local shuffleButton
+			shuffleButton = gui.Button{
+				classes = {"sizeXs", cond(pl.shuffle, "selected", nil)},
+				text = "Shuffle",
+				width = "auto",
+				height = 22,
+				hpad = 8,
+				borderBox = true,
+				valign = "center",
+				hmargin = 3,
+				press = function(element)
+					AudioPlaylistSetShuffle(playlistid, not pl.shuffle)
+				end,
+				linger = function(element)
+					gui.Tooltip("Shuffle")(element)
+				end,
+			}
+
+			local crossfadeSlider = gui.Slider{
+				style = { width = 150, height = 16, valign = "center", hmargin = 4 },
+				sliderWidth = 110,
+				labelWidth = 34,
+				labelFormat = "%.1f",
+				minValue = 0,
+				maxValue = 10,
+				value = pl.crossfadeSeconds or 3.0,
+				confirm = function(element)
+					ModifyPlaylist(playlistid, "Set playlist crossfade", function(pl2)
+						pl2.crossfadeSeconds = element.value
+					end)
+				end,
+			}
+
+			local playTogetherCheck = gui.Check{
+				text = "Play all tracks together",
+				value = pl.playTogether == true,
+				width = 190,
+				height = 22,
+				valign = "center",
+				change = function(element)
+					ModifyPlaylist(playlistid, "Set playlist play-together", function(pl2)
+						pl2.playTogether = element.value
+					end)
+				end,
+			}
+
+			local addTracksButton = gui.Button{
+				classes = {"sizeXs"},
+				text = "+ Add tracks",
+				width = "auto",
+				height = 22,
+				hpad = 8,
+				borderBox = true,
+				valign = "center",
+				halign = "right",
+				press = function(element)
+					m_studioBuildMode = { playlistid = playlistid, count = 0 }
+					if g_audioLibraryRequestRebuild ~= nil then
+						g_audioLibraryRequestRebuild()
+					end
+					if g_studioSelectTab ~= nil then
+						g_studioSelectTab("library")
+					end
+					if g_studioRefreshBuildMode ~= nil then
+						g_studioRefreshBuildMode()
+					end
+				end,
+			}
+
+			local controlsRow = gui.Panel{
+				flow = "horizontal",
+				width = "100%",
+				height = 26,
+				valign = "center",
+				vmargin = 2,
+				styles = {
+					{ selectors = {"sliderLabel"}, fontSize = 12, lmargin = 5, priority = 6 },
+					{ selectors = {"checkboxLabel"}, fontSize = 12, priority = 20 },
+				},
+				shuffleButton,
+				gui.Label{ classes = {"sizeXs"}, text = "Crossfade (s)", width = "auto", height = "auto", halign = "left", valign = "center", hmargin = 4 },
+				crossfadeSlider,
+				playTogetherCheck,
+				addTracksButton,
+			}
+			rowChildren[#rowChildren+1] = controlsRow
+
+			--Track list: one row per track, plus a trailing drop-spacer for
+			--"insert at end". canDragOnto/dragging/drag mirror the library tree's
+			--clip-spacer reorder pattern (see CreateAudioLibraryTree).
+			local trackChildren = {}
+			for i,assetid in ipairs(pl.tracks) do
+				local asset = assets.audioTable[assetid]
+				local trackIndex = i
+
+				local spacer = gui.Panel{
+					classes = {"audioClipSpacer"},
+					floating = true,
+					dragTarget = true,
+					width = "100%",
+					height = 6,
+					y = -3,
+					valign = "top",
+					halign = "center",
+					bgimage = "panels/square.png",
+					data = { plSpacer = true, playlistid = playlistid, trackIndex = trackIndex },
+				}
+
+				local grip = gui.Panel{
+					classes = {"audioTrackGrip"},
+					bgimage = "icons/icon_common/icon_common_4.png",
+					width = 14,
+					height = 14,
+					valign = "center",
+					hmargin = 3,
+				}
+
+				local idxLabel = gui.Label{
+					classes = {"sizeXs", "fgMuted"},
+					text = tostring(trackIndex),
+					width = 18,
+					height = "auto",
+					halign = "left",
+					valign = "center",
+				}
+
+				local trackNameLabel
+				if asset ~= nil then
+					trackNameLabel = gui.Label{
+						classes = {"sizeXs"},
+						text = DisplayNameForAsset(asset),
+						width = "100%-90",
+						height = "auto",
+						halign = "left",
+						valign = "center",
+						textWrap = false,
+						textOverflow = "ellipsis",
+					}
+				else
+					trackNameLabel = gui.Label{
+						classes = {"sizeXs", "fgMuted"},
+						text = "Missing clip",
+						width = "100%-90",
+						height = "auto",
+						halign = "left",
+						valign = "center",
+						textWrap = false,
+						textOverflow = "ellipsis",
+					}
+				end
+
+				local deleteButton = gui.DeleteItemButton{
+					width = 16,
+					height = 16,
+					valign = "center",
+					hmargin = 3,
+					click = function(element)
+						RemoveTrackFromPlaylist(playlistid, trackIndex)
+					end,
+				}
+
+				local trackRow
+				trackRow = gui.Panel{
+					classes = {"hoverable", "audioTrackRow"},
+					flow = "horizontal",
+					width = "100%",
+					height = 24,
+					vmargin = 1,
+					hoverCursor = "hand",
+					bgimage = "panels/square.png",
+					data = { trackIndex = trackIndex, playlistid = playlistid, assetid = assetid },
+					draggable = true,
+					click = function(element)
+						AudioPlaylistJumpTo(playlistid, trackIndex)
+					end,
+					canDragOnto = function(element, target)
+						return target ~= nil and target.data ~= nil and target.data.plSpacer == true and target.data.playlistid == playlistid
+					end,
+					dragging = function(element, target)
+						local spacerTarget = (target ~= nil and target.data ~= nil and target.data.plSpacer == true) and target or nil
+						if spacerTarget ~= m_dropIndicator then
+							ClearTrackDropIndicator()
+							if spacerTarget ~= nil then
+								spacerTarget:SetClass("active", true)
+								m_dropIndicator = spacerTarget
+							end
+						end
+					end,
+					drag = function(element, target)
+						ClearTrackDropIndicator()
+						if target == nil or target.data == nil then return end
+						MoveTrackInPlaylist(playlistid, element.data.trackIndex, target.data.trackIndex)
+					end,
+					refreshPlayingAudio = function(element)
+						local drivingPlaylistid, drivingAssetid = DrivenInfo()
+						element:SetClass("playing", drivingPlaylistid == playlistid and drivingAssetid == assetid)
+					end,
+
+					spacer,
+					grip,
+					idxLabel,
+					trackNameLabel,
+					deleteButton,
+				}
+				trackChildren[#trackChildren+1] = trackRow
+			end
+
+			--Trailing spacer: a non-floating drop target meaning "insert at the end".
+			trackChildren[#trackChildren+1] = gui.Panel{
+				classes = {"audioClipSpacer"},
+				width = "100%",
+				height = 6,
+				dragTarget = true,
+				data = { plSpacer = true, playlistid = playlistid, trackIndex = #pl.tracks + 1 },
+			}
+
+			rowChildren[#rowChildren+1] = gui.Panel{
+				flow = "vertical",
+				width = "100%",
+				height = "auto",
+				children = trackChildren,
+			}
+		end
+
+		return gui.Panel{
+			classes = {"bordered", "audioPlaylistRow"},
+			flow = "vertical",
+			width = "100%",
+			height = "auto",
+			vmargin = 1,
+			children = rowChildren,
+		}
+	end
+
+	--Coalesced rebuild, mirroring the library tree's ScheduleRebuild pattern: the
+	--sig covers everything a row renders (including expansion, since expanding
+	--changes the CHILD SET, not just a style) so a genuine change always rebuilds,
+	--and an unrelated doc echo never does.
+	local m_lastSig = nil
+	local function RebuildIfChanged()
+		if mod.unloaded or m_listPanel == nil or not m_listPanel.valid then
+			return
+		end
+		local list = SortedPlaylists()
+		local sigParts = {}
+		for _,entry in ipairs(list) do
+			local pl = entry.pl
+			local expanded = m_expanded[entry.id] == true
+			sigParts[#sigParts+1] = table.concat({
+				entry.id, pl.name, tostring(pl.pinned == true), tostring(pl.shuffle == true),
+				tostring(pl.playTogether == true), tostring(pl.crossfadeSeconds or 3.0),
+				tostring(#pl.tracks), tostring(expanded),
+			}, "|")
+			if expanded then
+				sigParts[#sigParts+1] = table.concat(pl.tracks, ",")
+			end
+		end
+		local sig = table.concat(sigParts, ";")
+		if sig == m_lastSig then
+			return
+		end
+		m_lastSig = sig
+		local rows = {}
+		for _,entry in ipairs(list) do
+			rows[#rows+1] = CreatePlaylistRow(entry.id, entry.pl)
+		end
+		m_listPanel.children = rows
+		m_listPanel:FireEventTree("refreshPlayingAudio")
+	end
+
+	--Debounced like the library tree's ScheduleRebuild (a burst of doc writes from
+	--one drag/CRUD action should not rebuild the whole card once per write).
+	local m_rebuildPending = false
+	RequestPlaylistsRebuild = function()
+		if m_rebuildPending then return end
+		m_rebuildPending = true
+		dmhub.Schedule(0.01, function()
+			m_rebuildPending = false
+			if mod.unloaded then return end
+			RebuildIfChanged()
+		end)
+	end
+
+	local gameModeMusicButton
+	gameModeMusicButton = gui.Button{
+		classes = {"sizeXs"},
+		text = "Game mode music",
+		width = "auto",
+		height = 24,
+		hpad = 8,
+		borderBox = true,
+		valign = "center",
+		hmargin = 3,
+		popupPositioning = "panel",
+		press = function(element)
+			if element.popup ~= nil then
+				element.popup = nil
+				return
+			end
+			element.popup = gui.Panel{
+				styles = ThemeEngine.MergeStyles{},
+				classes = {"framedPanel"},
+				width = 380,
+				height = "auto",
+				halign = "right",
+				flow = "vertical",
+				pad = 8,
+				borderBox = true,
+				CreateGameModeMusicBody(),
+			}
+		end,
+	}
+
+	local newPlaylistButton = gui.Button{
+		classes = {"sizeXs"},
+		text = "+ New playlist",
+		width = "auto",
+		height = 24,
+		hpad = 8,
+		borderBox = true,
+		valign = "center",
+		hmargin = 3,
+		press = function(element)
+			local id = AudioCreatePlaylist()
+			m_expanded[id] = true
+		end,
+	}
+
+	local headerRow = gui.Panel{
+		flow = "horizontal",
+		width = "100%",
+		height = "auto",
+		valign = "center",
+		vmargin = 2,
+		gui.Panel{
+			flow = "horizontal",
+			width = "100%-260",
+			height = "auto",
+			halign = "left",
+			valign = "center",
+			gui.Label{ classes = {"bold", "sizeS"}, text = "Playlists", width = "auto", height = "auto", halign = "left", valign = "center" },
+		},
+		gameModeMusicButton,
+		newPlaylistButton,
+	}
+
+	m_listPanel = gui.Panel{
+		flow = "vertical",
+		width = "100%",
+		height = "100%-32",
+		vscroll = true,
+		valign = "top",
+		monitorGame = GetPlaylistsDoc().path,
+		refreshGame = function(element)
+			RequestPlaylistsRebuild()
+		end,
+		create = function(element)
+			RebuildIfChanged()
+		end,
+	}
+
+	return gui.Panel{
+		classes = {"bordered"},
+		flow = "vertical",
+		width = "100%",
+		height = heightSpec,
+		pad = 8,
+		borderBox = true,
+		vmargin = 4,
+
+		--A track ending naturally fires no event (same reasoning as the now-playing
+		--strip's own poll) -- this poll keeps play/stop glyphs and the "playing"
+		--track outline correct without waiting for another doc write.
+		thinkTime = 0.5,
+		think = function(element)
+			element:FireEventTree("refreshPlayingAudio")
+		end,
+
+		headerRow,
+		m_listPanel,
 	}
 end
 
@@ -4998,6 +6134,9 @@ local AUDIO_STUDIO_LIBRARY_HEADER_ALLOWANCE = 32
 --its own top+bottom vmargin (2*4=8) must be subtracted from the card's declared
 --height too, or the card would overflow leftColumn's 100% by that much.
 local AUDIO_STUDIO_LIBRARY_CARD_VMARGIN = 8
+--H-studio: Library|Playlists tab row between the now-playing block and the two
+--switchable cards below it. 24px buttons + 2*2 vmargin.
+local AUDIO_STUDIO_TABROW_ALLOWANCE = 28
 
 CreateAudioStudio = function()
 	if not dmhub.isDM then
@@ -5029,62 +6168,178 @@ CreateAudioStudio = function()
 	--card's declared height DOES have to subtract its own vmargin
 	--(AUDIO_STUDIO_LIBRARY_CARD_VMARGIN) on top of the now-playing allowance,
 	--since vmargin is external spacing that is NOT covered by borderBox.
+	--H-studio: the header row's normal content (label + New Folder/Add audio) and
+	--its build-mode content (the "Adding to X - N added" banner + Done) are two
+	--sibling groups, only one visible at a time via the "collapsed" class -- rather
+	--than rebuilding the header's children on every add, which would fight the
+	--library tree's own rebuild churn while the DM is actively clicking [+].
+	local buildBannerLabel = gui.Label{
+		classes = {"bold", "sizeS"},
+		text = "",
+		width = "100%-90",
+		height = "auto",
+		halign = "left",
+		valign = "center",
+		textWrap = false,
+		textOverflow = "ellipsis",
+	}
+	local libraryNormalGroup = gui.Panel{
+		flow = "horizontal",
+		width = "100%",
+		height = "auto",
+		valign = "center",
+		gui.Panel{
+			flow = "horizontal",
+			width = "100%-180",
+			height = "auto",
+			halign = "left",
+			valign = "center",
+			gui.Label{ classes = {"bold", "sizeS"}, text = "Library", width = "auto", height = "auto", halign = "left", valign = "center" },
+		},
+		gui.Button{
+			classes = {"sizeXs"},
+			text = "+ New Folder",
+			width = "auto",
+			height = 24,
+			--Breathing room: auto-width buttons rendered the border tight
+			--against the letters.
+			hpad = 8,
+			valign = "center",
+			hmargin = 3,
+			press = function(element)
+				assets:UploadNewAudioFolder{ description = "New Folder" }
+			end,
+		},
+		gui.Button{
+			classes = {"sizeXs"},
+			text = "+ Add audio",
+			width = "auto",
+			height = 24,
+			hpad = 8,
+			valign = "center",
+			hmargin = 3,
+			press = function(element)
+				OpenAudioStudioUpload(element)
+			end,
+		},
+	}
+	local libraryBuildGroup
+	libraryBuildGroup = gui.Panel{
+		classes = {"collapsed"},
+		flow = "horizontal",
+		width = "100%",
+		height = "auto",
+		valign = "center",
+		buildBannerLabel,
+		gui.Button{
+			classes = {"sizeXs"},
+			text = "Done",
+			width = "auto",
+			height = 24,
+			hpad = 8,
+			borderBox = true,
+			valign = "center",
+			hmargin = 3,
+			press = function(element)
+				m_studioBuildMode = nil
+				if g_audioLibraryRequestRebuild ~= nil then
+					g_audioLibraryRequestRebuild()
+				end
+				if g_studioSelectTab ~= nil then
+					g_studioSelectTab("playlists")
+				end
+				if g_studioRefreshBuildMode ~= nil then
+					g_studioRefreshBuildMode()
+				end
+			end,
+		},
+	}
+
+	local libraryHeaderRow = gui.Panel{
+		flow = "horizontal",
+		width = "100%",
+		height = "auto",
+		valign = "center",
+		vmargin = 2,
+		refreshBuildMode = function(element)
+			local active = m_studioBuildMode ~= nil
+			libraryNormalGroup:SetClass("collapsed", active)
+			libraryBuildGroup:SetClass("collapsed", not active)
+			if active then
+				local doc = GetPlaylistsDoc()
+				local pl = (doc.data.playlists or {})[m_studioBuildMode.playlistid]
+				local plName = pl ~= nil and pl.name or "playlist"
+				buildBannerLabel.text = string.format("Adding to %s - %d added", plName, m_studioBuildMode.count)
+			end
+		end,
+		libraryNormalGroup,
+		libraryBuildGroup,
+	}
+
 	local libraryCard = gui.Panel{
 		classes = {"bordered"},
 		flow = "vertical",
 		width = "100%",
-		height = "100%-" .. tostring(AUDIO_STUDIO_NOWPLAYING_ALLOWANCE + AUDIO_STUDIO_LIBRARY_CARD_VMARGIN),
+		height = "100%-" .. tostring(AUDIO_STUDIO_NOWPLAYING_ALLOWANCE + AUDIO_STUDIO_TABROW_ALLOWANCE + AUDIO_STUDIO_LIBRARY_CARD_VMARGIN),
 		pad = 8,
 		borderBox = true,
 		vmargin = 4,
 
-		--Library header row: label left, the add buttons right-aligned to this column
-		--(these become glyph buttons later). The label sits in a fixed-width flex
-		--panel since "100% available" collapses to 0 here. The bold sizeS "Library"
-		--label is this card's title, matching the other cards' title styling.
-		gui.Panel{
-			flow = "horizontal",
-			width = "100%",
-			height = "auto",
-			valign = "center",
-			vmargin = 2,
-			gui.Panel{
-				flow = "horizontal",
-				width = "100%-180",
-				height = "auto",
-				halign = "left",
-				valign = "center",
-				gui.Label{ classes = {"bold", "sizeS"}, text = "Library", width = "auto", height = "auto", halign = "left", valign = "center" },
-			},
-			gui.Button{
-				classes = {"sizeXs"},
-				text = "+ New Folder",
-				width = "auto",
-				height = 24,
-				--Breathing room: auto-width buttons rendered the border tight
-				--against the letters.
-				hpad = 8,
-				valign = "center",
-				hmargin = 3,
-				press = function(element)
-					assets:UploadNewAudioFolder{ description = "New Folder" }
-				end,
-			},
-			gui.Button{
-				classes = {"sizeXs"},
-				text = "+ Add audio",
-				width = "auto",
-				height = 24,
-				hpad = 8,
-				valign = "center",
-				hmargin = 3,
-				press = function(element)
-					OpenAudioStudioUpload(element)
-				end,
-			},
-		},
+		libraryHeaderRow,
 
 		libraryTreeWrapper,
+	}
+
+	--H-studio: Playlists card, the tab row's second pane. Same height complement as
+	--libraryCard (both sit below the tab row, only one visible at a time).
+	local playlistsCard = CreateStudioPlaylistsCard(
+		"100%-" .. tostring(AUDIO_STUDIO_NOWPLAYING_ALLOWANCE + AUDIO_STUDIO_TABROW_ALLOWANCE + AUDIO_STUDIO_LIBRARY_CARD_VMARGIN))
+
+	--H-studio: Library|Playlists tab row. Fixed-width 106px buttons mirror the dock's
+	--segmented selector (SelectDockSection) -- a house-verified pattern, so no new
+	--button styling is needed beyond the base {selected} rule both already share.
+	local libraryTabButton, playlistsTabButton
+	local SelectStudioTab
+	SelectStudioTab = function(tabid)
+		g_studioLeftTab = tabid
+		libraryTabButton:SetClass("selected", tabid == "library")
+		playlistsTabButton:SetClass("selected", tabid == "playlists")
+		libraryCard:SetClass("collapsed", tabid ~= "library")
+		playlistsCard:SetClass("collapsed", tabid ~= "playlists")
+	end
+
+	libraryTabButton = gui.Button{
+		classes = {"sizeXs"},
+		text = "Library",
+		width = 106,
+		height = 24,
+		hmargin = 3,
+		borderBox = true,
+		valign = "center",
+		press = function(element)
+			SelectStudioTab("library")
+		end,
+	}
+	playlistsTabButton = gui.Button{
+		classes = {"sizeXs"},
+		text = "Playlists",
+		width = 106,
+		height = 24,
+		hmargin = 3,
+		borderBox = true,
+		valign = "center",
+		press = function(element)
+			SelectStudioTab("playlists")
+		end,
+	}
+	local tabRow = gui.Panel{
+		flow = "horizontal",
+		width = "100%",
+		height = 24,
+		vmargin = 2,
+		halign = "left",
+		libraryTabButton,
+		playlistsTabButton,
 	}
 
 	--Left column width (chunk F, L1): "100% available" is no longer a percentage
@@ -5102,7 +6357,10 @@ CreateAudioStudio = function()
 
 		nowPlayingBlock,
 
+		tabRow,
+
 		libraryCard,
+		playlistsCard,
 	}
 
 	--Right column (task 6c; chunk F, L1 fixes the width): Soundboard FIRST
@@ -5184,6 +6442,16 @@ CreateAudioStudio = function()
 		--Unrouted category dropdown (C8): a subtle warning border, not a loud fill --
 		--nudges without shouting. Cleared automatically once a category is chosen.
 		{ selectors = {"unrouted"}, borderColor = "@warning", border = 1 },
+		--H-studio: Playlists card rules (pin glyph, [+] add-track button, track rows).
+		{ selectors = {"audioPlPin"}, bgcolor = "white", opacity = 0.35 },
+		{ selectors = {"audioPlPin", "hover"}, opacity = 0.7 },
+		{ selectors = {"audioPlPin", "pinned"}, bgcolor = "@accent", opacity = 1 },
+		{ selectors = {"audioAddTrackButton"}, bgcolor = "white" },
+		{ selectors = {"audioAddTrackButton", "hover"}, brightness = 1.4 },
+		{ selectors = {"audioTrackRow"}, bgcolor = "clear" },
+		{ selectors = {"audioTrackRow", "hover"}, bgcolor = "@bgAlt" },
+		{ selectors = {"audioTrackRow", "playing"}, bgcolor = "@bgAlt", borderColor = "@accent", border = 1 },
+		{ selectors = {"audioTrackGrip"}, bgcolor = "white", opacity = 0.4 },
 	}
 	--Unified soundboard button rules (F1a/F1d), shared with the dock (see
 	--soundboardBody's own MergeTokens, chunk F P1). Appended here (not just
@@ -5275,6 +6543,12 @@ CreateAudioStudio = function()
 			--after the Studio window closes. Mirrors the dock anthem preview's
 			--`destroy = StopPreview` pattern above.
 			StopStudioCue()
+
+			--Closing the Studio ends any open "add tracks" session -- the state is
+			--module-local, so without this a REOPENED Studio would build its library
+			--rows decluttered (rows read m_studioBuildMode at construction) while the
+			--header shows the normal buttons (nothing re-fires refreshBuildMode).
+			m_studioBuildMode = nil
 		end,
 
 		refreshAudio = function(element)
@@ -5285,6 +6559,20 @@ CreateAudioStudio = function()
 		gui.MCDMDivider{ bmargin = 8 },
 		body,
 	}
+
+	--H-studio: wire the module hooks now that root/SelectStudioTab both exist, so
+	--the playlists card's "+ Add tracks" and the library build banner's "Done" can
+	--drive the tab row and force a tree-wide refresh from outside this closure.
+	--Restore whatever tab was selected earlier this session (mirrors the dock's
+	--g_dockControlsSelected restore -- plain local, not a setting, so it resets on
+	--a fresh app session).
+	g_studioSelectTab = SelectStudioTab
+	g_studioRefreshBuildMode = function()
+		if root ~= nil and root.valid then
+			root:FireEventTree("refreshBuildMode")
+		end
+	end
+	SelectStudioTab(g_studioLeftTab)
 
 	audio.events:Listen(root)
 	root:ScheduleEvent("refreshAudio", 0.01)

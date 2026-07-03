@@ -1,5 +1,15 @@
 local mod = dmhub.GetModLoading()
 
+-- Chat input history (up-arrow recall) persists across reloads and restarts
+-- as a per-user preference setting holding the most recent entries.
+local g_maxPersistedChatHistory = 20
+
+setting{
+	id = "chat:inputhistory",
+	default = {},
+	storage = "preference",
+}
+
 local function track(eventType, fields)
 	if dmhub.GetSettingValue("telemetry_enabled") == false then
 		return
@@ -416,6 +426,23 @@ CreateChatPanel = function()
 
 	local history = {}
 	local historyCursor = nil
+
+	local savedHistory = dmhub.GetSettingValue("chat:inputhistory")
+	if type(savedHistory) == "table" then
+		for _,entry in ipairs(savedHistory) do
+			if type(entry) == "string" then
+				history[#history+1] = entry
+			end
+		end
+	end
+
+	local function PersistHistory()
+		local entries = {}
+		for i = math.max(1, #history - g_maxPersistedChatHistory + 1), #history do
+			entries[#entries+1] = history[i]
+		end
+		dmhub.SetSettingValue("chat:inputhistory", entries)
+	end
 
 	local completionChildren = {}
 	local completionIsArgMode = false
@@ -1257,6 +1284,7 @@ CreateChatPanel = function()
 
 				if element.text ~= "" and history[#history] ~= element.text then
 					history[#history+1] = element.text
+					PersistHistory()
 				end
 
 				element.text = ""

@@ -150,6 +150,14 @@ function dmhub.TestFunction()
 	-- dummy implementation for documentation purposes only
 end
 
+--- CreateInfoBubble: Creates a new info bubble on the current map floor at the given location. Info bubbles are DM-only markers that open a journal document when clicked. 'options' optionally supplies the bubble's icon glyph and description; both are auto-generated (next free number icon, "Room N" description) when omitted. Returns the new bubble's id, or nil on failure (no active map, or the info document could not be created). The bubble is applied asynchronously once the change round-trips to the server; read it back afterwards via dmhub.infoBubbles[id] to edit its icon/description/document.
+--- @param loc Loc
+--- @param options nil|{icon: nil|string, description: nil|string}
+--- @return nil|string
+function dmhub.CreateInfoBubble(loc, options)
+	-- dummy implementation for documentation purposes only
+end
+
 --- DetectImageEditors: Returns the image-editing applications detected as installed on the user's machine, each as a table with 'name' (friendly display name) and 'path' (full path to the executable on Windows, or the .app bundle on macOS), sorted by name. Detection works on Windows (via the registry uninstall and 'App Paths' keys) and macOS (by scanning /Applications and ~/Applications for known editor bundles); Linux returns an empty list. Intended to populate an editor chooser so the user can pick an installed editor without browsing for it.
 --- @return {name: string, path: string}[]
 function dmhub.DetectImageEditors()

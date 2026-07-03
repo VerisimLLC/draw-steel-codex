@@ -1788,6 +1788,39 @@ do
         end
     end
 
+    -- Collect every CharacterFeatureChoice option offered by an ancestry (race)
+    -- as match candidates. Races store their base features on a ClassLevel
+    -- (modifierInfo) plus optional per-character-level features, rather than
+    -- going through FillLevelsUpTo like classes do.
+    local function BuildChar_AddRaceChoiceOptions(raceObj, level, out)
+        if raceObj == nil then
+            return
+        end
+        local function addFrom(features)
+            for _, feat in ipairs(features or {}) do
+                if feat.typeName == "CharacterFeatureChoice" then
+                    for _, opt in ipairs(feat:try_get("options", {})) do
+                        local optName = opt:try_get("name", "")
+                        out[#out + 1] = {
+                            id = opt:try_get("guid", "?"),
+                            name = optName,
+                            choiceName = feat:try_get("name", "?"),
+                            choiceGuid = feat:try_get("guid", "?"),
+                            words = BuildChar_SplitWords(optName),
+                        }
+                    end
+                end
+            end
+        end
+        addFrom(raceObj:GetClassLevel():try_get("features"))
+        for levelNum, lv in ipairs(raceObj:try_get("levels") or {}) do
+            if levelNum > level then
+                break
+            end
+            addFrom(lv:try_get("features"))
+        end
+    end
+
     -- Find the guid of the CharacterSubclassChoice in a class's levels up to the
     -- given level (this is the levelChoices key under which the chosen subclass id
     -- is recorded). Returns nil if the class has no subclass choice yet.
@@ -1944,7 +1977,8 @@ do
             "Builds the SELECTED character token from a freeform description, e.g.\n" ..
             "/buildchar Shadow Black Ash Cloak and Dagger. With no token selected, spawns a\n" ..
             "new hero in the middle of the view and builds onto it.\n" ..
-            "Matching priority: class -> level -> subclass -> ancestry -> kit -> class/subclass choices.\n" ..
+            "Matching: class first, then subclass/ancestry/kit/feature-choices compete for the\n" ..
+            "leftover words (longest match wins; ties prefer subclass > ancestry > kit > choice).\n" ..
             "Sets class/level, subclass, ancestry, kit and the named ability choices, then posts a\n" ..
             "summary to chat. Add the word 'random' to fill all remaining unfilled choices (subclass,\n" ..
             "skills, heroic abilities, perks, ancestry traits, kit) with random valid picks.\n" ..
@@ -1994,44 +2028,68 @@ do
                 classObj = classMatch.cand.obj
             end
 
-            -- Subclass (scoped to the matched class).
-            local subMatch = nil
+            -- Subclass, ancestry, kit and feature choices COMPETE for the
+            -- leftover words: each round, every still-unmatched category
+            -- proposes its best match and the longest run wins (ties broken by
+            -- coverage, then by category priority: subclass > ancestry > kit >
+            -- choice). This stops a short partial match in an early category
+            -- from stealing a word that a later category matches better --
+            -- e.g. "Fire Immunity" (a 2-word ancestry trait) must not lose its
+            -- "fire" to a 1-word partial match on the "Rapid Fire" kit.
+            -- Matching a subclass or ancestry unlocks its feature choices as
+            -- candidates for subsequent rounds.
+            local subCands = {}
             if classObj then
-                subMatch = BuildChar_BestMatch(words, used,
-                    BuildChar_Candidates(subs, function(v) return v.primaryClassId == classMatch.cand.id end))
-                if subMatch then
-                    BuildChar_Consume(used, subMatch)
-                end
+                subCands = BuildChar_Candidates(subs,
+                    function(v) return v.primaryClassId == classMatch.cand.id end)
             end
-
-            -- Ancestry.
-            local raceMatch = BuildChar_BestMatch(words, used, BuildChar_Candidates(races))
-            if raceMatch then
-                BuildChar_Consume(used, raceMatch)
-            end
-
-            -- Kit.
-            local kitMatch = BuildChar_BestMatch(words, used, BuildChar_Candidates(kits))
-            if kitMatch then
-                BuildChar_Consume(used, kitMatch)
-            end
-
-            -- Class/subclass ability (and other feature) choices. Match as many
-            -- as the leftover words support.
+            local raceCands = BuildChar_Candidates(races)
+            local kitCands = BuildChar_Candidates(kits)
             local choiceCands = {}
             BuildChar_AddChoiceOptions(classObj, level, choiceCands)
-            if subMatch then
-                BuildChar_AddChoiceOptions(subMatch.cand.obj, level, choiceCands)
-            end
 
+            local subMatch = nil
+            local raceMatch = nil
+            local kitMatch = nil
             local chosen = {}
             while true do
-                local m = BuildChar_BestMatch(words, used, choiceCands)
-                if m == nil then
+                local cats = {}
+                if subMatch == nil then
+                    cats[#cats + 1] = { key = "sub", cands = subCands }
+                end
+                if raceMatch == nil then
+                    cats[#cats + 1] = { key = "race", cands = raceCands }
+                end
+                if kitMatch == nil then
+                    cats[#cats + 1] = { key = "kit", cands = kitCands }
+                end
+                cats[#cats + 1] = { key = "choice", cands = choiceCands }
+
+                local bestKey = nil
+                local bestM = nil
+                for _, cat in ipairs(cats) do
+                    local m = BuildChar_BestMatch(words, used, cat.cands)
+                    if m ~= nil and (bestM == nil or m.len > bestM.len
+                        or (m.len == bestM.len and m.coverage > bestM.coverage)) then
+                        bestKey = cat.key
+                        bestM = m
+                    end
+                end
+                if bestM == nil then
                     break
                 end
-                BuildChar_Consume(used, m)
-                chosen[#chosen + 1] = m.cand
+                BuildChar_Consume(used, bestM)
+                if bestKey == "sub" then
+                    subMatch = bestM
+                    BuildChar_AddChoiceOptions(subMatch.cand.obj, level, choiceCands)
+                elseif bestKey == "race" then
+                    raceMatch = bestM
+                    BuildChar_AddRaceChoiceOptions(raceMatch.cand.obj, level, choiceCands)
+                elseif bestKey == "kit" then
+                    kitMatch = bestM
+                else
+                    chosen[#chosen + 1] = bestM.cand
+                end
             end
 
             -- Need at least a class to build anything.
@@ -2116,8 +2174,20 @@ do
                     if subMatch and subclassChoiceGuid then
                         lc[subclassChoiceGuid] = { subMatch.cand.id }
                     end
+                    -- Group picks by choice so multiple options named from the
+                    -- same choice (e.g. two point-buy ancestry traits) all land
+                    -- in that choice's selection list instead of clobbering.
+                    local chosenByGuid = {}
                     for _, c in ipairs(chosen) do
-                        lc[c.choiceGuid] = { c.id }
+                        local sel = chosenByGuid[c.choiceGuid]
+                        if sel == nil then
+                            sel = {}
+                            chosenByGuid[c.choiceGuid] = sel
+                        end
+                        sel[#sel + 1] = c.id
+                    end
+                    for guid, sel in pairs(chosenByGuid) do
+                        lc[guid] = sel
                     end
 
                     -- "random": fill everything still unchosen. Runs last so it

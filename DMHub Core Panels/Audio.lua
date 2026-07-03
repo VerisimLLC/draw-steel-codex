@@ -2179,6 +2179,33 @@ CreateSoundPanel = function()
 		hmargin = 4,
 	}
 
+	--Playlist transport lines (H-dock). Both start collapsed -- UpdateNowPlaying
+	--only reveals them once a playlist is actually driving the hero's track (see
+	--Part 3 below). heroFromLabel covers the game-mode-bound case only; manual
+	--playlist plays have no signed copy and stay silent about the playlist origin.
+	local heroFromLabel = gui.Label{
+		classes = {"sizeXxs", "fgMuted", "collapsed"},
+		text = "",
+		width = "100%-8",
+		height = "auto",
+		halign = "left",
+		valign = "center",
+		hmargin = 4,
+		textWrap = false,
+		textOverflow = "ellipsis",
+	}
+	local upNextLabel = gui.Label{
+		classes = {"sizeXxs", "fgMuted", "collapsed"},
+		text = "",
+		width = "100%-8",
+		height = "auto",
+		halign = "left",
+		valign = "center",
+		hmargin = 4,
+		textWrap = false,
+		textOverflow = "ellipsis",
+	}
+
 	local stopButton = gui.Panel{
 		classes = {"hidden"},
 		bgimage = "panels/square.png",
@@ -2233,12 +2260,58 @@ CreateSoundPanel = function()
 		valign = "center",
 	}
 
+	--Playlist transport chips (H-dock). Collapsed by default; UpdateNowPlaying
+	--reveals them only while the hero track is the one a sequential (non-
+	--playTogether) driven playlist is actually advancing (Part 3). Height 14 with
+	--valign=center inside the 18-tall transportRow so they sit flush with the
+	--other transport controls.
+	local shuffleChip = gui.Button{
+		classes = {"sizeXxs", "collapsed"},
+		text = "Shuffle",
+		width = 48,
+		height = 14,
+		hmargin = 2,
+		borderBox = true,
+		valign = "center",
+		press = function(element)
+			local playing = GetPlaylistStateDoc().data.playing
+			if playing == nil then
+				return
+			end
+			local pl = (GetPlaylistsDoc().data.playlists or {})[playing.playlistid]
+			if pl == nil then
+				return
+			end
+			AudioPlaylistSetShuffle(playing.playlistid, not (pl.shuffle == true))
+		end,
+		linger = function(element)
+			gui.Tooltip("Shuffle")(element)
+		end,
+	}
+	local nextChip = gui.Button{
+		classes = {"sizeXxs", "collapsed"},
+		text = "Next",
+		width = 36,
+		height = 14,
+		hmargin = 2,
+		borderBox = true,
+		valign = "center",
+		press = function(element)
+			AudioPlaylistNext()
+		end,
+		linger = function(element)
+			gui.Tooltip("Next track")(element)
+		end,
+	}
+
 	local transportRow = gui.Panel{
 		flow = "horizontal",
 		width = "100%",
 		height = 18,
 		valign = "center",
 		vmargin = 2,
+		shuffleChip,
+		nextChip,
 		stopButton,
 		timeCurrent,
 		progressBar,
@@ -2384,6 +2457,137 @@ CreateSoundPanel = function()
 		},
 	}
 
+	--Pinned-playlists quick row (H-dock): fixed-width segmented buttons for the
+	--first 3 pinned playlists, mirroring the Studio playlist row's play/stop
+	--toggle. This is a 364px dock -- a multi-button row must use fixed widths in
+	--an auto-width halign=center row, never percentages + margins (learned the
+	--hard way sizing the segmented section selector).
+	local pinnedRowSig = nil
+	local pinnedRowButtons = {}
+	local pinnedRow
+	pinnedRow = gui.Panel{
+		classes = {"collapsed"},
+		flow = "horizontal",
+		width = "auto",
+		height = 24,
+		halign = "center",
+		vmargin = 2,
+	}
+
+	--Play/stop toggle shared by the pinned buttons and the overflow context menu:
+	--driving -> stop, otherwise -> play (manual).
+	local function TogglePinnedPlaylist(playlistid)
+		local playing = GetPlaylistStateDoc().data.playing
+		if playing ~= nil and playing.playlistid == playlistid then
+			StopDrivenPlaylist()
+		else
+			AudioPlaylistPlay(playlistid, "manual")
+		end
+	end
+
+	local function CreatePinnedPlaylistButton(playlistid, pl)
+		local btn
+		btn = gui.Button{
+			classes = {"sizeXs"},
+			text = pl.name,
+			width = 100,
+			height = 22,
+			hmargin = 3,
+			borderBox = true,
+			textWrap = false,
+			textOverflow = "ellipsis",
+			press = function(element)
+				TogglePinnedPlaylist(playlistid)
+			end,
+		}
+		return btn
+	end
+
+	--Rebuilds pinnedRow's children ONLY when the ordered pinned-id+name signature
+	--changes (signature-gated rebuild -- house rule). Selected-state (which button
+	--is currently driving) is refreshed every call via SetClass on the SAME button
+	--instances, tracked in pinnedRowButtons, without touching the child list.
+	local function RefreshPinnedRow()
+		local doc = GetPlaylistsDoc()
+		local list = {}
+		for id, pl in pairs(doc.data.playlists or {}) do
+			if pl.pinned == true then
+				list[#list+1] = { id = id, pl = pl }
+			end
+		end
+		table.sort(list, function(a, b)
+			local oa, ob = a.pl.ord or 0, b.pl.ord or 0
+			if oa ~= ob then return oa < ob end
+			return (a.pl.name or "") < (b.pl.name or "")
+		end)
+
+		if #list == 0 then
+			pinnedRow:SetClass("collapsed", true)
+			pinnedRowSig = nil
+			pinnedRowButtons = {}
+			return
+		end
+		pinnedRow:SetClass("collapsed", false)
+
+		local sigParts = {}
+		for i=1,#list do
+			sigParts[#sigParts+1] = list[i].id .. ":" .. list[i].pl.name
+		end
+		local sig = table.concat(sigParts, "|")
+
+		if sig ~= pinnedRowSig then
+			pinnedRowSig = sig
+			local newButtons = {}
+			local children = {}
+			for i=1,math.min(3, #list) do
+				local entry = list[i]
+				local btn = CreatePinnedPlaylistButton(entry.id, entry.pl)
+				newButtons[#newButtons+1] = { id = entry.id, button = btn }
+				children[#children+1] = btn
+			end
+			if #list > 3 then
+				local overflow
+				overflow = gui.Button{
+					classes = {"sizeXs"},
+					text = "...",
+					width = 24,
+					height = 22,
+					hmargin = 3,
+					borderBox = true,
+					linger = function(element)
+						gui.Tooltip("More playlists")(element)
+					end,
+					press = function(element)
+						local entries = {}
+						for i=4,#list do
+							local entry = list[i]
+							entries[#entries+1] = {
+								text = entry.pl.name,
+								click = function()
+									element.popup = nil
+									TogglePinnedPlaylist(entry.id)
+								end,
+							}
+						end
+						element.popup = gui.ContextMenu{
+							width = 180,
+							entries = entries,
+						}
+					end,
+				}
+				children[#children+1] = overflow
+			end
+			pinnedRow.children = children
+			pinnedRowButtons = newButtons
+		end
+
+		local playing = GetPlaylistStateDoc().data.playing
+		local drivingId = playing ~= nil and playing.playlistid or nil
+		for i=1,#pinnedRowButtons do
+			pinnedRowButtons[i].button:SetClass("selected", pinnedRowButtons[i].id == drivingId)
+		end
+	end
+
 	local function UpdateNowPlaying()
 		--Duck state rides the status dot/line (amber dot + "Music ducked for Anthem")
 		--instead of a separate badge, now that the dot already signals play state.
@@ -2472,6 +2676,94 @@ CreateSoundPanel = function()
 			break
 		end
 		stopAllButton:SetClass("hidden", not anyPlaying)
+
+		RefreshPinnedRow()
+
+		--Playlist-driving hero state (H-dock): the pinned row shows PLAYLISTS,
+		--this covers the TRANSPORT chrome layered onto the hero card while a
+		--playlist is actually driving playback.
+		local playing = GetPlaylistStateDoc().data.playing
+		local pl = nil
+		if playing ~= nil then
+			pl = (GetPlaylistsDoc().data.playlists or {})[playing.playlistid]
+		end
+
+		--Defaults: nothing driving (or driving info unresolved) -- hero reads as
+		--a bare manual track, same as before this chunk.
+		heroFromLabel:SetClass("collapsed", true)
+		upNextLabel:SetClass("collapsed", true)
+		shuffleChip:SetClass("collapsed", true)
+		nextChip:SetClass("collapsed", true)
+		progressBar.selfStyle.width = "100%-104"
+
+		if pl ~= nil then
+			--"Following game mode" only has signed copy for the auto-switch case;
+			--manual playlist plays stay silent about their origin. Additionally
+			--gated on the hero card actually SHOWING a track of the driving
+			--playlist (sequential: the driven track; playTogether: any layered
+			--member) -- without that gate the line orphans above the idle CTA
+			--during the play-start race and mislabels the hero while an
+			--ambience-category playlist drives (review finding, 2026-07-03).
+			local heroTrackDriven = false
+			if m_musicId ~= nil then
+				if pl.playTogether then
+					for _,tid in ipairs(pl.tracks) do
+						if tid == m_musicId then
+							heroTrackDriven = true
+							break
+						end
+					end
+				else
+					heroTrackDriven = m_musicId == playing.order[playing.index]
+				end
+			end
+			if heroTrackDriven and playing.startedBy == "gamemode" then
+				heroFromLabel.text = string.format("%s - following game mode", pl.name)
+				heroFromLabel:SetClass("collapsed", false)
+			end
+
+			if pl.playTogether then
+				--Layered mode has no "next" (every track in the playlist plays
+				--at once) and shuffle is meaningless -- no upNext, no chips.
+			else
+				local drivenId = playing.order[playing.index]
+				--Only show transport chrome when the hero card is actually
+				--displaying the driven track. A playlist of ambience-category
+				--clips drives the ambience rows instead, which have no home for
+				--this chrome yet -- accepted gap, not a bug.
+				if m_musicId == drivenId then
+					shuffleChip:SetClass("collapsed", false)
+					shuffleChip:SetClass("selected", pl.shuffle == true)
+					nextChip:SetClass("collapsed", false)
+					progressBar.selfStyle.width = "100%-196"
+
+					local nextid = nil
+					local nextIndex = playing.index + 1
+					if nextIndex <= #playing.order then
+						nextid = playing.order[nextIndex]
+					elseif pl.loop and not pl.shuffle then
+						--Sequential wrap: loop restarts at the top of the order.
+						nextid = playing.order[1]
+					elseif pl.loop and pl.shuffle then
+						--Wrap reshuffles on the fly -- the next track is
+						--genuinely unknown until it happens, so hide upNext
+						--rather than show a guess.
+						nextid = nil
+					else
+						--Not looping: the playlist ends after this track.
+						nextid = nil
+					end
+
+					if nextid ~= nil then
+						local nextAsset = assets.audioTable[nextid]
+						if nextAsset ~= nil then
+							upNextLabel.text = string.format("Up Next: %s", DisplayNameForAsset(nextAsset))
+							upNextLabel:SetClass("collapsed", false)
+						end
+					end
+				end
+			end
+		end
 	end
 
 	--Now-playing section -- replaces the decorative spectrum (brief flagged it as
@@ -2553,8 +2845,14 @@ CreateSoundPanel = function()
 			},
 		},
 
+		--Pinned-playlists quick row (H-dock) -- between status and the hero title,
+		--collapsed entirely when nothing is pinned (RefreshPinnedRow).
+		pinnedRow,
+
 		titleLabel,
 		subtitleLabel,
+		heroFromLabel,
+		upNextLabel,
 		transportRow,
 		musicExtras,
 		--CTA sits in the hero (Music) slot it replaces, ABOVE the ambience header,

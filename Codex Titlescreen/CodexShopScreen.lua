@@ -20,6 +20,25 @@ local function DevSimulateSteamPurchase()
     return dmhub.GetPref("dev:simulateSteamPurchase") == true
 end
 
+--The store background defaults to a looping video (media/shopbg.webm). The MCDM
+--white label instead shows a static branded still (panels/storebg2.png). These
+--helpers keep the choice in one place -- it is used by both the shop screen and
+--its "assets still downloading" loading splash. The video is drawn under a grey
+--multiply tint; the finished still is shown at full brightness (bgcolor white).
+local function StoreBackgroundImage()
+    if dmhub.whiteLabel == "mcdm" then
+        return "panels/storebg2.png"
+    end
+    return "media/shopbg.webm"
+end
+
+local function StoreBackgroundColor()
+    if dmhub.whiteLabel == "mcdm" then
+        return "white"
+    end
+    return "#bbbbbbff"
+end
+
 local fontWeights = {"thin", "extralight", "light", "regular", "medium", "semibold", "bold", "heavy", "black"}
 
 local heightStretch = 175
@@ -61,6 +80,10 @@ local shopStyles = {
 	},
 	{
 		selectors = {"collapsedWhenInventory", "inventory"},
+		collapsed = 1,
+	},
+	{
+		selectors = {"collapsedWhenRedeeming", "redeemingCoupon"},
 		collapsed = 1,
 	},
 	{
@@ -346,7 +369,7 @@ local shopStyles = {
 
 		width = "100%",
 		height = "auto",
-		maxHeight = 70,
+		maxHeight = 30,
 		textOverflow = "ellipsis",
 		fontSize = 12,
 		vmargin = 10,
@@ -419,8 +442,9 @@ local shopStyles = {
 		valign = "center",
 
 		flow = "vertical",
+		--Exactly image area (180 + heightStretch) + 21 text tmargin + 160 text.
 		width = 320,
-		height = 420 + heightStretch,
+		height = 361 + heightStretch,
 		hmargin = 30,
 	},
 
@@ -442,7 +466,7 @@ local shopStyles = {
 
 		flow = "vertical",
 		width = 320,
-		height = 220,
+		height = 160,
 		halign = "left",
 	},
 
@@ -581,10 +605,14 @@ local g_supportsSpinAxis = true
 ShopDiceBannerArtWidth = 1232
 ShopDiceBannerArtHeight = 706
 
---On-screen banner size, in solid pixels. Width matches a row of 3 shop items
---(320*3 + 60*2 gaps); height preserves the art's native aspect so the full
+--On-screen banner size, in solid pixels. Width matches the VISIBLE outer
+--edges of a row of 3 shop items: the item slots span 1080 (320*3 + 60*2 gaps),
+--but each card's shopbg.png frame art bleeds past its slot (the 520-wide
+--padded shopItemBackground stretches the 473px-wide art, whose solid region
+--runs from x=73 to x=392), so the perceived row edges sit ~16px outside the
+--slots on each side. Height preserves the art's native aspect so the full
 --image is shown uncropped.
-local g_bannerDisplayWidth = 1080
+local g_bannerDisplayWidth = 1112
 local g_bannerDisplayHeight = math.floor(g_bannerDisplayWidth * ShopDiceBannerArtHeight / ShopDiceBannerArtWidth)
 
 --The banner die is rendered into the shared "#DicePreview" RT at 1/g_bannerDieRtZoom
@@ -1075,7 +1103,7 @@ local MakeDiceBanner = function(opts)
 		--views. The passive admin-preview and details-showcase banners manage
 		--their own visibility, so they skip these classes (otherwise the details
 		--banner would vanish when viewing a dice item from the inventory).
-		classes = cond(opts.adminPreview or opts.detailsMode, {}, {"collapseOnCart", "collapsedWhenInventory", "collapsedWhenArtistFocus"}),
+		classes = cond(opts.adminPreview or opts.detailsMode, {}, {"collapseOnCart", "collapsedWhenInventory", "collapsedWhenArtistFocus", "collapsedWhenRedeeming"}),
 		width = bannerWidth,
 		--Solid pixel height matching the 1232x706 art aspect, so the full image
 		--shows uncropped. ApplyConfig sets the background image / transparency.
@@ -1156,8 +1184,8 @@ local MakeDiceBanner = function(opts)
 				return
 			end
 
-			--Carousel up to three random featured dice; the dots in the
-			--bottom-right corner switch between them.
+			--Carousel up to three random featured dice; the dots below the
+			--banner's bottom-left corner switch between them.
 			m_featuredItems = SelectFeaturedDice()
 
 			--Fallback when nothing is flagged featured: show the first dice
@@ -1243,9 +1271,9 @@ local MakeDiceBanner = function(opts)
 				return
 			end
 
-			--Cart/inventory views hide the top featured banner; the details
+			--Cart/inventory/redeem views hide the top featured banner; the details
 			--showcase still drives the scene in those views.
-			if not opts.detailsMode and (element:HasClass("showingCart") or element:HasClass("inventory")) then
+			if not opts.detailsMode and (element:HasClass("showingCart") or element:HasClass("inventory") or element:HasClass("redeemingCoupon")) then
 				return
 			end
 
@@ -1400,32 +1428,34 @@ local MakeDiceBanner = function(opts)
 			},
 		},
 
-		--Carousel dots tucked into the very bottom-right corner: one per featured
-		--dice set, with the currently shown one lit. Clicking a dot cross-fades
-		--to that set. Built by buildFeaturedDots (fired once the featured set is
-		--chosen); stays empty in the admin preview / details showcase.
+		--Carousel dots: one per featured dice set, with the currently shown one
+		--lit. Clicking a dot cross-fades to that set. Floated below the banner
+		--image at its left edge, vertically centered on the search-bar row that
+		--occupies the gap under the banner (11px gap + 24px input, so y = 23 + 8
+		--half-height of the 16px dots). Built by buildFeaturedDots (fired once
+		--the featured set is chosen); stays empty in the admin preview / details
+		--showcase.
 		gui.Panel{
 			floating = true,
 			flow = "horizontal",
-			halign = "right",
+			halign = "left",
 			valign = "bottom",
 			width = "auto",
 			height = "auto",
-			hmargin = 6,
-			vmargin = 5,
+			hmargin = 0,
+			vmargin = 0,
+			y = 31,
 
 			styles = {
 				{
 					selectors = {"featuredDot"},
 					bgimage = "panels/square.png",
-					width = 16,
-					height = 16,
+					width = 12,
+					height = 12,
 					cornerRadius = 8,
 					hmargin = 5,
 					valign = "center",
 					bgcolor = "#ffffff66",
-					borderWidth = 1,
-					borderColor = "#00000080",
 					transitionTime = 0.1,
 				},
 				{
@@ -1505,6 +1535,11 @@ local MakeShopImageDisplay = function(options)
 	local footer = options.footer
 	options.footer = nil
 
+	--Grid cards bleed the dice preview out to the visible edges of the card
+	--frame art so there is no grey border beside or above the image.
+	local fullBleed = options.fullBleed
+	options.fullBleed = nil
+
 	g_dicePreviewSeq = g_dicePreviewSeq + 1
 	local mySeq = g_dicePreviewSeq
 
@@ -1571,6 +1606,21 @@ local MakeShopImageDisplay = function(options)
 			local tileW = 325*uiscale
 			local tileH = (180 + heightStretch)*uiscale
 
+			--Full bleed: cover the visible card frame flush to its side and top
+			--edges instead of sitting inside it. The solid region of shopbg.png
+			--is 352px wide as drawn by the padded shopItemBackground (320px of
+			--the 473px art, stretched by 520/473) and starts 8px above the item
+			--panel's top (see the vpad tuning there), so scale the tile up
+			--proportionally (keeping its aspect) and nudge it up to meet the
+			--frame's top edge.
+			local tileY = 0
+			if fullBleed then
+				local bleedScale = 352/325
+				tileW = tileW * bleedScale
+				tileH = tileH * bleedScale
+				tileY = -8*uiscale
+			end
+
 			--Banner-space dimensions the die position (dieX/dieY) is relative to.
 			local bannerW = g_bannerDisplayWidth
 			local bannerH = g_bannerDisplayHeight
@@ -1586,25 +1636,50 @@ local MakeShopImageDisplay = function(options)
 			local clipChildren = {}
 
 			--The background and foreground art share the banner's full-image
-			--coordinate space: each is oversized and offset by the same amount so the
-			--die point (dieX,dieY) lands at the tile center; the clip window crops the
-			--rest. (The banner draws background behind the die and foreground -- e.g.
-			--hands holding the die -- in front of it.)
+			--coordinate space: each is conceptually scaled to scaledW x scaledH and
+			--offset by the same amount so the die point (dieX,dieY) lands at the
+			--tile center. (The banner draws background behind the die and
+			--foreground -- e.g. hands holding the die -- in front of it.)
+			--
+			--IMPORTANT: the layers must NOT be built as oversized panels that get
+			--visually clipped: a panel's bounding box takes mouse hits even where
+			--it is clipped, so oversized layers made each tile steal presses from
+			--a huge area of the screen (e.g. the search box and the gaps between
+			--cards, opening the wrong item's details). Instead each layer panel is
+			--exactly the visible intersection with the tile, with the crop done in
+			--UV space via imageRect. Returns nil if the layer is entirely cropped.
 			local layerX = math.floor(tileW*0.5 - cfg.dieX*scaledW)
 			local layerY = math.floor(tileH*0.5 - cfg.dieY*scaledH)
-			local function MakeBannerLayer(image)
+			local function MakeCroppedLayer(image, w, h, offsetX, offsetY)
+				local x1 = math.max(0, offsetX)
+				local y1 = math.max(0, offsetY)
+				local x2 = math.min(tileW, offsetX + w)
+				local y2 = math.min(tileH, offsetY + h)
+				if x2 <= x1 or y2 <= y1 then
+					return nil
+				end
+
 				return gui.Panel{
 					interactable = false,
 					floating = true,
 					bgimage = image,
 					bgcolor = "white",
-					width = scaledW,
-					height = scaledH,
+					width = x2 - x1,
+					height = y2 - y1,
 					halign = "left",
 					valign = "top",
-					x = layerX,
-					y = layerY,
+					x = x1,
+					y = y1,
+					imageRect = {
+						x1 = (x1 - offsetX)/w,
+						y1 = (y1 - offsetY)/h,
+						x2 = (x2 - offsetX)/w,
+						y2 = (y2 - offsetY)/h,
+					},
 				}
+			end
+			local function MakeBannerLayer(image)
+				return MakeCroppedLayer(image, scaledW, scaledH, layerX, layerY)
 			end
 
 			--Chosen background art (behind the die).
@@ -1614,19 +1689,14 @@ local MakeShopImageDisplay = function(options)
 
 			--The live die. The preview RT is transparent outside the die, so the
 			--panel is oversized (dieZoom) to bring the die up close; the empty
-			--margin simply overflows and is clipped. Lower = more space around the die.
+			--margin is cropped away by MakeCroppedLayer just like the art layers.
+			--Lower = more space around the die.
 			local dieZoom = 1.5
 			local dieSize = math.floor(tileH * dieZoom)
-			clipChildren[#clipChildren+1] = gui.Panel{
-				interactable = false,
-				floating = true,
-				bgimage = "#DicePreview:" .. tostring(item.assetid) .. ":" .. tostring(mySeq),
-				bgcolor = "white",
-				width = dieSize,
-				height = dieSize,
-				halign = "center",
-				valign = "center",
-			}
+			clipChildren[#clipChildren+1] = MakeCroppedLayer(
+				"#DicePreview:" .. tostring(item.assetid) .. ":" .. tostring(mySeq),
+				dieSize, dieSize,
+				math.floor((tileW - dieSize)/2), math.floor((tileH - dieSize)/2))
 
 			--Chosen foreground art (in front of the die), added last so it draws on
 			--top -- matching the details banner's frontPanel.
@@ -1643,7 +1713,8 @@ local MakeShopImageDisplay = function(options)
 					bgimage = "panels/square.png",
 					bgcolor = "clear",
 					halign = "center",
-					valign = "center",
+					valign = cond(fullBleed, "top", "center"),
+					y = tileY,
 					width = tileW,
 					height = tileH,
 					children = clipChildren,
@@ -1853,12 +1924,24 @@ local MakeShopItem = function()
 			interactable = false,
 			floating = true,
 			hpad = 100,
-			vpad = 250,
+			--vpad stretches shopbg.png's solid card region (y=93..337 of the
+			--431-tall art) so its top edge lands 8px above the item panel
+			--(where the fullBleed dice tile is anchored) and its bottom edge
+			--~6px below it. Change the item height and this needs retuning.
+			vpad = 218,
+			--shopbg.png's solid card region sits 4px left of its canvas center
+			--(solid x=73..392 in the 473-wide art); nudge right so the visible
+			--frame is centered on the item slot and the row's outer edges line
+			--up with the featured banner (see g_bannerDisplayWidth).
+			x = 4,
 		},
 
-		MakeShopImageDisplay(),
+		MakeShopImageDisplay{ fullBleed = true },
 
-		MakeShopItemText(),
+		--The fullBleed tile above draws ~21px below its 355px layout slot
+		--(scaled to 384px, anchored 8px up), so push the text block down to
+		--restore the original ~8px gap between the image and the title.
+		MakeShopItemText{ tmargin = 21 },
 
 	}
 end
@@ -2954,8 +3037,8 @@ local function CreateShopScreenInternal(arguments)
 				valign = "top",
 				width = "100%",
 				height = "100%",
-				bgimage = "media/shopbg.webm",
-				bgcolor = "#bbbbbbff",
+				bgimage = StoreBackgroundImage(),
+				bgcolor = StoreBackgroundColor(),
 			},
 
 
@@ -3526,6 +3609,80 @@ local function CreateShopScreenInternal(arguments)
 					end,
 				},
 
+				--Search bar row: occupies the gap between the featured banner and
+				--the product grid, right-aligned so the search box's right edge
+				--lines up with the banner's right edge. Hidden (keeping the gap)
+				--while viewing the cart or a single product's details.
+				--The gap below the box is provided by the grid row's own 30px
+				--vmargin minus the 8px the card frame art rises above the items
+				--(22px effective); the -11 bmargin pulls the grid up to make it
+				--~11px, matching the 11px tmargin so spacing is even on both
+				--sides. The featured-carousel dots float into this row's band at
+				--the banner's left edge (see the dots panel in MakeDiceBanner).
+				gui.Panel{
+					width = g_bannerDisplayWidth,
+					height = "auto",
+					halign = "center",
+					tmargin = 11,
+					bmargin = -11,
+
+					styles = {
+						{
+							selectors = {"showingCart"},
+							hidden = 1,
+						},
+						{
+							selectors = {"viewingItem"},
+							hidden = 1,
+						},
+						{
+							selectors = {"redeemingCoupon"},
+							hidden = 1,
+						},
+					},
+
+					showProductDetails = function(element)
+						element:SetClass("viewingItem", true)
+					end,
+
+					showProducts = function(element)
+						element:SetClass("viewingItem", false)
+					end,
+
+					gui.Input{
+						placeholderText = "Search",
+						halign = "right",
+						editlag = 0.2,
+						--Wipe the typed text without re-running the search; the
+						--caller resets the results itself (see the redeem toggle).
+						clearSearch = function(element)
+							element.text = ""
+						end,
+						edit = function(element)
+							element:FireEvent("change")
+						end,
+						change = function(element)
+							element:FireEventOnParents("showProductsPage")
+							ExecuteSearch(element.text)
+
+							analytics.Event{
+								type = "shopSearch",
+							}
+
+						end,
+
+						gui.Panel{
+							halign = "left",
+							x = -22,
+							y = 4,
+							width = 16,
+							height = 16,
+							bgcolor = "white",
+							bgimage = "icons/icon_tool/icon_tool_42.png",
+						},
+					},
+				},
+
 				--main lower panel. Height is auto while browsing the grid (so the
 				--product rows scroll normally), but fills the screen while viewing a
 				--single product's details, so the floated details panel can center
@@ -3561,68 +3718,6 @@ local function CreateShopScreenInternal(arguments)
 					showProducts = function(element)
 						element:SetClass("viewingDetails", false)
 					end,
-
-					gui.Panel{
-						floating = true,
-						halign = "left",
-						valign = "top",
-						flow = "vertical",
-						width = 400,
-						height = 200,
-						floating = true,
-						vmargin = 20,
-						hmargin = 20,
-
-
-
-						styles = {
-							{
-								selectors = {"showingCart"},
-								hidden = 1,
-							},
-							{
-								selectors = {"viewingItem"},
-								hidden = 1,
-							},
-						},
-
-						--Hide the search box while a single item's details
-						--are showing; restore it on the product list.
-						showProductDetails = function(element)
-							element:SetClass("viewingItem", true)
-						end,
-
-						showProducts = function(element)
-							element:SetClass("viewingItem", false)
-						end,
-
-						gui.Input{
-							placeholderText = "Search",
-							editlag = 0.2,
-							edit = function(element)
-								element:FireEvent("change")
-							end,
-							change = function(element)
-								element:FireEventOnParents("showProductsPage")
-								ExecuteSearch(element.text)
-
-								analytics.Event{
-									type = "shopSearch",
-								}
-
-							end,
-
-							gui.Panel{
-								halign = "left",
-								x = -22,
-								y = 4,
-								width = 16,
-								height = 16,
-								bgcolor = "white",
-								bgimage = "icons/icon_tool/icon_tool_42.png",
-							},
-						},
-					},
 
 					ShowItemDetailsPanel(),
 
@@ -4116,19 +4211,58 @@ local function CreateShopScreenInternal(arguments)
 
 			},
 
-			--shopping cart etc.
+			--shopping cart etc. "Redeem a Gift Code" rides in the same top-right
+			--cluster, to the left of the cart icon. collapseOnNoCommerce lives on
+			--the cart group only (not the whole cluster) so redeeming codes stays
+			--available when the commerce UI is hidden.
+			--vmargin centers the 32px row on the close button's line (the X is
+			--24px at margin 6, center y 18, so 18 - 32/2 = 2).
 			gui.Panel{
-				classes = {"collapseOnNoCommerce"},
 				floating = true,
 				halign = "right",
 				valign = "top",
-				hmargin = 32,
-				vmargin = 16,
+				hmargin = 10,
+				vmargin = 2,
 				width = "auto",
 				height = "auto",
 				flow = "horizontal",
 
+				--redeem code.
+				gui.Label{
+					bgcolor = "clear",
+					width = "auto",
+					height = "auto",
+					fontSize = 18,
+					valign = "center",
+					rmargin = 16,
+					text = "Redeem a Gift Code",
+					fontWeight = "bold",
+
+					styles = {
+						{
+							selectors = {"hover"},
+							color = "#ffffff",
+						},
+					},
+
+					press = function(element)
+						if element:HasClass("redeemingCoupon") then
+							resultPanel:SetClassTree("redeemingCoupon", false)
+						else
+							resultPanel:SetClassTree("showingCouponInventory", false)
+							resultPanel:SetClassTree("redeemingCoupon", true)
+							resultPanel:FireEventTree("redeemcoupons")
+
+							--Entering redeem mode resets any in-progress search so
+							--the full grid is back when the user returns to it.
+							resultPanel:FireEventTree("clearSearch")
+							ExecuteSearch("")
+						end
+					end,
+				},
+
 				gui.Panel{
+					classes = {"collapseOnNoCommerce"},
 					flow = "horizontal",
 					width = "auto",
 					height = "auto",
@@ -4143,15 +4277,17 @@ local function CreateShopScreenInternal(arguments)
 						bgcolor = "white",
 						width = 32,
 						height = 32,
+						--The cart icon art is pure white, so hover/add feedback
+						--tints it gold (brightness can't lift white any further).
 						styles = {
 							{
 								selectors = {"add"},
 								transitionTime = 0.3,
-								brightness = 1.4,
+								bgcolor = "#f6ddb6",
 							},
 							{
 								selectors = {"hover"},
-								brightness = 1.4,
+								bgcolor = "#f6ddb6",
 							},
 						},
 
@@ -4205,12 +4341,6 @@ local function CreateShopScreenInternal(arguments)
 						end,
 					},
 				},
-
-				gui.Panel{
-					--padding
-					width = 16,
-					height = 1,
-				},
 			},
 
 			--close button in top left.
@@ -4224,13 +4354,15 @@ local function CreateShopScreenInternal(arguments)
 			},
 
 
-			--inventory in top left
+			--inventory in top left. vmargin picked so the 18px labels (~24px
+			--tall) center on the close button's line (the X is 24px at margin 6,
+			--center y 18), which the top-right cart/redeem row also aligns to.
 			gui.Panel{
 				floating = true,
 				halign = "left",
 				valign = "top",
 				hmargin = 96,
-				vmargin = 24,
+				vmargin = 6,
 				width = "auto",
 				height = "auto",
 				flow = "vertical",
@@ -4285,34 +4417,6 @@ local function CreateShopScreenInternal(arguments)
 
 					press = function(element)
 						resultPanel:FireEvent("hideInventory")
-					end,
-				},
-
-				--redeem code.
-				gui.Label{
-					bgcolor = "clear",
-					width = "auto",
-					height = "auto",
-					fontSize = 18,
-					vmargin = 12,
-					text = "Redeem a Gift Code",
-					fontWeight = "bold",
-
-					styles = {
-						{
-							selectors = {"hover"},
-							color = "#ffffff",
-						},
-					},
-
-					press = function(element)
-						if element:HasClass("redeemingCoupon") then
-							resultPanel:SetClassTree("redeemingCoupon", false)
-						else
-							resultPanel:SetClassTree("showingCouponInventory", false)
-							resultPanel:SetClassTree("redeemingCoupon", true)
-							resultPanel:FireEventTree("redeemcoupons")
-						end
 					end,
 				},
 
@@ -4386,8 +4490,8 @@ function CreateShopScreen(arguments)
 							valign = "top",
 							width = "100%",
 							height = "100%",
-							bgimage = "media/shopbg.webm",
-							bgcolor = "#bbbbbbff",
+							bgimage = StoreBackgroundImage(),
+							bgcolor = StoreBackgroundColor(),
 							gui.LoadingIndicator{},
 
 							gui.CloseButton{

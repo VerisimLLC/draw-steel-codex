@@ -3,6 +3,16 @@ local mod = dmhub.GetModLoading()
 --Register Audio Mod
 audio.RegisterAudioMod(mod)
 
+--Local (this-client-only) mute. Read per-frame by the engine (AudioController
+--folds it into globalSliderVolume); driven by the player-facing mute buttons
+--in the Audio dock panel and the top-bar mini mixer. Distinct from audio.muted,
+--which is the GAME-WIDE mute synced to every client.
+setting{
+    id = "localmuted",
+    default = false,
+    storage = "preference",
+}
+
 --Mix Groups
 
 --Parent bus for the app's own feedback SFX (UI clicks, dice, gameplay, damage).

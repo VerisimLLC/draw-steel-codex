@@ -1313,14 +1313,48 @@ end
 local function CreateAudioIndicator()
     local resultPanel
 
+    --Safe read of the "localmuted" setting. It is registered by a game mod
+    --(AudioMain.lua), so at the title screen and during the mid-Lua-reload
+    --teardown window the id does not exist -- GetSettingValue on a missing id
+    --both logs "Could not find setting" and throws a native NRE (seen once
+    --per boot, 2026-07-03). HasSetting is the non-logging existence probe.
+    local function IsLocalMuted()
+        return dmhub.HasSetting("localmuted") and dmhub.GetSettingValue("localmuted") == true
+    end
+
     local function ComputeState()
-        if audio.muted then
-            return "muted"
+        --The engine audio system (and the GameController backing audio.muted)
+        --is not initialized during the title screen / early game load, where
+        --this think already runs. MERELY TOUCHING audio.muted or
+        --audio.currentlyPlaying there raises a native NullReference that the
+        --engine logs/reports even when Lua pcall catches it (player-window
+        --error dialog, 2026-07-03) -- so gate on the Audio.lua export, which
+        --only exists once the game's audio mods are loaded, and do not call
+        --into audio.* at all before then. The pcall stays as a second line of
+        --defense for reload teardown windows.
+        if rawget(_G, "g_drawSteelAudioBar") == nil then
+            return "idle"
         end
-        for _,_ in pairs(audio.currentlyPlaying) do
-            return "playing"
+        local ok, state = pcall(function()
+            if audio.muted or IsLocalMuted() then
+                return "muted"
+            end
+            for _,_ in pairs(audio.currentlyPlaying) do
+                return "playing"
+            end
+            return "idle"
+        end)
+        if not ok then
+            return "idle"
         end
-        return "idle"
+        return state
+    end
+
+    --Muted from this client's perspective: its own local mute, or the game-wide
+    --mute. Used for glyph/toggle display state; which layer the TOGGLE writes is
+    --role-branched at the press site.
+    local function IsClientMuted()
+        return audio.muted or IsLocalMuted()
     end
 
     local function BuildPopover()
@@ -1341,15 +1375,23 @@ local function CreateAudioIndicator()
             valign = "center",
             hmargin = 4,
             press = function(element)
-                audio.muted = not audio.muted
-                audio.UploadMuted()
+                if dmhub.isDM then
+                    --DM keeps the game-wide mute (mutes the whole table).
+                    audio.muted = not audio.muted
+                    audio.UploadMuted()
+                else
+                    --Players get the local mute only.
+                    dmhub.SetSettingValue("localmuted", not IsLocalMuted())
+                end
                 -- The bar glyph self-heals on its 0.5s think, but this copy
                 -- lives in a snapshot popover -- swap it now or it reads
                 -- stale until the popover is reopened.
-                element:SetClass("muted", audio.muted)
+                element:SetClass("muted", IsClientMuted())
             end,
+            --Tooltip matches what the toggle WRITES per role: the DM's mute is
+            --game-wide (see press above), the player's is local-only.
             linger = function(element)
-                gui.Tooltip("Mute")(element)
+                gui.Tooltip(dmhub.isDM and "Mute for everyone" or "Mute")(element)
             end,
             styles = {
                 { bgimage = "ui-icons/AudioVolumeButton.png" },
@@ -1357,17 +1399,26 @@ local function CreateAudioIndicator()
                 { selectors = {"hover"}, brightness = 2 },
             },
             create = function(element)
-                element:SetClass("muted", audio.muted)
+                element:SetClass("muted", IsClientMuted())
             end,
         }
-        muteToggle:SetClass("muted", audio.muted)
+        muteToggle:SetClass("muted", IsClientMuted())
 
         -- Mute rides the RIGHT end of the Master row (its own row read as
         -- orphaned chrome -- James field report, 2026-07-03). Master keeps the
         -- left slot so its slider stays column-aligned with the Levels sliders
         -- below; MakeFaderRow hardcodes width 100%, so the fader row is
         -- narrowed post-construction to make room for the toggle.
-        local masterFaderRow = bar.MakeFaderRow("Master", bar.MakeMasterFader(), false)
+        --DM: the game-wide master (caps everyone). Players: the local per-user
+        --master -- the same "volume" setting as Settings->Audio's Master Volume.
+        local masterSlider
+        if dmhub.isDM or bar.MakePersonalFader == nil then
+            --Fallback for a stale export during partial reloads.
+            masterSlider = bar.MakeMasterFader()
+        else
+            masterSlider = bar.MakePersonalFader("volume")
+        end
+        local masterFaderRow = bar.MakeFaderRow("Master", masterSlider, false)
         masterFaderRow.selfStyle.width = "100%-26"
         local masterRow = gui.Panel{
             flow = "horizontal",

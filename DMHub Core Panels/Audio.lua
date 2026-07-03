@@ -201,6 +201,45 @@ local function MakeFaderRow(labelText, slider, dimmed)
 	}
 end
 
+--Personal volume fader for a non-DM client (chunk I). Shaped exactly like
+--MakeMasterFader, but the backing store is a per-user local engine setting
+--instead of audio.masterVolume -- this is the player's own mix, never written
+--to any shared doc (that would make it a broadcast control, which is the
+--DM-only Levels section's job). Used both for the per-category volume_*
+--settings and for the local master ("volume", the same setting backing
+--Settings->Audio's "Master Volume" slider). The setting is on a 0-100 scale
+--(verified live via dmhub.GetSettingValue), while gui.Slider works in 0..1.
+local function MakePersonalFader(settingid)
+	return gui.Slider{
+		style = {
+			width = 170,
+			height = 16,
+			valign = "center",
+		},
+
+		sliderWidth = 150,
+		labelWidth = 30,
+		labelFormat = "percent",
+
+		minValue = 0,
+		maxValue = 1,
+
+		value = (dmhub.GetSettingValue(settingid) or 100) / 100,
+
+		preview = function(element)
+			dmhub.SetSettingValue(settingid, element.value * 100)
+		end,
+
+		confirm = function(element)
+			dmhub.SetSettingValue(settingid, element.value * 100)
+		end,
+
+		refreshPlayingAudio = function(element)
+			element.value = (dmhub.GetSettingValue(settingid) or 100) / 100
+		end,
+	}
+end
+
 local function track(eventType, fields)
 	if dmhub.GetSettingValue("telemetry_enabled") == false then
 		return
@@ -218,7 +257,6 @@ DockablePanel.Register{
 	name = "Audio",
 	icon = "icons/standard/Icon_App_Audio.png",
 	vscroll = false,
-    dmonly = true,
 	minHeight = 470,
 	maxHeight = 470,
 	content = function()
@@ -889,6 +927,7 @@ end
 g_drawSteelAudioBar = {
 	StopAll = StopAllBroadcastAudio,
 	MakeMasterFader = MakeMasterFader,
+	MakePersonalFader = MakePersonalFader,
 	MakeBroadcastFader = MakeBroadcastFader,
 	MakeFaderRow = MakeFaderRow,
 	--Display name of the "lead" broadcasting track for compact readouts:
@@ -2099,10 +2138,385 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 	return button
 end
 
+--Name-only extra-track row for the player panel (chunk I). Unlike the DM's
+--CreateExtraTrackRow, players get no per-track stop control -- they are not
+--broadcasting, just observing what the DM plays. A gui element has one
+--parent, so this factory is called fresh for every row rather than reusing
+--a shared instance.
+local function CreatePlayerExtraTrackRow(id, asset)
+	return gui.Panel{
+		flow = "horizontal",
+		width = "100%-10",
+		height = 16,
+		vmargin = 1,
+		lmargin = 10,
+		gui.Label{
+			classes = {"sizeXs"},
+			text = DisplayNameForAsset(asset),
+			width = "100%",
+			height = "auto",
+			textWrap = false,
+			textOverflow = "ellipsis",
+		},
+	}
+end
+
+--Player-facing Audio dock panel (chunk I). Read-only now-playing (what the DM
+--is broadcasting) plus the player's own personal volume faders -- no Studio
+--button, no stop-all, no per-track stop, no playlist transport chrome. None
+--of this writes the shared broadcast doc; it only reads audio.currentlyPlaying
+--(already synced to this client by SyncBroadcastLevelsToEngine/AudioMixBroadcast)
+--and writes the player's own volume_* settings.
+local function CreatePlayerSoundPanel()
+	--Safe read of the "localmuted" setting (registered in AudioMain.lua):
+	--during the mid-Lua-reload teardown window the id can be briefly missing,
+	--and GetSettingValue on a missing id logs + throws a native NRE. HasSetting
+	--is the non-logging existence probe (same guard as the top-bar glyph).
+	local function IsLocalMuted()
+		return dmhub.HasSetting("localmuted") and dmhub.GetSettingValue("localmuted") == true
+	end
+
+	local statusDot = gui.Panel{
+		classes = {"npStatusDot"},
+		bgimage = "panels/square.png",
+		width = 8,
+		height = 8,
+		cornerRadius = 4,
+		valign = "center",
+		hmargin = 4,
+	}
+	local statusLabel = gui.Label{
+		classes = {"sizeXxs", "fgMuted"},
+		text = "Nothing playing",
+		--Only the dot and mute button share this row (no Studio/stop-all
+		--buttons for players), so the width budget is smaller than the DM's.
+		width = "100%-40",
+		height = "auto",
+		halign = "left",
+		valign = "center",
+	}
+	local muteButton = gui.Panel{
+		bgcolor = "white",
+		width = 18,
+		height = 18,
+		halign = "right",
+		valign = "center",
+		hmargin = 4,
+		--Local mute only -- audio.muted is game-wide and stays a DM control.
+		press = function(element)
+			dmhub.SetSettingValue("localmuted", not IsLocalMuted())
+		end,
+		linger = function(element)
+			gui.Tooltip("Mute")(element)
+		end,
+		styles = {
+			{ bgimage = "ui-icons/AudioVolumeButton.png" },
+			{ selectors = {"muted"}, bgimage = "ui-icons/AudioMuteButton.png" },
+			{ selectors = {"hover"}, brightness = 2 },
+		},
+	}
+
+	local titleLabel = gui.Label{
+		classes = {"sizeL", "bold"},
+		text = "Nothing playing",
+		width = "100%-8",
+		height = "auto",
+		halign = "left",
+		valign = "center",
+		hmargin = 4,
+		textWrap = false,
+		textOverflow = "ellipsis",
+	}
+	local subtitleLabel = gui.Label{
+		classes = {"sizeXs", "fgMuted"},
+		text = "Music",
+		width = "100%-8",
+		height = "auto",
+		halign = "left",
+		valign = "center",
+		hmargin = 4,
+	}
+
+	local timeCurrent = gui.Label{
+		classes = {"sizeXxs", "fgMuted"},
+		text = "",
+		width = 32,
+		height = "auto",
+		halign = "right",
+		valign = "center",
+		textAlignment = "right",
+	}
+	local progressFill = gui.Panel{
+		classes = {"bgAccent"},
+		bgimage = "panels/square.png",
+		width = "0%",
+		height = "100%",
+		halign = "left",
+		valign = "center",
+	}
+	local progressBar = gui.Panel{
+		classes = {"bgAlt"},
+		bgimage = "panels/square.png",
+		width = "100%-76",
+		height = 5,
+		valign = "center",
+		hmargin = 6,
+		cornerRadius = 2.5,
+		borderBox = true,
+		progressFill,
+	}
+	local timeTotal = gui.Label{
+		classes = {"sizeXxs", "fgMuted"},
+		text = "",
+		width = 32,
+		height = "auto",
+		halign = "left",
+		valign = "center",
+	}
+	--No stop button, no shuffle/next chips -- players cannot drive playback.
+	local progressRow = gui.Panel{
+		flow = "horizontal",
+		width = "100%",
+		height = 18,
+		vmargin = 2,
+		timeCurrent,
+		progressBar,
+		timeTotal,
+	}
+
+	local musicExtrasSig = nil
+	local musicExtras = gui.Panel{
+		flow = "vertical",
+		width = "100%",
+		height = "auto",
+	}
+	local ambienceRowsSig = nil
+	local ambienceRows = gui.Panel{
+		flow = "vertical",
+		width = "100%",
+		height = "auto",
+	}
+
+	--Rebuild a row container's children only when the ordered id signature
+	--changes. Same shape as the DM's RefreshExtrasContainer, but that helper
+	--is hardcoded to call the DM's CreateExtraTrackRow (which bakes in a stop
+	--button players must not get), so this is a small local equivalent that
+	--calls CreatePlayerExtraTrackRow instead.
+	local function RefreshPlayerExtrasContainer(container, extras, lastSig)
+		local ids = {}
+		for i=1,#extras do
+			ids[#ids+1] = extras[i].id
+		end
+		local sig = table.concat(ids, "|")
+		if sig == lastSig then
+			return sig
+		end
+		local rows = {}
+		for i=1,#extras do
+			rows[#rows+1] = CreatePlayerExtraTrackRow(extras[i].id, extras[i].asset)
+		end
+		container.children = rows
+		return sig
+	end
+
+	local ambienceHeader = gui.Label{
+		classes = {"sizeXs", "fgMuted"},
+		text = "Ambience",
+		width = "100%-8",
+		height = "auto",
+		halign = "left",
+		valign = "center",
+		hmargin = 4,
+	}
+	local ambienceIdleLabel = gui.Label{
+		classes = {"sizeXs", "fgMuted"},
+		text = "Silent",
+		width = "100%-10",
+		height = "auto",
+		halign = "left",
+		valign = "center",
+		lmargin = 10,
+	}
+
+	--Mirrors the DM's UpdateNowPlaying, reduced to what a player sees: no
+	--stop-all, no pinned playlists, no playlist transport chrome, and the
+	--"Playing" status copy is player-facing (the DM's card says "Playing to
+	--your table", which does not make sense from the listening side).
+	local function UpdatePlayerNowPlaying()
+		local anthemState = rawget(_G, "g_drawSteelAnthemState")
+		local ducked = anthemState ~= nil and anthemState.duckActive == true
+
+		PrunePlayOrder()
+
+		local musicList = PlayingTracksForCategory("music")
+		local mid, ma = nil, nil
+		local musicExtrasList = {}
+		if #musicList > 0 then
+			mid, ma = musicList[#musicList].id, musicList[#musicList].asset
+			for i=1,#musicList-1 do
+				musicExtrasList[#musicExtrasList+1] = musicList[i]
+			end
+		end
+
+		if ma ~= nil then
+			local ev = audio.currentlyPlaying[mid]
+			local t = (ev ~= nil and ev.time) or 0
+			local dur = ma.duration or 0
+			statusDot:SetClass("playing", not ducked)
+			statusDot:SetClass("ducked", ducked)
+			statusLabel.text = ducked and "Music ducked for Anthem" or "Playing"
+			titleLabel.text = DisplayNameForAsset(ma)
+			titleLabel:SetClass("fgMuted", false)
+			timeCurrent.text = FormatTime(t, dur)
+			timeTotal.text = FormatTime(dur, dur)
+			progressFill.selfStyle.width = (dur > 0) and string.format("%f%%", math.min(100, (100*t)/dur)) or "0%"
+			progressRow:SetClass("collapsed", false)
+		else
+			statusDot:SetClass("playing", false)
+			statusDot:SetClass("ducked", false)
+			statusLabel.text = "Nothing playing"
+			titleLabel.text = "Silent"
+			titleLabel:SetClass("fgMuted", true)
+			timeCurrent.text = ""
+			timeTotal.text = ""
+			progressFill.selfStyle.width = "0%"
+			progressRow:SetClass("collapsed", true)
+		end
+		musicExtrasSig = RefreshPlayerExtrasContainer(musicExtras, musicExtrasList, musicExtrasSig)
+
+		local ambienceList = PlayingTracksForCategory("ambience")
+		local ambiencePlaying = #ambienceList > 0
+		ambienceRowsSig = RefreshPlayerExtrasContainer(ambienceRows, ambienceList, ambienceRowsSig)
+		ambienceIdleLabel:SetClass("hidden", ambiencePlaying)
+
+		--Show muted whenever THIS client is silent: their own local mute or the
+		--game-wide mute (which a player cannot change, but should still see).
+		muteButton:SetClass("muted", IsLocalMuted() or audio.muted)
+	end
+
+	local nowPlayingSection = gui.Panel{
+		flow = "vertical",
+		width = "100%",
+		height = "auto",
+		vmargin = 4,
+		styles = {
+			{ selectors = {"npStatusDot"}, bgcolor = "#888888" },
+			{ selectors = {"npStatusDot", "playing"}, bgcolor = "#5cb85c" },
+			{ selectors = {"npStatusDot", "ducked"}, bgcolor = "#d9a441" },
+		},
+
+		create = UpdatePlayerNowPlaying,
+		refreshPlayingAudio = UpdatePlayerNowPlaying,
+		thinkTime = 0.2,
+		think = UpdatePlayerNowPlaying,
+
+		gui.Panel{
+			flow = "horizontal",
+			width = "100%",
+			height = "auto",
+			valign = "center",
+			statusDot,
+			statusLabel,
+			muteButton,
+		},
+
+		titleLabel,
+		subtitleLabel,
+		progressRow,
+		musicExtras,
+		ambienceHeader,
+		ambienceRows,
+		ambienceIdleLabel,
+	}
+
+	local dockFitAttempts = 0
+
+	local rootPanel
+	rootPanel = gui.Panel{
+		halign = "left",
+		valign = "top",
+		width = "100%",
+		height = "auto",
+		flow = "vertical",
+
+		refreshAudio = function(element)
+			element:FireEventTree("refreshPlayingAudio")
+		end,
+
+		--The dock registers a fixed 470px height shared with the DM panel
+		--(role is not known yet at registration time). The player panel is
+		--much shorter, so fix up the dock's height after this panel actually
+		--builds -- see playerDockFit, mirroring DockablePanel.lua's minimize
+		--path. Retries a few times because the dock parents may not be
+		--attached yet on the first scheduled tick; gives up quietly after
+		--that (the panel just keeps the taller registration height).
+		create = function(element)
+			element:ScheduleEvent("playerDockFit", 0.05)
+		end,
+
+		playerDockFit = function(element)
+			local inst = element:FindParentWithClass("dockablePanel")
+			local container = element:FindParentWithClass("dockablePanelContainer")
+			local dock = element:FindParentWithClass("dock")
+			if inst == nil or container == nil or dock == nil then
+				dockFitAttempts = dockFitAttempts + 1
+				if dockFitAttempts < 10 then
+					element:ScheduleEvent("playerDockFit", 0.2)
+				end
+				return
+			end
+			local h = 330
+			local tabSpacing = 40
+			local dockScale = dmhub.GetSettingValue("dockscale") or 1
+			inst.data.minHeight = h
+			inst.data.maxHeight = h
+			container.data.minHeight = h + tabSpacing
+			container.data.maxHeight = h/dockScale + tabSpacing
+			container.selfStyle.height = h + tabSpacing
+			dock:FireEvent("fitChildren")
+			dock:FireEvent("layoutChanged")
+		end,
+
+		nowPlayingSection,
+
+		gui.MCDMDivider{ width = "100%", halign = "left", vmargin = 4 },
+
+		--MakeMasterFader writes the GAME-WIDE master; players get the local
+		--per-user master ("volume") instead, via MakePersonalFader.
+		MakeFaderRow("Master", MakePersonalFader("volume"), false),
+		MakeFaderRow("Music", MakePersonalFader("volume_music"), false),
+		MakeFaderRow("Ambience", MakePersonalFader("volume_ambience"), false),
+		MakeFaderRow("Effects", MakePersonalFader("volume_effects"), false),
+		MakeFaderRow("UI Sounds", MakePersonalFader("volume_uisounds"), false),
+		MakeFaderRow("Anthem", MakePersonalFader("volume_anthem"), false),
+
+		gui.Label{
+			classes = {"sizeXs", "fgMuted"},
+			text = "These change your mix only.",
+			width = "100%",
+			height = "auto",
+			textWrap = true,
+			vmargin = 2,
+		},
+		gui.Label{
+			text = "More granular controls can be found in Settings->Audio.",
+			fontSize = 11,
+			width = "100%",
+			height = "auto",
+			textWrap = true,
+			vmargin = 2,
+		},
+	}
+
+	audio.events:Listen(rootPanel)
+	rootPanel:ScheduleEvent("refreshAudio", 0.01)
+
+	return rootPanel
+end
 
 CreateSoundPanel = function()
 	if not dmhub.isDM then
-		return nil
+		return CreatePlayerSoundPanel()
 	end
 	
 
@@ -2127,8 +2541,10 @@ CreateSoundPanel = function()
 			audio.muted = not audio.muted
 			audio.UploadMuted()
 		end,
+		--audio.muted is GAME-WIDE (uploaded to the game doc, silences every
+		--client) -- say so, now that players have their own local "Mute".
 		linger = function(element)
-			gui.Tooltip("Mute")(element)
+			gui.Tooltip("Mute for everyone")(element)
 		end,
 		styles = {
 			{ bgimage = "ui-icons/AudioVolumeButton.png" },

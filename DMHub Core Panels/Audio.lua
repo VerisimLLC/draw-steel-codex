@@ -1914,6 +1914,7 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 
 	local docid = CurrentDocId()
 	local assetid = nil
+	local poolid = nil
 	local muted = false
 
 	local nameLabel = gui.Label{
@@ -1973,6 +1974,7 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 			local doc = mod:GetDocumentSnapshot(docid)
 			doc:BeginChange()
 			doc.data.assetid = nil
+			doc.data.poolid = nil
 			doc:CompleteChange("Clear soundboard button")
 		end,
 	}
@@ -2250,11 +2252,18 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 			local dstDoc = mod:GetDocumentSnapshot(target.data.docid)
 			local srcId = srcDoc.data.assetid
 			local dstId = dstDoc.data.assetid
+			--Swap poolid alongside assetid (K1-board): a slot holds a clip OR a pool,
+			--so a swap that moved only assetid would strand a pool assignment on the
+			--original slot and duplicate it.
+			local srcPool = srcDoc.data.poolid
+			local dstPool = dstDoc.data.poolid
 			srcDoc:BeginChange()
 			srcDoc.data.assetid = dstId
+			srcDoc.data.poolid = dstPool
 			srcDoc:CompleteChange("Swap soundboard buttons")
 			dstDoc:BeginChange()
 			dstDoc.data.assetid = srcId
+			dstDoc.data.poolid = srcPool
 			dstDoc:CompleteChange("Swap soundboard buttons")
 		end or nil,
 
@@ -2280,6 +2289,7 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 		refreshGame = function(element)
 			local doc = mod:GetDocumentSnapshot(docid)
 			assetid = doc.data.assetid
+			poolid = doc.data.poolid
 			local asset = (assetid ~= nil) and assets.audioTable[assetid] or nil
 			if asset ~= nil then
 				local displayName = DisplayNameForAsset(asset)
@@ -2294,7 +2304,22 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 				loopGlyph:SetClass("active", asset.loop == true)
 				volumeRow:SetClass("collapsed", false)
 				durationLabel.text = FormatTime(asset.duration, asset.duration)
+			elseif poolid ~= nil and VariantPools.IsPool(poolid) then
+				--Pool pad: name + xN badge. No loop glyph, no swatch color (pools have
+				--no asset.color); keep the volume row (Fire uses it). Neutral "filled"
+				--look via the bgcolor override below (FillColorHex(nil,...) is "clear").
+				assetid = nil
+				local folder = assets.audioFoldersTable[poolid]
+				nameLabel.text = (folder ~= nil and folder.description) or "Variant pool"
+				nameLabel:SetClass("collapsed", false)
+				emptyLabel:SetClass("collapsed", true)
+				element:SetClass("filled", true)
+				editRow:SetClass("filled", true)
+				loopGlyph:SetClass("collapsed", true)
+				volumeRow:SetClass("collapsed", false)
+				durationLabel.text = string.format("x%d", #VariantPools.Members(poolid))
 			else
+				poolid = nil
 				assetid = nil
 				nameLabel:SetClass("collapsed", true)
 				emptyLabel:SetClass("collapsed", false)
@@ -2305,6 +2330,16 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 				durationLabel.text = ""
 			end
 			element.selfStyle.bgcolor = FillColorHex(asset, assetid ~= nil and audio.currentlyPlaying[assetid] ~= nil)
+			if poolid ~= nil then
+				--Pool pad tint override: FillColorHex(nil,...) above returns "clear"
+				--(no asset.color to key off), so paint a neutral pool tint here keyed
+				--off whether any member is currently playing.
+				local anyPlaying = false
+				for _,m in ipairs(VariantPools.Members(poolid)) do
+					if audio.currentlyPlaying[m.id] ~= nil then anyPlaying = true break end
+				end
+				element.selfStyle.bgcolor = anyPlaying and "#5b6a8fE6" or "#5b6a8f4D"
+			end
 			element:SetClass("editMode", IsEditMode())
 			--Dynamic draggable (chunk F, P3): edit-mode toggling no longer rebuilds the
 			--grid, so this flag must be re-applied on every refresh instead of only at
@@ -2319,9 +2354,21 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 
 		refreshPlayingAudio = function(element)
 			local asset = (assetid ~= nil) and assets.audioTable[assetid] or nil
-			local playing = assetid ~= nil and audio.currentlyPlaying[assetid] ~= nil
+			local playing
+			if poolid ~= nil then
+				playing = false
+				for _,m in ipairs(VariantPools.Members(poolid)) do
+					if audio.currentlyPlaying[m.id] ~= nil then playing = true break end
+				end
+			else
+				playing = assetid ~= nil and audio.currentlyPlaying[assetid] ~= nil
+			end
 			element:SetClass("playing", playing)
-			element.selfStyle.bgcolor = FillColorHex(asset, playing)
+			if poolid ~= nil then
+				element.selfStyle.bgcolor = playing and "#5b6a8fE6" or "#5b6a8f4D"
+			else
+				element.selfStyle.bgcolor = FillColorHex(asset, playing)
+			end
 			progressFill:FireEvent("refreshPlayingAudio")
 			volumeSlider:FireEvent("refreshPlayingAudio")
 		end,
@@ -2331,9 +2378,15 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 		--opens the assign popup (opts.openAssignPopup, Studio-only).
 		click = function(element)
 			if IsEditMode() then
-				if assetid == nil and opts.openAssignPopup ~= nil then
+				if assetid == nil and poolid == nil and opts.openAssignPopup ~= nil then
 					opts.openAssignPopup(element, getBoard(), slot)
 				end
+				return
+			end
+			if poolid ~= nil then
+				--RETRIGGER: fire a fresh variant every tap (NO stop-toggle -- signed,
+				--deliberate divergence from clip pads). Stop lives in the right-click menu.
+				VariantPools.Fire(poolid, { volume = volumeSlider.value })
 				return
 			end
 			if assetid == nil then return end
@@ -2345,6 +2398,24 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 					PlayBroadcastClip(asset, { volume = volumeSlider.value })
 				end
 			end
+		end,
+
+		rightClick = function(element)
+			if IsEditMode() or poolid == nil then return end
+			element.popup = gui.ContextMenu{
+				width = 120,
+				entries = {
+					{
+						text = "Stop",
+						click = function()
+							element.popup = nil
+							for _,m in ipairs(VariantPools.Members(poolid)) do
+								if audio.currentlyPlaying[m.id] ~= nil then StopBroadcastClip(m.id) end
+							end
+						end,
+					},
+				},
+			}
 		end,
 
 		loopGlyph,
@@ -5217,6 +5288,28 @@ local CreateStudioSoundboard = function()
 		local doc = mod:GetDocumentSnapshot(SlotDocId(board, slot))
 		doc:BeginChange()
 		doc.data.assetid = assetid
+		doc.data.poolid = nil
+		doc:CompleteChange("Assign soundboard button")
+	end
+
+	--K1-board: assigns a variant pool to a slot (mutually exclusive with assetid --
+	--a slot holds a clip OR a pool, never both).
+	local function AssignPoolSlot(board, slot, poolid)
+		--De-dupe: a pool lives in only one button per board.
+		for s = 1, STUDIO_SLOTS do
+			if s ~= slot then
+				local sd = mod:GetDocumentSnapshot(SlotDocId(board, s))
+				if sd.data.poolid == poolid then
+					sd:BeginChange()
+					sd.data.poolid = nil
+					sd:CompleteChange("Clear soundboard button")
+				end
+			end
+		end
+		local doc = mod:GetDocumentSnapshot(SlotDocId(board, slot))
+		doc:BeginChange()
+		doc.data.poolid = poolid
+		doc.data.assetid = nil
 		doc:CompleteChange("Assign soundboard button")
 	end
 
@@ -5232,13 +5325,94 @@ local CreateStudioSoundboard = function()
 			return string.find(string.lower(DisplayNameForAsset(asset)), searchText, 1, true) ~= nil
 		end
 
+		local function MatchPool(name)
+			if searchText == "" then return true end
+			return string.find(string.lower(name), searchText, 1, true) ~= nil
+		end
+
+		--K1-board: live variant pools, sorted by folder description, shown ahead of
+		--the clip rows under their own section header. Honors the same search text
+		--as the clip rows (matched against the pool's description).
+		local function AssignablePools()
+			local out = {}
+			for _,poolid in ipairs(VariantPools.EnumerateIds()) do
+				local folder = assets.audioFoldersTable[poolid]
+				if folder ~= nil then
+					out[#out+1] = { id = poolid, name = folder.description or "Variant pool" }
+				end
+			end
+			table.sort(out, function(a, b) return a.name < b.name end)
+			return out
+		end
+
 		local function RebuildList()
 			local children = {}
+			local pools = AssignablePools()
+			local matchedPools = {}
+			for _,pool in ipairs(pools) do
+				if MatchPool(pool.name) then
+					matchedPools[#matchedPools+1] = pool
+				end
+			end
+			if #matchedPools > 0 then
+				children[#children+1] = gui.Label{
+					classes = {"bold", "sizeXs"},
+					text = "Variant pool",
+					width = "auto",
+					height = "auto",
+					halign = "left",
+					vmargin = 1,
+				}
+				for _,pool in ipairs(matchedPools) do
+					local pid = pool.id
+					children[#children+1] = gui.Panel{
+						classes = {"hoverable"},
+						flow = "horizontal",
+						width = "100%",
+						height = 22,
+						hpad = 6,
+						borderBox = true,
+						valign = "center",
+						press = function()
+							AssignPoolSlot(board, slot, pid)
+							buttonElement.popup = nil
+						end,
+						gui.Panel{
+							bgimage = "icons/icon_common/icon_common_4.png",
+							width = 14,
+							height = 14,
+							halign = "left",
+							valign = "center",
+							hmargin = 4,
+						},
+						gui.Label{
+							classes = {"sizeS"},
+							text = pool.name,
+							width = "100%-40",
+							height = "auto",
+							halign = "left",
+							valign = "center",
+							textWrap = false,
+							textOverflow = "ellipsis",
+						},
+						gui.Label{
+							classes = {"sizeXs", "fgMuted"},
+							text = string.format("x%d", #VariantPools.Members(pid)),
+							width = "auto",
+							height = "auto",
+							halign = "right",
+							valign = "center",
+						},
+					}
+				end
+			end
+			local clipRowCount = 0
 			for _,asset in ipairs(AssignableClips()) do
 				if MatchClip(asset) then
 					local a = asset
 					local displayName = DisplayNameForAsset(a)
 					if displayName == "" then displayName = "(unnamed)" end
+					clipRowCount = clipRowCount + 1
 					children[#children+1] = gui.Label{
 						classes = {"sizeS", "hoverable"},
 						text = displayName,
@@ -5257,8 +5431,8 @@ local CreateStudioSoundboard = function()
 					}
 				end
 			end
-			if #children == 0 then
-				children[1] = gui.Label{
+			if clipRowCount == 0 then
+				children[#children+1] = gui.Label{
 					classes = {"fgMuted", "sizeXs"},
 					text = "No clips match.",
 					width = "100%",

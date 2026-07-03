@@ -1534,6 +1534,217 @@ local function PlayBroadcastClip(asset, opts)
 	audio.PlaySoundEvent(playArgs)
 end
 
+--=====================================================================================
+--Variant pool core (chunk K1-core): the config doc + the fire path. No UI (later
+--sub-chunks). A "variant pool" is an audio FOLDER flagged as a pool; its member clips
+--are the folder's children (asset.parentFolder == folderid). Config lives in a new
+--checkpoint-backed shared doc "audioVariantPools" keyed by folder id -- the same
+--sidecar pattern the playlists use, because AudioFolderLua rejects arbitrary Lua
+--properties. Everything is exposed through one VariantPools table (keeps file-scope
+--local pressure down and gives K1-studio/K1-board a stable namespace).
+--
+--Fire = pick one member in Lua, then broadcast it via PlayBroadcastClip so every client
+--hears the SAME variant at the SAME pitch (the chosen asset id + pitch replicate through
+--the game doc). Selection happens here, never via engine SoundEvents (those resolve only
+--bundled mod audio and round-robin per-client, which would desync variants).
+--
+--Doc entry shape: doc.data[folderid] = { pool=true, randomPick=true, pitchVar=0.05,
+--cycleIndex=0 }. randomPick default ON and pitchVar default 0.05 are SIGNED design
+--values -- do not change them.
+--=====================================================================================
+mod:RegisterDocumentForCheckpointBackups("audioVariantPools")
+
+local VariantPools = {}
+
+--Per-pool last-fired member id, for no-immediate-repeat in random mode. Module-local
+--(only the firing client needs it) and deliberately not persisted -- a feel refinement,
+--not shared state.
+local m_variantPoolLastFired = {}
+
+function VariantPools.GetDoc()
+	return mod:GetDocumentSnapshot("audioVariantPools")
+end
+
+--True if folderid names a live, pool-flagged folder. Self-heals stale doc entries: a
+--pool folder deleted by any client leaves an orphaned entry, which every reader skips
+--(never surface a pool with no backing folder).
+function VariantPools.IsPool(folderid)
+	if folderid == nil then
+		return false
+	end
+	local entry = VariantPools.GetDoc().data[folderid]
+	if entry == nil or entry.pool ~= true then
+		return false
+	end
+	local folder = assets.audioFoldersTable[folderid]
+	return folder ~= nil and not folder.hidden
+end
+
+--Members of a pool = non-hidden clips whose parentFolder is this folder, sorted by asset
+--id so cycle-mode indexing is identical on every client.
+function VariantPools.Members(folderid)
+	local members = {}
+	for _,asset in pairs(assets.audioTable) do
+		if asset ~= nil and not asset.hidden and asset.parentFolder == folderid then
+			members[#members+1] = asset
+		end
+	end
+	table.sort(members, function(a,b) return a.id < b.id end)
+	return members
+end
+
+--Live pool folder ids (self-healed). K1-studio/K1-board enumerate through this.
+function VariantPools.EnumerateIds()
+	local ids = {}
+	for folderid,entry in pairs(VariantPools.GetDoc().data) do
+		if type(entry) == "table" and entry.pool == true then
+			local folder = assets.audioFoldersTable[folderid]
+			if folder ~= nil and not folder.hidden then
+				ids[#ids+1] = folderid
+			end
+		end
+	end
+	return ids
+end
+
+--Writes the default pool entry for folderid if none exists yet (random ON, pitch 5%).
+--Idempotent -- leaves an existing entry untouched.
+function VariantPools.EnsureEntry(folderid)
+	local doc = VariantPools.GetDoc()
+	if doc.data[folderid] ~= nil then
+		return
+	end
+	doc:BeginChange()
+	doc.data[folderid] = { pool = true, randomPick = true, pitchVar = 0.05, cycleIndex = 0 }
+	doc:CompleteChange("Create variant pool")
+end
+
+function VariantPools.SetRandomPick(folderid, on)
+	local doc = VariantPools.GetDoc()
+	local entry = doc.data[folderid]
+	if entry == nil then
+		return
+	end
+	doc:BeginChange()
+	doc.data[folderid].randomPick = (on ~= false)
+	doc:CompleteChange("Set variant pool random pick")
+end
+
+--Pitch variation slider is 0..0.12 (shown as 0-12%); clamp to that range.
+function VariantPools.SetPitchVar(folderid, v)
+	local doc = VariantPools.GetDoc()
+	local entry = doc.data[folderid]
+	if entry == nil then
+		return
+	end
+	v = v or 0
+	if v < 0 then v = 0 end
+	if v > 0.12 then v = 0.12 end
+	doc:BeginChange()
+	doc.data[folderid].pitchVar = v
+	doc:CompleteChange("Set variant pool pitch variation")
+end
+
+--Removes the pool config entry (convert-to-regular-folder / cleanup). The FOLDER and
+--its clips are untouched -- only the pool flag/config is dropped.
+function VariantPools.Remove(folderid)
+	local doc = VariantPools.GetDoc()
+	if doc.data[folderid] == nil then
+		return
+	end
+	doc:BeginChange()
+	doc.data[folderid] = nil
+	doc:CompleteChange("Remove variant pool")
+end
+
+--Fires a variant pool: picks a member and broadcasts it with pitch variation. opts may
+--carry { volume = <0..1> } forwarded to PlayBroadcastClip. Empty pool = silent no-op.
+--Returns the fired asset (or nil).
+function VariantPools.Fire(folderid, opts)
+	if not VariantPools.IsPool(folderid) then
+		return nil
+	end
+	local doc = VariantPools.GetDoc()
+	local entry = doc.data[folderid]
+	local members = VariantPools.Members(folderid)
+	if #members == 0 then
+		return nil
+	end
+
+	local chosen
+	if entry.randomPick ~= false and #members >= 2 then
+		--Random with no-immediate-repeat: pick from members that are not the one we
+		--fired last for this pool. (Also sidesteps the engine's one-event-per-assetid
+		--restart on back-to-back taps.)
+		local lastId = m_variantPoolLastFired[folderid]
+		local candidates = {}
+		for _,a in ipairs(members) do
+			if a.id ~= lastId then
+				candidates[#candidates+1] = a
+			end
+		end
+		if #candidates == 0 then
+			candidates = members
+		end
+		chosen = candidates[math.random(#candidates)]
+	elseif entry.randomPick ~= false then
+		--Random but a single member: just that one.
+		chosen = members[1]
+	else
+		--Cycle mode: deterministic round-robin, index persisted in the doc so whichever
+		--client fires next continues the same sequence. Members are id-sorted so the
+		--index maps to the same clip on every client.
+		local idx = (entry.cycleIndex or 0) % #members
+		chosen = members[idx+1]
+		doc:BeginChange()
+		doc.data[folderid].cycleIndex = (idx+1) % #members
+		doc:CompleteChange("Advance variant pool cycle", {undoable = false})
+	end
+	m_variantPoolLastFired[folderid] = chosen.id
+
+	--Roll pitch = 1 +/- random(0..pitchVar). 0 = no variation.
+	local pitchVar = entry.pitchVar or 0
+	local pitch = 1
+	if pitchVar > 0 then
+		pitch = 1 + (math.random()*2 - 1) * pitchVar
+	end
+
+	local playArgs = { pitch = pitch }
+	if opts ~= nil and opts.volume ~= nil then
+		playArgs.volume = opts.volume
+	end
+	PlayBroadcastClip(chosen, playArgs)
+	return chosen
+end
+
+--Dev-only test hooks (chunk K1-core): extend the DrawSteelAudioDev global (created by
+--the earlier devmode block) so MCP-bridge verification can create, fire, and tear down
+--pools without the Studio/soundboard UI (later sub-chunks). devmode()-gated so nothing
+--leaks into normal play.
+if rawget(_G, "devmode") ~= nil and devmode() and rawget(_G, "DrawSteelAudioDev") ~= nil then
+	DrawSteelAudioDev.GetVariantPoolsDoc = function() return VariantPools.GetDoc() end
+	DrawSteelAudioDev.EnsureVariantPool = function(folderid) VariantPools.EnsureEntry(folderid) end
+	DrawSteelAudioDev.SetVariantPoolRandom = function(folderid, on) VariantPools.SetRandomPick(folderid, on) end
+	DrawSteelAudioDev.SetVariantPoolPitch = function(folderid, v) VariantPools.SetPitchVar(folderid, v) end
+	DrawSteelAudioDev.RemoveVariantPool = function(folderid) VariantPools.Remove(folderid) end
+	DrawSteelAudioDev.IsVariantPool = function(folderid) return VariantPools.IsPool(folderid) end
+	DrawSteelAudioDev.VariantPoolMemberIds = function(folderid)
+		local ids = {}
+		for _,a in ipairs(VariantPools.Members(folderid)) do
+			ids[#ids+1] = a.id
+		end
+		return ids
+	end
+	DrawSteelAudioDev.EnumerateVariantPoolIds = function() return VariantPools.EnumerateIds() end
+	DrawSteelAudioDev.FireVariantPool = function(folderid, volume)
+		local a = VariantPools.Fire(folderid, { volume = volume })
+		if a == nil then
+			return nil
+		end
+		return a.id
+	end
+end
+
 --Normalise the stored category to a dropdown option id. An unset category reads back
 --as nil (never set) OR "" (set to nil through the current AudioAssetLua setter, which
 --stringifies nil to ""); both mean "uncategorised". NB Lua treats "" as truthy, so a

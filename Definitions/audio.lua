@@ -55,7 +55,7 @@ function audio.SetSoundEventVolume(guid, volume)
 end
 
 --- PlaySoundEvent: Starts playing a sound event from the given options table. Returns the guid of the playing sound event.
---- @param options table Options with keys: asset (AudioAssetLua), volume (number).
+--- @param options table Options with keys: asset (AudioAssetLua), volume (number), pitch (number).
 --- @return nil|string
 function audio.PlaySoundEvent(options)
 	-- dummy implementation for documentation purposes only

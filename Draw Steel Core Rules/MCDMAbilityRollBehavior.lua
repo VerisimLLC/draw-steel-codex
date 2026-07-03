@@ -375,7 +375,15 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
                                     multitargetsChanged = true
                                 else
                                     for i=1,#multitargets do
-                                        if multitargets[i].token.charid ~= m_multitargetResults[i].token.charid or multitargets[i].tier ~= m_multitargetResults[i].tier then
+                                        --A multitarget entry can be token-less (e.g. an object
+                                        --target, or a token removed mid-cast). Compare by charid
+                                        --only when both sides still have a token; a nil/non-nil
+                                        --mismatch counts as changed.
+                                        local tokA = multitargets[i].token
+                                        local tokB = m_multitargetResults[i].token
+                                        local idA = tokA ~= nil and tokA.charid or nil
+                                        local idB = tokB ~= nil and tokB.charid or nil
+                                        if idA ~= idB or multitargets[i].tier ~= m_multitargetResults[i].tier then
                                             multitargetsChanged = true
                                         end
                                     end
@@ -1616,7 +1624,7 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
             if targetToken ~= nil then
                 if multitargetResults ~= nil then
                     for i,multitarget in ipairs(multitargetResults) do
-                        if multitarget.token.charid == targetToken.charid then
+                        if multitarget.token ~= nil and multitarget.token.charid == targetToken.charid then
                             tier = multitarget.tier
                             if multitargets[i].rollProperties ~= nil then
                                 targetRollProperties = multitargets[i].rollProperties

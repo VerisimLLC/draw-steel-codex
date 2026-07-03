@@ -871,6 +871,33 @@ local function StopAllBroadcastAudio()
 	stateDoc:CompleteChange("Stop all audio", {undoable = false})
 end
 
+--Narrow cross-module export for the top-bar audio indicator (CodexTitleBar's
+--H-BAR glyph + popover). Deliberately a small table of already-module-scoped
+--helpers rather than globals per function: the fader builders keep the dock,
+--Studio Mixer, and top-bar popover on ONE implementation, and StopAll routes
+--through the playlist-aware stop (a raw audio.StopAllSoundEvents would let the
+--driver poll resurrect a driven playlist within a tick). Read via
+--rawget(_G, "g_drawSteelAudioBar") on the consumer side.
+g_drawSteelAudioBar = {
+	StopAll = StopAllBroadcastAudio,
+	MakeMasterFader = MakeMasterFader,
+	MakeBroadcastFader = MakeBroadcastFader,
+	MakeFaderRow = MakeFaderRow,
+	--Display name of the "lead" broadcasting track for compact readouts:
+	--newest playing music track, else newest playing ambience bed, else nil.
+	PrimaryPlayingName = function()
+		PrunePlayOrder()
+		local list = PlayingTracksForCategory("music")
+		if #list == 0 then
+			list = PlayingTracksForCategory("ambience")
+		end
+		if #list == 0 then
+			return nil
+		end
+		return DisplayNameForAsset(list[#list].asset)
+	end,
+}
+
 --=====================================================================================
 --H-studio: playlist UI support helpers. Engine-only (no gui.Panel here) -- these back
 --the Playlists card and the library's "Add to playlist" affordances added in this

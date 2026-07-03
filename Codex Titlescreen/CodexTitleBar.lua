@@ -889,7 +889,12 @@ local function CreateSearchBar()
         popupPanel = gui.Panel{
             classes = {"bordered", "bg", "searchResultsPanel"},
             flow = "vertical",
-            width = 368,
+            -- Mirrors the search box's dockscale-tracking width (HB1), but
+            -- never shrinks below the old fixed 368 -- cards in this popup
+            -- must never wrap at small dock scales. At scale > 1 the popup
+            -- grows to match the (now wider) box above it. Rebuilt fresh per
+            -- search, so a value computed at construction stays current.
+            width = math.max(368, math.floor(364 * (dmhub.GetSettingValue("dockscale") or 1))),
             height = "auto",
             halign = "center",
             valign = "bottom",
@@ -1188,7 +1193,10 @@ local function CreateSearchBar()
 
     resultPanel = gui.SearchInput{
         bgimage = true,
-        width = 368,
+        -- Tracks the right dock's rendered width (364 * dockscale, default 1.0)
+        -- so the box lines up with the dock below it at any scale (HB1). Kept
+        -- live by the think handler below.
+        width = math.floor(364 * (dmhub.GetSettingValue("dockscale") or 1)),
         height = 20,
         halign = "right",
         valign = "center",
@@ -1221,6 +1229,16 @@ local function CreateSearchBar()
         -- watch for the rising edge of hasInputFocus on a light think.
         thinkTime = 0.2,
         think = function(element)
+            -- Live-follow the dock scale setting (HB1) so a mid-session
+            -- change to the slider is reflected without a reload. Cheap
+            -- setting read on a 0.2s tick; only touches .width when it
+            -- actually changed.
+            local w = math.floor(364 * (dmhub.GetSettingValue("dockscale") or 1))
+            if element.data.appliedSearchWidth ~= w then
+                element.data.appliedSearchWidth = w
+                element.selfStyle.width = w
+            end
+
             local focused = element.hasInputFocus
             if focused and (not element.data.hadInputFocus)
                 and element.popup == nil
@@ -1276,6 +1294,205 @@ local function CreateSearchBar()
         dorepeatSearch = function(element)
             element.data.repeatingSearch = false
             element:FireEvent("edit")
+        end,
+    }
+
+    return resultPanel
+end
+
+--H-BAR: global audio indicator glyph, left of the search box. Three states
+--(muted / playing / idle) polled on a light think; a press opens a compact
+--mixer popover built from Audio.lua's exported fader factories so the top
+--bar, dock, and Studio Mixer share ONE fader implementation. If Audio.lua's
+--export is not loaded (should not happen given load order, but this is a
+--cross-module read) the glyph simply does not open a popup.
+local function CreateAudioIndicator()
+    local resultPanel
+
+    local function ComputeState()
+        if audio.muted then
+            return "muted"
+        end
+        for _,_ in pairs(audio.currentlyPlaying) do
+            return "playing"
+        end
+        return "idle"
+    end
+
+    local function BuildPopover()
+        local bar = rawget(_G, "g_drawSteelAudioBar")
+        if bar == nil then
+            return nil
+        end
+
+        -- Now-playing line is a snapshot at open time -- this is a transient
+        -- popover (same accepted pattern as the Studio's bindings popover),
+        -- not a live-refreshing panel.
+        local nowPlayingName = bar.PrimaryPlayingName()
+
+        local muteToggle = gui.Panel{
+            bgcolor = "white",
+            width = 16,
+            height = 16,
+            valign = "center",
+            hmargin = 4,
+            press = function(element)
+                audio.muted = not audio.muted
+                audio.UploadMuted()
+                -- The bar glyph self-heals on its 0.5s think, but this copy
+                -- lives in a snapshot popover -- swap it now or it reads
+                -- stale until the popover is reopened.
+                element:SetClass("muted", audio.muted)
+            end,
+            linger = function(element)
+                gui.Tooltip("Mute")(element)
+            end,
+            styles = {
+                { bgimage = "ui-icons/AudioVolumeButton.png" },
+                { selectors = {"muted"}, bgimage = "ui-icons/AudioMuteButton.png" },
+                { selectors = {"hover"}, brightness = 2 },
+            },
+            create = function(element)
+                element:SetClass("muted", audio.muted)
+            end,
+        }
+        muteToggle:SetClass("muted", audio.muted)
+
+        local muteRow = gui.Panel{
+            flow = "horizontal",
+            width = "100%",
+            height = 22,
+            valign = "center",
+            muteToggle,
+        }
+
+        local masterRow = bar.MakeFaderRow("Master", bar.MakeMasterFader(), false)
+
+        local children = {
+            gui.Label{
+                classes = {"sizeXs", cond(nowPlayingName == nil, "fgMuted", nil)},
+                width = "100%",
+                height = "auto",
+                textWrap = false,
+                textOverflow = "ellipsis",
+                text = nowPlayingName or "Nothing playing",
+            },
+            masterRow,
+            muteRow,
+        }
+
+        if dmhub.isDM then
+            children[#children+1] = gui.Label{
+                classes = {"sizeXs", "fgMuted"},
+                width = "100%",
+                height = "auto",
+                text = "Levels",
+                tmargin = 4,
+            }
+            children[#children+1] = bar.MakeFaderRow("Music", bar.MakeBroadcastFader("music"), false)
+            children[#children+1] = bar.MakeFaderRow("Ambience", bar.MakeBroadcastFader("ambience"), false)
+            children[#children+1] = bar.MakeFaderRow("Effects", bar.MakeBroadcastFader("effects"), false)
+            children[#children+1] = bar.MakeFaderRow("UI Sounds", bar.MakeBroadcastFader("uisounds"), false)
+            children[#children+1] = bar.MakeFaderRow("Anthem", bar.MakeBroadcastFader("anthem"), false)
+
+            children[#children+1] = gui.Panel{
+                flow = "horizontal",
+                width = "100%",
+                height = "auto",
+                tmargin = 4,
+                gui.Button{
+                    classes = {"sizeXs"},
+                    text = "Stop all audio",
+                    width = "auto",
+                    height = 22,
+                    hpad = 8,
+                    borderBox = true,
+                    hmargin = 3,
+                    press = function()
+                        bar.StopAll()
+                        resultPanel.popup = nil
+                    end,
+                },
+                gui.Button{
+                    classes = {"sizeXs"},
+                    text = "Open Audio Studio",
+                    width = "auto",
+                    height = 22,
+                    hpad = 8,
+                    borderBox = true,
+                    hmargin = 3,
+                    press = function()
+                        resultPanel.popup = nil
+                        LaunchablePanel.LaunchPanelByName("Audio Studio")
+                    end,
+                },
+            }
+        else
+            children[#children+1] = gui.Label{
+                classes = {"sizeXxs", "fgMuted"},
+                width = "100%",
+                height = "auto",
+                textWrap = true,
+                text = "These change your mix only.",
+            }
+        end
+
+        return gui.Panel{
+            classes = {"bordered", "bg"},
+            flow = "vertical",
+            width = 340,
+            height = "auto",
+            pad = 8,
+            borderBox = true,
+            halign = "right",
+            valign = "bottom",
+            children = children,
+        }
+    end
+
+    resultPanel = gui.Panel{
+        classes = {"audioIndicator"},
+        width = 18,
+        height = 18,
+        valign = "center",
+        hmargin = 6,
+        bgcolor = "white",
+        bgimage = "ui-icons/AudioVolumeButton.png",
+
+        linger = function(element)
+            gui.Tooltip("Audio controls")(element)
+        end,
+
+        press = function(element)
+            element.popupsInheritStyles = true
+            element.popup = BuildPopover()
+        end,
+
+        -- Run the state logic once at construction too: without this the
+        -- glyph renders its constructor defaults (volume icon, full opacity)
+        -- for up to one think period even when muted/idle at build time.
+        create = function(element)
+            element:FireEvent("think")
+        end,
+
+        thinkTime = 0.5,
+        think = function(element)
+            local state = ComputeState()
+            if element.data.audioIndicatorState == state then
+                return
+            end
+            element.data.audioIndicatorState = state
+
+            if state == "muted" then
+                element.bgimage = "ui-icons/AudioMuteButton.png"
+                element.selfStyle.opacity = 1
+            elseif state == "playing" then
+                element.bgimage = "ui-icons/AudioVolumeButton.png"
+                element.selfStyle.opacity = 1
+            else
+                element.bgimage = "ui-icons/AudioVolumeButton.png"
+                element.selfStyle.opacity = 0.4
+            end
         end,
     }
 
@@ -1394,6 +1611,7 @@ local function CreateTopBar()
 
     local m_inGame = nil
     local m_searchBar = CreateSearchBar()
+    local m_audioIndicator = CreateAudioIndicator()
     local m_presentationBar = CreatePresentationBar()
 
     g_searchBar = m_searchBar
@@ -1753,6 +1971,7 @@ local function CreateTopBar()
 
         m_presentationBar,
         CreateStatusBar(),
+        m_audioIndicator,
         m_searchBar,
     }
 
@@ -1782,6 +2001,15 @@ local function CreateTopBar()
         },
         {
             selectors = {"searchInput", "~ingame", "~searchoverride"},
+            hidden = 1,
+        },
+
+        -- Audio indicator glyph (H-BAR): same in-game-only visibility as the
+        -- search box, driven by the same "ingame" class SetClassTree'd onto
+        -- an ancestor (menuBar's think, below). No searchoverride exemption
+        -- -- the glyph has no main-menu equivalent to preserve.
+        {
+            selectors = {"audioIndicator", "~ingame"},
             hidden = 1,
         },
 

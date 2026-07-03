@@ -4498,31 +4498,44 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 			maxValue = 12,
 			value = audioAsset.normalizeGainTrimDb,
 			sliderWidth = 110,
-			labelWidth = 40,
+			labelWidth = 44,
 			labelFormat = "%.1fdB",
+			style = { width = "100%", height = 20, valign = "center" },
 			confirm = function(element)
 				audioAsset.normalizeGainTrimDb = element.value
 				audioAsset:Upload()
 			end,
 		}
 
+		--Popups render outside the row's style cascade, so they need their own
+		--theme snapshot or every class rule (framedPanel bg, label sizing) fails
+		--to resolve -- mirrors the assign-clip popup above.
 		parentElement.popup = gui.Panel{
+			styles = ThemeEngine.MergeStyles{},
 			classes = {"framedPanel"},
 			width = 220,
 			height = "auto",
 			halign = "right",
 			flow = "vertical",
+			pad = 8,
+			borderBox = true,
 			gui.Label{
+				classes = {"bold", "sizeXs"},
 				text = "Loudness trim",
-				width = "100%",
-				height = 20,
+				width = "auto",
+				height = "auto",
+				halign = "left",
+				vmargin = 2,
 			},
 			slider,
 			gui.Button{
+				classes = {"sizeXs"},
 				text = "Reset",
-				width = 80,
-				height = 24,
+				width = 60,
+				height = 22,
+				halign = "left",
 				vmargin = 4,
+				borderBox = true,
 				press = function()
 					slider.value = 0
 					audioAsset.normalizeGainTrimDb = 0

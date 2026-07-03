@@ -1131,9 +1131,17 @@ local function AudioDeletePlaylist(playlistid)
 	doc:CompleteChange("Delete playlist")
 end
 
---Duplicates ALLOWED by design (the same clip can appear more than once in a playlist).
+--Playlists never contain duplicates (signed 2026-07-03: repeats are what looping is
+--for). Idempotent: a no-op if assetid is already in the list. Legacy playlists
+--created before this rule may still contain dups -- runtime handling of those
+--(dup-jump etc.) stays as-is.
 local function AddTrackToPlaylist(playlistid, assetid)
 	ModifyPlaylist(playlistid, "Add track to playlist", function(pl)
+		for _,existing in ipairs(pl.tracks) do
+			if existing == assetid then
+				return
+			end
+		end
 		pl.tracks[#pl.tracks+1] = assetid
 	end)
 end
@@ -3593,18 +3601,31 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 	end
 
 	--H-studio [+] button: only built while a Library "add tracks" build mode is
-	--active. Appends this clip to the target playlist (duplicates allowed by
-	--design) and bumps the running count in the build banner. Once this clip has
-	--been added during the session the glyph flips to a check (still pressable --
-	--re-adding is legal; the check just marks "already grabbed"). Initialised from
-	--the session's added set so a mid-session tree rebuild (search, upload echo)
-	--does not lose the checkmarks.
+	--active. The check glyph means "this clip is currently in the target playlist"
+	--(pre-existing or added this session) -- not "added this session" as before.
+	--Pressing toggles membership: not-in-playlist adds it, in-playlist removes every
+	--occurrence. Build mode never creates duplicates (AddTrackToPlaylist is
+	--idempotent); the banner count tracks clips added this session that are still
+	--present. Membership is read fresh from the doc at construction and again on
+	--press, so any tree rebuild (search, upload echo, build enter/exit) resyncs the
+	--glyphs. A mutation that does NOT rebuild the tree (another client editing the
+	--playlist) can leave an idle row's glyph stale until the next rebuild or press --
+	--accepted edge, single-DM norm.
 	local plusButton
 	if buildMode ~= nil then
-		local alreadyAdded = buildMode.added ~= nil and buildMode.added[audioAsset.id] == true
+		local plForCheck = (GetPlaylistsDoc().data.playlists or {})[buildMode.playlistid]
+		local alreadyIn = false
+		if plForCheck ~= nil then
+			for _,existing in ipairs(plForCheck.tracks) do
+				if existing == audioAsset.id then
+					alreadyIn = true
+					break
+				end
+			end
+		end
 		plusButton = gui.Panel{
 			classes = {"audioAddTrackButton"},
-			bgimage = alreadyAdded and "icons/standard/Icon_App_Check.png" or "ui-icons/Plus.png",
+			bgimage = alreadyIn and "icons/standard/Icon_App_Check.png" or "ui-icons/Plus.png",
 			width = 18,
 			height = 18,
 			valign = "center",
@@ -3629,19 +3650,52 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 					end
 					return
 				end
-				AddTrackToPlaylist(m_studioBuildMode.playlistid, audioAsset.id)
-				m_studioBuildMode.count = m_studioBuildMode.count + 1
-				if m_studioBuildMode.added == nil then
-					m_studioBuildMode.added = {}
+				local isIn = false
+				for _,existing in ipairs(pl.tracks) do
+					if existing == audioAsset.id then
+						isIn = true
+						break
+					end
 				end
-				m_studioBuildMode.added[audioAsset.id] = true
-				element.bgimage = "icons/standard/Icon_App_Check.png"
+				if isIn then
+					ModifyPlaylist(m_studioBuildMode.playlistid, "Remove track from playlist", function(pl2)
+						for i = #pl2.tracks, 1, -1 do
+							if pl2.tracks[i] == audioAsset.id then
+								table.remove(pl2.tracks, i)
+							end
+						end
+					end)
+					if m_studioBuildMode.added ~= nil and m_studioBuildMode.added[audioAsset.id] then
+						m_studioBuildMode.added[audioAsset.id] = nil
+						m_studioBuildMode.count = math.max(0, m_studioBuildMode.count - 1)
+					end
+					element.bgimage = "ui-icons/Plus.png"
+				else
+					AddTrackToPlaylist(m_studioBuildMode.playlistid, audioAsset.id)
+					if m_studioBuildMode.added == nil then
+						m_studioBuildMode.added = {}
+					end
+					m_studioBuildMode.added[audioAsset.id] = true
+					m_studioBuildMode.count = m_studioBuildMode.count + 1
+					element.bgimage = "icons/standard/Icon_App_Check.png"
+				end
 				if g_studioRefreshBuildMode ~= nil then
 					g_studioRefreshBuildMode()
 				end
 			end,
 			linger = function(element)
-				gui.Tooltip("Add to playlist")(element)
+				local doc = GetPlaylistsDoc()
+				local plLive = (doc.data.playlists or {})[buildMode.playlistid]
+				local isInNow = false
+				if plLive ~= nil then
+					for _,existing in ipairs(plLive.tracks) do
+						if existing == audioAsset.id then
+							isInNow = true
+							break
+						end
+					end
+				end
+				gui.Tooltip(isInNow and "Remove from playlist" or "Add to playlist")(element)
 			end,
 		}
 	end
@@ -3733,6 +3787,11 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 					element.popup = nil
 					for _,id in ipairs(TargetIds()) do
 						AddTrackToPlaylist(plid, id)
+					end
+					--If a build-mode session targets this same playlist, the library
+					--rows' [+] glyphs show membership -- rebuild so they resync.
+					if m_studioBuildMode ~= nil and m_studioBuildMode.playlistid == plid and g_audioLibraryRequestRebuild ~= nil then
+						g_audioLibraryRequestRebuild()
 					end
 				end,
 			}
@@ -5340,11 +5399,19 @@ local CreateStudioPlaylistsCard = function(heightSpec)
 			end,
 		}
 
+		--Fixed-width outer zone (keeps the count label and play button from ever
+		--shifting as the name changes length) wrapping a label that hugs its own
+		--text. The wrapper has no click handler, so clicks in the dead space
+		--between a short name and the count label bubble up to the header's
+		--expand-toggle instead of being swallowed by the rename zone (James field
+		--report, 2026-07-03).
 		local nameLabel
 		nameLabel = gui.Label{
 			editableOnDoubleClick = true,
 			text = pl.name,
-			width = "100%-160",
+			width = "auto",
+			maxWidth = "100%",
+			minWidth = 30,
 			height = "auto",
 			halign = "left",
 			valign = "center",
@@ -5368,6 +5435,14 @@ local CreateStudioPlaylistsCard = function(heightSpec)
 					pl2.name = newName
 				end)
 			end,
+		}
+		local nameLabelWrapper = gui.Panel{
+			flow = "horizontal",
+			width = "100%-160",
+			height = 30,
+			halign = "left",
+			valign = "center",
+			nameLabel,
 		}
 
 		local countLabel = gui.Label{
@@ -5474,7 +5549,7 @@ local CreateStudioPlaylistsCard = function(heightSpec)
 
 			caret,
 			pin,
-			nameLabel,
+			nameLabelWrapper,
 			countLabel,
 			playButton,
 		}
@@ -5500,6 +5575,31 @@ local CreateStudioPlaylistsCard = function(heightSpec)
 				end,
 				linger = function(element)
 					gui.Tooltip("Shuffle")(element)
+				end,
+			}
+
+			--Loop toggle: mirrors the library row's per-track loop button (same
+			--"game-icons/infinity.png" glyph, same disabled-when-off styling) so users
+			--carry the same visual memory across the two surfaces (James's explicit
+			--ask). pl.loop nil or true = looping on (the default, engine advance loop
+			--already honors it); false = the playlist stops after its last track.
+			local loopToggle
+			loopToggle = gui.Panel{
+				classes = {"audioRowLoopButton", cond(pl.loop ~= false, nil, "disabled")},
+				bgimage = "game-icons/infinity.png",
+				width = 16,
+				height = 16,
+				valign = "center",
+				hmargin = 3,
+				press = function(element)
+					local turnOn = element:HasClass("disabled")
+					ModifyPlaylist(playlistid, "Set playlist loop", function(pl2)
+						pl2.loop = turnOn
+					end)
+					element:SetClass("disabled", not turnOn)
+				end,
+				linger = function(element)
+					gui.Tooltip("Loop playlist")(element)
 				end,
 			}
 
@@ -5541,11 +5641,16 @@ local CreateStudioPlaylistsCard = function(heightSpec)
 				valign = "center",
 				halign = "right",
 				press = function(element)
-					--added tracks this session (assetid set): rows swap their [+] to a
-					--check glyph once a clip has been added at least once (James field
-					--report, 2026-07-03) -- pressing again still adds (duplicates are
-					--allowed by design), the check is purely "you already grabbed this".
-					m_studioBuildMode = { playlistid = playlistid, count = 0, added = {} }
+					--added: assetids added to the playlist this session (still present),
+					--drives the banner count. snapshot: a shallow copy of the playlist's
+					--track list as it stood at entry, so Cancel can restore it verbatim
+					--even though [+] now toggles membership (add/remove) rather than only
+					--ever adding (James field report, 2026-07-03).
+					local snap = {}
+					for i,v in ipairs(pl.tracks) do
+						snap[i] = v
+					end
+					m_studioBuildMode = { playlistid = playlistid, count = 0, added = {}, snapshot = snap }
 					if g_audioLibraryRequestRebuild ~= nil then
 						g_audioLibraryRequestRebuild()
 					end
@@ -5569,6 +5674,7 @@ local CreateStudioPlaylistsCard = function(heightSpec)
 					{ selectors = {"checkboxLabel"}, fontSize = 12, priority = 20 },
 				},
 				shuffleButton,
+				loopToggle,
 				gui.Label{ classes = {"sizeXs"}, text = "Crossfade (s)", width = "auto", height = "auto", halign = "left", valign = "center", hmargin = 4 },
 				crossfadeSlider,
 				playTogetherCheck,
@@ -6288,6 +6394,46 @@ CreateAudioStudio = function()
 				m_studioBuildMode = nil
 				--A cue auditioned while picking tracks should not keep playing once
 				--the adding session ends (James field report, 2026-07-03).
+				StopStudioCue()
+				if g_audioLibraryRequestRebuild ~= nil then
+					g_audioLibraryRequestRebuild()
+				end
+				if g_studioSelectTab ~= nil then
+					g_studioSelectTab("playlists")
+				end
+				if g_studioRefreshBuildMode ~= nil then
+					g_studioRefreshBuildMode()
+				end
+			end,
+		},
+		gui.Button{
+			classes = {"sizeXs"},
+			text = "Cancel",
+			width = "auto",
+			height = 24,
+			hpad = 8,
+			borderBox = true,
+			valign = "center",
+			hmargin = 3,
+			press = function(element)
+				--Restore the playlist to how it stood when build mode was entered.
+				--Skip the restore if the target playlist was deleted out from under
+				--the session (another DM client) -- nothing to restore onto.
+				if m_studioBuildMode ~= nil then
+					local pl = (GetPlaylistsDoc().data.playlists or {})[m_studioBuildMode.playlistid]
+					if pl ~= nil and m_studioBuildMode.snapshot ~= nil then
+						local restoreid = m_studioBuildMode.playlistid
+						local restored = {}
+						for i,v in ipairs(m_studioBuildMode.snapshot) do
+							restored[i] = v
+						end
+						ModifyPlaylist(restoreid, "Cancel adding tracks", function(pl2)
+							pl2.tracks = restored
+						end)
+					end
+				end
+				--Exit build mode exactly like Done does.
+				m_studioBuildMode = nil
 				StopStudioCue()
 				if g_audioLibraryRequestRebuild ~= nil then
 					g_audioLibraryRequestRebuild()

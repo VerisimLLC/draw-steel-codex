@@ -884,8 +884,69 @@ audio.SoundEvent{
 
 
 --Dice Impacts
+--
+-- A dice set's impact sound is chosen by "family": a speed-tiered group of soft/mild/hard
+-- impact sounds (e.g. Copper, Glass, Stone). On a die collision the engine always fires the
+-- single "Dice.Impact" sound event and passes the die's chosen family (args.family) plus the
+-- impact speed (args.speed) and an optional volume multiplier (args.volume). The dispatcher
+-- below resolves the family to "DiceImp.{Soft,Mild,Hard}[_suffix]" by speed.
+--
+-- DiceImpactFamilies is the formal, enumerable registry of families. It mirrors the
+-- AudioSurfaceTypes / AudioObjectDestructionTypes idiom (an ordered list of {id, text, ...}).
+-- The Dice Studio "Impact" picker lists DiceImpactFamilies.families, so any family added here
+-- shows up automatically. id is stored on the dice set ("" = the default/copper family); suffix
+-- maps to the DiceImp.* leaf sound events defined below (the default family uses an empty suffix).
 
+DiceImpactFamilies = {}
 
+-- Ordered list of registered families. id is stored on the dice set ("" = the default/copper
+-- family); text is the picker label; suffix maps to the DiceImp.* leaf sound events.
+DiceImpactFamilies.families = {
+    { id = "",           text = "Copper (Default)", suffix = ""           },
+    { id = "BlackAsh",   text = "Black Ash",        suffix = "BlackAsh"   },
+    { id = "Glass",      text = "Glass",            suffix = "Glass"      },
+    { id = "Stone",      text = "Stone",            suffix = "Stone"      },
+    { id = "MetalTiny",  text = "Metal (Small)",    suffix = "MetalTiny"  },
+    { id = "MetalBlade", text = "Metal Blade",      suffix = "MetalBlade" },
+}
+
+-- Look up a family by id. Returns the default (copper) family for a nil/unknown id so a stale
+-- or missing choice still makes a sound.
+function DiceImpactFamilies.Get(id)
+    for _,family in ipairs(DiceImpactFamilies.families) do
+        if family.id == id then
+            return family
+        end
+    end
+    return DiceImpactFamilies.families[1]
+end
+
+-- Fires the soft/mild/hard leaf sound for a family suffix, scaled by impact speed and an
+-- optional volume multiplier (a dice set's bound impact volume; 1 = the authored volume).
+local function FireImpactSound(suffix, speed, volumeMult)
+    speed = speed or 0
+    volumeMult = volumeMult or 1
+
+    local soundEvent = "DiceImp.Soft" .. suffix
+    local volume = speed
+    if speed > 10 then
+        soundEvent = "DiceImp.Hard" .. suffix
+        volume = 0.6 + (speed - 8) * 0.1
+    elseif speed > 4 then
+        soundEvent = "DiceImp.Mild" .. suffix
+        volume = 0.6 + (speed - 1) * 0.1
+    end
+
+    local child = audio.FireSoundEvent(soundEvent, {})
+    if child ~= nil then
+        child.volume = volume * volumeMult
+    end
+end
+
+-- Registers an impact dispatcher. The base "Dice.Impact" (name == nil) resolves the die's chosen
+-- family from args.family at fire time; a suffixed "Dice.Impact_<name>" is locked to its own
+-- family (kept so a family can be fired directly, and for back-compat with dice sets that bound
+-- "Dice.Impact_<Family>" before the family picker existed).
 local function RegisterImpactEvent(name)
     local suffix = ""
     if name ~= nil then
@@ -896,29 +957,26 @@ local function RegisterImpactEvent(name)
         mixgroup = "dice",
         name = "Dice.Impact" .. suffix,
         play = function(instance)
-            local speed = instance.args.speed or 0
-            local soundEvent = "DiceImp.Soft" .. suffix
-            local volume = 1
-            if speed > 10 then
-                soundEvent = "DiceImp.Hard" .. suffix
-                volume = 0.6 + (speed - 8) * 0.1
-            elseif speed > 4 then
-                soundEvent = "DiceImp.Mild" .. suffix
-                volume = 0.6 + (speed - 1) * 0.1
-            else
-                soundEvent = "DiceImp.Soft" .. suffix
-                volume = speed
+            local familySuffix = suffix
+            if suffix == "" then
+                local family = DiceImpactFamilies.Get(instance.args.family)
+                if family.suffix ~= "" then
+                    familySuffix = "_" .. family.suffix
+                end
             end
-
-            local child = audio.FireSoundEvent(soundEvent, {})
-            child.volume = volume
+            FireImpactSound(familySuffix, instance.args.speed, instance.args.volume)
         end,
     }
 end
 
 
+-- The base Dice.Impact dispatcher plus one Dice.Impact_<suffix> per non-default family.
 RegisterImpactEvent()
-RegisterImpactEvent("BlackAsh")
+for _,family in ipairs(DiceImpactFamilies.families) do
+    if family.suffix ~= "" then
+        RegisterImpactEvent(family.suffix)
+    end
+end
 
 audio.SoundEvent{
     name = "DiceImp.Hard",

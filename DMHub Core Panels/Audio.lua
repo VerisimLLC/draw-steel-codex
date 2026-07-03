@@ -2471,7 +2471,10 @@ CreateSoundPanel = function()
 		width = "auto",
 		height = 24,
 		halign = "center",
-		vmargin = 2,
+		--Asymmetric margins: the hero title renders directly below and was
+		--touching the buttons at vmargin 2 (James field report, 2026-07-03).
+		tmargin = 2,
+		bmargin = 6,
 	}
 
 	--Play/stop toggle shared by the pinned buttons and the overflow context menu:
@@ -6624,7 +6627,11 @@ CreateAudioStudio = function()
 	local buildBannerLabel = gui.Label{
 		classes = {"bold", "sizeS"},
 		text = "",
-		width = "100%-90",
+		--Complement of BOTH header buttons (Done + Cancel, ~56px and ~62px with
+		--pads/margins) plus slack. Was 100%-90 when Done stood alone; adding
+		--Cancel (FU2) pushed it past the card border (James field report,
+		--2026-07-03).
+		width = "100%-150",
 		height = "auto",
 		halign = "left",
 		valign = "center",

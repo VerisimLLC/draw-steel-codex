@@ -559,9 +559,14 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
         }
 
         print("AI:: PUSH:: IN INVOKE token", creature.GetTokenDescription(invokerToken), "targeting =", targeting, "ai", invokerToken.properties._tmp_aicontrol, "promptCallback =", invokerToken.properties._tmp_aipromptCallback, "for", abilityClone.name, coroutine.running())
+        --Set when an AI prompt callback answered the prompt: the targets are already
+        --resolved, so the cast below must NOT be routed through the action bar UI
+        --(which would wait for player clicks that will never come).
+        local aiResolvedTargeting = false
         if (targeting == "prompt" or targeting == "prompt_inherit") and invokerToken.properties._tmp_aicontrol > 0 and invokerToken.properties._tmp_aipromptCallback then
             print("PUSH:: INVOKING!!!!!")
             targeting = invokerToken.properties._tmp_aipromptCallback(invokerToken, casterToken, abilityClone, symbols, options)
+            aiResolvedTargeting = (targeting ~= "prompt" and targeting ~= "prompt_inherit")
         end
 
         if targeting == "prompt" or targeting == "prompt_inherit" then
@@ -652,7 +657,7 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
                 end
             end
 
-            if abilityClone:RequiresPromptWhenCast() or abilityClone:try_get("promptOverride") ~= nil then
+            if (not aiResolvedTargeting) and (abilityClone:RequiresPromptWhenCast() or abilityClone:try_get("promptOverride") ~= nil) then
                 abilityClone.skippable = true
                 gamehud.actionBarPanel:FireEventTree("invokeAbility", casterToken, abilityClone, symbols, invokerCallback, {instantCast = true, targets = targets})
             else

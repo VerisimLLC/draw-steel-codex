@@ -520,31 +520,622 @@ local function PlayingTracksForCategory(cat)
 	return list
 end
 
+--=====================================================================================
+--Playlist core (chunk H-core): engine logic only, no UI (that is later chunks). Two
+--game-scoped shared docs, split by lifecycle:
+--  - "audioPlaylists" holds DM-authored definitions (playlists, tracks, shuffle/
+--    playTogether/crossfade/loop settings, and the gamemode->playlist bindings). This
+--    is checkpoint-backed like any other DM content.
+--  - "audioPlaylistState" holds live/ephemeral playback state (what's playing, whose
+--    client is driving it, the auto-switch bracket). This is NOT checkpoint-backed --
+--    it is transient session state, not content, and would be stale/wrong on restore.
+--
+--Driver model: whichever client calls AudioPlaylistPlay "drives" that playlist's
+--advance loop from then on (state.playing.driver = dmhub.userid). A single 0.5s poll
+--(PollAudioPlaylists) checks state.playing.driver == dmhub.userid before advancing, so
+--exactly one client ever fires the next-track crossfade/hard-cut for a given playlist,
+--never every client racing to do it at once.
+--
+--Save/restore bracket: a DM-only game-mode watcher inside the same poll detects when
+--the effective Draw Steel game mode (exploration/combat/respite/downtime) changes. If
+--the DM has bound a playlist to that mode, entering the mode auto-plays it -- but first
+--saves whatever was playing (a driven playlist, or a bare manual music track) into
+--state.auto.saved, so leaving the bound mode can restore it. The bracket is NOT
+--overwritten while active (auto.active == true), so a chain of auto-switches (e.g.
+--exploration -> combat -> respite, both bound) still restores the ORIGINAL pre-bracket
+--audio when the party finally lands back in an unbound mode.
+--=====================================================================================
+
+local audioPlaylistsDocId = "audioPlaylists"
+mod:RegisterDocumentForCheckpointBackups(audioPlaylistsDocId)
+
+local audioPlaylistStateDocId = "audioPlaylistState"
+--(state doc deliberately NOT registered for checkpoint backups -- see banner above)
+
+--Snapshot getters. Trivial wrappers kept simple on purpose -- later UI chunks will
+--call these directly rather than reaching for GetDocumentSnapshot themselves.
+local function GetPlaylistsDoc()
+	return mod:GetDocumentSnapshot(audioPlaylistsDocId)
+end
+
+local function GetPlaylistStateDoc()
+	return mod:GetDocumentSnapshot(audioPlaylistStateDocId)
+end
+
+--Seeds the three starter playlists the DM edits from (later UI chunks give them the
+--editing surface; this chunk only guarantees they exist). DM-only, called once from
+--the driver poll's first tick. Names "Combat"/"Exploration"/"Respite" are signed copy.
+local function EnsureStarterPlaylists()
+	local doc = GetPlaylistsDoc()
+	if doc.data.playlists ~= nil then
+		return
+	end
+	local combatId = dmhub.GenerateGuid()
+	local explorationId = dmhub.GenerateGuid()
+	local respiteId = dmhub.GenerateGuid()
+	doc:BeginChange()
+	doc.data.playlists = {
+		[combatId] = {
+			name = "Combat", ord = 1, pinned = true,
+			tracks = {}, shuffle = false, playTogether = false,
+			crossfadeSeconds = 3.0, loop = true,
+		},
+		[explorationId] = {
+			name = "Exploration", ord = 2, pinned = true,
+			tracks = {}, shuffle = false, playTogether = false,
+			crossfadeSeconds = 3.0, loop = true,
+		},
+		[respiteId] = {
+			name = "Respite", ord = 3, pinned = true,
+			tracks = {}, shuffle = false, playTogether = false,
+			crossfadeSeconds = 3.0, loop = true,
+		},
+	}
+	doc.data.bindings = {
+		enabled = false,
+		modes = {
+			combat = combatId,
+			exploration = explorationId,
+			respite = respiteId,
+		},
+	}
+	doc:CompleteChange("Create starter playlists", {undoable = false})
+end
+
+--Returns the assetid of the currently-playing music track, or nil. At most one
+--outside playTogether mode -- music does not layer.
+local function CurrentMusicAssetId()
+	for assetid,_ in pairs(audio.currentlyPlaying) do
+		local a = assets.audioTable[assetid]
+		if a ~= nil and a.category == "music" then
+			return assetid
+		end
+	end
+	return nil
+end
+
+--Fisher-Yates shuffle of a fresh copy of the given list (does not mutate the input).
+local function ShuffledCopy(list)
+	local copy = {}
+	for i,v in ipairs(list) do
+		copy[i] = v
+	end
+	for i = #copy, 2, -1 do
+		local j = math.random(i)
+		copy[i], copy[j] = copy[j], copy[i]
+	end
+	return copy
+end
+
+--Double-advance guard shared by the driver poll and the manual skip. Doc echo latency
+--means state.playing.index may not reflect a just-written advance for a tick or two,
+--so the advancing client remembers the (assetid, index) it last advanced FROM and the
+--poll refuses to re-fire that same transition. The poll clears it whenever the current
+--track is observed OUTSIDE its end-of-track trigger zone -- that reset is what lets a
+--single-track looping playlist (same assetid, same index forever) re-advance on each
+--subsequent loop instead of stalling after the first.
+local m_lastAdvance = nil
+
+--Forward declarations -- AudioPlaylistPlay, AudioPlaylistStop, AdvancePlaylist, and
+--the driver poll all call each other out of order (Lua locals must exist before use).
+local AudioPlaylistPlay
+local AudioPlaylistStop
+local AudioPlaylistNext
+local AdvancePlaylist
+local PollAudioPlaylists
+
+--The ONLY entry point that starts a playlist. No-op if the playlist is missing or has
+--no tracks (never kills the DM's music for an empty playlist). See chunk brief for the
+--full sequential-vs-playTogether behavior; comments below mark each branch.
+AudioPlaylistPlay = function(playlistid, startedBy)
+	local plDoc = GetPlaylistsDoc()
+	local pl = (plDoc.data.playlists or {})[playlistid]
+	if pl == nil or pl.tracks == nil or #pl.tracks == 0 then
+		return
+	end
+
+	local xf = pl.crossfadeSeconds or 3.0
+
+	--Resolve play order: dedupe for playTogether (one instance per assetid, first
+	--occurrence wins), else optionally shuffle a copy.
+	local order
+	if pl.playTogether then
+		order = {}
+		local seen = {}
+		for _,assetid in ipairs(pl.tracks) do
+			if not seen[assetid] then
+				seen[assetid] = true
+				order[#order+1] = assetid
+			end
+		end
+	elseif pl.shuffle then
+		order = ShuffledCopy(pl.tracks)
+	else
+		order = {}
+		for i,assetid in ipairs(pl.tracks) do
+			order[i] = assetid
+		end
+	end
+
+	local stateDoc = GetPlaylistStateDoc()
+	local prevPlaying = stateDoc.data.playing
+	local curMusic = CurrentMusicAssetId()
+
+	--A different playlist was previously driving -- stop its leftover tracks (those
+	--not part of the new order) BEFORE starting the new one. The current music track
+	--is deliberately excluded: the crossfade below owns its fade-out, and a hard
+	--StopSoundEvent here would kill that fade mid-flight. Relevant mainly for
+	--playTogether hand-offs; a sequential playlist's non-current tracks were never
+	--started in the first place.
+	if prevPlaying ~= nil and prevPlaying.playlistid ~= playlistid then
+		local inNew = {}
+		for _,assetid in ipairs(order) do
+			inNew[assetid] = true
+		end
+		for _,assetid in ipairs(prevPlaying.order or {}) do
+			if not inNew[assetid] and assetid ~= curMusic then
+				audio.StopSoundEvent(assetid)
+			end
+		end
+	end
+
+	if pl.playTogether then
+		--Layered ambience-style mode: fade out current music (if any), then start
+		--every track in the new order simultaneously. No advance loop applies.
+		if curMusic ~= nil then
+			audio.CrossfadeSoundEvents(curMusic, nil, xf)
+		end
+		for _,assetid in ipairs(order) do
+			local a = assets.audioTable[assetid]
+			if a ~= nil then
+				audio.PlaySoundEvent{asset = a}
+			end
+		end
+	else
+		--Sequential mode: crossfade from whatever music is playing now into the
+		--first track of the new order. Skip the crossfade entirely if that exact
+		--clip is already playing (nothing to fade).
+		if curMusic ~= order[1] then
+			audio.CrossfadeSoundEvents(curMusic, order[1], xf)
+		end
+	end
+
+	stateDoc:BeginChange()
+	stateDoc.data.playing = {
+		playlistid = playlistid,
+		order = order,
+		index = 1,
+		driver = dmhub.userid,
+		startedBy = startedBy,
+	}
+	if startedBy == "manual" then
+		stateDoc.data.auto = { active = false, saved = nil }
+	end
+	stateDoc:CompleteChange("Play playlist", {undoable = false})
+end
+
+--Stops every track in the currently-driven playlist and clears state.playing. Does
+--NOT touch state.auto -- callers decide that separately (see StopAllBroadcastAudio and
+--the game-mode watcher's restore branch, which have different auto-handling needs).
+AudioPlaylistStop = function()
+	local stateDoc = GetPlaylistStateDoc()
+	local playing = stateDoc.data.playing
+	if playing == nil then
+		return
+	end
+	for _,assetid in ipairs(playing.order or {}) do
+		audio.StopSoundEvent(assetid)
+	end
+	stateDoc:BeginChange()
+	stateDoc.data.playing = nil
+	stateDoc:CompleteChange("Stop playlist", {undoable = false})
+end
+
+--Shared advance body used by both the driver poll's natural advance (gated upstream
+--by the remaining-time check and the double-advance guard) and the manual skip entry
+--point AudioPlaylistNext (no gating -- it forces the advance now). Assumes the caller
+--has already verified state.playing ~= nil and the playlist is not playTogether.
+AdvancePlaylist = function()
+	local stateDoc = GetPlaylistStateDoc()
+	local playing = stateDoc.data.playing
+	if playing == nil then
+		return
+	end
+	local plDoc = GetPlaylistsDoc()
+	local pl = (plDoc.data.playlists or {})[playing.playlistid]
+	if pl == nil then
+		AudioPlaylistStop()
+		return
+	end
+
+	local order = playing.order
+	local index = playing.index
+	local cur = order[index]
+	local xf = pl.crossfadeSeconds or 3.0
+
+	local nextIndex = index + 1
+	if nextIndex > #order then
+		if pl.loop then
+			nextIndex = 1
+			if pl.shuffle then
+				order = ShuffledCopy(pl.tracks)
+			end
+		else
+			AudioPlaylistStop()
+			return
+		end
+	end
+
+	local nextId = order[nextIndex]
+	local instance = audio.currentlyPlaying[cur]
+
+	--Arm the double-advance guard for the transition we are about to fire, so the
+	--poll does not re-fire it while the index write below is still echoing back.
+	--Set here (not in the poll) so manual skips via AudioPlaylistNext are covered too.
+	m_lastAdvance = { assetid = cur, index = index }
+
+	if nextId == cur then
+		--Single-track looping playlist: seek instead of crossfade (self-crossfade is
+		--a no-op engine-side anyway, so there is nothing to gain from calling it).
+		if instance ~= nil then
+			instance.time = 0
+		else
+			local asset = assets.audioTable[cur]
+			if asset ~= nil then
+				audio.PlaySoundEvent{asset = asset}
+			end
+		end
+	elseif instance ~= nil then
+		if xf < 0.05 then
+			audio.StopSoundEvent(cur)
+			local asset = assets.audioTable[nextId]
+			if asset ~= nil then
+				audio.PlaySoundEvent{asset = asset}
+			end
+		else
+			audio.CrossfadeSoundEvents(cur, nextId, xf)
+		end
+	else
+		--Hard start case: the current track already ended/was stopped externally,
+		--so there is nothing to crossfade from.
+		local asset = assets.audioTable[nextId]
+		if asset ~= nil then
+			audio.PlaySoundEvent{asset = asset}
+		end
+	end
+
+	stateDoc:BeginChange()
+	stateDoc.data.playing.index = nextIndex
+	stateDoc.data.playing.order = order
+	stateDoc:CompleteChange("Advance playlist", {undoable = false})
+end
+
+--Manual skip: force an advance now. No-op if nothing is playing, if this client is
+--not the driver (two clients advancing the same playlist is the exact race the driver
+--model exists to prevent), or if the driven playlist is playTogether (there is no
+--"next" in layered mode).
+AudioPlaylistNext = function()
+	local stateDoc = GetPlaylistStateDoc()
+	local playing = stateDoc.data.playing
+	if playing == nil or playing.driver ~= dmhub.userid then
+		return
+	end
+	local plDoc = GetPlaylistsDoc()
+	local pl = (plDoc.data.playlists or {})[playing.playlistid]
+	if pl ~= nil and pl.playTogether then
+		return
+	end
+	AdvancePlaylist()
+end
+
+--Rewires both dock/Studio "stop all" buttons (see the two call sites below). Stops
+--every engine sound event, then clears playlist state AND the auto-switch bracket --
+--a deliberate full-stop always cancels any pending game-mode restore.
+local function StopAllBroadcastAudio()
+	audio.StopAllSoundEvents()
+	local stateDoc = GetPlaylistStateDoc()
+	stateDoc:BeginChange()
+	stateDoc.data.playing = nil
+	stateDoc.data.auto = { active = false, saved = nil }
+	stateDoc:CompleteChange("Stop all audio", {undoable = false})
+end
+
+--Deliberate user stop of ONE broadcast track (dock hero stop, now-playing row stops,
+--Studio strip chips, soundboard/library play-toggles). If the track is the CURRENT
+--track of a driven sequential playlist, a raw StopSoundEvent would be undone within a
+--poll tick -- the advance loop reads a vanished instance as "track ended" and starts
+--the next one -- so stopping the driven track stops the PLAYLIST, and closes any open
+--game-mode auto bracket (a deliberate stop is a manual action, same as stop-all).
+--Everything else (ambience beds, effects, playTogether layers) is a plain stop: no
+--advance loop resurrects those.
+local function StopBroadcastClip(assetid)
+	local stateDoc = GetPlaylistStateDoc()
+	local playing = stateDoc.data.playing
+	if playing ~= nil and playing.order ~= nil and playing.order[playing.index] == assetid then
+		local plDoc = GetPlaylistsDoc()
+		local pl = (plDoc.data.playlists or {})[playing.playlistid]
+		if pl == nil or not pl.playTogether then
+			AudioPlaylistStop()
+			local closeDoc = GetPlaylistStateDoc()
+			closeDoc:BeginChange()
+			closeDoc.data.auto = { active = false, saved = nil }
+			closeDoc:CompleteChange("Stop playlist track", {undoable = false})
+			return
+		end
+	end
+	audio.StopSoundEvent(assetid)
+end
+
+--Module-local poll flags. m_lastMode deliberately lives off-doc: while bindings are
+--disabled the watcher just tracks the effective mode here, so a disabled watcher never
+--churns the shared doc on every mode change.
+local m_didEnsureStarters = false
+local m_lastMode = nil
+
+--Driver poll (0.5s self-rescheduling, mirrors SyncBroadcastLevelsToEngine's shape).
+--Each tick: seeds starter playlists once, runs the DM-only game-mode watcher (auto
+--play/save/restore on Draw Steel mode changes), then advances whichever playlist this
+--client is driving. See the module banner above for the driver/bracket model.
+PollAudioPlaylists = function()
+	if mod.unloaded then
+		return
+	end
+
+	if dmhub.isDM and not m_didEnsureStarters then
+		EnsureStarterPlaylists()
+		m_didEnsureStarters = true
+	end
+
+	if dmhub.isDM then
+		--Effective game mode. Do NOT gate this on queue.hidden: respite/downtime run
+		--with the queue HIDDEN and gameMode still set (the End Respite bar checks
+		--hidden==true), and both End Combat paths reset gameMode to "exploration"
+		--while hiding the queue -- so gameMode is maintained across hidden states and
+		--is the single source of truth whenever a queue exists. Gating on hidden made
+		--respite and downtime undetectable (review finding, 2026-07-03).
+		local effective = "exploration"
+		if dmhub.initiativeQueue ~= nil then
+			effective = dmhub.initiativeQueue.gameMode or "exploration"
+		end
+
+		local plDoc = GetPlaylistsDoc()
+		local bindings = plDoc.data.bindings
+
+		if bindings == nil or not bindings.enabled then
+			m_lastMode = effective
+		elseif effective == m_lastMode then
+			--unchanged, nothing to do
+		else
+			local stateDoc = GetPlaylistStateDoc()
+			local claimed = true
+			stateDoc:BeginChange()
+			if stateDoc.data.lastMode == effective then
+				--Another DM client already handled this transition.
+				claimed = false
+			else
+				stateDoc.data.lastMode = effective
+			end
+			stateDoc:CompleteChange("Game mode changed", {undoable = false})
+
+			if not claimed then
+				m_lastMode = effective
+			else
+				local bound = bindings.modes[effective]
+				if bound ~= nil then
+					local boundPl = (plDoc.data.playlists or {})[bound]
+					if boundPl == nil or boundPl.tracks == nil or #boundPl.tracks == 0 then
+						bound = nil
+					end
+				end
+
+				local stateDoc2 = GetPlaylistStateDoc()
+				local auto = stateDoc2.data.auto or { active = false, saved = nil }
+
+				if bound ~= nil then
+					--Entering a bound mode.
+					if not auto.active then
+						local saved = nil
+						local curPlaying = stateDoc2.data.playing
+						if curPlaying ~= nil then
+							saved = { kind = "playlist", id = curPlaying.playlistid }
+						else
+							local curMusic = CurrentMusicAssetId()
+							if curMusic ~= nil then
+								saved = { kind = "track", id = curMusic }
+							end
+						end
+						stateDoc2:BeginChange()
+						stateDoc2.data.auto = { active = true, saved = saved }
+						stateDoc2:CompleteChange("Enter bound game mode", {undoable = false})
+					end
+					--If auto.active was already true, the existing saved bracket is
+					--kept as-is (chained auto-switches survive with the ORIGINAL save).
+					--Skip the play when this exact playlist is ALREADY driving (two
+					--modes bound to the same playlist): replaying would reset index to
+					--1 and reshuffle, discarding sequence progress for no reason.
+					local alreadyDriving = stateDoc2.data.playing ~= nil
+						and stateDoc2.data.playing.playlistid == bound
+					if not alreadyDriving then
+						AudioPlaylistPlay(bound, "gamemode")
+					end
+				elseif auto.active then
+					--Entering an unbound mode while a bracket is open: restore.
+					local saved = auto.saved
+					if saved ~= nil and saved.kind == "playlist"
+						and (plDoc.data.playlists or {})[saved.id] ~= nil
+						and #((plDoc.data.playlists or {})[saved.id].tracks or {}) > 0 then
+						AudioPlaylistPlay(saved.id, "manual")
+					elseif saved ~= nil and saved.kind == "track" and assets.audioTable[saved.id] ~= nil then
+						local curPlaying = stateDoc2.data.playing
+						local curMusic = CurrentMusicAssetId()
+						if curPlaying ~= nil then
+							for _,assetid in ipairs(curPlaying.order or {}) do
+								if assetid ~= curMusic then
+									audio.StopSoundEvent(assetid)
+								end
+							end
+						end
+						audio.CrossfadeSoundEvents(curMusic, saved.id, 3.0)
+						stateDoc2:BeginChange()
+						stateDoc2.data.playing = nil
+						stateDoc2:CompleteChange("Restore saved track", {undoable = false})
+					else
+						local curPlaying = stateDoc2.data.playing
+						if curPlaying ~= nil then
+							AudioPlaylistStop()
+						else
+							local curMusic = CurrentMusicAssetId()
+							if curMusic ~= nil then
+								audio.CrossfadeSoundEvents(curMusic, nil, 3.0)
+							end
+						end
+					end
+					--Fresh snapshot for the bracket-close write: the restore branches
+					--above may have written through stateDoc2 (or through their own
+					--snapshots inside AudioPlaylistPlay/Stop); one snapshot per change
+					--cycle is the house rule.
+					local closeDoc = GetPlaylistStateDoc()
+					closeDoc:BeginChange()
+					closeDoc.data.auto = { active = false, saved = nil }
+					closeDoc:CompleteChange("Close game mode bracket", {undoable = false})
+				end
+				--else: entering an unbound mode while no bracket is open -- nothing to do.
+
+				m_lastMode = effective
+			end
+		end
+	end
+
+	--Advance loop: only the client driving a non-playTogether playlist advances it.
+	local stateDoc3 = GetPlaylistStateDoc()
+	local playing = stateDoc3.data.playing
+	if playing ~= nil and playing.driver == dmhub.userid then
+		local plDoc2 = GetPlaylistsDoc()
+		local pl = (plDoc2.data.playlists or {})[playing.playlistid]
+		if pl == nil then
+			AudioPlaylistStop()
+		elseif not pl.playTogether then
+			local order = playing.order
+			local index = playing.index
+			local cur = order[index]
+			local instance = audio.currentlyPlaying[cur]
+			local asset = assets.audioTable[cur]
+			local xf = pl.crossfadeSeconds or 3.0
+
+			local shouldAdvance = false
+			if instance ~= nil and asset ~= nil and asset.duration ~= nil and asset.duration > 0 then
+				if not instance.paused then
+					local remaining = asset.duration - instance.time
+					shouldAdvance = remaining <= math.max(xf, 0.25)
+				end
+			elseif instance == nil then
+				shouldAdvance = true
+			end
+
+			if shouldAdvance then
+				local isRepeat = m_lastAdvance ~= nil and m_lastAdvance.assetid == cur and m_lastAdvance.index == index
+				if not isRepeat then
+					AdvancePlaylist()
+				end
+			else
+				--Outside the trigger zone: clear the guard so the SAME (assetid,
+				--index) may legitimately advance again on a later loop (see the
+				--m_lastAdvance banner -- single-track loops re-seek with an
+				--unchanged index and would otherwise stall after one cycle).
+				m_lastAdvance = nil
+			end
+		end
+	end
+
+	dmhub.Schedule(0.5, PollAudioPlaylists)
+end
+
+dmhub.Schedule(0.5, PollAudioPlaylists)
+
+--Dev-only test hooks: the playlist core is module-local with no UI yet (H-studio and
+--H-dock are later chunks), so MCP-bridge verification has no event path to drive it.
+--Gated on the house devmode() so nothing leaks into normal play.
+if rawget(_G, "devmode") ~= nil and devmode() then
+	DrawSteelAudioDev = {
+		GetPlaylistsDoc = function() return GetPlaylistsDoc() end,
+		GetPlaylistStateDoc = function() return GetPlaylistStateDoc() end,
+		Play = function(playlistid, startedBy) AudioPlaylistPlay(playlistid, startedBy) end,
+		Stop = function() AudioPlaylistStop() end,
+		Next = function() AudioPlaylistNext() end,
+		StopAll = function() StopAllBroadcastAudio() end,
+		StopClip = function(assetid) StopBroadcastClip(assetid) end,
+	}
+end
+
 --Broadcast play helper (chunk D7): routes every table-facing Play button (dock tile,
 --Studio library row, Studio soundboard) through one place so music can be kept to a
 --single track. Music does not layer -- starting a new music clip stops every OTHER
 --currently-playing music clip first. Ambience/effects are unaffected (those are
 --allowed to layer). opts is an optional table of extra PlaySoundEvent fields (e.g.
 --volume) forwarded as-is; asset is always set from the asset parameter.
---Chunk G upgrades the stop to a crossfade; deliberate music layering is chunk H's
---simultaneous playlist mode.
+--Chunk G upgrades the stop to a crossfade; chunk H adds deliberate music layering via
+--playTogether playlists. A manual music play here always replaces/ends any driven
+--playlist and any open game-mode auto-switch bracket -- see the music branch below.
 local function PlayBroadcastClip(asset, opts)
 	if asset == nil then
 		return
 	end
 	if asset.category == "music" then
-		local stopIds = {}
+		local stateDoc = GetPlaylistStateDoc()
+		if stateDoc.data.playing ~= nil then
+			AudioPlaylistStop()
+			--AudioPlaylistStop wrote through its own snapshot; re-fetch before
+			--writing again so the auto-bracket write below starts from fresh data.
+			stateDoc = GetPlaylistStateDoc()
+		end
+		stateDoc:BeginChange()
+		stateDoc.data.auto = { active = false, saved = nil }
+		stateDoc:CompleteChange("Manual music play", {undoable = false})
+
+		local otherIds = {}
 		for assetid,_ in pairs(audio.currentlyPlaying) do
 			if assetid ~= asset.id then
 				local a = assets.audioTable[assetid]
 				if a ~= nil and a.category == "music" then
-					stopIds[#stopIds+1] = assetid
+					otherIds[#otherIds+1] = assetid
 				end
 			end
 		end
-		for _,id in ipairs(stopIds) do
-			audio.StopSoundEvent(id)
+
+		local fadeFrom = nil
+		if #otherIds == 1 then
+			fadeFrom = otherIds[1]
+		elseif #otherIds > 1 then
+			for i = 2, #otherIds do
+				audio.StopSoundEvent(otherIds[i])
+			end
+			fadeFrom = otherIds[1]
 		end
+		audio.CrossfadeSoundEvents(fadeFrom, asset.id, 3.0)
+		if opts ~= nil and opts.volume ~= nil then
+			audio.SetSoundEventVolume(asset.id, opts.volume)
+		end
+		return
 	end
 	local playArgs = {}
 	if opts ~= nil then
@@ -1139,7 +1730,7 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 			end
 			if assetid == nil then return end
 			if audio.currentlyPlaying[assetid] ~= nil then
-				audio.StopSoundEvent(assetid)
+				StopBroadcastClip(assetid)
 			else
 				local asset = assets.audioTable[assetid]
 				if asset ~= nil then
@@ -1212,7 +1803,7 @@ CreateSoundPanel = function()
 		hmargin = 4,
 		halign = "right",
 		press = function(element)
-			audio.StopAllSoundEvents()
+			StopAllBroadcastAudio()
 		end,
 		linger = function(element)
 			gui.Tooltip("Stop all audio")(element)
@@ -1285,7 +1876,7 @@ CreateSoundPanel = function()
 		hmargin = 4,
 		press = function(element)
 			if m_musicId ~= nil then
-				audio.StopSoundEvent(m_musicId)
+				StopBroadcastClip(m_musicId)
 			end
 		end,
 		linger = function(element)
@@ -1375,7 +1966,7 @@ CreateSoundPanel = function()
 				valign = "center",
 				hmargin = 4,
 				press = function(element)
-					audio.StopSoundEvent(id)
+					StopBroadcastClip(id)
 				end,
 				linger = function(element)
 					gui.Tooltip("Stop")(element)
@@ -2457,7 +3048,7 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 		end,
 		press = function(element)
 			if audio.currentlyPlaying[audioAsset.id] ~= nil then
-				audio.StopSoundEvent(audioAsset.id)
+				StopBroadcastClip(audioAsset.id)
 			else
 				PlayBroadcastClip(audioAsset, { volume = audioAsset.volume })
 			end
@@ -4165,7 +4756,7 @@ local function CreateStudioNowPlayingStrip()
 		valign = "top",
 		hmargin = 4,
 		press = function(element)
-			audio.StopAllSoundEvents()
+			StopAllBroadcastAudio()
 		end,
 	}
 
@@ -4199,7 +4790,7 @@ local function CreateStudioNowPlayingStrip()
 				valign = "center",
 				hmargin = 4,
 				press = function(element)
-					audio.StopSoundEvent(id)
+					StopBroadcastClip(id)
 				end,
 				linger = function(element)
 					gui.Tooltip("Stop")(element)

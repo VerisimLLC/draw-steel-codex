@@ -4492,6 +4492,25 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 	end
 
 	local function OpenNormalizeTrimPopup(parentElement, audioAsset)
+		--Display-only mirror of the engine's AudioController.ComputeNormalizeGain
+		--(target -18 LUFS; auto correction clamped to +/-12dB, then correction+trim
+		--clamped again). Keep in sync if the engine formula ever changes.
+		local function AutoCorrectionDb()
+			local c = -18 - audioAsset.loudnessLufs
+			if c > 12 then c = 12 elseif c < -12 then c = -12 end
+			return c
+		end
+		local function TotalAppliedDb(trim)
+			local t = AutoCorrectionDb() + trim
+			if t > 12 then t = 12 elseif t < -12 then t = -12 end
+			return t
+		end
+
+		local measured = audioAsset.loudnessMeasured
+
+		--Forward-declared: the slider's preview/confirm closures update it live.
+		local totalLabel
+
 		local slider
 		slider = gui.Slider{
 			minValue = -12,
@@ -4501,9 +4520,95 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 			labelWidth = 44,
 			labelFormat = "%.1fdB",
 			style = { width = "100%", height = 20, valign = "center" },
+			preview = function(element)
+				if totalLabel ~= nil then
+					totalLabel.text = string.format("Total applied: %+.1fdB", TotalAppliedDb(element.value))
+				end
+			end,
 			confirm = function(element)
 				audioAsset.normalizeGainTrimDb = element.value
 				audioAsset:Upload()
+				if totalLabel ~= nil then
+					totalLabel.text = string.format("Total applied: %+.1fdB", TotalAppliedDb(audioAsset.normalizeGainTrimDb))
+				end
+			end,
+		}
+
+		--Children built as an array: several entries are conditional and a nil in
+		--a table-constructor child list silently drops everything after it.
+		local children = {}
+		children[#children+1] = gui.Label{
+			classes = {"bold", "sizeXs"},
+			text = "Loudness trim",
+			width = "auto",
+			height = "auto",
+			halign = "left",
+			vmargin = 2,
+		}
+		--Inform, don't enforce: trim stays editable either way; this just explains
+		--why dragging it changes nothing audible right now.
+		if not audio.normalizeLoudness then
+			children[#children+1] = gui.Label{
+				classes = {"sizeXs", "fgMuted"},
+				text = "Normalization is off for this game (Settings > Audio).",
+				width = "100%",
+				height = "auto",
+				textWrap = true,
+				vmargin = 2,
+			}
+		end
+		if measured then
+			children[#children+1] = gui.Label{
+				classes = {"sizeXs", "fgMuted"},
+				text = string.format("Measured: %.1f LUFS", audioAsset.loudnessLufs),
+				width = "auto",
+				height = "auto",
+				halign = "left",
+			}
+			children[#children+1] = gui.Label{
+				classes = {"sizeXs", "fgMuted"},
+				text = string.format("Auto adjustment: %+.1fdB", AutoCorrectionDb()),
+				width = "auto",
+				height = "auto",
+				halign = "left",
+			}
+		else
+			children[#children+1] = gui.Label{
+				classes = {"sizeXs", "fgMuted"},
+				text = "Not measured yet - measured the first time it plays to the table.",
+				width = "100%",
+				height = "auto",
+				textWrap = true,
+				vmargin = 2,
+			}
+		end
+		children[#children+1] = slider
+		if measured then
+			totalLabel = gui.Label{
+				classes = {"sizeXs"},
+				text = string.format("Total applied: %+.1fdB", TotalAppliedDb(audioAsset.normalizeGainTrimDb)),
+				width = "auto",
+				height = "auto",
+				halign = "left",
+				vmargin = 2,
+			}
+			children[#children+1] = totalLabel
+		end
+		children[#children+1] = gui.Button{
+			classes = {"sizeXs"},
+			text = "Reset",
+			width = 60,
+			height = 22,
+			halign = "left",
+			vmargin = 4,
+			borderBox = true,
+			press = function()
+				slider.value = 0
+				audioAsset.normalizeGainTrimDb = 0
+				audioAsset:Upload()
+				if totalLabel ~= nil then
+					totalLabel.text = string.format("Total applied: %+.1fdB", TotalAppliedDb(0))
+				end
 			end,
 		}
 
@@ -4519,29 +4624,7 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 			flow = "vertical",
 			pad = 8,
 			borderBox = true,
-			gui.Label{
-				classes = {"bold", "sizeXs"},
-				text = "Loudness trim",
-				width = "auto",
-				height = "auto",
-				halign = "left",
-				vmargin = 2,
-			},
-			slider,
-			gui.Button{
-				classes = {"sizeXs"},
-				text = "Reset",
-				width = 60,
-				height = 22,
-				halign = "left",
-				vmargin = 4,
-				borderBox = true,
-				press = function()
-					slider.value = 0
-					audioAsset.normalizeGainTrimDb = 0
-					audioAsset:Upload()
-				end,
-			},
+			children = children,
 		}
 	end
 

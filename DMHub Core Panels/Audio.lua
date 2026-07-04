@@ -5212,8 +5212,8 @@ CreateSoundPanel = function()
 			local secondaryRow = gui.Panel{
 				classes = {"collapsed"},
 				flow = "horizontal",
-				width = "100%-26",
-				lmargin = 26,
+				width = "100%-38",
+				lmargin = 38,
 				height = "auto",
 				valign = "center",
 				triggerBadge,

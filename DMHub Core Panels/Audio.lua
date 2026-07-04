@@ -4770,12 +4770,17 @@ CreateSoundPanel = function()
 					valign = "center",
 				},
 				preview = function(element)
-					if hoveredObjId == objid then
-						local o = game.currentFloor and game.currentFloor.objects[objid]
-						if o ~= nil then
-							pcall(function() o:ShowRadiusMarker(element.value) end)
-						end
+					--UNGATED (not on hoveredObjId): starting the drag fires the row's
+					--dehover, which clears the ring + nils hoveredObjId, so a gated
+					--preview never redrew the ring mid-drag. Dragging the falloff fader
+					--is unambiguously about THIS emitter, so always preview its ring and
+					--re-claim ownership (the row dehover clears it when you finally leave).
+					local o = game.currentFloor and game.currentFloor.objects[objid]
+					if o == nil then
+						return
 					end
+					hoveredObjId = objid
+					pcall(function() o:ShowRadiusMarker(element.value) end)
 				end,
 				confirm = function(element)
 					local o = game.currentFloor and game.currentFloor.objects[objid]
@@ -4787,6 +4792,10 @@ CreateSoundPanel = function()
 						return
 					end
 					c:SetAndUploadProperties{ falloffDistance = element.value }
+					--Re-assert the ring at the committed radius so it survives the
+					--release (keeps showing until the pointer leaves the row).
+					hoveredObjId = objid
+					pcall(function() o:ShowRadiusMarker(element.value) end)
 				end,
 			}
 
@@ -4919,8 +4928,8 @@ CreateSoundPanel = function()
 			local secondaryRow = gui.Panel{
 				classes = {"collapsed"},
 				flow = "horizontal",
-				width = "100%-38",
-				lmargin = 38,
+				width = "100%-26",
+				lmargin = 26,
 				height = "auto",
 				valign = "center",
 				triggerBadge,

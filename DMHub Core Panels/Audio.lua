@@ -4556,12 +4556,548 @@ CreateSoundPanel = function()
 			vmargin = 2,
 		},
 	}
+
+	--Read one field off an Audio component by id (fields have no direct
+	--by-name index -- they are a plain array of {id, prettyName, fieldType,
+	--currentValue}). Returns nil if the component has no such field.
+	local function AudioField(comp, id)
+		for _,f in ipairs(comp.fields) do
+			if f.id == id then
+				return f
+			end
+		end
+		return nil
+	end
+
+	--"Map Sounds" node (chunk K3-dock-a): lists every audio emitter placed on the
+	--current map floor that has a clip assigned, letting the DM mute/unmute,
+	--adjust source volume, expand for falloff/wall-penetration/remove, hover to
+	--preview the falloff ring, and double-click to pan the camera there. The
+	--"+ Add map sound" creation flow (stamp + clip picker) is a separate later
+	--chunk (K3-dock-b) -- this body only surfaces emitters already placed.
+	local CreateMapSoundsNode = function()
+		--Body-scoped hover state: only one falloff ring can be shown at a time
+		--(the engine marker is a single shared ring), so track which row (if
+		--any) currently owns it and clear it on dehover/teardown.
+		local hoveredObjId = nil
+		local function ClearRing()
+			if hoveredObjId ~= nil then
+				local o = game.currentFloor and game.currentFloor.objects[hoveredObjId]
+				if o ~= nil then
+					pcall(function() o:ClearRadiusMarker() end)
+				end
+				hoveredObjId = nil
+			end
+		end
+
+		--Every audio-component object on the current floor that has a clip
+		--assigned, sorted by objid. Used both to build the row list and as a
+		--cheap "did the set of clipped emitters change" signature.
+		local function ClippedEmitters()
+			local floor = game.currentFloor
+			local ids = {}
+			if floor ~= nil then
+				for objid, obj in pairs(floor.objects) do
+					local comp = obj:GetComponent("Audio")
+					if comp ~= nil then
+						local f = AudioField(comp, "audio")
+						local clip = f ~= nil and f.currentValue or nil
+						if clip ~= nil and clip ~= "" then
+							ids[#ids+1] = objid
+						end
+					end
+				end
+			end
+			table.sort(ids)
+			return ids
+		end
+
+		local function CreateMapSoundRow(objid)
+			local expanded = false
+
+			--Construction-time seed values read once from the live component so the
+			--sliders open on the emitter's ACTUAL stored settings (not schema
+			--defaults). Runtime handlers still re-resolve the object by objid; this
+			--is only the initial slider position. (A value edited elsewhere while
+			--the row is open is an accepted staleness edge -- the list only rebuilds
+			--when the set of clipped emitters changes, not on a field edit.)
+			local seedObj = game.currentFloor and game.currentFloor.objects[objid]
+			local seedComp = seedObj ~= nil and seedObj:GetComponent("Audio") or nil
+			local function SeedValue(id, default)
+				if seedComp == nil then
+					return default
+				end
+				local f = AudioField(seedComp, id)
+				if f ~= nil and f.currentValue ~= nil then
+					return f.currentValue
+				end
+				return default
+			end
+
+			local nameLabel = gui.Label{
+				classes = {"sizeS"},
+				text = "Map sound",
+				width = "100%",
+				height = "auto",
+				halign = "left",
+				textWrap = false,
+				textOverflow = "ellipsis",
+			}
+
+			local sourceLabel = gui.Label{
+				classes = {"sizeXxs", "fgMuted", "hidden"},
+				text = "",
+				width = "100%",
+				height = "auto",
+				halign = "left",
+				textOverflow = "ellipsis",
+			}
+
+			local triggerBadge = gui.Label{
+				classes = {"sizeXxs", "hidden"},
+				text = "Trigger",
+				bgcolor = "#444444",
+				cornerRadius = 4,
+				hpad = 4,
+				borderBox = true,
+				halign = "center",
+				valign = "center",
+				hmargin = 4,
+				height = "auto",
+				width = "auto",
+				linger = function(element)
+					gui.Tooltip("This sound plays when triggered in the object panel, not continuously.")(element)
+				end,
+			}
+
+			local statusDot = gui.Panel{
+				bgimage = "panels/square.png",
+				bgcolor = "#888888",
+				width = 8,
+				height = 8,
+				cornerRadius = 4,
+				valign = "center",
+				hmargin = 4,
+			}
+
+			local onOffButton
+			onOffButton = gui.Panel{
+				bgimage = "ui-icons/AudioMuteButton.png",
+				bgcolor = "white",
+				width = 16,
+				height = 16,
+				valign = "center",
+				hmargin = 4,
+				press = function()
+					local o = game.currentFloor and game.currentFloor.objects[objid]
+					if o == nil then
+						return
+					end
+					local c = o:GetComponent("Audio")
+					if c == nil then
+						return
+					end
+					c.disabled = not c.disabled
+					c:Upload()
+				end,
+				linger = function(element)
+					local o = game.currentFloor and game.currentFloor.objects[objid]
+					local c = o ~= nil and o:GetComponent("Audio") or nil
+					local on = c ~= nil and not c.disabled
+					gui.Tooltip(cond(on, "Playing on the map", "Muted"))(element)
+				end,
+			}
+
+			local volumeSlider = gui.Slider{
+				value = SeedValue("volume", 1),
+				minValue = 0,
+				maxValue = 2,
+				sliderWidth = 70,
+				labelWidth = 0,
+				labelFormat = "",
+				style = {
+					width = 80,
+					height = 14,
+					halign = "right",
+					valign = "center",
+				},
+				confirm = function(element)
+					local o = game.currentFloor and game.currentFloor.objects[objid]
+					if o == nil then
+						return
+					end
+					local c = o:GetComponent("Audio")
+					if c == nil then
+						return
+					end
+					c:SetAndUploadProperties{ volume = element.value }
+				end,
+				linger = function(element)
+					gui.Tooltip("Volume at the source")(element)
+				end,
+			}
+
+			local expandedBody
+
+			local caret
+			caret = gui.ExpandoArrow{
+				width = 16,
+				height = 16,
+				valign = "center",
+				hmargin = 3,
+				press = function()
+					expanded = not expanded
+					caret:SetClass("expanded", expanded)
+					expandedBody:SetClass("collapsed", not expanded)
+				end,
+			}
+
+			local falloffSlider = gui.Slider{
+				value = SeedValue("falloffDistance", 10),
+				minValue = 0,
+				maxValue = 200,
+				sliderWidth = 70,
+				labelWidth = 0,
+				labelFormat = "",
+				style = {
+					width = 80,
+					height = 14,
+					halign = "right",
+					valign = "center",
+				},
+				preview = function(element)
+					if hoveredObjId == objid then
+						local o = game.currentFloor and game.currentFloor.objects[objid]
+						if o ~= nil then
+							pcall(function() o:ShowRadiusMarker(element.value) end)
+						end
+					end
+				end,
+				confirm = function(element)
+					local o = game.currentFloor and game.currentFloor.objects[objid]
+					if o == nil then
+						return
+					end
+					local c = o:GetComponent("Audio")
+					if c == nil then
+						return
+					end
+					c:SetAndUploadProperties{ falloffDistance = element.value }
+				end,
+			}
+
+			local wallPenSlider = gui.Slider{
+				value = SeedValue("wallPenetration", 0),
+				minValue = 0,
+				maxValue = 1,
+				sliderWidth = 70,
+				labelWidth = 0,
+				labelFormat = "",
+				style = {
+					width = 80,
+					height = 14,
+					halign = "right",
+					valign = "center",
+				},
+				confirm = function(element)
+					local o = game.currentFloor and game.currentFloor.objects[objid]
+					if o == nil then
+						return
+					end
+					local c = o:GetComponent("Audio")
+					if c == nil then
+						return
+					end
+					c:SetAndUploadProperties{ wallPenetration = element.value }
+				end,
+			}
+
+			local removeButton = gui.Button{
+				classes = {"sizeXxs"},
+				text = "Remove",
+				width = "auto",
+				height = 20,
+				hpad = 8,
+				borderBox = true,
+				halign = "left",
+				vmargin = 4,
+				press = function()
+					gui.ModalMessage{
+						title = "Remove this map sound?",
+						message = "Remove this map sound?",
+						options = {
+							{
+								text = "Remove",
+								execute = function()
+									local o = game.currentFloor and game.currentFloor.objects[objid]
+									if o == nil then
+										return
+									end
+									local c = o:GetComponent("Audio")
+									if c == nil then
+										return
+									end
+									--Clear the ring only if this row owns it (same shared-marker
+									--ownership guard as dehover).
+									if hoveredObjId == objid then
+										pcall(function() o:ClearRadiusMarker() end)
+										hoveredObjId = nil
+									end
+									c:DestroyObject()
+								end,
+							},
+							{
+								text = "Cancel",
+								execute = function() end,
+							},
+						},
+					}
+				end,
+			}
+
+			expandedBody = gui.Panel{
+				classes = {"collapsed"},
+				flow = "vertical",
+				width = "100%",
+				height = "auto",
+				hpad = 4,
+				borderBox = true,
+
+				gui.Panel{
+					flow = "horizontal",
+					width = "100%",
+					height = "auto",
+					valign = "center",
+					vmargin = 2,
+					gui.Label{
+						classes = {"sizeXs"},
+						text = "Falloff distance",
+						width = "100%-80",
+						height = "auto",
+						halign = "left",
+						valign = "center",
+					},
+					falloffSlider,
+				},
+
+				gui.Panel{
+					flow = "horizontal",
+					width = "100%",
+					height = "auto",
+					valign = "center",
+					vmargin = 2,
+					gui.Label{
+						classes = {"sizeXs"},
+						text = "Wall penetration",
+						width = "100%-80",
+						height = "auto",
+						halign = "left",
+						valign = "center",
+					},
+					wallPenSlider,
+				},
+
+				removeButton,
+			}
+
+			local nameColumn = gui.Panel{
+				flow = "vertical",
+				width = "100%-140",
+				height = "auto",
+				valign = "center",
+				nameLabel,
+				sourceLabel,
+			}
+
+			local headerRow
+			headerRow = gui.Panel{
+				flow = "horizontal",
+				width = "100%",
+				height = "auto",
+				valign = "center",
+				vmargin = 1,
+				hover = function()
+					local o = game.currentFloor and game.currentFloor.objects[objid]
+					if o == nil then
+						return
+					end
+					local c = o:GetComponent("Audio")
+					local f = c ~= nil and AudioField(c, "falloffDistance") or nil
+					local r = f ~= nil and f.currentValue or 10
+					hoveredObjId = objid
+					pcall(function() o:ShowRadiusMarker(r) end)
+				end,
+				dehover = function()
+					--Only clear if THIS row currently owns the single shared ring.
+					--The engine marker is global, so an unconditional clear here would
+					--wipe a sibling row's ring when the pointer moves straight from
+					--row A to row B and hover(B) fires before dehover(A).
+					if hoveredObjId == objid then
+						local o = game.currentFloor and game.currentFloor.objects[objid]
+						if o ~= nil then
+							pcall(function() o:ClearRadiusMarker() end)
+						end
+						hoveredObjId = nil
+					end
+				end,
+				doubleclick = function()
+					local o = game.currentFloor and game.currentFloor.objects[objid]
+					if o == nil then
+						return
+					end
+					pcall(function() o:CenterCamera{smooth=true} end)
+				end,
+
+				statusDot,
+				nameColumn,
+				triggerBadge,
+				onOffButton,
+				volumeSlider,
+				caret,
+			}
+
+			--Refresh the row's live-state chrome (name, source line, trigger badge,
+			--on/off glyph, status dot) from the current component. Called on create
+			--(so the row never flashes the fallback name / dim dot / mute glyph for a
+			--think period on a rebuild) AND every think tick. Sliders are NOT touched
+			--here -- they are seeded once at construction so this never fights a drag.
+			local function RefreshRow()
+				local o = game.currentFloor and game.currentFloor.objects[objid]
+				if o == nil then
+					return
+				end
+				local c = o:GetComponent("Audio")
+				if c == nil then
+					return
+				end
+
+				local clipField = AudioField(c, "audio")
+				local clipid = clipField ~= nil and clipField.currentValue or nil
+				local asset = clipid ~= nil and assets.audioTable[clipid] or nil
+				local displayName = DisplayNameForAsset(asset)
+				nameLabel.text = (displayName ~= nil and displayName ~= "") and displayName or "Map sound"
+
+				local hasCustomSource = o.name ~= nil and o.name ~= "Audio"
+				sourceLabel.text = "on " .. tostring(o.name)
+				sourceLabel:SetClass("hidden", not hasCustomSource)
+
+				local triggerField = AudioField(c, "playOnlyOnTrigger")
+				local isTrigger = triggerField ~= nil and triggerField.currentValue == true
+				triggerBadge:SetClass("hidden", not isTrigger)
+
+				local on = not c.disabled
+				onOffButton.bgimage = on and "ui-icons/AudioVolumeButton.png" or "ui-icons/AudioMuteButton.png"
+
+				local lit = on and (not isTrigger)
+				statusDot.bgcolor = lit and "#5cb85c" or "#888888"
+			end
+
+			return gui.Panel{
+				flow = "vertical",
+				width = "100%",
+				height = "auto",
+				data = { objid = objid },
+
+				create = function()
+					RefreshRow()
+				end,
+
+				thinkTime = 0.5,
+				think = function()
+					RefreshRow()
+				end,
+
+				headerRow,
+				expandedBody,
+			}
+		end
+
+		local emptyState = gui.Panel{
+			classes = {"hidden"},
+			flow = "vertical",
+			width = "100%",
+			height = "auto",
+			halign = "center",
+
+			gui.Label{
+				classes = {"sizeS", "bold"},
+				text = "No sounds on this map yet",
+				width = "100%",
+				height = "auto",
+				halign = "center",
+				textWrap = true,
+				vmargin = 2,
+			},
+			gui.Label{
+				classes = {"sizeXs", "fgMuted"},
+				text = "Map sounds play from a point on the map, getting louder as you move closer. Add one to bring a location to life - a crackling fire, a bubbling fountain, a howling wind.",
+				width = "100%",
+				height = "auto",
+				halign = "center",
+				textWrap = true,
+				vmargin = 2,
+			},
+		}
+
+		local RefreshMapSoundsList = function(element)
+			local floor = game.currentFloor
+			local ids = ClippedEmitters()
+			local sig = (floor ~= nil and floor.floorid or "none") .. "|" .. table.concat(ids, ",")
+			if sig ~= element.data.signature then
+				element.data.signature = sig
+				local children = {}
+				for _,objid in ipairs(ids) do
+					children[#children+1] = CreateMapSoundRow(objid)
+				end
+				element.children = children
+				emptyState:SetClass("hidden", #ids > 0)
+			end
+		end
+
+		local listPanel
+		listPanel = gui.Panel{
+			flow = "vertical",
+			width = "100%",
+			height = "auto",
+			data = { signature = nil },
+
+			create = RefreshMapSoundsList,
+
+			thinkTime = 1,
+			think = RefreshMapSoundsList,
+		}
+
+		return gui.Panel{
+			flow = "vertical",
+			width = "100%",
+			height = "auto",
+
+			destroy = function()
+				pcall(ClearRing)
+			end,
+
+			gui.Label{
+				classes = {"bold", "sizeXs"},
+				text = "On This Map",
+				width = "auto",
+				height = "auto",
+				halign = "left",
+				vmargin = 2,
+			},
+
+			listPanel,
+			emptyState,
+		}
+	end
+
+	local mapSoundsBody = CreateMapSoundsNode()
+
 	--Segmented selector row replacing the old "Controls" umbrella drawer: three
 	--equal-width toggle buttons, exclusive selection (picking one hides whichever
 	--else was open; picking the active one again collapses back to none). Mirrors
 	--the Studio soundboard's "Edit board" toggle (gui.Button + press + SetClass
 	--"selected") since that affordance is already verified working and themed.
-	local levelsButton, anthemsButton, soundboardButton
+	local levelsButton, anthemsButton, soundboardButton, mapButton
 	local SelectDockSection
 
 	SelectDockSection = function(id)
@@ -4569,15 +5105,20 @@ CreateSoundPanel = function()
 		categoryFaders:SetClass("collapsed", id ~= "levels")
 		anthemsBody:SetClass("collapsed", id ~= "anthems")
 		soundboardBody:SetClass("collapsed", id ~= "soundboard")
+		mapSoundsBody:SetClass("collapsed", id ~= "map")
 		levelsButton:SetClass("selected", id == "levels")
 		anthemsButton:SetClass("selected", id == "anthems")
 		soundboardButton:SetClass("selected", id == "soundboard")
+		mapButton:SetClass("selected", id == "map")
 	end
 
+	--Width dropped from 106 to 84 (all four, including this one) so a 4th button
+	--fits the ~364 dock without overflowing the fixed-width + auto-centre row
+	--(see the comment below the buttons).
 	levelsButton = gui.Button{
 		classes = {"sizeXs"},
 		text = "Levels",
-		width = 106,
+		width = 84,
 		height = 24,
 		hmargin = 2,
 		borderBox = true,
@@ -4590,7 +5131,7 @@ CreateSoundPanel = function()
 	anthemsButton = gui.Button{
 		classes = {"sizeXs"},
 		text = "Anthems",
-		width = 106,
+		width = 84,
 		height = 24,
 		hmargin = 2,
 		borderBox = true,
@@ -4603,13 +5144,28 @@ CreateSoundPanel = function()
 	soundboardButton = gui.Button{
 		classes = {"sizeXs"},
 		text = "Soundboard",
-		width = 106,
+		width = 84,
 		height = 24,
 		hmargin = 2,
 		borderBox = true,
 		valign = "center",
 		press = function()
 			SelectDockSection(cond(g_dockControlsSelected == "soundboard", nil, "soundboard"))
+		end,
+	}
+
+	--"Map Sounds" fits at width 84 without clipping (verify on the live screenshot;
+	--fall back to the shorter "Map" label if it turns out to truncate).
+	mapButton = gui.Button{
+		classes = {"sizeXs"},
+		text = "Map Sounds",
+		width = 84,
+		height = 24,
+		hmargin = 2,
+		borderBox = true,
+		valign = "center",
+		press = function()
+			SelectDockSection(cond(g_dockControlsSelected == "map", nil, "map"))
 		end,
 	}
 
@@ -4628,6 +5184,7 @@ CreateSoundPanel = function()
 		levelsButton,
 		anthemsButton,
 		soundboardButton,
+		mapButton,
 	}
 
 	local dockSectionBodies = gui.Panel{
@@ -4638,6 +5195,7 @@ CreateSoundPanel = function()
 		categoryFaders,
 		anthemsBody,
 		soundboardBody,
+		mapSoundsBody,
 	}
 
 	--Restore whatever was selected earlier this session (nil on a fresh app session,

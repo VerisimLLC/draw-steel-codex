@@ -1467,7 +1467,11 @@ end
 --card, and the library rows' build mode. Deliberately NOT settings (James: session
 --memory only, mirrors g_dockControlsSelected).
 local g_studioLeftTab = "library"
-local m_studioBuildMode = nil   --nil, or { playlistid = <id>, count = <n> }
+--nil, or a build-mode session table: { playlistid, count, added, snapshot } for a
+--playlist session, or { poolid, count, added, snapshot } for a variant pool session
+--(K1.5-studio). The presence of .poolid vs .playlistid is the discriminator -- exactly
+--one of the two is ever set on a given session table.
+local m_studioBuildMode = nil
 --Assigned inside CreateAudioStudio / CreateAudioLibraryTree so distant code
 --(playlist rows, library rows) can drive tab switches and tree rebuilds.
 local g_studioSelectTab = nil        --function(tabid)
@@ -1772,6 +1776,79 @@ function VariantPools.MoveMember(poolid, fromIndex, toIndex)
 	doc:CompleteChange("Reorder variant pool")
 end
 
+--Reorders by ID: moves assetid so it sits immediately BEFORE beforeId (or at the END
+--when beforeId is nil or not a member). ID-based on purpose -- the card's member rows
+--are rendered from Members(), which SKIPS hidden/deleted assets, so RENDERED indices
+--can diverge from entry.members indices; ids cannot. Also carries the insert-before
+--adjustment MoveTrackInPlaylist needs (remove shifts positions), so drag handlers can
+--pass what the user sees without index arithmetic. No-op if the pool is invalid,
+--assetid is not a member, or the move would not change the order.
+function VariantPools.MoveMemberBefore(poolid, assetid, beforeId)
+	if not VariantPools.IsPool(poolid) or assetid == nil or assetid == beforeId then
+		return
+	end
+	local doc = VariantPools.GetDoc()
+	local entry = doc.data[poolid]
+	local fromIndex = nil
+	local beforeIndex = nil
+	for i,id in ipairs(entry.members) do
+		if id == assetid and fromIndex == nil then
+			fromIndex = i
+		end
+		if beforeId ~= nil and id == beforeId and beforeIndex == nil then
+			beforeIndex = i
+		end
+	end
+	if fromIndex == nil then
+		return
+	end
+	--Already in place: dropping onto the slot directly below yourself (beforeId is the
+	--next member) or onto the trailing slot while already last.
+	if beforeIndex ~= nil and beforeIndex == fromIndex + 1 then
+		return
+	end
+	if beforeIndex == nil and fromIndex == #entry.members then
+		return
+	end
+	doc:BeginChange()
+	PurgeLegacyEntries(doc)
+	local members = doc.data[poolid].members
+	table.remove(members, fromIndex)
+	if beforeIndex == nil then
+		members[#members+1] = assetid
+	else
+		if beforeIndex > fromIndex then
+			beforeIndex = beforeIndex - 1
+		end
+		table.insert(members, beforeIndex, assetid)
+	end
+	doc:CompleteChange("Reorder variant pool")
+end
+
+--Replaces the pool's entire member list wholesale (e.g. restoring a build-mode session
+--snapshot on cancel). De-duplicates keeping first-occurrence order, skips nils. nil
+--memberIds clears the pool to empty. No-op if the pool is invalid.
+function VariantPools.SetMembers(poolid, memberIds)
+	if not VariantPools.IsPool(poolid) then
+		return
+	end
+	local doc = VariantPools.GetDoc()
+	doc:BeginChange()
+	PurgeLegacyEntries(doc)
+	local members = {}
+	if memberIds ~= nil then
+		local seen = {}
+		for _,assetid in ipairs(memberIds) do
+			if assetid ~= nil and not seen[assetid] then
+				seen[assetid] = true
+				members[#members+1] = assetid
+			end
+		end
+	end
+	doc.data[poolid].members = members
+	doc:CompleteChange("Set variant pool members")
+end
+
 function VariantPools.SetRandomPick(poolid, on)
 	if not VariantPools.IsPool(poolid) then
 		return
@@ -1885,6 +1962,8 @@ if rawget(_G, "devmode") ~= nil and devmode() and rawget(_G, "DrawSteelAudioDev"
 	DrawSteelAudioDev.AddVariantPoolMember = function(poolid, assetid) VariantPools.AddMember(poolid, assetid) end
 	DrawSteelAudioDev.RemoveVariantPoolMember = function(poolid, assetid) VariantPools.RemoveMember(poolid, assetid) end
 	DrawSteelAudioDev.MoveVariantPoolMember = function(poolid, from, to) VariantPools.MoveMember(poolid, from, to) end
+	DrawSteelAudioDev.MoveVariantPoolMemberBefore = function(poolid, assetid, beforeId) VariantPools.MoveMemberBefore(poolid, assetid, beforeId) end
+	DrawSteelAudioDev.SetVariantPoolMembers = function(poolid, memberIds) VariantPools.SetMembers(poolid, memberIds) end
 	DrawSteelAudioDev.SetVariantPoolRandom = function(poolid, on) VariantPools.SetRandomPick(poolid, on) end
 	DrawSteelAudioDev.SetVariantPoolPitch = function(poolid, v) VariantPools.SetPitchVar(poolid, v) end
 	DrawSteelAudioDev.RemoveVariantPool = function(poolid) VariantPools.Remove(poolid) end
@@ -1906,15 +1985,12 @@ if rawget(_G, "devmode") ~= nil and devmode() and rawget(_G, "DrawSteelAudioDev"
 	end
 end
 
---K1-studio: shared module-level state between the create helper (CreateVariantPool,
---callable from OpenRowContextMenu) and the library tree's pool row (CreatePoolNode).
---Declared once here, well before both users.
-local m_poolPendingRename = nil       --folderid whose new pool row should auto-open rename
-local m_poolCueIndex = {}             --per-pool DM-cue cycle index (module-local)
-local g_audioLibraryExpandPool = nil  --function(folderid): expand that pool + rebuild the tree
-local m_poolCreateInFlight = false    --one pool-create at a time: two rapid creates would both
-                                      --match the same echoed "New Variant Pool" folder and
-                                      --misattribute members (correctness review H2).
+--K1.5-studio: shared module-level state between the clip context menu (OpenRowContextMenu,
+--which can create pools and needs the new row to open in rename mode) and the Variant
+--Pools card in the Playlists tab. Declared once here, well before both users.
+local m_poolPendingRename = nil    --poolid whose card row should auto-open rename on next build
+local m_poolCueIndex = {}          --per-pool DM-cue cycle index (module-local, session-only)
+local g_poolsCardExpandPool = nil  --function(poolid): expand that pool row + rebuild the card
 
 --Normalise the stored category to a dropdown option id. An unset category reads back
 --as nil (never set) OR "" (set to nil through the current AudioAssetLua setter, which
@@ -4364,72 +4440,6 @@ local function EnsureCategoryFolder(category, callback)
 	dmhub.Schedule(0.25, poll)
 end
 
---K1-studio: shared create helper for a new variant pool folder, called both from the
---Effects category row's "+ Variant pool" button (memberIds = nil) and the multi-select
---"Combine into variant pool" context entry (memberIds = the selected clip ids). Lands
---the folder under Effects, flags it as a pool (VariantPools.EnsureEntry), moves any
---member clips in, then queues it for auto-rename and asks the tree to expand + rebuild.
---MODULE level (not tree-local): must be reachable from OpenRowContextMenu, which is
---defined before the tree factory exists. Uses g_audioLibraryExpandPool/
---g_audioLibraryRequestRebuild (module hooks) instead of the tree's own
---RequestRebuild/m_expanded, which are not in scope here.
-local function CreateVariantPool(memberIds)
-	--One create at a time (review H2): two rapid creates each snapshot the folder
-	--table before either echo lands, so both polls would match the same new
-	--"New Variant Pool" folder and misattribute members. Cleared on every terminal
-	--path below (effects-folder failure, success, poll timeout, module unload).
-	if m_poolCreateInFlight then return end
-	m_poolCreateInFlight = true
-	EnsureCategoryFolder("effects", function(effectsId)
-		if effectsId == nil then m_poolCreateInFlight = false return end
-		--Snapshot existing folder ids (names can collide, so poll by NEW id -- the
-		--first id absent from this snapshot with the default name is the fresh one).
-		local before = {}
-		for fid in pairs(assets.audioFoldersTable) do before[fid] = true end
-		assets:UploadNewAudioFolder{ description = "New Variant Pool", parentFolder = effectsId }
-		local attempts = 20
-		local function poll()
-			if mod.unloaded then m_poolCreateInFlight = false return end
-			local newId = nil
-			for fid,f in pairs(assets.audioFoldersTable) do
-				if before[fid] ~= true and not f.hidden and f.description == "New Variant Pool" then
-					newId = fid
-					break
-				end
-			end
-			if newId ~= nil then
-				local f = assets.audioFoldersTable[newId]
-				if f.parentFolder ~= effectsId then
-					f.parentFolder = effectsId
-					f:Upload()
-				end
-				VariantPools.EnsureEntry(newId)
-				if memberIds ~= nil then
-					for _,cid in ipairs(memberIds) do
-						local a = assets.audioTable[cid]
-						if a ~= nil then
-							a.parentFolder = newId
-							a:Upload()
-						end
-					end
-				end
-				m_poolPendingRename = newId
-				m_poolCreateInFlight = false
-				if g_audioLibraryExpandPool ~= nil then
-					g_audioLibraryExpandPool(newId)
-				elseif g_audioLibraryRequestRebuild ~= nil then
-					g_audioLibraryRequestRebuild()
-				end
-				return
-			end
-			attempts = attempts - 1
-			if attempts <= 0 then m_poolCreateInFlight = false return end
-			dmhub.Schedule(0.25, poll)
-		end
-		dmhub.Schedule(0.25, poll)
-	end)
-end
-
 --Stamp the chosen category onto a newly uploaded asset. The upload callback fires
 --when the file TRANSFER completes, but the asset only appears in assets.audioTable
 --once the cloud echo lands -- typically AFTER that callback (verified live), so a
@@ -4620,12 +4630,7 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 	--name+duration+cue+[+] and every other control below is skipped entirely.
 	local buildMode = m_studioBuildMode
 
-	--K1-studio: pool member rows (opts.poolMemberMode, used by CreatePoolNode for a
-	--variant pool's expanded body) declutter the SAME way build mode does -- skip
-	--loop/play/category/volume, keep name+duration+cue -- but must NOT show the [+]
-	--button, which is playlist-build only. slim covers both declutter cases; the [+]
-	--button stays gated on the narrower buildMode ~= nil below.
-	local slim = buildMode ~= nil or opts.poolMemberMode
+	local slim = buildMode ~= nil
 
 	--Broadcast Play/Stop (heard by the whole table via PlaySoundEvent). A dedicated
 	--play glyph -- NOT the chevron-like triangle, which read as a folder expander.
@@ -4892,7 +4897,81 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 	--playlist) can leave an idle row's glyph stale until the next rebuild or press --
 	--accepted edge, single-DM norm.
 	local plusButton
-	if buildMode ~= nil then
+	if buildMode ~= nil and buildMode.poolid ~= nil then
+		--K1.5-studio: pool build-mode session. Membership reads go through the
+		--VariantPools API (reference semantics) instead of a playlist's tracks list.
+		local alreadyIn = false
+		for _,a in ipairs(VariantPools.Members(buildMode.poolid)) do
+			if a.id == audioAsset.id then
+				alreadyIn = true
+				break
+			end
+		end
+		plusButton = gui.Panel{
+			classes = {"audioAddTrackButton"},
+			bgimage = alreadyIn and "icons/standard/Icon_App_Check.png" or "ui-icons/Plus.png",
+			width = 18,
+			height = 18,
+			valign = "center",
+			hmargin = 3,
+			press = function(element)
+				if m_studioBuildMode == nil then
+					return
+				end
+				--Self-heal: the target pool can be deleted out from under an open
+				--build mode (another DM client). AddMember would silently no-op then,
+				--so the banner count would drift from reality -- end the adding
+				--session instead, mirroring the playlist self-heal above.
+				if not VariantPools.IsPool(m_studioBuildMode.poolid) then
+					m_studioBuildMode = nil
+					StopStudioCue()
+					if g_audioLibraryRequestRebuild ~= nil then
+						g_audioLibraryRequestRebuild()
+					end
+					if g_studioRefreshBuildMode ~= nil then
+						g_studioRefreshBuildMode()
+					end
+					return
+				end
+				local isIn = false
+				for _,a in ipairs(VariantPools.Members(m_studioBuildMode.poolid)) do
+					if a.id == audioAsset.id then
+						isIn = true
+						break
+					end
+				end
+				if isIn then
+					VariantPools.RemoveMember(m_studioBuildMode.poolid, audioAsset.id)
+					if m_studioBuildMode.added ~= nil and m_studioBuildMode.added[audioAsset.id] then
+						m_studioBuildMode.added[audioAsset.id] = nil
+						m_studioBuildMode.count = math.max(0, m_studioBuildMode.count - 1)
+					end
+					element.bgimage = "ui-icons/Plus.png"
+				else
+					VariantPools.AddMember(m_studioBuildMode.poolid, audioAsset.id)
+					if m_studioBuildMode.added == nil then
+						m_studioBuildMode.added = {}
+					end
+					m_studioBuildMode.added[audioAsset.id] = true
+					m_studioBuildMode.count = m_studioBuildMode.count + 1
+					element.bgimage = "icons/standard/Icon_App_Check.png"
+				end
+				if g_studioRefreshBuildMode ~= nil then
+					g_studioRefreshBuildMode()
+				end
+			end,
+			linger = function(element)
+				local isInNow = false
+				for _,a in ipairs(VariantPools.Members(buildMode.poolid)) do
+					if a.id == audioAsset.id then
+						isInNow = true
+						break
+					end
+				end
+				gui.Tooltip(isInNow and "Remove from variant pool" or "Add to variant pool")(element)
+			end,
+		}
+	elseif buildMode ~= nil then
 		local plForCheck = (GetPlaylistsDoc().data.playlists or {})[buildMode.playlistid]
 		local alreadyIn = false
 		if plForCheck ~= nil then
@@ -5238,8 +5317,10 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 						AddTrackToPlaylist(plid, id)
 					end
 					--If a build-mode session targets this same playlist, the library
-					--rows' [+] glyphs show membership -- rebuild so they resync.
-					if m_studioBuildMode ~= nil and m_studioBuildMode.playlistid == plid and g_audioLibraryRequestRebuild ~= nil then
+					--rows' [+] glyphs show membership -- rebuild so they resync. Guarded
+					--on .playlistid ~= nil first so a pool session (which has no
+					--.playlistid field) is never mistaken for a match here.
+					if m_studioBuildMode ~= nil and m_studioBuildMode.playlistid ~= nil and m_studioBuildMode.playlistid == plid and g_audioLibraryRequestRebuild ~= nil then
 						g_audioLibraryRequestRebuild()
 					end
 				end,
@@ -5251,19 +5332,16 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 				submenu = plEntries,
 			}
 		end
-		--K1-studio: "Add to variant pool" submenu, mirroring "Add to playlist" above.
-		--Lists live pools (VariantPools.EnumerateIds), sorted by name. Moves are raw
-		--(parentFolder + Upload), not MoveClipToFolder -- that helper is tree-local and
-		--not visible at this module scope. Uses the module-level rebuild hook this
-		--function already calls above (g_audioLibraryRequestRebuild) instead of the
-		--tree's own RequestRebuild.
+		--K1.5-studio: "Add to variant pool" submenu, mirroring "Add to playlist" above,
+		--but reference semantics -- a pool's members are REFERENCES to clips (VariantPools
+		--.AddMember), never a move. Clips stay exactly where they are in the library and
+		--can belong to many pools at once. De-dupe (already-a-member) is built into
+		--AddMember, so no membership check is needed here. Lists live pools
+		--(VariantPools.EnumerateIds), sorted by name.
 		local poolEntries = {}
 		local poolList = {}
 		for _,poolid in ipairs(VariantPools.EnumerateIds()) do
-			local pf = assets.audioFoldersTable[poolid]
-			if pf ~= nil then
-				poolList[#poolList+1] = { id = poolid, name = pf.description or "Variant pool" }
-			end
+			poolList[#poolList+1] = { id = poolid, name = VariantPools.Name(poolid) or "Variant pool" }
 		end
 		table.sort(poolList, function(a, b) return a.name < b.name end)
 		for _,entry in ipairs(poolList) do
@@ -5273,14 +5351,7 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 				click = function()
 					element.popup = nil
 					for _,id in ipairs(TargetIds()) do
-						local a = assets.audioTable[id]
-						if a ~= nil then
-							a.parentFolder = poolid
-							a:Upload()
-						end
-					end
-					if g_audioLibraryRequestRebuild ~= nil then
-						g_audioLibraryRequestRebuild()
+						VariantPools.AddMember(poolid, id)
 					end
 				end,
 			}
@@ -5291,38 +5362,23 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 				submenu = poolEntries,
 			}
 		end
-		--K1-studio: "Remove from variant pool" -- only when this clip currently lives
-		--in a live pool. Moves (never deletes) the clip(s) back to the Effects category
-		--folder, matching the "Moves, never deletes" contract of every other pool move.
-		if VariantPools.IsPool(audioAsset.parentFolder) then
-			entries[#entries+1] = {
-				text = "Remove from variant pool",
-				click = function()
-					element.popup = nil
-					EnsureCategoryFolder("effects", function(effectsId)
-						if effectsId == nil then return end
-						for _,id in ipairs(TargetIds()) do
-							local a = assets.audioTable[id]
-							if a ~= nil then
-								a.parentFolder = effectsId
-								a:Upload()
-							end
-						end
-						if g_audioLibraryRequestRebuild ~= nil then
-							g_audioLibraryRequestRebuild()
-						end
-					end)
-				end,
-			}
-		end
-		--K1-studio: multi-select "Combine into variant pool" -- only offered when more
-		--than one clip is targeted (a single clip has nothing to combine with).
+		--K1.5-studio: multi-select "Combine into variant pool" -- only offered when more
+		--than one clip is targeted (a single clip has nothing to combine with). Creates a
+		--brand-new pool REFERENCING the selection; the clips themselves never move. Opens
+		--the new pool's row in the Variant Pools card in rename mode.
 		if #ids > 1 then
 			entries[#entries+1] = {
 				text = "Combine into variant pool",
 				click = function()
 					element.popup = nil
-					CreateVariantPool(ids)
+					local poolid = VariantPools.Create(nil, ids)
+					m_poolPendingRename = poolid
+					if g_poolsCardExpandPool ~= nil then
+						g_poolsCardExpandPool(poolid)
+					end
+					if g_studioSelectTab ~= nil then
+						g_studioSelectTab("playlists")
+					end
 				end,
 			}
 		end
@@ -6075,7 +6131,6 @@ local CreateAudioLibraryTree = function()
 	local m_root
 	local CreateFolderNode
 	local CreateFolderContents
-	local CreatePoolNode
 	--Trigger a local tree rebuild right after a drag applies its change, instead of
 	--waiting for the cloud to echo the upload/doc-change back through the monitors
 	--(that round-trip is the post-drop delay). Assigned once m_root + ScheduleRebuild
@@ -6510,12 +6565,6 @@ local CreateAudioLibraryTree = function()
 
 	CreateFolderNode = function(entry, foldersByParent, clipsByFolder)
 		local folderid = entry.id
-		--K1-studio: a pool-flagged folder renders as a distinct row (glyph + name +
-		--xN badge + cue + expand), never as a plain gui.TreeNode -- TreeNode's header
-		--is fixed (caret + single Label) and cannot carry the extra decorations.
-		if VariantPools.IsPool(folderid) then
-			return CreatePoolNode(entry, foldersByParent, clipsByFolder)
-		end
 		local folder = entry.folder
 		local contents, empty, buildContents = CreateFolderContents(folderid, foldersByParent, clipsByFolder)
 		local isDefault = folderid == defaultFolder
@@ -6543,15 +6592,11 @@ local CreateAudioLibraryTree = function()
 
 			canDragOnto = function(element, target)
 				local dest = ResolveDrop(target)
-				--A variant pool renders only its direct clip members, never nested
-				--folders, so dropping a folder INTO a pool would silently orphan it
-				--from the tree (correctness review H1). Pools carry the audioFolderNode
-				--class for CLIP drops; block FOLDER drops onto them here.
-				return dest ~= nil and not IsAncestorOrSelf(dest, folderid) and not VariantPools.IsPool(dest)
+				return dest ~= nil and not IsAncestorOrSelf(dest, folderid)
 			end,
 			drag = function(element, target)
 				local dest = ResolveDrop(target)
-				if dest == nil or VariantPools.IsPool(dest) then return end
+				if dest == nil then return end
 				MoveFolderToFolder(folderid, dest)
 				RequestRebuild()
 			end,
@@ -6633,359 +6678,14 @@ local CreateAudioLibraryTree = function()
 		if startOpen then
 			buildContents()
 		end
-		--K1-studio: "+ Variant pool" lives on the Effects category folder's header only.
-		--gui.TreeNode's header is a fixed {triangle, Label} (node.children[1]), but it
-		--takes extra AddChild-ed children fine -- a halign=right child floats right of
-		--the label regardless of append order, so this is safe to bolt on after build.
-		if folder.parentFolder == nil and folder.description == g_categoryFolderNames.effects then
-			local header = node.children[1]
-			header:AddChild(gui.Button{
-				classes = {"sizeXs"},
-				text = "+ Variant pool",
-				halign = "right", valign = "center", height = 22, hpad = 8, borderBox = true, hmargin = 6,
-				press = function() CreateVariantPool(nil) end,
-				linger = function(element) gui.Tooltip("Create variant pool")(element) end,
-			})
-		end
 		return node
 	end
-
-	--K1-studio: pool glyph (temporary M0 placeholder -- a stack-of-lines that reads as
-	--"a collection"). Defined once here and reused by CreatePoolNode's header glyph.
-	local g_poolGlyph = "icons/icon_common/icon_common_4.png"
 
 	--A variant pool's library row: mirrors CreatePlaylistRow's shape (caret + glyph +
 	--editable name + count badge + action button in a header; an expanded body below)
 	--since gui.TreeNode cannot carry the extra header decorations a pool row needs.
 	--entry = { id = folderid, folder = <folderObj> }, same shape CreateFolderNode
 	--receives -- CreateFolderNode's branch calls this directly (see above).
-	CreatePoolNode = function(entry, foldersByParent, clipsByFolder)
-		local folderid = entry.id
-		local folder = entry.folder
-		local expanded = m_expanded[folderid] == true
-
-		--Caret: same ExpandoArrow + toggle-and-rebuild pattern as CreatePlaylistRow.
-		local caret
-		caret = gui.ExpandoArrow{
-			width = 16,
-			height = 16,
-			valign = "center",
-			hmargin = 3,
-			press = function(element)
-				m_expanded[folderid] = not (m_expanded[folderid] == true)
-				RequestRebuild()
-			end,
-		}
-		caret:SetClass("expanded", expanded)
-
-		--Glyph: purely decorative (no press handler), unlike the playlist row's pin.
-		local glyph = gui.Panel{
-			bgimage = g_poolGlyph,
-			width = 16,
-			height = 16,
-			valign = "center",
-			hmargin = 3,
-		}
-
-		--Name: mirrors CreatePlaylistRow's nameLabel/nameLabelWrapper exactly, INCLUDING
-		--the empty click swallow (the documented double-click-rename fix -- without it,
-		--the header's single-click expand-toggle rebuild destroys this label between the
-		--two clicks of a double-click, so rename could never fire).
-		local nameLabel
-		nameLabel = gui.Label{
-			editableOnDoubleClick = true,
-			text = folder.description,
-			width = "auto",
-			maxWidth = "100%",
-			minWidth = 30,
-			height = "auto",
-			halign = "left",
-			valign = "center",
-			hmargin = 4,
-			textWrap = false,
-			textOverflow = "ellipsis",
-			click = function(element)
-			end,
-			change = function(element)
-				local newName = trim(element.text or "")
-				if newName == "" then
-					element.text = folder.description
-					return
-				end
-				folder.description = newName
-				folder:Upload()
-			end,
-			create = function(element)
-				--Auto-rename on create: a freshly created pool (CreateVariantPool) flags
-				--itself here so the first render after the async rebuild enters inline
-				--rename immediately, without the user having to double-click.
-				if m_poolPendingRename == folderid then
-					m_poolPendingRename = nil
-					local label = element
-					dmhub.Schedule(0.01, function()
-						if mod.unloaded or not label.valid then return end
-						label:BeginEditing()
-					end)
-				end
-			end,
-		}
-		local nameLabelWrapper = gui.Panel{
-			flow = "horizontal",
-			width = "100%-160",
-			height = 30,
-			halign = "left",
-			valign = "center",
-			nameLabel,
-		}
-
-		local countLabel = gui.Label{
-			classes = {"sizeXs", "fgMuted"},
-			text = string.format("x%d", #VariantPools.Members(folderid)),
-			width = 56,
-			height = "auto",
-			halign = "right",
-			valign = "center",
-			textAlignment = "right",
-		}
-
-		--Pool cue (item B): DM-local, cycles members deterministically (ignoring Random
-		--pick -- a cue button is for auditioning every variant in turn, not a preview of
-		--what Fire would pick) with the same pitch-variation roll Fire uses. Mirrors the
-		--row cue's glyph/active-tint/think pattern so it looks and behaves identically.
-		--lastFiredAssetId (row-local) is this button's own memory of which member it
-		--most recently cued, so its active tint can key off the shared StudioCueActive
-		--check the same way a plain clip row does (g_studioCueAssetId is a single
-		--assetid, shared across every row/pool -- there is nothing pool-specific to
-		--compare against otherwise).
-		local lastFiredAssetId = nil
-		local cueButton
-		cueButton = gui.Panel{
-			classes = {"audioCueButton"},
-			bgimage = "icons/icon_app/icon_app_23.png",
-			width = 18,
-			height = 18,
-			valign = "center",
-			hmargin = 3,
-			press = function(element)
-				local members = VariantPools.Members(folderid)
-				if #members == 0 then
-					return
-				end
-				local idx = (m_poolCueIndex[folderid] or 0) % #members
-				local asset = members[idx+1]
-				m_poolCueIndex[folderid] = (idx+1) % #members
-
-				StopStudioCue()
-				local inst = asset:Play()
-				local doc = VariantPools.GetDoc()
-				local poolEntry = doc.data[folderid]
-				local pitchVar = (poolEntry ~= nil and poolEntry.pitchVar) or 0
-				local pitch = 1
-				if pitchVar > 0 then
-					pitch = 1 + (math.random()*2 - 1) * pitchVar
-				end
-				if inst ~= nil then
-					inst.pitch = pitch
-					inst.volume = asset.volume * audio.masterVolume
-				end
-				g_studioCueInstance = inst
-				g_studioCueAssetId = asset.id
-				lastFiredAssetId = asset.id
-				element:FireEvent("refreshCue")
-			end,
-			refreshCue = function(element)
-				local active = lastFiredAssetId ~= nil and StudioCueActive(lastFiredAssetId)
-				element:SetClass("active", active)
-				element.thinkTime = active and 0.3 or nil
-			end,
-			think = function(element)
-				local active = lastFiredAssetId ~= nil and StudioCueActive(lastFiredAssetId)
-				if not active then
-					element:SetClass("active", false)
-					element.thinkTime = nil
-				else
-					local asset = assets.audioTable[g_studioCueAssetId]
-					if asset ~= nil then
-						g_studioCueInstance.volume = asset.volume * audio.masterVolume
-					end
-				end
-			end,
-			create = function(element)
-				element:FireEvent("refreshCue")
-			end,
-			linger = function(element)
-				gui.Tooltip("Cue: press again for the next variant")(element)
-			end,
-		}
-
-		local function ToggleExpand()
-			m_expanded[folderid] = not (m_expanded[folderid] == true)
-			RequestRebuild()
-		end
-
-		local header
-		header = gui.Panel{
-			classes = {"hoverable"},
-			flow = "horizontal",
-			width = "100%",
-			height = 30,
-			valign = "center",
-			click = function(element)
-				ToggleExpand()
-			end,
-			rightClick = function(element)
-				element.popup = gui.ContextMenu{
-					width = 200,
-					entries = {
-						{
-							text = "Rename",
-							click = function()
-								element.popup = nil
-								nameLabel.text = folder.description
-								nameLabel:BeginEditing()
-							end,
-						},
-						{
-							text = "Convert to regular folder",
-							click = function()
-								element.popup = nil
-								VariantPools.Remove(folderid)
-								RequestRebuild()
-							end,
-						},
-						{
-							text = "Delete",
-							click = function()
-								element.popup = nil
-								if #VariantPools.Members(folderid) > 0 then
-									gui.ModalMessage{
-										title = "Folder Not Empty",
-										message = "Move or delete its contents before deleting this folder.",
-									}
-									return
-								end
-								VariantPools.Remove(folderid)
-								folder.hidden = true
-								folder:Upload()
-							end,
-						},
-					},
-				}
-			end,
-
-			caret,
-			glyph,
-			nameLabelWrapper,
-			countLabel,
-			cueButton,
-		}
-
-		local rowChildren = { header }
-
-		if expanded then
-			local randomPickCheck = gui.Check{
-				text = "Random pick",
-				value = (function()
-					local doc = VariantPools.GetDoc()
-					local poolEntry = doc.data[folderid]
-					return poolEntry == nil or poolEntry.randomPick ~= false
-				end)(),
-				width = "auto",
-				height = 22,
-				valign = "center",
-				hmargin = 4,
-				change = function(element)
-					VariantPools.SetRandomPick(folderid, element.value)
-				end,
-			}
-
-			local pitchVarNow = (function()
-				local doc = VariantPools.GetDoc()
-				local poolEntry = doc.data[folderid]
-				return (poolEntry ~= nil and poolEntry.pitchVar) or 0
-			end)()
-
-			local pitchSlider = gui.Slider{
-				style = { width = 150, height = 16, valign = "center", hmargin = 4 },
-				sliderWidth = 110,
-				labelWidth = 34,
-				labelFormat = "%.0f%%",
-				minValue = 0,
-				maxValue = 12,
-				value = pitchVarNow * 100,
-				confirm = function(element)
-					VariantPools.SetPitchVar(folderid, element.value / 100)
-				end,
-			}
-
-			local configStrip = gui.Panel{
-				flow = "horizontal",
-				width = "100%",
-				height = 26,
-				valign = "center",
-				vmargin = 2,
-				styles = {
-					{ selectors = {"sliderLabel"}, fontSize = 12, lmargin = 5, priority = 6 },
-					{ selectors = {"checkboxLabel"}, fontSize = 12, priority = 20 },
-				},
-				randomPickCheck,
-				gui.Label{ classes = {"sizeXs"}, text = "Pitch variation", width = "auto", height = "auto", halign = "left", valign = "center", hmargin = 4 },
-				pitchSlider,
-			}
-			rowChildren[#rowChildren+1] = configStrip
-
-			local members = VariantPools.Members(folderid)
-			local memberChildren = {}
-			if #members == 0 then
-				memberChildren[#memberChildren+1] = gui.Label{
-					classes = {"sizeXs", "fgMuted"},
-					text = "Drag effect clips in, or right-click a clip and choose Add to variant pool",
-					width = "100%",
-					height = "auto",
-					textWrap = true,
-					vmargin = 4,
-				}
-			else
-				for _,asset in ipairs(clipsByFolder[folderid] or {}) do
-					memberChildren[#memberChildren+1] = CreateAudioStudioRow(asset, {
-						draggable = true,
-						canDragOnto = clipCanDragOnto,
-						drag = clipDrag,
-						dragging = clipDragging,
-						onSelect = ClipSelectClick,
-						getSelection = function() return m_selected end,
-						poolMemberMode = true,
-					})
-				end
-			end
-			rowChildren[#rowChildren+1] = gui.Panel{
-				flow = "vertical",
-				width = "100%",
-				height = "auto",
-				children = memberChildren,
-			}
-		end
-
-		--Drag-into-pool comes free via the existing machinery: ResolveDrop walks up to
-		--the nearest "audioFolderNode"-classed ancestor and reads data.folderid, and the
-		--clip drag handler calls MoveClipToFolder(id, dest) -- so this root just needs
-		--to look like a folder node to that machinery. data.isCollapsed is deliberately
-		--NOT set: the tree's CaptureExpansion (below) keys on folderid AND isCollapsed,
-		--so omitting it makes CaptureExpansion correctly skip this node -- expansion
-		--persists via m_expanded[folderid] (written by the caret) instead, which
-		--survives RequestRebuild on its own.
-		return gui.Panel{
-			classes = {"bordered", "audioFolderNode"},
-			flow = "vertical",
-			width = "100%",
-			height = "auto",
-			vmargin = 1,
-			dragTarget = true,
-			data = { folderid = folderid },
-			children = rowChildren,
-		}
-	end
-
 	--Walk the live tree and record each folder's expansion before a rebuild.
 	local function CaptureExpansion(panel)
 		if panel == nil then return end
@@ -7126,13 +6826,6 @@ local CreateAudioLibraryTree = function()
 	--this closure and need to force a fresh row set (with/without build mode's
 	--decluttered layout) without waiting for a doc/asset monitor to fire.
 	g_audioLibraryRequestRebuild = RequestRebuild
-	--K1-studio: expose an expand-then-rebuild hook so CreateVariantPool (module level,
-	--outside this closure) can force a freshly created pool open before its first
-	--render, without reaching into m_expanded/RequestRebuild directly.
-	g_audioLibraryExpandPool = function(fid)
-		m_expanded[fid] = true
-		RequestRebuild()
-	end
 
 	m_root = gui.Panel{
 		classes = {"audioLibraryRoot"},
@@ -7972,6 +7665,658 @@ local CreateStudioPlaylistsCard = function(heightSpec)
 	}
 end
 
+--K1.5-studio: Variant Pools card, second card stacked in the Playlists pane below
+--CreateStudioPlaylistsCard. Mirrors that card's internal architecture closely
+--(debounced monitorGame rebuild, sorted list, editable-name row header, expanded
+--body with a config strip + member rows) since pools and playlists are siblings in
+--the same tab now. Pools are first-class doc entities (VariantPools table, chunk
+--K1.5-core) -- no folder involvement anywhere in this function.
+local CreateStudioVariantPoolsCard = function(heightSpec)
+	local m_expanded = {}
+	local m_listPanel
+	--Forward-declared for the same reason CreateStudioPlaylistsCard forward-declares
+	--RequestPlaylistsRebuild: row closures (caret/header press) call this before its
+	--real (debounced) definition exists yet (CLAUDE.md forward-decl rule).
+	local RequestPoolsRebuild = function() end
+	--Drop-line indicator for member-row drag reorder, mirroring the playlist track
+	--rows' m_dropIndicator/ClearTrackDropIndicator pattern.
+	local m_dropIndicator = nil
+	local function ClearMemberDropIndicator()
+		if m_dropIndicator ~= nil and m_dropIndicator.valid then
+			m_dropIndicator:SetClass("active", false)
+		end
+		m_dropIndicator = nil
+	end
+
+	--Pool glyph: temporary M0 placeholder (a stack-of-lines that reads as "a
+	--collection").
+	local g_poolGlyph = "icons/icon_common/icon_common_4.png"
+
+	local function SortedPools()
+		local ids = VariantPools.EnumerateIds()
+		local list = {}
+		for _,id in ipairs(ids) do
+			list[#list+1] = { id = id, name = VariantPools.Name(id) or "" }
+		end
+		table.sort(list, function(a, b)
+			if a.name ~= b.name then return a.name < b.name end
+			return a.id < b.id
+		end)
+		return list
+	end
+
+	local function CreatePoolCardRow(poolid)
+		local expanded = m_expanded[poolid] == true
+
+		--Caret: same ExpandoArrow + toggle-and-rebuild pattern as CreatePlaylistRow.
+		--CollapseArrow is the wrong widget here (that is the dock's collapse chevron,
+		--not a tree-node caret).
+		local caret
+		caret = gui.ExpandoArrow{
+			width = 16,
+			height = 16,
+			valign = "center",
+			hmargin = 3,
+			press = function(element)
+				m_expanded[poolid] = not (m_expanded[poolid] == true)
+				RequestPoolsRebuild()
+			end,
+		}
+		caret:SetClass("expanded", expanded)
+
+		local glyph = gui.Panel{
+			bgimage = g_poolGlyph,
+			width = 16,
+			height = 16,
+			valign = "center",
+			hmargin = 3,
+		}
+
+		--Name: mirrors CreatePlaylistRow's nameLabel/nameLabelWrapper exactly,
+		--INCLUDING the empty click swallow -- without it, a single click on the row
+		--bubbles to the header's expand-toggle, whose REBUILD destroys this label
+		--between the two clicks of a double-click, so rename could never fire (James
+		--field bug b2f08de8).
+		local nameLabel
+		nameLabel = gui.Label{
+			editableOnDoubleClick = true,
+			text = VariantPools.Name(poolid) or "Variant pool",
+			width = "auto",
+			maxWidth = "100%",
+			minWidth = 30,
+			height = "auto",
+			halign = "left",
+			valign = "center",
+			hmargin = 4,
+			textWrap = false,
+			textOverflow = "ellipsis",
+			click = function(element)
+			end,
+			change = function(element)
+				local newName = trim(element.text or "")
+				if newName == "" then
+					element.text = VariantPools.Name(poolid) or "Variant pool"
+					return
+				end
+				VariantPools.Rename(poolid, newName)
+			end,
+			create = function(element)
+				--Auto-rename on create: a freshly created pool ("+ Variant pool" or
+				--"Combine into variant pool") flags itself here so the first render
+				--after the rebuild enters inline rename immediately, without the user
+				--having to double-click.
+				if m_poolPendingRename == poolid then
+					m_poolPendingRename = nil
+					local label = element
+					dmhub.Schedule(0.01, function()
+						if mod.unloaded or not label.valid then return end
+						label:BeginEditing()
+					end)
+				end
+			end,
+		}
+		local nameLabelWrapper = gui.Panel{
+			flow = "horizontal",
+			width = "100%-160",
+			height = 30,
+			halign = "left",
+			valign = "center",
+			nameLabel,
+		}
+
+		local countLabel = gui.Label{
+			classes = {"sizeXs", "fgMuted"},
+			text = string.format("x%d", #VariantPools.Members(poolid)),
+			width = 56,
+			height = "auto",
+			halign = "right",
+			valign = "center",
+			textAlignment = "right",
+		}
+
+		--Pool cue: DM-local, cycles members deterministically (ignoring Random pick --
+		--a cue button is for auditioning every variant in turn, not a preview of what
+		--Fire would pick) with the same pitch-variation roll Fire uses. Mirrors the
+		--clip row cue's glyph/active-tint/think pattern exactly.
+		local lastFiredAssetId = nil
+		local cueButton
+		cueButton = gui.Panel{
+			classes = {"audioCueButton"},
+			bgimage = "icons/icon_app/icon_app_23.png",
+			width = 18,
+			height = 18,
+			valign = "center",
+			hmargin = 3,
+			press = function(element)
+				local members = VariantPools.Members(poolid)
+				if #members == 0 then
+					return
+				end
+				local idx = (m_poolCueIndex[poolid] or 0) % #members
+				local asset = members[idx+1]
+				m_poolCueIndex[poolid] = (idx+1) % #members
+
+				StopStudioCue()
+				local inst = asset:Play()
+				local doc = VariantPools.GetDoc()
+				local poolEntry = doc.data[poolid]
+				local pitchVar = (poolEntry ~= nil and poolEntry.pitchVar) or 0
+				local pitch = 1
+				if pitchVar > 0 then
+					pitch = 1 + (math.random()*2 - 1) * pitchVar
+				end
+				if inst ~= nil then
+					inst.pitch = pitch
+					inst.volume = asset.volume * audio.masterVolume
+				end
+				g_studioCueInstance = inst
+				g_studioCueAssetId = asset.id
+				lastFiredAssetId = asset.id
+				element:FireEvent("refreshCue")
+			end,
+			refreshCue = function(element)
+				local active = lastFiredAssetId ~= nil and StudioCueActive(lastFiredAssetId)
+				element:SetClass("active", active)
+				element.thinkTime = active and 0.3 or nil
+			end,
+			think = function(element)
+				local active = lastFiredAssetId ~= nil and StudioCueActive(lastFiredAssetId)
+				if not active then
+					element:SetClass("active", false)
+					element.thinkTime = nil
+				else
+					local asset = assets.audioTable[g_studioCueAssetId]
+					if asset ~= nil then
+						g_studioCueInstance.volume = asset.volume * audio.masterVolume
+					end
+				end
+			end,
+			create = function(element)
+				element:FireEvent("refreshCue")
+			end,
+			linger = function(element)
+				gui.Tooltip("Cue: press again for the next variant")(element)
+			end,
+		}
+
+		local deleteButton = gui.DeleteItemButton{
+			width = 16,
+			height = 16,
+			valign = "center",
+			hmargin = 3,
+			click = function(element)
+				if #VariantPools.Members(poolid) > 0 then
+					gui.ModalMessage{
+						title = "Delete Variant Pool?",
+						message = "Delete this variant pool? Clips stay in the library.",
+						options = {
+							{
+								text = "Delete",
+								execute = function()
+									VariantPools.Remove(poolid)
+								end,
+							},
+							{
+								text = "Cancel",
+								execute = function()
+								end,
+							},
+						},
+					}
+				else
+					VariantPools.Remove(poolid)
+				end
+			end,
+		}
+
+		local function ToggleExpand()
+			m_expanded[poolid] = not (m_expanded[poolid] == true)
+			RequestPoolsRebuild()
+		end
+
+		local header
+		header = gui.Panel{
+			classes = {"hoverable"},
+			flow = "horizontal",
+			width = "100%",
+			height = 30,
+			valign = "center",
+			click = function(element)
+				ToggleExpand()
+			end,
+			rightClick = function(element)
+				element.popup = gui.ContextMenu{
+					width = 180,
+					entries = {
+						{
+							text = "Rename",
+							click = function()
+								element.popup = nil
+								nameLabel.text = VariantPools.Name(poolid) or "Variant pool"
+								nameLabel:BeginEditing()
+							end,
+						},
+					},
+				}
+			end,
+
+			caret,
+			glyph,
+			nameLabelWrapper,
+			countLabel,
+			cueButton,
+			deleteButton,
+		}
+
+		local rowChildren = { header }
+
+		if expanded then
+			local randomPickCheck = gui.Check{
+				text = "Random pick",
+				value = (function()
+					local doc = VariantPools.GetDoc()
+					local poolEntry = doc.data[poolid]
+					return poolEntry == nil or poolEntry.randomPick ~= false
+				end)(),
+				width = "auto",
+				height = 22,
+				valign = "center",
+				hmargin = 4,
+				change = function(element)
+					VariantPools.SetRandomPick(poolid, element.value)
+				end,
+			}
+
+			local pitchVarNow = (function()
+				local doc = VariantPools.GetDoc()
+				local poolEntry = doc.data[poolid]
+				return (poolEntry ~= nil and poolEntry.pitchVar) or 0
+			end)()
+
+			local pitchSlider = gui.Slider{
+				style = { width = 150, height = 16, valign = "center", hmargin = 4 },
+				sliderWidth = 110,
+				labelWidth = 34,
+				labelFormat = "%.0f%%",
+				minValue = 0,
+				maxValue = 12,
+				value = pitchVarNow * 100,
+				confirm = function(element)
+					VariantPools.SetPitchVar(poolid, element.value / 100)
+				end,
+			}
+
+			local configStrip = gui.Panel{
+				flow = "horizontal",
+				width = "100%",
+				height = 26,
+				valign = "center",
+				vmargin = 2,
+				styles = {
+					{ selectors = {"sliderLabel"}, fontSize = 12, lmargin = 5, priority = 6 },
+					{ selectors = {"checkboxLabel"}, fontSize = 12, priority = 20 },
+				},
+				randomPickCheck,
+				gui.Label{ classes = {"sizeXs"}, text = "Pitch variation", width = "auto", height = "auto", halign = "left", valign = "center", hmargin = 4 },
+				pitchSlider,
+			}
+			rowChildren[#rowChildren+1] = configStrip
+
+			--Member rows, in authored order. Mirrors the playlist track row anatomy
+			--(spacer + grip + index + name + duration + delete) plus the spacer/
+			--drop-indicator drag-reorder pattern, committing via VariantPools.MoveMember
+			--instead of MoveTrackInPlaylist.
+			local members = VariantPools.Members(poolid)
+			local memberChildren = {}
+			if #members == 0 then
+				memberChildren[#memberChildren+1] = gui.Label{
+					classes = {"sizeXs", "fgMuted"},
+					text = "No clips yet - press + Add clips to pick from the library.",
+					width = "100%",
+					height = "auto",
+					textWrap = true,
+					vmargin = 4,
+				}
+			else
+				for i,asset in ipairs(members) do
+					local memberIndex = i
+
+					local spacer = gui.Panel{
+						classes = {"audioClipSpacer"},
+						floating = true,
+						dragTarget = true,
+						width = "100%",
+						height = 6,
+						y = -3,
+						valign = "top",
+						halign = "center",
+						bgimage = "panels/square.png",
+						--beforeAssetid, not an index: rendered rows come from Members(),
+						--which skips hidden/deleted assets, so rendered indices can diverge
+						--from entry.members indices. Ids stay correct regardless.
+						data = { poolMemberSpacer = true, poolid = poolid, beforeAssetid = asset.id },
+					}
+
+					local grip = gui.Panel{
+						classes = {"audioTrackGrip"},
+						bgimage = "icons/icon_common/icon_common_4.png",
+						width = 14,
+						height = 14,
+						valign = "center",
+						hmargin = 3,
+					}
+
+					local idxLabel = gui.Label{
+						classes = {"sizeXs", "fgMuted"},
+						text = tostring(memberIndex),
+						width = 18,
+						height = "auto",
+						halign = "left",
+						valign = "center",
+					}
+
+					local memberNameLabel = gui.Label{
+						classes = {"sizeXs"},
+						text = DisplayNameForAsset(asset),
+						width = "100%-130",
+						height = "auto",
+						halign = "left",
+						valign = "center",
+						textWrap = false,
+						textOverflow = "ellipsis",
+					}
+
+					local durationLabel = gui.Label{
+						classes = {"sizeXs", "fgMuted"},
+						text = FormatTime(asset.duration, asset.duration),
+						width = 40,
+						height = "auto",
+						halign = "right",
+						valign = "center",
+						textAlignment = "right",
+					}
+
+					local memberDeleteButton = gui.DeleteItemButton{
+						width = 16,
+						height = 16,
+						valign = "center",
+						hmargin = 3,
+						click = function(element)
+							VariantPools.RemoveMember(poolid, asset.id)
+						end,
+					}
+
+					local memberRow
+					memberRow = gui.Panel{
+						classes = {"hoverable", "audioTrackRow"},
+						flow = "horizontal",
+						width = "100%",
+						height = 24,
+						vmargin = 1,
+						hoverCursor = "hand",
+						bgimage = "panels/square.png",
+						data = { memberIndex = memberIndex, poolid = poolid, assetid = asset.id },
+						draggable = true,
+						canDragOnto = function(element, target)
+							return target ~= nil and target.data ~= nil and target.data.poolMemberSpacer == true and target.data.poolid == poolid
+						end,
+						dragging = function(element, target)
+							local spacerTarget = (target ~= nil and target.data ~= nil and target.data.poolMemberSpacer == true) and target or nil
+							if spacerTarget ~= m_dropIndicator then
+								ClearMemberDropIndicator()
+								if spacerTarget ~= nil then
+									spacerTarget:SetClass("active", true)
+									m_dropIndicator = spacerTarget
+								end
+							end
+						end,
+						drag = function(element, target)
+							ClearMemberDropIndicator()
+							if target == nil or target.data == nil then return end
+							VariantPools.MoveMemberBefore(poolid, element.data.assetid, target.data.beforeAssetid)
+						end,
+
+						spacer,
+						grip,
+						idxLabel,
+						memberNameLabel,
+						durationLabel,
+						memberDeleteButton,
+					}
+					memberChildren[#memberChildren+1] = memberRow
+				end
+			end
+
+			--Trailing spacer: a non-floating drop target meaning "insert at the end"
+			--(beforeAssetid nil = append; see the spacer note above).
+			memberChildren[#memberChildren+1] = gui.Panel{
+				classes = {"audioClipSpacer"},
+				width = "100%",
+				height = 6,
+				dragTarget = true,
+				data = { poolMemberSpacer = true, poolid = poolid, beforeAssetid = nil },
+			}
+
+			rowChildren[#rowChildren+1] = gui.Panel{
+				flow = "vertical",
+				width = "100%",
+				height = "auto",
+				children = memberChildren,
+			}
+
+			local addClipsButton = gui.Button{
+				classes = {"sizeXs"},
+				text = "+ Add clips",
+				width = "auto",
+				height = 22,
+				hpad = 8,
+				borderBox = true,
+				valign = "center",
+				halign = "right",
+				press = function(element)
+					--Mirrors addTracksButton in CreateStudioPlaylistsCard: snapshot the
+					--current member id list so Cancel can restore it verbatim, then enter
+					--the library's build-mode declutter with a POOL-kind session table
+					--(poolid, not playlistid -- see m_studioBuildMode's discriminator
+					--comment).
+					--Snapshot the RAW member id list (not Members(), which skips hidden
+					--assets) so a Cancel restore cannot drop a merely-hidden clip.
+					local snap = {}
+					local entry = VariantPools.GetDoc().data[poolid]
+					if entry ~= nil and type(entry.members) == "table" then
+						for i,id in ipairs(entry.members) do
+							snap[i] = id
+						end
+					end
+					m_studioBuildMode = { poolid = poolid, count = 0, added = {}, snapshot = snap }
+					if g_audioLibraryRequestRebuild ~= nil then
+						g_audioLibraryRequestRebuild()
+					end
+					if g_studioSelectTab ~= nil then
+						g_studioSelectTab("library")
+					end
+					if g_studioRefreshBuildMode ~= nil then
+						g_studioRefreshBuildMode()
+					end
+				end,
+			}
+			rowChildren[#rowChildren+1] = gui.Panel{
+				flow = "horizontal",
+				width = "100%",
+				height = "auto",
+				valign = "center",
+				vmargin = 2,
+				addClipsButton,
+			}
+		end
+
+		return gui.Panel{
+			classes = {"bordered", "audioPlaylistRow"},
+			flow = "vertical",
+			width = "100%",
+			height = "auto",
+			vmargin = 1,
+			children = rowChildren,
+		}
+	end
+
+	--Coalesced rebuild, mirroring CreateStudioPlaylistsCard's RebuildIfChanged: the
+	--sig covers everything a row renders (including expansion and member list, since
+	--expanding/reordering changes the CHILD SET) so a genuine change always rebuilds
+	--and an unrelated doc echo never does.
+	local m_lastSig = nil
+	local function RebuildIfChanged()
+		if mod.unloaded or m_listPanel == nil or not m_listPanel.valid then
+			return
+		end
+		local list = SortedPools()
+		local sigParts = {}
+		for _,entry in ipairs(list) do
+			local poolid = entry.id
+			local doc = VariantPools.GetDoc()
+			local poolEntry = doc.data[poolid]
+			local expanded = m_expanded[poolid] == true
+			--Signature uses the FILTERED live member ids (Members()), not the raw
+			--entry.members list: the badge and member rows render from the filtered
+			--view, so hiding/unhiding a member clip must change the sig or the card
+			--goes stale (refreshAssets fires but the raw list is unchanged).
+			local liveIds = {}
+			for _,a in ipairs(VariantPools.Members(poolid)) do
+				liveIds[#liveIds+1] = a.id
+			end
+			sigParts[#sigParts+1] = table.concat({
+				poolid, entry.name,
+				tostring(poolEntry ~= nil and poolEntry.randomPick ~= false),
+				tostring((poolEntry ~= nil and poolEntry.pitchVar) or 0),
+				tostring(expanded),
+				table.concat(liveIds, ","),
+			}, "|")
+		end
+		local sig = table.concat(sigParts, ";")
+		if sig == m_lastSig then
+			return
+		end
+		m_lastSig = sig
+		local rows = {}
+		for _,entry in ipairs(list) do
+			rows[#rows+1] = CreatePoolCardRow(entry.id)
+		end
+		m_listPanel.children = rows
+	end
+
+	--Debounced like CreateStudioPlaylistsCard's RequestPlaylistsRebuild (a burst of
+	--doc writes from one drag/CRUD action should not rebuild the whole card once per
+	--write).
+	local m_rebuildPending = false
+	RequestPoolsRebuild = function()
+		if m_rebuildPending then return end
+		m_rebuildPending = true
+		dmhub.Schedule(0.01, function()
+			m_rebuildPending = false
+			if mod.unloaded then return end
+			RebuildIfChanged()
+		end)
+	end
+
+	--Module hook so the clip context menu's "Combine into variant pool" (and any
+	--future caller) can expand a specific pool's row + force a rebuild without
+	--reaching into m_expanded/RequestPoolsRebuild directly.
+	g_poolsCardExpandPool = function(poolid)
+		m_expanded[poolid] = true
+		RequestPoolsRebuild()
+	end
+
+	local newPoolButton = gui.Button{
+		classes = {"sizeXs"},
+		text = "+ Variant pool",
+		width = "auto",
+		height = 22,
+		hpad = 8,
+		borderBox = true,
+		valign = "center",
+		hmargin = 3,
+		press = function(element)
+			local poolid = VariantPools.Create(nil, nil)
+			m_poolPendingRename = poolid
+			m_expanded[poolid] = true
+			RequestPoolsRebuild()
+		end,
+	}
+
+	local headerRow = gui.Panel{
+		flow = "horizontal",
+		width = "100%",
+		height = "auto",
+		valign = "center",
+		vmargin = 2,
+		gui.Panel{
+			flow = "horizontal",
+			width = "100%-160",
+			height = "auto",
+			halign = "left",
+			valign = "center",
+			gui.Label{ classes = {"bold", "sizeS"}, text = "Variant Pools", width = "auto", height = "auto", halign = "left", valign = "center" },
+		},
+		newPoolButton,
+	}
+
+	m_listPanel = gui.Panel{
+		flow = "vertical",
+		width = "100%",
+		height = "100%-32",
+		vscroll = true,
+		valign = "top",
+		monitorGame = VariantPools.GetDoc().path,
+		refreshGame = function(element)
+			RequestPoolsRebuild()
+		end,
+		refreshAssets = function(element)
+			RequestPoolsRebuild()
+		end,
+		create = function(element)
+			RebuildIfChanged()
+		end,
+	}
+
+	return gui.Panel{
+		classes = {"bordered"},
+		flow = "vertical",
+		width = "100%",
+		height = heightSpec,
+		pad = 8,
+		borderBox = true,
+		vmargin = 4,
+
+		thinkTime = 0.5,
+		think = function(element)
+			element:FireEventTree("refreshCue")
+		end,
+
+		headerRow,
+		m_listPanel,
+	}
+end
+
 --Fixed category row order for the Studio now-playing BLOCK (D9, restructured
 --under Option A -- see CreateStudioNowPlayingStrip below). Mirrors the dock's
 --Music/Ambience layout, then Effects, then anything with no category at all
@@ -8414,10 +8759,19 @@ CreateAudioStudio = function()
 			valign = "center",
 			hmargin = 3,
 			press = function(element)
-				--Restore the playlist to how it stood when build mode was entered.
-				--Skip the restore if the target playlist was deleted out from under
-				--the session (another DM client) -- nothing to restore onto.
-				if m_studioBuildMode ~= nil then
+				--Restore the playlist/pool to how it stood when build mode was entered.
+				--Skip the restore if the target was deleted out from under the session
+				--(another DM client) -- nothing to restore onto.
+				if m_studioBuildMode ~= nil and m_studioBuildMode.poolid ~= nil then
+					--K1.5-studio: pool session -- restore via VariantPools.SetMembers.
+					if VariantPools.IsPool(m_studioBuildMode.poolid) and m_studioBuildMode.snapshot ~= nil then
+						local restored = {}
+						for i,v in ipairs(m_studioBuildMode.snapshot) do
+							restored[i] = v
+						end
+						VariantPools.SetMembers(m_studioBuildMode.poolid, restored)
+					end
+				elseif m_studioBuildMode ~= nil then
 					local pl = (GetPlaylistsDoc().data.playlists or {})[m_studioBuildMode.playlistid]
 					if pl ~= nil and m_studioBuildMode.snapshot ~= nil then
 						local restoreid = m_studioBuildMode.playlistid
@@ -8457,10 +8811,15 @@ CreateAudioStudio = function()
 			libraryNormalGroup:SetClass("collapsed", active)
 			libraryBuildGroup:SetClass("collapsed", not active)
 			if active then
-				local doc = GetPlaylistsDoc()
-				local pl = (doc.data.playlists or {})[m_studioBuildMode.playlistid]
-				local plName = pl ~= nil and pl.name or "playlist"
-				buildBannerLabel.text = string.format("Adding to %s - %d added", plName, m_studioBuildMode.count)
+				local targetName
+				if m_studioBuildMode.poolid ~= nil then
+					targetName = VariantPools.Name(m_studioBuildMode.poolid) or "variant pool"
+				else
+					local doc = GetPlaylistsDoc()
+					local pl = (doc.data.playlists or {})[m_studioBuildMode.playlistid]
+					targetName = pl ~= nil and pl.name or "playlist"
+				end
+				buildBannerLabel.text = string.format("Adding to %s - %d added", targetName, m_studioBuildMode.count)
 			end
 		end,
 		libraryNormalGroup,
@@ -8481,10 +8840,25 @@ CreateAudioStudio = function()
 		libraryTreeWrapper,
 	}
 
-	--H-studio: Playlists card, the tab row's second pane. Same height complement as
-	--libraryCard (both sit below the tab row, only one visible at a time).
-	local playlistsCard = CreateStudioPlaylistsCard(
-		"100%-" .. tostring(AUDIO_STUDIO_NOWPLAYING_ALLOWANCE + AUDIO_STUDIO_TABROW_ALLOWANCE + AUDIO_STUDIO_LIBRARY_CARD_VMARGIN))
+	--K1.5-studio: Playlists tab pane, the tab row's second pane. Same height
+	--complement as libraryCard (both sit below the tab row, only one visible at a
+	--time), but now STACKS two cards vertically -- Playlists on top, Variant Pools
+	--below -- instead of the Playlists card alone filling the whole pane. Heights
+	--are a 55/45 split of the pane. Margin math: EACH card carries vmargin 4 (set
+	--inside its factory) = 8px of un-declared height per card (vmargin adds ON TOP
+	--of declared height; borderBox only absorbs padding). The pane's allowance
+	--constants only ever budgeted ONE card's vmargin, so the second card's 8px is
+	--subtracted here explicitly: 0.55H+8 + (0.45H-16)+8 = H exactly.
+	local playlistsPaneHeight = "100%-" .. tostring(AUDIO_STUDIO_NOWPLAYING_ALLOWANCE + AUDIO_STUDIO_TABROW_ALLOWANCE + AUDIO_STUDIO_LIBRARY_CARD_VMARGIN)
+	local playlistsCard = CreateStudioPlaylistsCard("55%")
+	local variantPoolsCard = CreateStudioVariantPoolsCard("45%-16")
+	local playlistsPane = gui.Panel{
+		flow = "vertical",
+		width = "100%",
+		height = playlistsPaneHeight,
+		playlistsCard,
+		variantPoolsCard,
+	}
 
 	--H-studio: Library|Playlists tab row. Fixed-width 106px buttons mirror the dock's
 	--segmented selector (SelectDockSection) -- a house-verified pattern, so no new
@@ -8496,7 +8870,7 @@ CreateAudioStudio = function()
 		libraryTabButton:SetClass("selected", tabid == "library")
 		playlistsTabButton:SetClass("selected", tabid == "playlists")
 		libraryCard:SetClass("collapsed", tabid ~= "library")
-		playlistsCard:SetClass("collapsed", tabid ~= "playlists")
+		playlistsPane:SetClass("collapsed", tabid ~= "playlists")
 	end
 
 	libraryTabButton = gui.Button{
@@ -8551,7 +8925,7 @@ CreateAudioStudio = function()
 		tabRow,
 
 		libraryCard,
-		playlistsCard,
+		playlistsPane,
 	}
 
 	--Right column (task 6c; chunk F, L1 fixes the width): Soundboard FIRST

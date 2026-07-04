@@ -875,6 +875,16 @@ audio.SoundEvent{
 }
 
 
+--Circle of Spring Numglow
+
+audio.SoundEvent{
+    name = "Dice.Numglow_CircleOfSpring",
+    mixgroup = "dice",
+    sounds = {"dice/cust/circleofSpring/Dice_NumGlow_circleofSpring_01.wav","dice/cust/circleofSpring/Dice_NumGlow_circleofSpring_02.wav","dice/cust/circleofSpring/Dice_NumGlow_circleofSpring_03.wav","dice/cust/circleofSpring/Dice_NumGlow_circleofSpring_04.wav","dice/cust/circleofSpring/Dice_NumGlow_circleofSpring_05.wav"},
+    volume = 0.1,
+    pitchRand = 0.1,
+    ignoreDuplicates = 0.01,
+}
 
 
 

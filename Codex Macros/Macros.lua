@@ -2897,6 +2897,51 @@ if devmode() then
     }
 
     Commands.RegisterMacro{
+        name = "exportassets",
+        summary = "export all game assets to yaml",
+        doc = "Usage: /exportassets [directory]\nExports ALL asset categories of this game (compendium tables, monsters, images, audio, objects, etc.) to a YAML directory tree -- the format used by the local assets feature (/localassets). With no directory, exports to the active local assets directory if one is set, else to the compendium/assets folder. Dev only.",
+        command = function(str)
+            local options = {}
+            str = str:match("^%s*(.-)%s*$")
+            if str ~= "" then
+                options.directory = str
+            end
+            local result = dmhub.ExportAllAssets(options)
+            if result == nil then
+                print("exportassets: could not resolve export directory")
+            else
+                print(string.format("exportassets: exported %d items in %d categories to %s", result.itemsExported, result.categoriesExported, result.directory))
+            end
+        end,
+    }
+
+    Commands.RegisterMacro{
+        name = "localassets",
+        summary = "use a local directory for this game's assets",
+        doc = "Usage: /localassets <path> | off | (no args to show status)\nSets a per-game developer preference pointing at a local directory of YAML asset files. When set, the game's cloud assets are ignored: assets load from the directory, edits are written back to it as YAML, and external file changes hot-reload into the game. If the directory does not exist it is created and populated from the game's current assets on next load. Takes effect on the next game load. Dev only.",
+        command = function(str)
+            str = str:match("^%s*(.-)%s*$")
+            if str == "" then
+                local status = dmhub.LocalAssetsStatus()
+                local pref = dmhub.GetSettingValue("localassets:dir")
+                if status.active then
+                    print(string.format("localassets: ACTIVE, using %s", status.directory))
+                elseif pref ~= nil and pref ~= "" then
+                    print(string.format("localassets: set to %s (takes effect on next game load)", pref))
+                else
+                    print("localassets: not set for this game. Usage: /localassets <path> | off")
+                end
+            elseif str == "off" then
+                dmhub.SetSettingValue("localassets:dir", "")
+                print("localassets: disabled. Reload the game to return to cloud assets.")
+            else
+                dmhub.SetSettingValue("localassets:dir", str)
+                print(string.format("localassets: set to %s. Reload the game to activate.", str))
+            end
+        end,
+    }
+
+    Commands.RegisterMacro{
         name = "gc",
         summary = "force garbage collect",
         doc = "Usage: /gc\nForces a Lua garbage collection cycle. Dev only.",

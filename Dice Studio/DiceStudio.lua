@@ -2528,6 +2528,219 @@ end
 		},
 	}
 
+	-- Billboard: a glowing camera-facing quad rendered inside each die (behind the die body, so a
+	-- semi-transparent die reads as having a glow suspended inside it). Either a procedural radial
+	-- gradient (inner color -> outer color, shaped by Falloff) or an artist-supplied image tinted
+	-- by the inner color. Authored per set (dicestudio.billboard*) and overridable per die from a
+	-- dice script (die.billboard / die.billboardColor / die.billboardSize / die.billboardRotation).
+	-- The image/color/size/falloff/intensity rows collapse while the effect is disabled.
+	local billboardSection = gui.TreeNode{
+		text = "Billboard",
+		width = "100%",
+		contentPanel = gui.Panel{
+			width = "100%",
+			height = "auto",
+			flow = "vertical",
+
+			gui.Label{
+				width = "100%",
+				height = "auto",
+				halign = "left",
+				fontSize = 12,
+				color = "#bbbbbbff",
+				text = "Renders a glow inside each die on a camera-facing billboard: a radial gradient, or an image if one is set (tinted by the inner color). Best on semi-transparent dice. A dice script can override this per die (die.billboard, die.billboardColor, die.billboardColorOuter, die.billboardSize, die.billboardIntensity, die.billboardRotation).",
+			},
+
+			-- Enabled
+			gui.Panel{
+				classes = {"formPanel"},
+				gui.Label{
+					classes = {"formLabel"},
+					halign = "left",
+					text = "Enabled:",
+				},
+				gui.Check{
+					text = "",
+					halign = "left",
+					-- The default checkbox style reserves minWidth for a label row; this is a bare
+					-- box (the "Enabled:" label is the formLabel above), so collapse to the mark.
+					width = "auto",
+					minWidth = 0,
+					value = dicestudio.billboardEnabled,
+					newmaterial = function(element)
+						element.value = dicestudio.billboardEnabled
+					end,
+					change = function(element)
+						dicestudio.billboardEnabled = element.value
+						RefreshDice()
+						element.root:FireEventTree("refreshDice")
+					end,
+				},
+			},
+
+			-- Image / colors / size / falloff / intensity (collapsed while disabled)
+			gui.Panel{
+				width = "100%",
+				height = "auto",
+				flow = "vertical",
+
+				create = function(element)
+					element:SetClass("collapsed", dicestudio.billboardEnabled == false)
+				end,
+				refreshDice = function(element)
+					element:SetClass("collapsed", dicestudio.billboardEnabled == false)
+				end,
+
+				gui.Panel{
+					classes = {"formPanel"},
+					gui.Label{
+						classes = {"formLabel"},
+						halign = "left",
+						text = "Image:",
+					},
+					gui.IconEditor{
+						width = 32,
+						height = 32,
+						library = "Textures",
+						allowNone = true,
+						searchHidden = true,
+						categoriesHidden = true,
+						bgcolor = "white",
+						-- The "or default" fallbacks in this section only fire before a build ships
+						-- the C# dicestudio.billboard* bridge properties (they return nil then);
+						-- post-build they are always non-nil so the authored value flows through.
+						value = dicestudio.billboardImage or "",
+						newmaterial = function(element)
+							element.value = dicestudio.billboardImage or ""
+						end,
+						change = function(element)
+							dicestudio.billboardImage = element.value or ""
+							RefreshDice()
+						end,
+					},
+				},
+
+				gui.Panel{
+					classes = {"formPanel"},
+					gui.Label{
+						classes = {"formLabel"},
+						halign = "left",
+						text = "Inner Color:",
+					},
+					gui.ColorPicker{
+						border = 2,
+						borderColor = "white",
+						width = 16,
+						height = 16,
+						value = dicestudio.billboardColorInner or "#8ce6ff",
+						newmaterial = function(element)
+							element.value = dicestudio.billboardColorInner or "#8ce6ff"
+						end,
+						change = function(element)
+							dicestudio.billboardColorInner = element.value
+							RefreshDice()
+						end,
+					},
+				},
+
+				gui.Panel{
+					classes = {"formPanel"},
+					gui.Label{
+						classes = {"formLabel"},
+						halign = "left",
+						text = "Outer Color:",
+					},
+					gui.ColorPicker{
+						border = 2,
+						borderColor = "white",
+						width = 16,
+						height = 16,
+						value = dicestudio.billboardColorOuter or "#2659ff",
+						newmaterial = function(element)
+							element.value = dicestudio.billboardColorOuter or "#2659ff"
+						end,
+						change = function(element)
+							dicestudio.billboardColorOuter = element.value
+							RefreshDice()
+						end,
+					},
+				},
+
+				gui.Panel{
+					classes = {"formPanel"},
+					gui.Label{
+						classes = {"formLabel"},
+						halign = "left",
+						text = "Size:",
+					},
+					gui.Slider{
+						style = { height = 26, width = 240, fontSize = 14 },
+						sliderWidth = 180,
+						labelWidth = 50,
+						minValue = 0,
+						maxValue = 2,
+						value = dicestudio.billboardSize or 1,
+						newmaterial = function(element)
+							element.value = dicestudio.billboardSize or 1
+						end,
+						change = function(element)
+							dicestudio.billboardSize = element.value
+							RefreshDice()
+						end,
+					},
+				},
+
+				gui.Panel{
+					classes = {"formPanel"},
+					gui.Label{
+						classes = {"formLabel"},
+						halign = "left",
+						text = "Falloff:",
+					},
+					gui.Slider{
+						style = { height = 26, width = 240, fontSize = 14 },
+						sliderWidth = 180,
+						labelWidth = 50,
+						minValue = 0.25,
+						maxValue = 4,
+						value = dicestudio.billboardFalloff or 1.5,
+						newmaterial = function(element)
+							element.value = dicestudio.billboardFalloff or 1.5
+						end,
+						change = function(element)
+							dicestudio.billboardFalloff = element.value
+							RefreshDice()
+						end,
+					},
+				},
+
+				gui.Panel{
+					classes = {"formPanel"},
+					gui.Label{
+						classes = {"formLabel"},
+						halign = "left",
+						text = "Intensity:",
+					},
+					gui.Slider{
+						style = { height = 26, width = 240, fontSize = 14 },
+						sliderWidth = 180,
+						labelWidth = 50,
+						minValue = 0,
+						maxValue = 8,
+						value = dicestudio.billboardIntensity or 1.5,
+						newmaterial = function(element)
+							element.value = dicestudio.billboardIntensity or 1.5
+						end,
+						change = function(element)
+							dicestudio.billboardIntensity = element.value
+							RefreshDice()
+						end,
+					},
+				},
+			},
+		},
+	}
+
 	local resultPanel
 
 	resultPanel = gui.Panel{
@@ -3583,6 +3796,8 @@ end
 		},
 
 		haloSection,
+
+		billboardSection,
 
 		scriptSection,
 

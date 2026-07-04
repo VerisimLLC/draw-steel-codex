@@ -830,6 +830,17 @@ setting{
 	default = false,
 }
 
+--dev-only: when set for a game, the game's cloud assets are replaced by a
+--local directory tree of YAML files (see the /localassets macro). Takes
+--effect on the next game load. Edited via the custom Local Assets section
+--in the Editing settings tab (no generic editor).
+setting{
+	id = "localassets:dir",
+	description = "Local Assets Directory (dev)",
+	storage = "pergamepreference",
+	default = "",
+}
+
 setting{
 	id = "showdeleted",
 	description = "Shows library items that have been deleted",

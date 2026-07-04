@@ -58,6 +58,7 @@
 --- @field GetHeightEditingInfo fun(): {opacity: number, blend: number, height: number, directional: boolean} Editor callback function: Used to determine what height editing options the user has selected in the UI.
 --- @field SelectHeight fun(height: number): nil Editor callback function: Used when the user uses the eyedropper tool to select a height to notify the interface what height they selected.
 --- @field GetWallHeight fun(): number Editor callback function: Used to determine the height the user is currently editing walls at.
+--- @field GetBuildingSolid fun(): boolean Editor callback function: whether the building tool is in Solid draw mode (walls plus a floor rendered at the top of the wall height, forming a solid block).
 --- @field CreateTargetableComponent fun(): table A function that creates a targetable component table for attaching to an object.
 --- @field CreateCorpseComponent fun(): table A function that creates a corpse component table for attaching to an object.
 --- @field TokenMovingOnPath fun(args: {token: CharacterToken, path: Path, position: vector3, delta: vector3, distanceMoved: number}): nil A function that is called each frame while a token is moving along a path, receiving movement details.
@@ -463,6 +464,12 @@ function dmhub.DumpRenderTextures()
 	-- dummy implementation for documentation purposes only
 end
 
+--- DumpWallSorting: Diagnostic: logs the sorting layer/order of every WallMesh (including sprite-stack children) and every CharacterToken, plus the wall height fraction and the token's flying altitude. Used to debug flying-token vs wall draw-order problems (the "Set Wall Height" feature sorts flying tokens into the WallsParallax band between wall layers). Reusable tool.
+--- @return nil
+function dmhub.DumpWallSorting()
+	-- dummy implementation for documentation purposes only
+end
+
 --- ExportTokenImage: Render the given token to a transparent-background PNG and prompt the user with a save dialog. Draws the token's frame backdrop plus its active spine or static art exactly as composed on the map, with fog-of-war dimming disabled. The camera is auto-framed around the token's world-space renderer bounds and expanded by the `padding` multiplier so weapons, hats, and parallax-shifted spine art aren't clipped.
 
 Options:
@@ -612,6 +619,26 @@ end
 --- @param options nil|{ monsters: string[] }
 --- @return { monstersUploaded: number }
 function dmhub.UploadAllMonsters(options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- ExportAllAssets: Exports ALL asset categories of the current game (compendium tables, monsters, images, audio, objects, tilesheets, etc.) to a YAML directory tree -- the format used by the local-assets developer feature. By default exports the game's own assets; pass merged=true to export the fully merged view including core and module assets. The directory option is resolved beneath the compendium folder unless it is an absolute path (dev mode only); with no directory, exports to the active local-assets directory if local assets mode is on, else to the 'assets' compendium subfolder. Dev only.
+--- @param options nil|{ directory: string, merged: boolean }
+--- @return { categoriesExported: number, itemsExported: number, directory: string }|nil
+function dmhub.ExportAllAssets(options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- LocalAssetsStatus: Returns the status of the local-assets developer feature for the current game: whether a local asset directory is active (replacing the game's cloud assets), and if so which directory.
+--- @return { active: boolean, directory: string|nil }
+function dmhub.LocalAssetsStatus()
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetDirectoryInfo: Returns information about a directory on disk: whether it exists and how many files it contains recursively (count capped at 10000). Available in dev mode only; returns nil otherwise.
+--- @param path string The directory path to inspect.
+--- @return { exists: boolean, fileCount: number }|nil
+function dmhub.GetDirectoryInfo(path)
 	-- dummy implementation for documentation purposes only
 end
 

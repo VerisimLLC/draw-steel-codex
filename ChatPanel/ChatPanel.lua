@@ -1008,6 +1008,7 @@ CreateChatPanel = function()
             classes = {"sizeS", "speaker", "selected"},
 			valign = "bottom",
             text = "OOC",
+            textWrap = false,
             press = function(element)
                 g_settingChatOOC:Set(true)
                 element.parent:FireEventTree("refreshSelectedTokens")

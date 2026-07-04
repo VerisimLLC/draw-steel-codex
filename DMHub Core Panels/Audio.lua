@@ -715,40 +715,56 @@ local m_lastAdvance = nil
 --backward seek of a driven track will read as a wrap and skip -- revisit then.
 local m_lastTrackTime = nil
 
---Audio event log (chunk L): opt-in accessibility feature. When enabled, the DM's
---client posts muted chat lines announcing music/mood/anthem transitions, so deaf/
+--Audio event log (chunk L): opt-in accessibility feature. When a player turns it on,
+--THEIR OWN chat shows muted cards announcing music/mood/anthem transitions, so deaf/
 --hard-of-hearing players can see audio state changes they cannot hear. A second,
---dependent toggle additionally logs soundboard sound effects. Default OFF; DM-only
---setting (classes = {"dmonly"}), game-scoped like anthemLimited above.
+--dependent toggle also shows soundboard sound effects. PER-PLAYER
+--(storage = "preference"): every player controls their own view and the director does
+--not need to enable anything. The events are still detected + emitted by the DM's client
+--(the only one that knows a sound was a soundboard fire), but each client renders the
+--card only if ITS user opted in (see AudioLogChatMessage.Render), and the DM only emits
+--when at least one player is listening (audioLogSubscribers presence doc below).
+local WriteAudioLogSubscription  --forward decl: the setting onchange closures capture it.
 local audioEventLog = setting{
     id = "audioeventlog",
     description = "Audio event log",
-    help = "Post music, mood, and anthem changes to chat as muted notes, so players who can't hear the audio still see what's happening.",
+    help = "Show music, mood, and anthem changes in your chat as muted notes, so you can see audio you can't hear. This only changes what you see.",
     editor = "check",
     default = false,
-    storage = "game",
+    storage = "preference",
     section = "audio",
-    classes = {"dmonly"},
     ord = 120,
+    onchange = function() if WriteAudioLogSubscription ~= nil then WriteAudioLogSubscription() end end,
 }
 local audioEventLogSfx = setting{
     id = "audioeventlogsfx",
-    description = "Also log sound effects",
-    help = "Also post soundboard sound effects to the chat log.",
+    description = "Also show sound effects",
+    help = "Also show soundboard sound effects in your chat log.",
     editor = "check",
     default = false,
-    storage = "game",
+    storage = "preference",
     section = "audio",
-    classes = {"dmonly"},
     ord = 121,
     monitorVisible = {"audioeventlog"},
     visible = function() return dmhub.GetSettingValue("audioeventlog") end,
+    onchange = function() if WriteAudioLogSubscription ~= nil then WriteAudioLogSubscription() end end,
 }
 
 --- @class AudioLogChatMessage
 AudioLogChatMessage = RegisterGameType("AudioLogChatMessage")
 AudioLogChatMessage.text = ""
+AudioLogChatMessage.kind = ""   --"" = transition line, "effect" = soundboard sound effect
 function AudioLogChatMessage.Render(self, message)
+    --Per-player DISPLAY gate: Render runs on EVERY client, so each shows the card only if
+    --ITS OWN user opted in. A transition needs the master toggle; a sound-effect line also
+    --needs the effects toggle. A client that is off renders nothing (zero-size panel).
+    local show = audioEventLog:Get()
+    if show and self.kind == "effect" then
+        show = audioEventLogSfx:Get()
+    end
+    if not show then
+        return gui.Panel{ width = 0, height = 0 }
+    end
     local label = gui.Label{
         classes = {"sizeXs", "fgMuted"},
         width = "100%-34",
@@ -795,8 +811,11 @@ function AudioLogChatMessage.Render(self, message)
             bgcolor = "#5b6a8f",
         },
         gui.Panel{
+            --bgFgMuted tints the glyph to @fgMuted via the style cascade, which resolves
+            --on first paint -- an inline bgcolor="@fgMuted" token renders white for one
+            --frame in the custom-chat render context and only settles dark after a refresh.
+            classes = {"bgFgMuted"},
             bgimage = "ui-icons/AudioMusicButton.png",
-            bgcolor = "@fgMuted",
             width = 14,
             height = 14,
             halign = "left",
@@ -821,8 +840,50 @@ local m_audioLogEffectSeq = 0
 --music/ambience clip to the pool. Without this the pool would double-log.
 local m_audioLogSuppressBroadcast = false
 
-local function AudioLogEnabled()
-    return audioEventLog:Get() and dmhub.isDM
+--Per-player subscription presence: each client that turns the log on records {m=master,
+--e=effects} under its userid in this shared doc, so the DM's client (the sole event
+--detector/sender) only emits when at least one player is listening. Off clients remove
+--their entry. Live presence -- not checkpoint-backed.
+local function AudioLogSubDoc()
+    return mod:GetDocumentSnapshot("audioLogSubscribers")
+end
+
+WriteAudioLogSubscription = function()
+    local uid = dmhub.userid
+    if uid == nil then return end
+    local doc = AudioLogSubDoc()
+    local want = nil
+    if audioEventLog:Get() then
+        want = { m = true, e = (audioEventLogSfx:Get() == true) }
+    end
+    local subs = doc.data.subs
+    local cur = (subs ~= nil) and subs[uid] or nil
+    --Skip the write when nothing changed (avoids doc churn on every load/reload).
+    if (cur == nil) == (want == nil) and (cur == nil or (cur.m == want.m and cur.e == want.e)) then
+        return
+    end
+    doc:BeginChange()
+    if doc.data.subs == nil then doc.data.subs = {} end
+    doc.data.subs[uid] = want
+    doc:CompleteChange("Update audio log subscription", {undoable = false})
+end
+
+local function AnyAudioLogSubscriber(needEffects)
+    local subs = AudioLogSubDoc().data.subs
+    if subs == nil then return false end
+    for _,v in pairs(subs) do
+        if type(v) == "table" and v.m and (not needEffects or v.e) then
+            return true
+        end
+    end
+    return false
+end
+
+--Send gate: only the DM's client emits (single detector/sender -- the anthem recompute
+--runs on every client, so isDM keeps it to one broadcast), and only when at least one
+--player is listening. Effect lines additionally require an effects subscriber.
+local function AudioLogShouldSend(needEffects)
+    return dmhub.isDM and AnyAudioLogSubscriber(needEffects)
 end
 
 local function AudioLogSend(text)
@@ -832,27 +893,29 @@ end
 
 --Narrow cross-module export (chunk L) so MCDMInitiativeBar's anthem hooks can reach
 --the logger without a load-order dependency. Read via rawget(_G, "g_drawSteelAudioLog")
---on the consumer side, same pattern as g_drawSteelAudioBar above.
+--on the consumer side, same pattern as g_drawSteelAudioBar above. Every method is a no-op
+--unless this is the DM's client AND a player is listening (per-player display is gated in
+--AudioLogChatMessage.Render).
 g_drawSteelAudioLog = {
     NowPlaying = function(name)
-        if AudioLogEnabled() then AudioLogSend("Now playing: " .. tostring(name)) end
+        if AudioLogShouldSend(false) then AudioLogSend("Now playing: " .. tostring(name)) end
     end,
     Ambience = function(name)
-        if AudioLogEnabled() then AudioLogSend("Ambience: " .. tostring(name)) end
+        if AudioLogShouldSend(false) then AudioLogSend("Ambience: " .. tostring(name)) end
     end,
     AnthemStart = function(name, ducked)
-        if AudioLogEnabled() then
+        if AudioLogShouldSend(false) then
             AudioLogSend("Anthem: " .. tostring(name) .. (ducked and " (music ducked)" or ""))
         end
     end,
     AnthemEnd = function()
-        if AudioLogEnabled() then AudioLogSend("Anthem ended") end
+        if AudioLogShouldSend(false) then AudioLogSend("Anthem ended") end
     end,
     StopAll = function()
-        if AudioLogEnabled() then AudioLogSend("All audio stopped") end
+        if AudioLogShouldSend(false) then AudioLogSend("All audio stopped") end
     end,
     Effect = function(key, name)
-        if not (AudioLogEnabled() and audioEventLogSfx:Get()) then return end
+        if not AudioLogShouldSend(true) then return end
         m_audioLogEffectSeq = m_audioLogEffectSeq + 1
         local myseq = m_audioLogEffectSeq
         if m_audioLogLastEffect ~= nil and m_audioLogLastEffect.key == key then
@@ -861,9 +924,10 @@ g_drawSteelAudioLog = {
             e.nonce = myseq
             chat.UpdateCustom(e.guid, AudioLogChatMessage.new{
                 text = "Sound effect: " .. e.name .. " (x" .. e.count .. ")",
+                kind = "effect",
             })
         else
-            local guid = chat.SendCustom(AudioLogChatMessage.new{ text = "Sound effect: " .. tostring(name) })
+            local guid = chat.SendCustom(AudioLogChatMessage.new{ text = "Sound effect: " .. tostring(name), kind = "effect" })
             m_audioLogLastEffect = { key = key, guid = guid, count = 1, name = tostring(name), nonce = myseq }
         end
         dmhub.Schedule(4.0, function()
@@ -874,6 +938,13 @@ g_drawSteelAudioLog = {
         end)
     end,
 }
+
+--Register this client's current opt-in shortly after load (onchange covers later toggles);
+--also self-heals a stale entry left by a prior session where the setting was on.
+dmhub.Schedule(2.0, function()
+    if mod.unloaded then return end
+    WriteAudioLogSubscription()
+end)
 
 --Forward declarations -- AudioPlaylistPlay, AudioPlaylistStop, AdvancePlaylist, and
 --the driver poll all call each other out of order (Lua locals must exist before use).

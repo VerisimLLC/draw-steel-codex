@@ -5470,23 +5470,47 @@ local CreateStudioSoundboard = function()
 		return string.format("audiogrid-%d-%d", board, slot)
 	end
 
-	--Every non-hidden library clip, Effects-category first then the rest, each group
-	--alphabetical by name. The picker shows them all (inform, do not enforce); the
-	--Effects-first ordering honours the soundboard's intent without hard-blocking.
-	local function AssignableClips()
-		local out = {}
+	--K1.5-board: every non-hidden library clip grouped by its owning library folder
+	--(same fid resolution the library tree's BuildMaps uses -- parentFolder or the
+	--module defaultFolder, with NO liveness check, so the picker groups exactly the
+	--way the library shows things; a clip under a dead folder id keeps its group and
+	--just gets the "Folder" fallback header rather than being silently re-homed). The
+	--top-level Effects category folder's group sorts first (mirrors the old flat
+	--Effects-first order), remaining groups alphabetical by folder name, clips within
+	--a group alphabetical by display name.
+	local function AssignableClipGroups()
+		local byFolder = {}
+		local order = {}
 		for _,asset in pairs(assets.audioTable) do
 			if not asset.hidden then
-				out[#out+1] = asset
+				local fid = asset.parentFolder or defaultFolder
+				local t = byFolder[fid]
+				if t == nil then
+					t = {}
+					byFolder[fid] = t
+					order[#order+1] = fid
+				end
+				t[#t+1] = asset
 			end
 		end
-		table.sort(out, function(a, b)
-			local ae = (a.category == "effects")
-			local be = (b.category == "effects")
+		local effectsFolderId = FindTopLevelFolderByName(g_categoryFolderNames.effects)
+		local groups = {}
+		for _,fid in ipairs(order) do
+			local folder = assets.audioFoldersTable[fid]
+			groups[#groups+1] = { id = fid, name = (folder ~= nil and folder.description) or "Folder", clips = byFolder[fid] }
+		end
+		table.sort(groups, function(a, b)
+			local ae = (a.id == effectsFolderId)
+			local be = (b.id == effectsFolderId)
 			if ae ~= be then return ae end
-			return (a.description or "") < (b.description or "")
+			return a.name < b.name
 		end)
-		return out
+		for _,g in ipairs(groups) do
+			table.sort(g.clips, function(a, b)
+				return DisplayNameForAsset(a) < DisplayNameForAsset(b)
+			end)
+		end
+		return groups
 	end
 
 	local function AssignSlot(board, slot, assetid)
@@ -5529,11 +5553,15 @@ local CreateStudioSoundboard = function()
 		doc:CompleteChange("Assign soundboard button")
 	end
 
-	--Searchable clip picker, anchored to the clicked button. Popups are reparented to
-	--the popup layer and do not inherit the Studio cascade, so route their own
-	--ThemeEngine snapshot (transient -- rebuilt each open, no OnThemeChanged needed).
+	--K1.5-board: searchable behavior-picker popup, anchored to the clicked button.
+	--One search box over grouped sections: variant pools first (matched by pool name
+	--OR any member clip's display name), then library clips grouped by folder (see
+	--AssignableClipGroups). Popups are reparented to the popup layer and do not
+	--inherit the Studio cascade, so route their own ThemeEngine snapshot (transient --
+	--rebuilt each open, no OnThemeChanged needed).
 	local function OpenAssignPopup(buttonElement, board, slot)
 		local searchText = ""
+		local searchTextRaw = ""
 		local listPanel
 
 		local function MatchClip(asset)
@@ -5541,14 +5569,20 @@ local CreateStudioSoundboard = function()
 			return string.find(string.lower(DisplayNameForAsset(asset)), searchText, 1, true) ~= nil
 		end
 
-		local function MatchPool(name)
+		--K1.5-board: a pool matches if the search text appears in the pool's own name
+		--OR in the display name of any of its member clips, so searching for a clip
+		--that lives inside a pool still surfaces the pool.
+		local function MatchPool(poolid, name)
 			if searchText == "" then return true end
-			return string.find(string.lower(name), searchText, 1, true) ~= nil
+			if string.find(string.lower(name), searchText, 1, true) ~= nil then return true end
+			for _,asset in ipairs(VariantPools.Members(poolid)) do
+				if string.find(string.lower(DisplayNameForAsset(asset)), searchText, 1, true) ~= nil then return true end
+			end
+			return false
 		end
 
 		--K1.5-core: live variant pools, sorted by name, shown ahead of the clip rows
-		--under their own section header. Honors the same search text as the clip rows
-		--(matched against the pool's name). Names come from the pool doc entry itself
+		--under their own section header. Names come from the pool doc entry itself
 		--now (pools are first-class entities, not folders), so every enumerated pool
 		--is listed -- no folder liveness check.
 		local function AssignablePools()
@@ -5565,14 +5599,14 @@ local CreateStudioSoundboard = function()
 			local pools = AssignablePools()
 			local matchedPools = {}
 			for _,pool in ipairs(pools) do
-				if MatchPool(pool.name) then
+				if MatchPool(pool.id, pool.name) then
 					matchedPools[#matchedPools+1] = pool
 				end
 			end
 			if #matchedPools > 0 then
 				children[#children+1] = gui.Label{
 					classes = {"bold", "sizeXs"},
-					text = "Variant pool",
+					text = "Variant pools",
 					width = "auto",
 					height = "auto",
 					halign = "left",
@@ -5622,34 +5656,50 @@ local CreateStudioSoundboard = function()
 				end
 			end
 			local clipRowCount = 0
-			for _,asset in ipairs(AssignableClips()) do
-				if MatchClip(asset) then
-					local a = asset
-					local displayName = DisplayNameForAsset(a)
-					if displayName == "" then displayName = "(unnamed)" end
-					clipRowCount = clipRowCount + 1
+			for _,group in ipairs(AssignableClipGroups()) do
+				local matchedClips = {}
+				for _,asset in ipairs(group.clips) do
+					if MatchClip(asset) then
+						matchedClips[#matchedClips+1] = asset
+					end
+				end
+				if #matchedClips > 0 then
 					children[#children+1] = gui.Label{
-						classes = {"sizeS", "hoverable"},
-						text = displayName,
-						width = "100%",
-						height = 22,
+						classes = {"bold", "sizeXs"},
+						text = group.name,
+						width = "auto",
+						height = "auto",
 						halign = "left",
-						valign = "center",
-						hpad = 6,
-						borderBox = true,
-						textWrap = false,
-						textOverflow = "ellipsis",
-						press = function()
-							AssignSlot(board, slot, a.id)
-							buttonElement.popup = nil
-						end,
+						vmargin = 1,
 					}
+					for _,asset in ipairs(matchedClips) do
+						local a = asset
+						local displayName = DisplayNameForAsset(a)
+						if displayName == "" then displayName = "(unnamed)" end
+						clipRowCount = clipRowCount + 1
+						children[#children+1] = gui.Label{
+							classes = {"sizeS", "hoverable"},
+							text = displayName,
+							width = "100%",
+							height = 22,
+							halign = "left",
+							valign = "center",
+							hpad = 6,
+							borderBox = true,
+							textWrap = false,
+							textOverflow = "ellipsis",
+							press = function()
+								AssignSlot(board, slot, a.id)
+								buttonElement.popup = nil
+							end,
+						}
+					end
 				end
 			end
-			if clipRowCount == 0 then
+			if #matchedPools == 0 and clipRowCount == 0 then
 				children[#children+1] = gui.Label{
 					classes = {"fgMuted", "sizeXs"},
-					text = "No clips match.",
+					text = string.format("No clips match \"%s\"", searchTextRaw),
 					width = "100%",
 					height = 22,
 					hpad = 6,
@@ -5671,17 +5721,19 @@ local CreateStudioSoundboard = function()
 		}
 
 		local searchInput = gui.Input{
-			placeholderText = "Search clips...",
+			placeholderText = "Search clips and pools",
 			text = "",
 			width = "100%",
 			height = 24,
 			editlag = 0.1,
 			edit = function(element)
-				searchText = string.lower(element.text or "")
+				searchTextRaw = element.text or ""
+				searchText = string.lower(searchTextRaw)
 				RebuildList()
 			end,
 			change = function(element)
-				searchText = string.lower(element.text or "")
+				searchTextRaw = element.text or ""
+				searchText = string.lower(searchTextRaw)
 				RebuildList()
 			end,
 		}
@@ -5696,7 +5748,7 @@ local CreateStudioSoundboard = function()
 			borderBox = true,
 			gui.Label{
 				classes = {"bold", "sizeXs"},
-				text = "Assign clip",
+				text = "Assign",
 				width = "auto",
 				height = "auto",
 				halign = "left",

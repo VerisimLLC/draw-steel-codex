@@ -4637,9 +4637,10 @@ CreateSoundPanel = function()
 			local nameLabel = gui.Label{
 				classes = {"sizeS"},
 				text = "Map sound",
-				width = "100%",
+				width = "100%-16",
 				height = "auto",
 				halign = "left",
+				valign = "center",
 				textWrap = false,
 				textOverflow = "ellipsis",
 			}
@@ -4716,12 +4717,12 @@ CreateSoundPanel = function()
 				value = SeedValue("volume", 1),
 				minValue = 0,
 				maxValue = 2,
-				sliderWidth = 70,
-				labelWidth = 0,
-				labelFormat = "",
+				sliderWidth = 66,
+				labelWidth = 34,
+				labelFormat = "percent",
 				style = {
-					width = 80,
-					height = 14,
+					width = 108,
+					height = 16,
 					halign = "right",
 					valign = "center",
 				},
@@ -4760,13 +4761,12 @@ CreateSoundPanel = function()
 				value = SeedValue("falloffDistance", 10),
 				minValue = 0,
 				maxValue = 200,
-				sliderWidth = 70,
-				labelWidth = 0,
-				labelFormat = "",
+				sliderWidth = 140,
+				labelWidth = 34,
+				labelFormat = "%.1f",
 				style = {
-					width = 80,
-					height = 14,
-					halign = "right",
+					width = 180,
+					height = 16,
 					valign = "center",
 				},
 				preview = function(element)
@@ -4794,13 +4794,12 @@ CreateSoundPanel = function()
 				value = SeedValue("wallPenetration", 0),
 				minValue = 0,
 				maxValue = 1,
-				sliderWidth = 70,
-				labelWidth = 0,
-				labelFormat = "",
+				sliderWidth = 140,
+				labelWidth = 34,
+				labelFormat = "percent",
 				style = {
-					width = 80,
-					height = 14,
-					halign = "right",
+					width = 180,
+					height = 16,
 					valign = "center",
 				},
 				confirm = function(element)
@@ -4859,25 +4858,32 @@ CreateSoundPanel = function()
 				end,
 			}
 
-			--No hpad here: the body root supplies the 10px side inset, so the
-			--falloff/wall-penetration faders align to the same right edge as the
-			--collapsed row's volume fader (an extra inset here would offset them).
+			--Indented one level under the clip name (lmargin 24, past the caret+dot),
+			--so the expanded controls read as belonging to the row. Each fader row is
+			--Levels-style: a fixed-width label with the fader immediately after it and
+			--an editable numeric readout (sliderLabel, click-to-type like the Levels
+			--faders). The two labels share a width so the faders line up with each other.
+			local mapFaderStyles = {
+				{ selectors = {"sliderLabel"}, fontSize = 11, priority = 6 },
+			}
 			expandedBody = gui.Panel{
 				classes = {"collapsed"},
 				flow = "vertical",
-				width = "100%",
+				width = "100%-24",
+				lmargin = 24,
 				height = "auto",
 
 				gui.Panel{
 					flow = "horizontal",
 					width = "100%",
-					height = "auto",
+					height = 20,
 					valign = "center",
-					vmargin = 2,
+					vmargin = 1,
+					styles = mapFaderStyles,
 					gui.Label{
 						classes = {"sizeXs"},
 						text = "Falloff distance",
-						width = "100%-80",
+						width = 96,
 						height = "auto",
 						halign = "left",
 						valign = "center",
@@ -4888,13 +4894,14 @@ CreateSoundPanel = function()
 				gui.Panel{
 					flow = "horizontal",
 					width = "100%",
-					height = "auto",
+					height = 20,
 					valign = "center",
-					vmargin = 2,
+					vmargin = 1,
+					styles = mapFaderStyles,
 					gui.Label{
 						classes = {"sizeXs"},
 						text = "Wall penetration",
-						width = "100%-80",
+						width = 96,
 						height = "auto",
 						halign = "left",
 						valign = "center",
@@ -4909,16 +4916,34 @@ CreateSoundPanel = function()
 			--volume(80); the name column flexes to fill the middle so the on/off
 			--glyph and volume fader right-align to the body's padded right edge (and
 			--thus line up with the expanded falloff/wall-penetration faders below).
-			local nameColumn = gui.Panel{
-				flow = "vertical",
-				width = "100%-146",
+			--Dot shares the FIRST line with the clip name (a horizontal nameRow) so it
+			--sits vertically centred against the name text, not against the full
+			--multi-line column (which pushed it low when the source/trigger lines were
+			--present). Reserve now 154 = caret(16+6) + onOff(16+8) + volume(108).
+			local nameRow = gui.Panel{
+				flow = "horizontal",
+				width = "100%",
 				height = "auto",
 				valign = "center",
+				statusDot,
 				nameLabel,
+			}
+
+			local nameColumn = gui.Panel{
+				flow = "vertical",
+				width = "100%-154",
+				height = "auto",
+				valign = "center",
+				nameRow,
 				triggerBadge,
 				sourceLabel,
 			}
 
+			--Hover/dehover live on the OUTER row (below), NOT here: reaching the
+			--expanded falloff fader means leaving the header, which would fire dehover
+			--and kill the ring -- so the falloff drag-preview could never show. Only
+			--the double-click-to-centre stays on the header (so double-clicking a fader
+			--in the expanded body does not also pan the camera).
 			local headerRow
 			headerRow = gui.Panel{
 				flow = "horizontal",
@@ -4926,30 +4951,9 @@ CreateSoundPanel = function()
 				height = "auto",
 				valign = "center",
 				vmargin = 1,
-				hover = function()
-					local o = game.currentFloor and game.currentFloor.objects[objid]
-					if o == nil then
-						return
-					end
-					local c = o:GetComponent("Audio")
-					local f = c ~= nil and AudioField(c, "falloffDistance") or nil
-					local r = f ~= nil and f.currentValue or 10
-					hoveredObjId = objid
-					pcall(function() o:ShowRadiusMarker(r) end)
-				end,
-				dehover = function()
-					--Only clear if THIS row currently owns the single shared ring.
-					--The engine marker is global, so an unconditional clear here would
-					--wipe a sibling row's ring when the pointer moves straight from
-					--row A to row B and hover(B) fires before dehover(A).
-					if hoveredObjId == objid then
-						local o = game.currentFloor and game.currentFloor.objects[objid]
-						if o ~= nil then
-							pcall(function() o:ClearRadiusMarker() end)
-						end
-						hoveredObjId = nil
-					end
-				end,
+				styles = {
+					{ selectors = {"sliderLabel"}, fontSize = 11, priority = 6 },
+				},
 				doubleclick = function()
 					local o = game.currentFloor and game.currentFloor.objects[objid]
 					if o == nil then
@@ -4959,7 +4963,6 @@ CreateSoundPanel = function()
 				end,
 
 				caret,
-				statusDot,
 				nameColumn,
 				onOffButton,
 				volumeSlider,
@@ -5006,6 +5009,32 @@ CreateSoundPanel = function()
 				width = "100%",
 				height = "auto",
 				data = { objid = objid },
+
+				--Hovering ANYWHERE in the row (header or the expanded controls) shows
+				--the falloff ring; it stays up while you drag the falloff fader (whose
+				--preview redraws it live) and only clears when the pointer leaves the
+				--whole row. Clear is ownership-gated so moving between sibling rows does
+				--not wipe the ring the newly-hovered row just drew.
+				hover = function()
+					local o = game.currentFloor and game.currentFloor.objects[objid]
+					if o == nil then
+						return
+					end
+					local c = o:GetComponent("Audio")
+					local f = c ~= nil and AudioField(c, "falloffDistance") or nil
+					local r = f ~= nil and f.currentValue or 10
+					hoveredObjId = objid
+					pcall(function() o:ShowRadiusMarker(r) end)
+				end,
+				dehover = function()
+					if hoveredObjId == objid then
+						local o = game.currentFloor and game.currentFloor.objects[objid]
+						if o ~= nil then
+							pcall(function() o:ClearRadiusMarker() end)
+						end
+						hoveredObjId = nil
+					end
+				end,
 
 				create = function()
 					RefreshRow()

@@ -1535,22 +1535,30 @@ local function PlayBroadcastClip(asset, opts)
 end
 
 --=====================================================================================
---Variant pool core (chunk K1-core): the config doc + the fire path. No UI (later
---sub-chunks). A "variant pool" is an audio FOLDER flagged as a pool; its member clips
---are the folder's children (asset.parentFolder == folderid). Config lives in a new
---checkpoint-backed shared doc "audioVariantPools" keyed by folder id -- the same
---sidecar pattern the playlists use, because AudioFolderLua rejects arbitrary Lua
---properties. Everything is exposed through one VariantPools table (keeps file-scope
---local pressure down and gives K1-studio/K1-board a stable namespace).
+--Variant pool core (chunk K1.5-core): the config doc + the fire path. No UI (later
+--sub-chunks). A "variant pool" is now a FIRST-CLASS entity living directly in the
+--shared doc, keyed by its OWN guid (dmhub.GenerateGuid()) -- not a folder id. Its
+--members are an ORDERED list of audio asset id REFERENCES (entry.members), not folder
+--children: clips never move, and a clip can belong to many pools at once. Config lives
+--in the same checkpoint-backed shared doc "audioVariantPools" -- the same sidecar
+--pattern the playlists use, because AudioFolderLua rejects arbitrary Lua properties.
+--Everything is exposed through one VariantPools table (keeps file-scope local pressure
+--down and gives K1.5-studio/K1.5-board a stable namespace).
+--
+--Legacy note: chunk K1-core wrote entries keyed by FOLDER id with no `members` field.
+--Those entries are dead data now -- IGNORED by every reader and PURGED (deleted) by
+--every writer, so the doc self-cleans as soon as anyone touches a pool. Validity rule
+--(used everywhere): an entry counts as a pool iff
+--    type(entry) == "table" and entry.pool == true and type(entry.members) == "table"
 --
 --Fire = pick one member in Lua, then broadcast it via PlayBroadcastClip so every client
 --hears the SAME variant at the SAME pitch (the chosen asset id + pitch replicate through
 --the game doc). Selection happens here, never via engine SoundEvents (those resolve only
 --bundled mod audio and round-robin per-client, which would desync variants).
 --
---Doc entry shape: doc.data[folderid] = { pool=true, randomPick=true, pitchVar=0.05,
---cycleIndex=0 }. randomPick default ON and pitchVar default 0.05 are SIGNED design
---values -- do not change them.
+--Doc entry shape: doc.data[poolid] = { pool=true, name="...", members={assetid,...},
+--randomPick=true, pitchVar=0.05, cycleIndex=0 }. randomPick default ON and pitchVar
+--default 0.05 are SIGNED design values -- do not change them.
 --=====================================================================================
 mod:RegisterDocumentForCheckpointBackups("audioVariantPools")
 
@@ -1565,108 +1573,254 @@ function VariantPools.GetDoc()
 	return mod:GetDocumentSnapshot("audioVariantPools")
 end
 
---True if folderid names a live, pool-flagged folder. Self-heals stale doc entries: a
---pool folder deleted by any client leaves an orphaned entry, which every reader skips
---(never surface a pool with no backing folder).
-function VariantPools.IsPool(folderid)
-	if folderid == nil then
-		return false
+--Deletes every doc entry that fails the pool validity rule (legacy K1-core folder-keyed
+--entries, or any other garbage). Must be called from inside an ALREADY-OPEN
+--BeginChange/CompleteChange pair -- it does not open its own change.
+local function PurgeLegacyEntries(doc)
+	local toRemove = {}
+	for id,entry in pairs(doc.data) do
+		if type(entry) ~= "table" or entry.pool ~= true or type(entry.members) ~= "table" then
+			toRemove[#toRemove+1] = id
+		end
 	end
-	local entry = VariantPools.GetDoc().data[folderid]
-	if entry == nil or entry.pool ~= true then
-		return false
+	for _,id in ipairs(toRemove) do
+		doc.data[id] = nil
 	end
-	local folder = assets.audioFoldersTable[folderid]
-	return folder ~= nil and not folder.hidden
 end
 
---Members of a pool = non-hidden clips whose parentFolder is this folder, sorted by asset
---id so cycle-mode indexing is identical on every client.
-function VariantPools.Members(folderid)
+--True if poolid names a valid pool entry (validity rule above). Pools have no folder of
+--their own anymore, so there is nothing to self-heal against -- the entry either exists
+--in the doc or it does not.
+function VariantPools.IsPool(poolid)
+	if poolid == nil then
+		return false
+	end
+	local entry = VariantPools.GetDoc().data[poolid]
+	return type(entry) == "table" and entry.pool == true and type(entry.members) == "table"
+end
+
+--Display name for a valid pool, nil otherwise.
+function VariantPools.Name(poolid)
+	local entry = VariantPools.GetDoc().data[poolid]
+	if type(entry) ~= "table" or entry.pool ~= true or type(entry.members) ~= "table" then
+		return nil
+	end
+	return entry.name or "Variant pool"
+end
+
+--Members of a pool = the LIVE audio assets referenced by entry.members, in authored
+--order. Deleted clips silently drop out (self-heal) -- no sorting, since list order is
+--authoritative and feeds cycle mode.
+function VariantPools.Members(poolid)
+	local entry = VariantPools.GetDoc().data[poolid]
+	if type(entry) ~= "table" or entry.pool ~= true or type(entry.members) ~= "table" then
+		return {}
+	end
 	local members = {}
-	for _,asset in pairs(assets.audioTable) do
-		if asset ~= nil and not asset.hidden and asset.parentFolder == folderid then
+	for _,assetid in ipairs(entry.members) do
+		local asset = assets.audioTable[assetid]
+		if asset ~= nil and not asset.hidden then
 			members[#members+1] = asset
 		end
 	end
-	table.sort(members, function(a,b) return a.id < b.id end)
 	return members
 end
 
---Live pool folder ids (self-healed). K1-studio/K1-board enumerate through this.
+--Ids of all valid pool entries. K1.5-studio/K1.5-board enumerate through this.
 function VariantPools.EnumerateIds()
 	local ids = {}
-	for folderid,entry in pairs(VariantPools.GetDoc().data) do
-		if type(entry) == "table" and entry.pool == true then
-			local folder = assets.audioFoldersTable[folderid]
-			if folder ~= nil and not folder.hidden then
-				ids[#ids+1] = folderid
-			end
+	for poolid,entry in pairs(VariantPools.GetDoc().data) do
+		if type(entry) == "table" and entry.pool == true and type(entry.members) == "table" then
+			ids[#ids+1] = poolid
 		end
 	end
 	return ids
 end
 
---Writes the default pool entry for folderid if none exists yet (random ON, pitch 5%).
---Idempotent -- leaves an existing entry untouched.
-function VariantPools.EnsureEntry(folderid)
+--Creates a brand-new pool entity (its own guid, not a folder id). memberIds (optional)
+--seeds the member list, de-duplicated keeping first-occurrence order. Returns the new
+--poolid.
+function VariantPools.Create(name, memberIds)
+	local poolid = dmhub.GenerateGuid()
 	local doc = VariantPools.GetDoc()
-	if doc.data[folderid] ~= nil then
+	doc:BeginChange()
+	PurgeLegacyEntries(doc)
+	local members = {}
+	if memberIds ~= nil then
+		local seen = {}
+		for _,assetid in ipairs(memberIds) do
+			if assetid ~= nil and not seen[assetid] then
+				seen[assetid] = true
+				members[#members+1] = assetid
+			end
+		end
+	end
+	doc.data[poolid] = {
+		pool = true,
+		name = (name ~= nil and name ~= "") and name or "New Variant Pool",
+		members = members,
+		randomPick = true,
+		pitchVar = 0.05,
+		cycleIndex = 0,
+	}
+	doc:CompleteChange("Create variant pool")
+	return poolid
+end
+
+--Compatibility shim for existing (soon-to-be-replaced) UI call sites: if poolid is
+--already a valid entry, no-op; otherwise writes the full default entry at that exact
+--key. NOTE: studio UI still calls this with a FOLDER id during the interim between
+--K1.5-core and K1.5-studio -- that produces a working (if oddly-keyed) pool and this
+--interim behavior goes away next chunk when the studio UI switches to VariantPools.Create.
+function VariantPools.EnsureEntry(poolid)
+	local doc = VariantPools.GetDoc()
+	if VariantPools.IsPool(poolid) then
 		return
 	end
 	doc:BeginChange()
-	doc.data[folderid] = { pool = true, randomPick = true, pitchVar = 0.05, cycleIndex = 0 }
+	PurgeLegacyEntries(doc)
+	doc.data[poolid] = {
+		pool = true,
+		name = "New Variant Pool",
+		members = {},
+		randomPick = true,
+		pitchVar = 0.05,
+		cycleIndex = 0,
+	}
 	doc:CompleteChange("Create variant pool")
 end
 
-function VariantPools.SetRandomPick(folderid, on)
+--Renames a pool. No-op if the pool is invalid or the name is nil/blank after trim.
+function VariantPools.Rename(poolid, name)
+	if not VariantPools.IsPool(poolid) then
+		return
+	end
+	if name == nil then
+		return
+	end
+	local trimmed = string.gsub(name, "^%s*(.-)%s*$", "%1")
+	if trimmed == "" then
+		return
+	end
 	local doc = VariantPools.GetDoc()
-	local entry = doc.data[folderid]
-	if entry == nil then
+	doc:BeginChange()
+	PurgeLegacyEntries(doc)
+	doc.data[poolid].name = trimmed
+	doc:CompleteChange("Rename variant pool")
+end
+
+--Appends assetid to the pool's member list. No-op if the pool is invalid, assetid is
+--nil, or assetid is already a member (de-duped -- a clip appears once per pool).
+function VariantPools.AddMember(poolid, assetid)
+	if not VariantPools.IsPool(poolid) or assetid == nil then
+		return
+	end
+	local doc = VariantPools.GetDoc()
+	local entry = doc.data[poolid]
+	for _,id in ipairs(entry.members) do
+		if id == assetid then
+			return
+		end
+	end
+	doc:BeginChange()
+	PurgeLegacyEntries(doc)
+	table.insert(doc.data[poolid].members, assetid)
+	doc:CompleteChange("Add clip to variant pool")
+end
+
+--Removes the first occurrence of assetid from the pool's member list. No-op if the pool
+--is invalid or assetid is not a member.
+function VariantPools.RemoveMember(poolid, assetid)
+	if not VariantPools.IsPool(poolid) then
+		return
+	end
+	local doc = VariantPools.GetDoc()
+	local entry = doc.data[poolid]
+	local foundIndex = nil
+	for i,id in ipairs(entry.members) do
+		if id == assetid then
+			foundIndex = i
+			break
+		end
+	end
+	if foundIndex == nil then
 		return
 	end
 	doc:BeginChange()
-	doc.data[folderid].randomPick = (on ~= false)
+	PurgeLegacyEntries(doc)
+	table.remove(doc.data[poolid].members, foundIndex)
+	doc:CompleteChange("Remove clip from variant pool")
+end
+
+--Reorders the pool's member list, moving the entry at fromIndex to toIndex. No-op if
+--the pool is invalid or either index is out of range.
+function VariantPools.MoveMember(poolid, fromIndex, toIndex)
+	if not VariantPools.IsPool(poolid) then
+		return
+	end
+	local doc = VariantPools.GetDoc()
+	local entry = doc.data[poolid]
+	local count = #entry.members
+	if fromIndex < 1 or fromIndex > count or toIndex < 1 or toIndex > count then
+		return
+	end
+	doc:BeginChange()
+	PurgeLegacyEntries(doc)
+	local members = doc.data[poolid].members
+	local assetid = table.remove(members, fromIndex)
+	table.insert(members, toIndex, assetid)
+	doc:CompleteChange("Reorder variant pool")
+end
+
+function VariantPools.SetRandomPick(poolid, on)
+	if not VariantPools.IsPool(poolid) then
+		return
+	end
+	local doc = VariantPools.GetDoc()
+	doc:BeginChange()
+	PurgeLegacyEntries(doc)
+	doc.data[poolid].randomPick = (on ~= false)
 	doc:CompleteChange("Set variant pool random pick")
 end
 
 --Pitch variation slider is 0..0.12 (shown as 0-12%); clamp to that range.
-function VariantPools.SetPitchVar(folderid, v)
-	local doc = VariantPools.GetDoc()
-	local entry = doc.data[folderid]
-	if entry == nil then
+function VariantPools.SetPitchVar(poolid, v)
+	if not VariantPools.IsPool(poolid) then
 		return
 	end
 	v = v or 0
 	if v < 0 then v = 0 end
 	if v > 0.12 then v = 0.12 end
+	local doc = VariantPools.GetDoc()
 	doc:BeginChange()
-	doc.data[folderid].pitchVar = v
+	PurgeLegacyEntries(doc)
+	doc.data[poolid].pitchVar = v
 	doc:CompleteChange("Set variant pool pitch variation")
 end
 
---Removes the pool config entry (convert-to-regular-folder / cleanup). The FOLDER and
---its clips are untouched -- only the pool flag/config is dropped.
-function VariantPools.Remove(folderid)
+--Deletes the pool entity outright. Clips are untouched -- members were only references,
+--never owned by the pool.
+function VariantPools.Remove(poolid)
 	local doc = VariantPools.GetDoc()
-	if doc.data[folderid] == nil then
+	if doc.data[poolid] == nil then
 		return
 	end
 	doc:BeginChange()
-	doc.data[folderid] = nil
+	doc.data[poolid] = nil
+	PurgeLegacyEntries(doc)
 	doc:CompleteChange("Remove variant pool")
 end
 
 --Fires a variant pool: picks a member and broadcasts it with pitch variation. opts may
 --carry { volume = <0..1> } forwarded to PlayBroadcastClip. Empty pool = silent no-op.
 --Returns the fired asset (or nil).
-function VariantPools.Fire(folderid, opts)
-	if not VariantPools.IsPool(folderid) then
+function VariantPools.Fire(poolid, opts)
+	if not VariantPools.IsPool(poolid) then
 		return nil
 	end
 	local doc = VariantPools.GetDoc()
-	local entry = doc.data[folderid]
-	local members = VariantPools.Members(folderid)
+	local entry = doc.data[poolid]
+	local members = VariantPools.Members(poolid)
 	if #members == 0 then
 		return nil
 	end
@@ -1676,7 +1830,7 @@ function VariantPools.Fire(folderid, opts)
 		--Random with no-immediate-repeat: pick from members that are not the one we
 		--fired last for this pool. (Also sidesteps the engine's one-event-per-assetid
 		--restart on back-to-back taps.)
-		local lastId = m_variantPoolLastFired[folderid]
+		local lastId = m_variantPoolLastFired[poolid]
 		local candidates = {}
 		for _,a in ipairs(members) do
 			if a.id ~= lastId then
@@ -1692,15 +1846,16 @@ function VariantPools.Fire(folderid, opts)
 		chosen = members[1]
 	else
 		--Cycle mode: deterministic round-robin, index persisted in the doc so whichever
-		--client fires next continues the same sequence. Members are id-sorted so the
-		--index maps to the same clip on every client.
+		--client fires next continues the same sequence. Index maps over the AUTHORED
+		--member order (entry.members), so it is identical on every client.
 		local idx = (entry.cycleIndex or 0) % #members
 		chosen = members[idx+1]
 		doc:BeginChange()
-		doc.data[folderid].cycleIndex = (idx+1) % #members
+		PurgeLegacyEntries(doc)
+		doc.data[poolid].cycleIndex = (idx+1) % #members
 		doc:CompleteChange("Advance variant pool cycle", {undoable = false})
 	end
-	m_variantPoolLastFired[folderid] = chosen.id
+	m_variantPoolLastFired[poolid] = chosen.id
 
 	--Roll pitch = 1 +/- random(0..pitchVar). 0 = no variation.
 	local pitchVar = entry.pitchVar or 0
@@ -1717,27 +1872,33 @@ function VariantPools.Fire(folderid, opts)
 	return chosen
 end
 
---Dev-only test hooks (chunk K1-core): extend the DrawSteelAudioDev global (created by
+--Dev-only test hooks (chunk K1.5-core): extend the DrawSteelAudioDev global (created by
 --the earlier devmode block) so MCP-bridge verification can create, fire, and tear down
 --pools without the Studio/soundboard UI (later sub-chunks). devmode()-gated so nothing
 --leaks into normal play.
 if rawget(_G, "devmode") ~= nil and devmode() and rawget(_G, "DrawSteelAudioDev") ~= nil then
 	DrawSteelAudioDev.GetVariantPoolsDoc = function() return VariantPools.GetDoc() end
-	DrawSteelAudioDev.EnsureVariantPool = function(folderid) VariantPools.EnsureEntry(folderid) end
-	DrawSteelAudioDev.SetVariantPoolRandom = function(folderid, on) VariantPools.SetRandomPick(folderid, on) end
-	DrawSteelAudioDev.SetVariantPoolPitch = function(folderid, v) VariantPools.SetPitchVar(folderid, v) end
-	DrawSteelAudioDev.RemoveVariantPool = function(folderid) VariantPools.Remove(folderid) end
-	DrawSteelAudioDev.IsVariantPool = function(folderid) return VariantPools.IsPool(folderid) end
-	DrawSteelAudioDev.VariantPoolMemberIds = function(folderid)
+	DrawSteelAudioDev.EnsureVariantPool = function(poolid) VariantPools.EnsureEntry(poolid) end
+	DrawSteelAudioDev.CreateVariantPool2 = function(name, memberIds) return VariantPools.Create(name, memberIds) end
+	DrawSteelAudioDev.VariantPoolName = function(poolid) return VariantPools.Name(poolid) end
+	DrawSteelAudioDev.RenameVariantPool = function(poolid, name) VariantPools.Rename(poolid, name) end
+	DrawSteelAudioDev.AddVariantPoolMember = function(poolid, assetid) VariantPools.AddMember(poolid, assetid) end
+	DrawSteelAudioDev.RemoveVariantPoolMember = function(poolid, assetid) VariantPools.RemoveMember(poolid, assetid) end
+	DrawSteelAudioDev.MoveVariantPoolMember = function(poolid, from, to) VariantPools.MoveMember(poolid, from, to) end
+	DrawSteelAudioDev.SetVariantPoolRandom = function(poolid, on) VariantPools.SetRandomPick(poolid, on) end
+	DrawSteelAudioDev.SetVariantPoolPitch = function(poolid, v) VariantPools.SetPitchVar(poolid, v) end
+	DrawSteelAudioDev.RemoveVariantPool = function(poolid) VariantPools.Remove(poolid) end
+	DrawSteelAudioDev.IsVariantPool = function(poolid) return VariantPools.IsPool(poolid) end
+	DrawSteelAudioDev.VariantPoolMemberIds = function(poolid)
 		local ids = {}
-		for _,a in ipairs(VariantPools.Members(folderid)) do
+		for _,a in ipairs(VariantPools.Members(poolid)) do
 			ids[#ids+1] = a.id
 		end
 		return ids
 	end
 	DrawSteelAudioDev.EnumerateVariantPoolIds = function() return VariantPools.EnumerateIds() end
-	DrawSteelAudioDev.FireVariantPool = function(folderid, volume)
-		local a = VariantPools.Fire(folderid, { volume = volume })
+	DrawSteelAudioDev.FireVariantPool = function(poolid, volume)
+		local a = VariantPools.Fire(poolid, { volume = volume })
 		if a == nil then
 			return nil
 		end
@@ -2309,8 +2470,7 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 				--no asset.color); keep the volume row (Fire uses it). Neutral "filled"
 				--look via the bgcolor override below (FillColorHex(nil,...) is "clear").
 				assetid = nil
-				local folder = assets.audioFoldersTable[poolid]
-				nameLabel.text = (folder ~= nil and folder.description) or "Variant pool"
+				nameLabel.text = VariantPools.Name(poolid) or "Variant pool"
 				nameLabel:SetClass("collapsed", false)
 				emptyLabel:SetClass("collapsed", true)
 				element:SetClass("filled", true)
@@ -5330,16 +5490,15 @@ local CreateStudioSoundboard = function()
 			return string.find(string.lower(name), searchText, 1, true) ~= nil
 		end
 
-		--K1-board: live variant pools, sorted by folder description, shown ahead of
-		--the clip rows under their own section header. Honors the same search text
-		--as the clip rows (matched against the pool's description).
+		--K1.5-core: live variant pools, sorted by name, shown ahead of the clip rows
+		--under their own section header. Honors the same search text as the clip rows
+		--(matched against the pool's name). Names come from the pool doc entry itself
+		--now (pools are first-class entities, not folders), so every enumerated pool
+		--is listed -- no folder liveness check.
 		local function AssignablePools()
 			local out = {}
 			for _,poolid in ipairs(VariantPools.EnumerateIds()) do
-				local folder = assets.audioFoldersTable[poolid]
-				if folder ~= nil then
-					out[#out+1] = { id = poolid, name = folder.description or "Variant pool" }
-				end
+				out[#out+1] = { id = poolid, name = VariantPools.Name(poolid) or "Variant pool" }
 			end
 			table.sort(out, function(a, b) return a.name < b.name end)
 			return out

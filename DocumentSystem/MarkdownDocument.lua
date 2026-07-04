@@ -709,8 +709,24 @@ function MarkdownDocument.DebugCheckLineRanges(content)
         end
     end
 
-    print(string.format("DebugCheckLineRanges: %d tokens over %d lines; %d errors; %d uncovered non-blank lines",
-        #tokens, #lines, #errors, #uncovered))
+    --also validate the block partition built from these tokens: blocks must
+    --be strictly ascending, non-overlapping line ranges.
+    local blocks = MarkdownDocument.PartitionTokensIntoBlocks(tokens)
+    local prevEnd = 0
+    for index, block in ipairs(blocks) do
+        if block.lineStart <= prevEnd then
+            errors[#errors + 1] = string.format("block %d: range %d..%d overlaps previous block ending at %d",
+                index, block.lineStart, block.lineEnd, prevEnd)
+        end
+        if block.lineEnd < block.lineStart then
+            errors[#errors + 1] = string.format("block %d: inverted range %d..%d",
+                index, block.lineStart, block.lineEnd)
+        end
+        prevEnd = math.max(prevEnd, block.lineEnd)
+    end
+
+    print(string.format("DebugCheckLineRanges: %d tokens, %d blocks over %d lines; %d errors; %d uncovered non-blank lines",
+        #tokens, #blocks, #lines, #errors, #uncovered))
     for _, err in ipairs(errors) do
         print("  ERROR: " .. err)
     end
@@ -718,7 +734,91 @@ function MarkdownDocument.DebugCheckLineRanges(content)
         print(string.format("  UNCOVERED line %d: %s", j, lines[j]))
     end
 
-    return { errors = errors, uncovered = uncovered, tokenCount = #tokens }
+    return { errors = errors, uncovered = uncovered, blocks = blocks, tokenCount = #tokens }
+end
+
+--Token types that continue a table when they appear on the line directly
+--after the current block (a table is one edit block even though each source
+--row emits its own row/cell tokens).
+local g_tableBlockTokenTypes = {
+    rollable_table = true,
+    row = true,
+    cell = true,
+    end_row = true,
+}
+
+--Groups a trackLines token stream (BreakdownRichTags with trackLines=true)
+--into top-level edit blocks for the live editor. Each block is a contiguous
+--source line range that renders and edits as one unit:
+--  - tokens that share a source line always share a block.
+--  - table tokens on directly adjacent lines merge, so a whole table
+--    (including a rollable-table header) is a single block.
+--  - collapse wrappers claim every token until their matching end token,
+--    so a collapse node and its children form one block. (tense_block /
+--    end_tense_block are handled the same way for when that feature lands.)
+--  - rangeless whitespace-only tokens between blocks are dropped; rich-row
+--    state resets per block so they carry no layout information there.
+--    Inside a wrapper they are kept, since they space the wrapper's content.
+--  - blank lines and lines that emitted no tokens (false ??? conditional
+--    regions) belong to no block; the caller preserves them verbatim when
+--    splicing an edited block back into the document.
+--Returns an array of { lineStart, lineEnd, tokens = {...} } in source order.
+function MarkdownDocument.PartitionTokensIntoBlocks(tokens)
+    local blocks = {}
+    local current = nil
+    local wrapperDepth = 0 --depth of open collapse/tense wrappers.
+
+    for _, token in ipairs(tokens) do
+        if token.lineStart == nil then
+            if current ~= nil and wrapperDepth > 0 then
+                current.tokens[#current.tokens + 1] = token
+            end
+        else
+            local joinsCurrent = false
+            if current ~= nil then
+                if wrapperDepth > 0 then
+                    joinsCurrent = true
+                elseif token.lineStart <= current.lineEnd then
+                    --shares a line with the block.
+                    joinsCurrent = true
+                elseif token.lineStart == current.lineEnd + 1
+                       and g_tableBlockTokenTypes[token.type]
+                       and g_tableBlockTokenTypes[current.lastType] then
+                    --table continuation on the very next line.
+                    joinsCurrent = true
+                end
+            end
+
+            if not joinsCurrent then
+                current = {
+                    lineStart = token.lineStart,
+                    lineEnd = token.lineEnd,
+                    tokens = {},
+                }
+                blocks[#blocks + 1] = current
+            end
+
+            current.tokens[#current.tokens + 1] = token
+            if token.lineEnd > current.lineEnd then
+                current.lineEnd = token.lineEnd
+            end
+            current.lastType = token.type
+
+            if token.type == "collapse_node" or token.type == "tense_block" then
+                wrapperDepth = wrapperDepth + 1
+            elseif token.type == "end_collapse_node" or token.type == "end_tense_block" then
+                if wrapperDepth > 0 then
+                    wrapperDepth = wrapperDepth - 1
+                end
+            end
+        end
+    end
+
+    for _, block in ipairs(blocks) do
+        block.lastType = nil
+    end
+
+    return blocks
 end
 
 function MarkdownDocument:PatchToken(token, str)

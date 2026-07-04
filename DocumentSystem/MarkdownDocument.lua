@@ -206,12 +206,57 @@ BreakdownRichTags = function(content, result, options, extraOutput)
     content = content:gsub("\r", "")
     local lines = string.split_allow_duplicates(content, '\n')
 
+    --Live-edit support (opt-in via options.trackLines): stamp each token with the
+    --1-based, inclusive source line range it came from, over the normalized
+    --(post \v/\r) line split above. Inside a table-cell recursion every token is
+    --attributed to the host row's line (options.lineIndexContext) since cell
+    --content is a substring of that line. When trackLines is not set this is
+    --all inert and tokens are unchanged.
+    local trackLines = options.trackLines
+    local contextLine = options.lineIndexContext
+    local Stamp = function(token, lineStart, lineEnd)
+        if trackLines then
+            if contextLine ~= nil then
+                token.lineStart = contextLine
+                token.lineEnd = contextLine
+            else
+                token.lineStart = lineStart
+                token.lineEnd = lineEnd or lineStart
+            end
+        end
+        return token
+    end
+
     local text = ""
 
-    local EmitText = function(t, justification)
+    --First/last line that contributed actual content to the pending text
+    --accumulation; nil when nothing content-bearing is pending. Separator
+    --newlines (appended at the start of each new line) deliberately do not
+    --extend the range, so a construct on a following line is not claimed by
+    --the text token flushed just before it.
+    local textStartLine = nil
+    local textLastLine = nil
+    local MarkTextLine = function(lineNumber)
+        if trackLines then
+            if textStartLine == nil then
+                textStartLine = lineNumber
+            end
+            textLastLine = lineNumber
+        end
+    end
+
+    local EmitText = function(t, justification, explicitLine)
+        local rangeStart, rangeEnd
         if t == nil then
             t = text
             text = ""
+            rangeStart = textStartLine
+            rangeEnd = textLastLine
+            textStartLine = nil
+            textLastLine = nil
+        else
+            rangeStart = explicitLine
+            rangeEnd = explicitLine
         end
         if t ~= "" then
             local searchColorStr = t
@@ -231,13 +276,13 @@ BreakdownRichTags = function(content, result, options, extraOutput)
                 matchColor = regex.MatchGroups(searchColorStr, pattern)
             end
 
-            result[#result + 1] = {
+            result[#result + 1] = Stamp({
                 type = "text",
                 text = t,
                 justification = justification,
                 player = isPlayer,
                 --trace = debug.traceback(),
-            }
+            }, rangeStart, rangeEnd)
         end
     end
 
@@ -309,11 +354,13 @@ BreakdownRichTags = function(content, result, options, extraOutput)
             else
                 EmitText()
 
-                result[#result + 1] = {
+                --the collapse content ended on the previous line; this line
+                --is the first one outside the node.
+                result[#result + 1] = Stamp({
                     type = "end_collapse_node",
                     player = isPlayer,
                     text = "",
-                }
+                }, i - 1)
 
                 collapseNodes[#collapseNodes] = nil
             end
@@ -341,11 +388,11 @@ BreakdownRichTags = function(content, result, options, extraOutput)
                 end
             end
 
-            result[#result+1] = {
+            result[#result+1] = Stamp({
                 type = "blockquote",
                 text = table.concat(blockLines, "\n"),
                 player = isPlayer,
-            }
+            }, i, i + additionalLines)
 
             skipping = true
             skipLines = additionalLines
@@ -356,12 +403,12 @@ BreakdownRichTags = function(content, result, options, extraOutput)
         if rollableTableHeaderMatch ~= nil and lines[i + 1] ~= nil and string.starts_with(lines[i + 1], "|") then
             EmitText()
 
-            result[#result + 1] = {
+            result[#result + 1] = Stamp({
                 type = "rollable_table",
                 name = rollableTableHeaderMatch.name,
                 dice = rollableTableHeaderMatch.dice,
                 player = isPlayer,
-            }
+            }, i)
 
             str = ""
             parsingRollableTable = true
@@ -387,19 +434,19 @@ BreakdownRichTags = function(content, result, options, extraOutput)
             if hasMatch then
                 EmitText()
 
-                result[#result + 1] = {
+                result[#result + 1] = Stamp({
                     type = "power_roll",
                     name = powerRollMatch.name,
                     attr = powerRollMatch.attr,
                     tiers = tiers,
                     player = isPlayer,
-                }
+                }, i, i + 3)
                 skipLines = 3
                 str = ""
             elseif g_hardwiredPowerTables[nextLine] then
                 EmitText()
                 skipLines = 1
-                result[#result+1] = {
+                result[#result+1] = Stamp({
                     type = "power_roll",
                     name = powerRollMatch.name,
                     attr = powerRollMatch.attr,
@@ -408,7 +455,7 @@ BreakdownRichTags = function(content, result, options, extraOutput)
                     lines = options.linesContext or lines,
                     lineIndex = options.lineIndexContext or i,
                     player = isPlayer,
-                }
+                }, i, i + 1)
                 str = ""
             end
         end
@@ -426,34 +473,35 @@ BreakdownRichTags = function(content, result, options, extraOutput)
         if tableMatch ~= nil then
             EmitText()
 
-            result[#result + 1] = {
+            result[#result + 1] = Stamp({
                 type = "row",
                 player = isPlayer,
-            }
+            }, i)
 
             local linePrefix = "|"
 
             local cells = string.split_with_square_brackets(tableMatch.row, "|")
             for j, cell in ipairs(cells) do
-                result[#result + 1] = {
+                result[#result + 1] = Stamp({
                     type = "cell",
                     player = isPlayer,
-                }
+                }, i)
                 BreakdownRichTags(cell, result, {
                     player = options.player,
                     linePrefix = linePrefix,
                     linesContext = lines,
                     lineIndexContext = i,
                     stylingInfo = stylingInfo,
+                    trackLines = trackLines,
                 }, extraOutput)
 
                 linePrefix = linePrefix .. cell .. "|"
             end
 
-            result[#result + 1] = {
+            result[#result + 1] = Stamp({
                 type = "end_row",
                 player = isPlayer,
-            }
+            }, i)
 
             str = ""
         end
@@ -464,10 +512,10 @@ BreakdownRichTags = function(content, result, options, extraOutput)
 
         if #lines > 1 and regex.MatchGroups(str, "^(---+|___+)$") ~= nil then
             EmitText()
-            result[#result + 1] = {
+            result[#result + 1] = Stamp({
                 type = "divider",
                 player = isPlayer,
-            }
+            }, i)
             str = ""
         end
 
@@ -476,12 +524,12 @@ BreakdownRichTags = function(content, result, options, extraOutput)
             local leading = string.match(lines[i + 1], "^(%s*)")
             if #leading > 0 then
                 EmitText()
-                result[#result + 1] = {
+                result[#result + 1] = Stamp({
                     type = "collapse_node",
                     title = collapseNodeMatch.title,
                     text = str,
                     player = isPlayer,
-                }
+                }, i)
                 collapseNodes[#collapseNodes + 1] = #leading
                 str = ""
             end
@@ -494,6 +542,7 @@ BreakdownRichTags = function(content, result, options, extraOutput)
                 "^(?<prefix>.*?)((?<spoiler>\\{)|(?<justification>:(<>|><|<|>))|(?<embed>\\[:[^\\[\\]]+\\])|(?<tag>\\[[ xX]\\] *(?<checkname>[a-zA-Z0-9 ]*))|\\[\\[(?<tag>[^\\]]*)\\]\\])(?<suffix>.*)$")
             if match == nil then
                 text = text .. str
+                MarkTextLine(i)
                 if str ~= line:sub(#currentIndent + 1) and text ~= "" then
                     --we have emitted rich content this line, so emit this string now.
                     EmitText(nil, justification)
@@ -505,7 +554,7 @@ BreakdownRichTags = function(content, result, options, extraOutput)
             EmitText(nil, justification)
 
             if match.prefix ~= "" then
-                EmitText(match.prefix, justification)
+                EmitText(match.prefix, justification, i)
             end
 
             if match.spoiler ~= nil then
@@ -538,12 +587,13 @@ BreakdownRichTags = function(content, result, options, extraOutput)
                 end
 
                 text = text .. "{"
+                MarkTextLine(i)
             elseif match.justification ~= nil then
-                result[#result + 1] = {
+                result[#result + 1] = Stamp({
                     type = "justification",
                     text = match.justification,
                     player = isPlayer,
-                }
+                }, i)
 
                 if match.justification == ":<" then
                     justification = "left"
@@ -553,12 +603,12 @@ BreakdownRichTags = function(content, result, options, extraOutput)
                     justification = "center"
                 end
             elseif match.embed ~= nil then
-                result[#result + 1] = {
+                result[#result + 1] = Stamp({
                     type = "embed",
                     text = match.embed,
                     justification = justification,
                     player = isPlayer,
-                }
+                }, i)
             else
                 local linepos = (#line - #str) + #match.prefix
                 local len = #line - (#match.prefix + #match.suffix)
@@ -568,7 +618,7 @@ BreakdownRichTags = function(content, result, options, extraOutput)
                 end
 
                 local guid = dmhub.GenerateGuid()
-                result[#result + 1] = {
+                result[#result + 1] = Stamp({
                     guid = guid,
                     type = "tag",
                     text = match.tag,
@@ -583,7 +633,7 @@ BreakdownRichTags = function(content, result, options, extraOutput)
                     lineIndex = options.lineIndexContext or i,
                     linepos = linepos,
                     length = len,
-                }
+                }, i)
             end
 
             str = match.suffix
@@ -597,16 +647,78 @@ BreakdownRichTags = function(content, result, options, extraOutput)
     EmitText()
 
     while #collapseNodes > 0 do
-        result[#result + 1] = {
+        result[#result + 1] = Stamp({
             type = "end_collapse_node",
             text = "",
             player = isPlayer,
-        }
+        }, #lines)
 
         collapseNodes[#collapseNodes] = nil
     end
 
     return result
+end
+
+--Dev-only verification for the live-edit line-range work: tokenize with
+--trackLines and check the invariants the block partitioner will rely on:
+--  1. every stamped range is ordered and within 1..#lines.
+--  2. token range starts never move backwards across the token stream.
+--  3. every non-blank source line is covered by at least one token range.
+--     Uncovered non-blank lines are reported; ??? conditional regions emit no
+--     tokens and are expected to appear here.
+--  4. tokens with no range carry only whitespace text.
+--Run from the dev console on a document's content, e.g.:
+--  MarkdownDocument.DebugCheckLineRanges(doc:GetTextContent())
+--Returns { errors = {...}, uncovered = {...}, tokenCount = n } and prints a summary.
+function MarkdownDocument.DebugCheckLineRanges(content)
+    local tokens = BreakdownRichTags(content, nil, { trackLines = true })
+
+    local normalized = content:gsub("\v", "\n"):gsub("\r", "")
+    local lines = string.split_allow_duplicates(normalized, "\n")
+
+    local errors = {}
+    local covered = {}
+    local maxStart = 0
+
+    for index, token in ipairs(tokens) do
+        if token.lineStart ~= nil then
+            if token.lineEnd == nil or token.lineStart > token.lineEnd
+               or token.lineStart < 1 or token.lineEnd > #lines then
+                errors[#errors + 1] = string.format("token %d (%s): bad range %s..%s (doc has %d lines)",
+                    index, token.type, tostring(token.lineStart), tostring(token.lineEnd), #lines)
+            else
+                if token.lineStart < maxStart then
+                    errors[#errors + 1] = string.format("token %d (%s): range start %d is before an earlier token's start %d",
+                        index, token.type, token.lineStart, maxStart)
+                end
+                maxStart = math.max(maxStart, token.lineStart)
+                for j = token.lineStart, token.lineEnd do
+                    covered[j] = true
+                end
+            end
+        elseif token.type == "text" and trim((token.text or ""):gsub("\n", "")) ~= "" then
+            errors[#errors + 1] = string.format("token %d: rangeless text token with content %q",
+                index, token.text)
+        end
+    end
+
+    local uncovered = {}
+    for j, line in ipairs(lines) do
+        if (not covered[j]) and trim(line) ~= "" then
+            uncovered[#uncovered + 1] = j
+        end
+    end
+
+    print(string.format("DebugCheckLineRanges: %d tokens over %d lines; %d errors; %d uncovered non-blank lines",
+        #tokens, #lines, #errors, #uncovered))
+    for _, err in ipairs(errors) do
+        print("  ERROR: " .. err)
+    end
+    for _, j in ipairs(uncovered) do
+        print(string.format("  UNCOVERED line %d: %s", j, lines[j]))
+    end
+
+    return { errors = errors, uncovered = uncovered, tokenCount = #tokens }
 end
 
 function MarkdownDocument:PatchToken(token, str)

@@ -5454,13 +5454,22 @@ CreateSoundPanel = function()
 				pcall(StopPreview)
 			end,
 
-			gui.Label{
-				classes = {"bold", "sizeXs"},
-				text = "On This Map",
-				width = "auto",
+			gui.Panel{
+				flow = "horizontal",
+				width = "100%",
 				height = "auto",
 				halign = "left",
+				valign = "center",
 				vmargin = 2,
+				gui.Label{
+					classes = {"bold", "sizeXs"},
+					text = "On This Map",
+					width = "auto",
+					height = "auto",
+					halign = "left",
+					valign = "center",
+				},
+				AudioInfoGlyph("These are the sounds placed on this map. Each plays from its own spot and fades with distance, with its own on/off, volume, falloff and wall penetration - hover a row to see its range on the map, or double-click to centre the camera on it. \"Add map sound\" drops a new one at the camera centre for you to pick a clip."),
 			},
 
 			addButton,

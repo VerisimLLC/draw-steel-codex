@@ -4590,6 +4590,23 @@ CreateSoundPanel = function()
 			end
 		end
 
+		--Body-scoped preview state (mirrors CreateAnthemNode): only one map sound
+		--auditions locally at a time. previewObjId names the row that owns the single
+		--preview instance; StopPreview stops it and releases ownership.
+		local previewObjId = nil
+		local previewInstance = nil
+		local function StopPreview()
+			if previewInstance ~= nil then
+				pcall(function() previewInstance:Stop() end)
+				previewInstance = nil
+			end
+			previewObjId = nil
+		end
+
+		--Set by the add-flow to the objid of a freshly-placed emitter so its row
+		--opens expanded when the list next rebuilds (then cleared on read).
+		local pendingExpandObjId = nil
+
 		--Every audio-component object on the current floor that has a clip
 		--assigned, sorted by objid. Used both to build the row list and as a
 		--cheap "did the set of clipped emitters change" signature.
@@ -4612,8 +4629,228 @@ CreateSoundPanel = function()
 			return ids
 		end
 
+		--Clips-only grouped picker for the add-flow. A positional emitter plays a
+		--single AudioAsset (no variant pools), so this is a fresh clips-only variant
+		--of the Studio's pool-aware OpenAssignPopup (which is Studio-scoped). Library
+		--clips grouped by folder; the Effects folder is floated first, then alpha.
+		local function MapSoundClipGroups()
+			local byFolder = {}
+			local order = {}
+			for _,asset in pairs(assets.audioTable) do
+				if not asset.hidden then
+					local fid = asset.parentFolder or defaultFolder
+					local t = byFolder[fid]
+					if t == nil then
+						t = {}
+						byFolder[fid] = t
+						order[#order+1] = fid
+					end
+					t[#t+1] = asset
+				end
+			end
+			local groups = {}
+			for _,fid in ipairs(order) do
+				local folder = assets.audioFoldersTable[fid]
+				groups[#groups+1] = { id = fid, name = (folder ~= nil and folder.description) or "Folder", clips = byFolder[fid] }
+			end
+			table.sort(groups, function(a, b)
+				local ae = (a.name == "Effects")
+				local be = (b.name == "Effects")
+				if ae ~= be then return ae end
+				return a.name < b.name
+			end)
+			for _,g in ipairs(groups) do
+				table.sort(g.clips, function(a, b)
+					return DisplayNameForAsset(a) < DisplayNameForAsset(b)
+				end)
+			end
+			return groups
+		end
+
+		--Anchored searchable clip picker. onChosen(assetid) fires when a clip is
+		--picked; onCancel() fires when the popup closes with NO pick (click-outside
+		--or dismiss). Exactly one of the two runs (guarded by the `chosen` flag).
+		local function OpenClipPicker(anchorElement, onChosen, onCancel)
+			local chosen = false
+			local searchText = ""
+			local searchTextRaw = ""
+			local listPanel
+
+			local function MatchClip(asset)
+				if searchText == "" then return true end
+				return string.find(string.lower(DisplayNameForAsset(asset)), searchText, 1, true) ~= nil
+			end
+
+			local function RebuildList()
+				local children = {}
+				local rowCount = 0
+				for _,group in ipairs(MapSoundClipGroups()) do
+					local matched = {}
+					for _,asset in ipairs(group.clips) do
+						if MatchClip(asset) then
+							matched[#matched+1] = asset
+						end
+					end
+					if #matched > 0 then
+						children[#children+1] = gui.Label{
+							classes = {"bold", "sizeXs"},
+							text = group.name,
+							width = "auto",
+							height = "auto",
+							halign = "left",
+							vmargin = 1,
+						}
+						for _,asset in ipairs(matched) do
+							local a = asset
+							local displayName = DisplayNameForAsset(a)
+							if displayName == "" then displayName = "(unnamed)" end
+							rowCount = rowCount + 1
+							children[#children+1] = gui.Label{
+								classes = {"sizeS", "hoverable"},
+								text = displayName,
+								width = "100%",
+								height = 22,
+								halign = "left",
+								valign = "center",
+								hpad = 6,
+								borderBox = true,
+								textWrap = false,
+								textOverflow = "ellipsis",
+								press = function()
+									chosen = true
+									anchorElement.popup = nil
+									onChosen(a.id)
+								end,
+							}
+						end
+					end
+				end
+				if rowCount == 0 then
+					children[#children+1] = gui.Label{
+						classes = {"fgMuted", "sizeXs"},
+						text = string.format("No sounds match \"%s\"", searchTextRaw),
+						width = "100%",
+						height = 22,
+						hpad = 6,
+						borderBox = true,
+						halign = "left",
+						valign = "center",
+					}
+				end
+				listPanel.children = children
+			end
+
+			listPanel = gui.Panel{
+				flow = "vertical",
+				width = "100%",
+				height = "auto",
+				maxHeight = 260,
+				vscroll = true,
+				vmargin = 4,
+			}
+
+			local searchInput = gui.Input{
+				placeholderText = "Search sounds",
+				text = "",
+				width = "100%",
+				height = 24,
+				editlag = 0.1,
+				edit = function(element)
+					searchTextRaw = element.text or ""
+					searchText = string.lower(searchTextRaw)
+					RebuildList()
+				end,
+				change = function(element)
+					searchTextRaw = element.text or ""
+					searchText = string.lower(searchTextRaw)
+					RebuildList()
+				end,
+			}
+
+			anchorElement.popup = gui.Panel{
+				styles = ThemeEngine.MergeStyles{},
+				classes = {"framedPanel"},
+				width = 240,
+				height = "auto",
+				flow = "vertical",
+				pad = 8,
+				borderBox = true,
+				--Cancel path: popup closed without a pick (click-outside or dismiss)
+				---> run onCancel exactly once so the add-flow removes the empty stamp.
+				destroy = function()
+					if not chosen then
+						pcall(onCancel)
+					end
+				end,
+				gui.Label{
+					classes = {"bold", "sizeXs"},
+					text = "Choose a sound",
+					width = "auto",
+					height = "auto",
+					halign = "left",
+					vmargin = 1,
+				},
+				searchInput,
+				listPanel,
+				create = function()
+					RebuildList()
+					searchInput.hasInputFocus = true
+				end,
+			}
+		end
+
+		--Add-flow: stamp the Audio prefab at the current camera centre, then open the
+		--clip picker. Picking a clip writes it to the emitter's Audio component and
+		--flags the new row to open expanded; cancelling removes the empty stamp so no
+		--silent orphan is left behind.
+		local AUDIO_PREFAB_ID = "b1edd28f-79cc-4f4d-9a6c-cf976be84a80"
+		local function PlaceMapSound(anchorElement)
+			local floor = game.currentFloor
+			if floor == nil then
+				return
+			end
+			local cam = dmhub.cameraPosition
+			local inst = floor:SpawnObjectLocal(AUDIO_PREFAB_ID, { posx = cam.x, posy = cam.y })
+			if inst == nil then
+				return
+			end
+			inst:Upload()
+			local newObjId = inst.id
+			local stampedComp = inst:GetComponent("Audio")
+			OpenClipPicker(anchorElement,
+				function(assetid)
+					--Resolve the component fresh by objid where possible (Upload may
+					--re-instantiate the object), falling back to the local stamp handle.
+					local o = game.currentFloor and game.currentFloor.objects[newObjId]
+					local c = o ~= nil and o:GetComponent("Audio") or stampedComp
+					if c == nil then
+						return
+					end
+					local f = AudioField(c, "audio")
+					if f ~= nil then
+						f:SetValue(assetid)
+						f:Upload()
+					end
+					pendingExpandObjId = newObjId
+				end,
+				function()
+					--Cancelled: remove the empty stamped emitter.
+					local o = game.currentFloor and game.currentFloor.objects[newObjId]
+					local c = o ~= nil and o:GetComponent("Audio") or stampedComp
+					if c ~= nil then
+						pcall(function() c:DestroyObject() end)
+					end
+				end)
+		end
+
 		local function CreateMapSoundRow(objid)
-			local expanded = false
+			--Open expanded when this is the row the add-flow just created (then clear
+			--the one-shot flag). Applied to the caret + expanded body in the row's
+			--create handler below.
+			local expanded = (pendingExpandObjId == objid)
+			if expanded then
+				pendingExpandObjId = nil
+			end
 
 			--Construction-time seed values read once from the live component so the
 			--sliders open on the emitter's ACTUAL stored settings (not schema
@@ -4637,7 +4874,7 @@ CreateSoundPanel = function()
 			local nameLabel = gui.Label{
 				classes = {"sizeS"},
 				text = "Map sound",
-				width = "100%-170",
+				width = "100%-194",
 				height = "auto",
 				halign = "left",
 				valign = "center",
@@ -4683,6 +4920,53 @@ CreateSoundPanel = function()
 				cornerRadius = 4,
 				valign = "center",
 				hmargin = 4,
+			}
+
+			--DM-only local audition of this emitter's clip, scaled by master so it
+			--never blasts (chunk E cue rule). Headphones glyph swaps to a stop square
+			--while previewing; the row think reverts it when the clip ends or another
+			--row takes the single preview slot. Mirrors CreateAnthemRow's preview cue.
+			local previewButton
+			local UpdatePreviewIcon = function()
+				if previewButton == nil then
+					return
+				end
+				local previewing = previewObjId == objid and previewInstance ~= nil and previewInstance.playing
+				previewButton.bgimage = previewing and "panels/square.png" or "icons/icon_app/icon_app_23.png"
+			end
+
+			previewButton = gui.Panel{
+				bgimage = "icons/icon_app/icon_app_23.png",
+				bgcolor = "white",
+				width = 14,
+				height = 14,
+				valign = "center",
+				hmargin = 4,
+				press = function()
+					if previewObjId == objid and previewInstance ~= nil and previewInstance.playing then
+						StopPreview()
+						UpdatePreviewIcon()
+						return
+					end
+					StopPreview()
+					local o = game.currentFloor and game.currentFloor.objects[objid]
+					local c = o ~= nil and o:GetComponent("Audio") or nil
+					local f = c ~= nil and AudioField(c, "audio") or nil
+					local clipid = f ~= nil and f.currentValue or nil
+					local asset = clipid ~= nil and assets.audioTable[clipid] or nil
+					if asset == nil then
+						return
+					end
+					previewInstance = asset:Play()
+					previewObjId = objid
+					if previewInstance ~= nil then
+						previewInstance.volume = audio.masterVolume
+					end
+					UpdatePreviewIcon()
+				end,
+				linger = function(element)
+					gui.Tooltip("Preview (only you)")(element)
+				end,
 			}
 
 			local onOffButton
@@ -4937,8 +5221,9 @@ CreateSoundPanel = function()
 			}
 
 			--Flat single-line header: caret + dot + name + on/off glyph + volume fader
-			--all share one centred baseline. Right-reserve on the name label = 170 =
-			--caret(16+6) + dot(8+8) + onOff(16+8) + volume(108).
+			--all share one centred baseline. Right-reserve on the name label = 194,
+			--covering caret(16+6) + dot(8+8) + preview(14+8) + onOff(16+8) + volume(108)
+			--= 192 with 2px of slack (conservative so nothing clips the padded edge).
 			--Hover/dehover live on the OUTER row (below), NOT here: reaching the
 			--expanded falloff fader means leaving the header, which would fire dehover
 			--and kill the ring -- so the falloff drag-preview could never show. Only
@@ -4965,6 +5250,7 @@ CreateSoundPanel = function()
 				caret,
 				statusDot,
 				nameLabel,
+				previewButton,
 				onOffButton,
 				volumeSlider,
 			}
@@ -5007,6 +5293,14 @@ CreateSoundPanel = function()
 
 				local lit = on and (not isTrigger)
 				statusDot.bgcolor = lit and "#5cb85c" or "#888888"
+
+				--Clear stale preview ownership if this row's preview finished on its
+				--own (or another row took the single slot), then sync the glyph.
+				if previewObjId == objid and (previewInstance == nil or not previewInstance.playing) then
+					previewInstance = nil
+					previewObjId = nil
+				end
+				UpdatePreviewIcon()
 			end
 
 			return gui.Panel{
@@ -5042,7 +5336,19 @@ CreateSoundPanel = function()
 				end,
 
 				create = function()
+					caret:SetClass("expanded", expanded)
+					expandedBody:SetClass("collapsed", not expanded)
 					RefreshRow()
+				end,
+
+				--If this row owns the single preview slot when it goes away (Remove, or
+				--its clip cleared elsewhere so it drops out of the list rebuild), stop the
+				--audition -- the body-level destroy only fires when the whole node unmounts,
+				--so a vanished row would otherwise leak a playing instance with no owner.
+				destroy = function()
+					if previewObjId == objid then
+						StopPreview()
+					end
 				end,
 
 				thinkTime = 0.5,
@@ -5111,6 +5417,25 @@ CreateSoundPanel = function()
 			think = RefreshMapSoundsList,
 		}
 
+		--"+ Add map sound" stamps the Audio prefab at camera centre then opens the
+		--clip picker (PlaceMapSound). Always visible under the header title; when the
+		--floor has no map sounds it also reads as the empty-state primary CTA (it sits
+		--directly above the empty-state hint).
+		local addButton
+		addButton = gui.Button{
+			classes = {"sizeXs"},
+			text = "+ Add map sound",
+			width = "auto",
+			height = 22,
+			hpad = 8,
+			borderBox = true,
+			halign = "left",
+			vmargin = 2,
+			press = function(element)
+				PlaceMapSound(element)
+			end,
+		}
+
 		--10px side inset (matches MakeFaderRow's hpad) so nothing runs under the dock
 		--scrollbar / clipped right edge: the caret shows at the left, and every fader
 		--right-aligns to the padded right edge like the Levels faders.
@@ -5123,6 +5448,7 @@ CreateSoundPanel = function()
 
 			destroy = function()
 				pcall(ClearRing)
+				pcall(StopPreview)
 			end,
 
 			gui.Label{
@@ -5134,6 +5460,7 @@ CreateSoundPanel = function()
 				vmargin = 2,
 			},
 
+			addButton,
 			listPanel,
 			emptyState,
 		}

@@ -147,6 +147,11 @@ function CreateActionLogCard(options)
 
     return gui.Panel{
         classes = cardClasses,
+        --Clip the floating color bar to the card: it is height="100%" which resolves
+        --against the scroll viewport (not this auto-height card), so without clipping it
+        --overshoots downward and bleeds over the entries beneath this one.
+        clip = true,
+        clipHidden = true,
 
         -- Color accent bar (floating so it doesn't affect horizontal flow sizing)
         gui.Panel{
@@ -718,6 +723,8 @@ local CreateRollMessagePanel = function(message, adoptiveParentPanel)
 
             gui.Panel{
                 classes = {"action-log-card"},
+                clip = true,   --contain the floating colorBar (height 100% overshoots -- see CreateActionLogCard).
+                clipHidden = true,
 
                 colorBar,
 

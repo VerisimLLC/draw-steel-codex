@@ -733,7 +733,8 @@ local audioEventLog = setting{
     default = false,
     storage = "preference",
     section = "audio",
-    ord = 120,
+    ord = 121,   --higher than the sfx sub-toggle: the section sorts ord DESCENDING (top),
+                 --so this keeps the master above its dependent (SettingsScreen.lua sort).
     onchange = function() if WriteAudioLogSubscription ~= nil then WriteAudioLogSubscription() end end,
 }
 local audioEventLogSfx = setting{
@@ -744,7 +745,7 @@ local audioEventLogSfx = setting{
     default = false,
     storage = "preference",
     section = "audio",
-    ord = 121,
+    ord = 120,   --lower than the master toggle so it sorts BELOW it (descending section sort).
     monitorVisible = {"audioeventlog"},
     visible = function() return dmhub.GetSettingValue("audioeventlog") end,
     onchange = function() if WriteAudioLogSubscription ~= nil then WriteAudioLogSubscription() end end,
@@ -767,7 +768,7 @@ function AudioLogChatMessage.Render(self, message)
     end
     local label = gui.Label{
         classes = {"sizeXs", "fgMuted"},
-        width = "100%-34",
+        width = "100%-42",
         height = "auto",
         halign = "left",
         valign = "center",
@@ -775,20 +776,16 @@ function AudioLogChatMessage.Render(self, message)
         text = self.text,
     }
     return gui.Panel{
-        --Minimal action-log-style card. "bgAlt" gives it the same opaque background
-        --other action log entries have; "clip" keeps our own accent rail (below) inside
-        --our bounds. The left rail mirrors the per-entry color bar every action log card
-        --carries, and is what occludes the PREVIOUS card's floating color bar -- that bar
-        --uses height 100% which resolves against the scroll viewport and overshoots down
-        --over the entries beneath it (a pre-existing CreateActionLogCard trait; normally
-        --hidden because every other entry has its own opaque bar at the same x).
+        --Minimal action-log-style card. "bgAlt" gives it the same opaque background other
+        --action log entries have. No left accent rail (unlike CreateActionLogCard's token
+        --color bar) -- audio events read as a distinct, cleaner minimal card. The icon's
+        --lmargin supplies the left inset in place of card hpad.
         classes = {"chat-message-panel", "bgAlt"},
         flow = "horizontal",
         width = "100%",
         height = "auto",
         cornerRadius = 4,
         vmargin = 2,
-        hpad = 8,
         vpad = 5,
         borderBox = true,
         clip = true,
@@ -800,16 +797,6 @@ function AudioLogChatMessage.Render(self, message)
                 label.text = msg.properties.text
             end
         end,
-        --Left accent rail (audio-system slate, matching the soundboard pool tint).
-        gui.Panel{
-            floating = true,
-            width = 4,
-            height = "100%",
-            halign = "left",
-            valign = "top",
-            bgimage = "panels/square.png",
-            bgcolor = "#5b6a8f",
-        },
         gui.Panel{
             --bgFgMuted tints the glyph to @fgMuted via the style cascade, which resolves
             --on first paint -- an inline bgcolor="@fgMuted" token renders white for one
@@ -820,7 +807,7 @@ function AudioLogChatMessage.Render(self, message)
             height = 14,
             halign = "left",
             valign = "center",
-            lmargin = 10,
+            lmargin = 12,
             rmargin = 8,
         },
         label,

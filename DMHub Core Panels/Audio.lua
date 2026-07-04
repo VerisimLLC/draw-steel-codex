@@ -7734,10 +7734,21 @@ local CreateStudioPlaylistsCard = function(heightSpec)
 		newPlaylistButton,
 	}
 
+	--Explainer under the header (James, [COPY] signed 2026-07-04) - the twin of the
+	--Variant Pools card's explainer. The list below budgets its height.
+	local explainerLabel = gui.Label{
+		classes = {"fgMuted", "sizeXs"},
+		text = "A playlist plays its tracks in order, or shuffled, crossfading between them. Pin playlists to the dock for quick access and bind them to game modes to switch music automatically.",
+		width = "100%",
+		height = "auto",
+		textWrap = true,
+		vmargin = 2,
+	}
+
 	m_listPanel = gui.Panel{
 		flow = "vertical",
 		width = "100%",
-		height = "100%-32",
+		height = "100%-64",
 		vscroll = true,
 		valign = "top",
 		monitorGame = GetPlaylistsDoc().path,
@@ -7767,6 +7778,7 @@ local CreateStudioPlaylistsCard = function(heightSpec)
 		end,
 
 		headerRow,
+		explainerLabel,
 		m_listPanel,
 	}
 end
@@ -8391,10 +8403,21 @@ local CreateStudioVariantPoolsCard = function(heightSpec)
 		newPoolButton,
 	}
 
+	--Explainer under the header (James, [COPY] signed 2026-07-04) - same pattern as
+	--the Levels card's broadcast-levels note. The list below budgets its height.
+	local explainerLabel = gui.Label{
+		classes = {"fgMuted", "sizeXs"},
+		text = "A variant pool plays one of its clips each time it fires, with slight pitch variation, so repeated effects never sound the same twice. Assign pools to soundboard buttons to fire them.",
+		width = "100%",
+		height = "auto",
+		textWrap = true,
+		vmargin = 2,
+	}
+
 	m_listPanel = gui.Panel{
 		flow = "vertical",
 		width = "100%",
-		height = "100%-32",
+		height = "100%-64",
 		vscroll = true,
 		valign = "top",
 		monitorGame = VariantPools.GetDoc().path,
@@ -8424,6 +8447,7 @@ local CreateStudioVariantPoolsCard = function(heightSpec)
 		end,
 
 		headerRow,
+		explainerLabel,
 		m_listPanel,
 	}
 end

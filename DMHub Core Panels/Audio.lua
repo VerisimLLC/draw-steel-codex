@@ -6261,6 +6261,11 @@ local CreateAudioLibraryTree = function()
 	local function BuildMaps()
 		local foldersByParent = {}
 		local clipsByFolder = {}
+		--K1.5 field fix (James, 2026-07-04): a variant pool "+ Add clips" session
+		--shows ONLY clips that belong in a pool - the effects category. Other
+		--categories are hidden for the session and folders left with nothing to
+		--show are pruned below, so the picker is just the assignable material.
+		local poolBuild = m_studioBuildMode ~= nil and m_studioBuildMode.poolid ~= nil
 		for id,folder in pairs(assets.audioFoldersTable) do
 			if not folder.hidden then
 				local pk = folder.parentFolder or "__root__"
@@ -6270,12 +6275,38 @@ local CreateAudioLibraryTree = function()
 			end
 		end
 		for _,asset in pairs(assets.audioTable) do
-			if not asset.hidden then
+			if not asset.hidden and (not poolBuild or asset.category == "effects") then
 				local fk = asset.parentFolder or defaultFolder
 				local t = clipsByFolder[fk]
 				if t == nil then t = {} clipsByFolder[fk] = t end
 				t[#t+1] = asset
 			end
+		end
+		if poolBuild then
+			--Prune folders that have no effects clips anywhere beneath them, so the
+			--pool-build tree only contains rows the [+] button can act on.
+			local decided = {}
+			local function Survives(fid)
+				if decided[fid] ~= nil then return decided[fid] end
+				decided[fid] = false
+				local s = #(clipsByFolder[fid] or {}) > 0
+				if not s then
+					for _,sub in ipairs(foldersByParent[fid] or {}) do
+						if Survives(sub.id) then s = true break end
+					end
+				end
+				decided[fid] = s
+				return s
+			end
+			local pruned = {}
+			for pk,list in pairs(foldersByParent) do
+				local keep = {}
+				for _,entry in ipairs(list) do
+					if Survives(entry.id) then keep[#keep+1] = entry end
+				end
+				pruned[pk] = keep
+			end
+			foldersByParent = pruned
 		end
 		local function cmpFolder(a,b)
 			local ao,bo = a.folder.ord or 0, b.folder.ord or 0

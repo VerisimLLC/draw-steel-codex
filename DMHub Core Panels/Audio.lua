@@ -901,6 +901,9 @@ g_drawSteelAudioLog = {
     StopAll = function()
         if AudioLogShouldSend(false) then AudioLogSend("All audio stopped") end
     end,
+    MusicStopped = function()
+        if AudioLogShouldSend(false) then AudioLogSend("Music stopped") end
+    end,
     Effect = function(key, name)
         if not AudioLogShouldSend(true) then return end
         m_audioLogEffectSeq = m_audioLogEffectSeq + 1
@@ -1207,6 +1210,10 @@ local function StopDrivenPlaylist()
 	closeDoc:BeginChange()
 	closeDoc.data.auto = { active = false, saved = nil }
 	closeDoc:CompleteChange("Stop playlist", {undoable = false})
+	--A deliberate driven-playlist stop silences the music: music never layers while a
+	--playlist drives (PlayBroadcastClip stops the playlist first), so the table just went
+	--quiet. Surface it for HoH players, distinct from the stop-all "All audio stopped".
+	g_drawSteelAudioLog.MusicStopped()
 end
 
 --Deliberate user stop of ONE broadcast track (dock hero stop, now-playing row stops,
@@ -1228,7 +1235,26 @@ local function StopBroadcastClip(assetid)
 			return
 		end
 	end
+	--Stopping the LAST playing music track (a single manually-played track, or the final
+	--layer of a playTogether set) also silences the music -- log it. Ambience/effects and
+	--non-final music layers leave music playing, so they stay silent. Checked BEFORE the
+	--stop so audio.currentlyPlaying still lists this id when we scan for other music.
+	local stopped = assets.audioTable[assetid]
+	local wasLastMusic = false
+	if stopped ~= nil and stopped.category == "music" then
+		wasLastMusic = true
+		for id,_ in pairs(audio.currentlyPlaying) do
+			if id ~= assetid then
+				local other = assets.audioTable[id]
+				if other ~= nil and other.category == "music" then
+					wasLastMusic = false
+					break
+				end
+			end
+		end
+	end
 	audio.StopSoundEvent(assetid)
+	if wasLastMusic then g_drawSteelAudioLog.MusicStopped() end
 end
 
 --Jump directly to one track of the currently-driven playlist (playlist row click).

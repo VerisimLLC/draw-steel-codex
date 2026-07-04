@@ -4653,16 +4653,20 @@ CreateSoundPanel = function()
 				textOverflow = "ellipsis",
 			}
 
+			--Trigger badge lives on its own line UNDER the clip name (in nameColumn),
+			--not in the header control cluster -- an auto-width badge in the header
+			--would shift the fixed right-side controls whenever it showed/hid.
 			local triggerBadge = gui.Label{
 				classes = {"sizeXxs", "hidden"},
 				text = "Trigger",
 				bgcolor = "#444444",
 				cornerRadius = 4,
 				hpad = 4,
+				vpad = 1,
 				borderBox = true,
-				halign = "center",
+				halign = "left",
 				valign = "center",
-				hmargin = 4,
+				vmargin = 1,
 				height = "auto",
 				width = "auto",
 				linger = function(element)
@@ -4855,13 +4859,14 @@ CreateSoundPanel = function()
 				end,
 			}
 
+			--No hpad here: the body root supplies the 10px side inset, so the
+			--falloff/wall-penetration faders align to the same right edge as the
+			--collapsed row's volume fader (an extra inset here would offset them).
 			expandedBody = gui.Panel{
 				classes = {"collapsed"},
 				flow = "vertical",
 				width = "100%",
 				height = "auto",
-				hpad = 4,
-				borderBox = true,
 
 				gui.Panel{
 					flow = "horizontal",
@@ -4900,12 +4905,17 @@ CreateSoundPanel = function()
 				removeButton,
 			}
 
+			--Fixed right-reserve (146) = caret(16+6) + dot(8+8) + onOff(16+8) +
+			--volume(80); the name column flexes to fill the middle so the on/off
+			--glyph and volume fader right-align to the body's padded right edge (and
+			--thus line up with the expanded falloff/wall-penetration faders below).
 			local nameColumn = gui.Panel{
 				flow = "vertical",
-				width = "100%-140",
+				width = "100%-146",
 				height = "auto",
 				valign = "center",
 				nameLabel,
+				triggerBadge,
 				sourceLabel,
 			}
 
@@ -4948,12 +4958,11 @@ CreateSoundPanel = function()
 					pcall(function() o:CenterCamera{smooth=true} end)
 				end,
 
+				caret,
 				statusDot,
 				nameColumn,
-				triggerBadge,
 				onOffButton,
 				volumeSlider,
-				caret,
 			}
 
 			--Refresh the row's live-state chrome (name, source line, trigger badge,
@@ -5067,10 +5076,15 @@ CreateSoundPanel = function()
 			think = RefreshMapSoundsList,
 		}
 
+		--10px side inset (matches MakeFaderRow's hpad) so nothing runs under the dock
+		--scrollbar / clipped right edge: the caret shows at the left, and every fader
+		--right-aligns to the padded right edge like the Levels faders.
 		return gui.Panel{
 			flow = "vertical",
 			width = "100%",
 			height = "auto",
+			hpad = 10,
+			borderBox = true,
 
 			destroy = function()
 				pcall(ClearRing)

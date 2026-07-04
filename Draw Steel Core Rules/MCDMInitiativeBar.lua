@@ -3017,6 +3017,29 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 	local m_anthemTokenId = nil
 	local m_anthemDuckActive = false
 
+	--Audio event log (chunk L): reach Audio.lua's logger via rawget since module load
+	--order between the two files is not guaranteed. Anthem playback is per-client local
+	--audio (this recompute runs on every client), so the logger's own dmhub.isDM gate
+	--is what keeps this to a single DM-posted chat line rather than one per client.
+	local function AudioLog() return rawget(_G, "g_drawSteelAudioLog") end
+
+	--Tracks whether the current anthem has been announced in the log but not yet ended,
+	--so an end line fires exactly ONCE regardless of how the anthem stops: a turn change,
+	--a time-limited natural expiry (detected in the think poll below), or its token being
+	--deleted. Guards against double-logging across those paths.
+	local m_anthemLogged = false
+	local function LogAnthemStart(name, ducked)
+		local L = AudioLog()
+		if L ~= nil then L.AnthemStart(name, ducked) end
+		m_anthemLogged = true
+	end
+	local function LogAnthemEnd()
+		if not m_anthemLogged then return end
+		m_anthemLogged = false
+		local L = AudioLog()
+		if L ~= nil then L.AnthemEnd() end
+	end
+
 	--Speaker icon shown in the top right of the center card while the active
 	--creature's anthem is playing. Created alongside the center container below.
 	local anthemIcon
@@ -3994,6 +4017,7 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
             local currentInitiativeId = self:try_get("currentInitiativeId")
             if currentInitiativeId == nil then
                 StopAnthem()
+                LogAnthemEnd()
             elseif currentInitiativeId ~= element.data.anthemInitiativeId then
                 local anthemToken = nil
                 if currentInitiativeId ~= nil then
@@ -4036,11 +4060,16 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
                                     m_anthemEventInstance:SetStopAfter(anthemDuration:Get())
                                 end
                                 element.monitorGame = anthemToken.monitorPath
+
+                                local anthemName = anthemToken.name
+                                if anthemName == nil or anthemName == "" then anthemName = "Creature" end
+                                LogAnthemStart(anthemName, anthemDuckMusic:Get())
                             end
                         end
                     end
                 else
                     StopAnthem()
+                    LogAnthemEnd()
                 end
             end
 
@@ -4074,6 +4103,14 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 			--hides when a time-limited anthem finishes without a turn change.
 			UpdateAnthemIcon()
 
+			--Log an anthem end when a time-limited anthem finishes on its own (default
+			--config: "Limit Anthem Lengths" on), since no turn change funnels it through
+			--the end branches above. m_anthemLogged makes this fire once and never
+			--double-log with a later turn-change end.
+			if m_anthemLogged and (m_anthemEventInstance == nil or not m_anthemEventInstance.playing) then
+				LogAnthemEnd()
+			end
+
 			--Release the music duck if a time-limited anthem finished without a
 			--turn change (it would not otherwise funnel through StopAnthem).
 			if m_anthemDuckActive and (m_anthemEventInstance == nil or not m_anthemEventInstance.playing) then
@@ -4099,6 +4136,7 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 					m_anthemEventInstance.volume = tok.anthemVolume * GetLocalAnthemVolume(m_anthemTokenId)
 				else
 					StopAnthem()
+					LogAnthemEnd()
 				end
 			end
 		end,

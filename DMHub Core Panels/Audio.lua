@@ -715,6 +715,130 @@ local m_lastAdvance = nil
 --backward seek of a driven track will read as a wrap and skip -- revisit then.
 local m_lastTrackTime = nil
 
+--Audio event log (chunk L): opt-in accessibility feature. When enabled, the DM's
+--client posts muted chat lines announcing music/mood/anthem transitions, so deaf/
+--hard-of-hearing players can see audio state changes they cannot hear. A second,
+--dependent toggle additionally logs soundboard sound effects. Default OFF; DM-only
+--setting (classes = {"dmonly"}), game-scoped like anthemLimited above.
+local audioEventLog = setting{
+    id = "audioeventlog",
+    description = "Audio event log",
+    help = "Post music, mood, and anthem changes to chat as muted notes, so players who can't hear the audio still see what's happening.",
+    editor = "check",
+    default = false,
+    storage = "game",
+    section = "audio",
+    classes = {"dmonly"},
+    ord = 120,
+}
+local audioEventLogSfx = setting{
+    id = "audioeventlogsfx",
+    description = "Also log sound effects",
+    help = "Also post soundboard sound effects to the chat log.",
+    editor = "check",
+    default = false,
+    storage = "game",
+    section = "audio",
+    classes = {"dmonly"},
+    ord = 121,
+    monitorVisible = {"audioeventlog"},
+    visible = function() return dmhub.GetSettingValue("audioeventlog") end,
+}
+
+--- @class AudioLogChatMessage
+AudioLogChatMessage = RegisterGameType("AudioLogChatMessage")
+AudioLogChatMessage.text = ""
+function AudioLogChatMessage.Render(self, message)
+    local label = gui.Label{
+        classes = {"sizeXs", "fgMuted"},
+        width = "100%",
+        height = "auto",
+        text = self.text,
+    }
+    return gui.Panel{
+        classes = {"chat-message-panel"},
+        flow = "vertical",
+        width = "100%",
+        height = "auto",
+        --Coalesced effect fires re-post via chat.UpdateCustom, which fires
+        --refreshMessage (NOT a re-Render) -- update the label text from the new
+        --properties so the "(xN)" count shows.
+        refreshMessage = function(element, msg)
+            if msg ~= nil and msg.properties ~= nil then
+                label.text = msg.properties.text
+            end
+        end,
+        label,
+    }
+end
+
+--Coalescing state for the effects sub-log: consecutive fires of the SAME effect
+--(same key -- assetid or poolid) update one chat line with a "(xN)" count rather
+--than spamming a new line per press. Any transition line (music/ambience/anthem)
+--breaks continuity so a later identical effect starts a fresh line instead of
+--incrementing a line that is now above an unrelated transition.
+local m_audioLogLastEffect = nil   -- { key, guid, count, name, nonce }
+local m_audioLogEffectSeq = 0
+--Set true while a variant pool is broadcasting its chosen member (VariantPools.Fire ->
+--PlayBroadcastClip) so PlayBroadcastClip's own transition log is skipped: a pool fire is
+--ONE "Sound effect" line, even if a DM has (against the effects-only intent) added a
+--music/ambience clip to the pool. Without this the pool would double-log.
+local m_audioLogSuppressBroadcast = false
+
+local function AudioLogEnabled()
+    return audioEventLog:Get() and dmhub.isDM
+end
+
+local function AudioLogSend(text)
+    m_audioLogLastEffect = nil
+    chat.SendCustom(AudioLogChatMessage.new{ text = text })
+end
+
+--Narrow cross-module export (chunk L) so MCDMInitiativeBar's anthem hooks can reach
+--the logger without a load-order dependency. Read via rawget(_G, "g_drawSteelAudioLog")
+--on the consumer side, same pattern as g_drawSteelAudioBar above.
+g_drawSteelAudioLog = {
+    NowPlaying = function(name)
+        if AudioLogEnabled() then AudioLogSend("Now playing: " .. tostring(name)) end
+    end,
+    Ambience = function(name)
+        if AudioLogEnabled() then AudioLogSend("Ambience: " .. tostring(name)) end
+    end,
+    AnthemStart = function(name, ducked)
+        if AudioLogEnabled() then
+            AudioLogSend("Anthem: " .. tostring(name) .. (ducked and " (music ducked)" or ""))
+        end
+    end,
+    AnthemEnd = function()
+        if AudioLogEnabled() then AudioLogSend("Anthem ended") end
+    end,
+    StopAll = function()
+        if AudioLogEnabled() then AudioLogSend("All audio stopped") end
+    end,
+    Effect = function(key, name)
+        if not (AudioLogEnabled() and audioEventLogSfx:Get()) then return end
+        m_audioLogEffectSeq = m_audioLogEffectSeq + 1
+        local myseq = m_audioLogEffectSeq
+        if m_audioLogLastEffect ~= nil and m_audioLogLastEffect.key == key then
+            local e = m_audioLogLastEffect
+            e.count = e.count + 1
+            e.nonce = myseq
+            chat.UpdateCustom(e.guid, AudioLogChatMessage.new{
+                text = "Sound effect: " .. e.name .. " (x" .. e.count .. ")",
+            })
+        else
+            local guid = chat.SendCustom(AudioLogChatMessage.new{ text = "Sound effect: " .. tostring(name) })
+            m_audioLogLastEffect = { key = key, guid = guid, count = 1, name = tostring(name), nonce = myseq }
+        end
+        dmhub.Schedule(4.0, function()
+            if mod.unloaded then return end
+            if m_audioLogLastEffect ~= nil and m_audioLogLastEffect.nonce == myseq then
+                m_audioLogLastEffect = nil
+            end
+        end)
+    end,
+}
+
 --Forward declarations -- AudioPlaylistPlay, AudioPlaylistStop, AdvancePlaylist, and
 --the driver poll all call each other out of order (Lua locals must exist before use).
 local AudioPlaylistPlay
@@ -811,6 +935,7 @@ AudioPlaylistPlay = function(playlistid, startedBy)
 		stateDoc.data.auto = { active = false, saved = nil }
 	end
 	stateDoc:CompleteChange("Play playlist", {undoable = false})
+	g_drawSteelAudioLog.NowPlaying(pl.name or "Playlist")
 end
 
 --Stops every track in the currently-driven playlist and clears state.playing. Does
@@ -931,12 +1056,14 @@ end
 --every engine sound event, then clears playlist state AND the auto-switch bracket --
 --a deliberate full-stop always cancels any pending game-mode restore.
 local function StopAllBroadcastAudio()
+	local wasPlaying = next(audio.currentlyPlaying) ~= nil or GetPlaylistStateDoc().data.playing ~= nil
 	audio.StopAllSoundEvents()
 	local stateDoc = GetPlaylistStateDoc()
 	stateDoc:BeginChange()
 	stateDoc.data.playing = nil
 	stateDoc.data.auto = { active = false, saved = nil }
 	stateDoc:CompleteChange("Stop all audio", {undoable = false})
+	if wasPlaying then g_drawSteelAudioLog.StopAll() end
 end
 
 --Narrow cross-module export for the top-bar audio indicator (CodexTitleBar's
@@ -1548,6 +1675,9 @@ local function PlayBroadcastClip(asset, opts)
 		if opts ~= nil and opts.volume ~= nil then
 			audio.SetSoundEventVolume(asset.id, opts.volume)
 		end
+		if not m_audioLogSuppressBroadcast then
+			g_drawSteelAudioLog.NowPlaying(DisplayNameForAsset(asset))
+		end
 		return
 	end
 	local playArgs = {}
@@ -1558,6 +1688,7 @@ local function PlayBroadcastClip(asset, opts)
 	end
 	playArgs.asset = asset
 	audio.PlaySoundEvent(playArgs)
+	if asset.category == "ambience" and not m_audioLogSuppressBroadcast then g_drawSteelAudioLog.Ambience(DisplayNameForAsset(asset)) end
 end
 
 --=====================================================================================
@@ -1986,7 +2117,9 @@ function VariantPools.Fire(poolid, opts)
 	if opts ~= nil and opts.volume ~= nil then
 		playArgs.volume = opts.volume
 	end
+	m_audioLogSuppressBroadcast = true
 	PlayBroadcastClip(chosen, playArgs)
+	m_audioLogSuppressBroadcast = false
 	return chosen
 end
 
@@ -2663,7 +2796,10 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 			if poolid ~= nil then
 				--RETRIGGER: fire a fresh variant every tap (NO stop-toggle -- signed,
 				--deliberate divergence from clip pads). Stop lives in the right-click menu.
-				VariantPools.Fire(poolid, { volume = volumeSlider.value })
+				local fired = VariantPools.Fire(poolid, { volume = volumeSlider.value })
+				if fired ~= nil then
+					g_drawSteelAudioLog.Effect(poolid, VariantPools.Name(poolid) or "Variant pool")
+				end
 				return
 			end
 			if assetid == nil then return end
@@ -2673,6 +2809,7 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 				local asset = assets.audioTable[assetid]
 				if asset ~= nil then
 					PlayBroadcastClip(asset, { volume = volumeSlider.value })
+					if asset.category == "effects" then g_drawSteelAudioLog.Effect(assetid, DisplayNameForAsset(asset)) end
 				end
 			end
 		end,

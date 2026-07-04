@@ -2496,19 +2496,7 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 	--Delete: the house bin button (gui.DeleteItemButton - same delete affordance as
 	--everywhere else in the app; James swapped it in over a text "Delete" button).
 	--Edit-mode-only via the edit row's gating; clears the slot assignment.
-	local deleteButton = gui.DeleteItemButton{
-		width = 16,
-		height = 16,
-		valign = "center",
-		hmargin = 4,
-		click = function()
-			local doc = mod:GetDocumentSnapshot(docid)
-			doc:BeginChange()
-			doc.data.assetid = nil
-			doc.data.poolid = nil
-			doc:CompleteChange("Clear soundboard button")
-		end,
-	}
+	local deleteButton
 
 	--Color swatch: bottom-right corner, edit-mode-only. Opens the 8-hue popup (ported
 	--from the old createAudioPanel colorPanel) on click. No title on the popup.
@@ -2520,68 +2508,6 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 	--button will look like, and the button now paints the swatch color directly
 	--(FillColorHex) rather than hueshifting a fixed base image.
 	local swatchButton
-	swatchButton = gui.Panel{
-		classes = {"audioSbSwatch"},
-		bgimage = "panels/square.png",
-		width = 14,
-		height = 14,
-		hmargin = 4,
-		valign = "center",
-		popupPositioning = "panel",
-		swallowPress = true,
-		press = function(element)
-			if not IsEditMode() then return end
-			local asset = assets.audioTable[assetid]
-			if asset == nil then return end
-			if element.popup ~= nil then
-				element.popup = nil
-				return
-			end
-			local parentElement = element
-			element.popup = gui.Panel{
-				styles = ThemeEngine.MergeStyles{
-					{
-						selectors = {"audioItemColor"},
-						halign = "left",
-						valign = "center",
-						width = 12,
-						height = 12,
-						border = 0.5,
-						borderColor = "white",
-						cornerRadius = 2,
-						bgimage = "panels/square.png",
-						hmargin = 4,
-						vmargin = 4,
-					},
-					{
-						selectors = {"audioItemColor", "hover"},
-						brightness = 1.5,
-					},
-				},
-				classes = {"framedPanel"},
-				width = 80,
-				height = "auto",
-				halign = "right",
-				flow = "horizontal",
-				wrap = true,
-				create = function(popupElement)
-					local children = {}
-					for i=0,7 do
-						children[#children+1] = gui.Panel{
-							classes = {"audioItemColor"},
-							bgcolor = AudioSwatchColors[i],
-							press = function()
-								asset.color = i
-								asset:Upload()
-								parentElement.popup = nil
-							end,
-						}
-					end
-					popupElement.children = children
-				end,
-			}
-		end,
-	}
 
 	--Edit row: Delete (left) + color swatch (right) along the bottom of the button,
 	--only visible on filled buttons in edit mode (style-gated on the row itself, see
@@ -2596,71 +2522,99 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 		height = 18,
 		halign = "center",
 		valign = "bottom",
-		deleteButton,
-		swatchButton,
 	}
+
+	--Perf: delete + swatch are edit-mode-only (edit mode is off by default). Build
+	--them lazily the first time refreshGame sees edit mode active on a filled
+	--button; editRow stays an empty container so nothing reorders.
+	local editBuilt = false
+	local function EnsureEditControls()
+		if editBuilt then return end
+		editBuilt = true
+		deleteButton = gui.DeleteItemButton{
+			width = 16,
+			height = 16,
+			valign = "center",
+			hmargin = 4,
+			click = function()
+				local doc = mod:GetDocumentSnapshot(docid)
+				doc:BeginChange()
+				doc.data.assetid = nil
+				doc.data.poolid = nil
+				doc:CompleteChange("Clear soundboard button")
+			end,
+		}
+		swatchButton = gui.Panel{
+			classes = {"audioSbSwatch"},
+			bgimage = "panels/square.png",
+			width = 14,
+			height = 14,
+			hmargin = 4,
+			valign = "center",
+			popupPositioning = "panel",
+			swallowPress = true,
+			press = function(element)
+				if not IsEditMode() then return end
+				local asset = assets.audioTable[assetid]
+				if asset == nil then return end
+				if element.popup ~= nil then
+					element.popup = nil
+					return
+				end
+				local parentElement = element
+				element.popup = gui.Panel{
+					styles = ThemeEngine.MergeStyles{
+						{
+							selectors = {"audioItemColor"},
+							halign = "left",
+							valign = "center",
+							width = 12,
+							height = 12,
+							border = 0.5,
+							borderColor = "white",
+							cornerRadius = 2,
+							bgimage = "panels/square.png",
+							hmargin = 4,
+							vmargin = 4,
+						},
+						{
+							selectors = {"audioItemColor", "hover"},
+							brightness = 1.5,
+						},
+					},
+					classes = {"framedPanel"},
+					width = 80,
+					height = "auto",
+					halign = "right",
+					flow = "horizontal",
+					wrap = true,
+					create = function(popupElement)
+						local children = {}
+						for i=0,7 do
+							children[#children+1] = gui.Panel{
+								classes = {"audioItemColor"},
+								bgcolor = AudioSwatchColors[i],
+								press = function()
+									asset.color = i
+									asset:Upload()
+									parentElement.popup = nil
+								end,
+							}
+						end
+						popupElement.children = children
+					end,
+				}
+			end,
+		}
+		editRow:AddChild(deleteButton)
+		editRow:AddChild(swatchButton)
+	end
 
 	--Mute + per-track volume row, bottom of the button. Wiring copied from the old
 	--createAudioPanel volume slider: preview/confirm write audio.SetSoundEventVolume
 	--live, confirm additionally persists to the soundevent-<assetid> doc.
 	local volumeSlider
-	volumeSlider = gui.Slider{
-		minValue = 0,
-		maxValue = 1,
-		sliderWidth = 62,
-		labelWidth = 0,
-		labelFormat = "",
-		style = { width = "100%-18", height = 12, valign = "center" },
-		events = {
-			preview = function(element)
-				if assetid ~= nil and not muted then
-					audio.SetSoundEventVolume(assetid, element.value)
-				end
-			end,
-			confirm = function(element)
-				if assetid == nil then return end
-				if not muted then
-					audio.SetSoundEventVolume(assetid, element.value)
-				end
-				local doc = mod:GetDocumentSnapshot(string.format("soundevent-%s", assetid))
-				doc:BeginChange()
-				doc.data.volume = element.value
-				doc:CompleteChange("Set audio volume")
-			end,
-			refreshPlayingAudio = function(element)
-				if assetid == nil then return end
-				local doc = mod:GetDocumentSnapshot(string.format("soundevent-%s", assetid))
-				local asset = assets.audioTable[assetid]
-				local base = (asset ~= nil) and asset.volume or 1
-				element.value = cond(doc.data.volume ~= nil, doc.data.volume, base)
-			end,
-		},
-	}
-
 	local muteButton
-	muteButton = gui.Panel{
-		classes = {"audioSbMute", "hoverable"},
-		bgimage = "ui-icons/AudioVolumeButton.png",
-		width = 12,
-		height = 12,
-		valign = "center",
-		swallowPress = true,
-		press = function(element)
-			if assetid == nil then return end
-			muted = not muted
-			element:SetClass("muted", muted)
-			if muted then
-				element.bgimage = "ui-icons/AudioMuteButton.png"
-				audio.SetSoundEventVolume(assetid, 0)
-			else
-				element.bgimage = "ui-icons/AudioVolumeButton.png"
-				audio.SetSoundEventVolume(assetid, volumeSlider.value)
-			end
-		end,
-		linger = function(element)
-			gui.Tooltip("Mute")(element)
-		end,
-	}
 
 	local volumeRow = gui.Panel{
 		classes = {"audioSbVolumeRow"},
@@ -2671,9 +2625,74 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 		valign = "bottom",
 		y = -2,
 		floating = true,
-		muteButton,
-		volumeSlider,
 	}
+
+	--Perf: the volume slider (a gui.Slider) is the single most expensive widget on
+	--the button (~7-8ms). Empty slots never need it, so build the slider + mute
+	--lazily the first time the button becomes filled (see refreshGame). volumeRow
+	--stays an empty in-flow container so paint order and layout are unchanged.
+	local performBuilt = false
+	local function EnsurePerformControls()
+		if performBuilt then return end
+		performBuilt = true
+		volumeSlider = gui.Slider{
+			minValue = 0,
+			maxValue = 1,
+			sliderWidth = 62,
+			labelWidth = 0,
+			labelFormat = "",
+			style = { width = "100%-18", height = 12, valign = "center" },
+			events = {
+				preview = function(element)
+					if assetid ~= nil and not muted then
+						audio.SetSoundEventVolume(assetid, element.value)
+					end
+				end,
+				confirm = function(element)
+					if assetid == nil then return end
+					if not muted then
+						audio.SetSoundEventVolume(assetid, element.value)
+					end
+					local doc = mod:GetDocumentSnapshot(string.format("soundevent-%s", assetid))
+					doc:BeginChange()
+					doc.data.volume = element.value
+					doc:CompleteChange("Set audio volume")
+				end,
+				refreshPlayingAudio = function(element)
+					if assetid == nil then return end
+					local doc = mod:GetDocumentSnapshot(string.format("soundevent-%s", assetid))
+					local asset = assets.audioTable[assetid]
+					local base = (asset ~= nil) and asset.volume or 1
+					element.value = cond(doc.data.volume ~= nil, doc.data.volume, base)
+				end,
+			},
+		}
+		muteButton = gui.Panel{
+			classes = {"audioSbMute", "hoverable"},
+			bgimage = "ui-icons/AudioVolumeButton.png",
+			width = 12,
+			height = 12,
+			valign = "center",
+			swallowPress = true,
+			press = function(element)
+				if assetid == nil then return end
+				muted = not muted
+				element:SetClass("muted", muted)
+				if muted then
+					element.bgimage = "ui-icons/AudioMuteButton.png"
+					audio.SetSoundEventVolume(assetid, 0)
+				else
+					element.bgimage = "ui-icons/AudioVolumeButton.png"
+					audio.SetSoundEventVolume(assetid, volumeSlider.value)
+				end
+			end,
+			linger = function(element)
+				gui.Tooltip("Mute")(element)
+			end,
+		}
+		volumeRow:AddChild(muteButton)
+		volumeRow:AddChild(volumeSlider)
+	end
 
 	local durationLabel = gui.Label{
 		classes = {"audioSbDuration"},
@@ -2823,6 +2842,8 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 			poolid = doc.data.poolid
 			local asset = (assetid ~= nil) and assets.audioTable[assetid] or nil
 			if asset ~= nil then
+				EnsurePerformControls()
+				if IsEditMode() then EnsureEditControls() end
 				local displayName = DisplayNameForAsset(asset)
 				if displayName == "" then displayName = "(unnamed)" end
 				nameLabel.text = displayName
@@ -2830,7 +2851,7 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 				emptyLabel:SetClass("collapsed", true)
 				element:SetClass("filled", true)
 				editRow:SetClass("filled", true)
-				swatchButton.selfStyle.bgcolor = AudioSwatchColor(asset.color)
+				if swatchButton ~= nil then swatchButton.selfStyle.bgcolor = AudioSwatchColor(asset.color) end
 				loopGlyph:SetClass("collapsed", false)
 				loopGlyph:SetClass("active", asset.loop == true)
 				volumeRow:SetClass("collapsed", false)
@@ -2839,6 +2860,8 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 				--Pool pad: name + xN badge. No loop glyph, no swatch color (pools have
 				--no asset.color); keep the volume row (Fire uses it). Neutral "filled"
 				--look via the bgcolor override below (FillColorHex(nil,...) is "clear").
+				EnsurePerformControls()
+				if IsEditMode() then EnsureEditControls() end
 				assetid = nil
 				nameLabel.text = VariantPools.Name(poolid) or "Variant pool"
 				nameLabel:SetClass("collapsed", false)
@@ -2900,7 +2923,7 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 				element.selfStyle.bgcolor = FillColorHex(asset, playing)
 			end
 			progressFill:FireEvent("refreshPlayingAudio")
-			volumeSlider:FireEvent("refreshPlayingAudio")
+			if volumeSlider ~= nil then volumeSlider:FireEvent("refreshPlayingAudio") end
 		end,
 
 		--Perform mode (dock always; Studio with edit mode off): filled = play/stop,
@@ -2916,7 +2939,7 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 			if poolid ~= nil then
 				--RETRIGGER: fire a fresh variant every tap (NO stop-toggle -- signed,
 				--deliberate divergence from clip pads). Stop lives in the right-click menu.
-				local fired = VariantPools.Fire(poolid, { volume = volumeSlider.value })
+				local fired = VariantPools.Fire(poolid, { volume = (volumeSlider ~= nil and volumeSlider.value) or 1 })
 				if fired ~= nil then
 					g_drawSteelAudioLog.Effect(poolid, VariantPools.Name(poolid) or "Variant pool")
 				end
@@ -2928,7 +2951,7 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 			else
 				local asset = assets.audioTable[assetid]
 				if asset ~= nil then
-					PlayBroadcastClip(asset, { volume = volumeSlider.value })
+					PlayBroadcastClip(asset, { volume = (volumeSlider ~= nil and volumeSlider.value) or 1 })
 					if asset.category == "effects" then g_drawSteelAudioLog.Effect(assetid, DisplayNameForAsset(asset)) end
 				end
 			end
@@ -9314,9 +9337,17 @@ CreateAudioStudio = function()
 		height = "100%",
 		hmargin = 4,
 		vscroll = true,
-		CreateStudioSoundboard(),
-		CreateStudioMixerCard(),
 	}
+	--Perf: the right column (soundboard's 12 buttons + mixer card) is the bulk of
+	--the Studio's build cost. Defer it one scheduler tick so the window paints
+	--immediately, then populate once the panel is still valid. Ordering vs the
+	--root's 0.01 refreshAudio does not matter: each button self-initialises its
+	--playing/volume state in its own create->refreshGame, and audio.events keeps
+	--refreshing, so a missed first tree sweep self-heals.
+	dmhub.Schedule(0, function()
+		if mod.unloaded or not rightColumn.valid then return end
+		rightColumn.children = { CreateStudioSoundboard(), CreateStudioMixerCard() }
+	end)
 
 	--Body height is a simple fixed complement now (header + divider only) -- the
 	--now-playing block lives IN the left column at a fixed height (Option A), so

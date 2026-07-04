@@ -751,15 +751,31 @@ AudioLogChatMessage.text = ""
 function AudioLogChatMessage.Render(self, message)
     local label = gui.Label{
         classes = {"sizeXs", "fgMuted"},
-        width = "100%",
+        width = "100%-34",
         height = "auto",
+        halign = "left",
+        valign = "center",
+        textWrap = true,
         text = self.text,
     }
     return gui.Panel{
-        classes = {"chat-message-panel"},
-        flow = "vertical",
+        --Minimal action-log-style card. "bgAlt" gives it the same opaque background
+        --other action log entries have; "clip" keeps our own accent rail (below) inside
+        --our bounds. The left rail mirrors the per-entry color bar every action log card
+        --carries, and is what occludes the PREVIOUS card's floating color bar -- that bar
+        --uses height 100% which resolves against the scroll viewport and overshoots down
+        --over the entries beneath it (a pre-existing CreateActionLogCard trait; normally
+        --hidden because every other entry has its own opaque bar at the same x).
+        classes = {"chat-message-panel", "bgAlt"},
+        flow = "horizontal",
         width = "100%",
         height = "auto",
+        cornerRadius = 4,
+        vmargin = 2,
+        hpad = 8,
+        vpad = 5,
+        borderBox = true,
+        clip = true,
         --Coalesced effect fires re-post via chat.UpdateCustom, which fires
         --refreshMessage (NOT a re-Render) -- update the label text from the new
         --properties so the "(xN)" count shows.
@@ -768,6 +784,26 @@ function AudioLogChatMessage.Render(self, message)
                 label.text = msg.properties.text
             end
         end,
+        --Left accent rail (audio-system slate, matching the soundboard pool tint).
+        gui.Panel{
+            floating = true,
+            width = 4,
+            height = "100%",
+            halign = "left",
+            valign = "top",
+            bgimage = "panels/square.png",
+            bgcolor = "#5b6a8f",
+        },
+        gui.Panel{
+            bgimage = "ui-icons/AudioMusicButton.png",
+            bgcolor = "@fgMuted",
+            width = 14,
+            height = 14,
+            halign = "left",
+            valign = "center",
+            lmargin = 10,
+            rmargin = 8,
+        },
         label,
     }
 end

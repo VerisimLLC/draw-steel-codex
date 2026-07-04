@@ -201,6 +201,28 @@ local function MakeFaderRow(labelText, slider, dimmed)
 	}
 end
 
+--Info glyph: a small tutorial icon placed inline-right of a section header. Hovering
+--it reveals the section's explainer copy as a tooltip (K1.5 polish -- explainer copy
+--moved off always-visible paragraphs to save vertical space). tooltip may be a string
+--(static explainer) or a function returning a string (the soundboard caption, which
+--changes with edit mode).
+local function AudioInfoGlyph(tooltip)
+	return gui.Panel{
+		classes = {"buttonIcon"},
+		bgimage = "icons/standard/Icon_App_Tutorial.png",
+		width = 14,
+		height = 14,
+		halign = "left",
+		valign = "center",
+		hmargin = 4,
+		hover = function(element)
+			local text = tooltip
+			if type(text) == "function" then text = text() end
+			gui.Tooltip(text)(element)
+		end,
+	}
+end
+
 --Personal volume fader for a non-DM client (chunk I). Shaped exactly like
 --MakeMasterFader, but the backing store is a per-user local engine setting
 --instead of audio.masterVolume -- this is the player's own mix, never written
@@ -5483,7 +5505,6 @@ local CreateStudioSoundboard = function()
 	local gridPanel
 	local boardButtons = {}
 	local editToggle
-	local captionLabel
 
 	local function SlotDocId(board, slot)
 		return string.format("audiogrid-%d-%d", board, slot)
@@ -5890,19 +5911,7 @@ local CreateStudioSoundboard = function()
 			element:SetClass("selected", m_editMode)
 			element.text = m_editMode and "Stop editing" or "Edit board"
 			gridPanel:FireEventTree("refreshGrid")
-			captionLabel.text = m_editMode
-				and "Click an empty button to assign a clip. Use the bin to clear a button, drag to reorder, and the swatch to set its color."
-				or "Click a button to play or stop its clip. Use Edit board to change assignments."
 		end,
-	}
-
-	captionLabel = gui.Label{
-		classes = {"fgMuted", "sizeXs"},
-		text = "Click a button to play or stop its clip. Use Edit board to change assignments.",
-		width = "100%",
-		height = "auto",
-		halign = "left",
-		vmargin = 2,
 	}
 
 	BuildGrid()
@@ -5929,14 +5938,17 @@ local CreateStudioSoundboard = function()
 				halign = "left",
 				valign = "center",
 				gui.Label{ classes = {"bold", "sizeS"}, text = "Soundboard", width = "auto", height = "auto", halign = "left", valign = "center" },
+				AudioInfoGlyph(function()
+					return m_editMode
+						and "Click an empty button to assign a clip. Use the bin to clear a button, drag to reorder, and the swatch to set its color."
+						or "Click a button to play or stop its clip. Use Edit board to change assignments."
+				end),
 			},
 			editToggle,
 		},
 
 		boardSelector,
 		gridPanel,
-
-		captionLabel,
 	}
 end
 
@@ -6085,18 +6097,10 @@ local function CreateStudioDuckingBody()
 			valign = "center",
 			vmargin = 2,
 			gui.Label{ classes = {"bold", "sizeS"}, text = "Ducking", width = "auto", height = "auto", halign = "left", valign = "center" },
+			AudioInfoGlyph("While an Anthem plays, music automatically ducks to the level set below."),
 		},
 
 		duckCheck,
-
-		gui.Label{
-			classes = {"fgMuted", "sizeXs"},
-			text = "While an Anthem plays, music automatically ducks to the level set below.",
-			width = "100%",
-			height = "auto",
-			textWrap = true,
-			vmargin = 2,
-		},
 
 		depthRow,
 		MakeSecondsRow("Fade in (s)", "anthemduckfadein", duckDefaults.fadeIn),
@@ -6174,17 +6178,9 @@ local CreateStudioMixerCard = function()
 				halign = "left",
 				valign = "center",
 				gui.Label{ classes = {"bold", "sizeS"}, text = "Levels", width = "auto", height = "auto", halign = "left", valign = "center" },
+				AudioInfoGlyph("These are the broadcast levels (what the table hears). Players can manage their own mixing levels but the above levels set the ceiling."),
 			},
 			duckingButton,
-		},
-
-		gui.Label{
-			classes = {"fgMuted", "sizeXs"},
-			text = "These are the broadcast levels (what the table hears). Players can manage their own mixing levels but the above levels set the ceiling.",
-			width = "100%",
-			height = "auto",
-			textWrap = true,
-			vmargin = 2,
 		},
 
 		MakeFaderRow("Master", MakeMasterFader(), false),
@@ -7080,15 +7076,7 @@ local function CreateGameModeMusicBody()
 			valign = "center",
 			vmargin = 2,
 			gui.Label{ classes = {"bold", "sizeS"}, text = "Game mode music", width = "auto", height = "auto", halign = "left", valign = "center" },
-		},
-
-		gui.Label{
-			classes = {"fgMuted", "sizeXs"},
-			text = "When the game mode changes, its playlist starts automatically. Music you started yourself returns afterwards.",
-			width = "100%",
-			height = "auto",
-			textWrap = true,
-			vmargin = 2,
+			AudioInfoGlyph("When the game mode changes, its playlist starts automatically. Music you started yourself returns afterwards."),
 		},
 
 		gui.Check{
@@ -7729,26 +7717,16 @@ local CreateStudioPlaylistsCard = function(heightSpec)
 			halign = "left",
 			valign = "center",
 			gui.Label{ classes = {"bold", "sizeS"}, text = "Playlists", width = "auto", height = "auto", halign = "left", valign = "center" },
+			AudioInfoGlyph("A playlist plays its tracks in order, or shuffled, crossfading between them. Pin playlists to the dock for quick access and bind them to game modes to switch music automatically."),
 		},
 		gameModeMusicButton,
 		newPlaylistButton,
 	}
 
-	--Explainer under the header (James, [COPY] signed 2026-07-04) - the twin of the
-	--Variant Pools card's explainer. The list below budgets its height.
-	local explainerLabel = gui.Label{
-		classes = {"fgMuted", "sizeXs"},
-		text = "A playlist plays its tracks in order, or shuffled, crossfading between them. Pin playlists to the dock for quick access and bind them to game modes to switch music automatically.",
-		width = "100%",
-		height = "auto",
-		textWrap = true,
-		vmargin = 2,
-	}
-
 	m_listPanel = gui.Panel{
 		flow = "vertical",
 		width = "100%",
-		height = "100%-64",
+		height = "100%-32",
 		vscroll = true,
 		valign = "top",
 		monitorGame = GetPlaylistsDoc().path,
@@ -7778,7 +7756,6 @@ local CreateStudioPlaylistsCard = function(heightSpec)
 		end,
 
 		headerRow,
-		explainerLabel,
 		m_listPanel,
 	}
 end
@@ -8399,25 +8376,15 @@ local CreateStudioVariantPoolsCard = function(heightSpec)
 			halign = "left",
 			valign = "center",
 			gui.Label{ classes = {"bold", "sizeS"}, text = "Variant Pools", width = "auto", height = "auto", halign = "left", valign = "center" },
+			AudioInfoGlyph("A variant pool plays one of its clips each time it fires, with slight pitch variation, so repeated effects never sound the same twice. Assign pools to soundboard buttons to fire them."),
 		},
 		newPoolButton,
-	}
-
-	--Explainer under the header (James, [COPY] signed 2026-07-04) - same pattern as
-	--the Levels card's broadcast-levels note. The list below budgets its height.
-	local explainerLabel = gui.Label{
-		classes = {"fgMuted", "sizeXs"},
-		text = "A variant pool plays one of its clips each time it fires, with slight pitch variation, so repeated effects never sound the same twice. Assign pools to soundboard buttons to fire them.",
-		width = "100%",
-		height = "auto",
-		textWrap = true,
-		vmargin = 2,
 	}
 
 	m_listPanel = gui.Panel{
 		flow = "vertical",
 		width = "100%",
-		height = "100%-64",
+		height = "100%-32",
 		vscroll = true,
 		valign = "top",
 		monitorGame = VariantPools.GetDoc().path,
@@ -8447,7 +8414,6 @@ local CreateStudioVariantPoolsCard = function(heightSpec)
 		end,
 
 		headerRow,
-		explainerLabel,
 		m_listPanel,
 	}
 end

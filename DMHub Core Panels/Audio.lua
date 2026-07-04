@@ -1875,8 +1875,26 @@ function VariantPools.SetPitchVar(poolid, v)
 	doc:CompleteChange("Set variant pool pitch variation")
 end
 
+--K1.5 field fix (James, 2026-07-04): deleting a pool also clears any soundboard
+--button holding it, on every board. Pads on OTHER clients already self-heal a stale
+--poolid to empty, but the deleting client should leave no dead assignment behind in
+--the slot docs. The doc id format here MUST match SlotDocId in CreateStudioSoundboard
+--("audiogrid-<board>-<slot>").
+local function ClearPoolFromSoundboardSlots(poolid)
+	for b = 1, STUDIO_BOARDS do
+		for s = 1, STUDIO_SLOTS do
+			local sd = mod:GetDocumentSnapshot(string.format("audiogrid-%d-%d", b, s))
+			if sd.data.poolid == poolid then
+				sd:BeginChange()
+				sd.data.poolid = nil
+				sd:CompleteChange("Clear soundboard button")
+			end
+		end
+	end
+end
+
 --Deletes the pool entity outright. Clips are untouched -- members were only references,
---never owned by the pool.
+--never owned by the pool. Also sweeps the pool off every soundboard slot (see above).
 function VariantPools.Remove(poolid)
 	local doc = VariantPools.GetDoc()
 	if doc.data[poolid] == nil then
@@ -1886,6 +1904,7 @@ function VariantPools.Remove(poolid)
 	doc.data[poolid] = nil
 	PurgeLegacyEntries(doc)
 	doc:CompleteChange("Remove variant pool")
+	ClearPoolFromSoundboardSlots(poolid)
 end
 
 --Fires a variant pool: picks a member and broadcasts it with pitch variation. opts may
@@ -1987,7 +2006,7 @@ end
 
 --K1.5-studio: shared module-level state between the clip context menu (OpenRowContextMenu,
 --which can create pools and needs the new row to open in rename mode) and the Variant
---Pools card in the Playlists tab. Declared once here, well before both users.
+--Pools card in its own Studio tab. Declared once here, well before both users.
 local m_poolPendingRename = nil    --poolid whose card row should auto-open rename on next build
 local m_poolCueIndex = {}          --per-pool DM-cue cycle index (module-local, session-only)
 local g_poolsCardExpandPool = nil  --function(poolid): expand that pool row + rebuild the card
@@ -5377,7 +5396,7 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 						g_poolsCardExpandPool(poolid)
 					end
 					if g_studioSelectTab ~= nil then
-						g_studioSelectTab("playlists")
+						g_studioSelectTab("pools")
 					end
 				end,
 			}
@@ -5628,6 +5647,10 @@ local CreateStudioSoundboard = function()
 						end,
 						gui.Panel{
 							bgimage = "icons/icon_common/icon_common_4.png",
+							--Tint the glyph like the studio's audioTrackGrip rule does;
+							--this popup carries its own theme snapshot, not the studio
+							--cascade, so the tint is inline (James: icon was too dark).
+							bgcolor = "white",
 							width = 14,
 							height = 14,
 							halign = "left",
@@ -7886,6 +7909,11 @@ local CreateStudioVariantPoolsCard = function(heightSpec)
 				lastFiredAssetId = asset.id
 				element:FireEvent("refreshCue")
 			end,
+			--Swallow the click so it does not bubble to the header's expand-toggle
+			--(James field report 2026-07-04: cueing kept collapsing/expanding the
+			--row). The press above still fires - press and click are separate events.
+			click = function(element)
+			end,
 			refreshCue = function(element)
 				local active = lastFiredAssetId ~= nil and StudioCueActive(lastFiredAssetId)
 				element:SetClass("active", active)
@@ -8786,6 +8814,10 @@ CreateAudioStudio = function()
 			valign = "center",
 			hmargin = 3,
 			press = function(element)
+				--Return to the tab the session came from (pool sessions live in the
+				--Variant Pools tab since the K1.5 field fix) - capture the kind
+				--before clearing the session.
+				local returnTab = (m_studioBuildMode ~= nil and m_studioBuildMode.poolid ~= nil) and "pools" or "playlists"
 				m_studioBuildMode = nil
 				--A cue auditioned while picking tracks should not keep playing once
 				--the adding session ends (James field report, 2026-07-03).
@@ -8794,7 +8826,7 @@ CreateAudioStudio = function()
 					g_audioLibraryRequestRebuild()
 				end
 				if g_studioSelectTab ~= nil then
-					g_studioSelectTab("playlists")
+					g_studioSelectTab(returnTab)
 				end
 				if g_studioRefreshBuildMode ~= nil then
 					g_studioRefreshBuildMode()
@@ -8836,14 +8868,16 @@ CreateAudioStudio = function()
 						end)
 					end
 				end
-				--Exit build mode exactly like Done does.
+				--Exit build mode exactly like Done does (pool sessions return to the
+				--Variant Pools tab).
+				local returnTab = (m_studioBuildMode ~= nil and m_studioBuildMode.poolid ~= nil) and "pools" or "playlists"
 				m_studioBuildMode = nil
 				StopStudioCue()
 				if g_audioLibraryRequestRebuild ~= nil then
 					g_audioLibraryRequestRebuild()
 				end
 				if g_studioSelectTab ~= nil then
-					g_studioSelectTab("playlists")
+					g_studioSelectTab(returnTab)
 				end
 				if g_studioRefreshBuildMode ~= nil then
 					g_studioRefreshBuildMode()
@@ -8892,37 +8926,28 @@ CreateAudioStudio = function()
 		libraryTreeWrapper,
 	}
 
-	--K1.5-studio: Playlists tab pane, the tab row's second pane. Same height
-	--complement as libraryCard (both sit below the tab row, only one visible at a
-	--time), but now STACKS two cards vertically -- Playlists on top, Variant Pools
-	--below -- instead of the Playlists card alone filling the whole pane. Heights
-	--are a 55/45 split of the pane. Margin math: EACH card carries vmargin 4 (set
-	--inside its factory) = 8px of un-declared height per card (vmargin adds ON TOP
-	--of declared height; borderBox only absorbs padding). The pane's allowance
-	--constants only ever budgeted ONE card's vmargin, so the second card's 8px is
-	--subtracted here explicitly: 0.55H+8 + (0.45H-16)+8 = H exactly.
-	local playlistsPaneHeight = "100%-" .. tostring(AUDIO_STUDIO_NOWPLAYING_ALLOWANCE + AUDIO_STUDIO_TABROW_ALLOWANCE + AUDIO_STUDIO_LIBRARY_CARD_VMARGIN)
-	local playlistsCard = CreateStudioPlaylistsCard("55%")
-	local variantPoolsCard = CreateStudioVariantPoolsCard("45%-16")
-	local playlistsPane = gui.Panel{
-		flow = "vertical",
-		width = "100%",
-		height = playlistsPaneHeight,
-		playlistsCard,
-		variantPoolsCard,
-	}
+	--K1.5 field fix (James, 2026-07-04): Variant Pools gets its OWN tab next to
+	--Library and Playlists instead of sharing the Playlists pane - it deserves the
+	--full area and the space exists. Both cards fill the full pane height again
+	--(the single-card vmargin math, same complement libraryCard uses).
+	local studioPaneHeight = "100%-" .. tostring(AUDIO_STUDIO_NOWPLAYING_ALLOWANCE + AUDIO_STUDIO_TABROW_ALLOWANCE + AUDIO_STUDIO_LIBRARY_CARD_VMARGIN)
+	local playlistsCard = CreateStudioPlaylistsCard(studioPaneHeight)
+	local variantPoolsCard = CreateStudioVariantPoolsCard(studioPaneHeight)
 
-	--H-studio: Library|Playlists tab row. Fixed-width 106px buttons mirror the dock's
-	--segmented selector (SelectDockSection) -- a house-verified pattern, so no new
-	--button styling is needed beyond the base {selected} rule both already share.
-	local libraryTabButton, playlistsTabButton
+	--H-studio: Library|Playlists tab row (K1.5 field fix adds Variant Pools).
+	--Fixed-width buttons mirror the dock's segmented selector (SelectDockSection) --
+	--a house-verified pattern, so no new button styling is needed beyond the base
+	--{selected} rule all three already share.
+	local libraryTabButton, playlistsTabButton, poolsTabButton
 	local SelectStudioTab
 	SelectStudioTab = function(tabid)
 		g_studioLeftTab = tabid
 		libraryTabButton:SetClass("selected", tabid == "library")
 		playlistsTabButton:SetClass("selected", tabid == "playlists")
+		poolsTabButton:SetClass("selected", tabid == "pools")
 		libraryCard:SetClass("collapsed", tabid ~= "library")
-		playlistsPane:SetClass("collapsed", tabid ~= "playlists")
+		playlistsCard:SetClass("collapsed", tabid ~= "playlists")
+		variantPoolsCard:SetClass("collapsed", tabid ~= "pools")
 	end
 
 	libraryTabButton = gui.Button{
@@ -8949,6 +8974,18 @@ CreateAudioStudio = function()
 			SelectStudioTab("playlists")
 		end,
 	}
+	poolsTabButton = gui.Button{
+		classes = {"sizeXs"},
+		text = "Variant Pools",
+		width = 106,
+		height = 24,
+		hmargin = 3,
+		borderBox = true,
+		valign = "center",
+		press = function(element)
+			SelectStudioTab("pools")
+		end,
+	}
 	local tabRow = gui.Panel{
 		flow = "horizontal",
 		width = "100%",
@@ -8957,6 +8994,7 @@ CreateAudioStudio = function()
 		halign = "left",
 		libraryTabButton,
 		playlistsTabButton,
+		poolsTabButton,
 	}
 
 	--Left column width (chunk F, L1): "100% available" is no longer a percentage
@@ -8977,7 +9015,8 @@ CreateAudioStudio = function()
 		tabRow,
 
 		libraryCard,
-		playlistsPane,
+		playlistsCard,
+		variantPoolsCard,
 	}
 
 	--Right column (task 6c; chunk F, L1 fixes the width): Soundboard FIRST

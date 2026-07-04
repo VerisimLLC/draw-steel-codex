@@ -4637,7 +4637,7 @@ CreateSoundPanel = function()
 			local nameLabel = gui.Label{
 				classes = {"sizeS"},
 				text = "Map sound",
-				width = "100%-16",
+				width = "100%-170",
 				height = "auto",
 				halign = "left",
 				valign = "center",
@@ -4912,33 +4912,24 @@ CreateSoundPanel = function()
 				removeButton,
 			}
 
-			--Fixed right-reserve (146) = caret(16+6) + dot(8+8) + onOff(16+8) +
-			--volume(80); the name column flexes to fill the middle so the on/off
-			--glyph and volume fader right-align to the body's padded right edge (and
-			--thus line up with the expanded falloff/wall-penetration faders below).
-			--Dot shares the FIRST line with the clip name (a horizontal nameRow) so it
-			--sits vertically centred against the name text, not against the full
-			--multi-line column (which pushed it low when the source/trigger lines were
-			--present). Reserve now 154 = caret(16+6) + onOff(16+8) + volume(108).
-			local nameRow = gui.Panel{
+			--Trigger badge + "on <Object>" source drop to their OWN row below the
+			--header, collapsed when neither applies. (Stacking them inside a vertical
+			--name column padded its height with the hidden lines, floating the name
+			--above the centred fader.) Indented (38) to sit under the clip name.
+			local secondaryRow = gui.Panel{
+				classes = {"collapsed"},
 				flow = "horizontal",
-				width = "100%",
+				width = "100%-38",
+				lmargin = 38,
 				height = "auto",
 				valign = "center",
-				statusDot,
-				nameLabel,
-			}
-
-			local nameColumn = gui.Panel{
-				flow = "vertical",
-				width = "100%-154",
-				height = "auto",
-				valign = "center",
-				nameRow,
 				triggerBadge,
 				sourceLabel,
 			}
 
+			--Flat single-line header: caret + dot + name + on/off glyph + volume fader
+			--all share one centred baseline. Right-reserve on the name label = 170 =
+			--caret(16+6) + dot(8+8) + onOff(16+8) + volume(108).
 			--Hover/dehover live on the OUTER row (below), NOT here: reaching the
 			--expanded falloff fader means leaving the header, which would fire dehover
 			--and kill the ring -- so the falloff drag-preview could never show. Only
@@ -4963,7 +4954,8 @@ CreateSoundPanel = function()
 				end,
 
 				caret,
-				nameColumn,
+				statusDot,
+				nameLabel,
 				onOffButton,
 				volumeSlider,
 			}
@@ -4996,6 +4988,10 @@ CreateSoundPanel = function()
 				local triggerField = AudioField(c, "playOnlyOnTrigger")
 				local isTrigger = triggerField ~= nil and triggerField.currentValue == true
 				triggerBadge:SetClass("hidden", not isTrigger)
+
+				--Collapse the whole secondary row when it has nothing to show, so it
+				--reserves no height under the header (a hidden label still takes space).
+				secondaryRow:SetClass("collapsed", not (isTrigger or hasCustomSource))
 
 				local on = not c.disabled
 				onOffButton.bgimage = on and "ui-icons/AudioVolumeButton.png" or "ui-icons/AudioMuteButton.png"
@@ -5046,6 +5042,7 @@ CreateSoundPanel = function()
 				end,
 
 				headerRow,
+				secondaryRow,
 				expandedBody,
 			}
 		end

@@ -4895,7 +4895,7 @@ CreateSoundPanel = function()
 			--not in the header control cluster -- an auto-width badge in the header
 			--would shift the fixed right-side controls whenever it showed/hid.
 			local triggerBadge = gui.Label{
-				classes = {"sizeXxs", "hidden"},
+				classes = {"sizeXxs", "collapsed"},
 				text = "Trigger",
 				bgcolor = "#444444",
 				cornerRadius = 4,
@@ -5282,7 +5282,10 @@ CreateSoundPanel = function()
 
 				local triggerField = AudioField(c, "playOnlyOnTrigger")
 				local isTrigger = triggerField ~= nil and triggerField.currentValue == true
-				triggerBadge:SetClass("hidden", not isTrigger)
+				--Collapse (not hide) when absent: a "hidden" badge stays invisible but
+				--STILL reserves its width in this horizontal row, shoving the "on <Object>"
+				--source text ~40px right of the clip name. "collapsed" takes zero space.
+				triggerBadge:SetClass("collapsed", not isTrigger)
 
 				--Collapse the whole secondary row when it has nothing to show, so it
 				--reserves no height under the header (a hidden label still takes space).

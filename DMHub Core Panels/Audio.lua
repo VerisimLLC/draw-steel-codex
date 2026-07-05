@@ -1270,6 +1270,33 @@ local function StopAllBroadcastAudio()
 	if wasPlaying then g_drawSteelAudioLog.StopAll() end
 end
 
+--Faded variant of the full stop ("Fade out all"): same teardown as
+--StopAllBroadcastAudio (mirror its unconditional structure - an early wasPlaying
+--return would skip the loop teardown when an ambience pool is in the silent gap
+--between fires, leaving it running), but every sounding engine instance eases out
+--instead of hard-cutting. ORDER MATTERS: the playlist driving state is cleared
+--FIRST so the driver poll cannot treat the fading track as "ended" and advance to
+--the next one mid-fade; then every sounding instance gets the fade-out
+--(CrossfadeSoundEvents with a nil incoming id = fade out and stop); the loop
+--teardown runs LAST so a pool member's own configured stop fade wins over the
+--generic fade for that member - the pool defines how its bed should end.
+local function FadeOutAllBroadcastAudio()
+	local FADE_SECONDS = 2.0
+	local wasPlaying = next(audio.currentlyPlaying) ~= nil or GetPlaylistStateDoc().data.playing ~= nil
+	local stateDoc = GetPlaylistStateDoc()
+	stateDoc:BeginChange()
+	stateDoc.data.playing = nil
+	stateDoc.data.auto = { active = false, saved = nil }
+	stateDoc:CompleteChange("Fade out all audio", {undoable = false})
+	for assetid,_ in pairs(audio.currentlyPlaying) do
+		audio.CrossfadeSoundEvents(assetid, nil, FADE_SECONDS)
+	end
+	if g_stopAllVariantPoolLoops ~= nil then
+		g_stopAllVariantPoolLoops()
+	end
+	if wasPlaying then g_drawSteelAudioLog.StopAll() end
+end
+
 --Narrow cross-module export for the top-bar audio indicator (CodexTitleBar's
 --H-BAR glyph + popover). Deliberately a small table of already-module-scoped
 --helpers rather than globals per function: the fader builders keep the dock,
@@ -1279,6 +1306,7 @@ end
 --rawget(_G, "g_drawSteelAudioBar") on the consumer side.
 g_drawSteelAudioBar = {
 	StopAll = StopAllBroadcastAudio,
+	FadeOutAll = FadeOutAllBroadcastAudio,
 	MakeMasterFader = MakeMasterFader,
 	MakePersonalFader = MakePersonalFader,
 	MakeBroadcastFader = MakeBroadcastFader,
@@ -2993,14 +3021,16 @@ local AudioSoundboardButtonStyles = {
 	--Loop glyph: dim when off, accent-tinted when on. Always visible on filled buttons.
 	{ selectors = {"audioSbLoop"}, bgcolor = "white", opacity = 0.4 },
 	{ selectors = {"audioSbLoop", "active"}, bgcolor = "@accent", opacity = 1 },
-	--K2: a pool pad actively looping as ambience gets a persistent accent ring so it reads
-	--as "running" even in the silent gap between fires (design A3). Scoped to the pad
-	--(audioSbButton) like its sibling state rules so a bare "looping" class elsewhere in
-	--the merged Studio/dock tree can never inherit it.
-	{ selectors = {"audioSbButton", "looping"}, borderColor = "@accent", border = 2 },
-	--K2: a dock board-number button whose board has a running loop gets the same accent
-	--border as an activated loop pad (this rule is theme-resolved via soundboardBody).
-	{ selectors = {"audioBoardLoop"}, bgcolor = "@accent", borderColor = "@accent", border = 2, priority = 100 },
+	--K2: a pool pad actively looping as ambience gets a persistent ring so it reads
+	--as "running" even in the silent gap between fires (design A3). Success-tinted
+	--(not @accent) so a RUNNING bed reads differently from a merely-playing one-shot.
+	--Scoped to the pad (audioSbButton) like its sibling state rules so a bare
+	--"looping" class elsewhere in the merged Studio/dock tree can never inherit it.
+	{ selectors = {"audioSbButton", "looping"}, borderColor = "@success", border = 2 },
+	--K2: a dock board-number button whose board has a running loop gets the same
+	--success treatment as an activated loop pad (this rule is theme-resolved via
+	--soundboardBody).
+	{ selectors = {"audioBoardLoop"}, bgcolor = "@success", borderColor = "@success", border = 2, priority = 100 },
 	--Mute glyph: image-tint-neutral white, dims when idle, brightens on hover/muted.
 	{ selectors = {"audioSbMute"}, bgcolor = "white", opacity = 0.6 },
 	{ selectors = {"audioSbMute", "hover"}, opacity = 1 },
@@ -4068,6 +4098,20 @@ CreateSoundPanel = function()
 		halign = "right",
 		press = function(element)
 			StopAllBroadcastAudio()
+		end,
+		rightClick = function(element)
+			element.popup = gui.ContextMenu{
+				width = 140,
+				entries = {
+					{
+						text = "Fade out all",
+						click = function()
+							element.popup = nil
+							FadeOutAllBroadcastAudio()
+						end,
+					},
+				},
+			}
 		end,
 		linger = function(element)
 			gui.Tooltip("Stop all audio")(element)
@@ -6545,6 +6589,12 @@ local function StampUploadedAudioAsset(assetid, category, attemptsLeft)
 	end)
 end
 
+--Uploads whose cloud echo has not landed yet: assetid -> {name, at}. Drives the
+--library card's pending banner; entries clear when the asset appears in
+--assets.audioTable (or after a 90s failsafe, so a failed upload cannot pin the
+--banner forever).
+local m_pendingUploadEchoes = {}
+
 --File-choose + upload flow (the second half of C7; the Add-audio menu below picks
 --the category and calls this). The landing folder is resolved (find-or-create)
 --BEFORE the file dialog opens so the upload can carry parentFolder directly; each
@@ -6582,6 +6632,9 @@ local function DoAudioStudioUpload(category)
 				operation.status = "Uploading..."
 				operation.progress = 0.0
 				operation:Update()
+
+				local filename = string.match(path, "[^/\\]+$") or path
+				m_pendingUploadEchoes[assetid] = { name = filename, at = dmhub.Time() }
 			end
 		end,
 	}
@@ -6881,13 +6934,15 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 	--Title is the leftmost scan anchor and flexes to fill; the controls sit to its
 	--right. Width is the column minus the fixed control cluster (duration+loop+play+
 	--cue+mute+category+volume+margins) -- a deterministic complement, since "100%
-	--available" collapses. Editable on double-click (C1); displays the extension-
-	--stripped name via DisplayNameForAsset, but edits the full stored description.
-	--There is no engine hook to intercept "editing is about to begin" on a Label, so
-	--a double-click edits the displayed (extension-stripped) text -- the brief's
-	--documented fallback. The "Rename" context-menu entry (BeginRenameEditing below)
-	--takes a cleaner path: it controls the BeginEditing() call directly, so it loads
-	--the full stored description into the field first.
+	--available" collapses. The volume slider grew by 34px (labelWidth 0->30 plus the
+	--percent readout) when it gained a numeric readout, so the non-slim complement
+	--grew from 348 to 382 to match. Editable on double-click (C1); displays the
+	--extension-stripped name via DisplayNameForAsset, but edits the full stored
+	--description. There is no engine hook to intercept "editing is about to begin" on
+	--a Label, so a double-click edits the displayed (extension-stripped) text -- the
+	--brief's documented fallback. The "Rename" context-menu entry
+	--(BeginRenameEditing below) takes a cleaner path: it controls the BeginEditing()
+	--call directly, so it loads the full stored description into the field first.
 	local nameLabel
 	local function BeginRenameEditing()
 		nameLabel.text = audioAsset.description
@@ -6900,7 +6955,7 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 		--duration+cue(+[+] in build mode only), so the name gets to reclaim most of
 		--that width (complement recomputed for the smaller cluster; see the [+]
 		--button and final children list below).
-		width = cond(not slim, "100%-348", "100%-120"),
+		width = cond(not slim, "100%-382", "100%-120"),
 		height = "auto",
 		halign = "left",
 		valign = "center",
@@ -6942,9 +6997,9 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 			minValue = 0,
 			maxValue = 1,
 			sliderWidth = 70,
-			labelWidth = 0,
-			labelFormat = "",
-			style = { width = 80, height = 16, valign = "center", hmargin = 3 },
+			labelWidth = 30,
+			labelFormat = 'percent',
+			style = { width = 114, height = 16, valign = "center", hmargin = 3 },
 			events = {
 				preview = function(element)
 					if not muted then
@@ -10331,8 +10386,8 @@ local CreateStudioVariantPoolsCard = function(heightSpec)
 				VariantPools.SetGap(poolid, lo, hi)
 				RefreshPresetSelected()
 			end
-			denseButton = gui.Button{ classes={"sizeXs"}, text="Dense", width="auto", height=20, hpad=6, borderBox=true, valign="center", hmargin=2, press=function() ApplyGapPreset(2,6) end }
-			sparseButton = gui.Button{ classes={"sizeXs"}, text="Sparse", width="auto", height=20, hpad=6, borderBox=true, valign="center", hmargin=2, press=function() ApplyGapPreset(15,45) end }
+			denseButton = gui.Button{ classes={"sizeXs"}, text="Dense", width="auto", height=20, hpad=6, borderBox=true, valign="center", hmargin=2, press=function() ApplyGapPreset(2,6) end, linger = function(element) gui.Tooltip("Fires every 2-6 seconds")(element) end }
+			sparseButton = gui.Button{ classes={"sizeXs"}, text="Sparse", width="auto", height=20, hpad=6, borderBox=true, valign="center", hmargin=2, press=function() ApplyGapPreset(15,45) end, linger = function(element) gui.Tooltip("Fires every 15-45 seconds")(element) end }
 			RefreshPresetSelected()
 			gapStrip = gui.Panel{
 				classes = { "collapsed" },
@@ -10760,6 +10815,20 @@ local function CreateStudioNowPlayingStrip()
 		press = function(element)
 			StopAllBroadcastAudio()
 		end,
+		rightClick = function(element)
+			element.popup = gui.ContextMenu{
+				width = 140,
+				entries = {
+					{
+						text = "Fade out all",
+						click = function()
+							element.popup = nil
+							FadeOutAllBroadcastAudio()
+						end,
+					},
+				},
+			}
+		end,
 	}
 
 	--nameWidth is computed per-row by CreateCategoryRow so a crowded row (e.g. a
@@ -11125,6 +11194,49 @@ CreateAudioStudio = function()
 		textWrap = false,
 		textOverflow = "ellipsis",
 	}
+	--Pending-upload banner: visible only while at least one upload is waiting for
+	--its cloud echo (the window where the clip is uploaded but not yet in the
+	--library tree). Polls on think: purges entries that have landed in
+	--assets.audioTable or aged out, then shows a count/name line for the rest.
+	--Lives INLINE in the header row next to the "Library" label (not as an extra
+	--card child): libraryTreeWrapper's height is a fixed header-only complement, so
+	--any extra in-flow row above it would overflow the card bottom while visible.
+	local uploadPendingBanner
+	uploadPendingBanner = gui.Label{
+		classes = {"sizeXs", "fgMuted", "collapsed"},
+		text = "",
+		width = "auto",
+		maxWidth = "100%-70",
+		height = "auto",
+		valign = "center",
+		lmargin = 8,
+		textWrap = false,
+		textOverflow = "ellipsis",
+		thinkTime = 0.5,
+		think = function(element)
+			local names = {}
+			local count = 0
+			for assetid,entry in pairs(m_pendingUploadEchoes) do
+				if assets.audioTable[assetid] ~= nil or dmhub.Time() - entry.at > 90 then
+					m_pendingUploadEchoes[assetid] = nil
+				else
+					count = count + 1
+					names[#names+1] = entry.name
+				end
+			end
+			if count == 0 then
+				element:SetClass("collapsed", true)
+			else
+				element:SetClass("collapsed", false)
+				if count == 1 then
+					element.text = string.format("Uploading \"%s\"...", names[1])
+				else
+					element.text = string.format("Uploading %d clips...", count)
+				end
+			end
+		end,
+	}
+
 	local libraryNormalGroup = gui.Panel{
 		flow = "horizontal",
 		width = "100%",
@@ -11137,6 +11249,7 @@ CreateAudioStudio = function()
 			halign = "left",
 			valign = "center",
 			gui.Label{ classes = {"bold", "sizeS"}, text = "Library", width = "auto", height = "auto", halign = "left", valign = "center" },
+			uploadPendingBanner,
 		},
 		gui.Button{
 			classes = {"sizeXs"},

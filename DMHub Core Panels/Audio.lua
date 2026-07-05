@@ -8425,19 +8425,6 @@ local function CreateStudioDuckingBody()
 		depthSlider,
 	}
 
-	--Per-target duck matrix: Phase 3-4. Dimmed, non-interactive placeholder for now.
-	local matrixPlaceholder = gui.Panel{
-		flow = "vertical",
-		width = "100%",
-		height = "auto",
-		vmargin = 4,
-		opacity = 0.4,
-		gui.Label{ classes = {"bold", "sizeXs"}, text = "Manage Ducking", width = "auto", height = "auto", halign = "left" },
-		gui.Label{ classes = {"fgMuted", "sizeXs"}, text = "Anthem -> Music", width = "auto", height = "auto", halign = "left", vmargin = 1 },
-		gui.Label{ classes = {"fgMuted", "sizeXs"}, text = "Anthem -> Ambience", width = "auto", height = "auto", halign = "left", vmargin = 1 },
-		gui.Label{ classes = {"fgMuted", "sizeXs"}, text = "Per-track ducking controls are planned for a future update.", width = "100%", height = "auto", textWrap = true, vmargin = 2 },
-	}
-
 	--No card frame here -- the caller (the standalone popover) supplies its own
 	--framedPanel shell; this panel is just the stacked controls, so it also picks
 	--up whatever cascade its parent provides (the popover routes its own
@@ -8468,8 +8455,6 @@ local function CreateStudioDuckingBody()
 		depthRow,
 		MakeSecondsRow("Fade in (s)", "anthemduckfadein", duckDefaults.fadeIn),
 		MakeSecondsRow("Fade out (s)", "anthemduckfadeout", duckDefaults.fadeOut),
-
-		matrixPlaceholder,
 	}
 end
 
@@ -8588,6 +8573,12 @@ local CreateStudioMixerCard = function()
 						width = "auto",
 						height = 20,
 						valign = "center",
+						--Constant border so the house checkbox hover rule (borderWidth 1
+						--on hover only, DefaultStyles) recolors instead of adding border:
+						--on this tiny auto-width check the hover-added border visibly
+						--grew the bounds. Wider checkboxes hide that under minWidth.
+						borderWidth = 1,
+						borderColor = "clear",
 						tooltip = tooltipText,
 						change = function(element)
 							SetAudioDelegate(userid, element.value)

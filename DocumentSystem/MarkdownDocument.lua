@@ -5189,6 +5189,9 @@ function MarkdownDocument:LiveEditPanel(args)
     local m_activateTime = 0 --guards the focus watchdog against the focus race.
     local m_lastEdit = nil   --{line, caret} of the most recent edit; lets the
                              --toolbar reactivate where the user was typing.
+    local m_savedContent = nil --the doc content as of the last load/save;
+                             --distinguishes local unsaved work from a clean
+                             --view so remote refreshes never clobber edits.
 
     --link/rich-tag autocomplete + link-info popups on the active block input,
     --shared machinery with the classic editor.
@@ -5736,13 +5739,25 @@ function MarkdownDocument:LiveEditPanel(args)
             if doc ~= nil then
                 m_doc = doc
             end
-            if m_activeIndex ~= nil then
-                --don't clobber an active edit with a remote refresh; the
-                --commit path merges through TextStorage on save.
+
+            local hasLocalWork = (m_activeIndex ~= nil)
+                or (m_savedContent ~= nil and GetContent() ~= m_savedContent)
+            if hasLocalWork then
+                --an active edit or committed-but-unsaved local changes:
+                --never clobber them with a refresh. TextStorage merges
+                --disjoint-region edits when we save; if the stored content
+                --has moved on, surface it through the changes indicator so
+                --the user knows a save will merge.
+                local remote = (m_doc:GetTextContent() or ""):gsub("\v", "\n"):gsub("\r", "")
+                if remote ~= GetContentIncludingActive() then
+                    resultPanel:SetClassTree("changes", true)
+                end
                 return
             end
+
             m_lastEdit = nil
             SetLinesFromContent(m_doc:GetTextContent())
+            m_savedContent = GetContent()
             RebuildBlockData()
             RefreshAnnotations(GetContent())
             RefreshBlockPanels()
@@ -5757,7 +5772,13 @@ function MarkdownDocument:LiveEditPanel(args)
         savedoc = function(element)
             DeactivateBlock()
             m_doc:SetTextContent(GetContent())
+            --re-read: SetTextContent routes through TextStorage, which may
+            --have merged concurrent remote edits into the stored result.
             SetLinesFromContent(m_doc:GetTextContent())
+            m_savedContent = GetContent()
+            RebuildBlockData()
+            RefreshAnnotations(GetContent())
+            RefreshBlockPanels()
         end,
 
         checkChanges = function(element, baseDoc)
@@ -5780,6 +5801,7 @@ function MarkdownDocument:LiveEditPanel(args)
     }
 
     SetLinesFromContent(m_doc:GetTextContent())
+    m_savedContent = GetContent()
     RebuildBlockData()
     RefreshAnnotations(GetContent())
     RefreshBlockPanels()

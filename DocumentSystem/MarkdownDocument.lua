@@ -3677,647 +3677,24 @@ function MarkdownDocument.DisplayPanel(self, args)
     return resultPanel
 end
 
---Obsidian-style live edit surface (experimental, behind liveEditSetting).
---The document is partitioned into blocks (PartitionTokensIntoBlocks); each
---block renders through RenderMarkdownTokens exactly like display mode, with
---a floating click-guard over it. Clicking a block swaps it for a multiline
---input seeded with that block's source lines; deactivating (click away,
---escape, focus loss) splices the edited lines back into the document and
---re-renders. Gap lines between blocks (blanks, false ??? regions) are
---preserved verbatim across splices.
---v1 limitations (see JOURNAL_EDITOR_PLAN.md in the dmhubclient repo):
---selection is confined to the active block; interactive widgets inside
---blocks are inert while this surface is up (the guard captures clicks);
---remote edits are ignored while a block is actively being edited.
-function MarkdownDocument:LiveEditPanel(args)
-    args = args or {}
-
-    local resultPanel
-    local m_doc = self
-
-    local m_lines = {}       --master document state, as normalized lines.
-    local m_blocks = {}      --current partition of m_lines into edit blocks.
-    local m_blockPanels = {} --pooled per-block wrapper panels, by block index.
-    local m_activeIndex = nil
-    local m_editInput = nil  --single input reused for whichever block is active.
-    local m_activateTime = 0 --guards the focus watchdog against the focus race.
-
-    local m_listPanel
-
-    --forward declarations: these reference each other from closures.
-    local ActivateBlock
-    local DeactivateBlock
-    local RefreshBlockPanels
-
-    local function GetContent()
-        return table.concat(m_lines, "\n")
-    end
-
-    local function SetLinesFromContent(content)
-        content = (content or ""):gsub("\v", "\n"):gsub("\r", "")
-        m_lines = string.split_allow_duplicates(content, "\n")
-    end
-
-    local function BlockSource(block)
-        return table.concat(m_lines, "\n", block.lineStart, block.lineEnd)
-    end
-
-    --Tokenize and partition the current content. Note player=false: ranges
-    --must map to the true source (StripSpoilers rewrites the string, which
-    --would corrupt splicing), and anyone on this surface can already see the
-    --raw source in the input, exactly like the classic edit tab.
-    local function RebuildBlockData()
-        local tokens = BreakdownRichTags(GetContent(), nil, { player = false, trackPositions = true })
-        m_blocks = MarkdownDocument.PartitionTokensIntoBlocks(tokens)
-
-        if #m_blocks == 0 then
-            --empty document: synthesize one block covering everything so
-            --there is something to click on.
-            m_blocks = {
-                {
-                    lineStart = 1,
-                    lineEnd = math.max(1, #m_lines),
-                    tokens = {},
-                    placeholder = true,
-                },
-            }
+--Creates the link/rich-tag autocomplete + link-info service used by the
+--journal editors. One instance per editor surface (it keeps popup and
+--suppression state); entry points are input-agnostic and take the input
+--element to inspect. opts:
+--  GetDocument()          - returns the MarkdownDocument being edited
+--                           (annotations feed rich-tag previews); called at
+--                           use time so live document swaps are respected.
+--  OnTextChanged(newText) - optional; fired after the service rewrites the
+--                           input's text (accepting a completion, link
+--                           suggestion fixups) so the host can refresh
+--                           previews and character counts.
+--Returns { Update, Dismiss, UpdateLinkInfo, FindLinkContext, state }.
+local function CreateMarkdownAutocomplete(opts)
+    local function NotifyTextChanged(newText)
+        if opts.OnTextChanged ~= nil then
+            opts.OnTextChanged(newText)
         end
     end
-
-    --If the doc grows past its limit the input refuses further characters;
-    --budget = whatever the rest of the document is not using.
-    local function ActiveCharacterBudget(blockSourceLength)
-        return math.max(1, CustomDocument.MaxLength - (#GetContent() - blockSourceLength))
-    end
-
-    --Splices the active block's input text back into m_lines. Returns the
-    --resulting change in total line count (0 if nothing was active).
-    local function CommitActiveBlock()
-        if m_activeIndex == nil or m_editInput == nil then
-            return 0
-        end
-        local block = m_blocks[m_activeIndex]
-        if block == nil then
-            return 0
-        end
-
-        local oldCount = block.lineEnd - block.lineStart + 1
-        local editedText = (m_editInput.text or ""):gsub("\v", "\n"):gsub("\r", "")
-        local edited = string.split_allow_duplicates(editedText, "\n")
-
-        local newLines = {}
-        for i = 1, block.lineStart - 1 do
-            newLines[#newLines + 1] = m_lines[i]
-        end
-        for _, line in ipairs(edited) do
-            newLines[#newLines + 1] = line
-        end
-        for i = block.lineEnd + 1, #m_lines do
-            newLines[#newLines + 1] = m_lines[i]
-        end
-        m_lines = newLines
-
-        return #edited - oldCount
-    end
-
-    --Master content with the active block's uncommitted input text spliced
-    --in virtually; used for save/dirty checks without disturbing the edit.
-    local function GetContentIncludingActive()
-        if m_activeIndex == nil or m_editInput == nil then
-            return GetContent()
-        end
-        local block = m_blocks[m_activeIndex]
-        if block == nil then
-            return GetContent()
-        end
-
-        local parts = {}
-        if block.lineStart > 1 then
-            parts[#parts + 1] = table.concat(m_lines, "\n", 1, block.lineStart - 1)
-        end
-        parts[#parts + 1] = m_editInput.text or ""
-        if block.lineEnd < #m_lines then
-            parts[#parts + 1] = table.concat(m_lines, "\n", block.lineEnd + 1, #m_lines)
-        end
-        return table.concat(parts, "\n")
-    end
-
-    --1-based line the caret is on within the input's text (same counting
-    --technique as SyncPreviewScroll; caretPosition is 0-based).
-    local function CaretLine(input)
-        local text = input.text or ""
-        local caret = input.caretPosition or 0
-        local line = 1
-        for i = 1, math.min(caret, #text) do
-            if text:sub(i, i) == "\n" then
-                line = line + 1
-            end
-        end
-        return line
-    end
-
-    local function CountLines(text)
-        local _, newlines = (text or ""):gsub("\n", "")
-        return newlines + 1
-    end
-
-    local function EnsureEditInput()
-        if m_editInput ~= nil and m_editInput.valid then
-            return m_editInput
-        end
-
-        m_editInput = gui.Input{
-            classes = { "monospace" },
-            width = "100%",
-            height = "auto",
-            minHeight = 30,
-            multiline = true,
-            textAlignment = "topleft",
-            fontSize = CustomDocument.ScaleFontSize(16),
-            selectAllOnFocus = false,
-
-            --fires when the input loses focus after edits.
-            change = function(element)
-                DeactivateBlock()
-            end,
-
-            escape = function(element)
-                DeactivateBlock()
-            end,
-
-            --arrow keys at the block's edge flow into the neighboring block,
-            --so the cursor travels the document like a single continuous
-            --editor. The engine fires these on every keypress while focused;
-            --we only act at the boundary lines.
-            uparrow = function(element)
-                if m_activeIndex ~= nil and m_activeIndex > 1
-                   and CaretLine(element) <= 1 then
-                    ActivateBlock(m_activeIndex - 1, "end")
-                end
-            end,
-
-            downarrow = function(element)
-                if m_activeIndex ~= nil and m_activeIndex < #m_blocks
-                   and CaretLine(element) >= CountLines(element.text) then
-                    ActivateBlock(m_activeIndex + 1, "start")
-                end
-            end,
-        }
-        return m_editInput
-    end
-
-    local function CreateBlockPanel()
-        local ctx = CreateMarkdownRenderContext(m_doc, 0)
-
-        local contentPanel = gui.Panel{
-            flow = "vertical",
-            width = "100%",
-            height = "auto",
-            valign = "top",
-            halign = "left",
-        }
-
-        local inputHost = gui.Panel{
-            classes = { "collapsed" },
-            flow = "vertical",
-            width = "100%",
-            height = "auto",
-            valign = "top",
-        }
-
-        --The wrapper itself is the click target: it carries a hit-testable
-        --transparent background and the press handler, and the rendered
-        --content is made non-interactive after each render
-        --(MakeNonInteractiveRecursive in RefreshBlockPanels). This makes the
-        --whole block clickable, leaves widgets inside inert while live
-        --editing, and avoids overlay geometry entirely (a floating
-        --height="100%" child of an auto-height parent does not track the
-        --block's real bounds). bgcolor lives in styles, never inline, so the
-        --hover highlight can apply; the editing class suppresses it while
-        --the block hosts the input.
-        local wrapper
-        wrapper = gui.Panel{
-            flow = "vertical",
-            width = "100%",
-            height = "auto",
-            valign = "top",
-            halign = "left",
-            vmargin = 2,
-            bgimage = "panels/square.png",
-            styles = {
-                {
-                    bgcolor = "#00000000",
-                },
-                {
-                    selectors = { "hover" },
-                    bgcolor = "#ffffff10",
-                },
-                {
-                    selectors = { "hover", "editing" },
-                    bgcolor = "#00000000",
-                },
-            },
-            press = function(element)
-                ActivateBlock(element.data.index)
-            end,
-            data = {
-                index = nil,
-                ctx = ctx,
-                contentPanel = contentPanel,
-                inputHost = inputHost,
-                placeholderLabel = nil,
-            },
-            contentPanel,
-            inputHost,
-        }
-        return wrapper
-    end
-
-    RefreshBlockPanels = function()
-        --resolve the skin once per refresh and share it into every block's
-        --render context, mirroring what DisplayPanel does per render.
-        local resolvedStylesheet = m_doc:GetResolvedStylesheet()
-        local resolvedSkin = resolvedStylesheet.base
-        local render = {
-            skin = resolvedSkin,
-            classes = resolvedStylesheet.classes,
-            ruledLevels = HeadingRuleLevels(resolvedSkin),
-            usesAlign = SkinUsesAlign(resolvedSkin),
-            pageColor = SkinColor((resolvedSkin.page or {}).bgcolor),
-        }
-
-        local children = {}
-        for index, block in ipairs(m_blocks) do
-            local wrapper = m_blockPanels[index]
-            if wrapper == nil then
-                wrapper = CreateBlockPanel()
-                m_blockPanels[index] = wrapper
-            end
-            wrapper.data.index = index
-            wrapper.data.ctx.doc = m_doc
-            wrapper.data.ctx.render = render
-
-            local active = (index == m_activeIndex)
-            wrapper.data.inputHost:SetClass("collapsed", not active)
-            wrapper.data.contentPanel:SetClass("collapsed", active)
-            wrapper:SetClass("editing", active)
-
-            if active then
-                local input = EnsureEditInput()
-                if input.parent ~= wrapper.data.inputHost then
-                    if input.parent ~= nil then
-                        input:Unparent()
-                    end
-                    wrapper.data.inputHost.children = { input }
-                end
-            elseif block.placeholder then
-                if wrapper.data.placeholderLabel == nil or not wrapper.data.placeholderLabel.valid then
-                    wrapper.data.placeholderLabel = gui.Label{
-                        classes = { "fg" },
-                        text = "Click to start writing...",
-                        fontSize = CustomDocument.ScaleFontSize(14),
-                        opacity = 0.5,
-                        width = "auto",
-                        height = "auto",
-                        vpad = 8,
-                    }
-                end
-                wrapper.data.contentPanel.children = { wrapper.data.placeholderLabel }
-                wrapper.data.contentPanel:MakeNonInteractiveRecursive()
-            else
-                wrapper.data.contentPanel.children = RenderMarkdownTokens(wrapper.data.ctx, block.tokens)
-                --clicks anywhere on the block must reach the wrapper's press
-                --handler; rendered widgets are inert on this surface (v1).
-                wrapper.data.contentPanel:MakeNonInteractiveRecursive()
-            end
-
-            children[#children + 1] = wrapper
-        end
-
-        for i = #m_blocks + 1, #m_blockPanels do
-            m_blockPanels[i] = nil
-        end
-
-        m_listPanel.children = children
-    end
-
-    DeactivateBlock = function()
-        if m_activeIndex == nil then
-            return
-        end
-        CommitActiveBlock()
-        m_activeIndex = nil
-        RebuildBlockData()
-        RefreshBlockPanels()
-    end
-
-    --caretPlacement: "start" puts the caret at the beginning of the block's
-    --source (arriving from above), anything else at the end (default; also
-    --used when arriving from below).
-    ActivateBlock = function(index, caretPlacement)
-        if index == nil or index == m_activeIndex then
-            return
-        end
-        local target = m_blocks[index]
-        if target == nil then
-            return
-        end
-        local targetLine = target.lineStart
-
-        if m_activeIndex ~= nil then
-            --commit the current edit first; the target block's lines may
-            --shift if the edit changed the line count above it.
-            local active = m_blocks[m_activeIndex]
-            local delta = CommitActiveBlock()
-            if active ~= nil and targetLine > active.lineEnd then
-                targetLine = targetLine + delta
-            end
-            m_activeIndex = nil
-            RebuildBlockData()
-
-            index = nil
-            for i, block in ipairs(m_blocks) do
-                if targetLine <= block.lineEnd then
-                    index = i
-                    break
-                end
-            end
-            if index == nil and #m_blocks > 0 then
-                index = #m_blocks
-            end
-        end
-
-        m_activeIndex = index
-        RefreshBlockPanels()
-
-        if m_activeIndex ~= nil then
-            local block = m_blocks[m_activeIndex]
-            local src = BlockSource(block)
-            m_activateTime = dmhub.Time()
-            m_editInput.characterLimit = ActiveCharacterBudget(#src)
-            local caret = #src
-            if caretPlacement == "start" then
-                caret = 0
-            end
-            m_editInput:SetTextAndCaret(caret, src)
-            m_editInput.hasInputFocus = true
-        end
-    end
-
-    m_listPanel = gui.Panel{
-        flow = "vertical",
-        width = "100%",
-        height = "auto",
-        valign = "top",
-    }
-
-    resultPanel = gui.Panel{
-        classes = { "collapsed" },
-        styles = ThemeEngine.GetStyles(),
-        width = "100%",
-        height = "100%-0",
-        valign = "top",
-        tmargin = 2,
-        flow = "vertical",
-
-        --focus watchdog: if the active input silently lost focus (clicked
-        --into another panel entirely) commit and re-render. The grace period
-        --covers the input's multi-frame focus acquisition.
-        thinkTime = 0.25,
-        think = function(element)
-            if m_activeIndex == nil then
-                return
-            end
-            if dmhub.Time() - m_activateTime < 0.5 then
-                return
-            end
-            if m_editInput == nil or (not m_editInput.valid) or (not m_editInput.hasInputFocus) then
-                DeactivateBlock()
-            end
-        end,
-
-        refreshDocument = function(element, doc)
-            if doc ~= nil then
-                m_doc = doc
-            end
-            if m_activeIndex ~= nil then
-                --don't clobber an active edit with a remote refresh; the
-                --commit path merges through TextStorage on save.
-                return
-            end
-            SetLinesFromContent(m_doc:GetTextContent())
-            RebuildBlockData()
-            RefreshBlockPanels()
-        end,
-
-        needsave = function(element, result)
-            if m_doc:GetTextContent() ~= GetContentIncludingActive() then
-                result.save = true
-            end
-        end,
-
-        savedoc = function(element)
-            DeactivateBlock()
-            m_doc:SetTextContent(GetContent())
-            SetLinesFromContent(m_doc:GetTextContent())
-        end,
-
-        checkChanges = function(element, baseDoc)
-            resultPanel:SetClassTree("changes", GetContentIncludingActive() ~= baseDoc:GetTextContent())
-        end,
-
-        gui.Panel{
-            width = "98%",
-            height = "100% available",
-            halign = "center",
-            valign = "top",
-            vscroll = true,
-            flow = "vertical",
-            m_listPanel,
-        },
-    }
-
-    SetLinesFromContent(m_doc:GetTextContent())
-    RebuildBlockData()
-    RefreshBlockPanels()
-
-    return resultPanel
-end
-
-local MarkdownReferenceTooltip
-
-function MarkdownDocument:EditPanel(args)
-    if liveEditSetting:Get() then
-        return self:LiveEditPanel(args)
-    end
-
-    local resultPanel
-
-    local markdownReferenceLabel = gui.Label {
-        classes = { "link" },
-        width = "auto",
-        height = "auto",
-        text = "Formatting Guide",
-        fontSize = CustomDocument.ScaleFontSize(16),
-        halign = "left",
-        valign = "top",
-        hover = function(element)
-            element.tooltip = MarkdownReferenceTooltip()
-        end,
-    }
-
-    local editInput
-
-    local savePanel = gui.Panel{
-        flow = "horizontal",
-        width = 160,
-        height = 16,
-        halign = "right",
-
-        gui.Label{
-
-            styles = {
-                {
-                    selectors = {"changes"},
-                    collapsed = 1,
-                },
-                {
-                    selectors = {"savePending"},
-                    collapsed = 1,
-                },
-                {
-                    selectors = {"saveError"},
-                    collapsed = 1,
-                },
-            },
-
-            text = "Changes Saved",
-            fontSize = 14,
-            width = "auto",
-            height = "auto",
-        },
-
-        gui.Label{
-            classes = { "fgMuted" },
-            styles = {
-                {
-                    selectors = {"changes"},
-                    collapsed = 1,
-                },
-                {
-                    selectors = {"~savePending"},
-                    collapsed = 1,
-                },
-            },
-
-            text = "Saving...",
-            fontSize = 14,
-            width = "auto",
-            height = "auto",
-        },
-
-        gui.Label{
-            styles = {
-                {
-                    selectors = {"~changes"},
-                    collapsed = 1,
-                }
-            },
-            text = "Unsaved Changes",
-            fontSize = 14,
-            width = "auto",
-            height = "auto",
-        },
-
-        gui.Button{
-            styles = {
-                {
-                    selectors = {"~changes"},
-                    collapsed = 1,
-                }
-            },
-            inputEvents = { "save" },
-            text = "Save",
-            width = 40,
-            height = 16,
-            fontSize = 12,
-            save = function(element)
-                if element:HasClass("changes") then
-                    element:FireEvent("press")
-                end
-            end,
-            press = function(element)
-                local documentPanel = element:FindParentWithClass("documentPanel")
-                if documentPanel ~= nil then
-                    resultPanel:SetClassTree("savePending", true)
-                    documentPanel:FireEvent("saveDocument")
-                end
-            end,
-
-            saveConfirmed = function(element)
-                resultPanel:SetClassTree("savePending", false)
-            end,
-        },
-
-        gui.Label{
-            --shown only when the write-verification watchdog (DocumentSystem.lua) gives up
-            --after a delta save AND a full-write retry both go unconfirmed by the server.
-            --Driven by the 'saveError' class set via resultPanel:SetClassTree. Collapsed
-            --again as soon as the user edits (changes) or a new save is in flight
-            --(savePending), and cleared automatically by a late server confirmation.
-            styles = {
-                {
-                    selectors = {"~saveError"},
-                    collapsed = 1,
-                },
-                {
-                    selectors = {"changes"},
-                    collapsed = 1,
-                },
-                {
-                    selectors = {"savePending"},
-                    collapsed = 1,
-                },
-            },
-
-            color = "#ff5b5b",
-            text = "Save failed!",
-            fontSize = 14,
-            width = "auto",
-            height = "auto",
-            hover = function(element)
-                gui.Tooltip("The server did not confirm your save, so your latest changes may not be stored. Keep this document open -- it will retry automatically and clear this message if the connection recovers. You can also keep editing (each save retries) or press Ctrl+Z to recover text that vanished.")(element)
-            end,
-        },
-    }
-
-    local charactersUsedLabel = gui.Label {
-        classes = {"fg"},
-        width = "auto",
-        height = "auto",
-        halign = "right",
-        valign = "center",
-        rmargin = 246,
-        fontSize = CustomDocument.ScaleFontSize(16),
-        refreshLength = function(element, text)
-            local len = #text
-            local remaining = CustomDocument.MaxLength - len
-            if remaining < 1000 then
-                element:SetClass("danger", remaining < 200)
-
-                element.text = string.format("%d characters remaining...", remaining)
-                element:SetClass("hidden", false)
-            else
-                element:SetClass("hidden", true)
-            end
-        end,
-        refreshDocument = function(element)
-            element:FireEvent("refreshLen", #self:GetTextContent())
-        end,
-        editDocument = function(element)
-            element:FireEvent("refreshLen", #self:GetTextContent())
-        end,
-    }
 
     -- Link autocomplete helpers
     local autocompleteState = {
@@ -4770,10 +4147,7 @@ function MarkdownDocument:EditPanel(args)
                                     end
                                     local newText = before .. insertion .. after
                                     local targetCaret = #before + #insertion
-                                    if resultPanel ~= nil then
-                                        resultPanel:FireEventTree("editDocument", newText)
-                                    end
-                                    charactersUsedLabel:FireEvent("refreshLength", newText)
+                                    NotifyTextChanged(newText)
                                     DismissLinkInfo(inputElement)
                                     inputElement:SetTextAndCaret(targetCaret, newText)
                                 end
@@ -4870,10 +4244,11 @@ function MarkdownDocument:EditPanel(args)
         -- from the current document so tags like [[encounter]] render properly
         local tagContent = string.format("[[%s]]", tagText)
         local previewAnnotations = {}
-        if self.annotations ~= nil then
+        local doc = opts.GetDocument()
+        if doc ~= nil and doc.annotations ~= nil then
             -- The tag key in annotations is the tagText itself (e.g. "encounter:Name")
             -- Also check with disambiguation suffixes (-1, -2, etc.)
-            for k, v in pairs(self.annotations) do
+            for k, v in pairs(doc.annotations) do
                 if k == tagText or string.starts_with(k, tagText .. "-") then
                     previewAnnotations[k] = v
                 end
@@ -4978,10 +4353,7 @@ function MarkdownDocument:EditPanel(args)
             local after = string.sub(text, replaceEnd + 1)
             local newText = before .. result.link .. after
             local targetCaretPos = #before + #result.link
-            if resultPanel ~= nil then
-                resultPanel:FireEventTree("editDocument", newText)
-            end
-            charactersUsedLabel:FireEvent("refreshLength", newText)
+            NotifyTextChanged(newText)
             DismissAutocomplete(inputElement)
             inputElement:SetTextAndCaret(targetCaretPos, newText)
             return
@@ -4995,10 +4367,7 @@ function MarkdownDocument:EditPanel(args)
             DismissAutocomplete(inputElement)
             local newText = before .. "[[" .. after
             local targetCaretPos = #before + 2
-            if resultPanel ~= nil then
-                resultPanel:FireEventTree("editDocument", newText)
-            end
-            charactersUsedLabel:FireEvent("refreshLength", newText)
+            NotifyTextChanged(newText)
             inputElement:SetTextAndCaret(targetCaretPos, newText)
             return
         end
@@ -5010,10 +4379,7 @@ function MarkdownDocument:EditPanel(args)
             local newText = before .. insertion .. after
             -- Place caret after the insertion
             local targetCaretPos = #before + #insertion
-            if resultPanel ~= nil then
-                resultPanel:FireEventTree("editDocument", newText)
-            end
-            charactersUsedLabel:FireEvent("refreshLength", newText)
+            NotifyTextChanged(newText)
             inputElement:SetTextAndCaret(targetCaretPos, newText)
             return
         end
@@ -5048,10 +4414,7 @@ function MarkdownDocument:EditPanel(args)
             local newText = before .. insertion .. after
             -- Place caret before ]] so the user can add or edit content
             local targetCaretPos = #before + #insertion - 2
-            if resultPanel ~= nil then
-                resultPanel:FireEventTree("editDocument", newText)
-            end
-            charactersUsedLabel:FireEvent("refreshLength", newText)
+            NotifyTextChanged(newText)
             inputElement:SetTextAndCaret(targetCaretPos, newText)
             return
         end
@@ -5062,10 +4425,7 @@ function MarkdownDocument:EditPanel(args)
             DismissAutocomplete(inputElement)
             local newText = before .. "[" .. result.link .. after
             local targetCaretPos = #before + 1 + #result.link
-            if resultPanel ~= nil then
-                resultPanel:FireEventTree("editDocument", newText)
-            end
-            charactersUsedLabel:FireEvent("refreshLength", newText)
+            NotifyTextChanged(newText)
             -- Use engine-side SetTextAndCaret which defers the caret
             -- positioning until after TMP's activation processing.
             -- The 'caretReady' event fires once the caret is stable.
@@ -5085,10 +4445,7 @@ function MarkdownDocument:EditPanel(args)
         end
         local newText = before .. insertion .. after
         local targetCaretPos = #before + #insertion
-        if resultPanel ~= nil then
-            resultPanel:FireEventTree("editDocument", newText)
-        end
-        charactersUsedLabel:FireEvent("refreshLength", newText)
+        NotifyTextChanged(newText)
         DismissAutocomplete(inputElement)
         inputElement:SetTextAndCaret(targetCaretPos, newText)
     end
@@ -5171,8 +4528,9 @@ function MarkdownDocument:EditPanel(args)
                         end
                         if tagContent then
                             local previewAnnotations = {}
-                            if self.annotations ~= nil and result.link then
-                                for k, v in pairs(self.annotations) do
+                            local doc = opts.GetDocument()
+                            if doc ~= nil and doc.annotations ~= nil and result.link then
+                                for k, v in pairs(doc.annotations) do
                                     if k == result.link or string.starts_with(k, result.link .. "-") then
                                         previewAnnotations[k] = v
                                     end
@@ -5470,6 +4828,725 @@ function MarkdownDocument:EditPanel(args)
         end
         inputElement.popup = popup
     end
+
+    return {
+        Update = UpdateAutocomplete,
+        Dismiss = DismissAutocomplete,
+        UpdateLinkInfo = UpdateLinkInfo,
+        FindLinkContext = FindLinkContext,
+        state = autocompleteState,
+    }
+end
+
+--Obsidian-style live edit surface (experimental, behind liveEditSetting).
+--The document is partitioned into blocks (PartitionTokensIntoBlocks); each
+--block renders through RenderMarkdownTokens exactly like display mode, with
+--a floating click-guard over it. Clicking a block swaps it for a multiline
+--input seeded with that block's source lines; deactivating (click away,
+--escape, focus loss) splices the edited lines back into the document and
+--re-renders. Gap lines between blocks (blanks, false ??? regions) are
+--preserved verbatim across splices.
+--v1 limitations (see JOURNAL_EDITOR_PLAN.md in the dmhubclient repo):
+--selection is confined to the active block; interactive widgets inside
+--blocks are inert while this surface is up (the guard captures clicks);
+--remote edits are ignored while a block is actively being edited.
+function MarkdownDocument:LiveEditPanel(args)
+    args = args or {}
+
+    local resultPanel
+    local m_doc = self
+
+    local m_lines = {}       --master document state, as normalized lines.
+    local m_blocks = {}      --current partition of m_lines into edit blocks.
+    local m_blockPanels = {} --pooled per-block wrapper panels, by block index.
+    local m_activeIndex = nil
+    local m_editInput = nil  --single input reused for whichever block is active.
+    local m_activateTime = 0 --guards the focus watchdog against the focus race.
+
+    --link/rich-tag autocomplete + link-info popups on the active block input,
+    --shared machinery with the classic editor.
+    local m_autocomplete = CreateMarkdownAutocomplete{
+        GetDocument = function()
+            return m_doc
+        end,
+        OnTextChanged = function(newText)
+            --the service just rewrote the input's text and will re-focus it;
+            --renew the watchdog grace period so the block is not committed
+            --mid-completion.
+            m_activateTime = dmhub.Time()
+        end,
+    }
+
+    local m_listPanel
+
+    --forward declarations: these reference each other from closures.
+    local ActivateBlock
+    local DeactivateBlock
+    local RefreshBlockPanels
+
+    local function GetContent()
+        return table.concat(m_lines, "\n")
+    end
+
+    local function SetLinesFromContent(content)
+        content = (content or ""):gsub("\v", "\n"):gsub("\r", "")
+        m_lines = string.split_allow_duplicates(content, "\n")
+    end
+
+    local function BlockSource(block)
+        return table.concat(m_lines, "\n", block.lineStart, block.lineEnd)
+    end
+
+    --Tokenize and partition the current content. Note player=false: ranges
+    --must map to the true source (StripSpoilers rewrites the string, which
+    --would corrupt splicing), and anyone on this surface can already see the
+    --raw source in the input, exactly like the classic edit tab.
+    local function RebuildBlockData()
+        local tokens = BreakdownRichTags(GetContent(), nil, { player = false, trackPositions = true })
+        m_blocks = MarkdownDocument.PartitionTokensIntoBlocks(tokens)
+
+        if #m_blocks == 0 then
+            --empty document: synthesize one block covering everything so
+            --there is something to click on.
+            m_blocks = {
+                {
+                    lineStart = 1,
+                    lineEnd = math.max(1, #m_lines),
+                    tokens = {},
+                    placeholder = true,
+                },
+            }
+        end
+    end
+
+    --If the doc grows past its limit the input refuses further characters;
+    --budget = whatever the rest of the document is not using.
+    local function ActiveCharacterBudget(blockSourceLength)
+        return math.max(1, CustomDocument.MaxLength - (#GetContent() - blockSourceLength))
+    end
+
+    --Splices the active block's input text back into m_lines. Returns the
+    --resulting change in total line count (0 if nothing was active).
+    local function CommitActiveBlock()
+        if m_activeIndex == nil or m_editInput == nil then
+            return 0
+        end
+        local block = m_blocks[m_activeIndex]
+        if block == nil then
+            return 0
+        end
+
+        local oldCount = block.lineEnd - block.lineStart + 1
+        local editedText = (m_editInput.text or ""):gsub("\v", "\n"):gsub("\r", "")
+        local edited = string.split_allow_duplicates(editedText, "\n")
+
+        local newLines = {}
+        for i = 1, block.lineStart - 1 do
+            newLines[#newLines + 1] = m_lines[i]
+        end
+        for _, line in ipairs(edited) do
+            newLines[#newLines + 1] = line
+        end
+        for i = block.lineEnd + 1, #m_lines do
+            newLines[#newLines + 1] = m_lines[i]
+        end
+        m_lines = newLines
+
+        return #edited - oldCount
+    end
+
+    --Master content with the active block's uncommitted input text spliced
+    --in virtually; used for save/dirty checks without disturbing the edit.
+    local function GetContentIncludingActive()
+        if m_activeIndex == nil or m_editInput == nil then
+            return GetContent()
+        end
+        local block = m_blocks[m_activeIndex]
+        if block == nil then
+            return GetContent()
+        end
+
+        local parts = {}
+        if block.lineStart > 1 then
+            parts[#parts + 1] = table.concat(m_lines, "\n", 1, block.lineStart - 1)
+        end
+        parts[#parts + 1] = m_editInput.text or ""
+        if block.lineEnd < #m_lines then
+            parts[#parts + 1] = table.concat(m_lines, "\n", block.lineEnd + 1, #m_lines)
+        end
+        return table.concat(parts, "\n")
+    end
+
+    --1-based line the caret is on within the input's text (same counting
+    --technique as SyncPreviewScroll; caretPosition is 0-based).
+    local function CaretLine(input)
+        local text = input.text or ""
+        local caret = input.caretPosition or 0
+        local line = 1
+        for i = 1, math.min(caret, #text) do
+            if text:sub(i, i) == "\n" then
+                line = line + 1
+            end
+        end
+        return line
+    end
+
+    local function CountLines(text)
+        local _, newlines = (text or ""):gsub("\n", "")
+        return newlines + 1
+    end
+
+    local function EnsureEditInput()
+        if m_editInput ~= nil and m_editInput.valid then
+            return m_editInput
+        end
+
+        m_editInput = gui.Input{
+            classes = { "monospace" },
+            width = "100%",
+            height = "auto",
+            minHeight = 30,
+            multiline = true,
+            textAlignment = "topleft",
+            fontSize = CustomDocument.ScaleFontSize(16),
+            selectAllOnFocus = false,
+
+            thinkTime = 0.2,
+            editlag = 0.3,
+
+            edit = function(element)
+                m_autocomplete.Update(element)
+            end,
+
+            caretReady = function(element)
+                m_autocomplete.Update(element)
+            end,
+
+            --autocomplete dismissal + link-info refresh, mirroring the
+            --classic editor's input think handler.
+            think = function(element)
+                if #m_autocomplete.state.results > 0 then
+                    local searchText, bracketPos, contextType = m_autocomplete.FindLinkContext(element.text or "", element.caretPosition or 0)
+                    if searchText == nil or ((contextType == "link" or contextType == "linkTarget") and #searchText < 1) then
+                        m_autocomplete.Dismiss(element)
+                    end
+                else
+                    m_autocomplete.UpdateLinkInfo(element)
+                end
+            end,
+
+            --fires when the input loses focus after edits.
+            change = function(element)
+                if element.popup ~= nil then
+                    --an autocomplete/link popup is mid-interaction; the
+                    --service re-focuses the input itself after accepting.
+                    return
+                end
+                DeactivateBlock()
+            end,
+
+            escape = function(element)
+                DeactivateBlock()
+            end,
+
+            --arrow keys at the block's edge flow into the neighboring block,
+            --so the cursor travels the document like a single continuous
+            --editor. The engine fires these on every keypress while focused;
+            --we only act at the boundary lines.
+            uparrow = function(element)
+                if m_activeIndex ~= nil and m_activeIndex > 1
+                   and CaretLine(element) <= 1 then
+                    ActivateBlock(m_activeIndex - 1, "end")
+                end
+            end,
+
+            downarrow = function(element)
+                if m_activeIndex ~= nil and m_activeIndex < #m_blocks
+                   and CaretLine(element) >= CountLines(element.text) then
+                    ActivateBlock(m_activeIndex + 1, "start")
+                end
+            end,
+        }
+        return m_editInput
+    end
+
+    local function CreateBlockPanel()
+        local ctx = CreateMarkdownRenderContext(m_doc, 0)
+
+        local contentPanel = gui.Panel{
+            flow = "vertical",
+            width = "100%",
+            height = "auto",
+            valign = "top",
+            halign = "left",
+        }
+
+        local inputHost = gui.Panel{
+            classes = { "collapsed" },
+            flow = "vertical",
+            width = "100%",
+            height = "auto",
+            valign = "top",
+        }
+
+        --The wrapper itself is the click target: it carries a hit-testable
+        --transparent background and the press handler, and the rendered
+        --content is made non-interactive after each render
+        --(MakeNonInteractiveRecursive in RefreshBlockPanels). This makes the
+        --whole block clickable, leaves widgets inside inert while live
+        --editing, and avoids overlay geometry entirely (a floating
+        --height="100%" child of an auto-height parent does not track the
+        --block's real bounds). bgcolor lives in styles, never inline, so the
+        --hover highlight can apply; the editing class suppresses it while
+        --the block hosts the input.
+        local wrapper
+        wrapper = gui.Panel{
+            flow = "vertical",
+            width = "100%",
+            height = "auto",
+            valign = "top",
+            halign = "left",
+            vmargin = 2,
+            bgimage = "panels/square.png",
+            styles = {
+                {
+                    bgcolor = "#00000000",
+                },
+                {
+                    selectors = { "hover" },
+                    bgcolor = "#ffffff10",
+                },
+                {
+                    selectors = { "hover", "editing" },
+                    bgcolor = "#00000000",
+                },
+            },
+            press = function(element)
+                ActivateBlock(element.data.index)
+            end,
+            data = {
+                index = nil,
+                ctx = ctx,
+                contentPanel = contentPanel,
+                inputHost = inputHost,
+                placeholderLabel = nil,
+            },
+            contentPanel,
+            inputHost,
+        }
+        return wrapper
+    end
+
+    RefreshBlockPanels = function()
+        --resolve the skin once per refresh and share it into every block's
+        --render context, mirroring what DisplayPanel does per render.
+        local resolvedStylesheet = m_doc:GetResolvedStylesheet()
+        local resolvedSkin = resolvedStylesheet.base
+        local render = {
+            skin = resolvedSkin,
+            classes = resolvedStylesheet.classes,
+            ruledLevels = HeadingRuleLevels(resolvedSkin),
+            usesAlign = SkinUsesAlign(resolvedSkin),
+            pageColor = SkinColor((resolvedSkin.page or {}).bgcolor),
+        }
+
+        local children = {}
+        for index, block in ipairs(m_blocks) do
+            local wrapper = m_blockPanels[index]
+            if wrapper == nil then
+                wrapper = CreateBlockPanel()
+                m_blockPanels[index] = wrapper
+            end
+            wrapper.data.index = index
+            wrapper.data.ctx.doc = m_doc
+            wrapper.data.ctx.render = render
+
+            local active = (index == m_activeIndex)
+            wrapper.data.inputHost:SetClass("collapsed", not active)
+            wrapper.data.contentPanel:SetClass("collapsed", active)
+            wrapper:SetClass("editing", active)
+
+            if active then
+                local input = EnsureEditInput()
+                if input.parent ~= wrapper.data.inputHost then
+                    if input.parent ~= nil then
+                        input:Unparent()
+                    end
+                    wrapper.data.inputHost.children = { input }
+                end
+            elseif block.placeholder then
+                if wrapper.data.placeholderLabel == nil or not wrapper.data.placeholderLabel.valid then
+                    wrapper.data.placeholderLabel = gui.Label{
+                        classes = { "fg" },
+                        text = "Click to start writing...",
+                        fontSize = CustomDocument.ScaleFontSize(14),
+                        opacity = 0.5,
+                        width = "auto",
+                        height = "auto",
+                        vpad = 8,
+                    }
+                end
+                wrapper.data.contentPanel.children = { wrapper.data.placeholderLabel }
+                wrapper.data.contentPanel:MakeNonInteractiveRecursive()
+            else
+                wrapper.data.contentPanel.children = RenderMarkdownTokens(wrapper.data.ctx, block.tokens)
+                --clicks anywhere on the block must reach the wrapper's press
+                --handler; rendered widgets are inert on this surface (v1).
+                wrapper.data.contentPanel:MakeNonInteractiveRecursive()
+            end
+
+            children[#children + 1] = wrapper
+        end
+
+        for i = #m_blocks + 1, #m_blockPanels do
+            m_blockPanels[i] = nil
+        end
+
+        m_listPanel.children = children
+    end
+
+    DeactivateBlock = function()
+        if m_activeIndex == nil then
+            return
+        end
+        if m_editInput ~= nil and m_editInput.valid then
+            m_autocomplete.Dismiss(m_editInput)
+            m_editInput.popup = nil
+        end
+        CommitActiveBlock()
+        m_activeIndex = nil
+        RebuildBlockData()
+        RefreshBlockPanels()
+    end
+
+    --caretPlacement: "start" puts the caret at the beginning of the block's
+    --source (arriving from above), anything else at the end (default; also
+    --used when arriving from below).
+    ActivateBlock = function(index, caretPlacement)
+        if index == nil or index == m_activeIndex then
+            return
+        end
+        local target = m_blocks[index]
+        if target == nil then
+            return
+        end
+        local targetLine = target.lineStart
+
+        if m_activeIndex ~= nil then
+            --commit the current edit first; the target block's lines may
+            --shift if the edit changed the line count above it.
+            local active = m_blocks[m_activeIndex]
+            local delta = CommitActiveBlock()
+            if active ~= nil and targetLine > active.lineEnd then
+                targetLine = targetLine + delta
+            end
+            m_activeIndex = nil
+            RebuildBlockData()
+
+            index = nil
+            for i, block in ipairs(m_blocks) do
+                if targetLine <= block.lineEnd then
+                    index = i
+                    break
+                end
+            end
+            if index == nil and #m_blocks > 0 then
+                index = #m_blocks
+            end
+        end
+
+        m_activeIndex = index
+        RefreshBlockPanels()
+
+        if m_activeIndex ~= nil then
+            local block = m_blocks[m_activeIndex]
+            local src = BlockSource(block)
+            m_activateTime = dmhub.Time()
+            m_editInput.characterLimit = ActiveCharacterBudget(#src)
+            local caret = #src
+            if caretPlacement == "start" then
+                caret = 0
+            end
+            m_editInput:SetTextAndCaret(caret, src)
+            m_editInput.hasInputFocus = true
+        end
+    end
+
+    m_listPanel = gui.Panel{
+        flow = "vertical",
+        width = "100%",
+        height = "auto",
+        valign = "top",
+    }
+
+    resultPanel = gui.Panel{
+        classes = { "collapsed" },
+        styles = ThemeEngine.GetStyles(),
+        width = "100%",
+        height = "100%-0",
+        valign = "top",
+        tmargin = 2,
+        flow = "vertical",
+
+        --focus watchdog: if the active input silently lost focus (clicked
+        --into another panel entirely) commit and re-render. The grace period
+        --covers the input's multi-frame focus acquisition.
+        thinkTime = 0.25,
+        think = function(element)
+            if m_activeIndex == nil then
+                return
+            end
+            if dmhub.Time() - m_activateTime < 0.5 then
+                return
+            end
+            if m_editInput ~= nil and m_editInput.valid and m_editInput.popup ~= nil then
+                --an autocomplete/link popup owns the interaction right now.
+                return
+            end
+            if m_editInput == nil or (not m_editInput.valid) or (not m_editInput.hasInputFocus) then
+                DeactivateBlock()
+            end
+        end,
+
+        refreshDocument = function(element, doc)
+            if doc ~= nil then
+                m_doc = doc
+            end
+            if m_activeIndex ~= nil then
+                --don't clobber an active edit with a remote refresh; the
+                --commit path merges through TextStorage on save.
+                return
+            end
+            SetLinesFromContent(m_doc:GetTextContent())
+            RebuildBlockData()
+            RefreshBlockPanels()
+        end,
+
+        needsave = function(element, result)
+            if m_doc:GetTextContent() ~= GetContentIncludingActive() then
+                result.save = true
+            end
+        end,
+
+        savedoc = function(element)
+            DeactivateBlock()
+            m_doc:SetTextContent(GetContent())
+            SetLinesFromContent(m_doc:GetTextContent())
+        end,
+
+        checkChanges = function(element, baseDoc)
+            resultPanel:SetClassTree("changes", GetContentIncludingActive() ~= baseDoc:GetTextContent())
+        end,
+
+        gui.Panel{
+            width = "98%",
+            height = "100% available",
+            halign = "center",
+            valign = "top",
+            vscroll = true,
+            flow = "vertical",
+            m_listPanel,
+        },
+    }
+
+    SetLinesFromContent(m_doc:GetTextContent())
+    RebuildBlockData()
+    RefreshBlockPanels()
+
+    return resultPanel
+end
+
+local MarkdownReferenceTooltip
+
+function MarkdownDocument:EditPanel(args)
+    if liveEditSetting:Get() then
+        return self:LiveEditPanel(args)
+    end
+
+    local resultPanel
+
+    local markdownReferenceLabel = gui.Label {
+        classes = { "link" },
+        width = "auto",
+        height = "auto",
+        text = "Formatting Guide",
+        fontSize = CustomDocument.ScaleFontSize(16),
+        halign = "left",
+        valign = "top",
+        hover = function(element)
+            element.tooltip = MarkdownReferenceTooltip()
+        end,
+    }
+
+    local editInput
+
+    local savePanel = gui.Panel{
+        flow = "horizontal",
+        width = 160,
+        height = 16,
+        halign = "right",
+
+        gui.Label{
+
+            styles = {
+                {
+                    selectors = {"changes"},
+                    collapsed = 1,
+                },
+                {
+                    selectors = {"savePending"},
+                    collapsed = 1,
+                },
+                {
+                    selectors = {"saveError"},
+                    collapsed = 1,
+                },
+            },
+
+            text = "Changes Saved",
+            fontSize = 14,
+            width = "auto",
+            height = "auto",
+        },
+
+        gui.Label{
+            classes = { "fgMuted" },
+            styles = {
+                {
+                    selectors = {"changes"},
+                    collapsed = 1,
+                },
+                {
+                    selectors = {"~savePending"},
+                    collapsed = 1,
+                },
+            },
+
+            text = "Saving...",
+            fontSize = 14,
+            width = "auto",
+            height = "auto",
+        },
+
+        gui.Label{
+            styles = {
+                {
+                    selectors = {"~changes"},
+                    collapsed = 1,
+                }
+            },
+            text = "Unsaved Changes",
+            fontSize = 14,
+            width = "auto",
+            height = "auto",
+        },
+
+        gui.Button{
+            styles = {
+                {
+                    selectors = {"~changes"},
+                    collapsed = 1,
+                }
+            },
+            inputEvents = { "save" },
+            text = "Save",
+            width = 40,
+            height = 16,
+            fontSize = 12,
+            save = function(element)
+                if element:HasClass("changes") then
+                    element:FireEvent("press")
+                end
+            end,
+            press = function(element)
+                local documentPanel = element:FindParentWithClass("documentPanel")
+                if documentPanel ~= nil then
+                    resultPanel:SetClassTree("savePending", true)
+                    documentPanel:FireEvent("saveDocument")
+                end
+            end,
+
+            saveConfirmed = function(element)
+                resultPanel:SetClassTree("savePending", false)
+            end,
+        },
+
+        gui.Label{
+            --shown only when the write-verification watchdog (DocumentSystem.lua) gives up
+            --after a delta save AND a full-write retry both go unconfirmed by the server.
+            --Driven by the 'saveError' class set via resultPanel:SetClassTree. Collapsed
+            --again as soon as the user edits (changes) or a new save is in flight
+            --(savePending), and cleared automatically by a late server confirmation.
+            styles = {
+                {
+                    selectors = {"~saveError"},
+                    collapsed = 1,
+                },
+                {
+                    selectors = {"changes"},
+                    collapsed = 1,
+                },
+                {
+                    selectors = {"savePending"},
+                    collapsed = 1,
+                },
+            },
+
+            color = "#ff5b5b",
+            text = "Save failed!",
+            fontSize = 14,
+            width = "auto",
+            height = "auto",
+            hover = function(element)
+                gui.Tooltip("The server did not confirm your save, so your latest changes may not be stored. Keep this document open -- it will retry automatically and clear this message if the connection recovers. You can also keep editing (each save retries) or press Ctrl+Z to recover text that vanished.")(element)
+            end,
+        },
+    }
+
+    local charactersUsedLabel = gui.Label {
+        classes = {"fg"},
+        width = "auto",
+        height = "auto",
+        halign = "right",
+        valign = "center",
+        rmargin = 246,
+        fontSize = CustomDocument.ScaleFontSize(16),
+        refreshLength = function(element, text)
+            local len = #text
+            local remaining = CustomDocument.MaxLength - len
+            if remaining < 1000 then
+                element:SetClass("danger", remaining < 200)
+
+                element.text = string.format("%d characters remaining...", remaining)
+                element:SetClass("hidden", false)
+            else
+                element:SetClass("hidden", true)
+            end
+        end,
+        refreshDocument = function(element)
+            element:FireEvent("refreshLen", #self:GetTextContent())
+        end,
+        editDocument = function(element)
+            element:FireEvent("refreshLen", #self:GetTextContent())
+        end,
+    }
+
+    -- Link autocomplete + link-info service (shared with LiveEditPanel; see
+    -- CreateMarkdownAutocomplete). Aliases keep the historical local names
+    -- used by the handlers below.
+    local m_autocomplete = CreateMarkdownAutocomplete{
+        GetDocument = function()
+            return self
+        end,
+        OnTextChanged = function(newText)
+            NotifyTextChanged(newText)
+        end,
+    }
+    local autocompleteState = m_autocomplete.state
+    local FindLinkContext = m_autocomplete.FindLinkContext
+    local UpdateAutocomplete = m_autocomplete.Update
+    local DismissAutocomplete = m_autocomplete.Dismiss
+    local UpdateLinkInfo = m_autocomplete.UpdateLinkInfo
 
     local function InsertAction(input, action)
         local text = input.text or ""

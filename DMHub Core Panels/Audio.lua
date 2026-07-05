@@ -1909,6 +1909,15 @@ local VariantPools = {}
 --not shared state.
 local m_variantPoolLastFired = {}
 
+--Per-fire sequence + the current owning fire per assetid. A pool loop-fire schedules the
+--clip's end (fade-out or hard stop); this lets that closure act only on the fire it was
+--scheduled for, not a later re-fire of the same clip or another pool/pad sharing it. It is
+--also the ONLY thing that ends loop=true member clips - the engine ignores a per-play
+--loop=false, so a looping ambience clip never leaves currentlyPlaying on its own, which
+--would otherwise stall cycling and stop layered clips ever falling off.
+local m_variantPoolFireSeq = 0
+local m_variantPoolCurrentFire = {}
+
 function VariantPools.GetDoc()
 	return mod:GetDocumentSnapshot("audioVariantPools")
 end
@@ -2330,16 +2339,17 @@ function VariantPools.Remove(poolid)
 	ClearPoolFromSoundboardSlots(poolid)
 end
 
---Fade-out helper for Fade-in/out pools: schedule a 0.5s ease-out to start ~0.5s
---before the clip's natural end so the tail is smooth instead of a hard cut. Driver-
---local (dmhub.Schedule); guarded so a stopped/replaced sound is never re-crossfaded.
---Skipped for very short clips (a fade would swallow the whole sound).
-local function ScheduleVariantPoolFadeOut(assetid, duration, fadeSecs)
-	if assetid == nil or duration == nil or duration <= 1.0 then
+--Schedules the END of a pool loop-fire at ~the clip's natural end: an ease-out (fadeSecs
+--given) or a hard stop (fadeSecs nil). Driver-local (dmhub.Schedule). This is what makes
+--loop=true member clips actually end - the engine ignores a per-play loop=false override,
+--so a looping clip never stops on its own. Guarded by fire sequence + still-playing so it
+--never touches a superseded or replaced fire.
+local function ScheduleVariantPoolEnd(assetid, duration, seq, fadeSecs)
+	if assetid == nil or duration == nil then
 		return
 	end
-	fadeSecs = fadeSecs or 0.5
-	local delay = duration - fadeSecs
+	--fadeSecs nil = hard-stop path (no-fade); non-nil = ease-out over fadeSecs.
+	local delay = fadeSecs ~= nil and (duration - fadeSecs) or duration
 	if delay < 0.1 then delay = 0.1 end
 	dmhub.Schedule(delay, function()
 		if mod.unloaded then return end
@@ -2347,10 +2357,15 @@ local function ScheduleVariantPoolFadeOut(assetid, duration, fadeSecs)
 		--keys currentlyPlaying by assetid with no per-fire handle, so a later unrelated
 		--replay of the same clip (a StopLoop+restart, a layered re-fire, or another pool /
 		--soundboard pad sharing the clip) would otherwise be cut short by this stale closure.
-		--A fresh replay reads a small inst.time, so gate on being within ~0.75s of the end.
-		local inst = audio.currentlyPlaying[assetid]
-		if inst ~= nil and inst.time ~= nil and inst.time >= (duration - fadeSecs - 0.25) then
+		--The fire sequence tells whether the clip sounding now is still THIS fire; skip if a
+		--newer fire (or a StopLoop) has superseded it. Robust for loop=true clips (whose
+		--currentlyPlaying never clears and whose inst.time wraps) where a time check would fail.
+		if m_variantPoolCurrentFire[assetid] ~= seq then return end
+		if audio.currentlyPlaying[assetid] == nil then return end
+		if fadeSecs ~= nil then
 			audio.CrossfadeSoundEvents(assetid, nil, fadeSecs)
+		else
+			audio.StopSoundEvent(assetid)
 		end
 	end)
 end
@@ -2408,6 +2423,15 @@ function VariantPools.Fire(poolid, opts)
 		return nil
 	end
 
+	--Claim a fresh fire sequence for this clip so the scheduled end acts only on THIS fire.
+	--scheduleEnd is loop-fires only: a looping member must be forced to end so the loop can
+	--cycle / fall off; a one-shot pad tap of the same clip keeps its natural (possibly looping)
+	--behavior untouched.
+	m_variantPoolFireSeq = m_variantPoolFireSeq + 1
+	local fireSeq = m_variantPoolFireSeq
+	m_variantPoolCurrentFire[chosen.id] = fireSeq
+	local scheduleEnd = entry.loopAmbience == true
+
 	if entry.fadeInOut == true then
 		--Fade-in path: crossfade a fresh play in over 0.5s. CrossfadeSoundEvents takes
 		--no pitch (and there is no runtime pitch setter), so a fading fire carries no
@@ -2419,7 +2443,7 @@ function VariantPools.Fire(poolid, opts)
 		if opts ~= nil and opts.volume ~= nil then
 			audio.SetSoundEventVolume(chosen.id, opts.volume)
 		end
-		ScheduleVariantPoolFadeOut(chosen.id, chosen.duration, fadeSecs)
+		if scheduleEnd then ScheduleVariantPoolEnd(chosen.id, chosen.duration, fireSeq, fadeSecs) end
 		return chosen
 	end
 
@@ -2437,6 +2461,9 @@ function VariantPools.Fire(poolid, opts)
 	m_audioLogSuppressBroadcast = true
 	PlayBroadcastClip(chosen, playArgs)
 	m_audioLogSuppressBroadcast = false
+	--No-fade loop-fire: hard-stop the clip at its natural end so a loop=true member does not
+	--play forever (cycling would never advance; layered clips would never fall off).
+	if scheduleEnd then ScheduleVariantPoolEnd(chosen.id, chosen.duration, fireSeq, nil) end
 	return chosen
 end
 
@@ -2573,6 +2600,7 @@ function VariantPools.StopLoop(poolid)
 	for _,m in ipairs(VariantPools.Members(poolid)) do
 		if audio.currentlyPlaying[m.id] ~= nil then
 			audio.CrossfadeSoundEvents(m.id, nil, stopFade)
+			m_variantPoolCurrentFire[m.id] = nil
 		end
 	end
 	doc:BeginChange()

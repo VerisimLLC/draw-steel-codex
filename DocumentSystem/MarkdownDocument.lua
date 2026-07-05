@@ -5043,6 +5043,7 @@ local function CreateMarkdownToolbar(opts)
     local DS_GOLD_FILL_HI = "#c8a45a59" --gold @ 0.35: accent hover fill
     local DS_GOLD_BD_LO  = "#c8a45a26" --gold @ 0.15: hairline dividers
     local DS_SURFACE     = "#131315"   --popover surface
+    local DS_TEXT_SOFT   = "#7a7468"   --warm-muted secondary labels
 
     --Applied to the toolbar root via ThemeEngine.MergeTokens, the documented
     --path for overriding inherited theme styling on one control subtree.
@@ -5257,11 +5258,6 @@ local function CreateMarkdownToolbar(opts)
         hpad = 16,
         vpad = 10,
 
-        --design-system treatment for every control in the toolbar; see
-        --dsToolbarStyles above. MergeTokens resolves theme tokens and gives
-        --these rules override standing over the inherited theme styles.
-        styles = ThemeEngine.MergeTokens(dsToolbarStyles),
-
         --group: text style (typographic glyphs per the design).
         ToolbarButton("<b>B</b>", 15, 30, WrapHandler("**", "**")),
         ToolbarButton("<i>I</i>", 15, 30, WrapHandler("*", "*")),
@@ -5332,40 +5328,63 @@ local function CreateMarkdownToolbar(opts)
             end,
         },
 
-        GroupDivider(),
+    }
 
-        gui.Panel{
-            classes = { "formStackedRow" },
+    --Bar 4 per the handoff: the stylesheet picker is its own row with an
+    --uppercase tracked label, not a tail entry on the format bar.
+    local stylesheetRow = gui.Panel{
+        flow = "horizontal",
+        width = "100%",
+        height = "auto",
+        valign = "top",
+        borderBox = true,
+        hpad = 16,
+        vpad = 8,
+        gui.Label{
+            text = "STYLESHEET",
+            fontSize = 11,
+            bold = true,
+            color = DS_TEXT_SOFT,
             width = "auto",
             height = "auto",
             valign = "center",
-            gui.Label{ classes = { "formStacked" }, text = "Stylesheet:" },
-            gui.Dropdown{
-                classes = { "formStacked" },
-                options = JournalStylesheet.PickerOptions(),
-                idChosen = opts.GetStylesheetId() or "",
-                change = function(element)
-                    opts.OnStylesheetChanged(element.idChosen)
-                end,
-            },
+            rmargin = 14,
+        },
+        gui.Dropdown{
+            width = 300,
+            height = 30,
+            options = JournalStylesheet.PickerOptions(),
+            idChosen = opts.GetStylesheetId() or "",
+            change = function(element)
+                opts.OnStylesheetChanged(element.idChosen)
+            end,
         },
     }
 
+    local function ToolbarHairline()
+        return gui.Panel{
+            width = "100%",
+            height = 1,
+            bgimage = "panels/square.png",
+            bgcolor = DS_GOLD_BD_LO,
+        }
+    end
+
     --the design separates every chrome row with a gold hairline; the
-    --toolbar carries its own bottom rule so both editors get it.
+    --toolbar carries its own rules so both editors get them. The design
+    --styles live on this wrapper so the stylesheet row's dropdown inherits
+    --them too.
     return gui.Panel{
         flow = "vertical",
         width = "100%",
         height = "auto",
         valign = "top",
         bmargin = 6,
+        styles = ThemeEngine.MergeTokens(dsToolbarStyles),
         toolbarRow,
-        gui.Panel{
-            width = "100%",
-            height = 1,
-            bgimage = "panels/square.png",
-            bgcolor = DS_GOLD_BD_LO,
-        },
+        ToolbarHairline(),
+        stylesheetRow,
+        ToolbarHairline(),
     }
 end
 

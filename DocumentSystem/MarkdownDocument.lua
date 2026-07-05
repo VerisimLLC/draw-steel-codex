@@ -1484,8 +1484,14 @@ BreakdownRichTags = function(content, result, options, extraOutput)
     -- line being parsed; textStartLine remembers the first line that fed visible text into
     -- the run currently accumulating in `text`, so the emitted text token is stamped at
     -- its START (where it begins rendering) rather than the line it happened to flush on.
+    -- textLastLine remembers the LAST line that fed visible content, so multi-line text
+    -- runs carry their full srcLine..srcLineEnd range; the live editor's block
+    -- partitioner (PartitionTokensIntoBlocks) relies on that range being complete.
+    -- Separator newlines appended between lines deliberately update neither, so a
+    -- construct on a following line is never claimed by the text flushed before it.
     local currentLine = 1
     local textStartLine = nil
+    local textLastLine = nil
 
     local EmitText = function(t, justification)
         local fromAccumulator = (t == nil)
@@ -1518,12 +1524,18 @@ BreakdownRichTags = function(content, result, options, extraOutput)
                 player = isPlayer,
                 --trace = debug.traceback(),
             }
-            -- Accumulator runs anchor at textStartLine; an explicitly-passed string
-            -- (e.g. a rich line's prefix) belongs to the line being parsed now.
-            StampLine(result[#result], (fromAccumulator and textStartLine) or currentLine)
+            -- Accumulator runs anchor at textStartLine and extend to textLastLine; an
+            -- explicitly-passed string (e.g. a rich line's prefix) belongs to the line
+            -- being parsed now.
+            if fromAccumulator then
+                StampLine(result[#result], textStartLine, textLastLine)
+            else
+                StampLine(result[#result], currentLine)
+            end
         end
         if fromAccumulator then
             textStartLine = nil
+            textLastLine = nil
         end
     end
 
@@ -1825,6 +1837,7 @@ BreakdownRichTags = function(content, result, options, extraOutput)
                 "^(?<prefix>.*?)((?<spoiler>\\{)|(?<justification>:(<>|><|<|>))|(?<embed>\\[:[^\\[\\]]+\\])|(?<tag>\\[[ xX]\\] *(?<checkname>[a-zA-Z0-9 ]*))|\\[\\[(?<tag>[^\\]]*)\\]\\])(?<suffix>.*)$")
             if match == nil then
                 if textStartLine == nil and str ~= "" then textStartLine = currentLine end
+                if str ~= "" then textLastLine = currentLine end
                 text = text .. str
                 if str ~= line:sub(#currentIndent + 1) and text ~= "" then
                     --we have emitted rich content this line, so emit this string now.
@@ -1872,6 +1885,11 @@ BreakdownRichTags = function(content, result, options, extraOutput)
                 end
 
                 text = text .. "{"
+                -- The brace (and any spoiler link injected above) is visible content:
+                -- anchor the accumulator run here if it is not already anchored, so
+                -- spoiler-leading text runs carry source ranges too.
+                if textStartLine == nil then textStartLine = currentLine end
+                textLastLine = currentLine
             elseif match.justification ~= nil then
                 result[#result + 1] = {
                     type = "justification",
@@ -1944,6 +1962,178 @@ BreakdownRichTags = function(content, result, options, extraOutput)
     end
 
     return result
+end
+
+--Token types that continue a table when they appear on the line directly
+--after the current block (a table is one edit block even though each source
+--row emits its own row token).
+local g_tableBlockTokenTypes = {
+    rollable_table = true,
+    row = true,
+    cell = true,
+    end_row = true,
+}
+
+--Groups a trackPositions token stream into top-level edit blocks for the
+--live editor. Each block is a contiguous source line range (srcLine ..
+--srcLineEnd over the tokens it holds) that renders and edits as one unit:
+--  - tokens that share a source line always share a block.
+--  - table tokens on directly adjacent lines merge, so a whole table
+--    (including a rollable-table header) is a single block.
+--  - collapse wrappers claim every token until their matching end token,
+--    so a collapse node and its children form one block.
+--  - unstamped tokens (cell/end_row and cell-inner tokens, which the
+--    tokenizer deliberately leaves unstamped, plus whitespace-only text)
+--    attach to the currently open block and never extend its range; they
+--    never update the table-continuation type either, so a row's inner
+--    tokens do not break row-to-row merging.
+--  - blank lines and lines that emitted no tokens (false ??? conditional
+--    regions) belong to no block; the caller preserves them verbatim when
+--    splicing an edited block back into the document.
+--Returns an array of { lineStart, lineEnd, tokens = {...} } in source order.
+function MarkdownDocument.PartitionTokensIntoBlocks(tokens)
+    local blocks = {}
+    local current = nil
+    local wrapperDepth = 0 --depth of open collapse wrappers.
+
+    for _, token in ipairs(tokens) do
+        if token.srcLine == nil then
+            if current ~= nil then
+                current.tokens[#current.tokens + 1] = token
+            end
+        else
+            local joinsCurrent = false
+            if current ~= nil then
+                if wrapperDepth > 0 then
+                    joinsCurrent = true
+                elseif token.srcLine <= current.lineEnd then
+                    --shares a line with the block.
+                    joinsCurrent = true
+                elseif token.srcLine == current.lineEnd + 1
+                       and g_tableBlockTokenTypes[token.type]
+                       and g_tableBlockTokenTypes[current.lastType] then
+                    --table continuation on the very next line.
+                    joinsCurrent = true
+                end
+            end
+
+            if not joinsCurrent then
+                current = {
+                    lineStart = token.srcLine,
+                    lineEnd = token.srcLineEnd or token.srcLine,
+                    tokens = {},
+                }
+                blocks[#blocks + 1] = current
+            end
+
+            current.tokens[#current.tokens + 1] = token
+            local tokenEnd = token.srcLineEnd or token.srcLine
+            if tokenEnd > current.lineEnd then
+                current.lineEnd = tokenEnd
+            end
+            current.lastType = token.type
+        end
+
+        if token.type == "collapse_node" then
+            wrapperDepth = wrapperDepth + 1
+        elseif token.type == "end_collapse_node" then
+            if wrapperDepth > 0 then
+                wrapperDepth = wrapperDepth - 1
+            end
+        end
+    end
+
+    for _, block in ipairs(blocks) do
+        block.lastType = nil
+    end
+
+    return blocks
+end
+
+--Dev-only verification for the live-edit line-range work: tokenize with
+--trackPositions and check the invariants the block partitioner relies on:
+--  1. every stamped range is ordered and within 1..#lines.
+--  2. stamped range starts never move backwards across the token stream.
+--  3. every non-blank source line is covered by a token range or sits
+--     inside a table row. Uncovered non-blank lines are reported; false ???
+--     conditional regions emit no tokens and are expected to appear there.
+--  4. unstamped text tokens outside table rows carry only whitespace.
+--  5. blocks from PartitionTokensIntoBlocks form strictly ascending,
+--     non-overlapping ranges.
+--Run from the dev console on a document's content, e.g.:
+--  MarkdownDocument.DebugCheckLineRanges(doc:GetTextContent())
+--Returns { errors, uncovered, blocks, tokenCount } and prints a summary.
+function MarkdownDocument.DebugCheckLineRanges(content)
+    local tokens = BreakdownRichTags(content, nil, { trackPositions = true })
+
+    local normalized = content:gsub("\v", "\n"):gsub("\r", "")
+    local lines = string.split_allow_duplicates(normalized, "\n")
+
+    local errors = {}
+    local covered = {}
+    local maxStart = 0
+    local inRow = false
+
+    for index, token in ipairs(tokens) do
+        if token.type == "row" then
+            inRow = true
+        elseif token.type == "end_row" then
+            inRow = false
+        end
+
+        if token.srcLine ~= nil then
+            local srcEnd = token.srcLineEnd or token.srcLine
+            if token.srcLine > srcEnd or token.srcLine < 1 or srcEnd > #lines then
+                errors[#errors + 1] = string.format("token %d (%s): bad range %s..%s (doc has %d lines)",
+                    index, token.type, tostring(token.srcLine), tostring(srcEnd), #lines)
+            else
+                if token.srcLine < maxStart then
+                    errors[#errors + 1] = string.format("token %d (%s): range start %d is before an earlier token's start %d",
+                        index, token.type, token.srcLine, maxStart)
+                end
+                maxStart = math.max(maxStart, token.srcLine)
+                for j = token.srcLine, srcEnd do
+                    covered[j] = true
+                end
+            end
+        elseif token.type == "text" and (not inRow)
+               and trim((token.text or ""):gsub("\n", "")) ~= "" then
+            errors[#errors + 1] = string.format("token %d: unstamped text token outside a table row with content %q",
+                index, token.text)
+        end
+    end
+
+    local uncovered = {}
+    for j, line in ipairs(lines) do
+        if (not covered[j]) and trim(line) ~= "" then
+            uncovered[#uncovered + 1] = j
+        end
+    end
+
+    local blocks = MarkdownDocument.PartitionTokensIntoBlocks(tokens)
+    local prevEnd = 0
+    for index, block in ipairs(blocks) do
+        if block.lineStart <= prevEnd then
+            errors[#errors + 1] = string.format("block %d: range %d..%d overlaps previous block ending at %d",
+                index, block.lineStart, block.lineEnd, prevEnd)
+        end
+        if block.lineEnd < block.lineStart then
+            errors[#errors + 1] = string.format("block %d: inverted range %d..%d",
+                index, block.lineStart, block.lineEnd)
+        end
+        prevEnd = math.max(prevEnd, block.lineEnd)
+    end
+
+    print(string.format("DebugCheckLineRanges: %d tokens, %d blocks over %d lines; %d errors; %d uncovered non-blank lines",
+        #tokens, #blocks, #lines, #errors, #uncovered))
+    for _, err in ipairs(errors) do
+        print("  ERROR: " .. err)
+    end
+    for _, j in ipairs(uncovered) do
+        print(string.format("  UNCOVERED line %d: %s", j, lines[j]))
+    end
+
+    return { errors = errors, uncovered = uncovered, blocks = blocks, tokenCount = #tokens }
 end
 
 --Returns the annotations that are actually referenced by a rich tag in the document

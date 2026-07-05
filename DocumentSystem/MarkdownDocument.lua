@@ -5028,15 +5028,196 @@ local function CreateMarkdownToolbar(opts)
         } end
     end
 
+    --Codex Design System treatment (tokens/colors.css + effects.css and the
+    --Button/Select specs): controls are bordered ghosts on the warm-black
+    --surface ladder with the single gold accent at graded alphas. Hover
+    --brightens the border 0.28 -> 0.6 and steps the surface, and nothing
+    --moves, fades, or casts a shadow.
+    local DS_SURFACE_2   = "#1a1a1e"   --buttons / inputs
+    local DS_SURFACE_3   = "#222228"   --hover surface
+    local DS_TEXT        = "#e4ddd0"   --parchment body text
+    local DS_GOLD_BD     = "#c8a45a47" --gold @ 0.28: control border
+    local DS_GOLD_BD_HI  = "#c8a45a99" --gold @ 0.6: hover/active border
+    local DS_GOLD        = "#c8a45a"   --the single accent
+    local DS_GOLD_DIM    = "#c8a45a1f" --gold @ 0.12: selected/accent fill
+    local DS_GOLD_FILL_HI = "#c8a45a59" --gold @ 0.35: accent hover fill
+    local DS_GOLD_BD_LO  = "#c8a45a26" --gold @ 0.15: hairline dividers
+    local DS_SURFACE     = "#131315"   --popover surface
+
+    --Applied to the toolbar root via ThemeEngine.MergeTokens, the documented
+    --path for overriding inherited theme styling on one control subtree.
+    --These are hardcoded Codex Design System values rather than theme tokens
+    --by explicit decision: the design language is being trialed on this one
+    --surface before deciding whether to author it as a real theme.
+    --NOTE: no cornerRadius in these rules, deliberately. The user's theme
+    --choice (default vs default-rounded) owns corner radii; our design
+    --treatment only overrides color and border weight, so squared/rounded
+    --preference is honored throughout the toolbar.
+    local dsToolbarStyles = {
+        {
+            selectors = { "button" },
+            bgimage = "panels/square.png",
+            bgcolor = DS_SURFACE_2,
+            borderColor = DS_GOLD_BD,
+            border = 1,
+            color = DS_TEXT,
+        },
+        {
+            selectors = { "button", "hover" },
+            bgcolor = DS_SURFACE_3,
+            borderColor = DS_GOLD_BD_HI,
+        },
+        {
+            selectors = { "button", "press" },
+            bgcolor = DS_SURFACE,
+            borderColor = DS_GOLD_BD_HI,
+        },
+        {
+            selectors = { "dropdown" },
+            bgimage = "panels/square.png",
+            bgcolor = DS_SURFACE_2,
+            borderColor = DS_GOLD_BD,
+            border = 1,
+        },
+        {
+            selectors = { "dropdown", "hover" },
+            bgcolor = DS_SURFACE_3,
+            borderColor = DS_GOLD_BD_HI,
+        },
+        {
+            selectors = { "dropdownLabel" },
+            color = DS_TEXT,
+        },
+        --the one gold-accented button (Draw Steel!): gold-dim fill, bright
+        --gold border and text; hover deepens the fill, never moves.
+        {
+            selectors = { "button", "dsAccent" },
+            bgcolor = DS_GOLD_DIM,
+            borderColor = DS_GOLD_BD_HI,
+            color = DS_GOLD,
+        },
+        {
+            selectors = { "button", "dsAccent", "hover" },
+            bgcolor = DS_GOLD_FILL_HI,
+            borderColor = DS_GOLD_BD_HI,
+        },
+    }
+
     local function ToolbarButton(label, fontSize, width, handler)
         return gui.Button{
             text = label,
-            width = width or 28,
-            height = 24,
-            fontSize = fontSize or 14,
+            width = width or 30,
+            height = 30,
+            fontSize = fontSize or 15,
             valign = "center",
+            hmargin = 3,
             press = handler,
         }
+    end
+
+    --hairline between control groups (design: 1px x 20px, gold @ 0.15,
+    --with the design's wider inter-group gap).
+    local function GroupDivider()
+        return gui.Panel{
+            width = 1,
+            height = 20,
+            valign = "center",
+            hmargin = 9,
+            bgimage = "panels/square.png",
+            bgcolor = DS_GOLD_BD_LO,
+        }
+    end
+
+    --the curated "earned" text-color palette from the design system; the
+    --free color wheel is deliberately gone. Picking a swatch wraps the
+    --selection in <color=hex>.
+    local dsPalette = {
+        { name = "Gold",      hex = "#c8a45a" },
+        { name = "Parchment", hex = "#e4ddd0" },
+        { name = "Healthy",   hex = "#2D6A4F" },
+        { name = "Winded",    hex = "#7A4A18" },
+        { name = "Dying",     hex = "#6B2020" },
+        { name = "Success",   hex = "#4db88c" },
+        { name = "Warning",   hex = "#e8a030" },
+        { name = "Failure",   hex = "#c94040" },
+    }
+
+    local function ColorSwatch(entry, host)
+        return gui.Panel{
+            width = 26,
+            height = 26,
+            hmargin = 4,
+            vmargin = 4,
+            bgimage = "panels/square.png",
+            bgcolor = entry.hex,
+            cornerRadius = 13,
+            border = 2,
+            borderColor = "#0a0a0b",
+            styles = {
+                {
+                    selectors = { "hover" },
+                    borderColor = DS_GOLD_BD_HI,
+                },
+            },
+            press = function(element)
+                host.popup = nil
+                WrapHandler(string.format("<color=%s>", entry.hex), "</color>")()
+            end,
+        }
+    end
+
+    local function ColorButton()
+        local button
+        button = gui.Button{
+            text = "Color",
+            width = 64,
+            height = 30,
+            fontSize = 14,
+            valign = "center",
+            hmargin = 3,
+            press = function(element)
+                if element.popup ~= nil then
+                    element.popup = nil
+                    return
+                end
+                local rows = {}
+                for rowIndex = 0, 1 do
+                    local swatches = {}
+                    for col = 1, 4 do
+                        local entry = dsPalette[rowIndex * 4 + col]
+                        if entry ~= nil then
+                            swatches[#swatches + 1] = ColorSwatch(entry, element)
+                        end
+                    end
+                    rows[#rows + 1] = gui.Panel{
+                        flow = "horizontal",
+                        width = "auto",
+                        height = "auto",
+                        children = swatches,
+                    }
+                end
+                element.popupPositioning = "panel"
+                element.popup = gui.Panel{
+                    width = "auto",
+                    height = "auto",
+                    valign = "bottom",
+                    halign = "right",
+                    --themed surface classes (same as the autocomplete popup)
+                    --so the menu chrome, including corner radius, follows
+                    --the user's theme.
+                    gui.Panel{
+                        classes = { "bordered", "bg" },
+                        flow = "vertical",
+                        width = "auto",
+                        height = "auto",
+                        pad = 8,
+                        borderBox = false,
+                        children = rows,
+                    },
+                }
+            end,
+        }
+        return button
     end
 
     local headingOptions = {
@@ -5046,13 +5227,7 @@ local function CreateMarkdownToolbar(opts)
         { id = "### ",   text = "H3" },
         { id = "#### ",  text = "H4" },
         { id = "##### ", text = "H5" },
-    }
-
-    local spoilerOptions = {
-        { id = "",  text = "Spoiler" },
-        { id = "h", text = "Hidden" },
-        { id = "r", text = "Redacted" },
-        { id = "v", text = "Revealed" },
+        { id = "> ",     text = "Quote" },
     }
 
     local mediaTags  = { "image", "sound", "ability", "scene",
@@ -5070,7 +5245,7 @@ local function CreateMarkdownToolbar(opts)
         widgetOptions[#widgetOptions + 1] = { id = t, text = t }
     end
 
-    return gui.Panel{
+    local toolbarRow = gui.Panel{
         width = "100%",
         height = "auto",
         flow = "horizontal",
@@ -5078,35 +5253,28 @@ local function CreateMarkdownToolbar(opts)
         valign = "top",
         halign = "left",
         borderBox = true,
-        hpad = 4,
-        bmargin = 4,
+        --design metrics: 11px vertical breathing room, 16px edge inset.
+        hpad = 16,
+        vpad = 10,
 
-        ToolbarButton("B", 16, 28, WrapHandler("**", "**")),
-        ToolbarButton("I", 16, 28, WrapHandler("*", "*")),
-        ToolbarButton("U", 16, 28, WrapHandler("__", "__")),
-        ToolbarButton("S", 16, 28, WrapHandler("~~", "~~")),
+        --design-system treatment for every control in the toolbar; see
+        --dsToolbarStyles above. MergeTokens resolves theme tokens and gives
+        --these rules override standing over the inherited theme styles.
+        styles = ThemeEngine.MergeTokens(dsToolbarStyles),
 
-        ToolbarButton("Color", 12, 44,
-            WrapHandler("<color=red>", "</color>")),
+        --group: text style (typographic glyphs per the design).
+        ToolbarButton("<b>B</b>", 15, 30, WrapHandler("**", "**")),
+        ToolbarButton("<i>I</i>", 15, 30, WrapHandler("*", "*")),
+        ToolbarButton("<u>U</u>", 15, 30, WrapHandler("__", "__")),
+        ToolbarButton("<s>S</s>", 15, 30, WrapHandler("~~", "~~")),
 
+        GroupDivider(),
+
+        --group: marks.
+        ColorButton(),
+        ToolbarButton("Spoiler", 14, 66, WrapHandler("{", "}")),
         gui.Dropdown{
-            width = 90, height = 24, idChosen = "",
-            options = spoilerOptions,
-            change = function(element)
-                local id = element.idChosen
-                if id == "h" then
-                    WrapHandler("{", "}")()
-                elseif id == "r" then
-                    WrapHandler("{#", "}")()
-                elseif id == "v" then
-                    WrapHandler("{!", "}")()
-                end
-                element.idChosen = ""
-            end,
-        },
-
-        gui.Dropdown{
-            width = 80, height = 24, idChosen = "",
+            width = 118, height = 30, idChosen = "", hmargin = 3,
             options = headingOptions,
             change = function(element)
                 if element.idChosen ~= "" then
@@ -5116,15 +5284,34 @@ local function CreateMarkdownToolbar(opts)
             end,
         },
 
-        ToolbarButton("List",    12, 44, LineHandler("* ")),
-        ToolbarButton("Divider", 12, 56, InsertHandler("\n---\n", 5)),
-        ToolbarButton("Link",    12, 40, InsertHandler("[]", 1)),
+        GroupDivider(),
 
-        ToolbarButton("Draw Steel!", 12, 80,
-            InsertHandler('[[//link "Draw Steel!"|Draw Steel!]]')),
+        --group: blocks.
+        ToolbarButton("List",    14, 52, LineHandler("* ")),
+        ToolbarButton("Divider", 14, 68, InsertHandler("\n---\n", 5)),
+        ToolbarButton("Link",    14, 50, InsertHandler("[]", 1)),
+
+        --push the insert group to the right edge, per the design.
+        gui.Panel{
+            width = "100% available",
+            height = 1,
+        },
+
+        --group: insert (right-aligned). Draw Steel! is the one gold-accented
+        --control on the bar.
+        gui.Button{
+            classes = { "dsAccent" },
+            text = "Draw Steel!",
+            width = 92,
+            height = 30,
+            fontSize = 14,
+            valign = "center",
+            hmargin = 3,
+            press = InsertHandler('[[//link "Draw Steel!"|Draw Steel!]]'),
+        },
 
         gui.Dropdown{
-            width = 110, height = 24, idChosen = "",
+            width = 118, height = 30, idChosen = "", hmargin = 3,
             options = mediaOptions,
             change = function(element)
                 if element.idChosen ~= "" then
@@ -5135,7 +5322,7 @@ local function CreateMarkdownToolbar(opts)
         },
 
         gui.Dropdown{
-            width = 110, height = 24, idChosen = "",
+            width = 118, height = 30, idChosen = "", hmargin = 3,
             options = widgetOptions,
             change = function(element)
                 if element.idChosen ~= "" then
@@ -5144,6 +5331,8 @@ local function CreateMarkdownToolbar(opts)
                 end
             end,
         },
+
+        GroupDivider(),
 
         gui.Panel{
             classes = { "formStackedRow" },
@@ -5159,6 +5348,23 @@ local function CreateMarkdownToolbar(opts)
                     opts.OnStylesheetChanged(element.idChosen)
                 end,
             },
+        },
+    }
+
+    --the design separates every chrome row with a gold hairline; the
+    --toolbar carries its own bottom rule so both editors get it.
+    return gui.Panel{
+        flow = "vertical",
+        width = "100%",
+        height = "auto",
+        valign = "top",
+        bmargin = 6,
+        toolbarRow,
+        gui.Panel{
+            width = "100%",
+            height = 1,
+            bgimage = "panels/square.png",
+            bgcolor = DS_GOLD_BD_LO,
         },
     }
 end
@@ -5873,7 +6079,8 @@ function MarkdownDocument:LiveEditPanel(args)
             flow = "vertical",
             m_listPanel,
 
-            --click below the last block to append a new paragraph.
+            --click below the last block to append a new paragraph
+            --(hairline-free: this is content space, not chrome).
             gui.Panel{
                 width = "100%",
                 height = 48,
@@ -5891,6 +6098,15 @@ function MarkdownDocument:LiveEditPanel(args)
                     AppendParagraph()
                 end,
             },
+        },
+
+        --hairline above the annotation strip, continuing the design's
+        --row-separation rhythm.
+        gui.Panel{
+            width = "100%",
+            height = 1,
+            bgimage = "panels/square.png",
+            bgcolor = "#c8a45a26",
         },
 
         m_annotationsPanel,

@@ -244,10 +244,13 @@ local function buildBreadcrumbText(doc)
     end
     local reversed = {}
     for i = #parts, 1, -1 do
-        reversed[#reversed + 1] = parts[i]
+        --handoff spec: folder crumbs are uppercase 11px warm-muted labels;
+        --the document name carries the weight at full size.
+        reversed[#reversed + 1] = string.format("<size=11><color=#7a7468>%s</color></size>", string.upper(parts[i]))
     end
     reversed[#reversed + 1] = "**" .. (doc.description or "Untitled") .. "**"
-    return table.concat(reversed, " > ")
+    --gold separators per the design's breadcrumb treatment.
+    return table.concat(reversed, " <color=#c8a45a99>></color> ")
 end
 
 function CustomDocument.GetAccessibleRoots()
@@ -620,12 +623,13 @@ function CustomDocument:CreateInterface(args)
         m_bubbleLockIcon,
         gui.Input {
             text = self.description,
-            fontSize = 14,
-            width = 200,
-            height = 18,
+            fontSize = 20,
+            width = 300,
+            height = 28,
             valign = "center",
             lmargin = 12,
             characterLimit = 48,
+            placeholderText = "Untitled document",
             editable = self:HaveEditPermissions(),
             editlag = 1.0,
             border = {x1 = 1, y1 = 1, x2 = 0, y2 = 0},
@@ -1023,13 +1027,12 @@ function CustomDocument:CreateInterface(args)
     }
 
     local m_searchInput = gui.SearchInput {
-        classes = {"sizeXs", "noBorder"},
-        width = 200,
-        height = 16,
+        classes = {"sizeXs"},
+        width = 240,
+        height = 20,
         halign = "right",
         valign = "center",
         rmargin = 4,
-        bgcolor = "clear",
         placeholderText = "Search journal...",
         popupPositioning = "panel",
         search = function(element, text)
@@ -1111,6 +1114,61 @@ function CustomDocument:CreateInterface(args)
         end,
     }
 
+    --Codex Design System treatment for the journal top bar (the design
+    --project's Journal Toolbar spec, rows 1-2): warm-black bar surface,
+    --hairline row separators, ghost icon buttons that only show chrome on
+    --hover, and a gold-accented selected state. Corner radii are
+    --deliberately left to the user's theme (squared vs rounded). Hardcoded
+    --colors are the same design-trial decision as the format toolbar in
+    --MarkdownDocument.lua.
+    local dsTopBarStyles = {
+        {
+            selectors = { "iconButton" },
+            bgimage = "panels/square.png",
+            bgcolor = "#00000000",
+            border = 1,
+            borderColor = "#00000000",
+        },
+        {
+            selectors = { "iconButton", "hover" },
+            bgcolor = "#1a1a1e",
+            borderColor = "#c8a45a47",
+        },
+        {
+            selectors = { "iconButton", "selected" },
+            bgcolor = "#c8a45a1f",
+            borderColor = "#c8a45a99",
+        },
+        {
+            selectors = { "iconButton", "selected", "hover" },
+            bgcolor = "#c8a45a59",
+            borderColor = "#c8a45a99",
+        },
+        --the search field wears the lighter card-weight edge (gold @ 0.18)
+        --rather than the control-weight border, per the design mock.
+        {
+            selectors = { "searchInput" },
+            borderColor = "#c8a45a2e",
+        },
+        --design icon-button footprint: 34px squares (the themed sizeS
+        --default is smaller); two selectors to match the theme rule's
+        --specificity. The close button (sizeXs) deliberately stays small.
+        {
+            selectors = { "iconButton", "sizeS" },
+            width = 34,
+            height = 34,
+        },
+    }
+
+    local function TopBarHairline()
+        return gui.Panel{
+            width = "100%",
+            height = 1,
+            bgimage = "panels/square.png",
+            bgcolor = "#c8a45a26",
+        }
+    end
+
     local m_topBar = gui.Panel {
         classes = {"surfaceLinear"},
         width = "100%",
@@ -1118,29 +1176,41 @@ function CustomDocument:CreateInterface(args)
         halign = "center",
         valign = "top",
         flow = "vertical",
+        bgimage = "panels/square.png",
+        bgcolor = "#0d0d0d",
+        styles = ThemeEngine.MergeTokens(dsTopBarStyles),
 
-        -- Row 1: breadcrumb + search + close
+        -- Row 1: breadcrumb + search + close. Design metrics: 11px vertical
+        -- breathing room, 16px inset from the edges.
         gui.Panel {
             width = "100%",
-            height = 24,
+            height = 42,
             flow = "horizontal",
+            borderBox = true,
+            hpad = 16,
 
             m_breadcrumb,
             m_searchInput,
             m_closeButton,
         },
 
+        TopBarHairline(),
+
         -- Row 2: tool buttons + document name
         gui.Panel {
-            width = "98%",
+            width = "100%",
             height = "auto",
             flow = "horizontal",
             halign = "left",
             valign = "top",
-            hmargin = 2,
+            borderBox = true,
+            hpad = 16,
+            vpad = 10,
             wrap = true,
             children = m_controlMenuButtons,
         },
+
+        TopBarHairline(),
     }
 
     local monitorGame = nil

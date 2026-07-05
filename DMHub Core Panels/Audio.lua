@@ -440,6 +440,21 @@ local STUDIO_SLOTS = 12
 local AUDIO_SB_GRID_WIDTH = 342
 local AUDIO_SB_GRID_HEIGHT = 264
 
+--M3: board-level asset monitor. Both soundboard grids (dock CreatePlayerGrid and Studio
+--CreateStudioSoundboard) carry ONE monitorAssets="audio" here instead of one per pad --
+--12 subscriptions collapse to 1 per grid. On an audio-table change we fan out to the
+--grid's DIRECT children (the 12 pads) with FireEvent, NOT FireEventTree: a tree fire
+--would also hit each pad's inner floating loop-state watcher panel (see
+--CreateSoundboardButton) and fire a redundant refreshPlayingAudio. This reproduces the
+--old per-pad FireEvent("refreshGame") exactly. refreshGame is read-only wrt the audio
+--table, so firing it from the asset monitor cannot re-enter the monitor. The per-pad
+--monitorGame (each pad's own slot doc) is unaffected -- it stays on the pad.
+local function RefreshSoundboardGridAssets(element)
+	for _,child in ipairs(element.children or {}) do
+		child:FireEvent("refreshGame")
+	end
+end
+
 local CreatePlayerGrid = function()
 	local resultPanel
 	local gridNumber = 1
@@ -466,6 +481,9 @@ local CreatePlayerGrid = function()
 		width = AUDIO_SB_GRID_WIDTH,
 		height = AUDIO_SB_GRID_HEIGHT,
 		halign = "center",
+		--M3: single board-level audio monitor (see RefreshSoundboardGridAssets).
+		monitorAssets = "audio",
+		refreshAssets = RefreshSoundboardGridAssets,
 		data = {
 			gridNumber = 1,
 			--No-rebuild board switch (chunk F, P2): DELETE the old BuildSlots-on-switch
@@ -3342,8 +3360,9 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 		borderBox = true,
 		bgimage = "panels/square.png",
 		popupPositioning = "panel",
+		--M3: the shared audio-table monitor moved up to the grid
+		--(RefreshSoundboardGridAssets); this pad keeps ONLY its own slot-doc monitor.
 		monitorGame = mod:GetDocumentSnapshot(docid).path,
-		monitorAssets = "audio",
 
 		--Studio only: draggable for slot-to-slot swap. Set at build time AND kept
 		--current on every refreshGame/refreshGrid (chunk F, P3) -- edit-mode toggling
@@ -3463,10 +3482,6 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 			--construction time.
 			element.draggable = (isStudio and IsEditMode()) or false
 			element:FireEvent("refreshPlayingAudio")
-		end,
-
-		refreshAssets = function(element)
-			element:FireEvent("refreshGame")
 		end,
 
 		refreshPlayingAudio = function(element)
@@ -7734,6 +7749,9 @@ local CreateStudioSoundboard = function()
 		height = AUDIO_SB_GRID_HEIGHT,
 		halign = "center",
 		vmargin = 4,
+		--M3: single board-level audio monitor (see RefreshSoundboardGridAssets).
+		monitorAssets = "audio",
+		refreshAssets = RefreshSoundboardGridAssets,
 	}
 
 	--Board selector: "Board" label + five segmented buttons. The active board carries

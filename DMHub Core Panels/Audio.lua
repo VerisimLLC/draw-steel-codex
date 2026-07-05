@@ -3451,11 +3451,11 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 				--Pool pad tint override: FillColorHex(nil,...) above returns "clear"
 				--(no asset.color to key off), so paint a neutral pool tint here keyed
 				--off whether any member is currently playing.
-				local anyPlaying = false
-				for _,m in ipairs(VariantPools.Members(poolid)) do
-					if audio.currentlyPlaying[m.id] ~= nil then anyPlaying = true break end
-				end
-				element.selfStyle.bgcolor = anyPlaying and "#5b6a8fE6" or "#5b6a8f4D"
+				--Pool pad lit state keys off THIS pool's own loop (IsLooping), NOT whether a
+				--member clip is sounding: pools share clips, so a member scan lit every pad that
+				--contains a clip some OTHER pool is playing (James's field bug).
+				local poolActive = VariantPools.IsLooping(poolid)
+				element.selfStyle.bgcolor = poolActive and "#5b6a8fE6" or "#5b6a8f4D"
 			end
 			element:SetClass("editMode", IsEditMode())
 			--Dynamic draggable (chunk F, P3): edit-mode toggling no longer rebuilds the
@@ -3473,10 +3473,9 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 			local asset = (assetid ~= nil) and assets.audioTable[assetid] or nil
 			local playing
 			if poolid ~= nil then
-				playing = false
-				for _,m in ipairs(VariantPools.Members(poolid)) do
-					if audio.currentlyPlaying[m.id] ~= nil then playing = true break end
-				end
+				--Pool pad "playing" = THIS pool's own loop running (not a shared member clip
+				--another pool is sounding). One-shot pools have no persistent lit state.
+				playing = VariantPools.IsLooping(poolid)
 			else
 				playing = assetid ~= nil and audio.currentlyPlaying[assetid] ~= nil
 			end

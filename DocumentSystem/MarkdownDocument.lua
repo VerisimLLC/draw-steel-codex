@@ -3696,6 +3696,23 @@ local function CreateMarkdownAutocomplete(opts)
         end
     end
 
+    --Positions a popup for the given input. Hosts can override placement via
+    --opts.GetPopupPositioning(inputElement, bracketPos) (the live editor
+    --anchors popups below the whole block input); the default anchors at the
+    --opening bracket so the popup stays stable as the user types.
+    local function ApplyPopupPositioning(inputElement, bracketPos)
+        if opts.GetPopupPositioning ~= nil then
+            inputElement.popupPositioning = opts.GetPopupPositioning(inputElement, bracketPos)
+            return
+        end
+        local anchorPos = bracketPos and inputElement:GetCharWorldPosition(bracketPos) or nil
+        if anchorPos ~= nil then
+            inputElement.popupPositioning = anchorPos
+        else
+            inputElement.popupPositioning = "panel"
+        end
+    end
+
     -- Link autocomplete helpers
     local autocompleteState = {
         results = {},
@@ -4189,13 +4206,7 @@ local function CreateMarkdownAutocomplete(opts)
                 children = children,
             },
         }
-        -- Position at the opening [ bracket
-        local anchorPos = bracketPos and inputElement:GetCharWorldPosition(bracketPos) or nil
-        if anchorPos ~= nil then
-            inputElement.popupPositioning = anchorPos
-        else
-            inputElement.popupPositioning = "panel"
-        end
+        ApplyPopupPositioning(inputElement, bracketPos)
         inputElement.popupsInheritStyles = true
         inputElement.popup = popup
     end
@@ -4279,12 +4290,7 @@ local function CreateMarkdownAutocomplete(opts)
             },
         }
 
-        local anchorPos = bracketPos and inputElement:GetCharWorldPosition(bracketPos) or nil
-        if anchorPos ~= nil then
-            inputElement.popupPositioning = anchorPos
-        else
-            inputElement.popupPositioning = "panel"
-        end
+        ApplyPopupPositioning(inputElement, bracketPos)
         inputElement.popupsInheritStyles = true
         inputElement.popup = popup
     end
@@ -4818,14 +4824,7 @@ local function CreateMarkdownAutocomplete(opts)
         autocompleteState.results = results
         autocompleteState.selectedIndex = 1
         local popup = BuildAutocompletePopup(inputElement, results)
-        -- Position the popup at the opening bracket so it stays stable
-        -- as the user types. bracketPos is 1-based from FindLinkContext.
-        local anchorPos = inputElement:GetCharWorldPosition(bracketPos)
-        if anchorPos ~= nil then
-            inputElement.popupPositioning = anchorPos
-        else
-            inputElement.popupPositioning = "panel"
-        end
+        ApplyPopupPositioning(inputElement, bracketPos)
         inputElement.popup = popup
     end
 
@@ -4982,6 +4981,13 @@ function MarkdownDocument:LiveEditPanel(args)
             --renew the watchdog grace period so the block is not committed
             --mid-completion.
             m_activateTime = dmhub.Time()
+        end,
+        --anchor popups to the block input's frame rather than the typed
+        --bracket, so the popup never covers the text being edited; it
+        --overlays the rendered blocks below transiently instead, like a
+        --standard code-editor completion popup.
+        GetPopupPositioning = function(inputElement, bracketPos)
+            return "panel"
         end,
     }
 

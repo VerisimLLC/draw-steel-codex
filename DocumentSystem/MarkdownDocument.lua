@@ -5054,9 +5054,12 @@ local function CreateMarkdownToolbar(opts)
     --choice (default vs default-rounded) owns corner radii; our design
     --treatment only overrides color and border weight, so squared/rounded
     --preference is honored throughout the toolbar.
+    --selector arity matters: the theme styles text buttons via
+    --{label, button}, so these rules must carry both selectors (plus
+    --states) to outrank the theme's whiteish border and fill.
     local dsToolbarStyles = {
         {
-            selectors = { "button" },
+            selectors = { "label", "button" },
             bgimage = "panels/square.png",
             bgcolor = DS_SURFACE_2,
             borderColor = DS_GOLD_BD,
@@ -5064,12 +5067,12 @@ local function CreateMarkdownToolbar(opts)
             color = DS_TEXT,
         },
         {
-            selectors = { "button", "hover" },
+            selectors = { "label", "button", "hover" },
             bgcolor = DS_SURFACE_3,
             borderColor = DS_GOLD_BD_HI,
         },
         {
-            selectors = { "button", "press" },
+            selectors = { "label", "button", "press" },
             bgcolor = DS_SURFACE,
             borderColor = DS_GOLD_BD_HI,
         },
@@ -5086,19 +5089,24 @@ local function CreateMarkdownToolbar(opts)
             borderColor = DS_GOLD_BD_HI,
         },
         {
-            selectors = { "dropdownLabel" },
+            selectors = { "label", "dropdownLabel" },
             color = DS_TEXT,
+            fontSize = 14,
+        },
+        {
+            selectors = { "label", "dropdownOption" },
+            fontSize = 14,
         },
         --the one gold-accented button (Draw Steel!): gold-dim fill, bright
         --gold border and text; hover deepens the fill, never moves.
         {
-            selectors = { "button", "dsAccent" },
+            selectors = { "label", "button", "dsAccent" },
             bgcolor = DS_GOLD_DIM,
             borderColor = DS_GOLD_BD_HI,
             color = DS_GOLD,
         },
         {
-            selectors = { "button", "dsAccent", "hover" },
+            selectors = { "label", "button", "dsAccent", "hover" },
             bgcolor = DS_GOLD_FILL_HI,
             borderColor = DS_GOLD_BD_HI,
         },
@@ -5337,6 +5345,7 @@ local function CreateMarkdownToolbar(opts)
         width = "100%",
         height = "auto",
         valign = "top",
+        halign = "left",
         borderBox = true,
         hpad = 16,
         vpad = 8,
@@ -5347,12 +5356,14 @@ local function CreateMarkdownToolbar(opts)
             color = DS_TEXT_SOFT,
             width = "auto",
             height = "auto",
+            halign = "left",
             valign = "center",
             rmargin = 14,
         },
         gui.Dropdown{
-            width = 300,
+            width = 220,
             height = 30,
+            halign = "left",
             options = JournalStylesheet.PickerOptions(),
             idChosen = opts.GetStylesheetId() or "",
             change = function(element)

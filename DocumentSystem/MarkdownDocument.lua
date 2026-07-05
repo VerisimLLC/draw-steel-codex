@@ -5192,6 +5192,10 @@ function MarkdownDocument:LiveEditPanel(args)
     local m_savedContent = nil --the doc content as of the last load/save;
                              --distinguishes local unsaved work from a clean
                              --view so remote refreshes never clobber edits.
+    local m_renderGeneration = 0 --bumped when blocks must re-render even
+                             --with unchanged source (saves adopt merged
+                             --content and annotation configs; stylesheet
+                             --changes; remote adoption).
 
     --link/rich-tag autocomplete + link-info popups on the active block input,
     --shared machinery with the classic editor.
@@ -5493,7 +5497,18 @@ function MarkdownDocument:LiveEditPanel(args)
                 },
             },
             press = function(element)
-                ActivateBlock(element.data.index)
+                --map the click's vertical position within the block to a
+                --source line so the caret lands near where the user aimed.
+                --mousePoint is normalized within the panel with y running
+                --bottom-up (Unity convention); invert for a from-top
+                --fraction. Approximate (rendered heights vary per line),
+                --but far better than always landing at the end.
+                local fraction = nil
+                local point = element.mousePoint
+                if point ~= nil then
+                    fraction = 1 - point.y
+                end
+                ActivateBlock(element.data.index, { fraction = fraction })
             end,
             data = {
                 index = nil,
@@ -5559,11 +5574,26 @@ function MarkdownDocument:LiveEditPanel(args)
                 end
                 wrapper.data.contentPanel.children = { wrapper.data.placeholderLabel }
                 wrapper.data.contentPanel:MakeNonInteractiveRecursive()
+                wrapper.data.renderedSource = nil
             else
-                wrapper.data.contentPanel.children = RenderMarkdownTokens(wrapper.data.ctx, block.tokens)
-                --clicks anywhere on the block must reach the wrapper's press
-                --handler; rendered widgets are inert on this surface (v1).
-                wrapper.data.contentPanel:MakeNonInteractiveRecursive()
+                --only re-render blocks whose source, stylesheet, or render
+                --generation changed; on a typical commit every other block
+                --is byte-identical and reuses its rendered panels as-is.
+                --resolvedStylesheet is memoized, so identity comparison
+                --detects stylesheet edits (ClearCache yields a new table).
+                local source = BlockSource(block)
+                if wrapper.data.renderedSource ~= source
+                   or wrapper.data.renderedStylesheet ~= resolvedStylesheet
+                   or wrapper.data.renderedGeneration ~= m_renderGeneration then
+                    wrapper.data.contentPanel.children = RenderMarkdownTokens(wrapper.data.ctx, block.tokens)
+                    --clicks anywhere on the block must reach the wrapper's
+                    --press handler; rendered widgets are inert on this
+                    --surface (v1).
+                    wrapper.data.contentPanel:MakeNonInteractiveRecursive()
+                    wrapper.data.renderedSource = source
+                    wrapper.data.renderedStylesheet = resolvedStylesheet
+                    wrapper.data.renderedGeneration = m_renderGeneration
+                end
             end
 
             children[#children + 1] = wrapper
@@ -5642,11 +5672,55 @@ function MarkdownDocument:LiveEditPanel(args)
             local caret = #src
             if caretPlacement == "start" then
                 caret = 0
+            elseif type(caretPlacement) == "table" and caretPlacement.fraction ~= nil then
+                --caret at the end of the source line nearest the click's
+                --vertical position within the block.
+                local lineCount = CountLines(src)
+                local targetLine = math.floor(caretPlacement.fraction * lineCount) + 1
+                if targetLine < 1 then targetLine = 1 end
+                if targetLine > lineCount then targetLine = lineCount end
+                local seen = 0
+                caret = #src
+                for i = 1, #src do
+                    if src:sub(i, i) == "\n" then
+                        seen = seen + 1
+                        if seen == targetLine then
+                            caret = i - 1
+                            break
+                        end
+                    end
+                end
             end
             m_editInput:SetTextAndCaret(caret, src)
             m_editInput.hasInputFocus = true
             m_lastEdit = { line = block.lineStart, caret = caret }
         end
+    end
+
+    --Appends a fresh empty paragraph after the last block and opens it for
+    --editing; the click-below-the-document affordance. The new paragraph
+    --gets a synthetic block over a fresh blank line (blank lines belong to
+    --no block, so the partitioner cannot produce one); once the user types
+    --and the block commits, it becomes a real content block.
+    local function AppendParagraph()
+        DeactivateBlock()
+
+        if #m_lines == 0 or trim(m_lines[#m_lines] or "") ~= "" then
+            m_lines[#m_lines + 1] = "" --separator from the last content line.
+        end
+        m_lines[#m_lines + 1] = ""     --the new paragraph's home line.
+
+        RebuildBlockData()
+        if m_blocks[#m_blocks] == nil or not m_blocks[#m_blocks].placeholder then
+            m_blocks[#m_blocks + 1] = {
+                lineStart = #m_lines,
+                lineEnd = #m_lines,
+                tokens = {},
+                placeholder = true,
+            }
+        end
+        RefreshBlockPanels()
+        ActivateBlock(#m_blocks)
     end
 
     --the formatting toolbar, shared with the classic editor. Toolbar clicks
@@ -5692,6 +5766,7 @@ function MarkdownDocument:LiveEditPanel(args)
             m_doc.styleSheetId = (chosen ~= "" and chosen) or false
             ResolveStylesheet.ClearCache()
             m_doc._tmp_styleDirty = true
+            m_renderGeneration = m_renderGeneration + 1
             RefreshBlockPanels()
             if resultPanel ~= nil then
                 resultPanel:SetClassTree("changes", true)
@@ -5758,6 +5833,7 @@ function MarkdownDocument:LiveEditPanel(args)
             m_lastEdit = nil
             SetLinesFromContent(m_doc:GetTextContent())
             m_savedContent = GetContent()
+            m_renderGeneration = m_renderGeneration + 1
             RebuildBlockData()
             RefreshAnnotations(GetContent())
             RefreshBlockPanels()
@@ -5776,6 +5852,7 @@ function MarkdownDocument:LiveEditPanel(args)
             --have merged concurrent remote edits into the stored result.
             SetLinesFromContent(m_doc:GetTextContent())
             m_savedContent = GetContent()
+            m_renderGeneration = m_renderGeneration + 1
             RebuildBlockData()
             RefreshAnnotations(GetContent())
             RefreshBlockPanels()
@@ -5795,6 +5872,25 @@ function MarkdownDocument:LiveEditPanel(args)
             vscroll = true,
             flow = "vertical",
             m_listPanel,
+
+            --click below the last block to append a new paragraph.
+            gui.Panel{
+                width = "100%",
+                height = 48,
+                bgimage = "panels/square.png",
+                styles = {
+                    {
+                        bgcolor = "#00000000",
+                    },
+                    {
+                        selectors = { "hover" },
+                        bgcolor = "#ffffff08",
+                    },
+                },
+                press = function(element)
+                    AppendParagraph()
+                end,
+            },
         },
 
         m_annotationsPanel,

@@ -20,11 +20,106 @@ local function DevSimulateSteamPurchase()
     return dmhub.GetPref("dev:simulateSteamPurchase") == true
 end
 
+--The store background defaults to a looping video (media/shopbg.webm). The MCDM
+--white label instead shows a static branded still (panels/storebg2.png). These
+--helpers keep the choice in one place -- it is used by both the shop screen and
+--its "assets still downloading" loading splash. The video is drawn under a grey
+--multiply tint; the finished still is shown at full brightness (bgcolor white).
+local function StoreBackgroundImage()
+    if dmhub.whiteLabel == "mcdm" then
+        return "panels/storebg2.png"
+    end
+    return "media/shopbg.webm"
+end
+
+local function StoreBackgroundColor()
+    if dmhub.whiteLabel == "mcdm" then
+        return "white"
+    end
+    return "#bbbbbbff"
+end
+
+--First-open loading cover ----------------------------------------------------
+--The shop's art (featured banner images, tile art, product shots) is streamed
+--from the cloud. A panel whose image is still downloading either renders
+--nothing or -- if the panel previously showed the white square.png
+--placeholder -- a flat white rectangle, so the first open of the shop looked
+--broken for a moment while everything popped in. To fix that, the shop keeps
+--a cover (the store background + a loading indicator) on top of the content
+--until the initial page's images have actually arrived, then fades it out.
+--
+--Any image panel wrapped with TrackCoverImage participates: it reports
+--shopImagePending up the tree when created and shopImageReady once its image
+--is loaded (the engine fires imageLoaded on a freshly created panel both for
+--instant cache hits and async downloads). The cover -- built in DisplayShop --
+--counts the reports and reveals when they balance, or after
+--g_shopCoverMaxTime as a backstop so a failed download can't hold the shop
+--hostage. Reports arriving after the reveal (page flips, details view,
+--carousel switches) are ignored.
+
+--How long the cover will wait for tracked images before revealing anyway.
+local g_shopCoverMaxTime = 4
+
+--Fade-out time of the cover once the content is ready.
+local g_shopCoverFadeTime = 0.25
+
+--Wraps a gui.Panel args table (which must carry a bgimage) with the
+--pending/ready reporting above. When fadeIn is set the panel also gets the
+--"shopArtFadeIn" class (see shopStyles): it starts transparent and eases in
+--over 0.2s when its image arrives, so art that lands after the reveal fades
+--in instead of popping.
+local function TrackCoverImage(args, fadeIn)
+	if fadeIn then
+		local classes = args.classes or {}
+		classes[#classes+1] = "shopArtFadeIn"
+		args.classes = classes
+	end
+
+	local oldCreate = args.create
+	args.create = function(element)
+		element:FireEventOnParents("shopImagePending")
+		if oldCreate ~= nil then
+			oldCreate(element)
+		end
+	end
+
+	local m_reported = false
+	local oldImageLoaded = args.imageLoaded
+	args.imageLoaded = function(element)
+		if fadeIn then
+			element:SetClass("loaded", true)
+		end
+		if not m_reported then
+			m_reported = true
+			element:FireEventOnParents("shopImageReady")
+		end
+		if oldImageLoaded ~= nil then
+			oldImageLoaded(element)
+		end
+	end
+
+	return args
+end
+
 local fontWeights = {"thin", "extralight", "light", "regular", "medium", "semibold", "bold", "heavy", "black"}
 
 local heightStretch = 175
 
 local shopStyles = {
+	--Streamed art eases in when its texture arrives (see TrackCoverImage).
+	--The unqualified rule keeps the panel transparent until the "loaded"
+	--class lands; only the loaded rule carries a transitionTime so becoming
+	--visible animates but the initial hidden state is instant.
+	{
+		selectors = {"shopArtFadeIn"},
+		opacity = 0,
+	},
+	{
+		selectors = {"shopArtFadeIn", "loaded"},
+		opacity = 1,
+		transitionTime = 0.2,
+	},
+
 	{
 		selectors = {"collapsedWhenCheckingOut", "checkingOut"},
 		collapsed = 1,
@@ -61,6 +156,10 @@ local shopStyles = {
 	},
 	{
 		selectors = {"collapsedWhenInventory", "inventory"},
+		collapsed = 1,
+	},
+	{
+		selectors = {"collapsedWhenRedeeming", "redeemingCoupon"},
 		collapsed = 1,
 	},
 	{
@@ -346,7 +445,7 @@ local shopStyles = {
 
 		width = "100%",
 		height = "auto",
-		maxHeight = 70,
+		maxHeight = 30,
 		textOverflow = "ellipsis",
 		fontSize = 12,
 		vmargin = 10,
@@ -355,7 +454,7 @@ local shopStyles = {
 	{
 		selectors = {"itemButton"},
 
-		color = Styles.textColor,
+		color = "white",
 		vmargin = 6,
 		fontSize = 14,
 		uppercase = true,
@@ -363,15 +462,15 @@ local shopStyles = {
 		height = 40,
 		bgimage = "panels/square.png",
 		textAlignment = "center",
-		borderColor = "#f6ddb6",
+		borderColor = "white",
 		borderWidth = 2,
 		cornerRadius = 20,
 	},
 	{
 		selectors = {"itemButton", "hover"},
-		color = "#000000cc",
+		color = "black",
 		transitionTime = 0.1,
-		bgcolor = "srgb:#f6ddb6",
+		bgcolor = "white",
 	},
 
 	{
@@ -379,6 +478,7 @@ local shopStyles = {
 		color = "#000000cc",
 		transitionTime = 0.1,
 		bgcolor = "srgb:#f6ddb6",
+		borderColor = "srgb:#f6ddb6",
 	},
 	{
 		selectors = {"itemButton", "checkoutButton", "hover"},
@@ -392,7 +492,7 @@ local shopStyles = {
 		height = 20,
 		width = 20,
 		hmargin = 16,
-		bgcolor = Styles.textColor,
+		bgcolor = "white",
 	},
 
 	{
@@ -402,7 +502,7 @@ local shopStyles = {
 
 	{
 		selectors = {"itemButtonIcon", "parent:hover"},
-		bgcolor = "#000000cc",
+		bgcolor = "black",
 		opacity = 1,
 	},
 
@@ -419,8 +519,9 @@ local shopStyles = {
 		valign = "center",
 
 		flow = "vertical",
+		--Exactly image area (180 + heightStretch) + 21 text tmargin + 160 text.
 		width = 320,
-		height = 420 + heightStretch,
+		height = 361 + heightStretch,
 		hmargin = 30,
 	},
 
@@ -442,7 +543,7 @@ local shopStyles = {
 
 		flow = "vertical",
 		width = 320,
-		height = 220,
+		height = 160,
 		halign = "left",
 	},
 
@@ -581,10 +682,14 @@ local g_supportsSpinAxis = true
 ShopDiceBannerArtWidth = 1232
 ShopDiceBannerArtHeight = 706
 
---On-screen banner size, in solid pixels. Width matches a row of 3 shop items
---(320*3 + 60*2 gaps); height preserves the art's native aspect so the full
+--On-screen banner size, in solid pixels. Width matches the VISIBLE outer
+--edges of a row of 3 shop items: the item slots span 1080 (320*3 + 60*2 gaps),
+--but each card's shopbg.png frame art bleeds past its slot (the 520-wide
+--padded shopItemBackground stretches the 473px-wide art, whose solid region
+--runs from x=73 to x=392), so the perceived row edges sit ~16px outside the
+--slots on each side. Height preserves the art's native aspect so the full
 --image is shown uncropped.
-local g_bannerDisplayWidth = 1080
+local g_bannerDisplayWidth = 1112
 local g_bannerDisplayHeight = math.floor(g_bannerDisplayWidth * ShopDiceBannerArtHeight / ShopDiceBannerArtWidth)
 
 --The banner die is rendered into the shared "#DicePreview" RT at 1/g_bannerDieRtZoom
@@ -642,6 +747,58 @@ local function ReadItemBannerConfig(item)
 		return NormalizeBannerConfig(cfg)
 	end
 	return NormalizeBannerConfig(nil)
+end
+
+--Default per-item shop-tile preview config (item.dicePreview). A Dice item
+--with no config renders its tile the automatic way -- a crop of its banner
+--config zoomed in on the die (see BuildDiceTileLayers); when the admin
+--customizes the preview display the item carries one of these instead and the
+--tile becomes a mini banner of its own. The stored C# shape is shared with the
+--banner config; tiles draw no text overlay, so the text fields are unused
+--here. dieX/dieY are fractions of the TILE (die at its center by default);
+--dieSize is in base tile pixels (0 = auto); diceScale matches the pooled tile
+--scenes' engine default (DiceSetPreviewManager.TileDiceScale) so an untouched
+--slider changes nothing.
+local g_dicePreviewDefaults = {
+	backgroundImage = "",
+	foregroundImage = "",
+	diceScale = 3.0,
+	dieX = 0.5,
+	dieY = 0.5,
+	dieSize = 0,
+	spinDirection = 0,
+}
+
+--Returns a full preview config: defaults overlaid with any fields present in
+--cfg (may be nil or partial).
+local function NormalizePreviewConfig(cfg)
+	local result = {}
+	for k,v in pairs(g_dicePreviewDefaults) do
+		result[k] = v
+	end
+	if type(cfg) == "table" then
+		for k,_ in pairs(g_dicePreviewDefaults) do
+			if cfg[k] ~= nil then
+				result[k] = cfg[k]
+			end
+		end
+	end
+	return result
+end
+
+--Reads item.dicePreview defensively. Returns a normalized config, or nil when
+--the item has no custom preview config (or the engine binary predates the
+--dicePreview bridge property) -- nil means "automatic": the tile derives its
+--look from the banner config, as it always has.
+local function ReadItemPreviewConfig(item)
+	if item == nil then
+		return nil
+	end
+	local ok, cfg = pcall(function() return item.dicePreview end)
+	if ok and type(cfg) == "table" then
+		return NormalizePreviewConfig(cfg)
+	end
+	return nil
 end
 
 --Maps a placement preset + pixel offset onto a floating text panel. The panel
@@ -742,16 +899,24 @@ local MakeDiceBanner = function(opts)
 	--  * adminPreview: drag it on the banner to set the die POSITION. dragMove lets
 	--    the engine move it (and its render child) live; 'drag' (on release) bakes
 	--    the final spot (via dragDelta), clamps it, reports dieX/dieY via 'dieDragged'.
-	--  * detailsMode (shop showcase): grab it to SPIN the die. beginDrag flips the
-	--    shared preview scene into drag mode (cursor motion drives the spin velocity
-	--    and direction); on release it decays back to the gentle idle spin (handled
-	--    C#-side in DicePreviewScene). The box itself stays put (dragMove off).
+	--  * spin (shop showcase detailsMode, and the top featured banner via
+	--    opts.spinnable): grab it to SPIN the die. beginDrag flips the shared preview
+	--    scene into drag mode (cursor motion drives the spin velocity and direction);
+	--    on release it decays back to the gentle idle spin (handled C#-side in
+	--    DicePreviewScene). The box itself stays put (dragMove off).
 	--Other banners leave the die non-interactive.
+	local spinDrag = opts.detailsMode == true or opts.spinnable == true
 	local diePanel = gui.Panel{
 		floating = true,
 		interactable = false,
 		bgimage = "#DicePreview",
 		bgcolor = "white",
+		--The transparent preview RT is premultiplied (rendered over an alpha-0 clear) with an
+		--engine-reconstructed alpha channel (DicePreviewScene's alpha fix). Premultiplied
+		--compositing keeps additive dice FX (appearance/exit bursts, embers) from knocking
+		--the banner art behind them out to black, and stops alpha-blended smoke being
+		--double-darkened.
+		blend = "premultiplied",
 		width = m_dieSize,
 		height = m_dieSize,
 		halign = "center",
@@ -760,9 +925,14 @@ local MakeDiceBanner = function(opts)
 
 	local dieHit = gui.Panel{
 		floating = true,
-		interactable = opts.adminPreview == true or opts.detailsMode == true,
-		draggable = opts.adminPreview == true or opts.detailsMode == true,
+		interactable = opts.adminPreview == true or spinDrag,
+		draggable = opts.adminPreview == true or spinDrag,
 		dragMove = opts.adminPreview == true,
+		--Keep the normal (default) cursor while the die is interactive. Because
+		--dieHit is the dragged panel, this also becomes the cursor for the whole
+		--drag (see SheetPanel.GetHoveredMouseCursor), which suppresses the default
+		--"forbidden" drag cursor a draggable panel shows when it has no drop target.
+		hoverCursor = cond(opts.adminPreview == true or spinDrag, "default", nil),
 		--Transparent, but a bgimage keeps a solid (bounding-box) hit surface.
 		bgimage = "panels/square.png",
 		bgcolor = "clear",
@@ -772,13 +942,13 @@ local MakeDiceBanner = function(opts)
 		valign = "top",
 
 		beginDrag = function(element)
-			if opts.detailsMode then
+			if spinDrag then
 				dice.GetPreviewScene().dragging = true
 			end
 		end,
 
 		drag = function(element)
-			if opts.detailsMode then
+			if spinDrag then
 				--Release: stop feeding cursor input; the spin coasts and decays.
 				dice.GetPreviewScene().dragging = false
 				return
@@ -799,52 +969,44 @@ local MakeDiceBanner = function(opts)
 		diePanel,
 	}
 
-	--A two-panel cross-fade image layer sized to the full banner. setImage
-	--swaps the shown image instantly (admin/details/first show); crossfadeImage
+	--A cross-fade image layer sized to the full banner. setImage swaps the
+	--shown image instantly (admin/details/first show); crossfadeImage
 	--dissolves from the current image to a new one over g_bannerCrossfadeTime
-	--seconds (carousel switch). The two stacked panels alternate the "fade"
-	--(opacity 0) class so one dissolves out as the other dissolves in.
+	--seconds (carousel switch). Each image gets a FRESHLY CREATED panel rather
+	--than recycling a shared pair: the engine keeps a brand-new panel
+	--invisible until its texture has actually loaded (and fires imageLoaded on
+	--it, feeding the first-open cover via TrackCoverImage), whereas re-setting
+	--bgimage on a live panel leaves its previous sprite -- the flat white
+	--square.png placeholder -- on screen for the whole download. That white
+	--flash is what made the shop's first open look broken.
 	local function MakeCrossfadeImageLayer()
-		local m_active, m_idle
+		--The panel currently showing (or fading in), and the previous one
+		--still dissolving out; the latter is destroyed on the next swap.
+		local m_active = nil
+		local m_fadingOut = nil
 
-		--A layer image, or transparent (alpha-0 bgcolor) when the field is empty
-		--(cleared) -- keeping the panel solidly sized either way.
-		local function ApplyImage(panel, image)
-			if image ~= nil and image ~= "" then
-				panel.bgimage = image
-				panel.selfStyle.bgcolor = "white"
-			else
-				panel.bgimage = "panels/square.png"
-				panel.selfStyle.bgcolor = "clear"
+		--The image currently applied. Repeated applies of the same image are
+		--no-ops (the old bgimage-setter short-circuit): the admin editor
+		--re-applies the whole config on every slider tick, which must not
+		--churn out a fresh panel each time.
+		local m_image = nil
+
+		local function MakeLayerPanel(image)
+			if image == nil or image == "" then
+				return nil
 			end
+			return gui.Panel(TrackCoverImage{
+				classes = {"xfadeLayer", "fade"},
+				floating = true,
+				interactable = false,
+				bgimage = image,
+				bgcolor = "white",
+				halign = "left",
+				valign = "top",
+				width = bannerWidth,
+				height = imageHeight,
+			})
 		end
-
-		local panelA = gui.Panel{
-			classes = {"xfadeLayer"},
-			floating = true,
-			interactable = false,
-			bgimage = "panels/square.png",
-			bgcolor = "clear",
-			halign = "left",
-			valign = "top",
-			width = bannerWidth,
-			height = imageHeight,
-		}
-
-		local panelB = gui.Panel{
-			classes = {"xfadeLayer", "fade"},
-			floating = true,
-			interactable = false,
-			bgimage = "panels/square.png",
-			bgcolor = "clear",
-			halign = "left",
-			valign = "top",
-			width = bannerWidth,
-			height = imageHeight,
-		}
-
-		m_active = panelA
-		m_idle = panelB
 
 		return gui.Panel{
 			floating = true,
@@ -865,27 +1027,40 @@ local MakeDiceBanner = function(opts)
 				},
 			},
 
-			panelA,
-			panelB,
-
-			--Instant swap (no dissolve): set the active layer's image and make
-			--sure only it is visible.
+			--Instant swap (no dissolve): replace everything with a fresh panel
+			--showing the image (or nothing, when the field is empty/cleared).
 			setImage = function(element, image)
-				ApplyImage(m_active, image)
-				m_active:SetClassImmediate("fade", false)
-				m_idle:SetClassImmediate("fade", true)
+				if image == m_image then
+					return
+				end
+				m_image = image
+				m_active = MakeLayerPanel(image)
+				m_fadingOut = nil
+				element.children = {m_active}
+				if m_active ~= nil then
+					m_active:SetClassImmediate("fade", false)
+				end
 			end,
 
-			--Dissolve from the current image to a new one: paint the idle layer
-			--with the new image, fade it in while fading the active one out, then
-			--swap their roles.
+			--Dissolve from the current image to a new one: fade a fresh panel
+			--in over the old one fading out.
 			crossfadeImage = function(element, image)
-				ApplyImage(m_idle, image)
-				m_idle:SetClass("fade", false)
-				m_active:SetClass("fade", true)
-				local swap = m_active
-				m_active = m_idle
-				m_idle = swap
+				if image == m_image then
+					return
+				end
+				m_image = image
+				if m_fadingOut ~= nil then
+					m_fadingOut:DestroySelf()
+				end
+				m_fadingOut = m_active
+				m_active = MakeLayerPanel(image)
+				if m_active ~= nil then
+					element:AddChild(m_active)
+					m_active:SetClass("fade", false)
+				end
+				if m_fadingOut ~= nil then
+					m_fadingOut:SetClass("fade", true)
+				end
 			end,
 		}
 	end
@@ -1075,7 +1250,7 @@ local MakeDiceBanner = function(opts)
 		--views. The passive admin-preview and details-showcase banners manage
 		--their own visibility, so they skip these classes (otherwise the details
 		--banner would vanish when viewing a dice item from the inventory).
-		classes = cond(opts.adminPreview or opts.detailsMode, {}, {"collapseOnCart", "collapsedWhenInventory", "collapsedWhenArtistFocus"}),
+		classes = cond(opts.adminPreview or opts.detailsMode, {}, {"collapseOnCart", "collapsedWhenInventory", "collapsedWhenArtistFocus", "collapsedWhenRedeeming"}),
 		width = bannerWidth,
 		--Solid pixel height matching the 1232x706 art aspect, so the full image
 		--shows uncropped. ApplyConfig sets the background image / transparency.
@@ -1106,7 +1281,7 @@ local MakeDiceBanner = function(opts)
 			},
 			{
 				selectors = {"itemButton"},
-				color = Styles.textColor,
+				color = "white",
 				vmargin = 6,
 				fontSize = 14,
 				uppercase = true,
@@ -1114,15 +1289,15 @@ local MakeDiceBanner = function(opts)
 				height = 40,
 				bgimage = "panels/square.png",
 				textAlignment = "center",
-				borderColor = "#f6ddb6",
+				borderColor = "white",
 				borderWidth = 2,
 				cornerRadius = 20,
 			},
 			{
 				selectors = {"itemButton", "hover"},
-				color = "#000000cc",
+				color = "black",
 				transitionTime = 0.1,
-				bgcolor = "srgb:#f6ddb6",
+				bgcolor = "white",
 			},
 
 			--Carousel text-box fade: toggling "faded" dissolves the whole text
@@ -1156,8 +1331,8 @@ local MakeDiceBanner = function(opts)
 				return
 			end
 
-			--Carousel up to three random featured dice; the dots in the
-			--bottom-right corner switch between them.
+			--Carousel up to three random featured dice; the dots below the
+			--banner's bottom-left corner switch between them.
 			m_featuredItems = SelectFeaturedDice()
 
 			--Fallback when nothing is flagged featured: show the first dice
@@ -1183,6 +1358,37 @@ local MakeDiceBanner = function(opts)
 				element.thinkTime = 0.01
 				element:FireEventTree("buildFeaturedDots", #m_featuredItems)
 				ShowFeatured(1)
+
+				--Warm the OTHER featured sets' banner art right away (setting a
+				--bgimage starts the download even on an invisible 1px panel), so
+				--the first carousel cross-fades dissolve onto already-loaded
+				--images instead of onto art that pops in mid-fade.
+				local warm = {}
+				for i = 2, #m_featuredItems do
+					local cfg = ReadItemBannerConfig(m_featuredItems[i])
+					for _,img in ipairs({cfg.backgroundImage, cfg.foregroundImage}) do
+						if img ~= nil and img ~= "" then
+							warm[#warm+1] = gui.Panel{
+								interactable = false,
+								width = 1,
+								height = 1,
+								bgcolor = "clear",
+								bgimage = img,
+							}
+						end
+					end
+				end
+				if #warm > 0 then
+					element:AddChild(gui.Panel{
+						interactable = false,
+						floating = true,
+						halign = "left",
+						valign = "top",
+						width = 1,
+						height = 1,
+						children = warm,
+					})
+				end
 			end
 		end,
 
@@ -1243,9 +1449,9 @@ local MakeDiceBanner = function(opts)
 				return
 			end
 
-			--Cart/inventory views hide the top featured banner; the details
+			--Cart/inventory/redeem views hide the top featured banner; the details
 			--showcase still drives the scene in those views.
-			if not opts.detailsMode and (element:HasClass("showingCart") or element:HasClass("inventory")) then
+			if not opts.detailsMode and (element:HasClass("showingCart") or element:HasClass("inventory") or element:HasClass("redeemingCoupon")) then
 				return
 			end
 
@@ -1400,32 +1606,34 @@ local MakeDiceBanner = function(opts)
 			},
 		},
 
-		--Carousel dots tucked into the very bottom-right corner: one per featured
-		--dice set, with the currently shown one lit. Clicking a dot cross-fades
-		--to that set. Built by buildFeaturedDots (fired once the featured set is
-		--chosen); stays empty in the admin preview / details showcase.
+		--Carousel dots: one per featured dice set, with the currently shown one
+		--lit. Clicking a dot cross-fades to that set. Floated below the banner
+		--image at its left edge, vertically centered on the search-bar row that
+		--occupies the gap under the banner (11px gap + 24px input, so y = 23 + 8
+		--half-height of the 16px dots). Built by buildFeaturedDots (fired once
+		--the featured set is chosen); stays empty in the admin preview / details
+		--showcase.
 		gui.Panel{
 			floating = true,
 			flow = "horizontal",
-			halign = "right",
+			halign = "left",
 			valign = "bottom",
 			width = "auto",
 			height = "auto",
-			hmargin = 6,
-			vmargin = 5,
+			hmargin = 0,
+			vmargin = 0,
+			y = 31,
 
 			styles = {
 				{
 					selectors = {"featuredDot"},
 					bgimage = "panels/square.png",
-					width = 16,
-					height = 16,
-					cornerRadius = 8,
+					width = 12,
+					height = 12,
+					cornerRadius = 6,
 					hmargin = 5,
 					valign = "center",
 					bgcolor = "#ffffff66",
-					borderWidth = 1,
-					borderColor = "#00000080",
 					transitionTime = 0.1,
 				},
 				{
@@ -1497,6 +1705,331 @@ ShopDiceBanner = {
 --swaps to a fresh pooled preview and the old one is evicted engine-side.
 local g_dicePreviewSeq = 0
 
+--Base (unscaled) dimensions of a shop tile's image area (see the shopImage
+--style / MakeShopImageDisplay, which multiply these by a per-instance
+--uiscale). A per-item preview-display config positions its art and die in
+--this space; instances at other scales (grid fullBleed, cart rows, details
+--page) scale the whole composition proportionally.
+local g_tileBaseWidth = 325
+local g_tileBaseHeight = 180 + heightStretch
+
+--Builds the composited layer panels for a Dice item's shop tile, shared by
+--the real shop tiles (MakeShopImageDisplay.refreshDicePreview) and the
+--ShopAdmin live preview (MakeDicePreviewTile). Returns (children, dieRect):
+--children go inside a clip panel of args.tileW x args.tileH; dieRect
+--{x, y, size} is the die box in tile coords (custom mode only, for the admin
+--drag hit box), nil otherwise.
+--
+--args = { tileW, tileH, assetid, seq, previewCfg, bannerCfg }
+--
+--previewCfg == nil (automatic): the tile is a cropped view of the item's
+--BANNER config -- the chosen background art zoomed in and centered on the
+--configured die position, with the item's own live 3D die composited on top.
+--Mirrors how the details banner composites background + die, but tightly
+--framed on the die for the tile.
+--
+--previewCfg ~= nil (customized): the tile is a mini banner of its own -- the
+--preview config's art fills the tile, and the die is positioned (dieX/dieY,
+--fractions of the tile), sized (dieSize, base tile pixels, 0 = auto), scaled
+--and spun (diceScale/spinDirection, carried in the preview key) by the config.
+local function BuildDiceTileLayers(args)
+	local tileW = args.tileW
+	local tileH = args.tileH
+	local children = {}
+
+	--IMPORTANT: layers must NOT be built as oversized panels that get visually
+	--clipped: a panel's bounding box takes mouse hits even where it is clipped,
+	--so oversized layers made each tile steal presses from a huge area of the
+	--screen (e.g. the search box and the gaps between cards, opening the wrong
+	--item's details). Instead each layer panel is exactly the visible
+	--intersection with the tile, with the crop done in UV space via imageRect.
+	--Returns nil if the layer is entirely cropped.
+	--
+	--blendMode is optional; the live-die layer passes "premultiplied" because
+	--the dice preview RT is premultiplied with a reconstructed alpha (see the
+	--banner's diePanel comment). Art layers use the default straight-alpha blend.
+	local function MakeCroppedLayer(image, w, h, offsetX, offsetY, blendMode)
+		local x1 = math.max(0, offsetX)
+		local y1 = math.max(0, offsetY)
+		local x2 = math.min(tileW, offsetX + w)
+		local y2 = math.min(tileH, offsetY + h)
+		if x2 <= x1 or y2 <= y1 then
+			return nil
+		end
+
+		local layerArgs = {
+			interactable = false,
+			floating = true,
+			bgimage = image,
+			bgcolor = "white",
+			blend = blendMode,
+			width = x2 - x1,
+			height = y2 - y1,
+			halign = "left",
+			valign = "top",
+			x = x1,
+			y = y1,
+			imageRect = {
+				x1 = (x1 - offsetX)/w,
+				y1 = (y1 - offsetY)/h,
+				x2 = (x2 - offsetX)/w,
+				y2 = (y2 - offsetY)/h,
+			},
+		}
+
+		--Streamed art layers report to the first-open cover and fade in when
+		--their texture arrives. The live-die "#DicePreview" layers are lazy
+		--RenderTextures with their own lifecycle: the engine already keeps
+		--them hidden until their first rendered frame, and the cover must not
+		--wait on them -- a die's dice ASSET can take several seconds to stream
+		--in cold, and holding the whole shop for that reads as a hang.
+		if string.sub(image, 1, 1) ~= "#" then
+			layerArgs = TrackCoverImage(layerArgs, true)
+		end
+
+		return gui.Panel(layerArgs)
+	end
+
+	local assetid = args.assetid
+	if assetid == nil or assetid == "" then
+		return children, nil
+	end
+
+	if args.previewCfg ~= nil then
+		--Customized preview display: a mini banner in tile space.
+		local cfg = args.previewCfg
+
+		--Art layers fill the tile exactly (author art at the tile's aspect;
+		--see ShopDicePreview.artWidth/artHeight for the recommended size).
+		--Tracked + fade-in like MakeCroppedLayer's art layers.
+		local function FullTileLayer(image)
+			return gui.Panel(TrackCoverImage({
+				interactable = false,
+				floating = true,
+				bgimage = image,
+				bgcolor = "white",
+				width = tileW,
+				height = tileH,
+				halign = "left",
+				valign = "top",
+				x = 0,
+				y = 0,
+			}, true))
+		end
+
+		if cfg.backgroundImage ~= nil and cfg.backgroundImage ~= "" then
+			children[#children+1] = FullTileLayer(cfg.backgroundImage)
+		end
+
+		--The die box, in base tile pixels scaled to this instance's tile size.
+		--The preview RT is transparent outside the die; any part of the box
+		--hanging past the tile is cropped away like the art layers.
+		local scale = tileW / g_tileBaseWidth
+		local dieSize = cfg.dieSize
+		if dieSize == nil or dieSize <= 0 then
+			dieSize = math.floor(g_tileBaseHeight * 1.5)
+		end
+		dieSize = math.floor(dieSize * scale)
+		local dieX = math.floor(tileW * cfg.dieX - dieSize/2)
+		local dieY = math.floor(tileH * cfg.dieY - dieSize/2)
+
+		--Die scale + spin direction ride in the preview key, parsed engine-side
+		--by DiceSetPreviewManager (older engine builds just ignore the extra
+		--segments). %.2f quantizes slider edits so a drag doesn't mint a new
+		--pooled scene every tick.
+		local dieKey = string.format("#DicePreview:%s:%s:%.2f:%.2f",
+			tostring(assetid), tostring(args.seq),
+			cfg.diceScale or g_dicePreviewDefaults.diceScale,
+			cfg.spinDirection or 0)
+		children[#children+1] = MakeCroppedLayer(
+			dieKey,
+			dieSize, dieSize,
+			dieX, dieY,
+			"premultiplied")
+
+		--Foreground art (in front of the die), added last so it draws on top.
+		if cfg.foregroundImage ~= nil and cfg.foregroundImage ~= "" then
+			children[#children+1] = FullTileLayer(cfg.foregroundImage)
+		end
+
+		return children, { x = dieX, y = dieY, size = dieSize }
+	end
+
+	--Automatic: derive from the banner config.
+	local cfg = args.bannerCfg or NormalizeBannerConfig(nil)
+
+	--Banner-space dimensions the die position (dieX/dieY) is relative to.
+	local bannerW = g_bannerDisplayWidth
+	local bannerH = g_bannerDisplayHeight
+
+	--Show roughly this fraction of the banner height inside the tile (the rest
+	--is cropped away), zooming in on the die. Kept ~= 1/dieZoom below so the
+	--die sits on its background at banner-faithful proportions.
+	local cropFrac = 0.667
+	local zoom = tileH / (bannerH * cropFrac)
+	local scaledW = bannerW * zoom
+	local scaledH = bannerH * zoom
+
+	--The background and foreground art share the banner's full-image coordinate
+	--space: each is conceptually scaled to scaledW x scaledH and offset by the
+	--same amount so the die point (dieX,dieY) lands at the tile center. (The
+	--banner draws background behind the die and foreground -- e.g. hands
+	--holding the die -- in front of it.)
+	local layerX = math.floor(tileW*0.5 - cfg.dieX*scaledW)
+	local layerY = math.floor(tileH*0.5 - cfg.dieY*scaledH)
+	local function MakeBannerLayer(image)
+		return MakeCroppedLayer(image, scaledW, scaledH, layerX, layerY)
+	end
+
+	--Chosen background art (behind the die).
+	if cfg.backgroundImage ~= nil and cfg.backgroundImage ~= "" then
+		children[#children+1] = MakeBannerLayer(cfg.backgroundImage)
+	end
+
+	--The live die. The preview RT is transparent outside the die, so the panel
+	--is oversized (dieZoom) to bring the die up close; the empty margin is
+	--cropped away by MakeCroppedLayer just like the art layers. Lower = more
+	--space around the die.
+	local dieZoom = 1.5
+	local dieSize = math.floor(tileH * dieZoom)
+	children[#children+1] = MakeCroppedLayer(
+		"#DicePreview:" .. tostring(assetid) .. ":" .. tostring(args.seq),
+		dieSize, dieSize,
+		math.floor((tileW - dieSize)/2), math.floor((tileH - dieSize)/2),
+		"premultiplied")
+
+	--Chosen foreground art (in front of the die), added last so it draws on
+	--top -- matching the details banner's frontPanel.
+	if cfg.foregroundImage ~= nil and cfg.foregroundImage ~= "" then
+		children[#children+1] = MakeBannerLayer(cfg.foregroundImage)
+	end
+
+	return children, nil
+end
+
+--A passive live preview of a Dice item's shop tile for the admin editor,
+--mirroring ShopDiceBanner.Create{adminPreview = true}. Drive it with
+--panel:FireEventTree("applyPreviewConfig", payload) where payload = {
+--  cfg = <normalized preview config, or nil for automatic mode>,
+--  bannerCfg = <normalized banner config (automatic mode derives from it)>,
+--  item = <ShopItemLua>,
+--}. In customized mode the die can be dragged to reposition it; the release
+--fires "previewDieDragged" { dieX = ..., dieY = ... } up the parents (like
+--the banner's dieDragged).
+local MakeDicePreviewTile = function(opts)
+	opts = opts or {}
+	--Editing scale: the composition is authored in base tile space and shown
+	--scale-times larger (1.5 matches the details-page tile exactly).
+	local scale = opts.scale or 1
+	local tileW = math.floor(g_tileBaseWidth * scale)
+	local tileH = math.floor(g_tileBaseHeight * scale)
+
+	g_dicePreviewSeq = g_dicePreviewSeq + 1
+	local mySeq = g_dicePreviewSeq
+
+	--True die-box center in tile pixels. Tracked separately from the hit box
+	--because the hit box is CLAMPED to the tile (see applyPreviewConfig): the
+	--auto die box is larger than the tile, and a panel's bounding box takes
+	--mouse hits even where it hangs outside the tile, so an unclamped hit box
+	--would cover -- and steal clicks from -- the editor controls around the
+	--preview (section headers, checkboxes).
+	local m_dieCenter = { x = tileW/2, y = tileH/2 }
+
+	local clipPanel = gui.Panel{
+		interactable = false,
+		clip = true,
+		clipHidden = true,
+		bgimage = "panels/square.png",
+		bgcolor = "clear",
+		halign = "left",
+		valign = "top",
+		width = tileW,
+		height = tileH,
+	}
+
+	--Invisible drag box tracking the die position (customized mode only;
+	--collapsed in automatic mode). Mirrors the banner's dieHit.
+	local dieHit = gui.Panel{
+		classes = {"collapsed"},
+		floating = true,
+		draggable = true,
+		dragMove = true,
+		--Transparent, but a bgimage keeps a solid (bounding-box) hit surface.
+		bgimage = "panels/square.png",
+		bgcolor = "clear",
+		width = 100,
+		height = 100,
+		halign = "left",
+		valign = "top",
+
+		drag = function(element)
+			--Report the dragged die center; the resulting config edit re-fires
+			--applyPreviewConfig, which re-renders the tile and re-lays-out this
+			--hit box, so nothing needs baking here.
+			local dieX = clamp((m_dieCenter.x + element.dragDelta.x) / tileW, 0, 1)
+			local dieY = clamp((m_dieCenter.y + element.dragDelta.y) / tileH, 0, 1)
+			element:FireEventOnParents("previewDieDragged", { dieX = dieX, dieY = dieY })
+		end,
+	}
+
+	return gui.Panel{
+		width = tileW,
+		height = tileH,
+		halign = "left",
+		--Dark backdrop + border so transparent layers and the tile bounds read
+		--clearly inside the editor.
+		bgimage = "panels/square.png",
+		bgcolor = "#111111ff",
+		borderWidth = 1,
+		borderColor = "#666666ff",
+
+		applyPreviewConfig = function(element, payload)
+			local children, dieRect = BuildDiceTileLayers{
+				tileW = tileW,
+				tileH = tileH,
+				assetid = (payload.item ~= nil and payload.item.assetid) or nil,
+				seq = mySeq,
+				previewCfg = payload.cfg,
+				bannerCfg = payload.bannerCfg,
+			}
+			clipPanel.children = children
+
+			if dieRect ~= nil then
+				--Clamp the hit box to the visible intersection of the die box
+				--with the tile (see m_dieCenter above for why).
+				local x1 = math.max(0, dieRect.x)
+				local y1 = math.max(0, dieRect.y)
+				local x2 = math.min(tileW, dieRect.x + dieRect.size)
+				local y2 = math.min(tileH, dieRect.y + dieRect.size)
+				m_dieCenter = { x = dieRect.x + dieRect.size/2, y = dieRect.y + dieRect.size/2 }
+				dieHit.width = math.max(1, x2 - x1)
+				dieHit.height = math.max(1, y2 - y1)
+				dieHit.x = x1
+				dieHit.y = y1
+			end
+			dieHit:SetClass("collapsed", dieRect == nil)
+		end,
+
+		clipPanel,
+		dieHit,
+	}
+end
+
+--Expose the tile-preview machinery so the Shop admin editor (a separate
+--module) can render an exact live preview of a Dice item's shop tile while
+--editing its preview-display config. Mirrors ShopDiceBanner above.
+ShopDicePreview = {
+	Create = MakeDicePreviewTile,
+	NormalizeConfig = NormalizePreviewConfig,
+	ReadItemConfig = ReadItemPreviewConfig,
+	defaults = g_dicePreviewDefaults,
+	tileWidth = g_tileBaseWidth,
+	tileHeight = g_tileBaseHeight,
+	--Recommended source art size: 2x the base tile, matching its aspect.
+	artWidth = g_tileBaseWidth * 2,
+	artHeight = g_tileBaseHeight * 2,
+}
+
 local MakeShopImageDisplay = function(options)
 	options = options or {}
 	local uiscale = options.uiscale or 1
@@ -1504,6 +2037,11 @@ local MakeShopImageDisplay = function(options)
 
 	local footer = options.footer
 	options.footer = nil
+
+	--Grid cards bleed the dice preview out to the visible edges of the card
+	--frame art so there is no grey border beside or above the image.
+	local fullBleed = options.fullBleed
+	options.fullBleed = nil
 
 	g_dicePreviewSeq = g_dicePreviewSeq + 1
 	local mySeq = g_dicePreviewSeq
@@ -1550,89 +2088,55 @@ local MakeShopImageDisplay = function(options)
 		end,
 
 		refreshImage = function(element, imageid)
+			local iconArgs = {
+				classes = {"shopIcon"},
+				uiscale = uiscale,
+				bgimage = imageid,
+			}
+			--Track/fade only when there is a real image; a nil bgimage never
+			--fires imageLoaded and would hold the first-open cover until its
+			--timeout.
+			if imageid ~= nil and imageid ~= "" then
+				iconArgs = TrackCoverImage(iconArgs, true)
+			end
 			element.children = {
 				bg,
-				gui.Panel{
-					classes = {"shopIcon"},
-					uiscale = uiscale,
-					bgimage = imageid,
-				},
+				gui.Panel(iconArgs),
 			}
 		end,
 
-		--Builds a cropped view of the dice banner for this item: the chosen
-		--background art zoomed in and centered on the configured die position,
-		--with the item's own live 3D die ("#DicePreview:<assetid>:<seq>")
-		--composited on top. Mirrors how the details banner composites
-		--background + die, but tightly framed on the die for the tile.
+		--Builds this item's dice tile via BuildDiceTileLayers: either the
+		--automatic banner-derived crop, or -- when the item carries a custom
+		--dicePreview config -- its own mini-banner composition. Either way the
+		--item's own live 3D die ("#DicePreview:<assetid>:<seq>[:params]") is
+		--composited between the art layers.
 		refreshDicePreview = function(element, item)
-			local cfg = ReadItemBannerConfig(item)
-
 			local tileW = 325*uiscale
 			local tileH = (180 + heightStretch)*uiscale
 
-			--Banner-space dimensions the die position (dieX/dieY) is relative to.
-			local bannerW = g_bannerDisplayWidth
-			local bannerH = g_bannerDisplayHeight
-
-			--Show roughly this fraction of the banner height inside the tile
-			--(the rest is cropped away), zooming in on the die. Kept ~= 1/dieZoom
-			--below so the die sits on its background at banner-faithful proportions.
-			local cropFrac = 0.667
-			local zoom = tileH / (bannerH * cropFrac)
-			local scaledW = bannerW * zoom
-			local scaledH = bannerH * zoom
-
-			local clipChildren = {}
-
-			--The background and foreground art share the banner's full-image
-			--coordinate space: each is oversized and offset by the same amount so the
-			--die point (dieX,dieY) lands at the tile center; the clip window crops the
-			--rest. (The banner draws background behind the die and foreground -- e.g.
-			--hands holding the die -- in front of it.)
-			local layerX = math.floor(tileW*0.5 - cfg.dieX*scaledW)
-			local layerY = math.floor(tileH*0.5 - cfg.dieY*scaledH)
-			local function MakeBannerLayer(image)
-				return gui.Panel{
-					interactable = false,
-					floating = true,
-					bgimage = image,
-					bgcolor = "white",
-					width = scaledW,
-					height = scaledH,
-					halign = "left",
-					valign = "top",
-					x = layerX,
-					y = layerY,
-				}
+			--Full bleed: cover the visible card frame flush to its side and top
+			--edges instead of sitting inside it. The solid region of shopbg.png
+			--is 352px wide as drawn by the padded shopItemBackground (320px of
+			--the 473px art, stretched by 520/473) and starts 8px above the item
+			--panel's top (see the vpad tuning there), so scale the tile up
+			--proportionally (keeping its aspect) and nudge it up to meet the
+			--frame's top edge.
+			local tileY = 0
+			if fullBleed then
+				local bleedScale = 352/325
+				tileW = tileW * bleedScale
+				tileH = tileH * bleedScale
+				tileY = -8*uiscale
 			end
 
-			--Chosen background art (behind the die).
-			if cfg.backgroundImage ~= nil and cfg.backgroundImage ~= "" then
-				clipChildren[#clipChildren+1] = MakeBannerLayer(cfg.backgroundImage)
-			end
-
-			--The live die. The preview RT is transparent outside the die, so the
-			--panel is oversized (dieZoom) to bring the die up close; the empty
-			--margin simply overflows and is clipped. Lower = more space around the die.
-			local dieZoom = 1.5
-			local dieSize = math.floor(tileH * dieZoom)
-			clipChildren[#clipChildren+1] = gui.Panel{
-				interactable = false,
-				floating = true,
-				bgimage = "#DicePreview:" .. tostring(item.assetid) .. ":" .. tostring(mySeq),
-				bgcolor = "white",
-				width = dieSize,
-				height = dieSize,
-				halign = "center",
-				valign = "center",
+			local clipChildren = BuildDiceTileLayers{
+				tileW = tileW,
+				tileH = tileH,
+				assetid = item.assetid,
+				seq = mySeq,
+				previewCfg = ReadItemPreviewConfig(item),
+				bannerCfg = ReadItemBannerConfig(item),
 			}
-
-			--Chosen foreground art (in front of the die), added last so it draws on
-			--top -- matching the details banner's frontPanel.
-			if cfg.foregroundImage ~= nil and cfg.foregroundImage ~= "" then
-				clipChildren[#clipChildren+1] = MakeBannerLayer(cfg.foregroundImage)
-			end
 
 			element.children = {
 				bg,
@@ -1643,7 +2147,8 @@ local MakeShopImageDisplay = function(options)
 					bgimage = "panels/square.png",
 					bgcolor = "clear",
 					halign = "center",
-					valign = "center",
+					valign = cond(fullBleed, "top", "center"),
+					y = tileY,
 					width = tileW,
 					height = tileH,
 					children = clipChildren,
@@ -1853,12 +2358,24 @@ local MakeShopItem = function()
 			interactable = false,
 			floating = true,
 			hpad = 100,
-			vpad = 250,
+			--vpad stretches shopbg.png's solid card region (y=93..337 of the
+			--431-tall art) so its top edge lands 8px above the item panel
+			--(where the fullBleed dice tile is anchored) and its bottom edge
+			--~6px below it. Change the item height and this needs retuning.
+			vpad = 218,
+			--shopbg.png's solid card region sits 4px left of its canvas center
+			--(solid x=73..392 in the 473-wide art); nudge right so the visible
+			--frame is centered on the item slot and the row's outer edges line
+			--up with the featured banner (see g_bannerDisplayWidth).
+			x = 4,
 		},
 
-		MakeShopImageDisplay(),
+		MakeShopImageDisplay{ fullBleed = true },
 
-		MakeShopItemText(),
+		--The fullBleed tile above draws ~21px below its 355px layout slot
+		--(scaled to 384px, anchored 8px up), so push the text block down to
+		--restore the original ~8px gap between the image and the title.
+		MakeShopItemText{ tmargin = 21 },
 
 	}
 end
@@ -2039,8 +2556,8 @@ local ShowItemDetailsInternal = function(args)
 		point_a = {x = 0.5, y = 0},
 		point_b = {x = 0.5, y = 1},
 		stops = {
-			{position = 0,    color = core.Color{r = 1, g = 1, b = 1, a = 0.93}},
-			{position = 0.92, color = core.Color{r = 1, g = 1, b = 1, a = 0.93}},
+			{position = 0,    color = core.Color{r = 1, g = 1, b = 1, a = 0.92}},
+			{position = 0.92, color = core.Color{r = 1, g = 1, b = 1, a = 0.92}},
 			{position = 1,    color = core.Color{r = 1, g = 1, b = 1, a = 0}},
 		},
 	}
@@ -2049,7 +2566,10 @@ local ShowItemDetailsInternal = function(args)
 		classes = {"shopDetailsMainPanel"},
 
 		bgimage = "panels/square.png",
-		bgcolor = "#13131cff",
+		--Match the shop item cards' grey (shopbg.png fill is #252525) at ~0.92
+		--opacity (supplied by detailsBackingGradient's alpha), so the details
+		--panel reads as the same semi-transparent grey as the item grid.
+		bgcolor = "#252525ff",
 		gradient = detailsBackingGradient,
 
 		styles = {
@@ -2743,7 +3263,7 @@ local function CreateShopScreenInternal(arguments)
 					text = ">",
 					halign = "right",
 					press = function(element)
-						if footerPanels[pageSelected+1] ~= nil then
+						if pageSelected < NumPages() and footerPanels[pageSelected+1] ~= nil then
 							footerPanels[pageSelected+1]:FireEvent("press")
 						end
 					end,
@@ -2765,11 +3285,91 @@ local function CreateShopScreenInternal(arguments)
 
 				refreshSearch = function(element)
 					element:SetClass("collapsed", i > NumPages())
+
+					--searches always reset to showing page 1, so keep the
+					--selection state in sync with that.
+					element:SetClass("selected", i == 1)
+					pageSelected = 1
 				end,
 			}
 		end
 
 		local m_linkEventHandlerId = nil
+
+		--First-open loading cover (see TrackCoverImage at the top of the
+		--file). The full shop UI is built immediately underneath -- which is
+		--what kicks off all the image downloads and warms the dice preview
+		--scenes -- while the cover shows the plain store background + loading
+		--indicator on top. Once every tracked image from the initial page has
+		--reported in (or after g_shopCoverMaxTime), the cover fades away,
+		--revealing a fully-formed page instead of a wall of loading panels.
+		local m_coverPending = 0
+		local m_coverArmed = false
+		local m_coverRevealed = false
+
+		local coverPanel
+		coverPanel = gui.Panel{
+			id = "shopLoadingCover",
+			floating = true,
+			width = "100%",
+			height = "100%",
+			halign = "center",
+			valign = "top",
+			bgimage = StoreBackgroundImage(),
+			bgcolor = StoreBackgroundColor(),
+
+			styles = {
+				{
+					selectors = {"fadeout"},
+					opacity = 0,
+					transitionTime = g_shopCoverFadeTime,
+				},
+			},
+
+			gui.LoadingIndicator{},
+
+			gui.CloseButton{
+				floating = true,
+				halign = "left",
+				valign = "top",
+
+				click = function(element)
+					element:FireEventOnParents("closeShop")
+				end,
+			},
+
+			create = function(element)
+				--Tracked panels register themselves during their own create
+				--events; arm the balance check just after that settles. If
+				--everything was already cached the cover clears here, only a
+				--couple tenths of a second after opening.
+				element:ScheduleEvent("armReveal", 0.15)
+				element:ScheduleEvent("revealShop", g_shopCoverMaxTime)
+			end,
+
+			armReveal = function(element)
+				m_coverArmed = true
+				if m_coverPending <= 0 then
+					element:FireEvent("revealShop")
+				end
+			end,
+
+			revealShop = function(element)
+				if m_coverRevealed then
+					return
+				end
+				m_coverRevealed = true
+				--opacity does not cascade to children, so drop the loading
+				--indicator/close button outright and fade just the backdrop.
+				element.children = {}
+				element:SetClass("fadeout", true)
+				element:ScheduleEvent("dieCover", g_shopCoverFadeTime + 0.1)
+			end,
+
+			dieCover = function(element)
+				element:DestroySelf()
+			end,
+		}
 
 		resultPanel = gui.Panel{
 			id = "shopResultPanel",
@@ -2808,6 +3408,26 @@ local function CreateShopScreenInternal(arguments)
 				if m_linkEventHandlerId ~= nil then
 					dmhub.DeregisterEventHandler(m_linkEventHandlerId)
 					m_linkEventHandlerId = nil
+				end
+			end,
+
+			--First-open cover bookkeeping: tracked image panels (TrackCoverImage)
+			--report in as they are created and as their images load. After the
+			--reveal these events keep arriving from page flips, the details
+			--view and carousel switches, and are simply ignored.
+			shopImagePending = function(element)
+				if not m_coverRevealed then
+					m_coverPending = m_coverPending + 1
+				end
+			end,
+
+			shopImageReady = function(element)
+				if m_coverRevealed then
+					return
+				end
+				m_coverPending = m_coverPending - 1
+				if m_coverArmed and m_coverPending <= 0 then
+					coverPanel:FireEvent("revealShop")
 				end
 			end,
 
@@ -2954,8 +3574,8 @@ local function CreateShopScreenInternal(arguments)
 				valign = "top",
 				width = "100%",
 				height = "100%",
-				bgimage = "media/shopbg.webm",
-				bgcolor = "#bbbbbbff",
+				bgimage = StoreBackgroundImage(),
+				bgcolor = StoreBackgroundColor(),
 			},
 
 
@@ -2979,18 +3599,7 @@ local function CreateShopScreenInternal(arguments)
 						height = 40
 					},
 
-					gui.Panel{
-						classes = {"shopLogo"},
-						width = 128,
-						height = 64,
-						bgimage = "panels/logo/DMHubLogoBare.png",
-						bgcolor = "white",
-						halign = "center",
-						valign = "top",
-						vmargin = 16,
-					},
-
-					MakeDiceBanner(),
+					MakeDiceBanner{ spinnable = true },
 
 
 					gui.Panel{
@@ -3016,8 +3625,6 @@ local function CreateShopScreenInternal(arguments)
 						width = 500,
 						height = 128,
 						halign = "center",
-						bgcolor = "white",
-						bgimage = "panels/square.png",
 
 						setArtist = function(element, artistid)
 							local artist = nil
@@ -3027,7 +3634,20 @@ local function CreateShopScreenInternal(arguments)
 
 							element:SetClass("collapsed", artist == nil)
 							if artist ~= nil then
-								element.bgimage = artist.bannerImage
+								--A fresh child per image: re-setting bgimage on a
+								--live panel shows the old sprite (the white square
+								--placeholder) while the banner downloads; a new
+								--panel stays invisible until the art is ready and
+								--then fades in.
+								element.children = {
+									gui.Panel(TrackCoverImage({
+										interactable = false,
+										bgimage = artist.bannerImage,
+										bgcolor = "white",
+										width = "100%",
+										height = "100%",
+									}, true)),
+								}
 							end
 						end,
 					},
@@ -3526,6 +4146,80 @@ local function CreateShopScreenInternal(arguments)
 					end,
 				},
 
+				--Search bar row: occupies the gap between the featured banner and
+				--the product grid, right-aligned so the search box's right edge
+				--lines up with the banner's right edge. Hidden (keeping the gap)
+				--while viewing the cart or a single product's details.
+				--The gap below the box is provided by the grid row's own 30px
+				--vmargin minus the 8px the card frame art rises above the items
+				--(22px effective); the -11 bmargin pulls the grid up to make it
+				--~11px, matching the 11px tmargin so spacing is even on both
+				--sides. The featured-carousel dots float into this row's band at
+				--the banner's left edge (see the dots panel in MakeDiceBanner).
+				gui.Panel{
+					width = g_bannerDisplayWidth,
+					height = "auto",
+					halign = "center",
+					tmargin = 11,
+					bmargin = -11,
+
+					styles = {
+						{
+							selectors = {"showingCart"},
+							hidden = 1,
+						},
+						{
+							selectors = {"viewingItem"},
+							hidden = 1,
+						},
+						{
+							selectors = {"redeemingCoupon"},
+							hidden = 1,
+						},
+					},
+
+					showProductDetails = function(element)
+						element:SetClass("viewingItem", true)
+					end,
+
+					showProducts = function(element)
+						element:SetClass("viewingItem", false)
+					end,
+
+					gui.Input{
+						placeholderText = "Search",
+						halign = "right",
+						editlag = 0.2,
+						--Wipe the typed text without re-running the search; the
+						--caller resets the results itself (see the redeem toggle).
+						clearSearch = function(element)
+							element.text = ""
+						end,
+						edit = function(element)
+							element:FireEvent("change")
+						end,
+						change = function(element)
+							element:FireEventOnParents("showProductsPage")
+							ExecuteSearch(element.text)
+
+							analytics.Event{
+								type = "shopSearch",
+							}
+
+						end,
+
+						gui.Panel{
+							halign = "left",
+							x = -22,
+							y = 4,
+							width = 16,
+							height = 16,
+							bgcolor = "white",
+							bgimage = "icons/icon_tool/icon_tool_42.png",
+						},
+					},
+				},
+
 				--main lower panel. Height is auto while browsing the grid (so the
 				--product rows scroll normally), but fills the screen while viewing a
 				--single product's details, so the floated details panel can center
@@ -3561,68 +4255,6 @@ local function CreateShopScreenInternal(arguments)
 					showProducts = function(element)
 						element:SetClass("viewingDetails", false)
 					end,
-
-					gui.Panel{
-						floating = true,
-						halign = "left",
-						valign = "top",
-						flow = "vertical",
-						width = 400,
-						height = 200,
-						floating = true,
-						vmargin = 20,
-						hmargin = 20,
-
-
-
-						styles = {
-							{
-								selectors = {"showingCart"},
-								hidden = 1,
-							},
-							{
-								selectors = {"viewingItem"},
-								hidden = 1,
-							},
-						},
-
-						--Hide the search box while a single item's details
-						--are showing; restore it on the product list.
-						showProductDetails = function(element)
-							element:SetClass("viewingItem", true)
-						end,
-
-						showProducts = function(element)
-							element:SetClass("viewingItem", false)
-						end,
-
-						gui.Input{
-							placeholderText = "Search",
-							editlag = 0.2,
-							edit = function(element)
-								element:FireEvent("change")
-							end,
-							change = function(element)
-								element:FireEventOnParents("showProductsPage")
-								ExecuteSearch(element.text)
-
-								analytics.Event{
-									type = "shopSearch",
-								}
-
-							end,
-
-							gui.Panel{
-								halign = "left",
-								x = -22,
-								y = 4,
-								width = 16,
-								height = 16,
-								bgcolor = "white",
-								bgimage = "icons/icon_tool/icon_tool_42.png",
-							},
-						},
-					},
 
 					ShowItemDetailsPanel(),
 
@@ -3927,7 +4559,7 @@ local function CreateShopScreenInternal(arguments)
 							width = "auto",
 							height = "auto",
 							halign = "center",
-							vmargin = 60,
+							vmargin = 30,
 
 
 							--Steam Microtransactions checkout. Only visible on Steam builds.
@@ -4087,8 +4719,12 @@ local function CreateShopScreenInternal(arguments)
 							end,
 						},
 
-						gui.Panel{
-							classes = {"divider", "collapseOnCart"},
+						gui.Divider{
+							classes = {"collapseOnCart"},
+							height = 3,
+							opacity = 0.4,
+							tmargin = 2,
+							bmargin = 20,
 						},
 
 						gui.Panel{
@@ -4116,19 +4752,58 @@ local function CreateShopScreenInternal(arguments)
 
 			},
 
-			--shopping cart etc.
+			--shopping cart etc. "Redeem a Gift Code" rides in the same top-right
+			--cluster, to the left of the cart icon. collapseOnNoCommerce lives on
+			--the cart group only (not the whole cluster) so redeeming codes stays
+			--available when the commerce UI is hidden.
+			--vmargin centers the 32px row on the close button's line (the X is
+			--24px at margin 6, center y 18, so 18 - 32/2 = 2).
 			gui.Panel{
-				classes = {"collapseOnNoCommerce"},
 				floating = true,
 				halign = "right",
 				valign = "top",
-				hmargin = 32,
-				vmargin = 16,
+				hmargin = 10,
+				vmargin = 2,
 				width = "auto",
 				height = "auto",
 				flow = "horizontal",
 
+				--redeem code.
+				gui.Label{
+					bgcolor = "clear",
+					width = "auto",
+					height = "auto",
+					fontSize = 18,
+					valign = "center",
+					rmargin = 16,
+					text = "Redeem a Gift Code",
+					fontWeight = "bold",
+
+					styles = {
+						{
+							selectors = {"hover"},
+							color = "#ffffff",
+						},
+					},
+
+					press = function(element)
+						if element:HasClass("redeemingCoupon") then
+							resultPanel:SetClassTree("redeemingCoupon", false)
+						else
+							resultPanel:SetClassTree("showingCouponInventory", false)
+							resultPanel:SetClassTree("redeemingCoupon", true)
+							resultPanel:FireEventTree("redeemcoupons")
+
+							--Entering redeem mode resets any in-progress search so
+							--the full grid is back when the user returns to it.
+							resultPanel:FireEventTree("clearSearch")
+							ExecuteSearch("")
+						end
+					end,
+				},
+
 				gui.Panel{
+					classes = {"collapseOnNoCommerce"},
 					flow = "horizontal",
 					width = "auto",
 					height = "auto",
@@ -4143,15 +4818,17 @@ local function CreateShopScreenInternal(arguments)
 						bgcolor = "white",
 						width = 32,
 						height = 32,
+						--The cart icon art is pure white, so hover/add feedback
+						--tints it gold (brightness can't lift white any further).
 						styles = {
 							{
 								selectors = {"add"},
 								transitionTime = 0.3,
-								brightness = 1.4,
+								bgcolor = "#f6ddb6",
 							},
 							{
 								selectors = {"hover"},
-								brightness = 1.4,
+								bgcolor = "#f6ddb6",
 							},
 						},
 
@@ -4205,12 +4882,6 @@ local function CreateShopScreenInternal(arguments)
 						end,
 					},
 				},
-
-				gui.Panel{
-					--padding
-					width = 16,
-					height = 1,
-				},
 			},
 
 			--close button in top left.
@@ -4224,13 +4895,15 @@ local function CreateShopScreenInternal(arguments)
 			},
 
 
-			--inventory in top left
+			--inventory in top left. vmargin picked so the 18px labels (~24px
+			--tall) center on the close button's line (the X is 24px at margin 6,
+			--center y 18), which the top-right cart/redeem row also aligns to.
 			gui.Panel{
 				floating = true,
 				halign = "left",
 				valign = "top",
 				hmargin = 96,
-				vmargin = 24,
+				vmargin = 6,
 				width = "auto",
 				height = "auto",
 				flow = "vertical",
@@ -4288,35 +4961,11 @@ local function CreateShopScreenInternal(arguments)
 					end,
 				},
 
-				--redeem code.
-				gui.Label{
-					bgcolor = "clear",
-					width = "auto",
-					height = "auto",
-					fontSize = 18,
-					vmargin = 12,
-					text = "Redeem a Gift Code",
-					fontWeight = "bold",
-
-					styles = {
-						{
-							selectors = {"hover"},
-							color = "#ffffff",
-						},
-					},
-
-					press = function(element)
-						if element:HasClass("redeemingCoupon") then
-							resultPanel:SetClassTree("redeemingCoupon", false)
-						else
-							resultPanel:SetClassTree("showingCouponInventory", false)
-							resultPanel:SetClassTree("redeemingCoupon", true)
-							resultPanel:FireEventTree("redeemcoupons")
-						end
-					end,
-				},
-
 			},
+
+			--Last child so it draws above the whole screen: the first-open
+			--loading cover. Destroys itself once the initial images are in.
+			coverPanel,
 
 		}
 
@@ -4386,8 +5035,8 @@ function CreateShopScreen(arguments)
 							valign = "top",
 							width = "100%",
 							height = "100%",
-							bgimage = "media/shopbg.webm",
-							bgcolor = "#bbbbbbff",
+							bgimage = StoreBackgroundImage(),
+							bgcolor = StoreBackgroundColor(),
 							gui.LoadingIndicator{},
 
 							gui.CloseButton{

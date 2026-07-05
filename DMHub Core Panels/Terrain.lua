@@ -14,7 +14,14 @@ end
 --Optional wall height for building draw operations. When "Set Wall Height" is off the
 --wall draws to the ceiling (wall height 0); when on, the slider value (in tiles) is
 --encoded on every draw operation. The engine reads this via dmhub.GetWallHeight (below)
---and parallax walls render to that height above the ground.
+--and parallax walls render to that height above the ground. The height also feeds the
+--logical map: flying creatures at an altitude at or above a wall's height can move
+--over it (full-height walls always block).
+--
+--When a wall height is set the mode selector also offers "Solid": walls drawn as normal
+--with the floor rendered on TOP of them (the top face of a solid block). The block's
+--interior is impassable below the wall height, its top counts as ground, and creatures
+--can climb onto it when the wall asset is climbable. Read via dmhub.GetBuildingSolid.
 setting{
 	id = "building:specifywallheight",
 	description = "Set Wall Height",
@@ -928,6 +935,7 @@ CreateBuildingEditor = function()
 
     local floorsOn = true
     local wallsOn = true
+    local solidOn = false
 
     local GetSelectedFloor = function()
         if floorsOn and selectedFloorPanel ~= nil then
@@ -942,6 +950,11 @@ CreateBuildingEditor = function()
         else
             return nil
         end
+    end
+    local GetBuildingSolid = function()
+        --Solid mode requires a wall height; if the setting was turned off out from under
+        --us, fall back to behaving like "Both".
+        return solidOn and dmhub.GetSettingValue('building:specifywallheight') == true
     end
 
     local floorDim = 64
@@ -1377,7 +1390,7 @@ CreateBuildingEditor = function()
             },
             CreateSettingsEditor('building:stabilization'),
             CreateSettingsEditor('building:specifywallheight'),
-            CreateSettingsEditor('building:wallheightvalue'),
+            CreateSettingsEditor('building:wallheightvalue', {stacked = true}),
         },
     })
 
@@ -1635,6 +1648,7 @@ CreateBuildingEditor = function()
 
             GetSelectedFloor = GetSelectedFloor,
             GetSelectedWall = GetSelectedWall,
+            GetBuildingSolid = GetBuildingSolid,
         },
 
         children = {
@@ -1655,7 +1669,7 @@ CreateBuildingEditor = function()
                         bgcolor = Styles.backgroundColor,
                         fontSize = 18,
                         color = Styles.textColor,
-                        width = 80,
+                        width = 64, --four options (incl. Solid) must fit where three did at 80.
                         height = 24,
                         textAlignment = "center",
                         borderWidth = 2,
@@ -1676,10 +1690,11 @@ CreateBuildingEditor = function()
                 },
 
                 selectMode = function(element, n)
-
-                            print("INDEX:: in index")
-                    floorsOn = n == 1 or n == 2
-                    wallsOn = n == 2 or n == 3
+                    --modes: 1 = Floors, 2 = Both, 3 = Walls, 4 = Solid (walls + floor at
+                    --the top of the wall height, forming a solid block).
+                    floorsOn = n == 1 or n == 2 or n == 4
+                    wallsOn = n == 2 or n == 3 or n == 4
+                    solidOn = n == 4
                     previewFloor:SetClass('collapsed', not floorsOn)
                     previewWall:SetClass('collapsed', not wallsOn)
 
@@ -1712,7 +1727,6 @@ CreateBuildingEditor = function()
                         data = {index = 1},
                         text = "Floors",
                         press = function(element)
-                            print("INDEX::", 1)
                             element.parent:FireEvent("selectMode", 1)
                         end,
                     },
@@ -1730,6 +1744,28 @@ CreateBuildingEditor = function()
                         press = function(element)
                             element.parent:FireEvent("selectMode", 3)
                         end,
+                    },
+                    gui.Label{
+                        --Solid mode requires "Set Wall Height": the label is only shown
+                        --while the setting is on. If it turns off while Solid is selected,
+                        --fall back to Both.
+                        classes = {cond(dmhub.GetSettingValue('building:specifywallheight') == true, "solidOption", "collapsed")},
+                        data = {index = 4},
+                        text = "Solid",
+                        monitor = 'building:specifywallheight',
+                        events = {
+                            hover = gui.Tooltip('Draw solid blocks: walls with the floor on top of them, at the wall height. Creatures can climb on top if the wall is climbable.'),
+                            monitor = function(element)
+                                local haveHeight = dmhub.GetSettingValue('building:specifywallheight') == true
+                                element:SetClass('collapsed', not haveHeight)
+                                if (not haveHeight) and solidOn then
+                                    element.parent:FireEvent('selectMode', 2)
+                                end
+                            end,
+                            press = function(element)
+                                element.parent:FireEvent('selectMode', 4)
+                            end,
+                        },
                     },
                 }
             },
@@ -1822,6 +1858,14 @@ dmhub.GetWallHeight = function()
         return dmhub.GetSettingValue("building:wallheightvalue")
     end
     return 0
+end
+
+dmhub.GetBuildingSolid = function()
+    if m_buildingHud == nil or m_buildingHud.data.GetBuildingSolid == nil then
+        return false
+    end
+
+    return m_buildingHud.data.GetBuildingSolid()
 end
 
 dmhub.GetSelectedWall = function()

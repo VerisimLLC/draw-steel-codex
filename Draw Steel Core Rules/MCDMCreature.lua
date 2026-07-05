@@ -5208,7 +5208,6 @@ function creature.TakeDamage(self, amount, note, info)
         --we don't ever regard us as attacking ourselves. This would make conditions doing damage to us trigger an attack on ourselves.
         eventArg.attacker = nil
     end
-    print("Info::", json(info))
     eventArg.damage = amount
     eventArg.rawdamage = info.rawdamage
     eventArg.damageimmunity = info.damageImmunity and info.damageImmunity.dr ~= nil

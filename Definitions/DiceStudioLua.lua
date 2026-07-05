@@ -13,6 +13,13 @@
 --- @field haloRadius number The thickness of the dice outline/halo in die-local units. 0 == no halo.
 --- @field haloSoftness number Softness of the outline/halo outer edge, 0 (crisp outline) to 1 (soft glow).
 --- @field haloIntensity number HDR brightness multiplier of the outline/halo (higher = glows brighter).
+--- @field billboardEnabled boolean Whether this dice set renders a glowing billboard inside each die: a camera-facing quad drawn behind the die body, so a semi-transparent die reads as having a glow suspended inside it. A dice script can also toggle this per-die via die.billboard.
+--- @field billboardImage string The image asset id of an artist-supplied billboard glow image, or an empty string to render the procedural radial gradient instead. In image mode the image is tinted by billboardColorInner and its own alpha is its coverage.
+--- @field billboardColorInner Color The billboard gradient's center color (HDR: values above 1 glow brighter). In image mode this tints the image.
+--- @field billboardColorOuter Color The billboard gradient's outer/edge color (HDR). Only used in gradient mode (no image set).
+--- @field billboardSize number The billboard quad's size as a fraction of the die's bounding-box size (1 == die-sized). 0 == effectively off.
+--- @field billboardFalloff number The billboard gradient's falloff exponent (higher = tighter, more concentrated core). Only used in gradient mode.
+--- @field billboardIntensity number HDR brightness multiplier of the billboard glow (higher = glows brighter).
 --- @field specialMovement "none"|"teleport"|"portal" The special movement dice in this set perform during a roll: 'none', 'teleport', or 'portal'. 'teleport' makes a die freeze and jump across the playfield (wrapping at the edges) near the end of its roll. 'portal' spawns a pair of portals on the playfield surfaces when the die is hurled and the die passes through one to emerge from the other. Reconciles with legacy teleporting dice sets.
 --- @field teleporting boolean Deprecated: use specialMovement instead. True iff specialMovement == 'teleport'. Kept so existing UI that toggles teleporting keeps working; setting it true selects 'teleport', false selects 'none'.
 --- @field teleportVelocity number For teleporting dice: the linear speed at or below which a die's teleport jump triggers (it is then 'almost at a stop').

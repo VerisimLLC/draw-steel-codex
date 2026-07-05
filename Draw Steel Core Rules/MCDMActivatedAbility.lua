@@ -743,12 +743,17 @@ function ActivatedAbility:Render(options, params)
                 end
                 local damageTypeMappings = modifier:try_get("damageTypeMappings")
                 if damageTypeMappings ~= nil and hasDamage then
+                    --A mapping value may be a list of candidate destination types
+                    --the user chooses from at roll time.
+                    local describeDests = function(v)
+                        return table.concat(CharacterModifier.DamageMappingDestinations(v), " or ")
+                    end
                     if damageTypeMappings["all"] ~= nil then
-                        noteParts[#noteParts+1] = string.format("all damage becomes %s", damageTypeMappings["all"])
+                        noteParts[#noteParts+1] = string.format("all damage becomes %s", describeDests(damageTypeMappings["all"]))
                     else
                         for k, v in sorted_pairs(damageTypeMappings) do
                             if tiersDamageTypes[k:lower()] then
-                                noteParts[#noteParts+1] = string.format("%s damage becomes %s", k, v)
+                                noteParts[#noteParts+1] = string.format("%s damage becomes %s", k, describeDests(v))
                             end
                         end
                     end

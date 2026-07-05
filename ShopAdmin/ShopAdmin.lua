@@ -48,30 +48,52 @@ ShowShopPanel = function(parentPanel)
     end
 
     --------------------------------------------------------------------------
-    -- Featured-dice shop banner editor (Type == "Dice").
+    -- Featured-dice shop banner + shop-tile preview-display editor
+    -- (Type == "Dice").
     --
-    -- m_diceBanner is the working config for the currently selected Dice item
-    -- (a table matching ShopDiceBanner.defaults). bannerPreview is a live
-    -- instance of the REAL shop banner component (CodexShopScreen's
-    -- ShopDiceBanner), so the admin sees exactly what shoppers will see. Edits
-    -- write straight back to m_item.diceBanner, upload, and push to the preview.
+    -- Two per-item configs are edited here, each under its own collapsible
+    -- node in the Dice editor below:
+    --   * m_diceBanner  (item.diceBanner)  -- the big featured banner at the
+    --     top of the shop.
+    --   * m_dicePreview (item.dicePreview) -- the small shop tile (the
+    --     "preview display" on grid cards / the details page). nil means
+    --     "automatic": the tile derives its look from the banner config.
+    -- bannerPreview / previewTile are live instances of the REAL shop
+    -- components (CodexShopScreen's ShopDiceBanner / ShopDicePreview), so the
+    -- admin sees exactly what shoppers will see. Edits write straight back to
+    -- the item, upload (debounced), and push to the live previews.
     --------------------------------------------------------------------------
     local m_diceBanner = ShopDiceBanner.NormalizeConfig(nil)
+    local m_dicePreview = nil
+    --True while the selected item has a dicePreview config stored in the cloud;
+    --lets the commit skip the dicePreview write entirely when there is nothing
+    --to save OR clear (so items that never customized their preview don't
+    --touch the field -- and older engine builds without the property don't
+    --error on every banner tweak).
+    local m_storedPreview = false
     local bannerPreview = ShopDiceBanner.Create{ adminPreview = true }
+    --Shown at 1.5x the grid-card size (exactly the details-page tile size)
+    --so it is comfortable to edit; the composition scales proportionally.
+    local previewTileScale = 1.5
+    local previewTile = ShopDicePreview.Create{ scale = previewTileScale }
 
-    --Push the working config to the live preview. Cheap + local, so this runs
-    --on every slider tick.
-    local function PreviewBanner()
+    --Push the working configs to the live previews. Cheap + local, so this
+    --runs on every slider tick. The tile preview always gets both configs: in
+    --automatic mode it derives from the banner, so banner edits update it too.
+    local function PreviewDiceDisplays()
         if bannerPreview ~= nil then
             bannerPreview:FireEventTree("applyBannerConfig", { cfg = m_diceBanner, item = m_item })
         end
+        if previewTile ~= nil then
+            previewTile:FireEventTree("applyPreviewConfig", { cfg = m_dicePreview, bannerCfg = m_diceBanner, item = m_item })
+        end
     end
 
-    --Persist the working config to the item in the cloud. Debounced (coalesced
+    --Persist the working configs to the item in the cloud. Debounced (coalesced
     --to one write ~0.4s after the last edit) so dragging a slider does not spam
     --the catalog with uploads.
     local m_uploadScheduled = false
-    local function CommitBanner()
+    local function CommitDiceDisplays()
         if m_uploadScheduled then
             return
         end
@@ -81,28 +103,66 @@ ShowShopPanel = function(parentPanel)
             if mod.unloaded or m_item == nil then
                 return
             end
-            --pcall guards the brand-new diceBanner C# setter: if the editor is
-            --opened against an engine binary that predates this build, the write
-            --no-ops instead of erroring (the live preview still works locally).
-            local ok = pcall(function()
+            --pcalls guard the diceBanner/dicePreview C# setters: if the editor
+            --is opened against an engine binary that predates them, the writes
+            --no-op instead of erroring (the live previews still work locally).
+            --dicePreview shipped after diceBanner, so it is guarded separately:
+            --a build with only the banner property still saves the banner.
+            local okBanner = pcall(function()
                 m_item.diceBanner = m_diceBanner
-                m_item:Upload()
             end)
-            if not ok then
+            local okPreview = true
+            if m_dicePreview ~= nil or m_storedPreview then
+                okPreview = pcall(function()
+                    m_item.dicePreview = m_dicePreview
+                end)
+                if okPreview then
+                    m_storedPreview = m_dicePreview ~= nil
+                end
+            end
+            m_item:Upload()
+            if not okBanner then
                 printf("ShopAdmin: diceBanner not supported by this build; banner config not saved (rebuild + restart required).")
+            end
+            if not okPreview then
+                printf("ShopAdmin: dicePreview not supported by this build; preview display config not saved (rebuild + restart required).")
             end
         end)
     end
 
-    --Update the preview now and schedule a coalesced cloud upload.
-    local function SaveAndPreviewBanner()
-        PreviewBanner()
-        CommitBanner()
+    --Update the live previews now and schedule a coalesced cloud upload.
+    local function SaveAndPreviewDice()
+        PreviewDiceDisplays()
+        CommitDiceDisplays()
     end
 
-    --A labeled slider row bound to a numeric field of m_diceBanner. Listens to
-    --"refreshBanner" so it reloads when a different item is selected.
-    local function BannerSlider(label, field, minValue, maxValue)
+    --The banner and preview-display editor sections share the control helpers
+    --below; a section bundles the working config + the tree event that
+    --re-syncs its controls when a different item is selected. cfg() may return
+    --nil (the preview section in automatic mode) -- controls then no-op; they
+    --are hidden behind the Customize checkbox anyway.
+    local bannerSection = {
+        event = "refreshBanner",
+        defaults = ShopDiceBanner.defaults,
+        cfg = function() return m_diceBanner end,
+        artWidth = ShopDiceBanner.artWidth,
+        artHeight = ShopDiceBanner.artHeight,
+        uploadId = "ShopBanner",
+    }
+
+    local previewSection = {
+        event = "refreshPreview",
+        defaults = ShopDicePreview.defaults,
+        cfg = function() return m_dicePreview end,
+        artWidth = ShopDicePreview.artWidth,
+        artHeight = ShopDicePreview.artHeight,
+        uploadId = "ShopPreview",
+    }
+
+    --A labeled slider row bound to a numeric field of a section's working
+    --config. Listens to the section's refresh event so it reloads when a
+    --different item is selected.
+    local function ConfigSlider(section, label, field, minValue, maxValue)
         return gui.Panel{
             classes = {"formPanel"},
             gui.Label{
@@ -116,21 +176,28 @@ ShowShopPanel = function(parentPanel)
                 labelWidth = 70,
                 minValue = minValue,
                 maxValue = maxValue,
-                value = ShopDiceBanner.defaults[field] or 0,
-                refreshBanner = function(element, cfg)
-                    element.value = cfg[field]
+                value = section.defaults[field] or 0,
+                [section.event] = function(element, cfg)
+                    if cfg ~= nil then
+                        element.value = cfg[field]
+                    end
                 end,
                 change = function(element)
-                    m_diceBanner[field] = element.value
-                    SaveAndPreviewBanner()
+                    local cfg = section.cfg()
+                    if cfg == nil then
+                        return
+                    end
+                    cfg[field] = element.value
+                    SaveAndPreviewDice()
                 end,
             },
         }
     end
 
-    --An upload slot for one banner layer image (background or foreground),
-    --with a thumbnail preview, an Upload button, and a Clear button.
-    local function BannerImageSlot(label, field)
+    --An upload slot for one layer image (background or foreground) of a
+    --section's config, with a thumbnail preview, an Upload button, and a
+    --Clear button.
+    local function ConfigImageSlot(section, label, field)
         local thumb
         thumb = gui.Panel{
             width = 220,
@@ -141,8 +208,8 @@ ShowShopPanel = function(parentPanel)
             borderColor = "#666666ff",
             bgimage = "panels/square.png",
             bgcolor = "#222222ff",
-            refreshBanner = function(element, cfg)
-                local img = cfg[field]
+            [section.event] = function(element, cfg)
+                local img = cfg ~= nil and cfg[field] or nil
                 if img ~= nil and img ~= "" then
                     element.bgimage = img
                     element.selfStyle.bgcolor = "white"
@@ -165,7 +232,7 @@ ShowShopPanel = function(parentPanel)
                 height = "auto",
                 fontSize = 16,
                 halign = "left",
-                text = string.format("%s layer (%dx%d):", label, ShopDiceBanner.artWidth, ShopDiceBanner.artHeight),
+                text = string.format("%s layer (%dx%d):", label, section.artWidth, section.artHeight),
             },
 
             thumb,
@@ -181,28 +248,33 @@ ShowShopPanel = function(parentPanel)
                     width = 120,
                     text = "Upload...",
                     click = function(element)
-                        if m_item == nil then
+                        if m_item == nil or section.cfg() == nil then
                             return
                         end
                         dmhub.OpenFileDialog{
-                            id = "ShopBanner",
+                            id = section.uploadId,
                             extensions = {"jpeg", "jpg", "png", "webp"},
                             multiFiles = false,
                             prompt = string.format("Choose %s layer image", label),
                             open = function(path)
                                 assets:UploadImageAsset{
-                                    --Banner art is referenced by the global
-                                    --shop catalog, so it must live in the Core
-                                    --asset store (see Upload Images above).
+                                    --Banner/tile art is referenced by the
+                                    --global shop catalog, so it must live in
+                                    --the Core asset store (see Upload Images
+                                    --above).
                                     core = true,
                                     error = function(msg)
                                     end,
                                     upload = function(guid)
-                                        m_diceBanner[field] = guid
-                                        SaveAndPreviewBanner()
-                                        thumb:FireEvent("refreshBanner", m_diceBanner)
+                                        local cfg = section.cfg()
+                                        if cfg == nil then
+                                            return
+                                        end
+                                        cfg[field] = guid
+                                        SaveAndPreviewDice()
+                                        thumb:FireEvent(section.event, cfg)
                                     end,
-                                    description = string.format("ShopBanner: %s", m_item.id),
+                                    description = string.format("%s: %s", section.uploadId, m_item.id),
                                     path = path,
                                 }
                             end,
@@ -216,9 +288,13 @@ ShowShopPanel = function(parentPanel)
                     hmargin = 8,
                     text = "Clear",
                     click = function(element)
-                        m_diceBanner[field] = ""
-                        SaveAndPreviewBanner()
-                        thumb:FireEvent("refreshBanner", m_diceBanner)
+                        local cfg = section.cfg()
+                        if cfg == nil then
+                            return
+                        end
+                        cfg[field] = ""
+                        SaveAndPreviewDice()
+                        thumb:FireEvent(section.event, cfg)
                     end,
                 },
             },
@@ -260,7 +336,7 @@ ShowShopPanel = function(parentPanel)
                 end,
                 click = function(element)
                     m_diceBanner.textPlacement = placement
-                    SaveAndPreviewBanner()
+                    SaveAndPreviewDice()
                     row:FireEventTree("refreshBanner", m_diceBanner)
                 end,
             }
@@ -276,6 +352,67 @@ ShowShopPanel = function(parentPanel)
         }
 
         return row
+    end
+
+    --A titled collapsible node: click the header (arrow + title) to
+    --expand/collapse the content beneath it. Both dice-display sections start
+    --collapsed so the editor stays compact and the admin can focus on the one
+    --they want to work on.
+    local function CollapsibleSection(args)
+        local m_collapsed = true
+
+        local contentPanel = gui.Panel{
+            classes = {"collapsed"},
+            flow = "vertical",
+            width = "auto",
+            height = "auto",
+            halign = "left",
+            children = args.children,
+        }
+
+        local tri = gui.ExpandoArrow{
+            interactable = false,
+            halign = "left",
+            valign = "center",
+        }
+
+        local headerPanel = gui.Panel{
+            bgimage = "panels/square.png",
+            bgcolor = "clear",
+            flow = "horizontal",
+            width = "auto",
+            height = 34,
+            halign = "left",
+            vmargin = 8,
+            click = function(element)
+                m_collapsed = not m_collapsed
+                contentPanel:SetClass("collapsed", m_collapsed)
+                tri:SetClass("expanded", not m_collapsed)
+            end,
+
+            tri,
+
+            gui.Label{
+                hmargin = 8,
+                halign = "left",
+                valign = "center",
+                width = "auto",
+                height = "auto",
+                fontSize = 24,
+                fontWeight = "bold",
+                text = args.title,
+                interactable = false,
+            },
+        }
+
+        return gui.Panel{
+            flow = "vertical",
+            width = "auto",
+            height = "auto",
+            halign = "left",
+            headerPanel,
+            contentPanel,
+        }
     end
 
     local editingPanel
@@ -629,9 +766,10 @@ ShowShopPanel = function(parentPanel)
             },
         },
 
-        --Dice editor: choose the dice set, then customize the featured-dice
-        --shop banner (custom art, dice transform, text placement) with a live
-        --preview of the real banner component.
+        --Dice editor: choose the dice set, then customize the two dice
+        --displays -- the featured shop banner and the small shop-tile
+        --"preview display" -- each under its own collapsible node, with a
+        --live preview of the real shop component.
         gui.Panel{
             flow = "vertical",
             width = "auto",
@@ -641,8 +779,11 @@ ShowShopPanel = function(parentPanel)
                 element:SetClass("collapsed", not isDice)
                 if isDice then
                     m_diceBanner = ShopDiceBanner.ReadItemConfig(item)
+                    m_dicePreview = ShopDicePreview.ReadItemConfig(item)
+                    m_storedPreview = m_dicePreview ~= nil
                     element:FireEventTree("refreshBanner", m_diceBanner)
-                    bannerPreview:FireEventTree("applyBannerConfig", { cfg = m_diceBanner, item = item })
+                    element:FireEventTree("refreshPreview", m_dicePreview)
+                    PreviewDiceDisplays()
                 end
             end,
 
@@ -651,8 +792,20 @@ ShowShopPanel = function(parentPanel)
             dieDragged = function(element, info)
                 m_diceBanner.dieX = info.dieX
                 m_diceBanner.dieY = info.dieY
-                SaveAndPreviewBanner()
+                SaveAndPreviewDice()
                 element:FireEventTree("refreshBanner", m_diceBanner)
+            end,
+
+            --Same for dragging the die on the preview-display tile (only
+            --possible when the preview display is customized).
+            previewDieDragged = function(element, info)
+                if m_dicePreview == nil then
+                    return
+                end
+                m_dicePreview.dieX = info.dieX
+                m_dicePreview.dieY = info.dieY
+                SaveAndPreviewDice()
+                element:FireEventTree("refreshPreview", m_dicePreview)
             end,
 
             gui.Panel{
@@ -675,97 +828,184 @@ ShowShopPanel = function(parentPanel)
                     change = function(element)
                         m_item.assetid = element.idChosen
                         m_item:Upload()
-                        --New dice set: refresh the preview die.
-                        bannerPreview:FireEventTree("applyBannerConfig", { cfg = m_diceBanner, item = m_item })
+                        --New dice set: refresh both live previews.
+                        PreviewDiceDisplays()
                     end,
                 }
             },
 
-            gui.Label{
-                width = "auto",
-                height = "auto",
-                halign = "left",
-                vmargin = 8,
-                fontSize = 24,
-                fontWeight = "bold",
-                text = "Shop Banner",
+            CollapsibleSection{
+                title = "Shop Banner",
+                children = {
+
+                    gui.Label{
+                        width = 900,
+                        height = "auto",
+                        halign = "left",
+                        fontSize = 13,
+                        color = "#aaaaaaff",
+                        text = string.format("Customize the banner shown at the top of the shop when this dice set is featured. Upload two %dx%d images: a BACKGROUND layer (painted behind the dice) and a FOREGROUND layer (painted over the dice, e.g. hands holding them -- use PNG transparency). Click Clear on a layer to leave it transparent (the dice render directly over whatever is behind it). Use the controls below to position/scale the live dice and place the text overlay.", ShopDiceBanner.artWidth, ShopDiceBanner.artHeight),
+                    },
+
+                    --Live preview of the real banner component. The wrapper is sized in
+                    --solid pixels to exactly the banner's display dimensions.
+                    gui.Panel{
+                        width = ShopDiceBanner.displayWidth,
+                        height = ShopDiceBanner.displayHeight,
+                        halign = "left",
+                        vmargin = 12,
+                        bannerPreview,
+                    },
+
+                    --Two image upload slots side by side.
+                    gui.Panel{
+                        flow = "horizontal",
+                        width = "auto",
+                        height = "auto",
+                        halign = "left",
+                        wrap = true,
+
+                        ConfigImageSlot(bannerSection, "Background", "backgroundImage"),
+                        ConfigImageSlot(bannerSection, "Foreground", "foregroundImage"),
+                    },
+
+                    gui.Label{
+                        width = "auto",
+                        height = "auto",
+                        halign = "left",
+                        vmargin = 6,
+                        fontSize = 18,
+                        fontWeight = "bold",
+                        text = "Dice Placement & Scale",
+                    },
+
+                    gui.Label{
+                        width = 900,
+                        height = "auto",
+                        halign = "left",
+                        fontSize = 13,
+                        color = "#aaaaaaff",
+                        text = "Tip: drag the dice directly on the preview above to position them. The X/Y sliders below give the same control.",
+                    },
+
+                    ConfigSlider(bannerSection, "Dice Scale:", "diceScale", 0.5, 8),
+                    --Spin direction for the previewed die, in degrees: the slider rotates
+                    --the spin AXIS about the screen-normal (Z) axis at a constant speed.
+                    --0 = the original vertical spin; +/-180 = reversed; +/-90 = tumbling.
+                    --Saved per dice set and applied live in the preview above (and in the
+                    --live shop banner).
+                    ConfigSlider(bannerSection, "Spin Direction:", "spinDirection", -180, 180),
+                    ConfigSlider(bannerSection, "Dice X (0-1):", "dieX", 0, 1),
+                    ConfigSlider(bannerSection, "Dice Y (0-1):", "dieY", 0, 1),
+                    ConfigSlider(bannerSection, "Dice Box Size (0=auto):", "dieSize", 0, 1200),
+
+                    gui.Label{
+                        width = "auto",
+                        height = "auto",
+                        halign = "left",
+                        vmargin = 6,
+                        fontSize = 18,
+                        fontWeight = "bold",
+                        text = "Text Overlay Placement",
+                    },
+
+                    BannerTextPresets(),
+
+                    ConfigSlider(bannerSection, "Text Offset X:", "textOffsetX", -500, 500),
+                    ConfigSlider(bannerSection, "Text Offset Y:", "textOffsetY", -350, 350),
+                },
             },
 
-            gui.Label{
-                width = 900,
-                height = "auto",
-                halign = "left",
-                fontSize = 13,
-                color = "#aaaaaaff",
-                text = string.format("Customize the banner shown at the top of the shop when this dice set is featured. Upload two %dx%d images: a BACKGROUND layer (painted behind the dice) and a FOREGROUND layer (painted over the dice, e.g. hands holding them -- use PNG transparency). Click Clear on a layer to leave it transparent (the dice render directly over whatever is behind it). Use the controls below to position/scale the live dice and place the text overlay.", ShopDiceBanner.artWidth, ShopDiceBanner.artHeight),
+            CollapsibleSection{
+                title = "Preview Display",
+                children = {
+
+                    gui.Label{
+                        width = 900,
+                        height = "auto",
+                        halign = "left",
+                        fontSize = 13,
+                        color = "#aaaaaaff",
+                        text = string.format("Customize the small preview tile shown on this item's shop card and details page. By default the tile is generated automatically from the Shop Banner settings (a close-up crop around the dice). Check Customize to give this item its own tile: upload %dx%d BACKGROUND/FOREGROUND layers (the live dice render between them) and position/scale the dice with the controls below. The preview is shown at %.1fx the shop-grid size.", ShopDicePreview.artWidth, ShopDicePreview.artHeight, previewTileScale),
+                    },
+
+                    --Live preview of the real shop-tile component.
+                    gui.Panel{
+                        width = "auto",
+                        height = "auto",
+                        halign = "left",
+                        vmargin = 12,
+                        previewTile,
+                    },
+
+                    gui.Check{
+                        text = "Customize preview display",
+                        tooltip = "When unchecked, the preview tile is generated automatically from the Shop Banner settings. Check to give this item its own tile art and dice placement.",
+                        refreshPreview = function(element, cfg)
+                            element.value = cfg ~= nil
+                        end,
+                        change = function(element)
+                            if element.value then
+                                m_dicePreview = ShopDicePreview.NormalizeConfig(nil)
+                            else
+                                m_dicePreview = nil
+                            end
+                            SaveAndPreviewDice()
+                            editingPanel:FireEventTree("refreshPreview", m_dicePreview)
+                        end,
+                    },
+
+                    --The custom controls only apply (and only show) when the
+                    --preview display is customized.
+                    gui.Panel{
+                        classes = {"collapsed"},
+                        flow = "vertical",
+                        width = "auto",
+                        height = "auto",
+                        halign = "left",
+                        refreshPreview = function(element, cfg)
+                            element:SetClass("collapsed", cfg == nil)
+                        end,
+
+                        --Two image upload slots side by side.
+                        gui.Panel{
+                            flow = "horizontal",
+                            width = "auto",
+                            height = "auto",
+                            halign = "left",
+                            wrap = true,
+
+                            ConfigImageSlot(previewSection, "Background", "backgroundImage"),
+                            ConfigImageSlot(previewSection, "Foreground", "foregroundImage"),
+                        },
+
+                        gui.Label{
+                            width = "auto",
+                            height = "auto",
+                            halign = "left",
+                            vmargin = 6,
+                            fontSize = 18,
+                            fontWeight = "bold",
+                            text = "Dice Placement & Scale",
+                        },
+
+                        gui.Label{
+                            width = 900,
+                            height = "auto",
+                            halign = "left",
+                            fontSize = 13,
+                            color = "#aaaaaaff",
+                            text = "Tip: drag the dice directly on the preview tile above to position them. The X/Y sliders below give the same control. X/Y are fractions of the tile; the box size is in tile pixels (0 = auto).",
+                        },
+
+                        ConfigSlider(previewSection, "Dice Scale:", "diceScale", 0.5, 8),
+                        ConfigSlider(previewSection, "Spin Direction:", "spinDirection", -180, 180),
+                        ConfigSlider(previewSection, "Dice X (0-1):", "dieX", 0, 1),
+                        ConfigSlider(previewSection, "Dice Y (0-1):", "dieY", 0, 1),
+                        ConfigSlider(previewSection, "Dice Box Size (0=auto):", "dieSize", 0, 800),
+                    },
+                },
             },
-
-            --Live preview of the real banner component. The wrapper is sized in
-            --solid pixels to exactly the banner's display dimensions.
-            gui.Panel{
-                width = ShopDiceBanner.displayWidth,
-                height = ShopDiceBanner.displayHeight,
-                halign = "left",
-                vmargin = 12,
-                bannerPreview,
-            },
-
-            --Two image upload slots side by side.
-            gui.Panel{
-                flow = "horizontal",
-                width = "auto",
-                height = "auto",
-                halign = "left",
-                wrap = true,
-
-                BannerImageSlot("Background", "backgroundImage"),
-                BannerImageSlot("Foreground", "foregroundImage"),
-            },
-
-            gui.Label{
-                width = "auto",
-                height = "auto",
-                halign = "left",
-                vmargin = 6,
-                fontSize = 18,
-                fontWeight = "bold",
-                text = "Dice Placement & Scale",
-            },
-
-            gui.Label{
-                width = 900,
-                height = "auto",
-                halign = "left",
-                fontSize = 13,
-                color = "#aaaaaaff",
-                text = "Tip: drag the dice directly on the preview above to position them. The X/Y sliders below give the same control.",
-            },
-
-            BannerSlider("Dice Scale:", "diceScale", 0.5, 8),
-            --Spin direction for the previewed die, in degrees: the slider rotates
-            --the spin AXIS about the screen-normal (Z) axis at a constant speed.
-            --0 = the original vertical spin; +/-180 = reversed; +/-90 = tumbling.
-            --Saved per dice set and applied live in the preview above (and in the
-            --live shop banner).
-            BannerSlider("Spin Direction:", "spinDirection", -180, 180),
-            BannerSlider("Dice X (0-1):", "dieX", 0, 1),
-            BannerSlider("Dice Y (0-1):", "dieY", 0, 1),
-            BannerSlider("Dice Box Size (0=auto):", "dieSize", 0, 1200),
-
-            gui.Label{
-                width = "auto",
-                height = "auto",
-                halign = "left",
-                vmargin = 6,
-                fontSize = 18,
-                fontWeight = "bold",
-                text = "Text Overlay Placement",
-            },
-
-            BannerTextPresets(),
-
-            BannerSlider("Text Offset X:", "textOffsetX", -500, 500),
-            BannerSlider("Text Offset Y:", "textOffsetY", -350, 350),
         },
 
         --bundle editor

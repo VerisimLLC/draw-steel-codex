@@ -4433,19 +4433,28 @@ CreateAbilityController = function()
             g_targetsChosen = {}
             g_firstTarget = nil
 
-            --transfer any packaged targets over. TODO: Work out how to pass in non-token targets.
+            --transfer any packaged targets over. Token targets go in g_targetsChosen;
+            --loc targets (e.g. a forced-move destination resolved by an AI prompt
+            --handler) seed m_positionTargetsChosen below so emptyspace/straightline
+            --targeting treats them exactly like a player's destination click.
+            local packagedLocTargets = {}
             if args.targets ~= nil then
                 for _,target in ipairs(args.targets) do
                     if target.token ~= nil then
                         g_targetsChosen[#g_targetsChosen + 1] = target.token.charid
+                    elseif target.loc ~= nil then
+                        packagedLocTargets[#packagedLocTargets + 1] = { loc = target.loc }
                     end
                 end
             end
-            
+
             if g_targetsChosen ~= nil then
                 g_firstTarget = g_targetsChosen[1]
             end
             m_positionTargetsChosen = {}
+            for _,target in ipairs(packagedLocTargets) do
+                m_positionTargetsChosen[#m_positionTargetsChosen + 1] = target
+            end
             g_pointTargeting = {}
 
             gui.SetFocus(element)
@@ -4881,6 +4890,12 @@ CreateAbilityController = function()
             g_actionBar:SetClassTree("invokingAbility", true)
 
             ability = DeepCopy(ability)
+            --instantCast means the invoke already resolved its targets (AI prompt
+            --handler or scripted resolution): cast as soon as targeting is satisfied
+            --instead of waiting for a manual press of the cast button.
+            if options.instantCast then
+                ability.castImmediately = true
+            end
             CharacterPanel.DisplayAbility(casterToken, ability)
             CharacterPanel.HighlightAbilitySection{
                 ability = ability,

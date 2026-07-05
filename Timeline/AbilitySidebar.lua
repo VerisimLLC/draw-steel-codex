@@ -1605,8 +1605,13 @@ function CharacterPanel.AcquireAbilityRollDialog(token, ability, symbols, displa
         for i = 1, 4 do
             coroutine.yield(0.01)
         end
-    else
+    elseif GameHud.instance then
         dialog = GameHud.instance.rollDialog
+    else
+        --No live HUD (e.g. a cast driven headlessly / off a real turn). Fall back
+        --to the global hud's roll dialog so the roll can still resolve instead of
+        --crashing on an index of the `GameHud.instance = false` default.
+        dialog = gamehud ~= nil and gamehud.rollDialog or nil
     end
 
     --Install the ability-card hide handler ourselves, cast-aware: a shared

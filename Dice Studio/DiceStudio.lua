@@ -554,6 +554,25 @@ local g_materialFields = {
 			default = 1,
 			description = "Tiling",
 		},
+		-- Zoom in on the texture center. With a non-tiling texture, parallax can march the
+		-- sample past the 0/1 boundary and reveal the seam; zooming in keeps sampling in the
+		-- middle so the seam stays off the face. 1 = no zoom. See _Zoom in PBRTextured.shader.
+		{
+			name = "_Zoom",
+			type = "Range",
+			min = 0.25,
+			max = 4,
+			default = 1,
+			description = "Zoom (center)",
+		},
+		-- Mirror Wrap flips every repeat of the texture, so a non-tiling texture's edges meet
+		-- their own reflection at the 0/1 boundary instead of a hard seam. CPU sampler flag
+		-- (not a shader property) read by DiceMaterialStudioProperties.Apply. Off = Repeat.
+		{
+			name = "_MirrorWrap",
+			type = "Bool",
+			description = "Mirror Wrap (hide seam)",
+		},
 	},
 
 }
@@ -1923,11 +1942,13 @@ CreateDiceStudioPanel = function()
 	-- Sounds section. Per-dice-set sound bindings, one sound per lifecycle event. Simpler than
 	-- the Particles section: a fixed row per event with a sound dropdown (drawn from ALL
 	-- registered sound events, plus a "(None)" entry) and a volume multiplier. Unbound events
-	-- fall back to the engine's built-in behavior (Throw/Impact keep their defaults; the
-	-- spawn/teleport/settle events are silent unless bound). "ThrowStart" is a per-roll sound;
-	-- the rest fire per die. "Teleport" fires when a teleport-movement die begins its jump and
-	-- "Reappear" when it arrives -- "Disappear" is now end-of-roll removal only. Labels are
-	-- author-friendly (BounceHit -> "Impact", Exit -> "Settle").
+	-- fall back to the engine's built-in behavior (Throw keeps its default; the spawn/teleport/
+	-- settle events are silent unless bound). "ThrowStart" is a per-roll sound; the rest fire per
+	-- die. "Teleport" fires when a teleport-movement die begins its jump and "Reappear" when it
+	-- arrives -- "Disappear" is now end-of-roll removal only. Labels are author-friendly (Exit ->
+	-- "Settle"). The "Impact" (BounceHit) row is special: instead of a raw sound dropdown it is a
+	-- family picker (see MakeImpactFamilyRow) drawn from the audio mod's DiceImpactFamilies
+	-- registry, and the runtime dispatches it through the single "Dice.Impact" sound event.
 	local diceSoundEventList = {
 		{ event = "ThrowStart", label = "Throw:"      },
 		{ event = "Appearance", label = "Appearance:" },
@@ -2049,6 +2070,124 @@ CreateDiceStudioPanel = function()
 		}
 	end
 
+	-- The Impact row. Instead of the generic sound dropdown, the impact sound is chosen by
+	-- "family" (Copper/Glass/Stone/...) from the audio mod's DiceImpactFamilies registry, so any
+	-- family registered there appears here automatically. The choice is stored on the set and
+	-- dispatched through the single "Dice.Impact" sound event at runtime (which resolves the
+	-- family to the right soft/mild/hard sound by impact speed). There is always a family (the
+	-- default is Copper), so -- unlike MakeSoundRow -- the volume slider is always shown.
+	local function MakeImpactFamilyRow()
+		local function CurrentFamilyId()
+			local id = studio:GetImpactFamily()
+			if id ~= nil and id ~= "" then
+				return id
+			end
+			-- Map a legacy generic Impact (BounceHit) binding to its family, if it matches one,
+			-- so sets configured before the family picker still display the right choice.
+			local legacy = studio:GetEventSound("bouncehit")
+			if legacy ~= nil and legacy ~= "" then
+				for _,family in ipairs(DiceImpactFamilies.families) do
+					local eventName = "Dice.Impact"
+					if family.suffix ~= "" then
+						eventName = "Dice.Impact_" .. family.suffix
+					end
+					if legacy == eventName then
+						return family.id
+					end
+				end
+			end
+			return ""
+		end
+
+		local function BuildFamilyOptions()
+			local options = {}
+			for _,family in ipairs(DiceImpactFamilies.families) do
+				options[#options+1] = { id = family.id, text = family.text }
+			end
+			return options
+		end
+
+		local volumeRow = gui.Panel{
+			classes = {"formPanel"},
+			gui.Label{
+				classes = {"formLabel"},
+				halign = "left",
+				text = "Volume:",
+			},
+			gui.Slider{
+				style = { height = 26, width = 240, fontSize = 14 },
+				sliderWidth = 150,
+				labelWidth = 50,
+				minValue = 0,
+				maxValue = 2,
+				value = studio:GetImpactFamilyVolume(),
+				newmaterial = function(element)
+					element.value = studio:GetImpactFamilyVolume()
+				end,
+				refreshDice = function(element)
+					element.value = studio:GetImpactFamilyVolume()
+				end,
+				change = function(element)
+					studio:SetImpactFamilyVolume(element.value)
+				end,
+			},
+		}
+
+		local dropdown
+		dropdown = gui.Dropdown{
+			width = 220,
+			height = 30,
+			fontSize = 14,
+			halign = "left",
+			hmargin = 4,
+			hasSearch = true,
+			create = function(element)
+				element.options = BuildFamilyOptions()
+				element.idChosen = CurrentFamilyId()
+			end,
+			newmaterial = function(element)
+				element.options = BuildFamilyOptions()
+				element.idChosen = CurrentFamilyId()
+			end,
+			refreshDice = function(element)
+				element.idChosen = CurrentFamilyId()
+			end,
+			change = function(element)
+				studio:SetImpactFamily(element.idChosen)
+				RefreshDice()
+			end,
+		}
+
+		return gui.Panel{
+			width = "100%",
+			height = "auto",
+			flow = "vertical",
+			gui.Panel{
+				classes = {"formPanel"},
+				width = "100%",
+				height = "auto",
+				flow = "horizontal",
+				gui.Label{
+					classes = {"formLabel"},
+					halign = "left",
+					text = "Impact:",
+				},
+				dropdown,
+				gui.Button{
+					text = "Test",
+					width = 50,
+					height = 30,
+					fontSize = 12,
+					hmargin = 4,
+					click = function(element)
+						studio:FirePreviewImpact()
+					end,
+				},
+			},
+			volumeRow,
+		}
+	end
+
 	local diceSoundRows = gui.Panel{
 		width = "100%",
 		height = "auto",
@@ -2056,7 +2195,11 @@ CreateDiceStudioPanel = function()
 		create = function(element)
 			local rows = {}
 			for _,info in ipairs(diceSoundEventList) do
-				rows[#rows+1] = MakeSoundRow(info.event, info.label)
+				if info.event == "BounceHit" then
+					rows[#rows+1] = MakeImpactFamilyRow()
+				else
+					rows[#rows+1] = MakeSoundRow(info.event, info.label)
+				end
 			end
 			element.children = rows
 		end,
@@ -2396,6 +2539,219 @@ end
 						end,
 						change = function(element)
 							dicestudio.haloIntensity = element.value
+							RefreshDice()
+						end,
+					},
+				},
+			},
+		},
+	}
+
+	-- Billboard: a glowing camera-facing quad rendered inside each die (behind the die body, so a
+	-- semi-transparent die reads as having a glow suspended inside it). Either a procedural radial
+	-- gradient (inner color -> outer color, shaped by Falloff) or an artist-supplied image tinted
+	-- by the inner color. Authored per set (dicestudio.billboard*) and overridable per die from a
+	-- dice script (die.billboard / die.billboardColor / die.billboardSize / die.billboardRotation).
+	-- The image/color/size/falloff/intensity rows collapse while the effect is disabled.
+	local billboardSection = gui.TreeNode{
+		text = "Billboard",
+		width = "100%",
+		contentPanel = gui.Panel{
+			width = "100%",
+			height = "auto",
+			flow = "vertical",
+
+			gui.Label{
+				width = "100%",
+				height = "auto",
+				halign = "left",
+				fontSize = 12,
+				color = "#bbbbbbff",
+				text = "Renders a glow inside each die on a camera-facing billboard: a radial gradient, or an image if one is set (tinted by the inner color). Best on semi-transparent dice. A dice script can override this per die (die.billboard, die.billboardColor, die.billboardColorOuter, die.billboardSize, die.billboardIntensity, die.billboardRotation).",
+			},
+
+			-- Enabled
+			gui.Panel{
+				classes = {"formPanel"},
+				gui.Label{
+					classes = {"formLabel"},
+					halign = "left",
+					text = "Enabled:",
+				},
+				gui.Check{
+					text = "",
+					halign = "left",
+					-- The default checkbox style reserves minWidth for a label row; this is a bare
+					-- box (the "Enabled:" label is the formLabel above), so collapse to the mark.
+					width = "auto",
+					minWidth = 0,
+					value = dicestudio.billboardEnabled,
+					newmaterial = function(element)
+						element.value = dicestudio.billboardEnabled
+					end,
+					change = function(element)
+						dicestudio.billboardEnabled = element.value
+						RefreshDice()
+						element.root:FireEventTree("refreshDice")
+					end,
+				},
+			},
+
+			-- Image / colors / size / falloff / intensity (collapsed while disabled)
+			gui.Panel{
+				width = "100%",
+				height = "auto",
+				flow = "vertical",
+
+				create = function(element)
+					element:SetClass("collapsed", dicestudio.billboardEnabled == false)
+				end,
+				refreshDice = function(element)
+					element:SetClass("collapsed", dicestudio.billboardEnabled == false)
+				end,
+
+				gui.Panel{
+					classes = {"formPanel"},
+					gui.Label{
+						classes = {"formLabel"},
+						halign = "left",
+						text = "Image:",
+					},
+					gui.IconEditor{
+						width = 32,
+						height = 32,
+						library = "Textures",
+						allowNone = true,
+						searchHidden = true,
+						categoriesHidden = true,
+						bgcolor = "white",
+						-- The "or default" fallbacks in this section only fire before a build ships
+						-- the C# dicestudio.billboard* bridge properties (they return nil then);
+						-- post-build they are always non-nil so the authored value flows through.
+						value = dicestudio.billboardImage or "",
+						newmaterial = function(element)
+							element.value = dicestudio.billboardImage or ""
+						end,
+						change = function(element)
+							dicestudio.billboardImage = element.value or ""
+							RefreshDice()
+						end,
+					},
+				},
+
+				gui.Panel{
+					classes = {"formPanel"},
+					gui.Label{
+						classes = {"formLabel"},
+						halign = "left",
+						text = "Inner Color:",
+					},
+					gui.ColorPicker{
+						border = 2,
+						borderColor = "white",
+						width = 16,
+						height = 16,
+						value = dicestudio.billboardColorInner or "#8ce6ff",
+						newmaterial = function(element)
+							element.value = dicestudio.billboardColorInner or "#8ce6ff"
+						end,
+						change = function(element)
+							dicestudio.billboardColorInner = element.value
+							RefreshDice()
+						end,
+					},
+				},
+
+				gui.Panel{
+					classes = {"formPanel"},
+					gui.Label{
+						classes = {"formLabel"},
+						halign = "left",
+						text = "Outer Color:",
+					},
+					gui.ColorPicker{
+						border = 2,
+						borderColor = "white",
+						width = 16,
+						height = 16,
+						value = dicestudio.billboardColorOuter or "#2659ff",
+						newmaterial = function(element)
+							element.value = dicestudio.billboardColorOuter or "#2659ff"
+						end,
+						change = function(element)
+							dicestudio.billboardColorOuter = element.value
+							RefreshDice()
+						end,
+					},
+				},
+
+				gui.Panel{
+					classes = {"formPanel"},
+					gui.Label{
+						classes = {"formLabel"},
+						halign = "left",
+						text = "Size:",
+					},
+					gui.Slider{
+						style = { height = 26, width = 240, fontSize = 14 },
+						sliderWidth = 180,
+						labelWidth = 50,
+						minValue = 0,
+						maxValue = 2,
+						value = dicestudio.billboardSize or 1,
+						newmaterial = function(element)
+							element.value = dicestudio.billboardSize or 1
+						end,
+						change = function(element)
+							dicestudio.billboardSize = element.value
+							RefreshDice()
+						end,
+					},
+				},
+
+				gui.Panel{
+					classes = {"formPanel"},
+					gui.Label{
+						classes = {"formLabel"},
+						halign = "left",
+						text = "Falloff:",
+					},
+					gui.Slider{
+						style = { height = 26, width = 240, fontSize = 14 },
+						sliderWidth = 180,
+						labelWidth = 50,
+						minValue = 0.25,
+						maxValue = 4,
+						value = dicestudio.billboardFalloff or 1.5,
+						newmaterial = function(element)
+							element.value = dicestudio.billboardFalloff or 1.5
+						end,
+						change = function(element)
+							dicestudio.billboardFalloff = element.value
+							RefreshDice()
+						end,
+					},
+				},
+
+				gui.Panel{
+					classes = {"formPanel"},
+					gui.Label{
+						classes = {"formLabel"},
+						halign = "left",
+						text = "Intensity:",
+					},
+					gui.Slider{
+						style = { height = 26, width = 240, fontSize = 14 },
+						sliderWidth = 180,
+						labelWidth = 50,
+						minValue = 0,
+						maxValue = 8,
+						value = dicestudio.billboardIntensity or 1.5,
+						newmaterial = function(element)
+							element.value = dicestudio.billboardIntensity or 1.5
+						end,
+						change = function(element)
+							dicestudio.billboardIntensity = element.value
 							RefreshDice()
 						end,
 					},
@@ -3459,6 +3815,8 @@ end
 		},
 
 		haloSection,
+
+		billboardSection,
 
 		scriptSection,
 

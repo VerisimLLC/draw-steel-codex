@@ -447,6 +447,187 @@ local function CreateImageEditorChooser()
 	}
 end
 
+--Local assets: a per-game developer feature where the game's cloud assets are
+--replaced by a local directory tree of YAML files (see LocalAssetDirectory in
+--the engine and the /localassets macro). Returns a list of panels for the
+--Editing settings tab, or an empty list when the feature does not apply
+--(not in dev mode, or not in a real game).
+local function CreateLocalAssetsSection()
+	if dmhub.isLobbyGame or (not dmhub.GetSettingValue("dev")) then
+		return {}
+	end
+
+	local function CurrentDir()
+		local dir = dmhub.GetSettingValue("localassets:dir")
+		if dir == nil then
+			return ""
+		end
+		return dir
+	end
+
+	local function StatusText()
+		local status = dmhub.LocalAssetsStatus()
+		if status ~= nil and status.active and status.directory ~= nil then
+			return string.format("Active: this game's assets are loading from %s.", status.directory)
+		elseif CurrentDir() ~= "" then
+			return "Set, but not active yet: reload the game to activate."
+		else
+			return "Not set: this game uses cloud assets."
+		end
+	end
+
+	local statusLabel = gui.Label{
+		width = "90%",
+		height = "auto",
+		halign = "center",
+		fontSize = 14,
+		vmargin = 2,
+		italics = true,
+		text = StatusText(),
+		multimonitor = {"localassets:dir"},
+		events = {
+			monitor = function(element)
+				element.text = StatusText()
+			end,
+		},
+	}
+
+	local dirInput = gui.Input{
+		classes = {"form"},
+		width = 300,
+		halign = "right",
+		valign = "center",
+		text = CurrentDir(),
+		multimonitor = {"localassets:dir"},
+		events = {
+			change = function(element)
+				dmhub.SetSettingValue("localassets:dir", element.text)
+			end,
+			monitor = function(element)
+				element.text = CurrentDir()
+			end,
+		},
+	}
+
+	local browseButton = gui.Button{
+		width = 110,
+		height = 32,
+		fontSize = 16,
+		halign = "left",
+		valign = "center",
+		text = "Browse...",
+		click = function(element)
+			dmhub.OpenFolderDialog{
+				id = "localassets",
+				extensions = {"yaml"},
+				prompt = "Select Local Assets Directory",
+				open = function(folderPath, filePaths)
+					dmhub.SetSettingValue("localassets:dir", folderPath)
+				end,
+			}
+		end,
+	}
+
+	local function DoExport()
+		local dir = CurrentDir()
+		local result = dmhub.ExportAllAssets{directory = dir}
+		if result == nil then
+			gui.ModalMessage{
+				title = "Local Assets",
+				message = string.format("Could not export to %s.", dir),
+			}
+		else
+			gui.ModalMessage{
+				title = "Local Assets",
+				message = string.format("Exported %d items in %d categories to %s.", result.itemsExported, result.categoriesExported, result.directory),
+			}
+		end
+	end
+
+	local populateButton = gui.Button{
+		width = 200,
+		height = 32,
+		fontSize = 16,
+		halign = "left",
+		valign = "center",
+		text = "Populate Directory",
+		click = function(element)
+			local dir = CurrentDir()
+			if dir == "" then
+				gui.ModalMessage{
+					title = "Local Assets",
+					message = "Choose a directory first.",
+				}
+				return
+			end
+
+			--GetDirectoryInfo may not exist on older engine builds; without it
+			--we populate without the non-empty warning.
+			local info = nil
+			if dmhub.GetDirectoryInfo ~= nil then
+				info = dmhub.GetDirectoryInfo(dir)
+			end
+			if info ~= nil and info.exists and info.fileCount > 0 then
+				gui.ModalMessage{
+					title = "Directory Is Not Empty",
+					message = string.format("%s already contains %d file(s). Populating will overwrite files for assets with matching names; other files are left alone. Continue?", dir, info.fileCount),
+					options = {
+						{ text = "Cancel" },
+						{ text = "Populate Anyway", execute = DoExport },
+					},
+				}
+			else
+				DoExport()
+			end
+		end,
+	}
+
+	return {
+		gui.Label{
+			width = "100%",
+			height = 40,
+			fontSize = 26,
+			bold = true,
+			vmargin = 8,
+			text = "Local Assets (Developer)",
+		},
+
+		gui.Label{
+			width = "90%",
+			height = "auto",
+			halign = "center",
+			fontSize = 14,
+			vmargin = 4,
+			text = "Point this game at a local directory of YAML asset files. When set, the game's cloud assets are ignored: assets load from the directory, edits you make in-game are written back to it as YAML, and external changes to the files hot-reload into the game. Takes effect when the game loads. If the directory does not exist, it is created and populated from the game's assets automatically on next load. Use Populate Directory to fill it immediately.",
+		},
+
+		gui.Panel{
+			classes = {"formRow"},
+			width = "90%",
+			halign = "center",
+			gui.Label{
+				classes = {"form"},
+				width = "40%",
+				text = "Directory:",
+			},
+			dirInput,
+		},
+
+		gui.Panel{
+			flow = "horizontal",
+			width = "90%",
+			height = "auto",
+			halign = "center",
+			vmargin = 4,
+			browseButton,
+			gui.Panel{ width = 16, height = 1 },
+			populateButton,
+		},
+
+		statusLabel,
+	}
+end
+
 local g_imageEditorSetupDialog = nil
 local function ShowImageEditorSetupDialog(onProceed)
 	local function closeDialog()
@@ -846,6 +1027,12 @@ function CreateSettingsScreen(dialog, args)
 
 	local m_selectedTab = "General"
 
+	--The root panel the settings UI lives in. Normally this is the sheet we
+	--assign to the C# dialog container, but in-game it is hosted inside the
+	--game hud instead (see the end of this function), so tree-wide events
+	--must be fired on this rather than on dialog.sheet.
+	local m_screenRoot = nil
+
 	local SettingGroup = function(options)
 
 		local group = options.group
@@ -968,7 +1155,7 @@ function CreateSettingsScreen(dialog, args)
 				end
 
 				m_selectedTab = args.text
-				dialog.sheet:FireEventTree("refreshTab")
+				m_screenRoot:FireEventTree("refreshTab")
 			end,
 		}
 	end
@@ -1076,10 +1263,10 @@ function CreateSettingsScreen(dialog, args)
 					end,
 					edit = function(element)
 						if element.text ~= "" then
-							dialog.sheet:FireEventTree("forceBuild")
+							m_screenRoot:FireEventTree("forceBuild")
 						end
 						local matches = {}
-						dialog.sheet:FireEventTree("search", element.text, matches)
+						m_screenRoot:FireEventTree("search", element.text, matches)
 						if element.text ~= "" then
 							local shownCount = 0
 							for _,m in ipairs(matches) do
@@ -1356,7 +1543,11 @@ function CreateSettingsScreen(dialog, args)
 					SettingGroup{
 						group = "Editing",
 						build = function()
-							return CreateImageEditorChooser()
+							local children = CreateImageEditorChooser()
+							for _,panel in ipairs(CreateLocalAssetsSection()) do
+								children[#children+1] = panel
+							end
+							return children
 						end,
 					},
 
@@ -1808,11 +1999,49 @@ function CreateSettingsScreen(dialog, args)
 		}
 	}
 
-	dialog.sheet = gui.Panel{
+	m_screenRoot = gui.Panel{
 		width = "100%",
 		height = "100%",
 		settingsDialog,
 	}
+
+	--In-game, the C# host for this sheet (PlayerSettingsScreenLua) lives in
+	--the topmost UI canvas, which renders above the game hud's canvas --
+	--including the modal layer used by gui.ShowModal, so modals could never
+	--appear above the settings dialog. Instead, host the settings UI inside
+	--the game hud's main dialog panel: the modal panel is a later sibling of
+	--it (and re-promotes itself via SetAsLastSibling on every show), so
+	--modals render on top. The C# container gets a placeholder sheet that
+	--forwards its lifecycle: whenever the container destroys the placeholder
+	--(settings toggled or closed, or the sheet replaced by the subscription
+	--screen), the hosted panel is destroyed with it. The placeholder must
+	--stay a sheet root; if we parented the real sheet into the hud, the
+	--container's DestroySheet would tear it down without unlinking it from
+	--its hud parent, leaving a stale dead child that corrupts the next open.
+	local hudDialogPanel = nil
+	local ghud = rawget(_G, "gamehud")
+	if ghud ~= nil then
+		local candidate = ghud:try_get("mainDialogPanel")
+		if candidate ~= nil and candidate.valid then
+			hudDialogPanel = candidate
+		end
+	end
+
+	if hudDialogPanel ~= nil then
+		local screenRoot = m_screenRoot
+		hudDialogPanel:AddChild(screenRoot)
+		dialog.sheet = gui.Panel{
+			width = 1,
+			height = 1,
+			destroy = function(element)
+				if screenRoot ~= nil and screenRoot.valid then
+					screenRoot:DestroySelf()
+				end
+			end,
+		}
+	else
+		dialog.sheet = m_screenRoot
+	end
 
 	settingsDialog:PulseClass("fadein")
 end

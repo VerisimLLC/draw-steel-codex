@@ -100,8 +100,6 @@ RegisterGameType("RestRequestToken")
 -- tokens = string -> RequestRequestToken table.
 RegisterGameType("RestRequest")
 
-local CreateRestDialog
-
 LaunchablePanel.Register{
 	name = "Respite",
     menu = "game",
@@ -111,10 +109,27 @@ LaunchablePanel.Register{
 	filtered = function()
 		return not dmhub.isDM
 	end,
+	--Begin the respite game mode directly instead of opening a rest box.
 	content = function()
-		return CreateRestDialog()
+		if GameHud.instance ~= nil then
+			GameHud.instance:BeginRespiteMode()
+		end
+		return nil
 	end,
 }
+
+-- ============================================================================
+-- DEPRECATED: OLD RESPITE "REST BOX" DIALOG
+-- ----------------------------------------------------------------------------
+-- This is the original Game > Respite dialog. It has been replaced by the
+-- respite GAME MODE (see GameHud:BeginRespiteMode in MCDMInitiativeBar.lua),
+-- which the launchable above now triggers directly. The time-lapse control it
+-- provided now lives on the respite mode bar ("Set Time Lapse" / "End Respite").
+-- Kept here (commented out) for reference. To restore, uncomment and repoint
+-- the launchable's `content` back to `CreateRestDialog()`.
+-- ============================================================================
+
+--[[ local CreateRestDialog
 
 CreateRestDialog = function()
 
@@ -212,7 +227,7 @@ CreateRestDialog = function()
 		end,
 	}
 
-	
+
 
 	resultPanel = gui.Panel{
 		id = 'rest-dialog',
@@ -280,11 +295,12 @@ CreateRestDialog = function()
 			end,
 		},
 
-		restButton,		
+		restButton,
 	}
 
 	return resultPanel
-end
+end ]]
+
 
 function GameHud:TryHandleRestRequest(requestid, request)
 	local hasTokens = false

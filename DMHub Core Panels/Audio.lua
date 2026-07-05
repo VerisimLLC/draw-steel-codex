@@ -801,9 +801,14 @@ local m_lastAdvance = nil
 --is missed (possible at crossfade 0, whose window is only 0.25s against a 0.5s poll).
 --James's ruling (2026-07-03): in a SEQUENTIAL playlist the asset's loop flag does not
 --hold the playlist -- advance anyway; loop only matters for playTogether layering.
---A time value that moved backwards by more than a second means the clip wrapped ->
---advance now. NB if a seek/scrub UI ever lands (future transport chunk), a manual
---backward seek of a driven track will read as a wrap and skip -- revisit then.
+--A time value that moved backwards by more than a second is a CANDIDATE wrap, but the
+--transport pause/seek chunk added a real scrub UI, so a plain backward jump is no
+--longer proof of a wrap -- a user (any client) can seek a driven track backward too.
+--The wrap test now also requires the near-end/near-start signature (old time was
+--inside the end-of-track trigger window, new time is near 0) before advancing; any
+--other backward jump just resyncs the bookmark on the next line and falls through.
+--Accepted edge: pausing near the very end, seeking to under ~1.5s, then resuming is
+--indistinguishable from a real wrap and will advance early.
 local m_lastTrackTime = nil
 
 --Audio event log (chunk L): opt-in accessibility feature. When a player turns it on,
@@ -1086,6 +1091,12 @@ g_drawSteelAudioLog = {
     end,
     MusicStopped = function()
         if AudioLogShouldSend(false) then AudioLogSend("Music stopped") end
+    end,
+    MusicPaused = function()
+        if AudioLogShouldSend(false) then AudioLogSend("Music paused") end
+    end,
+    MusicResumed = function()
+        if AudioLogShouldSend(false) then AudioLogSend("Music resumed") end
     end,
     AmbienceLoopStart = function(name)
         if AudioLogShouldSend(false) then AudioLogSend("Ambience loop: " .. tostring(name)) end
@@ -1489,6 +1500,105 @@ local function StopBroadcastClip(assetid)
 	end
 	audio.StopSoundEvent(assetid)
 	if wasLastMusic then g_drawSteelAudioLog.MusicStopped() end
+end
+
+--=====================================================================================
+--Transport pause + seek (engine pass landed: instance.paused and instance.time are
+--writable, synced fields on a GameSoundEventInstance -- see the stale-comment fix on
+--the hero card banner below). Pause/resume acts on the WHOLE music channel at once
+--(hero track, extra layers, and any playTogether members) by signed design: a single
+--toggle, not a per-track control. Ambience and effects are never touched here.
+--=====================================================================================
+
+--Every live instance currently playing in the music category, as
+--{ id = assetid, instance = instance } pairs. Thin wrapper over
+--PlayingTracksForCategory so the pause/seek helpers do not have to re-derive the
+--live instance from audio.currentlyPlaying at every call site.
+local function MusicChannelInstances()
+	local list = {}
+	local tracks = PlayingTracksForCategory("music")
+	for i=1,#tracks do
+		local instance = audio.currentlyPlaying[tracks[i].id]
+		if instance ~= nil then
+			list[#list+1] = { id = tracks[i].id, instance = instance }
+		end
+	end
+	return list
+end
+
+--Toggle pause for the whole music channel. If ANY music instance is already paused,
+--this is a resume (clears pause on every paused instance); otherwise it is a pause
+--(pauses every music instance). Matches the hero card's single play/pause control --
+--there is no per-track pause UI.
+local function ToggleMusicPause()
+	local list = MusicChannelInstances()
+	local anyPaused = false
+	for i=1,#list do
+		if list[i].instance.paused then
+			anyPaused = true
+			break
+		end
+	end
+	if anyPaused then
+		for i=1,#list do
+			if list[i].instance.paused then
+				list[i].instance.paused = false
+			end
+		end
+		g_drawSteelAudioLog.MusicResumed()
+	else
+		if #list == 0 then
+			return
+		end
+		for i=1,#list do
+			list[i].instance.paused = true
+		end
+		g_drawSteelAudioLog.MusicPaused()
+	end
+end
+
+--Seek one music track to time t. If a playTogether playlist is driving and assetid is
+--one of its members, every member's live instance is seeked together so the layers
+--stay in phase; otherwise only assetid's own instance is seeked. The engine clamps t
+--to the clip's own length per instance. Also resyncs m_lastTrackTime (declared near
+--line 807) when the seek target is the sequential driven track, so the wrap-detection
+--poll does not misread a user seek as a stale bookmark on its next tick.
+local function SeekBroadcastClip(assetid, t)
+	local stateDoc = GetPlaylistStateDoc()
+	local playing = stateDoc.data.playing
+	local pl = nil
+	if playing ~= nil then
+		pl = (GetPlaylistsDoc().data.playlists or {})[playing.playlistid]
+	end
+
+	local seekedTogether = false
+	if playing ~= nil and pl ~= nil and pl.playTogether then
+		for _,tid in ipairs(pl.tracks) do
+			if tid == assetid then
+				seekedTogether = true
+				break
+			end
+		end
+	end
+
+	if seekedTogether then
+		for _,tid in ipairs(pl.tracks) do
+			local instance = audio.currentlyPlaying[tid]
+			if instance ~= nil then
+				instance.time = t
+			end
+		end
+	else
+		local instance = audio.currentlyPlaying[assetid]
+		if instance ~= nil then
+			instance.time = t
+		end
+	end
+
+	if playing ~= nil and not (pl ~= nil and pl.playTogether) and playing.order ~= nil
+		and assetid == playing.order[playing.index] then
+		m_lastTrackTime = { assetid = assetid, index = playing.index, time = t }
+	end
 end
 
 --Jump directly to one track of the currently-driven playlist (playlist row click).
@@ -1964,7 +2074,14 @@ PollAudioPlaylists = function()
 					if not shouldAdvance and m_lastTrackTime ~= nil
 						and m_lastTrackTime.assetid == cur and m_lastTrackTime.index == index
 						and instance.time < m_lastTrackTime.time - 1.0 then
-						shouldAdvance = true
+						--Require the near-end/near-start signature (see m_lastTrackTime
+						--banner) so a user seek backward -- which also jumps time
+						--backwards -- resyncs the bookmark below instead of advancing.
+						local nearEnd = m_lastTrackTime.time >= asset.duration - math.max(xf, 0.25) - 2.0
+						local nearStart = instance.time < 1.5
+						if nearEnd and nearStart then
+							shouldAdvance = true
+						end
 					end
 					m_lastTrackTime = { assetid = cur, index = index, time = instance.time }
 				end
@@ -2015,6 +2132,10 @@ if rawget(_G, "devmode") ~= nil and devmode() then
 		RemoveTrack = function(pid, i) RemoveTrackFromPlaylist(pid, i) end,
 		MoveTrack = function(pid, f, t) MoveTrackInPlaylist(pid, f, t) end,
 		StopDriven = function() StopDrivenPlaylist() end,
+		--Transport pause+seek additions: MCP-bridge verification for the hero card's
+		--play/pause toggle and scrub bar without clicking.
+		TogglePause = function() ToggleMusicPause() end,
+		Seek = function(assetid, t) SeekBroadcastClip(assetid, t) end,
 	}
 end
 
@@ -4047,9 +4168,16 @@ local function CreatePlayerSoundPanel()
 			local ev = audio.currentlyPlaying[mid]
 			local t = (ev ~= nil and ev.time) or 0
 			local dur = ma.duration or 0
-			statusDot:SetClass("playing", not ducked)
+			local paused = (ev ~= nil and ev.paused) or false
+			statusDot:SetClass("playing", not ducked and not paused)
 			statusDot:SetClass("ducked", ducked)
-			statusLabel.text = ducked and "Music ducked for Anthem" or "Playing"
+			if ducked then
+				statusLabel.text = "Music ducked for Anthem"
+			elseif paused then
+				statusLabel.text = "Paused"
+			else
+				statusLabel.text = "Playing"
+			end
 			titleLabel.text = DisplayNameForAsset(ma)
 			titleLabel:SetClass("fgMuted", false)
 			timeCurrent.text = FormatTime(t, dur)
@@ -4318,14 +4446,27 @@ local function BuildSoundPanelContent()
 	--(chunk D7 -- see near DisplayNameForAsset) so PlayBroadcastClip and the
 	--Studio strip (D9) share the same ordering with this card.
 
-	--Now-playing hero card. Music is the lead channel (big title + read-only progress +
-	--Stop); Ambience is a slim always-visible footer line (name + stop). Seek (a
-	--draggable scrubber) and pause/resume need engine work -- .time is read-only and
-	--there is no pause API -- so the transport is display-only progress + Stop for now;
-	--the sleek look ships, seek/pause land with the engine pass. m_musicId holds
-	--the resolved music channel id so the hero Stop button acts on the live
-	--track (ambience beds each carry their own id via ambienceRows -- D8).
+	--Now-playing hero card. Music is the lead channel (big title + seekable progress +
+	--Pause/Stop); Ambience is a slim always-visible footer line (name + stop). The
+	--engine pass landed: instance.time and instance.paused are writable, synced fields,
+	--so the transport now has a real scrub bar and a play/pause toggle alongside Stop.
+	--m_musicId holds the resolved music channel id so the hero Stop/Pause/scrub act on
+	--the live track (ambience beds each carry their own id via ambienceRows -- D8).
 	local m_musicId = nil
+	--Mirrors the hero's paused state so the pause button's tooltip/label and the
+	--progress slider's drag-preview math can read it without re-deriving from
+	--audio.currentlyPlaying on every frame. Written only by UpdateNowPlaying.
+	local m_heroPaused = false
+	--True while the user is actively dragging the progress slider. The 0.5s poll
+	--(UpdateNowPlaying) must not overwrite the slider's value while this is true, or
+	--the tick fights the drag and the thumb stutters back mid-scrub.
+	local m_scrubbing = false
+	--Track id captured when a scrub drag starts. m_musicId repoints on every poll
+	--tick (a driven playlist can auto-advance mid-drag), so confirm must seek the
+	--track the user actually grabbed, not whatever the hero shows on release
+	--(correctness review finding, 2026-07-05). nil outside a drag; a plain click
+	--fires confirm without preview, so confirm falls back to m_musicId then.
+	local m_scrubTrackId = nil
 
 	local statusDot = gui.Panel{
 		classes = {"npStatusDot"},
@@ -4397,6 +4538,26 @@ local function BuildSoundPanelContent()
 		textOverflow = "ellipsis",
 	}
 
+	--Play/pause toggle for the whole music channel (ToggleMusicPause). No pause glyph
+	--asset exists yet -- M0 will supply real icons -- so this renders as a bordered
+	--text chip like shuffleChip in the meantime. "II"/">" are M0 placeholder glyphs
+	--(pause/play icons swap in at M0); UpdateNowPlaying drives which one shows.
+	local pauseButton
+	pauseButton = gui.Button{
+		classes = {"sizeXxs", "hidden"},
+		text = "II",
+		width = 20,
+		height = 14,
+		borderBox = true,
+		valign = "center",
+		hmargin = 2,
+		press = function(element)
+			ToggleMusicPause()
+		end,
+		linger = function(element)
+			gui.Tooltip(m_heroPaused and "Resume" or "Pause")(element)
+		end,
+	}
 	local stopButton = gui.Panel{
 		classes = {"hidden"},
 		bgimage = "panels/square.png",
@@ -4423,24 +4584,60 @@ local function BuildSoundPanelContent()
 		valign = "center",
 		textAlignment = "right",
 	}
-	local progressFill = gui.Panel{
-		classes = {"bgAccent"},
-		bgimage = "panels/square.png",
-		width = "0%",
-		height = "100%",
-		halign = "left",
-		valign = "center",
-	}
-	local progressBar = gui.Panel{
+	--Seekable progress bar (transport pause+seek chunk). A gui.Slider replaces the old
+	--passive progressFill/progressBar panel pair so the hero track can be scrubbed:
+	--drag previews locally (timeCurrent readout only, no engine write) and releasing
+	--commits one seek via SeekBroadcastClip. The variable name progressBar is kept on
+	--the slider itself so the existing width-swap lines (playlist transport chrome)
+	--keep working unchanged. Styled to match this codebase's other compact sliders
+	--(preview/confirm, not change -- see MakeBroadcastFader / the K2 pool sliders).
+	local progressBar
+	progressBar = gui.Slider{
 		classes = {"bgAlt"},
-		bgimage = "panels/square.png",
-		width = "100%-104",
-		height = 5,
-		valign = "center",
-		hmargin = 6,
-		cornerRadius = 2.5,
-		borderBox = true,
-		progressFill,
+		minValue = 0,
+		maxValue = 1,
+		--No numeric readout label on this slider (timeCurrent/timeTotal already cover
+		--that role either side of the bar) -- labelWidth=0 + labelFormat="" hides it,
+		--matching the pattern used by the soundboard tile's volumeSlider above.
+		--sliderWidth intentionally omitted: unlike this file's other sliders (all
+		--fixed-pixel style.width), this bar's width is a dynamic "100%-N" expression
+		--(swapped by the playlist transport chrome below), so there is no single fixed
+		--pixel value to give it; leaving it unset lets the slider fill style.width.
+		labelWidth = 0,
+		labelFormat = "",
+		style = {
+			width = "100%-104",
+			height = 5,
+			valign = "center",
+			hmargin = 6,
+			cornerRadius = 2.5,
+			borderBox = true,
+		},
+		preview = function(element)
+			m_scrubbing = true
+			if m_scrubTrackId == nil then
+				m_scrubTrackId = m_musicId
+			end
+			local asset = (m_scrubTrackId ~= nil) and assets.audioTable[m_scrubTrackId] or nil
+			local dur = (asset ~= nil) and asset.duration or nil
+			if dur ~= nil and dur > 0 then
+				timeCurrent.text = FormatTime(element.value * dur, dur)
+			end
+		end,
+		confirm = function(element)
+			m_scrubbing = false
+			local targetid = m_scrubTrackId or m_musicId
+			m_scrubTrackId = nil
+			if targetid == nil then
+				return
+			end
+			local asset = assets.audioTable[targetid]
+			local dur = (asset ~= nil) and asset.duration or nil
+			if dur == nil or dur <= 0 then
+				return
+			end
+			SeekBroadcastClip(targetid, element.value * dur)
+		end,
 	}
 	local timeTotal = gui.Label{
 		classes = {"sizeXxs", "fgMuted"},
@@ -4503,6 +4700,7 @@ local function BuildSoundPanelContent()
 		vmargin = 2,
 		shuffleChip,
 		nextChip,
+		pauseButton,
 		stopButton,
 		timeCurrent,
 		progressBar,
@@ -4881,24 +5079,42 @@ local function BuildSoundPanelContent()
 			local ev = audio.currentlyPlaying[mid]
 			local t = (ev ~= nil and ev.time) or 0
 			local dur = ma.duration or 0
-			statusDot:SetClass("playing", not ducked)
+			local paused = (ev ~= nil and ev.paused) or false
+			m_heroPaused = paused
+			statusDot:SetClass("playing", not ducked and not paused)
 			statusDot:SetClass("ducked", ducked)
-			statusLabel.text = ducked and "Music ducked for Anthem" or "Playing to your table"
+			if ducked then
+				statusLabel.text = "Music ducked for Anthem"
+			elseif paused then
+				statusLabel.text = "Paused"
+			else
+				statusLabel.text = "Playing to your table"
+			end
 			titleLabel.text = DisplayNameForAsset(ma)
 			titleLabel:SetClass("fgMuted", false)
 			subtitleLabel.text = "Music"
 			stopButton:SetClass("hidden", false)
-			timeCurrent.text = FormatTime(t, dur)
+			pauseButton:SetClass("hidden", false)
+			pauseButton.text = paused and ">" or "II"
+			--timeCurrent doubles as the drag-preview readout while scrubbing, so the
+			--poll must not fight that write either (same reason as the value gate).
+			if not m_scrubbing then
+				timeCurrent.text = FormatTime(t, dur)
+				progressBar.value = (dur > 0) and math.min(1, t/dur) or 0
+			end
 			timeTotal.text = FormatTime(dur, dur)
-			progressFill.selfStyle.width = (dur > 0) and string.format("%f%%", math.min(100, (100*t)/dur)) or "0%"
 		else
 			statusDot:SetClass("playing", false)
 			statusDot:SetClass("ducked", false)
 			statusLabel.text = "Nothing playing"
 			stopButton:SetClass("hidden", true)
+			pauseButton:SetClass("hidden", true)
+			m_heroPaused = false
 			timeCurrent.text = ""
 			timeTotal.text = ""
-			progressFill.selfStyle.width = "0%"
+			if not m_scrubbing then
+				progressBar.value = 0
+			end
 		end
 		musicExtrasSig = RefreshExtrasContainer(musicExtras, musicExtrasList, musicExtrasSig)
 

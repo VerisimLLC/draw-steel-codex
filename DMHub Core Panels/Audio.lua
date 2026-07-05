@@ -4164,6 +4164,35 @@ local function CreatePlayerSoundPanel()
 
 		nowPlayingSection,
 
+		--DJ attribution (decision 6, static identity only): players can always see
+		--who is running the table's audio. Hidden entirely when no DJs exist.
+		gui.Label{
+			classes = {"sizeXs", "fgMuted", "collapsed"},
+			text = "",
+			width = "100%",
+			height = "auto",
+			textWrap = true,
+			vmargin = 2,
+			monitorGame = AudioDelegatesPath(),
+			refreshGame = function(element)
+				local ids = AudioDelegateUserids()
+				if #ids == 0 then
+					element:SetClass("collapsed", true)
+					return
+				end
+				local names = {}
+				for _,uid in ipairs(ids) do
+					local info = dmhub.GetSessionInfo(uid)
+					names[#names+1] = (info ~= nil and info.displayName) or "Player"
+				end
+				element.text = (#ids == 1 and "DJ: " or "DJs: ") .. table.concat(names, ", ")
+				element:SetClass("collapsed", false)
+			end,
+			create = function(element)
+				element:FireEvent("refreshGame")
+			end,
+		},
+
 		gui.MCDMDivider{ width = "100%", halign = "left", vmargin = 4 },
 
 		--MakeMasterFader writes the GAME-WIDE master; players get the local
@@ -4198,6 +4227,11 @@ local function CreatePlayerSoundPanel()
 
 	return rootPanel
 end
+
+--Session-scoped: has the DJ framing line already rendered once at full emphasis this
+--session? First render after a grant is the delegate's only onboarding, so it shows
+--un-muted once, then settles to muted on later rebuilds (decision 6, critique fold).
+local m_djFramingSeen = false
 
 --Body of the Audio dock panel for one authorization state: the full control surface
 --when this client may control audio, the player panel otherwise. Wrapped by
@@ -6632,14 +6666,39 @@ local function BuildSoundPanelContent()
 			element:FireEventTree("refreshPlayingAudio")
 		end,
 
-		children = {
+		--Children built as an array since the DJ framing line is conditional - a nil
+		--in a positional child list silently drops every child after it (NIL-HOLE
+		--TRAP, see CLAUDE.md).
+		children = (function()
+			local kids = {}
+			--DJ framing line (decision 6): a delegate's ONLY onboarding for the fact
+			--that this whole surface broadcasts. Never built for the Director. First
+			--render after a grant shows at normal emphasis, then settles to muted on
+			--later rebuilds (session-scoped, module-local flag).
+			if not dmhub.isDM then
+				local firstRender = not m_djFramingSeen
+				m_djFramingSeen = true
+				local classes = {"sizeXs"}
+				if not firstRender then
+					classes[#classes+1] = "fgMuted"
+				end
+				kids[#kids+1] = gui.Label{
+					classes = classes,
+					text = "You are the DJ - everything here plays to the whole table, including Stop all audio and Map Sounds.",
+					width = "100%",
+					height = "auto",
+					textWrap = true,
+					vmargin = 2,
+				}
+			end
+
 			--Pinned top: the now-playing section stays put. Everything below scrolls so
 			--an expanded section (esp. Anthems with many heroes) scrolls rather than
 			--clipping the fixed 470px dock. With nothing selected in the segmented
 			--selector the body is short (now-playing + master only) and does not scroll.
-			nowPlayingSection,
+			kids[#kids+1] = nowPlayingSection
 
-			gui.Panel{
+			kids[#kids+1] = gui.Panel{
 				vscroll = true,
 				width = "100%",
 				height = "auto",
@@ -6654,8 +6713,9 @@ local function BuildSoundPanelContent()
 				masterRow,
 				dockSectionSelectorRow,
 				dockSectionBodies,
-			},
-		}
+			}
+			return kids
+		end)()
 	}
 
 	audio.events:Listen(mainPanel)
@@ -8456,6 +8516,172 @@ local CreateStudioMixerCard = function()
 		end,
 	}
 
+	--DJ grant popover (decision 2: the Studio is the canonical grant surface).
+	--Director-only - a DJ does not appoint DJs - so a delegate's Mixer card shows
+	--only the Ducking button. Dynamic label = delegation state at a glance without
+	--opening the popover (signed amendment).
+	local function DjButtonLabel()
+		local ids = AudioDelegateUserids()
+		if #ids == 0 then
+			return "Assign DJ"
+		elseif #ids == 1 then
+			local info = dmhub.GetSessionInfo(ids[1])
+			return "DJ: " .. ((info ~= nil and info.displayName) or "Player")
+		end
+		return string.format("DJs (%d)", #ids)
+	end
+
+	--One row per non-DM user: online dot + name + persistent "DJ" text tag when
+	--granted (never color-only) + grant toggle. Rebuilt wholesale on every doc
+	--change so a roster-menu revoke elsewhere can never leave this popover stale.
+	local function BuildDjRows()
+		local rows = {}
+		for _,uid in ipairs(dmhub.users) do
+			if not dmhub.IsUserDM(uid) then
+				local userid = uid
+				local info = dmhub.GetSessionInfo(userid)
+				local name = (info ~= nil and info.displayName) or "Player"
+				local isDj = IsAudioDelegate(userid)
+				local tooltipText = "Give " .. name .. " full audio control"
+				if isDj then
+					tooltipText = "Take back audio control"
+				end
+				rows[#rows+1] = gui.Panel{
+					flow = "horizontal",
+					width = "100%",
+					height = 24,
+					valign = "center",
+					vmargin = 1,
+					--Online dot (critique fold: REQUIRED, not optional -
+					--grant-while-offline needs its "not here yet" signal).
+					gui.Panel{
+						bgimage = "panels/square.png",
+						bgcolor = IsUserOnlineForAudio(userid) and "#5cb85c" or "#888888",
+						width = 8,
+						height = 8,
+						cornerRadius = 4,
+						valign = "center",
+						hmargin = 4,
+					},
+					gui.Label{
+						classes = {"sizeXs"},
+						text = name,
+						width = "100%-90",
+						height = "auto",
+						valign = "center",
+						textWrap = false,
+						textOverflow = "ellipsis",
+					},
+					gui.Label{
+						classes = {"sizeXs", "bold"},
+						text = isDj and "DJ" or "",
+						width = 22,
+						height = "auto",
+						valign = "center",
+					},
+					gui.Check{
+						text = "",
+						value = isDj,
+						width = "auto",
+						height = 20,
+						valign = "center",
+						tooltip = tooltipText,
+						change = function(element)
+							SetAudioDelegate(userid, element.value)
+						end,
+					},
+				}
+			end
+		end
+		if #rows == 0 then
+			rows[#rows+1] = gui.Label{
+				classes = {"sizeXs", "fgMuted"},
+				text = "No players in the game yet.",
+				width = "100%",
+				height = "auto",
+				textWrap = true,
+				vmargin = 2,
+			}
+		end
+		return rows
+	end
+
+	local djButton
+	if dmhub.isDM then
+		djButton = gui.Button{
+			classes = {"sizeXs"},
+			text = DjButtonLabel(),
+			width = 106,
+			height = 24,
+			valign = "center",
+			hmargin = 4,
+			textWrap = false,
+			textOverflow = "ellipsis",
+			popupPositioning = "panel",
+			monitorGame = AudioDelegatesPath(),
+			refreshGame = function(element)
+				element.text = DjButtonLabel()
+			end,
+			press = function(element)
+				if element.popup ~= nil then
+					element.popup = nil
+					return
+				end
+				local rowsPanel
+				rowsPanel = gui.Panel{
+					flow = "vertical",
+					width = "100%",
+					height = "auto",
+					monitorGame = AudioDelegatesPath(),
+					refreshGame = function(el)
+						el.children = BuildDjRows()
+					end,
+					children = BuildDjRows(),
+				}
+				--Popups are reparented to the popup layer and need their own theme
+				--snapshot (the documented gotcha; same as the Ducking popover above).
+				element.popup = gui.Panel{
+					styles = ThemeEngine.MergeStyles{},
+					classes = {"framedPanel"},
+					width = 320,
+					height = "auto",
+					halign = "right",
+					flow = "vertical",
+					pad = 8,
+					borderBox = true,
+					gui.Label{ classes = {"bold", "sizeS"}, text = "DJ", width = "auto", height = "auto", vmargin = 2 },
+					gui.Label{
+						classes = {"sizeXs", "fgMuted"},
+						text = "Let a player run the table's audio. DJs get the full audio panel and Studio.",
+						width = "100%",
+						height = "auto",
+						textWrap = true,
+						vmargin = 2,
+					},
+					rowsPanel,
+				}
+			end,
+		}
+	end
+
+	--Header children built as an array: djButton is Director-only and a nil in a
+	--positional child list drops everything after it (NIL-HOLE TRAP).
+	local headerKids = {
+		gui.Panel{
+			flow = "horizontal",
+			width = cond(dmhub.isDM, "100%-228", "100%-114"),
+			height = "auto",
+			halign = "left",
+			valign = "center",
+			gui.Label{ classes = {"bold", "sizeS"}, text = "Levels", width = "auto", height = "auto", halign = "left", valign = "center" },
+			AudioInfoGlyph("These are the broadcast levels (what the table hears). Players can manage their own mixing levels but the above levels set the ceiling."),
+		},
+	}
+	if djButton ~= nil then
+		headerKids[#headerKids+1] = djButton
+	end
+	headerKids[#headerKids+1] = duckingButton
+
 	return gui.Panel{
 		classes = {"bordered"},
 		flow = "vertical",
@@ -8471,16 +8697,7 @@ local CreateStudioMixerCard = function()
 			height = "auto",
 			valign = "center",
 			vmargin = 2,
-			gui.Panel{
-				flow = "horizontal",
-				width = "100%-114",
-				height = "auto",
-				halign = "left",
-				valign = "center",
-				gui.Label{ classes = {"bold", "sizeS"}, text = "Levels", width = "auto", height = "auto", halign = "left", valign = "center" },
-				AudioInfoGlyph("These are the broadcast levels (what the table hears). Players can manage their own mixing levels but the above levels set the ceiling."),
-			},
-			duckingButton,
+			children = headerKids,
 		},
 
 		MakeFaderRow("Master", MakeMasterFader(), false),
@@ -11258,6 +11475,21 @@ local function CreateStudioNowPlayingStrip()
 			height = "auto",
 			halign = "left",
 			valign = "center",
+			--DM/DJ-only driver diagnostic (DJ delegation, critique fold): after an
+			--auto-adopt the humans cannot tell whose machine drives the playlist -
+			--this hover answers it without adding per-event attribution (decision 6).
+			hover = function(element)
+				if not CanControlAudio() then
+					return
+				end
+				local playing = GetPlaylistStateDoc().data.playing
+				if playing == nil or playing.driver == nil then
+					return
+				end
+				local info = dmhub.GetSessionInfo(playing.driver)
+				local name = (info ~= nil and info.displayName) or playing.driver
+				gui.Tooltip("Driven by " .. name)(element)
+			end,
 		},
 		stopAllButton,
 	}

@@ -20,7 +20,8 @@ mod:RegisterDocumentForCheckpointBackups(audioMixDocId)
 local audioClipOrderDocId = "audioClipOrder"
 mod:RegisterDocumentForCheckpointBackups(audioClipOrderDocId)
 
---All-clients broadcast sync. The Audio panel is dmonly, but this file's module-load code
+--All-clients broadcast sync. The Audio panel's full surface is Director-or-DJ only
+--(see CanControlAudio), but this file's module-load code
 --runs on EVERY client, so this loop keeps each client's engine in sync with the DM's
 --broadcast levels even on clients that never open the panel (and on late joiners). The
 --doc snapshot syncs from the cloud; there is no panel-less change callback, so we poll it
@@ -945,6 +946,64 @@ WriteAudioLogSubscription = function()
     doc:CompleteChange("Update audio log subscription", {undoable = false})
 end
 
+--DJ delegation (audio-DJ-delegation-proposal.md): a Director can grant players full
+--audio control. Grants live in a shared doc so every client's UI reacts to the same
+--state; they persist across sessions until revoked. There is no server-side ACL on
+--any game state - like every write in this codebase, the gate is UI-side convention.
+local function AudioDelegatesDoc()
+	return mod:GetDocumentSnapshot("audioDelegates")
+end
+
+local function AudioDelegatesPath()
+	return mod:GetDocumentPath("audioDelegates")
+end
+
+--True when this client may operate the full audio surface (Director or granted DJ).
+local function CanControlAudio()
+	if dmhub.isDM then
+		return true
+	end
+	local delegates = AudioDelegatesDoc().data.delegates
+	return delegates ~= nil and delegates[dmhub.userid] == true
+end
+
+local function IsAudioDelegate(userid)
+	local delegates = AudioDelegatesDoc().data.delegates
+	return delegates ~= nil and delegates[userid] == true
+end
+
+--True when a userid may drive/post shared audio state: a Director or a granted DJ.
+--Shared by the audio-log election and the driver-poll heal/adopt logic so both agree
+--on who counts as authorized.
+local function IsAuthorizedAudioUser(userid)
+	return dmhub.IsUserDM(userid) or IsAudioDelegate(userid)
+end
+
+--Sorted list of delegate userids, for the grant/attribution UI (later chunks).
+local function AudioDelegateUserids()
+	local ids = {}
+	for uid,v in pairs(AudioDelegatesDoc().data.delegates or {}) do
+		if v == true then
+			ids[#ids+1] = uid
+		end
+	end
+	table.sort(ids)
+	return ids
+end
+
+--Grant/revoke writes (called from the grant UI in a later chunk; UI-gated to the DM).
+local function SetAudioDelegate(userid, granted)
+	local doc = AudioDelegatesDoc()
+	doc:BeginChange()
+	if doc.data.delegates == nil then
+		doc.data.delegates = {}
+	end
+	doc.data.delegates[userid] = granted == true or nil
+	doc:CompleteChange(granted and "Assign DJ" or "Revoke DJ", {undoable = false})
+end
+
+mod:RegisterDocumentForCheckpointBackups("audioDelegates")
+
 local function AnyAudioLogSubscriber(needEffects)
     local subs = AudioLogSubDoc().data.subs
     if subs == nil then return false end
@@ -956,11 +1015,33 @@ local function AnyAudioLogSubscriber(needEffects)
     return false
 end
 
---Send gate: only the DM's client emits (single detector/sender -- the anthem recompute
---runs on every client, so isDM keeps it to one broadcast), and only when at least one
---player is listening. Effect lines additionally require an effects subscriber.
+--Send gate for action-scoped events: only the ACTING client emits, which is single by
+--construction (exactly one client performed the play/stop that fired the hook). The
+--acting client may now be the Director or a granted DJ. Only sends when at least one
+--player is listening; effect lines additionally require an effects subscriber.
 local function AudioLogShouldSend(needEffects)
-    return dmhub.isDM and AnyAudioLogSubscriber(needEffects)
+	return CanControlAudio() and AnyAudioLogSubscriber(needEffects)
+end
+
+--Anthem events recompute on every client, so a single poster must be ELECTED rather
+--than action-scoped: the lowest ONLINE authorized (Director or DJ) userid posts. A
+--transiently empty presence list on one client just means that client stays quiet
+--for the tick - some other client still posts, so no line is lost, at worst briefly
+--duplicated (accepted edge).
+local function AudioLogShouldSendElected(needEffects)
+	if not CanControlAudio() then
+		return false
+	end
+	if not AnyAudioLogSubscriber(needEffects) then
+		return false
+	end
+	local best = nil
+	for _,uid in ipairs(dmhub.users) do
+		if IsAuthorizedAudioUser(uid) and (best == nil or uid < best) then
+			best = uid
+		end
+	end
+	return best == dmhub.userid
 end
 
 local function AudioLogSend(text)
@@ -971,8 +1052,8 @@ end
 --Narrow cross-module export (chunk L) so MCDMInitiativeBar's anthem hooks can reach
 --the logger without a load-order dependency. Read via rawget(_G, "g_drawSteelAudioLog")
 --on the consumer side, same pattern as g_drawSteelAudioBar above. Every method is a no-op
---unless this is the DM's client AND a player is listening (per-player display is gated in
---AudioLogChatMessage.Render).
+--unless this client may control audio (Director or DJ) AND a player is listening
+--(per-player display is gated in AudioLogChatMessage.Render).
 g_drawSteelAudioLog = {
     NowPlaying = function(name)
         if AudioLogShouldSend(false) then AudioLogSend("Now playing: " .. tostring(name)) end
@@ -981,12 +1062,12 @@ g_drawSteelAudioLog = {
         if AudioLogShouldSend(false) then AudioLogSend("Ambience: " .. tostring(name)) end
     end,
     AnthemStart = function(name, ducked)
-        if AudioLogShouldSend(false) then
+        if AudioLogShouldSendElected(false) then
             AudioLogSend("Anthem: " .. tostring(name) .. (ducked and " (music ducked)" or ""))
         end
     end,
     AnthemEnd = function()
-        if AudioLogShouldSend(false) then AudioLogSend("Anthem ended") end
+        if AudioLogShouldSendElected(false) then AudioLogSend("Anthem ended") end
     end,
     StopAll = function()
         if AudioLogShouldSend(false) then AudioLogSend("All audio stopped") end
@@ -1311,6 +1392,12 @@ g_drawSteelAudioBar = {
 	MakePersonalFader = MakePersonalFader,
 	MakeBroadcastFader = MakeBroadcastFader,
 	MakeFaderRow = MakeFaderRow,
+	--DJ delegation surface for later chunks (grant UI, attribution, roster menus).
+	CanControlAudio = CanControlAudio,
+	IsAudioDelegate = IsAudioDelegate,
+	AudioDelegateUserids = AudioDelegateUserids,
+	SetAudioDelegate = SetAudioDelegate,
+	AudioDelegatesPath = AudioDelegatesPath,
 	--Display name of the "lead" broadcasting track for compact readouts:
 	--newest playing music track, else newest playing ambience bed, else nil.
 	PrimaryPlayingName = function()
@@ -1653,9 +1740,10 @@ local m_didEnsureStarters = false
 local m_lastMode = nil
 
 --Driver poll (0.5s self-rescheduling, mirrors SyncBroadcastLevelsToEngine's shape).
---Each tick: seeds starter playlists once, runs the DM-only game-mode watcher (auto
---play/save/restore on Draw Steel mode changes), then advances whichever playlist this
---client is driving. See the module banner above for the driver/bracket model.
+--Each tick: seeds starter playlists once (DM clients only), runs the game-mode watcher
+--(Director or DJ; auto play/save/restore on Draw Steel mode changes), then heals or
+--adopts an orphaned playlist driver, then advances whichever playlist this client is
+--driving. See the module banner above for the driver/bracket model.
 PollAudioPlaylists = function()
 	if mod.unloaded then
 		return
@@ -1666,7 +1754,7 @@ PollAudioPlaylists = function()
 		m_didEnsureStarters = true
 	end
 
-	if dmhub.isDM then
+	if CanControlAudio() then
 		--Effective game mode. Do NOT gate this on queue.hidden: respite/downtime run
 		--with the queue HIDDEN and gameMode still set (the End Respite bar checks
 		--hidden==true), and both End Combat paths reset gameMode to "exploration"
@@ -1789,7 +1877,53 @@ PollAudioPlaylists = function()
 	--Advance loop: only the client driving a non-playTogether playlist advances it.
 	local stateDoc3 = GetPlaylistStateDoc()
 	local playing = stateDoc3.data.playing
-	if playing ~= nil and playing.driver == dmhub.userid then
+
+	--Presence heal + auto-adopt (mirrors PollAudioVariantPoolLoops's online-set idiom).
+	--Playlists had no heal before DJ delegation: a driver who disconnects (or whose DJ
+	--grant is revoked) would silently freeze the playlist at the end of the current
+	--track, forever. Auto-adopt keeps the music going through a driver blip: the lowest
+	--online AUTHORIZED userid takes over as driver; heal-to-idle only when nobody online
+	--can drive at all.
+	if playing ~= nil then
+		local online = {}
+		for _,uid in ipairs(dmhub.users) do
+			online[uid] = true
+		end
+		--Only trust the presence list when it is non-empty (see the pool poll's banner):
+		--a transiently empty dmhub.users on ONE client must not trigger an adopt or a
+		--heal session-wide.
+		local hasOnline = next(online) ~= nil
+		local needsAdopt = playing.driver == nil
+			or (hasOnline and not online[playing.driver])
+			or (online[playing.driver] and not IsAuthorizedAudioUser(playing.driver))
+		if needsAdopt then
+			local best = nil
+			for _,uid in ipairs(dmhub.users) do
+				if IsAuthorizedAudioUser(uid) and (best == nil or uid < best) then
+					best = uid
+				end
+			end
+			if best == dmhub.userid then
+				--Adopt: this client becomes the driver so the advance loop below
+				--continues seamlessly from this tick. Fresh snapshot for the write;
+				--re-check playing still exists (another client may have stopped it).
+				local adoptDoc = GetPlaylistStateDoc()
+				if adoptDoc.data.playing ~= nil then
+					adoptDoc:BeginChange()
+					adoptDoc.data.playing.driver = dmhub.userid
+					adoptDoc:CompleteChange("Adopt playlist driver", {undoable = false})
+					playing = adoptDoc.data.playing
+				end
+			elseif best == nil and hasOnline then
+				--Nobody online may drive: clear the playing state rather than leaving
+				--a permanently frozen, undriveable playlist lit in every client's UI.
+				AudioPlaylistStop()
+				playing = nil
+			end
+		end
+	end
+
+	if playing ~= nil and playing.driver == dmhub.userid and CanControlAudio() then
 		local plDoc2 = GetPlaylistsDoc()
 		local pl = (plDoc2.data.playlists or {})[playing.playlistid]
 		if pl == nil then
@@ -2756,9 +2890,10 @@ function VariantPools.SetLoopVolume(poolid, volume)
 end
 
 --Loop driver poll (K2). Mirrors PollAudioPlaylists. Runs on every client:
---  - PRESENCE HEAL (any client): a looping entry whose driver is no longer connected is
---    orphaned - clear it so the pad returns to idle everywhere (the playlist model never
---    solved this; a looping bed must not leave a permanently-lit-but-dead pad).
+--  - PRESENCE HEAL (any client): a looping entry whose driver is no longer connected, or
+--    is no longer authorized (DJ grant revoked), is orphaned - clear it so the pad
+--    returns to idle everywhere (a looping bed must not leave a permanently-lit-but-dead
+--    pad).
 --  - ADVANCE (driver only): when the absolute nextFireAt deadline passes, fire a member
 --    and roll the next deadline. Absolute deadline (not a countdown) so poll jitter never
 --    accumulates and a hot-reload resumes correctly from the doc.
@@ -2785,9 +2920,12 @@ PollAudioVariantPoolLoops = function()
 	local toStartGap = {} --cycling: current member finished -> begin the gap timer
 	for poolid,entry in pairs(doc.data) do
 		if type(entry) == "table" and entry.looping == true then
-			if entry.driver == nil or (hasOnline and not online[entry.driver]) then
+			--Orphan test: driver gone entirely, or online but no longer authorized
+			--(DJ grant revoked while driving a loop).
+			if entry.driver == nil or (hasOnline and not online[entry.driver])
+				or (online[entry.driver] and not IsAuthorizedAudioUser(entry.driver)) then
 				toHeal[#toHeal+1] = poolid
-			elseif entry.driver == dmhub.userid then
+			elseif entry.driver == dmhub.userid and CanControlAudio() then
 				--Driver self-heals a loop whose pool was deleted OR has emptied out (no
 				--members left to fire) so it never sits looping=true, silent, forever.
 				if not VariantPools.IsPool(poolid) or #VariantPools.Members(poolid) == 0 then
@@ -4044,11 +4182,15 @@ local function CreatePlayerSoundPanel()
 	return rootPanel
 end
 
-CreateSoundPanel = function()
-	if not dmhub.isDM then
+--Body of the Audio dock panel for one authorization state: the full control surface
+--when this client may control audio, the player panel otherwise. Wrapped by
+--CreateSoundPanel below, which swaps the body live when this client's own DJ grant
+--flips.
+local function BuildSoundPanelContent()
+	if not CanControlAudio() then
 		return CreatePlayerSoundPanel()
 	end
-	
+
 
 	--The folder library used to live here as a maximize-to-reveal drawer in the
 	--dock. It has moved to the Audio Studio (the "Audio Studio" button opens it;
@@ -6504,6 +6646,29 @@ CreateSoundPanel = function()
 	mainPanel:ScheduleEvent("refreshAudio", 0.01)
 
 	return mainPanel
+end
+
+--Thin wrapper around BuildSoundPanelContent: a stable root that watches the DJ
+--delegates doc and rebuilds its body when THIS client's own control state flips
+--(grant or revoke), so the dock transforms live without reopening the panel.
+CreateSoundPanel = function()
+	local hadControl = CanControlAudio()
+	return gui.Panel{
+		flow = "vertical",
+		width = "100%",
+		height = "auto",
+		monitorGame = AudioDelegatesPath(),
+		refreshGame = function(element)
+			--Signature-gate on THIS client's own control state: a grant/revoke for
+			--someone else must not rebuild our dock.
+			local nowControl = CanControlAudio()
+			if nowControl ~= hadControl then
+				hadControl = nowControl
+				element.children = { BuildSoundPanelContent() }
+			end
+		end,
+		BuildSoundPanelContent(),
+	}
 end
 
 
@@ -11146,7 +11311,7 @@ local AUDIO_STUDIO_LIBRARY_CARD_VMARGIN = 8
 local AUDIO_STUDIO_TABROW_ALLOWANCE = 28
 
 CreateAudioStudio = function()
-	if not dmhub.isDM then
+	if not CanControlAudio() then
 		return nil
 	end
 
@@ -11715,6 +11880,17 @@ CreateAudioStudio = function()
 
 		refreshAudio = function(element)
 			element:FireEventTree("refreshPlayingAudio")
+		end,
+
+		--Self-close on revoke: the Studio is a floating window, so a client whose DJ
+		--grant is pulled while it is open must not keep a live control surface. The
+		--house close pattern fires "close" on the content root's PARENT (the
+		--launchable-panel host) - see RequireDCDialog's dialog.parent:FireEvent("close").
+		monitorGame = AudioDelegatesPath(),
+		refreshGame = function(element)
+			if not CanControlAudio() and element.parent ~= nil then
+				element.parent:FireEvent("close")
+			end
 		end,
 
 		header,

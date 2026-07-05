@@ -2007,6 +2007,7 @@ function VariantPools.Create(name, memberIds)
 		gapMax = 10,
 		layerSounds = false,
 		fadeInOut = false,
+		fadeSeconds = 0.5,
 	}
 	doc:CompleteChange("Create variant pool")
 	return poolid
@@ -2036,6 +2037,7 @@ function VariantPools.EnsureEntry(poolid)
 		gapMax = 10,
 		layerSounds = false,
 		fadeInOut = false,
+		fadeSeconds = 0.5,
 	}
 	doc:CompleteChange("Create variant pool")
 end
@@ -2281,6 +2283,21 @@ function VariantPools.SetFadeInOut(poolid, on)
 	doc:CompleteChange("Set variant pool fade")
 end
 
+--Sets the fade in/out duration in seconds. Clamped to [0.2, 5.0]. K2 round 5.
+function VariantPools.SetFadeSeconds(poolid, secs)
+	if not VariantPools.IsPool(poolid) then
+		return
+	end
+	secs = secs or 0.5
+	if secs < 0.2 then secs = 0.2 end
+	if secs > 5.0 then secs = 5.0 end
+	local doc = VariantPools.GetDoc()
+	doc:BeginChange()
+	PurgeLegacyEntries(doc)
+	doc.data[poolid].fadeSeconds = secs
+	doc:CompleteChange("Set variant pool fade seconds")
+end
+
 --K1.5 field fix (James, 2026-07-04): deleting a pool also clears any soundboard
 --button holding it, on every board. Pads on OTHER clients already self-heal a stale
 --poolid to empty, but the deleting client should leave no dead assignment behind in
@@ -2317,11 +2334,12 @@ end
 --before the clip's natural end so the tail is smooth instead of a hard cut. Driver-
 --local (dmhub.Schedule); guarded so a stopped/replaced sound is never re-crossfaded.
 --Skipped for very short clips (a fade would swallow the whole sound).
-local function ScheduleVariantPoolFadeOut(assetid, duration)
+local function ScheduleVariantPoolFadeOut(assetid, duration, fadeSecs)
 	if assetid == nil or duration == nil or duration <= 1.0 then
 		return
 	end
-	local delay = duration - 0.5
+	fadeSecs = fadeSecs or 0.5
+	local delay = duration - fadeSecs
 	if delay < 0.1 then delay = 0.1 end
 	dmhub.Schedule(delay, function()
 		if mod.unloaded then return end
@@ -2331,8 +2349,8 @@ local function ScheduleVariantPoolFadeOut(assetid, duration)
 		--soundboard pad sharing the clip) would otherwise be cut short by this stale closure.
 		--A fresh replay reads a small inst.time, so gate on being within ~0.75s of the end.
 		local inst = audio.currentlyPlaying[assetid]
-		if inst ~= nil and inst.time ~= nil and inst.time >= (duration - 0.75) then
-			audio.CrossfadeSoundEvents(assetid, nil, 0.5)
+		if inst ~= nil and inst.time ~= nil and inst.time >= (duration - fadeSecs - 0.25) then
+			audio.CrossfadeSoundEvents(assetid, nil, fadeSecs)
 		end
 	end)
 end
@@ -2396,11 +2414,12 @@ function VariantPools.Fire(poolid, opts)
 		--pitch variation - an accepted, signed tradeoff (fade is for smooth textures).
 		--Volume is applied after, multiplying with the fade envelope (music path does
 		--the same). Then schedule the matching ease-out near the clip's natural end.
-		audio.CrossfadeSoundEvents(nil, chosen.id, 0.5)
+		local fadeSecs = VariantPools.FadeSeconds(poolid)
+		audio.CrossfadeSoundEvents(nil, chosen.id, fadeSecs)
 		if opts ~= nil and opts.volume ~= nil then
 			audio.SetSoundEventVolume(chosen.id, opts.volume)
 		end
-		ScheduleVariantPoolFadeOut(chosen.id, chosen.duration)
+		ScheduleVariantPoolFadeOut(chosen.id, chosen.duration, fadeSecs)
 		return chosen
 	end
 
@@ -2457,6 +2476,15 @@ end
 function VariantPools.IsFadeInOut(poolid)
 	local e = VariantPools.GetDoc().data[poolid]
 	return type(e) == "table" and e.fadeInOut == true
+end
+
+--Fade in/out duration (seconds) for this pool. Defaults to 0.5, clamped [0.2, 5.0]. K2 round 5.
+function VariantPools.FadeSeconds(poolid)
+	local e = VariantPools.GetDoc().data[poolid]
+	local s = (type(e) == "table" and e.fadeSeconds) or 0.5
+	if s < 0.2 then s = 0.2 end
+	if s > 5.0 then s = 5.0 end
+	return s
 end
 
 --Ids of all currently-looping pools, sorted for a stable now-playing row order.
@@ -2539,11 +2567,12 @@ function VariantPools.StopLoop(poolid)
 		return
 	end
 	local name = VariantPools.Name(poolid) or "Variant pool"
+	local stopFade = VariantPools.IsFadeInOut(poolid) and VariantPools.FadeSeconds(poolid) or 0.5
 	--Fade out whichever member is audibly playing right now (starts stay hard; only the
 	--stop fades - design A2). CrossfadeSoundEvents(id, nil, secs) = fade-out only.
 	for _,m in ipairs(VariantPools.Members(poolid)) do
 		if audio.currentlyPlaying[m.id] ~= nil then
-			audio.CrossfadeSoundEvents(m.id, nil, 0.5)
+			audio.CrossfadeSoundEvents(m.id, nil, stopFade)
 		end
 	end
 	doc:BeginChange()
@@ -2749,6 +2778,8 @@ if rawget(_G, "devmode") ~= nil and devmode() and rawget(_G, "DrawSteelAudioDev"
 	DrawSteelAudioDev.SetVariantPoolFade = function(poolid, on) VariantPools.SetFadeInOut(poolid, on) end
 	DrawSteelAudioDev.IsVariantPoolLayer = function(poolid) return VariantPools.IsLayerSounds(poolid) end
 	DrawSteelAudioDev.IsVariantPoolFade = function(poolid) return VariantPools.IsFadeInOut(poolid) end
+	DrawSteelAudioDev.SetVariantPoolFadeSeconds = function(poolid, secs) VariantPools.SetFadeSeconds(poolid, secs) end
+	DrawSteelAudioDev.VariantPoolFadeSeconds = function(poolid) return VariantPools.FadeSeconds(poolid) end
 end
 
 --K1.5-studio: shared module-level state between the clip context menu (OpenRowContextMenu,
@@ -9910,6 +9941,8 @@ local CreateStudioVariantPoolsCard = function(heightSpec)
 			local gapStrip
 			local loopOptionsStrip
 			local pitchCluster
+			local pitchVarLabel
+			local fadeSecondsBox
 
 			local loopCheck = gui.Check{
 				text = "Loop as ambience",
@@ -9928,6 +9961,7 @@ local CreateStudioVariantPoolsCard = function(heightSpec)
 			--Pitch variation is inert while Fade in/out is on (a faded fire goes through the
 			--crossfade path, which cannot carry pitch). Dim the control and explain on hover
 			--rather than hide/disable it, so the pool's pitch value survives toggling fade off.
+			pitchVarLabel = gui.Label{ classes = {"sizeXs"}, text = "Pitch variation", width = "auto", height = "auto", halign = "left", valign = "center", hmargin = 4 }
 			pitchCluster = gui.Panel{
 				flow = "horizontal",
 				width = "auto",
@@ -9937,14 +9971,14 @@ local CreateStudioVariantPoolsCard = function(heightSpec)
 					{ selectors = {"pitchDimmed"}, opacity = 0.4 },
 				},
 				hover = function(element)
-					if element:HasClass("pitchDimmed") then
+					if pitchSlider:HasClass("pitchDimmed") then
 						gui.Tooltip("Turn off Fade in/out to use pitch variation - fades can't also shift pitch.")(element)
 					end
 				end,
-				gui.Label{ classes = {"sizeXs"}, text = "Pitch variation", width = "auto", height = "auto", halign = "left", valign = "center", hmargin = 4 },
+				pitchVarLabel,
 				pitchSlider,
 			}
-			pitchCluster:SetClass("pitchDimmed", fadeOnNow)
+			pitchVarLabel:SetClass("fgMuted", fadeOnNow); pitchSlider:SetClass("pitchDimmed", fadeOnNow)
 
 			local configStrip = gui.Panel{
 				flow = "horizontal",
@@ -9979,6 +10013,7 @@ local CreateStudioVariantPoolsCard = function(heightSpec)
 			local layerCheck = gui.Check{
 				text = "Layer sounds",
 				value = layerOnNow,
+					tooltip = "On: variants can play over each other for a dense, building atmosphere. Off: one variant plays at a time, cycling through them with the gap as quiet in between.",
 				width = "auto",
 				height = 22,
 				valign = "center",
@@ -9990,15 +10025,38 @@ local CreateStudioVariantPoolsCard = function(heightSpec)
 			local fadeCheck = gui.Check{
 				text = "Fade in/out",
 				value = fadeOnNow,
+					tooltip = "On: each sound eases in and out - smoother for textures like wind or a tavern murmur; set how long the fade lasts alongside. Off: sounds keep their sharp attack and natural tail - right for thunder, birdsong, or drips.",
 				width = "auto",
 				height = 22,
 				valign = "center",
 				hmargin = 4,
 				change = function(element)
 					VariantPools.SetFadeInOut(poolid, element.value)
-					if pitchCluster ~= nil then pitchCluster:SetClass("pitchDimmed", element.value) end
+					pitchVarLabel:SetClass("fgMuted", element.value); pitchSlider:SetClass("pitchDimmed", element.value)
+					if fadeSecondsBox ~= nil then fadeSecondsBox:SetClass("collapsed", not element.value) end
 				end,
 			}
+			--Custom fade duration (K2 round 5), revealed only when Fade in/out is on. Inline
+			--right of the Fade checkbox; drives the fade-in, ease-out, and stop-fade lengths.
+			local fadeSecondsNow = (poolEntryNow ~= nil and poolEntryNow.fadeSeconds) or 0.5
+			local fadeSecondsSlider = gui.Slider{
+				style = { width = 130, height = 16, valign = "center", hmargin = 4 },
+				sliderWidth = 80, labelWidth = 34, labelFormat = "%.1fs",
+				minValue = 0.2, maxValue = 5.0, value = fadeSecondsNow,
+				confirm = function(element)
+					VariantPools.SetFadeSeconds(poolid, element.value)
+				end,
+			}
+			fadeSecondsBox = gui.Panel{
+				classes = { "collapsed" },
+				flow = "horizontal",
+				width = "auto",
+				height = "100%",
+				valign = "center",
+				gui.Label{ classes = {"sizeXs"}, text = "Fade", width = "auto", height = "auto", halign = "left", valign = "center", hmargin = 4 },
+				fadeSecondsSlider,
+			}
+			fadeSecondsBox:SetClass("collapsed", not fadeOnNow)
 			loopOptionsStrip = gui.Panel{
 				classes = { "collapsed" },
 				flow = "horizontal",
@@ -10016,10 +10074,10 @@ local CreateStudioVariantPoolsCard = function(heightSpec)
 					halign = "left",
 					valign = "center",
 					layerCheck,
-					AudioInfoGlyph("On: variants can play over each other for a dense, building atmosphere. Off: one variant plays at a time, cycling through them with the gap as quiet in between."),
+					--layer/fade tooltips now live on the checkboxes (tooltip= linger), no glyph needed
 					fadeCheck,
-					AudioInfoGlyph("On: each sound eases in and out (~0.5s) - smoother for textures like wind or a tavern murmur. Off: sounds keep their sharp attack and natural tail - right for thunder, birdsong, or drips."),
-				},
+						fadeSecondsBox,
+									},
 			}
 			loopOptionsStrip:SetClass("collapsed", not loopOnNow)
 			rowChildren[#rowChildren+1] = loopOptionsStrip
@@ -10325,6 +10383,7 @@ local CreateStudioVariantPoolsCard = function(heightSpec)
 				tostring((poolEntry ~= nil and poolEntry.gapMax) or 10),
 				tostring((poolEntry ~= nil and poolEntry.layerSounds) == true),
 				tostring((poolEntry ~= nil and poolEntry.fadeInOut) == true),
+				tostring((poolEntry ~= nil and poolEntry.fadeSeconds) or 0.5),
 				tostring(expanded),
 				table.concat(liveIds, ","),
 			}, "|")
@@ -10393,7 +10452,7 @@ local CreateStudioVariantPoolsCard = function(heightSpec)
 			halign = "left",
 			valign = "center",
 			gui.Label{ classes = {"bold", "sizeS"}, text = "Variant Pools", width = "auto", height = "auto", halign = "left", valign = "center" },
-			AudioInfoGlyph("A variant pool plays one of its clips each time it fires, with slight pitch variation, so repeated effects never sound the same twice. Assign pools to soundboard buttons to fire them."),
+			AudioInfoGlyph("A variant pool plays one of its clips each time it fires, with slight pitch variation, so repeated effects never sound the same twice. Turn on Loop as ambience to play it as a continuous background bed instead. Assign pools to soundboard buttons to fire or toggle them."),
 		},
 		newPoolButton,
 	}

@@ -4838,6 +4838,114 @@ local function CreateMarkdownAutocomplete(opts)
     }
 end
 
+--Bottom strip of rich-tag annotation editors (encounter pickers, dice
+--configs, image selectors, ...). Scans the content for [[tags]] whose
+--registry entry has hasEdit, CREATES any missing annotation object on the
+--document (this is what backs a freshly typed tag: display renders nothing
+--for a tag with no annotation), and shows each tag's editor widget.
+--Shared by the classic and live editors. Drive it by firing "editDocument"
+--with the current content, or "refreshDocument" with a doc to pull from.
+--opts.GetDocument() returns the MarkdownDocument being edited.
+local function CreateAnnotationsPanel(opts)
+    local m_richPanels = {}
+
+    return gui.Panel {
+        width = "98%",
+        height = "auto",
+        maxHeight = 200,
+        vscroll = true,
+        vmargin = 8,
+        flow = "horizontal",
+        wrap = true,
+
+        refreshDocument = function(element, doc)
+            if doc ~= nil then
+                element:FireEvent("editDocument", doc:GetTextContent())
+            end
+        end,
+
+        editDocument = function(element, content)
+            local doc = opts.GetDocument()
+            if doc == nil then
+                return
+            end
+
+            local tagsSeen = {}
+
+            local newRichPanels = {}
+            local children = {}
+            local tokens = BreakdownRichTags(content)
+            for i, token in ipairs(tokens) do
+                if token.type == "tag" then
+                    local text, suffix = token.text:match("^(.-):(.*)$")
+                    if suffix == nil then
+                        text = token.text
+                    end
+
+                    local richTagInfo = MarkdownDocument.RichTagRegistry[string.lower(text)]
+
+                    if richTagInfo ~= nil and richTagInfo.hasEdit then
+                        local candidate = token.text
+                        local index = 1
+                        while tagsSeen[candidate] do
+                            candidate = token.text .. '-' .. index
+                            index = index + 1
+                        end
+
+                        tagsSeen[candidate] = true
+
+                        local richTag = doc.annotations[candidate]
+                        --patch over any possible bugs where the saved annotation is not a proper table.
+                        if richTag ~= nil and getmetatable(richTag) == nil then
+                            richTag = nil
+                            doc.annotations[candidate] = nil
+                        end
+
+                        if richTag == nil then
+                            richTag = richTagInfo.Create()
+                            richTag.identifier = suffix or false
+                            doc.annotations[candidate] = richTag
+                        end
+
+                        if richTagInfo.hasEdit ~= "hidden" then
+                            local richPanel = m_richPanels[candidate] or gui.Panel {
+                                width = "auto",
+                                height = 120,
+                                flow = "vertical",
+                                halign = "left",
+                                valign = "top",
+                                hmargin = 4,
+                                gui.Panel {
+                                    width = "auto",
+                                    height = 96,
+                                    richTag:CreateEditor(),
+                                },
+                                gui.Label {
+                                    text = candidate,
+                                    fontSize = CustomDocument.ScaleFontSize(12),
+                                    textAlignment = "center",
+                                    width = 96,
+                                    height = "auto",
+                                    halign = "center",
+                                    valign = "center",
+                                },
+                            }
+
+                            newRichPanels[candidate] = richPanel
+                            children[#children + 1] = richPanel
+
+                            richPanel:FireEventTree("refreshEditor", richTag)
+                        end
+                    end
+                end
+            end
+
+            m_richPanels = newRichPanels
+            element.children = children
+        end,
+    }
+end
+
 --Obsidian-style live edit surface (experimental, behind liveEditSetting).
 --The document is partitioned into blocks (PartitionTokensIntoBlocks); each
 --block renders through RenderMarkdownTokens exactly like display mode, with
@@ -4876,6 +4984,21 @@ function MarkdownDocument:LiveEditPanel(args)
             m_activateTime = dmhub.Time()
         end,
     }
+
+    --rich-tag annotation editor strip (encounter pickers, dice configs...),
+    --shared machinery with the classic editor. Its scan also CREATES missing
+    --annotation objects for typed tags, which the block renderer needs: a
+    --tag with no annotation renders as nothing. Therefore the scan must run
+    --after every content change and BEFORE blocks re-render.
+    local m_annotationsPanel = CreateAnnotationsPanel{
+        GetDocument = function()
+            return m_doc
+        end,
+    }
+
+    local function RefreshAnnotations(content)
+        m_annotationsPanel:FireEvent("editDocument", content)
+    end
 
     local m_listPanel
 
@@ -5016,6 +5139,10 @@ function MarkdownDocument:LiveEditPanel(args)
 
             edit = function(element)
                 m_autocomplete.Update(element)
+                --keep the annotation strip live while typing, like the
+                --classic editor; this also pre-creates annotations so the
+                --widget renders the moment the block commits.
+                RefreshAnnotations(GetContentIncludingActive())
             end,
 
             caretReady = function(element)
@@ -5216,6 +5343,7 @@ function MarkdownDocument:LiveEditPanel(args)
         CommitActiveBlock()
         m_activeIndex = nil
         RebuildBlockData()
+        RefreshAnnotations(GetContent())
         RefreshBlockPanels()
     end
 
@@ -5242,6 +5370,7 @@ function MarkdownDocument:LiveEditPanel(args)
             end
             m_activeIndex = nil
             RebuildBlockData()
+            RefreshAnnotations(GetContent())
 
             index = nil
             for i, block in ipairs(m_blocks) do
@@ -5319,6 +5448,7 @@ function MarkdownDocument:LiveEditPanel(args)
             end
             SetLinesFromContent(m_doc:GetTextContent())
             RebuildBlockData()
+            RefreshAnnotations(GetContent())
             RefreshBlockPanels()
         end,
 
@@ -5347,10 +5477,13 @@ function MarkdownDocument:LiveEditPanel(args)
             flow = "vertical",
             m_listPanel,
         },
+
+        m_annotationsPanel,
     }
 
     SetLinesFromContent(m_doc:GetTextContent())
     RebuildBlockData()
+    RefreshAnnotations(GetContent())
     RefreshBlockPanels()
 
     return resultPanel
@@ -6004,96 +6137,10 @@ function MarkdownDocument:EditPanel(args)
         },
     }
 
-    local m_richPanels = {}
-
-    local annotationsPanel = gui.Panel {
-        width = "98%",
-        height = "auto",
-        maxHeight = 200,
-        vscroll = true,
-        vmargin = 8,
-        flow = "horizontal",
-        wrap = true,
-
-        refreshDocument = function(element, doc)
-            if doc ~= nil then
-                element:FireEvent("editDocument", doc:GetTextContent())
-            end
-        end,
-
-        editDocument = function(element, content)
-            local tagsSeen = {}
-
-            local newRichPanels = {}
-            local children = {}
-            local tokens = BreakdownRichTags(content)
-            for i, token in ipairs(tokens) do
-                if token.type == "tag" then
-                    local text, suffix = token.text:match("^(.-):(.*)$")
-                    if suffix == nil then
-                        text = token.text
-                    end
-
-                    local richTagInfo = MarkdownDocument.RichTagRegistry[string.lower(text)]
-
-                    if richTagInfo ~= nil and richTagInfo.hasEdit then
-                        local candidate = token.text
-                        local index = 1
-                        while tagsSeen[candidate] do
-                            candidate = token.text .. '-' .. index
-                            index = index + 1
-                        end
-
-                        tagsSeen[candidate] = true
-
-                        local richTag = self.annotations[candidate]
-                        --patch over any possible bugs where the saved annotation is not a proper table.
-                        if richTag ~= nil and getmetatable(richTag) == nil then
-                            richTag = nil
-                            self.annotations[candidate] = nil
-                        end
-
-                        if richTag == nil then
-                            richTag = richTagInfo.Create()
-                            richTag.identifier = suffix or false
-                            self.annotations[candidate] = richTag
-                        end
-
-                        if richTagInfo.hasEdit ~= "hidden" then
-                            local richPanel = m_richPanels[candidate] or gui.Panel {
-                                width = "auto",
-                                height = 120,
-                                flow = "vertical",
-                                halign = "left",
-                                valign = "top",
-                                hmargin = 4,
-                                gui.Panel {
-                                    width = "auto",
-                                    height = 96,
-                                    richTag:CreateEditor(),
-                                },
-                                gui.Label {
-                                    text = candidate,
-                                    fontSize = CustomDocument.ScaleFontSize(12),
-                                    textAlignment = "center",
-                                    width = 96,
-                                    height = "auto",
-                                    halign = "center",
-                                    valign = "center",
-                                },
-                            }
-
-                            newRichPanels[candidate] = richPanel
-                            children[#children + 1] = richPanel
-
-                            richPanel:FireEventTree("refreshEditor", richTag)
-                        end
-                    end
-                end
-            end
-
-            m_richPanels = newRichPanels
-            element.children = children
+    --rich-tag annotation editor strip, shared with the live editor.
+    local annotationsPanel = CreateAnnotationsPanel{
+        GetDocument = function()
+            return self
         end,
     }
 

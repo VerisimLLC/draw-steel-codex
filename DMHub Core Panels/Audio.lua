@@ -979,6 +979,18 @@ local function IsAuthorizedAudioUser(userid)
 	return dmhub.IsUserDM(userid) or IsAudioDelegate(userid)
 end
 
+--Online test matching the roster panel's recipe (OnlineUsers.lua): dmhub.users can
+--carry lingering sessions after an ungraceful disconnect, so elections and the
+--playlist adopt must not treat bare list membership as "online" - a ghost winner
+--would mean dead air until the session ages out.
+local function IsUserOnlineForAudio(userid)
+	local info = dmhub.GetSessionInfo(userid)
+	if info == nil or info.loggedOut then
+		return false
+	end
+	return (info.timeSinceLastContact or 0) < 140
+end
+
 --Sorted list of delegate userids, for the grant/attribution UI (later chunks).
 local function AudioDelegateUserids()
 	local ids = {}
@@ -1037,7 +1049,7 @@ local function AudioLogShouldSendElected(needEffects)
 	end
 	local best = nil
 	for _,uid in ipairs(dmhub.users) do
-		if IsAuthorizedAudioUser(uid) and (best == nil or uid < best) then
+		if IsAuthorizedAudioUser(uid) and IsUserOnlineForAudio(uid) and (best == nil or uid < best) then
 			best = uid
 		end
 	end
@@ -1885,9 +1897,14 @@ PollAudioPlaylists = function()
 	--online AUTHORIZED userid takes over as driver; heal-to-idle only when nobody online
 	--can drive at all.
 	if playing ~= nil then
+		--dmhub.users can carry a lingering session after an ungraceful disconnect, so
+		--filter through the roster's online recipe (IsUserOnlineForAudio) - otherwise a
+		--ghost driver would hold the playlist in dead air until the session ages out.
 		local online = {}
 		for _,uid in ipairs(dmhub.users) do
-			online[uid] = true
+			if IsUserOnlineForAudio(uid) then
+				online[uid] = true
+			end
 		end
 		--Only trust the presence list when it is non-empty (see the pool poll's banner):
 		--a transiently empty dmhub.users on ONE client must not trigger an adopt or a
@@ -1899,7 +1916,7 @@ PollAudioPlaylists = function()
 		if needsAdopt then
 			local best = nil
 			for _,uid in ipairs(dmhub.users) do
-				if IsAuthorizedAudioUser(uid) and (best == nil or uid < best) then
+				if IsAuthorizedAudioUser(uid) and online[uid] and (best == nil or uid < best) then
 					best = uid
 				end
 			end

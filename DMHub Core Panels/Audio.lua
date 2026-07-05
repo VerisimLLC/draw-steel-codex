@@ -5193,6 +5193,83 @@ CreateSoundPanel = function()
 	--WITHOUT merging the full base theme (unlike MergeStyles), so this stays
 	--cheap: only the soundboard subtree gets the extra cascade, and the rest of
 	--the dock keeps inheriting the DockablePanel host cascade untouched.
+	--K2 A3: running-ambience visibility. A compact status row at the top of the dock
+	--Soundboard section: infinity glyph + running-loop count + a "Stop ambient loops"
+	--action (stops every looping pool, leaves music and one-shots alone). Hidden
+	--entirely while nothing loops. Doc-driven via the pool loop-state monitor, same
+	--pattern as the board selector's loop flags above.
+	local ambientLoopsLabel = gui.Label{
+		classes = {"sizeXs"},
+		text = "",
+		width = "auto",
+		height = "auto",
+		valign = "center",
+	}
+	local ambientLoopsGlyph = gui.Panel{
+		classes = {"audioSbLoop", "active"},
+		bgimage = "game-icons/infinity.png",
+		width = 14,
+		height = 14,
+		valign = "center",
+		hmargin = 4,
+	}
+	local ambientLoopsTooltip = ""
+	local ambientLoopsBadge = gui.Panel{
+		flow = "horizontal",
+		width = "auto",
+		height = "100%",
+		halign = "left",
+		valign = "center",
+		hover = function(element)
+			gui.Tooltip(ambientLoopsTooltip)(element)
+		end,
+		ambientLoopsGlyph,
+		ambientLoopsLabel,
+	}
+	local ambientLoopsStop = gui.Button{
+		classes = {"sizeXs"},
+		text = "Stop ambient loops",
+		width = "auto",
+		height = 20,
+		hpad = 6,
+		borderBox = true,
+		halign = "right",
+		valign = "center",
+		press = function()
+			VariantPools.StopAllLoops()
+		end,
+	}
+	--Takes the row element rather than closing over the row local: the create event's
+	--timing relative to the gui.Panel constructor is not a documented contract, so a
+	--self-reference through a forward-declared local could run against nil.
+	local function RefreshAmbientLoopsRow(element)
+		local n = VariantPools.CountLoops()
+		element:SetClass("collapsed", n == 0)
+		if n == 1 then
+			ambientLoopsLabel.text = "1 ambient loop"
+			ambientLoopsTooltip = "1 ambient loop running"
+		else
+			ambientLoopsLabel.text = string.format("%d ambient loops", n)
+			ambientLoopsTooltip = string.format("%d ambient loops running", n)
+		end
+	end
+	local ambientLoopsRow = gui.Panel{
+		classes = {"collapsed"},
+		flow = "horizontal",
+		width = "100%",
+		height = 22,
+		vmargin = 2,
+		monitorGame = VariantPools.LoopStatePath(),
+		refreshGame = function(element)
+			RefreshAmbientLoopsRow(element)
+		end,
+		create = function(element)
+			RefreshAmbientLoopsRow(element)
+		end,
+		ambientLoopsBadge,
+		ambientLoopsStop,
+	}
+
 	local soundboardBody
 	soundboardBody = gui.Panel{
 		flow = "vertical",
@@ -5220,6 +5297,7 @@ CreateSoundPanel = function()
 			end
 		end,
 
+		ambientLoopsRow,
 		CreateDockBoardSelector(dockPlayerGrid),
 		dockPlayerGrid,
 
@@ -9992,6 +10070,7 @@ local CreateStudioVariantPoolsCard = function(heightSpec)
 			local loopCheck = gui.Check{
 				text = "Loop as ambience",
 				value = loopOnNow,
+				tooltip = "Plays this pool as a looping background bed, firing a random member every few seconds - set the timing with the gap below.",
 				width = "auto",
 				height = 22,
 				valign = "center",

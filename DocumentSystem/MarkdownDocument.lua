@@ -4945,6 +4945,224 @@ local function CreateAnnotationsPanel(opts)
     }
 end
 
+--Formatting toolbar shared by the classic and live editors: inline wraps
+--(bold/italic/...), heading and list line prefixes, spoilers, link/divider
+--inserts, media/widget rich tags, and the stylesheet picker. opts:
+--  GetInput()               - returns the input to apply an action to. May
+--                             activate an editor first (the live editor
+--                             reactivates the last edited block, since
+--                             clicking a button defocuses and commits it).
+--                             Return nil to make the action a no-op.
+--  GetStylesheetId()        - current stylesheet id ("" for none).
+--  OnStylesheetChanged(id)  - host-specific stylesheet application.
+local function CreateMarkdownToolbar(opts)
+    --caretOverride: hosts that had to reactivate an editor pass the intended
+    --caret explicitly, because SetTextAndCaret defers actual caret placement
+    --across the input's focus acquisition and input.caretPosition cannot be
+    --trusted yet. Overrides collapse the selection at that position.
+    local function InsertAction(input, action, caretOverride)
+        local text = input.text or ""
+        local caret = caretOverride or input.caretPosition or #text
+        local anchor = caretOverride or input.selectionAnchorPosition or caret
+        local selStart = math.min(caret, anchor)
+        local selEnd   = math.max(caret, anchor)
+        local selected = text:sub(selStart + 1, selEnd)
+
+        local newText, newCaret
+
+        if action.mode == "wrap" then
+            local body = selected
+            if body == "" then body = action.placeholder or "" end
+            newText = text:sub(1, selStart)
+                    .. action.prefix .. body .. action.suffix
+                    .. text:sub(selEnd + 1)
+            newCaret = selStart + #action.prefix + #body
+        elseif action.mode == "linePrefix" then
+            local lineStart = selStart
+            while lineStart > 0 and text:sub(lineStart, lineStart) ~= "\n" do
+                lineStart = lineStart - 1
+            end
+            newText = text:sub(1, lineStart) .. action.prefix
+                    .. text:sub(lineStart + 1)
+            newCaret = selStart + #action.prefix
+        else
+            newText = text:sub(1, selStart) .. action.text
+                    .. text:sub(selEnd + 1)
+            newCaret = selStart + (action.caretOffset or #action.text)
+        end
+
+        input:SetTextAndCaret(newCaret, newText)
+        input:FireEvent("edit")
+    end
+
+    local function ApplyAction(action)
+        local input, caretOverride = opts.GetInput()
+        if input == nil or not input.valid then
+            return
+        end
+        InsertAction(input, action, caretOverride)
+    end
+
+    local function WrapHandler(prefix, suffix)
+        return function() ApplyAction{
+            mode = "wrap", prefix = prefix, suffix = suffix,
+        } end
+    end
+
+    local function LineHandler(prefix)
+        return function() ApplyAction{
+            mode = "linePrefix", prefix = prefix,
+        } end
+    end
+
+    local function InsertHandler(text, caretOffset)
+        return function() ApplyAction{
+            mode = "insert", text = text, caretOffset = caretOffset,
+        } end
+    end
+
+    local function RichTagHandler(tagName)
+        return function() ApplyAction{
+            mode = "insert",
+            text = string.format("[[%s]]\n", tagName),
+        } end
+    end
+
+    local function ToolbarButton(label, fontSize, width, handler)
+        return gui.Button{
+            text = label,
+            width = width or 28,
+            height = 24,
+            fontSize = fontSize or 14,
+            valign = "center",
+            press = handler,
+        }
+    end
+
+    local headingOptions = {
+        { id = "",       text = "Heading" },
+        { id = "# ",     text = "H1" },
+        { id = "## ",    text = "H2" },
+        { id = "### ",   text = "H3" },
+        { id = "#### ",  text = "H4" },
+        { id = "##### ", text = "H5" },
+    }
+
+    local spoilerOptions = {
+        { id = "",  text = "Spoiler" },
+        { id = "h", text = "Hidden" },
+        { id = "r", text = "Redacted" },
+        { id = "v", text = "Revealed" },
+    }
+
+    local mediaTags  = { "image", "sound", "ability", "scene",
+                         "encounter", "party", "follower" }
+    local widgetTags = { "dice", "bar", "counter", "checkbox", "macro",
+                         "reminder", "timer", "setting" }
+
+    local mediaOptions = { { id = "", text = "Insert Media" } }
+    for _, t in ipairs(mediaTags) do
+        mediaOptions[#mediaOptions + 1] = { id = t, text = t }
+    end
+
+    local widgetOptions = { { id = "", text = "Insert Widget" } }
+    for _, t in ipairs(widgetTags) do
+        widgetOptions[#widgetOptions + 1] = { id = t, text = t }
+    end
+
+    return gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "horizontal",
+        wrap = true,
+        valign = "top",
+        halign = "left",
+        borderBox = true,
+        hpad = 4,
+        bmargin = 4,
+
+        ToolbarButton("B", 16, 28, WrapHandler("**", "**")),
+        ToolbarButton("I", 16, 28, WrapHandler("*", "*")),
+        ToolbarButton("U", 16, 28, WrapHandler("__", "__")),
+        ToolbarButton("S", 16, 28, WrapHandler("~~", "~~")),
+
+        ToolbarButton("Color", 12, 44,
+            WrapHandler("<color=red>", "</color>")),
+
+        gui.Dropdown{
+            width = 90, height = 24, idChosen = "",
+            options = spoilerOptions,
+            change = function(element)
+                local id = element.idChosen
+                if id == "h" then
+                    WrapHandler("{", "}")()
+                elseif id == "r" then
+                    WrapHandler("{#", "}")()
+                elseif id == "v" then
+                    WrapHandler("{!", "}")()
+                end
+                element.idChosen = ""
+            end,
+        },
+
+        gui.Dropdown{
+            width = 80, height = 24, idChosen = "",
+            options = headingOptions,
+            change = function(element)
+                if element.idChosen ~= "" then
+                    LineHandler(element.idChosen)()
+                    element.idChosen = ""
+                end
+            end,
+        },
+
+        ToolbarButton("List",    12, 44, LineHandler("* ")),
+        ToolbarButton("Divider", 12, 56, InsertHandler("\n---\n", 5)),
+        ToolbarButton("Link",    12, 40, InsertHandler("[]", 1)),
+
+        ToolbarButton("Draw Steel!", 12, 80,
+            InsertHandler('[[//link "Draw Steel!"|Draw Steel!]]')),
+
+        gui.Dropdown{
+            width = 110, height = 24, idChosen = "",
+            options = mediaOptions,
+            change = function(element)
+                if element.idChosen ~= "" then
+                    RichTagHandler(element.idChosen)()
+                    element.idChosen = ""
+                end
+            end,
+        },
+
+        gui.Dropdown{
+            width = 110, height = 24, idChosen = "",
+            options = widgetOptions,
+            change = function(element)
+                if element.idChosen ~= "" then
+                    RichTagHandler(element.idChosen)()
+                    element.idChosen = ""
+                end
+            end,
+        },
+
+        gui.Panel{
+            classes = { "formStackedRow" },
+            width = "auto",
+            height = "auto",
+            valign = "center",
+            gui.Label{ classes = { "formStacked" }, text = "Stylesheet:" },
+            gui.Dropdown{
+                classes = { "formStacked" },
+                options = JournalStylesheet.PickerOptions(),
+                idChosen = opts.GetStylesheetId() or "",
+                change = function(element)
+                    opts.OnStylesheetChanged(element.idChosen)
+                end,
+            },
+        },
+    }
+end
+
 --Obsidian-style live edit surface (experimental, behind liveEditSetting).
 --The document is partitioned into blocks (PartitionTokensIntoBlocks); each
 --block renders through RenderMarkdownTokens exactly like display mode, with
@@ -4969,6 +5187,8 @@ function MarkdownDocument:LiveEditPanel(args)
     local m_activeIndex = nil
     local m_editInput = nil  --single input reused for whichever block is active.
     local m_activateTime = 0 --guards the focus watchdog against the focus race.
+    local m_lastEdit = nil   --{line, caret} of the most recent edit; lets the
+                             --toolbar reactivate where the user was typing.
 
     --link/rich-tag autocomplete + link-info popups on the active block input,
     --shared machinery with the classic editor.
@@ -5144,6 +5364,15 @@ function MarkdownDocument:LiveEditPanel(args)
             editlag = 0.3,
 
             edit = function(element)
+                --track the live caret while it is trustworthy (focused);
+                --this is what the toolbar reactivates after its click
+                --defocuses and commits the block.
+                if m_activeIndex ~= nil then
+                    local block = m_blocks[m_activeIndex]
+                    if block ~= nil then
+                        m_lastEdit = { line = block.lineStart, caret = element.caretPosition }
+                    end
+                end
                 m_autocomplete.Update(element)
                 --keep the annotation strip live while typing, like the
                 --classic editor; this also pre-creates annotations so the
@@ -5158,6 +5387,12 @@ function MarkdownDocument:LiveEditPanel(args)
             --autocomplete dismissal + link-info refresh, mirroring the
             --classic editor's input think handler.
             think = function(element)
+                if m_activeIndex ~= nil and element.hasInputFocus then
+                    local block = m_blocks[m_activeIndex]
+                    if block ~= nil then
+                        m_lastEdit = { line = block.lineStart, caret = element.caretPosition }
+                    end
+                end
                 if #m_autocomplete.state.results > 0 then
                     local searchText, bracketPos, contextType = m_autocomplete.FindLinkContext(element.text or "", element.caretPosition or 0)
                     if searchText == nil or ((contextType == "link" or contextType == "linkTarget") and #searchText < 1) then
@@ -5346,6 +5581,9 @@ function MarkdownDocument:LiveEditPanel(args)
             m_autocomplete.Dismiss(m_editInput)
             m_editInput.popup = nil
         end
+        --m_lastEdit (where the toolbar reactivates) is tracked while the
+        --input is focused - the caret is not reliable after defocus, so it
+        --is deliberately NOT re-read here.
         CommitActiveBlock()
         m_activeIndex = nil
         RebuildBlockData()
@@ -5404,8 +5642,59 @@ function MarkdownDocument:LiveEditPanel(args)
             end
             m_editInput:SetTextAndCaret(caret, src)
             m_editInput.hasInputFocus = true
+            m_lastEdit = { line = block.lineStart, caret = caret }
         end
     end
+
+    --the formatting toolbar, shared with the classic editor. Toolbar clicks
+    --defocus the input, which commits and deactivates the block before the
+    --button handler runs; GetInput reactivates the last edited block (line
+    --anchored, caret restored) so the action lands where the user was typing.
+    local m_toolbar = CreateMarkdownToolbar{
+        GetInput = function()
+            if m_activeIndex ~= nil then
+                return m_editInput
+            end
+            if m_lastEdit == nil then
+                return nil
+            end
+            local index = nil
+            for i, block in ipairs(m_blocks) do
+                if m_lastEdit.line <= block.lineEnd then
+                    index = i
+                    break
+                end
+            end
+            if index == nil then
+                return nil
+            end
+            ActivateBlock(index)
+            if m_activeIndex == nil or m_editInput == nil or not m_editInput.valid then
+                return nil
+            end
+            --hand the intended caret to the action explicitly: the caret set
+            --during activation is still pending (deferred across the focus
+            --race), so reading input.caretPosition here would act on a stale
+            --position.
+            local caret = nil
+            if m_lastEdit ~= nil and m_lastEdit.caret ~= nil then
+                caret = math.min(m_lastEdit.caret, #(m_editInput.text or ""))
+            end
+            return m_editInput, caret
+        end,
+        GetStylesheetId = function()
+            return m_doc.styleSheetId or ""
+        end,
+        OnStylesheetChanged = function(chosen)
+            m_doc.styleSheetId = (chosen ~= "" and chosen) or false
+            ResolveStylesheet.ClearCache()
+            m_doc._tmp_styleDirty = true
+            RefreshBlockPanels()
+            if resultPanel ~= nil then
+                resultPanel:SetClassTree("changes", true)
+            end
+        end,
+    }
 
     m_listPanel = gui.Panel{
         flow = "vertical",
@@ -5452,6 +5741,7 @@ function MarkdownDocument:LiveEditPanel(args)
                 --commit path merges through TextStorage on save.
                 return
             end
+            m_lastEdit = nil
             SetLinesFromContent(m_doc:GetTextContent())
             RebuildBlockData()
             RefreshAnnotations(GetContent())
@@ -5473,6 +5763,8 @@ function MarkdownDocument:LiveEditPanel(args)
         checkChanges = function(element, baseDoc)
             resultPanel:SetClassTree("changes", GetContentIncludingActive() ~= baseDoc:GetTextContent())
         end,
+
+        m_toolbar,
 
         gui.Panel{
             width = "98%",
@@ -5686,66 +5978,6 @@ function MarkdownDocument:EditPanel(args)
     local UpdateAutocomplete = m_autocomplete.Update
     local DismissAutocomplete = m_autocomplete.Dismiss
     local UpdateLinkInfo = m_autocomplete.UpdateLinkInfo
-
-    local function InsertAction(input, action)
-        local text = input.text or ""
-        local caret = input.caretPosition or #text
-        local anchor = input.selectionAnchorPosition or caret
-        local selStart = math.min(caret, anchor)
-        local selEnd   = math.max(caret, anchor)
-        local selected = text:sub(selStart + 1, selEnd)
-
-        local newText, newCaret
-
-        if action.mode == "wrap" then
-            local body = selected
-            if body == "" then body = action.placeholder or "" end
-            newText = text:sub(1, selStart)
-                    .. action.prefix .. body .. action.suffix
-                    .. text:sub(selEnd + 1)
-            newCaret = selStart + #action.prefix + #body
-        elseif action.mode == "linePrefix" then
-            local lineStart = selStart
-            while lineStart > 0 and text:sub(lineStart, lineStart) ~= "\n" do
-                lineStart = lineStart - 1
-            end
-            newText = text:sub(1, lineStart) .. action.prefix
-                    .. text:sub(lineStart + 1)
-            newCaret = selStart + #action.prefix
-        else
-            newText = text:sub(1, selStart) .. action.text
-                    .. text:sub(selEnd + 1)
-            newCaret = selStart + (action.caretOffset or #action.text)
-        end
-
-        input:SetTextAndCaret(newCaret, newText)
-        input:FireEvent("edit")
-    end
-
-    local function WrapHandler(prefix, suffix)
-        return function() InsertAction(editInput, {
-            mode = "wrap", prefix = prefix, suffix = suffix,
-        }) end
-    end
-
-    local function LineHandler(prefix)
-        return function() InsertAction(editInput, {
-            mode = "linePrefix", prefix = prefix,
-        }) end
-    end
-
-    local function InsertHandler(text, caretOffset)
-        return function() InsertAction(editInput, {
-            mode = "insert", text = text, caretOffset = caretOffset,
-        }) end
-    end
-
-    local function RichTagHandler(tagName)
-        return function() InsertAction(editInput, {
-            mode = "insert",
-            text = string.format("[[%s]]\n", tagName),
-        }) end
-    end
 
     local lastSyncedCaret = -1
     -- Scroll the live preview so the block under the editor caret stays in view. A flat
@@ -6150,148 +6382,26 @@ function MarkdownDocument:EditPanel(args)
         end,
     }
 
-    local function ToolbarButton(label, fontSize, width, handler)
-        return gui.Button{
-            text = label,
-            width = width or 28,
-            height = 24,
-            fontSize = fontSize or 14,
-            valign = "center",
-            press = handler,
-        }
-    end
-
-    local headingOptions = {
-        { id = "",       text = "Heading" },
-        { id = "# ",     text = "H1" },
-        { id = "## ",    text = "H2" },
-        { id = "### ",   text = "H3" },
-        { id = "#### ",  text = "H4" },
-        { id = "##### ", text = "H5" },
-    }
-
-    local spoilerOptions = {
-        { id = "",  text = "Spoiler" },
-        { id = "h", text = "Hidden" },
-        { id = "r", text = "Redacted" },
-        { id = "v", text = "Revealed" },
-    }
-
-    local mediaTags  = { "image", "sound", "ability", "scene",
-                         "encounter", "party", "follower" }
-    local widgetTags = { "dice", "bar", "counter", "checkbox", "macro",
-                         "reminder", "timer", "setting" }
-
-    local mediaOptions = { { id = "", text = "Insert Media" } }
-    for _, t in ipairs(mediaTags) do
-        mediaOptions[#mediaOptions + 1] = { id = t, text = t }
-    end
-
-    local widgetOptions = { { id = "", text = "Insert Widget" } }
-    for _, t in ipairs(widgetTags) do
-        widgetOptions[#widgetOptions + 1] = { id = t, text = t }
-    end
-
-    local toolbar = gui.Panel{
-        width = "100%",
-        height = "auto",
-        flow = "horizontal",
-        wrap = true,
-        valign = "top",
-        halign = "left",
-        borderBox = true,
-        hpad = 4,
-        bmargin = 4,
-
-        ToolbarButton("B", 16, 28, WrapHandler("**", "**")),
-        ToolbarButton("I", 16, 28, WrapHandler("*", "*")),
-        ToolbarButton("U", 16, 28, WrapHandler("__", "__")),
-        ToolbarButton("S", 16, 28, WrapHandler("~~", "~~")),
-
-        ToolbarButton("Color", 12, 44,
-            WrapHandler("<color=red>", "</color>")),
-
-        gui.Dropdown{
-            width = 90, height = 24, idChosen = "",
-            options = spoilerOptions,
-            change = function(element)
-                local id = element.idChosen
-                if id == "h" then
-                    WrapHandler("{", "}")()
-                elseif id == "r" then
-                    WrapHandler("{#", "}")()
-                elseif id == "v" then
-                    WrapHandler("{!", "}")()
-                end
-                element.idChosen = ""
-            end,
-        },
-
-        gui.Dropdown{
-            width = 80, height = 24, idChosen = "",
-            options = headingOptions,
-            change = function(element)
-                if element.idChosen ~= "" then
-                    LineHandler(element.idChosen)()
-                    element.idChosen = ""
-                end
-            end,
-        },
-
-        ToolbarButton("List",    12, 44, LineHandler("* ")),
-        ToolbarButton("Divider", 12, 56, InsertHandler("\n---\n", 5)),
-        ToolbarButton("Link",    12, 40, InsertHandler("[]", 1)),
-
-        ToolbarButton("Draw Steel!", 12, 80,
-            InsertHandler('[[//link "Draw Steel!"|Draw Steel!]]')),
-
-        gui.Dropdown{
-            width = 110, height = 24, idChosen = "",
-            options = mediaOptions,
-            change = function(element)
-                if element.idChosen ~= "" then
-                    RichTagHandler(element.idChosen)()
-                    element.idChosen = ""
-                end
-            end,
-        },
-
-        gui.Dropdown{
-            width = 110, height = 24, idChosen = "",
-            options = widgetOptions,
-            change = function(element)
-                if element.idChosen ~= "" then
-                    RichTagHandler(element.idChosen)()
-                    element.idChosen = ""
-                end
-            end,
-        },
-
-        gui.Panel{
-            classes = { "formStackedRow" },
-            width = "auto",
-            height = "auto",
-            valign = "center",
-            gui.Label{ classes = { "formStacked" }, text = "Stylesheet:" },
-            gui.Dropdown{
-                classes = { "formStacked" },
-                options = JournalStylesheet.PickerOptions(),
-                idChosen = self.styleSheetId or "",
-                change = function(element)
-                    local chosen = element.idChosen
-                    self.styleSheetId = (chosen ~= "" and chosen) or false
-                    previewDoc.styleSheetId = self.styleSheetId
-                    ResolveStylesheet.ClearCache()
-                    if previewPanel ~= nil then
-                        previewPanel:FireEventTree("refreshDocument", previewDoc)
-                    end
-                    self._tmp_styleDirty = true
-                    if resultPanel ~= nil then
-                        resultPanel:SetClassTree("changes", true)
-                    end
-                end,
-            },
-        },
+    --formatting toolbar, shared with the live editor.
+    local toolbar = CreateMarkdownToolbar{
+        GetInput = function()
+            return editInput
+        end,
+        GetStylesheetId = function()
+            return self.styleSheetId or ""
+        end,
+        OnStylesheetChanged = function(chosen)
+            self.styleSheetId = (chosen ~= "" and chosen) or false
+            previewDoc.styleSheetId = self.styleSheetId
+            ResolveStylesheet.ClearCache()
+            if previewPanel ~= nil then
+                previewPanel:FireEventTree("refreshDocument", previewDoc)
+            end
+            self._tmp_styleDirty = true
+            if resultPanel ~= nil then
+                resultPanel:SetClassTree("changes", true)
+            end
+        end,
     }
 
     -- Find bar: a small overlay at the top of the editor. The search field is a plain

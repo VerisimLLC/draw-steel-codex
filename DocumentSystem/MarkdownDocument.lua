@@ -2527,6 +2527,996 @@ function MarkdownDocument.FormatRichText(text, options)
     return result
 end
 
+--Renders a token stream (from BreakdownRichTags with trackPositions) into an
+--array of child panels, reusing panels pooled from the previous render where
+--possible. ctx is a stable per-host-panel render context:
+--  ctx.doc            - the document being rendered. The caller updates this
+--                       before each render; pooled panels' event closures
+--                       read ctx.doc so they always act on the latest doc,
+--                       matching the old behavior of capturing DisplayPanel's
+--                       live self upvalue.
+--  ctx.embedDepth     - recursion depth for document embeds.
+--  ctx.tokenExtraInfo - extraOutput table from the tokenize pass (spoiler
+--                       locations, queries); replaced by the caller each render.
+--  ctx.pools          - panel pools carried between renders; swapped for the
+--                       new generation at the end of each call.
+--  ctx.render         - per-render skin values, set by the caller before each
+--                       call: skin, classes, ruledLevels, usesAlign, pageColor.
+--Each top-level child panel is stamped with data.srcLine (the source line of
+--the token that produced it) for content-aware preview scroll sync.
+--Returns the new children array for the host panel.
+local function RenderMarkdownTokens(ctx, tokens)
+    --read-side aliases for the panel pools; the new generation is written
+    --back into ctx.pools at the bottom.
+    local m_rollableTableRowLabels = ctx.pools.rollableTableRowLabels
+    local m_textPanels = ctx.pools.textPanels
+    local m_richPanels = ctx.pools.richPanels
+    local m_richFrames = ctx.pools.richFrames
+    local m_richRows = ctx.pools.richRows
+    local m_rollableTables = ctx.pools.rollableTables
+    local m_tables = ctx.pools.tables
+    local m_tableRows = ctx.pools.tableRows
+    local m_dividers = ctx.pools.dividers
+    local m_headingRules = ctx.pools.headingRules
+    local m_powerTables = ctx.pools.powerTables
+    local m_embeds = ctx.pools.embeds
+    local m_treeNodes = ctx.pools.treeNodes
+    local m_blockquotes = ctx.pools.blockquotes
+    local m_styleblocks = ctx.pools.styleblocks
+
+    local embedDepth = ctx.embedDepth
+
+    --per-render skin values resolved by the caller.
+    local resolvedSkin = ctx.render.skin
+    local resolvedClasses = ctx.render.classes
+    local ruledLevels = ctx.render.ruledLevels
+    local usesAlign = ctx.render.usesAlign
+    local pageColor = ctx.render.pageColor
+
+    local children = {}
+    local childrenStack = {} --stack used by collapse nodes.
+    local treeNodeStack = {}
+    local newRollableTables = {}
+    local newTables = {}
+    local newTableRows = {}
+    local newRollableTableRowLabels = {}
+    local newTextPanels = {}
+    local newRichPanels = {}
+    local newRichFrames = {}
+    local newRichRows = {}
+    local newPowerTables = {}
+    local newEmbeds = {}
+    local newTreeNodes = {}
+    local newBlockquotes = {}
+    local newStyleblocks = {}
+    local currentRichRow = nil
+
+    local rollableTablesByName = {}
+
+    local newDividers = {}
+    local newHeadingRules = {}
+
+    local currentRollableTable = nil --the panel controlling the current rollable table.
+    local currentTable = nil
+    local currentTableRow = nil
+
+    local tagsSeen = {}
+
+    -- Content-aware preview scroll: tag each top-level child with the source line
+    -- of the token that produced it. Capture the children array + length at the
+    -- start of each iteration and stamp whatever got appended at the end. This
+    -- survives the collapse-node array swap (the captured ref still points at the
+    -- table the appends went to) and rich-row batching (a row is appended once, in
+    -- its first tag's iteration, so it is stamped with that line). lastStampLine
+    -- carries the last known line forward for the rare token with none.
+    local lastStampLine = 1
+    for i, token in ipairs(tokens) do
+        local stampChildren = children
+        local stampFrom = #children + 1
+        local stampLine = token.srcLine or lastStampLine
+        if token.srcLine ~= nil then lastStampLine = token.srcLine end
+        if token.type == "justification" then
+            --pass, nothing needed here.
+        elseif token.type == "collapse_node" then
+            local panel = m_treeNodes[#newTreeNodes + 1] or CreateTreeNodePanel()
+            ApplyBlockFrame(panel, ((resolvedSkin.blocks or {}).collapse or {}).box)
+            if m_treeNodes[#newTreeNodes + 1] ~= nil then
+                panel:Unparent()
+            end
+            children[#children + 1] = panel
+            newTreeNodes[#newTreeNodes + 1] = panel
+            childrenStack[#childrenStack + 1] = children
+            children = {}
+            treeNodeStack[#treeNodeStack + 1] = panel
+
+            panel:FireEventTree("refreshTreeNode", token.title or "")
+        elseif token.type == "end_collapse_node" then
+            local panel = treeNodeStack[#treeNodeStack]
+            treeNodeStack[#treeNodeStack] = nil
+            panel:FireEventTree("refreshTreeChildren", children)
+            ApplyBlockInner(panel, ((resolvedSkin.blocks or {}).collapse or {}).inner, "collapse")
+            children = childrenStack[#childrenStack]
+            childrenStack[#childrenStack] = nil
+        elseif token.type == "embed" then
+            local embed = trim(token.text:sub(3, -2))
+            local original = embed
+            local count = 0
+
+            while newEmbeds[embed] ~= nil and count < 8 do
+                count = count + 1
+                embed = string.format("%s|%d", original, count)
+            end
+
+            if m_embeds[embed] then
+                newEmbeds[embed] = m_embeds[embed]
+                newEmbeds[embed]:Unparent()
+            else
+                local doc = CustomDocument.ResolveLink(original)
+                if doc ~= nil then
+                    newEmbeds[embed] = CustomDocument.CreateEmbeddablePanel(doc, { embedDepth = embedDepth, hostPageColor = pageColor }) or
+                    false
+                else
+                    newEmbeds[embed] = false
+                end
+            end
+
+            if newEmbeds[embed] ~= false then
+                ApplyBlockFrame(newEmbeds[embed], (resolvedSkin.embed or {}).box)
+                children[#children + 1] = newEmbeds[embed]
+            end
+        elseif token.type == "power_roll" then
+            currentRollableTable = nil
+            currentTable = nil
+            currentTableRow = nil
+            currentRichRow = nil
+
+            local panel = m_powerTables[#newPowerTables + 1] or PowerRollDisplay(ctx.doc)
+            ApplyBlockFrame(panel, ((resolvedSkin.blocks or {}).powerRoll or {}).box)
+            panel:FireEventTree("refreshPowerRoll", token)
+            ApplyBlockInner(panel, ((resolvedSkin.blocks or {}).powerRoll or {}).inner, "powerRoll")
+            newPowerTables[#newPowerTables + 1] = panel
+            children[#children + 1] = panel
+        elseif token.type == "divider" then
+            currentRollableTable = nil
+            currentTable = nil
+            currentTableRow = nil
+            currentRichRow = nil
+
+            local divider = m_dividers[#newDividers + 1] or gui.Divider {
+                tmargin = 0,
+                bmargin = 0,
+                valign = "top",
+                width = "100%",
+            }
+            -- Plan 2: apply rule skin (only spike-confirmed props).
+            -- Spike result: bgcolor and tmargin/bmargin error on selfStyle set;
+            -- height works. Only thickness is applied here.
+            local rule = resolvedSkin.rule or {}
+            if rule.thickness then divider.selfStyle.height = rule.thickness end
+
+            newDividers[#newDividers + 1] = divider
+            children[#children + 1] = divider
+        elseif token.type == "rollable_table" then
+            local tableName = token.name
+            local count = rollableTablesByName[tableName] or 0
+            rollableTablesByName[tableName] = count + 1
+            if count > 0 then
+                tableName = string.format("%s|%d", tableName, count)
+            end
+
+            local panel = m_rollableTables[tableName] or gui.Label {
+                classes = { "bold", "link" },
+                data = {
+                    rolls = {},
+                    diceToRollId = {},
+
+                },
+                valign = "top",
+                fontSize = CustomDocument.ScaleFontSize(18),
+                width = "auto",
+                height = "auto",
+                halign = "left",
+                text = string.format("%s (Roll %s)", token.name, token.dice),
+                textAlignment = "left",
+
+                diceface = function(element, guid, num, timeRemaining)
+                    local rollid = element.data.diceToRollId[guid]
+                    if rollid ~= nil and element.data.rolls[rollid] ~= nil and element.data.rolls[rollid].totals[guid] ~= nil then
+                        element.data.rolls[rollid].totals[guid] = num
+                        local total = 0
+                        for _,v in pairs(element.data.rolls[rollid].totals) do
+                            total = total + v
+                        end
+
+                        if element.data.rowList ~= nil then
+                            for i,row in ipairs(element.data.rowList) do
+                                if row.data.range ~= nil and total >= row.data.range.min and total <= row.data.range.max then
+                                    row:SetClassTree("highlight", true)
+                                else
+                                    row:SetClassTree("highlight", false)
+                                end
+                            end
+                        end
+
+                    end
+                end,
+
+                create = function(element)
+                    element.data.eventHandler = dmhub.RegisterEventHandler("DiceRoll", function(info)
+                        if info.properties ~= nil and rawget(info.properties, "tableRef") then
+                            local rollid = dmhub.GenerateGuid()
+                            element.data.rolls[rollid] = {
+                                info = info,
+                                totals = {},
+                                table = info.properties.tableRef:GetTable(),
+                                bonus = info.total - info.naturalRoll,
+                                total = info.total,
+                            }
+                            local ref = rawget(info.properties, "tableRef")
+                            if ref.docid == ctx.doc.id and ref.tableid == tableName then
+                                local rolls = info.rolls
+                                for i,roll in ipairs(rolls) do
+                                    local events = chat.DiceEvents(roll.guid)
+                                    events:Listen(element)
+                                    element.data.diceToRollId[roll.guid] = rollid
+                                    element.data.rolls[rollid].totals[roll.guid] = 0
+
+                                    if roll.partnerguid ~= nil then
+                                        local partnerEvents = chat.DiceEvents(roll.partnerguid)
+                                        partnerEvents:Listen(element)
+                                        element.data.diceToRollId[roll.partnerguid] = rollid
+                                        element.data.rolls[rollid].totals[roll.partnerguid] = 0
+                                    end
+                                end
+                            end
+                        end
+                    end)
+                end,
+
+                destroy = function(element)
+                    if element.data.eventHandler ~= nil then
+                        dmhub.DeregisterEventHandler(element.data.eventHandler)
+                        element.data.eventHandler = nil
+                    end
+                end,
+
+                press = function(element)
+
+                    local ref = RollTableReference.CreateDocumentReference(ctx.doc.id, tableName)
+                    if not ctx.doc:IsPlayerView(element) then
+                        LaunchablePanel.LaunchPanelByName("Request Rolls", {
+                            title = token.name,
+                            checkType = "Table",
+                            check = RollCheck.new{
+                                type = "table",
+                                id = "custom",
+                                group = "custom",
+                                text = token.name,
+                                tableRef = ref,
+                                rollProperties = RollOnTableProperties.new{
+                                    tableRef = ref,
+                                },
+                            }
+                            --characteristics = characteristics,
+                            --skills = skills,
+                        })
+                    else
+                        local charToken = dmhub.selectedOrPrimaryTokens[1]
+                        local rollArgs = {
+                            title = "Roll on Table",
+                            description = token.name,
+                            roll = token.dice,
+                            tableRef = ref,
+                            type = "table",
+                            creature = charToken and charToken.properties or nil,
+                            rollProperties = RollOnTableProperties.new{
+                                tableRef = ref,
+                            },
+                        }
+
+                        GameHud.instance.rollDialog.data.ShowDialog(rollArgs)
+                    end
+                end,
+            }
+
+            panel.data.tableData = ctx.doc:GetRollableTable(tableName)
+            panel.data.rollInfo = panel.data.tableData:CalculateRollInfo()
+            panel.data.table = nil
+            currentRollableTable = panel
+
+            ApplyBlockFrame(panel, ((resolvedSkin.blocks or {}).rollableTable or {}).box)
+
+            if m_rollableTables[tableName] ~= nil then
+                panel:Unparent()
+            end
+
+            newRollableTables[tableName] = panel
+
+            children[#children + 1] = panel
+        elseif token.type == "row" then
+            currentRichRow = nil
+            if currentTable == nil then
+                -- The frame (border/bg/pad) goes on a wrapper panel, NOT the
+                -- gui.Table itself: a gui.Table lays out its cells from its own
+                -- origin and ignores the panel's pad, so a frame applied directly
+                -- leaves the upper-left cells sitting outside the box. The wrapper
+                -- is a normal panel whose pad insets the Table correctly. m_tables
+                -- caches the wrapper; the Table persists inside it as
+                -- wrapper.data.tablePanel.
+                -- Pick the block (rollable tables share the row path) and its
+                -- inner config; row colors are applied via the Table's own
+                -- `styles`, which can only be set at construction -- so rebuild
+                -- the Table when the inner config changes (the journalStyles
+                -- monitor already re-renders the document on any style edit).
+                local blockKey = (currentRollableTable ~= nil) and "rollableTable" or "table"
+                local blockSkin = (resolvedSkin.blocks or {})[blockKey] or {}
+                local innerSig = TableInnerSig(blockSkin.inner)
+                local function NewInnerTable()
+                    return gui.Table {
+                        halign = "left",
+                        valign = "top",
+                        width = "auto",
+                        height = "auto",
+                        flow = "vertical",
+                        styles = TableInnerStyles(blockSkin.inner),
+                    }
+                end
+                local tableWrapper = m_tables[#newTables + 1]
+                if tableWrapper == nil then
+                    local tbl = NewInnerTable()
+                    tableWrapper = gui.Panel {
+                        flow = "vertical",
+                        width = "auto",
+                        height = "auto",
+                        halign = "left",
+                        valign = "top",
+                        lmargin = 6,
+                        tbl,
+                    }
+                    tableWrapper.data.tablePanel = tbl
+                    tableWrapper.data.innerSig = innerSig
+                elseif tableWrapper.data.innerSig ~= innerSig then
+                    -- inner styling changed: rebuild the Table with new styles.
+                    local tbl = NewInnerTable()
+                    tableWrapper.data.tablePanel = tbl
+                    tableWrapper.children = { tbl }
+                    tableWrapper.data.innerSig = innerSig
+                end
+                currentTable = tableWrapper.data.tablePanel
+
+                currentTable.data.children = {}
+
+                ApplyBlockFrame(tableWrapper, blockSkin.box)
+
+                if currentRollableTable ~= nil then
+                    currentRollableTable.data.table = currentTable
+                    currentRollableTable.data.row = 1
+                end
+
+                newTables[#newTables + 1] = tableWrapper
+                currentTableRow = nil
+                children[#children + 1] = tableWrapper
+            end
+
+            currentTableRow = m_tableRows[#newTableRows + 1] or gui.TableRow {
+                width = "auto",
+                height = "auto",
+            }
+
+            if m_tableRows[#newTableRows + 1] ~= nil then
+                currentTableRow:Unparent()
+            end
+
+            currentTableRow.data.children = {}
+
+            -- First row of each table is the markdown header row (followed
+            -- by `|---|`). Toggle the headerRow class so the cascade's
+            -- {row, headerRow} / {label, parent:headerRow} rules apply.
+            -- SetClass with a boolean correctly clears the class on rows
+            -- that were previously a header row but got repositioned.
+            local isHeaderRow = #currentTable.data.children == 0
+            currentTableRow:SetClass("headerRow", isHeaderRow)
+
+            newTableRows[#newTableRows + 1] = currentTableRow
+
+            currentTable.data.children[#currentTable.data.children + 1] = currentTableRow
+
+            if currentRollableTable ~= nil then
+                local rollInfo = currentRollableTable.data.rollInfo
+                local range = rollInfo.rollRanges[currentRollableTable.data.row]
+                if range ~= nil then
+                    newRollableTableRowLabels[#newRollableTableRowLabels + 1] = m_rollableTableRowLabels[#newRollableTableRowLabels + 1] or gui.Label{
+                        classes = { "bold" },
+                        fontSize = 16,
+                        width = 70,
+                        halign = "left",
+                        height = "auto",
+                    }
+
+                    local label = newRollableTableRowLabels[#newRollableTableRowLabels]
+                    label:Unparent()
+                    label.text = RollTable.FormatRange(range) .. "."
+
+                    currentRollableTable.data.rowList = currentRollableTable.data.rowList or {}
+                    currentRollableTable.data.rowList[currentRollableTable.data.row] = currentTableRow
+                    currentTableRow.data.range = range
+
+                    currentTableRow.data.children[#currentTableRow.data.children + 1] = label
+                end
+
+                currentRollableTable.data.row = currentRollableTable.data.row + 1
+            end
+        elseif token.type == "end_row" then
+            currentTableRow = nil
+            currentRichRow = nil
+        elseif token.type == "cell" then
+            currentRichRow = m_richRows[#newRichRows + 1] or gui.Panel {
+                flow = "horizontal",
+                height = "auto",
+                vmargin = 0,
+                pad = 4,
+            }
+            if m_richRows[#newRichRows + 1] ~= nil then
+                currentRichRow:Unparent()
+            end
+            currentRichRow.data.children = {}
+            currentRichRow.selfStyle.width = "auto"
+            currentRichRow.selfStyle.valign = "center"
+
+            --scan for the number of cells in this row.
+            local beginRowIndex = i
+            for j=i,1,-1 do
+                if tokens[j].type == "row" then
+                    beginRowIndex = j
+                    break
+                end
+            end
+
+            local cellCount = 0
+            for j=beginRowIndex,#tokens do
+                if tokens[j].type == "end_row" then
+                    break
+                elseif tokens[j].type == "cell" then
+                    cellCount = cellCount + 1
+                end
+            end
+
+            local cellWidth = math.floor(100 / cellCount)
+            local tableHeaderSpacing = 0
+            if currentRollableTable ~= nil then
+                tableHeaderSpacing = 80/cellCount
+            end
+
+            --currentRichRow.selfStyle.width = string.format("%d%%-%d", round(cellWidth), round(tableHeaderSpacing))
+            currentRichRow.selfStyle.maxWidth = string.format("%d%%-%d", round(cellWidth), round(tableHeaderSpacing))
+
+            newRichRows[#newRichRows + 1] = currentRichRow
+            if currentTableRow ~= nil then
+                currentTableRow.data.children[#currentTableRow.data.children + 1] = currentRichRow
+            end
+        elseif token.type == "text" and token.justification == nil and token.text == "\n" and currentRichRow ~= nil then
+            --this special case doesn't require inserting a text panel. Instead we just end the rich row of content.
+            currentRichRow = nil
+        elseif token.type == "text" then
+            if currentTable ~= nil and currentTableRow == nil then
+                --end of table.
+                currentRollableTable = nil
+                currentRichRow = nil
+                currentTable = nil
+            end
+
+            local function MakeTextLabel()
+                return gui.Label {
+                    classes = {"fg"},
+                    width = "auto",
+                    height = "auto",
+                    maxWidth = "100%",
+                    valign = "center",
+                    vmargin = 0,
+                    markdown = true,
+                    markdownStyle = g_markdownStyle,
+                    textAlignment = "topleft",
+                    fontSize = CustomDocument.ScaleFontSize(14),
+                    pad = 0,
+                    links = true,
+                    hoverLink = function(element, link)
+                        if string.starts_with(link, "spoiler:") then
+                            return
+                        end
+                        CustomDocument.PreviewLink(element, link)
+                    end,
+                    dehoverLink = function(element, link)
+                        element.tooltip = nil
+                    end,
+                    rightClick = function(element)
+                        if element.linkHovered == nil then return end
+                        local link = element.linkHovered
+                        if string.starts_with(link, "spoiler:") then return end
+                        local doc = CustomDocument.ResolveLink(link)
+                        if doc == nil then return end
+
+                        -- Only show context menu for navigable document types
+                        local isNavigable = false
+                        if type(doc) == "table" or type(doc) == "userdata" then
+                            if doc.IsDerivedFrom and doc.IsDerivedFrom("CustomDocument") and doc:try_get("id") then
+                                isNavigable = true
+                            elseif MarkdownRender.IsRenderable(doc) then
+                                isNavigable = true
+                            end
+                        end
+                        if not isNavigable then return end
+
+                        element.popup = gui.ContextMenu {
+                            entries = {
+                                {
+                                    text = "Open in New Tab",
+                                    click = function()
+                                        element.popup = nil
+                                        CustomDocument.OpenContent(doc)
+                                    end,
+                                },
+                            },
+                        }
+                    end,
+                    press = function(element)
+                        if element.popup then
+                            element.popup = nil
+                            return
+                        end
+                        if element.linkHovered ~= nil then
+                            local link = element.linkHovered
+                            if string.starts_with(link, "spoiler:") then
+                                local spoilerValue = link:sub(9)
+                                local spoilerInfo = (ctx.tokenExtraInfo.spoilers or {})[spoilerValue]
+                                if spoilerInfo == nil then
+                                    return
+                                end
+
+                                local lines = table.shallow_copy(spoilerInfo.lines)
+                                local line = spoilerInfo.lines[spoilerInfo.lineIndex]
+                                for i=spoilerInfo.linepos,#line do
+                                    if line:sub(i,i) == "{" then
+                                        local nextChar = line:sub(i+1,i+1)
+                                        if nextChar == "!" then
+                                            line = line:sub(1,i) .. line:sub(i+2)
+                                        else
+                                            line = line:sub(1,i) .. "!" .. line:sub(i+1)
+                                        end
+                                        lines[spoilerInfo.lineIndex] = line
+                                        ctx.doc:SetTextContent(table.concat(lines, "\n"))
+                                        ctx.doc:Upload()
+                                        break
+                                    end
+                                end
+
+                                return
+                            end
+
+                            local doc = CustomDocument.ResolveLink(element.linkHovered)
+                            if doc ~= nil then
+                                -- Try in-place navigation for real document types only.
+                                -- Renderable content (e.g. an item/spell link) wraps into a
+                                -- transient MarkdownDocument that is never written to the
+                                -- table, so navigateToDocument (which looks up by id) can't
+                                -- resolve it -- let those fall through to OpenContent instead.
+                                local navigableDocId = nil
+                                if type(doc) == "table" or type(doc) == "userdata" then
+                                    if doc.IsDerivedFrom and doc.IsDerivedFrom("CustomDocument") and doc:try_get("id") then
+                                        navigableDocId = doc.id
+                                    end
+                                end
+
+                                if navigableDocId then
+                                    local dialogPanel = element:FindParentWithClass("framedPanel")
+                                    if dialogPanel and dialogPanel.data and dialogPanel.data.history then
+                                        dialogPanel:FireEvent("navigateToDocument", navigableDocId)
+                                        return
+                                    end
+                                end
+
+                                -- Fall back to opening in new window
+                                CustomDocument.OpenContent(doc)
+                            else
+                                local guid = dmhub.GenerateGuid()
+                                local markdownDoc = MarkdownDocument.new {
+                                    id = guid,
+                                    description = element.linkHovered,
+                                    content = "# " .. element.linkHovered,
+                                    annotations = {},
+                                }
+
+                                dmhub.SetAndUploadTableItem(MarkdownDocument.tableName, markdownDoc)
+                                markdownDoc:ShowDocument { edit = true }
+                            end
+                        end
+                    end,
+                }
+            end
+            if ruledLevels == nil or not TextHasRuledHeading(token.text, ruledLevels) then
+                -- Fast path: skin has no ruled headings, or this run
+                -- contains no ruled heading line -> single label, unchanged.
+                local textPanel = m_textPanels[#newTextPanels + 1] or MakeTextLabel()
+
+                textPanel.selfStyle.halign = token.justification or "left"
+
+                if m_textPanels[#newTextPanels + 1] ~= nil then
+                    textPanel:Unparent()
+                end
+
+                local text = token.text
+                if string.starts_with(text, "\n") then
+                    text = text:sub(2)
+                end
+
+                --make it so that leading or trailing spaces are non-breaking
+                if string.starts_with(text, " ") then
+                    text = "<color=#00000000>.</color>" .. text:sub(2)
+                end
+
+                if string.ends_with(text, " ") then
+                    text = text:sub(1, -2) .. "<color=#00000000>.</color>"
+                end
+
+                textPanel.text = ApplySkinToText(ApplyInlineClasses(text, resolvedClasses), resolvedSkin)
+                newTextPanels[#newTextPanels + 1] = textPanel
+
+                --find if the string only has a newline at the end or no newline,
+                --in which case it can go inline.
+                if (currentRichRow ~= nil and token.text:match("^[^\n]*\n?$") ~= nil) or (currentRichRow == nil and string.find(token.text, "\n") == nil) then
+                    if currentRichRow == nil then
+                        currentRichRow = m_richRows[#newRichRows + 1] or gui.Panel {
+                            flow = "horizontal",
+                            height = "auto",
+                            vmargin = 0,
+                        }
+                        if m_richRows[#newRichRows + 1] ~= nil then
+                            currentRichRow:Unparent()
+                        end
+                        currentRichRow.selfStyle.width = "100%"
+                        currentRichRow.selfStyle.valign = "top"
+                        currentRichRow.selfStyle.maxWidth = nil
+                        currentRichRow.data.children = {}
+                        newRichRows[#newRichRows + 1] = currentRichRow
+                        children[#children + 1] = currentRichRow
+                    end
+
+                    if token.justification then
+                        currentRichRow.selfStyle.width = "100%"
+                    end
+
+                    textPanel.selfStyle.width = "auto"
+                    textPanel.selfStyle.valign = "center"
+                    currentRichRow.data.children[#currentRichRow.data.children + 1] = textPanel
+                else
+                    -- Only widen for stylesheet alignment when the author did not set an explicit
+                    -- :>/:<> justification (which positions an auto-width label via panel halign).
+                    textPanel.selfStyle.width = (usesAlign and not token.justification) and "100%" or "auto"
+                    textPanel.selfStyle.valign = "top"
+                    children[#children + 1] = textPanel
+                end
+
+                if currentRichRow ~= nil and string.find(token.text, "\n") then
+                    currentRichRow = nil
+                end
+            else
+                -- Split path: ruled headings present; emit one label per
+                -- segment and a rule panel after each ruled-heading segment.
+                -- Does NOT use the rich-row inline branch (block content).
+                currentRichRow = nil
+                local text = token.text
+                if string.starts_with(text, "\n") then
+                    text = text:sub(2)
+                end
+                if string.starts_with(text, " ") then
+                    text = "<color=#00000000>.</color>" .. text:sub(2)
+                end
+                if string.ends_with(text, " ") then
+                    text = text:sub(1, -2) .. "<color=#00000000>.</color>"
+                end
+                local segments = SplitRunAtRuledHeadings(text, ruledLevels)
+                for _, seg in ipairs(segments) do
+                    local label = m_textPanels[#newTextPanels + 1] or MakeTextLabel()
+                    label.selfStyle.halign = token.justification or "left"
+                    if m_textPanels[#newTextPanels + 1] ~= nil then
+                        label:Unparent()
+                    end
+                    -- Only widen for stylesheet alignment when the author did not set an explicit
+                    -- :>/:<> justification (which positions an auto-width label via panel halign).
+                    label.selfStyle.width = (usesAlign and not token.justification) and "100%" or "auto"
+                    label.selfStyle.valign = "top"
+                    label.text = ApplySkinToText(
+                        ApplyInlineClasses(seg.text, resolvedClasses),
+                        resolvedSkin,
+                        { ruledLevels = ruledLevels })
+                    newTextPanels[#newTextPanels + 1] = label
+                    children[#children + 1] = label
+                    if seg.ruleLevel ~= nil then
+                        local h = (resolvedSkin.headings or {})[seg.ruleLevel]
+                        local rulePanel = m_headingRules[#newHeadingRules + 1]
+                        if rulePanel == nil then
+                            rulePanel = BuildHeadingRulePanel(nil, h)
+                        else
+                            BuildHeadingRulePanel(rulePanel, h)
+                            rulePanel:Unparent()
+                        end
+                        newHeadingRules[#newHeadingRules + 1] = rulePanel
+                        children[#children + 1] = rulePanel
+                    end
+                end
+            end
+        elseif token.type == "blockquote" then
+            currentRichRow = nil
+            local blockquote = m_blockquotes[#newBlockquotes + 1] or gui.Panel {
+                classes = {"blockQuote"},
+                width = "100%",
+                height = "auto",
+                halign = "left",
+                valign = "top",
+                flow = "horizontal",
+                savedoc = function(element)
+                    element:HaltEventPropagation()
+                end,
+                refreshDocument = function(element)
+                    element:HaltEventPropagation()
+                end,
+                editDocument = function(element)
+                    element:HaltEventPropagation()
+                end,
+                refreshTag = function(element)
+                    element:HaltEventPropagation()
+                end,
+
+                gui.MarkdownLabel{
+                    width = "100%-20",
+                    halign = "right",
+                    markdownText = function(element, text)
+                        element:HaltEventPropagation()
+                        element.text = text
+                    end,
+                }
+            }
+
+            if m_blockquotes[#newBlockquotes + 1] ~= nil then
+                blockquote:Unparent()
+            end
+
+            blockquote:FireEventTree("markdownText", SkinQuoteText(resolvedSkin.quote, token.text))
+
+            ApplyQuoteFrame(blockquote, resolvedSkin.quote)
+
+            newBlockquotes[#newBlockquotes + 1] = blockquote
+
+            children[#children+1] = blockquote
+
+        elseif token.type == "styleblock" then
+            currentRichRow = nil
+            local cls = resolvedClasses[token.className]
+            local styleblock = m_styleblocks[#newStyleblocks + 1] or gui.Panel {
+                width = "100%",
+                height = "auto",
+                halign = "left",
+                valign = "top",
+                flow = "vertical",
+                borderBox = true,
+                savedoc = function(element) element:HaltEventPropagation() end,
+                refreshDocument = function(element) element:HaltEventPropagation() end,
+                editDocument = function(element) element:HaltEventPropagation() end,
+                refreshTag = function(element) element:HaltEventPropagation() end,
+                gui.MarkdownLabel{
+                    width = "100%",
+                    markdownText = function(element, text)
+                        element:HaltEventPropagation()
+                        element.text = text
+                    end,
+                }
+            }
+
+            -- Apply the class box props (graceful when class is missing or
+            -- not a block class -> renders as a plain unstyled panel).
+            local box = (type(cls) == "table" and cls.kind == "block" and cls.box) or {}
+            ApplyBlockFrame(styleblock, box)
+
+            if m_styleblocks[#newStyleblocks + 1] ~= nil then
+                styleblock:Unparent()
+            end
+
+            local innerText = token.text
+            if type(cls) == "table" and cls.kind == "block" and cls.text ~= nil then
+                innerText = SkinClassTextMarkup(cls.text, token.text)
+            end
+            styleblock:FireEventTree("markdownText", innerText)
+
+            newStyleblocks[#newStyleblocks + 1] = styleblock
+            children[#children + 1] = styleblock
+
+        elseif token.type == "tag" then
+            if currentTable ~= nil and currentTableRow == nil then
+                --end of table.
+                currentRollableTable = nil
+                currentRichRow = nil
+                currentTable = nil
+            end
+
+            local text, suffix
+            local match = regex.MatchGroups(token.text, "^(?<text>.+?):(?<name>.+)$")
+            if match ~= nil then
+                text = match.text
+                suffix = match.name
+            end
+
+            local text, suffix = token.text:match("^(.-):(.*)$")
+            if suffix == nil then
+                text = token.text
+            end
+
+            local fullname = token.text
+            local richTagFromPattern = nil
+
+            local patternMatch = nil
+
+            for key, richTag in pairs(MarkdownDocument.RichTagRegistry) do
+                if richTag.pattern then
+                    patternMatch = regex.MatchGroups(token.text, richTag.pattern)
+                    if patternMatch ~= nil then
+                        fullname = key
+                        text = key
+                        richTagFromPattern = richTag
+                        break
+                    end
+                end
+            end
+
+            local richTagInfo = MarkdownDocument.RichTagRegistry[string.lower(text)]
+
+            if richTagInfo ~= nil then
+                local candidate = fullname
+                local index = 1
+                while tagsSeen[candidate] do
+                    candidate = fullname .. '-' .. index
+                    index = index + 1
+                end
+
+                tagsSeen[candidate] = true
+
+                local richTag
+                
+                if richTagFromPattern then
+                    richTag = DeepCopy(richTagFromPattern)
+                else
+                    richTag = ctx.doc.annotations[candidate]
+
+                    --patch over any possible bugs where the saved annotation is not a proper table.
+                    if richTag ~= nil and getmetatable(richTag) == nil then
+                        richTag = nil
+                        ctx.doc.annotations[candidate] = nil
+                    end
+                end
+
+                
+                if richTag ~= nil then
+                    local panel = m_richPanels[candidate] or richTag:CreateDisplay()
+
+                    if currentRichRow == nil then
+                        currentRichRow = m_richRows[#newRichRows + 1] or gui.Panel {
+                            flow = "horizontal",
+                            height = "auto",
+                            vmargin = 0,
+                        }
+                        if m_richRows[#newRichRows + 1] ~= nil then
+                            currentRichRow:Unparent()
+                        end
+                        currentRichRow.selfStyle.width = "100%"
+                        currentRichRow.selfStyle.valign = "top"
+                        currentRichRow.selfStyle.maxWidth = nil
+                        currentRichRow.data.children = {}
+                        newRichRows[#newRichRows + 1] = currentRichRow
+                        children[#children + 1] = currentRichRow
+                    end
+
+                    if m_richPanels[candidate] ~= nil and panel.parent ~= currentRichRow then
+                        panel:Unparent()
+                    end
+
+                    if token.justification then
+                        currentRichRow.selfStyle.width = "100%"
+                    end
+
+                    richTag._tmp_document = ctx.doc
+                    panel:FireEventTree("refreshTag", richTag, patternMatch or match, token)
+
+                    newRichPanels[candidate] = panel
+                    local embedBox = (resolvedSkin.embed or {}).box
+                    if g_standaloneEmbedTags[string.lower(text)] and embedBox ~= nil and next(embedBox) ~= nil then
+                        -- Wrap so the rich-tag's own look is preserved inside
+                        -- the stylesheet frame (do NOT ApplyBlockFrame the
+                        -- component panel directly).
+                        local frame = m_richFrames[candidate] or gui.Panel { width = "auto", height = "auto", valign = "top" }
+                        ApplyBlockFrame(frame, embedBox)
+                        frame.children = { panel }
+                        newRichFrames[candidate] = frame
+                        currentRichRow.data.children[#currentRichRow.data.children + 1] = frame
+                    else
+                        currentRichRow.data.children[#currentRichRow.data.children + 1] = panel
+                    end
+                end
+            end
+        end
+
+        -- Stamp the source line onto whatever top-level children this token
+        -- appended (overwrite, so reused/cached panels refresh each render).
+        for k = stampFrom, #stampChildren do
+            stampChildren[k].data.srcLine = stampLine
+        end
+    end
+
+    for i, row in ipairs(newRichRows) do
+        row.children = row.data.children
+        row.data.children = nil
+    end
+
+    for i, row in ipairs(newTableRows) do
+        row.children = row.data.children
+        row.data.children = nil
+    end
+
+    for i, t in ipairs(newTables) do
+        -- t is the wrapper; commit rows onto the gui.Table it holds. The
+        -- wrapper carries the block FRAME and the Table carries its inner row
+        -- colors via `styles` (both set in the table render branch), so no
+        -- post-build styling is needed here.
+        local tbl = t.data.tablePanel
+        tbl.children = tbl.data.children
+        tbl.data.children = nil
+    end
+
+    ctx.pools.rollableTableRowLabels = newRollableTableRowLabels
+    ctx.pools.rollableTables = newRollableTables
+    ctx.pools.richRows = newRichRows
+    ctx.pools.richPanels = newRichPanels
+    ctx.pools.richFrames = newRichFrames
+    ctx.pools.textPanels = newTextPanels
+    ctx.pools.tableRows = newTableRows
+    ctx.pools.tables = newTables
+    ctx.pools.dividers = newDividers
+    ctx.pools.headingRules = newHeadingRules
+    ctx.pools.powerTables = newPowerTables
+    ctx.pools.embeds = newEmbeds
+    ctx.pools.treeNodes = newTreeNodes
+    ctx.pools.blockquotes = newBlockquotes
+    ctx.pools.styleblocks = newStyleblocks
+
+    return children
+end
+
+--Creates a fresh render context for RenderMarkdownTokens. One context per
+--host panel; it persists across renders so panel pools and closure state
+--carry over.
+local function CreateMarkdownRenderContext(doc, embedDepth)
+    return {
+        doc = doc,
+        embedDepth = embedDepth or 0,
+        tokenExtraInfo = {},
+        render = {},
+        pools = {
+            rollableTableRowLabels = {},
+            textPanels = {},
+            richPanels = {},
+            richFrames = {},
+            richRows = {},
+            rollableTables = {},
+            tables = {},
+            tableRows = {},
+            dividers = {},
+            headingRules = {},
+            powerTables = {},
+            embeds = {},
+            treeNodes = {},
+            blockquotes = {},
+            styleblocks = {},
+        },
+    }
+end
+
 function MarkdownDocument.DisplayPanel(self, args)
     args = args or {}
     local embedDepth = args.embedDepth or 0
@@ -2546,22 +3536,7 @@ function MarkdownDocument.DisplayPanel(self, args)
 
     local resultPanel
 
-    local m_rollableTableRowLabels = {}
-    local m_textPanels = {}
-    local m_richPanels = {}
-    local m_richFrames = {}
-    local m_richRows = {}
-    local m_rollableTables = {}
-    local m_tables = {}
-    local m_tableRows = {}
-    local m_dividers = {}
-    local m_headingRules = {}
-    local m_powerTables = {}
-    local m_embeds = {}
-    local m_treeNodes = {}
-    local m_blockquotes = {}
-    local m_styleblocks = {}
-    local m_tokenExtraInfo = {}
+    local ctx = CreateMarkdownRenderContext(self, embedDepth)
 
     local params = {
         styles = ThemeEngine.GetStyles(),
@@ -2596,45 +3571,17 @@ function MarkdownDocument.DisplayPanel(self, args)
             if doc ~= nil then
                 self = doc
             end
+            ctx.doc = self
 
-            local children = {}
-            local childrenStack = {} --stack used by collapse nodes.
-            local treeNodeStack = {}
-            local newRollableTables = {}
-            local newTables = {}
-            local newTableRows = {}
-            local newRollableTableRowLabels = {}
-            local newTextPanels = {}
-            local newRichPanels = {}
-            local newRichFrames = {}
-            local newRichRows = {}
-            local newPowerTables = {}
-            local newEmbeds = {}
-            local newTreeNodes = {}
-            local newBlockquotes = {}
-            local newStyleblocks = {}
-            local currentRichRow = nil
-
-            local rollableTablesByName = {}
-
-            local newDividers = {}
-            local newHeadingRules = {}
-
-            local currentRollableTable = nil --the panel controlling the current rollable table.
-            local currentTable = nil
-            local currentTableRow = nil
-
-            local tagsSeen = {}
-
-            m_tokenExtraInfo = {}
+            ctx.tokenExtraInfo = {}
             -- trackPositions stamps each token's source line (purely additive; rendering
             -- ignores srcLine) so the rendered blocks below can be tagged for the preview's
             -- content-aware scroll sync (SyncPreviewScroll).
-            local tokens = BreakdownRichTags(self:GetTextContent(), nil, { player = self:IsPlayerView(element), trackPositions = true }, m_tokenExtraInfo)
+            local tokens = BreakdownRichTags(self:GetTextContent(), nil, { player = self:IsPlayerView(element), trackPositions = true }, ctx.tokenExtraInfo)
 
-            if m_tokenExtraInfo.queries ~= nil then
+            if ctx.tokenExtraInfo.queries ~= nil then
                 element.thinkTime = 0.2
-                element.data.queries = m_tokenExtraInfo.queries
+                element.data.queries = ctx.tokenExtraInfo.queries
             else
                 element.thinkTime = nil
                 element.data.queries = nil
@@ -2645,11 +3592,6 @@ function MarkdownDocument.DisplayPanel(self, args)
             -- hoist it for clarity and to thread into text/divider/quote.
             local resolvedStylesheet = self:GetResolvedStylesheet()
             local resolvedSkin = resolvedStylesheet.base
-            local resolvedClasses = resolvedStylesheet.classes
-            -- Compute once per render: which heading levels (1..5) carry a rule.
-            -- nil means no ruled headings -> every text run uses the fast path.
-            local ruledLevels = HeadingRuleLevels(resolvedSkin)
-            local usesAlign = SkinUsesAlign(resolvedSkin)
             -- Page background: paint the content container from the resolved skin.
             -- Re-runs every render (including live stylesheet edits via the monitor).
             -- Unset clears it so a reused panel keeps no stale background and the
@@ -2687,889 +3629,18 @@ function MarkdownDocument.DisplayPanel(self, args)
                 element.vpad = nil
                 element.borderBox = nil
             end
-            -- Content-aware preview scroll: tag each top-level child with the source line
-            -- of the token that produced it. Capture the children array + length at the
-            -- start of each iteration and stamp whatever got appended at the end. This
-            -- survives the collapse-node array swap (the captured ref still points at the
-            -- table the appends went to) and rich-row batching (a row is appended once, in
-            -- its first tag's iteration, so it is stamped with that line). lastStampLine
-            -- carries the last known line forward for the rare token with none.
-            local lastStampLine = 1
-            for i, token in ipairs(tokens) do
-                local stampChildren = children
-                local stampFrom = #children + 1
-                local stampLine = token.srcLine or lastStampLine
-                if token.srcLine ~= nil then lastStampLine = token.srcLine end
-                if token.type == "justification" then
-                    --pass, nothing needed here.
-                elseif token.type == "collapse_node" then
-                    local panel = m_treeNodes[#newTreeNodes + 1] or CreateTreeNodePanel()
-                    ApplyBlockFrame(panel, ((resolvedSkin.blocks or {}).collapse or {}).box)
-                    if m_treeNodes[#newTreeNodes + 1] ~= nil then
-                        panel:Unparent()
-                    end
-                    children[#children + 1] = panel
-                    newTreeNodes[#newTreeNodes + 1] = panel
-                    childrenStack[#childrenStack + 1] = children
-                    children = {}
-                    treeNodeStack[#treeNodeStack + 1] = panel
 
-                    panel:FireEventTree("refreshTreeNode", token.title or "")
-                elseif token.type == "end_collapse_node" then
-                    local panel = treeNodeStack[#treeNodeStack]
-                    treeNodeStack[#treeNodeStack] = nil
-                    panel:FireEventTree("refreshTreeChildren", children)
-                    ApplyBlockInner(panel, ((resolvedSkin.blocks or {}).collapse or {}).inner, "collapse")
-                    children = childrenStack[#childrenStack]
-                    childrenStack[#childrenStack] = nil
-                elseif token.type == "embed" then
-                    local embed = trim(token.text:sub(3, -2))
-                    local original = embed
-                    local count = 0
-
-                    while newEmbeds[embed] ~= nil and count < 8 do
-                        count = count + 1
-                        embed = string.format("%s|%d", original, count)
-                    end
-
-                    if m_embeds[embed] then
-                        newEmbeds[embed] = m_embeds[embed]
-                        newEmbeds[embed]:Unparent()
-                    else
-                        local doc = CustomDocument.ResolveLink(original)
-                        if doc ~= nil then
-                            newEmbeds[embed] = CustomDocument.CreateEmbeddablePanel(doc, { embedDepth = embedDepth, hostPageColor = pageColor }) or
-                            false
-                        else
-                            newEmbeds[embed] = false
-                        end
-                    end
-
-                    if newEmbeds[embed] ~= false then
-                        ApplyBlockFrame(newEmbeds[embed], (resolvedSkin.embed or {}).box)
-                        children[#children + 1] = newEmbeds[embed]
-                    end
-                elseif token.type == "power_roll" then
-                    currentRollableTable = nil
-                    currentTable = nil
-                    currentTableRow = nil
-                    currentRichRow = nil
-
-                    local panel = m_powerTables[#newPowerTables + 1] or PowerRollDisplay(self)
-                    ApplyBlockFrame(panel, ((resolvedSkin.blocks or {}).powerRoll or {}).box)
-                    panel:FireEventTree("refreshPowerRoll", token)
-                    ApplyBlockInner(panel, ((resolvedSkin.blocks or {}).powerRoll or {}).inner, "powerRoll")
-                    newPowerTables[#newPowerTables + 1] = panel
-                    children[#children + 1] = panel
-                elseif token.type == "divider" then
-                    currentRollableTable = nil
-                    currentTable = nil
-                    currentTableRow = nil
-                    currentRichRow = nil
-
-                    local divider = m_dividers[#newDividers + 1] or gui.Divider {
-                        tmargin = 0,
-                        bmargin = 0,
-                        valign = "top",
-                        width = "100%",
-                    }
-                    -- Plan 2: apply rule skin (only spike-confirmed props).
-                    -- Spike result: bgcolor and tmargin/bmargin error on selfStyle set;
-                    -- height works. Only thickness is applied here.
-                    local rule = resolvedSkin.rule or {}
-                    if rule.thickness then divider.selfStyle.height = rule.thickness end
-
-                    newDividers[#newDividers + 1] = divider
-                    children[#children + 1] = divider
-                elseif token.type == "rollable_table" then
-                    local tableName = token.name
-                    local count = rollableTablesByName[tableName] or 0
-                    rollableTablesByName[tableName] = count + 1
-                    if count > 0 then
-                        tableName = string.format("%s|%d", tableName, count)
-                    end
-
-                    local panel = m_rollableTables[tableName] or gui.Label {
-                        classes = { "bold", "link" },
-                        data = {
-                            rolls = {},
-                            diceToRollId = {},
-
-                        },
-                        valign = "top",
-                        fontSize = CustomDocument.ScaleFontSize(18),
-                        width = "auto",
-                        height = "auto",
-                        halign = "left",
-                        text = string.format("%s (Roll %s)", token.name, token.dice),
-                        textAlignment = "left",
-
-                        diceface = function(element, guid, num, timeRemaining)
-                            local rollid = element.data.diceToRollId[guid]
-                            if rollid ~= nil and element.data.rolls[rollid] ~= nil and element.data.rolls[rollid].totals[guid] ~= nil then
-                                element.data.rolls[rollid].totals[guid] = num
-                                local total = 0
-                                for _,v in pairs(element.data.rolls[rollid].totals) do
-                                    total = total + v
-                                end
-
-                                if element.data.rowList ~= nil then
-                                    for i,row in ipairs(element.data.rowList) do
-                                        if row.data.range ~= nil and total >= row.data.range.min and total <= row.data.range.max then
-                                            row:SetClassTree("highlight", true)
-                                        else
-                                            row:SetClassTree("highlight", false)
-                                        end
-                                    end
-                                end
-
-                            end
-                        end,
-
-                        create = function(element)
-                            element.data.eventHandler = dmhub.RegisterEventHandler("DiceRoll", function(info)
-                                if info.properties ~= nil and rawget(info.properties, "tableRef") then
-                                    local rollid = dmhub.GenerateGuid()
-                                    element.data.rolls[rollid] = {
-                                        info = info,
-                                        totals = {},
-                                        table = info.properties.tableRef:GetTable(),
-                                        bonus = info.total - info.naturalRoll,
-                                        total = info.total,
-                                    }
-                                    local ref = rawget(info.properties, "tableRef")
-                                    if ref.docid == self.id and ref.tableid == tableName then
-                                        local rolls = info.rolls
-                                        for i,roll in ipairs(rolls) do
-                                            local events = chat.DiceEvents(roll.guid)
-                                            events:Listen(element)
-                                            element.data.diceToRollId[roll.guid] = rollid
-                                            element.data.rolls[rollid].totals[roll.guid] = 0
-
-                                            if roll.partnerguid ~= nil then
-                                                local partnerEvents = chat.DiceEvents(roll.partnerguid)
-                                                partnerEvents:Listen(element)
-                                                element.data.diceToRollId[roll.partnerguid] = rollid
-                                                element.data.rolls[rollid].totals[roll.partnerguid] = 0
-                                            end
-                                        end
-                                    end
-                                end
-                            end)
-                        end,
-
-                        destroy = function(element)
-                            if element.data.eventHandler ~= nil then
-                                dmhub.DeregisterEventHandler(element.data.eventHandler)
-                                element.data.eventHandler = nil
-                            end
-                        end,
-
-                        press = function(element)
-
-                            local ref = RollTableReference.CreateDocumentReference(self.id, tableName)
-                            if not self:IsPlayerView(element) then
-                                LaunchablePanel.LaunchPanelByName("Request Rolls", {
-                                    title = token.name,
-                                    checkType = "Table",
-                                    check = RollCheck.new{
-                                        type = "table",
-                                        id = "custom",
-                                        group = "custom",
-                                        text = token.name,
-                                        tableRef = ref,
-                                        rollProperties = RollOnTableProperties.new{
-                                            tableRef = ref,
-                                        },
-                                    }
-                                    --characteristics = characteristics,
-                                    --skills = skills,
-                                })
-                            else
-                                local charToken = dmhub.selectedOrPrimaryTokens[1]
-                                local rollArgs = {
-                                    title = "Roll on Table",
-                                    description = token.name,
-                                    roll = token.dice,
-                                    tableRef = ref,
-                                    type = "table",
-                                    creature = charToken and charToken.properties or nil,
-                                    rollProperties = RollOnTableProperties.new{
-                                        tableRef = ref,
-                                    },
-                                }
-
-                                GameHud.instance.rollDialog.data.ShowDialog(rollArgs)
-                            end
-                        end,
-                    }
-
-                    panel.data.tableData = self:GetRollableTable(tableName)
-                    panel.data.rollInfo = panel.data.tableData:CalculateRollInfo()
-                    panel.data.table = nil
-                    currentRollableTable = panel
-
-                    ApplyBlockFrame(panel, ((resolvedSkin.blocks or {}).rollableTable or {}).box)
-
-                    if m_rollableTables[tableName] ~= nil then
-                        panel:Unparent()
-                    end
-
-                    newRollableTables[tableName] = panel
-
-                    children[#children + 1] = panel
-                elseif token.type == "row" then
-                    currentRichRow = nil
-                    if currentTable == nil then
-                        -- The frame (border/bg/pad) goes on a wrapper panel, NOT the
-                        -- gui.Table itself: a gui.Table lays out its cells from its own
-                        -- origin and ignores the panel's pad, so a frame applied directly
-                        -- leaves the upper-left cells sitting outside the box. The wrapper
-                        -- is a normal panel whose pad insets the Table correctly. m_tables
-                        -- caches the wrapper; the Table persists inside it as
-                        -- wrapper.data.tablePanel.
-                        -- Pick the block (rollable tables share the row path) and its
-                        -- inner config; row colors are applied via the Table's own
-                        -- `styles`, which can only be set at construction -- so rebuild
-                        -- the Table when the inner config changes (the journalStyles
-                        -- monitor already re-renders the document on any style edit).
-                        local blockKey = (currentRollableTable ~= nil) and "rollableTable" or "table"
-                        local blockSkin = (resolvedSkin.blocks or {})[blockKey] or {}
-                        local innerSig = TableInnerSig(blockSkin.inner)
-                        local function NewInnerTable()
-                            return gui.Table {
-                                halign = "left",
-                                valign = "top",
-                                width = "auto",
-                                height = "auto",
-                                flow = "vertical",
-                                styles = TableInnerStyles(blockSkin.inner),
-                            }
-                        end
-                        local tableWrapper = m_tables[#newTables + 1]
-                        if tableWrapper == nil then
-                            local tbl = NewInnerTable()
-                            tableWrapper = gui.Panel {
-                                flow = "vertical",
-                                width = "auto",
-                                height = "auto",
-                                halign = "left",
-                                valign = "top",
-                                lmargin = 6,
-                                tbl,
-                            }
-                            tableWrapper.data.tablePanel = tbl
-                            tableWrapper.data.innerSig = innerSig
-                        elseif tableWrapper.data.innerSig ~= innerSig then
-                            -- inner styling changed: rebuild the Table with new styles.
-                            local tbl = NewInnerTable()
-                            tableWrapper.data.tablePanel = tbl
-                            tableWrapper.children = { tbl }
-                            tableWrapper.data.innerSig = innerSig
-                        end
-                        currentTable = tableWrapper.data.tablePanel
-
-                        currentTable.data.children = {}
-
-                        ApplyBlockFrame(tableWrapper, blockSkin.box)
-
-                        if currentRollableTable ~= nil then
-                            currentRollableTable.data.table = currentTable
-                            currentRollableTable.data.row = 1
-                        end
-
-                        newTables[#newTables + 1] = tableWrapper
-                        currentTableRow = nil
-                        children[#children + 1] = tableWrapper
-                    end
-
-                    currentTableRow = m_tableRows[#newTableRows + 1] or gui.TableRow {
-                        width = "auto",
-                        height = "auto",
-                    }
-
-                    if m_tableRows[#newTableRows + 1] ~= nil then
-                        currentTableRow:Unparent()
-                    end
-
-                    currentTableRow.data.children = {}
-
-                    -- First row of each table is the markdown header row (followed
-                    -- by `|---|`). Toggle the headerRow class so the cascade's
-                    -- {row, headerRow} / {label, parent:headerRow} rules apply.
-                    -- SetClass with a boolean correctly clears the class on rows
-                    -- that were previously a header row but got repositioned.
-                    local isHeaderRow = #currentTable.data.children == 0
-                    currentTableRow:SetClass("headerRow", isHeaderRow)
-
-                    newTableRows[#newTableRows + 1] = currentTableRow
-
-                    currentTable.data.children[#currentTable.data.children + 1] = currentTableRow
-
-                    if currentRollableTable ~= nil then
-                        local rollInfo = currentRollableTable.data.rollInfo
-                        local range = rollInfo.rollRanges[currentRollableTable.data.row]
-                        if range ~= nil then
-                            newRollableTableRowLabels[#newRollableTableRowLabels + 1] = m_rollableTableRowLabels[#newRollableTableRowLabels + 1] or gui.Label{
-                                classes = { "bold" },
-                                fontSize = 16,
-                                width = 70,
-                                halign = "left",
-                                height = "auto",
-                            }
-
-                            local label = newRollableTableRowLabels[#newRollableTableRowLabels]
-                            label:Unparent()
-                            label.text = RollTable.FormatRange(range) .. "."
-
-                            currentRollableTable.data.rowList = currentRollableTable.data.rowList or {}
-                            currentRollableTable.data.rowList[currentRollableTable.data.row] = currentTableRow
-                            currentTableRow.data.range = range
-
-                            currentTableRow.data.children[#currentTableRow.data.children + 1] = label
-                        end
-
-                        currentRollableTable.data.row = currentRollableTable.data.row + 1
-                    end
-                elseif token.type == "end_row" then
-                    currentTableRow = nil
-                    currentRichRow = nil
-                elseif token.type == "cell" then
-                    currentRichRow = m_richRows[#newRichRows + 1] or gui.Panel {
-                        flow = "horizontal",
-                        height = "auto",
-                        vmargin = 0,
-                        pad = 4,
-                    }
-                    if m_richRows[#newRichRows + 1] ~= nil then
-                        currentRichRow:Unparent()
-                    end
-                    currentRichRow.data.children = {}
-                    currentRichRow.selfStyle.width = "auto"
-                    currentRichRow.selfStyle.valign = "center"
-
-                    --scan for the number of cells in this row.
-                    local beginRowIndex = i
-                    for j=i,1,-1 do
-                        if tokens[j].type == "row" then
-                            beginRowIndex = j
-                            break
-                        end
-                    end
-
-                    local cellCount = 0
-                    for j=beginRowIndex,#tokens do
-                        if tokens[j].type == "end_row" then
-                            break
-                        elseif tokens[j].type == "cell" then
-                            cellCount = cellCount + 1
-                        end
-                    end
-
-                    local cellWidth = math.floor(100 / cellCount)
-                    local tableHeaderSpacing = 0
-                    if currentRollableTable ~= nil then
-                        tableHeaderSpacing = 80/cellCount
-                    end
-
-                    --currentRichRow.selfStyle.width = string.format("%d%%-%d", round(cellWidth), round(tableHeaderSpacing))
-                    currentRichRow.selfStyle.maxWidth = string.format("%d%%-%d", round(cellWidth), round(tableHeaderSpacing))
-
-                    newRichRows[#newRichRows + 1] = currentRichRow
-                    if currentTableRow ~= nil then
-                        currentTableRow.data.children[#currentTableRow.data.children + 1] = currentRichRow
-                    end
-                elseif token.type == "text" and token.justification == nil and token.text == "\n" and currentRichRow ~= nil then
-                    --this special case doesn't require inserting a text panel. Instead we just end the rich row of content.
-                    currentRichRow = nil
-                elseif token.type == "text" then
-                    if currentTable ~= nil and currentTableRow == nil then
-                        --end of table.
-                        currentRollableTable = nil
-                        currentRichRow = nil
-                        currentTable = nil
-                    end
-
-                    local function MakeTextLabel()
-                        return gui.Label {
-                            classes = {"fg"},
-                            width = "auto",
-                            height = "auto",
-                            maxWidth = "100%",
-                            valign = "center",
-                            vmargin = 0,
-                            markdown = true,
-                            markdownStyle = g_markdownStyle,
-                            textAlignment = "topleft",
-                            fontSize = CustomDocument.ScaleFontSize(14),
-                            pad = 0,
-                            links = true,
-                            hoverLink = function(element, link)
-                                if string.starts_with(link, "spoiler:") then
-                                    return
-                                end
-                                CustomDocument.PreviewLink(element, link)
-                            end,
-                            dehoverLink = function(element, link)
-                                element.tooltip = nil
-                            end,
-                            rightClick = function(element)
-                                if element.linkHovered == nil then return end
-                                local link = element.linkHovered
-                                if string.starts_with(link, "spoiler:") then return end
-                                local doc = CustomDocument.ResolveLink(link)
-                                if doc == nil then return end
-
-                                -- Only show context menu for navigable document types
-                                local isNavigable = false
-                                if type(doc) == "table" or type(doc) == "userdata" then
-                                    if doc.IsDerivedFrom and doc.IsDerivedFrom("CustomDocument") and doc:try_get("id") then
-                                        isNavigable = true
-                                    elseif MarkdownRender.IsRenderable(doc) then
-                                        isNavigable = true
-                                    end
-                                end
-                                if not isNavigable then return end
-
-                                element.popup = gui.ContextMenu {
-                                    entries = {
-                                        {
-                                            text = "Open in New Tab",
-                                            click = function()
-                                                element.popup = nil
-                                                CustomDocument.OpenContent(doc)
-                                            end,
-                                        },
-                                    },
-                                }
-                            end,
-                            press = function(element)
-                                if element.popup then
-                                    element.popup = nil
-                                    return
-                                end
-                                if element.linkHovered ~= nil then
-                                    local link = element.linkHovered
-                                    if string.starts_with(link, "spoiler:") then
-                                        local spoilerValue = link:sub(9)
-                                        local spoilerInfo = (m_tokenExtraInfo.spoilers or {})[spoilerValue]
-                                        if spoilerInfo == nil then
-                                            return
-                                        end
-
-                                        local lines = table.shallow_copy(spoilerInfo.lines)
-                                        local line = spoilerInfo.lines[spoilerInfo.lineIndex]
-                                        for i=spoilerInfo.linepos,#line do
-                                            if line:sub(i,i) == "{" then
-                                                local nextChar = line:sub(i+1,i+1)
-                                                if nextChar == "!" then
-                                                    line = line:sub(1,i) .. line:sub(i+2)
-                                                else
-                                                    line = line:sub(1,i) .. "!" .. line:sub(i+1)
-                                                end
-                                                lines[spoilerInfo.lineIndex] = line
-                                                self:SetTextContent(table.concat(lines, "\n"))
-                                                self:Upload()
-                                                break
-                                            end
-                                        end
-
-                                        return
-                                    end
-
-                                    local doc = CustomDocument.ResolveLink(element.linkHovered)
-                                    if doc ~= nil then
-                                        -- Try in-place navigation for real document types only.
-                                        -- Renderable content (e.g. an item/spell link) wraps into a
-                                        -- transient MarkdownDocument that is never written to the
-                                        -- table, so navigateToDocument (which looks up by id) can't
-                                        -- resolve it -- let those fall through to OpenContent instead.
-                                        local navigableDocId = nil
-                                        if type(doc) == "table" or type(doc) == "userdata" then
-                                            if doc.IsDerivedFrom and doc.IsDerivedFrom("CustomDocument") and doc:try_get("id") then
-                                                navigableDocId = doc.id
-                                            end
-                                        end
-
-                                        if navigableDocId then
-                                            local dialogPanel = element:FindParentWithClass("framedPanel")
-                                            if dialogPanel and dialogPanel.data and dialogPanel.data.history then
-                                                dialogPanel:FireEvent("navigateToDocument", navigableDocId)
-                                                return
-                                            end
-                                        end
-
-                                        -- Fall back to opening in new window
-                                        CustomDocument.OpenContent(doc)
-                                    else
-                                        local guid = dmhub.GenerateGuid()
-                                        local markdownDoc = MarkdownDocument.new {
-                                            id = guid,
-                                            description = element.linkHovered,
-                                            content = "# " .. element.linkHovered,
-                                            annotations = {},
-                                        }
-
-                                        dmhub.SetAndUploadTableItem(MarkdownDocument.tableName, markdownDoc)
-                                        markdownDoc:ShowDocument { edit = true }
-                                    end
-                                end
-                            end,
-                        }
-                    end
-                    if ruledLevels == nil or not TextHasRuledHeading(token.text, ruledLevels) then
-                        -- Fast path: skin has no ruled headings, or this run
-                        -- contains no ruled heading line -> single label, unchanged.
-                        local textPanel = m_textPanels[#newTextPanels + 1] or MakeTextLabel()
-
-                        textPanel.selfStyle.halign = token.justification or "left"
-
-                        if m_textPanels[#newTextPanels + 1] ~= nil then
-                            textPanel:Unparent()
-                        end
-
-                        local text = token.text
-                        if string.starts_with(text, "\n") then
-                            text = text:sub(2)
-                        end
-
-                        --make it so that leading or trailing spaces are non-breaking
-                        if string.starts_with(text, " ") then
-                            text = "<color=#00000000>.</color>" .. text:sub(2)
-                        end
-
-                        if string.ends_with(text, " ") then
-                            text = text:sub(1, -2) .. "<color=#00000000>.</color>"
-                        end
-
-                        textPanel.text = ApplySkinToText(ApplyInlineClasses(text, resolvedClasses), resolvedSkin)
-                        newTextPanels[#newTextPanels + 1] = textPanel
-
-                        --find if the string only has a newline at the end or no newline,
-                        --in which case it can go inline.
-                        if (currentRichRow ~= nil and token.text:match("^[^\n]*\n?$") ~= nil) or (currentRichRow == nil and string.find(token.text, "\n") == nil) then
-                            if currentRichRow == nil then
-                                currentRichRow = m_richRows[#newRichRows + 1] or gui.Panel {
-                                    flow = "horizontal",
-                                    height = "auto",
-                                    vmargin = 0,
-                                }
-                                if m_richRows[#newRichRows + 1] ~= nil then
-                                    currentRichRow:Unparent()
-                                end
-                                currentRichRow.selfStyle.width = "100%"
-                                currentRichRow.selfStyle.valign = "top"
-                                currentRichRow.selfStyle.maxWidth = nil
-                                currentRichRow.data.children = {}
-                                newRichRows[#newRichRows + 1] = currentRichRow
-                                children[#children + 1] = currentRichRow
-                            end
-
-                            if token.justification then
-                                currentRichRow.selfStyle.width = "100%"
-                            end
-
-                            textPanel.selfStyle.width = "auto"
-                            textPanel.selfStyle.valign = "center"
-                            currentRichRow.data.children[#currentRichRow.data.children + 1] = textPanel
-                        else
-                            -- Only widen for stylesheet alignment when the author did not set an explicit
-                            -- :>/:<> justification (which positions an auto-width label via panel halign).
-                            textPanel.selfStyle.width = (usesAlign and not token.justification) and "100%" or "auto"
-                            textPanel.selfStyle.valign = "top"
-                            children[#children + 1] = textPanel
-                        end
-
-                        if currentRichRow ~= nil and string.find(token.text, "\n") then
-                            currentRichRow = nil
-                        end
-                    else
-                        -- Split path: ruled headings present; emit one label per
-                        -- segment and a rule panel after each ruled-heading segment.
-                        -- Does NOT use the rich-row inline branch (block content).
-                        currentRichRow = nil
-                        local text = token.text
-                        if string.starts_with(text, "\n") then
-                            text = text:sub(2)
-                        end
-                        if string.starts_with(text, " ") then
-                            text = "<color=#00000000>.</color>" .. text:sub(2)
-                        end
-                        if string.ends_with(text, " ") then
-                            text = text:sub(1, -2) .. "<color=#00000000>.</color>"
-                        end
-                        local segments = SplitRunAtRuledHeadings(text, ruledLevels)
-                        for _, seg in ipairs(segments) do
-                            local label = m_textPanels[#newTextPanels + 1] or MakeTextLabel()
-                            label.selfStyle.halign = token.justification or "left"
-                            if m_textPanels[#newTextPanels + 1] ~= nil then
-                                label:Unparent()
-                            end
-                            -- Only widen for stylesheet alignment when the author did not set an explicit
-                            -- :>/:<> justification (which positions an auto-width label via panel halign).
-                            label.selfStyle.width = (usesAlign and not token.justification) and "100%" or "auto"
-                            label.selfStyle.valign = "top"
-                            label.text = ApplySkinToText(
-                                ApplyInlineClasses(seg.text, resolvedClasses),
-                                resolvedSkin,
-                                { ruledLevels = ruledLevels })
-                            newTextPanels[#newTextPanels + 1] = label
-                            children[#children + 1] = label
-                            if seg.ruleLevel ~= nil then
-                                local h = (resolvedSkin.headings or {})[seg.ruleLevel]
-                                local rulePanel = m_headingRules[#newHeadingRules + 1]
-                                if rulePanel == nil then
-                                    rulePanel = BuildHeadingRulePanel(nil, h)
-                                else
-                                    BuildHeadingRulePanel(rulePanel, h)
-                                    rulePanel:Unparent()
-                                end
-                                newHeadingRules[#newHeadingRules + 1] = rulePanel
-                                children[#children + 1] = rulePanel
-                            end
-                        end
-                    end
-                elseif token.type == "blockquote" then
-                    currentRichRow = nil
-                    local blockquote = m_blockquotes[#newBlockquotes + 1] or gui.Panel {
-                        classes = {"blockQuote"},
-                        width = "100%",
-                        height = "auto",
-                        halign = "left",
-                        valign = "top",
-                        flow = "horizontal",
-                        savedoc = function(element)
-                            element:HaltEventPropagation()
-                        end,
-                        refreshDocument = function(element)
-                            element:HaltEventPropagation()
-                        end,
-                        editDocument = function(element)
-                            element:HaltEventPropagation()
-                        end,
-                        refreshTag = function(element)
-                            element:HaltEventPropagation()
-                        end,
-
-                        gui.MarkdownLabel{
-                            width = "100%-20",
-                            halign = "right",
-                            markdownText = function(element, text)
-                                element:HaltEventPropagation()
-                                element.text = text
-                            end,
-                        }
-                    }
-
-                    if m_blockquotes[#newBlockquotes + 1] ~= nil then
-                        blockquote:Unparent()
-                    end
-
-                    blockquote:FireEventTree("markdownText", SkinQuoteText(resolvedSkin.quote, token.text))
-
-                    ApplyQuoteFrame(blockquote, resolvedSkin.quote)
-
-                    newBlockquotes[#newBlockquotes + 1] = blockquote
-
-                    children[#children+1] = blockquote
-
-                elseif token.type == "styleblock" then
-                    currentRichRow = nil
-                    local cls = resolvedClasses[token.className]
-                    local styleblock = m_styleblocks[#newStyleblocks + 1] or gui.Panel {
-                        width = "100%",
-                        height = "auto",
-                        halign = "left",
-                        valign = "top",
-                        flow = "vertical",
-                        borderBox = true,
-                        savedoc = function(element) element:HaltEventPropagation() end,
-                        refreshDocument = function(element) element:HaltEventPropagation() end,
-                        editDocument = function(element) element:HaltEventPropagation() end,
-                        refreshTag = function(element) element:HaltEventPropagation() end,
-                        gui.MarkdownLabel{
-                            width = "100%",
-                            markdownText = function(element, text)
-                                element:HaltEventPropagation()
-                                element.text = text
-                            end,
-                        }
-                    }
-
-                    -- Apply the class box props (graceful when class is missing or
-                    -- not a block class -> renders as a plain unstyled panel).
-                    local box = (type(cls) == "table" and cls.kind == "block" and cls.box) or {}
-                    ApplyBlockFrame(styleblock, box)
-
-                    if m_styleblocks[#newStyleblocks + 1] ~= nil then
-                        styleblock:Unparent()
-                    end
-
-                    local innerText = token.text
-                    if type(cls) == "table" and cls.kind == "block" and cls.text ~= nil then
-                        innerText = SkinClassTextMarkup(cls.text, token.text)
-                    end
-                    styleblock:FireEventTree("markdownText", innerText)
-
-                    newStyleblocks[#newStyleblocks + 1] = styleblock
-                    children[#children + 1] = styleblock
-
-                elseif token.type == "tag" then
-                    if currentTable ~= nil and currentTableRow == nil then
-                        --end of table.
-                        currentRollableTable = nil
-                        currentRichRow = nil
-                        currentTable = nil
-                    end
-
-                    local text, suffix
-                    local match = regex.MatchGroups(token.text, "^(?<text>.+?):(?<name>.+)$")
-                    if match ~= nil then
-                        text = match.text
-                        suffix = match.name
-                    end
-
-                    local text, suffix = token.text:match("^(.-):(.*)$")
-                    if suffix == nil then
-                        text = token.text
-                    end
-
-                    local fullname = token.text
-                    local richTagFromPattern = nil
-
-                    local patternMatch = nil
-
-                    for key, richTag in pairs(MarkdownDocument.RichTagRegistry) do
-                        if richTag.pattern then
-                            patternMatch = regex.MatchGroups(token.text, richTag.pattern)
-                            if patternMatch ~= nil then
-                                fullname = key
-                                text = key
-                                richTagFromPattern = richTag
-                                break
-                            end
-                        end
-                    end
-
-                    local richTagInfo = MarkdownDocument.RichTagRegistry[string.lower(text)]
-
-                    if richTagInfo ~= nil then
-                        local candidate = fullname
-                        local index = 1
-                        while tagsSeen[candidate] do
-                            candidate = fullname .. '-' .. index
-                            index = index + 1
-                        end
-
-                        tagsSeen[candidate] = true
-
-                        local richTag
-                        
-                        if richTagFromPattern then
-                            richTag = DeepCopy(richTagFromPattern)
-                        else
-                            richTag = self.annotations[candidate]
-
-                            --patch over any possible bugs where the saved annotation is not a proper table.
-                            if richTag ~= nil and getmetatable(richTag) == nil then
-                                richTag = nil
-                                self.annotations[candidate] = nil
-                            end
-                        end
-
-                        
-                        if richTag ~= nil then
-                            local panel = m_richPanels[candidate] or richTag:CreateDisplay()
-
-                            if currentRichRow == nil then
-                                currentRichRow = m_richRows[#newRichRows + 1] or gui.Panel {
-                                    flow = "horizontal",
-                                    height = "auto",
-                                    vmargin = 0,
-                                }
-                                if m_richRows[#newRichRows + 1] ~= nil then
-                                    currentRichRow:Unparent()
-                                end
-                                currentRichRow.selfStyle.width = "100%"
-                                currentRichRow.selfStyle.valign = "top"
-                                currentRichRow.selfStyle.maxWidth = nil
-                                currentRichRow.data.children = {}
-                                newRichRows[#newRichRows + 1] = currentRichRow
-                                children[#children + 1] = currentRichRow
-                            end
-
-                            if m_richPanels[candidate] ~= nil and panel.parent ~= currentRichRow then
-                                panel:Unparent()
-                            end
-
-                            if token.justification then
-                                currentRichRow.selfStyle.width = "100%"
-                            end
-
-                            richTag._tmp_document = self
-                            panel:FireEventTree("refreshTag", richTag, patternMatch or match, token)
-
-                            newRichPanels[candidate] = panel
-                            local embedBox = (resolvedSkin.embed or {}).box
-                            if g_standaloneEmbedTags[string.lower(text)] and embedBox ~= nil and next(embedBox) ~= nil then
-                                -- Wrap so the rich-tag's own look is preserved inside
-                                -- the stylesheet frame (do NOT ApplyBlockFrame the
-                                -- component panel directly).
-                                local frame = m_richFrames[candidate] or gui.Panel { width = "auto", height = "auto", valign = "top" }
-                                ApplyBlockFrame(frame, embedBox)
-                                frame.children = { panel }
-                                newRichFrames[candidate] = frame
-                                currentRichRow.data.children[#currentRichRow.data.children + 1] = frame
-                            else
-                                currentRichRow.data.children[#currentRichRow.data.children + 1] = panel
-                            end
-                        end
-                    end
-                end
-
-                -- Stamp the source line onto whatever top-level children this token
-                -- appended (overwrite, so reused/cached panels refresh each render).
-                for k = stampFrom, #stampChildren do
-                    stampChildren[k].data.srcLine = stampLine
-                end
-            end
-
-            for i, row in ipairs(newRichRows) do
-                row.children = row.data.children
-                row.data.children = nil
-            end
-
-            for i, row in ipairs(newTableRows) do
-                row.children = row.data.children
-                row.data.children = nil
-            end
-
-            for i, t in ipairs(newTables) do
-                -- t is the wrapper; commit rows onto the gui.Table it holds. The
-                -- wrapper carries the block FRAME and the Table carries its inner row
-                -- colors via `styles` (both set in the table render branch), so no
-                -- post-build styling is needed here.
-                local tbl = t.data.tablePanel
-                tbl.children = tbl.data.children
-                tbl.data.children = nil
-            end
-
-            m_rollableTableRowLabels = newRollableTableRowLabels
-            m_rollableTables = newRollableTables
-            m_richRows = newRichRows
-            m_richPanels = newRichPanels
-            m_richFrames = newRichFrames
-            m_textPanels = newTextPanels
-            m_tableRows = newTableRows
-            m_tables = newTables
-            m_dividers = newDividers
-            m_headingRules = newHeadingRules
-            m_powerTables = newPowerTables
-            m_embeds = newEmbeds
-            m_treeNodes = newTreeNodes
-            m_blockquotes = newBlockquotes
-            m_styleblocks = newStyleblocks
-            element.children = children
+            ctx.render = {
+                skin = resolvedSkin,
+                classes = resolvedStylesheet.classes,
+                -- Compute once per render: which heading levels (1..5) carry a rule.
+                -- nil means no ruled headings -> every text run uses the fast path.
+                ruledLevels = HeadingRuleLevels(resolvedSkin),
+                usesAlign = SkinUsesAlign(resolvedSkin),
+                pageColor = pageColor,
+            }
+
+            element.children = RenderMarkdownTokens(ctx, tokens)
         end,
         monitorGame = "/assets/objectTables/" .. JournalStylesheet.tableName,
         refreshGame = function(element)

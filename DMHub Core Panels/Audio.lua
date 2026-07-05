@@ -2005,6 +2005,8 @@ function VariantPools.Create(name, memberIds)
 		loopAmbience = false,
 		gapMin = 3,
 		gapMax = 10,
+		layerSounds = false,
+		fadeInOut = false,
 	}
 	doc:CompleteChange("Create variant pool")
 	return poolid
@@ -2032,6 +2034,8 @@ function VariantPools.EnsureEntry(poolid)
 		loopAmbience = false,
 		gapMin = 3,
 		gapMax = 10,
+		layerSounds = false,
+		fadeInOut = false,
 	}
 	doc:CompleteChange("Create variant pool")
 end
@@ -2249,6 +2253,34 @@ function VariantPools.SetGap(poolid, gapMin, gapMax)
 	doc:CompleteChange("Set variant pool gap")
 end
 
+--Toggles whether looping ambience LAYERS its fires (ON = members overlap, today's
+--behavior) or CYCLES one variant at a time (OFF = default; fire the next member only
+--after the current one finishes, gap = silence between). K2 round 5.
+function VariantPools.SetLayerSounds(poolid, on)
+	if not VariantPools.IsPool(poolid) then
+		return
+	end
+	local doc = VariantPools.GetDoc()
+	doc:BeginChange()
+	PurgeLegacyEntries(doc)
+	doc.data[poolid].layerSounds = (on == true)
+	doc:CompleteChange("Set variant pool layering")
+end
+
+--Toggles a 0.5s ease-in on each fire + a 0.5s ease-out near each sound's natural end
+--for looping ambience. OFF (default) = hard start, natural tail (preserve transients).
+--K2 round 5.
+function VariantPools.SetFadeInOut(poolid, on)
+	if not VariantPools.IsPool(poolid) then
+		return
+	end
+	local doc = VariantPools.GetDoc()
+	doc:BeginChange()
+	PurgeLegacyEntries(doc)
+	doc.data[poolid].fadeInOut = (on == true)
+	doc:CompleteChange("Set variant pool fade")
+end
+
 --K1.5 field fix (James, 2026-07-04): deleting a pool also clears any soundboard
 --button holding it, on every board. Pads on OTHER clients already self-heal a stale
 --poolid to empty, but the deleting client should leave no dead assignment behind in
@@ -2279,6 +2311,30 @@ function VariantPools.Remove(poolid)
 	PurgeLegacyEntries(doc)
 	doc:CompleteChange("Remove variant pool")
 	ClearPoolFromSoundboardSlots(poolid)
+end
+
+--Fade-out helper for Fade-in/out pools: schedule a 0.5s ease-out to start ~0.5s
+--before the clip's natural end so the tail is smooth instead of a hard cut. Driver-
+--local (dmhub.Schedule); guarded so a stopped/replaced sound is never re-crossfaded.
+--Skipped for very short clips (a fade would swallow the whole sound).
+local function ScheduleVariantPoolFadeOut(assetid, duration)
+	if assetid == nil or duration == nil or duration <= 1.0 then
+		return
+	end
+	local delay = duration - 0.5
+	if delay < 0.1 then delay = 0.1 end
+	dmhub.Schedule(delay, function()
+		if mod.unloaded then return end
+		--Only ease out if the sound playing NOW is this fire near its own end. The engine
+		--keys currentlyPlaying by assetid with no per-fire handle, so a later unrelated
+		--replay of the same clip (a StopLoop+restart, a layered re-fire, or another pool /
+		--soundboard pad sharing the clip) would otherwise be cut short by this stale closure.
+		--A fresh replay reads a small inst.time, so gate on being within ~0.75s of the end.
+		local inst = audio.currentlyPlaying[assetid]
+		if inst ~= nil and inst.time ~= nil and inst.time >= (duration - 0.75) then
+			audio.CrossfadeSoundEvents(assetid, nil, 0.5)
+		end
+	end)
 end
 
 --Fires a variant pool: picks a member and broadcasts it with pitch variation. opts may
@@ -2334,6 +2390,20 @@ function VariantPools.Fire(poolid, opts)
 		return nil
 	end
 
+	if entry.fadeInOut == true then
+		--Fade-in path: crossfade a fresh play in over 0.5s. CrossfadeSoundEvents takes
+		--no pitch (and there is no runtime pitch setter), so a fading fire carries no
+		--pitch variation - an accepted, signed tradeoff (fade is for smooth textures).
+		--Volume is applied after, multiplying with the fade envelope (music path does
+		--the same). Then schedule the matching ease-out near the clip's natural end.
+		audio.CrossfadeSoundEvents(nil, chosen.id, 0.5)
+		if opts ~= nil and opts.volume ~= nil then
+			audio.SetSoundEventVolume(chosen.id, opts.volume)
+		end
+		ScheduleVariantPoolFadeOut(chosen.id, chosen.duration)
+		return chosen
+	end
+
 	--Roll pitch = 1 +/- random(0..pitchVar). 0 = no variation.
 	local pitchVar = entry.pitchVar or 0
 	local pitch = 1
@@ -2375,6 +2445,18 @@ end
 function VariantPools.IsLoopAmbience(poolid)
 	local e = VariantPools.GetDoc().data[poolid]
 	return type(e) == "table" and e.loopAmbience == true
+end
+
+--True if this looping pool layers its fires (default false = cycle one at a time).
+function VariantPools.IsLayerSounds(poolid)
+	local e = VariantPools.GetDoc().data[poolid]
+	return type(e) == "table" and e.layerSounds == true
+end
+
+--True if this pool eases each fire in and out (~0.5s). Default false.
+function VariantPools.IsFadeInOut(poolid)
+	local e = VariantPools.GetDoc().data[poolid]
+	return type(e) == "table" and e.fadeInOut == true
 end
 
 --Ids of all currently-looping pools, sorted for a stable now-playing row order.
@@ -2424,16 +2506,27 @@ function VariantPools.StartLoop(poolid, volume)
 	if #VariantPools.Members(poolid) == 0 then
 		return
 	end
-	--Immediate first fire (design C3).
-	VariantPools.Fire(poolid, { volume = volume })
+	--Immediate first fire (design C3). Capture the chosen member: in cycle mode we
+	--wait for IT to finish before the gap, so we must know which one is sounding.
+	local chosen = VariantPools.Fire(poolid, { volume = volume })
 	local doc = GetPoolLoopStateDoc()
 	doc:BeginChange()
-	doc.data[poolid] = {
+	local newEntry = {
 		looping = true,
 		driver = dmhub.userid,
-		nextFireAt = dmhub.Time() + VariantPoolGapSeconds(poolid),
 		volume = volume,
 	}
+	if VariantPools.IsLayerSounds(poolid) then
+		--Layered: fire again every gap regardless of what is still sounding.
+		newEntry.nextFireAt = dmhub.Time() + VariantPoolGapSeconds(poolid)
+	elseif chosen ~= nil then
+		--Cycling: hold until this member leaves currentlyPlaying, then start the gap.
+		newEntry.currentMemberId = chosen.id
+	else
+		--First fire produced nothing (e.g. all members filtered) - retry after a gap.
+		newEntry.nextFireAt = dmhub.Time() + VariantPoolGapSeconds(poolid)
+	end
+	doc.data[poolid] = newEntry
 	doc:CompleteChange("Start ambience loop", {undoable = false})
 	g_drawSteelAudioLog.AmbienceLoopStart(VariantPools.Name(poolid) or "Variant pool")
 end
@@ -2526,6 +2619,7 @@ PollAudioVariantPoolLoops = function()
 	--Collect actions without mutating during iteration.
 	local toHeal = {}     --orphaned (driver gone / pool gone / emptied) -> clear entry
 	local toFire = {}     --this client is the driver and the deadline passed
+	local toStartGap = {} --cycling: current member finished -> begin the gap timer
 	for poolid,entry in pairs(doc.data) do
 		if type(entry) == "table" and entry.looping == true then
 			if entry.driver == nil or (hasOnline and not online[entry.driver]) then
@@ -2535,8 +2629,22 @@ PollAudioVariantPoolLoops = function()
 				--members left to fire) so it never sits looping=true, silent, forever.
 				if not VariantPools.IsPool(poolid) or #VariantPools.Members(poolid) == 0 then
 					toHeal[#toHeal+1] = poolid
-				elseif now >= (entry.nextFireAt or 0) then
-					toFire[#toFire+1] = poolid
+				elseif VariantPools.IsLayerSounds(poolid) then
+					--Layered: fire every gap regardless of what is still sounding.
+					if now >= (entry.nextFireAt or 0) then
+						toFire[#toFire+1] = poolid
+					end
+				else
+					--Cycling: one variant at a time. Hold while the current member is
+					--still audible; when it leaves currentlyPlaying, start the gap; when
+					--the gap has elapsed (no current member), fire the next.
+					if entry.currentMemberId ~= nil then
+						if audio.currentlyPlaying[entry.currentMemberId] == nil then
+							toStartGap[#toStartGap+1] = poolid
+						end
+					elseif now >= (entry.nextFireAt or 0) then
+						toFire[#toFire+1] = poolid
+					end
 				end
 			end
 		end
@@ -2552,16 +2660,40 @@ PollAudioVariantPoolLoops = function()
 		end
 	end
 
-	--Apply fires: fire a member, then write the next absolute deadline.
+	--Apply gap starts: the current cycling member finished, so begin the quiet gap.
+	for _,poolid in ipairs(toStartGap) do
+		local d = GetPoolLoopStateDoc()
+		local entry = d.data[poolid]
+		if type(entry) == "table" and entry.looping == true and entry.driver == dmhub.userid and entry.currentMemberId ~= nil then
+			d:BeginChange()
+			d.data[poolid].currentMemberId = nil
+			d.data[poolid].nextFireAt = dmhub.Time() + VariantPoolGapSeconds(poolid)
+			d:CompleteChange("Advance ambience loop gap", {undoable = false})
+		end
+	end
+
+	--Apply fires: fire a member, then record the next-state. Layered -> next absolute
+	--gap deadline. Cycling -> remember the fired member and wait for it to finish (its
+	--end starts the gap in a later poll); if the fire produced nothing, fall back to a
+	--gap-based retry so a filtered pool does not spin.
 	for _,poolid in ipairs(toFire) do
 		local d = GetPoolLoopStateDoc()
 		local entry = d.data[poolid]
 		if type(entry) == "table" and entry.looping == true and entry.driver == dmhub.userid then
-			VariantPools.Fire(poolid, { volume = entry.volume })
+			local chosen = VariantPools.Fire(poolid, { volume = entry.volume })
 			d = GetPoolLoopStateDoc()
 			if type(d.data[poolid]) == "table" then
 				d:BeginChange()
-				d.data[poolid].nextFireAt = dmhub.Time() + VariantPoolGapSeconds(poolid)
+				if VariantPools.IsLayerSounds(poolid) then
+					d.data[poolid].currentMemberId = nil
+					d.data[poolid].nextFireAt = dmhub.Time() + VariantPoolGapSeconds(poolid)
+				elseif chosen ~= nil then
+					d.data[poolid].currentMemberId = chosen.id
+					d.data[poolid].nextFireAt = nil
+				else
+					d.data[poolid].currentMemberId = nil
+					d.data[poolid].nextFireAt = dmhub.Time() + VariantPoolGapSeconds(poolid)
+				end
 				d:CompleteChange("Advance ambience loop", {undoable = false})
 			end
 		end
@@ -2613,6 +2745,10 @@ if rawget(_G, "devmode") ~= nil and devmode() and rawget(_G, "DrawSteelAudioDev"
 	DrawSteelAudioDev.StopAllVariantPoolLoops = function() VariantPools.StopAllLoops() end
 	DrawSteelAudioDev.IsVariantPoolLooping = function(poolid) return VariantPools.IsLooping(poolid) end
 	DrawSteelAudioDev.CountVariantPoolLoops = function() return VariantPools.CountLoops() end
+	DrawSteelAudioDev.SetVariantPoolLayer = function(poolid, on) VariantPools.SetLayerSounds(poolid, on) end
+	DrawSteelAudioDev.SetVariantPoolFade = function(poolid, on) VariantPools.SetFadeInOut(poolid, on) end
+	DrawSteelAudioDev.IsVariantPoolLayer = function(poolid) return VariantPools.IsLayerSounds(poolid) end
+	DrawSteelAudioDev.IsVariantPoolFade = function(poolid) return VariantPools.IsFadeInOut(poolid) end
 end
 
 --K1.5-studio: shared module-level state between the clip context menu (OpenRowContextMenu,
@@ -9764,11 +9900,16 @@ local CreateStudioVariantPoolsCard = function(heightSpec)
 
 			local poolEntryNow = VariantPools.GetDoc().data[poolid]
 			local loopOnNow = (poolEntryNow ~= nil and poolEntryNow.loopAmbience == true)
+			local layerOnNow = (poolEntryNow ~= nil and poolEntryNow.layerSounds == true)
+			local fadeOnNow = (poolEntryNow ~= nil and poolEntryNow.fadeInOut == true)
 			local gapMinNow = (poolEntryNow ~= nil and poolEntryNow.gapMin) or 3
 			local gapMaxNow = (poolEntryNow ~= nil and poolEntryNow.gapMax) or 10
 
-			--Forward-declared: the loop checkbox's change closure toggles gapStrip's visibility.
+			--Forward-declared: the loop checkbox's change closure toggles gapStrip/loopOptionsStrip
+			--visibility; the fade checkbox dims pitchCluster (pitch cannot apply on a faded fire).
 			local gapStrip
+			local loopOptionsStrip
+			local pitchCluster
 
 			local loopCheck = gui.Check{
 				text = "Loop as ambience",
@@ -9780,8 +9921,30 @@ local CreateStudioVariantPoolsCard = function(heightSpec)
 				change = function(element)
 					VariantPools.SetLoopAmbience(poolid, element.value)
 					if gapStrip ~= nil then gapStrip:SetClass("collapsed", not element.value) end
+					if loopOptionsStrip ~= nil then loopOptionsStrip:SetClass("collapsed", not element.value) end
 				end,
 			}
+
+			--Pitch variation is inert while Fade in/out is on (a faded fire goes through the
+			--crossfade path, which cannot carry pitch). Dim the control and explain on hover
+			--rather than hide/disable it, so the pool's pitch value survives toggling fade off.
+			pitchCluster = gui.Panel{
+				flow = "horizontal",
+				width = "auto",
+				height = "100%",
+				valign = "center",
+				styles = {
+					{ selectors = {"pitchDimmed"}, opacity = 0.4 },
+				},
+				hover = function(element)
+					if element:HasClass("pitchDimmed") then
+						gui.Tooltip("Turn off Fade in/out to use pitch variation - fades can't also shift pitch.")(element)
+					end
+				end,
+				gui.Label{ classes = {"sizeXs"}, text = "Pitch variation", width = "auto", height = "auto", halign = "left", valign = "center", hmargin = 4 },
+				pitchSlider,
+			}
+			pitchCluster:SetClass("pitchDimmed", fadeOnNow)
 
 			local configStrip = gui.Panel{
 				flow = "horizontal",
@@ -9803,12 +9966,63 @@ local CreateStudioVariantPoolsCard = function(heightSpec)
 					halign = "left",
 					valign = "center",
 					randomPickCheck,
-					gui.Label{ classes = {"sizeXs"}, text = "Pitch variation", width = "auto", height = "auto", halign = "left", valign = "center", hmargin = 4 },
-					pitchSlider,
+					pitchCluster,
 				},
 				loopCheck,
 			}
 			rowChildren[#rowChildren+1] = configStrip
+
+			--Two per-pool ambience options (K2 round 5), revealed with the gap controls
+			--when Loop as ambience is on. Both default OFF. Layer sounds OFF = cycle one
+			--variant at a time; Fade in/out ON = ease each fire in and out ~0.5s.
+			--(layerOnNow / fadeOnNow are read once, above, next to loopOnNow.)
+			local layerCheck = gui.Check{
+				text = "Layer sounds",
+				value = layerOnNow,
+				width = "auto",
+				height = 22,
+				valign = "center",
+				hmargin = 4,
+				change = function(element)
+					VariantPools.SetLayerSounds(poolid, element.value)
+				end,
+			}
+			local fadeCheck = gui.Check{
+				text = "Fade in/out",
+				value = fadeOnNow,
+				width = "auto",
+				height = 22,
+				valign = "center",
+				hmargin = 4,
+				change = function(element)
+					VariantPools.SetFadeInOut(poolid, element.value)
+					if pitchCluster ~= nil then pitchCluster:SetClass("pitchDimmed", element.value) end
+				end,
+			}
+			loopOptionsStrip = gui.Panel{
+				classes = { "collapsed" },
+				flow = "horizontal",
+				width = "100%",
+				height = 26,
+				valign = "center",
+				vmargin = 2,
+				styles = {
+					{ selectors = {"checkboxLabel"}, fontSize = 12, priority = 20 },
+				},
+				gui.Panel{
+					flow = "horizontal",
+					width = "auto",
+					height = "100%",
+					halign = "left",
+					valign = "center",
+					layerCheck,
+					AudioInfoGlyph("On: variants can play over each other for a dense, building atmosphere. Off: one variant plays at a time, cycling through them with the gap as quiet in between."),
+					fadeCheck,
+					AudioInfoGlyph("On: each sound eases in and out (~0.5s) - smoother for textures like wind or a tavern murmur. Off: sounds keep their sharp attack and natural tail - right for thunder, birdsong, or drips."),
+				},
+			}
+			loopOptionsStrip:SetClass("collapsed", not loopOnNow)
+			rowChildren[#rowChildren+1] = loopOptionsStrip
 
 			--Gap controls: only meaningful when this pool loops as ambience, so start
 			--collapsed unless loopOnNow (design: keep the row present but hidden rather
@@ -10109,6 +10323,8 @@ local CreateStudioVariantPoolsCard = function(heightSpec)
 				tostring((poolEntry ~= nil and poolEntry.loopAmbience) == true),
 				tostring((poolEntry ~= nil and poolEntry.gapMin) or 3),
 				tostring((poolEntry ~= nil and poolEntry.gapMax) or 10),
+				tostring((poolEntry ~= nil and poolEntry.layerSounds) == true),
+				tostring((poolEntry ~= nil and poolEntry.fadeInOut) == true),
 				tostring(expanded),
 				table.concat(liveIds, ","),
 			}, "|")

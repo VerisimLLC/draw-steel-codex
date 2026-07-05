@@ -115,6 +115,19 @@ end
 
 local g_triggeredResourceId = "b9bc06dd-80f1-4f33-bc55-25c114e3300c"
 
+--DJ delegation (audio): these game-scoped audio settings are operated by the
+--Director OR a granted DJ (full-parity decision 3), so the blunt dmonly class
+--is replaced by a visible() predicate routed through the audio module's export.
+--Audio.lua loads after this file, so the export is resolved at CALL time via
+--rawget; falls back to plain isDM if it is somehow absent.
+local function CanControlAudioSetting()
+    local bar = rawget(_G, "g_drawSteelAudioBar")
+    if bar ~= nil and bar.CanControlAudio ~= nil then
+        return bar.CanControlAudio()
+    end
+    return dmhub.isDM
+end
+
 local anthemLimited = setting{
     id = "anthemlimited",
     description = "Limit Anthem Lengths",
@@ -123,7 +136,7 @@ local anthemLimited = setting{
     ord = 101,
     storage = "game",
     section = "audio",
-    classes = {"dmonly"},
+    visible = CanControlAudioSetting,
 }
 
 local anthemDuration = setting{
@@ -138,11 +151,10 @@ local anthemDuration = setting{
 
 	storage = "game",
 	section = "audio",
-	classes = {"dmonly"},
 
 	monitorVisible = {'anthemlimited'},
 	visible = function()
-		return dmhub.GetSettingValue('anthemlimited')
+		return CanControlAudioSetting() and dmhub.GetSettingValue('anthemlimited')
 	end
 }
 
@@ -159,7 +171,7 @@ local anthemDuckMusic = setting{
     ord = 102,
     storage = "game",
     section = "audio",
-    classes = {"dmonly"},
+    visible = CanControlAudioSetting,
 }
 
 --Single source for the duck default literals, shared with the Audio Studio "Ducking"
@@ -180,7 +192,7 @@ local anthemDuckDepth = setting{
     default = anthemDuckDefaults.depth,
     ord = 103,
     storage = "game",
-    classes = {"dmonly"},
+    visible = CanControlAudioSetting,
 }
 
 --How fast the music dips when an anthem starts (fade-in, seconds) and how slowly it
@@ -193,7 +205,7 @@ local anthemDuckFadeIn = setting{
     default = anthemDuckDefaults.fadeIn,
     ord = 104,
     storage = "game",
-    classes = {"dmonly"},
+    visible = CanControlAudioSetting,
 }
 
 local anthemDuckFadeOut = setting{
@@ -202,7 +214,7 @@ local anthemDuckFadeOut = setting{
     default = anthemDuckDefaults.fadeOut,
     ord = 105,
     storage = "game",
-    classes = {"dmonly"},
+    visible = CanControlAudioSetting,
 }
 
 --Per-client anthem volume multipliers, keyed by token charid (0..1, missing = 1).

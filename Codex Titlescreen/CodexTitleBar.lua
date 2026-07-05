@@ -1368,6 +1368,35 @@ local function CreateAudioIndicator()
         -- not a live-refreshing panel.
         local nowPlayingName = bar.PrimaryPlayingName()
 
+        --Muted-cause line (DJ delegation decision 4): the popover top tier is
+        --now PERSONAL for every role, so when the glyph shows muted the cause
+        --may be either layer - name it. Snapshot popover, but both mute
+        --toggles below refresh this line on press so it never contradicts an
+        --action taken inside the popover itself.
+        local mutedCauseLine
+        local function RefreshMutedCause()
+            if audio.muted then
+                mutedCauseLine.text = "The table is muted for everyone."
+                mutedCauseLine:SetClass("collapsed", false)
+            elseif IsLocalMuted() then
+                mutedCauseLine.text = "Your personal mute is on."
+                mutedCauseLine:SetClass("collapsed", false)
+            else
+                mutedCauseLine:SetClass("collapsed", true)
+            end
+        end
+        mutedCauseLine = gui.Label{
+            classes = {"sizeXxs", "fgMuted", "collapsed"},
+            width = "100%",
+            height = "auto",
+            textWrap = true,
+        }
+
+        --Personal tier (DJ delegation decision 4): EVERY role, including the
+        --Director, gets the personal master + personal mute here - reflex
+        --control keeps reflex semantics for every human. The game-wide mute
+        --moved into the broadcast block below as a labeled control (PR-note
+        --obligation: this repurposes the DM's trained mute-glyph behavior).
         local muteToggle = gui.Panel{
             bgcolor = "white",
             width = 16,
@@ -1375,23 +1404,15 @@ local function CreateAudioIndicator()
             valign = "center",
             hmargin = 4,
             press = function(element)
-                if dmhub.isDM then
-                    --DM keeps the game-wide mute (mutes the whole table).
-                    audio.muted = not audio.muted
-                    audio.UploadMuted()
-                else
-                    --Players get the local mute only.
-                    dmhub.SetSettingValue("localmuted", not IsLocalMuted())
-                end
+                dmhub.SetSettingValue("localmuted", not IsLocalMuted())
                 -- The bar glyph self-heals on its 0.5s think, but this copy
                 -- lives in a snapshot popover -- swap it now or it reads
                 -- stale until the popover is reopened.
                 element:SetClass("muted", IsClientMuted())
+                RefreshMutedCause()
             end,
-            --Tooltip matches what the toggle WRITES per role: the DM's mute is
-            --game-wide (see press above), the player's is local-only.
             linger = function(element)
-                gui.Tooltip(dmhub.isDM and "Mute for everyone" or "Mute")(element)
+                gui.Tooltip("Mute (only you)")(element)
             end,
             styles = {
                 { bgimage = "ui-icons/AudioVolumeButton.png" },
@@ -1409,10 +1430,11 @@ local function CreateAudioIndicator()
         -- left slot so its slider stays column-aligned with the Levels sliders
         -- below; MakeFaderRow hardcodes width 100%, so the fader row is
         -- narrowed post-construction to make room for the toggle.
-        --DM: the game-wide master (caps everyone). Players: the local per-user
-        --master -- the same "volume" setting as Settings->Audio's Master Volume.
+        --Personal per-user master for every role - the same "volume" setting
+        --as Settings->Audio's Master Volume. (The game-wide master lives in
+        --the dock/Studio/Settings; it is no longer in this popover.)
         local masterSlider
-        if dmhub.isDM or bar.MakePersonalFader == nil then
+        if bar.MakePersonalFader == nil then
             --Fallback for a stale export during partial reloads.
             masterSlider = bar.MakeMasterFader()
         else
@@ -1449,9 +1471,24 @@ local function CreateAudioIndicator()
                 text = nowPlayingName or "Nothing playing",
             },
             masterRow,
+            mutedCauseLine,
+            --Personal-tier caption for EVERY role now (decision 4): the tier
+            --above is personal regardless of who you are; the broadcast block
+            --below is what plays to the table.
+            gui.Label{
+                classes = {"sizeXxs", "fgMuted"},
+                width = "100%",
+                height = "auto",
+                textWrap = true,
+                text = "These change your mix only.",
+            },
         }
+        RefreshMutedCause()
 
-        if dmhub.isDM then
+        --Broadcast tier: Director or DJ only (DJ delegation decision 4). All
+        --game-wide controls live here, including the game-wide mute as a
+        --labeled control (promoted from the old master-row glyph tooltip).
+        if bar.CanControlAudio ~= nil and bar.CanControlAudio() then
             children[#children+1] = gui.Label{
                 classes = {"sizeXs", "fgMuted"},
                 width = "100%",
@@ -1464,6 +1501,44 @@ local function CreateAudioIndicator()
             children[#children+1] = bar.MakeFaderRow("Effects", bar.MakeBroadcastFader("effects"), false)
             children[#children+1] = bar.MakeFaderRow("UI Sounds", bar.MakeBroadcastFader("uisounds"), false)
             children[#children+1] = bar.MakeFaderRow("Anthem", bar.MakeBroadcastFader("anthem"), false)
+
+            local gameMuteToggle = gui.Panel{
+                bgcolor = "white",
+                width = 16,
+                height = 16,
+                valign = "center",
+                hmargin = 4,
+                press = function(element)
+                    audio.muted = not audio.muted
+                    audio.UploadMuted()
+                    element:SetClass("muted", audio.muted)
+                    muteToggle:SetClass("muted", IsClientMuted())
+                    RefreshMutedCause()
+                end,
+                styles = {
+                    { bgimage = "ui-icons/AudioVolumeButton.png" },
+                    { selectors = {"muted"}, bgimage = "ui-icons/AudioMuteButton.png" },
+                    { selectors = {"hover"}, brightness = 2 },
+                },
+                create = function(element)
+                    element:SetClass("muted", audio.muted)
+                end,
+            }
+            children[#children+1] = gui.Panel{
+                flow = "horizontal",
+                width = "100%",
+                height = 22,
+                valign = "center",
+                tmargin = 4,
+                gui.Label{
+                    classes = {"sizeXs"},
+                    text = "Mute for everyone",
+                    width = "100%-26",
+                    height = "auto",
+                    valign = "center",
+                },
+                gameMuteToggle,
+            }
 
             children[#children+1] = gui.Panel{
                 flow = "horizontal",
@@ -1478,6 +1553,9 @@ local function CreateAudioIndicator()
                     hpad = 8,
                     borderBox = true,
                     hmargin = 3,
+                    linger = function(element)
+                        gui.Tooltip("Stop all audio. Also cancels auto game-mode music.")(element)
+                    end,
                     press = function()
                         bar.StopAll()
                         resultPanel.popup = nil
@@ -1496,14 +1574,6 @@ local function CreateAudioIndicator()
                         LaunchablePanel.LaunchPanelByName("Audio Studio")
                     end,
                 },
-            }
-        else
-            children[#children+1] = gui.Label{
-                classes = {"sizeXxs", "fgMuted"},
-                width = "100%",
-                height = "auto",
-                textWrap = true,
-                text = "These change your mix only.",
             }
         end
 

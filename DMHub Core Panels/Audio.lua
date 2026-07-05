@@ -4307,7 +4307,10 @@ local function BuildSoundPanelContent()
 			}
 		end,
 		linger = function(element)
-			gui.Tooltip("Stop all audio")(element)
+			--Signed amendment (DJ delegation copy manifest): name the bracket
+			--cancellation - a stop-all is also how you opt out of auto game-mode
+			--music mid-session.
+			gui.Tooltip("Stop all audio. Also cancels auto game-mode music.")(element)
 		end,
 	}
 

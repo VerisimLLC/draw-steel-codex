@@ -444,9 +444,8 @@ local AUDIO_SB_GRID_HEIGHT = 264
 --CreateStudioSoundboard) carry ONE monitorAssets="audio" here instead of one per pad --
 --12 subscriptions collapse to 1 per grid. On an audio-table change we fan out to the
 --grid's DIRECT children (the 12 pads) with FireEvent, NOT FireEventTree: a tree fire
---would also hit each pad's inner floating loop-state watcher panel (see
---CreateSoundboardButton) and fire a redundant refreshPlayingAudio. This reproduces the
---old per-pad FireEvent("refreshGame") exactly. refreshGame is read-only wrt the audio
+--would also hit each pad's own descendants redundantly. This reproduces the old
+--per-pad FireEvent("refreshGame") exactly. refreshGame is read-only wrt the audio
 --table, so firing it from the asset monitor cannot re-enter the monitor. The per-pad
 --monitorGame (each pad's own slot doc) is unaffected -- it stays on the pad.
 local function RefreshSoundboardGridAssets(element)
@@ -454,6 +453,16 @@ local function RefreshSoundboardGridAssets(element)
 		child:FireEvent("refreshGame")
 	end
 end
+
+--K2/M-perf: forward hooks so the dock board selector and player grid (both defined
+--here, above the VariantPools file-local at ~1859) can reflect looping-ambience state.
+--Reassigned once VariantPools exists; harmless nil/false/empty defaults until then.
+--Moved above CreatePlayerGrid (not just CreateDockBoardSelector) so the grid's own
+--monitorGame can also use g_variantPoolLoopStatePath as an upvalue -- a local declared
+--after a function body cannot be captured by closures inside that body.
+local g_variantPoolLoopStatePath = function() return nil end
+local g_variantPoolIsLooping = function(poolid) return false end
+local g_variantPoolLoopBoardSet = function() return {} end
 
 local CreatePlayerGrid = function()
 	local resultPanel
@@ -484,6 +493,16 @@ local CreatePlayerGrid = function()
 		--M3: single board-level audio monitor (see RefreshSoundboardGridAssets).
 		monitorAssets = "audio",
 		refreshAssets = RefreshSoundboardGridAssets,
+		--K2/M-perf: ONE grid-level loop-state monitor replaces the old per-pad floating
+		--watcher panels (12 identical subscriptions per grid). Fan refreshPlayingAudio to
+		--the DIRECT children (the pads), exactly what each watcher used to do. Uses the
+		--forward hook - this builder sits above the VariantPools file-local.
+		monitorGame = g_variantPoolLoopStatePath(),
+		refreshGame = function(element)
+			for _,child in ipairs(element.children or {}) do
+				child:FireEvent("refreshPlayingAudio")
+			end
+		end,
 		data = {
 			gridNumber = 1,
 			--No-rebuild board switch (chunk F, P2): DELETE the old BuildSlots-on-switch
@@ -507,12 +526,6 @@ end
 --see CreateSoundboardPreviewPanel/CreateGridMenu/CreateAudioGrid removal),
 --which were the only thing that had called SetGridNumber from the dock; the
 --dock previously had no way to switch boards at all.
---K2: forward hooks so the dock board selector (defined here, above the VariantPools
---file-local at ~1859) can reflect looping-ambience state. Reassigned once VariantPools
---exists; harmless nil/false defaults until then.
-local g_variantPoolLoopStatePath = function() return nil end
-local g_variantPoolIsLooping = function(poolid) return false end
-
 local function CreateDockBoardSelector(playerGrid)
 	local boardButtons = {}
 	local children = {
@@ -551,8 +564,19 @@ local function CreateDockBoardSelector(playerGrid)
 		children[#children+1] = btn
 	end
 
-	--Recompute which boards have a running loop and flag their buttons.
+	--Recompute which boards have a running loop and flag their buttons. Normally a
+	--cheap read of the precomputed per-entry boards lists; falls back to the full
+	--slot-doc rescan only for legacy entries without the field.
 	local function RefreshBoardLoops()
+		local set = g_variantPoolLoopBoardSet()
+		if set ~= nil then
+			for b = 1, STUDIO_BOARDS do
+				if boardButtons[b] ~= nil then
+					boardButtons[b]:SetClass("audioBoardLoop", set[b] == true)
+				end
+			end
+			return
+		end
 		for b = 1, STUDIO_BOARDS do
 			local hasLoop = false
 			for s = 1, STUDIO_SLOTS do
@@ -648,7 +672,9 @@ local function PlayingTracksForCategory(cat)
 			list[#list+1] = { id = assetid, asset = a, order = PlayOrderOf(assetid) }
 		end
 	end
-	table.sort(list, function(x, y) return x.order < y.order end)
+	if #list > 1 then
+		table.sort(list, function(x, y) return x.order < y.order end)
+	end
 	return list
 end
 
@@ -2599,6 +2625,22 @@ function VariantPools.StartLoop(poolid, volume)
 		--First fire produced nothing (e.g. all members filtered) - retry after a gap.
 		newEntry.nextFireAt = dmhub.Time() + VariantPoolGapSeconds(poolid)
 	end
+	--Which boards have a pad bound to this pool, computed ONCE at loop start so the
+	--dock board selector does not have to rescan every slot doc on every gap-fire.
+	--A pad reassigned to another board mid-loop goes stale until the loop restarts -
+	--accepted edge (the old per-change rescan is kept as a fallback for entries
+	--without this field, e.g. a loop running across a hot-reload).
+	local boards = {}
+	for b = 1, STUDIO_BOARDS do
+		for s = 1, STUDIO_SLOTS do
+			local sd = mod:GetDocumentSnapshot(string.format("audiogrid-%d-%d", b, s))
+			if sd.data.poolid == poolid then
+				boards[#boards+1] = b
+				break
+			end
+		end
+	end
+	newEntry.boards = boards
 	doc.data[poolid] = newEntry
 	doc:CompleteChange("Start ambience loop", {undoable = false})
 	g_drawSteelAudioLog.AmbienceLoopStart(VariantPools.Name(poolid) or "Variant pool")
@@ -2647,6 +2689,24 @@ g_stopAllVariantPoolLoops = function() VariantPools.StopAllLoops() end
 --Wire up the dock-board-selector forward hooks (see banner near CreateDockBoardSelector).
 g_variantPoolLoopStatePath = function() return VariantPools.LoopStatePath() end
 g_variantPoolIsLooping = function(poolid) return VariantPools.IsLooping(poolid) end
+
+--Set of board numbers with at least one running loop, from the entries' precomputed
+--boards lists. Returns nil when any looping entry predates the boards field, telling
+--the caller to fall back to the full slot-doc rescan.
+g_variantPoolLoopBoardSet = function()
+	local set = {}
+	for _,entry in pairs(GetPoolLoopStateDoc().data) do
+		if type(entry) == "table" and entry.looping == true then
+			if type(entry.boards) ~= "table" then
+				return nil
+			end
+			for _,b in ipairs(entry.boards) do
+				set[b] = true
+			end
+		end
+	end
+	return set
+end
 
 --Live-adjusts a running loop's volume: updates the stored volume (future fires) AND the
 --currently-sounding member (behaves like a real fader). No-op if not looping / not driver.
@@ -3566,17 +3626,6 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 			}
 		end,
 
-		--K2: watches the live loop-state doc so this pad's looping visual (accent ring
-		--+ lit glyph) updates on every client the instant a loop starts/stops elsewhere,
-		--without disturbing the pad's own slot-doc monitorGame above.
-		gui.Panel{
-			floating = true, width = 0, height = 0,
-			monitorGame = VariantPools.LoopStatePath(),
-			refreshGame = function(element)
-				local pad = element.parent
-				if pad ~= nil then pad:FireEvent("refreshPlayingAudio") end
-			end,
-		},
 		loopGlyph,
 		nameLabel,
 		emptyLabel,
@@ -5038,6 +5087,9 @@ CreateSoundPanel = function()
 
 				thinkTime = 0.5,
 				think = function(element)
+					--Idle out while the Anthems section is closed (perf) - state refreshes
+					--within one tick of reopening.
+					if g_dockControlsSelected ~= "anthems" then return end
 					local t = dmhub.GetTokenById(charid)
 					if t == nil then
 						return
@@ -5141,6 +5193,9 @@ CreateSoundPanel = function()
 			--re-scan: only rebuild when the joined-id signature actually changes.
 			thinkTime = 2,
 			think = function(element)
+				--Idle out while the Anthems section is closed (perf) - state refreshes
+				--within one tick of reopening.
+				if g_dockControlsSelected ~= "anthems" then return end
 				local ids = GetAnthemRowCharids()
 				local sig = table.concat(ids, ",")
 				if sig ~= element.data.rosterSignature then
@@ -6112,6 +6167,9 @@ CreateSoundPanel = function()
 
 				thinkTime = 0.5,
 				think = function()
+					--Idle out while the Map Sounds section is closed (perf) - state
+					--refreshes within one tick of reopening.
+					if g_dockControlsSelected ~= "map" then return end
 					RefreshRow()
 				end,
 
@@ -6173,7 +6231,12 @@ CreateSoundPanel = function()
 			create = RefreshMapSoundsList,
 
 			thinkTime = 1,
-			think = RefreshMapSoundsList,
+			--Idle out while the Map Sounds section is closed (perf) - state refreshes
+			--within one tick of reopening.
+			think = function(element)
+				if g_dockControlsSelected ~= "map" then return end
+				RefreshMapSoundsList(element)
+			end,
 		}
 
 		--"+ Add map sound" stamps the Audio prefab at camera centre then opens the
@@ -6751,7 +6814,6 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 			height = 16,
 			valign = "center",
 			hmargin = 3,
-			monitorAssets = "audio",
 			refreshAssets = function(element)
 				element:SetClass("disabled", not audioAsset.loop)
 			end,
@@ -6811,7 +6873,6 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 		hmargin = 3,
 		fontSize = 11,
 		textAlignment = "right",
-		monitorAssets = "audio",
 		refreshAssets = function(element)
 			element.text = FormatTime(audioAsset.duration, audioAsset.duration)
 		end,
@@ -6853,7 +6914,6 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 			element.text = DisplayNameForAsset(audioAsset)
 		end,
 
-		monitorAssets = "audio",
 		refreshAssets = function(element)
 			if not element.editing then
 				element.text = DisplayNameForAsset(audioAsset)
@@ -7449,6 +7509,15 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 		valign = "center",
 		vmargin = 1,
 		data = { assetid = audioAsset.id },
+		--M3 pattern (see RefreshSoundboardGridAssets): ONE per-row audio-table monitor
+		--instead of one per child. Fan out to DIRECT children only; children without a
+		--refreshAssets handler no-op.
+		monitorAssets = "audio",
+		refreshAssets = function(element)
+			for _,child in ipairs(element.children or {}) do
+				child:FireEvent("refreshAssets")
+			end
+		end,
 		--No reorder while adding tracks to a playlist (build mode) -- dragging a row
 		--to reorder the library would be a confusing double-duty for the same drag
 		--gesture the playlist track list also uses.
@@ -7830,6 +7899,15 @@ local CreateStudioSoundboard = function()
 		--M3: single board-level audio monitor (see RefreshSoundboardGridAssets).
 		monitorAssets = "audio",
 		refreshAssets = RefreshSoundboardGridAssets,
+		--K2/M-perf: grid-level loop-state monitor, same trick as the dock grid
+		--(CreatePlayerGrid) above -- replaces the old per-pad floating watcher panels.
+		--VariantPools is already in scope here (unlike the dock grid), so no forward hook.
+		monitorGame = VariantPools.LoopStatePath(),
+		refreshGame = function(element)
+			for _,child in ipairs(element.children or {}) do
+				child:FireEvent("refreshPlayingAudio")
+			end
+		end,
 	}
 
 	--Board selector: "Board" label + five segmented buttons. The active board carries
@@ -11222,8 +11300,11 @@ CreateAudioStudio = function()
 	--full area and the space exists. Both cards fill the full pane height again
 	--(the single-card vmargin math, same complement libraryCard uses).
 	local studioPaneHeight = "100%-" .. tostring(AUDIO_STUDIO_NOWPLAYING_ALLOWANCE + AUDIO_STUDIO_TABROW_ALLOWANCE + AUDIO_STUDIO_LIBRARY_CARD_VMARGIN)
-	local playlistsCard = CreateStudioPlaylistsCard(studioPaneHeight)
-	local variantPoolsCard = CreateStudioVariantPoolsCard(studioPaneHeight)
+	--Perf: these two cards are deferred off the open frame (see the dmhub.Schedule
+	--near rightColumn below) since only one tab is ever visible at a time and Library
+	--is the default. Forward-declared nil until that Schedule lands.
+	local playlistsCard = nil
+	local variantPoolsCard = nil
 
 	--H-studio: Library|Playlists tab row (K1.5 field fix adds Variant Pools).
 	--Fixed-width buttons mirror the dock's segmented selector (SelectDockSection) --
@@ -11237,8 +11318,8 @@ CreateAudioStudio = function()
 		playlistsTabButton:SetClass("selected", tabid == "playlists")
 		poolsTabButton:SetClass("selected", tabid == "pools")
 		libraryCard:SetClass("collapsed", tabid ~= "library")
-		playlistsCard:SetClass("collapsed", tabid ~= "playlists")
-		variantPoolsCard:SetClass("collapsed", tabid ~= "pools")
+		if playlistsCard ~= nil then playlistsCard:SetClass("collapsed", tabid ~= "playlists") end
+		if variantPoolsCard ~= nil then variantPoolsCard:SetClass("collapsed", tabid ~= "pools") end
 	end
 
 	libraryTabButton = gui.Button{
@@ -11306,8 +11387,6 @@ CreateAudioStudio = function()
 		tabRow,
 
 		libraryCard,
-		playlistsCard,
-		variantPoolsCard,
 	}
 
 	--Right column (task 6c; chunk F, L1 fixes the width): Soundboard FIRST
@@ -11337,6 +11416,21 @@ CreateAudioStudio = function()
 	dmhub.Schedule(0, function()
 		if mod.unloaded or not rightColumn.valid then return end
 		rightColumn.children = { CreateStudioSoundboard(), CreateStudioMixerCard() }
+	end)
+
+	--Defer the two hidden tab cards off the synchronous open frame, same trick as the
+	--right column above: the default tab paints instantly, the other two build a frame
+	--later (long before a human can reach the tab buttons). Order among the cards does
+	--not matter for layout - exactly one of the three is ever uncollapsed.
+	dmhub.Schedule(0, function()
+		if mod.unloaded or not leftColumn.valid then
+			return
+		end
+		playlistsCard = CreateStudioPlaylistsCard(studioPaneHeight)
+		variantPoolsCard = CreateStudioVariantPoolsCard(studioPaneHeight)
+		leftColumn:AddChild(playlistsCard)
+		leftColumn:AddChild(variantPoolsCard)
+		SelectStudioTab(g_studioLeftTab)
 	end)
 
 	--Body height is a simple fixed complement now (header + divider only) -- the

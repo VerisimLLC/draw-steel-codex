@@ -4605,8 +4605,20 @@ local function BuildSoundPanelContent()
 		--pixel value to give it; leaving it unset lets the slider fill style.width.
 		labelWidth = 0,
 		labelFormat = "",
+		--handleSize is ABSOLUTE here: the default is "100%" of the slider's height,
+		--and this bar is only 5px tall -- that made the diamond ~3px of visible
+		--geometry, which both read as too small and shimmered ("pulsed") under
+		--antialiasing as the poll repositioned it at fractional x each tick. 14
+		--matches the effective handle size of the file's other sliders.
+		handleSize = 14,
 		style = {
-			width = "100%-104",
+			--Complement accounting (deterministic widths, the chunk-F lesson):
+			--stop 14+8 + pause 20+4 + timeCurrent 32 + timeTotal 32 + own hmargin
+			--12 = 122, +6 spare = 128. The playlist-chrome variant adds shuffle
+			--48+4 and next 36+4 = +92 -> 220 (see the width swaps in
+			--UpdateNowPlaying). The original -104/-196 predate the pause chip and
+			--pushed timeTotal past the dock's usable width.
+			width = "100%-128",
 			height = 5,
 			valign = "center",
 			hmargin = 6,
@@ -5179,7 +5191,7 @@ local function BuildSoundPanelContent()
 		upNextLabel:SetClass("collapsed", true)
 		shuffleChip:SetClass("collapsed", true)
 		nextChip:SetClass("collapsed", true)
-		progressBar.selfStyle.width = "100%-104"
+		progressBar.selfStyle.width = "100%-128"
 
 		if pl ~= nil then
 			--"Following game mode" only has signed copy for the auto-switch case;
@@ -5220,7 +5232,7 @@ local function BuildSoundPanelContent()
 					shuffleChip:SetClass("collapsed", false)
 					shuffleChip:SetClass("selected", pl.shuffle == true)
 					nextChip:SetClass("collapsed", false)
-					progressBar.selfStyle.width = "100%-196"
+					progressBar.selfStyle.width = "100%-220"
 
 					local nextid = nil
 					local nextIndex = playing.index + 1

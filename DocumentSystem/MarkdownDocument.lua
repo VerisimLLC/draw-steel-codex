@@ -3848,28 +3848,17 @@ function MarkdownDocument:LiveEditPanel(args)
             valign = "top",
         }
 
+        --The wrapper itself is the click target: it carries a hit-testable
+        --transparent background and the press handler, and the rendered
+        --content is made non-interactive after each render
+        --(MakeNonInteractiveRecursive in RefreshBlockPanels). This makes the
+        --whole block clickable, leaves widgets inside inert while live
+        --editing, and avoids overlay geometry entirely (a floating
+        --height="100%" child of an auto-height parent does not track the
+        --block's real bounds). bgcolor lives in styles, never inline, so the
+        --hover highlight can apply; the editing class suppresses it while
+        --the block hosts the input.
         local wrapper
-
-        --floating click-catcher over the rendered content; the same pattern
-        --the classic editor's preview pane uses. This makes the whole block
-        --clickable but leaves widgets inside inert while live editing.
-        local guard = gui.Panel{
-            width = "100%",
-            height = "100%",
-            floating = true,
-            bgimage = "panels/square.png",
-            bgcolor = "#00000000",
-            styles = {
-                {
-                    selectors = { "hover" },
-                    bgcolor = "#ffffff10",
-                },
-            },
-            press = function(element)
-                ActivateBlock(wrapper.data.index)
-            end,
-        }
-
         wrapper = gui.Panel{
             flow = "vertical",
             width = "100%",
@@ -3877,17 +3866,32 @@ function MarkdownDocument:LiveEditPanel(args)
             valign = "top",
             halign = "left",
             vmargin = 2,
+            bgimage = "panels/square.png",
+            styles = {
+                {
+                    bgcolor = "#00000000",
+                },
+                {
+                    selectors = { "hover" },
+                    bgcolor = "#ffffff10",
+                },
+                {
+                    selectors = { "hover", "editing" },
+                    bgcolor = "#00000000",
+                },
+            },
+            press = function(element)
+                ActivateBlock(element.data.index)
+            end,
             data = {
                 index = nil,
                 ctx = ctx,
                 contentPanel = contentPanel,
                 inputHost = inputHost,
-                guard = guard,
                 placeholderLabel = nil,
             },
             contentPanel,
             inputHost,
-            guard,
         }
         return wrapper
     end
@@ -3919,7 +3923,7 @@ function MarkdownDocument:LiveEditPanel(args)
             local active = (index == m_activeIndex)
             wrapper.data.inputHost:SetClass("collapsed", not active)
             wrapper.data.contentPanel:SetClass("collapsed", active)
-            wrapper.data.guard:SetClass("collapsed", active)
+            wrapper:SetClass("editing", active)
 
             if active then
                 local input = EnsureEditInput()
@@ -3942,8 +3946,12 @@ function MarkdownDocument:LiveEditPanel(args)
                     }
                 end
                 wrapper.data.contentPanel.children = { wrapper.data.placeholderLabel }
+                wrapper.data.contentPanel:MakeNonInteractiveRecursive()
             else
                 wrapper.data.contentPanel.children = RenderMarkdownTokens(wrapper.data.ctx, block.tokens)
+                --clicks anywhere on the block must reach the wrapper's press
+                --handler; rendered widgets are inert on this surface (v1).
+                wrapper.data.contentPanel:MakeNonInteractiveRecursive()
             end
 
             children[#children + 1] = wrapper

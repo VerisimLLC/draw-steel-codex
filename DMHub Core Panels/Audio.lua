@@ -206,6 +206,16 @@ end
 --moved off always-visible paragraphs to save vertical space). tooltip may be a string
 --(static explainer) or a function returning a string (the soundboard caption, which
 --changes with edit mode).
+--Resolves the theme's accent color to a concrete hex. Inline "@accent" is NOT resolved by
+--the engine (only tokens inside theme-processed STYLE RULES are), so UI outside a theme-
+--resolved styles scope -- e.g. the now-playing loop glyphs in the dock/Studio/top-bar --
+--must use this to match the soundboard's activated-loop accent tint. Re-read at build time;
+--a theme switch re-tints on the next row rebuild.
+local function AccentColorHex()
+	local colors = ThemeEngine.GetColorSchemeColors(ThemeEngine.GetActiveColorScheme())
+	return (colors ~= nil and colors.accent) or "#6E3CB0"
+end
+
 local function AudioInfoGlyph(tooltip)
 	return gui.Panel{
 		classes = {"buttonIcon"},
@@ -479,6 +489,12 @@ end
 --see CreateSoundboardPreviewPanel/CreateGridMenu/CreateAudioGrid removal),
 --which were the only thing that had called SetGridNumber from the dock; the
 --dock previously had no way to switch boards at all.
+--K2: forward hooks so the dock board selector (defined here, above the VariantPools
+--file-local at ~1859) can reflect looping-ambience state. Reassigned once VariantPools
+--exists; harmless nil/false defaults until then.
+local g_variantPoolLoopStatePath = function() return nil end
+local g_variantPoolIsLooping = function(poolid) return false end
+
 local function CreateDockBoardSelector(playerGrid)
 	local boardButtons = {}
 	local children = {
@@ -491,6 +507,11 @@ local function CreateDockBoardSelector(playerGrid)
 			valign = "center",
 		},
 	}
+	--K2: a board number gets the same accent-border treatment as an activated loop pad
+	--when a looping-ambience pool is running on one of that board's pads, so a bed is
+	--findable at a glance from any board (James's ask). The border is a style rule
+	--(audioBoardLoop) in AudioSoundboardButtonStyles -- this selector row lives under
+	--soundboardBody, so @accent resolves there (an inline @accent would NOT).
 	for i = 1, STUDIO_BOARDS do
 		local idx = i
 		local btn = gui.Button{
@@ -512,6 +533,24 @@ local function CreateDockBoardSelector(playerGrid)
 		children[#children+1] = btn
 	end
 
+	--Recompute which boards have a running loop and flag their buttons.
+	local function RefreshBoardLoops()
+		for b = 1, STUDIO_BOARDS do
+			local hasLoop = false
+			for s = 1, STUDIO_SLOTS do
+				local sd = mod:GetDocumentSnapshot(string.format("audiogrid-%d-%d", b, s))
+				local pid = sd.data.poolid
+				if pid ~= nil and g_variantPoolIsLooping(pid) then
+					hasLoop = true
+					break
+				end
+			end
+			if boardButtons[b] ~= nil then
+				boardButtons[b]:SetClass("audioBoardLoop", hasLoop)
+			end
+		end
+	end
+
 	return gui.Panel{
 		flow = "horizontal",
 		width = "100%",
@@ -519,6 +558,13 @@ local function CreateDockBoardSelector(playerGrid)
 		valign = "center",
 		vmargin = 4,
 		children = children,
+		monitorGame = g_variantPoolLoopStatePath(),
+		refreshGame = function(element)
+			RefreshBoardLoops()
+		end,
+		create = function(element)
+			RefreshBoardLoops()
+		end,
 	}
 end
 
@@ -904,6 +950,12 @@ g_drawSteelAudioLog = {
     MusicStopped = function()
         if AudioLogShouldSend(false) then AudioLogSend("Music stopped") end
     end,
+    AmbienceLoopStart = function(name)
+        if AudioLogShouldSend(false) then AudioLogSend("Ambience loop: " .. tostring(name)) end
+    end,
+    AmbienceLoopEnd = function(name)
+        if AudioLogShouldSend(false) then AudioLogSend("Ambience loop ended: " .. tostring(name)) end
+    end,
     Effect = function(key, name)
         if not AudioLogShouldSend(true) then return end
         m_audioLogEffectSeq = m_audioLogEffectSeq + 1
@@ -1149,6 +1201,12 @@ AudioPlaylistNext = function()
 	AdvancePlaylist()
 end
 
+--K2: forward-declared hook so StopAllBroadcastAudio (defined here, well before the
+--VariantPools local exists below) can tear down looping-ambience pools on a full stop.
+--VariantPools is a file-scope local declared later in this file, so it is not in scope
+--at this point in the source -- assigned once VariantPools.StopAllLoops is defined.
+local g_stopAllVariantPoolLoops = nil
+
 --Rewires both dock/Studio "stop all" buttons (see the two call sites below). Stops
 --every engine sound event, then clears playlist state AND the auto-switch bracket --
 --a deliberate full-stop always cancels any pending game-mode restore.
@@ -1160,6 +1218,11 @@ local function StopAllBroadcastAudio()
 	stateDoc.data.playing = nil
 	stateDoc.data.auto = { active = false, saved = nil }
 	stateDoc:CompleteChange("Stop all audio", {undoable = false})
+	--K2: also tear down any looping-ambience pools so a full stop never leaves a
+	--pad/badge lit with nothing actually sounding.
+	if g_stopAllVariantPoolLoops ~= nil then
+		g_stopAllVariantPoolLoops()
+	end
 	if wasPlaying then g_drawSteelAudioLog.StopAll() end
 end
 
@@ -1939,6 +2002,9 @@ function VariantPools.Create(name, memberIds)
 		randomPick = true,
 		pitchVar = 0.05,
 		cycleIndex = 0,
+		loopAmbience = false,
+		gapMin = 3,
+		gapMax = 10,
 	}
 	doc:CompleteChange("Create variant pool")
 	return poolid
@@ -1963,6 +2029,9 @@ function VariantPools.EnsureEntry(poolid)
 		randomPick = true,
 		pitchVar = 0.05,
 		cycleIndex = 0,
+		loopAmbience = false,
+		gapMin = 3,
+		gapMax = 10,
 	}
 	doc:CompleteChange("Create variant pool")
 end
@@ -2148,6 +2217,38 @@ function VariantPools.SetPitchVar(poolid, v)
 	doc:CompleteChange("Set variant pool pitch variation")
 end
 
+--Toggles whether this pool plays as looping ambience (K2). Off = normal one-shot pool.
+function VariantPools.SetLoopAmbience(poolid, on)
+	if not VariantPools.IsPool(poolid) then
+		return
+	end
+	local doc = VariantPools.GetDoc()
+	doc:BeginChange()
+	PurgeLegacyEntries(doc)
+	doc.data[poolid].loopAmbience = (on == true)
+	doc:CompleteChange("Set variant pool loop")
+end
+
+--Sets the gap range (seconds) between automatic refires. Clamped to [1,120] with
+--gapMax >= gapMin.
+function VariantPools.SetGap(poolid, gapMin, gapMax)
+	if not VariantPools.IsPool(poolid) then
+		return
+	end
+	gapMin = gapMin or 3
+	gapMax = gapMax or 10
+	if gapMin < 1 then gapMin = 1 end
+	if gapMin > 120 then gapMin = 120 end
+	if gapMax < gapMin then gapMax = gapMin end
+	if gapMax > 120 then gapMax = 120 end
+	local doc = VariantPools.GetDoc()
+	doc:BeginChange()
+	PurgeLegacyEntries(doc)
+	doc.data[poolid].gapMin = gapMin
+	doc.data[poolid].gapMax = gapMax
+	doc:CompleteChange("Set variant pool gap")
+end
+
 --K1.5 field fix (James, 2026-07-04): deleting a pool also clears any soundboard
 --button holding it, on every board. Pads on OTHER clients already self-heal a stale
 --poolid to empty, but the deleting client should leave no dead assignment behind in
@@ -2226,6 +2327,13 @@ function VariantPools.Fire(poolid, opts)
 	end
 	m_variantPoolLastFired[poolid] = chosen.id
 
+	--Defensive (K2): a music-category member would make PlayBroadcastClip stop the driven
+	--playlist + hijack the music slot on EVERY fire. The UI filters pools to effects+ambience,
+	--but legacy/mis-categorised data must never trigger that. Skip music members.
+	if chosen.category == "music" then
+		return nil
+	end
+
 	--Roll pitch = 1 +/- random(0..pitchVar). 0 = no variation.
 	local pitchVar = entry.pitchVar or 0
 	local pitch = 1
@@ -2242,6 +2350,227 @@ function VariantPools.Fire(poolid, opts)
 	m_audioLogSuppressBroadcast = false
 	return chosen
 end
+
+--Live (NOT checkpoint-backed) loop state for looping-ambience pools, mirroring the
+--audioPlaylistState split: this is transient session playback state, not authored
+--content. Keyed by poolid. Only the DRIVER (the client that started the loop) advances
+--the fire timer; every client can heal an orphaned entry (driver gone).
+local audioVariantPoolLoopsDocId = "audioVariantPoolLoops"
+local function GetPoolLoopStateDoc()
+	return mod:GetDocumentSnapshot(audioVariantPoolLoopsDocId)
+end
+
+--Path for UI panels to monitor (badge / pad indicator, later chunk).
+VariantPools.LoopStatePath = function()
+	return mod:GetDocumentPath(audioVariantPoolLoopsDocId)
+end
+
+--True if this pool currently has a live loop entry.
+function VariantPools.IsLooping(poolid)
+	local entry = GetPoolLoopStateDoc().data[poolid]
+	return type(entry) == "table" and entry.looping == true
+end
+
+--True if this pool is configured to play as looping ambience (K2 UI reads this).
+function VariantPools.IsLoopAmbience(poolid)
+	local e = VariantPools.GetDoc().data[poolid]
+	return type(e) == "table" and e.loopAmbience == true
+end
+
+--Ids of all currently-looping pools, sorted for a stable now-playing row order.
+function VariantPools.EnumerateLoopingIds()
+	local ids = {}
+	for poolid,entry in pairs(GetPoolLoopStateDoc().data) do
+		if type(entry) == "table" and entry.looping == true then
+			ids[#ids+1] = poolid
+		end
+	end
+	table.sort(ids)
+	return ids
+end
+
+--Count of currently-looping pools (for the dock badge, later chunk).
+function VariantPools.CountLoops()
+	local n = 0
+	for _,entry in pairs(GetPoolLoopStateDoc().data) do
+		if type(entry) == "table" and entry.looping == true then
+			n = n + 1
+		end
+	end
+	return n
+end
+
+--Random gap (seconds) for a pool, read from its defs entry (defaults 3..10).
+local function VariantPoolGapSeconds(poolid)
+	local e = VariantPools.GetDoc().data[poolid]
+	local lo = (type(e) == "table" and e.gapMin) or 3
+	local hi = (type(e) == "table" and e.gapMax) or 10
+	if hi < lo then hi = lo end
+	return lo + math.random() * (hi - lo)
+end
+
+--Starts a pool looping: immediate first fire, then this client becomes the driver and
+--the poll advances it. Idempotent - no-op if already looping. volume (optional 0..1)
+--is captured so every auto-fire uses the starting pad's level.
+function VariantPools.StartLoop(poolid, volume)
+	if not VariantPools.IsPool(poolid) then
+		return
+	end
+	if VariantPools.IsLooping(poolid) then
+		return
+	end
+	--Do not start a loop with nothing to fire: an empty pool would sit looping=true,
+	--silent, forever. (A pool that empties WHILE running is healed by the poll.)
+	if #VariantPools.Members(poolid) == 0 then
+		return
+	end
+	--Immediate first fire (design C3).
+	VariantPools.Fire(poolid, { volume = volume })
+	local doc = GetPoolLoopStateDoc()
+	doc:BeginChange()
+	doc.data[poolid] = {
+		looping = true,
+		driver = dmhub.userid,
+		nextFireAt = dmhub.Time() + VariantPoolGapSeconds(poolid),
+		volume = volume,
+	}
+	doc:CompleteChange("Start ambience loop", {undoable = false})
+	g_drawSteelAudioLog.AmbienceLoopStart(VariantPools.Name(poolid) or "Variant pool")
+end
+
+--Stops a looping pool: fade out any member currently sounding (~0.5s, no needle-scratch),
+--then clear the live entry. Safe to call from any client / when not looping.
+function VariantPools.StopLoop(poolid)
+	local doc = GetPoolLoopStateDoc()
+	if type(doc.data[poolid]) ~= "table" then
+		return
+	end
+	local name = VariantPools.Name(poolid) or "Variant pool"
+	--Fade out whichever member is audibly playing right now (starts stay hard; only the
+	--stop fades - design A2). CrossfadeSoundEvents(id, nil, secs) = fade-out only.
+	for _,m in ipairs(VariantPools.Members(poolid)) do
+		if audio.currentlyPlaying[m.id] ~= nil then
+			audio.CrossfadeSoundEvents(m.id, nil, 0.5)
+		end
+	end
+	doc:BeginChange()
+	doc.data[poolid] = nil
+	doc:CompleteChange("Stop ambience loop", {undoable = false})
+	g_drawSteelAudioLog.AmbienceLoopEnd(name)
+end
+
+--Stops every looping pool (Stop-all audio, and the "Stop ambient loops" action later).
+function VariantPools.StopAllLoops()
+	local ids = {}
+	for poolid,entry in pairs(GetPoolLoopStateDoc().data) do
+		if type(entry) == "table" and entry.looping == true then
+			ids[#ids+1] = poolid
+		end
+	end
+	for _,poolid in ipairs(ids) do
+		VariantPools.StopLoop(poolid)
+	end
+end
+
+--Wire up the forward-declared hook (see banner near StopAllBroadcastAudio) now that
+--VariantPools.StopAllLoops exists.
+g_stopAllVariantPoolLoops = function() VariantPools.StopAllLoops() end
+
+--Wire up the dock-board-selector forward hooks (see banner near CreateDockBoardSelector).
+g_variantPoolLoopStatePath = function() return VariantPools.LoopStatePath() end
+g_variantPoolIsLooping = function(poolid) return VariantPools.IsLooping(poolid) end
+
+--Live-adjusts a running loop's volume: updates the stored volume (future fires) AND the
+--currently-sounding member (behaves like a real fader). No-op if not looping / not driver.
+function VariantPools.SetLoopVolume(poolid, volume)
+	local doc = GetPoolLoopStateDoc()
+	local entry = doc.data[poolid]
+	if type(entry) ~= "table" or entry.looping ~= true then
+		return
+	end
+	doc:BeginChange()
+	doc.data[poolid].volume = volume
+	doc:CompleteChange("Set ambience loop volume", {undoable = false})
+	--Apply immediately to any member sounding now (driver's engine has the instance).
+	for _,m in ipairs(VariantPools.Members(poolid)) do
+		if audio.currentlyPlaying[m.id] ~= nil then
+			audio.SetSoundEventVolume(m.id, volume)
+		end
+	end
+end
+
+--Loop driver poll (K2). Mirrors PollAudioPlaylists. Runs on every client:
+--  - PRESENCE HEAL (any client): a looping entry whose driver is no longer connected is
+--    orphaned - clear it so the pad returns to idle everywhere (the playlist model never
+--    solved this; a looping bed must not leave a permanently-lit-but-dead pad).
+--  - ADVANCE (driver only): when the absolute nextFireAt deadline passes, fire a member
+--    and roll the next deadline. Absolute deadline (not a countdown) so poll jitter never
+--    accumulates and a hot-reload resumes correctly from the doc.
+local PollAudioVariantPoolLoops
+PollAudioVariantPoolLoops = function()
+	if mod.unloaded then return end
+
+	local doc = GetPoolLoopStateDoc()
+	--Presence set from the live user list.
+	local online = {}
+	for _,uid in ipairs(dmhub.users) do
+		online[uid] = true
+	end
+	--Only trust the presence list for the driver-absence heal when it is non-empty: a
+	--transiently empty/glitched dmhub.users on ONE client must not delete every running
+	--bed session-wide (each client runs this heal independently). An entry with no driver
+	--at all is always an orphan, healed regardless.
+	local hasOnline = next(online) ~= nil
+	local now = dmhub.Time()
+
+	--Collect actions without mutating during iteration.
+	local toHeal = {}     --orphaned (driver gone / pool gone / emptied) -> clear entry
+	local toFire = {}     --this client is the driver and the deadline passed
+	for poolid,entry in pairs(doc.data) do
+		if type(entry) == "table" and entry.looping == true then
+			if entry.driver == nil or (hasOnline and not online[entry.driver]) then
+				toHeal[#toHeal+1] = poolid
+			elseif entry.driver == dmhub.userid then
+				--Driver self-heals a loop whose pool was deleted OR has emptied out (no
+				--members left to fire) so it never sits looping=true, silent, forever.
+				if not VariantPools.IsPool(poolid) or #VariantPools.Members(poolid) == 0 then
+					toHeal[#toHeal+1] = poolid
+				elseif now >= (entry.nextFireAt or 0) then
+					toFire[#toFire+1] = poolid
+				end
+			end
+		end
+	end
+
+	--Apply heals: clear the entry (each its own change cycle, fresh snapshot).
+	for _,poolid in ipairs(toHeal) do
+		local d = GetPoolLoopStateDoc()
+		if type(d.data[poolid]) == "table" then
+			d:BeginChange()
+			d.data[poolid] = nil
+			d:CompleteChange("Heal orphaned ambience loop", {undoable = false})
+		end
+	end
+
+	--Apply fires: fire a member, then write the next absolute deadline.
+	for _,poolid in ipairs(toFire) do
+		local d = GetPoolLoopStateDoc()
+		local entry = d.data[poolid]
+		if type(entry) == "table" and entry.looping == true and entry.driver == dmhub.userid then
+			VariantPools.Fire(poolid, { volume = entry.volume })
+			d = GetPoolLoopStateDoc()
+			if type(d.data[poolid]) == "table" then
+				d:BeginChange()
+				d.data[poolid].nextFireAt = dmhub.Time() + VariantPoolGapSeconds(poolid)
+				d:CompleteChange("Advance ambience loop", {undoable = false})
+			end
+		end
+	end
+
+	dmhub.Schedule(0.5, PollAudioVariantPoolLoops)
+end
+
+dmhub.Schedule(0.5, PollAudioVariantPoolLoops)
 
 --Dev-only test hooks (chunk K1.5-core): extend the DrawSteelAudioDev global (created by
 --the earlier devmode block) so MCP-bridge verification can create, fire, and tear down
@@ -2277,6 +2606,13 @@ if rawget(_G, "devmode") ~= nil and devmode() and rawget(_G, "DrawSteelAudioDev"
 		end
 		return a.id
 	end
+	DrawSteelAudioDev.SetVariantPoolLoop = function(poolid, on) VariantPools.SetLoopAmbience(poolid, on) end
+	DrawSteelAudioDev.SetVariantPoolGap = function(poolid, lo, hi) VariantPools.SetGap(poolid, lo, hi) end
+	DrawSteelAudioDev.StartVariantPoolLoop = function(poolid, volume) VariantPools.StartLoop(poolid, volume) end
+	DrawSteelAudioDev.StopVariantPoolLoop = function(poolid) VariantPools.StopLoop(poolid) end
+	DrawSteelAudioDev.StopAllVariantPoolLoops = function() VariantPools.StopAllLoops() end
+	DrawSteelAudioDev.IsVariantPoolLooping = function(poolid) return VariantPools.IsLooping(poolid) end
+	DrawSteelAudioDev.CountVariantPoolLoops = function() return VariantPools.CountLoops() end
 end
 
 --K1.5-studio: shared module-level state between the clip context menu (OpenRowContextMenu,
@@ -2384,6 +2720,14 @@ local AudioSoundboardButtonStyles = {
 	--Loop glyph: dim when off, accent-tinted when on. Always visible on filled buttons.
 	{ selectors = {"audioSbLoop"}, bgcolor = "white", opacity = 0.4 },
 	{ selectors = {"audioSbLoop", "active"}, bgcolor = "@accent", opacity = 1 },
+	--K2: a pool pad actively looping as ambience gets a persistent accent ring so it reads
+	--as "running" even in the silent gap between fires (design A3). Scoped to the pad
+	--(audioSbButton) like its sibling state rules so a bare "looping" class elsewhere in
+	--the merged Studio/dock tree can never inherit it.
+	{ selectors = {"audioSbButton", "looping"}, borderColor = "@accent", border = 2 },
+	--K2: a dock board-number button whose board has a running loop gets the same accent
+	--border as an activated loop pad (this rule is theme-resolved via soundboardBody).
+	{ selectors = {"audioBoardLoop"}, bgcolor = "@accent", borderColor = "@accent", border = 2, priority = 100 },
 	--Mute glyph: image-tint-neutral white, dims when idle, brightens on hover/muted.
 	{ selectors = {"audioSbMute"}, bgcolor = "white", opacity = 0.6 },
 	{ selectors = {"audioSbMute", "hover"}, opacity = 1 },
@@ -2482,6 +2826,9 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 		valign = "top",
 		swallowPress = true,
 		press = function(element)
+			--Pool pads: the glyph is a passive loop-ambience indicator (start/stop
+			--lives on the pad's own click handler), so no-op here.
+			if poolid ~= nil then return end
 			local asset = assets.audioTable[assetid]
 			if asset == nil then return end
 			asset.loop = not asset.loop
@@ -2489,7 +2836,11 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 			element:SetClass("active", asset.loop == true)
 		end,
 		linger = function(element)
-			gui.Tooltip("Loop")(element)
+			if poolid ~= nil then
+				gui.Tooltip("Loops as ambience")(element)
+			else
+				gui.Tooltip("Loop")(element)
+			end
 		end,
 	}
 
@@ -2647,8 +2998,21 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 					if assetid ~= nil and not muted then
 						audio.SetSoundEventVolume(assetid, element.value)
 					end
+					--Pool loop: live-apply to the member sounding right now (audible drag
+					--feedback) but do NOT write the loop-state doc here -- that would spam a
+					--doc change every preview frame. confirm persists the stored volume once.
+					if poolid ~= nil and VariantPools.IsLooping(poolid) then
+						for _,m in ipairs(VariantPools.Members(poolid)) do
+							if audio.currentlyPlaying[m.id] ~= nil then
+								audio.SetSoundEventVolume(m.id, element.value)
+							end
+						end
+					end
 				end,
 				confirm = function(element)
+					if poolid ~= nil and VariantPools.IsLooping(poolid) then
+						VariantPools.SetLoopVolume(poolid, element.value)
+					end
 					if assetid == nil then return end
 					if not muted then
 						audio.SetSoundEventVolume(assetid, element.value)
@@ -2868,7 +3232,12 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 				emptyLabel:SetClass("collapsed", true)
 				element:SetClass("filled", true)
 				editRow:SetClass("filled", true)
-				loopGlyph:SetClass("collapsed", true)
+				if VariantPools.IsLoopAmbience(poolid) then
+					loopGlyph:SetClass("collapsed", false)
+					loopGlyph:SetClass("active", VariantPools.IsLooping(poolid))
+				else
+					loopGlyph:SetClass("collapsed", true)
+				end
 				volumeRow:SetClass("collapsed", false)
 				durationLabel.text = string.format("x%d", #VariantPools.Members(poolid))
 			else
@@ -2922,6 +3291,10 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 			else
 				element.selfStyle.bgcolor = FillColorHex(asset, playing)
 			end
+			element:SetClass("looping", poolid ~= nil and VariantPools.IsLooping(poolid))
+			if poolid ~= nil then
+				loopGlyph:SetClass("active", VariantPools.IsLoopAmbience(poolid) and VariantPools.IsLooping(poolid))
+			end
 			progressFill:FireEvent("refreshPlayingAudio")
 			if volumeSlider ~= nil then volumeSlider:FireEvent("refreshPlayingAudio") end
 		end,
@@ -2937,11 +3310,20 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 				return
 			end
 			if poolid ~= nil then
-				--RETRIGGER: fire a fresh variant every tap (NO stop-toggle -- signed,
-				--deliberate divergence from clip pads). Stop lives in the right-click menu.
-				local fired = VariantPools.Fire(poolid, { volume = (volumeSlider ~= nil and volumeSlider.value) or 1 })
-				if fired ~= nil then
-					g_drawSteelAudioLog.Effect(poolid, VariantPools.Name(poolid) or "Variant pool")
+				local vol = (volumeSlider ~= nil and volumeSlider.value) or 1
+				if VariantPools.IsLoopAmbience(poolid) then
+					--Loop pool: tap toggles the ambient bed start/stop (design C1).
+					if VariantPools.IsLooping(poolid) then
+						VariantPools.StopLoop(poolid)
+					else
+						VariantPools.StartLoop(poolid, vol)
+					end
+				else
+					--One-shot pool: RETRIGGER a fresh variant every tap (unchanged, signed).
+					local fired = VariantPools.Fire(poolid, { volume = vol })
+					if fired ~= nil then
+						g_drawSteelAudioLog.Effect(poolid, VariantPools.Name(poolid) or "Variant pool")
+					end
 				end
 				return
 			end
@@ -2975,6 +3357,17 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 			}
 		end,
 
+		--K2: watches the live loop-state doc so this pad's looping visual (accent ring
+		--+ lit glyph) updates on every client the instant a loop starts/stops elsewhere,
+		--without disturbing the pad's own slot-doc monitorGame above.
+		gui.Panel{
+			floating = true, width = 0, height = 0,
+			monitorGame = VariantPools.LoopStatePath(),
+			refreshGame = function(element)
+				local pad = element.parent
+				if pad ~= nil then pad:FireEvent("refreshPlayingAudio") end
+			end,
+		},
 		loopGlyph,
 		nameLabel,
 		emptyLabel,
@@ -3661,6 +4054,80 @@ CreateSoundPanel = function()
 		}
 	end
 
+	--K2: looping-ambience variant pools surface here as their own now-playing rows
+	--(loop glyph + pool name + stop), alongside plain ambience beds -- a looping pool IS
+	--ambience, so it belongs under the same "Ambience" header (James's call). Driven off
+	--the loop-state doc via the same 0.2s UpdateNowPlaying poll, sig-gated like the beds.
+	local ambienceLoopRowsSig = nil
+	local ambienceLoopRows = gui.Panel{
+		flow = "vertical",
+		width = "100%",
+		height = "auto",
+	}
+	local function CreateAmbienceLoopRow(poolid)
+		return gui.Panel{
+			flow = "horizontal",
+			width = "100%-10",
+			height = 16,
+			valign = "center",
+			vmargin = 1,
+			lmargin = 10,
+			gui.Panel{
+				bgimage = "game-icons/infinity.png",
+				bgcolor = AccentColorHex(),
+				width = 12,
+				height = 12,
+				halign = "left",
+				valign = "center",
+				hmargin = 2,
+			},
+			gui.Label{
+				classes = {"sizeXs"},
+				text = VariantPools.Name(poolid) or "Variant pool",
+				width = "100%-34",
+				height = "auto",
+				halign = "left",
+				valign = "center",
+				textWrap = false,
+				textOverflow = "ellipsis",
+			},
+			gui.Panel{
+				bgimage = "panels/square.png",
+				bgcolor = "white",
+				width = 11,
+				height = 11,
+				halign = "right",
+				valign = "center",
+				hmargin = 4,
+				press = function(element)
+					VariantPools.StopLoop(poolid)
+				end,
+				linger = function(element)
+					gui.Tooltip("Stop")(element)
+				end,
+			},
+		}
+	end
+	--Rebuilds the loop rows only when the set of looping pools (or their names) changes.
+	--Returns the current looping-pool count so the caller can drive the idle label.
+	local function RefreshAmbienceLoops()
+		local ids = VariantPools.EnumerateLoopingIds()
+		local sigParts = {}
+		for _,pid in ipairs(ids) do
+			sigParts[#sigParts+1] = pid .. ":" .. (VariantPools.Name(pid) or "")
+		end
+		local sig = table.concat(sigParts, "|")
+		if sig ~= ambienceLoopRowsSig then
+			local rows = {}
+			for _,pid in ipairs(ids) do
+				rows[#rows+1] = CreateAmbienceLoopRow(pid)
+			end
+			ambienceLoopRows.children = rows
+			ambienceLoopRowsSig = sig
+		end
+		return #ids
+	end
+
 	--Extra-track containers. UpdateNowPlaying runs on a 0.2s think, so children are
 	--only rebuilt when the signature of extra ids changes (rebuilding every tick
 	--would be wasted work -- the row count is usually 0). Signatures are stored as
@@ -3941,7 +4408,8 @@ CreateSoundPanel = function()
 		--start order under the "Ambience" header. No single bed is promoted to
 		--a hero line; ambienceIdleLabel covers the nothing-playing case.
 		local ambienceList = PlayingTracksForCategory("ambience")
-		local ambiencePlaying = #ambienceList > 0
+		local nLoops = RefreshAmbienceLoops()
+		local ambiencePlaying = #ambienceList > 0 or nLoops > 0
 		ambienceRowsSig = RefreshExtrasContainer(ambienceRows, ambienceList, ambienceRowsSig)
 		ambienceIdleLabel:SetClass("hidden", ambiencePlaying)
 
@@ -4164,6 +4632,7 @@ CreateSoundPanel = function()
 		ctaBlock,
 		ambienceHeader,
 		ambienceRows,
+		ambienceLoopRows,
 		ambienceIdleLabel,
 	}
 
@@ -7483,10 +7952,11 @@ local CreateAudioLibraryTree = function()
 	local function BuildMaps()
 		local foldersByParent = {}
 		local clipsByFolder = {}
-		--K1.5 field fix (James, 2026-07-04): a variant pool "+ Add clips" session
-		--shows ONLY clips that belong in a pool - the effects category. Other
-		--categories are hidden for the session and folders left with nothing to
-		--show are pruned below, so the picker is just the assignable material.
+		--K1.5 field fix (James, 2026-07-04): a variant pool "+ Add clips" session shows
+		--ONLY clips that belong in a pool. K2 (2026-07-05) broadened this from effects-only
+		--to effects + ambience, so a looping-ambience pool can be built from ambience beds
+		--(design C2 - looping pools route to the Ambience bus). Other categories stay hidden
+		--for the session and folders left with nothing to show are pruned below.
 		local poolBuild = m_studioBuildMode ~= nil and m_studioBuildMode.poolid ~= nil
 		for id,folder in pairs(assets.audioFoldersTable) do
 			if not folder.hidden then
@@ -7497,7 +7967,7 @@ local CreateAudioLibraryTree = function()
 			end
 		end
 		for _,asset in pairs(assets.audioTable) do
-			if not asset.hidden and (not poolBuild or asset.category == "effects") then
+			if not asset.hidden and (not poolBuild or asset.category == "effects" or asset.category == "ambience") then
 				local fk = asset.parentFolder or defaultFolder
 				local t = clipsByFolder[fk]
 				if t == nil then t = {} clipsByFolder[fk] = t end
@@ -7505,8 +7975,8 @@ local CreateAudioLibraryTree = function()
 			end
 		end
 		if poolBuild then
-			--Prune folders that have no effects clips anywhere beneath them, so the
-			--pool-build tree only contains rows the [+] button can act on.
+			--Prune folders that have no pool-eligible clips (effects/ambience) anywhere
+			--beneath them, so the pool-build tree only contains rows the [+] can act on.
 			local decided = {}
 			local function Survives(fid)
 				if decided[fid] ~= nil then return decided[fid] end
@@ -9292,6 +9762,27 @@ local CreateStudioVariantPoolsCard = function(heightSpec)
 				end,
 			}
 
+			local poolEntryNow = VariantPools.GetDoc().data[poolid]
+			local loopOnNow = (poolEntryNow ~= nil and poolEntryNow.loopAmbience == true)
+			local gapMinNow = (poolEntryNow ~= nil and poolEntryNow.gapMin) or 3
+			local gapMaxNow = (poolEntryNow ~= nil and poolEntryNow.gapMax) or 10
+
+			--Forward-declared: the loop checkbox's change closure toggles gapStrip's visibility.
+			local gapStrip
+
+			local loopCheck = gui.Check{
+				text = "Loop as ambience",
+				value = loopOnNow,
+				width = "auto",
+				height = 22,
+				valign = "center",
+				hmargin = 4,
+				change = function(element)
+					VariantPools.SetLoopAmbience(poolid, element.value)
+					if gapStrip ~= nil then gapStrip:SetClass("collapsed", not element.value) end
+				end,
+			}
+
 			local configStrip = gui.Panel{
 				flow = "horizontal",
 				width = "100%",
@@ -9302,11 +9793,92 @@ local CreateStudioVariantPoolsCard = function(heightSpec)
 					{ selectors = {"sliderLabel"}, fontSize = 12, lmargin = 5, priority = 6 },
 					{ selectors = {"checkboxLabel"}, fontSize = 12, priority = 20 },
 				},
-				randomPickCheck,
-				gui.Label{ classes = {"sizeXs"}, text = "Pitch variation", width = "auto", height = "auto", halign = "left", valign = "center", hmargin = 4 },
-				pitchSlider,
+				--Random pick + Pitch variation clustered tight on the left (an auto-width
+				--group hugs its content, so they sit adjacent instead of being spread across
+				--the row by the strip's flow). Loop as ambience stays on the right.
+				gui.Panel{
+					flow = "horizontal",
+					width = "auto",
+					height = "100%",
+					halign = "left",
+					valign = "center",
+					randomPickCheck,
+					gui.Label{ classes = {"sizeXs"}, text = "Pitch variation", width = "auto", height = "auto", halign = "left", valign = "center", hmargin = 4 },
+					pitchSlider,
+				},
+				loopCheck,
 			}
 			rowChildren[#rowChildren+1] = configStrip
+
+			--Gap controls: only meaningful when this pool loops as ambience, so start
+			--collapsed unless loopOnNow (design: keep the row present but hidden rather
+			--than rebuilt, so the checkbox's change handler can just flip a class).
+			local minGapSlider, maxGapSlider, denseButton, sparseButton, RefreshPresetSelected
+			--After SetGap clamps (gapMax >= gapMin, 1..120), re-read the persisted values
+			--back into BOTH sliders so a clamp-corrected value never shows stale.
+			local function SyncGapSliders()
+				local e = VariantPools.GetDoc().data[poolid]
+				if e ~= nil then
+					minGapSlider.value = e.gapMin or 3
+					maxGapSlider.value = e.gapMax or 10
+				end
+			end
+			minGapSlider = gui.Slider{
+				style = { width = 150, height = 16, valign = "center", hmargin = 4 },
+				sliderWidth = 90, labelWidth = 34, labelFormat = "%.0fs",
+				minValue = 1, maxValue = 120, value = gapMinNow,
+				confirm = function(element)
+					VariantPools.SetGap(poolid, element.value, maxGapSlider.value)
+					SyncGapSliders()
+				end,
+			}
+			maxGapSlider = gui.Slider{
+				style = { width = 150, height = 16, valign = "center", hmargin = 4 },
+				sliderWidth = 90, labelWidth = 34, labelFormat = "%.0fs",
+				minValue = 1, maxValue = 120, value = gapMaxNow,
+				confirm = function(element)
+					VariantPools.SetGap(poolid, minGapSlider.value, element.value)
+					SyncGapSliders()
+				end,
+			}
+			--Highlight whichever preset the current range exactly matches (Dense 2-6s,
+			--Sparse 15-45s) so the active preset is visible at a glance (James's ask). A
+			--custom slider range matches neither and leaves both un-selected.
+			RefreshPresetSelected = function()
+				local e = VariantPools.GetDoc().data[poolid]
+				local lo = (e ~= nil and e.gapMin) or 3
+				local hi = (e ~= nil and e.gapMax) or 10
+				if denseButton ~= nil then denseButton:SetClass("selected", lo == 2 and hi == 6) end
+				if sparseButton ~= nil then sparseButton:SetClass("selected", lo == 15 and hi == 45) end
+			end
+			local function ApplyGapPreset(lo, hi)
+				minGapSlider.value = lo
+				maxGapSlider.value = hi
+				VariantPools.SetGap(poolid, lo, hi)
+				RefreshPresetSelected()
+			end
+			denseButton = gui.Button{ classes={"sizeXs"}, text="Dense", width="auto", height=20, hpad=6, borderBox=true, valign="center", hmargin=2, press=function() ApplyGapPreset(2,6) end }
+			sparseButton = gui.Button{ classes={"sizeXs"}, text="Sparse", width="auto", height=20, hpad=6, borderBox=true, valign="center", hmargin=2, press=function() ApplyGapPreset(15,45) end }
+			RefreshPresetSelected()
+			gapStrip = gui.Panel{
+				classes = { "collapsed" },
+				flow = "horizontal",
+				width = "100%",
+				height = 26,
+				valign = "center",
+				vmargin = 2,
+				styles = {
+					{ selectors = {"sliderLabel"}, fontSize = 12, lmargin = 5, priority = 6 },
+				},
+				gui.Label{ classes = {"sizeXs"}, text = "Min gap", width = "auto", height = "auto", halign = "left", valign = "center", hmargin = 4 },
+				minGapSlider,
+				gui.Label{ classes = {"sizeXs"}, text = "Max gap", width = "auto", height = "auto", halign = "left", valign = "center", hmargin = 4 },
+				maxGapSlider,
+				denseButton,
+				sparseButton,
+			}
+			gapStrip:SetClass("collapsed", not loopOnNow)
+			rowChildren[#rowChildren+1] = gapStrip
 
 			--Member rows, in authored order. Mirrors the playlist track row anatomy
 			--(spacer + grip + index + name + duration + delete) plus the spacer/
@@ -9534,6 +10106,9 @@ local CreateStudioVariantPoolsCard = function(heightSpec)
 				poolid, entry.name,
 				tostring(poolEntry ~= nil and poolEntry.randomPick ~= false),
 				tostring((poolEntry ~= nil and poolEntry.pitchVar) or 0),
+				tostring((poolEntry ~= nil and poolEntry.loopAmbience) == true),
+				tostring((poolEntry ~= nil and poolEntry.gapMin) or 3),
+				tostring((poolEntry ~= nil and poolEntry.gapMax) or 10),
 				tostring(expanded),
 				table.concat(liveIds, ","),
 			}, "|")
@@ -9756,6 +10331,60 @@ local function CreateStudioNowPlayingStrip()
 		}
 	end
 
+	--Loop chip: a variant pool playing as looping ambience, surfaced in the Studio
+	--Ambience row (infinity glyph + pool name + stop -> StopLoop) to match the dock's
+	--under-Ambience placement in the Studio's chip idiom (James's call).
+	local function CreateLoopChip(poolid, nameWidth)
+		local name = VariantPools.Name(poolid) or "Variant pool"
+		return gui.Panel{
+			classes = {"bgAlt", "border"},
+			flow = "horizontal",
+			border = 1,
+			cornerRadius = 3,
+			width = "auto",
+			height = 20,
+			hmargin = 4,
+			hpad = 6,
+			borderBox = true,
+			valign = "center",
+			linger = function(element)
+				gui.Tooltip(name)(element)
+			end,
+			gui.Panel{
+				bgimage = "game-icons/infinity.png",
+				bgcolor = AccentColorHex(),
+				width = 11,
+				height = 11,
+				valign = "center",
+				hmargin = 2,
+			},
+			gui.Label{
+				classes = {"sizeXs"},
+				text = name,
+				width = nameWidth,
+				height = "auto",
+				halign = "left",
+				valign = "center",
+				textWrap = false,
+				textOverflow = "ellipsis",
+			},
+			gui.Panel{
+				bgimage = "panels/square.png",
+				bgcolor = "white",
+				width = 11,
+				height = 11,
+				valign = "center",
+				hmargin = 4,
+				press = function(element)
+					VariantPools.StopLoop(poolid)
+				end,
+				linger = function(element)
+					gui.Tooltip("Stop")(element)
+				end,
+			},
+		}
+	end
+
 	--One row per category: a fixed-width label + that category's chips in
 	--play-start order (or a muted "Silent" for an idle reserved row -- matching
 	--the dock's idle vocabulary). Fixed height so an idle row occupies exactly
@@ -9803,7 +10432,11 @@ local function CreateStudioNowPlayingStrip()
 			nameWidth = math.max(40, math.min(180, math.floor(chipArea / #entries) - chipChrome))
 		end
 		for i=1,#entries do
-			children[#children+1] = CreateChip(entries[i].id, entries[i].asset, nameWidth)
+			if entries[i].loop then
+				children[#children+1] = CreateLoopChip(entries[i].id, nameWidth)
+			else
+				children[#children+1] = CreateChip(entries[i].id, entries[i].asset, nameWidth)
+			end
 		end
 		return gui.Panel{
 			flow = "horizontal",
@@ -9835,6 +10468,18 @@ local function CreateStudioNowPlayingStrip()
 			end
 		end
 
+		--K2: looping-ambience pools are not in audio.currentlyPlaying (they fire
+		--intermittent members), so inject them as Ambience entries here so a running bed
+		--surfaces as a chip. Low order sorts them before clips, in enumerated order.
+		local loopIdx = 0
+		for _,poolid in ipairs(VariantPools.EnumerateLoopingIds()) do
+			loopIdx = loopIdx + 1
+			if rowsByCategory["ambience"] == nil then
+				rowsByCategory["ambience"] = {}
+			end
+			table.insert(rowsByCategory["ambience"], { id = poolid, loop = true, name = VariantPools.Name(poolid) or "Variant pool", order = -1000000 + loopIdx })
+		end
+
 		--Two passes: compute the signature first, and only CONSTRUCT row panels
 		--when it changed. Building rows unconditionally would orphan a fresh set
 		--of panels on every 0.5s think ("created but not attached" warnings). All
@@ -9849,7 +10494,7 @@ local function CreateStudioNowPlayingStrip()
 			if entries ~= nil and #entries > 0 then
 				table.sort(entries, function(x, y) return x.order < y.order end)
 				for _,entry in ipairs(entries) do
-					sigParts[#sigParts+1] = cat.id .. ":" .. entry.id
+					sigParts[#sigParts+1] = cat.id .. ":" .. entry.id .. (entry.loop and (":" .. (entry.name or "")) or "")
 				end
 				anyPlaying = true
 				activeRows[#activeRows+1] = { label = cat.label, entries = entries }

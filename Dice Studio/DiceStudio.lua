@@ -554,6 +554,25 @@ local g_materialFields = {
 			default = 1,
 			description = "Tiling",
 		},
+		-- Zoom in on the texture center. With a non-tiling texture, parallax can march the
+		-- sample past the 0/1 boundary and reveal the seam; zooming in keeps sampling in the
+		-- middle so the seam stays off the face. 1 = no zoom. See _Zoom in PBRTextured.shader.
+		{
+			name = "_Zoom",
+			type = "Range",
+			min = 0.25,
+			max = 4,
+			default = 1,
+			description = "Zoom (center)",
+		},
+		-- Mirror Wrap flips every repeat of the texture, so a non-tiling texture's edges meet
+		-- their own reflection at the 0/1 boundary instead of a hard seam. CPU sampler flag
+		-- (not a shader property) read by DiceMaterialStudioProperties.Apply. Off = Repeat.
+		{
+			name = "_MirrorWrap",
+			type = "Bool",
+			description = "Mirror Wrap (hide seam)",
+		},
 	},
 
 }

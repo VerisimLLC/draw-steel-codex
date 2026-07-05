@@ -17,6 +17,14 @@ local g_markdownStyle = gui.MarkdownStyle {
     ["### "] = "<size=160%><b>", ["/### "] = "</b></size>",
     ["#### "] = "<size=140%><b>", ["/#### "] = "</b></size>",
     ["##### "] = "<size=120%><b>", ["/##### "] = "</b></size>",
+    --backtick code spans. The engine default is <mspace=2em>, which puts
+    --every glyph on a huge fixed advance and renders code as
+    --s p r e a d  o u t letters. Any mspace value is still a fixed grid,
+    --so we drop monospace emulation entirely: code reads as a soft gold
+    --tint at normal spacing. (True monospace needs a mono font face at
+    --the engine level - flagged upstream.)
+    ["`"] = "<color=#c8a45aCC>",
+    ["/`"] = "</color>",
 }
 
 -- =============================================================================
@@ -5470,6 +5478,8 @@ function MarkdownDocument:LiveEditPanel(args)
     end
 
     local m_listPanel
+    local m_pagePanel --the scrollable page surface; painted with the
+                      --stylesheet's page color each refresh, like DisplayPanel.
 
     --forward declarations: these reference each other from closures.
     local ActivateBlock
@@ -5712,6 +5722,7 @@ function MarkdownDocument:LiveEditPanel(args)
         --the block hosts the input.
         local wrapper
         wrapper = gui.Panel{
+            classes = { "liveEditBlock" },
             flow = "vertical",
             width = "100%",
             height = "auto",
@@ -5719,16 +5730,22 @@ function MarkdownDocument:LiveEditPanel(args)
             halign = "left",
             vmargin = 2,
             bgimage = "panels/square.png",
+            --selector arity: the theme paints bare panels with its dark
+            --surface via a {panel} rule, so these must carry
+            --{panel, liveEditBlock} to stay transparent and let the
+            --stylesheet's page color show through. Hover wash is gold-dim
+            --so it reads on both dark and parchment pages.
             styles = {
                 {
+                    selectors = { "panel", "liveEditBlock" },
                     bgcolor = "#00000000",
                 },
                 {
-                    selectors = { "hover" },
-                    bgcolor = "#ffffff10",
+                    selectors = { "panel", "liveEditBlock", "hover" },
+                    bgcolor = "#c8a45a1f",
                 },
                 {
-                    selectors = { "hover", "editing" },
+                    selectors = { "panel", "liveEditBlock", "hover", "editing" },
                     bgcolor = "#00000000",
                 },
             },
@@ -5771,6 +5788,30 @@ function MarkdownDocument:LiveEditPanel(args)
             usesAlign = SkinUsesAlign(resolvedSkin),
             pageColor = SkinColor((resolvedSkin.page or {}).bgcolor),
         }
+
+        --paint the stylesheet's page onto the live-edit surface, exactly as
+        --DisplayPanel does: page color behind all blocks so skinned content
+        --sits on its intended background, and the page margin inset.
+        --Cleared when the skin sets none so the default look is untouched.
+        if m_pagePanel ~= nil then
+            if render.pageColor then
+                m_pagePanel.bgimage = "panels/square.png"
+                m_pagePanel.bgcolor = render.pageColor
+            else
+                m_pagePanel.bgimage = nil
+                m_pagePanel.bgcolor = nil
+            end
+            local pageMargin = (resolvedSkin.page or {}).margin
+            if type(pageMargin) == "number" and pageMargin > 0 then
+                m_pagePanel.hpad = pageMargin
+                m_pagePanel.vpad = pageMargin
+                m_pagePanel.borderBox = true
+            else
+                m_pagePanel.hpad = nil
+                m_pagePanel.vpad = nil
+                m_pagePanel.borderBox = nil
+            end
+        end
 
         local children = {}
         for index, block in ipairs(m_blocks) do
@@ -6017,6 +6058,40 @@ function MarkdownDocument:LiveEditPanel(args)
         valign = "top",
     }
 
+    m_pagePanel = gui.Panel{
+        width = "98%",
+        height = "100% available",
+        halign = "center",
+        valign = "top",
+        vscroll = true,
+        flow = "vertical",
+        m_listPanel,
+
+        --click below the last block to append a new paragraph
+        --(hairline-free: this is content space, not chrome). Same selector
+        --arity note as the block wrappers: {panel, class} keeps the theme's
+        --panel fill from painting this dark.
+        gui.Panel{
+            classes = { "liveEditAppend" },
+            width = "100%",
+            height = 48,
+            bgimage = "panels/square.png",
+            styles = {
+                {
+                    selectors = { "panel", "liveEditAppend" },
+                    bgcolor = "#00000000",
+                },
+                {
+                    selectors = { "panel", "liveEditAppend", "hover" },
+                    bgcolor = "#c8a45a14",
+                },
+            },
+            press = function(element)
+                AppendParagraph()
+            end,
+        },
+    }
+
     resultPanel = gui.Panel{
         classes = { "collapsed" },
         styles = ThemeEngine.GetStyles(),
@@ -6100,35 +6175,7 @@ function MarkdownDocument:LiveEditPanel(args)
 
         m_toolbar,
 
-        gui.Panel{
-            width = "98%",
-            height = "100% available",
-            halign = "center",
-            valign = "top",
-            vscroll = true,
-            flow = "vertical",
-            m_listPanel,
-
-            --click below the last block to append a new paragraph
-            --(hairline-free: this is content space, not chrome).
-            gui.Panel{
-                width = "100%",
-                height = 48,
-                bgimage = "panels/square.png",
-                styles = {
-                    {
-                        bgcolor = "#00000000",
-                    },
-                    {
-                        selectors = { "hover" },
-                        bgcolor = "#ffffff08",
-                    },
-                },
-                press = function(element)
-                    AppendParagraph()
-                end,
-            },
-        },
+        m_pagePanel,
 
         --hairline above the annotation strip, continuing the design's
         --row-separation rhythm.

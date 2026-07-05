@@ -3802,6 +3802,25 @@ function MarkdownDocument:LiveEditPanel(args)
         return table.concat(parts, "\n")
     end
 
+    --1-based line the caret is on within the input's text (same counting
+    --technique as SyncPreviewScroll; caretPosition is 0-based).
+    local function CaretLine(input)
+        local text = input.text or ""
+        local caret = input.caretPosition or 0
+        local line = 1
+        for i = 1, math.min(caret, #text) do
+            if text:sub(i, i) == "\n" then
+                line = line + 1
+            end
+        end
+        return line
+    end
+
+    local function CountLines(text)
+        local _, newlines = (text or ""):gsub("\n", "")
+        return newlines + 1
+    end
+
     local function EnsureEditInput()
         if m_editInput ~= nil and m_editInput.valid then
             return m_editInput
@@ -3824,6 +3843,24 @@ function MarkdownDocument:LiveEditPanel(args)
 
             escape = function(element)
                 DeactivateBlock()
+            end,
+
+            --arrow keys at the block's edge flow into the neighboring block,
+            --so the cursor travels the document like a single continuous
+            --editor. The engine fires these on every keypress while focused;
+            --we only act at the boundary lines.
+            uparrow = function(element)
+                if m_activeIndex ~= nil and m_activeIndex > 1
+                   and CaretLine(element) <= 1 then
+                    ActivateBlock(m_activeIndex - 1, "end")
+                end
+            end,
+
+            downarrow = function(element)
+                if m_activeIndex ~= nil and m_activeIndex < #m_blocks
+                   and CaretLine(element) >= CountLines(element.text) then
+                    ActivateBlock(m_activeIndex + 1, "start")
+                end
             end,
         }
         return m_editInput
@@ -3974,7 +4011,10 @@ function MarkdownDocument:LiveEditPanel(args)
         RefreshBlockPanels()
     end
 
-    ActivateBlock = function(index)
+    --caretPlacement: "start" puts the caret at the beginning of the block's
+    --source (arriving from above), anything else at the end (default; also
+    --used when arriving from below).
+    ActivateBlock = function(index, caretPlacement)
         if index == nil or index == m_activeIndex then
             return
         end
@@ -4015,7 +4055,11 @@ function MarkdownDocument:LiveEditPanel(args)
             local src = BlockSource(block)
             m_activateTime = dmhub.Time()
             m_editInput.characterLimit = ActiveCharacterBudget(#src)
-            m_editInput:SetTextAndCaret(#src, src)
+            local caret = #src
+            if caretPlacement == "start" then
+                caret = 0
+            end
+            m_editInput:SetTextAndCaret(caret, src)
             m_editInput.hasInputFocus = true
         end
     end

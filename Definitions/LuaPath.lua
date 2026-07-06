@@ -71,6 +71,20 @@ function LuaPath:GetStepFlags(nstep)
 	-- dummy implementation for documentation purposes only
 end
 
+--- GetClimbOverWallHeight: If step nstep enters its tile by climbing over a climbable wall, returns the wall's height in tiles above the floor's zero altitude (full-height walls resolve to the floor's height). Returns nil when the step doesn't climb a wall. Step indexes are 0-based, matching GetStepFlags.
+--- @param nstep number
+--- @return nil|number
+function LuaPath:GetClimbOverWallHeight(nstep)
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetStepWallHeight: Height in tiles above the floor's zero altitude of the tallest height-limited wall or solid block crossed moving from step nstep-1 to step nstep, or nil when none is crossed. Full-height walls never yield a height (they can't be crossed except by breaking). Lets a flying path illustrate walls the token passes over.
+--- @param nstep number
+--- @return nil|number
+function LuaPath:GetStepWallHeight(nstep)
+	-- dummy implementation for documentation purposes only
+end
+
 --- CalculateHazards
 --- @param tok CharacterToken
 --- @return nil|{type: 'damage', damageAmount: number, damageType: string, aura: AuraInstance}[]

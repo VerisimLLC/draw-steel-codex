@@ -1,5 +1,14 @@
 local mod = dmhub.GetModLoading()
 
+--Published anthem playback state, for other panels (the Audio panel's anthem
+--node + the now-playing duck badge) to poll. This is LOCAL UI state only -- the
+--anthem itself plays per-client via asset:Play(), so this just mirrors what this
+--client is currently sounding. `tokenid` is the charid whose anthem is playing
+--(nil if none); `duckActive` is true while the music duck is held for it.
+--rawget avoids the runtime's uninitialized-global read error while still
+--preserving the value across a hot-reload so the badge does not flicker.
+g_drawSteelAnthemState = rawget(_G, "g_drawSteelAnthemState") or { tokenid = nil, duckActive = false }
+
 local function track(eventType, fields)
 	if dmhub.GetSettingValue("telemetry_enabled") == false then
 		return
@@ -106,6 +115,19 @@ end
 
 local g_triggeredResourceId = "b9bc06dd-80f1-4f33-bc55-25c114e3300c"
 
+--DJ delegation (audio): these game-scoped audio settings are operated by the
+--Director OR a granted DJ (full-parity decision 3), so the blunt dmonly class
+--is replaced by a visible() predicate routed through the audio module's export.
+--Audio.lua loads after this file, so the export is resolved at CALL time via
+--rawget; falls back to plain isDM if it is somehow absent.
+local function CanControlAudioSetting()
+    local bar = rawget(_G, "g_drawSteelAudioBar")
+    if bar ~= nil and bar.CanControlAudio ~= nil then
+        return bar.CanControlAudio()
+    end
+    return dmhub.isDM
+end
+
 local anthemLimited = setting{
     id = "anthemlimited",
     description = "Limit Anthem Lengths",
@@ -114,7 +136,7 @@ local anthemLimited = setting{
     ord = 101,
     storage = "game",
     section = "audio",
-    classes = {"dmonly"},
+    visible = CanControlAudioSetting,
 }
 
 local anthemDuration = setting{
@@ -129,12 +151,70 @@ local anthemDuration = setting{
 
 	storage = "game",
 	section = "audio",
-	classes = {"dmonly"},
 
 	monitorVisible = {'anthemlimited'},
 	visible = function()
-		return dmhub.GetSettingValue('anthemlimited')
+		return CanControlAudioSetting() and dmhub.GetSettingValue('anthemlimited')
 	end
+}
+
+--Whether a playing anthem ducks (dips) the music mix group. Game-scoped/DM-owned
+--like the other anthem settings: the duck is applied locally on every client, so
+--a per-user pref would only quiet the DM's own mix while players still heard the
+--dip. Game storage makes the toggle authoritative for the whole table. Surfaced
+--as a checkbox on the Audio panel's Expanded view (read/written by id there).
+local anthemDuckMusic = setting{
+    id = "anthemduckmusic",
+    description = "Anthem Ducks Music",
+    editor = "check",
+    default = true,
+    ord = 102,
+    storage = "game",
+    section = "audio",
+    visible = CanControlAudioSetting,
+}
+
+--Single source for the duck default literals, shared with the Audio Studio "Ducking"
+--card (Audio.lua reads this via rawget so its `or <default>` fallbacks never drift from
+--the setting registrations below). Published as a global since Audio.lua loads after
+--this file but should not have to reach into MCDMInitiativeBar's locals.
+local anthemDuckDefaults = { depth = 0.15, fadeIn = 1.0, fadeOut = 2.5 }
+g_drawSteelAnthemDuckDefaults = anthemDuckDefaults
+
+--How far the music mix group dips (0..1 target level) while an anthem plays. The DM
+--controls this from the Audio Studio "Ducking" card; the anthem hook reads it below.
+--Game-scoped/DM-owned like the on/off toggle above so the whole table dips together.
+--Panel-only (no Settings editor); default is the ear-tested interim value (see
+--anthemDuckDefaults above).
+local anthemDuckDepth = setting{
+    id = "anthemduckdepth",
+    description = "Anthem Duck Depth",
+    default = anthemDuckDefaults.depth,
+    ord = 103,
+    storage = "game",
+    visible = CanControlAudioSetting,
+}
+
+--How fast the music dips when an anthem starts (fade-in, seconds) and how slowly it
+--swells back when the anthem ends (fade-out, seconds). Fed to DuckGroup's fadeDown/fadeUp.
+--DM controls both from the Audio Studio "Ducking" card. Asymmetric by default (quick dip,
+--slow swell); game-scoped/DM-owned like the toggle + depth above.
+local anthemDuckFadeIn = setting{
+    id = "anthemduckfadein",
+    description = "Anthem Duck Fade In",
+    default = anthemDuckDefaults.fadeIn,
+    ord = 104,
+    storage = "game",
+    visible = CanControlAudioSetting,
+}
+
+local anthemDuckFadeOut = setting{
+    id = "anthemduckfadeout",
+    description = "Anthem Duck Fade Out",
+    default = anthemDuckDefaults.fadeOut,
+    ord = 105,
+    storage = "game",
+    visible = CanControlAudioSetting,
 }
 
 --Per-client anthem volume multipliers, keyed by token charid (0..1, missing = 1).
@@ -2944,6 +3024,30 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 	--anthem data.
 	local m_anthemEventInstance = nil
 	local m_anthemTokenId = nil
+	local m_anthemDuckActive = false
+
+	--Audio event log (chunk L): reach Audio.lua's logger via rawget since module load
+	--order between the two files is not guaranteed. Anthem playback is per-client local
+	--audio (this recompute runs on every client), so the logger's own dmhub.isDM gate
+	--is what keeps this to a single DM-posted chat line rather than one per client.
+	local function AudioLog() return rawget(_G, "g_drawSteelAudioLog") end
+
+	--Tracks whether the current anthem has been announced in the log but not yet ended,
+	--so an end line fires exactly ONCE regardless of how the anthem stops: a turn change,
+	--a time-limited natural expiry (detected in the think poll below), or its token being
+	--deleted. Guards against double-logging across those paths.
+	local m_anthemLogged = false
+	local function LogAnthemStart(name, ducked)
+		local L = AudioLog()
+		if L ~= nil then L.AnthemStart(name, ducked) end
+		m_anthemLogged = true
+	end
+	local function LogAnthemEnd()
+		if not m_anthemLogged then return end
+		m_anthemLogged = false
+		local L = AudioLog()
+		if L ~= nil then L.AnthemEnd() end
+	end
 
 	--Speaker icon shown in the top right of the center card while the active
 	--creature's anthem is playing. Created alongside the center container below.
@@ -2956,6 +3060,10 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 	end
 
 	local StopAnthem = function()
+		if m_anthemDuckActive then
+			audio.ReleaseDuck("music")
+			m_anthemDuckActive = false
+		end
 		if m_anthemEventInstance ~= nil then
 			m_anthemEventInstance:Stop()
 			m_anthemEventInstance = nil
@@ -2963,6 +3071,8 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 
 			choicePanel.monitorGame = nil
 		end
+		g_drawSteelAnthemState.tokenid = nil
+		g_drawSteelAnthemState.duckActive = false
 		UpdateAnthemIcon()
 	end
 
@@ -3916,6 +4026,7 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
             local currentInitiativeId = self:try_get("currentInitiativeId")
             if currentInitiativeId == nil then
                 StopAnthem()
+                LogAnthemEnd()
             elseif currentInitiativeId ~= element.data.anthemInitiativeId then
                 local anthemToken = nil
                 if currentInitiativeId ~= nil then
@@ -3935,15 +4046,39 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
                         local asset = assets.audioTable[anthemToken.anthem]
                         if asset ~= nil then
                             m_anthemEventInstance = asset:Play()
-                            m_anthemEventInstance.volume = anthemToken.anthemVolume * GetLocalAnthemVolume(anthemToken.charid)
-                            if anthemLimited:Get() then
-                                m_anthemEventInstance:SetStopAfter(anthemDuration:Get())
+                            if m_anthemEventInstance ~= nil then
+                                m_anthemEventInstance.volume = anthemToken.anthemVolume * GetLocalAnthemVolume(anthemToken.charid)
+                                --Route the anthem through its own mix group so the Anthem panel
+                                --fader (GroupShared) and personal anthem trim apply. The anthem
+                                --group is not a duck target, so the anthem itself is never ducked.
+                                m_anthemEventInstance.mixGroupId = "anthem"
+                                g_drawSteelAnthemState.tokenid = anthemToken.charid
+                                --Ducking is opt-out (DM "Anthem Ducks Music" setting). When off,
+                                --the anthem still plays + reports now-playing, but music is not
+                                --dipped (and duckActive stays false so the panel badge is hidden).
+                                --Duck depth + fades are DM-tunable game settings (Audio Studio
+                                --"Ducking" card); defaults live in anthemDuckDefaults above.
+                                --Asymmetric by default: music dips fast as the anthem starts,
+                                --then swells back slowly on release.
+                                if anthemDuckMusic:Get() then
+                                    audio.DuckGroup("music", anthemDuckDepth:Get(), anthemDuckFadeIn:Get(), anthemDuckFadeOut:Get())
+                                    m_anthemDuckActive = true
+                                    g_drawSteelAnthemState.duckActive = true
+                                end
+                                if anthemLimited:Get() then
+                                    m_anthemEventInstance:SetStopAfter(anthemDuration:Get())
+                                end
+                                element.monitorGame = anthemToken.monitorPath
+
+                                local anthemName = anthemToken.name
+                                if anthemName == nil or anthemName == "" then anthemName = "Creature" end
+                                LogAnthemStart(anthemName, anthemDuckMusic:Get())
                             end
-                            element.monitorGame = anthemToken.monitorPath
                         end
                     end
                 else
                     StopAnthem()
+                    LogAnthemEnd()
                 end
             end
 
@@ -3959,6 +4094,14 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 			StopAnthem()
 		end,
 
+		--Mirrors disable above: if the panel is torn down without disable firing (HUD
+		--rebuild, map change, hot-reload) the music duck would otherwise leak forever.
+		--StopAnthem is a local closure in scope here, so this is safe even if the panel
+		--never finished initializing.
+		destroy = function(element)
+			StopAnthem()
+		end,
+
 		--Lightweight poll so the bar is removed promptly when victory is awarded mid-round
 		--(the heavy card refresh above only runs on turn transitions, which don't happen
 		--during the victory moment). Only ever force-hides on victory; the normal show/hide
@@ -3968,6 +4111,23 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 			--Keep the anthem speaker icon in sync with actual playback, so it
 			--hides when a time-limited anthem finishes without a turn change.
 			UpdateAnthemIcon()
+
+			--Log an anthem end when a time-limited anthem finishes on its own (default
+			--config: "Limit Anthem Lengths" on), since no turn change funnels it through
+			--the end branches above. m_anthemLogged makes this fire once and never
+			--double-log with a later turn-change end.
+			if m_anthemLogged and (m_anthemEventInstance == nil or not m_anthemEventInstance.playing) then
+				LogAnthemEnd()
+			end
+
+			--Release the music duck if a time-limited anthem finished without a
+			--turn change (it would not otherwise funnel through StopAnthem).
+			if m_anthemDuckActive and (m_anthemEventInstance == nil or not m_anthemEventInstance.playing) then
+				audio.ReleaseDuck("music")
+				m_anthemDuckActive = false
+				g_drawSteelAnthemState.tokenid = nil
+				g_drawSteelAnthemState.duckActive = false
+			end
 
 			local q = info.initiativeQueue
 			if q == nil or q.hidden then return end
@@ -3985,6 +4145,7 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 					m_anthemEventInstance.volume = tok.anthemVolume * GetLocalAnthemVolume(m_anthemTokenId)
 				else
 					StopAnthem()
+					LogAnthemEnd()
 				end
 			end
 		end,

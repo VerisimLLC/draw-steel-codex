@@ -217,12 +217,24 @@ CreateLanguageEditor = function()
 	}
 end
 
+--True when this client may operate game-wide audio controls: the Director, or a
+--player granted DJ (audio-DJ-delegation, full-parity decision 3). Routed through
+--the audio module's narrow export since this screen cannot see its module locals;
+--falls back to plain isDM if the export is not loaded.
+local function CanControlAudioForSettings()
+	local bar = rawget(_G, "g_drawSteelAudioBar")
+	if bar ~= nil and bar.CanControlAudio ~= nil then
+		return bar.CanControlAudio()
+	end
+	return dmhub.isDM
+end
+
 --A slider that controls the game-wide master volume -- the same value as the
 --master slider in the Audio panel (audio.masterVolume / gameDetails.audio).
---Only shown to the Director, and only while in a game, since the value lives
---on the game's shared audio state rather than a per-machine preference.
+--Only shown to the Director or a DJ, and only while in a game, since the value
+--lives on the game's shared audio state rather than a per-machine preference.
 local CreateGameWideMasterVolumeEditor = function()
-	if (not dmhub.inGame) or (not dmhub.isDM) then
+	if (not dmhub.inGame) or (not CanControlAudioForSettings()) then
 		return nil
 	end
 
@@ -262,6 +274,32 @@ local CreateGameWideMasterVolumeEditor = function()
 			text = "Game-Wide Master Volume",
 		},
 		slider,
+	}
+end
+
+--A checkbox that controls whether library/anthem track loudness is automatically
+--normalized for this game (audio.normalizeLoudness / gameDetails.audio). Only shown
+--to the Director or a DJ, and only while in a game, since the value lives on the
+--game's shared audio state rather than a per-machine preference. Mirrors
+--CreateGameWideMasterVolumeEditor's guard.
+local CreateNormalizeLoudnessToggle = function()
+	if (not dmhub.inGame) or (not CanControlAudioForSettings()) then
+		return nil
+	end
+
+	return gui.Panel{
+		classes = {"formRow"},
+		width = "90%",
+		halign = "center",
+		gui.Check{
+			value = audio.normalizeLoudness,
+			text = "Normalize track loudness",
+			tooltip = "Automatically balances volume across tracks so quiet and loud clips play at a similar level. Does not affect sound effects.",
+			change = function(element)
+				audio.normalizeLoudness = element.value
+				audio.UploadNormalizeLoudness()
+			end,
+		},
 	}
 end
 
@@ -1446,6 +1484,7 @@ function CreateSettingsScreen(dialog, args)
 						build = function() return {
 						SettingsSection("Audio"),
 						CreateGameWideMasterVolumeEditor(),
+						CreateNormalizeLoudnessToggle(),
 						} end,
 					},
 

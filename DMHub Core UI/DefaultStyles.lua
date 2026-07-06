@@ -1248,10 +1248,22 @@ ThemeEngine.RegisterTheme{
             borderColor = "@borderInverse",
             priority = 5,
         },
+        -- Non-bordered iconButtons carry no bgimage on the outer chrome, so the
+        -- @accent fill from {"iconButton","selected"} above never paints -- the
+        -- only visible pixels are the icon. Tint the icon to @accent so the
+        -- selected glyph reads as the highlight color, instead of knocking out
+        -- to @bg (which is near-invisible against a dark UI). Bordered pills
+        -- override this just below to keep the filled-accent-pill + bg-knockout
+        -- icon look, since their outer chrome is a paintable surface.
         {
             selectors = {"panel", "buttonIcon", "parent:selected"},
-            bgcolor = "@bg",
+            bgcolor = "@accent",
             priority = 5,
+        },
+        {
+            selectors = {"panel", "buttonIcon", "parent:selected", "parent:bordered"},
+            bgcolor = "@bg",
+            priority = 6,
         },
 
         --[[

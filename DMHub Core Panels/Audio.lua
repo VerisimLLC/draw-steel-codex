@@ -7001,7 +7001,7 @@ local g_pendingRevealFolder = nil
 local function FindTopLevelFolderByName(name)
 	local lower = string.lower(name)
 	for fid,f in pairs(assets.audioFoldersTable) do
-		if not f.hidden and f.parentFolder == nil and string.lower(f.description or "") == lower then
+		if not f.hidden and (f.parentFolder == nil or f.parentFolder == "") and string.lower(f.description or "") == lower then
 			return fid
 		end
 	end
@@ -8947,6 +8947,22 @@ local CreateAudioLibraryTree = function()
 	--exist; the data is mutated locally first, so an immediate rebuild reflects it.
 	local RequestRebuild = function() end
 
+	--Drag-only "move to top level" drop bar. Hidden at rest; revealed the moment a
+	--folder or clip drag begins (beginDrag on every draggable node/row calls
+	--RevealRootDropBar), and re-hidden by its own think once the drag ends. Built
+	--further down and assigned to m_rootDropBar; m_dragSource is the element being
+	--dragged so the think can poll its .dragging flag to know when to hide.
+	local m_rootDropBar
+	local m_dragSource
+	local function RevealRootDropBar(source)
+		m_dragSource = source
+		if m_rootDropBar ~= nil and m_rootDropBar.valid then
+			m_rootDropBar.interactable = true
+			m_rootDropBar:SetClass("hidden", false)
+			m_rootDropBar.thinkTime = 0.1
+		end
+	end
+
 	--C6 library search. m_searchText is the active lowercase filter ("" = none).
 	--m_preSearchExpanded snapshots the user's expansion state (m_expanded) the moment
 	--a search session STARTS (first non-empty search text), so clearing the search
@@ -9004,7 +9020,14 @@ local CreateAudioLibraryTree = function()
 		local poolBuild = m_studioBuildMode ~= nil and m_studioBuildMode.poolid ~= nil
 		for id,folder in pairs(assets.audioFoldersTable) do
 			if not folder.hidden then
-				local pk = folder.parentFolder or "__root__"
+				--A nil OR empty-string parentFolder means top level. Moving a folder to top
+				--level stores "" (assigning nil to the AudioFolderLua field serializes to an
+				--empty string, not nil), and "" is truthy in Lua, so a plain `or "__root__"`
+				--would group a moved-to-top folder under a "" key that nothing renders -- the
+				--folder would vanish from the tree. Same normalization applied to clips below
+				--and in FindTopLevelFolderByName.
+				local pk = folder.parentFolder
+				if pk == nil or pk == "" then pk = "__root__" end
 				local t = foldersByParent[pk]
 				if t == nil then t = {} foldersByParent[pk] = t end
 				t[#t+1] = { id = id, folder = folder }
@@ -9012,7 +9035,8 @@ local CreateAudioLibraryTree = function()
 		end
 		for _,asset in pairs(assets.audioTable) do
 			if not asset.hidden and (not poolBuild or asset.category == "effects" or asset.category == "ambience") then
-				local fk = asset.parentFolder or defaultFolder
+				local fk = asset.parentFolder
+				if fk == nil or fk == "" then fk = defaultFolder end
 				local t = clipsByFolder[fk]
 				if t == nil then t = {} clipsByFolder[fk] = t end
 				t[#t+1] = asset
@@ -9222,13 +9246,17 @@ local CreateAudioLibraryTree = function()
 		return ids
 	end
 
-	--Resolve the folder a drop landed on: the nearest enclosing folder node, or
-	--"__root__" when dropped on the library root (top level). nil = invalid drop.
+	--Resolve the folder a drop landed on: the dedicated "move to top level" drop
+	--bar or the library root => "__root__"; otherwise the nearest enclosing folder
+	--node. nil = invalid drop. The audioLibraryRoot / audioRootDropZone checks test
+	--self too: FindParentWithClass walks ancestors only, so a drop on the root panel
+	--or the drop bar itself would otherwise never resolve to top level.
 	local function ResolveDrop(target)
 		if target == nil then return nil end
+		if target:HasClass("audioRootDropZone") or target:FindParentWithClass("audioRootDropZone") ~= nil then return "__root__" end
 		local node = target:FindParentWithClass("audioFolderNode")
 		if node ~= nil then return node.data.folderid end
-		if target:FindParentWithClass("audioLibraryRoot") ~= nil then return "__root__" end
+		if target:HasClass("audioLibraryRoot") or target:FindParentWithClass("audioLibraryRoot") ~= nil then return "__root__" end
 		return nil
 	end
 
@@ -9441,6 +9469,9 @@ local CreateAudioLibraryTree = function()
 				if dest == nil then return end
 				MoveFolderToFolder(folderid, dest)
 				RequestRebuild()
+			end,
+			beginDrag = function(element)
+				RevealRootDropBar(element)
 			end,
 
 			create = function(element)
@@ -9708,12 +9739,61 @@ local CreateAudioLibraryTree = function()
 		end,
 	}
 
+	--Drag-only drop target for moving a folder/clip out to the top level. Floating
+	--so it overlays the top of the tree without shifting layout; starts hidden +
+	--non-interactable and is revealed by RevealRootDropBar on any drag start. The
+	--dragged element's own drag/canDragOnto handlers do the actual move -- this bar
+	--only needs to exist as a dragTarget that ResolveDrop maps to "__root__" (via its
+	--audioRootDropZone class). Higher dragTargetPriority so a drop on it wins over the
+	--folder/tree underneath. Its think hides it again once the drag ends.
+	m_rootDropBar = gui.Panel{
+		classes = {"audioRootDropZone", "hidden"},
+		floating = true,
+		interactable = false,
+		dragTarget = true,
+		dragTargetPriority = 10,
+		width = "100%-8",
+		height = 28,
+		halign = "center",
+		valign = "top",
+		y = 30,
+		flow = "horizontal",
+		borderBox = true,
+		bgimage = "panels/square.png",
+		bgcolor = "@accent",
+		opacity = 0.85,
+		cornerRadius = 6,
+		borderWidth = 2,
+		borderColor = "@accent",
+		thinkTime = nil,
+		think = function(element)
+			if m_dragSource == nil or not m_dragSource.valid or not m_dragSource.dragging then
+				m_dragSource = nil
+				element.interactable = false
+				element:SetClass("hidden", true)
+				element.thinkTime = nil
+			end
+		end,
+		gui.Label{
+			text = "Move to top level",
+			width = "auto",
+			height = "auto",
+			halign = "center",
+			valign = "center",
+			fontSize = 14,
+			bold = true,
+			color = "white",
+			interactable = false,
+		},
+	}
+
 	return gui.Panel{
 		flow = "vertical",
 		width = "100%",
 		height = "100%-24",
 		searchInput,
 		m_root,
+		m_rootDropBar,
 	}
 end
 

@@ -502,7 +502,6 @@ function GameHud.CreateEmbeddedRollDialog()
 
     local rollDisabledLabel
     local rollDiceButton
-    local cancelButton
     local proceedAfterRollButton
     local rollAgainButton
     local m_triggerProgressDice
@@ -3121,6 +3120,10 @@ function GameHud.CreateEmbeddedRollDialog()
         },
     }
 
+    --The dialog's dice cage panel (assigned in its create handler below); lets
+    --CancelRollDialog clear only THIS dialog's preview dice/armed roll.
+    local m_diceCagePanel = nil
+
     local CancelRollDialog = function()
         RemoveTargetHints()
         if cancelRoll ~= nil then
@@ -3136,8 +3139,18 @@ function GameHud.CreateEmbeddedRollDialog()
         --cancel the preview dice are left orphaned: they lose their panel at teardown,
         --drift to the center of the screen stacked on top of each other, and pin
         --__previewdice=true so the action bar stays locked in preview-dice mode. Clear
-        --them explicitly through the dice API this dialog owns.
-        dmhub.CancelCurrentRoll()
+        --them explicitly -- but SCOPED to this dialog's own cage: the old global
+        --dmhub.CancelCurrentRoll() destroyed EVERY preview die and armed roll,
+        --including the Dice dock panel's tile dice, which never reseed (their roll's
+        --complete/cancel callbacks never fire) and so vanished until a full rebuild.
+        --pcall + fallback so an older binary without the scoped method still clears.
+        local cleared = false
+        if m_diceCagePanel ~= nil and m_diceCagePanel.valid then
+            cleared = pcall(function() m_diceCagePanel:CancelDicePreviewRoll() end)
+        end
+        if not cleared then
+            dmhub.CancelCurrentRoll()
+        end
         OnHide()
         RelinquishPanel()
     end
@@ -3286,10 +3299,17 @@ function GameHud.CreateEmbeddedRollDialog()
 
     rollDiceButton = gui.PrettyButton {
         text = 'Roll Dice',
+        --Full-width primary action spanning the bottom of the dialog. Cancel is
+        --no longer a sibling here; it now lives as a close (X) button pinned to
+        --the top-right of the ability card (see MCDMActivatedAbility header).
+        --Inline halign overrides the buttonPanel's `button` selector (halign
+        --right), which otherwise pushes the frame's width slack to the left and
+        --makes the button look off-center.
         classes = { "collapsedWhenRolling", "button" },
-        width = 140,
-        height = 30,
-        fontSize = 20,
+        width = "100%",
+        height = 50,
+        halign = "center",
+        fontSize = 22,
         events = {
             press = function(element)
                 if string.find(rollInput.text, "d") ~= nil then
@@ -3305,20 +3325,9 @@ function GameHud.CreateEmbeddedRollDialog()
         }
     }
 
-    cancelButton = gui.PrettyButton {
-        text = 'Cancel',
-        classes = { "collapsedWhenRolling", "button" },
-        escapeActivates = true,
-        escapePriority = EscapePriority.EXIT_ROLL_DIALOG,
-        width = 140,
-        height = 30,
-        fontSize = 20,
-        events = {
-            press = function(element)
-                CancelRollDialog()
-            end,
-        }
-    }
+    --Cancel button removed: cancelling is now done via the close (X) button in
+    --the top-right of the ability card. ESC still cancels via resultPanel's own
+    --captureEscape/escape handler (-> data.Cancel -> CancelRollDialog).
 
     rollDisabledLabel = gui.Label {
         classes = { 'explanation', "collapsed-anim" },
@@ -3346,7 +3355,6 @@ function GameHud.CreateEmbeddedRollDialog()
             m_triggerProgressDice,
             rollAgainButton,
             rollDiceButton,
-            cancelButton,
             proceedAfterRollButton,
         },
     }
@@ -3419,6 +3427,7 @@ function GameHud.CreateEmbeddedRollDialog()
                     thinkTime = 0.01,
 
                     create = function(element)
+                        m_diceCagePanel = element
                         element:SetAsDicePreviewPanel(true)
                     end,
 
@@ -3431,12 +3440,18 @@ function GameHud.CreateEmbeddedRollDialog()
                         element:SetAsDicePreviewPanel(false)
                     end,
 
+                    --Route hover/click/drag through the panel-scoped DicePreview* methods so
+                    --they only touch THIS dialog's resting dice. The legacy dice.MouseEnter/
+                    --Click/DragThink/DragEnd statics act on ALL preview dice, which made the
+                    --Dice dock panel's tile dice wobble and roll along with the dialog's.
+                    --pcall-guarded so a Lua-only reload against an older binary (without the
+                    --panel-scoped methods) degrades gracefully.
                     hover = function(element)
-                        dice.MouseEnter()
+                        pcall(function() element:DicePreviewMouseEnter() end)
                     end,
 
                     dehover = function(element)
-                        dice.MouseLeave()
+                        pcall(function() element:DicePreviewMouseLeave() end)
                     end,
 
                     think = function(element)
@@ -3446,16 +3461,16 @@ function GameHud.CreateEmbeddedRollDialog()
                     end,
 
                     click = function(element)
-                        dice.Click()
+                        pcall(function() element:DicePreviewClick() end)
                     end,
 
                     dragging = function(element)
                         print("DICE:: DOING DRAG")
-                        dice.DragThink()
+                        pcall(function() element:DicePreviewDragThink() end)
                     end,
 
                     drag = function(element)
-                        dice.DragEnd()
+                        pcall(function() element:DicePreviewDragEnd() end)
                     end,
                 },
 
@@ -4749,7 +4764,7 @@ function GameHud.CreateEmbeddedRollDialog()
                         rollDiceButton:FireEventTree("press")
                     end)
                 elseif options.autoroll == "cancel" then
-                    cancelButton:FireEventTree("press")
+                    CancelRollDialog()
                 elseif options.autoroll ~= nil then
                     local autoroll = dmhub.GetSettingValue(string.format("%s:autoroll", options.autoroll.id))
 

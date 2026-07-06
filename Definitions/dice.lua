@@ -82,6 +82,13 @@ function dice.SetPreviewDiceSpacing(scale)
 	-- dummy implementation for documentation purposes only
 end
 
+--- SetPreviewDiceScale: Scales the RESTING size of embedded preview dice (e.g. the Dice dock panel's tiles). 1 is the default size; values below 1 make the resting dice smaller so they sit neatly on a small tile and then visibly grow when hovered or thrown (the hover/roll sizes are unaffected). Only affects panel-anchored preview dice, not the in-game roll dialog. Set it while the panel is shown and reset it to 1 when the panel closes.
+--- @param scale number
+--- @return nil
+function dice.SetPreviewDiceScale(scale)
+	-- dummy implementation for documentation purposes only
+end
+
 --- SetRollPreviewModel: Overrides the dice appearance used by subsequent rolls with the given dice-set asset id, so dice the player doesn't own yet (e.g. a shop item being previewed) can still be rolled -- the equipped-dice setting rejects unowned sets, but this bypasses it. Pass nil or an empty string to clear the override and return to the player's equipped set.
 --- @param assetid string
 --- @return nil

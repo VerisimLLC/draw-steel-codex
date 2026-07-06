@@ -1,5 +1,34 @@
 local mod = dmhub.GetModLoading()
 
+--Codex Design System values for the encounter builder reskin (see the
+--design project's Encounter Builder spec). Hardcoded by the same explicit
+--trial decision as the journal chrome; radii stay with the user's theme.
+local DS_GOLD       = "#c8a45a"
+local DS_GOLD_BD    = "#c8a45a47" --gold @ 0.28: control border
+local DS_GOLD_BD_HI = "#c8a45a99" --gold @ 0.6: hover/active border
+local DS_GOLD_BD_LO = "#c8a45a26" --gold @ 0.15: hairlines
+local DS_TEXT       = "#e4ddd0"
+local DS_TEXT_SOFT  = "#7a7468"
+
+--uppercase tracked section label per the design (Victory Condition,
+--Bestiary, Encounter Budget, wave names...).
+local function DSSectionLabel(text, args)
+    local label = {
+        text = text,
+        fontSize = 11,
+        bold = true,
+        color = DS_TEXT_SOFT,
+        width = "auto",
+        height = "auto",
+        halign = "left",
+        valign = "center",
+    }
+    for k, v in pairs(args or {}) do
+        label[k] = v
+    end
+    return gui.Label(label)
+end
+
 --To go from a monsterid to an actual monster:
 -- local monster = assets.monsters[monsterid]
 
@@ -1038,60 +1067,72 @@ function Encounter.Editor(self, options)
         hpad = 8,
         vpad = 8,
 
-        gui.Label {
-
-            classes = { "fgStrong" },
-            text = self.name,
-            fontSize = 16,
-            bold = true,
-            halign = "center",
-            minWidth = 160,
-            textAlignment = "center",
-            height = 20,
-            valign = "top",
-            tmargin = 5,
-            bmargin = 6,
-
-            characterLimit = 20,
-            editable = true,
-            change = function(label)
-                self.name = label.text
-            end,
-
-        },
-
+        --design header row: editable name reads as the title on the left,
+        --EV badge on the right. Same handlers as before, relaid out.
         gui.Panel {
-
-            classes = { "bordered", "bg" },
-            width = "90%",
-            height = 30,
-            halign = "center",
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
             valign = "top",
             tmargin = 5,
+            bmargin = 10,
+
+            --editable title, styled as a field like the journal's title box:
+            --lighter text and a quiet hairline edge signal that it takes
+            --typing, instead of reading as a static heading.
             gui.Label {
-
-                text = string.format("EV total: %d", self:CountEDS()),
-                fontSize = 14,
+                text = self.name,
+                fontSize = 18,
+                bold = true,
+                color = "#f4eddc",
                 halign = "left",
-                lmargin = 6,
+                valign = "center",
+                width = 300,
+                height = 26,
+                textAlignment = "left",
+                textWrap = false,
+                textOverflow = "ellipsis",
+                hpad = 8,
+                borderBox = false,
+                bgimage = "panels/square.png",
+                bgcolor = "#00000000",
+                border = 1,
+                borderColor = DS_GOLD_BD_LO,
+                characterLimit = 20,
+                editable = true,
+                change = function(label)
+                    self.name = label.text
+                end,
+            },
 
+            gui.Panel {
+                width = "100% available",
+                height = 1,
+            },
+
+            gui.Label {
+                text = string.format("%d EV", self:CountEDS()),
+                fontSize = 12,
+                color = DS_GOLD,
+                width = "auto",
+                height = "auto",
+                halign = "right",
+                valign = "center",
+                hpad = 10,
+                vpad = 4,
+                borderBox = false,
+                bgimage = "panels/square.png",
+                bgcolor = "#00000000",
+                border = 1,
+                borderColor = DS_GOLD_BD,
                 thinkTime = 0.2,
-
                 think = function(label)
-                    label.text = string.format("EV total: %d", self:CountEDS())
-                end
+                    label.text = string.format("%d EV", self:CountEDS())
+                end,
             },
         },
 
-        gui.Label {
-            classes = { "fgStrong" },
-            text = "Groups:",
-            fontSize = 16,
-            bold = true,
-            halign = "center",
-            valign = "top",
-            tmargin = 4,
-        },
+        DSSectionLabel("GROUPS", { tmargin = 4, bmargin = 4 }),
 
         groupPanel,
 
@@ -1121,15 +1162,7 @@ function Encounter.Editor(self, options)
 
         },
 
-        gui.Label {
-            classes = { "fgStrong" },
-            text = "Waves:",
-            fontSize = 16,
-            bold = true,
-            halign = "center",
-            valign = "top",
-            tmargin = 8,
-        },
+        DSSectionLabel("WAVES", { tmargin = 10, bmargin = 4 }),
 
         createWavePanel(self, function()
             --refresh the group panels so their per-group wave dropdowns pick up the
@@ -1137,15 +1170,7 @@ function Encounter.Editor(self, options)
             groupPanel:FireEvent("update")
         end),
 
-        gui.Label {
-            classes = { "fgStrong" },
-            text = "Victory Conditions:",
-            fontSize = 16,
-            bold = true,
-            halign = "center",
-            valign = "top",
-            tmargin = 8,
-        },
+        DSSectionLabel("VICTORY CONDITION", { tmargin = 10, bmargin = 4 }),
 
         --Both the victory-condition dropdown and (when "Destroy the Thing!" is chosen) the
         --object-keyword selector live in this single bordered panel.
@@ -1545,15 +1570,7 @@ function Encounter.Editor(self, options)
 
         },]]
 
-        gui.Label {
-            classes = { "fgStrong" },
-            text = "Rule Sets:",
-            fontSize = 16,
-            bold = true,
-            halign = "center",
-            valign = "top",
-            tmargin = 8,
-        },
+        DSSectionLabel("RULE SETS", { tmargin = 10, bmargin = 4 }),
 
         createRuleSetsPanel(self),
 

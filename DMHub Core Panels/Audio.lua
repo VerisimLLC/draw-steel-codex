@@ -1871,7 +1871,17 @@ PollAudioPlaylists = function()
 		return
 	end
 
-	if dmhub.isDM and not m_didEnsureStarters then
+	--Seed starter playlists only once the game is FULLY loaded. A document snapshot
+	--read before the game's mod documents have synced returns an empty ("isnew") doc
+	--even when the cloud actually holds configured playlists -- and EnsureStarterPlaylists
+	--seeding into that empty read then PUT-overwrites the real cloud doc, silently wiping
+	--a DM's configured playlists. (The soundboard has no equivalent seed-on-empty path,
+	--which is why a live incident reset the playlists while 25 configured soundboard slots
+	--in the same game survived.) Gating on gameLoadingProgress >= 1 -- the same "load
+	--complete" test the title screen uses -- guarantees the snapshot reflects real synced
+	--state before we ever seed. m_didEnsureStarters stays false while still loading so a
+	--later poll tick retries the seed once loading completes.
+	if dmhub.isDM and not m_didEnsureStarters and (dmhub.gameLoadingProgress or 0) >= 1 then
 		EnsureStarterPlaylists()
 		m_didEnsureStarters = true
 	end

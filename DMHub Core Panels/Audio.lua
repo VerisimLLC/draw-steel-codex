@@ -9926,6 +9926,7 @@ local CreateStudioPlaylistsCard = function(heightSpec)
 		--between a short name and the count label bubble up to the header's
 		--expand-toggle instead of being swallowed by the rename zone (James field
 		--report, 2026-07-03).
+		local nameEditWide = false
 		local nameLabel
 		nameLabel = gui.Label{
 			editableOnDoubleClick = true,
@@ -9955,6 +9956,27 @@ local CreateStudioPlaylistsCard = function(heightSpec)
 				ModifyPlaylist(playlistid, "Rename playlist", function(pl2)
 					pl2.name = newName
 				end)
+			end,
+			--Rename display fix: while editing, fill the row width and stop
+			--ellipsizing so the whole typed name stays visible; on edit-end restore
+			--hug-content + ellipsis (display mode keeps the dead space right of a
+			--short name as the header's expand-toggle zone). The editable-label text
+			--edit fires no begin/end event (change only fires on commit), so poll
+			--element.editing in think and mutate only on the transition to avoid
+			--per-frame relayout.
+			thinkTime = 0.1,
+			think = function(element)
+				local wide = element.editing == true
+				if wide ~= nameEditWide then
+					nameEditWide = wide
+					if wide then
+						element.selfStyle.width = "100%"
+						element.selfStyle.textOverflow = "overflow"
+					else
+						element.selfStyle.width = "auto"
+						element.selfStyle.textOverflow = "ellipsis"
+					end
+				end
 			end,
 		}
 		local nameLabelWrapper = gui.Panel{
@@ -10572,6 +10594,7 @@ local CreateStudioVariantPoolsCard = function(heightSpec)
 		--bubbles to the header's expand-toggle, whose REBUILD destroys this label
 		--between the two clicks of a double-click, so rename could never fire (James
 		--field bug b2f08de8).
+		local nameEditWide = false
 		local nameLabel
 		nameLabel = gui.Label{
 			editableOnDoubleClick = true,
@@ -10607,6 +10630,27 @@ local CreateStudioVariantPoolsCard = function(heightSpec)
 						if mod.unloaded or not label.valid then return end
 						label:BeginEditing()
 					end)
+				end
+			end,
+			--Rename display fix: while editing, fill the row width and stop
+			--ellipsizing so the whole typed name stays visible; on edit-end restore
+			--hug-content + ellipsis (display mode keeps the dead space right of a
+			--short name as the header's expand-toggle zone). The editable-label text
+			--edit fires no begin/end event (change only fires on commit), so poll
+			--element.editing in think and mutate only on the transition to avoid
+			--per-frame relayout.
+			thinkTime = 0.1,
+			think = function(element)
+				local wide = element.editing == true
+				if wide ~= nameEditWide then
+					nameEditWide = wide
+					if wide then
+						element.selfStyle.width = "100%"
+						element.selfStyle.textOverflow = "overflow"
+					else
+						element.selfStyle.width = "auto"
+						element.selfStyle.textOverflow = "ellipsis"
+					end
 				end
 			end,
 		}

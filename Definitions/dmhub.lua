@@ -151,6 +151,19 @@ function dmhub.TestFunction()
 	-- dummy implementation for documentation purposes only
 end
 
+--- SetMovementCrossSection: Builds (or updates) the offscreen movement cross-section diagram for a proposed move (a token plus its movement path) and returns a table with the special bgimage key to display it (image) and the render texture's pixel dimensions (width, height), or nil if the path can't be drawn as a single cross-section (fewer than 2 steps, spans multiple floors, or there is no active map). While active the diagram keeps rendering so the arrow animates; call dmhub.ClearMovementCrossSection to release it.
+--- @param args {token: any, path: any}
+--- @return nil|{image: string, width: number, height: number}
+function dmhub.SetMovementCrossSection(args)
+	-- dummy implementation for documentation purposes only
+end
+
+--- ClearMovementCrossSection: Hides the movement cross-section diagram (see dmhub.SetMovementCrossSection) and releases its render texture so nothing stays resident while idle. Safe to call when nothing is active.
+--- @return nil
+function dmhub.ClearMovementCrossSection()
+	-- dummy implementation for documentation purposes only
+end
+
 --- CreateInfoBubble: Creates a new info bubble on the current map floor at the given location. Info bubbles are DM-only markers that open a journal document when clicked. 'options' optionally supplies the bubble's icon glyph and description; both are auto-generated (next free number icon, "Room N" description) when omitted. Returns the new bubble's id, or nil on failure (no active map, or the info document could not be created). The bubble is applied asynchronously once the change round-trips to the server; read it back afterwards via dmhub.infoBubbles[id] to edit its icon/description/document.
 --- @param loc Loc
 --- @param options nil|{icon: nil|string, description: nil|string}
@@ -467,6 +480,13 @@ end
 --- DumpWallSorting: Diagnostic: logs the sorting layer/order of every WallMesh (including sprite-stack children) and every CharacterToken, plus the wall height fraction and the token's flying altitude. Used to debug flying-token vs wall draw-order problems (the "Set Wall Height" feature sorts flying tokens into the WallsParallax band between wall layers). Reusable tool.
 --- @return nil
 function dmhub.DumpWallSorting()
+	-- dummy implementation for documentation purposes only
+end
+
+--- DebugTokenVisibility: Diagnostic: explains why the token whose name or charid contains the search string is or isn't visible. Logs the target's visibility state (canSee, vision-loc set membership, shader vision-min) and a verbose line-of-sight replay from every token with line-of-sight data, showing the matched vision sweep entry and its wall height. Empty string lists all tokens. Reusable tool.
+--- @param search string
+--- @return nil
+function dmhub.DebugTokenVisibility(search)
 	-- dummy implementation for documentation purposes only
 end
 

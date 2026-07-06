@@ -15,3 +15,6 @@ LuaDicePreviewScene = {}
 --- Plays the current preview dice's Exit effect and starts their fade-out over fadeOutDuration seconds (pass <= 0 for the die's default vanish time), e.g. to animate the die out as the shop's featured-dice carousel switches sets.
 --- @param fadeOutDuration number Seconds for the opacity fade-out; <= 0 uses the die's default vanish time.
 function LuaDicePreviewScene:PlayExit(fadeOutDuration) end
+
+--- Cancels an in-flight exit fade (see PlayExit): dice that are fading out or have already faded are faded back up to full opacity. No-op when the dice are fully visible, so it is safe to call unconditionally when a view takes over the shared preview scene.
+function LuaDicePreviewScene:CancelExit() end

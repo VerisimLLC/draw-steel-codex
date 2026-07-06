@@ -196,38 +196,37 @@ function GameHud.TokenMoving(self, token, path)
         text = path.properties.overrideText
     end
 
-	--calculate how it should be aligned, trying to avoid the tooltip going over the arrow or the creature.
+	--Place the tooltip beyond the destination in the direction of travel -- past the arrowhead -- so the
+	--movement diagram (now much larger than the old text-only tooltip) sits clear of the arrow and both
+	--tokens instead of covering them. halign/valign here mean which side of the anchor tile the tooltip
+	--sits: 'top'/'bottom' = above/below, 'left'/'right' = left/right (see Panel.ShowTooltip).
 	local halign = 'center'
 	local valign = 'center'
 
-
 	local dest = path.destination
+	local dx = dest.x - path.origin.x
+	local dy = dest.y - path.origin.y
 
-	if dest.x > path.origin.x then
-		valign = 'top'
+	if math.abs(dx) >= math.abs(dy) then
+		--primarily horizontal move: put it to the side, past the arrowhead.
+		halign = cond(dx < 0, 'left', 'right')
+	else
+		--primarily vertical move: put it above/below, past the arrowhead.
+		valign = cond(dy < 0, 'bottom', 'top')
 	end
 
-	if dest.x < path.origin.x then
-		valign = 'top'
-	end
-
-	if dest.y > path.origin.y then
-		valign = 'top'
-	end
-
-	if dest.y < path.origin.y then
-		valign = 'bottom'
-	end
-
-	--for large tokens make sure the tooltip appears well off the creature.
+	--for large tokens push the anchor out to the far occupied tile (in the placement direction) so the
+	--tooltip clears the whole body, not just the min-corner tile.
 	local locsOccupied = token:LocsOccupyingWhenAt(dest)
 	if locsOccupied ~= nil and #locsOccupied > 1 then
 		for _,loc in ipairs(locsOccupied) do
 			if valign == "top" and loc.y > dest.y then
 				dest = loc
-			end
-
-			if valign == "bottom" and loc.y < dest.y then
+			elseif valign == "bottom" and loc.y < dest.y then
+				dest = loc
+			elseif halign == "right" and loc.x > dest.x then
+				dest = loc
+			elseif halign == "left" and loc.x < dest.x then
 				dest = loc
 			end
 		end
@@ -240,5 +239,10 @@ function GameHud.TokenMoving(self, token, path)
 		halign = halign,
 		valign = valign,
 		floorDelta = floorDelta,
+
+		--used by the movement cross-section diagram in the tooltip
+		--(see CreateMovementDiagramPanel in GameHud.lua).
+		movingToken = token,
+		movingPath = path,
 	})
 end

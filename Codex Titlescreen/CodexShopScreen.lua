@@ -1429,6 +1429,17 @@ local MakeDiceBanner = function(opts)
 				m_suspended = false
 				element.thinkTime = 0.01
 				ApplyConfig(ReadItemBannerConfig(item))
+
+				--A carousel cross-fade may have just started the shared preview
+				--die's exit fade (PlayExit in CrossfadeToItem). If this item is
+				--the same dice set the scene is already showing, nothing rebuilds
+				--the dice (the scene only replays the appearance on an assetid
+				--CHANGE), so the exit would run to full transparency and the die
+				--would stay invisible here. Recover it; no-op when no exit is in
+				--flight. pcall-guarded so a pre-build engine binary (no
+				--CancelExit) simply skips it.
+				pcall(function() dice.GetPreviewScene():CancelExit() end)
+
 				element:FireEventTree("refreshBannerItem", item)
 				element:SetClass("collapsed", false)
 			else
@@ -2562,6 +2573,174 @@ local ShowItemDetailsInternal = function(args)
 		},
 	}
 
+	--A "try dice" cage: an invisible, clickable/draggable panel that real 3D
+	--preview dice rest on, plus an optional caption. Used twice below -- the
+	--Draw Steel 2d10 power-roll pair and a single d6 -- as two INDEPENDENT
+	--cages: each registers itself as a dice-preview panel and seeds its own
+	--preview roll scoped to itself (previewPanel in dmhub.Roll; the engine's
+	--multi-cage preview support), so rolling one leaves the other's resting
+	--dice in place. All the engine calls are pcall-guarded so a Lua-only
+	--reload against an older binary degrades gracefully rather than erroring.
+	--cageArgs: x/width (wrapper placement in the action row), cageWidth (the
+	--invisible hitbox), numDice/numFaces (the seeded roll), label (optional
+	--caption under the dice).
+	local MakeTryDiceCage = function(cageArgs)
+		local captionLabel = nil
+		if cageArgs.label ~= nil then
+			captionLabel = gui.Label{
+				text = cageArgs.label,
+				floating = true,
+				halign = "center",
+				valign = "bottom",
+				width = "auto",
+				height = "auto",
+				fontSize = 12,
+				color = "#cfcfcf",
+				vmargin = 4,
+			}
+		end
+
+		return gui.Panel{
+			classes = {"collapseOnGift"},
+			floating = true,
+			halign = "left",
+			valign = "center",
+			x = cageArgs.x,
+			width = cageArgs.width,
+			height = 96,
+			flow = "vertical",
+
+			gui.Panel{
+				classes = {"shopTryDie"},
+				bgimage = true,
+				bgcolor = "white",
+				--Oversized invisible cage: the dice render over it and anchor to its
+				--world centre, so a bigger panel just widens the click/drag hitbox
+				--(easier to grab the spread-out dice) without moving the dice.
+				width = cageArgs.cageWidth,
+				height = 108,
+				halign = "center",
+				--The resting dice anchor to this panel's world centre, so centre the
+				--panel in the column and lift it slightly (negative y = up) so the dice
+				--sit above the caption label instead of covering it.
+				valign = "center",
+				y = -16,
+				floating = true,
+				draggable = true,
+				dragMove = false,
+				data = { item = nil, reseedPending = false, visible = false },
+
+				--Invisible-but-interactable cage, like the Timeline roll dialog's
+				--dice panel (EmbeddedRollDialog): a real 3D die renders over it.
+				--Hover wobble + click/drag-to-roll are routed through the panel-scoped
+				--DicePreview* methods so they only touch THIS cage's dice.
+				styles = {
+					gui.Style{ opacity = 0 },
+				},
+
+				--Register as a dice-preview cage so resting dice anchor here and
+				--chat typing can't clear them. SetPreviewRollScreenBounds(true) lets the
+				--thrown dice roll out to the real screen edges instead of a tight box
+				--(the C# SimUpdate opts out of the panel cage while this is set), so a
+				--click or drag both produce a normal full-screen roll. The screen-bounds
+				--flag, dice spacing and preview model are globals shared by both cages;
+				--setting/clearing them twice is harmless. All of it is torn down on
+				--destroy so nothing leaks into in-game rolls once the shop closes.
+				create = function(element)
+					pcall(function() dice.SetPreviewRollScreenBounds(true) end)
+					pcall(function() element:SetAsDicePreviewPanel(true) end)
+					--Pull a pair of try-dice a little closer together than the default
+					--embedded spacing. Tunable: lower = closer, 1 = default.
+					pcall(function() dice.SetPreviewDiceSpacing(0.78) end)
+				end,
+				destroy = function(element)
+					pcall(function() element:CancelDicePreviewRoll() end)
+					pcall(function() element:SetAsDicePreviewPanel(false) end)
+					pcall(function() dice.SetPreviewRollScreenBounds(false) end)
+					pcall(function() dice.SetPreviewDiceSpacing(1.0) end)
+					pcall(function() dice.SetRollPreviewModel("") end)
+				end,
+
+				--The reused details panel toggles visibility via show/hideProductDetails
+				--(it is not destroyed between items), so track visibility ourselves and
+				--seed/clear the resting dice as it is shown/hidden -- otherwise a hidden
+				--panel leaves a die floating on screen, and a scheduled re-seed that lands
+				--after the panel hides would spawn one onto nothing.
+				refreshItem = function(element, item)
+					element.data.item = item
+					element.data.visible = true
+					element:FireEvent("seedTryDie")
+				end,
+
+				hideProductDetails = function(element)
+					element.data.visible = false
+					element.data.reseedPending = false
+					pcall(function() element:CancelDicePreviewRoll() end)
+				end,
+
+				--Spawn this cage's resting dice in the previewed set. preview = true
+				--(handled in dmhub.Roll) seeds the dice at rest on this panel
+				--(previewPanel scopes the seed and the armed roll to this cage) so a
+				--click or drag executes this same local/silent roll. When it finishes --
+				--or a too-weak drag cancels it -- we re-seed shortly after so fresh dice
+				--are always sitting here.
+				seedTryDie = function(element)
+					if not element.valid or not element.data.visible then
+						return
+					end
+					element.data.reseedPending = false
+					local item = element.data.item
+					if item == nil then
+						return
+					end
+					--Clear any existing resting dice first so the freshly seeded dice always
+					--pick up the current item's set/material: UpdatePreview retains a
+					--same-size die and would otherwise keep the previous item's look.
+					pcall(function() element:CancelDicePreviewRoll() end)
+					pcall(function() dice.SetRollPreviewModel(item.assetid) end)
+					dmhub.Roll{
+						preview = true, ["local"] = true, silent = true,
+						previewPanel = element,
+						numDice = cageArgs.numDice, numFaces = cageArgs.numFaces, numKeep = 0, description = "Try Dice",
+						complete = function()
+							if element.valid then element:FireEvent("requestReseed") end
+						end,
+						cancel = function()
+							if element.valid then element:FireEvent("requestReseed") end
+						end,
+					}
+				end,
+
+				requestReseed = function(element)
+					if not element.valid or element.data.reseedPending then
+						return
+					end
+					element.data.reseedPending = true
+					element:ScheduleEvent("seedTryDie", 0.6)
+				end,
+
+				--Hover wobble + click/drag-to-roll on this cage's resting dice.
+				hover = function(element)
+					pcall(function() element:DicePreviewMouseEnter() end)
+				end,
+				dehover = function(element)
+					pcall(function() element:DicePreviewMouseLeave() end)
+				end,
+				click = function(element)
+					pcall(function() element:DicePreviewClick() end)
+				end,
+				dragging = function(element)
+					pcall(function() element:DicePreviewDragThink() end)
+				end,
+				drag = function(element)
+					pcall(function() element:DicePreviewDragEnd() end)
+				end,
+			},
+
+			captionLabel,
+		}
+	end
+
 	return gui.Panel{
 		classes = {"shopDetailsMainPanel"},
 
@@ -2635,155 +2814,26 @@ local ShowItemDetailsInternal = function(args)
 					{ selectors = {"shopTryDie", "hover"}, scale = 1.15, brightness = 1.25 },
 				},
 
-				--Roll the dice you're previewing: a dsdice icon you can click to
-				--roll, or drag off to throw, mirroring the action-bar Dice panel.
-				--Rolls use the previewed set (see showProductDetails above).
-				gui.Panel{
-					classes = {"collapseOnGift"},
-					floating = true,
-					halign = "left",
-					valign = "center",
+				--Roll the dice you're previewing: click to roll, or drag off to
+				--throw, mirroring the action-bar Dice panel. Rolls use the
+				--previewed set (see showProductDetails above). Two independent
+				--cages built by MakeTryDiceCage above: the Draw Steel 2d10
+				--power-roll pair, and a single d6 to its right.
+				MakeTryDiceCage{
 					x = 24,
 					width = 140,
-					height = 96,
-					flow = "vertical",
+					cageWidth = 170,
+					numDice = 2,
+					numFaces = 10,
+					label = "Drag to roll dice",
+				},
 
-					gui.Panel{
-						classes = {"shopTryDie"},
-						bgimage = true,
-						bgcolor = "white",
-						--Oversized invisible cage: the dice render over it and anchor to its
-						--world centre, so a bigger panel just widens the click/drag hitbox
-						--(easier to grab the spread-out pair) without moving the dice.
-						width = 170,
-						height = 108,
-						halign = "center",
-						--The resting dice anchor to this panel's world centre, so centre the
-						--panel in the column and lift it slightly (negative y = up) so the dice
-						--sit above the "Drag to roll dice" label instead of covering it.
-						valign = "center",
-						y = -16,
-						floating = true,
-						draggable = true,
-						dragMove = false,
-						data = { item = nil, reseedPending = false, visible = false },
-
-						--Invisible-but-interactable cage, like the Timeline roll dialog's
-						--dice panel (EmbeddedRollDialog): a real 3D die renders over it.
-						--Hover wobble + click/drag-to-roll are driven through the dice.* API.
-						styles = {
-							gui.Style{ opacity = 0 },
-						},
-
-						--Register as the dice-preview cage so resting dice anchor here and
-						--chat typing can't clear them. SetPreviewRollScreenBounds(true) lets the
-						--thrown dice roll out to the real screen edges instead of a tight box
-						--(the C# SimUpdate opts out of the panel cage while this is set), so a
-						--click or drag both produce a normal full-screen roll. pcall-guarded so
-						--a Lua-only reload against an older binary degrades gracefully; all of
-						--it is torn down on destroy so nothing leaks into in-game rolls once the
-						--shop closes.
-						create = function(element)
-							pcall(function() dice.SetPreviewRollScreenBounds(true) end)
-							pcall(function() element:SetAsDicePreviewPanel(true) end)
-							--Pull the pair of try-dice a little closer together than the default
-							--embedded spacing. Tunable: lower = closer, 1 = default.
-							pcall(function() dice.SetPreviewDiceSpacing(0.78) end)
-						end,
-						destroy = function(element)
-							pcall(function() dmhub.CancelCurrentRoll() end)
-							pcall(function() element:SetAsDicePreviewPanel(false) end)
-							pcall(function() dice.SetPreviewRollScreenBounds(false) end)
-							pcall(function() dice.SetPreviewDiceSpacing(1.0) end)
-							pcall(function() dice.SetRollPreviewModel("") end)
-						end,
-
-						--The reused details panel toggles visibility via show/hideProductDetails
-						--(it is not destroyed between items), so track visibility ourselves and
-						--seed/clear the resting dice as it is shown/hidden -- otherwise a hidden
-						--panel leaves a die floating on screen, and a scheduled re-seed that lands
-						--after the panel hides would spawn one onto nothing.
-						refreshItem = function(element, item)
-							element.data.item = item
-							element.data.visible = true
-							element:FireEvent("seedTryDie")
-						end,
-
-						hideProductDetails = function(element)
-							element.data.visible = false
-							element.data.reseedPending = false
-							pcall(function() dmhub.CancelCurrentRoll() end)
-						end,
-
-						--Spawn a resting pair of d10s (the Draw Steel 2d10 power roll) in the
-						--previewed set. preview = true (handled in dmhub.Roll) seeds the dice at
-						--rest on this panel and arms them so a click or drag executes this same
-						--local/silent roll. The preview layout (DiceHarness) spreads the two dice
-						--side by side and rolls them both. When it finishes -- or a too-weak drag
-						--cancels it -- we re-seed shortly after so a fresh pair is always sitting here.
-						seedTryDie = function(element)
-							if not element.valid or not element.data.visible then
-								return
-							end
-							element.data.reseedPending = false
-							local item = element.data.item
-							if item == nil then
-								return
-							end
-							--Clear any existing resting die first so the freshly seeded die always
-							--picks up the current item's set/material: UpdatePreview retains a
-							--same-size die and would otherwise keep the previous item's look.
-							pcall(function() dmhub.CancelCurrentRoll() end)
-							pcall(function() dice.SetRollPreviewModel(item.assetid) end)
-							dmhub.Roll{
-								preview = true, ["local"] = true, silent = true,
-								numDice = 2, numFaces = 10, numKeep = 0, description = "Try Dice",
-								complete = function()
-									if element.valid then element:FireEvent("requestReseed") end
-								end,
-								cancel = function()
-									if element.valid then element:FireEvent("requestReseed") end
-								end,
-							}
-						end,
-
-						requestReseed = function(element)
-							if not element.valid or element.data.reseedPending then
-								return
-							end
-							element.data.reseedPending = true
-							element:ScheduleEvent("seedTryDie", 0.6)
-						end,
-
-						--Hover wobble + click/drag-to-roll on the resting dice.
-						hover = function(element)
-							dice.MouseEnter()
-						end,
-						dehover = function(element)
-							dice.MouseLeave()
-						end,
-						click = function(element)
-							dice.Click()
-						end,
-						dragging = function(element)
-							dice.DragThink()
-						end,
-						drag = function(element)
-							dice.DragEnd()
-						end,
-					},
-
-					gui.Label{
-						text = "Drag to roll dice",
-						floating = true,
-						halign = "center",
-						valign = "bottom",
-						width = "auto",
-						height = "auto",
-						fontSize = 12,
-						color = "#cfcfcf",
-						vmargin = 4,
-					},
+				MakeTryDiceCage{
+					x = 248,
+					width = 100,
+					cageWidth = 110,
+					numDice = 1,
+					numFaces = 6,
 				},
 
 				--Add to Cart, with the price baked into the label. Hidden in the
@@ -3325,8 +3375,6 @@ local function CreateShopScreenInternal(arguments)
 					transitionTime = g_shopCoverFadeTime,
 				},
 			},
-
-			gui.LoadingIndicator{},
 
 			gui.CloseButton{
 				floating = true,
@@ -5037,7 +5085,6 @@ function CreateShopScreen(arguments)
 							height = "100%",
 							bgimage = StoreBackgroundImage(),
 							bgcolor = StoreBackgroundColor(),
-							gui.LoadingIndicator{},
 
 							gui.CloseButton{
 								halign = "left",

@@ -2831,6 +2831,11 @@ function GameHud.CreateInitiativeBar(self, info)
                         click = function()
                             element.popup = nil
 
+                            if mod.id == "respite" then
+                                GameHud.instance:BeginRespiteMode()
+                                return
+                            end
+
 					        UploadDayNightInfo()
                             if info.initiativeQueue == nil then
                                 info.initiativeQueue = InitiativeQueue.Create()
@@ -2857,14 +2862,6 @@ function GameHud.CreateInitiativeBar(self, info)
 									settings:SetPauseRolls(true)
 								end
 							end
-
-							if info.initiativeQueue.gameMode == "respite" then
-								for _, token in pairs(dmhub.GetTokens({playerControlled = true})) do
-									token.properties:DispatchEvent("startrespite", {})
-								end
-							end
-							
-							
 
                         end,
                     }
@@ -4157,7 +4154,36 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 	return choicePanel
 end
 
+--Begin the respite game mode. Shared by the game-mode selector and the
+--"Game > Respite" menu item so both paths behave identically.
+function GameHud:BeginRespiteMode()
+	local info = self.initiativeInterface
+	if info == nil or not CanControlInitiative() then return end
+	--only start from a non-active-initiative state, matching the selector guard.
+	if info.initiativeQueue ~= nil and (not info.initiativeQueue.hidden) then return end
+
+	UploadDayNightInfo()
+	if info.initiativeQueue == nil then
+		info.initiativeQueue = InitiativeQueue.Create()
+	end
+	info.initiativeQueue.gameMode = "respite"
+	info.UploadInitiative()
+
+	local settings = DTSettings.CreateNew()
+	if settings then
+		settings:SetPauseRolls(true)
+	end
+
+	for _, token in pairs(dmhub.GetTokens({playerControlled = true})) do
+		token.properties:DispatchEvent("startrespite", {})
+	end
+end
+
 function GameHud.CreateRespiteBar(self, info)
+	--Hours of game time to elapse when the respite ends. Configured via the
+	--"Set Time Lapse" popup and applied by the "End Respite" button.
+	local timeLapseHours = 24
+
 	return gui.Panel{
 		classes = { "hidden" },
 		width = 400,
@@ -4173,34 +4199,122 @@ function GameHud.CreateRespiteBar(self, info)
 			element:SetClass("hidden", not isRespite)
 		end,
 
-		gui.Button{
-			text = "End Respite",
-			halign = "Center",
-			valign = "Bottom",
-			fontSize = 22,
-			press = function(element)
-                local groupid = dmhub.GenerateGuid()
-				if not CanControlInitiative() then return end
-				if info.initiativeQueue ~= nil then
-					info.initiativeQueue.gameMode = "exploration"
-					info.UploadInitiative()
-					for _, token in pairs(dmhub.GetTokens({playerControlled = true})) do
-						local currentXp = token.properties:try_get("xp", 0)
-                        token:ModifyProperties{
-                            description = "Respite",
-                            combine = true,
-                            groupid = groupid,
-                            execute = function()
-						        token.properties:Rest("long")
-                            end,
-                        }
-						local newXp = token.properties:try_get("xp", 0)
+		gui.Panel{
+			flow = "horizontal",
+			width = "auto",
+			height = "auto",
+			halign = "center",
+			valign = "bottom",
 
-						token.properties:DispatchEvent("endrespite", {xpgained = newXp - currentXp})
-						
+			gui.Button{
+				text = "Set Time Lapse",
+				halign = "center",
+				valign = "bottom",
+				fontSize = 22,
+				hmargin = 8,
+				popupPositioning = "panel",
+				click = function(element)
+					if not CanControlInitiative() then return end
+
+					if element.popup ~= nil then
+						element.popup = nil
+						return
 					end
-				end
-			end,
+
+					local hoursInput
+					hoursInput = gui.Input{
+						classes = {"input"},
+						text = tostring(timeLapseHours),
+						width = 80,
+						height = 26,
+						valign = "center",
+						textAlignment = "center",
+					}
+
+					--Self-contained themed popup so it paints its own bordered
+					--background and follows the active color scheme, dropped
+					--below the button (halign center / valign bottom). The
+					--input+label row is width "auto" + halign center so the
+					--group centers on the popup's cross axis.
+					element.popup = gui.Panel{
+						classes = {"bordered", "bg"},
+						styles = ThemeEngine.GetStyles(),
+						flow = "vertical",
+						width = "auto",
+						height = "auto",
+						halign = "center",
+						valign = "bottom",
+						pad = 12,
+
+						gui.Panel{
+							flow = "horizontal",
+							width = "auto",
+							height = "auto",
+							halign = "center",
+
+							hoursInput,
+
+							gui.Label{
+								classes = {"label"},
+								width = "auto",
+								height = "auto",
+								valign = "center",
+								lmargin = 6,
+								text = "Hours",
+							},
+						},
+
+						gui.Button{
+							classes = {"sizeS"},
+							text = "Set",
+							halign = "center",
+							tmargin = 10,
+							click = function()
+								local amount = tonumber(hoursInput.text)
+								if amount ~= nil then
+									timeLapseHours = amount
+								end
+								element.popup = nil
+							end,
+						},
+					}
+				end,
+			},
+
+			gui.Button{
+				text = "End Respite",
+				halign = "center",
+				valign = "bottom",
+				fontSize = 22,
+				hmargin = 8,
+				press = function(element)
+	                local groupid = dmhub.GenerateGuid()
+					if not CanControlInitiative() then return end
+
+					--Advance game time by the configured time lapse.
+					MoveGameTime(timeLapseHours / 24)
+
+					if info.initiativeQueue ~= nil then
+						info.initiativeQueue.gameMode = "exploration"
+						info.UploadInitiative()
+						for _, token in pairs(dmhub.GetTokens({playerControlled = true})) do
+							local currentXp = token.properties:try_get("xp", 0)
+	                        token:ModifyProperties{
+	                            description = "Respite",
+	                            combine = true,
+	                            groupid = groupid,
+	                            execute = function()
+							        token.properties:Rest("long")
+	                            end,
+	                        }
+							local newXp = token.properties:try_get("xp", 0)
+
+							token.properties:DispatchEvent("endrespite", {xpgained = newXp - currentXp})
+
+						end
+					end
+				end,
+			},
 		}
 	}
 end

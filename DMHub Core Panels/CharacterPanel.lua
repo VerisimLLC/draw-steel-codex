@@ -2484,84 +2484,11 @@ local function EditBestiaryMonster(monsterid, capName, categorization)
     end
 end
 
-local g_placementBanner = nil
-
---Focus a floating banner panel carrying the given data table, putting the
---engine into its native placement mode: it polls dmhub.GetSelectedMonster /
---dmhub.GetSelectedCharacters (top of this file) against the focused panel,
---so a focused panel carrying data.monsterid spawns that monster on each map
---click (bestiary behaviour: cursor preview, naming, minion squads, repeat
---placement) and one carrying data.charid deploys that existing character
---(character-panel behaviour). Right-click, escape, or focusing anything else
---exits placement; the banner removes itself when it loses focus.
---
---placementComplete (optional) is polled alongside the focus watch: when it
---returns true the banner exits placement itself (clears focus + destroys).
---Characters use it because they are single-placement - the click MOVES the
---one token rather than stamping copies, so the mode should end on landing.
---Monsters omit it and keep the bestiary's repeat placement.
-local function ShowPlacementBanner(bannerData, name, placementComplete)
-    if g_placementBanner ~= nil and g_placementBanner.valid then
-        g_placementBanner:DestroySelf()
-    end
-    g_placementBanner = nil
-
-    --the title bar is a stable fullscreen-width surface to float the banner
-    --from; floating means it does not participate in the bar's layout.
-    local topBar = gui.GetSheetById("topBar")
-    if topBar == nil then
-        return
-    end
-
-    local banner
-    banner = gui.Label{
-        id = "searchPlacementBanner",
-        floating = true,
-        text = string.format("Click the map to place <b>%s</b>. Right-click or Esc to cancel.", name),
-        width = "auto",
-        height = "auto",
-        maxWidth = 700,
-        halign = "center",
-        valign = "top",
-        y = 60,
-        fontSize = 20,
-        color = "#ffffff",
-        bgimage = true,
-        bgcolor = "#000000dd",
-        pad = 12,
-
-        --the engine's placement hooks read monsterid/charid off the focused
-        --panel; this is what makes the engine enter placement mode.
-        data = bannerData,
-
-        --the engine exits placement when focus moves elsewhere (escape and
-        --right-click both clear focus natively); follow it by removing the
-        --banner.
-        thinkTime = 0.1,
-        think = function(element)
-            if mod.unloaded or gui.GetFocus() ~= element then
-                if g_placementBanner == element then
-                    g_placementBanner = nil
-                end
-                element:DestroySelf()
-                return
-            end
-            if placementComplete ~= nil and placementComplete() then
-                if g_placementBanner == element then
-                    g_placementBanner = nil
-                end
-                gui.SetFocus(nil)
-                element:DestroySelf()
-            end
-        end,
-    }
-
-    topBar:AddChild(banner)
-    g_placementBanner = banner
-    gui.SetFocus(banner)
-end
-
---Enter the engine's bestiary placement mode for a monster.
+--Enter the engine's bestiary placement mode for a monster. gui.ShowPlacementBanner
+--focuses a banner carrying data.monsterid; the engine polls dmhub.GetSelectedMonster
+--(top of this file) against the focused panel and spawns that monster on each map
+--click (cursor preview, naming, minion squads, repeat placement). Monsters omit the
+--completion predicate so they keep the bestiary's repeat placement.
 local function BeginPlacingMonster(monsterid)
     if not dmhub.inGame then
         return
@@ -2572,7 +2499,7 @@ local function BeginPlacingMonster(monsterid)
         return
     end
 
-    ShowPlacementBanner({monsterid = monsterid}, monster.name)
+    gui.ShowPlacementBanner{name = monster.name, data = {monsterid = monsterid}}
 end
 
 --Enter the engine's character placement mode for an existing (unplaced)
@@ -2591,14 +2518,20 @@ local function BeginPlacingCharacter(charid)
     --exit placement once the token lands on the map. Membership of allTokens
     --matches the provider's definition of "unplaced" (hasTokenOnThisMap is
     --true for despawned tokens, which would end the mode before the click).
-    ShowPlacementBanner({charid = charid}, tok.name, function()
-        for _,token in ipairs(dmhub.allTokens) do
-            if token.id == charid then
-                return true
+    --Characters are single-placement (the click MOVES the one token rather than
+    --stamping copies), so the mode ends on landing via the completion predicate.
+    gui.ShowPlacementBanner{
+        name = tok.name,
+        data = {charid = charid},
+        complete = function()
+            for _,token in ipairs(dmhub.allTokens) do
+                if token.id == charid then
+                    return true
+                end
             end
-        end
-        return false
-    end)
+            return false
+        end,
+    }
 end
 
 --Global-search provider: party characters NOT placed on the current map (the

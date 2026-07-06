@@ -414,6 +414,11 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
 
     local RefreshPage
 
+    --forward-declared like RefreshPage so the bookmark add/edit/remove handlers
+    --(defined before dialogPanel exists) can capture it as an upvalue. Assigned
+    --once dialogPanel is created; nudges the contents grid to re-read bookmarks.
+    local RefreshBookmarks
+
     CreateDragPanel = function()
         return gui.Panel {
             classes = { "dragPanel", "hidden" },
@@ -794,6 +799,7 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                         }
                         doc.bookmarks = bookmarks
                         doc:Upload()
+                        RefreshBookmarks()
                         gui.CloseModal()
                     end,
                 }
@@ -1114,6 +1120,14 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                         element.data.invalidated = true
                     end,
 
+                    --fired locally when a bookmark is added/edited/removed so the
+                    --gated think loop re-reads doc.bookmarks and re-fires the flag
+                    --state immediately, instead of waiting for the doc:Upload()
+                    --round-trip to come back through the Documents asset monitor.
+                    refreshbookmarks = function(element)
+                        element.data.invalidated = true
+                    end,
+
                     thinkTime = 0.01,
                     think = function(element)
                         local parent = element.parent
@@ -1216,6 +1230,7 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                                                 bookmarks[bookmarkid] = nil
                                                 doc.bookmarks = bookmarks
                                                 doc:Upload()
+                                                RefreshBookmarks()
                                                 element.popup = nil
                                             end,
                                         }
@@ -2616,6 +2631,10 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
             m_settings.vscroll = pdfScrollViewPanel.vscrollPosition
             WriteSettings()
         end
+    end
+
+    RefreshBookmarks = function()
+        dialogPanel:FireEventTree("refreshbookmarks")
     end
 
     RefreshPage()

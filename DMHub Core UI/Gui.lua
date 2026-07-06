@@ -168,6 +168,123 @@ function gui.UploadDialog(args)
 end
 
 
+--- The single placement-prompt banner currently on screen, if any. A new call
+--- to gui.ShowPlacementBanner replaces it so prompts never stack.
+local g_placementBanner = nil
+
+--- Show a floating "click the map to place ..." prompt banner for an engine
+--- placement flow, and (in mode 1) enter that placement mode.
+---
+--- The engine's placement hooks (dmhub.GetSelectedMonster /
+--- GetSelectedCharacters / GetSelectedEncounter) read placement data off the
+--- CURRENTLY FOCUSED panel, so entering placement mode is a matter of focusing
+--- a panel that carries the right data field (monsterid / charid / encounter).
+--- This helper covers the two shapes that arise:
+---
+---   1. The banner itself is the focus target. Pass `data` (e.g.
+---      {monsterid = ...}); the banner carries it and this helper focuses it,
+---      so the engine enters placement mode. Bestiary / global-search flow.
+---   2. Some other panel is the focus target (it already carries the data and
+---      the caller has already focused it). Pass `watch = thatPanel`; the
+---      banner is passive and just displays the prompt while that panel holds
+---      focus. Encounter-widget flow, where the widget carries data.encounter.
+---
+--- The banner removes itself as soon as the focus target loses focus (Esc and
+--- right-click both clear focus natively), or when `complete` (if given)
+--- returns true (single-placement flows that end when the token lands).
+---
+--- @param options {text?: string, name?: string, data?: table, watch?: Panel, complete?: fun():boolean}
+---   text     full prompt text (may contain <b>..</b> markup). Takes priority.
+---   name     when text is omitted, the placed thing's name; formatted into the
+---            standard "Click the map to place <b>NAME</b>. ..." house phrasing.
+---   data     placement data the banner should carry and be focused (mode 1).
+---   watch    external focus-target panel to follow (mode 2). When set, this
+---            helper does NOT change focus -- the caller focuses the target.
+---   complete optional predicate polled each tick; when true the banner clears
+---            focus and removes itself.
+--- @return nil|Panel the banner, or nil if it could not be created.
+function gui.ShowPlacementBanner(options)
+	options = options or {}
+
+	--replace any banner already showing so we never stack prompts.
+	if g_placementBanner ~= nil and g_placementBanner.valid then
+		g_placementBanner:DestroySelf()
+	end
+	g_placementBanner = nil
+
+	--the title bar is a stable fullscreen-width surface to float from;
+	--floating means the banner does not participate in the bar's layout.
+	local topBar = gui.GetSheetById("topBar")
+	if topBar == nil then
+		return nil
+	end
+
+	local text = options.text
+	if text == nil and options.name ~= nil then
+		text = string.format("Click the map to place <b>%s</b>. Right-click or Esc to cancel.", options.name)
+	end
+	text = text or "Click the map to place. Right-click or Esc to cancel."
+
+	local watch = options.watch
+	local complete = options.complete
+
+	local banner
+	banner = gui.Label{
+		id = "placementBanner",
+		floating = true,
+		text = text,
+		width = "auto",
+		height = "auto",
+		maxWidth = 700,
+		halign = "center",
+		valign = "top",
+		y = 60,
+		fontSize = 20,
+		color = "#ffffff",
+		bgimage = true,
+		bgcolor = "#000000dd",
+		pad = 12,
+		borderBox = true,
+
+		--mode 1: the engine's placement hooks read this off the focused panel
+		--(the banner). nil in mode 2, where the watched panel carries the data.
+		data = options.data,
+
+		--the focus target is the banner (mode 1) or the watched panel (mode 2).
+		--the engine exits placement when that target loses focus (Esc and
+		--right-click clear it natively); follow it by removing the banner.
+		thinkTime = 0.1,
+		think = function(element)
+			local target = watch or element
+			if mod.unloaded or target == nil or not target.valid or gui.GetFocus() ~= target then
+				if g_placementBanner == element then
+					g_placementBanner = nil
+				end
+				element:DestroySelf()
+				return
+			end
+			if complete ~= nil and complete() then
+				if g_placementBanner == element then
+					g_placementBanner = nil
+				end
+				gui.SetFocus(nil)
+				element:DestroySelf()
+			end
+		end,
+	}
+
+	topBar:AddChild(banner)
+	g_placementBanner = banner
+
+	--mode 1: focus the banner so it becomes the placement focus target. In
+	--mode 2 the caller has already focused the external target panel.
+	if watch == nil then
+		gui.SetFocus(banner)
+	end
+
+	return banner
+end
+
 
 --- Classes that, when present in `options.classes`, signal that gui.Button
 --- should take the icon-only (panel-based) render path. The theme rule for

@@ -35,7 +35,7 @@ CustomDocument.documentTypes = {}
 local g_tabbedViewer = nil
 
 -- Tab system sizes
-local TAB_HEIGHT = 18
+local TAB_HEIGHT = 30
 local TAB_MAX_WIDTH = 200
 local TAB_BAR_HEIGHT = TAB_HEIGHT + 6
 
@@ -244,10 +244,13 @@ local function buildBreadcrumbText(doc)
     end
     local reversed = {}
     for i = #parts, 1, -1 do
-        reversed[#reversed + 1] = parts[i]
+        --handoff spec: folder crumbs are uppercase 11px warm-muted labels;
+        --the document name carries the weight at full size.
+        reversed[#reversed + 1] = string.format("<size=11><color=#7a7468>%s</color></size>", string.upper(parts[i]))
     end
     reversed[#reversed + 1] = "**" .. (doc.description or "Untitled") .. "**"
-    return table.concat(reversed, " > ")
+    --gold separators per the design's breadcrumb treatment.
+    return table.concat(reversed, " <color=#c8a45a99>></color> ")
 end
 
 function CustomDocument.GetAccessibleRoots()
@@ -621,14 +624,18 @@ function CustomDocument:CreateInterface(args)
         gui.Input {
             text = self.description,
             fontSize = 14,
-            width = 200,
-            height = 18,
+            width = 240,
+            height = 20,
             valign = "center",
             lmargin = 12,
             characterLimit = 48,
+            placeholderText = "Untitled document",
+            placeholderAlpha = 0.35,
             editable = self:HaveEditPermissions(),
             editlag = 1.0,
-            border = {x1 = 1, y1 = 1, x2 = 0, y2 = 0},
+            --styled like the search field: quiet hairline-weight edge.
+            border = 1,
+            borderColor = "#c8a45a26",
             refreshDocument = function(element, doc)
                 self = doc or self
             end,
@@ -1023,14 +1030,18 @@ function CustomDocument:CreateInterface(args)
     }
 
     local m_searchInput = gui.SearchInput {
-        classes = {"sizeXs", "noBorder"},
-        width = 200,
-        height = 16,
+        classes = {"sizeXs"},
+        width = 240,
+        height = 20,
         halign = "right",
         valign = "center",
         rmargin = 4,
-        bgcolor = "clear",
         placeholderText = "Search journal...",
+        placeholderAlpha = 0.35,
+        --hairline-weight edge (gold @ 0.15, matching the row dividers) set
+        --inline because the themed input frame outranks scoped styles.
+        border = 1,
+        borderColor = "#c8a45a26",
         popupPositioning = "panel",
         search = function(element, text)
             if text == nil or text == "" then
@@ -1111,6 +1122,60 @@ function CustomDocument:CreateInterface(args)
         end,
     }
 
+    --Codex Design System treatment for the journal top bar (the design
+    --project's Journal Toolbar spec, rows 1-2): warm-black bar surface,
+    --hairline row separators, ghost icon buttons that only show chrome on
+    --hover, and a gold-accented selected state. Corner radii are
+    --deliberately left to the user's theme (squared vs rounded). Hardcoded
+    --colors are the same design-trial decision as the format toolbar in
+    --MarkdownDocument.lua.
+    --icon buttons are true ghosts at rest (transparent, per the handoff);
+    --hover conjures the warm-black fill and gold edge, and the selected
+    --state goes gold-dim -- so Edit/Present/Preview read as toggles.
+    local dsTopBarStyles = {
+        {
+            selectors = { "iconButton" },
+            bgimage = "panels/square.png",
+            bgcolor = "#00000000",
+            border = 1,
+            borderColor = "#00000000",
+        },
+        {
+            selectors = { "iconButton", "hover" },
+            bgcolor = "#222228",
+            borderColor = "#c8a45a99",
+        },
+        {
+            selectors = { "iconButton", "selected" },
+            bgcolor = "#c8a45a1f",
+            borderColor = "#c8a45a99",
+        },
+        {
+            selectors = { "iconButton", "selected", "hover" },
+            bgcolor = "#c8a45a59",
+            borderColor = "#c8a45a99",
+        },
+        --design icon-button footprint: 34px squares (the themed sizeS
+        --default is smaller) with breathing room between the outlined
+        --buttons. Two selectors to match the theme rule's specificity.
+        --The close button (sizeXs) deliberately stays small.
+        {
+            selectors = { "iconButton", "sizeS" },
+            width = 34,
+            height = 34,
+            hmargin = 5,
+        },
+    }
+
+    local function TopBarHairline()
+        return gui.Panel{
+            width = "100%",
+            height = 1,
+            bgimage = "panels/square.png",
+            bgcolor = "#c8a45a26",
+        }
+    end
+
     local m_topBar = gui.Panel {
         classes = {"surfaceLinear"},
         width = "100%",
@@ -1118,29 +1183,41 @@ function CustomDocument:CreateInterface(args)
         halign = "center",
         valign = "top",
         flow = "vertical",
+        bgimage = "panels/square.png",
+        bgcolor = "#0d0d0d",
+        styles = ThemeEngine.MergeTokens(dsTopBarStyles),
 
-        -- Row 1: breadcrumb + search + close
+        -- Row 1: breadcrumb + search + close. Design metrics: 11px vertical
+        -- breathing room, 16px inset from the edges.
         gui.Panel {
             width = "100%",
-            height = 24,
+            height = 42,
             flow = "horizontal",
+            borderBox = true,
+            hpad = 16,
 
             m_breadcrumb,
             m_searchInput,
             m_closeButton,
         },
 
+        TopBarHairline(),
+
         -- Row 2: tool buttons + document name
         gui.Panel {
-            width = "98%",
+            width = "100%",
             height = "auto",
             flow = "horizontal",
             halign = "left",
             valign = "top",
-            hmargin = 2,
+            borderBox = true,
+            hpad = 16,
+            vpad = 10,
             wrap = true,
             children = m_controlMenuButtons,
         },
+
+        TopBarHairline(),
     }
 
     local monitorGame = nil
@@ -1506,6 +1583,12 @@ local function CreateTabButton(doc, tabbedViewer, tabId, bubbleIcon)
             maxWidth = TAB_MAX_WIDTH - 40,
             rmargin = 2,
         },
+        --design tab type size; two selectors to outrank the theme's sizeXs
+        --sizing.
+        {
+            selectors = {"label", "sizeXs"},
+            fontSize = 13.5,
+        },
     }
 
     if bubbleIcon then
@@ -1552,7 +1635,7 @@ local function CreateTabButton(doc, tabbedViewer, tabId, bubbleIcon)
         flow = "horizontal",
         halign = "left",
         valign = "bottom",
-        hpad = 8,
+        hpad = 11,
         vpad = 4,
         data = { tabId = tabId, docId = doc.id },
         press = function(element)
@@ -1664,11 +1747,66 @@ function CustomDocument.GetOrCreateTabbedViewer()
         closeAllButton,
     }
 
+    --Codex Design System treatment for the tab strip (the design's Bar 0):
+    --the strip sits on the deepest surface; inactive tabs are ghosts with
+    --soft text, hover steps the surface, and the active tab gets the
+    --surface-2 fill with a gold edge and parchment text. Corner radii stay
+    --with the theme (the rounded theme already rounds only tab tops).
+    local dsTabStyles = {
+        {
+            selectors = { "tab", "journalTab" },
+            bgimage = "panels/square.png",
+            bgcolor = "#00000000",
+            border = 1,
+            borderColor = "#00000000",
+        },
+        {
+            selectors = { "tab", "journalTab", "hover" },
+            bgcolor = "#222228",
+        },
+        {
+            selectors = { "tab", "journalTab", "selected" },
+            bgcolor = "#1a1a1e",
+            borderColor = "#c8a45a99",
+        },
+        {
+            selectors = { "label", "parent:journalTab" },
+            color = "#7a7468",
+        },
+        {
+            selectors = { "label", "parent:selected" },
+            color = "#e4ddd0",
+        },
+        --the tab close x: quiet dim glyph with no chip box; the fail-red
+        --treatment appears only on hover, per the design.
+        {
+            selectors = { "multiselectChipRemove", "parent:journalTab" },
+            bgimage = "panels/square.png",
+            bgcolor = "#00000000",
+            border = 0,
+        },
+        {
+            selectors = { "multiselectChipRemove", "hover", "parent:journalTab" },
+            bgcolor = "#c940401f",
+        },
+        {
+            selectors = { "label", "multiselectChipRemove" },
+            color = "#4a4640",
+        },
+        {
+            selectors = { "label", "multiselectChipRemove", "parent:hover" },
+            color = "#c94040",
+        },
+    }
+
     local tabBar = gui.Panel {
         classes = {"tabContainer"},
         height = "auto",
         width = "100%",
         flow = "horizontal",
+        bgimage = "panels/square.png",
+        bgcolor = "#0a0a0b",
+        styles = ThemeEngine.MergeTokens(dsTabStyles),
         tabButtonsPanel,
         tabArrowsPanel,
     }
@@ -1776,6 +1914,13 @@ function CustomDocument.GetOrCreateTabbedViewer()
         height = "100%",
         flow = "vertical",
         tabBar,
+        --hairline under the tab strip, per the design's Bar 0.
+        gui.Panel{
+            width = "100%",
+            height = 1,
+            bgimage = "panels/square.png",
+            bgcolor = "#c8a45a26",
+        },
         contentArea,
     }
 

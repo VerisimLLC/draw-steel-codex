@@ -213,6 +213,20 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                 --be careful not to put anything in here we don't want to transmit to the database.
                 local symbols = { spellname = options.symbols.spellname or ability.name, charges = options.symbols.charges, cast = options.symbols.cast, forcedMovementOrigin = options.symbols.forcedMovementOrigin }
 
+                --Opt-in only: 'attacker' (and other trigger-only symbols) do not
+                --normally cross the invoke boundary, since most invokes have no
+                --use for them and they aren't safe to forward unconditionally
+                --(e.g. an unrelated "you may shift" reaction on an attacker-based
+                --trigger should not have its destination silently restricted).
+                --When compelTowardAttacker is set, forward the attacker and set
+                --compeltoward so the invoked ability's own empty-space filtering
+                --(see ActivatedAbility:TargetLocPassesFilterPredicate) keeps only
+                --destinations that move the caster closer to the attacker.
+                if self:try_get("compelTowardAttacker", false) and options.symbols.attacker ~= nil then
+                    symbols.attacker = options.symbols.attacker
+                    symbols.compeltoward = options.symbols.attacker
+                end
+
                 if self.runOnController and target.token.activeControllerId ~= nil and self.abilityType ~= "custom" then
 
                     --clean out the ability so we don't copy too much.
@@ -1025,6 +1039,14 @@ function ActivatedAbilityInvokeAbilityBehavior:EditorItems(parentPanel)
 		value = self:try_get("useSquadCoordination", false),
 		change = function(element)
 			self.useSquadCoordination = element.value
+		end,
+	}
+
+	result[#result+1] = gui.Check{
+		text = "Compel Destination Toward Attacker",
+		value = self:try_get("compelTowardAttacker", false),
+		change = function(element)
+			self.compelTowardAttacker = element.value
 		end,
 	}
 

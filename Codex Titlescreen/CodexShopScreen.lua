@@ -2600,6 +2600,17 @@ local ShowItemDetailsInternal = function(args)
 			}
 		end
 
+		--gui.DicePreview is a dedicated dice-preview cage panel type: the engine moved
+		--SetAsDicePreviewPanel / the DicePreview* input methods / previewPanel roll-scoping
+		--off the generic panel onto it, so the cage MUST be a DicePreview or none of the
+		--dice-preview calls below take effect (the resting dice would fall to the default
+		--bottom-of-screen preview spot and be uninteractable). Fall back to a plain gui.Panel
+		--on an older binary (Lua-only reload) that predates it; the field/method calls below
+		--are already pcall-guarded so they no-op on the fallback. (gui is engine userdata, so
+		--index via pcall rather than rawget.)
+		local diceCageCtor = gui.Panel
+		pcall(function() diceCageCtor = gui.DicePreview or gui.Panel end)
+
 		return gui.Panel{
 			classes = {"collapseOnGift"},
 			floating = true,
@@ -2610,7 +2621,7 @@ local ShowItemDetailsInternal = function(args)
 			height = 96,
 			flow = "vertical",
 
-			gui.Panel{
+			diceCageCtor{
 				classes = {"shopTryDie"},
 				bgimage = true,
 				bgcolor = "white",

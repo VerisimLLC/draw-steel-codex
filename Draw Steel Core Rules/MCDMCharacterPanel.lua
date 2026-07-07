@@ -6052,7 +6052,14 @@ function TacPanel.Features()
             m_withCaptainChip.data.active = true
             children[#children+1] = m_withCaptainWrap
         elseif m_withCaptainChip ~= nil then
-            m_withCaptainChip.data.active = false
+            --The wrap is not in the new children set, so the children
+            --reassignment below orphans it and the engine destroys it. Drop the
+            --cached references (cache handoff, same as the group-panel cache
+            --below) so the chip is rebuilt fresh if the captain returns.
+            --Keeping the destroyed panel cached made the next reconcile (and
+            --applyFilter) index nil .data and crash.
+            m_withCaptainChip = nil
+            m_withCaptainWrap = nil
         end
 
         --Group panels, reused by bucket id, in the index's bucket order.

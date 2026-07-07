@@ -705,60 +705,73 @@ end
 --audio when the party finally lands back in an unbound mode.
 --=====================================================================================
 
-local audioPlaylistsDocId = "audioPlaylists"
-mod:RegisterDocumentForCheckpointBackups(audioPlaylistsDocId)
+-- Playlist definitions now live in the "audioPlaylists" OBJECT TABLE (was a cloud
+-- document). Object tables are module-exportable and have no seed-on-empty PUT
+-- race. Live playback state stays in the audioPlaylistState document; game-mode
+-- bindings move to the small audioPlaylistBindings document below.
+AudioPlaylist = RegisterGameType("AudioPlaylist")
+AudioPlaylist.tableName = "audioPlaylists"
+AudioPlaylist.name = "New playlist"
+AudioPlaylist.ord = 0
+AudioPlaylist.pinned = false
+AudioPlaylist.shuffle = false
+AudioPlaylist.playTogether = false
+AudioPlaylist.crossfadeSeconds = 3.0
+AudioPlaylist.loop = true
+-- tracks: list of assetid strings. Per-instance (created in CreateNew) -- never a
+-- shared type-level table default.
+
+function AudioPlaylist.CreateNew(args)
+	args = args or {}
+	local p = AudioPlaylist.new{
+		id = dmhub.GenerateGuid(),
+		name = args.name or "New playlist",
+		ord = args.ord or 0,
+		pinned = args.pinned or false,
+		tracks = {},
+		shuffle = args.shuffle or false,
+		playTogether = args.playTogether or false,
+		crossfadeSeconds = args.crossfadeSeconds or 3.0,
+		loop = args.loop ~= false,
+	}
+	return p
+end
+
+local audioPlaylistsTable = "audioPlaylists"
+
+-- All non-hidden playlists as a { guid -> AudioPlaylist } map (never nil).
+local function AllPlaylists()
+	return dmhub.GetTableVisible(audioPlaylistsTable) or {}
+end
+
+-- A single LIVE playlist by id, or nil. Uses GetTableVisible so a soft-deleted
+-- (hidden) row resolves to nil -- every by-id caller here uses "== nil" to mean
+-- "gone" (stop the driver, end a build-mode session, skip an auto-restore), which
+-- matched the old hard-delete and must keep matching now that delete is a soft
+-- hide. Listing helpers use AllPlaylists() (also visible-only).
+local function GetPlaylist(playlistid)
+	local t = dmhub.GetTableVisible(audioPlaylistsTable)
+	if t == nil then return nil end
+	return t[playlistid]
+end
+
+-- Game-mode -> playlist bindings live in their own small per-game document.
+-- Shape: doc.data = { enabled = bool, modes = { <modeid> = <playlistid> } }.
+-- WRITE-ONLY-ON-EXPLICIT-DM-ACTION: there is NO seed and no normalize-on-load, so
+-- an empty read is always safe (default "nothing bound") and the seed-on-empty PUT
+-- trap cannot occur. Writes are still gated on gameLoadingProgress >= 1.
+local audioPlaylistBindingsDocId = "audioPlaylistBindings"
+mod:RegisterDocumentForCheckpointBackups(audioPlaylistBindingsDocId)
+
+local function GetBindingsDoc()
+	return mod:GetDocumentSnapshot(audioPlaylistBindingsDocId)
+end
 
 local audioPlaylistStateDocId = "audioPlaylistState"
 --(state doc deliberately NOT registered for checkpoint backups -- see banner above)
 
---Snapshot getters. Trivial wrappers kept simple on purpose -- later UI chunks will
---call these directly rather than reaching for GetDocumentSnapshot themselves.
-local function GetPlaylistsDoc()
-	return mod:GetDocumentSnapshot(audioPlaylistsDocId)
-end
-
 local function GetPlaylistStateDoc()
 	return mod:GetDocumentSnapshot(audioPlaylistStateDocId)
-end
-
---Seeds the three starter playlists the DM edits from (later UI chunks give them the
---editing surface; this chunk only guarantees they exist). DM-only, called once from
---the driver poll's first tick. Names "Combat"/"Exploration"/"Respite" are signed copy.
-local function EnsureStarterPlaylists()
-	local doc = GetPlaylistsDoc()
-	if doc.data.playlists ~= nil then
-		return
-	end
-	local combatId = dmhub.GenerateGuid()
-	local explorationId = dmhub.GenerateGuid()
-	local respiteId = dmhub.GenerateGuid()
-	doc:BeginChange()
-	doc.data.playlists = {
-		[combatId] = {
-			name = "Combat", ord = 1, pinned = true,
-			tracks = {}, shuffle = false, playTogether = false,
-			crossfadeSeconds = 3.0, loop = true,
-		},
-		[explorationId] = {
-			name = "Exploration", ord = 2, pinned = true,
-			tracks = {}, shuffle = false, playTogether = false,
-			crossfadeSeconds = 3.0, loop = true,
-		},
-		[respiteId] = {
-			name = "Respite", ord = 3, pinned = true,
-			tracks = {}, shuffle = false, playTogether = false,
-			crossfadeSeconds = 3.0, loop = true,
-		},
-	}
-	doc.data.bindings = {
-		enabled = false,
-		modes = {
-			combat = combatId,
-			exploration = explorationId,
-			respite = respiteId,
-		},
-	}
-	doc:CompleteChange("Create starter playlists", {undoable = false})
 end
 
 --Returns the assetid of the currently-playing music track, or nil. At most one
@@ -1148,8 +1161,7 @@ local PollAudioPlaylists
 --no tracks (never kills the DM's music for an empty playlist). See chunk brief for the
 --full sequential-vs-playTogether behavior; comments below mark each branch.
 AudioPlaylistPlay = function(playlistid, startedBy)
-	local plDoc = GetPlaylistsDoc()
-	local pl = (plDoc.data.playlists or {})[playlistid]
+	local pl = GetPlaylist(playlistid)
 	if pl == nil or pl.tracks == nil or #pl.tracks == 0 then
 		return
 	end
@@ -1262,8 +1274,7 @@ AdvancePlaylist = function()
 	if playing == nil then
 		return
 	end
-	local plDoc = GetPlaylistsDoc()
-	local pl = (plDoc.data.playlists or {})[playing.playlistid]
+	local pl = GetPlaylist(playing.playlistid)
 	if pl == nil then
 		AudioPlaylistStop()
 		return
@@ -1341,8 +1352,7 @@ AudioPlaylistNext = function()
 	if playing == nil or playing.driver ~= dmhub.userid then
 		return
 	end
-	local plDoc = GetPlaylistsDoc()
-	local pl = (plDoc.data.playlists or {})[playing.playlistid]
+	local pl = GetPlaylist(playing.playlistid)
 	if pl ~= nil and pl.playTogether then
 		return
 	end
@@ -1473,8 +1483,7 @@ local function StopBroadcastClip(assetid)
 	local stateDoc = GetPlaylistStateDoc()
 	local playing = stateDoc.data.playing
 	if playing ~= nil and playing.order ~= nil and playing.order[playing.index] == assetid then
-		local plDoc = GetPlaylistsDoc()
-		local pl = (plDoc.data.playlists or {})[playing.playlistid]
+		local pl = GetPlaylist(playing.playlistid)
 		if pl == nil or not pl.playTogether then
 			StopDrivenPlaylist()
 			return
@@ -1568,7 +1577,7 @@ local function SeekBroadcastClip(assetid, t)
 	local playing = stateDoc.data.playing
 	local pl = nil
 	if playing ~= nil then
-		pl = (GetPlaylistsDoc().data.playlists or {})[playing.playlistid]
+		pl = GetPlaylist(playing.playlistid)
 	end
 
 	local seekedTogether = false
@@ -1612,8 +1621,7 @@ local function AudioPlaylistJumpTo(playlistid, trackIndex)
 	if playing == nil or playing.playlistid ~= playlistid then
 		return
 	end
-	local plDoc = GetPlaylistsDoc()
-	local pl = (plDoc.data.playlists or {})[playlistid]
+	local pl = GetPlaylist(playlistid)
 	if pl == nil or pl.playTogether then
 		return
 	end
@@ -1692,14 +1700,12 @@ end
 --restarting the current track -- so toggling shuffle mid-playback never causes an
 --audible cut.
 local function AudioPlaylistSetShuffle(playlistid, on)
-	local plDoc = GetPlaylistsDoc()
-	local pl = (plDoc.data.playlists or {})[playlistid]
+	local pl = GetPlaylist(playlistid)
 	if pl == nil then
 		return
 	end
-	plDoc:BeginChange()
 	pl.shuffle = on
-	plDoc:CompleteChange("Set shuffle")
+	dmhub.SetAndUploadTableItem(audioPlaylistsTable, pl)
 
 	local stateDoc = GetPlaylistStateDoc()
 	local playing = stateDoc.data.playing
@@ -1753,48 +1759,30 @@ local function AudioPlaylistSetShuffle(playlistid, on)
 	writeDoc:CompleteChange("Set shuffle order", {undoable = false})
 end
 
---Shared read-modify-write for one playlist's DEFINITION fields (name/pinned/shuffle/
---playTogether/crossfadeSeconds/tracks-via-CRUD-helpers-below). No-op if the playlist
---was deleted out from under the caller (e.g. a stale popover).
+--Mutate one playlist row in place and re-upload it. fn receives the row.
 local function ModifyPlaylist(playlistid, description, fn)
-	local doc = GetPlaylistsDoc()
-	local pl = (doc.data.playlists or {})[playlistid]
+	local pl = GetPlaylist(playlistid)
 	if pl == nil then
 		return
 	end
-	doc:BeginChange()
 	fn(pl)
-	doc:CompleteChange(description, {undoable = false})
+	dmhub.SetAndUploadTableItem(audioPlaylistsTable, pl)
 end
 
---Creates a new empty playlist ("New playlist" default name is signed copy), ordered
---after every existing playlist. Returns the new id so the caller can auto-expand it.
+--Creates a new empty playlist ordered after every existing one. Returns its id.
 local function AudioCreatePlaylist()
-	local doc = GetPlaylistsDoc()
-	doc:BeginChange()
-	if doc.data.playlists == nil then
-		doc.data.playlists = {}
-	end
 	local maxOrd = 0
-	for _,pl in pairs(doc.data.playlists) do
+	for _,pl in pairs(AllPlaylists()) do
 		if (pl.ord or 0) > maxOrd then
 			maxOrd = pl.ord or 0
 		end
 	end
-	local id = dmhub.GenerateGuid()
-	doc.data.playlists[id] = {
-		name = "New playlist", ord = maxOrd + 1, pinned = false,
-		tracks = {}, shuffle = false, playTogether = false,
-		crossfadeSeconds = 3.0, loop = true,
-	}
-	doc:CompleteChange("Create playlist")
-	return id
+	local p = AudioPlaylist.CreateNew{ name = "New playlist", ord = maxOrd + 1 }
+	return dmhub.SetAndUploadTableItem(audioPlaylistsTable, p)
 end
 
---Deletes a playlist entirely: stops it first if it is currently driving, then removes
---its definition and scrubs any game-mode bindings that pointed at it (an orphaned
---binding id would silently never match a playlist again, which reads as "quietly
---broken" rather than failing loudly -- better to clear it).
+--Soft-deletes a playlist (hidden=true): stops it first if it is driving, then
+--scrubs any game-mode bindings that pointed at it.
 local function AudioDeletePlaylist(playlistid)
 	local stateDoc = GetPlaylistStateDoc()
 	local playing = stateDoc.data.playing
@@ -1802,20 +1790,36 @@ local function AudioDeletePlaylist(playlistid)
 		StopDrivenPlaylist()
 	end
 
-	local doc = GetPlaylistsDoc()
-	doc:BeginChange()
-	if doc.data.playlists ~= nil then
-		doc.data.playlists[playlistid] = nil
+	local pl = GetPlaylist(playlistid)
+	if pl ~= nil then
+		pl.hidden = true
+		dmhub.SetAndUploadTableItem(audioPlaylistsTable, pl)
 	end
-	local modes = doc.data.bindings ~= nil and doc.data.bindings.modes or nil
+
+	--Scrub any game-mode bindings that pointed at the deleted playlist. Check first
+	--(read-only), then mutate strictly INSIDE the BeginChange/CompleteChange pair --
+	--mutating bdoc.data before BeginChange would leave the snapshot's before/after
+	--identical and the write could be dropped.
+	local bdoc = GetBindingsDoc()
+	local modes = bdoc.data.modes
 	if modes ~= nil then
-		for modeid,pid in pairs(modes) do
+		local hasBinding = false
+		for _,pid in pairs(modes) do
 			if pid == playlistid then
-				modes[modeid] = nil
+				hasBinding = true
+				break
 			end
 		end
+		if hasBinding then
+			bdoc:BeginChange()
+			for modeid,pid in pairs(bdoc.data.modes) do
+				if pid == playlistid then
+					bdoc.data.modes[modeid] = nil
+				end
+			end
+			bdoc:CompleteChange("Unbind deleted playlist", {undoable = false})
+		end
 	end
-	doc:CompleteChange("Delete playlist")
 end
 
 --Playlists never contain duplicates (signed 2026-07-03: repeats are what looping is
@@ -1858,32 +1862,16 @@ end
 --Module-local poll flags. m_lastMode deliberately lives off-doc: while bindings are
 --disabled the watcher just tracks the effective mode here, so a disabled watcher never
 --churns the shared doc on every mode change.
-local m_didEnsureStarters = false
 local m_lastMode = nil
 
 --Driver poll (0.5s self-rescheduling, mirrors SyncBroadcastLevelsToEngine's shape).
---Each tick: seeds starter playlists once (DM clients only), runs the game-mode watcher
---(Director or DJ; auto play/save/restore on Draw Steel mode changes), then heals or
---adopts an orphaned playlist driver, then advances whichever playlist this client is
---driving. See the module banner above for the driver/bracket model.
+--Each tick: runs the game-mode watcher (Director or DJ; auto play/save/restore on Draw
+--Steel mode changes), then heals or adopts an orphaned playlist driver, then advances
+--whichever playlist this client is driving. See the module banner above for the
+--driver/bracket model.
 PollAudioPlaylists = function()
 	if mod.unloaded then
 		return
-	end
-
-	--Seed starter playlists only once the game is FULLY loaded. A document snapshot
-	--read before the game's mod documents have synced returns an empty ("isnew") doc
-	--even when the cloud actually holds configured playlists -- and EnsureStarterPlaylists
-	--seeding into that empty read then PUT-overwrites the real cloud doc, silently wiping
-	--a DM's configured playlists. (The soundboard has no equivalent seed-on-empty path,
-	--which is why a live incident reset the playlists while 25 configured soundboard slots
-	--in the same game survived.) Gating on gameLoadingProgress >= 1 -- the same "load
-	--complete" test the title screen uses -- guarantees the snapshot reflects real synced
-	--state before we ever seed. m_didEnsureStarters stays false while still loading so a
-	--later poll tick retries the seed once loading completes.
-	if dmhub.isDM and not m_didEnsureStarters and (dmhub.gameLoadingProgress or 0) >= 1 then
-		EnsureStarterPlaylists()
-		m_didEnsureStarters = true
 	end
 
 	if CanControlAudio() then
@@ -1898,8 +1886,7 @@ PollAudioPlaylists = function()
 			effective = dmhub.initiativeQueue.gameMode or "exploration"
 		end
 
-		local plDoc = GetPlaylistsDoc()
-		local bindings = plDoc.data.bindings
+		local bindings = GetBindingsDoc().data
 
 		if bindings == nil or not bindings.enabled then
 			m_lastMode = effective
@@ -1920,9 +1907,9 @@ PollAudioPlaylists = function()
 			if not claimed then
 				m_lastMode = effective
 			else
-				local bound = bindings.modes[effective]
+				local bound = bindings.modes and bindings.modes[effective]
 				if bound ~= nil then
-					local boundPl = (plDoc.data.playlists or {})[bound]
+					local boundPl = GetPlaylist(bound)
 					if boundPl == nil or boundPl.tracks == nil or #boundPl.tracks == 0 then
 						bound = nil
 					end
@@ -1962,8 +1949,8 @@ PollAudioPlaylists = function()
 					--Entering an unbound mode while a bracket is open: restore.
 					local saved = auto.saved
 					if saved ~= nil and saved.kind == "playlist"
-						and (plDoc.data.playlists or {})[saved.id] ~= nil
-						and #((plDoc.data.playlists or {})[saved.id].tracks or {}) > 0 then
+						and GetPlaylist(saved.id) ~= nil
+						and #(GetPlaylist(saved.id).tracks or {}) > 0 then
 						AudioPlaylistPlay(saved.id, "manual")
 					elseif saved ~= nil and saved.kind == "track" and assets.audioTable[saved.id] ~= nil then
 						local curPlaying = stateDoc2.data.playing
@@ -2061,8 +2048,7 @@ PollAudioPlaylists = function()
 	end
 
 	if playing ~= nil and playing.driver == dmhub.userid and CanControlAudio() then
-		local plDoc2 = GetPlaylistsDoc()
-		local pl = (plDoc2.data.playlists or {})[playing.playlistid]
+		local pl = GetPlaylist(playing.playlistid)
 		if pl == nil then
 			AudioPlaylistStop()
 		elseif not pl.playTogether then
@@ -2125,7 +2111,8 @@ dmhub.Schedule(0.5, PollAudioPlaylists)
 --nothing leaks into normal play.
 if rawget(_G, "devmode") ~= nil and devmode() then
 	DrawSteelAudioDev = {
-		GetPlaylistsDoc = function() return GetPlaylistsDoc() end,
+		GetPlaylistsTable = function() return dmhub.GetTable("audioPlaylists") end,
+		GetBindingsDoc = function() return GetBindingsDoc() end,
 		GetPlaylistStateDoc = function() return GetPlaylistStateDoc() end,
 		Play = function(playlistid, startedBy) AudioPlaylistPlay(playlistid, startedBy) end,
 		Stop = function() AudioPlaylistStop() end,
@@ -4703,7 +4690,7 @@ local function BuildSoundPanelContent()
 			if playing == nil then
 				return
 			end
-			local pl = (GetPlaylistsDoc().data.playlists or {})[playing.playlistid]
+			local pl = GetPlaylist(playing.playlistid)
 			if pl == nil then
 				return
 			end
@@ -5014,9 +5001,8 @@ local function BuildSoundPanelContent()
 	--is currently driving) is refreshed every call via SetClass on the SAME button
 	--instances, tracked in pinnedRowButtons, without touching the child list.
 	local function RefreshPinnedRow()
-		local doc = GetPlaylistsDoc()
 		local list = {}
-		for id, pl in pairs(doc.data.playlists or {}) do
+		for id, pl in pairs(AllPlaylists()) do
 			if pl.pinned == true then
 				list[#list+1] = { id = id, pl = pl }
 			end
@@ -5212,7 +5198,7 @@ local function BuildSoundPanelContent()
 		local playing = GetPlaylistStateDoc().data.playing
 		local pl = nil
 		if playing ~= nil then
-			pl = (GetPlaylistsDoc().data.playlists or {})[playing.playlistid]
+			pl = GetPlaylist(playing.playlistid)
 		end
 
 		--Defaults: nothing driving (or driving info unresolved) -- hero reads as
@@ -7636,7 +7622,7 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 			end,
 		}
 	elseif buildMode ~= nil then
-		local plForCheck = (GetPlaylistsDoc().data.playlists or {})[buildMode.playlistid]
+		local plForCheck = GetPlaylist(buildMode.playlistid)
 		local alreadyIn = false
 		if plForCheck ~= nil then
 			for _,existing in ipairs(plForCheck.tracks) do
@@ -7661,7 +7647,7 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 				--build mode (another DM client). AddTrackToPlaylist would silently
 				--no-op then, so the banner count would drift from reality -- end the
 				--adding session instead.
-				local pl = (GetPlaylistsDoc().data.playlists or {})[m_studioBuildMode.playlistid]
+				local pl = GetPlaylist(m_studioBuildMode.playlistid)
 				if pl == nil then
 					m_studioBuildMode = nil
 					StopStudioCue()
@@ -7707,8 +7693,7 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 				end
 			end,
 			linger = function(element)
-				local doc = GetPlaylistsDoc()
-				local plLive = (doc.data.playlists or {})[buildMode.playlistid]
+				local plLive = GetPlaylist(buildMode.playlistid)
 				local isInNow = false
 				if plLive ~= nil then
 					for _,existing in ipairs(plLive.tracks) do
@@ -7963,7 +7948,7 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 		--(nothing to add to).
 		local plEntries = {}
 		local plList = {}
-		for id,pl in pairs(GetPlaylistsDoc().data.playlists or {}) do
+		for id,pl in pairs(AllPlaylists()) do
 			plList[#plList+1] = { id = id, pl = pl }
 		end
 		table.sort(plList, function(a, b)
@@ -9864,12 +9849,11 @@ end
 --every time the popover opens (same pattern as CreateStudioDuckingBody), so static
 --reads here are fine -- no monitors needed inside a throwaway popup body.
 local function CreateGameModeMusicBody()
-	local plDoc = GetPlaylistsDoc()
-	local bindings = plDoc.data.bindings or {}
+	local bindings = GetBindingsDoc().data
 
 	local function SortedPlaylistOptions()
 		local list = {}
-		for id,pl in pairs(plDoc.data.playlists or {}) do
+		for id,pl in pairs(AllPlaylists()) do
 			list[#list+1] = { id = id, pl = pl }
 		end
 		table.sort(list, function(a, b)
@@ -9911,18 +9895,16 @@ local function CreateGameModeMusicBody()
 					options = SortedPlaylistOptions(),
 					idChosen = (bindings.modes or {})[modeid] or "none",
 					change = function(element)
-						local doc = GetPlaylistsDoc()
+						if (dmhub.gameLoadingProgress or 0) < 1 then return end
+						local doc = GetBindingsDoc()
 						doc:BeginChange()
-						if doc.data.bindings == nil then
-							doc.data.bindings = { enabled = false, modes = {} }
-						end
-						if doc.data.bindings.modes == nil then
-							doc.data.bindings.modes = {}
+						if doc.data.modes == nil then
+							doc.data.modes = {}
 						end
 						if element.idChosen == "none" then
-							doc.data.bindings.modes[modeid] = nil
+							doc.data.modes[modeid] = nil
 						else
-							doc.data.bindings.modes[modeid] = element.idChosen
+							doc.data.modes[modeid] = element.idChosen
 						end
 						doc:CompleteChange("Bind game mode playlist")
 					end,
@@ -9956,12 +9938,10 @@ local function CreateGameModeMusicBody()
 			text = "Change music with the game mode",
 			value = bindings.enabled == true,
 			change = function(element)
-				local doc = GetPlaylistsDoc()
+				if (dmhub.gameLoadingProgress or 0) < 1 then return end
+				local doc = GetBindingsDoc()
 				doc:BeginChange()
-				if doc.data.bindings == nil then
-					doc.data.bindings = { enabled = false, modes = {} }
-				end
-				doc.data.bindings.enabled = element.value
+				doc.data.enabled = element.value
 				doc:CompleteChange("Toggle game mode music")
 			end,
 		},
@@ -9988,9 +9968,8 @@ local CreateStudioPlaylistsCard = function(heightSpec)
 	end
 
 	local function SortedPlaylists()
-		local doc = GetPlaylistsDoc()
 		local list = {}
-		for id,pl in pairs(doc.data.playlists or {}) do
+		for id,pl in pairs(AllPlaylists()) do
 			list[#list+1] = { id = id, pl = pl }
 		end
 		table.sort(list, function(a, b)
@@ -10046,8 +10025,7 @@ local CreateStudioPlaylistsCard = function(heightSpec)
 				end)
 			end,
 			linger = function(element)
-				local doc = GetPlaylistsDoc()
-				local live = (doc.data.playlists or {})[playlistid]
+				local live = GetPlaylist(playlistid)
 				local isPinned = live ~= nil and live.pinned == true
 				gui.Tooltip(isPinned and "Unpin from dock" or "Pin to dock")(element)
 			end,
@@ -10624,9 +10602,19 @@ local CreateStudioPlaylistsCard = function(heightSpec)
 		height = "100%-32",
 		vscroll = true,
 		valign = "top",
-		monitorGame = GetPlaylistsDoc().path,
-		refreshGame = function(element)
-			RequestPlaylistsRebuild()
+		--Playlist definitions live in an object table now. Unlike the old shared
+		--document (whose path fired refreshGame on any client's write, including this
+		--one), an object-table write does not fire a local monitor here -- neither this
+		--client's own edits nor a synced remote edit repaint the list. So poll a
+		--signature-gated rebuild instead: RebuildIfChanged only rebuilds when the
+		--playlist set actually changes (a local create/delete/rename/pin OR a remote
+		--edit that synced into the table both move the signature), and an unchanged tick
+		--is just a cheap string build+compare. thinkTime caps it at 5Hz (matching the
+		--other audio-panel thinks) so the idle cost is negligible, and the think only
+		--fires while this LaunchablePanel Studio is open -- it is torn down on close.
+		thinkTime = 0.2,
+		think = function(element)
+			RebuildIfChanged()
 		end,
 		create = function(element)
 			RebuildIfChanged()
@@ -12147,7 +12135,7 @@ CreateAudioStudio = function()
 						VariantPools.SetMembers(m_studioBuildMode.poolid, restored)
 					end
 				elseif m_studioBuildMode ~= nil then
-					local pl = (GetPlaylistsDoc().data.playlists or {})[m_studioBuildMode.playlistid]
+					local pl = GetPlaylist(m_studioBuildMode.playlistid)
 					if pl ~= nil and m_studioBuildMode.snapshot ~= nil then
 						local restoreid = m_studioBuildMode.playlistid
 						local restored = {}
@@ -12192,8 +12180,7 @@ CreateAudioStudio = function()
 				if m_studioBuildMode.poolid ~= nil then
 					targetName = VariantPools.Name(m_studioBuildMode.poolid) or "variant pool"
 				else
-					local doc = GetPlaylistsDoc()
-					local pl = (doc.data.playlists or {})[m_studioBuildMode.playlistid]
+					local pl = GetPlaylist(m_studioBuildMode.playlistid)
 					targetName = pl ~= nil and pl.name or "playlist"
 				end
 				buildBannerLabel.text = string.format("Adding to %s - %d added", targetName, m_studioBuildMode.count)

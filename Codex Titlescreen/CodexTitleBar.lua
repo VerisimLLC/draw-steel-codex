@@ -900,7 +900,12 @@ local function CreateSearchBar()
         popupPanel = gui.Panel{
             classes = {"bordered", "bg", "searchResultsPanel"},
             flow = "vertical",
-            width = 368,
+            -- Mirrors the search box's dockscale-tracking width (HB1), but
+            -- never shrinks below the old fixed 368 -- cards in this popup
+            -- must never wrap at small dock scales. At scale > 1 the popup
+            -- grows to match the (now wider) box above it. Rebuilt fresh per
+            -- search, so a value computed at construction stays current.
+            width = math.max(368, math.floor(364 * (dmhub.GetSettingValue("dockscale") or 1))),
             height = "auto",
             halign = "center",
             valign = "bottom",
@@ -1199,7 +1204,14 @@ local function CreateSearchBar()
 
     resultPanel = gui.SearchInput{
         bgimage = true,
-        width = 368,
+        -- Tracks the right dock's rendered width (364 * dockscale, default 1.0)
+        -- so the box lines up with the dock below it at any scale (HB1). Kept
+        -- live by the think handler below. borderBox is load-bearing:
+        -- gui.SearchInput ships hpad=24 WITHOUT borderBox, so the rendered box
+        -- would otherwise be 48px wider than the declared width and overhang
+        -- the dock (James field report, 2026-07-03).
+        borderBox = true,
+        width = math.floor(364 * (dmhub.GetSettingValue("dockscale") or 1)),
         height = 20,
         halign = "right",
         valign = "center",
@@ -1232,6 +1244,16 @@ local function CreateSearchBar()
         -- watch for the rising edge of hasInputFocus on a light think.
         thinkTime = 0.2,
         think = function(element)
+            -- Live-follow the dock scale setting (HB1) so a mid-session
+            -- change to the slider is reflected without a reload. Cheap
+            -- setting read on a 0.2s tick; only touches .width when it
+            -- actually changed.
+            local w = math.floor(364 * (dmhub.GetSettingValue("dockscale") or 1))
+            if element.data.appliedSearchWidth ~= w then
+                element.data.appliedSearchWidth = w
+                element.selfStyle.width = w
+            end
+
             local focused = element.hasInputFocus
             if focused and (not element.data.hadInputFocus)
                 and element.popup == nil
@@ -1287,6 +1309,341 @@ local function CreateSearchBar()
         dorepeatSearch = function(element)
             element.data.repeatingSearch = false
             element:FireEvent("edit")
+        end,
+    }
+
+    return resultPanel
+end
+
+--H-BAR: global audio indicator glyph, left of the search box. Three states
+--(muted / playing / idle) polled on a light think; a press opens a compact
+--mixer popover built from Audio.lua's exported fader factories so the top
+--bar, dock, and Studio Mixer share ONE fader implementation. If Audio.lua's
+--export is not loaded (should not happen given load order, but this is a
+--cross-module read) the glyph simply does not open a popup.
+local function CreateAudioIndicator()
+    local resultPanel
+
+    --Safe read of the "localmuted" setting. It is registered by a game mod
+    --(AudioMain.lua), so at the title screen and during the mid-Lua-reload
+    --teardown window the id does not exist -- GetSettingValue on a missing id
+    --both logs "Could not find setting" and throws a native NRE (seen once
+    --per boot, 2026-07-03). HasSetting is the non-logging existence probe.
+    local function IsLocalMuted()
+        return dmhub.HasSetting("localmuted") and dmhub.GetSettingValue("localmuted") == true
+    end
+
+    local function ComputeState()
+        --The engine audio system (and the GameController backing audio.muted)
+        --is not initialized during the title screen / early game load, where
+        --this think already runs. MERELY TOUCHING audio.muted or
+        --audio.currentlyPlaying there raises a native NullReference that the
+        --engine logs/reports even when Lua pcall catches it (player-window
+        --error dialog, 2026-07-03) -- so gate on the Audio.lua export, which
+        --only exists once the game's audio mods are loaded, and do not call
+        --into audio.* at all before then. The pcall stays as a second line of
+        --defense for reload teardown windows.
+        if rawget(_G, "g_drawSteelAudioBar") == nil then
+            return "idle"
+        end
+        local ok, state = pcall(function()
+            if audio.muted or IsLocalMuted() then
+                return "muted"
+            end
+            for _,_ in pairs(audio.currentlyPlaying) do
+                return "playing"
+            end
+            return "idle"
+        end)
+        if not ok then
+            return "idle"
+        end
+        return state
+    end
+
+    --Muted from this client's perspective: its own local mute, or the game-wide
+    --mute. Used for glyph/toggle display state; which layer the TOGGLE writes is
+    --role-branched at the press site.
+    local function IsClientMuted()
+        return audio.muted or IsLocalMuted()
+    end
+
+    local function BuildPopover()
+        local bar = rawget(_G, "g_drawSteelAudioBar")
+        if bar == nil then
+            return nil
+        end
+
+        -- Now-playing line is a snapshot at open time -- this is a transient
+        -- popover (same accepted pattern as the Studio's bindings popover),
+        -- not a live-refreshing panel.
+        local nowPlayingName = bar.PrimaryPlayingName()
+
+        --Muted-cause line (DJ delegation decision 4): the popover top tier is
+        --now PERSONAL for every role, so when the glyph shows muted the cause
+        --may be either layer - name it. Snapshot popover, but both mute
+        --toggles below refresh this line on press so it never contradicts an
+        --action taken inside the popover itself.
+        local mutedCauseLine
+        local function RefreshMutedCause()
+            if audio.muted then
+                mutedCauseLine.text = "The table is muted for everyone."
+                mutedCauseLine:SetClass("collapsed", false)
+            elseif IsLocalMuted() then
+                mutedCauseLine.text = "Your personal mute is on."
+                mutedCauseLine:SetClass("collapsed", false)
+            else
+                mutedCauseLine:SetClass("collapsed", true)
+            end
+        end
+        mutedCauseLine = gui.Label{
+            classes = {"sizeXxs", "fgMuted", "collapsed"},
+            width = "100%",
+            height = "auto",
+            textWrap = true,
+        }
+
+        --Personal tier (DJ delegation decision 4): EVERY role, including the
+        --Director, gets the personal master + personal mute here - reflex
+        --control keeps reflex semantics for every human. The game-wide mute
+        --moved into the broadcast block below as a labeled control (PR-note
+        --obligation: this repurposes the DM's trained mute-glyph behavior).
+        local muteToggle = gui.Panel{
+            bgcolor = "white",
+            width = 16,
+            height = 16,
+            valign = "center",
+            hmargin = 4,
+            press = function(element)
+                dmhub.SetSettingValue("localmuted", not IsLocalMuted())
+                -- The bar glyph self-heals on its 0.5s think, but this copy
+                -- lives in a snapshot popover -- swap it now or it reads
+                -- stale until the popover is reopened.
+                element:SetClass("muted", IsClientMuted())
+                RefreshMutedCause()
+            end,
+            linger = function(element)
+                gui.Tooltip("Mute (only you)")(element)
+            end,
+            styles = {
+                { bgimage = "ui-icons/AudioVolumeButton.png" },
+                { selectors = {"muted"}, bgimage = "ui-icons/AudioMuteButton.png" },
+                { selectors = {"hover"}, brightness = 2 },
+            },
+            create = function(element)
+                element:SetClass("muted", IsClientMuted())
+            end,
+        }
+        muteToggle:SetClass("muted", IsClientMuted())
+
+        -- Mute rides the RIGHT end of the Master row (its own row read as
+        -- orphaned chrome -- James field report, 2026-07-03). Master keeps the
+        -- left slot so its slider stays column-aligned with the Levels sliders
+        -- below; MakeFaderRow hardcodes width 100%, so the fader row is
+        -- narrowed post-construction to make room for the toggle.
+        --Personal per-user master for every role - the same "volume" setting
+        --as Settings->Audio's Master Volume. (The game-wide master lives in
+        --the dock/Studio/Settings; it is no longer in this popover.)
+        local masterSlider
+        if bar.MakePersonalFader == nil then
+            --Fallback for a stale export during partial reloads.
+            masterSlider = bar.MakeMasterFader()
+        else
+            masterSlider = bar.MakePersonalFader("volume")
+        end
+        local masterFaderRow = bar.MakeFaderRow("Master", masterSlider, false)
+        masterFaderRow.selfStyle.width = "100%-26"
+        local masterRow = gui.Panel{
+            flow = "horizontal",
+            width = "100%",
+            height = 22,
+            valign = "center",
+            masterFaderRow,
+            muteToggle,
+        }
+
+        local children = {
+            -- "Now Playing" header (bold, pinned white -- the popover bg is
+            -- known-dark in every scheme) with the track title on its own
+            -- line beneath, mirroring the Studio's Now Playing card.
+            gui.Label{
+                classes = {"sizeXs", "bold"},
+                color = "#ffffff",
+                width = "100%",
+                height = "auto",
+                text = "Now Playing",
+            },
+            gui.Label{
+                classes = {"sizeXs", cond(nowPlayingName == nil, "fgMuted", nil)},
+                width = "100%",
+                height = "auto",
+                textWrap = false,
+                textOverflow = "ellipsis",
+                text = nowPlayingName or "Nothing playing",
+            },
+            masterRow,
+            mutedCauseLine,
+            --Personal-tier caption for EVERY role now (decision 4): the tier
+            --above is personal regardless of who you are; the broadcast block
+            --below is what plays to the table.
+            gui.Label{
+                classes = {"sizeXxs", "fgMuted"},
+                width = "100%",
+                height = "auto",
+                textWrap = true,
+                text = "These change your mix only.",
+            },
+        }
+        RefreshMutedCause()
+
+        --Broadcast tier: Director or DJ only (DJ delegation decision 4). All
+        --game-wide controls live here, including the game-wide mute as a
+        --labeled control (promoted from the old master-row glyph tooltip).
+        if bar.CanControlAudio ~= nil and bar.CanControlAudio() then
+            children[#children+1] = gui.Label{
+                classes = {"sizeXs", "fgMuted"},
+                width = "100%",
+                height = "auto",
+                text = "Levels",
+                tmargin = 4,
+            }
+            children[#children+1] = bar.MakeFaderRow("Music", bar.MakeBroadcastFader("music"), false)
+            children[#children+1] = bar.MakeFaderRow("Ambience", bar.MakeBroadcastFader("ambience"), false)
+            children[#children+1] = bar.MakeFaderRow("Effects", bar.MakeBroadcastFader("effects"), false)
+            children[#children+1] = bar.MakeFaderRow("UI Sounds", bar.MakeBroadcastFader("uisounds"), false)
+            children[#children+1] = bar.MakeFaderRow("Anthem", bar.MakeBroadcastFader("anthem"), false)
+
+            local gameMuteToggle = gui.Panel{
+                bgcolor = "white",
+                width = 16,
+                height = 16,
+                valign = "center",
+                hmargin = 4,
+                press = function(element)
+                    audio.muted = not audio.muted
+                    audio.UploadMuted()
+                    element:SetClass("muted", audio.muted)
+                    muteToggle:SetClass("muted", IsClientMuted())
+                    RefreshMutedCause()
+                end,
+                styles = {
+                    { bgimage = "ui-icons/AudioVolumeButton.png" },
+                    { selectors = {"muted"}, bgimage = "ui-icons/AudioMuteButton.png" },
+                    { selectors = {"hover"}, brightness = 2 },
+                },
+                create = function(element)
+                    element:SetClass("muted", audio.muted)
+                end,
+            }
+            children[#children+1] = gui.Panel{
+                flow = "horizontal",
+                width = "100%",
+                height = 22,
+                valign = "center",
+                tmargin = 4,
+                gui.Label{
+                    classes = {"sizeXs"},
+                    text = "Mute for everyone",
+                    width = "100%-26",
+                    height = "auto",
+                    valign = "center",
+                },
+                gameMuteToggle,
+            }
+
+            children[#children+1] = gui.Panel{
+                flow = "horizontal",
+                width = "100%",
+                height = "auto",
+                tmargin = 4,
+                gui.Button{
+                    classes = {"sizeXs"},
+                    text = "Stop all audio",
+                    width = "auto",
+                    height = 22,
+                    hpad = 8,
+                    borderBox = true,
+                    hmargin = 3,
+                    linger = function(element)
+                        gui.Tooltip("Stop all audio. Also cancels auto game-mode music.")(element)
+                    end,
+                    press = function()
+                        bar.StopAll()
+                        resultPanel.popup = nil
+                    end,
+                },
+                gui.Button{
+                    classes = {"sizeXs"},
+                    text = "Open Audio Studio",
+                    width = "auto",
+                    height = 22,
+                    hpad = 8,
+                    borderBox = true,
+                    hmargin = 3,
+                    press = function()
+                        resultPanel.popup = nil
+                        LaunchablePanel.LaunchPanelByName("Audio Studio")
+                    end,
+                },
+            }
+        end
+
+        return gui.Panel{
+            classes = {"bordered", "bg"},
+            flow = "vertical",
+            width = 340,
+            height = "auto",
+            pad = 8,
+            borderBox = true,
+            halign = "right",
+            valign = "bottom",
+            children = children,
+        }
+    end
+
+    resultPanel = gui.Panel{
+        classes = {"audioIndicator"},
+        width = 18,
+        height = 18,
+        valign = "center",
+        hmargin = 6,
+        bgcolor = "white",
+        bgimage = "ui-icons/AudioVolumeButton.png",
+
+        linger = function(element)
+            gui.Tooltip("Audio controls")(element)
+        end,
+
+        press = function(element)
+            element.popupsInheritStyles = true
+            element.popup = BuildPopover()
+        end,
+
+        -- Run the state logic once at construction too: without this the
+        -- glyph renders its constructor defaults (volume icon, full opacity)
+        -- for up to one think period even when muted/idle at build time.
+        create = function(element)
+            element:FireEvent("think")
+        end,
+
+        thinkTime = 0.5,
+        think = function(element)
+            local state = ComputeState()
+            if element.data.audioIndicatorState == state then
+                return
+            end
+            element.data.audioIndicatorState = state
+
+            if state == "muted" then
+                element.bgimage = "ui-icons/AudioMuteButton.png"
+                element.selfStyle.opacity = 1
+            elseif state == "playing" then
+                element.bgimage = "ui-icons/AudioVolumeButton.png"
+                element.selfStyle.opacity = 1
+            else
+                element.bgimage = "ui-icons/AudioVolumeButton.png"
+                element.selfStyle.opacity = 0.4
+            end
         end,
     }
 
@@ -1405,6 +1762,7 @@ local function CreateTopBar()
 
     local m_inGame = nil
     local m_searchBar = CreateSearchBar()
+    local m_audioIndicator = CreateAudioIndicator()
     local m_presentationBar = CreatePresentationBar()
 
     g_searchBar = m_searchBar
@@ -2087,7 +2445,19 @@ local function CreateTopBar()
 
         m_presentationBar,
         CreateStatusBar(),
-        m_searchBar,
+        -- Glyph + search travel as ONE right-aligned cluster: the search box
+        -- floats right and its width tracks the dock scale, so a sibling at a
+        -- flow position drifts away from it as the box narrows. Wrapping both
+        -- keeps the glyph pressed against the box's left edge at any scale
+        -- (James field report, 2026-07-03).
+        gui.Panel{
+            flow = "horizontal",
+            width = "auto",
+            height = "100%",
+            halign = "right",
+            m_audioIndicator,
+            m_searchBar,
+        },
     }
 
     local titleBarStyleExtras = {
@@ -2116,6 +2486,15 @@ local function CreateTopBar()
         },
         {
             selectors = {"searchInput", "~ingame", "~searchoverride"},
+            hidden = 1,
+        },
+
+        -- Audio indicator glyph (H-BAR): same in-game-only visibility as the
+        -- search box, driven by the same "ingame" class SetClassTree'd onto
+        -- an ancestor (menuBar's think, below). No searchoverride exemption
+        -- -- the glyph has no main-menu equivalent to preserve.
+        {
+            selectors = {"audioIndicator", "~ingame"},
             hidden = 1,
         },
 

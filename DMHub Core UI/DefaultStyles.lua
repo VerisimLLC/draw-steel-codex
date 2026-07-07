@@ -2308,6 +2308,7 @@ ThemeEngine.RegisterTheme{
         { selectors = {"featureCardBody"},     cornerRadius = 0 },
 
         { selectors = {"label", "button"},        cornerRadius = 0 },
+        { selectors = {"iconButton"},             cornerRadius = 0 },
         { selectors = {"input"},                  cornerRadius = 0 },
         { selectors = {"searchInput"},            cornerRadius = 0 },
         { selectors = {"dropdown"},               cornerRadius = 0 },
@@ -2355,6 +2356,7 @@ ThemeEngine.RegisterTheme{
 
         -- Interactive controls
         { selectors = {"label", "button"},        cornerRadius = 5 },
+        { selectors = {"iconButton"},             cornerRadius = 5 },
         { selectors = {"input"},                  cornerRadius = 5 },
         { selectors = {"searchInput"},            cornerRadius = 5 },
         { selectors = {"dropdown"},               cornerRadius = 5 },

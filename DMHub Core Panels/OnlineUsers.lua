@@ -263,6 +263,32 @@ CreateUserSessionPanel = function(userid)
         bmargin = -2,
 	}
 
+    --DJ delegation (audio): static identity tag on delegate rows (decision 6).
+    --Built only when the audio module's export is present; monitors the delegates
+    --doc so grant/revoke updates the tag live on every client.
+    local djTag = nil
+    do
+        local audioBar = rawget(_G, "g_drawSteelAudioBar")
+        if audioBar ~= nil then
+            djTag = gui.Label{
+                classes = {"sizeXs", "bold"},
+                text = "",
+                width = "auto",
+                height = "auto",
+                valign = "center",
+                lmargin = 4,
+                interactable = false,
+                monitorGame = audioBar.AudioDelegatesPath(),
+                refreshGame = function(element)
+                    element.text = audioBar.IsAudioDelegate(userid) and "DJ" or ""
+                end,
+                create = function(element)
+                    element:FireEvent("refreshGame")
+                end,
+            }
+        end
+    end
+
     local nameAndAvatarPanel = gui.Panel{
         flow = "horizontal",
         valign = "top",
@@ -271,6 +297,7 @@ CreateUserSessionPanel = function(userid)
         height = "auto",
         nameLabel,
         tokenAvatar,
+        djTag,
     }
 
     local statusLabel = gui.Label{
@@ -508,6 +535,31 @@ CreateUserSessionPanel = function(userid)
 								userSessionPanel:FireEventTree("dmstatus", userid, false)
 							end
 						}
+					end
+
+					--DJ delegation (audio): grant/revoke full audio control. Hidden for
+					--DM users - a Director cannot be granted DJ, they already have it.
+					--Helpers come through the audio module's narrow export; rawget so
+					--this menu degrades to no entry if the audio module is absent.
+					local audioBar = rawget(_G, "g_drawSteelAudioBar")
+					if audioBar ~= nil and dmhub.IsUserDM(userid) == false then
+						if audioBar.IsAudioDelegate(userid) then
+							contextMenu[#contextMenu+1] = {
+								text = 'Revoke DJ Status',
+								click = function()
+									audioBar.SetAudioDelegate(userid, false)
+									element.popup = nil
+								end,
+							}
+						else
+							contextMenu[#contextMenu+1] = {
+								text = 'Make DJ',
+								click = function()
+									audioBar.SetAudioDelegate(userid, true)
+									element.popup = nil
+								end,
+							}
+						end
 					end
 
 					if dmhub.userid ~= userid and dmhub.isGameOwner then

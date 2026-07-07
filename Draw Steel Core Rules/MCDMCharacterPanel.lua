@@ -6034,26 +6034,30 @@ function TacPanel.Features()
         local children = {}
 
         --Minion "With Captain": a standalone chip (not a characterFeatures entry,
-        --so the categoriser never sees it). Built once, then reused.
+        --so the categoriser never sees it). Built once, then reused. Always kept
+        --in `children` (never conditionally omitted) -- the engine destroys any
+        --panel orphaned by a `children` reassignment, so omitting it here would
+        --permanently destroy it the first time a non-captained token is shown,
+        --crashing the next reconcile that tried to reuse it. applyFilter (above)
+        --hides it via the "collapsed" class based on data.active instead.
+        if m_withCaptainChip == nil then
+            m_withCaptainChip = TacPanel.FeatureChip(token, "With Captain", nil, lockFilterOnOpen)
+            m_withCaptainWrap = gui.Panel{
+                classes = {"panel", "cond-chips"},
+                wrap = true,
+                lmargin = 6,
+                m_withCaptainChip,
+            }
+        end
         if creature.withCaptain and creature.minion then
             local captainText = creature.withCaptain
-            if m_withCaptainChip == nil then
-                m_withCaptainChip = TacPanel.FeatureChip(token, "With Captain",
-                    function() return captainText end, lockFilterOnOpen)
-                m_withCaptainWrap = gui.Panel{
-                    classes = {"panel", "cond-chips"},
-                    wrap = true,
-                    lmargin = 6,
-                    m_withCaptainChip,
-                }
-            end
             m_withCaptainChip:FireEvent("update", token, "With Captain",
                 function() return captainText end, "With Captain " .. (captainText or ""))
             m_withCaptainChip.data.active = true
-            children[#children+1] = m_withCaptainWrap
-        elseif m_withCaptainChip ~= nil then
+        else
             m_withCaptainChip.data.active = false
         end
+        children[#children+1] = m_withCaptainWrap
 
         --Group panels, reused by bucket id, in the index's bucket order.
         m_currentOrder = {}

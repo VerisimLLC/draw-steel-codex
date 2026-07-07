@@ -1426,8 +1426,8 @@ local function CreateAudioIndicator()
                 gui.Tooltip("Mute (only you)")(element)
             end,
             styles = {
-                { bgimage = "ui-icons/AudioVolumeButton.png" },
-                { selectors = {"muted"}, bgimage = "ui-icons/AudioMuteButton.png" },
+                { bgimage = "ui-icons/ph-speaker-high-fill.png" },
+                { selectors = {"muted"}, bgimage = "ui-icons/ph-speaker-slash-fill.png" },
                 { selectors = {"hover"}, brightness = 2 },
             },
             create = function(element)
@@ -1527,8 +1527,8 @@ local function CreateAudioIndicator()
                     RefreshMutedCause()
                 end,
                 styles = {
-                    { bgimage = "ui-icons/AudioVolumeButton.png" },
-                    { selectors = {"muted"}, bgimage = "ui-icons/AudioMuteButton.png" },
+                    { bgimage = "ui-icons/ph-speaker-high-fill.png" },
+                    { selectors = {"muted"}, bgimage = "ui-icons/ph-speaker-slash-fill.png" },
                     { selectors = {"hover"}, brightness = 2 },
                 },
                 create = function(element)
@@ -1608,7 +1608,7 @@ local function CreateAudioIndicator()
         valign = "center",
         hmargin = 6,
         bgcolor = "white",
-        bgimage = "ui-icons/AudioVolumeButton.png",
+        bgimage = "ui-icons/ph-speaker-high-fill.png",
 
         linger = function(element)
             gui.Tooltip("Audio controls")(element)
@@ -1635,13 +1635,13 @@ local function CreateAudioIndicator()
             element.data.audioIndicatorState = state
 
             if state == "muted" then
-                element.bgimage = "ui-icons/AudioMuteButton.png"
+                element.bgimage = "ui-icons/ph-speaker-slash-fill.png"
                 element.selfStyle.opacity = 1
             elseif state == "playing" then
-                element.bgimage = "ui-icons/AudioVolumeButton.png"
+                element.bgimage = "ui-icons/ph-speaker-high-fill.png"
                 element.selfStyle.opacity = 1
             else
-                element.bgimage = "ui-icons/AudioVolumeButton.png"
+                element.bgimage = "ui-icons/ph-speaker-none-fill.png"
                 element.selfStyle.opacity = 0.4
             end
         end,

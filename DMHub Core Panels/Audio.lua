@@ -220,7 +220,7 @@ end
 local function AudioInfoGlyph(tooltip)
 	return gui.Panel{
 		classes = {"buttonIcon"},
-		bgimage = "icons/standard/Icon_App_Tutorial.png",
+		bgimage = "ui-icons/ph-info-fill.png",
 		width = 14,
 		height = 14,
 		halign = "left",
@@ -898,7 +898,7 @@ function AudioLogChatMessage.Render(self, message)
             --on first paint -- an inline bgcolor="@fgMuted" token renders white for one
             --frame in the custom-chat render context and only settles dark after a refresh.
             classes = {"bgFgMuted"},
-            bgimage = "ui-icons/AudioMusicButton.png",
+            bgimage = "ui-icons/ph-music-notes-fill.png",
             width = 14,
             height = 14,
             halign = "left",
@@ -2847,6 +2847,18 @@ function VariantPools.IsLoopAmbience(poolid)
 	return type(e) == "table" and e.loopAmbience == true
 end
 
+--Pool glyph distinguishes the two pool behaviors: layered-ambient pools
+--(loopAmbience) read as a stack of layers; random-effect pools read as
+--branching/variant arrows. Defined here (top-level local, before both
+--BuildSoundPanelContent's assign-popup pool row and
+--CreateStudioVariantPoolsCard's card row) so it is in scope at both call sites.
+local function PoolGlyph(poolid)
+	if VariantPools.IsLoopAmbience(poolid) then
+		return "ui-icons/ph-stack-fill.png"
+	end
+	return "ui-icons/ph-arrows-split-fill.png"
+end
+
 --True if this looping pool layers its fires (default false = cycle one at a time).
 function VariantPools.IsLayerSounds(poolid)
 	local e = VariantPools.GetDoc().data[poolid]
@@ -3622,7 +3634,7 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 		}
 		muteButton = gui.Panel{
 			classes = {"audioSbMute", "hoverable"},
-			bgimage = "ui-icons/AudioVolumeButton.png",
+			bgimage = "ui-icons/ph-speaker-high-fill.png",
 			width = 12,
 			height = 12,
 			valign = "center",
@@ -3632,10 +3644,10 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 				muted = not muted
 				element:SetClass("muted", muted)
 				if muted then
-					element.bgimage = "ui-icons/AudioMuteButton.png"
+					element.bgimage = "ui-icons/ph-speaker-slash-fill.png"
 					audio.SetSoundEventVolume(assetid, 0)
 				else
-					element.bgimage = "ui-icons/AudioVolumeButton.png"
+					element.bgimage = "ui-icons/ph-speaker-high-fill.png"
 					audio.SetSoundEventVolume(assetid, volumeSlider.value)
 				end
 			end,
@@ -4026,8 +4038,8 @@ local function CreatePlayerSoundPanel()
 			gui.Tooltip("Mute")(element)
 		end,
 		styles = {
-			{ bgimage = "ui-icons/AudioVolumeButton.png" },
-			{ selectors = {"muted"}, bgimage = "ui-icons/AudioMuteButton.png" },
+			{ bgimage = "ui-icons/ph-speaker-high-fill.png" },
+			{ selectors = {"muted"}, bgimage = "ui-icons/ph-speaker-slash-fill.png" },
 			{ selectors = {"hover"}, brightness = 2 },
 		},
 	}
@@ -4408,8 +4420,8 @@ local function BuildSoundPanelContent()
 			gui.Tooltip("Mute for everyone")(element)
 		end,
 		styles = {
-			{ bgimage = "ui-icons/AudioVolumeButton.png" },
-			{ selectors = {"muted"}, bgimage = "ui-icons/AudioMuteButton.png" },
+			{ bgimage = "ui-icons/ph-speaker-high-fill.png" },
+			{ selectors = {"muted"}, bgimage = "ui-icons/ph-speaker-slash-fill.png" },
 			{ selectors = {"hover"}, brightness = 2 },
 		},
 	}
@@ -4548,19 +4560,19 @@ local function BuildSoundPanelContent()
 		textOverflow = "ellipsis",
 	}
 
-	--Play/pause toggle for the whole music channel (ToggleMusicPause). No pause glyph
-	--asset exists yet -- M0 will supply real icons -- so this renders as a bordered
-	--text chip like shuffleChip in the meantime. "II"/">" are M0 placeholder glyphs
-	--(pause/play icons swap in at M0); UpdateNowPlaying drives which one shows.
+	--Play/pause toggle for the whole music channel (ToggleMusicPause). Glyph swaps
+	--by paused state (conventional media semantics): playing -> pause-glyph (press
+	--to pause), paused -> play-glyph (press to resume). UpdateNowPlaying drives
+	--which one shows.
 	local pauseButton
-	pauseButton = gui.Button{
-		classes = {"sizeXxs", "hidden"},
-		text = "II",
-		width = 20,
-		height = 14,
-		borderBox = true,
+	pauseButton = gui.Panel{
+		classes = {"hidden"},
+		bgimage = "ui-icons/ph-play-pause-fill.png",
+		width = 18,
+		height = 18,
+		bgcolor = "white",
 		valign = "center",
-		hmargin = 2,
+		hmargin = 4,
 		press = function(element)
 			ToggleMusicPause()
 		end,
@@ -4570,10 +4582,10 @@ local function BuildSoundPanelContent()
 	}
 	local stopButton = gui.Panel{
 		classes = {"hidden"},
-		bgimage = "panels/square.png",
+		bgimage = "ui-icons/ph-stop-fill.png",
 		bgcolor = "white",
-		width = 14,
-		height = 14,
+		width = 18,
+		height = 18,
 		valign = "center",
 		hmargin = 4,
 		press = function(element)
@@ -4623,12 +4635,12 @@ local function BuildSoundPanelContent()
 		handleSize = 14,
 		style = {
 			--Complement accounting (deterministic widths, the chunk-F lesson):
-			--stop 14+8 + pause 20+4 + timeCurrent 32 + timeTotal 32 + own hmargin
-			--12 = 122, +6 spare = 128. The playlist-chrome variant adds shuffle
-			--48+4 and next 36+4 = +92 -> 220 (see the width swaps in
-			--UpdateNowPlaying). The original -104/-196 predate the pause chip and
-			--pushed timeTotal past the dock's usable width.
-			width = "100%-128",
+			--all four transport glyphs (pause/stop/shuffle/next) are now uniform
+			--18-wide with hmargin 4, a 26 footprint each. Base: pause 26 + stop 26
+			--+ timeCurrent 32 + timeTotal 32 + own hmargin 12 = 128, +6 spare = 134.
+			--The playlist-chrome variant adds shuffle 26 and next 26 -> 186 (see
+			--the width swaps in UpdateNowPlaying).
+			width = "100%-134",
 			height = 5,
 			valign = "center",
 			hmargin = 6,
@@ -4675,13 +4687,16 @@ local function BuildSoundPanelContent()
 	--playTogether) driven playlist is actually advancing (Part 3). Height 14 with
 	--valign=center inside the 18-tall transportRow so they sit flush with the
 	--other transport controls.
-	local shuffleChip = gui.Button{
-		classes = {"sizeXxs", "collapsed"},
-		text = "Shuffle",
-		width = 48,
-		height = 14,
-		hmargin = 2,
-		borderBox = true,
+	local shuffleChip = gui.Panel{
+		classes = {"collapsed"},
+		bgimage = "ui-icons/ph-shuffle-fill.png",
+		--Default white; UpdateNowPlaying tints it to the theme accent while shuffle
+		--is on (same AccentColorHex approach the dock's loop glyph uses -- @accent
+		--does not resolve in the dock's inline context, so we resolve it in Lua).
+		bgcolor = "white",
+		width = 18,
+		height = 18,
+		hmargin = 4,
 		valign = "center",
 		press = function(element)
 			local playing = GetPlaylistStateDoc().data.playing
@@ -4698,13 +4713,13 @@ local function BuildSoundPanelContent()
 			gui.Tooltip("Shuffle")(element)
 		end,
 	}
-	local nextChip = gui.Button{
-		classes = {"sizeXxs", "collapsed"},
-		text = "Next",
-		width = 36,
-		height = 14,
-		hmargin = 2,
-		borderBox = true,
+	local nextChip = gui.Panel{
+		classes = {"collapsed"},
+		bgimage = "ui-icons/ph-skip-forward-fill.png",
+		bgcolor = "white",
+		width = 18,
+		height = 18,
+		hmargin = 4,
 		valign = "center",
 		press = function(element)
 			AudioPlaylistNext()
@@ -4717,13 +4732,16 @@ local function BuildSoundPanelContent()
 	local transportRow = gui.Panel{
 		flow = "horizontal",
 		width = "100%",
-		height = 18,
+		height = 22,
 		valign = "center",
 		vmargin = 2,
-		shuffleChip,
-		nextChip,
+		--Play/pause + stop lead (primary transport), then shuffle/next (secondary),
+		--then the seek bar fills the right. Order is independent of the width
+		--complement below (that reserves the sum of the control footprints).
 		pauseButton,
 		stopButton,
+		shuffleChip,
+		nextChip,
 		timeCurrent,
 		progressBar,
 		timeTotal,
@@ -4755,7 +4773,7 @@ local function BuildSoundPanelContent()
 				textOverflow = "ellipsis",
 			},
 			gui.Panel{
-				bgimage = "panels/square.png",
+				bgimage = "ui-icons/ph-stop-fill.png",
 				bgcolor = "white",
 				width = 11,
 				height = 11,
@@ -4810,7 +4828,7 @@ local function BuildSoundPanelContent()
 				textOverflow = "ellipsis",
 			},
 			gui.Panel{
-				bgimage = "panels/square.png",
+				bgimage = "ui-icons/ph-stop-fill.png",
 				bgcolor = "white",
 				width = 11,
 				height = 11,
@@ -5036,15 +5054,17 @@ local function BuildSoundPanelContent()
 			if #list > 3 then
 				local overflow
 				overflow = gui.Button{
+					--A text-path button (empty text + icon) so it is a gui.Label with the
+					--same button/sizeXs classes as the pinned buttons and shares their exact
+					--vertical box. (An icon-only gui.Button routes to a Panel with different
+					--vertical metrics -- that is what kept sitting too high.)
 					classes = {"sizeXs"},
-					text = "...",
+					text = "",
+					icon = "ui-icons/ph-dots-three-vertical.png",
 					width = 24,
 					height = 22,
 					hmargin = 3,
-					borderBox = true,
-					linger = function(element)
-						gui.Tooltip("More playlists")(element)
-					end,
+					tooltip = "More playlists",
 					press = function(element)
 						local entries = {}
 						for i=4,#list do
@@ -5117,7 +5137,7 @@ local function BuildSoundPanelContent()
 			subtitleLabel.text = "Music"
 			stopButton:SetClass("hidden", false)
 			pauseButton:SetClass("hidden", false)
-			pauseButton.text = paused and ">" or "II"
+			pauseButton.bgimage = paused and "ui-icons/ph-play-fill.png" or "ui-icons/ph-play-pause-fill.png"
 			--timeCurrent doubles as the drag-preview readout while scrubbing, so the
 			--poll must not fight that write either (same reason as the value gate).
 			if not m_scrubbing then
@@ -5201,7 +5221,7 @@ local function BuildSoundPanelContent()
 		upNextLabel:SetClass("collapsed", true)
 		shuffleChip:SetClass("collapsed", true)
 		nextChip:SetClass("collapsed", true)
-		progressBar.selfStyle.width = "100%-128"
+		progressBar.selfStyle.width = "100%-134"
 
 		if pl ~= nil then
 			--"Following game mode" only has signed copy for the auto-switch case;
@@ -5240,9 +5260,9 @@ local function BuildSoundPanelContent()
 				--this chrome yet -- accepted gap, not a bug.
 				if m_musicId == drivenId then
 					shuffleChip:SetClass("collapsed", false)
-					shuffleChip:SetClass("selected", pl.shuffle == true)
+					shuffleChip.bgcolor = (pl.shuffle == true) and AccentColorHex() or "white"
 					nextChip:SetClass("collapsed", false)
-					progressBar.selfStyle.width = "100%-220"
+					progressBar.selfStyle.width = "100%-186"
 
 					local nextid = nil
 					local nextIndex = playing.index + 1
@@ -5444,16 +5464,25 @@ local function BuildSoundPanelContent()
 			local anthemNameLabel = gui.Label{
 				text = "- no anthem set",
 				fontSize = 11,
-				width = "auto",
+				--Fixed remaining-width (portrait 26 + name 80 + cue 22 + slider 80
+				--+ margins ~= 220) so a long anthem name ellipsizes instead of
+				--wrapping vertically and shoving the cue/levels off the right edge.
+				--Full name on hover.
+				width = "100%-220",
 				height = "auto",
 				halign = "left",
 				valign = "center",
 				hmargin = 4,
+				textWrap = false,
+				textOverflow = "ellipsis",
+				linger = function(element)
+					gui.Tooltip(element.text)(element)
+				end,
 			}
 
 			--{success} green tracks the scheme; {sizeXxs} = 10pt, {bold} weight.
 			local nowPlayingLabel = gui.Label{
-				classes = {"hidden", "success", "bold", "sizeXxs"},
+				classes = {"collapsed", "success", "bold", "sizeXxs"},
 				text = "now playing",
 				width = "auto",
 				height = "auto",
@@ -5469,20 +5498,20 @@ local function BuildSoundPanelContent()
 			--(which uses the not-yet-committed drag value) every poll.
 			local lastAppliedMaster = nil
 
-			--Swap the glyph between the headphones cue glyph and a stop square
+			--Swap the glyph between the headphones cue glyph and a stop glyph
 			--depending on whether THIS row's anthem is the one currently previewing.
 			--No rotate on this button (unlike the old triangle) since the headphones
-			--glyph and the stop square both read fine upright.
+			--glyph and the stop glyph both read fine upright.
 			local UpdatePreviewIcon = function()
 				if previewButton == nil then
 					return
 				end
 				local previewing = previewingCharid == charid and previewInstance ~= nil and previewInstance.playing
-				previewButton.bgimage = previewing and "panels/square.png" or "icons/icon_app/icon_app_23.png"
+				previewButton.bgimage = previewing and "ui-icons/ph-stop-fill.png" or "ui-icons/ph-headphones-fill.png"
 			end
 
 			previewButton = gui.Panel{
-				bgimage = "icons/icon_app/icon_app_23.png",
+				bgimage = "ui-icons/ph-headphones-fill.png",
 				bgcolor = "white",
 				width = 14,
 				height = 14,
@@ -5605,7 +5634,12 @@ local function BuildSoundPanelContent()
 					--rawget avoids the uninitialized-global read error if that file is
 					--ever absent, instead of erroring every think tick.
 					local st = rawget(_G, "g_drawSteelAnthemState")
-					nowPlayingLabel:SetClass("hidden", st == nil or st.tokenid ~= charid)
+					local anthemPlaying = st ~= nil and st.tokenid == charid
+					nowPlayingLabel:SetClass("collapsed", not anthemPlaying)
+					--When the "now playing" tag shows it eats horizontal room; widen the name
+					--reserve so the anthem title truncates further instead of shoving the cue +
+					--volume slider off the dock right edge (James: truncate, do not push right).
+					anthemNameLabel.selfStyle.width = anthemPlaying and "100%-288" or "100%-220"
 				end,
 
 				gui.CreateTokenImage(token, {
@@ -5624,6 +5658,11 @@ local function BuildSoundPanelContent()
 					height = "auto",
 					halign = "left",
 					valign = "center",
+					textWrap = false,
+					textOverflow = "ellipsis",
+					linger = function(element)
+						gui.Tooltip(token.name or "Hero")(element)
+					end,
 				},
 
 				anthemNameLabel,
@@ -5696,6 +5735,11 @@ local function BuildSoundPanelContent()
 			flow = "vertical",
 			width = "100%",
 			height = "auto",
+			--10px side inset (matches the Map Sounds body / MakeFaderRow's hpad) so
+			--the right-anchored headphones cue + volume slider do not run off the
+			--dock's clipped right edge (they align to the padded edge instead).
+			hpad = 10,
+			borderBox = true,
 
 			destroy = function(element)
 				StopPreview()
@@ -6212,7 +6256,7 @@ local function BuildSoundPanelContent()
 			}
 
 			--DM-only local audition of this emitter's clip, scaled by master so it
-			--never blasts (chunk E cue rule). Headphones glyph swaps to a stop square
+			--never blasts (chunk E cue rule). Headphones glyph swaps to a stop glyph
 			--while previewing; the row think reverts it when the clip ends or another
 			--row takes the single preview slot. Mirrors CreateAnthemRow's preview cue.
 			local previewButton
@@ -6221,11 +6265,11 @@ local function BuildSoundPanelContent()
 					return
 				end
 				local previewing = previewObjId == objid and previewInstance ~= nil and previewInstance.playing
-				previewButton.bgimage = previewing and "panels/square.png" or "icons/icon_app/icon_app_23.png"
+				previewButton.bgimage = previewing and "ui-icons/ph-stop-fill.png" or "ui-icons/ph-headphones-fill.png"
 			end
 
 			previewButton = gui.Panel{
-				bgimage = "icons/icon_app/icon_app_23.png",
+				bgimage = "ui-icons/ph-headphones-fill.png",
 				bgcolor = "white",
 				width = 14,
 				height = 14,
@@ -6260,7 +6304,7 @@ local function BuildSoundPanelContent()
 
 			local onOffButton
 			onOffButton = gui.Panel{
-				bgimage = "ui-icons/AudioMuteButton.png",
+				bgimage = "ui-icons/ph-speaker-slash-fill.png",
 				bgcolor = "white",
 				width = 16,
 				height = 16,
@@ -6581,7 +6625,7 @@ local function BuildSoundPanelContent()
 				secondaryRow:SetClass("collapsed", not (isTrigger or hasCustomSource))
 
 				local on = not c.disabled
-				onOffButton.bgimage = on and "ui-icons/AudioVolumeButton.png" or "ui-icons/AudioMuteButton.png"
+				onOffButton.bgimage = on and "ui-icons/ph-speaker-high-fill.png" or "ui-icons/ph-speaker-slash-fill.png"
 
 				local lit = on and (not isTrigger)
 				statusDot.bgcolor = lit and "#5cb85c" or "#888888"
@@ -7263,14 +7307,14 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 	if not slim then
 		playButton = gui.Panel{
 			classes = {"audioBroadcastButton"},
-			bgimage = "ui-icons/AudioPlayButton.png",
+			bgimage = "ui-icons/ph-play-fill.png",
 			width = 18,
 			height = 18,
 			valign = "center",
 			hmargin = 3,
 			refreshPlayingAudio = function(element)
 				local playing = audio.currentlyPlaying[audioAsset.id] ~= nil
-				element.bgimage = playing and "panels/square.png" or "ui-icons/AudioPlayButton.png"
+				element.bgimage = playing and "ui-icons/ph-stop-fill.png" or "ui-icons/ph-play-fill.png"
 				element:SetClass("playing", playing)
 			end,
 			press = function(element)
@@ -7286,14 +7330,13 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 		}
 	end
 
-	--DM-only audition: headphones glyph (icon_app_23) stands in for "only you hear
-	--this" -- a placeholder until better art lands (glyph upgrade bucket, plan M0).
+	--DM-only audition: headphones glyph stands in for "only you hear this".
 	--Local asset:Play(); turns "active" (green) while this row is cueing and polls
 	--so it clears when the clip ends or another row takes over.
 	local cueButton
 	cueButton = gui.Panel{
 		classes = {"audioCueButton"},
-		bgimage = "icons/icon_app/icon_app_23.png",
+		bgimage = "ui-icons/ph-headphones-fill.png",
 		width = 18,
 		height = 18,
 		valign = "center",
@@ -7374,7 +7417,7 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 	if not slim then
 		muteButton = gui.Panel{
 			classes = {"hoverable", "audioRowMuteButton"},
-			bgimage = "ui-icons/AudioVolumeButton.png",
+			bgimage = "ui-icons/ph-speaker-high-fill.png",
 			bgcolor = "white",
 			width = 16,
 			height = 16,
@@ -7384,10 +7427,10 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 				muted = not muted
 				element:SetClass("muted", muted)
 				if muted then
-					element.bgimage = "ui-icons/AudioMuteButton.png"
+					element.bgimage = "ui-icons/ph-speaker-slash-fill.png"
 					audio.SetSoundEventVolume(audioAsset.id, 0)
 				else
-					element.bgimage = "ui-icons/AudioVolumeButton.png"
+					element.bgimage = "ui-icons/ph-speaker-high-fill.png"
 					audio.SetSoundEventVolume(audioAsset.id, volumeSlider.value)
 				end
 			end,
@@ -8256,7 +8299,7 @@ local CreateStudioSoundboard = function()
 							buttonElement.popup = nil
 						end,
 						gui.Panel{
-							bgimage = "icons/icon_common/icon_common_4.png",
+							bgimage = PoolGlyph(pid),
 							--Tint the glyph like the studio's audioTrackGrip rule does;
 							--this popup carries its own theme snapshot, not the studio
 							--cascade, so the tint is inline (James: icon was too dark).
@@ -9992,7 +10035,7 @@ local CreateStudioPlaylistsCard = function(heightSpec)
 		local pin
 		pin = gui.Panel{
 			classes = {"audioPlPin", cond(pl.pinned, "pinned", nil)},
-			bgimage = "icons/icon_simpleshape/icon_simpleshape_31.png",
+			bgimage = "ui-icons/ph-push-pin-fill.png",
 			width = 16,
 			height = 16,
 			valign = "center",
@@ -10091,7 +10134,7 @@ local CreateStudioPlaylistsCard = function(heightSpec)
 		local playButton
 		playButton = gui.Panel{
 			classes = {"audioBroadcastButton"},
-			bgimage = "ui-icons/AudioPlayButton.png",
+			bgimage = "ui-icons/ph-play-fill.png",
 			width = 18,
 			height = 18,
 			valign = "center",
@@ -10099,7 +10142,7 @@ local CreateStudioPlaylistsCard = function(heightSpec)
 			refreshPlayingAudio = function(element)
 				local drivingId = DrivenInfo()
 				local driving = drivingId == playlistid
-				element.bgimage = driving and "panels/square.png" or "ui-icons/AudioPlayButton.png"
+				element.bgimage = driving and "ui-icons/ph-stop-fill.png" or "ui-icons/ph-play-fill.png"
 				element:SetClass("playing", driving)
 			end,
 			press = function(element)
@@ -10338,7 +10381,7 @@ local CreateStudioPlaylistsCard = function(heightSpec)
 
 				local grip = gui.Panel{
 					classes = {"audioTrackGrip"},
-					bgimage = "icons/icon_common/icon_common_4.png",
+					bgimage = "ui-icons/ph-dots-six-vertical-fill.png",
 					width = 14,
 					height = 14,
 					valign = "center",
@@ -10635,10 +10678,6 @@ local CreateStudioVariantPoolsCard = function(heightSpec)
 		m_dropIndicator = nil
 	end
 
-	--Pool glyph: temporary M0 placeholder (a stack-of-lines that reads as "a
-	--collection").
-	local g_poolGlyph = "icons/icon_common/icon_common_4.png"
-
 	local function SortedPools()
 		local ids = VariantPools.EnumerateIds()
 		local list = {}
@@ -10672,7 +10711,7 @@ local CreateStudioVariantPoolsCard = function(heightSpec)
 		caret:SetClass("expanded", expanded)
 
 		local glyph = gui.Panel{
-			bgimage = g_poolGlyph,
+			bgimage = PoolGlyph(poolid),
 			width = 16,
 			height = 16,
 			valign = "center",
@@ -10771,7 +10810,7 @@ local CreateStudioVariantPoolsCard = function(heightSpec)
 		local cueButton
 		cueButton = gui.Panel{
 			classes = {"audioCueButton"},
-			bgimage = "icons/icon_app/icon_app_23.png",
+			bgimage = "ui-icons/ph-headphones-fill.png",
 			width = 18,
 			height = 18,
 			valign = "center",
@@ -11201,7 +11240,7 @@ local CreateStudioVariantPoolsCard = function(heightSpec)
 
 					local grip = gui.Panel{
 						classes = {"audioTrackGrip"},
-						bgimage = "icons/icon_common/icon_common_4.png",
+						bgimage = "ui-icons/ph-dots-six-vertical-fill.png",
 						width = 14,
 						height = 14,
 						valign = "center",

@@ -1133,6 +1133,15 @@ function ActivatedAbilityAuraBehavior:CastOnArea(ability, casterToken, targets, 
 
         print("AURA:: CREATED")
 
+        --If the ability's area is a cube, give the aura a matching finite height (in
+        --tiles) so it only affects creatures within the cube's vertical extent rather
+        --than extending to infinite height. auraHeight of 0 leaves it unlimited, which
+        --is the correct behavior for flat shapes (bursts, cones, lines, etc).
+        local auraHeight = 0
+        if targetArea ~= nil and targetArea.shape == "Cube" then
+            auraHeight = targetArea.radius
+        end
+
         local obj = nil
         if self.aura.objectid ~= nil then
             obj = targetFloor:SpawnObjectLocal(self.aura.objectid)
@@ -1143,6 +1152,7 @@ function ActivatedAbilityAuraBehavior:CastOnArea(ability, casterToken, targets, 
                 }
                 obj:AddComponentFromJson("AURA", {
                     ["@class"] = "ObjectComponentAura",
+                    auraHeight = auraHeight,
                     properties = AuraComponent.new {
                         casterid = casterToken.id,
                         auraid = guid,

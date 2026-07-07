@@ -255,7 +255,8 @@ local function CreateMovementDiagramPanel()
 			dmhub.ClearMovementCrossSection()
 		end,
 		args = function(element, args)
-			if args == nil or args.movingToken == nil or args.movingPath == nil then
+			if args == nil or args.movingToken == nil or args.movingPath == nil or
+			   not dmhub.GetSettingValue("showmovementcrosssection") then
 				element.data.signature = nil
 				element:SetClass("collapsed", true)
 				dmhub.ClearMovementCrossSection()
